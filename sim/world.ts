@@ -24,7 +24,24 @@ const BOSS_ENRAGE_AFTER = 150;
 const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 
-const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
+const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6, pyres: 3 };
+
+// The Hoard: enemies idle in packs until pulled; a pulled train grows the Plunder pot.
+/** Idle enemies notice you inside this range. */
+export const AGGRO_RANGE = 170;
+/** A pulled enemy this far away loses interest and resets (an MMO leash). */
+export const LEASH_RANGE = 900;
+/** Share of the pot lost each time you are hit. */
+export const SPILL = 0.08;
+export const PYRE_RADIUS = 260;
+/** Plunder per second for a train of n: grows faster than linearly to reward greed. */
+export function plunderRate(n: number): number {
+  return n * (1 + n / 60) * 0.08;
+}
+/** Plunder multiplier shown to the player (drives XP from kills too). */
+export function hoardMult(n: number): number {
+  return 1 + Math.min(3, n / 40);
+}
 
 export interface Input {
   /** Desired move direction; any length, normalised inside. */
@@ -61,6 +78,14 @@ export interface Enemy {
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
   aux2: number;
+  /** Pulled into your train (chasing you) or idle in its pack. */
+  hooked: boolean;
+}
+
+export interface Pyre {
+  alive: boolean;
+  x: number;
+  y: number;
 }
 
 export interface Orb {
@@ -205,6 +230,9 @@ export type SimEvent =
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
   | { type: 'loot'; item: Item; equipped: boolean; delta: number }
   | { type: 'quest'; index: number }
+  | { type: 'pull'; n: number }
+  | { type: 'spill'; amount: number }
+  | { type: 'bank'; x: number; y: number; plunder: number; hoard: number; items: number }
   | { type: 'end'; victory: boolean };
 
 export type SimState = 'running' | 'draft' | 'ended';
@@ -243,6 +271,8 @@ export interface RunSummary {
   damageDealt: number;
   talents: Partial<Record<TalentId, number>>;
   questsDone?: number;
+  plunderBanked?: number;
+  bestHoard?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -274,6 +304,13 @@ export class World {
   bossPhase = 1;
   private brandT = 4;
   private nextVeinAt = 20;
+  /** Enemies currently in your train, and the unbanked Plunder they are worth. */
+  hoard = 0;
+  plunder = 0;
+  plunderBanked = 0;
+  bestHoard = 0;
+  banks = 0;
+  pyres: Pyre[];
   eliteKilled = false;
   revived = false;
   state: SimState = 'running';
@@ -331,7 +368,7 @@ export class World {
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
-      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, hooked: true,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
@@ -341,6 +378,11 @@ export class World {
     }));
     this.drops = pool(CAP.drops, () => ({ alive: false, x: 0, y: 0, item: null }));
     this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
+    this.pyres = pool(CAP.pyres, () => ({ alive: false, x: 0, y: 0 }));
+    if (!this.stress) {
+      this.placePyre(this.pyres[0], 0.4);
+      this.placePyre(this.pyres[1], 0.4 + Math.PI);
+    }
     const ids = opts.quests ?? this.pickQuests();
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
@@ -428,6 +470,7 @@ export class World {
     this.updateLances(dt);
     this.updateTelegraphs(dt);
     this.updateDrops();
+    this.updateHoard(dt);
     this.updateVeins(dt);
     this.updateGems(dt);
     this.checkEnd();
@@ -455,6 +498,8 @@ export class World {
       damageDealt: Math.round(this.damageDealt),
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
+      plunderBanked: Math.round(this.plunderBanked),
+      bestHoard: this.bestHoard,
     };
   }
 
@@ -510,7 +555,7 @@ export class World {
       this.spawnVein();
     }
 
-    let target = Math.min(28 + t * 0.6, 380);
+    let target = Math.min(40 + t * 0.8, 450);
     if (this.bossSpawned) target = 70;
     if (this.stress) target = 600;
 
@@ -525,8 +570,24 @@ export class World {
     }
 
     let budget = this.stress ? 40 : 6;
+    // Some of the Tide hunts you; the rest waits in packs for you to pull.
+    const hunters = this.bossSpawned ? 1 : Math.min(0.6, 0.3 + t / 1200);
     while (this.aliveEnemies < target && budget-- > 0) {
-      this.spawnAtRing(this.pickKind(t), SPAWN_RADIUS);
+      if (this.stress || this.rng.chance(hunters)) {
+        this.spawnAtRing(this.pickKind(t), SPAWN_RADIUS);
+        continue;
+      }
+      const size = 6 + this.rng.int(9);
+      const a = this.rng.next() * Math.PI * 2;
+      const r = 520 + this.rng.next() * 260;
+      const cx = this.player.x + Math.cos(a) * r;
+      const cy = this.player.y + Math.sin(a) * r;
+      const kind = this.pickKind(t);
+      for (let k = 0; k < size; k++) {
+        const j = this.spawn(kind, cx + this.rng.range(-55, 55), cy + this.rng.range(-55, 55));
+        if (j >= 0) this.enemies[j].hooked = false;
+      }
+      budget -= 2;
     }
   }
 
@@ -564,6 +625,7 @@ export class World {
     e.flash = 0;
     e.abilityT = def.rank === 'boss' ? 2 : def.stationary ? 1 : 4;
     e.spawnedAt = this.time;
+    e.hooked = true;
     e.castId = '';
     e.castName = '';
     e.castT = 0;
@@ -600,6 +662,11 @@ export class World {
 
   private hurtPlayer(amount: number): void {
     if (this.invulnerable || this.player.shieldT > 0) return;
+    if (this.plunder > 1) {
+      const lost = this.plunder * SPILL;
+      this.plunder -= lost;
+      this.events.push({ type: 'spill', amount: lost });
+    }
     const p = this.player;
     p.hp -= amount;
     p.hurtFlash = 0.15;
@@ -948,8 +1015,21 @@ export class World {
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
-      let mx = (dx / d) * speed;
-      let my = (dy / d) * speed;
+      if (e.def.rank === 'normal') {
+        if (!e.hooked && d < AGGRO_RANGE) this.hook(i);
+        else if (e.hooked && d > LEASH_RANGE) e.hooked = false;
+      }
+      let mx: number;
+      let my: number;
+      if (e.hooked) {
+        mx = (dx / d) * speed;
+        my = (dy / d) * speed;
+      } else {
+        // Idle packs mill about where they stand.
+        const wa = this.time * 0.7 + i * 1.7;
+        mx = Math.cos(wa) * speed * 0.15;
+        my = Math.sin(wa * 1.3) * speed * 0.15;
+      }
 
       // Separation so the horde reads as a crowd, not a single blob.
       if (e.def.rank === 'normal') {
@@ -985,7 +1065,7 @@ export class World {
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
+      if (e.hooked && d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
         e.touchCd = 0.6;
         const mult = e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1;
         this.hurtPlayer(e.def.damage * mult * this.tierDamage);
@@ -1174,6 +1254,7 @@ export class World {
   private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false): void {
     const e = this.enemies[i];
     if (!e.alive) return;
+    if (!e.hooked) this.hook(i);
     let dmg = amount;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
@@ -1330,8 +1411,77 @@ export class World {
 
   // ---------------------------------------------------------------- loot
 
-  private makeItem(min: Rarity): Item {
-    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min);
+  private makeItem(min: Rarity, luck = this.luck): Item {
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, luck, min);
+  }
+
+  // ---------------------------------------------------------------- the hoard
+
+  /** Pulls an idle enemy, and its whole pack with it, into your train. */
+  private hook(i: number): void {
+    const e = this.enemies[i];
+    if (e.hooked) return;
+    e.hooked = true;
+    let n = 1;
+    this.forEachNear(e.x, e.y, 90, (j) => {
+      const o = this.enemies[j];
+      if (!o.hooked && o.def.rank === 'normal') {
+        o.hooked = true;
+        n++;
+      }
+    });
+    this.events.push({ type: 'pull', n });
+  }
+
+  private placePyre(py: Pyre, angle?: number): void {
+    const a = angle ?? this.rng.next() * Math.PI * 2;
+    const r = angle === undefined ? 520 + this.rng.next() * 200 : 420;
+    py.alive = true;
+    py.x = this.player.x + Math.cos(a) * r;
+    py.y = this.player.y + Math.sin(a) * r;
+  }
+
+  private updateHoard(dt: number): void {
+    let n = 0;
+    const p = this.player;
+    for (const e of this.enemies) {
+      if (e.alive && e.hooked && e.def.rank === 'normal' && !e.def.stationary && dist2(p.x, p.y, e.x, e.y) < 600 * 600) n++;
+    }
+    this.hoard = n;
+    if (n > this.bestHoard) this.bestHoard = n;
+    if (this.stress) return;
+    this.plunder += plunderRate(n) * (1 + 0.1 * (this.tier - 1)) * dt;
+    for (const py of this.pyres) {
+      if (!py.alive) continue;
+      // Pyres too far behind move closer, so one is always reachable.
+      if (dist2(p.x, p.y, py.x, py.y) > 1400 * 1400) this.placePyre(py);
+      else if (this.plunder >= 25 && dist2(p.x, p.y, py.x, py.y) <= 52 * 52) this.bank(py);
+    }
+  }
+
+  /** Banks the pot at a Pyre: it erupts under your train and pays out XP and loot. */
+  private bank(py: Pyre): void {
+    const pot = this.plunder;
+    const hoard = this.hoard;
+    const dmg = 220 * this.dmgMult;
+    this.forEachNear(py.x, py.y, PYRE_RADIUS + 40, (i) => {
+      const e = this.enemies[i];
+      if (dist2(py.x, py.y, e.x, e.y) > (PYRE_RADIUS + e.def.radius) ** 2) return;
+      this.damageEnemy(i, dmg, true);
+      if (e.alive) {
+        e.burnDps = Math.max(e.burnDps, 25 * this.dmgMult);
+        e.burnT = 4;
+      }
+    });
+    this.gainXp(pot * 0.25);
+    const items = Math.min(4, Math.floor(pot / 300));
+    const min: Rarity = pot >= 1500 ? 'epic' : pot >= 900 ? 'rare' : pot >= 450 ? 'fine' : 'common';
+    for (let k = 0; k < items; k++) this.pickUp(this.makeItem(k === 0 ? min : 'common', this.luck * (1 + pot / 800)));
+    this.plunderBanked += pot;
+    this.banks++;
+    this.plunder = 0;
+    this.events.push({ type: 'bank', x: py.x, y: py.y, plunder: pot, hoard, items });
+    this.placePyre(py);
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {
@@ -1559,7 +1709,7 @@ export class World {
     const m2 = maxDist * maxDist;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive) continue;
+      if (!e.alive || !e.hooked) continue;
       const d = dist2(x, y, e.x, e.y);
       if (d > m2) continue;
       if (best.length < n) best.push({ i, d });
@@ -1577,7 +1727,7 @@ export class World {
     const m2 = maxDist * maxDist;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (e.alive && dist2(x, y, e.x, e.y) <= m2) cands.push(i);
+      if (e.alive && e.hooked && dist2(x, y, e.x, e.y) <= m2) cands.push(i);
     }
     return cands.length ? cands[this.rng.int(cands.length)] : -1;
   }

@@ -21,7 +21,7 @@ export function botCast(w: World, skill = 1): number | undefined {
   let bigNear = false;
   let bigInReach = false;
   for (const e of w.enemies) {
-    if (!e.alive) continue;
+    if (!e.alive || !e.hooked) continue;
     const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
     if (e.def.rank !== 'normal' || e.def.stationary) {
       if (d2 < 230 * 230) bigNear = true;
@@ -42,7 +42,7 @@ export function botInput(w: World, skill = 1): Input {
   let fx = 0;
   let fy = 0;
   for (const e of w.enemies) {
-    if (!e.alive) continue;
+    if (!e.alive || !e.hooked) continue;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const d2 = dx * dx + dy * dy;
@@ -123,6 +123,35 @@ export function botInput(w: World, skill = 1): Input {
     const k = threat < 0.01 ? 0.03 : 0.015;
     fx += (ox / (od || 1)) * k;
     fy += (oy / (od || 1)) * k;
+  }
+  // The Hoard: pull packs while healthy, then drag the train to a Pyre to bank it.
+  const wantBank = w.plunder >= 220 + 3 * w.hoard * skill || (p.hp < p.maxHp * 0.45 && w.plunder >= 30);
+  if (wantBank) {
+    let bd = Infinity;
+    let bx = 0;
+    let by = 0;
+    for (const py of w.pyres) {
+      if (!py.alive) continue;
+      const d = Math.hypot(py.x - p.x, py.y - p.y);
+      if (d < bd) { bd = d; bx = py.x - p.x; by = py.y - p.y; }
+    }
+    if (bd < Infinity) {
+      fx += (bx / (bd || 1)) * 0.05;
+      fy += (by / (bd || 1)) * 0.05;
+    }
+  } else if (w.hoard < 30 + 40 * skill && p.hp > p.maxHp * 0.6) {
+    let bd = 650;
+    let bx = 0;
+    let by = 0;
+    for (const e of w.enemies) {
+      if (!e.alive || e.hooked) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < bd) { bd = d; bx = e.x - p.x; by = e.y - p.y; }
+    }
+    if (bd < 650) {
+      fx += (bx / (bd || 1)) * 0.012;
+      fy += (by / (bd || 1)) * 0.012;
+    }
   }
   const cast = botCast(w, skill);
   if ((soaking || onVein) && threat < 0.012) return { x: 0, y: 0, cast };

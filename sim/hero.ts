@@ -60,7 +60,7 @@ export function pointsAvailable(h: HeroProfile): number {
 /** Hero XP from a run: survives and kills both count, a loss still pays. */
 export function heroXpForRun(s: RunSummary): number {
   const tier = s.tier ?? 1;
-  return Math.round((s.kills * 0.06 + s.time * 0.5 + (s.victory ? 120 : 0)) * (1 + 0.1 * (tier - 1)));
+  return Math.round((s.kills * 0.06 + s.time * 0.5 + (s.plunderBanked ?? 0) * 0.04 + (s.victory ? 120 : 0)) * (1 + 0.1 * (tier - 1)));
 }
 
 /** Loadout: everything the hero brings into a run, as multipliers the sim reads. */
