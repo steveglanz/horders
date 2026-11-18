@@ -40,11 +40,38 @@ describe('simulation', () => {
     expect(w.rollDraft().map((c) => c.id)).toContain('phoenixLance');
   });
 
-  it('reaches the mini-boss and boss in a bot run', () => {
+  it('plays a dungeon route through to the boss', () => {
     const w = runBot(1);
-    expect(w.eliteSpawned).toBe(true);
+    expect(w.route).toHaveLength(5);
+    expect(w.route[4]).toBe('kilnMother');
+    expect(w.encounter).toBeGreaterThanOrEqual(4);
     expect(w.bossSpawned).toBe(true);
     expect(w.state).toBe('ended');
+  });
+
+  it('opens a talent draft only between fights', () => {
+    const w = new World({ seed: 11 });
+    let sawDraftInFight = false;
+    while (w.state !== 'ended' && w.time < 200) {
+      if (w.state === 'draft') {
+        if (w.phase === 'fight') sawDraftInFight = true;
+        w.choose(botChoose(w));
+      } else w.step(botInput(w));
+    }
+    expect(sawDraftInFight).toBe(false);
+    expect(w.encounter).toBeGreaterThanOrEqual(2);
+  });
+
+  it('interrupting a cast removes its telegraph and stuns the caster', () => {
+    const w = new World({ seed: 5, route: ['brute', 'brute', 'brute', 'brute', 'kilnMother'] });
+    while (!w.enemies.some((e) => e.alive && e.castId === 'groundPound') && w.time < 60) w.step({ x: 0, y: 0 });
+    const i = w.enemies.findIndex((e) => e.alive && e.castId === 'groundPound');
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(w.telegraphs.some((t) => t.alive && t.owner === i)).toBe(true);
+    w.step({ x: 0, y: 0, cast: 3 });
+    expect(w.enemies[i].castId).toBe('');
+    expect(w.enemies[i].stunT).toBeGreaterThan(0);
+    expect(w.telegraphs.some((t) => t.alive && t.owner === i)).toBe(false);
   });
 
   it('simulates 600 enemies well inside a frame budget', () => {

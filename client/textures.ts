@@ -118,8 +118,8 @@ export function buildTextures(scene: Phaser.Scene): void {
 
   // The Hollow Tide.
   make(scene, 'ashling', 24, (ctx, s) => creature(ctx, s, '#3b3140', '#6d5e72', '#ff5a3c', 0.12, 7));
-  make(scene, 'cinderhound', 22, (ctx, s) => creature(ctx, s, '#4a2418', '#9c4a2a', '#ffd23c', 0.1, 5));
-  make(scene, 'husk', 40, (ctx, s) => creature(ctx, s, '#231c22', '#4d404b', '#ff3b6b', 0.1, 9));
+  make(scene, 'cinderhound', 30, (ctx, s) => creature(ctx, s, '#4a2418', '#9c4a2a', '#ffd23c', 0.1, 5));
+  make(scene, 'husk', 54, (ctx, s) => creature(ctx, s, '#231c22', '#4d404b', '#ff3b6b', 0.1, 9));
   make(scene, 'cinderBrute', 64, (ctx, s) => creature(ctx, s, '#3a1712', '#b0452a', '#ffe16b', 0.11, 11));
   make(scene, 'kilnMother', 112, (ctx, s) => {
     creature(ctx, s, '#1d1013', '#7a2b22', '#ff3b6b', 0.09, 14);

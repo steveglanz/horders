@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
-import { World, BOSS_AT, MINI_BOSS_AT, RARE_AT } from '../sim/world';
+import { World } from '../sim/world';
 import { ABILITIES, BRANCH_NAMES, CAPSTONE_RANKS, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
-import { QUESTS } from '../sim/content/quests';
+import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
 import { HeroProfile, RunRewards } from '../sim/hero';
 
@@ -116,12 +116,12 @@ export class Hud {
     $('level').textContent = String(p.level);
     $('timer').textContent = fmt(w.time);
     $('kills').textContent = String(w.kills);
+    $('killsLabel').textContent = w.stress ? 'kills' : 'slain';
     let next = '';
     if (w.stress) next = 'Stress test';
-    else if (!w.rareSpawned) next = `Rare in ${fmt(RARE_AT - w.time)}`;
-    else if (!w.eliteSpawned) next = `Brute in ${fmt(MINI_BOSS_AT - w.time)}`;
-    else if (!w.bossSpawned) next = `Boss in ${fmt(BOSS_AT - w.time)}`;
-    else next = w.bossEnraged ? 'Boss enraged!' : 'Boss fight';
+    else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} in ${Math.ceil(w.phaseT)}`;
+    else if (w.bossEnraged) next = 'Boss enraged!';
+    else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
     $('next').textContent = next;
 
     // Heat and action bar.
@@ -200,13 +200,17 @@ export class Hud {
 
   private questKey = '';
 
+  /** The dungeon route, like an MMO dungeon's boss list. */
   private updateQuests(w: World): void {
-    const key = w.quests.map((q) => q.progress).join(',');
+    const key = `${w.encounter}:${w.phase}`;
     if (key === this.questKey) return;
     this.questKey = key;
-    $('quests').innerHTML = '<h3>Quests</h3>' + w.quests.map((q) => {
-      const def = QUESTS[q.id];
-      return `<div class="q${q.done ? ' done' : ''}"><div class="qn">${def.name}</div><div class="qp">${def.text}: ${Math.min(q.progress, q.goal)}/${q.goal}</div></div>`;
+    if (w.stress) { $('quests').innerHTML = ''; return; }
+    $('quests').innerHTML = '<h3>The Kiln Depths</h3>' + w.route.map((id, i) => {
+      const def = ENCOUNTERS[id];
+      const done = i < w.encounter;
+      const now = i === w.encounter;
+      return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${def.tip}</div>` : ''}</div>`;
     }).join('');
   }
 
@@ -301,7 +305,7 @@ export class Hud {
     const lines: string[] = [];
     if (rewards && hero) {
       lines.push(`<div class="line">+${rewards.heroXp} hero experience${rewards.levelsGained ? ` · <b style="color:var(--gold)">Hero level ${hero.level}!</b>` : ''}</div>`);
-      lines.push(`<div class="line muted">Quests completed: ${s.questsDone ?? 0} of ${w.quests.length}</div>`);
+      lines.push(`<div class="line muted">Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}</div>`);
       const equipped = new Set(Object.values(hero.equipped));
       lines.push(...rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '')}</div>`));
     }
@@ -311,11 +315,11 @@ export class Hud {
       ? 'Smolderhusk falls. Emberhold will sing of this.'
       : w.bossSpawned
         ? 'So close. The Kiln Mother still burns.'
-        : 'Every delve makes you stronger. Try another build.';
+        : `${w.encounterDef.name} bested you. Your gear and levels carry into the next delve.`;
     $('stats').innerHTML = [
       ['Time', fmt(s.time)],
       ['Level', String(s.level)],
-      ['Kills', String(s.kills)],
+      ['Slain', String(s.kills)],
       ['Damage', s.damageDealt.toLocaleString()],
     ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])

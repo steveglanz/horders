@@ -25,12 +25,14 @@ for (const seed of seeds) {
       if (ev.type === 'riftClosed') bump('rift');
       if (ev.type === 'phase') bump('phase' + ev.phase);
       if (ev.type === 'bossSpawn') bossAt = w.time;
+      if (ev.type === 'encounterStart') c['t' + ev.index] = -Math.round(w.time);
+      if (ev.type === 'encounterClear') c['t' + ev.index] += Math.round(w.time);
       if (ev.type === 'kill' && ev.kind === 'ashmaw') c.ashmawAt = Math.round(w.time);
     }
   }
   const s = w.summary();
   if (s.victory) wins++;
-  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)}s lvl=${s.level} hp=${w.player.hp.toFixed(0)} bossFight=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} quests=${s.questsDone}/3 [${w.quests.map((q) => q.id + ' ' + q.progress + '/' + q.goal).join(', ')}]`);
+  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)}s lvl=${s.level} hp=${w.player.hp.toFixed(0)} bossFight=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter}/5 route=${w.route.join(',')}`);
   console.log('   ', JSON.stringify(c));
 }
 console.log(`wins ${wins}/${seeds.length}`);

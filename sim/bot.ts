@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { Input, World } from './world';
+import { ARENA, Input, World } from './world';
 import { TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
@@ -101,6 +101,26 @@ export function botInput(w: World, skill = 1): Input {
         fy += (dy / d) * 0.03 * skill;
       }
     }
+  }
+  // Don't get pinned against the arena wall.
+  const fromCenter = Math.hypot(p.x, p.y);
+  if (!w.stress && fromCenter > ARENA - 140) {
+    const k = ((fromCenter - (ARENA - 140)) / 140) * 0.04;
+    fx -= (p.x / fromCenter) * k;
+    fy -= (p.y / fromCenter) * k;
+  }
+  // Close in when every foe is out of comfortable range.
+  let nd = Infinity;
+  let nx = 0;
+  let ny = 0;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < nd) { nd = d; nx = e.x - p.x; ny = e.y - p.y; }
+  }
+  if (nd > 380 && nd < Infinity) {
+    fx += (nx / nd) * 0.01;
+    fy += (ny / nd) * 0.01;
   }
   // Objectives: loot on the ground, ember veins and rifts, when it is calm enough.
   const threat = Math.hypot(fx, fy);

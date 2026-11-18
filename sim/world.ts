@@ -12,12 +12,17 @@ import { ABILITIES, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentId } f
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
+import { ENCOUNTERS, EncounterId, rollRoute } from './content/dungeon';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
 export const BOSS_AT = 480; // seconds
 export const SPAWN_RADIUS = 700;
 export const RARE_AT = 150;
+/** Radius of the dungeon arena; everything stays inside it. */
+export const ARENA = 560;
+/** Seconds between a cleared fight (after the draft) and the next one. */
+export const INTRO_TIME = 2.5;
 export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
 /** Chance that a normal enemy drops an item. */
@@ -205,6 +210,8 @@ export type SimEvent =
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
   | { type: 'loot'; item: Item; equipped: boolean; delta: number }
   | { type: 'quest'; index: number }
+  | { type: 'encounterStart'; index: number; id: EncounterId }
+  | { type: 'encounterClear'; index: number; id: EncounterId }
   | { type: 'end'; victory: boolean };
 
 export type SimState = 'running' | 'draft' | 'ended';
@@ -228,8 +235,10 @@ export interface WorldOptions {
   heroLevel?: number;
   /** First free item id, so run drops never collide with the hero's bag. */
   nextItemId?: number;
-  /** Which quests to offer; picked at random when left out. */
+  /** Which quests to offer (none by default in the dungeon). */
   quests?: QuestId[];
+  /** Fixed encounter route; rolled from the seed when left out. */
+  route?: EncounterId[];
   /** Difficulty tier, 1 and up. Higher tiers hit harder and drop better loot. */
   tier?: number;
 }
@@ -274,6 +283,11 @@ export class World {
   bossPhase = 1;
   private brandT = 4;
   private nextVeinAt = 20;
+  /** The dungeon: the route of fights, which one is next, and where we are in it. */
+  route: EncounterId[] = [];
+  encounter = 0;
+  phase: 'intro' | 'fight' | 'cleared' = 'intro';
+  phaseT = INTRO_TIME;
   eliteKilled = false;
   revived = false;
   state: SimState = 'running';
@@ -341,8 +355,9 @@ export class World {
     }));
     this.drops = pool(CAP.drops, () => ({ alive: false, x: 0, y: 0, item: null }));
     this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
-    const ids = opts.quests ?? this.pickQuests();
+    const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
+    this.route = opts.route ?? rollRoute((n) => this.rng.int(n));
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
   }
@@ -416,7 +431,8 @@ export class World {
     this.tick++;
     this.time += dt;
 
-    this.director();
+    if (this.stress) this.director();
+    else this.dungeon(dt);
     this.updatePlayer(input, dt);
     this.rebuildHash();
     this.updateAbilities(input, dt);
@@ -476,6 +492,80 @@ export class World {
   }
 
   // ---------------------------------------------------------------- spawning
+
+  // ---------------------------------------------------------------- dungeon
+
+  get encounterDef() {
+    return ENCOUNTERS[this.route[Math.min(this.encounter, this.route.length - 1)]];
+  }
+
+  private dungeon(dt: number): void {
+    if (this.phase === 'intro') {
+      this.phaseT -= dt;
+      if (this.phaseT <= 0) this.startEncounter();
+      return;
+    }
+    if (this.phase === 'fight' && this.aliveEnemies === 0 && !this.victory) this.clearEncounter();
+  }
+
+  private startEncounter(): void {
+    const def = this.encounterDef;
+    this.phase = 'fight';
+    const p = this.player;
+    // Enter from the far side of the arena.
+    const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
+    const n = def.spawns.reduce((a, s) => a + s.n, 0);
+    let k = 0;
+    let lead = -1;
+    for (const sp of def.spawns) {
+      for (let j = 0; j < sp.n; j++, k++) {
+        const a = base + (k - (n - 1) / 2) * 0.35;
+        const r = ARENA - 60;
+        const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
+        if (i < 0) continue;
+        const e = this.enemies[i];
+        if (sp.kind === 'acolyte') {
+          e.aux = a;
+          e.aux2 = lead;
+        } else if (lead < 0) lead = i;
+        if (sp.kind === 'kilnMother') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          e.aux = 12; // first Molten Cataclysm
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'cinderBrute') this.eliteSpawned = true;
+        if (sp.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
+      }
+    }
+    this.events.push({ type: 'encounterStart', index: this.encounter, id: def.id });
+  }
+
+  private clearEncounter(): void {
+    const def = this.encounterDef;
+    const p = this.player;
+    this.events.push({ type: 'encounterClear', index: this.encounter, id: def.id });
+    // Every clear is a level: a talent draft, some healing, and a loot bag.
+    p.level++;
+    p.pendingLevels++;
+    this.events.push({ type: 'levelUp', level: p.level });
+    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
+    const min: Rarity = this.encounter >= 3 ? 'rare' : this.encounter >= 2 ? 'fine' : 'common';
+    this.dropLoot(p.x + 40, p.y, min);
+    this.encounter++;
+    this.phase = 'intro';
+    this.phaseT = INTRO_TIME;
+  }
+
+  private clampArena(o: { x: number; y: number }, r: number): void {
+    if (this.stress) return;
+    const d = Math.hypot(o.x, o.y);
+    const max = ARENA - r;
+    if (d > max) {
+      o.x *= max / d;
+      o.y *= max / d;
+    }
+  }
 
   private director(): void {
     const t = this.time;
@@ -550,7 +640,8 @@ export class World {
     const def = ENEMIES[kind];
     const e = this.enemies[idx];
     const tierHp = Math.pow(1.22, this.tier - 1);
-    const scale = (def.rank === 'normal' && !def.stationary ? 1 + this.time / 220 : 1) * tierHp;
+    const depth = this.stress ? 1 : def.rank === 'boss' ? 1 : 1 + 0.12 * this.encounter;
+    const scale = (this.stress && def.rank === 'normal' ? 1 + this.time / 220 : depth) * tierHp;
     e.alive = true;
     e.kind = kind;
     e.def = def;
@@ -589,6 +680,7 @@ export class World {
       p.y += input.y * k * this.moveSpeed * dt;
       p.facing = Math.atan2(input.y, input.x);
     }
+    this.clampArena(p, PLAYER_RADIUS);
     p.hp = Math.min(p.maxHp, p.hp + this.regen * dt);
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
     if (this.stress) p.hp = p.maxHp;
@@ -666,6 +758,7 @@ export class World {
     const y1 = p.y;
     p.x += Math.cos(ang) * 170;
     p.y += Math.sin(ang) * 170;
+    this.clampArena(p, PLAYER_RADIUS);
     p.px = p.x;
     p.py = p.y;
     p.shieldT = 0.3 + 0.6 * this.rank('flicker');
@@ -951,8 +1044,8 @@ export class World {
       let mx = (dx / d) * speed;
       let my = (dy / d) * speed;
 
-      // Separation so the horde reads as a crowd, not a single blob.
-      if (e.def.rank === 'normal') {
+      // Separation so a group reads as separate foes, not a single blob.
+      if (e.def.rank !== 'boss') {
         let sx = 0;
         let sy = 0;
         let count = 0;
@@ -982,6 +1075,7 @@ export class World {
 
       e.x += mx * dt;
       e.y += my * dt;
+      this.clampArena(e, e.def.radius);
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
@@ -1021,9 +1115,10 @@ export class World {
       }
       return;
     }
-    if (e.kind === 'acolyte' && this.bossIndex >= 0) {
-      const b = this.enemies[this.bossIndex];
-      if (b.alive && b.def.rank === 'boss') {
+    const ward = e.kind === 'acolyte' ? e.aux2 : -1;
+    if (ward >= 0) {
+      const b = this.enemies[ward];
+      if (b.alive && b.def.rank !== 'normal') {
         // Acolytes circle the Kiln Mother and channel heat into her.
         e.aux += 0.35 * dt;
         e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
@@ -1092,6 +1187,23 @@ export class World {
       }
       return;
     }
+    if (e.kind === 'cinderhound') {
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < 160 * 160) {
+        e.abilityT = 3.5 + this.rng.next();
+        const ang = Math.atan2(p.y - e.y, p.x - e.x);
+        this.startCast(i, 'snap', 'Snap', 0.6, false);
+        this.addTelegraph('cone', e.x, e.y, 95, ang, (70 * Math.PI) / 180, 0.6, 12, 'hit', i);
+      }
+      return;
+    }
+    if (e.kind === 'husk') {
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < 220 * 220) {
+        e.abilityT = 4.5;
+        this.startCast(i, 'slam', 'Warden Slam', 1.2, false);
+        this.addTelegraph('circle', e.x, e.y, 115, 0, 0, 1.2, 24, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'ashmaw') {
       if (e.abilityT <= 0) {
         e.abilityT = 5;
@@ -1127,7 +1239,10 @@ export class World {
         for (const side of [-1, 1]) {
           const a = Math.atan2(p.y - e.y, p.x - e.x) + side * Math.PI / 2;
           const k = this.spawn('acolyte', e.x + Math.cos(a) * ACOLYTE_RING, e.y + Math.sin(a) * ACOLYTE_RING);
-          if (k >= 0) this.enemies[k].aux = a;
+          if (k >= 0) {
+            this.enemies[k].aux = a;
+            this.enemies[k].aux2 = i;
+          }
         }
         this.brandT = 3;
       }
@@ -1163,7 +1278,7 @@ export class World {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
       this.addTelegraph('cone', e.x, e.y, 320, ang, (70 * Math.PI) / 180, 1.1, 30 * mult);
     } else {
-      const n = phase === 3 ? 30 : 22;
+      const n = phase === 3 ? 10 : 7;
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
@@ -1212,7 +1327,6 @@ export class World {
       this.victory = true;
       // The run ends on this tick, so boss loot goes straight to the bags.
       this.pickUp(this.makeItem('epic'));
-      this.pickUp(this.makeItem('epic'));
       return;
     }
     if (e.kind === 'cinderhound') this.progressQuest('hounds');
@@ -1226,14 +1340,14 @@ export class World {
       this.dropLoot(e.x, e.y, 'rare');
     }
     if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'fine');
-    if (e.def.rank === 'normal' && !e.def.stationary && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'common');
+    if (this.stress && e.def.rank === 'normal' && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'common');
     if (e.kind === 'cinderBrute') {
       this.eliteKilled = true;
       // Elite chest: a free bonus draft.
       this.events.push({ type: 'chest', x: e.x, y: e.y });
       this.player.pendingLevels++;
     }
-    if (e.def.xp > 0) this.dropGem(e.x, e.y, e.def.xp);
+    if (e.def.xp > 0 && this.stress) this.dropGem(e.x, e.y, e.def.xp);
   }
 
   // ---------------------------------------------------------------- effects
@@ -1307,9 +1421,9 @@ export class World {
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
         if (!ok) {
           this.hurtPlayer(t.dmg * this.tierDamage);
-          for (let k = 0; k < 8; k++) {
-            const a = (k / 8) * Math.PI * 2;
-            this.spawn('husk', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
+          for (let k = 0; k < 6; k++) {
+            const a = (k / 6) * Math.PI * 2;
+            this.spawn('ashling', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
           }
         }
         continue;
@@ -1403,7 +1517,7 @@ export class World {
 
   // ---------------------------------------------------------------- quests
 
-  private pickQuests(): QuestId[] {
+  pickQuests(): QuestId[] {
     const all = Object.keys(QUESTS) as QuestId[];
     all.splice(this.rng.int(all.length), 1);
     return all;
@@ -1453,7 +1567,7 @@ export class World {
         }
       }
     }
-    if (this.player.pendingLevels > 0 && this.state === 'running') this.openDraft();
+    if (this.player.pendingLevels > 0 && this.state === 'running' && this.phase !== 'fight') this.openDraft();
   }
 
   private gainXp(v: number): void {

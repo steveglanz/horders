@@ -3,7 +3,8 @@
  * into `World.step` at a fixed rate and renders interpolated state.
  */
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
+import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { buildTextures } from './textures';
 import { Hud } from './ui';
@@ -256,10 +257,10 @@ export class GameScene extends Phaser.Scene {
         this.acc -= TICK;
         this.handleEvents(w.events);
       }
-      if ((w.state as string) === 'draft') {
-        if (this.autopilot && this.autoPick) this.pick(botChoose(w));
-        else this.hud.showDraft(w);
-      }
+    }
+    if (!this.paused && w.state === 'draft') {
+      if (this.autopilot && this.autoPick) this.pick(botChoose(w));
+      else this.hud.showDraft(w);
     }
     const alpha = w.state === 'running' && !this.paused ? this.acc / TICK : 1;
     this.render(alpha, deltaMs / 1000);
@@ -306,7 +307,6 @@ export class GameScene extends Phaser.Scene {
         case 'levelUp':
           this.burst(w.player.x, w.player.y, 16);
           this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
-          this.hud.ding(`Level ${ev.level}`);
           break;
         case 'ability':
           if (ev.slot === 0) {
@@ -368,8 +368,15 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case 'bossSpawn':
-          this.hud.banner('Smolderhusk, the Kiln Mother', 'Dodge the red, interrupt her Cataclysm');
           this.shake = 0.6;
+          break;
+        case 'encounterStart': {
+          const def = ENCOUNTERS[ev.id];
+          this.hud.banner(def.name, def.tip);
+          break;
+        }
+        case 'encounterClear':
+          this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
         case 'bossEnrage':
           this.hud.banner('The Kiln Mother is enraged', 'Finish it, fast');
@@ -497,6 +504,12 @@ export class GameScene extends Phaser.Scene {
     // Telegraphs, lances, beams and health bars are redrawn each frame.
     const g = this.gfx;
     g.clear();
+    if (!w.stress) {
+      // The arena: darkness beyond the edge, an ember rim on it.
+      g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, ARENA + 450);
+      g.lineStyle(4, 0xff8a3d, 0.55).strokeCircle(0, 0, ARENA);
+      g.lineStyle(14, 0xff5a1f, 0.12).strokeCircle(0, 0, ARENA + 6);
+    }
     let soakShown = false;
     for (const t of w.telegraphs) {
       if (!t.alive) continue;

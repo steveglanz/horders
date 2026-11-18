@@ -22,11 +22,11 @@ export type EnemyKind =
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
-  cinderhound: { id: 'cinderhound', name: 'Cinderhound', hp: 7, speed: 92, damage: 5, radius: 8, xp: 1, rank: 'normal' },
-  husk: { id: 'husk', name: 'Hollow Husk', hp: 48, speed: 34, damage: 10, radius: 15, xp: 4, rank: 'normal' },
+  cinderhound: { id: 'cinderhound', name: 'Cinderhound', hp: 150, speed: 100, damage: 7, radius: 11, xp: 1, rank: 'elite', title: 'Pack hunter' },
+  husk: { id: 'husk', name: 'Hollow Warden', hp: 700, speed: 40, damage: 14, radius: 20, xp: 4, rank: 'elite', title: 'Guardian' },
   rift: { id: 'rift', name: 'Hollow Rift', hp: 420, speed: 0, damage: 0, radius: 22, xp: 12, rank: 'normal', stationary: true },
-  acolyte: { id: 'acolyte', name: 'Ember Acolyte', hp: 380, speed: 0, damage: 8, radius: 14, xp: 8, rank: 'elite', stationary: true, title: 'Heals the Kiln Mother' },
-  cinderBrute: { id: 'cinderBrute', name: 'Cinder Brute', hp: 900, speed: 46, damage: 18, radius: 26, xp: 40, rank: 'elite', title: 'Elite' },
-  ashmaw: { id: 'ashmaw', name: 'Ashmaw the Glutton', hp: 1300, speed: 58, damage: 14, radius: 24, xp: 50, rank: 'rare', title: 'Rare' },
-  kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 5500, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
+  acolyte: { id: 'acolyte', name: 'Ember Acolyte', hp: 380, speed: 0, damage: 8, radius: 14, xp: 8, rank: 'elite', stationary: true, title: 'Healer' },
+  cinderBrute: { id: 'cinderBrute', name: 'Cinder Brute', hp: 1500, speed: 46, damage: 18, radius: 26, xp: 40, rank: 'elite', title: 'Elite' },
+  ashmaw: { id: 'ashmaw', name: 'Ashmaw the Glutton', hp: 1700, speed: 58, damage: 14, radius: 24, xp: 50, rank: 'rare', title: 'Rare' },
+  kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
 };

@@ -145,11 +145,13 @@ function rollRarity(rng: Rng, luck: number): Rarity {
 
 export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number): Item {
   const main = SLOT_MAIN[slot];
-  const stats: { stat: Stat; value: number }[] = [{ stat: main, value: round1(STATS[main].perLevel * ilvl * 1.5) }];
+  // A flat base keeps early drops meaningful; item level still scales them.
+  const lvl = ilvl + 5;
+  const stats: { stat: Stat; value: number }[] = [{ stat: main, value: round1(STATS[main].perLevel * lvl * 1.6) }];
   const pool = (Object.keys(STATS) as Stat[]).filter((s) => s !== main);
   for (let k = 0; k < RARITY[rarity].bonusStats && pool.length; k++) {
     const stat = pool.splice(rng.int(pool.length), 1)[0];
-    stats.push({ stat, value: round1(STATS[stat].perLevel * ilvl * rng.range(0.7, 1.2)) });
+    stats.push({ stat, value: round1(STATS[stat].perLevel * lvl * rng.range(0.7, 1.2)) });
   }
   const prefixes = RARITY_PREFIX[rarity];
   const nouns = SLOT_NAMES[slot];
@@ -175,7 +177,7 @@ export function rollLoot(
 ): { items: Item[]; pity: number } {
   const rng = new Rng(seed ^ 0x9e3779b9);
   // Most loot now drops during the run; the end chest is a small top-up.
-  const count = runDrops.length ? 1 + (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
+  const count = runDrops.length ? (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
   const tier = s.tier ?? 1;
   const baseIlvl = hero.level + (s.victory ? 2 : 0) + (tier - 1);
   const luck = (s.victory ? 1.6 : 1) * (1 + 0.12 * (tier - 1));
