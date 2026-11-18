@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#120b0a" />
+<title>Horders</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #120b0a; --panel: rgba(28, 18, 16, 0.92); --line: rgba(255, 170, 90, 0.25);
+    --ink: #f6e9dc; --muted: #b9a596; --ember: #ff8a3d; --gold: #ffc861; --xp: #4fe3c1; --danger: #ff3b6b;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; }
+  [hidden] { display: none !important; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  #touch { position: fixed; inset: 0; z-index: 5; }
+  #stickBase { position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,200,140,0.35); background: rgba(255,140,60,0.08); z-index: 6; pointer-events: none; }
+  #stickKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,170,90,0.55); transform: translate(-50%, -50%); }
+
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); }
+  .xpbar { position: fixed; left: 0; right: 0; top: 0; height: 6px; background: rgba(0,0,0,0.5); }
+  #xpFill { height: 100%; width: 0; background: linear-gradient(90deg, #2bb59a, var(--xp)); transition: width 0.1s linear; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .lvl { width: 38px; height: 38px; border-radius: 50%; background: var(--panel); border: 2px solid var(--xp); display: grid; place-items: center; font-weight: 700; font-size: 16px; }
+  .hp { position: relative; width: min(42vw, 240px); height: 18px; border-radius: 9px; background: rgba(0,0,0,0.6); border: 1px solid var(--line); overflow: hidden; }
+  #hpFill { height: 100%; width: 100%; background: linear-gradient(90deg, #c2302a, #ff6a4a); transition: width 0.12s; }
+  #hpText { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+  .stat { margin-left: auto; white-space: nowrap; text-align: right; font-size: 13px; line-height: 1.25; text-shadow: 0 1px 3px #000; }
+  .stat b { font-size: 18px; font-variant-numeric: tabular-nums; }
+  #next { color: var(--gold); font-size: 12px; }
+  #pauseBtn { pointer-events: auto; width: 38px; height: 38px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); font-size: 14px; }
+  #perf { position: fixed; left: 12px; bottom: max(10px, env(safe-area-inset-bottom)); font: 12px ui-monospace, monospace; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 6px; z-index: 11; }
+
+  #bossbar { position: fixed; left: 50%; transform: translateX(-50%); top: 64px; width: min(80vw, 460px); z-index: 10; text-align: center; pointer-events: none; }
+  #bossbar .name { font-family: var(--serif); font-size: 15px; color: #ffd0c0; text-shadow: 0 1px 3px #000; }
+  #bossbar .bar { height: 12px; margin-top: 4px; border-radius: 6px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,59,107,0.5); overflow: hidden; }
+  #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #8e1838, var(--danger)); }
+
+  #banner { position: fixed; left: 0; right: 0; top: 30%; text-align: center; z-index: 12; pointer-events: none; opacity: 0; transform: translateY(10px); transition: opacity 0.35s, transform 0.35s; }
+  #banner.show { opacity: 1; transform: none; }
+  #bannerTitle { font-family: var(--serif); font-size: clamp(22px, 5vw, 38px); color: #ffe2c2; text-shadow: 0 2px 12px #000, 0 0 24px rgba(255,90,40,0.6); }
+  #bannerSub { margin-top: 6px; color: var(--gold); text-shadow: 0 1px 4px #000; }
+
+  .overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(10,5,4,0.72); padding: 16px; overflow-y: auto; }
+  .panel { width: min(100%, 720px); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  h1, h2 { font-family: var(--serif); font-weight: 600; margin: 0; }
+  .muted { color: var(--muted); }
+  .primary { display: inline-block; margin-top: 18px; padding: 12px 28px; border-radius: 999px; border: 0; background: linear-gradient(180deg, #ffb35c, #e8642a); color: #2a0f05; font-weight: 800; font-size: 17px; box-shadow: 0 6px 20px rgba(255,110,40,0.35); }
+  .ghost { margin-top: 18px; margin-left: 8px; padding: 12px 20px; border-radius: 999px; background: transparent; border: 1px solid var(--line); }
+
+  #draft .panel { text-align: center; }
+  #cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  .card { position: relative; text-align: left; padding: 14px 14px 12px; border-radius: 12px; background: rgba(0,0,0,0.35); border: 1px solid color-mix(in srgb, var(--branch) 45%, transparent); border-top: 4px solid var(--branch); min-height: 150px; transition: transform 0.1s, background 0.1s; }
+  .card:hover, .card:focus-visible { transform: translateY(-3px); background: rgba(255,140,60,0.10); outline: none; }
+  .card.capstone { box-shadow: 0 0 0 2px var(--branch), 0 0 24px color-mix(in srgb, var(--branch) 50%, transparent); }
+  .card .key { position: absolute; right: 10px; top: 8px; font-size: 11px; color: var(--muted); }
+  .card .branch { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--branch); }
+  .card .name { font-family: var(--serif); font-size: 19px; margin: 4px 0 6px; }
+  .card .text { font-size: 14px; line-height: 1.35; }
+  .card .rank { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .card .progress { font-size: 12px; color: var(--branch); margin-top: 2px; }
+
+  #title .panel { text-align: center; background: radial-gradient(ellipse at top, rgba(255,110,40,0.18), transparent 60%), var(--panel); }
+  #title h1 { font-size: clamp(34px, 8vw, 56px); color: #ffe2c2; text-shadow: 0 0 30px rgba(255,100,40,0.5); }
+  .tag { margin-top: 6px; color: var(--gold); }
+  .classes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+  .cls { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); text-align: left; }
+  .cls.active { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
+  .cls.locked { opacity: 0.5; }
+  .cls b { font-family: var(--serif); font-size: 17px; }
+  .cls div { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .how { margin-top: 16px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .small { font-size: 12px; margin-top: 14px; }
+  .small a { color: var(--muted); }
+
+  #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+  #stats div { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
+  #stats span { display: block; font-size: 12px; color: var(--muted); }
+  #stats b { font-size: 20px; }
+  #endTalents { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 13px; }
+  #end .panel { text-align: center; }
+
+  @media (max-width: 560px) {
+    .stat { font-size: 12px; }
+    .stat b { font-size: 16px; }
+    #bossbar { top: 58px; }
+    #cards { grid-template-columns: 1fr; }
+    .card { min-height: 0; }
+    .classes { grid-template-columns: 1fr; }
+    #stats { grid-template-columns: repeat(2, 1fr); }
+    .panel { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="touch"></div>
+<div id="stickBase" hidden><div id="stickKnob"></div></div>
+
+<div id="hud" hidden>
+  <div class="xpbar"><div id="xpFill"></div></div>
+  <div class="row">
+    <div class="lvl" id="level">1</div>
+    <div class="hp"><div id="hpFill"></div><div id="hpText"></div></div>
+    <div class="stat"><b id="timer">0:00</b> · <span id="kills">0</span> kills<br /><span id="next"></span></div>
+    <button id="pauseBtn" aria-label="Pause">II</button>
+  </div>
+</div>
+<div id="perf" hidden></div>
+<div id="bossbar" hidden><div class="name">Smolderhusk, the Kiln Mother</div><div class="bar"><div id="bossFill"></div></div></div>
+<div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
+
+<div id="title" class="overlay">
+  <div class="panel">
+    <h1>Horders</h1>
+    <div class="tag">Hold back the Hollow Tide. Grow stronger every delve.</div>
+    <div class="classes">
+      <button class="cls active" aria-pressed="true"><b>Emberwright</b><div>Ranged caster. Fire orbs, burning ground.</div></button>
+      <div class="cls locked"><b>Bulwark</b><div>Tank. Arrives in the next build.</div></div>
+      <div class="cls locked"><b>Duskblade</b><div>Melee striker. Arrives in the next build.</div></div>
+    </div>
+    <div class="how">Move with WASD, the arrow keys, or drag anywhere on a touch screen. You attack automatically. Level up to draft talents; four ranks in one branch unlock its capstone. A Cinder Brute arrives at 4:00 and the Kiln Mother at 8:00.</div>
+    <button class="primary" id="startBtn">Delve</button>
+    <div class="small muted">Prototype build: one class, one arena, no saving yet. <a href="?stress=1" id="stressLink">Run the stress test</a></div>
+  </div>
+</div>
+
+<div id="draft" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="draftTitle">Level up!</h2>
+    <div class="muted">Choose a talent (tap, or press 1, 2 or 3)</div>
+    <div id="cards"></div>
+  </div>
+</div>
+
+<div id="pause" class="overlay" hidden>
+  <div class="panel" style="text-align:center; max-width: 360px">
+    <h2>Paused</h2>
+    <button class="primary" id="resumeBtn">Resume</button>
+    <button class="ghost" id="quitBtn">Quit run</button>
+  </div>
+</div>
+
+<div id="end" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="endTitle"></h2>
+    <div class="muted" id="endSub"></div>
+    <div id="stats"></div>
+    <div id="endTalents"></div>
+    <div class="muted small">Hero levels, gear and loot arrive in the next build, so every run will count.</div>
+    <button class="primary" id="againBtn">Delve again</button>
+    <button class="ghost" id="menuBtn">Main menu</button>
+  </div>
+</div>
+
+<script type="module" src="./main.ts"></script>
+</body>
+</html>
