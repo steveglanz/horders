@@ -135,6 +135,96 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fill();
   });
 
+  // Ashmaw the Glutton: a bloated rare with a gaping maw.
+  make(scene, 'ashmaw', 60, (ctx, s) => {
+    creature(ctx, s, '#2a2c3a', '#6b7aa0', '#9fd0ff', 0.12, 8);
+    const c = s / 2;
+    ctx.fillStyle = '#120a0c';
+    ctx.beginPath();
+    ctx.ellipse(c, c + s * 0.12, s * 0.16, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Hollow Rift: a violet tear in the ground.
+  make(scene, 'rift', 56, (ctx, s) => {
+    const c = s / 2;
+    const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+    g.addColorStop(0, '#f2d9ff');
+    g.addColorStop(0.25, '#a04bff');
+    g.addColorStop(0.6, 'rgba(70,20,120,0.75)');
+    g.addColorStop(1, 'rgba(20,0,40,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(c, c, c * 0.95, c * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(230,190,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(c, c, c * 0.55, c * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  // Ember Acolyte: a robed channeler.
+  make(scene, 'acolyte', 34, (ctx, s) => {
+    const c = s / 2;
+    ctx.fillStyle = '#3a1f12';
+    ctx.strokeStyle = '#7dffb0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c, 3);
+    ctx.lineTo(s - 5, s - 3);
+    ctx.lineTo(5, s - 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#b6ffd2';
+    ctx.beginPath();
+    ctx.arc(c, c, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Ember Vein: a gatherable crystal cluster.
+  make(scene, 'vein', 36, (ctx, s) => {
+    const shard = (x: number, h: number, w: number) => {
+      const g = ctx.createLinearGradient(x, s - h, x, s);
+      g.addColorStop(0, '#fff1b8');
+      g.addColorStop(0.4, '#ffb347');
+      g.addColorStop(1, '#8a2e12');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x, s - h);
+      ctx.lineTo(x + w, s - 4);
+      ctx.lineTo(x - w, s - 4);
+      ctx.closePath();
+      ctx.fill();
+    };
+    shard(s * 0.32, s * 0.55, 6);
+    shard(s * 0.68, s * 0.65, 6);
+    shard(s * 0.5, s * 0.9, 7);
+  });
+  // Loot bag on the ground, tinted by rarity at draw time.
+  make(scene, 'loot', 24, (ctx, s) => {
+    const c = s / 2;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(c - 6, 6);
+    ctx.lineTo(c + 6, 6);
+    ctx.lineTo(c + 3, 10);
+    ctx.quadraticCurveTo(s - 2, 14, c + 6, s - 2);
+    ctx.lineTo(c - 6, s - 2);
+    ctx.quadraticCurveTo(2, 14, c - 3, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+  make(scene, 'beam', 16, (ctx, s) => {
+    const g = ctx.createLinearGradient(0, 0, s, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.5, 'rgba(255,255,255,1)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   // Player effects (warm palette).
   make(scene, 'orb', 34, (ctx, s) => glow(ctx, s, '#ffd27a', 'rgba(255,110,30,0.6)'));
   make(scene, 'ember', 32, (ctx, s) => glow(ctx, s, '#ffe3a1', 'rgba(255,120,40,0.7)', 0.2));

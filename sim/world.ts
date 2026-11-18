@@ -8,22 +8,30 @@
  */
 import { Rng } from './rng';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
-import { Branch, CAPSTONE_RANKS, TALENTS, TalentId } from './content/emberwright';
-import { EMPTY_LOADOUT, Loadout } from './hero';
+import { ABILITIES, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentId } from './content/emberwright';
+import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
+import { Item, Rarity } from './content/items';
+import { QUESTS, QuestId } from './content/quests';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
 export const BOSS_AT = 480; // seconds
 export const SPAWN_RADIUS = 700;
+export const RARE_AT = 150;
+export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
+/** Chance that a normal enemy drops an item. */
+const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 
-const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16 };
+const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
 
 export interface Input {
   /** Desired move direction; any length, normalised inside. */
   x: number;
   y: number;
+  /** Ability button pressed this tick (0-3), if any. */
+  cast?: number;
 }
 
 export interface Enemy {
@@ -43,6 +51,16 @@ export interface Enemy {
   flash: number;
   abilityT: number;
   spawnedAt: number;
+  /** Current cast ('' when not casting); shown on cast bars. */
+  castId: string;
+  castName: string;
+  castT: number;
+  castDur: number;
+  interruptible: boolean;
+  stunT: number;
+  /** Spare per-enemy timers and counters for scripted abilities. */
+  aux: number;
+  aux2: number;
 }
 
 export interface Orb {
@@ -90,6 +108,31 @@ export interface Telegraph {
   t: number;
   dur: number;
   dmg: number;
+  /** 'hit' damages whoever is inside; 'soak' punishes the raid if nobody stands in it. */
+  kind: 'hit' | 'soak';
+  /** Enemy whose cast created it; interrupting that enemy removes it. */
+  owner: number;
+}
+
+export interface Drop {
+  alive: boolean;
+  x: number;
+  y: number;
+  item: Item | null;
+}
+
+export interface Vein {
+  alive: boolean;
+  x: number;
+  y: number;
+  progress: number;
+}
+
+export interface Quest {
+  id: QuestId;
+  progress: number;
+  goal: number;
+  done: boolean;
 }
 
 export interface Strike {
@@ -127,6 +170,11 @@ export interface Player {
   orbitAngle: number;
   hurtFlash: number;
   facing: number;
+  heat: number;
+  /** Remaining cooldown per action-bar slot. */
+  cds: number[];
+  gcd: number;
+  shieldT: number;
 }
 
 export type SimEvent =
@@ -142,6 +190,21 @@ export type SimEvent =
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive' }
+  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
+  | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'castStart'; index: number; name: string }
+  | { type: 'interrupt'; x: number; y: number; name: string }
+  | { type: 'castDone'; x: number; y: number; name: string }
+  | { type: 'heal'; x: number; y: number; amount: number }
+  | { type: 'phase'; phase: number }
+  | { type: 'rareSpawn' }
+  | { type: 'riftOpen'; x: number; y: number }
+  | { type: 'riftClosed'; x: number; y: number }
+  | { type: 'gather'; x: number; y: number }
+  | { type: 'soak'; ok: boolean; x: number; y: number }
+  | { type: 'drop'; x: number; y: number; rarity: Rarity }
+  | { type: 'loot'; item: Item; equipped: boolean; delta: number }
+  | { type: 'quest'; index: number }
   | { type: 'end'; victory: boolean };
 
 export type SimState = 'running' | 'draft' | 'ended';
@@ -157,8 +220,16 @@ export interface WorldOptions {
   stress?: boolean;
   /** Developer option: the player takes no damage. */
   invulnerable?: boolean;
-  /** Gear and permanent hero bonuses brought into the run. */
-  loadout?: Loadout;
+  /** Equipped gear brought into the run. */
+  gear?: Item[];
+  /** Permanent hero passives. */
+  passives?: Partial<Record<PassiveId, number>>;
+  /** Hero level, which sets the item level of drops. */
+  heroLevel?: number;
+  /** First free item id, so run drops never collide with the hero's bag. */
+  nextItemId?: number;
+  /** Which quests to offer; picked at random when left out. */
+  quests?: QuestId[];
   /** Difficulty tier, 1 and up. Higher tiers hit harder and drop better loot. */
   tier?: number;
 }
@@ -171,6 +242,7 @@ export interface RunSummary {
   level: number;
   damageDealt: number;
   talents: Partial<Record<TalentId, number>>;
+  questsDone?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -184,10 +256,26 @@ export class World {
   readonly rng: Rng;
   readonly stress: boolean;
   readonly invulnerable: boolean;
-  readonly loadout: Loadout;
+  loadout: Loadout;
   readonly tier: number;
+  readonly passives: Partial<Record<PassiveId, number>>;
+  /** Gear currently worn (upgrades picked up mid-run replace pieces). */
+  gear: Item[];
+  /** Items picked up this run and the ids auto-equipped as upgrades. */
+  runDrops: Item[] = [];
+  runEquipped: string[] = [];
+  nextItemId: number;
+  readonly itemLevel: number;
+  readonly luck: number;
+  quests: Quest[] = [];
+  rareSpawned = false;
+  rareIndex = -1;
+  riftsOpened = 0;
+  bossPhase = 1;
+  private brandT = 4;
+  private nextVeinAt = 20;
   eliteKilled = false;
-  private revived = false;
+  revived = false;
   state: SimState = 'running';
   time = 0;
   tick = 0;
@@ -211,6 +299,8 @@ export class World {
   telegraphs: Telegraph[];
   strikes: Strike[];
   lances: Lance[];
+  drops: Drop[];
+  veins: Vein[];
   events: SimEvent[] = [];
   aliveEnemies = 0;
 
@@ -222,23 +312,37 @@ export class World {
     this.rng = new Rng(opts.seed);
     this.stress = !!opts.stress;
     this.invulnerable = !!opts.invulnerable || this.stress;
-    this.loadout = opts.loadout ?? EMPTY_LOADOUT;
     this.tier = Math.max(1, Math.floor(opts.tier ?? 1));
+    this.passives = { ...(opts.passives ?? {}) };
+    this.gear = [...(opts.gear ?? [])];
+    this.loadout = loadoutFrom(this.passives, this.gear);
+    this.nextItemId = opts.nextItemId ?? 1;
+    this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
+    this.luck = 1 + 0.12 * (this.tier - 1);
+    const hp = 100 + this.loadout.maxHpBonus;
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
-      hp: 100 + (opts.loadout?.maxHpBonus ?? 0), maxHp: 100 + (opts.loadout?.maxHpBonus ?? 0),
+      hp, maxHp: hp,
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
+      heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
     this.zones = pool(CAP.zones, () => ({ alive: false, x: 0, y: 0, r: 0, dps: 0, life: 0, maxLife: 0, tickT: 0 }));
-    this.telegraphs = pool(CAP.telegraphs, () => ({ alive: false, shape: 'circle' as const, x: 0, y: 0, r: 0, angle: 0, arc: 0, t: 0, dur: 0, dmg: 0 }));
+    this.telegraphs = pool(CAP.telegraphs, () => ({
+      alive: false, shape: 'circle' as const, x: 0, y: 0, r: 0, angle: 0, arc: 0, t: 0, dur: 0, dmg: 0, kind: 'hit' as const, owner: -1,
+    }));
+    this.drops = pool(CAP.drops, () => ({ alive: false, x: 0, y: 0, item: null }));
+    this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
+    const ids = opts.quests ?? this.pickQuests();
+    this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
   }
@@ -281,6 +385,28 @@ export class World {
     return 0.8 * this.rank('mend');
   }
 
+  /** Heat cost of an action-bar slot after talents. */
+  abilityCost(slot: number): number {
+    if (slot === 0) return ABILITIES[0].cost - 6 * this.rank('rollingInferno');
+    return ABILITIES[slot]?.cost ?? 0;
+  }
+
+  abilityCooldown(slot: number): number {
+    const base = ABILITIES[slot]?.cooldown ?? 0;
+    if (slot === 1) return base - 1.5 * this.rank('flicker');
+    if (slot === 2) return base - 3 * this.rank('heatSink');
+    return base;
+  }
+
+  /** Whether the slot can be used right now (ignores whether a target exists). */
+  canCast(slot: number): boolean {
+    const p = this.player;
+    const def = ABILITIES[slot];
+    if (!def || p.cds[slot] > 0) return false;
+    if (!def.offGcd && p.gcd > 0) return false;
+    return p.heat >= this.abilityCost(slot);
+  }
+
   // ---------------------------------------------------------------- main step
 
   step(input: Input): void {
@@ -293,6 +419,7 @@ export class World {
     this.director();
     this.updatePlayer(input, dt);
     this.rebuildHash();
+    this.updateAbilities(input, dt);
     this.updateWeapons(dt);
     this.updateOrbs(dt);
     this.updateEnemies(dt);
@@ -300,6 +427,8 @@ export class World {
     this.updateStrikes(dt);
     this.updateLances(dt);
     this.updateTelegraphs(dt);
+    this.updateDrops();
+    this.updateVeins(dt);
     this.updateGems(dt);
     this.checkEnd();
   }
@@ -325,6 +454,7 @@ export class World {
       level: this.player.level,
       damageDealt: Math.round(this.damageDealt),
       talents: { ...this.talents },
+      questsDone: this.quests.filter((q) => q.done).length,
     };
   }
 
@@ -357,7 +487,27 @@ export class World {
     if (!this.bossSpawned && t >= BOSS_AT && !this.stress) {
       this.bossSpawned = true;
       this.bossIndex = this.spawnAtRing('kilnMother', 480);
+      if (this.bossIndex >= 0) this.enemies[this.bossIndex].aux = 12; // first Molten Cataclysm
+      // Lesser named foes flee when the Kiln Mother rises, so the fight stays readable.
+      for (let i = 0; i < this.enemies.length; i++) {
+        const e = this.enemies[i];
+        if (e.alive && (e.kind === 'ashmaw' || e.kind === 'cinderBrute' || e.kind === 'rift')) this.despawn(i);
+      }
       this.events.push({ type: 'bossSpawn' });
+    }
+    if (!this.rareSpawned && t >= RARE_AT && !this.stress) {
+      this.rareSpawned = true;
+      this.rareIndex = this.spawnAtRing('ashmaw', 520);
+      this.events.push({ type: 'rareSpawn' });
+    }
+    if (!this.stress && !this.bossSpawned && this.riftsOpened < RIFT_TIMES.length && t >= RIFT_TIMES[this.riftsOpened]) {
+      this.riftsOpened++;
+      const i = this.spawnAtRing('rift', 330);
+      if (i >= 0) this.events.push({ type: 'riftOpen', x: this.enemies[i].x, y: this.enemies[i].y });
+    }
+    if (!this.stress && !this.bossSpawned && t >= this.nextVeinAt) {
+      this.nextVeinAt += 30;
+      this.spawnVein();
     }
 
     let target = Math.min(28 + t * 0.6, 380);
@@ -400,7 +550,7 @@ export class World {
     const def = ENEMIES[kind];
     const e = this.enemies[idx];
     const tierHp = Math.pow(1.22, this.tier - 1);
-    const scale = (def.rank === 'normal' ? 1 + this.time / 220 : 1) * tierHp;
+    const scale = (def.rank === 'normal' && !def.stationary ? 1 + this.time / 220 : 1) * tierHp;
     e.alive = true;
     e.kind = kind;
     e.def = def;
@@ -412,8 +562,16 @@ export class World {
     e.burnDps = 0;
     e.burnT = 0;
     e.flash = 0;
-    e.abilityT = def.rank === 'boss' ? 2 : 4;
+    e.abilityT = def.rank === 'boss' ? 2 : def.stationary ? 1 : 4;
     e.spawnedAt = this.time;
+    e.castId = '';
+    e.castName = '';
+    e.castT = 0;
+    e.castDur = 0;
+    e.interruptible = false;
+    e.stunT = 0;
+    e.aux = 0;
+    e.aux2 = 0;
     this.aliveEnemies++;
     return idx;
   }
@@ -441,11 +599,151 @@ export class World {
   }
 
   private hurtPlayer(amount: number): void {
-    if (this.invulnerable) return;
+    if (this.invulnerable || this.player.shieldT > 0) return;
     const p = this.player;
     p.hp -= amount;
     p.hurtFlash = 0.15;
     this.events.push({ type: 'playerHurt', amount });
+  }
+
+  // ---------------------------------------------------------------- action bar
+
+  private addHeat(v: number): void {
+    this.player.heat = Math.min(MAX_HEAT, this.player.heat + v);
+  }
+
+  private updateAbilities(input: Input, dt: number): void {
+    const p = this.player;
+    for (let k = 0; k < p.cds.length; k++) if (p.cds[k] > 0) p.cds[k] = Math.max(0, p.cds[k] - dt);
+    if (p.gcd > 0) p.gcd -= dt;
+    if (p.shieldT > 0) p.shieldT -= dt;
+    this.addHeat(2 * dt);
+    const slot = input.cast;
+    if (slot === undefined || slot < 0 || slot >= ABILITIES.length || !this.canCast(slot)) return;
+    p.heat -= this.abilityCost(slot);
+    p.cds[slot] = this.abilityCooldown(slot);
+    if (!ABILITIES[slot].offGcd) p.gcd = GCD;
+    if (slot === 0) this.flameWave();
+    else if (slot === 1) this.blink(input);
+    else if (slot === 2) this.combustion();
+    else this.quench();
+  }
+
+  private flameWave(): void {
+    const p = this.player;
+    const t = this.nearestEnemies(p.x, p.y, 1, 400)[0];
+    const ang = t !== undefined ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : p.facing;
+    const r = 230;
+    const half = (110 * Math.PI) / 360;
+    const dmg = 50 * this.dmgMult;
+    this.forEachNear(p.x, p.y, r + 40, (i) => {
+      const e = this.enemies[i];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > r + e.def.radius) return;
+      if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
+      if (e.def.rank === 'normal' && !e.def.stationary) {
+        e.x += (dx / d) * 60;
+        e.y += (dy / d) * 60;
+      }
+      this.damageEnemy(i, dmg, true);
+    });
+    const inferno = this.rank('rollingInferno');
+    if (inferno > 0) {
+      for (const k of [70, 140, 210]) {
+        this.addZone(p.x + Math.cos(ang) * k, p.y + Math.sin(ang) * k, 34, 10 * inferno * this.dmgMult, 3);
+      }
+    }
+    this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: ang, r });
+  }
+
+  private blink(input: Input): void {
+    const p = this.player;
+    const moving = Math.hypot(input.x, input.y) > 0.01;
+    const ang = moving ? Math.atan2(input.y, input.x) : p.facing;
+    const x1 = p.x;
+    const y1 = p.y;
+    p.x += Math.cos(ang) * 170;
+    p.y += Math.sin(ang) * 170;
+    p.px = p.x;
+    p.py = p.y;
+    p.shieldT = 0.3 + 0.6 * this.rank('flicker');
+    this.addZone(x1, y1, 44, 14 * this.dmgMult, 3);
+    this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
+  }
+
+  /** Combustion goes for the target that matters most: healers, then named foes. */
+  private combustionTarget(): number {
+    const p = this.player;
+    const order = ['acolyte', 'ashmaw', 'cinderBrute', 'kilnMother', 'rift'];
+    let best = -1;
+    let bestRank = Infinity;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (!e.alive || dist2(p.x, p.y, e.x, e.y) > 450 * 450) continue;
+      const r = order.indexOf(e.kind);
+      if (r >= 0 && r < bestRank) { bestRank = r; best = i; }
+    }
+    return best >= 0 ? best : (this.nearestEnemies(p.x, p.y, 1, 450)[0] ?? -1);
+  }
+
+  private combustion(): void {
+    const p = this.player;
+    const t = this.combustionTarget();
+    const x = t >= 0 ? this.enemies[t].x : p.x;
+    const y = t >= 0 ? this.enemies[t].y : p.y;
+    const r = 150;
+    const dmg = 240 * this.dmgMult;
+    this.forEachNear(x, y, r + 50, (i) => {
+      const e = this.enemies[i];
+      if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
+      this.damageEnemy(i, dmg, true);
+      if (e.alive) {
+        e.burnDps = Math.max(e.burnDps, 20 * this.dmgMult);
+        e.burnT = 4;
+      }
+    });
+    this.events.push({ type: 'ability', slot: 2, x, y, angle: 0, r });
+  }
+
+  /** The enemy Quench would interrupt right now, or -1. */
+  interruptTarget(): number {
+    const p = this.player;
+    // The most dangerous caster first: boss, then rare, then elite.
+    const weight = { boss: 0, rare: 1, elite: 2, normal: 3 };
+    let best = -1;
+    let bestW = Infinity;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (!e.alive || !e.castId || !e.interruptible) continue;
+      const d = dist2(p.x, p.y, e.x, e.y);
+      if (d > QUENCH_RANGE * QUENCH_RANGE) continue;
+      const w = weight[e.def.rank] * 1e7 + d;
+      if (w < bestW) { bestW = w; best = i; }
+    }
+    return best;
+  }
+
+  private quench(): void {
+    const p = this.player;
+    const t = this.interruptTarget();
+    if (t >= 0) {
+      const e = this.enemies[t];
+      this.events.push({ type: 'interrupt', x: e.x, y: e.y, name: e.castName });
+      this.cancelCast(t);
+      e.stunT = 2;
+      this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+      return;
+    }
+    // Nothing to interrupt: a small bolt instead, and half the cooldown back.
+    p.cds[3] = this.abilityCooldown(3) / 2;
+    const n = this.nearestEnemies(p.x, p.y, 1, 480)[0];
+    if (n !== undefined) {
+      const e = this.enemies[n];
+      this.damageEnemy(n, 30 * this.dmgMult, true);
+      this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 30 });
+    }
   }
 
   // ---------------------------------------------------------------- weapons
@@ -600,6 +898,7 @@ export class World {
       const hx = e.x;
       const hy = e.y;
       this.damageEnemy(hit, o.dmg, true);
+      this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 4 * burn * this.dmgMult);
         e.burnT = 3;
@@ -635,7 +934,16 @@ export class World {
         if (!e.alive) continue;
       }
 
-      let speed = e.def.speed;
+      if (e.def.stationary) {
+        this.runStationary(i, dt);
+        continue;
+      }
+      if (e.stunT > 0) {
+        e.stunT -= dt;
+        continue;
+      }
+
+      let speed = e.castId ? 0 : e.def.speed;
       if (e.def.rank === 'boss' && this.bossEnraged) speed *= 1.6;
       const dx = p.x - e.x;
       const dy = p.y - e.y;
@@ -685,36 +993,169 @@ export class World {
     }
   }
 
+  /** Removes an enemy without a kill (no loot, no credit). */
+  private despawn(i: number): void {
+    const e = this.enemies[i];
+    if (e.castId) this.cancelCast(i);
+    e.alive = false;
+    this.aliveEnemies--;
+  }
+
   private relocate(e: Enemy): void {
     const a = this.rng.next() * Math.PI * 2;
     e.x = e.px = this.player.x + Math.cos(a) * SPAWN_RADIUS;
     e.y = e.py = this.player.y + Math.sin(a) * SPAWN_RADIUS;
   }
 
-  private runAbilities(i: number, dt: number): void {
+  /** Rifts spawn ashlings; acolytes channel heals into the boss. */
+  private runStationary(i: number, dt: number): void {
     const e = this.enemies[i];
-    const p = this.player;
-    e.abilityT -= dt;
-    if (e.def.rank === 'elite') {
+    if (e.kind === 'rift') {
+      e.abilityT -= dt;
       if (e.abilityT <= 0) {
-        e.abilityT = 5;
-        this.addTelegraph('circle', p.x, p.y, 95, 0, 0, 1.2, 30);
+        e.abilityT = 3;
+        for (let k = 0; k < 3; k++) {
+          const a = this.rng.next() * Math.PI * 2;
+          this.spawn('ashling', e.x + Math.cos(a) * 40, e.y + Math.sin(a) * 40);
+        }
       }
       return;
     }
-    // Boss: Smolderhusk, the Kiln Mother.
+    if (e.kind === 'acolyte' && this.bossIndex >= 0) {
+      const b = this.enemies[this.bossIndex];
+      if (b.alive && b.def.rank === 'boss') {
+        // Acolytes circle the Kiln Mother and channel heat into her.
+        e.aux += 0.35 * dt;
+        e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
+        e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
+        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE_HEAL * dt);
+      }
+    }
+    const p = this.player;
+    if (dist2(p.x, p.y, e.x, e.y) < (e.def.radius + PLAYER_RADIUS) ** 2 && e.touchCd <= 0) {
+      e.touchCd = 0.6;
+      this.hurtPlayer(e.def.damage * this.tierDamage);
+    }
+  }
+
+  private startCast(i: number, id: string, name: string, dur: number, interruptible: boolean): void {
+    const e = this.enemies[i];
+    e.castId = id;
+    e.castName = name;
+    e.castT = 0;
+    e.castDur = dur;
+    e.interruptible = interruptible;
+    this.events.push({ type: 'castStart', index: i, name });
+  }
+
+  private cancelCast(i: number): void {
+    const e = this.enemies[i];
+    e.castId = '';
+    e.castName = '';
+    e.castT = 0;
+    for (const t of this.telegraphs) if (t.alive && t.owner === i) t.alive = false;
+  }
+
+  private finishCast(i: number): void {
+    const e = this.enemies[i];
+    const id = e.castId;
+    const name = e.castName;
+    e.castId = '';
+    e.castName = '';
+    for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
+    if (id === 'cataclysm') {
+      const p = this.player;
+      this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage);
+      this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
+    } else if (id === 'gorge') {
+      const amount = e.maxHp * 0.1;
+      e.hp = Math.min(e.maxHp, e.hp + amount);
+      this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+    }
+    this.events.push({ type: 'castDone', x: e.x, y: e.y, name });
+  }
+
+  private runAbilities(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    if (e.castId) {
+      e.castT += dt;
+      if (e.castT >= e.castDur) this.finishCast(i);
+      return;
+    }
+    e.abilityT -= dt;
+    if (e.kind === 'cinderBrute') {
+      if (e.abilityT <= 0) {
+        e.abilityT = 5;
+        this.startCast(i, 'groundPound', 'Ground Pound', 1.4, true);
+        this.addTelegraph('circle', p.x, p.y, 95, 0, 0, 1.4, 30, 'hit', i);
+      }
+      return;
+    }
+    if (e.kind === 'ashmaw') {
+      if (e.abilityT <= 0) {
+        e.abilityT = 5;
+        e.aux++;
+        if (e.aux % 2 === 0) {
+          this.startCast(i, 'gorge', 'Gorge', 2.2, true);
+        } else {
+          const ang = Math.atan2(p.y - e.y, p.x - e.x);
+          this.startCast(i, 'spit', 'Ash Spit', 1.0, false);
+          this.addTelegraph('cone', e.x, e.y, 260, ang, (60 * Math.PI) / 180, 1.0, 22, 'hit', i);
+        }
+      }
+      return;
+    }
+    if (e.def.rank !== 'boss') return;
+    this.runBoss(i, dt);
+  }
+
+  /** Smolderhusk, the Kiln Mother: three phases, interrupts, healers and soaks. */
+  private runBoss(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
     if (!this.bossEnraged && this.time - e.spawnedAt > BOSS_ENRAGE_AFTER) {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
     }
-    if (e.abilityT > 0) return;
-    const lowHp = e.hp < e.maxHp * 0.5;
-    e.abilityT = this.bossEnraged ? 1.6 : lowHp ? 2.4 : 3.2;
-    const roll = this.rng.int(3);
+    const frac = e.hp / e.maxHp;
+    const phase = frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+      if (phase === 2) {
+        for (const side of [-1, 1]) {
+          const a = Math.atan2(p.y - e.y, p.x - e.x) + side * Math.PI / 2;
+          const k = this.spawn('acolyte', e.x + Math.cos(a) * ACOLYTE_RING, e.y + Math.sin(a) * ACOLYTE_RING);
+          if (k >= 0) this.enemies[k].aux = a;
+        }
+        this.brandT = 3;
+      }
+    }
     const mult = this.bossEnraged ? 2 : 1;
+
+    // Molten Cataclysm: interrupt it or take a big hit wherever you stand.
+    e.aux -= dt;
+    if (e.aux <= 0) {
+      e.aux = phase === 3 ? 12 : 18;
+      this.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true);
+      return;
+    }
+    // Kiln Brand: someone has to stand in the gold circle.
+    if (phase >= 2) {
+      this.brandT -= dt;
+      if (this.brandT <= 0) {
+        this.brandT = 14;
+        const a = this.rng.next() * Math.PI * 2;
+        this.addTelegraph('circle', p.x + Math.cos(a) * 150, p.y + Math.sin(a) * 150, 70, 0, 0, 4, 40, 'soak', -1);
+      }
+    }
+    if (e.abilityT > 0) return;
+    e.abilityT = this.bossEnraged ? 1.6 : phase === 3 ? 2.4 : 3.2;
+    const roll = this.rng.int(3);
     if (roll === 0) {
       this.addTelegraph('circle', p.x, p.y, 120, 0, 0, 1.3, 35 * mult);
-      if (lowHp) {
+      if (phase === 3) {
         const a = this.rng.next() * Math.PI * 2;
         this.addTelegraph('circle', p.x + Math.cos(a) * 170, p.y + Math.sin(a) * 170, 120, 0, 0, 1.6, 35 * mult);
       }
@@ -722,7 +1163,7 @@ export class World {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
       this.addTelegraph('cone', e.x, e.y, 320, ang, (70 * Math.PI) / 180, 1.1, 30 * mult);
     } else {
-      const n = lowHp ? 30 : 22;
+      const n = phase === 3 ? 30 : 22;
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
@@ -762,15 +1203,31 @@ export class World {
 
   private killEnemy(i: number): void {
     const e = this.enemies[i];
+    if (e.castId) this.cancelCast(i);
     e.alive = false;
     this.aliveEnemies--;
     this.kills++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
     if (e.def.rank === 'boss') {
       this.victory = true;
+      // The run ends on this tick, so boss loot goes straight to the bags.
+      this.pickUp(this.makeItem('epic'));
+      this.pickUp(this.makeItem('epic'));
       return;
     }
-    if (e.def.rank === 'elite') {
+    if (e.kind === 'cinderhound') this.progressQuest('hounds');
+    if (e.kind === 'rift') {
+      this.progressQuest('rifts');
+      this.addHeat(20);
+      this.events.push({ type: 'riftClosed', x: e.x, y: e.y });
+    }
+    if (e.kind === 'ashmaw') {
+      this.progressQuest('ashmaw');
+      this.dropLoot(e.x, e.y, 'rare');
+    }
+    if (e.kind === 'cinderBrute') this.dropLoot(e.x, e.y, 'fine');
+    if (e.def.rank === 'normal' && !e.def.stationary && this.rng.chance(TRASH_DROP)) this.dropLoot(e.x, e.y, 'common');
+    if (e.kind === 'cinderBrute') {
       this.eliteKilled = true;
       // Elite chest: a free bonus draft.
       this.events.push({ type: 'chest', x: e.x, y: e.y });
@@ -829,10 +1286,13 @@ export class World {
     for (const l of this.lances) if (l.alive && (l.life -= dt) <= 0) l.alive = false;
   }
 
-  private addTelegraph(shape: 'circle' | 'cone', x: number, y: number, r: number, angle: number, arc: number, dur: number, dmg: number): void {
+  private addTelegraph(
+    shape: 'circle' | 'cone', x: number, y: number, r: number, angle: number, arc: number, dur: number, dmg: number,
+    kind: 'hit' | 'soak' = 'hit', owner = -1,
+  ): void {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
-    Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg });
+    Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
   }
 
   private updateTelegraphs(dt: number): void {
@@ -842,6 +1302,18 @@ export class World {
       t.t += dt;
       if (t.t < t.dur) continue;
       t.alive = false;
+      if (t.kind === 'soak') {
+        const ok = dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
+        this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        if (!ok) {
+          this.hurtPlayer(t.dmg * this.tierDamage);
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            this.spawn('husk', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
+          }
+        }
+        continue;
+      }
       this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
       let inside = false;
       const dd = dist2(p.x, p.y, t.x, t.y);
@@ -854,6 +1326,99 @@ export class World {
       }
       if (inside) this.hurtPlayer(t.dmg * this.tierDamage);
     }
+  }
+
+  // ---------------------------------------------------------------- loot
+
+  private makeItem(min: Rarity): Item {
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min);
+  }
+
+  private dropLoot(x: number, y: number, min: Rarity): void {
+    const item = this.makeItem(min);
+    const d = this.drops.find((q) => !q.alive);
+    if (!d) {
+      this.pickUp(item);
+      return;
+    }
+    Object.assign(d, { alive: true, x, y, item });
+    this.events.push({ type: 'drop', x, y, rarity: item.rarity });
+  }
+
+  /** Adds an item to this run's haul and wears it right away if it is an upgrade. */
+  private pickUp(item: Item): void {
+    this.runDrops.push(item);
+    const cur = this.gear.find((g) => g.slot === item.slot);
+    const delta = Math.round(itemScore(item) - (cur ? itemScore(cur) : 0));
+    const equipped = delta > 0;
+    if (equipped) {
+      this.gear = this.gear.filter((g) => g.slot !== item.slot);
+      this.gear.push(item);
+      this.runEquipped.push(item.id);
+      const before = this.loadout.maxHpBonus;
+      this.loadout = loadoutFrom(this.passives, this.gear);
+      const gain = this.loadout.maxHpBonus - before;
+      this.player.maxHp += gain;
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.max(0, gain));
+    }
+    this.events.push({ type: 'loot', item, equipped, delta });
+  }
+
+  private updateDrops(): void {
+    const p = this.player;
+    for (const d of this.drops) {
+      if (!d.alive || !d.item) continue;
+      if (dist2(p.x, p.y, d.x, d.y) <= 46 * 46) {
+        d.alive = false;
+        this.pickUp(d.item);
+        d.item = null;
+      }
+    }
+  }
+
+  private spawnVein(): void {
+    if (this.veins.filter((v) => v.alive).length >= 3) return;
+    const v = this.veins.find((q) => !q.alive);
+    if (!v) return;
+    const a = this.rng.next() * Math.PI * 2;
+    Object.assign(v, { alive: true, x: this.player.x + Math.cos(a) * 260, y: this.player.y + Math.sin(a) * 260, progress: 0 });
+  }
+
+  /** Gathering: stand on an Ember Vein for a moment. */
+  private updateVeins(dt: number): void {
+    const p = this.player;
+    for (const v of this.veins) {
+      if (!v.alive) continue;
+      if (dist2(p.x, p.y, v.x, v.y) <= 40 * 40) v.progress += dt;
+      else v.progress = Math.max(0, v.progress - dt);
+      if (v.progress < VEIN_TIME) continue;
+      v.alive = false;
+      this.addHeat(30);
+      p.hp = Math.min(p.maxHp, p.hp + 10);
+      this.gainXp(3);
+      this.progressQuest('veins');
+      this.events.push({ type: 'gather', x: v.x, y: v.y });
+    }
+  }
+
+  // ---------------------------------------------------------------- quests
+
+  private pickQuests(): QuestId[] {
+    const all = Object.keys(QUESTS) as QuestId[];
+    all.splice(this.rng.int(all.length), 1);
+    return all;
+  }
+
+  private progressQuest(id: QuestId): void {
+    const k = this.quests.findIndex((q) => q.id === id && !q.done);
+    if (k < 0) return;
+    const q = this.quests[k];
+    q.progress++;
+    if (q.progress < q.goal) return;
+    q.done = true;
+    this.gainXp(this.player.xpToNext * 0.6);
+    this.pickUp(this.makeItem('fine'));
+    this.events.push({ type: 'quest', index: k });
   }
 
   // ---------------------------------------------------------------- xp
@@ -1020,6 +1585,19 @@ export class World {
 
 export function xpFor(level: number): number {
   return Math.round(4 + level * 2 + Math.pow(level, 1.35));
+}
+
+export const VEIN_TIME = 1.2;
+export const QUENCH_RANGE = 520;
+const ACOLYTE_RING = 190;
+/** Share of the boss's health each acolyte restores per second. */
+const ACOLYTE_HEAL = 0.008;
+
+function angleDiff(a: number, b: number): number {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
 }
 
 function cellKey(cx: number, cy: number): number {

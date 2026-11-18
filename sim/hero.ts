@@ -90,8 +90,14 @@ export function statTotals(h: HeroProfile): Record<Stat, number> {
 }
 
 export function loadoutFor(h: HeroProfile): Loadout {
-  const t = statTotals(h);
-  const p = (id: PassiveId) => h.passives[id] ?? 0;
+  return loadoutFrom(h.passives, equippedItems(h));
+}
+
+/** Loadout from permanent passives plus a set of equipped items (used mid-run when gear changes). */
+export function loadoutFrom(passives: Partial<Record<PassiveId, number>>, items: Item[]): Loadout {
+  const t: Record<Stat, number> = { power: 0, vitality: 0, haste: 0, crit: 0, swiftness: 0, reach: 0 };
+  for (const it of items) for (const s of it.stats) t[s.stat] += s.value;
+  const p = (id: PassiveId) => passives[id] ?? 0;
   return {
     dmgMult: (1 + t.power / 100) * (1 + 0.03 * p('might')),
     maxHpBonus: Math.round(t.vitality + 8 * p('fortitude')),
@@ -99,8 +105,8 @@ export function loadoutFor(h: HeroProfile): Loadout {
     critBonus: t.crit / 100,
     speedMult: 1 + t.swiftness / 100,
     pickupMult: 1 + t.reach / 100,
-    xpMult: 1 + 0.04 * p('insight') + (equippedItems(h).some((i) => i.mythic === 'gluttonsGem') ? 0.25 : 0),
-    mythics: equippedItems(h).map((i) => i.mythic).filter((m): m is MythicId => !!m),
+    xpMult: 1 + 0.04 * p('insight') + (items.some((i) => i.mythic === 'gluttonsGem') ? 0.25 : 0),
+    mythics: items.map((i) => i.mythic).filter((m): m is MythicId => !!m),
   };
 }
 
@@ -116,6 +122,14 @@ export interface RunRewards {
   heroXp: number;
   items: Item[];
   levelsGained: number;
+}
+
+/** One random item for a mid-run drop, at least `minRarity`. */
+export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common'): Item {
+  let rarity = rollRarity(rng, luck);
+  if (RARITIES.indexOf(rarity) < RARITIES.indexOf(minRarity)) rarity = minRarity;
+  const slot = SLOTS[rng.int(SLOTS.length)];
+  return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1));
 }
 
 function rollRarity(rng: Rng, luck: number): Rarity {
@@ -156,16 +170,18 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
  * (or re-check) the same result. Mutates nothing; returns the items and the
  * new pity counter.
  */
-export function rollLoot(seed: number, s: RunSummary, hero: HeroProfile, eliteKilled: boolean): { items: Item[]; pity: number } {
+export function rollLoot(
+  seed: number, s: RunSummary, hero: HeroProfile, eliteKilled: boolean, runDrops: Item[] = [],
+): { items: Item[]; pity: number } {
   const rng = new Rng(seed ^ 0x9e3779b9);
-  let count = 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0);
-  count = Math.min(count, 7);
+  // Most loot now drops during the run; the end chest is a small top-up.
+  const count = runDrops.length ? 1 + (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
   const tier = s.tier ?? 1;
   const baseIlvl = hero.level + (s.victory ? 2 : 0) + (tier - 1);
   const luck = (s.victory ? 1.6 : 1) * (1 + 0.12 * (tier - 1));
   const items: Item[] = [];
   let pity = hero.pity;
-  let gotEpic = false;
+  let gotEpic = runDrops.some((i) => i.rarity === 'epic' || i.rarity === 'mythic');
   for (let k = 0; k < count; k++) {
     let rarity = rollRarity(rng, luck);
     // Bad-luck protection: after enough dry runs the last drop is upgraded.
@@ -175,17 +191,27 @@ export function rollLoot(seed: number, s: RunSummary, hero: HeroProfile, eliteKi
     if (rarity === 'epic' || rarity === 'mythic') gotEpic = true;
     const slot = SLOTS[rng.int(SLOTS.length)];
     const ilvl = Math.max(1, baseIlvl + rng.int(3) - 1);
-    items.push(makeItem(rng, `i${hero.nextItemId + k}`, slot, rarity, ilvl));
+    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl));
   }
   pity = gotEpic ? 0 : pity + 1;
   return { items, pity };
 }
 
-/** Applies a finished run to the hero and returns what was earned. */
-export function applyRun(hero: HeroProfile, seed: number, s: RunSummary, eliteKilled: boolean): RunRewards {
+/**
+ * Applies a finished run to the hero and returns what was earned.
+ * `runDrops` are items picked up during the run (ids from `runItemIds`);
+ * `runEquipped` are the ids the run auto-equipped as upgrades.
+ */
+export function applyRun(
+  hero: HeroProfile, seed: number, s: RunSummary, eliteKilled: boolean,
+  runDrops: Item[] = [], runEquipped: string[] = [],
+): RunRewards {
   const xpMult = loadoutFor(hero).xpMult;
   const heroXp = Math.round(heroXpForRun(s) * xpMult);
-  const loot = rollLoot(seed, s, hero, eliteKilled);
+  const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
+  hero.inventory.push(...runDrops);
+  for (const id of runEquipped) equip(hero, id);
+  hero.nextItemId += runDrops.length;
   hero.runs++;
   if (s.victory) {
     hero.wins++;
@@ -205,7 +231,7 @@ export function applyRun(hero: HeroProfile, seed: number, s: RunSummary, eliteKi
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: loot.items, levelsGained: levels };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels };
 }
 
 export function equip(hero: HeroProfile, itemId: string): void {
