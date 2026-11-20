@@ -11,7 +11,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
 | R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
 | R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
-| R6 | Second dungeon (zone 2) with a new boss | 💡 | design | Visuals: new enemy and arena art |
+| R6 | Second dungeon: the Drowned Foundry | 🔨 next | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
 | R7 | Daily bounty: one delve with a single twist rule, extra reward | 💡 | design | Engineering: a daily seed from the server |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
 | R9 | Co-op delves, then raids | 💡 | engineering | Everyone |
@@ -66,5 +66,27 @@ Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three).
 
 **Design sketch.** Each world boss arrives as a sixth, optional fight at the end of a won delve: "Grandmother Slag's shadow" for a 60-second damage race with her signature mechanic. Damage there counts 3x toward the shared bar. Each world boss also sets a weekly blessing or curse on delves while it lives, which ties the shared world to every run. This is the solo version of "bigger enemies need a group"; co-op makes it a real raid later.
 
-## R4, R6, R7, R8
+## R6. Second dungeon: the Drowned Foundry
+
+**Problem.** One dungeon with 7 encounters. After a handful of runs you've seen every fight, and the Kiln Mother tests the same three verbs (dodge, interrupt, soak) every time.
+
+**Design.** A flooded forge under Emberhold, unlocked once you've beaten the Kiln Mother on tier 3. In the hub you pick which dungeon to delve; tiers, Omens and forks work the same in both. Every new enemy brings a verb the Kiln Depths doesn't have:
+
+| Enemy | Rank | Verb | How it works |
+|-------|------|------|--------------|
+| Glass Warden | elite | **Stop or interrupt** | Casts Mirror Ward (2 s, can be Quenched). If it lands, for 3 s the warden reflects 40% of the damage it takes back at you. |
+| Ember Twins | elite pair | **Balance damage** | Two linked twins. When one falls, the other starts a 6 s Rekindle cast that revives its twin at half health unless it dies or is Quenched first. |
+| Sluice Crawler | elite | **Spread** | Every 9 s it marks your position with a ring that bursts 2.5 s later. Standing near other enemies when it bursts heals them, so drag the ring away. |
+| **Maelra, the Drowned Bellows** | boss | **Kite through hazards** | See below. |
+
+**Maelra.** 4,600 health and a 180 s enrage. Three steam vents sit at fixed spots in the arena.
+- **Phase 1, Tempering:** every 7 s she gains a Temper stack (−12% damage taken each, up to 5). Kite her over a vent to boil the stacks off. This is the first fight where where you lead the boss matters.
+- **Phase 2 (below 60%), Rising Water:** the arena shrinks from 560 to 360 over 20 s, and she casts Undertow (can be Quenched), which drags you towards her.
+- **Phase 3 (below 25%), Overpressure:** vents now erupt under their own telegraphs every 8 s. Kiting her over them is now a risk too, so time it between eruptions.
+
+**Routes.** Opener (Twins, or Glass Wardens), opener (Sluice Crawler and two hounds), named (Glass Warden), hard (Twins plus an Acolyte), then Maelra. Forks pull named and hard alternatives from the same dungeon.
+
+**Targets.** Boss fight 60 to 120 s for the good bot. Tier 1 Foundry win rate should be 15 to 25 points below the Kiln Depths at the same gear, since it unlocks later.
+
+## R4, R7, R8
 Specs get written here when each one is next.
