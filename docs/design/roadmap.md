@@ -1,6 +1,6 @@
 # Horders design roadmap
 
-Ordered by how much each item adds to "one more run" for the work it takes. Game design builds the items marked **design**; the other owners are noted. Each item lists what it needs from other teams so they can plan.
+Ordered by how much each item adds to "one more run" for the work it takes, and by how much it sets Horders apart ([positioning.md](positioning.md)). Game design builds the items marked **design**; the other owners are noted. Each item lists what it needs from other teams so they can plan.
 
 Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 
@@ -10,11 +10,12 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R1 | Route choices between fights | 🔨 built | design | Visuals: real gate art (placeholder circles and labels now) |
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
 | R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
-| R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
-| R7 | Daily bounty: one delve with a single twist rule, extra reward | 💡 | design | Engineering: a daily seed from the server |
+| R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
+| R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
+| R7 | Daily bounty: one fight, one twist, the same seed for everyone that day | ⏭ design next | design | None: the seed comes from the date |
+| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
-| R9 | Co-op delves, then raids | 💡 | engineering | Everyone |
 
 ## R2. The Forge
 

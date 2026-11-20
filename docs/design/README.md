@@ -11,6 +11,8 @@ Companion files:
 
 Each delve is a short dungeon: a handful of tough, named fights in an arena, ending in a boss with raid-style mechanics (cast bars to interrupt, telegraphs to dodge, gold circles to soak, healers to kill first, phases and an enrage). Every fight you clear is a level, a talent draft and a loot bag, so your build snowballs inside the run like a survivors game. Your hero keeps the gear, levels and permanent points, so a loss still moves you forward. Above it all sits the shared world boss: every delve anyone finishes chips its health, and everyone who hit it gets paid when it falls.
 
+Also: [positioning.md](positioning.md) (how we stay different from Azeroth Survivors) and [group-play.md](group-play.md) (party scaling, roles and threat, with sources).
+
 ## Design pillars
 
 These come from Steve's feedback during the alpha. Every feature should serve at least one and break none.
