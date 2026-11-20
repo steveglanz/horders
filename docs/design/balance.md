@@ -160,3 +160,25 @@ Kiln, tier 1, seeds 1 to 24, `SKILL=0.5`, on `stack` 750b9d5:
 With `LAG=0.3 SKILL=0.5` (the new novice reference): Emberwright 13, Duskblade 0, Bulwark 6, Lumen 23 out of 24.
 
 Tier 1 itself is in range: the Emberwright is at 54% against the 40 to 60% target, so I'm leaving the fight alone. The spread between classes for slow players is the problem. The Duskblade is unplayable and the Lumen near-automatic, which goes to the skills team as forgiveness in the kits.
+
+## Loot rarity: make Epics and Mythics feel earned (20 Nov 2026)
+
+Steve got two Epics and a Mythic in his first delve. Before the change, every win guaranteed a boss Epic, named fights could raise a clear bag to Epic, and Mythics could drop at tier 1.
+
+Changes: Epic weight 3.4 → 1.5 and Mythic 0.6 → 0.3. No Mythics below tier 3 (`MYTHIC_FROM_TIER`). The boss guarantees an Epic only on the first clear of a tier from tier 2 (`FIRST_CLEAR_EPIC_TIER`, `WorldOptions.firstClear`), and otherwise drops Rare or better. Clear bags top out at a guaranteed Rare. Bad-luck protection (an Epic after 10 dry runs) is unchanged.
+
+Fresh hero, one run, seeds 1 to 40 (`tools/loot.ts`):
+
+| | Runs with an Epic or better | Runs with a Mythic |
+|---|---|---|
+| Tier 1, before | 36/40 | 2/40 |
+| Tier 1, after | 4/40 | 0/40 |
+
+50-run autopilot progressions (`tools/progression.ts`, which now prints Epics, Mythics, the first Mythic run, and the longest stretch without an Epic):
+
+| | Epics | Mythics | First Mythic | Longest stretch without an Epic | Wins | Final gear score |
+|---|---|---|---|---|---|---|
+| Before (2 heroes) | 54, 55 | 0, 7 | –, run 3 | 2, 2 | 18, 21 | 25, 28 |
+| After (4 heroes) | 20, 19, 15, 16 | 2, 2, 2, 1 | runs 37, 16, 20, 6 | 10, 6, 9, 10 | 19, 21, 21, 18 | 27, 29, 27, 25 |
+
+The ladder doesn't get harder: wins and gear score stay level, because a Rare at the same item level is close in power. Epics now come every 2.5 to 3 runs, and Mythics about one per 25 to 50 runs.

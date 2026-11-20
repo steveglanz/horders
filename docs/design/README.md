@@ -49,6 +49,7 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 - 6 slots, 5 rarities (Common, Fine, Rare, Epic, Mythic), item level from hero level plus tier.
 - Most loot drops mid-run with rarity beams; upgrades equip on the spot.
 - Bad-luck protection: an Epic is guaranteed after 10 runs without one.
+- **Earned rarity (20 Nov 2026):** Epics come from luck, bad-luck protection, the world boss, and the first time you beat each tier from tier 2. A boss otherwise drops Rare or better, and clear bags top out at a guaranteed Rare. Mythics only drop from tier 3. Target: an Epic every 2 to 3 runs and a Mythic every 25 to 30, with the first Mythic somewhere between run 5 and run 40.
 - Salvage turns spare gear into embers.
 - **The Forge:** embers now have a use. Spend them to raise an item's level (up to the best level you can currently find, plus one) or to temper an item, which rerolls its weakest bonus stat. This is the "smithing" profession from the plan, in its smallest form.
 - **Gap:** items are mostly stat sticks. Mythics are the only build-changing loot, and there are 4. See R4.

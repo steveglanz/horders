@@ -117,6 +117,7 @@ function startRun(bounty = false): void {
     week: weekOf(Date.now()),
     dungeon: hub.dungeon,
     grit: gritFor(hero, hub.dungeon, hub.tier),
+    firstClear: hub.tier >= hero.maxTier,
     cls: hero.cls ?? 'emberwright',
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
