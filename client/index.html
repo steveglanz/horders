@@ -140,74 +140,188 @@
   .card .rank { margin-top: 10px; font-size: 12px; color: var(--muted); }
   .card .progress { font-size: 12px; color: var(--branch); margin-top: 2px; }
 
-  #title .panel { text-align: center; background: radial-gradient(ellipse at top, rgba(255,110,40,0.18), transparent 60%), var(--panel); }
-  #title h1 { font-size: clamp(34px, 8vw, 56px); color: #ffe2c2; text-shadow: 0 0 30px rgba(255,100,40,0.5); animation: kindle 3.2s ease-in-out infinite; }
   @keyframes kindle { 0%, 100% { text-shadow: 0 0 26px rgba(255,100,40,0.45); } 50% { text-shadow: 0 0 40px rgba(255,120,50,0.75), 0 0 8px rgba(255,200,120,0.5); } }
   .primary { transition: transform 0.1s, box-shadow 0.2s; }
   .primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(255,110,40,0.55); }
   .primary:active { transform: scale(0.97); }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
-  .tag { margin-top: 6px; color: var(--gold); }
-  .classes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
-  .cls { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); text-align: left; }
-  .cls.active { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
-  .cls.locked { opacity: 0.5; }
-  .cls b { font-family: var(--serif); font-size: 17px; }
-  .cls div { font-size: 12px; color: var(--muted); margin-top: 3px; }
-  .how { margin-top: 16px; font-size: 14px; color: var(--muted); line-height: 1.5; }
-  .small { font-size: 12px; margin-top: 14px; }
-  .small a { color: var(--muted); }
 
-  #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-  #stats div { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
-  #stats span { display: block; font-size: 12px; color: var(--muted); }
-  #stats b { font-size: 20px; }
-  #endTalents { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-  .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 13px; }
-  #end .panel { text-align: center; }
 
-  /* Hero hub. */
-  .hero { margin-top: 18px; text-align: left; background: rgba(0,0,0,0.28); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-  .hero .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .hero .top b { font-family: var(--serif); font-size: 18px; }
-  .hero .xp { flex: 1 1 140px; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.5); overflow: hidden; min-width: 120px; }
-  .hero .xp div { height: 100%; background: linear-gradient(90deg, #2bb59a, var(--xp)); }
-  .gear { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-  .slot { font-size: 12px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); min-height: 44px; }
-  .slot .sl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-  .passives { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; font-size: 12px; }
-  .passives button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
-  .passives button:disabled { opacity: 0.5; cursor: default; }
-  .wboss { margin-top: 12px; text-align: left; background: rgba(0,0,0,0.28); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13px; }
-  .wboss .wb-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
-  .wboss .wb-top b { font-family: var(--serif); font-size: 16px; color: #ffb36b; }
-  .wboss .wb-bar { position: relative; height: 14px; margin: 6px 0 4px; border-radius: 7px; background: rgba(0,0,0,0.55); overflow: hidden; }
-  .wboss .wb-bar div { height: 100%; background: linear-gradient(90deg, #a3241b, #ff6a2b); }
-  .wboss .wb-bar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 14px; color: #fff; text-shadow: 0 1px 2px #000; }
-  .wboss button { margin: 6px 6px 0 0; }
-  #endBoss { margin-top: 8px; font-size: 14px; }
-  .tiers { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 14px; flex-wrap: wrap; font-size: 13px; }
-  .tiers button { min-width: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
-  .tiers .dungeons { flex-basis: 100%; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
-  .tiers .omens { flex-basis: 100%; text-align: center; margin: 4px 0 0; line-height: 1.4; }
-  .tiers .bounty { flex-basis: 100%; text-align: center; margin: 8px 0 0; padding: 8px; line-height: 1.5; border: 1px solid rgba(255,200,90,.35); border-radius: 8px; }
-  .tiers .bounty button { margin-top: 6px; }
-  .tiers button.on { border-color: var(--ember); background: rgba(255,138,61,0.2); }
   .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
-  #bag .panel { max-width: 640px; }
-  #bagList { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; text-align: left; }
-  .item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--rc); font-size: 13px; }
-  .item .info { flex: 1; min-width: 0; }
-  #bagList .item { flex-wrap: wrap; }
-  #bagList .item .info { flex: 1 1 200px; }
-  .item .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .item .nm { color: var(--rc); font-weight: 600; }
-  .item .st { color: var(--muted); font-size: 12px; }
-  .item button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
-  .tagE { font-size: 10px; color: #7fd67a; border: 1px solid #7fd67a; border-radius: 999px; padding: 1px 6px; margin-left: 6px; }
-  #rewards { margin-top: 14px; text-align: left; }
-  #rewards .line { margin: 4px 0; font-size: 14px; }
 
+  .small { font-size: 12px; }
+  /* ---- Menus: ported from the Horders UI design system (Claude Design export, screens 01-03 and 06). ---- */
+  :root { --text: var(--ink); --interrupt: #8fd8ff; --radius: 16px; --btn: linear-gradient(180deg, #ffb35c, #e8642a); --card: rgba(255,240,225,0.035); --card-line: rgba(255,170,90,0.18); }
+  .overlay.screen { display: block; place-items: initial; padding: 0; background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255,110,40,0.13), transparent 70%), rgb(14,8,7); }
+  .hub, .endwrap, .bagwrap { width: min(100%, 1180px); margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
+  .sec-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 16px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .sec-h .muted { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; }
+  .sec-h .gold { color: var(--gold); letter-spacing: 0.1em; }
+  .sec-h.big { font: 600 22px var(--serif); letter-spacing: 0; text-transform: none; color: var(--text); }
+  .box { background: var(--card); border: 1px solid var(--card-line); border-radius: var(--radius); padding: 14px 16px; text-align: left; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(28,18,16,0.85); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  button.pill:hover { border-color: var(--ember); }
+  .pill b { color: var(--gold); }
+  .coin { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd27a, #ff8a3d 55%, #b4461a); box-shadow: 0 0 8px rgba(255,138,61,0.7); }
+  .round { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: rgba(28,18,16,0.85); font-size: 26px; line-height: 1; padding: 0 0 3px; }
+  .gtile { display: inline-grid; place-items: center; flex: none; border-radius: 10px; color: var(--gc); background: color-mix(in srgb, var(--gc) 14%, transparent); }
+  .lv { display: inline-block; padding: 2px 8px; border-radius: 6px; background: rgba(255,200,97,0.16); color: var(--gold); font-weight: 700; font-size: 13px; }
+  .meter { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.45); overflow: hidden; }
+  .meter > div { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2bb59a, var(--xp)); }
+  .meter.danger > div { background: linear-gradient(90deg, #a3183e, var(--danger)); }
+  .meter.gold > div { background: linear-gradient(90deg, #d9962e, var(--gold)); }
+  .kv { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .primary.big { width: 100%; margin: 0; padding: 16px 28px; font: 700 21px var(--serif); letter-spacing: 0.02em; }
+  .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
+
+  /* Title & hub. */
+  .hub-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+  .hub-top .pill:last-child { justify-self: end; }
+  .hub-top .pill:first-child { justify-self: start; }
+  .logo { text-align: center; }
+  #title h1 { font: 700 clamp(30px, 8vw, 44px) var(--serif); letter-spacing: 0.12em; text-transform: uppercase; background: linear-gradient(180deg, #ffc861, #ff8a3d 70%, #e8642a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(255,110,40,0.45)); }
+  .logo .tag { font: italic 13px var(--serif); color: var(--muted); margin-top: 2px; }
+  .hub-grid { display: grid; gap: 4px 28px; margin-top: 14px; }
+  .hero .who { display: flex; align-items: center; gap: 12px; }
+  .hero .who .gtile { border-radius: 14px; }
+  .hero .who b { display: block; font: 600 20px var(--serif); }
+  .hero .who .sub { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 13px; color: var(--muted); }
+  .hero .meter { margin-top: 12px; }
+  .hero .kv .xp { color: var(--xp); }
+  .gear { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .slot { min-height: 58px; padding: 7px 9px; border-radius: 10px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.05); border-left: 3px solid var(--rc, rgba(255,255,255,0.08)); font-size: 12px; line-height: 1.3; }
+  .slot .sl { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+  .slot .nm { color: var(--rc); font-weight: 600; }
+  .slot.empty .nm { color: var(--muted); font-weight: 400; }
+  .passives { display: flex; gap: 6px; flex-wrap: wrap; }
+  .passives button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 13px; }
+  .passives button.can { border-color: var(--gold); color: var(--gold); }
+  .passives button:disabled { opacity: 0.55; cursor: default; }
+  .classes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .cls { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 104px; padding: 12px 6px 10px; border-radius: 14px; border: 1px solid var(--card-line); background: var(--card); text-align: center; color: var(--muted); transition: transform 0.1s, border-color 0.15s; }
+  .cls .gtile { color: var(--gc); }
+  .cls b { font: 600 15px var(--serif); color: var(--text); }
+  .cls .cl { font-size: 11px; }
+  .cls:hover { transform: translateY(-2px); }
+  .cls.active { border-color: var(--gc); background: color-mix(in srgb, var(--gc) 10%, transparent); box-shadow: 0 0 0 1px var(--gc), 0 0 22px color-mix(in srgb, var(--gc) 30%, transparent); }
+  .cls.active .cl { color: var(--gc); }
+
+  /* Delve setup. */
+  .tiers { display: flex; flex-direction: column; gap: 0; }
+  .dungeons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dg { position: relative; min-height: 112px; padding: 14px; border-radius: var(--radius); border: 1px solid var(--card-line); text-align: left; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: var(--art), #1a100d; }
+  .dg[data-d="kiln"] { --art: radial-gradient(ellipse at 80% 0%, rgba(255,110,40,0.38), transparent 60%), linear-gradient(160deg, rgba(120,34,18,0.55), transparent 70%); }
+  .dg[data-d="foundry"] { --art: radial-gradient(ellipse at 80% 0%, rgba(79,227,193,0.30), transparent 60%), linear-gradient(160deg, rgba(20,70,80,0.6), transparent 70%); }
+  .dg b { font: 600 17px var(--serif); }
+  .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+  .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
+  .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
+  .dg .lock { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--gold); }
+  .tierrow { display: flex; gap: 6px; padding: 4px; border-radius: 999px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); }
+  .tierrow button { flex: 1; min-height: 40px; border: 0; border-radius: 999px; background: transparent; font: 600 16px var(--serif); color: var(--muted); }
+  .tierrow button.on { background: var(--btn); color: #2a0f05; box-shadow: 0 4px 14px rgba(255,110,40,0.35); }
+  .hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .omens { display: flex; flex-direction: column; gap: 6px; }
+  .omen { display: flex; gap: 12px; align-items: center; padding: 10px 12px; }
+  .omen b { font: 600 15px var(--serif); }
+  .omen div div { font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 1px; }
+  .grit { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,200,97,0.35); color: var(--gold); font-size: 13px; }
+  .bounty { margin-top: 12px; border-color: rgba(255,200,97,0.35); }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .bounty .lbl { color: var(--gold); }
+  .bounty .ttl, .wboss .ttl { font: 600 17px var(--serif); margin: 4px 0 6px; }
+  .bounty .tw { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .bounty .tw b { color: var(--text); }
+  .bounty .row2, .wboss .row2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; }
+  .bounty .pay { color: var(--ember); font-weight: 700; }
+  .sbtn { min-height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 13px; font-weight: 600; }
+  .sbtn:hover { border-color: var(--ember); }
+  .sbtn.danger { border-color: rgba(255,59,107,0.5); color: var(--danger); }
+  .sbtn.gold { border-color: rgba(255,200,97,0.6); color: var(--gold); }
+  .wboss { margin-top: 12px; border-color: rgba(255,59,107,0.35); font-size: 13px; }
+  .wboss .lbl { color: var(--danger); }
+  .wboss .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .wboss .top span:last-child { font-size: 12px; color: var(--muted); }
+  .wboss .meter { height: 10px; }
+  .wboss p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .wboss .omen { padding: 8px 0 0; }
+  .wboss .primary { margin-top: 10px; padding: 10px 18px; font-size: 14px; }
+  .how { margin-top: 18px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .how summary { cursor: pointer; color: var(--text); font-weight: 600; }
+  .foot-note { margin: 10px 0 0; font-size: 12px; text-align: center; }
+  .foot-note a { color: var(--muted); }
+  .hub-foot, .end-foot, .bag-foot { position: sticky; bottom: 0; margin-top: auto; padding: 14px 0 max(14px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(14,8,7,0.95) 30%); }
+
+  /* Bags & Forge. */
+  .bag-top { display: flex; align-items: center; gap: 12px; }
+  .bag-top > div:nth-child(2) { flex: 1; }
+  .bag-top h2 { font-size: 24px; }
+  .bag-top .small { margin: 2px 0 0; }
+  .bag-help { margin: 10px 0 12px; }
+  #bagList { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .item { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); border-left: 3px solid var(--rc); font-size: 13px; }
+  .item .info { flex: 1 1 220px; min-width: 0; }
+  .item .nm { color: var(--rc); font: 600 15px var(--serif); }
+  .item .st { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .item .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .item .acts button { min-height: 36px; }
+  .item .acts .cost { color: var(--ember); font-weight: 700; margin-left: 4px; }
+  .item .acts button:disabled { opacity: 0.45; cursor: default; }
+  .item .acts .eq { background: var(--btn); color: #2a0f05; border: 0; }
+  .tagE { font-size: 10px; color: #7fd67a; border: 1px solid #7fd67a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; font-family: var(--sans); font-weight: 600; vertical-align: 2px; }
+
+  /* End of run. */
+  .endwrap { text-align: center; }
+  #endTitle { margin-top: 16px; font-size: clamp(38px, 10vw, 60px); }
+  #end.win #endTitle { color: #ffe2c2; text-shadow: 0 0 28px rgba(255,170,60,0.55); }
+  #end.loss #endTitle { color: #ffd0d6; text-shadow: 0 0 28px rgba(255,59,107,0.4); }
+  #endSub { margin-top: 4px; font-size: 14px; }
+  #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
+  #stats div { padding: 10px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); }
+  #stats b { display: block; font: 600 22px var(--serif); font-variant-numeric: tabular-nums; }
+  #stats span { display: block; margin-top: 2px; font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .end-grid { display: grid; gap: 10px 20px; margin-top: 12px; text-align: left; }
+  .end-col { display: flex; flex-direction: column; gap: 10px; }
+  #endXp .top, #rewards .top, .wbcard .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  #endXp .top b, #rewards .top b, .wbcard .top b { font: 600 16px var(--serif); }
+  #endXp .top span { color: var(--xp); font-weight: 700; }
+  #endXp .note { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  #endXp .note b { color: var(--gold); }
+  #rewards .top span { font-size: 12px; color: var(--muted); }
+  #rewards .item { background: rgba(0,0,0,0.22); }
+  #rewards .item + .item { margin-top: 6px; }
+  .wbcard { border-color: rgba(255,59,107,0.35); font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .wbcard .top span { color: var(--danger); font-weight: 700; }
+  .wbcard:empty, #endXp:empty, #rewards:empty { display: none; }
+  #endTalents { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
+  .end-foot { display: flex; gap: 10px; justify-content: center; }
+  .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
+  .end-foot .primary { font: 700 18px var(--serif); }
+  .end-foot .ghost { background: rgba(28,18,16,0.85); font-weight: 600; }
+  .bag-foot { text-align: center; }
+  .bag-foot .primary { margin: 0; min-width: 200px; }
+
+  @media (min-width: 900px) {
+    .hub-grid { grid-template-columns: minmax(340px, 420px) 1fr; }
+    .hub-foot { display: flex; justify-content: flex-end; }
+    .hub-foot .primary.big { width: 360px; }
+    .end-grid { grid-template-columns: 1fr 1fr; max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
+    #stats { max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
+    .bagwrap { max-width: 860px; }
+  }
+  @media (max-width: 560px) {
+    .hub-top .pill { min-height: 36px; padding: 0 11px; font-size: 14px; }
+    .hub-top { grid-template-columns: auto 1fr auto; }
+    #title h1 { font-size: 30px; letter-spacing: 0.08em; }
+    .logo .tag { font-size: 11px; }
+    .classes { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .cls { min-height: 92px; padding: 10px 2px 8px; }
+    .cls b { font-size: 13px; }
+    .gear { gap: 5px; }
+    .slot { padding: 6px 7px; font-size: 11px; }
+    #stats { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 560px) {
     #target { top: 56px; width: calc(100vw - 24px); }
     #quests { left: max(12px, env(safe-area-inset-left)); right: auto; top: 118px; width: 60vw; font-size: 11px; }
@@ -220,14 +334,11 @@
     #toasts { bottom: max(14px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); max-width: calc(100vw - 190px); }
     .toast { font-size: 12px; padding: 5px 8px; }
     .toast:nth-child(n+3) { display: none; }
-    .gear { grid-template-columns: repeat(2, 1fr); }
     .stat { font-size: 12px; }
     .stat b { font-size: 16px; }
     #bossbar { top: 58px; }
     #cards { grid-template-columns: 1fr; }
     .card { min-height: 0; }
-    .classes { grid-template-columns: 1fr; }
-    #stats { grid-template-columns: repeat(2, 1fr); }
     .panel { padding: 16px; }
   }
 </style>
@@ -263,17 +374,28 @@
 <div id="perf" hidden></div>
 <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
 
-<div id="title" class="overlay">
-  <div class="panel">
-    <h1>Horders</h1>
-    <div class="tag">Hold back the Hollow Tide. Grow stronger every delve.</div>
-    <div class="classes" id="classes"></div>
-    <div id="heroCard" class="hero"></div>
-    <div id="worldBoss" class="wboss"></div>
-    <div class="how">Each delve is a short dungeon: four tough fights, then Smolderhusk, the Kiln Mother. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</div>
-    <div class="tiers" id="tiers"></div>
-    <button class="primary" id="startBtn">Delve</button>
-    <div class="small muted">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
+<div id="title" class="overlay screen">
+  <div class="hub">
+    <header class="hub-top">
+      <div class="pill ember" title="Embers: salvage gear for them, spend them at the Forge"><i class="coin"></i><span id="emberCount">0</span></div>
+      <div class="logo"><h1>Horders</h1><div class="tag">Hold back the Hollow Tide</div></div>
+      <button class="pill" id="bagBtn">Bags <b id="bagCount">0</b></button>
+    </header>
+    <div class="hub-grid">
+      <section class="hub-hero">
+        <div id="heroCard" class="box hero"></div>
+        <div class="sec-h"><span>Class</span><span class="muted">Each class is its own hero</span></div>
+        <div class="classes" id="classes"></div>
+      </section>
+      <section class="hub-delve">
+        <div class="sec-h big"><span>Choose a delve</span><span class="muted">Your gear and levels carry over</span></div>
+        <div class="tiers" id="tiers"></div>
+        <div id="worldBoss" class="box wboss"></div>
+      </section>
+    </div>
+    <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
+    <div class="small muted foot-note">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
+    <div class="hub-foot"><button class="primary big" id="startBtn">Delve</button></div>
   </div>
 </div>
 
@@ -293,25 +415,33 @@
   </div>
 </div>
 
-<div id="end" class="overlay" hidden>
-  <div class="panel">
+<div id="end" class="overlay screen" hidden>
+  <div class="endwrap">
     <h2 id="endTitle"></h2>
     <div class="muted" id="endSub"></div>
     <div id="stats"></div>
-    <div id="rewards"></div>
-    <div id="endBoss"></div>
-    <div id="endTalents"></div>
-    <button class="primary" id="againBtn">Delve again</button>
-    <button class="ghost" id="menuBtn">Main menu</button>
+    <div class="end-grid">
+      <div class="end-col">
+        <div id="endXp" class="box"></div>
+        <div id="endBoss" class="box wbcard"></div>
+        <div id="endTalents"></div>
+      </div>
+      <div id="rewards" class="box loot"></div>
+    </div>
+    <div class="end-foot"><button class="ghost" id="menuBtn">Main menu</button><button class="primary" id="againBtn">Delve again</button></div>
   </div>
 </div>
 
-<div id="bag" class="overlay" hidden>
-  <div class="panel">
-    <h2>Bags</h2>
-    <div class="muted small" id="bagSub"></div>
+<div id="bag" class="overlay screen" hidden>
+  <div class="bagwrap">
+    <header class="bag-top">
+      <button class="round" id="bagBack" aria-label="Back">&#8249;</button>
+      <div><h2>Bags &amp; Forge</h2><div class="muted small" id="bagSub"></div></div>
+      <div class="pill ember"><i class="coin"></i><span id="bagEmbers">0</span></div>
+    </header>
+    <div class="muted small bag-help">Salvage spare gear for embers, then spend them at the Forge: Upgrade raises item level, Temper rerolls the weakest bonus stat.</div>
     <div id="bagList"></div>
-    <button class="primary" id="bagClose">Done</button>
+    <div class="bag-foot"><button class="primary" id="bagClose">Done</button></div>
   </div>
 </div>
 

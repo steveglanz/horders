@@ -4,7 +4,7 @@ import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } fr
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
-import { HeroProfile, RunRewards } from '../sim/hero';
+import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -71,7 +71,8 @@ export function itemHtml(it: Item, extra = ''): string {
   const c = RARITY[it.rarity].color;
   const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra} <span class="st">ilvl ${it.ilvl} ${RARITY[it.rarity].name}</span><div class="st">${stats}</div>${myth}</div>`;
+  const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${myth}</div>`;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
@@ -375,15 +376,29 @@ export class Hud {
     $('draft').hidden = true;
     $('actionbar').hidden = true;
     $('target').hidden = true;
-    const lines: string[] = [];
+    let xp = '';
+    let loot = '';
     if (rewards && hero) {
-      if (rewards.bountyEmbers) lines.push(`<div class="line" style="color:var(--gold)">Daily bounty paid: +${rewards.bountyEmbers} embers</div>`);
-      lines.push(`<div class="line">+${rewards.heroXp} hero experience${rewards.levelsGained ? ` · <b style="color:var(--gold)">Hero level ${hero.level}!</b>` : ''}</div>`);
-      lines.push(`<div class="line muted">Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}</div>`);
+      const atCap = hero.level >= heroMaxLevel();
+      const need = heroXpToNext(hero.level);
+      const pct = atCap ? 100 : (100 * hero.xp) / need;
+      const notes = [`Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}`];
+      if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
+      if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
+      xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
+        + `<div class="meter"><div style="width:${pct}%"></div></div>`
+        + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
+        + `<div class="note">${notes.join(' · ')}</div>`;
       const equipped = new Set(Object.values(hero.equipped));
-      lines.push(...rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '')}</div>`));
+      const n = rewards.items.length;
+      const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
+      loot = `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
+        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '')}</div>`).join('');
     }
-    $('rewards').innerHTML = lines.join('');
+    $('endXp').innerHTML = xp;
+    $('rewards').innerHTML = loot;
+    $('end').classList.toggle('win', s.victory);
+    $('end').classList.toggle('loss', !s.victory);
     $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
     $('endSub').textContent = s.victory
       ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
@@ -395,7 +410,7 @@ export class Hud {
       ['Level', String(s.level)],
       ['Slain', String(s.kills)],
       ['Damage', s.damageDealt.toLocaleString()],
-    ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    ].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
       .map((id) => {
         const def = TALENTS[id];
