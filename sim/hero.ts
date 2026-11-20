@@ -38,6 +38,8 @@ export interface HeroProfile {
   maxTier: number;
   /** Class picked on the title screen (older saves have none: Emberwright). */
   cls?: ClassId;
+  /** Forge actions taken; seeds temper rolls so they can be re-checked. */
+  forged?: number;
 }
 
 export function newHero(): HeroProfile {

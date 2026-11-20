@@ -162,12 +162,16 @@
   #endBoss { margin-top: 8px; font-size: 14px; }
   .tiers { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 14px; flex-wrap: wrap; font-size: 13px; }
   .tiers button { min-width: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
+  .tiers .omens { flex-basis: 100%; text-align: center; margin: 4px 0 0; line-height: 1.4; }
   .tiers button.on { border-color: var(--ember); background: rgba(255,138,61,0.2); }
   .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
   #bag .panel { max-width: 640px; }
   #bagList { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; text-align: left; }
   .item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--rc); font-size: 13px; }
   .item .info { flex: 1; min-width: 0; }
+  #bagList .item { flex-wrap: wrap; }
+  #bagList .item .info { flex: 1 1 200px; }
+  .item .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .item .nm { color: var(--rc); font-weight: 600; }
   .item .st { color: var(--muted); font-size: 12px; }
   .item button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }

@@ -2,6 +2,7 @@
  * Draws the shared simulation. This scene owns no game rules: it feeds input
  * into `World.step` at a fixed rate and renders interpolated state.
  */
+import { OMENS } from '../sim/content/omens';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
@@ -82,6 +83,8 @@ export class GameScene extends Phaser.Scene {
   private orbiterSprites: Phaser.GameObjects.Image[] = [];
   private plates: Phaser.GameObjects.Text[] = [];
   private soakText!: Phaser.GameObjects.Text;
+  /** Labels over the two gates at a fork (game design: placeholder look, visuals can restyle). */
+  private gateTexts: Phaser.GameObjects.Text[] = [];
   private gfx!: Phaser.GameObjects.Graphics;
   private bars!: Phaser.GameObjects.Graphics;
   private fx: Fx[] = [];
@@ -140,7 +143,7 @@ export class GameScene extends Phaser.Scene {
       this.enemyKinds.push('ashling');
     });
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
-    this.player = this.add.image(0, 0, w.cls === 'duskblade' ? 'duskblade' : 'player').setDepth(6);
+    this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls).setDepth(6);
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'orb').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
     for (let i = 0; i < 160; i++) {
@@ -149,6 +152,7 @@ export class GameScene extends Phaser.Scene {
     this.bars = this.add.graphics().setDepth(9);
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
+    for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
@@ -311,7 +315,13 @@ export class GameScene extends Phaser.Scene {
           this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
           break;
         case 'ability':
-          if (ev.slot === 0) {
+          if (w.cls === 'bulwark' && ev.slot === 0) {
+            this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
+            this.shake = Math.max(this.shake, 0.12);
+          } else if (w.cls === 'bulwark' && ev.slot === 2) {
+            this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: 0xffd27a, life: 0.5 });
+            this.floatText(ev.x, ev.y - 36, 'Bastion', '#ffd27a', 18);
+          } else if (ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xff8a3d, life: 0.3 });
           } else if (ev.slot === 2) {
             this.blast(ev.x, ev.y, ev.r);
@@ -385,9 +395,17 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'encounterStart': {
           const def = ENCOUNTERS[ev.id];
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip);
+          // The first fight also names the run's Omens, so the player knows the twist.
+          const omens = ev.index === 0 && w.omens.length ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.` : '';
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip + omens);
           break;
         }
+        case 'fork':
+          this.hud.banner('Choose your path', 'Walk into a gate. The steady fight is taken if you wait.');
+          break;
+        case 'gateChosen':
+          if (ev.kind === 'named') this.hud.ding('Named path!');
+          break;
         case 'encounterClear':
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
@@ -432,6 +450,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setPosition(px, py);
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
+    else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.player.clearTint();
     this.aura.setPosition(px, py).setScale(1 + Math.sin(this.time.now / 300) * 0.05 + (p.heat / 100) * 0.25);
 
@@ -525,6 +544,19 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(4, 0xff8a3d, 0.55).strokeCircle(0, 0, ARENA);
       g.lineStyle(14, 0xff5a1f, 0.12).strokeCircle(0, 0, ARENA + 6);
     }
+    // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
+    const GATE_COL = { steady: 0xd8cfc4, named: 0xffc861, shrine: 0x5fe0c8 } as const;
+    this.gateTexts.forEach((txt, k) => {
+      const gate = w.phase === 'choose' ? w.gates[k] : undefined;
+      if (!gate) { if (txt.visible) txt.setVisible(false); return; }
+      const col = GATE_COL[gate.kind];
+      const pulse = 1 + Math.sin(this.time.now / 250 + k) * 0.05;
+      g.fillStyle(col, 0.12).fillCircle(gate.x, gate.y, gate.r * pulse);
+      g.lineStyle(3, col, 0.9).strokeCircle(gate.x, gate.y, gate.r * pulse);
+      const name = ENCOUNTERS[gate.encounter].name;
+      const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
+      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 6);
+    });
     let soakShown = false;
     for (const t of w.telegraphs) {
       if (!t.alive) continue;

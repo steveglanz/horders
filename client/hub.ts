@@ -7,6 +7,8 @@ import { BossStatus, cloud } from './cloud';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
+import { OMENS, OMEN_FROM_TIER, omensFor, weekOf } from '../sim/content/omens';
+import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
@@ -68,13 +70,20 @@ export class Hub {
 
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}">${t}</button>`);
-    $('tiers').innerHTML = `<span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}`;
+    $('tiers').innerHTML = `<span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
     this.renderBoss();
+  }
+
+  /** This week's Omens for the picked tier, or a hint about when they start. */
+  private omenLine(): string {
+    const omens = omensFor(this.tier, weekOf(Date.now()));
+    if (!omens.length) return this.hero().maxTier >= OMEN_FROM_TIER - 1 ? `<div class="muted small omens">From tier ${OMEN_FROM_TIER}, fights carry Omens that change each week.</div>` : '';
+    return `<div class="muted small omens">This week's Omens: ${omens.map((o) => `<b title="${OMENS[o].tip}">${OMENS[o].name}</b>: ${OMENS[o].text}`).join(' ')} More loot for each Omen.</div>`;
   }
 
   /** Fetches the shared world boss and redraws its panel. */
@@ -127,16 +136,24 @@ export class Hub {
     const h = this.hero();
     const worn = new Set(Object.values(h.equipped));
     const sorted = [...h.inventory].sort((a, b) => (worn.has(b.id) ? 1 : 0) - (worn.has(a.id) ? 1 : 0) || itemScore(b) - itemScore(a));
-    $('bagSub').textContent = `${h.inventory.length} items · ${h.embers} embers from salvage. Salvage turns spare gear into embers.`;
+    $('bagSub').textContent = `${h.inventory.length} items · ${h.embers} embers. Salvage spare gear for embers, then spend them at the Forge: Upgrade raises item level, Temper rerolls the weakest bonus stat.`;
     $('bagList').innerHTML = sorted.map((it) => {
       const isWorn = worn.has(it.id);
-      const btns = isWorn ? '<span class="tagE">Equipped</span>' : `<button data-e="${it.id}">Equip</button><button data-s="${it.id}">Salvage</button>`;
-      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it)}${btns}</div>`;
+      const up = canUpgrade(h, it);
+      const tm = canTemper(h, it);
+      const forge = `<button data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade ${up.cost}</button>`
+        + (it.stats.length > 1 ? `<button data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper ${tm.cost}</button>` : '');
+      const btns = (isWorn ? '<span class="tagE">Equipped</span>' : `<button data-e="${it.id}">Equip</button><button data-s="${it.id}">Salvage</button>`) + forge;
+      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it)}<div class="acts">${btns}</div></div>`;
     }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) =>
       b.addEventListener('click', () => { equip(h, b.dataset.e!); this.save(); this.openBag(); }));
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) =>
       b.addEventListener('click', () => { salvage(h, b.dataset.s!); this.save(); this.openBag(); }));
+    $('bagList').querySelectorAll<HTMLButtonElement>('[data-u]').forEach((b) =>
+      b.addEventListener('click', () => { if (upgradeItem(h, b.dataset.u!)) { this.save(); this.openBag(); } }));
+    $('bagList').querySelectorAll<HTMLButtonElement>('[data-tm]').forEach((b) =>
+      b.addEventListener('click', () => { if (temperItem(h, b.dataset.tm!)) { this.save(); this.openBag(); } }));
     $('bag').hidden = false;
   }
 }

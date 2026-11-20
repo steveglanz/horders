@@ -8,12 +8,13 @@
  */
 import { Rng } from './rng';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
-import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentId, ClassId } from './content/emberwright';
+import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
 import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
-import { ENCOUNTERS, EncounterId, rollRoute } from './content/dungeon';
+import { ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
+import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -24,12 +25,18 @@ export const RARE_AT = 150;
 export const ARENA = 560;
 /** Seconds between a cleared fight (after the draft) and the next one. */
 export const INTRO_TIME = 2.5;
+/** Seconds to pick a gate at a fork before the steady path is taken. */
+export const CHOOSE_TIME = 10;
+/** Gate size and spacing at a fork. */
+export const GATE_RADIUS = 46;
 export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
 export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
+/** Share of every hit the Bulwark's armor stops. */
+const BULWARK_ARMOR = 0.2;
 
 const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
 
@@ -68,6 +75,9 @@ export interface Enemy {
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
   aux2: number;
+  /** Warded Omen: remaining shield, and whether it has been granted yet. */
+  ward: number;
+  warded: boolean;
 }
 
 export interface Orb {
@@ -142,6 +152,14 @@ export interface Quest {
   done: boolean;
 }
 
+export interface Gate {
+  kind: GateKind;
+  encounter: EncounterId;
+  x: number;
+  y: number;
+  r: number;
+}
+
 export interface Strike {
   alive: boolean;
   x: number;
@@ -186,6 +204,18 @@ export interface Player {
   swings: number;
   parryT: number;
   nextCrit: boolean;
+  /** Seconds left on the Blazing Speed run boost. */
+  hasteT: number;
+  /** Stored extra Blink charges (Blazing Speed rank 2) and the timer refilling one. */
+  blinkCharges: number;
+  blinkChargeT: number;
+  /** Bulwark: absorb shield, its refresh timer, Bastion time left, damage Bastion stopped, Shield Echo timer and angle. */
+  ward: number;
+  wardT: number;
+  bastionT: number;
+  prevented: number;
+  echoT: number;
+  echoAng: number;
 }
 
 export type SimEvent =
@@ -210,6 +240,9 @@ export type SimEvent =
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'castDone'; x: number; y: number; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
+  | { type: 'ward'; index: number; amount: number }
+  | { type: 'fork'; gates: Gate[] }
+  | { type: 'gateChosen'; kind: GateKind; id: EncounterId; timedOut: boolean }
   | { type: 'phase'; phase: number }
   | { type: 'rareSpawn' }
   | { type: 'riftOpen'; x: number; y: number }
@@ -252,6 +285,10 @@ export interface WorldOptions {
   tier?: number;
   /** Which class the hero plays this run. */
   cls?: ClassId;
+  /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
+  week?: number;
+  /** Fixed Omens, overriding the weekly rotation (tests and tools). */
+  omens?: OmenId[];
   /** Name of the living world boss; when set, a won delve offers a bonus fight against its shadow. */
   worldBoss?: string;
 }
@@ -268,6 +305,8 @@ export interface RunSummary {
   shadowTime?: number;
   talents: Partial<Record<TalentId, number>>;
   questsDone?: number;
+  omens?: OmenId[];
+  paths?: GateKind[];
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -298,6 +337,9 @@ export class World {
   nextItemId: number;
   readonly itemLevel: number;
   readonly luck: number;
+  /** Tier modifiers active in every fight of this run. */
+  readonly omens: OmenId[];
+  private volatileT = 0;
   quests: Quest[] = [];
   rareSpawned = false;
   rareIndex = -1;
@@ -308,7 +350,13 @@ export class World {
   /** The dungeon: the route of fights, which one is next, and where we are in it. */
   route: EncounterId[] = [];
   encounter = 0;
-  phase: 'intro' | 'fight' | 'cleared' = 'intro';
+  phase: 'intro' | 'fight' | 'cleared' | 'choose' = 'intro';
+  /** Gates on offer while `phase` is 'choose'. */
+  gates: Gate[] = [];
+  /** Paths taken at each fork, for the summary. */
+  paths: GateKind[] = [];
+  /** The current fight was a named path: its loot bag is one rarity better. */
+  private namedFight = false;
   phaseT = INTRO_TIME;
   eliteKilled = false;
   revived = false;
@@ -357,20 +405,22 @@ export class World {
     this.loadout = loadoutFrom(this.passives, this.gear);
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
-    this.luck = 1 + 0.12 * (this.tier - 1);
+    this.omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
+    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length);
     const hp = this.classDef.baseHp + this.loadout.maxHpBonus;
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
       hp, maxHp: hp,
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
-      heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false,
+      heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
+      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
-      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
@@ -404,7 +454,11 @@ export class World {
 
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (this.player.level - 1)) * this.loadout.dmgMult;
+    const p = this.player;
+    // Vengeance: the Bulwark hits harder the more hurt it is.
+    const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
+    const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
+    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -419,7 +473,8 @@ export class World {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
   }
   get moveSpeed(): number {
-    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult;
+    const boost = (this.player.hasteT > 0 ? 1.3 : 1) * (1 + 0.05 * this.rank('momentum'));
+    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost;
   }
   get regen(): number {
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind');
@@ -436,6 +491,10 @@ export class World {
 
   abilityCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
+    if (this.cls === 'bulwark') {
+      if (slot === 1) return base - 2 * this.rank('momentum');
+      return base;
+    }
     if (this.cls === 'duskblade') {
       if (slot === 0) return base - 1 * this.rank('deepCuts');
       if (slot === 1) return base - 1.5 * this.rank('evasion');
@@ -451,7 +510,8 @@ export class World {
   canCast(slot: number): boolean {
     const p = this.player;
     const def = this.abilities[slot];
-    if (!def || p.cds[slot] > 0) return false;
+    if (!def) return false;
+    if (p.cds[slot] > 0 && !(slot === 1 && p.blinkCharges > 0)) return false;
     if (!def.offGcd && p.gcd > 0) return false;
     return p.heat >= this.abilityCost(slot);
   }
@@ -499,6 +559,8 @@ export class World {
     return {
       victory: this.victory,
       tier: this.tier,
+      omens: [...this.omens],
+      paths: [...this.paths],
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -541,10 +603,19 @@ export class World {
       if (this.phaseT <= 0) this.startEncounter();
       return;
     }
+    if (this.phase === 'choose') {
+      this.phaseT -= dt;
+      const p = this.player;
+      const g = this.gates.find((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= (q.r + PLAYER_RADIUS) ** 2);
+      if (g) this.takeGate(g, false);
+      else if (this.phaseT <= 0) this.takeGate(this.gates[0], true);
+      return;
+    }
     if (this.inShadow) {
       if (this.time - this.shadowStart >= SHADOW_TIME) this.shadowDone = true;
       return;
     }
+    if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
@@ -609,11 +680,49 @@ export class World {
     p.pendingLevels++;
     this.events.push({ type: 'levelUp', level: p.level });
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
-    const min: Rarity = this.encounter >= 3 ? 'rare' : this.encounter >= 2 ? 'fine' : 'common';
-    this.dropLoot(p.x + 40, p.y, min);
+    if (def.id === 'shrine') {
+      p.hp = p.maxHp;
+    } else {
+      const order: Rarity[] = ['common', 'fine', 'rare', 'epic'];
+      let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
+      if (this.namedFight) min++;
+      this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
+    }
+    this.namedFight = false;
     this.encounter++;
+    this.openFork();
+  }
+
+  /** After a clear: offer a fork if this point in the route has one, else count down to the next fight. */
+  private openFork(): void {
+    const offer = this.stress ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q));
+    if (!offer) {
+      this.phase = 'intro';
+      this.phaseT = INTRO_TIME;
+      return;
+    }
+    // Two gates side by side, a short walk from the player towards the arena's
+    // centre, so both are on a phone screen at once.
+    const p = this.player;
+    const toward = Math.hypot(p.x, p.y) > 60 ? Math.atan2(-p.y, -p.x) : -Math.PI / 2;
+    const cx = p.x + Math.cos(toward) * 140;
+    const cy = p.y + Math.sin(toward) * 140;
+    const px = -Math.sin(toward) * 85;
+    const py = Math.cos(toward) * 85;
+    this.gates = offer.map((o, k) => ({ kind: o.kind, encounter: o.encounter, x: cx + (k ? px : -px), y: cy + (k ? py : -py), r: GATE_RADIUS }));
+    this.phase = 'choose';
+    this.phaseT = CHOOSE_TIME;
+    this.events.push({ type: 'fork', gates: this.gates.map((g) => ({ ...g })) });
+  }
+
+  private takeGate(g: Gate, timedOut: boolean): void {
+    this.route[this.encounter] = g.encounter;
+    this.namedFight = g.kind === 'named';
+    this.paths.push(g.kind);
+    this.gates = [];
+    this.events.push({ type: 'gateChosen', kind: g.kind, id: g.encounter, timedOut });
     this.phase = 'intro';
-    this.phaseT = INTRO_TIME;
+    this.phaseT = INTRO_TIME * 0.6;
   }
 
   private clampArena(o: { x: number; y: number }, r: number): void {
@@ -722,6 +831,8 @@ export class World {
     e.stunT = 0;
     e.aux = 0;
     e.aux2 = 0;
+    e.ward = 0;
+    e.warded = false;
     this.aliveEnemies++;
     return idx;
   }
@@ -749,9 +860,14 @@ export class World {
     return Math.pow(1.12, this.tier - 1);
   }
 
-  private hurtPlayer(amount: number): void {
+  /** `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). */
+  private hurtPlayer(amount: number, src = -1): void {
     if (this.invulnerable || this.player.shieldT > 0) return;
     const p = this.player;
+    if (this.cls === 'bulwark') {
+      amount = this.bulwarkMitigate(amount, src);
+      if (amount <= 0) return;
+    }
     if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5) {
       // Parry: the hit is turned aside and answered.
       p.parryT = 6;
@@ -777,12 +893,32 @@ export class World {
     if (p.gcd > 0) p.gcd -= dt;
     if (p.shieldT > 0) p.shieldT -= dt;
     if (p.parryT > 0) p.parryT -= dt;
-    this.addHeat((this.cls === 'duskblade' ? 3 : 2) * dt);
+    if (p.hasteT > 0) p.hasteT -= dt;
+    // Blazing Speed rank 2: a second Blink charge refills on Blink's cooldown.
+    if (this.rank('blazingSpeed') >= 2 && p.blinkCharges < 1) {
+      p.blinkChargeT -= dt;
+      if (p.blinkChargeT <= 0) {
+        p.blinkCharges = 1;
+        p.blinkChargeT = this.abilityCooldown(1);
+      }
+    }
+    this.addHeat((this.cls === 'duskblade' ? 3 : this.cls === 'bulwark' ? 1 : 2) * dt);
     const slot = input.cast;
     if (slot === undefined || slot < 0 || slot >= this.abilities.length || !this.canCast(slot)) return;
     p.heat -= this.abilityCost(slot);
-    p.cds[slot] = this.abilityCooldown(slot);
+    if (slot === 1 && p.cds[1] > 0) {
+      // Spend the stored charge; the main cooldown keeps running.
+      p.blinkCharges--;
+      p.blinkChargeT = this.abilityCooldown(1);
+    } else p.cds[slot] = this.abilityCooldown(slot);
     if (!this.abilities[slot].offGcd) p.gcd = GCD;
+    if (this.cls === 'bulwark') {
+      if (slot === 0) this.shieldSlam();
+      else if (slot === 1) this.charge();
+      else if (slot === 2) this.bastion();
+      else this.quench();
+      return;
+    }
     if (this.cls === 'duskblade') {
       if (slot === 0) this.rendingDash();
       else if (slot === 1) this.sidestep(input);
@@ -814,7 +950,7 @@ export class World {
         e.x += (dx / d) * 60;
         e.y += (dy / d) * 60;
       }
-      this.damageEnemy(i, dmg, true);
+      this.damageEnemy(i, dmg, true, false, this.rank('ignition') > 0);
     });
     const inferno = this.rank('rollingInferno');
     if (inferno > 0) {
@@ -837,6 +973,7 @@ export class World {
     p.px = p.x;
     p.py = p.y;
     p.shieldT = 0.3 + 0.6 * this.rank('flicker');
+    if (this.rank('blazingSpeed') > 0) p.hasteT = 2;
     this.addZone(x1, y1, 44, 14 * this.dmgMult, 3);
     this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
   }
@@ -862,7 +999,7 @@ export class World {
     const x = t >= 0 ? this.enemies[t].x : p.x;
     const y = t >= 0 ? this.enemies[t].y : p.y;
     const r = 150;
-    const dmg = 240 * this.dmgMult;
+    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
       if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
@@ -872,6 +1009,8 @@ export class World {
         e.burnT = 4;
       }
     });
+    const pyro = this.rank('pyroclasm');
+    if (pyro > 0) this.addZone(x, y, 90, 14 * pyro * this.dmgMult, 4);
     this.events.push({ type: 'ability', slot: 2, x, y, angle: 0, r });
   }
 
@@ -924,6 +1063,10 @@ export class World {
       this.updateBlades(dt);
       return;
     }
+    if (this.cls === 'bulwark') {
+      this.updateShield(dt);
+      return;
+    }
 
     p.volleyT -= dt;
     if (p.volleyT <= 0) {
@@ -969,6 +1112,226 @@ export class World {
         });
       }
     }
+  }
+
+  // ---------------------------------------------------------------- bulwark
+
+  get sweepCooldown(): number {
+    return 0.8 / this.loadout.hasteMult;
+  }
+  get sweepReach(): number {
+    return 95 + 15 * this.rank('wideSweep');
+  }
+  /** Half of Shield Sweep's arc, in radians: 150 degrees, 250 at rank 1, a full circle at rank 2. */
+  get sweepHalfArc(): number {
+    const r = this.rank('wideSweep');
+    return r >= 2 ? Math.PI : ((r === 1 ? 250 : 150) * Math.PI) / 360;
+  }
+  get damageTakenMult(): number {
+    const p = this.player;
+    const armor = 1 - (BULWARK_ARMOR + 0.04 * this.rank('holdTheLine'));
+    return armor * (p.bastionT > 0 ? 0.4 : 1);
+  }
+
+  /** Armor, Bastion, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
+  private bulwarkMitigate(raw: number, src: number): number {
+    const p = this.player;
+    this.addHeat(raw * 0.2);
+    let amount = raw * this.damageTakenMult;
+    if (p.bastionT > 0) p.prevented += raw - amount;
+    if (p.ward > 0) {
+      const soak = Math.min(p.ward, amount);
+      p.ward -= soak;
+      amount -= soak;
+    }
+    let back = 0;
+    if (src >= 0 && this.rank('spikedShield') > 0) back += 8 * this.rank('spikedShield') * this.dmgMult;
+    // Bastion turns back a quarter of each hit; Thornwall turns back 15% even outside it.
+    const reflect = (p.bastionT > 0 ? 0.25 : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0);
+    back += raw * reflect * this.dmgMult;
+    if (back > 0) {
+      const t = src >= 0 && this.enemies[src].alive ? src : (this.nearestEnemies(p.x, p.y, 1, 200)[0] ?? -1);
+      if (t >= 0) this.damageEnemy(t, back, false);
+      if (this.rank('thornwall') > 0) {
+        // Thornwall: what is turned back hits everything around the Bulwark.
+        this.forEachNear(p.x, p.y, 140, (i) => {
+          const e = this.enemies[i];
+          if (i === t || dist2(p.x, p.y, e.x, e.y) > (120 + e.def.radius) ** 2) return;
+          this.damageEnemy(i, back, false, true);
+        });
+      }
+    }
+    return amount;
+  }
+
+  private updateShield(dt: number): void {
+    const p = this.player;
+    const ward = this.rank('ward');
+    if (ward > 0) {
+      p.wardT -= dt;
+      if (p.wardT <= 0) {
+        p.wardT = 8;
+        p.ward = Math.max(p.ward, p.maxHp * 0.08 * ward);
+      }
+    }
+    if (p.bastionT > 0) {
+      p.bastionT -= dt;
+      if (p.bastionT <= 0 && this.rank('unbreakable') > 0 && p.prevented > 0) {
+        // Unbreakable: everything Bastion stopped comes back out at once.
+        const dmg = Math.max(60, p.prevented * 2) * this.dmgMult;
+        this.forEachNear(p.x, p.y, 200, (i) => {
+          const e = this.enemies[i];
+          if (dist2(p.x, p.y, e.x, e.y) <= (170 + e.def.radius) ** 2) this.damageEnemy(i, dmg, true);
+        });
+        this.events.push({ type: 'explode', x: p.x, y: p.y, r: 170 });
+      }
+    }
+    if (p.echoT > 0) {
+      p.echoT -= dt;
+      if (p.echoT <= 0) this.slamCone(p.echoAng, 0.5, false);
+    }
+    p.volleyT -= dt;
+    if (p.volleyT > 0) return;
+    const t = this.bladeTarget(this.sweepReach + 20);
+    if (t < 0) {
+      p.volleyT = 0;
+      return;
+    }
+    p.volleyT += this.sweepCooldown;
+    if (p.volleyT < 0) p.volleyT = 0;
+    this.shieldSweep(t);
+  }
+
+  private shieldSweep(t: number): void {
+    const p = this.player;
+    const e0 = this.enemies[t];
+    const ang = Math.atan2(e0.y - p.y, e0.x - p.x);
+    p.facing = ang;
+    p.swings++;
+    const r = this.sweepReach;
+    const half = this.sweepHalfArc;
+    const dmg = 30 * this.dmgMult;
+    let hits = 0;
+    this.forEachNear(p.x, p.y, r + 40, (i) => {
+      const e = this.enemies[i];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > r + e.def.radius) return;
+      if (half < Math.PI && Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
+      hits++;
+      if (e.def.rank === 'normal' && !e.def.stationary) {
+        e.x += (dx / d) * 22;
+        e.y += (dy / d) * 22;
+      }
+      this.damageEnemy(i, dmg, true);
+    });
+    this.addHeat(Math.min(12, 3 * hits));
+    this.events.push({ type: 'swing', x: p.x, y: p.y, angle: ang, r, arc: half * 2, spin: half >= Math.PI });
+    if (this.rank('warpath') > 0 && p.swings % 4 === 0) {
+      // Warpath: a shockwave ring.
+      const wr = 210;
+      this.forEachNear(p.x, p.y, wr + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(p.x, p.y, e.x, e.y) <= (wr + e.def.radius) ** 2) this.damageEnemy(i, dmg * 2, true);
+      });
+      this.events.push({ type: 'explode', x: p.x, y: p.y, r: wr });
+    }
+  }
+
+  /** Shield Slam's cone. `scale` is the damage multiplier (Shield Echo hits for half). */
+  private slamCone(ang: number, scale: number, stun: boolean): void {
+    const p = this.player;
+    const r = 150;
+    const half = (100 * Math.PI) / 360;
+    const dmg = 60 * scale * this.dmgMult;
+    this.forEachNear(p.x, p.y, r + 40, (i) => {
+      const e = this.enemies[i];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > r + e.def.radius) return;
+      if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
+      this.damageEnemy(i, dmg, true);
+      if (stun && e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+    });
+    this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: ang, r });
+  }
+
+  private shieldSlam(): void {
+    const p = this.player;
+    const t = this.bladeTarget(260);
+    const ang = t >= 0 ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : p.facing;
+    p.facing = ang;
+    this.slamCone(ang, 1, true);
+    const echo = this.rank('shieldEcho');
+    if (echo > 0) {
+      p.echoT = 0.4;
+      p.echoAng = ang;
+      if (echo >= 2) this.addHeat(10);
+    }
+  }
+
+  /** Charge goes for the biggest foe in range, then the nearest. */
+  chargeTarget(): number {
+    const p = this.player;
+    let best = -1;
+    let bestScore = Infinity;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (!e.alive) continue;
+      const d = Math.sqrt(dist2(p.x, p.y, e.x, e.y));
+      if (d > 420) continue;
+      const score = d - (e.def.rank === 'normal' ? 0 : 300);
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best;
+  }
+
+  private charge(): void {
+    const p = this.player;
+    const t = this.chargeTarget();
+    const x1 = p.x;
+    const y1 = p.y;
+    let ang = p.facing;
+    let len = 200;
+    if (t >= 0) {
+      const e = this.enemies[t];
+      ang = Math.atan2(e.y - p.y, e.x - p.x);
+      len = Math.max(0, Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius - PLAYER_RADIUS - 4);
+    }
+    p.x += Math.cos(ang) * len;
+    p.y += Math.sin(ang) * len;
+    this.clampArena(p, PLAYER_RADIUS);
+    p.px = p.x;
+    p.py = p.y;
+    p.facing = ang;
+    p.shieldT = Math.max(p.shieldT, 0.2);
+    const ram = this.rank('batteringRam');
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (!e.alive) continue;
+      const isTarget = i === t;
+      if (!isTarget && (ram === 0 || segDist2(e.x, e.y, x1, y1, p.x, p.y) > (36 + e.def.radius) ** 2)) continue;
+      this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * this.dmgMult, true);
+      if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, isTarget ? 0.8 : 0.5);
+    }
+    p.volleyT = Math.min(p.volleyT, 0.05);
+    this.addHeat(10);
+    this.events.push({ type: 'dash', x1, y1, x2: p.x, y2: p.y, dodge: false });
+  }
+
+  private bastion(): void {
+    const p = this.player;
+    p.bastionT = 6;
+    p.prevented = 0;
+    const heal = this.rank('lastStand');
+    if (heal > 0) {
+      const amount = Math.min(p.maxHp - p.hp, p.maxHp * 0.12 * heal);
+      p.hp += amount;
+      if (amount > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount });
+    }
+    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: 70 });
   }
 
   // ---------------------------------------------------------------- duskblade
@@ -1225,12 +1588,14 @@ export class World {
       this.damageEnemy(hit, o.dmg, true);
       this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
-        e.burnDps = Math.max(e.burnDps, 4 * burn * this.dmgMult);
+        e.burnDps = Math.max(e.burnDps, 6 * burn * this.dmgMult);
         e.burnT = 3;
       }
       if (ground > 0) this.addZone(hx, hy, 26 + 8 * ground, 5 * ground * this.dmgMult, 2);
       if (boom) {
         this.events.push({ type: 'explode', x: hx, y: hy, r: 48 });
+        // The blast also scorches the target itself, so the capstone helps against bosses.
+        this.damageEnemy(hit, o.dmg * 0.5, false, true);
         this.forEachNear(hx, hy, 100, (i) => {
           if (i === hit) return;
           const n = this.enemies[i];
@@ -1314,7 +1679,7 @@ export class World {
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
         e.touchCd = 0.6;
         const mult = e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1;
-        this.hurtPlayer(e.def.damage * mult * this.tierDamage);
+        this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
       }
     }
   }
@@ -1361,7 +1726,7 @@ export class World {
     const p = this.player;
     if (dist2(p.x, p.y, e.x, e.y) < (e.def.radius + PLAYER_RADIUS) ** 2 && e.touchCd <= 0) {
       e.touchCd = 0.6;
-      this.hurtPlayer(e.def.damage * this.tierDamage);
+      this.hurtPlayer(e.def.damage * this.tierDamage, i);
     }
   }
 
@@ -1370,7 +1735,7 @@ export class World {
     e.castId = id;
     e.castName = name;
     e.castT = 0;
-    e.castDur = dur;
+    e.castDur = this.hasOmen('quickened') ? dur * OMEN_TUNING.quickenedCast : dur;
     e.interruptible = interruptible;
     this.events.push({ type: 'castStart', index: i, name });
   }
@@ -1392,7 +1757,7 @@ export class World {
     for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
     if (id === 'cataclysm') {
       const p = this.player;
-      this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage);
+      this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
     } else if (id === 'gorge') {
       const amount = e.maxHp * 0.1;
@@ -1519,18 +1884,30 @@ export class World {
     }
   }
 
-  private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false): void {
+  private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false, forceCrit = false): void {
     const e = this.enemies[i];
     if (!e.alive) return;
     let dmg = amount;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
-    if (canCrit && this.rng.chance(this.critChance)) {
+    if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2;
       crit = true;
+      // Ignition rank 2: crits bring Flame Wave back sooner.
+      if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
+    }
+    if (e.ward > 0) {
+      const soak = Math.min(e.ward, dmg);
+      e.ward -= soak;
+      dmg -= soak;
     }
     e.hp -= dmg;
+    if (!e.warded && e.hp > 0 && e.hp < e.maxHp * 0.5 && this.hasOmen('warded') && !this.stress) {
+      e.warded = true;
+      e.ward = e.maxHp * OMEN_TUNING.wardShare;
+      this.events.push({ type: 'ward', index: i, amount: e.ward });
+    }
     this.damageDealt += dmg;
     if (e.kind === 'worldShadow') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
@@ -1560,6 +1937,17 @@ export class World {
     this.aliveEnemies--;
     this.kills++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
+    this.omensOnKill(e);
+    // Pyroclasm: a foe that dies burning passes its fire to its neighbours.
+    if (e.burnT > 0 && this.rank('pyroclasm') > 0) {
+      const dps = e.burnDps;
+      this.forEachNear(e.x, e.y, 110, (j) => {
+        const n = this.enemies[j];
+        if (j === i || dist2(e.x, e.y, n.x, n.y) > 80 * 80) return;
+        n.burnDps = Math.max(n.burnDps, dps);
+        n.burnT = Math.max(n.burnT, 3);
+      });
+    }
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
       const bleed = Math.max(e.burnDps, 14 * this.dmgMult);
@@ -1660,6 +2048,40 @@ export class World {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
     Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
+  }
+
+  // ---------------------------------------------------------------- omens
+
+  hasOmen(id: OmenId): boolean {
+    return this.omens.includes(id);
+  }
+
+  /** Per-tick Omens during a fight. */
+  private runOmens(dt: number): void {
+    if (!this.hasOmen('volatileGround') || this.victory) return;
+    this.volatileT += dt;
+    // Never erupt while a soak circle is up: standing still in gold must stay safe.
+    if (this.volatileT >= OMEN_TUNING.volatileEvery && !this.telegraphs.some((t) => t.alive && t.kind === 'soak')) {
+      this.volatileT = 0;
+      const p = this.player;
+      this.addTelegraph('circle', p.x, p.y, OMEN_TUNING.volatileRadius, 0, 0, OMEN_TUNING.volatileDelay, OMEN_TUNING.volatileDamage);
+    }
+  }
+
+  private omensOnKill(e: Enemy): void {
+    if (e.def.rank === 'boss' || this.stress) return;
+    if (this.hasOmen('kindledDead') && e.def.rank !== 'normal') {
+      this.addTelegraph('circle', e.x, e.y, OMEN_TUNING.kindledRadius, 0, 0, OMEN_TUNING.kindledDelay, OMEN_TUNING.kindledDamage);
+    }
+    if (this.hasOmen('sharedPain') && e.def.rank !== 'normal') {
+      for (const o of this.enemies) {
+        if (!o.alive || o === e || o.def.rank === 'normal') continue;
+        const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal);
+        if (amount <= 0) continue;
+        o.hp += amount;
+        this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
+      }
+    }
   }
 
   private updateTelegraphs(dt: number): void {
@@ -1840,22 +2262,37 @@ export class World {
     this.state = 'draft';
   }
 
-  /** Offer 3 talents. An unlocked capstone is always offered. */
+  /** This class's three branches, in tree order. */
+  get branches(): Branch[] {
+    const out: Branch[] = [];
+    for (const d of Object.values(TALENTS) as TalentDef[]) {
+      if (d.cls === this.cls && !out.includes(d.branch)) out.push(d.branch);
+    }
+    return out;
+  }
+
+  /**
+   * Offer one talent from each branch, so every pick is a build direction.
+   * An unlocked capstone takes its branch's card. A branch with nothing left
+   * gives its card to another branch, then to the general fallbacks.
+   */
   rollDraft(): DraftOption[] {
     const out: DraftOption[] = [];
-    const pool: TalentId[] = [];
-    for (const def of Object.values(TALENTS)) {
-      if (def.branch === 'general' || def.cls !== this.cls) continue;
-      const r = this.rank(def.id);
-      if (r >= def.maxRank) continue;
-      if (def.capstone) {
-        if (this.branchRanks(def.branch) >= CAPSTONE_RANKS) out.push({ id: def.id, nextRank: 1 });
-        continue;
+    const spare: TalentId[] = [];
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls);
+    for (const b of this.branches) {
+      const ids = defs.filter((d) => d.branch === b && !d.capstone && this.rank(d.id) < d.maxRank).map((d) => d.id);
+      const cap = defs.find((d) => d.branch === b && d.capstone);
+      if (cap && this.rank(cap.id) === 0 && this.branchRanks(b) >= CAPSTONE_RANKS) {
+        out.push({ id: cap.id, nextRank: 1 });
+      } else if (ids.length) {
+        const id = ids.splice(this.rng.int(ids.length), 1)[0];
+        out.push({ id, nextRank: this.rank(id) + 1 });
       }
-      pool.push(def.id);
+      spare.push(...ids);
     }
-    while (out.length < 3 && pool.length) {
-      const id = pool.splice(this.rng.int(pool.length), 1)[0];
+    while (out.length < 3 && spare.length) {
+      const id = spare.splice(this.rng.int(spare.length), 1)[0];
       out.push({ id, nextRank: this.rank(id) + 1 });
     }
     const fallbacks: TalentId[] = ['stoke', 'smallHeal'];
@@ -1870,6 +2307,14 @@ export class World {
       return;
     }
     this.talents[id] = this.rank(id) + 1;
+    if (id === 'blazingSpeed' && this.rank(id) === 2) {
+      p.blinkCharges = 1;
+      p.blinkChargeT = this.abilityCooldown(1);
+    }
+    if (id === 'holdTheLine') {
+      p.maxHp += 30;
+      p.hp = Math.min(p.maxHp, p.hp + 30);
+    }
     if (id === 'cinderSkin') {
       p.maxHp += 25;
       p.hp = Math.min(p.maxHp, p.hp + 25);
