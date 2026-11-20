@@ -15,6 +15,7 @@ import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
+import { clampParty, partyHealth, gritMult } from './content/scaling';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -277,6 +278,10 @@ export interface WorldOptions {
   omens?: OmenId[];
   /** Which dungeon to delve (default the Kiln Depths). */
   dungeon?: DungeonId;
+  /** Heroes in the party (1 to 4). Scales enemy health and targeted mechanics. */
+  partySize?: number;
+  /** Grit stacks from losses in a row on this tier (see content/scaling). */
+  grit?: number;
 }
 
 export interface RunSummary {
@@ -320,6 +325,8 @@ export class World {
   /** Tier modifiers active in every fight of this run. */
   readonly omens: OmenId[];
   readonly dungeonId: DungeonId;
+  readonly partySize: number;
+  readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
   arenaR = ARENA;
   /** Maelra's steam vents (empty in other fights). */
@@ -396,9 +403,11 @@ export class World {
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
+    this.partySize = clampParty(opts.partySize);
+    this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     this.omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length);
-    const hp = this.classDef.baseHp + this.loadout.maxHpBonus;
+    const hp = Math.round((this.classDef.baseHp + this.loadout.maxHpBonus) * gritMult(this.grit));
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
       hp, maxHp: hp,
@@ -444,7 +453,7 @@ export class World {
 
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (this.player.level - 1)) * this.loadout.dmgMult;
+    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (this.player.level - 1)) * this.loadout.dmgMult * gritMult(this.grit);
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -775,7 +784,7 @@ export class World {
     if (idx < 0) return -1;
     const def = ENEMIES[kind];
     const e = this.enemies[idx];
-    const tierHp = Math.pow(1.22, this.tier - 1);
+    const tierHp = Math.pow(1.22, this.tier - 1) * (this.stress ? 1 : partyHealth(this.partySize));
     const depth = this.stress ? 1 : def.rank === 'boss' ? 1 : 1 + 0.12 * this.encounter;
     const scale = (this.stress && def.rank === 'normal' ? 1 + this.time / 220 : depth) * tierHp;
     e.alive = true;

@@ -4,6 +4,7 @@
  * server later (loot must be rolled server-side once cloud saves exist).
  */
 import { Rng } from './rng';
+import { GRIT } from './content/scaling';
 import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
@@ -40,6 +41,8 @@ export interface HeroProfile {
   cls?: ClassId;
   /** Forge actions taken; seeds temper rolls so they can be re-checked. */
   forged?: number;
+  /** Losses in a row on one dungeon and tier, which grant Grit there. */
+  grit?: { key: string; stacks: number };
 }
 
 export function newHero(): HeroProfile {
@@ -220,6 +223,9 @@ export function applyRun(
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
   hero.runs++;
+  const key = gritKey(s.dungeon ?? 'kiln', s.tier ?? 1);
+  if (s.victory) hero.grit = undefined;
+  else hero.grit = { key, stacks: Math.min(GRIT.maxStacks, (hero.grit?.key === key ? hero.grit.stacks : 0) + 1) };
   if (s.victory) {
     hero.wins++;
     if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;
@@ -239,6 +245,15 @@ export function applyRun(
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
   return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels };
+}
+
+function gritKey(dungeon: string, tier: number): string {
+  return `${dungeon}:${tier}`;
+}
+
+/** Grit stacks the hero brings into a delve of this dungeon and tier. */
+export function gritFor(hero: HeroProfile, dungeon: string, tier: number): number {
+  return hero.grit?.key === gritKey(dungeon, tier) ? hero.grit.stacks : 0;
 }
 
 export function equip(hero: HeroProfile, itemId: string): void {

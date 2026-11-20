@@ -4,7 +4,7 @@ import { GameScene } from './GameScene';
 import { Hud } from './ui';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero } from '../sim/hero';
+import { applyRun, equippedItems, HeroProfile, newerHero, gritFor } from '../sim/hero';
 import { cloud, queueCloudSave } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 
@@ -105,6 +105,7 @@ function startRun(): void {
     tier: hub.tier,
     week: weekOf(Date.now()),
     dungeon: hub.dungeon,
+    grit: gritFor(hero, hub.dungeon, hub.tier),
     cls: hero.cls ?? 'emberwright',
   };
   game.scene.start('game', {
