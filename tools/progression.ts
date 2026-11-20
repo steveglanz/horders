@@ -3,13 +3,20 @@ import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { applyRun, equip, equippedItems, gearScore, itemScore, newHero, pointsAvailable, spendPoint, PassiveId } from '../sim/hero';
 import { SLOTS } from '../sim/content/items';
+import { salvage } from '../sim/hero';
+import { canUpgrade, upgradeItem } from '../sim/forge';
+
+// FORGE=0 skips salvage and the Forge, for before/after comparisons.
+const useForge = process.env.FORGE !== '0';
+const runs = Number(process.env.RUNS ?? 50);
+let forgedTotal = 0;
 
 const h = newHero();
 const order: PassiveId[] = ['might', 'fortitude', 'alacrity', 'insight'];
 let wins = 0;
 let tier = 1;
 let lossStreak = 0;
-for (let run = 1; run <= 50; run++) {
+for (let run = 1; run <= runs; run++) {
   const w = new World({ seed: run * 7919, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId, tier });
   while (w.state !== 'ended' && w.time < 800) {
     if (w.state === 'draft') w.choose(botChoose(w));
@@ -22,9 +29,19 @@ for (let run = 1; run <= 50; run++) {
     const best = h.inventory.filter((i) => i.slot === slot).sort((a, b) => itemScore(b) - itemScore(a))[0];
     if (best) equip(h, best.id);
   }
+  if (useForge) {
+    // Salvage everything not worn, then upgrade the lowest-level worn piece while embers last.
+    const worn = new Set(Object.values(h.equipped));
+    for (const it of [...h.inventory]) if (!worn.has(it.id)) salvage(h, it.id);
+    for (let g = 0; g < 50; g++) {
+      const cands = equippedItems(h).filter((i) => canUpgrade(h, i).ok).sort((a, b) => a.ilvl - b.ilvl);
+      if (!cands.length || !upgradeItem(h, cands[0].id)) break;
+      forgedTotal++;
+    }
+  }
   let guard = 0;
   while (pointsAvailable(h) > 0 && guard++ < 20) if (!spendPoint(h, order[guard % 4])) continue;
   if (true) {
-    console.log(`run ${String(run).padStart(2)}: T${s.tier} ${s.victory ? 'WIN ' : 'loss'} ${s.time.toFixed(0).padStart(3)}s  hero lvl ${h.level}  gear ${gearScore(h)}  +${r.heroXp}xp  items ${r.items.map((i) => i.rarity[0]).join('')} quests ${s.questsDone}  wins so far ${wins}`);
+    console.log(`run ${String(run).padStart(2)}: T${s.tier} ${s.victory ? 'WIN ' : 'loss'} ${s.time.toFixed(0).padStart(3)}s  hero lvl ${h.level}  gear ${gearScore(h)}  +${r.heroXp}xp  items ${r.items.map((i) => i.rarity[0]).join('')} quests ${s.questsDone}  embers ${h.embers} forged ${forgedTotal}  wins so far ${wins}`);
   }
 }

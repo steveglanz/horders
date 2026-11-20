@@ -6,6 +6,7 @@ import {
 import { BossStatus, cloud } from './cloud';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
+import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
@@ -115,16 +116,24 @@ export class Hub {
     const h = this.hero();
     const worn = new Set(Object.values(h.equipped));
     const sorted = [...h.inventory].sort((a, b) => (worn.has(b.id) ? 1 : 0) - (worn.has(a.id) ? 1 : 0) || itemScore(b) - itemScore(a));
-    $('bagSub').textContent = `${h.inventory.length} items · ${h.embers} embers from salvage. Salvage turns spare gear into embers.`;
+    $('bagSub').textContent = `${h.inventory.length} items · ${h.embers} embers. Salvage spare gear for embers, then spend them at the Forge: Upgrade raises item level, Temper rerolls the weakest bonus stat.`;
     $('bagList').innerHTML = sorted.map((it) => {
       const isWorn = worn.has(it.id);
-      const btns = isWorn ? '<span class="tagE">Equipped</span>' : `<button data-e="${it.id}">Equip</button><button data-s="${it.id}">Salvage</button>`;
-      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it)}${btns}</div>`;
+      const up = canUpgrade(h, it);
+      const tm = canTemper(h, it);
+      const forge = `<button data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade ${up.cost}</button>`
+        + (it.stats.length > 1 ? `<button data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper ${tm.cost}</button>` : '');
+      const btns = (isWorn ? '<span class="tagE">Equipped</span>' : `<button data-e="${it.id}">Equip</button><button data-s="${it.id}">Salvage</button>`) + forge;
+      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it)}<div class="acts">${btns}</div></div>`;
     }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) =>
       b.addEventListener('click', () => { equip(h, b.dataset.e!); this.save(); this.openBag(); }));
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) =>
       b.addEventListener('click', () => { salvage(h, b.dataset.s!); this.save(); this.openBag(); }));
+    $('bagList').querySelectorAll<HTMLButtonElement>('[data-u]').forEach((b) =>
+      b.addEventListener('click', () => { if (upgradeItem(h, b.dataset.u!)) { this.save(); this.openBag(); } }));
+    $('bagList').querySelectorAll<HTMLButtonElement>('[data-tm]').forEach((b) =>
+      b.addEventListener('click', () => { if (temperItem(h, b.dataset.tm!)) { this.save(); this.openBag(); } }));
     $('bag').hidden = false;
   }
 }

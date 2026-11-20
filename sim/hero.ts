@@ -35,6 +35,8 @@ export interface HeroProfile {
   nextItemId: number;
   /** Highest difficulty tier unlocked (win a tier to unlock the next). */
   maxTier: number;
+  /** Forge actions taken; seeds temper rolls so they can be re-checked. */
+  forged?: number;
 }
 
 export function newHero(): HeroProfile {
