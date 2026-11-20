@@ -1219,9 +1219,9 @@ export class World {
     if (p.hasteT > 0) p.hasteT -= dt;
     if (p.imageT > 0) p.imageT -= dt;
     if (p.tossT > 0) p.tossT -= dt;
-    // Anchored Dawn: Radiant Burst recovers twice as fast inside your own Sanctuary.
+    // Anchored Dawn: Radiant Burst recovers 50% faster inside your own Sanctuary.
     if (p.sanctT > 0 && p.cds[0] > 0 && this.hasMythic('anchoredDawn') && dist2(p.x, p.y, p.sanctX, p.sanctY) <= this.sanctuaryRadius ** 2) {
-      p.cds[0] = Math.max(0, p.cds[0] - dt);
+      p.cds[0] = Math.max(0, p.cds[0] - 0.5 * dt);
     }
     // Blazing Speed rank 2: a second Blink charge refills on Blink's cooldown.
     if (this.rank('blazingSpeed') >= 2 && p.blinkCharges < 1) {
@@ -1510,7 +1510,7 @@ export class World {
     return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
   }
   get burstRadius(): number {
-    return (140 + 40 * this.rank('sunflare')) * (this.hasMythic('eclipseGlass') ? 1.3 : 1);
+    return (140 + 40 * this.rank('sunflare')) * (this.hasMythic('eclipseGlass') ? 1.1 : 1);
   }
   get sanctuaryRadius(): number {
     return 150;
@@ -1625,7 +1625,7 @@ export class World {
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;
-    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult * (eclipse ? 2 : 1);
+    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult * (eclipse ? 1.4 : 1);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -1663,7 +1663,7 @@ export class World {
 
   private sanctuary(): void {
     const p = this.player;
-    p.sanctT = (6 + 2 * this.rank('lingeringSanctuary')) * (this.hasMythic('anchoredDawn') ? 2 : 1);
+    p.sanctT = (6 + 2 * this.rank('lingeringSanctuary')) * (this.hasMythic('anchoredDawn') ? 1.5 : 1);
     p.sanctX = p.x;
     p.sanctY = p.y;
     p.sanctTick = 0;
