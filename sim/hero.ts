@@ -22,6 +22,8 @@ export const PASSIVES: Record<PassiveId, { name: string; text: string; max: numb
 };
 
 export const PITY_LIMIT = 10; // runs without an Epic or better before one is guaranteed
+/** Mythics (build-changing items) only drop from this tier up, so the first ones are a milestone. */
+export const MYTHIC_FROM_TIER = 3;
 
 export interface HeroProfile {
   version: 1;
@@ -188,15 +190,15 @@ export interface RunRewards {
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
-export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId): Item {
-  let rarity = rollRarity(rng, luck);
+export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId, tier = MYTHIC_FROM_TIER): Item {
+  let rarity = rollRarity(rng, luck, tier);
   if (RARITIES.indexOf(rarity) < RARITIES.indexOf(minRarity)) rarity = minRarity;
   const slot = SLOTS[rng.int(SLOTS.length)];
   return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1), cls);
 }
 
-function rollRarity(rng: Rng, luck: number): Rarity {
-  const weights = RARITIES.map((r) => RARITY[r].weight * (r === 'common' ? 1 : luck));
+function rollRarity(rng: Rng, luck: number, tier = MYTHIC_FROM_TIER): Rarity {
+  const weights = RARITIES.map((r) => (r === 'mythic' && tier < MYTHIC_FROM_TIER ? 0 : RARITY[r].weight * (r === 'common' ? 1 : luck)));
   const total = weights.reduce((a, b) => a + b, 0);
   let x = rng.next() * total;
   for (let i = 0; i < RARITIES.length; i++) {
@@ -253,7 +255,7 @@ export function rollLoot(
   let pity = hero.pity;
   let gotEpic = runDrops.some((i) => i.rarity === 'epic' || i.rarity === 'mythic');
   for (let k = 0; k < count; k++) {
-    let rarity = rollRarity(rng, luck);
+    let rarity = rollRarity(rng, luck, tier);
     // Bad-luck protection: after enough dry runs the last drop is upgraded.
     if (k === count - 1 && !gotEpic && pity + 1 >= PITY_LIMIT && (rarity === 'common' || rarity === 'fine' || rarity === 'rare')) {
       rarity = 'epic';
