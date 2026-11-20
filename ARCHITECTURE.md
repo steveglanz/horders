@@ -33,6 +33,14 @@ Supabase project "Horders" (free tier). The browser holds only the publishable
 key in `client/cloud.ts`. Players sign in anonymously. Schema changes go in a
 new numbered file under `supabase/migrations/`; the engineering thread applies them.
 
+## Co-op networking
+
+- `client/net/party.ts`: parties of up to 4 over direct WebRTC data channels. The host's browser runs the authoritative sim; guests send inputs and draw snapshots. Each link has a reliable `rel` channel (joins, drafts, run control) and an unreliable `fast` one (inputs, snapshots).
+- `client/net/signal.ts`: the handshake only. `supabaseSignal` uses Supabase Realtime Broadcast on topic `horders-party-<CODE>`; `localSignal` uses BroadcastChannel for tests and two-tab play. Game traffic never goes through Supabase: the free plan allows 2M Realtime messages a month and 100 a second per project ([limits](https://supabase.com/docs/guides/realtime/limits)).
+- Why host authority and not lockstep: `Math.sin`/`Math.cos` are implementation-approximated in the JS spec, so Safari and Chrome can drift apart.
+- Public STUN only, no TURN relay, so players on some strict networks can't connect yet.
+- `node tools/netcheck.cjs` runs a host, three guests and a refused fifth player in Chromium.
+
 ## Working together
 
 - Branch from `main`, open a PR. `npm test` and `npm run build` must pass.
