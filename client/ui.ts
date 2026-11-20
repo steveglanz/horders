@@ -255,7 +255,7 @@ export class Hud {
     const out: string[] = [];
     if (w.telegraphs.some((t) => t.alive && t.kind === 'soak')) out.push('<span class="buff debuff">Kiln Brand: stand in the gold circle!</span>');
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
-    if (p.heat >= w.abilityCost(2)) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
+    if (p.heat >= w.abilityCost(2)) out.push('<span class="buff" style="--bc:#ff8a3d">Combustion ready</span>');
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
