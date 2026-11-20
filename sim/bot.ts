@@ -216,8 +216,26 @@ export function botInput(w: World, skill = 1): Input {
         fx += -Math.sin(t.angle) * side * k * skill;
         fy += Math.cos(t.angle) * side * k * skill;
       } else {
-        fx += (dx / d) * k * skill;
-        fy += (dy / d) * k * skill;
+        let ux = dx / d;
+        let uy = dy / d;
+        // A ring dropped at your feet: don't run out of it straight into a big foe.
+        if (melee && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+          const b = w.enemies[w.bossIndex];
+          const bx = b.x - p.x;
+          const by = b.y - p.y;
+          const bd = Math.hypot(bx, by) || 1;
+          if (bd < 220 && (ux * bx + uy * by) / bd > -0.3) {
+            // Go out the side away from the boss instead.
+            const side = Math.sign(ux * -by + uy * bx) || 1;
+            ux = (-by / bd) * side - (bx / bd) * 0.5;
+            uy = (bx / bd) * side - (by / bd) * 0.5;
+            const ul = Math.hypot(ux, uy) || 1;
+            ux /= ul;
+            uy /= ul;
+          }
+        }
+        fx += ux * k * skill;
+        fy += uy * k * skill;
       }
     }
   }
@@ -250,7 +268,7 @@ export function botInput(w: World, skill = 1): Input {
   }
   // Maelra: once her Temper builds, lead her across a steam vent by standing
   // on the far side of it so her path crosses the steam.
-  if (w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+  if (process.env.NOVENT !== '1' && w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
     const b = w.enemies[w.bossIndex];
     let best = w.vents[0];
     let bd = Infinity;
