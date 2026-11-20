@@ -39,6 +39,10 @@ const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
+/** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
+const BULWARK_BLOCK = 0.35;
+/** Resolve a Bulwark spends to smother a Sluice Crawler's bloom. */
+const SMOTHER_COST = 10;
 /** Lumen: Sunmote reach and the most Brilliance (stored overheal) it can hold. */
 const LUMEN_RANGE = 500;
 const LUMEN_MAX_BRILLIANCE = 200;
@@ -221,6 +225,8 @@ export interface Player {
   bastionT: number;
   prevented: number;
   echoT: number;
+  /** Bulwark: the foe its shield faces (the last Shield Sweep target); its hits are partly blocked. */
+  guardId: number;
   echoAng: number;
   /** Lumen: stored overheal, Sanctuary and healing pool timers and centres, High Noon timer, Martyr's Halo used this fight. */
   brilliance: number;
@@ -469,7 +475,7 @@ export class World {
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
-      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0,
+      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false,
     };
     this.enemies = pool(CAP.enemies, () => ({
@@ -1262,7 +1268,7 @@ export class World {
       if (p.sanctTick <= 0) {
         p.sanctTick += 0.5;
         const r = this.sanctuaryRadius;
-        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(3);
+        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
           if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
@@ -1412,6 +1418,8 @@ export class World {
     const p = this.player;
     this.addHeat(raw * 0.2);
     let amount = raw * this.damageTakenMult;
+    // Shield Block: the foe the shield faces lands only part of its hits.
+    if (src >= 0 && src === p.guardId) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
@@ -1481,6 +1489,7 @@ export class World {
     const e0 = this.enemies[t];
     const ang = Math.atan2(e0.y - p.y, e0.x - p.x);
     p.facing = ang;
+    p.guardId = t;
     p.swings++;
     const r = this.sweepReach;
     const half = this.sweepHalfArc;
@@ -1527,7 +1536,14 @@ export class World {
       if (d > r + e.def.radius) return;
       if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
       this.damageEnemy(i, dmg, true);
-      if (stun && e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+      if (stun && e.alive && !e.def.stationary) {
+        e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+        // Shield Slam shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
+        const push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
+        e.x += (dx / d) * push;
+        e.y += (dy / d) * push;
+        this.clampArena(e, e.def.radius);
+      }
     });
     this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: ang, r });
   }
@@ -2549,7 +2565,14 @@ export class World {
         continue;
       }
       this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
-      if (t.kind === 'bloom') {
+      // Smother: a Bulwark standing in a bloom catches the burst on its shield for 25 Resolve, so it feeds no one.
+      const smother = t.kind === 'bloom' && this.cls === 'bulwark' && p.heat >= SMOTHER_COST
+        && dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
+      if (smother) {
+        p.heat -= SMOTHER_COST;
+        this.events.push({ type: 'parry', x: p.x, y: p.y });
+      }
+      if (t.kind === 'bloom' && !smother) {
         // The burst feeds any enemy caught in it.
         this.forEachNear(t.x, t.y, t.r + 40, (j) => {
           const o = this.enemies[j];

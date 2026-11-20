@@ -189,8 +189,11 @@ export function botInput(w: World, skill = 1): Input {
     fy += dy * wgt;
   }
   let soaking = false;
+  // A Bulwark with Resolve to spare stands in blooms and smothers them.
+  const smother = w.cls === 'bulwark' && p.heat >= 10;
   for (const t of w.telegraphs) {
     if (!t.alive) continue;
+    if (smother && t.kind === 'bloom') continue;
     if (t.kind === 'soak') {
       // Run into the gold circle and hold still in it.
       const dx = t.x - p.x;

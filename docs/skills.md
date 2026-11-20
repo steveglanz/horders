@@ -68,6 +68,10 @@ Resource: **Resolve** (0 to 100). Gained when you are hit (1 per 5 damage before
 
 Base: 160 health, armor stops 20% of every hit, 128 move speed.
 
+**Shield Block**: hits from the foe the shield faces (the last Shield Sweep target) are cut a further 35%. A tank that keeps its shield on the boss can stand in contact with it.
+
+**Smother**: a Bulwark standing in a Sluice Crawler's bloom when it bursts catches it on the shield for 10 Resolve, and the burst heals no one. It still takes the hit. This is the tank's answer to the Tide Pair: soak the ring instead of dragging it away. Shield Slam also shoves what it hits (50 for normal foes, 90 for elites, 70 for bosses), so the Bulwark can steer Maelra toward a vent.
+
 Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 damage, small knockback on normal enemies.
 
 | Key | Ability | Cost / CD | Effect |
@@ -104,7 +108,7 @@ Auto: **Sunmote**, every 0.7s, an instant bolt of light at the target within 500
 | --- | --- | --- | --- |
 | Q | Radiant Burst | 25 Radiance / 4s | Heal 15, and a 140-radius pulse for 40 damage that pushes normal enemies back |
 | E | Glimmer Step | 0 / 8s | Step 160 where you are moving, untouchable for 0.3s |
-| R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 6 per second inside, foes inside take 20 per second |
+| R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 4 per second inside, foes inside take 20 per second |
 | F | Hush | 0 / 10s, off GCD | Interrupt within 480, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
 
 Branches:
