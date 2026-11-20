@@ -39,6 +39,8 @@ new numbered file under `supabase/migrations/`; the engineering thread applies t
 - `client/net/signal.ts`: the handshake only. `supabaseSignal` uses Supabase Realtime Broadcast on topic `horders-party-<CODE>`; `localSignal` uses BroadcastChannel for tests and two-tab play. Game traffic never goes through Supabase: the free plan allows 2M Realtime messages a month and 100 a second per project ([limits](https://supabase.com/docs/guides/realtime/limits)).
 - Why host authority and not lockstep: `Math.sin`/`Math.cos` are implementation-approximated in the JS spec, so Safari and Chrome can drift apart.
 - Public STUN only, no TURN relay, so players on some strict networks can't connect yet.
+- Party sim: `new World({ party: [{ cls: 'bulwark' }, ...] })` adds up to three heroes beside the main one. Per-hero state lives in `world.heroes`; the sim swaps one hero's fields into `world.player`, `talents`, `cls` and so on with `use(i)`, and every hero loop ends back on hero 0, so solo code paths read the same fields as before. `step()` takes one input per hero. Enemies attack by threat (`sim/threat.ts`, one table per enemy in `world.threat`); orbs, zones and strikes remember which hero cast them. Downed heroes stand back up between fights at 30% health; the run ends when the whole party is down. Drafts deal cards to every hero with levels waiting, `choose(card, hero)` takes the hero, and the run resumes once nobody has cards.
+- Solo runs are unchanged: `npx tsx tools/hashcheck.ts` fingerprints 24 solo bot runs (4 classes, 2 dungeons, 3 seeds); diff its output before and after a sim change.
 - `node tools/netcheck.cjs` runs a host, three guests and a refused fifth player in Chromium.
 
 ## Working together
