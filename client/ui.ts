@@ -157,7 +157,8 @@ export class Hud {
     $('heatText').textContent = `${Math.floor(p.heat)} ${w.classDef.resource}`;
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
-      const cd = p.cds[i];
+      // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
+      const cd = i === 1 && p.blinkCharges > 0 ? 0 : p.cds[i];
       const total = w.abilityCooldown(i);
       const gcd = !w.abilities[i].offGcd && p.gcd > 0 ? p.gcd / 0.4 : 0;
       const frac = cd > 0 ? cd / total : gcd;
@@ -247,6 +248,7 @@ export class Hud {
     const out: string[] = [];
     if (w.telegraphs.some((t) => t.alive && t.kind === 'soak')) out.push('<span class="buff debuff">Kiln Brand: stand in the gold circle!</span>');
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
+    if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Blazing Speed</span>');
     if (p.heat >= w.abilityCost(2)) out.push('<span class="buff" style="--bc:#ff8a3d">Combustion ready</span>');
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
