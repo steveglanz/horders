@@ -14,6 +14,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
+| R11 | Third themed dungeon: the Glarewell (working title), light and shadow, from tier 7 | ⏭ design next | design | Visuals: pillars, beam and shade art; skills: check every kit can hide and spread |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
 
@@ -107,6 +108,25 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 **Code:** `sim/content/bounty.ts` (`bountyFor`, `dayOf`, `BOUNTY`), `WorldOptions.bounty`, `HeroProfile.bountyDay`, `RunRewards.bountyEmbers`, the hub's bounty line, and `tools/bounty.ts` for balance. Tests are in `tests/bounty.test.ts`.
 
 **Later:** a daily leaderboard by clear time (engineering), since the runs are directly comparable.
+
+## R11. Third dungeon: the Glarewell (working title)
+
+**Why:** Steve asked (20 Nov) whether dungeons have themes with their own enemies. Each dungeon should be a new place *and* teach new verbs. This one teaches the two on our list that nothing uses yet: **stand behind a pillar** and **spread out**.
+
+**Theme:** a sunken observatory where a great lens still burns. Bright light hurts. Shadow is safe, but shadow has things in it. Unlocks at tier 7, so each dungeon has a stretch of the ladder where it's new (Kiln 1, Foundry 4, Glarewell 7).
+
+**Arena:** 4 stone pillars. Each casts a shadow wedge on the side away from the lens.
+
+**Enemies (one verb each):**
+- **Lensbearer** (elite): channels **Glare**, a beam that sweeps the arena over 3 s. You're safe only in a pillar's shadow. Quench interrupts the channel early.
+- **Shade** (pack of 3): only takes full damage while standing in light. Pull them out of the shadows.
+- **Brandkeeper** (elite): **Brands** you. After 4 s the brand bursts, hitting everything near you, including pillars, which crack and lose their shadow for the fight. Step away from pillars and enemies before it bursts. That's "spread out" for one player, and in co-op it's spread from each other.
+- **Named foe, the Twin Lamps**: two lanterns that turn their light toward each other. Stand between them and you burn. Keep them apart.
+- **Boss, the Lensmother**: phase 1 sweeps Glare (hide). Phase 2 Brands you twice (spread, without breaking your own cover). Phase 3 cracks a pillar every 20 s, so cover runs out. Enrage at 180 s.
+
+**Co-op:** one Brand per hero (`partyMechanics`), so groups really do have to spread out.
+
+**Before building:** check the names against existing games (search), make the pillar shadow readable on a phone, and get the skills team to confirm every class can reach cover in time (Blink, Sidestep, Charge, Lumen movement).
 
 ## R4, R8
 Specs get written here when each one is next.

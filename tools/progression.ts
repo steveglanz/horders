@@ -13,6 +13,8 @@ const runs = Number(process.env.RUNS ?? 50);
 let forgedTotal = 0;
 let streak = 0;
 let worstStreak = 0;
+const got: Record<string, number> = { epic: 0, mythic: 0 };
+let sinceEpic = 0, worstEpicGap = 0, firstMythic = 0;
 
 const h = newHero();
 // SNAP=4,6 writes the hero to SNAP_DIR/hero-t<N>.json the first time that tier unlocks (a geared reference hero for balance tools).
@@ -23,13 +25,16 @@ let wins = 0;
 let tier = 1;
 let lossStreak = 0;
 for (let run = 1; run <= runs; run++) {
-  const w = new World({ cls: (process.env.CLS as 'emberwright') ?? undefined, seed: (run + Number(process.env.SEED_OFFSET ?? 0) * 1000) * 7919, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId, tier, week: Number(process.env.WEEK ?? 0), omens: process.env.NO_OMENS ? [] : undefined, grit: process.env.NO_GRIT ? 0 : gritFor(h, 'kiln', tier) });
+  const w = new World({ cls: (process.env.CLS as 'emberwright') ?? undefined, seed: (run + Number(process.env.SEED_OFFSET ?? 0) * 1000) * 7919, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId, tier, week: Number(process.env.WEEK ?? 0), omens: process.env.NO_OMENS ? [] : undefined, grit: process.env.NO_GRIT ? 0 : gritFor(h, 'kiln', tier), firstClear: tier >= h.maxTier });
   while (w.state !== 'ended' && w.time < 800) {
     if (w.state === 'draft') w.choose(botChoose(w));
     else w.step(botInput(w));
   }
   const s = w.summary();
   const r = applyRun(h, (run + Number(process.env.SEED_OFFSET ?? 0) * 1000) * 7919, s, w.eliteKilled, w.runDrops, w.runEquipped);
+  for (const it of r.items) if (it.rarity === 'epic' || it.rarity === 'mythic') got[it.rarity]++;
+  if (r.items.some((i) => i.rarity === 'epic' || i.rarity === 'mythic')) sinceEpic = 0; else worstEpicGap = Math.max(worstEpicGap, ++sinceEpic);
+  if (!firstMythic && r.items.some((i) => i.rarity === 'mythic')) firstMythic = run;
   if (s.victory) streak = 0; else worstStreak = Math.max(worstStreak, ++streak);
   if (s.victory) { wins++; lossStreak = 0; tier = h.maxTier; } else if (++lossStreak >= 2 && tier > 1) { tier--; lossStreak = 0; }
   for (const slot of SLOTS) {
@@ -59,3 +64,4 @@ for (let run = 1; run <= runs; run++) {
 }
 
 console.log(`longest losing streak ${worstStreak}`);
+console.log(`epics ${got.epic}  mythics ${got.mythic}  first mythic on run ${firstMythic || '-'}  longest run of runs without an epic ${worstEpicGap}`);

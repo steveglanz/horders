@@ -329,6 +329,8 @@ export interface WorldOptions {
   partySize?: number;
   /** Grit stacks from losses in a row on this tier (see content/scaling). */
   grit?: number;
+  /** True when this tier is the hero's highest unlocked one: beating its boss guarantees an Epic. */
+  firstClear?: boolean;
   /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
   bounty?: number;
 }
@@ -386,6 +388,7 @@ export class World {
   readonly bossOmen: OmenId | undefined;
   readonly dungeonId: DungeonId;
   readonly bounty: number | undefined;
+  readonly firstClear: boolean;
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -466,6 +469,7 @@ export class World {
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
     this.bounty = opts.bounty;
+    this.firstClear = !!opts.firstClear && opts.bounty === undefined;
     this.partySize = clampParty(opts.partySize);
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
@@ -773,7 +777,8 @@ export class World {
     if (def.id === 'shrine') {
       p.hp = p.maxHp;
     } else {
-      const order: Rarity[] = ['common', 'fine', 'rare', 'epic'];
+      // Clear bags top out at a guaranteed Rare; Epics only come from luck, first clears and bad-luck protection.
+      const order: Rarity[] = ['common', 'fine', 'rare'];
       let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
       if (this.namedFight) min++;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
@@ -2318,7 +2323,8 @@ export class World {
     if (e.def.rank === 'boss') {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
-      this.pickUp(this.makeItem('epic'));
+      // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss drops Rare or better.
+      this.pickUp(this.makeItem(this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare'));
       if (this.worldBoss && !this.route.includes('worldShadow')) {
         this.route.push('worldShadow');
         // Clear the field so the bonus fight starts clean.
@@ -2628,7 +2634,7 @@ export class World {
   // ---------------------------------------------------------------- loot
 
   private makeItem(min: Rarity): Item {
-    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min);
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.tier);
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {
@@ -2918,6 +2924,9 @@ export function xpFor(level: number): number {
 export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
 /** Drowned Foundry tuning. */
+/** First tier whose first clear guarantees an Epic from the boss. */
+export const FIRST_CLEAR_EPIC_TIER = 2;
+
 export const FOUNDRY = {
   mirrorCast: 2,
   mirrorTime: 3,

@@ -21,8 +21,8 @@ export const RARITY: Record<Rarity, RarityDef> = {
   common: { id: 'common', name: 'Common', weight: 60, bonusStats: 0, color: '#c9bfb5', salvage: 1 },
   fine: { id: 'fine', name: 'Fine', weight: 26, bonusStats: 1, color: '#7fd67a', salvage: 3 },
   rare: { id: 'rare', name: 'Rare', weight: 10, bonusStats: 2, color: '#5aa9ff', salvage: 8 },
-  epic: { id: 'epic', name: 'Epic', weight: 3.4, bonusStats: 3, color: '#c77dff', salvage: 20 },
-  mythic: { id: 'mythic', name: 'Mythic', weight: 0.6, bonusStats: 3, color: '#ff9a3d', salvage: 50 },
+  epic: { id: 'epic', name: 'Epic', weight: 1.5, bonusStats: 3, color: '#c77dff', salvage: 20 },
+  mythic: { id: 'mythic', name: 'Mythic', weight: 0.3, bonusStats: 3, color: '#ff9a3d', salvage: 50 },
 };
 
 export type Stat = 'power' | 'vitality' | 'haste' | 'crit' | 'swiftness' | 'reach';
