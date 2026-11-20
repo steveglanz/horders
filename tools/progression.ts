@@ -15,6 +15,7 @@ let streak = 0;
 let worstStreak = 0;
 
 const h = newHero();
+if (process.env.CLS) h.cls = process.env.CLS as typeof h.cls;
 // SNAP=4,6 writes the hero to SNAP_DIR/hero-t<N>.json the first time that tier unlocks (a geared reference hero for balance tools).
 const snaps = new Set((process.env.SNAP ?? '').split(',').filter(Boolean).map(Number));
 const snapDir = process.env.SNAP_DIR ?? 'tools/heroes';

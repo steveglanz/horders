@@ -9,7 +9,7 @@ import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
-  Item, MYTHICS, MythicId, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
+  Item, MythicId, mythicPool, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
@@ -206,7 +206,10 @@ function rollRarity(rng: Rng, luck: number): Rarity {
   return 'common';
 }
 
-/** `cls` names the weapon for the class that found it; other slots and every stat roll are the same for all classes. */
+/**
+ * `cls` names the weapon for the class that found it, and picks a Mythic from that class's pool.
+ * Other slots and every stat roll are the same for all classes.
+ */
 export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number, cls?: ClassId): Item {
   const main = SLOT_MAIN[slot];
   // A flat base keeps early drops meaningful; item level still scales them.
@@ -225,7 +228,8 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
     stats,
   };
   if (rarity === 'mythic') {
-    const ids = Object.keys(MYTHICS) as MythicId[];
+    // Class Mythics drop only for their own class; with no class, only the shared ones.
+    const ids = mythicPool(cls);
     item.mythic = ids[rng.int(ids.length)];
   }
   return item;

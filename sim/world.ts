@@ -42,6 +42,7 @@ const PLAYER_RADIUS = 12;
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
 const BULWARK_BLOCK = 0.35;
+const RINGWALL_BLOCK = 0.2;
 /** Blade Guard: share of each hit the Duskblade stops from the foe it is swinging at. */
 const BLADE_GUARD = 0.5;
 /** Share of max health Sidestep heals. */
@@ -264,6 +265,13 @@ export interface Player {
   haloUsed: boolean;
   /** Melee Second Wind: used this fight. */
   windUsed: boolean;
+  /** Mirrorstep: afterimage time left and where it stands. */
+  imageT: number;
+  imageX: number;
+  imageY: number;
+  /** Tethered Shield: the caster the shield hit, and how long Charge may rush it. */
+  tossId: number;
+  tossT: number;
 }
 
 export type SimEvent =
@@ -538,7 +546,7 @@ export class World {
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
-      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false,
+      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -717,10 +725,11 @@ export class World {
     }
     if (this.cls === 'duskblade') {
       if (slot === 0) return base - 1 * this.rank('deepCuts');
-      if (slot === 1) return base - 1.5 * this.rank('evasion');
+      if (slot === 1) return base - 1.5 * this.rank('evasion') - (this.hasMythic('mirrorstep') ? 2 : 0);
       if (slot === 2) return base - 3 * this.rank('momentumFlow');
       return base;
     }
+    if (this.cls === 'emberwright' && slot === 1) return (base - 1.5 * this.rank('flicker')) * (this.hasMythic('wanderersWake') ? 0.5 : 1);
     if (slot === 1) return base - 1.5 * this.rank('flicker');
     if (slot === 2) return base - 3 * this.rank('heatSink');
     return base;
@@ -1208,6 +1217,12 @@ export class World {
     if (p.shieldT > 0) p.shieldT -= dt;
     if (p.parryT > 0) p.parryT -= dt;
     if (p.hasteT > 0) p.hasteT -= dt;
+    if (p.imageT > 0) p.imageT -= dt;
+    if (p.tossT > 0) p.tossT -= dt;
+    // Anchored Dawn: Radiant Burst recovers twice as fast inside your own Sanctuary.
+    if (p.sanctT > 0 && p.cds[0] > 0 && this.hasMythic('anchoredDawn') && dist2(p.x, p.y, p.sanctX, p.sanctY) <= this.sanctuaryRadius ** 2) {
+      p.cds[0] = Math.max(0, p.cds[0] - dt);
+    }
     // Blazing Speed rank 2: a second Blink charge refills on Blink's cooldown.
     if (this.rank('blazingSpeed') >= 2 && p.blinkCharges < 1) {
       p.blinkChargeT -= dt;
@@ -1267,7 +1282,7 @@ export class World {
       const d = Math.hypot(dx, dy) || 1;
       if (d > r + e.def.radius) return;
       if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
-      if (e.def.rank === 'normal' && !e.def.stationary) {
+      if (e.def.rank === 'normal' && !e.def.stationary && !this.hasMythic('wanderersWake')) {
         e.x += (dx / d) * 60;
         e.y += (dy / d) * 60;
       }
@@ -1296,6 +1311,10 @@ export class World {
     p.shieldT = 0.3 + 0.6 * this.rank('flicker');
     if (this.rank('blazingSpeed') > 0) p.hasteT = 2;
     this.addZone(x1, y1, 44, 14 * this.dmgMult, 3);
+    // Wanderer's Wake: the whole path burns.
+    if (this.hasMythic('wanderersWake')) {
+      for (const k of [0.33, 0.67, 1]) this.addZone(x1 + (p.x - x1) * k, y1 + (p.y - y1) * k, 44, 14 * this.dmgMult, 3);
+    }
     this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
   }
 
@@ -1316,10 +1335,15 @@ export class World {
 
   private combustion(): void {
     const p = this.player;
-    const t = this.combustionTarget();
+    // Banked Heart: Combustion bursts around the Emberwright instead, and wider, unless it is
+    // going for a healer (the Kiln's acolytes still have to die).
+    let t = this.combustionTarget();
+    const banked = this.hasMythic('bankedHeart');
+    if (banked && t >= 0 && this.enemies[t].kind !== 'acolyte') t = -1;
     const x = t >= 0 ? this.enemies[t].x : p.x;
     const y = t >= 0 ? this.enemies[t].y : p.y;
-    const r = 150;
+    const r = banked ? 190 : 150;
+    let kills = 0;
     const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
@@ -1328,8 +1352,9 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, 20 * this.dmgMult);
         e.burnT = 4;
-      }
+      } else kills++;
     });
+    if (banked) this.addHeat(15 * kills);
     const pyro = this.rank('pyroclasm');
     if (pyro > 0) this.addZone(x, y, 90, 14 * pyro * this.dmgMult, 4);
     this.events.push({ type: 'ability', slot: 2, x, y, angle: 0, r });
@@ -1363,6 +1388,19 @@ export class World {
       this.cancelCast(t);
       e.stunT = 2;
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+      if (this.cls === 'bulwark' && this.hasMythic('tetheredShield')) {
+        // Tethered Shield: the shield bounces on to two more casters, and Charge can follow it.
+        p.tossId = t;
+        p.tossT = 4;
+        for (let k = 0; k < 2; k++) {
+          const n = this.interruptTarget();
+          if (n < 0) break;
+          const o = this.enemies[n];
+          this.events.push({ type: 'interrupt', x: o.x, y: o.y, name: o.castName });
+          this.cancelCast(n);
+          o.stunT = 2;
+        }
+      }
       return;
     }
     // Nothing to interrupt: half the cooldown back (and a small bolt for casters).
@@ -1472,7 +1510,7 @@ export class World {
     return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
   }
   get burstRadius(): number {
-    return 140 + 40 * this.rank('sunflare');
+    return (140 + 40 * this.rank('sunflare')) * (this.hasMythic('eclipseGlass') ? 1.3 : 1);
   }
   get sanctuaryRadius(): number {
     return 150;
@@ -1483,7 +1521,7 @@ export class World {
     // Sanctuary: hallowed ground that heals the Lumen and burns foes, in half-second pulses.
     if (p.sanctT > 0) {
       p.sanctT -= dt;
-      if (this.rank('lingeringSanctuary') > 0) {
+      if (this.rank('lingeringSanctuary') > 0 && !this.hasMythic('anchoredDawn')) {
         p.sanctX = p.x;
         p.sanctY = p.y;
       }
@@ -1582,11 +1620,12 @@ export class World {
 
   private radiantBurst(): void {
     const p = this.player;
-    this.healPlayer(15);
+    const eclipse = this.hasMythic('eclipseGlass');
+    this.healPlayer(eclipse ? 7.5 : 15);
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;
-    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult;
+    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult * (eclipse ? 2 : 1);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -1624,7 +1663,7 @@ export class World {
 
   private sanctuary(): void {
     const p = this.player;
-    p.sanctT = 6 + 2 * this.rank('lingeringSanctuary');
+    p.sanctT = (6 + 2 * this.rank('lingeringSanctuary')) * (this.hasMythic('anchoredDawn') ? 2 : 1);
     p.sanctX = p.x;
     p.sanctY = p.y;
     p.sanctTick = 0;
@@ -1672,7 +1711,10 @@ export class World {
     this.addHeat(raw * 0.2);
     let amount = raw * this.damageTakenMult;
     // Shield Block: the foe the shield faces lands only part of its hits.
-    if (src >= 0 && (src === p.guardId || (this.noviceAid > 0 && this.inGuardArc(src)))) amount *= 1 - BULWARK_BLOCK;
+    if (this.hasMythic('ringwallVow')) {
+      // Ringwall Vow: a lighter block, on every side.
+      if (src >= 0) amount *= 1 - RINGWALL_BLOCK;
+    } else if (src >= 0 && (src === p.guardId || (this.noviceAid > 0 && this.inGuardArc(src)))) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
@@ -1794,7 +1836,10 @@ export class World {
       if (stun && e.alive && !e.def.stationary) {
         e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
         // Shield Slam shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
-        const push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
+        let push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
+        // Ringwall Vow: the slam drags the horde in to the Bulwark instead, stopping at the shield.
+        // Big foes are still shoved, so the slam can still steer them out of blooms.
+        if (this.hasMythic('ringwallVow') && e.def.rank === 'normal') push = -Math.min(push, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 6));
         e.x += (dx / d) * push;
         e.y += (dy / d) * push;
         this.clampArena(e, e.def.radius);
@@ -1820,6 +1865,7 @@ export class World {
   /** Charge goes for the biggest foe in range, then the nearest. */
   chargeTarget(): number {
     const p = this.player;
+    if (p.tossT > 0 && p.tossId >= 0 && this.enemies[p.tossId]?.alive && dist2(p.x, p.y, this.enemies[p.tossId].x, this.enemies[p.tossId].y) <= 640 * 640) return p.tossId;
     let best = -1;
     let bestScore = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
@@ -1949,6 +1995,11 @@ export class World {
       }
     });
     this.addHeat(Math.min(15, 5 * hits) * (1 + 0.3 * this.rank('momentumFlow')));
+    // Mirrorstep: the afterimage strikes the nearest foe in its reach for half.
+    if (p.imageT > 0) {
+      const n = this.nearestEnemies(p.imageX, p.imageY, 1, r + 40)[0];
+      if (n !== undefined) this.damageEnemy(n, dmg * 0.5, true);
+    }
     this.events.push({ type: 'swing', x: p.x, y: p.y, angle: ang, r, arc: half * 2, spin });
   }
 
@@ -2009,6 +2060,11 @@ export class World {
     p.py = p.y;
     const counter = this.rank('counterstep');
     p.shieldT = counter >= 2 ? 1.4 : 0.7;
+    if (this.hasMythic('mirrorstep')) {
+      p.imageT = 2;
+      p.imageX = x1;
+      p.imageY = y1;
+    }
     if (this.rank('evasion') > 0) p.nextCrit = true;
     // Co-op: Sidestep sheds half the Duskblade's threat on every enemy.
     if (this.threat.length) {
@@ -2035,10 +2091,13 @@ export class World {
       return;
     }
     const e = this.enemies[t];
-    const low = e.hp < e.maxHp * 0.35;
+    const ledger = this.hasMythic('redLedger');
+    const low = e.hp < e.maxHp * (ledger ? 0.5 : 0.35);
     // Exsanguinate: the bleed's next 3s (6s at rank 2) land at once.
     const tear = e.burnT > 0 ? e.burnDps * 3 * this.rank('exsanguinate') : 0;
     this.damageEnemy(t, 230 * this.dmgMult * (low ? 2 : 1) + tear, true);
+    // Red Ledger: an Execution kill brings Rending Dash straight back.
+    if (ledger && !e.alive) p.cds[0] = 0;
     const cx = e.x;
     const cy = e.y;
     this.forEachNear(cx, cy, 120, (i) => {
