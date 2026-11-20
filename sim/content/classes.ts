@@ -35,7 +35,7 @@ export const BULWARK_ABILITIES: AbilityDef[] = [
 export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
-    resource: 'Heat', baseHp: 100, speed: 140, interruptRange: 520, abilities: ABILITIES,
+    resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, abilities: ABILITIES,
   },
   duskblade: {
     id: 'duskblade', name: 'Duskblade', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
