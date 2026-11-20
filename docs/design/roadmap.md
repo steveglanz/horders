@@ -80,7 +80,7 @@ Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three).
 | **Maelra, the Drowned Bellows** | boss | **Kite through hazards** | See below. |
 
 **Maelra.** 4,600 health and a 180 s enrage. Three steam vents sit at fixed spots in the arena.
-- **Phase 1, Tempering:** every 7 s she gains a Temper stack (−12% damage taken each, up to 5). Kite her over a vent to boil the stacks off. This is the first fight where where you lead the boss matters.
+- **Phase 1, Tempering:** every 7 s she gains a Temper stack (−12% damage taken each, up to 5). Kite her over a vent to boil the stacks off. This is the first fight where you lead the boss matters.
 - **Phase 2 (below 60%), Rising Water:** the arena shrinks from 560 to 360 over 20 s, and she casts Undertow (can be Quenched), which drags you towards her.
 - **Phase 3 (below 25%), Overpressure:** vents now erupt under their own telegraphs every 8 s. Kiting her over them is now a risk too, so time it between eruptions.
 
