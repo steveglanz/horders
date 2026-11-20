@@ -66,6 +66,16 @@ describe('class Mythics (R4)', () => {
     expect(p.heat).toBe(45);
   });
 
+  it('Banked Heart still aims Combustion at an acolyte', () => {
+    const { w, inner } = world('emberwright', 'bankedHeart');
+    const p = w.player;
+    const a = w.enemies[inner.spawn('acolyte', p.x + 400, p.y)];
+    const before = a.hp;
+    inner.rebuildHash();
+    inner.combustion();
+    expect(a.hp).toBeLessThan(before);
+  });
+
   it('Red Ledger doubles Execution below 50% health and an Execution kill brings Rending Dash back', () => {
     const hitAt = (mythic?: MythicId) => {
       const { w, inner } = world('duskblade', mythic);
@@ -129,11 +139,17 @@ describe('class Mythics (R4)', () => {
 
     const { w, inner } = world('bulwark', 'ringwallVow');
     const p = w.player;
-    const e = w.enemies[inner.spawn('husk', p.x + 120, p.y)];
-    const d0 = Math.hypot(e.x - p.x, e.y - p.y);
+    const small = w.enemies[inner.spawn('ashling', p.x + 120, p.y)];
+    small.hp = 1e6;
+    const big = w.enemies[inner.spawn('cinderBrute', p.x + 100, p.y + 30)];
+    const dist = (e: typeof small) => Math.hypot(e.x - p.x, e.y - p.y);
+    const s0 = dist(small);
+    const b0 = dist(big);
     inner.rebuildHash();
     inner.slamCone(0, 1, true);
-    expect(Math.hypot(e.x - p.x, e.y - p.y)).toBeLessThan(d0);
+    // The horde comes in; big foes are still shoved, so blooms can be cleared.
+    expect(dist(small)).toBeLessThan(s0);
+    expect(dist(big)).toBeGreaterThan(b0);
   });
 
   it('Anchored Dawn doubles Sanctuary and speeds Radiant Burst inside it', () => {

@@ -1335,9 +1335,11 @@ export class World {
 
   private combustion(): void {
     const p = this.player;
-    // Banked Heart: Combustion bursts around the Emberwright instead, and wider.
+    // Banked Heart: Combustion bursts around the Emberwright instead, and wider, unless it is
+    // going for a healer (the Kiln's acolytes still have to die).
+    let t = this.combustionTarget();
     const banked = this.hasMythic('bankedHeart');
-    const t = banked ? -1 : this.combustionTarget();
+    if (banked && t >= 0 && this.enemies[t].kind !== 'acolyte') t = -1;
     const x = t >= 0 ? this.enemies[t].x : p.x;
     const y = t >= 0 ? this.enemies[t].y : p.y;
     const r = banked ? 190 : 150;
@@ -1835,8 +1837,9 @@ export class World {
         e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
         // Shield Slam shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
         let push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
-        // Ringwall Vow: the slam drags foes in to the Bulwark instead, stopping at the shield.
-        if (this.hasMythic('ringwallVow')) push = -Math.min(push, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 6));
+        // Ringwall Vow: the slam drags the horde in to the Bulwark instead, stopping at the shield.
+        // Big foes are still shoved, so the slam can still steer them out of blooms.
+        if (this.hasMythic('ringwallVow') && e.def.rank === 'normal') push = -Math.min(push, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 6));
         e.x += (dx / d) * push;
         e.y += (dy / d) * push;
         this.clampArena(e, e.def.radius);
