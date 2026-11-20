@@ -3,15 +3,109 @@
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
 import { ARENA, Input, World } from './world';
-import { TalentId } from './content/emberwright';
+import { TALENTS, TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
-  'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'searingBurn', 'heatSink',
-  'kindledGround', 'emberRain', 'cinderSkin', 'rollingInferno', 'searingFocus', 'mend', 'flicker', 'magnetism', 'smallHeal', 'stoke',
+  'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
+  'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
+  'flicker', 'magnetism',
+  // Duskblade
+  'crimsonTide', 'bladeStorm', 'riposte', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
+  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
+  // Bulwark
+  'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
+  'batteringRam', 'lastStand', 'momentum',
+  // Lumen
+  'noon', 'choirOfDawn', 'martyrsHalo', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
+  'renewal', 'lingeringSanctuary', 'blessedGround',
+  'smallHeal', 'stoke',
 ];
+
+/** Duskblade action choices: kick casts, execute big foes, dash in, sidestep danger. */
+function bladeCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  // Step out of a telegraph we are standing in.
+  if (attentive && w.canCast(1)) {
+    for (const t of w.telegraphs) {
+      if (!t.alive || t.kind === 'soak' || t.t > t.dur - 0.5) continue;
+      if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2 && t.shape === 'circle') return 1;
+    }
+  }
+  const t = w.bladeTarget(w.swingReach + 60);
+  if (t >= 0 && w.canCast(2)) {
+    const e = w.enemies[t];
+    if (e.def.rank !== 'normal' || e.hp < e.maxHp * 0.35) return 2;
+  }
+  const far = w.bladeTarget(340);
+  if (far >= 0 && w.canCast(0)) {
+    const e = w.enemies[far];
+    const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
+    if (d > 110 || (e.def.rank === 'normal' && d < 60)) return 0;
+  }
+  if (w.canCast(1) && p.hp < p.maxHp * 0.35) return 1;
+  return undefined;
+}
+
+/** Bulwark action choices: toss at casts, Bastion when it hurts, slam crowds, charge big foes. */
+function shieldCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  let near = 0;
+  let bigClose = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (d2 < 160 * 160) {
+      if (e.def.rank === 'normal') near++;
+      else bigClose = true;
+    }
+  }
+  let underTelegraph = false;
+  for (const t of w.telegraphs) {
+    if (!t.alive || t.kind === 'soak') continue;
+    if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2) underTelegraph = true;
+  }
+  if (w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
+  if (w.canCast(0) && (near >= 3 || bigClose)) return 0;
+  const c = w.chargeTarget();
+  if (c >= 0 && w.canCast(1)) {
+    const e = w.enemies[c];
+    const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
+    if (d > 140 && (e.def.rank !== 'normal' || near === 0)) return 1;
+  }
+  return undefined;
+}
+
+/** Lumen action choices: hush casts, Sanctuary for big fights, Radiant Burst to heal and clear space. */
+function lightCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  let near = 0;
+  let touching = 0;
+  let bigNear = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (e.def.rank !== 'normal' && d2 < 300 * 300) bigNear = true;
+    if (d2 < w.burstRadius * w.burstRadius) near++;
+    if (d2 < 60 * 60) touching++;
+  }
+  const hurt = 1 - p.hp / p.maxHp;
+  if (w.canCast(2) && (bigNear || hurt > 0.4)) return 2;
+  if (w.canCast(0) && (near >= 4 || hurt > 0.25 || (bigNear && near >= 1))) return 0;
+  if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
+  return undefined;
+}
 
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
+  if (w.cls === 'duskblade') return bladeCast(w, skill);
+  if (w.cls === 'bulwark') return shieldCast(w, skill);
+  if (w.cls === 'lumen') return lightCast(w, skill);
   const p = w.player;
   // A lower-skill bot misses some interrupts.
   const attentive = (w.tick % 20) / 20 < skill;
@@ -37,12 +131,57 @@ export function botCast(w: World, skill = 1): number | undefined {
   return undefined;
 }
 
+/**
+ * Which gate the bot takes at a fork: the named path when healthy, a shrine
+ * when hurt, otherwise the steady fight. BOT_PATH=steady|named forces a choice
+ * for balance comparisons.
+ */
+export function botGate(w: World): number {
+  const force = typeof process !== 'undefined' ? process.env?.BOT_PATH : undefined;
+  const idx = (k: string) => w.gates.findIndex((g) => g.kind === k);
+  if (force === 'steady') return Math.max(0, idx('steady'));
+  if (force === 'named' && idx('named') >= 0) return idx('named');
+  const hpPct = w.player.hp / w.player.maxHp;
+  if (idx('shrine') >= 0 && hpPct < 0.6) return idx('shrine');
+  if (idx('named') >= 0 && hpPct >= 0.6) return idx('named');
+  return Math.max(0, idx('steady'));
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
+  if (w.phase === 'choose' && w.gates.length) {
+    const g = w.gates[botGate(w)];
+    return { x: g.x - p.x, y: g.y - p.y };
+  }
   let fx = 0;
   let fy = 0;
+  const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  const reach = w.cls === 'bulwark' ? w.sweepReach : w.swingReach;
+  if (melee) {
+    // Close in on the target and stay in blade reach.
+    const t = w.bladeTarget(900);
+    if (t >= 0) {
+      const e = w.enemies[t];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const want = e.def.radius + reach * 0.6;
+      if (d > want) {
+        fx += (dx / d) * 0.05;
+        fy += (dy / d) * 0.05;
+      } else if (d < e.def.radius + 24) {
+        // Too close: big foes hurt on contact, so step back to the edge of reach.
+        fx -= (dx / d) * 0.05 * skill;
+        fy -= (dy / d) * 0.05 * skill;
+      } else if (w.cls === 'duskblade' && e.def.rank !== 'normal' && d < e.def.radius + reach * 0.45) {
+        // The Duskblade has no armor: it fights big foes from the tip of its blades.
+        fx -= (dx / d) * 0.1 * skill;
+        fy -= (dy / d) * 0.1 * skill;
+      }
+    }
+  }
   for (const e of w.enemies) {
-    if (!e.alive) continue;
+    if (!e.alive || melee) continue;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const d2 = dx * dx + dy * dy;
@@ -54,8 +193,11 @@ export function botInput(w: World, skill = 1): Input {
     fy += dy * wgt;
   }
   let soaking = false;
+  // A Bulwark with Resolve to spare stands in blooms and smothers them.
+  const smother = w.cls === 'bulwark' && p.heat >= 10;
   for (const t of w.telegraphs) {
     if (!t.alive) continue;
+    if (smother && t.kind === 'bloom') continue;
     if (t.kind === 'soak') {
       // Run into the gold circle and hold still in it.
       const dx = t.x - p.x;
@@ -71,8 +213,34 @@ export function botInput(w: World, skill = 1): Input {
     const dy = p.y - t.y;
     const d = Math.hypot(dx, dy) || 1;
     if (d < t.r + 30) {
-      fx += (dx / d) * 0.2 * skill;
-      fy += (dy / d) * 0.2 * skill;
+      const k = melee ? 0.6 : 0.2;
+      if (t.shape === 'cone') {
+        // A long cone can't be outrun: step sideways out of it instead.
+        const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
+        fx += -Math.sin(t.angle) * side * k * skill;
+        fy += Math.cos(t.angle) * side * k * skill;
+      } else {
+        let ux = dx / d;
+        let uy = dy / d;
+        // A ring dropped at your feet: don't run out of it straight into a big foe.
+        if (melee && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+          const b = w.enemies[w.bossIndex];
+          const bx = b.x - p.x;
+          const by = b.y - p.y;
+          const bd = Math.hypot(bx, by) || 1;
+          if (bd < 220 && (ux * bx + uy * by) / bd > -0.3) {
+            // Go out the side away from the boss instead.
+            const side = Math.sign(ux * -by + uy * bx) || 1;
+            ux = (-by / bd) * side - (bx / bd) * 0.5;
+            uy = (bx / bd) * side - (by / bd) * 0.5;
+            const ul = Math.hypot(ux, uy) || 1;
+            ux /= ul;
+            uy /= ul;
+          }
+        }
+        fx += ux * k * skill;
+        fy += uy * k * skill;
+      }
     }
   }
   // Collect nearby XP when it is reasonably safe.
@@ -96,16 +264,36 @@ export function botInput(w: World, skill = 1): Input {
       const dx = b.x - p.x;
       const dy = b.y - p.y;
       const d = Math.hypot(dx, dy) || 1;
-      if (d > 340) {
+      if (d > (melee ? 160 : 340)) {
         fx += (dx / d) * 0.03 * skill;
         fy += (dy / d) * 0.03 * skill;
       }
     }
   }
+  // Maelra: once her Temper builds, lead her across a steam vent by standing
+  // on the far side of it so her path crosses the steam.
+  if (process.env.NOVENT !== '1' && w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+    const b = w.enemies[w.bossIndex];
+    let best = w.vents[0];
+    let bd = Infinity;
+    for (const v of w.vents) {
+      const d = Math.hypot(v.x - b.x, v.y - b.y) + Math.hypot(v.x - p.x, v.y - p.y);
+      if (d < bd) { bd = d; best = v; }
+    }
+    const vx = best.x - b.x;
+    const vy = best.y - b.y;
+    const vd = Math.hypot(vx, vy) || 1;
+    const tx = best.x + (vx / vd) * (best.r + 50) - p.x;
+    const ty = best.y + (vy / vd) * (best.r + 50) - p.y;
+    const td = Math.hypot(tx, ty) || 1;
+    fx += (tx / td) * 0.06 * skill;
+    fy += (ty / td) * 0.06 * skill;
+  }
   // Don't get pinned against the arena wall.
   const fromCenter = Math.hypot(p.x, p.y);
-  if (!w.stress && fromCenter > ARENA - 140) {
-    const k = ((fromCenter - (ARENA - 140)) / 140) * 0.04;
+  const edge = w.arenaR ?? ARENA;
+  if (!w.stress && fromCenter > edge - 140) {
+    const k = ((fromCenter - (edge - 140)) / 140) * 0.04;
     fx -= (p.x / fromCenter) * k;
     fy -= (p.y / fromCenter) * k;
   }
@@ -155,11 +343,14 @@ export function botInput(w: World, skill = 1): Input {
   return { x: fx / len, y: fy / len, cast };
 }
 
+/** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
   let bestScore = Infinity;
   w.choices.forEach((c, i) => {
-    const s = PRIORITY.indexOf(c.id);
+    const def = TALENTS[c.id];
+    const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
+    const s = (def.capstone ? -1000 : 0) - committed * 100 + PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;
@@ -176,4 +367,19 @@ export function runBot(seed: number, skill = 1, maxSeconds = 700): World {
     else w.step(botInput(w, skill));
   }
   return w;
+}
+
+/**
+ * A slower player for balance checks: acts on what the full bot decided
+ * `lagTicks` ticks ago (a reaction time), and with `skill` < 1 also misses
+ * some interrupts. SKILL alone barely weakens the bot, because its move
+ * direction is normalised, so reaction time is the better novice proxy.
+ */
+export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
+  const queue: Input[] = [];
+  return (w: World) => {
+    queue.push(botInput(w, skill));
+    const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
+    return out;
+  };
 }

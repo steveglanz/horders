@@ -4,3 +4,4 @@ test-results
 *.log
 publish
 .netlify
+tools/shots

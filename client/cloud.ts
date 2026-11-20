@@ -30,6 +30,8 @@ export interface BossStatus {
   title: string;
   hp: number;
   max_hp: number;
+  /** OmenId the boss adds to every delve while it lives (null on old servers). */
+  omen?: string | null;
   fighters: number;
   my_damage: number;
   unclaimed: { boss_id: number; name: string; damage: number; max_hp: number }[];
@@ -40,6 +42,8 @@ export interface StrikeResult {
   reason?: string;
   name?: string;
   dealt?: number;
+  /** The shadow fight's share of `dealt`, already tripled. */
+  shadow?: number;
   hp: number;
   max_hp: number;
   defeated?: boolean;
@@ -165,8 +169,11 @@ export const cloud = {
     return rpc<BossStatus>('world_boss_status', {}, !!session);
   },
 
-  strike(damage: number, seconds: number): Promise<StrikeResult | null> {
-    return rpc<StrikeResult>('strike_world_boss', { p_damage: Math.round(damage), p_seconds: Math.round(seconds) });
+  strike(damage: number, seconds: number, shadowDamage = 0, shadowSeconds = 0): Promise<StrikeResult | null> {
+    return rpc<StrikeResult>('strike_world_boss', {
+      p_damage: Math.round(damage), p_seconds: Math.round(seconds),
+      p_shadow_damage: Math.round(shadowDamage), p_shadow_seconds: Math.round(shadowSeconds),
+    });
   },
 
   claim(bossId: number): Promise<{ ok: boolean; damage?: number; name?: string } | null> {

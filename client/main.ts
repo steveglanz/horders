@@ -1,9 +1,11 @@
+import { weekOf } from '../sim/content/omens';
+import { bountyFor, dayOf } from '../sim/content/bounty';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero } from '../sim/hero';
+import { applyRun, equippedItems, HeroProfile, newerHero, gritFor } from '../sim/hero';
 import { cloud, queueCloudSave } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 
@@ -40,15 +42,23 @@ void (async () => {
   await hub.refreshBoss();
 })();
 
+// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out.
+const DPR = params.has('lowres') ? 1 : Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+document.documentElement.style.setProperty('--dpr', String(DPR));
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#120b0a',
-  scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
+  scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60 },
   banner: false,
 });
+// NONE scale mode: follow the window ourselves so the backing store stays at device resolution.
+const fit = () => game.scale.resize(Math.round(window.innerWidth * DPR), Math.round(window.innerHeight * DPR));
+window.addEventListener('resize', fit);
+window.visualViewport?.addEventListener('resize', fit);
 
 function seed(): number {
   const s = params.get('seed');
@@ -57,6 +67,7 @@ function seed(): number {
 
 let runSeed = 0;
 let runApplied = true;
+let lastBounty = false;
 
 /** Banks a finished (or abandoned) run into the saved hero, once. */
 function finishRun(w: World) {
@@ -66,29 +77,30 @@ function finishRun(w: World) {
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, w.runDrops, w.runEquipped);
   save();
   hub.render();
-  void strikeBoss(summary.damageDealt, summary.time);
+  const shadow = summary.shadowDamage ?? 0;
+  void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
   return rewards;
 }
 
 /** Sends a finished delve's damage to the shared world boss. */
-async function strikeBoss(damage: number, seconds: number): Promise<void> {
+async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number): Promise<void> {
   const out = el('endBoss');
   out.innerHTML = '';
-  if (damage <= 0) return;
-  const r = await cloud.strike(damage, seconds);
+  if (damage + shadowDamage <= 0) return;
+  const r = await cloud.strike(damage, seconds, shadowDamage, shadowSeconds);
   if (!r) {
     out.innerHTML = cloud.online === false ? '<span class="muted">World boss offline: this delve only counted locally.</span>' : '';
   } else if (r.ok) {
     out.innerHTML = r.defeated
       ? `<b style="color:var(--gold)">Your delve landed the killing blow on ${r.name}!</b> Claim your reward from the main menu.`
-      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}. It has ${r.hp.toLocaleString()} health left.`;
+      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}${r.shadow ? ` (${r.shadow.toLocaleString()} of it from the shadow fight, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.`;
   } else if (r.reason === 'too_soon') {
     out.innerHTML = '<span class="muted">The world boss is recovering. Your next delve can strike it again.</span>';
   }
   await hub.refreshBoss();
 }
 
-function startRun(): void {
+function startRun(bounty = false): void {
   if (game.scene.getScene('game')) game.scene.stop('game');
   runSeed = seed();
   hub.bossNote = "";
@@ -102,7 +114,21 @@ function startRun(): void {
     heroLevel: hero.level,
     nextItemId: hero.nextItemId,
     tier: hub.tier,
+    week: weekOf(Date.now()),
+    dungeon: hub.dungeon,
+    grit: gritFor(hero, hub.dungeon, hub.tier),
+    cls: hero.cls ?? 'emberwright',
+    // Only offer the shadow fight when the world boss is actually reachable.
+    worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
+    bossOmen: hub.bossOmen(),
   };
+  if (bounty) {
+    // Same fights, spawns and twist for everyone today; only the tier is the hero's own.
+    const b = bountyFor(dayOf(Date.now()), hero.maxTier);
+    runSeed = b.seed;
+    Object.assign(opts, { seed: b.seed, tier: b.tier, dungeon: b.dungeon, route: [...b.route], omens: [b.twist], bounty: b.day, grit: 0 });
+  }
+  lastBounty = bounty;
   game.scene.start('game', {
     opts,
     hud,
@@ -135,7 +161,11 @@ el('resetBtn').addEventListener('click', () => {
   save();
   hub.render();
 });
-el('againBtn').addEventListener('click', startRun);
+el('againBtn').addEventListener('click', () => startRun(lastBounty));
+hub.onBounty = () => {
+  stress = false;
+  startRun(true);
+};
 el('menuBtn').addEventListener('click', () => {
   game.scene.stop('game');
   el('end').hidden = true;
