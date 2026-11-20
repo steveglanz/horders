@@ -110,3 +110,6 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 
 ## R4, R8
 Specs get written here when each one is next.
+
+## Backlog notes
+- **Acolyte heals as a real cast (Kiln).** Today acolytes channel into the boss on every tick, so "kill the healer" has no visible tell. Make each heal a short interruptible cast with a cast bar, so a player can either Quench it or kill the acolyte (pillar 4). The skills team's Lumen targeting will switch to "while the cast bar is up" when this lands.
