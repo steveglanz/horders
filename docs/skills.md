@@ -61,31 +61,13 @@ Branches:
 - **Retribution** (thorns): *Spiked Shield* melee attackers take 6 damage when they hit you; *Vengeance* +4% damage for every 10% of health missing; *Shield Echo* (ability) Shield Slam hits a second time 0.4s later for half damage; capstone **Thornwall**: reflected and thorns damage also hits every enemy within 120.
 - **Vanguard** (cleave and mobility): *Wide Sweep* Shield Sweep's arc becomes a full circle at rank 2 and gains range; *Momentum* +5% move speed and Charge cooldown -2s; *Battering Ram* (ability) Charge damages everything along its path; capstone **Warpath**: every 4th Shield Sweep sends out a shockwave ring for 3× its damage.
 
-## Duskblade (melee damage) — new
+## Duskblade (melee damage)
 
-Fantasy: fast, fragile, stick to one big target and burst it, slip out of telegraphs.
-
-Resource: **Energy** (0 to 100), regenerates 12/s. Plus **Marks** (0 to 5): each auto-attack hit on the same target adds a Mark to it, and finishers spend them.
-
-Base: 90 health, 155 move speed.
-
-Auto: **Twin Cuts**, every 0.45s, hit the nearest enemy within 70 for 9 damage and add a Mark to it.
-
-| Key | Ability | Cost / CD | Effect |
-| --- | --- | --- | --- |
-| Q | Rupture | 35 Energy / 1.5s | Finisher: 25 damage plus 30 per Mark on the target, Marks consumed |
-| E | Shadowstep | 0 / 7s | Teleport behind the nearest big enemy in 350 range (or forward), next hit crits |
-| R | Blade Fan | 60 Energy / 16s | Spin: 70 damage to everything within 140, adds 2 Marks to each |
-| F | Throat Strike | 0 / 10s, off GCD | Interrupt within 160 range, stuns 2s |
-
-Branches:
-- **Venom** (damage over time): *Toxic Edge* hits poison for 3 damage/s per rank; *Virulence* poison spreads to one nearby enemy on death; *Envenom* (ability) Rupture applies a strong poison scaled by Marks spent; capstone **Venom Bloom**: poisoned enemies burst on death, poisoning and damaging everything near them.
-- **Shadow** (crit and evasion): *Keen Edge* +10% crit chance; *Fade* 25% chance to dodge a melee hit; *Ambush* (ability) Shadowstep resets when its target dies and makes you untouchable for 0.5s; capstone **Shadow Twin**: a shadow copies your Rupture and Twin Cuts at 50% damage.
-- **Flurry** (speed and cleave): *Quick Hands* Twin Cuts 12% faster; *Whirling Steel* Twin Cuts also hit one more enemy; *Second Wind* (ability) Blade Fan refunds 20 Energy per enemy hit (max 60); capstone **Bladestorm**: Blade Fan becomes a 3s spin you can move in.
+Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. The skills work on it is tuning (its bot win rate is far below the Emberwright's) and one ability talent per branch, the same as the other classes.
 
 ## Order of work
 
-1. Draft rules and the three Emberwright ability talents (works on top of the class system PR).
+1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
 2. Bulwark.
-3. Duskblade, redesigned from engineering's first pass to match the above.
+3. Duskblade tuning and ability talents.
 Each lands as its own PR with tests and bot balance numbers in the description.

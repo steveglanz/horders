@@ -35,9 +35,42 @@ describe('simulation', () => {
 
   it('always offers a capstone once its branch has enough ranks', () => {
     const w = new World({ seed: 9 });
-    w.talents = { extraOrb: 2, quickcast: 2 };
+    w.talents = { extraOrb: 2, quickcast: 1 };
     expect(w.branchRanks('kindling')).toBe(CAPSTONE_RANKS);
     expect(w.rollDraft().map((c) => c.id)).toContain('phoenixLance');
+  });
+
+  it('offers one card per branch while every branch has talents left', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const w = new World({ seed });
+      const branches = w.rollDraft().map((c) => TALENTS[c.id].branch).sort();
+      expect(branches).toEqual(['ashguard', 'kindling', 'wildfire']);
+    }
+  });
+
+  it('a committed build reaches its capstone in a normal run', () => {
+    let capstones = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const w = runBot(seed);
+      if (Object.keys(w.talents).some((id) => TALENTS[id as keyof typeof TALENTS].capstone)) capstones++;
+    }
+    expect(capstones).toBeGreaterThanOrEqual(5);
+  });
+
+  it('Blazing Speed rank 2 lets Blink be cast twice in a row', () => {
+    const w = new World({ seed: 3 });
+    w.talents = { blazingSpeed: 1 };
+    w.state = 'draft';
+    w.player.pendingLevels = 1;
+    w.choices = [{ id: 'blazingSpeed', nextRank: 2 }];
+    w.choose(0);
+    w.step({ x: 1, y: 0, cast: 1 });
+    expect(w.player.cds[1]).toBeGreaterThan(0);
+    // Wait out the global cooldown, then Blink again on the stored charge.
+    for (let k = 0; k < 13; k++) w.step({ x: 1, y: 0 });
+    w.step({ x: 1, y: 0, cast: 1 });
+    expect(w.player.blinkCharges).toBe(0);
+    expect(w.player.hasteT).toBeGreaterThan(1.5);
   });
 
   it('plays a dungeon route through to the boss', () => {

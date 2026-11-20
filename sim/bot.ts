@@ -3,11 +3,12 @@
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
 import { ARENA, Input, World } from './world';
-import { TalentId } from './content/emberwright';
+import { TALENTS, TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
-  'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'searingBurn', 'heatSink',
-  'kindledGround', 'emberRain', 'cinderSkin', 'rollingInferno', 'searingFocus', 'mend', 'flicker', 'magnetism',
+  'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
+  'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
+  'flicker', 'magnetism',
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'secondWind', 'evasion', 'nimble',
@@ -204,11 +205,14 @@ export function botInput(w: World, skill = 1): Input {
   return { x: fx / len, y: fy / len, cast };
 }
 
+/** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
   let bestScore = Infinity;
   w.choices.forEach((c, i) => {
-    const s = PRIORITY.indexOf(c.id);
+    const def = TALENTS[c.id];
+    const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
+    const s = (def.capstone ? -1000 : 0) - committed * 100 + PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

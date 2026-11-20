@@ -8,7 +8,7 @@
  */
 import { Rng } from './rng';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
-import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentId, ClassId } from './content/emberwright';
+import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
 import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
@@ -185,6 +185,11 @@ export interface Player {
   swings: number;
   parryT: number;
   nextCrit: boolean;
+  /** Seconds left on the Blazing Speed run boost. */
+  hasteT: number;
+  /** Stored extra Blink charges (Blazing Speed rank 2) and the timer refilling one. */
+  blinkCharges: number;
+  blinkChargeT: number;
 }
 
 export type SimEvent =
@@ -353,7 +358,7 @@ export class World {
       hp, maxHp: hp,
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
-      heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false,
+      heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -408,7 +413,8 @@ export class World {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
   }
   get moveSpeed(): number {
-    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult;
+    const boost = this.player.hasteT > 0 ? 1.3 : 1;
+    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost;
   }
   get regen(): number {
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind');
@@ -440,7 +446,8 @@ export class World {
   canCast(slot: number): boolean {
     const p = this.player;
     const def = this.abilities[slot];
-    if (!def || p.cds[slot] > 0) return false;
+    if (!def) return false;
+    if (p.cds[slot] > 0 && !(slot === 1 && p.blinkCharges > 0)) return false;
     if (!def.offGcd && p.gcd > 0) return false;
     return p.heat >= this.abilityCost(slot);
   }
@@ -741,11 +748,24 @@ export class World {
     if (p.gcd > 0) p.gcd -= dt;
     if (p.shieldT > 0) p.shieldT -= dt;
     if (p.parryT > 0) p.parryT -= dt;
+    if (p.hasteT > 0) p.hasteT -= dt;
+    // Blazing Speed rank 2: a second Blink charge refills on Blink's cooldown.
+    if (this.rank('blazingSpeed') >= 2 && p.blinkCharges < 1) {
+      p.blinkChargeT -= dt;
+      if (p.blinkChargeT <= 0) {
+        p.blinkCharges = 1;
+        p.blinkChargeT = this.abilityCooldown(1);
+      }
+    }
     this.addHeat((this.cls === 'duskblade' ? 3 : 2) * dt);
     const slot = input.cast;
     if (slot === undefined || slot < 0 || slot >= this.abilities.length || !this.canCast(slot)) return;
     p.heat -= this.abilityCost(slot);
-    p.cds[slot] = this.abilityCooldown(slot);
+    if (slot === 1 && p.cds[1] > 0) {
+      // Spend the stored charge; the main cooldown keeps running.
+      p.blinkCharges--;
+      p.blinkChargeT = this.abilityCooldown(1);
+    } else p.cds[slot] = this.abilityCooldown(slot);
     if (!this.abilities[slot].offGcd) p.gcd = GCD;
     if (this.cls === 'duskblade') {
       if (slot === 0) this.rendingDash();
@@ -778,7 +798,7 @@ export class World {
         e.x += (dx / d) * 60;
         e.y += (dy / d) * 60;
       }
-      this.damageEnemy(i, dmg, true);
+      this.damageEnemy(i, dmg, true, false, this.rank('ignition') > 0);
     });
     const inferno = this.rank('rollingInferno');
     if (inferno > 0) {
@@ -801,6 +821,7 @@ export class World {
     p.px = p.x;
     p.py = p.y;
     p.shieldT = 0.3 + 0.6 * this.rank('flicker');
+    if (this.rank('blazingSpeed') > 0) p.hasteT = 2;
     this.addZone(x1, y1, 44, 14 * this.dmgMult, 3);
     this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
   }
@@ -826,7 +847,7 @@ export class World {
     const x = t >= 0 ? this.enemies[t].x : p.x;
     const y = t >= 0 ? this.enemies[t].y : p.y;
     const r = 150;
-    const dmg = 240 * this.dmgMult;
+    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
       if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
@@ -836,6 +857,8 @@ export class World {
         e.burnT = 4;
       }
     });
+    const pyro = this.rank('pyroclasm');
+    if (pyro > 0) this.addZone(x, y, 90, 14 * pyro * this.dmgMult, 4);
     this.events.push({ type: 'ability', slot: 2, x, y, angle: 0, r });
   }
 
@@ -1189,12 +1212,14 @@ export class World {
       this.damageEnemy(hit, o.dmg, true);
       this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
-        e.burnDps = Math.max(e.burnDps, 4 * burn * this.dmgMult);
+        e.burnDps = Math.max(e.burnDps, 6 * burn * this.dmgMult);
         e.burnT = 3;
       }
       if (ground > 0) this.addZone(hx, hy, 26 + 8 * ground, 5 * ground * this.dmgMult, 2);
       if (boom) {
         this.events.push({ type: 'explode', x: hx, y: hy, r: 48 });
+        // The blast also scorches the target itself, so the capstone helps against bosses.
+        this.damageEnemy(hit, o.dmg * 0.5, false, true);
         this.forEachNear(hx, hy, 100, (i) => {
           if (i === hit) return;
           const n = this.enemies[i];
@@ -1482,16 +1507,18 @@ export class World {
     }
   }
 
-  private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false): void {
+  private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false, forceCrit = false): void {
     const e = this.enemies[i];
     if (!e.alive) return;
     let dmg = amount;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
-    if (canCrit && this.rng.chance(this.critChance)) {
+    if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2;
       crit = true;
+      // Ignition rank 2: crits bring Flame Wave back sooner.
+      if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
     }
     e.hp -= dmg;
     this.damageDealt += dmg;
@@ -1522,6 +1549,16 @@ export class World {
     this.aliveEnemies--;
     this.kills++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
+    // Pyroclasm: a foe that dies burning passes its fire to its neighbours.
+    if (e.burnT > 0 && this.rank('pyroclasm') > 0) {
+      const dps = e.burnDps;
+      this.forEachNear(e.x, e.y, 110, (j) => {
+        const n = this.enemies[j];
+        if (j === i || dist2(e.x, e.y, n.x, n.y) > 80 * 80) return;
+        n.burnDps = Math.max(n.burnDps, dps);
+        n.burnT = Math.max(n.burnT, 3);
+      });
+    }
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
       const bleed = Math.max(e.burnDps, 14 * this.dmgMult);
@@ -1797,22 +1834,37 @@ export class World {
     this.state = 'draft';
   }
 
-  /** Offer 3 talents. An unlocked capstone is always offered. */
+  /** This class's three branches, in tree order. */
+  get branches(): Branch[] {
+    const out: Branch[] = [];
+    for (const d of Object.values(TALENTS) as TalentDef[]) {
+      if (d.cls === this.cls && !out.includes(d.branch)) out.push(d.branch);
+    }
+    return out;
+  }
+
+  /**
+   * Offer one talent from each branch, so every pick is a build direction.
+   * An unlocked capstone takes its branch's card. A branch with nothing left
+   * gives its card to another branch, then to the general fallbacks.
+   */
   rollDraft(): DraftOption[] {
     const out: DraftOption[] = [];
-    const pool: TalentId[] = [];
-    for (const def of Object.values(TALENTS)) {
-      if (def.branch === 'general' || def.cls !== this.cls) continue;
-      const r = this.rank(def.id);
-      if (r >= def.maxRank) continue;
-      if (def.capstone) {
-        if (this.branchRanks(def.branch) >= CAPSTONE_RANKS) out.push({ id: def.id, nextRank: 1 });
-        continue;
+    const spare: TalentId[] = [];
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls);
+    for (const b of this.branches) {
+      const ids = defs.filter((d) => d.branch === b && !d.capstone && this.rank(d.id) < d.maxRank).map((d) => d.id);
+      const cap = defs.find((d) => d.branch === b && d.capstone);
+      if (cap && this.rank(cap.id) === 0 && this.branchRanks(b) >= CAPSTONE_RANKS) {
+        out.push({ id: cap.id, nextRank: 1 });
+      } else if (ids.length) {
+        const id = ids.splice(this.rng.int(ids.length), 1)[0];
+        out.push({ id, nextRank: this.rank(id) + 1 });
       }
-      pool.push(def.id);
+      spare.push(...ids);
     }
-    while (out.length < 3 && pool.length) {
-      const id = pool.splice(this.rng.int(pool.length), 1)[0];
+    while (out.length < 3 && spare.length) {
+      const id = spare.splice(this.rng.int(spare.length), 1)[0];
       out.push({ id, nextRank: this.rank(id) + 1 });
     }
     const fallbacks: TalentId[] = ['stoke', 'smallHeal'];
@@ -1827,6 +1879,10 @@ export class World {
       return;
     }
     this.talents[id] = this.rank(id) + 1;
+    if (id === 'blazingSpeed' && this.rank(id) === 2) {
+      p.blinkCharges = 1;
+      p.blinkChargeT = this.abilityCooldown(1);
+    }
     if (id === 'cinderSkin') {
       p.maxHp += 25;
       p.hp = Math.min(p.maxHp, p.hp + 25);
