@@ -510,6 +510,269 @@ function drawAcolyte(ctx: Ctx, _s: number, f: number): void {
   ctx.restore();
 }
 
+// ------------------------------------------------------------------ the Drowned Foundry
+
+/** Glass Warden: a golem of cracked furnace glass around a banked ember. */
+function drawGlassWarden(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const swing = [1.5, 0, -1.5, 0][f];
+  const pane = (pts: [number, number][], top: string, bottom: string, y0: number, y1: number) => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y + bob) : ctx.moveTo(x, y + bob)));
+    ctx.closePath();
+    shade(ctx, top, bottom, y0 + bob, y1 + bob, 1.3);
+  };
+  ctx.fillStyle = '#1a2a33';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.3;
+  ell(ctx, 21 - swing, 49, 5, 3.5); ctx.fill(); ctx.stroke();
+  ell(ctx, 35 + swing, 49, 5, 3.5); ctx.fill(); ctx.stroke();
+  // Back arm.
+  pane([[10, 24], [16, 22], [14, 40 - swing], [7, 38 - swing]], 'rgba(150,225,245,0.85)', 'rgba(40,90,110,0.9)', 22, 40);
+  // Torso: faceted panes.
+  pane([[16, 18], [28, 12], [40, 18], [42, 34], [34, 46], [22, 46], [14, 34]], 'rgba(170,235,250,0.92)', 'rgba(36,82,104,0.95)', 12, 46);
+  // The ember core seen through the glass.
+  softGlow(ctx, 28, 30 + bob, 11, 'rgba(255,150,60,0.9)');
+  ell(ctx, 28, 30 + bob, 3.6, 4.2); ctx.fillStyle = '#fff1c0'; ctx.fill();
+  // Facet lines and a crack.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,250,255,0.55)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(28, 12 + bob); ctx.lineTo(28, 22 + bob); ctx.lineTo(16, 18 + bob);
+  ctx.moveTo(28, 22 + bob); ctx.lineTo(40, 18 + bob);
+  ctx.moveTo(14, 34 + bob); ctx.lineTo(22, 38 + bob); ctx.lineTo(34, 38 + bob); ctx.lineTo(42, 34 + bob);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.moveTo(19, 21 + bob); ctx.lineTo(22, 26 + bob); ctx.lineTo(20, 30 + bob); ctx.stroke();
+  ctx.restore();
+  // Head: a prism with one eye slit.
+  pane([[23, 6], [33, 6], [35, 12], [28, 15], [21, 12]], 'rgba(200,245,255,0.95)', 'rgba(60,120,140,0.95)', 6, 15);
+  eyes(ctx, [[30.5, 10 + bob]], 1.2, '#ffb347');
+  // Front arm: a mirror shield.
+  pane([[40, 22], [47, 24], [50, 40 + swing], [42, 42 + swing]], 'rgba(220,250,255,0.95)', 'rgba(70,140,160,0.95)', 22, 42);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.moveTo(42, 25 + bob); ctx.lineTo(45, 26 + bob); ctx.lineTo(43, 34 + bob + swing); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/** Ember Twins: masked flame spirits; the palette tells the pair apart. */
+function twin(core: string, mid: string, outer: string, mask: string): FrameDraw {
+  return (ctx, _s, f) => {
+    const fl = [0, 1.2, 0.4, 1.6][f];
+    const bob = [0, -1, -1.5, -0.5][f];
+    softGlow(ctx, 20, 24 + bob, 16, outer);
+    // Flame body: three licking tongues.
+    ctx.save();
+    const g = ctx.createLinearGradient(0, 6, 0, 36);
+    g.addColorStop(0, core);
+    g.addColorStop(0.45, mid);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(10, 32 + bob);
+    ctx.quadraticCurveTo(7, 20, 13, 12 - fl);
+    ctx.quadraticCurveTo(14, 18, 17, 17);
+    ctx.quadraticCurveTo(18, 8, 21, 3 - fl * 1.5);
+    ctx.quadraticCurveTo(23, 12, 26, 14);
+    ctx.quadraticCurveTo(28, 10, 29, 9 - fl);
+    ctx.quadraticCurveTo(34, 22, 30, 32 + bob);
+    ctx.quadraticCurveTo(20, 37, 10, 32 + bob);
+    ctx.fill();
+    ctx.restore();
+    // Iron mask.
+    ell(ctx, 20.5, 21 + bob, 6.4, 7);
+    shade(ctx, mask, '#1c1418', 14, 28, 1.2);
+    ctx.fillStyle = '#0b0608';
+    ell(ctx, 20.5, 25.5 + bob, 2.2, 1.2); ctx.fill();
+    eyes(ctx, [[18, 20 + bob], [23, 20 + bob]], 1.1, core);
+  };
+}
+
+/** Sluice Crawler: a brass-shelled crab that hauls foundry water. Faces right. */
+function drawCrawler(ctx: Ctx, _s: number, f: number): void {
+  const a = [0.45, 0.15, -0.45, -0.15][f];
+  const bob = [0, -0.6, 0, -0.6][f];
+  // Legs: three a side, alternating.
+  for (let k = 0; k < 3; k++) {
+    const x = 16 + k * 7;
+    const ph = k % 2 ? a : -a;
+    limb(ctx, x, 30 + bob, x - 6 + Math.sin(ph) * 4, 40, 1.8, '#5a3f22');
+    limb(ctx, x + 2, 30 + bob, x + 6 + Math.sin(-ph) * 4, 41, 1.8, '#6a4a28');
+  }
+  // Claw.
+  limb(ctx, 36, 27 + bob, 42, 22 + bob - a * 2, 2.6, '#7a5530');
+  ctx.save();
+  ctx.translate(43, 21 + bob - a * 2);
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.quadraticCurveTo(5, -5, 4, -1); ctx.lineTo(1, 0); ctx.quadraticCurveTo(5, 3, 2, 4); ctx.closePath();
+  shade(ctx, '#d9a45c', '#6a4220', -5, 4, 1);
+  ctx.restore();
+  // Shell.
+  ctx.beginPath();
+  ctx.moveTo(9, 30 + bob);
+  ctx.quadraticCurveTo(12, 14 + bob, 25, 14 + bob);
+  ctx.quadraticCurveTo(38, 14 + bob, 40, 30 + bob);
+  ctx.closePath();
+  shade(ctx, '#e0b065', '#5c3a1c', 14, 30, 1.4);
+  // Rivets and bands.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(40,20,8,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(18, 16 + bob); ctx.quadraticCurveTo(15, 23, 15, 30 + bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(31, 16 + bob); ctx.quadraticCurveTo(34, 23, 34, 30 + bob); ctx.stroke();
+  ctx.fillStyle = '#fff0c8';
+  for (const [x, y] of [[13, 27], [24, 18], [36, 27]]) { ell(ctx, x, y + bob, 0.9, 0.9); ctx.fill(); }
+  ctx.restore();
+  // Valve on top, with a water tank window.
+  limb(ctx, 25, 14 + bob, 25, 9 + bob, 2.2, '#4a3a30');
+  ell(ctx, 25, 8.5 + bob, 4, 1.6); shade(ctx, '#d04a3a', '#6a1a12', 7, 10, 1);
+  ell(ctx, 25, 24 + bob, 5, 3.4);
+  const w = ctx.createLinearGradient(0, 21, 0, 27);
+  w.addColorStop(0, '#9ff0ff'); w.addColorStop(1, '#1f6a80');
+  ctx.fillStyle = w; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = INK; ctx.stroke();
+  // Eye stalks.
+  limb(ctx, 37, 20 + bob, 39, 15 + bob, 1.2, '#6a4a28');
+  eyes(ctx, [[39.2, 14.5 + bob]], 1.2, '#7dfcff');
+}
+
+/** Maelra, the Drowned Bellows: a matron of kelp and iron, her body a giant bellows. */
+function drawMaelra(ctx: Ctx, s: number, f: number): void {
+  const pump = [0, 2, 4, 2][f]; // pleats compress and open
+  const steam = [0.6, 0.85, 1, 0.8][f];
+  const c = s / 2;
+  // Anchor chain trailing behind.
+  ctx.save();
+  ctx.strokeStyle = '#3a3f44';
+  ctx.lineWidth = 2.4;
+  for (let k = 0; k < 6; k++) { ell(ctx, 18 - k * 2.4, 98 + k * 3, 3, 2, 0.6); ctx.stroke(); }
+  ctx.restore();
+  // Bellows body: stacked leather pleats between iron boards.
+  const top = 46 + pump * 0.5;
+  const bottom = 104;
+  const pleats = 5;
+  ctx.beginPath();
+  ctx.moveTo(c - 30, top); ctx.lineTo(c + 30, top); ctx.lineTo(c + 36, bottom); ctx.lineTo(c - 36, bottom); ctx.closePath();
+  shade(ctx, '#24403c', '#0c1614', top, bottom, 1.6);
+  for (let k = 0; k < pleats; k++) {
+    const t = k / (pleats - 1);
+    const y = top + (bottom - top) * t;
+    const w = 34 + Math.sin(t * Math.PI) * (10 - pump);
+    ell(ctx, c, y, w, 7 - pump * 0.4);
+    shade(ctx, '#3d5c58', '#14211f', y - 7, y + 7, 1.6);
+  }
+  // Iron boards.
+  ctx.beginPath(); ctx.rect(c - 36, bottom - 2, 72, 9); shade(ctx, '#5a5f66', '#22252a', bottom - 2, bottom + 7, 1.8);
+  // Brass nozzle that breathes steam.
+  ctx.beginPath();
+  ctx.moveTo(c - 6, top + 4); ctx.lineTo(c + 6, top + 4); ctx.lineTo(c + 3, top + 22); ctx.lineTo(c - 3, top + 22); ctx.closePath();
+  shade(ctx, '#ffd890', '#8a5a22', top + 4, top + 22, 1.4);
+  softGlow(ctx, c, top + 26, 16, `rgba(200,240,255,${0.7 * steam})`);
+  // Shoulders and arms of kelp-wrapped iron.
+  limb(ctx, c - 30, 44, c - 46, 70 + pump, 9, '#2c3e3a');
+  limb(ctx, c + 30, 44, c + 46, 70 + pump, 9, '#2c3e3a');
+  for (const sx of [-1, 1]) {
+    ell(ctx, c + sx * 47, 74 + pump, 7, 6);
+    shade(ctx, '#7a8088', '#2a2d33', 68 + pump, 80 + pump, 1.4);
+  }
+  // Hooded head with kelp hair.
+  ctx.beginPath();
+  ctx.moveTo(c - 26, 50);
+  ctx.quadraticCurveTo(c - 30, 14, c, 10);
+  ctx.quadraticCurveTo(c + 30, 14, c + 26, 50);
+  ctx.quadraticCurveTo(c, 42, c - 26, 50);
+  ctx.closePath();
+  shade(ctx, '#2f5550', '#0f1d1b', 10, 50, 2);
+  ctx.save();
+  ctx.strokeStyle = '#3f7a52';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  for (const [x, len, sw] of [[c - 22, 30, -3], [c - 16, 36, 2], [c + 16, 34, -2], [c + 22, 28, 3]] as [number, number, number][]) {
+    ctx.beginPath();
+    ctx.moveTo(x, 40);
+    ctx.quadraticCurveTo(x + sw * 2, 40 + len / 2, x + sw, 40 + len);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Face: pale, drowned, with a riveted iron jaw.
+  ell(ctx, c, 30, 13, 14);
+  shade(ctx, '#b8d6cf', '#5d7f78', 16, 44, 1.6);
+  ctx.beginPath(); ctx.rect(c - 9, 34, 18, 8); shade(ctx, '#6a7078', '#2a2e33', 34, 42, 1.2);
+  ctx.fillStyle = '#e8eef0';
+  for (const x of [c - 6, c, c + 6]) { ell(ctx, x, 38, 0.9, 0.9); ctx.fill(); }
+  eyes(ctx, [[c - 5, 27], [c + 5, 27]], 2.2, '#5ff0ff');
+  // Water dripping down the pleats.
+  ctx.save();
+  ctx.fillStyle = 'rgba(140,230,255,0.75)';
+  for (const [x, y] of [[c - 20, 64], [c + 12, 72], [c - 4, 86], [c + 24, 90]]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + pump); ctx.quadraticCurveTo(x + 1.6, y + 3 + pump, x, y + 4 + pump); ctx.quadraticCurveTo(x - 1.6, y + 3 + pump, x, y + pump);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Steam vent: an iron grate set in the floor, glowing and puffing. */
+function drawVent(ctx: Ctx, s: number, f: number): void {
+  const c = s / 2;
+  const heat = [0.5, 0.75, 1, 0.7][f];
+  ell(ctx, c, c, 26, 18);
+  shade(ctx, '#4a4f55', '#1a1c20', c - 18, c + 18, 2);
+  ell(ctx, c, c, 20, 13);
+  const g = ctx.createRadialGradient(c, c, 1, c, c, 20);
+  g.addColorStop(0, `rgba(255,${200 + 40 * heat},${150 + 80 * heat},1)`);
+  g.addColorStop(0.5, `rgba(255,120,40,${0.8 * heat})`);
+  g.addColorStop(1, '#2a0e08');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = '#22252a';
+  ctx.lineWidth = 3;
+  for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(c + k * 6, c - 14); ctx.lineTo(c + k * 6, c + 14); ctx.stroke(); }
+  ctx.restore();
+  for (const [x, y] of [[c - 22, c - 6], [c + 22, c - 6], [c - 14, c + 14], [c + 14, c + 14]]) {
+    ell(ctx, x, y, 1.6, 1.4); ctx.fillStyle = '#9aa0a8'; ctx.fill();
+  }
+  softGlow(ctx, c, c - 6, 22, `rgba(230,245,255,${0.35 * heat})`);
+}
+
+/** Steam cloud puff for vents and Maelra's nozzle (white, tinted per use). */
+function drawSteam(ctx: Ctx, s: number): void {
+  for (const [x, y, r] of [[s * 0.5, s * 0.6, s * 0.3], [s * 0.32, s * 0.5, s * 0.22], [s * 0.68, s * 0.48, s * 0.24], [s * 0.5, s * 0.32, s * 0.24]]) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.8)');
+    g.addColorStop(0.6, 'rgba(240,248,255,0.35)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  }
+}
+
+/** Dark foundry water with caustic ripples; tiles seamlessly. */
+function drawWater(ctx: Ctx, s: number): void {
+  ctx.fillStyle = '#0a1d22';
+  ctx.fillRect(0, 0, s, s);
+  let seed = 23;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * s;
+    const y = rnd() * s;
+    const w = 12 + rnd() * 30;
+    const a = 0.08 + rnd() * 0.14;
+    for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+      ctx.strokeStyle = `rgba(120,220,235,${a})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x + ox - w / 2, y + oy);
+      ctx.quadraticCurveTo(x + ox, y + oy - 3, x + ox + w / 2, y + oy);
+      ctx.stroke();
+    }
+  }
+}
+
 // ------------------------------------------------------------------ build
 
 export function buildTextures(scene: Phaser.Scene): void {
@@ -601,6 +864,16 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'ashmaw', 60, 4, drawAshmaw);
   sheet(scene, 'kilnMother', 112, 4, drawKiln);
   sheet(scene, 'acolyte', 34, 4, drawAcolyte);
+
+  // The Drowned Foundry.
+  sheet(scene, 'glassWarden', 56, 4, drawGlassWarden);
+  sheet(scene, 'emberTwin', 40, 4, twin('#fff2c0', '#ff8a3d', 'rgba(255,140,60,0.55)', '#5a4a48'));
+  sheet(scene, 'emberTwinB', 40, 4, twin('#e8fbff', '#5fd0ff', 'rgba(90,200,255,0.5)', '#4a5058'));
+  sheet(scene, 'sluiceCrawler', 48, 4, drawCrawler);
+  sheet(scene, 'maelra', 120, 4, drawMaelra);
+  sheet(scene, 'vent', 64, 4, drawVent);
+  make(scene, 'steam', 48, drawSteam);
+  make(scene, 'water', 128, drawWater);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {
