@@ -152,6 +152,14 @@
   .passives { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; font-size: 12px; }
   .passives button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); font-size: 12px; }
   .passives button:disabled { opacity: 0.5; cursor: default; }
+  .wboss { margin-top: 12px; text-align: left; background: rgba(0,0,0,0.28); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13px; }
+  .wboss .wb-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+  .wboss .wb-top b { font-family: var(--serif); font-size: 16px; color: #ffb36b; }
+  .wboss .wb-bar { position: relative; height: 14px; margin: 6px 0 4px; border-radius: 7px; background: rgba(0,0,0,0.55); overflow: hidden; }
+  .wboss .wb-bar div { height: 100%; background: linear-gradient(90deg, #a3241b, #ff6a2b); }
+  .wboss .wb-bar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 14px; color: #fff; text-shadow: 0 1px 2px #000; }
+  .wboss button { margin: 6px 6px 0 0; }
+  #endBoss { margin-top: 8px; font-size: 14px; }
   .tiers { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 14px; flex-wrap: wrap; font-size: 13px; }
   .tiers button { min-width: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
   .tiers button.on { border-color: var(--ember); background: rgba(255,138,61,0.2); }
@@ -229,10 +237,11 @@
       <div class="cls locked"><b>Duskblade</b><div>Melee striker. Arrives in the next build.</div></div>
     </div>
     <div id="heroCard" class="hero"></div>
+    <div id="worldBoss" class="wboss"></div>
     <div class="how">Each delve is a short dungeon: four tough fights, then Smolderhusk, the Kiln Mother. Move with WASD or drag on a touch screen; your fire orbs cast on their own. Spend Heat on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and press Quench when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</div>
     <div class="tiers" id="tiers"></div>
     <button class="primary" id="startBtn">Delve</button>
-    <div class="small muted">Alpha build. Your hero saves in this browser. <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
+    <div class="small muted">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
   </div>
 </div>
 
@@ -258,6 +267,7 @@
     <div class="muted" id="endSub"></div>
     <div id="stats"></div>
     <div id="rewards"></div>
+    <div id="endBoss"></div>
     <div id="endTalents"></div>
     <button class="primary" id="againBtn">Delve again</button>
     <button class="ghost" id="menuBtn">Main menu</button>

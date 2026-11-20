@@ -50,3 +50,24 @@ describe('hero', () => {
     expect(loadoutFor(h).maxHpBonus).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('world boss rewards', () => {
+  it('grants an Epic or better and embers, once per call', async () => {
+    const { grantBossReward } = await import('../sim/hero');
+    const h = newHero();
+    const r = grantBossReward(h, 1, 12000);
+    expect(['epic', 'mythic']).toContain(r.item.rarity);
+    expect(r.embers).toBe(62);
+    expect(h.inventory).toContain(r.item);
+    expect(h.nextItemId).toBe(2);
+  });
+
+  it('keeps the save with more progress', async () => {
+    const { newerHero } = await import('../sim/hero');
+    const a = newHero(); const b = newHero();
+    b.runs = 3;
+    expect(newerHero(a, b)).toBe(b);
+    a.runs = 3; a.level = 4;
+    expect(newerHero(a, b)).toBe(a);
+  });
+});

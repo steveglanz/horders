@@ -3,18 +3,42 @@ import { GameScene } from './GameScene';
 import { Hud } from './ui';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile } from '../sim/hero';
+import { applyRun, equippedItems, HeroProfile, newerHero } from '../sim/hero';
+import { cloud, queueCloudSave } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 
+const el = (id: string) => document.getElementById(id)!;
 const params = new URLSearchParams(location.search);
 let stress = params.has('stress');
 const hud = new Hud();
 hud.showPerf = stress || params.has('debug');
 let hero: HeroProfile = loadHero();
-const save = () => saveHero(hero);
+const save = () => {
+  saveHero(hero);
+  queueCloudSave(() => hero);
+};
 const hub = new Hub(() => hero, save);
 hub.tier = hero.maxTier;
 hub.render();
+
+// Pull the cloud save (if any) and keep whichever copy has made more progress.
+void (async () => {
+  const remote = await cloud.loadHero();
+  if (remote && remote.version === 1 && Array.isArray(remote.inventory)) {
+    const best = newerHero(hero, remote);
+    if (best === remote && el('title').hidden === false) {
+      hero = { ...hero, ...remote };
+      saveHero(hero);
+      hub.tier = hero.maxTier;
+    } else if (best !== remote) {
+      void cloud.saveHero(hero);
+    }
+  } else if (cloud.online) {
+    void cloud.saveHero(hero);
+  }
+  hub.render();
+  await hub.refreshBoss();
+})();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -38,15 +62,36 @@ let runApplied = true;
 function finishRun(w: World) {
   if (runApplied || w.stress) return undefined;
   runApplied = true;
-  const rewards = applyRun(hero, runSeed, w.summary(), w.eliteKilled, w.runDrops, w.runEquipped);
+  const summary = w.summary();
+  const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, w.runDrops, w.runEquipped);
   save();
   hub.render();
+  void strikeBoss(summary.damageDealt, summary.time);
   return rewards;
+}
+
+/** Sends a finished delve's damage to the shared world boss. */
+async function strikeBoss(damage: number, seconds: number): Promise<void> {
+  const out = el('endBoss');
+  out.innerHTML = '';
+  if (damage <= 0) return;
+  const r = await cloud.strike(damage, seconds);
+  if (!r) {
+    out.innerHTML = cloud.online === false ? '<span class="muted">World boss offline: this delve only counted locally.</span>' : '';
+  } else if (r.ok) {
+    out.innerHTML = r.defeated
+      ? `<b style="color:var(--gold)">Your delve landed the killing blow on ${r.name}!</b> Claim your reward from the main menu.`
+      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}. It has ${r.hp.toLocaleString()} health left.`;
+  } else if (r.reason === 'too_soon') {
+    out.innerHTML = '<span class="muted">The world boss is recovering. Your next delve can strike it again.</span>';
+  }
+  await hub.refreshBoss();
 }
 
 function startRun(): void {
   if (game.scene.getScene('game')) game.scene.stop('game');
   runSeed = seed();
+  hub.bossNote = "";
   runApplied = false;
   const opts: WorldOptions = {
     seed: runSeed,
@@ -73,7 +118,6 @@ game.events.once(Phaser.Core.Events.READY, () => {
   if (stress) startRun();
 });
 
-const el = (id: string) => document.getElementById(id)!;
 el('startBtn').addEventListener('click', () => {
   stress = params.has('stress');
   hud.showPerf = stress || params.has('debug');
@@ -88,6 +132,7 @@ el('stressLink').addEventListener('click', (e) => {
 el('resetBtn').addEventListener('click', () => {
   hero = resetHero();
   hub.tier = 1;
+  save();
   hub.render();
 });
 el('againBtn').addEventListener('click', startRun);

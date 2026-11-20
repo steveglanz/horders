@@ -269,3 +269,31 @@ export function itemScore(it: Item): number {
 function round1(v: number): number {
   return Math.round(v * 10) / 10;
 }
+
+export interface BossReward {
+  item: Item;
+  embers: number;
+}
+
+/**
+ * Reward for helping fell a world boss: one Epic (or better) item a little
+ * above the hero's level, plus embers that grow with the damage dealt.
+ * Deterministic for a boss id and hero state, so it can be re-checked.
+ */
+export function grantBossReward(hero: HeroProfile, bossId: number, damage: number): BossReward {
+  const rng = new Rng((bossId * 2654435761) ^ hero.nextItemId);
+  const item = rollDrop(rng, `i${hero.nextItemId}`, hero.level + 3, 2, 'epic');
+  hero.nextItemId++;
+  hero.inventory.push(item);
+  const embers = 50 + Math.floor(Math.max(0, damage) / 1000);
+  hero.embers += embers;
+  return { item, embers };
+}
+
+/** Which of two saves of the same hero has made more progress. */
+export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
+  if (a.runs !== b.runs) return a.runs > b.runs ? a : b;
+  if (a.level !== b.level) return a.level > b.level ? a : b;
+  if (a.xp !== b.xp) return a.xp > b.xp ? a : b;
+  return a.nextItemId >= b.nextItemId ? a : b;
+}

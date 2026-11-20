@@ -1,8 +1,9 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
   HeroProfile, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  pointsAvailable, salvage, spendPoint,
+  grantBossReward, pointsAvailable, salvage, spendPoint,
 } from '../sim/hero';
+import { BossStatus, cloud } from './cloud';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
 
@@ -11,6 +12,9 @@ const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest
 
 export class Hub {
   tier = 1;
+  boss: BossStatus | null = null;
+  bossNote = '';
+  private claiming = false;
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     $('bagClose').addEventListener('click', () => {
@@ -58,6 +62,53 @@ export class Hub {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
+    this.renderBoss();
+  }
+
+  /** Fetches the shared world boss and redraws its panel. */
+  async refreshBoss(): Promise<void> {
+    const b = await cloud.bossStatus();
+    if (b) this.boss = b;
+    this.renderBoss();
+  }
+
+  renderBoss(): void {
+    const el = $('worldBoss');
+    const b = this.boss;
+    $('saveNote').textContent = cloud.online ? 'Your hero saves to the cloud and this browser.' : 'Your hero saves in this browser.';
+    if (!b) {
+      el.innerHTML = cloud.online === false
+        ? '<div class="wb-top"><b>World boss</b><span class="muted">Offline</span></div><div class="muted">The shared world boss needs the online build. Your delves still count here.</div>'
+        : '<div class="wb-top"><b>World boss</b><span class="muted">Looking for it…</span></div>';
+      return;
+    }
+    const pct = Math.max(0, Math.min(100, (100 * b.hp) / b.max_hp));
+    const claims = b.unclaimed.map((u) =>
+      `<button class="primary" data-claim="${u.boss_id}" data-dmg="${u.damage}" ${this.claiming ? 'disabled' : ''}>Claim reward: ${u.name} fell</button>`).join('');
+    el.innerHTML = `
+      <div class="wb-top"><b>${b.name}, ${b.title}</b><span class="muted">World boss · ${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
+      <div class="wb-bar"><div style="width:${pct}%"></div><span>${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}</span></div>
+      <div class="muted">Every delve you finish strikes it with the damage you dealt. Your damage so far: <b>${b.my_damage.toLocaleString()}</b>. When it falls, everyone who struck it gets an Epic reward.</div>
+      ${claims}${this.bossNote ? `<div style="margin-top:6px;color:var(--gold)">${this.bossNote}</div>` : ''}`;
+    el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>
+      btn.addEventListener('click', () => void this.claim(Number(btn.dataset.claim))));
+  }
+
+  private async claim(bossId: number): Promise<void> {
+    if (this.claiming) return;
+    this.claiming = true;
+    this.renderBoss();
+    const r = await cloud.claim(bossId);
+    this.claiming = false;
+    if (r?.ok) {
+      const reward = grantBossReward(this.hero(), bossId, r.damage ?? 0);
+      this.save();
+      this.bossNote = `Reward claimed: ${reward.item.name} and ${reward.embers} embers. Check your bags.`;
+      this.render();
+    } else {
+      this.bossNote = r ? 'That reward was already claimed.' : 'Could not reach the server. Try again in a moment.';
+    }
+    await this.refreshBoss();
   }
 
   openBag(): void {
