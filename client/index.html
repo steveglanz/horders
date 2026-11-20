@@ -122,7 +122,7 @@
   #title .panel { text-align: center; background: radial-gradient(ellipse at top, rgba(255,110,40,0.18), transparent 60%), var(--panel); }
   #title h1 { font-size: clamp(34px, 8vw, 56px); color: #ffe2c2; text-shadow: 0 0 30px rgba(255,100,40,0.5); }
   .tag { margin-top: 6px; color: var(--gold); }
-  .classes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+  .classes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
   .cls { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); text-align: left; }
   .cls.active { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
   .cls.locked { opacity: 0.5; }
@@ -238,7 +238,7 @@
     <div class="classes" id="classes"></div>
     <div id="heroCard" class="hero"></div>
     <div id="worldBoss" class="wboss"></div>
-    <div class="how">Each delve is a short dungeon: four tough fights, then Smolderhusk, the Kiln Mother. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum or Resolve on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</div>
+    <div class="how">Each delve is a short dungeon: four tough fights, then Smolderhusk, the Kiln Mother. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</div>
     <div class="tiers" id="tiers"></div>
     <button class="primary" id="startBtn">Delve</button>
     <div class="small muted">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>

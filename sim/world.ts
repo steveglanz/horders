@@ -37,6 +37,9 @@ const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
+/** Lumen: Sunmote reach and the most Brilliance (stored overheal) it can hold. */
+const LUMEN_RANGE = 500;
+const LUMEN_MAX_BRILLIANCE = 200;
 
 const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
 
@@ -216,6 +219,17 @@ export interface Player {
   prevented: number;
   echoT: number;
   echoAng: number;
+  /** Lumen: stored overheal, Sanctuary and healing pool timers and centres, High Noon timer, Martyr's Halo used this fight. */
+  brilliance: number;
+  sanctT: number;
+  sanctX: number;
+  sanctY: number;
+  sanctTick: number;
+  poolT: number;
+  poolX: number;
+  poolY: number;
+  noonT: number;
+  haloUsed: boolean;
 }
 
 export type SimEvent =
@@ -236,6 +250,7 @@ export type SimEvent =
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
   | { type: 'parry'; x: number; y: number }
+  | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'castDone'; x: number; y: number; name: string }
@@ -415,6 +430,7 @@ export class World {
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0,
+      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -477,7 +493,7 @@ export class World {
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost;
   }
   get regen(): number {
-    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind');
+    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal');
   }
   get abilities(): AbilityDef[] {
     return this.classDef.abilities;
@@ -635,6 +651,7 @@ export class World {
   private startEncounter(): void {
     const def = this.encounterDef;
     this.phase = 'fight';
+    this.player.haloUsed = false;
     const p = this.player;
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
@@ -868,6 +885,20 @@ export class World {
     if (this.cls === 'bulwark') {
       amount = this.bulwarkMitigate(amount, src);
       if (amount <= 0) return;
+    } else if (p.ward > 0) {
+      // Shields (Aegis of Light) soak the hit first.
+      const soak = Math.min(p.ward, amount);
+      p.ward -= soak;
+      amount -= soak;
+      if (amount <= 0) return;
+    }
+    if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
+      // Martyr's Halo: the killing blow is turned aside once per fight.
+      p.haloUsed = true;
+      p.hp = 1;
+      p.shieldT = 2;
+      this.events.push({ type: 'revive' });
+      return;
     }
     if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5) {
       // Parry: the hit is turned aside and answered.
@@ -903,7 +934,7 @@ export class World {
         p.blinkChargeT = this.abilityCooldown(1);
       }
     }
-    this.addHeat((this.cls === 'duskblade' ? 3 : this.cls === 'bulwark' ? 1 : 2) * dt);
+    this.addHeat((this.cls === 'duskblade' ? 3 : this.cls === 'bulwark' ? 1 : this.cls === 'lumen' ? 4 : 2) * dt);
     const slot = input.cast;
     if (slot === undefined || slot < 0 || slot >= this.abilities.length || !this.canCast(slot)) return;
     p.heat -= this.abilityCost(slot);
@@ -913,6 +944,13 @@ export class World {
       p.blinkChargeT = this.abilityCooldown(1);
     } else p.cds[slot] = this.abilityCooldown(slot);
     if (!this.abilities[slot].offGcd) p.gcd = GCD;
+    if (this.cls === 'lumen') {
+      if (slot === 0) this.radiantBurst();
+      else if (slot === 1) this.glimmerStep(input);
+      else if (slot === 2) this.sanctuary();
+      else this.quench();
+      return;
+    }
     if (this.cls === 'bulwark') {
       if (slot === 0) this.shieldSlam();
       else if (slot === 1) this.charge();
@@ -1068,6 +1106,10 @@ export class World {
       this.updateShield(dt);
       return;
     }
+    if (this.cls === 'lumen') {
+      this.updateLight(dt);
+      return;
+    }
 
     p.volleyT -= dt;
     if (p.volleyT <= 0) {
@@ -1097,7 +1139,14 @@ export class World {
       }
     }
 
-    if (this.rank('ringOfAsh') > 0) {
+    this.updateOrbit(dt);
+  }
+
+  /** Three orbiting motes: Ring of Ash (Emberwright) or Choir of Dawn (Lumen, heals on hit). */
+  private updateOrbit(dt: number): void {
+    const p = this.player;
+    const choir = this.rank('choirOfDawn') > 0;
+    if (this.rank('ringOfAsh') > 0 || choir) {
       p.orbitAngle += 3.2 * dt;
       for (let k = 0; k < 3; k++) {
         const a = p.orbitAngle + (k * Math.PI * 2) / 3;
@@ -1109,10 +1158,174 @@ export class World {
           if (dist2(ox, oy, e.x, e.y) <= (14 + e.def.radius) ** 2) {
             e.orbitCd = 0.4;
             this.damageEnemy(i, 16 * this.dmgMult, true);
+            if (choir) this.healPlayer(1.5);
           }
         });
       }
     }
+  }
+
+  // ---------------------------------------------------------------- lumen
+
+  /** Heals the hero. For the Lumen, overhealing is stored as Brilliance, which powers its damage. */
+  healPlayer(amount: number): number {
+    const p = this.player;
+    const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
+    p.hp += eff;
+    if (this.cls === 'lumen') {
+      const over = amount - eff;
+      if (over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
+    }
+    return eff;
+  }
+
+  get moteCooldown(): number {
+    return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
+  }
+  get burstRadius(): number {
+    return 140 + 40 * this.rank('sunflare');
+  }
+  get sanctuaryRadius(): number {
+    return 150;
+  }
+
+  private updateLight(dt: number): void {
+    const p = this.player;
+    // Sanctuary: hallowed ground that heals the Lumen and burns foes, in half-second pulses.
+    if (p.sanctT > 0) {
+      p.sanctT -= dt;
+      if (this.rank('lingeringSanctuary') > 0) {
+        p.sanctX = p.x;
+        p.sanctY = p.y;
+      }
+      p.sanctTick -= dt;
+      if (p.sanctTick <= 0) {
+        p.sanctTick += 0.5;
+        const r = this.sanctuaryRadius;
+        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(3);
+        this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
+          const e = this.enemies[i];
+          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
+        });
+      }
+    }
+    if (p.poolT > 0) {
+      p.poolT -= dt;
+      if (dist2(p.x, p.y, p.poolX, p.poolY) <= 70 * 70) this.healPlayer(5 * this.rank('blessedGround') * dt);
+    }
+    if (this.rank('noon') > 0) {
+      p.noonT -= dt;
+      if (p.noonT <= 0) {
+        p.noonT = 4;
+        if (p.brilliance >= 20) this.sunbeam();
+      }
+    }
+    this.updateOrbit(dt);
+    p.volleyT -= dt;
+    if (p.volleyT > 0) return;
+    let t = this.bladeTarget(LUMEN_RANGE);
+    if (t < 0) {
+      p.volleyT = 0;
+      return;
+    }
+    // Bosses pull focus, as they do for the Emberwright's orbs.
+    if (this.bossIndex >= 0) {
+      const boss = this.enemies[this.bossIndex];
+      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < LUMEN_RANGE * LUMEN_RANGE) t = this.bossIndex;
+    }
+    p.volleyT += this.moteCooldown;
+    if (p.volleyT < 0) p.volleyT = 0;
+    this.sunmote(t);
+  }
+
+  /** Sunmote: an instant bolt of light that heals the Lumen a little and spends Brilliance for extra damage. */
+  private sunmote(t: number): void {
+    const p = this.player;
+    const bonus = Math.min(p.brilliance, 10);
+    p.brilliance -= bonus;
+    const dmg = (22 * (1 + 0.15 * this.rank('searingRadiance')) + bonus) * this.dmgMult;
+    const hit = (i: number, k: number) => {
+      const e = this.enemies[i];
+      this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+      this.damageEnemy(i, dmg * k, true);
+      this.addHeat(3);
+      this.healPlayer(1);
+    };
+    const e0 = this.enemies[t];
+    p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
+    hit(t, 1);
+    const extra = this.rank('prism');
+    if (extra > 0) {
+      for (const j of this.nearestEnemies(e0.x, e0.y, extra + 1, 260)) if (j !== t && this.enemies[j].alive) hit(j, 0.6);
+    }
+  }
+
+  /** High Noon: all stored Brilliance at once, as a piercing beam. */
+  private sunbeam(): void {
+    const p = this.player;
+    const t = this.bladeTarget(LUMEN_RANGE);
+    const ang = t >= 0 ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : p.facing;
+    const x2 = p.x + Math.cos(ang) * 520;
+    const y2 = p.y + Math.sin(ang) * 520;
+    const lance = this.lances.find((l) => !l.alive);
+    if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2, y2, life: 0.25 });
+    const dmg = (30 + p.brilliance * 1.5) * this.dmgMult;
+    p.brilliance = 0;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (e.alive && segDist2(e.x, e.y, p.x, p.y, x2, y2) <= (14 + e.def.radius) ** 2) this.damageEnemy(i, dmg, true);
+    }
+  }
+
+  private radiantBurst(): void {
+    const p = this.player;
+    this.healPlayer(15);
+    const aegis = this.rank('aegisOfLight');
+    if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
+    const r = this.burstRadius;
+    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult;
+    this.forEachNear(p.x, p.y, r + 40, (i) => {
+      const e = this.enemies[i];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > r + e.def.radius) return;
+      if (e.def.rank === 'normal' && !e.def.stationary) {
+        e.x += (dx / d) * 40;
+        e.y += (dy / d) * 40;
+      }
+      this.damageEnemy(i, dmg, true);
+    });
+    this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: 0, r });
+  }
+
+  private glimmerStep(input: Input): void {
+    const p = this.player;
+    const moving = Math.hypot(input.x, input.y) > 0.01;
+    const ang = moving ? Math.atan2(input.y, input.x) : p.facing;
+    const x1 = p.x;
+    const y1 = p.y;
+    p.x += Math.cos(ang) * 160;
+    p.y += Math.sin(ang) * 160;
+    this.clampArena(p, PLAYER_RADIUS);
+    p.px = p.x;
+    p.py = p.y;
+    p.shieldT = Math.max(p.shieldT, 0.3);
+    if (this.rank('blessedGround') > 0) {
+      p.poolT = 4;
+      p.poolX = p.x;
+      p.poolY = p.y;
+    }
+    this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
+  }
+
+  private sanctuary(): void {
+    const p = this.player;
+    p.sanctT = 6 + 2 * this.rank('lingeringSanctuary');
+    p.sanctX = p.x;
+    p.sanctY = p.y;
+    p.sanctTick = 0;
+    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: this.sanctuaryRadius });
   }
 
   // ---------------------------------------------------------------- bulwark
@@ -1499,7 +1712,7 @@ export class World {
 
   /** Orbiter positions for rendering. */
   orbiters(): { x: number; y: number }[] {
-    if (this.rank('ringOfAsh') === 0) return [];
+    if (this.rank('ringOfAsh') === 0 && this.rank('choirOfDawn') === 0) return [];
     const p = this.player;
     return [0, 1, 2].map((k) => {
       const a = p.orbitAngle + (k * Math.PI * 2) / 3;
@@ -2322,6 +2535,10 @@ export class World {
     if (id === 'blazingSpeed' && this.rank(id) === 2) {
       p.blinkCharges = 1;
       p.blinkChargeT = this.abilityCooldown(1);
+    }
+    if (id === 'renewal') {
+      p.maxHp += 20;
+      p.hp = Math.min(p.maxHp, p.hp + 20);
     }
     if (id === 'holdTheLine') {
       p.maxHp += 30;

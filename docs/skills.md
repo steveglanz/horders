@@ -68,9 +68,33 @@ Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource,
 - Tempo, **Flurry Step** (2 ranks): Rending Dash comes back at once if it kills; rank 2 makes it cost 10 less Momentum.
 - Guard, **Counterstep** (2 ranks): Sidestep cuts the nearest foe for 60 as you land; rank 2 doubles the dodge window.
 
+## Lumen (healer)
+
+Fantasy: light that mends. In a group the Lumen keeps others alive. Solo, there is nobody else to heal, so overhealing turns into damage, the way the original plan describes. Co-op healing of allies arrives with group play (`docs/design/group-play.md`); the rules agreed with game design: healing makes 0.5 threat per point, split across the enemies in the fight.
+
+Resource: **Radiance** (0 to 100), 4 per second plus 3 per Sunmote hit.
+**Brilliance**: overhealing is stored (up to 200). Each Sunmote spends up to 10 of it as bonus damage.
+
+Base: 100 health, 138 move speed.
+
+Auto: **Sunmote**, every 0.7s, an instant bolt of light at the target within 500 (bosses first), 22 damage, heals you 1.
+
+| Key | Ability | Cost / CD | Effect |
+| --- | --- | --- | --- |
+| Q | Radiant Burst | 25 Radiance / 4s | Heal 15, and a 140-radius pulse for 40 damage that pushes normal enemies back |
+| E | Glimmer Step | 0 / 8s | Step 160 where you are moving, untouchable for 0.3s |
+| R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 6 per second inside, foes inside take 20 per second |
+| F | Hush | 0 / 10s, off GCD | Interrupt within 480, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
+
+Branches:
+- **Dawn** (healing into damage): *Kindled Light* (3) overheal stores 30% more Brilliance; *Searing Radiance* (3) Sunmotes +15% damage; *Sunflare* (2, ability) Radiant Burst +40 radius and +50% damage; capstone **High Noon**: every 4s, stored Brilliance fires a piercing sunbeam for 30 plus 1.5 per point.
+- **Grace** (shields and staying alive): *Aegis of Light* (3) Radiant Burst shields you for 8% of max health; *Renewal* (3) +20 max health and 1 health per second; *Blessed Ground* (2, ability) Glimmer Step leaves a pool that heals 5 per second per rank for 4s; capstone **Martyr's Halo**: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.
+- **Choir** (more light, faster): *Hasted Hymn* (3) Sunmotes 12% more often; *Prism* (2) each Sunmote also strikes one more enemy for 60%; *Lingering Sanctuary* (2, ability) Sanctuary lasts 2s longer and moves with you; capstone **Choir of Dawn**: three wisps circle you, burning foes and healing you 1.5 with each hit.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
 2. Bulwark.
 3. Duskblade tuning and ability talents.
+4. Lumen (healer), solo version first; ally healing and threat with group play.
 Each lands as its own PR with tests and bot balance numbers in the description.

@@ -141,6 +141,29 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fill();
   });
   // The Bulwark: a broad armored figure behind a kite shield.
+  // The Lumen: a robed figure with a halo.
+  make(scene, 'lumen', 48, (ctx, s) => {
+    const c = s / 2;
+    ctx.strokeStyle = '#ffd27a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(c, 9, 10, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f3ecd8';
+    ctx.strokeStyle = '#fff2b0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c, 13);
+    ctx.lineTo(s - 11, s - 6);
+    ctx.quadraticCurveTo(c, s - 12, 11, s - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffd27a';
+    ctx.beginPath();
+    ctx.arc(c, c + 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
   make(scene, 'bulwark', 52, (ctx, s) => {
     const c = s / 2;
     ctx.fillStyle = '#3a4150';

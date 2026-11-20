@@ -9,8 +9,9 @@ export type Branch =
   | 'wildfire' | 'kindling' | 'ashguard'
   | 'bloodletting' | 'tempo' | 'guard'
   | 'bastion' | 'retribution' | 'vanguard'
+  | 'dawn' | 'grace' | 'choir'
   | 'general';
-export type ClassId = 'emberwright' | 'duskblade' | 'bulwark';
+export type ClassId = 'emberwright' | 'duskblade' | 'bulwark' | 'lumen';
 
 export type TalentId =
   | 'kindledGround'
@@ -66,7 +67,20 @@ export type TalentId =
   | 'wideSweep'
   | 'momentum'
   | 'batteringRam'
-  | 'warpath';
+  | 'warpath'
+  // Lumen
+  | 'kindledLight'
+  | 'searingRadiance'
+  | 'sunflare'
+  | 'noon'
+  | 'aegisOfLight'
+  | 'renewal'
+  | 'blessedGround'
+  | 'martyrsHalo'
+  | 'hastedHymn'
+  | 'prism'
+  | 'lingeringSanctuary'
+  | 'choirOfDawn';
 
 export interface TalentDef {
   id: TalentId;
@@ -146,6 +160,22 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   momentum: { id: 'momentum', cls: 'bulwark', name: 'Momentum', branch: 'vanguard', maxRank: 3, text: '+5% move speed; Charge recharges 2s faster.' },
   batteringRam: { id: 'batteringRam', cls: 'bulwark', name: 'Battering Ram', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.' },
   warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th Shield Sweep sends out a shockwave for double damage.' },
+
+  // Lumen. Dawn: healing turned into damage
+  kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
+  searingRadiance: { id: 'searingRadiance', cls: 'lumen', name: 'Searing Radiance', branch: 'dawn', maxRank: 3, text: 'Sunmotes deal 15% more damage.' },
+  sunflare: { id: 'sunflare', cls: 'lumen', name: 'Sunflare', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
+  noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4s, stored Brilliance fires a piercing sunbeam.' },
+  // Grace: shields and staying alive
+  aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Aegis of Light', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
+  renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health and 1 health per second.' },
+  blessedGround: { id: 'blessedGround', cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 10 per second for 4s.' },
+  martyrsHalo: { id: 'martyrsHalo', cls: 'lumen', name: "Martyr's Halo", branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.' },
+  // Choir: more light, faster
+  hastedHymn: { id: 'hastedHymn', cls: 'lumen', name: 'Hasted Hymn', branch: 'choir', maxRank: 3, text: 'Sunmotes fly 12% more often.' },
+  prism: { id: 'prism', cls: 'lumen', name: 'Prism', branch: 'choir', maxRank: 2, text: 'Each Sunmote also strikes one more enemy.' },
+  lingeringSanctuary: { id: 'lingeringSanctuary', cls: 'lumen', name: 'Lingering Sanctuary', branch: 'choir', maxRank: 2, text: 'Sanctuary lasts 2s longer and moves with you.' },
+  choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle you, burning foes and healing you with each hit.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {
@@ -158,6 +188,9 @@ export const BRANCH_NAMES: Record<Branch, string> = {
   bastion: 'Bastion',
   retribution: 'Retribution',
   vanguard: 'Vanguard',
+  dawn: 'Dawn',
+  grace: 'Grace',
+  choir: 'Choir',
   general: 'General',
 };
 

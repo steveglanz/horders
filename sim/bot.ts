@@ -15,6 +15,9 @@ const PRIORITY: TalentId[] = [
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',
+  // Lumen
+  'noon', 'choirOfDawn', 'martyrsHalo', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
+  'renewal', 'lingeringSanctuary', 'blessedGround',
   'smallHeal', 'stoke',
 ];
 
@@ -76,10 +79,33 @@ function shieldCast(w: World, skill: number): number | undefined {
   return undefined;
 }
 
+/** Lumen action choices: hush casts, Sanctuary for big fights, Radiant Burst to heal and clear space. */
+function lightCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  let near = 0;
+  let touching = 0;
+  let bigNear = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (e.def.rank !== 'normal' && d2 < 300 * 300) bigNear = true;
+    if (d2 < w.burstRadius * w.burstRadius) near++;
+    if (d2 < 60 * 60) touching++;
+  }
+  const hurt = 1 - p.hp / p.maxHp;
+  if (w.canCast(2) && (bigNear || hurt > 0.4)) return 2;
+  if (w.canCast(0) && (near >= 4 || hurt > 0.25 || (bigNear && near >= 1))) return 0;
+  if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
+  return undefined;
+}
+
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
   if (w.cls === 'duskblade') return bladeCast(w, skill);
   if (w.cls === 'bulwark') return shieldCast(w, skill);
+  if (w.cls === 'lumen') return lightCast(w, skill);
   const p = w.player;
   // A lower-skill bot misses some interrupts.
   const attentive = (w.tick % 20) / 20 < skill;

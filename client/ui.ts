@@ -46,6 +46,16 @@ const BULWARK_ICONS = [
   // Shield Toss: a spinning disc.
   '<svg viewBox="0 0 32 32"><circle cx="18" cy="16" r="9" fill="#8fd8ff"/><circle cx="18" cy="16" r="3.5" fill="#fff"/><path d="M3 12 A12 12 0 0 1 9 7 M3 20 A12 12 0 0 0 9 25" stroke="#8fd8ff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
 ];
+const LUMEN_ICONS = [
+  // Radiant Burst: a sun.
+  '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="#fff2b0"/><path d="M16 2 V8 M16 24 V30 M2 16 H8 M24 16 H30 M6 6 L10 10 M22 22 L26 26 M26 6 L22 10 M10 22 L6 26" stroke="#ffd27a" stroke-width="2.5" stroke-linecap="round"/></svg>',
+  // Glimmer Step: sparkles along a path.
+  '<svg viewBox="0 0 32 32"><path d="M4 24 Q14 22 20 12" stroke="#fff2b0" stroke-width="2" fill="none" stroke-dasharray="3 3"/><path d="M24 4 L26 9 L31 11 L26 13 L24 18 L22 13 L17 11 L22 9 Z" fill="#fff2b0"/></svg>',
+  // Sanctuary: a ring of light on the ground.
+  '<svg viewBox="0 0 32 32"><ellipse cx="16" cy="22" rx="13" ry="6" fill="none" stroke="#ffd27a" stroke-width="2.5"/><path d="M16 4 V18 M10 10 H22" stroke="#fff2b0" stroke-width="3" stroke-linecap="round"/></svg>',
+  // Hush: a finger to the lips, as a crossed-out wave.
+  '<svg viewBox="0 0 32 32"><path d="M5 16 Q9 9 13 16 T21 16 T29 16" stroke="#8fd8ff" stroke-width="2.5" fill="none"/><path d="M6 26 L26 6" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
+];
 const ICONS = [
   // Flame Wave: a fan of fire.
   '<svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Q16 20 4 26Z" fill="#ff8a3d"/><path d="M10 24 L16 13 L22 24 Q16 21 10 24Z" fill="#ffe08a"/></svg>',
@@ -94,7 +104,7 @@ export class Hud {
     bar.innerHTML = '';
     this.abButtons = [];
     const def = CLASSES[cls];
-    const icons = cls === 'duskblade' ? DUSK_ICONS : cls === 'bulwark' ? BULWARK_ICONS : ICONS;
+    const icons = cls === 'duskblade' ? DUSK_ICONS : cls === 'bulwark' ? BULWARK_ICONS : cls === 'lumen' ? LUMEN_ICONS : ICONS;
     def.abilities.forEach((a, i) => {
       const b = document.createElement('button');
       b.className = 'ab';
@@ -269,6 +279,8 @@ export class Hud {
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Blazing Speed</span>');
     if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Bastion</span>');
+    if (p.sanctT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Sanctuary</span>');
+    if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
     for (const m of w.loadout.mythics) {
