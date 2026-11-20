@@ -36,6 +36,16 @@ const DUSK_ICONS = [
   // Kick: a boot heel.
   '<svg viewBox="0 0 32 32"><path d="M10 4 H18 V18 L27 22 V27 H8 Z" fill="#8fd8ff"/><path d="M8 23 H27" stroke="#fff" stroke-width="2"/></svg>',
 ];
+const BULWARK_ICONS = [
+  // Shield Slam: a shield with impact lines.
+  '<svg viewBox="0 0 32 32"><path d="M16 4 L26 8 V16 C26 22 21 26 16 28 C11 26 6 22 6 16 V8 Z" fill="#7d8da6" stroke="#dfe7f2" stroke-width="2"/><path d="M27 6 L30 3 M28 12 H31 M27 18 L30 21" stroke="#ffd27a" stroke-width="2" stroke-linecap="round"/></svg>',
+  // Charge: a shield with motion lines.
+  '<svg viewBox="0 0 32 32"><path d="M2 12 H10 M2 18 H8 M2 24 H10" stroke="#dfe7f2" stroke-width="2.5" stroke-linecap="round" opacity=".6"/><path d="M20 5 L29 9 V16 C29 21 25 25 20 27 C15 25 11 21 11 16 V9 Z" fill="#7d8da6"/></svg>',
+  // Bastion: a tower shield inside a ring.
+  '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="#ffd27a" stroke-width="2.5"/><path d="M16 7 L23 10 V16 C23 20 20 23 16 25 C12 23 9 20 9 16 V10 Z" fill="#dfe7f2"/></svg>',
+  // Shield Toss: a spinning disc.
+  '<svg viewBox="0 0 32 32"><circle cx="18" cy="16" r="9" fill="#8fd8ff"/><circle cx="18" cy="16" r="3.5" fill="#fff"/><path d="M3 12 A12 12 0 0 1 9 7 M3 20 A12 12 0 0 0 9 25" stroke="#8fd8ff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+];
 const ICONS = [
   // Flame Wave: a fan of fire.
   '<svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Q16 20 4 26Z" fill="#ff8a3d"/><path d="M10 24 L16 13 L22 24 Q16 21 10 24Z" fill="#ffe08a"/></svg>',
@@ -84,7 +94,7 @@ export class Hud {
     bar.innerHTML = '';
     this.abButtons = [];
     const def = CLASSES[cls];
-    const icons = cls === 'duskblade' ? DUSK_ICONS : ICONS;
+    const icons = cls === 'duskblade' ? DUSK_ICONS : cls === 'bulwark' ? BULWARK_ICONS : ICONS;
     def.abilities.forEach((a, i) => {
       const b = document.createElement('button');
       b.className = 'ab';
@@ -159,7 +169,8 @@ export class Hud {
     $('heatText').textContent = `${Math.floor(p.heat)} ${w.classDef.resource}`;
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
-      const cd = p.cds[i];
+      // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
+      const cd = i === 1 && p.blinkCharges > 0 ? 0 : p.cds[i];
       const total = w.abilityCooldown(i);
       const gcd = !w.abilities[i].offGcd && p.gcd > 0 ? p.gcd / 0.4 : 0;
       const frac = cd > 0 ? cd / total : gcd;
@@ -256,7 +267,10 @@ export class Hud {
     const out: string[] = [];
     if (w.telegraphs.some((t) => t.alive && t.kind === 'soak')) out.push('<span class="buff debuff">Kiln Brand: stand in the gold circle!</span>');
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
-    if (p.heat >= w.abilityCost(2)) out.push('<span class="buff" style="--bc:#ff8a3d">Combustion ready</span>');
+    if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Blazing Speed</span>');
+    if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Bastion</span>');
+    if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
+    if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);

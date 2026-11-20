@@ -47,7 +47,7 @@ export class Hub {
     $('classes').innerHTML = CLASS_IDS.map((id) => {
       const c = CLASSES[id];
       return `<button class="cls ${id === cls ? 'active' : ''}" aria-pressed="${id === cls}" data-cls="${id}"><b>${c.name}</b><div>${c.role}. ${c.blurb}</div></button>`;
-    }).join('') + '<div class="cls locked"><b>Bulwark</b><div>Tank. Arrives in a later build.</div></div>';
+    }).join('');
     $('classes').querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) =>
       b.addEventListener('click', () => {
         h.cls = b.dataset.cls as typeof cls;

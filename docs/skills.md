@@ -1,0 +1,73 @@
+# Skills and talents design
+
+Owner: the skills team. This covers class abilities, the action bar, in-run talent drafts and capstones for the three launch classes. Numbers are first-pass and get tuned with the bot (`tools/balance.ts`).
+
+## What the dungeon run changed
+
+A run is now five fights, and each clear is one level and one draft. A bot run ends at level 5, so a player sees **four drafts per run** (five with a bonus level). Measured on `main` at 1a0e83c with seeds 1 to 8: one run in eight reached a capstone, and that one took it on the last draft before the boss.
+
+So with four ranks per capstone, the capstone (the "evolution" moment) almost never happens. The rules below are built for four drafts.
+
+## Draft rules (all classes)
+
+1. **One card per branch.** Each draft offers one talent from each of the three branches, so every pick is a build direction and not a random pile. A branch with nothing left is replaced by a card from another branch, then by a general card.
+2. **Capstone at 3 ranks.** Three ranks in a branch unlock its capstone, which then takes that branch's card. A committed build takes its capstone on draft 4 and fights the boss with it. A build that splits its picks never sees one, and that is the trade.
+3. **Ability talents.** Every branch has at least one talent that changes an action-bar ability, not only a passive number, so a pick changes how you play the next fight.
+4. **General fallbacks** (+10% damage, heal) stay for when the tree runs dry.
+
+## Shared action bar shape
+
+Every class has the same four slots so the boss mechanics work for all of them:
+
+| Key | Slot | Role |
+| --- | --- | --- |
+| Q | Core | Main pressed ability, on a short cooldown |
+| E | Move | Mobility or a defensive answer |
+| R | Big | Long cooldown, the big hit or big save |
+| F | Interrupt | Off the global cooldown. Stops a cast and stuns. With nothing to stop, a small hit and half the cooldown back |
+
+Each class also has an auto-attack (survivors style) and its own resource.
+
+## Emberwright (ranged caster) — deepen
+
+Resource: **Heat**, built by orb hits and slowly over time. Auto: Cinder Volley (homing orbs).
+
+Bar stays: Flame Wave (Q), Blink (E), Combustion (R), Quench (F).
+
+New ability talents, one per branch:
+- Wildfire, **Pyroclasm** (2 ranks): Combustion leaves a fire pool on its target, and its burn spreads to enemies near anything that dies burning.
+- Kindling, **Ignition** (2 ranks): a crit refunds 15% of Flame Wave's cooldown, and Flame Wave crits always.
+- Ashguard, **Blazing Speed** (2 ranks): Blink gains a second charge, and you move 30% faster for 2s after it.
+
+## Bulwark (tank)
+
+Fantasy: you plant yourself in the middle of the pack, soak the hits and hit back. Short reach, more health, armor, and damage that grows with what you take.
+
+Resource: **Resolve** (0 to 100). Gained when you are hit (1 per 5 damage before armor), when Shield Sweep lands (3 per enemy, up to 12 per swing), 10 from Charge, and 1 per second.
+
+Base: 160 health, armor stops 20% of every hit, 128 move speed.
+
+Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 damage, small knockback on normal enemies.
+
+| Key | Ability | Cost / CD | Effect |
+| --- | --- | --- | --- |
+| Q | Shield Slam | 25 Resolve / 5s | 100° cone, 150 range, 60 damage, stuns normal enemies 1.2s and big ones 0.3s |
+| E | Charge | 0 / 9s | Rush the biggest foe within 420 (or the nearest), 35 damage and 0.8s stun |
+| R | Bastion | 50 Resolve / 20s | 6s: take 60% less damage, and turn 25% of each hit back on the attacker |
+| F | Shield Toss | 0 / 10s, off GCD | Interrupt within 420, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
+
+Branches:
+- **Bastion** (soak): *Hold the Line* (3) +30 max health and 4% less damage taken; *Ward* (3) every 8s a shield worth 8% of max health; *Last Stand* (2, ability) Bastion heals 12% of max health; capstone **Unbreakable**: when Bastion ends it bursts for twice the damage it stopped.
+- **Retribution** (thorns): *Spiked Shield* (3) enemies that hit you take 8 back; *Vengeance* (3) +4% damage per 10% health missing; *Shield Echo* (2, ability) Shield Slam hits again 0.4s later for half, rank 2 adds 10 Resolve; capstone **Thornwall**: always turn back 15% of each hit, and turned-back damage hits everything around you.
+- **Vanguard** (cleave and charge): *Wide Sweep* (2) wider and longer sweeps, a full circle at rank 2; *Momentum* (3) +5% move speed and Charge 2s faster; *Battering Ram* (2, ability) Charge hits and stuns everything in its path; capstone **Warpath**: every 4th sweep sends a shockwave for double damage.
+
+## Duskblade (melee damage)
+
+Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. The skills work on it is tuning (its bot win rate is far below the Emberwright's) and one ability talent per branch, the same as the other classes.
+
+## Order of work
+
+1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
+2. Bulwark.
+3. Duskblade tuning and ability talents.
+Each lands as its own PR with tests and bot balance numbers in the description.
