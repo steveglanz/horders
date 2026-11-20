@@ -48,3 +48,8 @@ new numbered file under `supabase/migrations/`; the engineering thread applies t
 - Branch from `main`, open a PR. `npm test` and `npm run build` must pass.
 - The engineering thread reviews and merges, and deploys to https://horders.netlify.app for significant updates.
 - No copyrighted names, art or music: everything in the game is original.
+
+## Merging
+
+- Add the `automerge` label to a PR into `main`. Once CI passes on the PR's latest commit, `.github/workflows/automerge.yml` squash-merges it and deletes the branch. A new push waits for its own green run. Remove the label to stop it.
+- After pushes to `main`, CI runs and PR updates, the same workflow checks every open PR into `main`. One that conflicts gets the `conflict` label and one comment; merge `main` into it to clear it.
