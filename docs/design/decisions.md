@@ -10,3 +10,6 @@ Calls Steve has made. Don't reopen them without a reason.
 - **20 Nov 2026:** Backend is the free Horders Supabase project; the game is hosted at https://horders.netlify.app.
 - **20 Nov 2026:** Keep building along the plan without stopping to check in. Deploy only for significant updates (engineering deploys).
 - **20 Nov 2026:** Work is split into teams: engineering, game design, skills/abilities, and visuals/animation.
+
+## 20 Nov 2026: the Bulwark's solo edge in the Kiln stays (for now)
+With geared heroes, the Bulwark wins the Kiln about 25 points more than the middle classes at tier 6 and sits about 8 points under them at Foundry tier 8. It kills the Kiln Mother as fast as the Emberwright but survives her ground hits far better, and it loses Maelra's damage race. Every general toughness cut cost more in the Foundry than it saved in the Kiln (skills team traces). Decision: accept "strong against swarms, weak in a damage race" as the tank's solo identity until co-op lands, where its toughness goes to the group instead. Revisit if the Kiln gap grows past 25 points, or when the co-op threat rules ship.
