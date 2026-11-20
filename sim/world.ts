@@ -11,7 +11,7 @@ import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
 import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
-import { Item, Rarity, mythicPool } from './content/items';
+import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
@@ -2929,13 +2929,7 @@ export class World {
   // ---------------------------------------------------------------- loot
 
   private makeItem(min: Rarity): Item {
-    const item = rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min);
-    // Mythics come from the dropping hero's class pool (shared four plus their own two).
-    if (item.mythic) {
-      const pool = mythicPool(this.cls);
-      item.mythic = pool[this.rng.int(pool.length)];
-    }
-    return item;
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls);
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {

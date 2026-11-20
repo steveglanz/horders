@@ -66,6 +66,14 @@ export const SLOT_NAMES: Record<Slot, string[]> = {
   trinket: ['Charm', 'Idol', 'Talisman', 'Ember'],
 };
 
+/** Weapon names by the class that found them (four each, so a roll picks the same index for every class). */
+export const WEAPON_NAMES: Record<'emberwright' | 'duskblade' | 'bulwark' | 'lumen', string[]> = {
+  emberwright: ['Focus', 'Rod', 'Brand', 'Scepter'],
+  duskblade: ['Fangs', 'Twinblades', 'Edges', 'Kris'],
+  bulwark: ['Aegis', 'Greatshield', 'Mace', 'Warhammer'],
+  lumen: ['Lantern', 'Censer', 'Sunstaff', 'Beacon'],
+};
+
 export const RARITY_PREFIX: Record<Rarity, string[]> = {
   common: ['Worn', 'Sooty', 'Plain', 'Cracked'],
   fine: ['Ashwoven', 'Tempered', 'Warded', 'Banked'],
