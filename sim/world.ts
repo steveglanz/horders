@@ -17,7 +17,7 @@ import { BOUNTY } from './content/bounty';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
-import { ThreatTable, damageThreat, dropHero, newThreat, updateTarget, THREAT } from './threat';
+import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -42,6 +42,16 @@ const PLAYER_RADIUS = 12;
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
 const BULWARK_BLOCK = 0.35;
+/** Blade Guard: share of each hit the Duskblade stops from the foe it is swinging at. */
+const BLADE_GUARD = 0.5;
+/** Share of max health Sidestep heals. */
+const SIDESTEP_HEAL = 0.03;
+/** Share of max health Second Wind restores, once per fight, to a melee hero below 30%. */
+const SECOND_WIND = 0.2;
+/** Share of max health Bastion heals before Last Stand. */
+const BASTION_HEAL = 0.1;
+/** Health each Sunmote hit gives the Lumen. */
+const SUNMOTE_HEAL = 1;
 /** Shield Sweep damage multiplier against elites and bosses. */
 const SWEEP_BIG_MULT = 1.15;
 /** Duskblade Open Wounds: how long a swing's cut halves the foe's healing. */
@@ -238,6 +248,8 @@ export interface Player {
   echoT: number;
   /** Bulwark: the foe its shield faces (the last Shield Sweep target); its hits are partly blocked. */
   guardId: number;
+  /** Bulwark: direction of the last Shield Sweep; big foes in front of it are blocked too. */
+  guardAng: number;
   echoAng: number;
   /** Lumen: stored overheal, Sanctuary and healing pool timers and centres, High Noon timer, Martyr's Halo used this fight. */
   brilliance: number;
@@ -250,6 +262,8 @@ export interface Player {
   poolY: number;
   noonT: number;
   haloUsed: boolean;
+  /** Melee Second Wind: used this fight. */
+  windUsed: boolean;
 }
 
 export type SimEvent =
@@ -523,8 +537,8 @@ export class World {
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
-      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1,
-      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false,
+      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
+      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -890,6 +904,7 @@ export class World {
     const def = this.encounterDef;
     this.phase = 'fight';
     this.player.haloUsed = false;
+    this.player.windUsed = false;
     const p = this.player;
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
@@ -1151,6 +1166,8 @@ export class World {
       amount -= soak;
       if (amount <= 0) return;
     }
+    // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
+    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
@@ -1170,6 +1187,12 @@ export class World {
     p.hp -= amount;
     p.hurtFlash = 0.15;
     this.events.push({ type: 'playerHurt', amount });
+    // Second Wind: once per fight, a melee hero knocked low catches its breath.
+    if ((this.cls === 'duskblade' || this.cls === 'bulwark') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
+      p.windUsed = true;
+      const healed = this.healPlayer(p.maxHp * SECOND_WIND * this.noviceAid);
+      if (healed > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount: healed });
+    }
   }
 
   // ---------------------------------------------------------------- action bar
@@ -1436,6 +1459,8 @@ export class World {
     const p = this.player;
     const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
     p.hp += eff;
+    // Co-op: effective healing draws threat, split across the living enemies.
+    if (this.threat.length && eff > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, eff);
     if (this.cls === 'lumen') {
       const over = amount - eff;
       if (over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
@@ -1527,7 +1552,7 @@ export class World {
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
       this.damageEnemy(i, dmg * k, true);
       this.addHeat(3);
-      this.healPlayer(1);
+      this.healPlayer(SUNMOTE_HEAL);
     };
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
@@ -1626,12 +1651,28 @@ export class World {
   }
 
   /** Armor, Bastion, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
+  /**
+   * Melee forgiveness for new heroes: 1 at tier 1, fading to 0 by tier 4, so the
+   * first-impression tiers forgive slow reactions and the geared tiers are untouched.
+   */
+  get noviceAid(): number {
+    return Math.max(0, 1 - (this.tier - 1) / 3);
+  }
+
+  /** Whether enemy `i` is a big foe in front of the Bulwark's shield (within 75 degrees of its last sweep). */
+  private inGuardArc(i: number): boolean {
+    const e = this.enemies[i];
+    if (!e || e.def.rank === 'normal') return false;
+    const p = this.player;
+    return Math.abs(angleDiff(Math.atan2(e.y - p.y, e.x - p.x), p.guardAng)) <= (75 * Math.PI) / 180;
+  }
+
   private bulwarkMitigate(raw: number, src: number): number {
     const p = this.player;
     this.addHeat(raw * 0.2);
     let amount = raw * this.damageTakenMult;
     // Shield Block: the foe the shield faces lands only part of its hits.
-    if (src >= 0 && src === p.guardId) amount *= 1 - BULWARK_BLOCK;
+    if (src >= 0 && (src === p.guardId || (this.noviceAid > 0 && this.inGuardArc(src)))) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
@@ -1702,6 +1743,7 @@ export class World {
     const ang = Math.atan2(e0.y - p.y, e0.x - p.x);
     p.facing = ang;
     p.guardId = t;
+    p.guardAng = ang;
     p.swings++;
     const r = this.sweepReach;
     const half = this.sweepHalfArc;
@@ -1816,6 +1858,8 @@ export class World {
       if (!e.alive) continue;
       const isTarget = i === t;
       if (!isTarget && (ram === 0 || segDist2(e.x, e.y, x1, y1, p.x, p.y) > (36 + e.def.radius) ** 2)) continue;
+      // Co-op: Charge taunts what it hits onto the Bulwark.
+      if (this.threat.length) taunt(this.threat[i], this.heroes[this.acting].id);
       this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * this.dmgMult, true);
       if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, isTarget ? 0.8 : 0.5);
     }
@@ -1828,12 +1872,9 @@ export class World {
     const p = this.player;
     p.bastionT = 6;
     p.prevented = 0;
-    const heal = this.rank('lastStand');
-    if (heal > 0) {
-      const amount = Math.min(p.maxHp - p.hp, p.maxHp * 0.12 * heal);
-      p.hp += amount;
-      if (amount > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount });
-    }
+    // Bastion steadies you for 10% of max health; Last Stand adds 12% per rank.
+    const amount = this.healPlayer(p.maxHp * (BASTION_HEAL * this.noviceAid + 0.12 * this.rank('lastStand')));
+    if (amount > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount });
     this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: 70 });
   }
 
@@ -1883,6 +1924,7 @@ export class World {
     const ang = Math.atan2(e0.y - p.y, e0.x - p.x);
     p.facing = ang;
     p.swings++;
+    p.guardId = t;
     const spin = this.rank('bladeStorm') > 0 && p.swings % 4 === 0;
     const r = this.swingReach;
     const half = spin ? Math.PI : ((130 * Math.PI) / 360) * (1 + 0.15 * this.rank('longReach'));
@@ -1968,6 +2010,13 @@ export class World {
     const counter = this.rank('counterstep');
     p.shieldT = counter >= 2 ? 1.4 : 0.7;
     if (this.rank('evasion') > 0) p.nextCrit = true;
+    // Co-op: Sidestep sheds half the Duskblade's threat on every enemy.
+    if (this.threat.length) {
+      const id = this.heroes[this.acting].id;
+      for (const t of this.threat) scaleThreat(t, id, 0.5);
+    }
+    // Catch your breath: Sidestep mends a little.
+    this.healPlayer(p.maxHp * SIDESTEP_HEAL * this.noviceAid);
     if (counter > 0) {
       const n = this.nearestEnemies(p.x, p.y, 1, this.swingReach + 40)[0];
       if (n !== undefined) this.damageEnemy(n, 60 * this.dmgMult, true);

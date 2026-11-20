@@ -119,3 +119,47 @@ describe('co-op party', () => {
     expect(w.state).toBe('running');
   });
 });
+
+describe('co-op threat from class kits', () => {
+  type Inner = { charge(): void; sidestep(input: { x: number; y: number }): void; use(i: number): void; spawn(kind: string, x: number, y: number): number };
+
+  it('Bulwark Charge taunts its target onto the Bulwark', () => {
+    const w = new World({ seed: 4, cls: 'bulwark', party: [{ cls: 'duskblade' }] });
+    const inner = w as unknown as Inner;
+    for (const e of w.enemies) e.alive = false;
+    inner.use(0);
+    const i = inner.spawn('cinderBrute', w.player.x + 200, w.player.y);
+    w.threat[i].amounts = { [w.heroes[1].id]: 500 };
+    inner.charge();
+    expect(w.threat[i].forced).toBe(w.heroes[0].id);
+    expect(w.threat[i].amounts[w.heroes[0].id]).toBeGreaterThan(500);
+  });
+
+  it('Duskblade Sidestep halves its threat on every enemy', () => {
+    const w = new World({ seed: 4, cls: 'bulwark', party: [{ cls: 'duskblade' }] });
+    const inner = w as unknown as Inner;
+    const dusk = w.heroes[1].id;
+    w.threat[0].amounts = { [dusk]: 80 };
+    w.threat[1].amounts = { [dusk]: 40 };
+    inner.use(1);
+    inner.sidestep({ x: 1, y: 0 });
+    inner.use(0);
+    expect(w.threat[0].amounts[dusk]).toBeCloseTo(40, 5);
+    expect(w.threat[1].amounts[dusk]).toBeCloseTo(20, 5);
+  });
+
+  it('healing adds threat split across living enemies', () => {
+    const w = new World({ seed: 4, cls: 'lumen', party: [{ cls: 'bulwark' }] });
+    const inner = w as unknown as Inner;
+    for (const e of w.enemies) e.alive = false;
+    inner.use(0);
+    const a = inner.spawn('cinderBrute', 300, 0);
+    const b = inner.spawn('cinderBrute', -300, 0);
+    w.player.hp = w.player.maxHp - 40;
+    const healed = w.healPlayer(40);
+    const id = w.heroes[0].id;
+    expect(healed).toBeCloseTo(40, 5);
+    expect(w.threat[a].amounts[id]).toBeCloseTo(10, 5);
+    expect(w.threat[b].amounts[id]).toBeCloseTo(10, 5);
+  });
+});
