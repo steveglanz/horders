@@ -16,7 +16,8 @@ import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
-import { clampParty, partyHealth, gritMult } from './content/scaling';
+import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
+import { ThreatTable, damageThreat, dropHero, newThreat, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -106,6 +107,8 @@ export interface Orb {
   life: number;
   target: number;
   dmg: number;
+  /** Hero index that fired it. */
+  owner: number;
 }
 
 export interface Gem {
@@ -127,6 +130,8 @@ export interface Zone {
   life: number;
   maxLife: number;
   tickT: number;
+  /** Hero index that made it. */
+  owner: number;
 }
 
 export interface Telegraph {
@@ -293,8 +298,37 @@ export interface DraftOption {
   nextRank: number;
 }
 
+/** Another hero in a co-op party (the main hero comes from WorldOptions itself). */
+export interface HeroOptions {
+  cls?: ClassId;
+  gear?: Item[];
+  passives?: Partial<Record<PassiveId, number>>;
+  name?: string;
+}
+
+/** Everything that belongs to one hero; World swaps these in with use(). */
+interface HeroSlot {
+  id: string;
+  name: string;
+  player: Player;
+  talents: Partial<Record<TalentId, number>>;
+  choices: DraftOption[];
+  loadout: Loadout;
+  cls: ClassId;
+  classDef: ClassDef;
+  passives: Partial<Record<PassiveId, number>>;
+  gear: Item[];
+  revived: boolean;
+  runDrops: Item[];
+  runEquipped: string[];
+  damageDealt: number;
+  shadowDamage: number;
+}
+
 export interface WorldOptions {
   seed: number;
+  /** Co-op: the other heroes in the party, after the main hero (at most 3). */
+  party?: HeroOptions[];
   /** Stress test: hundreds of enemies from the start, player cannot die. */
   stress?: boolean;
   /** Developer option: the player takes no damage. */
@@ -365,13 +399,13 @@ export class World {
   readonly invulnerable: boolean;
   loadout: Loadout;
   readonly tier: number;
-  readonly cls: ClassId;
-  readonly classDef: ClassDef;
+  cls: ClassId;
+  classDef: ClassDef;
   readonly worldBoss: string;
   shadowDamage = 0;
   shadowStart = -1;
   shadowDone = false;
-  readonly passives: Partial<Record<PassiveId, number>>;
+  passives: Partial<Record<PassiveId, number>>;
   /** Gear currently worn (upgrades picked up mid-run replace pieces). */
   gear: Item[];
   /** Items picked up this run and the ids auto-equipped as upgrades. */
@@ -434,6 +468,12 @@ export class World {
   player: Player;
   talents: Partial<Record<TalentId, number>> = {};
   choices: DraftOption[] = [];
+  /** Every hero in the run. heroes[0] is the main (host) hero; `player` and the other per-hero fields show the acting hero. */
+  heroes: HeroSlot[] = [];
+  /** Index of the hero whose fields are swapped in. Always 0 between calls. */
+  acting = 0;
+  /** Co-op: who each enemy is attacking (parallel to `enemies`; unused solo). */
+  threat: ThreatTable[] = [];
 
   enemies: Enemy[];
   orbs: Orb[];
@@ -441,6 +481,8 @@ export class World {
   zones: Zone[];
   telegraphs: Telegraph[];
   strikes: Strike[];
+  /** Which hero cast each strike, by pool index (kept off Strike: the extra field slowed V8 about 3x). */
+  private readonly strikeOwner = new Int8Array(CAP.strikes);
   lances: Lance[];
   drops: Drop[];
   veins: Vein[];
@@ -466,7 +508,7 @@ export class World {
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
     this.bounty = opts.bounty;
-    this.partySize = clampParty(opts.partySize);
+    this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
@@ -490,9 +532,9 @@ export class World {
       burnDps: 0, burnT: 0, woundT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
       castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
     }));
-    this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
+    this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0, owner: 0 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
-    this.zones = pool(CAP.zones, () => ({ alive: false, x: 0, y: 0, r: 0, dps: 0, life: 0, maxLife: 0, tickT: 0 }));
+    this.zones = pool(CAP.zones, () => ({ alive: false, x: 0, y: 0, r: 0, dps: 0, life: 0, maxLife: 0, tickT: 0, owner: 0 }));
     this.telegraphs = pool(CAP.telegraphs, () => ({
       alive: false, shape: 'circle' as const, x: 0, y: 0, r: 0, angle: 0, arc: 0, t: 0, dur: 0, dmg: 0, kind: 'hit' as const, owner: -1,
     }));
@@ -509,6 +551,95 @@ export class World {
     }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
+    this.heroes.push(this.saveSlot('h0', 'Hero'));
+    const extra = (opts.party ?? []).slice(0, MAX_PARTY - 1);
+    extra.forEach((h, k) => this.heroes.push(this.makeHero(h, k + 1, opts)));
+    if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
+  }
+
+  // ---------------------------------------------------------------- heroes
+
+  private saveSlot(id: string, name: string): HeroSlot {
+    return {
+      id, name, player: this.player, talents: this.talents, choices: this.choices, loadout: this.loadout,
+      cls: this.cls, classDef: this.classDef, passives: this.passives, gear: this.gear, revived: this.revived,
+      runDrops: this.runDrops, runEquipped: this.runEquipped, damageDealt: this.damageDealt, shadowDamage: this.shadowDamage,
+    };
+  }
+
+  /** Builds a party member: a fresh level 1 hero beside the main one. */
+  private makeHero(h: HeroOptions, index: number, opts: WorldOptions): HeroSlot {
+    const cls = h.cls && CLASSES[h.cls] ? h.cls : 'emberwright';
+    const classDef = CLASSES[cls];
+    const passives = { ...(h.passives ?? {}) };
+    const gear = [...(h.gear ?? [])];
+    const loadout = loadoutFrom(passives, gear);
+    const hp = Math.round((classDef.baseHp + loadout.maxHpBonus) * gritMult(this.grit));
+    const a = (index / MAX_PARTY) * Math.PI * 2;
+    const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
+    player.px = player.x;
+    player.py = player.y;
+    if (opts.bounty === undefined) { player.level = 1; player.pendingLevels = 0; player.xpToNext = xpFor(1); }
+    return {
+      id: 'h' + index, name: h.name ?? 'Hero ' + (index + 1), player, talents: {}, choices: [], loadout, cls, classDef, passives, gear,
+      revived: false, runDrops: [], runEquipped: [], damageDealt: 0, shadowDamage: 0,
+    };
+  }
+
+  /** Swaps hero `i`'s fields in. Every loop over heroes ends with use(0). */
+  use(i: number): void {
+    if (i === this.acting) return;
+    const cur = this.heroes[this.acting];
+    cur.player = this.player; cur.talents = this.talents; cur.choices = this.choices; cur.loadout = this.loadout;
+    cur.cls = this.cls; cur.classDef = this.classDef; cur.passives = this.passives; cur.gear = this.gear; cur.revived = this.revived;
+    cur.runDrops = this.runDrops; cur.runEquipped = this.runEquipped; cur.damageDealt = this.damageDealt; cur.shadowDamage = this.shadowDamage;
+    const h = this.heroes[i];
+    this.player = h.player; this.talents = h.talents; this.choices = h.choices; this.loadout = h.loadout;
+    this.cls = h.cls; this.classDef = h.classDef; this.passives = h.passives; this.gear = h.gear; this.revived = h.revived;
+    this.runDrops = h.runDrops; this.runEquipped = h.runEquipped; this.damageDealt = h.damageDealt; this.shadowDamage = h.shadowDamage;
+    this.acting = i;
+  }
+
+  /** Runs `fn` as each living hero in turn (all heroes with `all`), then swaps the main hero back. */
+  private eachHero(fn: (i: number) => void, all = false): void {
+    for (let i = 0; i < this.heroes.length; i++) {
+      this.use(i);
+      if (all || this.player.hp > 0 || this.heroes.length === 1) fn(i);
+    }
+    this.use(0);
+  }
+
+  /** A hero's live fields, whichever hero is swapped in. */
+  hero(i: number): HeroSlot {
+    const saved = this.acting;
+    this.use(i);
+    const slot = this.saveSlot(this.heroes[i].id, this.heroes[i].name);
+    this.use(saved);
+    return slot;
+  }
+
+  /** Who enemy `i` attacks: by threat in co-op, else the only hero. */
+  private targetOf(i: number, dt: number): number {
+    if (this.heroes.length === 1) return 0;
+    const id = updateTarget(this.threat[i], dt);
+    let k = id ? this.heroes.findIndex((h) => h.id === id) : -1;
+    if (k >= 0 && this.heroPlayer(k).hp > 0) return k;
+    // Nobody has threat yet (or the target is down): the nearest living hero.
+    const e = this.enemies[i];
+    let best = 0;
+    let bestD = Infinity;
+    for (let j = 0; j < this.heroes.length; j++) {
+      const hp = this.heroPlayer(j);
+      if (hp.hp <= 0) continue;
+      const d = dist2(hp.x, hp.y, e.x, e.y);
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    k = best;
+    return k;
+  }
+
+  private heroPlayer(i: number): Player {
+    return i === this.acting ? this.player : this.heroes[i].player;
   }
 
   // ---------------------------------------------------------------- talents
@@ -593,7 +724,9 @@ export class World {
 
   // ---------------------------------------------------------------- main step
 
-  step(input: Input): void {
+  step(input: Input | Input[]): void {
+    const inputs = Array.isArray(input) ? input : [input];
+    const idle: Input = { x: 0, y: 0 };
     this.events.length = 0;
     if (this.state !== 'running') return;
     const dt = TICK;
@@ -602,32 +735,73 @@ export class World {
 
     if (this.stress) this.director();
     else this.dungeon(dt);
-    this.updatePlayer(input, dt);
+    if (this.heroes.length === 1) {
+      // Solo fast path: the same calls in the same order, without the hero loops.
+      const inp = inputs[0] ?? idle;
+      this.updatePlayer(inp, dt);
+      this.rebuildHash();
+      this.updateAbilities(inp, dt);
+      this.updateWeapons(dt);
+      this.updateOrbs(dt, 0);
+      this.updateEnemies(dt);
+      this.updateZones(dt, 0);
+      this.updateStrikes(dt, 0);
+      this.updateLances(dt);
+      this.updateTelegraphs(dt);
+      this.updateDrops();
+      this.updateVeins(dt);
+      this.updateGems(dt);
+      this.checkEnd();
+      return;
+    }
+    this.eachHero((h) => this.updatePlayer(inputs[h] ?? idle, dt));
     this.rebuildHash();
-    this.updateAbilities(input, dt);
-    this.updateWeapons(dt);
-    this.updateOrbs(dt);
+    this.eachHero((h) => {
+      this.updateAbilities(inputs[h] ?? idle, dt);
+      this.updateWeapons(dt);
+    });
+    this.eachHero((h) => this.updateOrbs(dt, h), true);
     this.updateEnemies(dt);
-    this.updateZones(dt);
-    this.updateStrikes(dt);
+    this.eachHero((h) => this.updateZones(dt, h), true);
+    this.eachHero((h) => this.updateStrikes(dt, h), true);
     this.updateLances(dt);
-    this.updateTelegraphs(dt);
-    this.updateDrops();
-    this.updateVeins(dt);
-    this.updateGems(dt);
+    this.eachHero(() => this.updateTelegraphs(dt));
+    this.eachHero(() => this.updateDrops());
+    this.eachHero(() => this.updateVeins(dt));
+    this.eachHero(() => this.updateGems(dt));
     this.checkEnd();
   }
 
   /** Apply a draft choice while the sim is paused for a level-up. */
-  choose(index: number): void {
+  choose(index: number, hero = 0): void {
     if (this.state !== 'draft') return;
+    if (this.heroes.length === 1) {
+      const opt = this.choices[index];
+      if (!opt) return;
+      this.applyTalent(opt.id);
+      this.player.pendingLevels--;
+      this.choices = [];
+      if (this.player.pendingLevels > 0) this.openDraft();
+      else this.state = 'running';
+      return;
+    }
+    this.use(hero);
     const opt = this.choices[index];
-    if (!opt) return;
-    this.applyTalent(opt.id);
-    this.player.pendingLevels--;
-    this.choices = [];
-    if (this.player.pendingLevels > 0) this.openDraft();
-    else this.state = 'running';
+    if (opt) {
+      this.applyTalent(opt.id);
+      this.player.pendingLevels--;
+      this.choices = [];
+    }
+    this.use(0);
+    // Deal the next cards to anyone with picks left, including a hero who levelled
+    // on the same tick the draft opened. The run resumes once nobody has cards.
+    this.openDraftAll();
+    if (this.heroes.every((_, i) => this.choicesOf(i).length === 0)) this.state = 'running';
+  }
+
+  /** Co-op: the draft cards hero `i` is choosing from (empty when they're done). */
+  choicesOf(i: number): DraftOption[] {
+    return i === this.acting ? this.choices : this.heroes[i].choices;
   }
 
   summary(): RunSummary {
@@ -763,8 +937,14 @@ export class World {
 
   private clearEncounter(): void {
     const def = this.encounterDef;
-    const p = this.player;
     this.events.push({ type: 'encounterClear', index: this.encounter, id: def.id });
+    if (this.heroes.length === 1) this.clearEncounterFor(def);
+    else this.eachHero(() => this.clearEncounterFor(def), true);
+    this.afterClear(def);
+  }
+
+  private clearEncounterFor(def: (typeof ENCOUNTERS)[EncounterId]): void {
+    const p = this.player;
     // Every clear is a level: a talent draft, some healing, and a loot bag.
     p.level++;
     p.pendingLevels++;
@@ -778,6 +958,11 @@ export class World {
       if (this.namedFight) min++;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
     }
+  }
+
+  private afterClear(_def: (typeof ENCOUNTERS)[EncounterId]): void {
+    // Co-op: heroes who went down get back up between fights.
+    if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
     this.encounter++;
     this.openFork();
@@ -903,6 +1088,7 @@ export class World {
     e.alive = true;
     e.kind = kind;
     e.def = def;
+    if (this.threat.length) this.threat[idx] = newThreat();
     e.x = e.px = x;
     e.y = e.py = y;
     e.maxHp = e.hp = def.hp * scale;
@@ -1853,6 +2039,7 @@ export class World {
       orb.life = 1.6;
       orb.target = t;
       orb.dmg = 12 * this.dmgMult;
+      orb.owner = this.acting;
     }
   }
 
@@ -1873,12 +2060,12 @@ export class World {
     }
   }
 
-  private updateOrbs(dt: number): void {
+  private updateOrbs(dt: number, owner = 0): void {
     const burn = this.rank('searingBurn');
     const ground = this.rank('kindledGround');
     const boom = this.rank('conflagration') > 0;
     for (const o of this.orbs) {
-      if (!o.alive) continue;
+      if (!o.alive || o.owner !== owner) continue;
       o.px = o.x;
       o.py = o.y;
       // Gentle homing toward the chosen target while it lives.
@@ -1937,10 +2124,12 @@ export class World {
   // ---------------------------------------------------------------- enemies
 
   private updateEnemies(dt: number): void {
-    const p = this.player;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
       if (!e.alive) continue;
+      // The enemy acts against its target: swap that hero in so aims and hits land on them.
+      if (this.heroes.length > 1) this.use(this.targetOf(i, dt));
+      const p = this.player;
       e.px = e.x;
       e.py = e.y;
       if (e.touchCd > 0) e.touchCd -= dt;
@@ -2012,6 +2201,7 @@ export class World {
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
       }
     }
+    this.use(0);
   }
 
   /** Removes an enemy without a kill (no loot, no credit). */
@@ -2264,6 +2454,7 @@ export class World {
       this.events.push({ type: 'ward', index: i, amount: e.ward });
     }
     this.damageDealt += dmg;
+    if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.cls === 'bulwark' ? THREAT.tankMult : 1);
     if (e.kind === 'worldShadow') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
@@ -2342,7 +2533,7 @@ export class World {
       this.eliteKilled = true;
       // Elite chest: a free bonus draft.
       this.events.push({ type: 'chest', x: e.x, y: e.y });
-      this.player.pendingLevels++;
+      for (let h = 0; h < this.heroes.length; h++) this.heroPlayer(h).pendingLevels++;
     }
     if (e.def.xp > 0 && this.stress) this.dropGem(e.x, e.y, e.def.xp);
   }
@@ -2352,12 +2543,12 @@ export class World {
   private addZone(x: number, y: number, r: number, dps: number, life: number): void {
     const z = this.zones.find((q) => !q.alive);
     if (!z) return;
-    Object.assign(z, { alive: true, x, y, r, dps, life, maxLife: life, tickT: 0 });
+    Object.assign(z, { alive: true, x, y, r, dps, life, maxLife: life, tickT: 0, owner: this.acting });
   }
 
-  private updateZones(dt: number): void {
+  private updateZones(dt: number, owner = 0): void {
     for (const z of this.zones) {
-      if (!z.alive) continue;
+      if (!z.alive || z.owner !== owner) continue;
       z.life -= dt;
       if (z.life <= 0) {
         z.alive = false;
@@ -2374,14 +2565,16 @@ export class World {
   }
 
   private addStrike(x: number, y: number, r: number, dmg: number): void {
-    const s = this.strikes.find((q) => !q.alive);
-    if (!s) return;
-    Object.assign(s, { alive: true, x, y, r, t: 0.35, dmg });
+    const k = this.strikes.findIndex((q) => !q.alive);
+    if (k < 0) return;
+    Object.assign(this.strikes[k], { alive: true, x, y, r, t: 0.35, dmg });
+    this.strikeOwner[k] = this.acting;
   }
 
-  private updateStrikes(dt: number): void {
-    for (const s of this.strikes) {
-      if (!s.alive) continue;
+  private updateStrikes(dt: number, owner = 0): void {
+    for (let k = 0; k < this.strikes.length; k++) {
+      const s = this.strikes[k];
+      if (!s.alive || this.strikeOwner[k] !== owner) continue;
       s.t -= dt;
       if (s.t > 0) continue;
       s.alive = false;
@@ -2750,7 +2943,7 @@ export class World {
         }
       }
     }
-    if (this.player.pendingLevels > 0 && this.state === 'running' && this.phase !== 'fight') this.openDraft();
+    if (this.player.pendingLevels > 0 && this.state === 'running' && this.phase !== 'fight') { if (this.heroes.length === 1) this.openDraft(); else this.openDraftAll(); }
   }
 
   private gainXp(v: number): void {
@@ -2763,6 +2956,17 @@ export class World {
       p.pendingLevels++;
       this.events.push({ type: 'levelUp', level: p.level });
     }
+  }
+
+  /** Opens a draft for every hero with picks waiting (solo: just the one). */
+  private openDraftAll(): void {
+    const at = this.acting;
+    for (let i = 0; i < this.heroes.length; i++) {
+      this.use(i);
+      if (this.player.pendingLevels > 0 && this.choices.length === 0) this.choices = this.rollDraft();
+    }
+    this.use(at);
+    this.state = 'draft';
   }
 
   private openDraft(): void {
@@ -2841,14 +3045,38 @@ export class World {
 
   private checkEnd(): void {
     if (this.state === 'ended') return;
-    if (this.player.hp <= 0 && !this.revived && this.hasMythic('phoenixFeather')) {
-      this.revived = true;
-      this.player.hp = this.player.maxHp / 2;
-      this.events.push({ type: 'revive' });
+    if (this.heroes.length === 1) {
+      if (this.player.hp <= 0 && !this.revived && this.hasMythic('phoenixFeather')) {
+        this.revived = true;
+        this.player.hp = this.player.maxHp / 2;
+        this.events.push({ type: 'revive' });
+        return;
+      }
+      if ((this.victory && !this.shadowPending) || this.player.hp <= 0) {
+        if (this.player.hp <= 0) this.player.hp = 0;
+        this.state = 'ended';
+        this.events.push({ type: 'end', victory: this.victory });
+      }
       return;
     }
-    if ((this.victory && !this.shadowPending) || this.player.hp <= 0) {
-      if (this.player.hp <= 0) this.player.hp = 0;
+    this.eachHero(() => {
+      if (this.player.hp <= 0 && !this.revived && this.hasMythic('phoenixFeather')) {
+        this.revived = true;
+        this.player.hp = this.player.maxHp / 2;
+        this.events.push({ type: 'revive' });
+      }
+    }, true);
+    let down = 0;
+    for (let i = 0; i < this.heroes.length; i++) {
+      const hp = this.heroPlayer(i);
+      if (hp.hp <= 0) {
+        hp.hp = 0;
+        down++;
+        if (this.heroes.length > 1) for (const t of this.threat) dropHero(t, this.heroes[i].id);
+      }
+    }
+    // The run ends on a win, or when the whole party is down.
+    if ((this.victory && !this.shadowPending) || down === this.heroes.length) {
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });
     }
