@@ -173,6 +173,10 @@ export function botInput(w: World, skill = 1): Input {
         // Too close: big foes hurt on contact, so step back to the edge of reach.
         fx -= (dx / d) * 0.05 * skill;
         fy -= (dy / d) * 0.05 * skill;
+      } else if (w.cls === 'duskblade' && e.def.rank !== 'normal' && d < e.def.radius + reach * 0.45) {
+        // The Duskblade has no armor: it fights big foes from the tip of its blades.
+        fx -= (dx / d) * 0.1 * skill;
+        fy -= (dy / d) * 0.1 * skill;
       }
     }
   }
