@@ -139,3 +139,8 @@ Emberwright, seeds 1 to 40:
 | 8 | Kiln | – | 35 |
 
 With gear, the Foundry plays about as hard as the Kiln at the same tier, which was the goal. Class balance at tier 4 and above should be measured with these heroes, not ungeared.
+
+### Which reference counts for class balance
+
+1. **Geared tiers come first.** Use each class's own heroes (`CLS=<class> SNAP=4,6,8`), averaged over 3 progressions (`SEED_OFFSET=0,1,2`, saved as `hero-t<N>-<offset>.json`), because a single hero is noisy. Target: every class within 10 points of the others in each dungeon at tiers 4, 6 and 8.
+2. **Tier 1 with no gear is the first-impression check.** Every class should win 40 to 60% with the weak bot (`SKILL=0.5`) and stay within 15 points of the others with the full bot. It must not be the bar for tuning, because players leave tier 1 within a few runs.
