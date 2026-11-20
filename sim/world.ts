@@ -41,6 +41,8 @@ const PLAYER_RADIUS = 12;
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
 const BULWARK_BLOCK = 0.35;
+/** Shield Sweep damage multiplier against elites and bosses. */
+const SWEEP_BIG_MULT = 1.15;
 /** Duskblade Open Wounds: how long a swing's cut halves the foe's healing. */
 const OPEN_WOUNDS_TIME = 3;
 /** Resolve a Bulwark spends to smother a Sluice Crawler's bloom. */
@@ -1517,7 +1519,8 @@ export class World {
         e.x += (dx / d) * 22;
         e.y += (dy / d) * 22;
       }
-      this.damageEnemy(i, dmg, true);
+      // The shield lands hardest on big foes: elites and bosses take more from each sweep.
+      this.damageEnemy(i, e.def.rank === 'normal' ? dmg : dmg * SWEEP_BIG_MULT, true);
     });
     this.addHeat(Math.min(12, 3 * hits));
     this.events.push({ type: 'swing', x: p.x, y: p.y, angle: ang, r, arc: half * 2, spin: half >= Math.PI });
@@ -2603,7 +2606,8 @@ export class World {
         while (d < -Math.PI) d += Math.PI * 2;
         inside = Math.abs(d) <= t.arc / 2;
       }
-      if (inside) this.hurtPlayer(t.dmg * this.tierDamage);
+      // A smothered bloom lands on the shield: the Bulwark takes half.
+      if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1));
     }
   }
 
