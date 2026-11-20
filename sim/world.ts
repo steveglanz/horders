@@ -26,6 +26,7 @@ export const ARENA = 560;
 export const INTRO_TIME = 2.5;
 export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
+export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
@@ -251,6 +252,8 @@ export interface WorldOptions {
   tier?: number;
   /** Which class the hero plays this run. */
   cls?: ClassId;
+  /** Name of the living world boss; when set, a won delve offers a bonus fight against its shadow. */
+  worldBoss?: string;
 }
 
 export interface RunSummary {
@@ -260,6 +263,9 @@ export interface RunSummary {
   kills: number;
   level: number;
   damageDealt: number;
+  /** Damage dealt to the world boss's shadow, and seconds spent fighting it. */
+  shadowDamage?: number;
+  shadowTime?: number;
   talents: Partial<Record<TalentId, number>>;
   questsDone?: number;
 }
@@ -279,6 +285,10 @@ export class World {
   readonly tier: number;
   readonly cls: ClassId;
   readonly classDef: ClassDef;
+  readonly worldBoss: string;
+  shadowDamage = 0;
+  shadowStart = -1;
+  shadowDone = false;
   readonly passives: Partial<Record<PassiveId, number>>;
   /** Gear currently worn (upgrades picked up mid-run replace pieces). */
   gear: Item[];
@@ -341,6 +351,7 @@ export class World {
     this.tier = Math.max(1, Math.floor(opts.tier ?? 1));
     this.cls = opts.cls && CLASSES[opts.cls] ? opts.cls : 'emberwright';
     this.classDef = CLASSES[this.cls];
+    this.worldBoss = opts.worldBoss ?? '';
     this.passives = { ...(opts.passives ?? {}) };
     this.gear = [...(opts.gear ?? [])];
     this.loadout = loadoutFrom(this.passives, this.gear);
@@ -492,6 +503,8 @@ export class World {
       kills: this.kills,
       level: this.player.level,
       damageDealt: Math.round(this.damageDealt),
+      shadowDamage: Math.round(this.shadowDamage),
+      shadowTime: this.shadowStart >= 0 ? Math.round(Math.min(SHADOW_TIME, this.time - this.shadowStart)) : 0,
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
     };
@@ -528,7 +541,23 @@ export class World {
       if (this.phaseT <= 0) this.startEncounter();
       return;
     }
-    if (this.phase === 'fight' && this.aliveEnemies === 0 && !this.victory) this.clearEncounter();
+    if (this.inShadow) {
+      if (this.time - this.shadowStart >= SHADOW_TIME) this.shadowDone = true;
+      return;
+    }
+    if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
+  }
+
+  /** A won delve with a living world boss goes on to the shadow fight. */
+  get shadowPending(): boolean {
+    return this.victory && this.route[this.route.length - 1] === 'worldShadow' && !this.shadowDone;
+  }
+  get inShadow(): boolean {
+    return this.shadowStart >= 0 && !this.shadowDone;
+  }
+  /** Seconds left in the shadow fight. */
+  get shadowLeft(): number {
+    return this.shadowStart >= 0 ? Math.max(0, SHADOW_TIME - (this.time - this.shadowStart)) : SHADOW_TIME;
   }
 
   private startEncounter(): void {
@@ -551,6 +580,13 @@ export class World {
           e.aux = a;
           e.aux2 = lead;
         } else if (lead < 0) lead = i;
+        if (sp.kind === 'worldShadow') {
+          this.bossIndex = i;
+          this.shadowStart = this.time;
+          e.aux = 8; // first Molten Cataclysm
+          this.bossPhase = 1;
+          this.bossEnraged = false;
+        }
         if (sp.kind === 'kilnMother') {
           this.bossSpawned = true;
           this.bossIndex = i;
@@ -1426,7 +1462,8 @@ export class World {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
     }
-    const frac = e.hp / e.maxHp;
+    // The shadow can't be worn down, so its phases follow the clock instead.
+    const frac = e.kind === 'worldShadow' ? 1 - (this.time - e.spawnedAt) / SHADOW_TIME : e.hp / e.maxHp;
     const phase = frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
     if (phase > this.bossPhase) {
       this.bossPhase = phase;
@@ -1495,6 +1532,7 @@ export class World {
     }
     e.hp -= dmg;
     this.damageDealt += dmg;
+    if (e.kind === 'worldShadow') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
@@ -1535,8 +1573,13 @@ export class World {
     }
     if (e.def.rank === 'boss') {
       this.victory = true;
-      // The run ends on this tick, so boss loot goes straight to the bags.
+      // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
       this.pickUp(this.makeItem('epic'));
+      if (this.worldBoss && !this.route.includes('worldShadow')) {
+        this.route.push('worldShadow');
+        // Clear the field so the bonus fight starts clean.
+        for (let j = 0; j < this.enemies.length; j++) if (this.enemies[j].alive) this.despawn(j);
+      }
       return;
     }
     if (e.kind === 'cinderhound') this.progressQuest('hounds');
@@ -1847,7 +1890,7 @@ export class World {
       this.events.push({ type: 'revive' });
       return;
     }
-    if (this.victory || this.player.hp <= 0) {
+    if ((this.victory && !this.shadowPending) || this.player.hp <= 0) {
       if (this.player.hp <= 0) this.player.hp = 0;
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });

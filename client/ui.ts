@@ -148,6 +148,7 @@ export class Hud {
     let next = '';
     if (w.stress) next = 'Stress test';
     else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} in ${Math.ceil(w.phaseT)}`;
+    else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
     $('next').textContent = next;
@@ -210,12 +211,19 @@ export class Hud {
     const e = w.enemies[i];
     box.hidden = false;
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
-    $('tName').textContent = e.def.name;
+    const shadow = e.kind === 'worldShadow';
+    $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.def.name;
     $('tTitle').textContent = e.def.title ?? (e.def.stationary ? 'Objective' : '');
     $('tPhase').textContent = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
-    const pct = Math.max(0, e.hp) / e.maxHp;
-    $('tFill').style.width = `${100 * pct}%`;
-    $('tPct').textContent = `${Math.ceil(pct * 100)}%`;
+    if (shadow) {
+      // The shadow can't die: its bar is the clock, and the number is damage dealt.
+      $('tFill').style.width = `${(100 * w.shadowLeft) / 60}%`;
+      $('tPct').textContent = `${Math.ceil(w.shadowLeft)}s · ${Math.round(w.shadowDamage).toLocaleString()} dmg`;
+    } else {
+      const pct = Math.max(0, e.hp) / e.maxHp;
+      $('tFill').style.width = `${100 * pct}%`;
+      $('tPct').textContent = `${Math.ceil(pct * 100)}%`;
+    }
     const cast = $('tCast');
     if (e.castId) {
       cast.hidden = false;

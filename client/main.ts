@@ -66,22 +66,23 @@ function finishRun(w: World) {
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, w.runDrops, w.runEquipped);
   save();
   hub.render();
-  void strikeBoss(summary.damageDealt, summary.time);
+  const shadow = summary.shadowDamage ?? 0;
+  void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
   return rewards;
 }
 
 /** Sends a finished delve's damage to the shared world boss. */
-async function strikeBoss(damage: number, seconds: number): Promise<void> {
+async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number): Promise<void> {
   const out = el('endBoss');
   out.innerHTML = '';
-  if (damage <= 0) return;
-  const r = await cloud.strike(damage, seconds);
+  if (damage + shadowDamage <= 0) return;
+  const r = await cloud.strike(damage, seconds, shadowDamage, shadowSeconds);
   if (!r) {
     out.innerHTML = cloud.online === false ? '<span class="muted">World boss offline: this delve only counted locally.</span>' : '';
   } else if (r.ok) {
     out.innerHTML = r.defeated
       ? `<b style="color:var(--gold)">Your delve landed the killing blow on ${r.name}!</b> Claim your reward from the main menu.`
-      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}. It has ${r.hp.toLocaleString()} health left.`;
+      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}${r.shadow ? ` (${r.shadow.toLocaleString()} of it from the shadow fight, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.`;
   } else if (r.reason === 'too_soon') {
     out.innerHTML = '<span class="muted">The world boss is recovering. Your next delve can strike it again.</span>';
   }
@@ -103,6 +104,8 @@ function startRun(): void {
     nextItemId: hero.nextItemId,
     tier: hub.tier,
     cls: hero.cls ?? 'emberwright',
+    // Only offer the shadow fight when the world boss is actually reachable.
+    worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
   };
   game.scene.start('game', {
     opts,

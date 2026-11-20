@@ -125,3 +125,34 @@ describe('classes', () => {
     expect(play()).toBe(play());
   });
 });
+
+describe('world boss shadow fight', () => {
+  it('follows a won delve, lasts 60 seconds and keeps the victory', async () => {
+    const { World, SHADOW_TIME } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const w = new World({ seed: 5, worldBoss: 'Grandmother Slag', invulnerable: true });
+    while (w.state !== 'ended' && w.time < 900) {
+      if (w.state === 'draft') w.choose(botChoose(w));
+      else w.step(botInput(w, 1));
+    }
+    const s = w.summary();
+    expect(s.victory).toBe(true);
+    expect(w.route[w.route.length - 1]).toBe('worldShadow');
+    expect(s.shadowTime).toBe(SHADOW_TIME);
+    expect(s.shadowDamage).toBeGreaterThan(0);
+    expect(s.damageDealt).toBeGreaterThanOrEqual(s.shadowDamage!);
+  });
+
+  it('skips the shadow fight when no world boss is known', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const w = new World({ seed: 5, invulnerable: true });
+    while (w.state !== 'ended' && w.time < 900) {
+      if (w.state === 'draft') w.choose(botChoose(w));
+      else w.step(botInput(w, 1));
+    }
+    expect(w.victory).toBe(true);
+    expect(w.route).not.toContain('worldShadow');
+    expect(w.summary().shadowTime).toBe(0);
+  });
+});

@@ -385,7 +385,7 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'encounterStart': {
           const def = ENCOUNTERS[ev.id];
-          this.hud.banner(def.name, def.tip);
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip);
           break;
         }
         case 'encounterClear':
@@ -453,7 +453,8 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
       if (this.enemyKinds[i] !== e.kind) {
-        s.setTexture(e.kind);
+        // The world boss shadow borrows the Kiln Mother's shape until it gets its own art.
+        s.setTexture(e.kind === 'worldShadow' ? 'kilnMother' : e.kind).setAlpha(e.kind === 'worldShadow' ? 0.85 : 1).setScale(e.kind === 'worldShadow' ? 1.15 : 1);
         this.enemyKinds[i] = e.kind;
       }
       s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px);
@@ -462,6 +463,7 @@ export class GameScene extends Phaser.Scene {
       if (e.flash > 0) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
+      else if (e.kind === 'worldShadow') s.setTint(0x8a6cff).setTintMode(Phaser.TintModes.MULTIPLY);
       else s.clearTint();
     }
 
