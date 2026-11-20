@@ -2460,9 +2460,8 @@ export class World {
       for (const v of this.vents) {
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = Math.min(p.maxHp - p.hp, p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
           if (heal > 0) {
-            p.hp += heal;
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
           this.temper = 0;
