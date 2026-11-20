@@ -68,7 +68,11 @@ Resource: **Resolve** (0 to 100). Gained when you are hit (1 per 5 damage before
 
 Base: 160 health, armor stops 20% of every hit, 128 move speed.
 
-Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 damage, small knockback on normal enemies.
+**Shield Block**: hits from the foe the shield faces (the last Shield Sweep target) are cut a further 35%. A tank that keeps its shield on the boss can stand in contact with it.
+
+**Smother**: a Bulwark standing in a Sluice Crawler's bloom when it bursts catches it on the shield for 10 Resolve: the burst heals no one, and the Bulwark takes half its damage. This is the tank's answer to the Tide Pair: soak the ring instead of dragging it away. Shield Slam also shoves what it hits (50 for normal foes, 90 for elites, 70 for bosses), so the Bulwark can steer Maelra toward a vent.
+
+Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 damage (15% more against elites and bosses), small knockback on normal enemies.
 
 | Key | Ability | Cost / CD | Effect |
 | --- | --- | --- | --- |
@@ -84,7 +88,7 @@ Branches:
 
 ## Duskblade (melee damage)
 
-Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. Most of its low bot win rate turned out to be the bot standing in contact with big foes and running straight back from cone attacks; fixing the melee bot took it from 13 to 47 wins out of 60. It also gets one ability talent per branch, like the other classes:
+Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. Most of its low bot win rate turned out to be the bot standing in contact with big foes and running straight back from cone attacks; fixing the melee bot took it from 13 to 47 wins out of 60. **Open Wounds** (passive): a foe hit by a Duskblade swing takes half healing for 3s. That is the Duskblade's answer to fights where enemies heal, like the Tide Pair's blooms. It also gets one ability talent per branch, like the other classes:
 - Bloodletting, **Exsanguinate** (2 ranks): Execution also deals the target's next 3s of bleed at once (6s at rank 2).
 - Tempo, **Flurry Step** (2 ranks): Rending Dash comes back at once if it kills; rank 2 makes it cost 10 less Momentum.
 - Guard, **Counterstep** (2 ranks): Sidestep cuts the nearest foe for 60 as you land; rank 2 doubles the dodge window.
@@ -104,7 +108,7 @@ Auto: **Sunmote**, every 0.7s, an instant bolt of light at the target within 500
 | --- | --- | --- | --- |
 | Q | Radiant Burst | 25 Radiance / 4s | Heal 15, and a 140-radius pulse for 40 damage that pushes normal enemies back |
 | E | Glimmer Step | 0 / 8s | Step 160 where you are moving, untouchable for 0.3s |
-| R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 6 per second inside, foes inside take 20 per second |
+| R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 4 per second inside, foes inside take 20 per second |
 | F | Hush | 0 / 10s, off GCD | Interrupt within 480, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
 
 Branches:

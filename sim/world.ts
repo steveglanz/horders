@@ -39,6 +39,14 @@ const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
+/** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
+const BULWARK_BLOCK = 0.35;
+/** Shield Sweep damage multiplier against elites and bosses. */
+const SWEEP_BIG_MULT = 1.15;
+/** Duskblade Open Wounds: how long a swing's cut halves the foe's healing. */
+const OPEN_WOUNDS_TIME = 3;
+/** Resolve a Bulwark spends to smother a Sluice Crawler's bloom. */
+const SMOTHER_COST = 10;
 /** Lumen: Sunmote reach and the most Brilliance (stored overheal) it can hold. */
 const LUMEN_RANGE = 500;
 const LUMEN_MAX_BRILLIANCE = 200;
@@ -67,6 +75,8 @@ export interface Enemy {
   orbitCd: number;
   burnDps: number;
   burnT: number;
+  /** Duskblade Open Wounds: while above 0, this foe takes half healing. */
+  woundT: number;
   flash: number;
   abilityT: number;
   spawnedAt: number;
@@ -221,6 +231,8 @@ export interface Player {
   bastionT: number;
   prevented: number;
   echoT: number;
+  /** Bulwark: the foe its shield faces (the last Shield Sweep target); its hits are partly blocked. */
+  guardId: number;
   echoAng: number;
   /** Lumen: stored overheal, Sanctuary and healing pool timers and centres, High Noon timer, Martyr's Halo used this fight. */
   brilliance: number;
@@ -469,13 +481,13 @@ export class World {
       level: 1, xp: 0, xpToNext: xpFor(1), pendingLevels: 0,
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
-      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0,
+      ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
-      burnDps: 0, burnT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
+      burnDps: 0, burnT: 0, woundT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
       castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
@@ -898,6 +910,7 @@ export class World {
     e.orbitCd = 0;
     e.burnDps = 0;
     e.burnT = 0;
+    e.woundT = 0;
     e.flash = 0;
     e.abilityT = def.rank === 'boss' ? 2 : def.stationary ? 1 : 4;
     e.spawnedAt = this.time;
@@ -1228,6 +1241,11 @@ export class World {
   // ---------------------------------------------------------------- lumen
 
   /** Heals the hero. For the Lumen, overhealing is stored as Brilliance, which powers its damage. */
+  /** Healing an enemy receives: Open Wounds halves it. */
+  private healTakenMult(e: Enemy): number {
+    return e.woundT > 0 ? 0.5 : 1;
+  }
+
   healPlayer(amount: number): number {
     const p = this.player;
     const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
@@ -1262,7 +1280,7 @@ export class World {
       if (p.sanctTick <= 0) {
         p.sanctTick += 0.5;
         const r = this.sanctuaryRadius;
-        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(3);
+        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
           if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
@@ -1292,6 +1310,20 @@ export class World {
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < LUMEN_RANGE * LUMEN_RANGE) t = this.bossIndex;
+    }
+    // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
+    // acolytes on its own: light seeks out an acolyte that is healing a wounded boss first.
+    if (this.bossIndex >= 0) {
+      const boss = this.enemies[this.bossIndex];
+      if (boss.alive && boss.hp < boss.maxHp) {
+        let best = LUMEN_RANGE * LUMEN_RANGE;
+        for (let i = 0; i < this.enemies.length; i++) {
+          const e = this.enemies[i];
+          if (!e.alive || e.kind !== 'acolyte' || e.aux2 !== this.bossIndex) continue;
+          const d2 = dist2(p.x, p.y, e.x, e.y);
+          if (d2 < best) { best = d2; t = i; }
+        }
+      }
     }
     p.volleyT += this.moteCooldown;
     if (p.volleyT < 0) p.volleyT = 0;
@@ -1412,6 +1444,8 @@ export class World {
     const p = this.player;
     this.addHeat(raw * 0.2);
     let amount = raw * this.damageTakenMult;
+    // Shield Block: the foe the shield faces lands only part of its hits.
+    if (src >= 0 && src === p.guardId) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
@@ -1481,6 +1515,7 @@ export class World {
     const e0 = this.enemies[t];
     const ang = Math.atan2(e0.y - p.y, e0.x - p.x);
     p.facing = ang;
+    p.guardId = t;
     p.swings++;
     const r = this.sweepReach;
     const half = this.sweepHalfArc;
@@ -1498,7 +1533,8 @@ export class World {
         e.x += (dx / d) * 22;
         e.y += (dy / d) * 22;
       }
-      this.damageEnemy(i, dmg, true);
+      // The shield lands hardest on big foes: elites and bosses take more from each sweep.
+      this.damageEnemy(i, e.def.rank === 'normal' ? dmg : dmg * SWEEP_BIG_MULT, true);
     });
     this.addHeat(Math.min(12, 3 * hits));
     this.events.push({ type: 'swing', x: p.x, y: p.y, angle: ang, r, arc: half * 2, spin: half >= Math.PI });
@@ -1527,7 +1563,14 @@ export class World {
       if (d > r + e.def.radius) return;
       if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
       this.damageEnemy(i, dmg, true);
-      if (stun && e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+      if (stun && e.alive && !e.def.stationary) {
+        e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+        // Shield Slam shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
+        const push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
+        e.x += (dx / d) * push;
+        e.y += (dy / d) * push;
+        this.clampArena(e, e.def.radius);
+      }
     });
     this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: ang, r });
   }
@@ -1670,6 +1713,7 @@ export class World {
       if (d > r + e.def.radius) return;
       if (!spin && Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
       hits++;
+      e.woundT = OPEN_WOUNDS_TIME;
       this.damageEnemy(i, forceCrit ? dmg * 2 : dmg, !forceCrit);
       if (bleed > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult);
@@ -1903,6 +1947,7 @@ export class World {
       if (e.orbitCd > 0) e.orbitCd -= dt;
       if (e.flash > 0) e.flash -= dt;
 
+      if (e.woundT > 0) e.woundT -= dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
         this.damageEnemy(i, e.burnDps * dt, false, true);
@@ -2005,7 +2050,7 @@ export class World {
         e.aux += 0.35 * dt;
         e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
         e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
-        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE_HEAL * dt);
+        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE_HEAL * dt * this.healTakenMult(b));
       }
     }
     const p = this.player;
@@ -2057,7 +2102,7 @@ export class World {
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
     } else if (id === 'gorge') {
-      const amount = e.maxHp * 0.1;
+      const amount = e.maxHp * 0.1 * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
     }
@@ -2444,9 +2489,8 @@ export class World {
       for (const v of this.vents) {
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = Math.min(p.maxHp - p.hp, p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
           if (heal > 0) {
-            p.hp += heal;
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
           this.temper = 0;
@@ -2521,7 +2565,7 @@ export class World {
     if (this.hasOmen('sharedPain') && e.def.rank !== 'normal') {
       for (const o of this.enemies) {
         if (!o.alive || o === e || o.def.rank === 'normal') continue;
-        const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal);
+        const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal * this.healTakenMult(o));
         if (amount <= 0) continue;
         o.hp += amount;
         this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -2549,12 +2593,19 @@ export class World {
         continue;
       }
       this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
-      if (t.kind === 'bloom') {
+      // Smother: a Bulwark standing in a bloom catches the burst on its shield for 25 Resolve, so it feeds no one.
+      const smother = t.kind === 'bloom' && this.cls === 'bulwark' && p.heat >= SMOTHER_COST
+        && dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
+      if (smother) {
+        p.heat -= SMOTHER_COST;
+        this.events.push({ type: 'parry', x: p.x, y: p.y });
+      }
+      if (t.kind === 'bloom' && !smother) {
         // The burst feeds any enemy caught in it.
         this.forEachNear(t.x, t.y, t.r + 40, (j) => {
           const o = this.enemies[j];
           if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal);
+          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
           this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -2569,7 +2620,8 @@ export class World {
         while (d < -Math.PI) d += Math.PI * 2;
         inside = Math.abs(d) <= t.arc / 2;
       }
-      if (inside) this.hurtPlayer(t.dmg * this.tierDamage);
+      // A smothered bloom lands on the shield: the Bulwark takes half.
+      if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1));
     }
   }
 

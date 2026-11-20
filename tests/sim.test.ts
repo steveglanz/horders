@@ -192,6 +192,20 @@ describe('classes', () => {
     expect(w.player.prevented).toBeCloseTo(68, 5);
   });
 
+  it('Shield Block cuts hits from the foe the shield faces', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 2, cls: 'bulwark' });
+    const hurt = (w as unknown as { hurtPlayer(a: number, s?: number): void }).hurtPlayer.bind(w);
+    w.player.guardId = 0;
+    w.enemies[0].alive = true;
+    const hp0 = w.player.hp;
+    hurt(100, 0);
+    expect(hp0 - w.player.hp).toBeCloseTo(80 * 0.65, 5);
+    const hp1 = w.player.hp;
+    hurt(100, 1);
+    expect(hp1 - w.player.hp).toBeCloseTo(80, 5);
+  });
+
   it('Ward shields absorb hits before health', async () => {
     const { World } = await import('../sim/world');
     const w = new World({ seed: 2, cls: 'bulwark' });

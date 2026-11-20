@@ -173,6 +173,10 @@ export function botInput(w: World, skill = 1): Input {
         // Too close: big foes hurt on contact, so step back to the edge of reach.
         fx -= (dx / d) * 0.05 * skill;
         fy -= (dy / d) * 0.05 * skill;
+      } else if (w.cls === 'duskblade' && e.def.rank !== 'normal' && d < e.def.radius + reach * 0.45) {
+        // The Duskblade has no armor: it fights big foes from the tip of its blades.
+        fx -= (dx / d) * 0.1 * skill;
+        fy -= (dy / d) * 0.1 * skill;
       }
     }
   }
@@ -189,8 +193,11 @@ export function botInput(w: World, skill = 1): Input {
     fy += dy * wgt;
   }
   let soaking = false;
+  // A Bulwark with Resolve to spare stands in blooms and smothers them.
+  const smother = w.cls === 'bulwark' && p.heat >= 10;
   for (const t of w.telegraphs) {
     if (!t.alive) continue;
+    if (smother && t.kind === 'bloom') continue;
     if (t.kind === 'soak') {
       // Run into the gold circle and hold still in it.
       const dx = t.x - p.x;
@@ -213,8 +220,26 @@ export function botInput(w: World, skill = 1): Input {
         fx += -Math.sin(t.angle) * side * k * skill;
         fy += Math.cos(t.angle) * side * k * skill;
       } else {
-        fx += (dx / d) * k * skill;
-        fy += (dy / d) * k * skill;
+        let ux = dx / d;
+        let uy = dy / d;
+        // A ring dropped at your feet: don't run out of it straight into a big foe.
+        if (melee && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+          const b = w.enemies[w.bossIndex];
+          const bx = b.x - p.x;
+          const by = b.y - p.y;
+          const bd = Math.hypot(bx, by) || 1;
+          if (bd < 220 && (ux * bx + uy * by) / bd > -0.3) {
+            // Go out the side away from the boss instead.
+            const side = Math.sign(ux * -by + uy * bx) || 1;
+            ux = (-by / bd) * side - (bx / bd) * 0.5;
+            uy = (bx / bd) * side - (by / bd) * 0.5;
+            const ul = Math.hypot(ux, uy) || 1;
+            ux /= ul;
+            uy /= ul;
+          }
+        }
+        fx += ux * k * skill;
+        fy += uy * k * skill;
       }
     }
   }
@@ -247,7 +272,7 @@ export function botInput(w: World, skill = 1): Input {
   }
   // Maelra: once her Temper builds, lead her across a steam vent by standing
   // on the far side of it so her path crosses the steam.
-  if (w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+  if (process.env.NOVENT !== '1' && w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
     const b = w.enemies[w.bossIndex];
     let best = w.vents[0];
     let bd = Infinity;
@@ -342,4 +367,19 @@ export function runBot(seed: number, skill = 1, maxSeconds = 700): World {
     else w.step(botInput(w, skill));
   }
   return w;
+}
+
+/**
+ * A slower player for balance checks: acts on what the full bot decided
+ * `lagTicks` ticks ago (a reaction time), and with `skill` < 1 also misses
+ * some interrupts. SKILL alone barely weakens the bot, because its move
+ * direction is normalised, so reaction time is the better novice proxy.
+ */
+export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
+  const queue: Input[] = [];
+  return (w: World) => {
+    queue.push(botInput(w, skill));
+    const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
+    return out;
+  };
 }
