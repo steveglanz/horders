@@ -106,6 +106,9 @@ export class GameScene extends Phaser.Scene {
   private playerShadow!: Phaser.GameObjects.Image;
   private enemyFrames: number[] = [];
   private motes: { img: Phaser.GameObjects.Image; ph: number; sp: number }[] = [];
+  private ventSprites: Phaser.GameObjects.Image[] = [];
+  private gateSprites: { arch: Phaser.GameObjects.Image; portal: Phaser.GameObjects.Image }[] = [];
+  private steamAt = 0;
   private facing = 1;
   private hitSparks = 0;
   private hitStop = 0;
@@ -137,6 +140,8 @@ export class GameScene extends Phaser.Scene {
     this.shadows = [];
     this.enemyFrames = [];
     this.motes = [];
+    this.ventSprites = [];
+    this.gateSprites = [];
     this.facing = 1;
     this.hitStop = 0;
     this.floats = [];
@@ -178,7 +183,8 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 48; i++) this.smoke.push(this.newFx('puff', 4.5, false));
     this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
-    if (w.cls === 'duskblade') this.aura.setTint(0x9a6cff);
+    const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
+    if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
     this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
@@ -191,6 +197,14 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.vignette = document.getElementById('vignette');
+    // Foundry steam vents and fork gates (pooled; most runs never show them).
+    for (let k = 0; k < 4; k++) this.ventSprites.push(this.add.image(0, 0, 'vent', '0').setScale(BASE).setVisible(false).setDepth(1.4));
+    for (let k = 0; k < 2; k++) {
+      this.gateSprites.push({
+        portal: this.add.image(0, 0, 'portal', '0').setScale(BASE * 1.1).setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(3.9),
+        arch: this.add.image(0, 0, 'gate', '0').setScale(BASE * 1.1).setOrigin(0.5, 0.92).setVisible(false).setDepth(3.95),
+      });
+    }
     this.bars = this.add.graphics().setDepth(9);
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
@@ -354,6 +368,13 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'explode':
         case 'strike':
+          if (ev.type === 'explode' && w.vents.some((v) => Math.abs(v.x - ev.x) < 2 && Math.abs(v.y - ev.y) < 2)) {
+            // A vent boils Maelra's Temper off: a column of steam instead of fire.
+            for (let k = 0; k < 8; k++) this.steam(ev.x + (Math.random() - 0.5) * ev.r, ev.y + (Math.random() - 0.5) * ev.r * 0.5, 1 + Math.random() * 0.8);
+            this.ring(ev.x, ev.y, ev.r * 1.3, 0xd8f6ff, 0.45);
+            this.floatText(ev.x, ev.y - 40, 'Temper boiled off!', '#d8f6ff', 16);
+            break;
+          }
           this.blast(ev.x, ev.y, ev.r);
           this.ring(ev.x, ev.y, ev.r, 0xffa050, 0.3);
           break;
@@ -416,6 +437,22 @@ export class GameScene extends Phaser.Scene {
         case 'blink':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);
+          break;
+        case 'ward': {
+          const we = w.enemies[ev.index];
+          if (we) {
+            this.ring(we.x, we.y, we.def.radius + 30, 0xcfe6ff, 0.4);
+            this.floatText(we.x, we.y - we.def.radius - 30, 'Warded!', '#dfeeff', 16);
+          }
+          break;
+        }
+        case 'castDone':
+          if (ev.name === 'Undertow') {
+            // Water rushes from the hero to Maelra.
+            this.addShape({ kind: 'line', x: w.player.x, y: w.player.y, x2: ev.x, y2: ev.y, r: 0, angle: 0, color: 0x5ab8ff, life: 0.45 });
+            this.ring(w.player.x, w.player.y, 90, 0x5ab8ff, 0.4);
+            for (let k = 0; k < 5; k++) this.steam(w.player.x + (Math.random() - 0.5) * 40, w.player.y, 0.8);
+          }
           break;
         case 'castStart':
           if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
@@ -568,14 +605,16 @@ export class GameScene extends Phaser.Scene {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
-      if (this.enemyKinds[i] !== e.kind) {
-        // The world boss shadow borrows the Kiln Mother's sheet until it gets its own art.
-        s.setTexture(e.kind === 'worldShadow' ? 'kilnMother' : e.kind, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
-        this.enemyKinds[i] = e.kind;
+      // The world boss shadow is Grandmother Slag's silhouette;
+      // Ember Twins alternate palettes by slot so a pair always reads as two.
+      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind;
+      if (this.enemyKinds[i] !== tex) {
+        s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
+        this.enemyKinds[i] = tex;
         this.enemyFrames[i] = 0;
       }
       // Walk cycle while moving; big and stationary foes idle-animate slowly.
-      const frames = FRAMES[e.kind === 'worldShadow' ? 'kilnMother' : e.kind] ?? 1;
+      const frames = FRAMES[tex] ?? 1;
       if (frames > 1) {
         const dx = e.x - e.px;
         const dy = e.y - e.py;
@@ -593,7 +632,7 @@ export class GameScene extends Phaser.Scene {
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
       }
       const hit = e.flash > 0 ? 0.12 : 0;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.15 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.15 : 1));
+      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.05 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.05 : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -664,34 +703,59 @@ export class GameScene extends Phaser.Scene {
       const R = w.arenaR ?? ARENA;
       const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
-      if (R < ARENA) g.lineStyle(ARENA - R, 0x0d3550, 0.55).strokeCircle(0, 0, (ARENA + R) / 2);
+      if (R < ARENA) {
+        // Floodwater: a deep band with ripples rolling in and foam on the shore.
+        g.lineStyle(ARENA - R, 0x0b2f44, 0.8).strokeCircle(0, 0, (ARENA + R) / 2);
+        for (let k = 0; k < 3; k++) {
+          const t = ((now / 2600 + k / 3) % 1);
+          const rr = ARENA - t * (ARENA - R);
+          g.lineStyle(2, 0x7fd8f0, 0.25 * Math.sin(t * Math.PI)).strokeCircle(0, 0, rr);
+        }
+        g.lineStyle(6, 0xd8f6ff, 0.18 + 0.08 * Math.sin(now / 400)).strokeCircle(0, 0, R + 4);
+      }
       g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
       g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
-      // Maelra's steam vents (placeholder look for the visuals team).
-      for (const v of w.vents) {
-        const puff = 1 + Math.sin(this.time.now / 300 + v.x) * 0.06;
-        g.fillStyle(0xbfe6ff, 0.12).fillCircle(v.x, v.y, v.r * puff);
-        g.lineStyle(2, 0xbfe6ff, 0.6).strokeCircle(v.x, v.y, v.r * puff);
-      }
+    }
+    // Maelra's steam vents: iron grates that glow and breathe steam.
+    this.ventSprites.forEach((vs, k) => {
+      const v = w.vents[k];
+      if (!v) { if (vs.visible) vs.setVisible(false); return; }
+      const fr = String(Math.floor(now / 160 + k) % 4);
+      if (vs.frame.name !== fr) vs.setFrame(fr);
+      vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(0.88);
+      g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
+    });
+    if (w.vents.length && now > this.steamAt && !this.lowFx) {
+      this.steamAt = now + 140;
+      const v = w.vents[Math.floor(Math.random() * w.vents.length)];
+      this.steam(v.x + (Math.random() - 0.5) * v.r * 0.6, v.y - 4, 0.5 + Math.random() * 0.4);
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
     const GATE_COL = { steady: 0xd8cfc4, named: 0xffc861, shrine: 0x5fe0c8 } as const;
     this.gateTexts.forEach((txt, k) => {
       const gate = w.phase === 'choose' ? w.gates[k] : undefined;
-      if (!gate) { if (txt.visible) txt.setVisible(false); return; }
+      if (!gate) {
+        if (txt.visible) { txt.setVisible(false); this.gateSprites[k]?.arch.setVisible(false); this.gateSprites[k]?.portal.setVisible(false); }
+        return;
+      }
       const col = GATE_COL[gate.kind];
       const pulse = 1 + Math.sin(this.time.now / 250 + k) * 0.05;
-      g.fillStyle(col, 0.12).fillCircle(gate.x, gate.y, gate.r * pulse);
-      g.lineStyle(3, col, 0.9).strokeCircle(gate.x, gate.y, gate.r * pulse);
+      g.fillStyle(col, 0.1).fillCircle(gate.x, gate.y, gate.r * pulse);
+      g.lineStyle(2, col, 0.6).strokeCircle(gate.x, gate.y, gate.r * pulse);
+      const gs = this.gateSprites[k];
+      if (gs) {
+        gs.arch.setVisible(true).setPosition(gate.x, gate.y + gate.r * 0.35);
+        gs.portal.setVisible(true).setPosition(gate.x, gate.y + gate.r * 0.35).setTint(col).setAlpha(0.65 + 0.25 * Math.sin(now / 200 + k));
+      }
       const name = ENCOUNTERS[gate.encounter].name;
       const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
-      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 6);
+      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;
     for (const t of w.telegraphs) {
       if (!t.alive) continue;
       const f = Math.min(1, t.t / t.dur);
-      const col = t.kind === 'soak' ? SOAK : DANGER;
+      const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? 0x5fe0c8 : DANGER;
       // The edge glows and flickers faster as the strike gets close.
       const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
@@ -743,6 +807,23 @@ export class GameScene extends Phaser.Scene {
         const pulse = 0.5 + Math.sin(this.time.now / 120) * 0.25;
         g.lineStyle(3, 0x7dffb0, pulse).lineBetween(e.x, e.y, boss.x, boss.y);
       }
+      // Mirror Ward: a glassy shell that flickers while it reflects damage.
+      if (e.kind === 'glassWarden' && e.aux2 > 0) {
+        const fl = 0.55 + 0.35 * Math.sin(now / 50);
+        g.lineStyle(3, 0xbff4ff, fl).strokeCircle(e.x, e.y, e.def.radius + 12);
+        g.fillStyle(0x9fe8ff, 0.12).fillCircle(e.x, e.y, e.def.radius + 12);
+      }
+      // Maelra's Temper: steel pips circling her, one per stack.
+      if (e.kind === 'maelra' && w.temper > 0) {
+        for (let k = 0; k < w.temper; k++) {
+          const a = now / 700 + (k / 5) * Math.PI * 2;
+          const px2 = e.x + Math.cos(a) * (e.def.radius + 18);
+          const py2 = e.y + Math.sin(a) * (e.def.radius + 18) * 0.5 - 10;
+          g.fillStyle(0xcfd8e6, 0.95).fillCircle(px2, py2, 4);
+          g.lineStyle(1.5, 0x3a4250, 1).strokeCircle(px2, py2, 4);
+        }
+        g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
+      }
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
@@ -786,6 +867,13 @@ export class GameScene extends Phaser.Scene {
       if (e.castId) {
         b.fillStyle(0x000000, 0.7).fillRect(e.x - bw / 2, top + 8, bw, 5);
         b.fillStyle(e.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(e.x - bw / 2, top + 8, (bw * e.castT) / e.castDur, 5);
+      }
+      // Warded: a pale shield segment over the health bar, and a bubble on the body.
+      if (e.ward > 0) {
+        const wf = Math.min(1, e.ward / e.maxHp);
+        b.fillStyle(0xe8f4ff, 0.95).fillRect(e.x - bw / 2, top - 3, bw * Math.min(1, wf * 5), 3);
+        g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
+        g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
       const t = this.plates[plate++];
       if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.def.name).setColor(NAME_COLOR[e.def.rank]);
@@ -904,6 +992,13 @@ export class GameScene extends Phaser.Scene {
   private ring(x: number, y: number, r: number, tint: number, life: number): void {
     const g = (r * 2) / 128;
     this.emit(this.fx, 'ring', undefined, x, y, life, { tint, sx0: g * 0.25, sx1: g });
+  }
+
+  /** A rising, spreading steam puff. */
+  private steam(x: number, y: number, size: number): void {
+    this.emit(this.smoke, 'steam', undefined, x, y, 0.9 + Math.random() * 0.5, {
+      tint: 0xe6f4ff, vy: -40 - Math.random() * 30, vx: (Math.random() - 0.5) * 16, drag: 0.98, spin: (Math.random() - 0.5) * 1.5, rot: Math.random() * 6, sx0: size * 0.5, sx1: size * 1.5,
+    });
   }
 
   /** A quick white impact star where a hit landed. */
