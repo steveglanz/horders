@@ -1,4 +1,5 @@
 /** Gear: slots, rarity tiers, stats and mythic effects. All data. */
+import type { ClassId } from './emberwright';
 
 export type Slot = 'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 'trinket';
 export const SLOTS: Slot[] = ['weapon', 'head', 'chest', 'hands', 'ring', 'trinket'];
@@ -73,14 +74,35 @@ export const RARITY_PREFIX: Record<Rarity, string[]> = {
   mythic: ['Heartfire', 'Everburning', 'Kaldera', 'Firstflame'],
 };
 
-export type MythicId = 'phoenixFeather' | 'giantsBane' | 'gluttonsGem' | 'splittingCinders';
+export type MythicId =
+  | 'phoenixFeather' | 'giantsBane' | 'gluttonsGem' | 'splittingCinders'
+  | 'wanderersWake' | 'bankedHeart' | 'mirrorstep' | 'redLedger'
+  | 'tetheredShield' | 'ringwallVow' | 'anchoredDawn' | 'eclipseGlass';
 
-export const MYTHICS: Record<MythicId, { name: string; text: string }> = {
+/**
+ * Mythic effects. The first four suit any class. The rest are class Mythics
+ * (roadmap R4): each one bends its class's kit into a different way to play, and
+ * only drops for that class.
+ */
+export const MYTHICS: Record<MythicId, { name: string; text: string; cls?: ClassId }> = {
   phoenixFeather: { name: 'Phoenix Feather', text: 'Once per run, rise again with half health.' },
   giantsBane: { name: "Giant's Bane", text: '+30% damage to elites and bosses.' },
   gluttonsGem: { name: "Glutton's Gem", text: '+25% experience in runs.' },
   splittingCinders: { name: 'Splitting Cinders', text: 'Your attacks deal 15% extra damage to a nearby foe.' },
+  wanderersWake: { cls: 'emberwright', name: "Wanderer's Wake", text: 'Blink recovers twice as fast and burns its whole path, but Flame Wave no longer knocks back.' },
+  bankedHeart: { cls: 'emberwright', name: 'Banked Heart', text: 'Combustion bursts around you, wider, and each kill gives back 15 Heat.' },
+  mirrorstep: { cls: 'duskblade', name: 'Mirrorstep', text: 'Sidestep recovers 2s sooner and leaves an afterimage for 2s that strikes with your swings at half damage.' },
+  redLedger: { cls: 'duskblade', name: 'Red Ledger', text: 'Execution doubles below 50% health instead of 35%, and an Execution kill brings Rending Dash back.' },
+  tetheredShield: { cls: 'bulwark', name: 'Tethered Shield', text: 'Shield Toss interrupts up to 3 casters, and for 4s Charge rushes the first one, from further away.' },
+  ringwallVow: { cls: 'bulwark', name: 'Ringwall Vow', text: 'Shield Block guards every side for 20%, and Shield Slam pulls foes in instead of shoving them.' },
+  anchoredDawn: { cls: 'lumen', name: 'Anchored Dawn', text: 'Sanctuary lasts twice as long but stays put, and Radiant Burst recovers twice as fast while you stand in it.' },
+  eclipseGlass: { cls: 'lumen', name: 'Eclipse Glass', text: 'Radiant Burst reaches 30% further and deals double damage, but heals half as much.' },
 };
+
+/** The Mythic effects a `cls` hero can roll: the shared four plus their own class's. */
+export function mythicPool(cls?: ClassId): MythicId[] {
+  return (Object.keys(MYTHICS) as MythicId[]).filter((m) => !MYTHICS[m].cls || MYTHICS[m].cls === cls);
+}
 
 export interface Item {
   id: string;

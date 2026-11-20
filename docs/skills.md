@@ -134,6 +134,23 @@ Branches:
 - **Grace** (shields and staying alive): *Aegis of Light* (3) Radiant Burst shields you for 8% of max health; *Renewal* (3) +20 max health and 1 health per second; *Blessed Ground* (2, ability) Glimmer Step leaves a pool that heals 5 per second per rank for 4s; capstone **Martyr's Halo**: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.
 - **Choir** (more light, faster): *Hasted Hymn* (3) Sunmotes 12% more often; *Prism* (2) each Sunmote also strikes one more enemy for 60%; *Lingering Sanctuary* (2, ability) Sanctuary lasts 2s longer and moves with you; capstone **Choir of Dawn**: three wisps circle you, burning foes and healing you 1.5 with each hit.
 
+## Class Mythics (roadmap R4)
+
+Each class has two Mythics of its own, on top of the shared four. A Mythic should change how the class plays, not just add numbers. The bar: at tier 6 each one stays within 3 wins of its class baseline. A Mythic drops only for its own class (`mythicPool` in `sim/content/items.ts`). Names were checked against existing games on 20 Nov 2026.
+
+| Class | Mythic | Effect | Plays as |
+|---|---|---|---|
+| Emberwright | Wanderer's Wake | Blink recovers twice as fast and burns its whole path. Flame Wave no longer knocks back. | A kiting fire-trail mage |
+| Emberwright | Banked Heart | Combustion bursts around you (radius 190), and each kill gives back 15 Heat. | A close-range horde-clearer |
+| Duskblade | Mirrorstep | Sidestep recovers 2 s sooner and leaves a 2 s afterimage that strikes with your swings for half damage. | A dodge-weaver |
+| Duskblade | Red Ledger | Execution doubles below 50% health instead of 35%, and an Execution kill brings Rending Dash back. | A chain executioner |
+| Bulwark | Tethered Shield | Shield Toss interrupts up to 3 casters, and for 4 s Charge rushes the first one, from up to 640 away. | A mobile interrupter |
+| Bulwark | Ringwall Vow | Shield Block guards every side for 20% instead of the front for 35%. Shield Slam pulls foes in. | A gather-and-hold tank |
+| Lumen | Anchored Dawn | Sanctuary lasts twice as long but stays put, even with Lingering Sanctuary. Radiant Burst recovers twice as fast inside it. | An anchored battle-priest |
+| Lumen | Eclipse Glass | Radiant Burst reaches 30% further and deals double damage, but heals half as much. | A damage Lumen |
+
+Tests are in `tests/mythics.test.ts`.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).

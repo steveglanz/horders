@@ -9,7 +9,7 @@ import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
-  Item, MYTHICS, MythicId, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat,
+  Item, MythicId, mythicPool, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat,
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
@@ -156,7 +156,7 @@ function rollRarity(rng: Rng, luck: number): Rarity {
   return 'common';
 }
 
-export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number): Item {
+export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number, cls?: ClassId): Item {
   const main = SLOT_MAIN[slot];
   // A flat base keeps early drops meaningful; item level still scales them.
   const lvl = ilvl + 5;
@@ -174,7 +174,8 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
     stats,
   };
   if (rarity === 'mythic') {
-    const ids = Object.keys(MYTHICS) as MythicId[];
+    // Class Mythics drop only for their own class; with no class, only the shared ones.
+    const ids = mythicPool(cls);
     item.mythic = ids[rng.int(ids.length)];
   }
   return item;
@@ -206,7 +207,7 @@ export function rollLoot(
     if (rarity === 'epic' || rarity === 'mythic') gotEpic = true;
     const slot = SLOTS[rng.int(SLOTS.length)];
     const ilvl = Math.max(1, baseIlvl + rng.int(3) - 1);
-    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl));
+    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl, hero.cls ?? 'emberwright'));
   }
   pity = gotEpic ? 0 : pity + 1;
   return { items, pity };
