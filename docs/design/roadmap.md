@@ -13,7 +13,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
 | R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
-| R7 | Daily bounty: one fight, one twist, the same seed for everyone that day | ⏭ design next | design | None: the seed comes from the date |
+| R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
 
@@ -96,5 +96,17 @@ Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three).
 
 Placeholder art (needs the visuals team): the four new enemies use the generic creature shape in new colours. Vents are pale circles, and the shrinking water is a blue band. The target frame shows "Temper ×N", "Mirrored" or "Warded".
 
-## R4, R7, R8
+## R7. Daily bounty
+
+**Why:** a shared reason to come back each day, and one of our differences ([positioning.md](positioning.md), point 4): every player gets the same delve.
+
+**What:** from tier 2, the hub shows today's bounty. It's 3 fights (a named foe, a hard fight, then the dungeon's boss), with no forks and one twist, an Omen picked for the day. The day, seed, dungeon, fights and twist come only from the date (UTC), so everyone gets the same run with no server needed. Only the tier is your own, at one below your best, so it's a confident run, not a wall. If the day's dungeon is still locked for you, you get the Kiln version of the same day.
+
+**Rules:** you start with 2 levels and drafts, for the two openers the bounty skips. Your first win each day pays 30 + 6 × tier embers on top of the usual loot. Replays are free practice. A bounty never changes your tier ladder or your Grit.
+
+**Code:** `sim/content/bounty.ts` (`bountyFor`, `dayOf`, `BOUNTY`), `WorldOptions.bounty`, `HeroProfile.bountyDay`, `RunRewards.bountyEmbers`, the hub's bounty line, and `tools/bounty.ts` for balance. Tests are in `tests/bounty.test.ts`.
+
+**Later:** a daily leaderboard by clear time (engineering), since the runs are directly comparable.
+
+## R4, R8
 Specs get written here when each one is next.

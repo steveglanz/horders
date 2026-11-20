@@ -334,6 +334,7 @@ export class Hud {
     $('target').hidden = true;
     const lines: string[] = [];
     if (rewards && hero) {
+      if (rewards.bountyEmbers) lines.push(`<div class="line" style="color:var(--gold)">Daily bounty paid: +${rewards.bountyEmbers} embers</div>`);
       lines.push(`<div class="line">+${rewards.heroXp} hero experience${rewards.levelsGained ? ` · <b style="color:var(--gold)">Hero level ${hero.level}!</b>` : ''}</div>`);
       lines.push(`<div class="line muted">Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}</div>`);
       const equipped = new Set(Object.values(hero.equipped));

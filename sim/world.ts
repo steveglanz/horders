@@ -13,6 +13,7 @@ import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
+import { BOUNTY } from './content/bounty';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { clampParty, partyHealth, gritMult } from './content/scaling';
@@ -282,6 +283,8 @@ export interface WorldOptions {
   partySize?: number;
   /** Grit stacks from losses in a row on this tier (see content/scaling). */
   grit?: number;
+  /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
+  bounty?: number;
 }
 
 export interface RunSummary {
@@ -296,6 +299,8 @@ export interface RunSummary {
   omens?: OmenId[];
   paths?: GateKind[];
   dungeon?: DungeonId;
+  /** Day number when this was a daily bounty. */
+  bounty?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -325,6 +330,7 @@ export class World {
   /** Tier modifiers active in every fight of this run. */
   readonly omens: OmenId[];
   readonly dungeonId: DungeonId;
+  readonly bounty: number | undefined;
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -403,6 +409,7 @@ export class World {
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
+    this.bounty = opts.bounty;
     this.partySize = clampParty(opts.partySize);
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     this.omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
@@ -432,6 +439,12 @@ export class World {
     const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
     this.route = opts.route ?? rollRoute((n) => this.rng.int(n), this.dungeonId);
+    if (this.bounty !== undefined) {
+      // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
+      this.player.level += BOUNTY.headStart;
+      this.player.pendingLevels += BOUNTY.headStart;
+      this.player.xpToNext = xpFor(this.player.level);
+    }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
   }
@@ -551,6 +564,7 @@ export class World {
       omens: [...this.omens],
       paths: [...this.paths],
       dungeon: this.dungeonId,
+      bounty: this.bounty,
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -672,7 +686,7 @@ export class World {
 
   /** After a clear: offer a fork if this point in the route has one, else count down to the next fight. */
   private openFork(): void {
-    const offer = this.stress ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q), this.dungeonId);
+    const offer = this.stress || this.bounty !== undefined ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q), this.dungeonId);
     if (!offer) {
       this.phase = 'intro';
       this.phaseT = INTRO_TIME;

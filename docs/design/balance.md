@@ -106,3 +106,14 @@ Tuning history: Volatile Ground started at 24 damage every 12 s with a 1.5 s war
 Grit shortens the worst losing streak by 1 to 2 runs without changing total wins or how far the hero climbs. That fits the goal: it gets you past a wall, it doesn't carry you. The target is a longest streak of 4 or fewer, so week 2901 is still one over. Next lever if playtests agree: 4 stacks, not a bigger per-stack bonus.
 
 Party health scaling (×1, 1.775, 2.5, 3.175) doesn't change solo, so it has no solo numbers yet. It needs co-op playtests.
+
+## Daily bounty (20 Nov 2026)
+
+Autopilot with no gear, 30 days in a row (days 20400 to 20429), `tools/bounty.ts`. Normal delves use the same bot and 12 seeds (`tools/balance.ts`).
+
+| Hero's best tier | Bounty tier | Bounty wins | Avg time | Health left on wins | Normal delve at that tier |
+|---|---|---|---|---|---|
+| 2 | 1 | 20/30 | 137 s | 54% | 10/12 |
+| 5 | 4 | 10/30 | 225 s | 46% | 6/12 |
+
+Without the 2-level head start it was 17/30 and 1/30, because the hero reached the hard fights underleveled. With the head start, a bounty plays a little harder than a normal delve at the same tier, which is about right for a run you take one tier below your best. Real heroes have gear, which this bot doesn't, so they'll win more. Volatile Ground was the hardest twist at tier 4 (0 of 6), so watch it once players arrive. Runs take 2 to 4 minutes, which suits a quick daily.

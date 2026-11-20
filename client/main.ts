@@ -1,4 +1,5 @@
 import { weekOf } from '../sim/content/omens';
+import { bountyFor, dayOf } from '../sim/content/bounty';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
@@ -58,6 +59,7 @@ function seed(): number {
 
 let runSeed = 0;
 let runApplied = true;
+let lastBounty = false;
 
 /** Banks a finished (or abandoned) run into the saved hero, once. */
 function finishRun(w: World) {
@@ -89,7 +91,7 @@ async function strikeBoss(damage: number, seconds: number): Promise<void> {
   await hub.refreshBoss();
 }
 
-function startRun(): void {
+function startRun(bounty = false): void {
   if (game.scene.getScene('game')) game.scene.stop('game');
   runSeed = seed();
   hub.bossNote = "";
@@ -108,6 +110,13 @@ function startRun(): void {
     grit: gritFor(hero, hub.dungeon, hub.tier),
     cls: hero.cls ?? 'emberwright',
   };
+  if (bounty) {
+    // Same fights, spawns and twist for everyone today; only the tier is the hero's own.
+    const b = bountyFor(dayOf(Date.now()), hero.maxTier);
+    runSeed = b.seed;
+    Object.assign(opts, { seed: b.seed, tier: b.tier, dungeon: b.dungeon, route: [...b.route], omens: [b.twist], bounty: b.day, grit: 0 });
+  }
+  lastBounty = bounty;
   game.scene.start('game', {
     opts,
     hud,
@@ -140,7 +149,11 @@ el('resetBtn').addEventListener('click', () => {
   save();
   hub.render();
 });
-el('againBtn').addEventListener('click', startRun);
+el('againBtn').addEventListener('click', () => startRun(lastBounty));
+hub.onBounty = () => {
+  stress = false;
+  startRun(true);
+};
 el('menuBtn').addEventListener('click', () => {
   game.scene.stop('game');
   el('end').hidden = true;

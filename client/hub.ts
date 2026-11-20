@@ -10,6 +10,7 @@ import { itemHtml } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, omensFor, weekOf } from '../sim/content/omens';
+import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -21,6 +22,8 @@ export class Hub {
   boss: BossStatus | null = null;
   bossNote = '';
   private claiming = false;
+  /** Set by main: starts today's bounty run. */
+  onBounty: () => void = () => {};
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     $('bagClose').addEventListener('click', () => {
@@ -80,18 +83,32 @@ export class Hub {
     }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}">${t}</button>`);
-    $('tiers').innerHTML = `<div class="dungeons"><span class="muted">Dungeon</span>${dungeons}</div><span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}${this.gritLine()}`;
+    $('tiers').innerHTML = `<div class="dungeons"><span class="muted">Dungeon</span>${dungeons}</div><span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}${this.gritLine()}${this.bountyLine()}`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
         this.render();
       }));
+    $('tiers').querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => this.onBounty());
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
     this.renderBoss();
+  }
+
+  /** Today's bounty: the same fights and twist for every player. */
+  private bountyLine(): string {
+    const h = this.hero();
+    if (h.maxTier < BOUNTY.unlockTier) return '';
+    const day = dayOf(Date.now());
+    const b = bountyFor(day, h.maxTier);
+    const paid = h.bountyDay === day;
+    const twist = OMENS[b.twist];
+    return `<div class="small bounty"><b>Daily bounty</b> · ${DUNGEONS[b.dungeon].name}, tier ${b.tier}, 3 fights. Twist: <b title="${twist.tip}">${twist.name}</b>: ${twist.text} `
+      + (paid ? '<span class="muted">Paid today. Play it again for practice, or come back tomorrow.</span>' : `<span style="color:var(--gold)">First win today pays ${bountyEmbers(b.tier)} embers.</span>`)
+      + ` <button data-bounty>${paid ? 'Replay bounty' : 'Take the bounty'}</button></div>`;
   }
 
   /** Grit after losses in a row on the picked dungeon and tier. */
