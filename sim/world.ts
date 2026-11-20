@@ -17,7 +17,7 @@ import { BOUNTY } from './content/bounty';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
-import { ThreatTable, damageThreat, dropHero, newThreat, updateTarget, THREAT } from './threat';
+import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -1459,6 +1459,8 @@ export class World {
     const p = this.player;
     const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
     p.hp += eff;
+    // Co-op: effective healing draws threat, split across the living enemies.
+    if (this.threat.length && eff > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, eff);
     if (this.cls === 'lumen') {
       const over = amount - eff;
       if (over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
@@ -1856,6 +1858,8 @@ export class World {
       if (!e.alive) continue;
       const isTarget = i === t;
       if (!isTarget && (ram === 0 || segDist2(e.x, e.y, x1, y1, p.x, p.y) > (36 + e.def.radius) ** 2)) continue;
+      // Co-op: Charge taunts what it hits onto the Bulwark.
+      if (this.threat.length) taunt(this.threat[i], this.heroes[this.acting].id);
       this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * this.dmgMult, true);
       if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, isTarget ? 0.8 : 0.5);
     }
@@ -2006,6 +2010,11 @@ export class World {
     const counter = this.rank('counterstep');
     p.shieldT = counter >= 2 ? 1.4 : 0.7;
     if (this.rank('evasion') > 0) p.nextCrit = true;
+    // Co-op: Sidestep sheds half the Duskblade's threat on every enemy.
+    if (this.threat.length) {
+      const id = this.heroes[this.acting].id;
+      for (const t of this.threat) scaleThreat(t, id, 0.5);
+    }
     // Catch your breath: Sidestep mends a little.
     this.healPlayer(p.maxHp * SIDESTEP_HEAL * this.noviceAid);
     if (counter > 0) {

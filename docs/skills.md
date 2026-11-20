@@ -46,6 +46,14 @@ A slow player in melee keeps drifting into contact, so the first tiers forgive i
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
 
+## Co-op threat hooks
+
+With a party, enemies pick targets by threat (`sim/threat.ts`). The kits add to it:
+- **Bulwark:** 4× threat from damage (engineering's damage hook), and **Charge taunts** everything it hits onto the Bulwark for 3s.
+- **Duskblade:** **Sidestep halves** its threat on every enemy.
+- **Healing:** effective healing (no overheal) makes 0.5 threat per point, split across the living enemies. This goes through `World.healPlayer`.
+Solo ignores all of this.
+
 ## Shared action bar shape
 
 Every class has the same four slots so the boss mechanics work for all of them:
