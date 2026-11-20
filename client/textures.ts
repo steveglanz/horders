@@ -170,6 +170,11 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.ellipse(c, c + s * 0.12, s * 0.16, s * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
   });
+  // Drowned Foundry placeholders (game design; visuals can replace them).
+  make(scene, 'glassWarden', 54, (ctx, s) => creature(ctx, s, '#1c2a33', '#7fc4e0', '#e8fbff', 0.1, 6));
+  make(scene, 'emberTwin', 44, (ctx, s) => creature(ctx, s, '#3a1a12', '#ff9a5a', '#ffe08a', 0.09, 7));
+  make(scene, 'sluiceCrawler', 50, (ctx, s) => creature(ctx, s, '#132a2e', '#3fa7b0', '#7ff0ff', 0.13, 10));
+  make(scene, 'maelra', 112, (ctx, s) => creature(ctx, s, '#0f2230', '#4d8fb3', '#bff3ff', 0.09, 12));
   // Hollow Rift: a violet tear in the ground.
   make(scene, 'rift', 56, (ctx, s) => {
     const c = s / 2;

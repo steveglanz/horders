@@ -213,7 +213,8 @@ export class Hud {
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
     $('tName').textContent = e.def.name;
     $('tTitle').textContent = e.def.title ?? (e.def.stationary ? 'Objective' : '');
-    $('tPhase').textContent = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
+    const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? 'Warded' : '';
+    $('tPhase').textContent = (e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '') + extra;
     const pct = Math.max(0, e.hp) / e.maxHp;
     $('tFill').style.width = `${100 * pct}%`;
     $('tPct').textContent = `${Math.ceil(pct * 100)}%`;
@@ -235,7 +236,7 @@ export class Hud {
     if (key === this.questKey) return;
     this.questKey = key;
     if (w.stress) { $('quests').innerHTML = ''; return; }
-    $('quests').innerHTML = '<h3>The Kiln Depths</h3>' + w.route.map((id, i) => {
+    $('quests').innerHTML = `<h3>${w.dungeonDef.name}</h3>` + w.route.map((id, i) => {
       const def = ENCOUNTERS[id];
       const done = i < w.encounter;
       const now = i === w.encounter;
@@ -341,9 +342,9 @@ export class Hud {
     $('rewards').innerHTML = lines.join('');
     $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
     $('endSub').textContent = s.victory
-      ? 'Smolderhusk falls. Emberhold will sing of this.'
+      ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
       : w.bossSpawned
-        ? 'So close. The Kiln Mother still burns.'
+        ? `So close. ${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} still stands.`
         : `${w.encounterDef.name} bested you. Your gear and levels carry into the next delve.`;
     $('stats').innerHTML = [
       ['Time', fmt(s.time)],

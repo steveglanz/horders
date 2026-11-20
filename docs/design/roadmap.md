@@ -11,7 +11,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
 | R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
 | R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
-| R6 | Second dungeon: the Drowned Foundry | 🔨 next | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
+| R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
 | R7 | Daily bounty: one delve with a single twist rule, extra reward | 💡 | design | Engineering: a daily seed from the server |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
 | R9 | Co-op delves, then raids | 💡 | engineering | Everyone |
@@ -87,6 +87,13 @@ Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three).
 **Routes.** Opener (Twins, or Glass Wardens), opener (Sluice Crawler and two hounds), named (Glass Warden), hard (Twins plus an Acolyte), then Maelra. Forks pull named and hard alternatives from the same dungeon.
 
 **Targets.** Boss fight 60 to 120 s for the good bot. Tier 1 Foundry win rate should be 15 to 25 points below the Kiln Depths at the same gear, since it unlocks later.
+
+**As built.** Dungeons are a registry (`DUNGEONS` in `sim/content/dungeon.ts`), and `WorldOptions.dungeon` picks one. The Kiln route roll is unchanged. The hub has a dungeon picker, and the Foundry is locked until tier 4. Changes from the spec, found in tuning:
+- The opener is one Glass Warden with two hounds, not two wardens. Two wardens killed a fresh hero in 4 of 24 runs in under 40 s.
+- Mirror reflects 12%, not 40%, and wardens take turns mirroring.
+- Maelra has 6,000 health, Temper is −15% per stack every 6 s, Undertow comes every 12 s, and phase 3 vents erupt every 7 s. All tuning is in `FOUNDRY` in `sim/world.ts`.
+
+Placeholder art (needs the visuals team): the four new enemies use the generic creature shape in new colours. Vents are pale circles, and the shrinking water is a blue band. The target frame shows "Temper ×N", "Mirrored" or "Warded".
 
 ## R4, R7, R8
 Specs get written here when each one is next.

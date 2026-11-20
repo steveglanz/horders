@@ -7,6 +7,7 @@ import { BossStatus, cloud } from './cloud';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
+import { DUNGEONS, DUNGEON_IDS, DungeonId } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, omensFor, weekOf } from '../sim/content/omens';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
@@ -15,6 +16,7 @@ const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest
 
 export class Hub {
   tier = 1;
+  dungeon: DungeonId = 'kiln';
   boss: BossStatus | null = null;
   bossNote = '';
   private claiming = false;
@@ -68,9 +70,21 @@ export class Hub {
       }));
     $('bagBtn').addEventListener('click', () => this.openBag());
 
+    // Dungeon picker: the Foundry unlocks once tier 4 is unlocked.
+    if (h.maxTier < DUNGEONS[this.dungeon].unlockTier) this.dungeon = 'kiln';
+    const dungeons = DUNGEON_IDS.map((id) => {
+      const d = DUNGEONS[id];
+      const locked = h.maxTier < d.unlockTier;
+      return `<button data-d="${id}" class="${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} title="${locked ? `Unlocks when you reach tier ${d.unlockTier}` : d.blurb}">${d.name}${locked ? ` (tier ${d.unlockTier})` : ''}</button>`;
+    }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}">${t}</button>`);
-    $('tiers').innerHTML = `<span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}`;
+    $('tiers').innerHTML = `<div class="dungeons"><span class="muted">Dungeon</span>${dungeons}</div><span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}`;
+    $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
+      b.addEventListener('click', () => {
+        this.dungeon = b.dataset.d as DungeonId;
+        this.render();
+      }));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);

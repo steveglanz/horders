@@ -171,10 +171,30 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // Maelra: once her Temper builds, lead her across a steam vent by standing
+  // on the far side of it so her path crosses the steam.
+  if (w.vents.length && w.temper >= 2 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+    const b = w.enemies[w.bossIndex];
+    let best = w.vents[0];
+    let bd = Infinity;
+    for (const v of w.vents) {
+      const d = Math.hypot(v.x - b.x, v.y - b.y) + Math.hypot(v.x - p.x, v.y - p.y);
+      if (d < bd) { bd = d; best = v; }
+    }
+    const vx = best.x - b.x;
+    const vy = best.y - b.y;
+    const vd = Math.hypot(vx, vy) || 1;
+    const tx = best.x + (vx / vd) * (best.r + 50) - p.x;
+    const ty = best.y + (vy / vd) * (best.r + 50) - p.y;
+    const td = Math.hypot(tx, ty) || 1;
+    fx += (tx / td) * 0.06 * skill;
+    fy += (ty / td) * 0.06 * skill;
+  }
   // Don't get pinned against the arena wall.
   const fromCenter = Math.hypot(p.x, p.y);
-  if (!w.stress && fromCenter > ARENA - 140) {
-    const k = ((fromCenter - (ARENA - 140)) / 140) * 0.04;
+  const edge = w.arenaR ?? ARENA;
+  if (!w.stress && fromCenter > edge - 140) {
+    const k = ((fromCenter - (edge - 140)) / 140) * 0.04;
     fx -= (p.x / fromCenter) * k;
     fy -= (p.y / fromCenter) * k;
   }

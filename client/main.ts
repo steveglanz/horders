@@ -104,6 +104,7 @@ function startRun(): void {
     nextItemId: hero.nextItemId,
     tier: hub.tier,
     week: weekOf(Date.now()),
+    dungeon: hub.dungeon,
     cls: hero.cls ?? 'emberwright',
   };
   game.scene.start('game', {

@@ -80,3 +80,14 @@ Tuning history: Volatile Ground started at 24 damage every 12 s with a 1.5 s war
 | Named when offered | 19 of 24 | 225 s | 177 | 1.58 | 34 |
 
 **Reading:** the named path costs about one win in 24 and 14 seconds, and pays about 50% more Epics. That's the trade we want: worth it for a confident player, not mandatory. Shrines show up in roughly two of every three forks that have no named option left, which is mostly the third fork. The bot only takes a shrine below 60% health, which it rarely is after the 30% heal, so shrine numbers need human playtests.
+
+## Drowned Foundry (20 Nov 2026)
+
+`npx vite-node tools/foundry.ts` runs 24 tier 1 delves with a fresh hero and no Omens. `DUNGEON=kiln` and `SKILL=0.5` are optional.
+
+| Bot | Kiln Depths | Drowned Foundry | Foundry boss fight |
+|-----|-------------|-----------------|--------------------|
+| Good (skill 1) | 19 to 20 of 24 | 18 to 19 of 24 | 58 to 59 s average |
+| Weak (skill 0.5) | 22 of 24 | 17 of 24 | 71 s average |
+
+**Reading:** the Foundry is about 20 points harder than the Kiln for the weak bot and about the same for the good bot. The new fights punish sloppy play (missed Quenches, never kiting) more than they punish raw power, which is the intent. The good bot kites Maelra over a vent every time her Temper reaches 2, so her average Temper stays near 1. Humans will likely carry more stacks, so watch this in playtests. The weak bot doing better than the good bot in the Kiln is noise from forks and drafts over 24 seeds.
