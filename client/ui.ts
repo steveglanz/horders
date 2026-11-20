@@ -255,7 +255,7 @@ export class Hud {
     const out: string[] = [];
     if (w.telegraphs.some((t) => t.alive && t.kind === 'soak')) out.push('<span class="buff debuff">Kiln Brand: stand in the gold circle!</span>');
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
-    if (p.heat >= w.abilityCost(2)) out.push('<span class="buff" style="--bc:#ff8a3d">Combustion ready</span>');
+    if (p.heat >= w.abilityCost(2)) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
@@ -282,6 +282,14 @@ export class Hud {
     d.classList.remove('show');
     void d.offsetWidth;
     d.classList.add('show');
+    this.placeDing();
+  }
+
+  /** Keeps "Cleared!" clear of the encounter banner when both show at once. */
+  private placeDing(): void {
+    const d = $('ding');
+    const b = $('banner');
+    d.style.top = b.classList.contains('show') ? `${Math.round(b.getBoundingClientRect().bottom + 16)}px` : '';
   }
 
   showDraft(w: World): void {
@@ -325,6 +333,7 @@ export class Hud {
     $('bannerSub').textContent = sub;
     $('banner').classList.add('show');
     this.bannerTimer = performance.now() + 3200;
+    this.placeDing();
   }
 
   hideRun(): void {
