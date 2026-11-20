@@ -2870,7 +2870,7 @@ export class World {
   // ---------------------------------------------------------------- loot
 
   private makeItem(min: Rarity): Item {
-    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min);
+    return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls);
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {
