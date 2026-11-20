@@ -140,6 +140,33 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.arc(c + 4, c + 1, 2, 0, Math.PI * 2);
     ctx.fill();
   });
+  // The Bulwark: a broad armored figure behind a kite shield.
+  make(scene, 'bulwark', 52, (ctx, s) => {
+    const c = s / 2;
+    ctx.fillStyle = '#3a4150';
+    ctx.strokeStyle = '#9aa7bb';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(c, c - 4, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#7d8da6';
+    ctx.strokeStyle = '#dfe7f2';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(c, 12);
+    ctx.lineTo(c + 13, 17);
+    ctx.lineTo(c + 13, 28);
+    ctx.quadraticCurveTo(c + 10, s - 8, c, s - 4);
+    ctx.quadraticCurveTo(c - 10, s - 8, c - 13, 28);
+    ctx.lineTo(c - 13, 17);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffd27a';
+    ctx.fillRect(c - 2, 18, 4, 18);
+    ctx.fillRect(c - 7, 23, 14, 4);
+  });
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // The Hollow Tide.

@@ -140,7 +140,7 @@ export class GameScene extends Phaser.Scene {
       this.enemyKinds.push('ashling');
     });
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
-    this.player = this.add.image(0, 0, w.cls === 'duskblade' ? 'duskblade' : 'player').setDepth(6);
+    this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls).setDepth(6);
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'orb').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
     for (let i = 0; i < 160; i++) {
@@ -311,7 +311,13 @@ export class GameScene extends Phaser.Scene {
           this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
           break;
         case 'ability':
-          if (ev.slot === 0) {
+          if (w.cls === 'bulwark' && ev.slot === 0) {
+            this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
+            this.shake = Math.max(this.shake, 0.12);
+          } else if (w.cls === 'bulwark' && ev.slot === 2) {
+            this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: 0xffd27a, life: 0.5 });
+            this.floatText(ev.x, ev.y - 36, 'Bastion', '#ffd27a', 18);
+          } else if (ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xff8a3d, life: 0.3 });
           } else if (ev.slot === 2) {
             this.blast(ev.x, ev.y, ev.r);
@@ -432,6 +438,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setPosition(px, py);
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
+    else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.player.clearTint();
     this.aura.setPosition(px, py).setScale(1 + Math.sin(this.time.now / 300) * 0.05 + (p.heat / 100) * 0.25);
 

@@ -39,27 +39,27 @@ New ability talents, one per branch:
 - Kindling, **Ignition** (2 ranks): a crit refunds 15% of Flame Wave's cooldown, and Flame Wave crits always.
 - Ashguard, **Blazing Speed** (2 ranks): Blink gains a second charge, and you move 30% faster for 2s after it.
 
-## Bulwark (tank) — new
+## Bulwark (tank)
 
-Fantasy: you plant yourself in the middle of the pack, soak the hits and hit back. Shorter reach than the Emberwright, much more health, and damage that grows with what you take.
+Fantasy: you plant yourself in the middle of the pack, soak the hits and hit back. Short reach, more health, armor, and damage that grows with what you take.
 
-Resource: **Resolve** (0 to 100). Gained when you are hit (2 per 10 damage taken) and when your swing lands (3 per hit). Decays slowly out of combat.
+Resource: **Resolve** (0 to 100). Gained when you are hit (1 per 5 damage before armor), when Shield Sweep lands (3 per enemy, up to 12 per swing), 10 from Charge, and 1 per second.
 
-Base: 160 health, 10% damage reduction, 125 move speed.
+Base: 160 health, armor stops 20% of every hit, 128 move speed.
 
-Auto: **Shield Sweep**, every 1.1s, a 150° arc in front of you, 95 range, 16 damage, light knockback on normal enemies.
+Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 damage, small knockback on normal enemies.
 
 | Key | Ability | Cost / CD | Effect |
 | --- | --- | --- | --- |
-| Q | Shield Slam | 25 Resolve / 5s | 60° cone, 140 range, 55 damage, stuns normal enemies 1s |
-| E | Charge | 0 / 9s | Dash 220 toward the nearest big enemy (or where you face), 30 damage and 0.6s stun on arrival |
-| R | Bastion | 60 Resolve / 24s | 6s: take 60% less damage and 25% of damage taken is reflected at the attacker |
-| F | Shield Toss | 0 / 10s, off GCD | Ranged interrupt (420 range), stuns 2s |
+| Q | Shield Slam | 25 Resolve / 5s | 100° cone, 150 range, 60 damage, stuns normal enemies 1.2s and big ones 0.3s |
+| E | Charge | 0 / 9s | Rush the biggest foe within 420 (or the nearest), 35 damage and 0.8s stun |
+| R | Bastion | 50 Resolve / 20s | 6s: take 60% less damage, and turn 25% of each hit back on the attacker |
+| F | Shield Toss | 0 / 10s, off GCD | Interrupt within 420, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
 
 Branches:
-- **Bastion** (defense): *Hold the Line* +30 max health and +4% damage reduction; *Ward* every 8s gain a shield for 12% of max health; *Last Stand* (ability) Bastion also heals 20% of max health; capstone **Unbreakable**: when Bastion ends, it explodes for the damage it prevented.
-- **Retribution** (thorns): *Spiked Shield* melee attackers take 6 damage when they hit you; *Vengeance* +4% damage for every 10% of health missing; *Shield Echo* (ability) Shield Slam hits a second time 0.4s later for half damage; capstone **Thornwall**: reflected and thorns damage also hits every enemy within 120.
-- **Vanguard** (cleave and mobility): *Wide Sweep* Shield Sweep's arc becomes a full circle at rank 2 and gains range; *Momentum* +5% move speed and Charge cooldown -2s; *Battering Ram* (ability) Charge damages everything along its path; capstone **Warpath**: every 4th Shield Sweep sends out a shockwave ring for 3× its damage.
+- **Bastion** (soak): *Hold the Line* (3) +30 max health and 4% less damage taken; *Ward* (3) every 8s a shield worth 8% of max health; *Last Stand* (2, ability) Bastion heals 12% of max health; capstone **Unbreakable**: when Bastion ends it bursts for twice the damage it stopped.
+- **Retribution** (thorns): *Spiked Shield* (3) enemies that hit you take 8 back; *Vengeance* (3) +4% damage per 10% health missing; *Shield Echo* (2, ability) Shield Slam hits again 0.4s later for half, rank 2 adds 10 Resolve; capstone **Thornwall**: always turn back 15% of each hit, and turned-back damage hits everything around you.
+- **Vanguard** (cleave and charge): *Wide Sweep* (2) wider and longer sweeps, a full circle at rank 2; *Momentum* (3) +5% move speed and Charge 2s faster; *Battering Ram* (2, ability) Charge hits and stuns everything in its path; capstone **Warpath**: every 4th sweep sends a shockwave for double damage.
 
 ## Duskblade (melee damage)
 

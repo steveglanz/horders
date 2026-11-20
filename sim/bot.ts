@@ -12,6 +12,9 @@ const PRIORITY: TalentId[] = [
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'secondWind', 'evasion', 'nimble',
+  // Bulwark
+  'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
+  'batteringRam', 'lastStand', 'momentum',
   'smallHeal', 'stoke',
 ];
 
@@ -42,9 +45,41 @@ function bladeCast(w: World, skill: number): number | undefined {
   return undefined;
 }
 
+/** Bulwark action choices: toss at casts, Bastion when it hurts, slam crowds, charge big foes. */
+function shieldCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  let near = 0;
+  let bigClose = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (d2 < 160 * 160) {
+      if (e.def.rank === 'normal') near++;
+      else bigClose = true;
+    }
+  }
+  let underTelegraph = false;
+  for (const t of w.telegraphs) {
+    if (!t.alive || t.kind === 'soak') continue;
+    if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2) underTelegraph = true;
+  }
+  if (w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
+  if (w.canCast(0) && (near >= 3 || bigClose)) return 0;
+  const c = w.chargeTarget();
+  if (c >= 0 && w.canCast(1)) {
+    const e = w.enemies[c];
+    const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
+    if (d > 140 && (e.def.rank !== 'normal' || near === 0)) return 1;
+  }
+  return undefined;
+}
+
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
   if (w.cls === 'duskblade') return bladeCast(w, skill);
+  if (w.cls === 'bulwark') return shieldCast(w, skill);
   const p = w.player;
   // A lower-skill bot misses some interrupts.
   const attentive = (w.tick % 20) / 20 < skill;
@@ -74,7 +109,8 @@ export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   let fx = 0;
   let fy = 0;
-  const melee = w.cls === 'duskblade';
+  const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  const reach = w.cls === 'bulwark' ? w.sweepReach : w.swingReach;
   if (melee) {
     // Close in on the target and stay in blade reach.
     const t = w.bladeTarget(900);
@@ -83,10 +119,14 @@ export function botInput(w: World, skill = 1): Input {
       const dx = e.x - p.x;
       const dy = e.y - p.y;
       const d = Math.hypot(dx, dy) || 1;
-      const want = e.def.radius + w.swingReach * 0.6;
+      const want = e.def.radius + reach * 0.6;
       if (d > want) {
         fx += (dx / d) * 0.05;
         fy += (dy / d) * 0.05;
+      } else if (d < e.def.radius + 24) {
+        // Too close: big foes hurt on contact, so step back to the edge of reach.
+        fx -= (dx / d) * 0.05 * skill;
+        fy -= (dy / d) * 0.05 * skill;
       }
     }
   }
@@ -121,8 +161,15 @@ export function botInput(w: World, skill = 1): Input {
     const d = Math.hypot(dx, dy) || 1;
     if (d < t.r + 30) {
       const k = melee ? 0.6 : 0.2;
-      fx += (dx / d) * k * skill;
-      fy += (dy / d) * k * skill;
+      if (t.shape === 'cone') {
+        // A long cone can't be outrun: step sideways out of it instead.
+        const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
+        fx += -Math.sin(t.angle) * side * k * skill;
+        fy += Math.cos(t.angle) * side * k * skill;
+      } else {
+        fx += (dx / d) * k * skill;
+        fy += (dy / d) * k * skill;
+      }
     }
   }
   // Collect nearby XP when it is reasonably safe.

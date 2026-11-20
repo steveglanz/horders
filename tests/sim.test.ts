@@ -157,4 +157,60 @@ describe('classes', () => {
     };
     expect(play()).toBe(play());
   });
+
+  it('plays the Bulwark through a run with only Bulwark talents', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const w = new World({ seed: 5, cls: 'bulwark' });
+    let drafts = 0;
+    while (w.state !== 'ended' && w.time < 500) {
+      if (w.state === 'draft') {
+        for (const c of w.choices) expect([undefined, 'bulwark']).toContain(TALENTS[c.id].cls);
+        drafts++;
+        w.choose(botChoose(w));
+      } else w.step(botInput(w, 1));
+    }
+    expect(drafts).toBeGreaterThanOrEqual(3);
+    expect(w.encounter).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Bulwark armor and Bastion cut damage, and Bastion turns some back', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 2, cls: 'bulwark' });
+    const hurt = (w as unknown as { hurtPlayer(a: number, s?: number): void }).hurtPlayer.bind(w);
+    const hp0 = w.player.hp;
+    hurt(100);
+    expect(hp0 - w.player.hp).toBeCloseTo(80, 5);
+    w.player.hp = w.player.maxHp;
+    w.player.heat = 100;
+    w.step({ x: 0, y: 0, cast: 2 });
+    expect(w.player.bastionT).toBeGreaterThan(5);
+    w.step({ x: 0, y: 0, cast: 2 });
+    const hp1 = w.player.hp;
+    hurt(100);
+    expect(hp1 - w.player.hp).toBeCloseTo(32, 5);
+    expect(w.player.prevented).toBeCloseTo(68, 5);
+  });
+
+  it('Ward shields absorb hits before health', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 2, cls: 'bulwark' });
+    w.talents = { ward: 2 };
+    for (let k = 0; k < 8 * 30 + 2; k++) w.step({ x: 0, y: 0 });
+    expect(w.player.ward).toBeCloseTo(w.player.maxHp * 0.16, 5);
+  });
+
+  it('is deterministic for the Bulwark too', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const play = () => {
+      const w = new World({ seed: 11, cls: 'bulwark' });
+      for (let k = 0; k < 3000 && w.state !== 'ended'; k++) {
+        if (w.state === 'draft') w.choose(botChoose(w));
+        else w.step(botInput(w, 1));
+      }
+      return w.hash();
+    };
+    expect(play()).toBe(play());
+  });
 });

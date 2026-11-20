@@ -5,8 +5,12 @@
  * Taking CAPSTONE_RANKS ranks in one branch unlocks that branch's capstone,
  * which transforms the class (the survivors "evolution" moment).
  */
-export type Branch = 'wildfire' | 'kindling' | 'ashguard' | 'bloodletting' | 'tempo' | 'guard' | 'general';
-export type ClassId = 'emberwright' | 'duskblade';
+export type Branch =
+  | 'wildfire' | 'kindling' | 'ashguard'
+  | 'bloodletting' | 'tempo' | 'guard'
+  | 'bastion' | 'retribution' | 'vanguard'
+  | 'general';
+export type ClassId = 'emberwright' | 'duskblade' | 'bulwark';
 
 export type TalentId =
   | 'kindledGround'
@@ -45,7 +49,20 @@ export type TalentId =
   // Emberwright ability talents
   | 'pyroclasm'
   | 'ignition'
-  | 'blazingSpeed';
+  | 'blazingSpeed'
+  // Bulwark
+  | 'holdTheLine'
+  | 'ward'
+  | 'lastStand'
+  | 'unbreakable'
+  | 'spikedShield'
+  | 'vengeance'
+  | 'shieldEcho'
+  | 'thornwall'
+  | 'wideSweep'
+  | 'momentum'
+  | 'batteringRam'
+  | 'warpath';
 
 export interface TalentDef {
   id: TalentId;
@@ -106,6 +123,22 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   nimble: { id: 'nimble', cls: 'duskblade', name: 'Nimble', branch: 'guard', maxRank: 3, text: '+40% pickup range, +7% move speed.' },
   evasion: { id: 'evasion', cls: 'duskblade', name: 'Evasion', branch: 'guard', maxRank: 3, text: 'Sidestep recharges 1.5s faster; your next swing crits.' },
   riposte: { id: 'riposte', cls: 'duskblade', name: 'Riposte', branch: 'guard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 6s, parry the next hit and strike back hard.' },
+
+  // Bulwark. Bastion: soak and shields
+  holdTheLine: { id: 'holdTheLine', cls: 'bulwark', name: 'Hold the Line', branch: 'bastion', maxRank: 3, text: '+30 max health and 4% less damage taken.' },
+  ward: { id: 'ward', cls: 'bulwark', name: 'Ward', branch: 'bastion', maxRank: 3, text: 'Every 8s, gain a shield worth 8% of your max health.' },
+  lastStand: { id: 'lastStand', cls: 'bulwark', name: 'Last Stand', branch: 'bastion', maxRank: 2, text: 'Bastion also heals 12% of your max health.' },
+  unbreakable: { id: 'unbreakable', cls: 'bulwark', name: 'Unbreakable', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: when Bastion ends, it bursts for the damage it stopped.' },
+  // Retribution: thorns and anger
+  spikedShield: { id: 'spikedShield', cls: 'bulwark', name: 'Spiked Shield', branch: 'retribution', maxRank: 3, text: 'Enemies that hit you take 8 damage back.' },
+  vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Vengeance', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
+  shieldEcho: { id: 'shieldEcho', cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Shield Slam strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
+  thornwall: { id: 'thornwall', cls: 'bulwark', name: 'Thornwall', branch: 'retribution', maxRank: 1, capstone: true, text: 'CAPSTONE: you always turn back 15% of each hit, and damage you turn back hits every enemy around you.' },
+  // Vanguard: cleave and charge
+  wideSweep: { id: 'wideSweep', cls: 'bulwark', name: 'Wide Sweep', branch: 'vanguard', maxRank: 2, text: 'Shield Sweep swings wider and farther. Rank 2: a full circle.' },
+  momentum: { id: 'momentum', cls: 'bulwark', name: 'Momentum', branch: 'vanguard', maxRank: 3, text: '+5% move speed; Charge recharges 2s faster.' },
+  batteringRam: { id: 'batteringRam', cls: 'bulwark', name: 'Battering Ram', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.' },
+  warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th Shield Sweep sends out a shockwave for double damage.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {
@@ -115,6 +148,9 @@ export const BRANCH_NAMES: Record<Branch, string> = {
   bloodletting: 'Bloodletting',
   tempo: 'Tempo',
   guard: 'Guard',
+  bastion: 'Bastion',
+  retribution: 'Retribution',
+  vanguard: 'Vanguard',
   general: 'General',
 };
 
