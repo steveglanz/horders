@@ -368,3 +368,18 @@ export function runBot(seed: number, skill = 1, maxSeconds = 700): World {
   }
   return w;
 }
+
+/**
+ * A slower player for balance checks: acts on what the full bot decided
+ * `lagTicks` ticks ago (a reaction time), and with `skill` < 1 also misses
+ * some interrupts. SKILL alone barely weakens the bot, because its move
+ * direction is normalised, so reaction time is the better novice proxy.
+ */
+export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
+  const queue: Input[] = [];
+  return (w: World) => {
+    queue.push(botInput(w, skill));
+    const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
+    return out;
+  };
+}
