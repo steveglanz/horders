@@ -1,0 +1,6 @@
+# Netlify site "horders" (https://horders.netlify.app).
+# Current deploys upload the prebuilt dist/index.html; if Git deploys are
+# connected later, Netlify builds with this command.
+[build]
+  command = "npm run build"
+  publish = "dist"
