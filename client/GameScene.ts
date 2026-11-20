@@ -2,6 +2,7 @@
  * Draws the shared simulation. This scene owns no game rules: it feeds input
  * into `World.step` at a fixed rate and renders interpolated state.
  */
+import { OMENS } from '../sim/content/omens';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
@@ -385,7 +386,9 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'encounterStart': {
           const def = ENCOUNTERS[ev.id];
-          this.hud.banner(def.name, def.tip);
+          // The first fight also names the run's Omens, so the player knows the twist.
+          const omens = ev.index === 0 && w.omens.length ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.` : '';
+          this.hud.banner(def.name, def.tip + omens);
           break;
         }
         case 'encounterClear':

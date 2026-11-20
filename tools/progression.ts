@@ -17,7 +17,7 @@ let wins = 0;
 let tier = 1;
 let lossStreak = 0;
 for (let run = 1; run <= runs; run++) {
-  const w = new World({ seed: run * 7919, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId, tier });
+  const w = new World({ seed: run * 7919, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId, tier, week: Number(process.env.WEEK ?? 0), omens: process.env.NO_OMENS ? [] : undefined });
   while (w.state !== 'ended' && w.time < 800) {
     if (w.state === 'draft') w.choose(botChoose(w));
     else w.step(botInput(w));

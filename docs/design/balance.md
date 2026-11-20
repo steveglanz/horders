@@ -41,3 +41,31 @@ Fight lengths over seeds 1 to 12, good bot: openers 13 to 39 s, named and hard f
 With the Forge the bot made 60 upgrades in 50 runs (1.2 per run), and its ember balance stayed between 2 and 24, so nothing piles up. Gear score ends one point higher. The tier column is noisy because the runs diverge once loot differs.
 
 **Reading:** hero pacing is on target (level 18 to 19 by run 50). Tiers climb one per win up to about tier 8, then the bot hits a wall around tier 11 to 13 and wins about 40% there, which matches the target. The wall exists only because numbers scale, which is what Omens (roadmap R3) fix.
+
+## Omens (20 Nov 2026, on the classes branch c04aaf3)
+
+Each Omen forced on at tier 1, 24 seeds, good bot (`OMENS=<id> SEEDS=$(seq -s, 1 24) npx vite-node tools/balance.ts`). Target: each Omen costs a few wins or a clear chunk of health, and none is a run-ender on its own.
+
+| Omens | Emberwright wins | Health left on wins | Duskblade wins |
+|-------|------------------|---------------------|----------------|
+| none | 20 of 24 | 94 | 7 of 24 |
+| Kindled Dead | 20 | 84 | 5 |
+| Shared Pain | 18 | 63 | 5 |
+| Quickened | 20 | 65 | 4 |
+| Warded | 18 | 76 | 1 |
+| Volatile Ground | 21 | 82 | 4 |
+| Volatile Ground + Warded + Shared Pain | 17 | 78 | 3 |
+
+Tuning history: Volatile Ground started at 24 damage every 12 s with a 1.5 s warning and cut wins to 12 of 24, mostly by landing during boss soak circles. It now never erupts while a soak circle is up, and it hits for 16 every 15 s with a 1.8 s warning. Kindled Dead started at 22 damage in a 75 radius and did nothing, so it's now 35 in a 90 radius.
+
+**Duskblade** loses far more than the Emberwright even with no Omens (7 of 24 against 20 of 24). That's for the skills team; it's been flagged to them. Warded hurts it most (1 of 24), so check again once its kit is tuned.
+
+50-run progression with Omens (`tools/progression.ts`; `NO_OMENS=1` to compare; `WEEK=n` picks the rotation):
+
+| | Run 10 | Run 30 | Run 50 | Wins | Wall tier |
+|---|---|---|---|---|---|
+| No Omens | T7, hero 7 | T11, hero 14 | T13, hero 18 | 21 of 50 | about 12 to 13 |
+| Week 0 (Kindled Dead, Warded, Quickened) | T6, hero 7 | T9, hero 13 | T11, hero 17 | 21 of 50 | about 11 |
+| Week 2901 (Quickened, Shared Pain, Kindled Dead) | T8, hero 7 | T12, hero 14 | T13, hero 18 | 20 of 50 | about 12 to 13 |
+
+**Reading:** the wall tier moves by about one or two depending on the week, which is the weekly variety we want, and total wins hold steady. Hero pacing is unchanged.

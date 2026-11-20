@@ -6,17 +6,17 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 
 | # | Item | Status | Owner | Needs from others |
 |---|------|--------|-------|-------------------|
-| R2 | The Forge: embers upgrade and temper gear | 🔨 this PR | design | Visuals: a nicer Forge panel later |
+| R2 | The Forge: embers upgrade and temper gear | ✅ PR #2 | design | Visuals: a nicer Forge panel later |
 | R1 | Route choices between fights | ⏭ | design | Visuals: door/choice icons; engineering: none |
-| R3 | Tier modifiers ("Omens") | ⏭ | design | Visuals: an icon and a tint per Omen |
-| R5 | World boss you actually fight | 💡 | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
+| R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
+| R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
 | R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R6 | Second dungeon (zone 2) with a new boss | 💡 | design | Visuals: new enemy and arena art |
 | R7 | Daily bounty: one delve with a single twist rule, extra reward | 💡 | design | Engineering: a daily seed from the server |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
 | R9 | Co-op delves, then raids | 💡 | engineering | Everyone |
 
-## R2. The Forge (this PR)
+## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
 
@@ -53,6 +53,10 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 - **Volatile Ground:** a slow red circle appears under you every 12 seconds. (Keep moving.)
 
 Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three). Each Omen also adds +8% loot luck, so the hard ladder pays.
+
+**As built.** `sim/content/omens.ts` holds the definitions and every tuning number. `omensFor(tier, week)` is a fixed shuffle per week; a tier takes the first N, so tier 7 has tier 3's Omen plus one more. The client passes the week number, so the sim stays clock-free and deterministic. Fairness rules: Volatile Ground never erupts while a soak circle is up, Kindled Dead and Shared Pain only trigger on elites and named foes, and none of them touch the boss's own death. The hub shows this week's Omens under the tier picker, and the first fight's banner names them with their tips. Tuning results are in balance.md.
+
+**World boss tie-in (proposal for engineering).** While a world boss lives, it adds one fixed Omen to every delve at every tier, with +15% loot luck. That gives each boss a weekly flavour using the same system, and only needs one `omen` column on the boss row.
 
 ## R5. A world boss you actually fight
 

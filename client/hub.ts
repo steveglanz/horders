@@ -7,6 +7,7 @@ import { BossStatus, cloud } from './cloud';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
+import { OMENS, OMEN_FROM_TIER, omensFor, weekOf } from '../sim/content/omens';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -69,13 +70,20 @@ export class Hub {
 
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}">${t}</button>`);
-    $('tiers').innerHTML = `<span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}`;
+    $('tiers').innerHTML = `<span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
     this.renderBoss();
+  }
+
+  /** This week's Omens for the picked tier, or a hint about when they start. */
+  private omenLine(): string {
+    const omens = omensFor(this.tier, weekOf(Date.now()));
+    if (!omens.length) return this.hero().maxTier >= OMEN_FROM_TIER - 1 ? `<div class="muted small omens">From tier ${OMEN_FROM_TIER}, fights carry Omens that change each week.</div>` : '';
+    return `<div class="muted small omens">This week's Omens: ${omens.map((o) => `<b title="${OMENS[o].tip}">${OMENS[o].name}</b>: ${OMENS[o].text}`).join(' ')} More loot for each Omen.</div>`;
   }
 
   /** Fetches the shared world boss and redraws its panel. */

@@ -47,7 +47,7 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 - Most loot drops mid-run with rarity beams; upgrades equip on the spot.
 - Bad-luck protection: an Epic is guaranteed after 10 runs without one.
 - Salvage turns spare gear into embers.
-- **The Forge (this PR):** embers now have a use. Spend them to raise an item's level (up to the best level you can currently find, plus one) or to temper an item, which rerolls its weakest bonus stat. This is the "smithing" profession from the plan, in its smallest form.
+- **The Forge:** embers now have a use. Spend them to raise an item's level (up to the best level you can currently find, plus one) or to temper an item, which rerolls its weakest bonus stat. This is the "smithing" profession from the plan, in its smallest form.
 - **Gap:** items are mostly stat sticks. Mythics are the only build-changing loot, and there are 4. See R4.
 
 ### Hero progression
@@ -55,8 +55,8 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 - The autopilot reaches level 19 in 50 runs (see balance.md). The plan's target was level 20 in about 40 runs, so pacing is close.
 
 ### Difficulty tiers
-- Win a tier to unlock the next. Tiers only scale numbers today.
-- **Gap:** climbing tiers changes nothing about how fights play. The plan calls for weekly modifiers on a tier ladder. See R3.
+- Win a tier to unlock the next. Each tier adds +22% enemy health, +12% damage and +12% loot luck.
+- **Omens (R3):** from tier 3, every fight carries Omens from a weekly rotation (1 at tiers 3 to 5, 2 at 6 to 9, 3 from 10). Each changes what you do: move after kills, wear packs down together, interrupt sooner, save burst for a shield, keep moving. Each adds +8% loot luck.
 
 ### World boss (engineering owns the backend, game design owns the rules)
 - One shared boss in Supabase. Each finished delve strikes it with the damage dealt, capped per run on the server. When it falls, everyone who struck it claims an Epic item and embers.

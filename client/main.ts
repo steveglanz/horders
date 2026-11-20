@@ -1,3 +1,4 @@
+import { weekOf } from '../sim/content/omens';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
@@ -102,6 +103,7 @@ function startRun(): void {
     heroLevel: hero.level,
     nextItemId: hero.nextItemId,
     tier: hub.tier,
+    week: weekOf(Date.now()),
     cls: hero.cls ?? 'emberwright',
   };
   game.scene.start('game', {

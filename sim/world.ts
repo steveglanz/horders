@@ -14,6 +14,7 @@ import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { ENCOUNTERS, EncounterId, rollRoute } from './content/dungeon';
+import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -67,6 +68,9 @@ export interface Enemy {
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
   aux2: number;
+  /** Warded Omen: remaining shield, and whether it has been granted yet. */
+  ward: number;
+  warded: boolean;
 }
 
 export interface Orb {
@@ -209,6 +213,7 @@ export type SimEvent =
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'castDone'; x: number; y: number; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
+  | { type: 'ward'; index: number; amount: number }
   | { type: 'phase'; phase: number }
   | { type: 'rareSpawn' }
   | { type: 'riftOpen'; x: number; y: number }
@@ -251,6 +256,10 @@ export interface WorldOptions {
   tier?: number;
   /** Which class the hero plays this run. */
   cls?: ClassId;
+  /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
+  week?: number;
+  /** Fixed Omens, overriding the weekly rotation (tests and tools). */
+  omens?: OmenId[];
 }
 
 export interface RunSummary {
@@ -262,6 +271,7 @@ export interface RunSummary {
   damageDealt: number;
   talents: Partial<Record<TalentId, number>>;
   questsDone?: number;
+  omens?: OmenId[];
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -288,6 +298,9 @@ export class World {
   nextItemId: number;
   readonly itemLevel: number;
   readonly luck: number;
+  /** Tier modifiers active in every fight of this run. */
+  readonly omens: OmenId[];
+  private volatileT = 0;
   quests: Quest[] = [];
   rareSpawned = false;
   rareIndex = -1;
@@ -346,7 +359,8 @@ export class World {
     this.loadout = loadoutFrom(this.passives, this.gear);
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
-    this.luck = 1 + 0.12 * (this.tier - 1);
+    this.omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
+    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length);
     const hp = this.classDef.baseHp + this.loadout.maxHpBonus;
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
@@ -359,7 +373,7 @@ export class World {
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
-      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
@@ -488,6 +502,7 @@ export class World {
     return {
       victory: this.victory,
       tier: this.tier,
+      omens: [...this.omens],
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -528,6 +543,7 @@ export class World {
       if (this.phaseT <= 0) this.startEncounter();
       return;
     }
+    if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && !this.victory) this.clearEncounter();
   }
 
@@ -686,6 +702,8 @@ export class World {
     e.stunT = 0;
     e.aux = 0;
     e.aux2 = 0;
+    e.ward = 0;
+    e.warded = false;
     this.aliveEnemies++;
     return idx;
   }
@@ -1334,7 +1352,7 @@ export class World {
     e.castId = id;
     e.castName = name;
     e.castT = 0;
-    e.castDur = dur;
+    e.castDur = this.hasOmen('quickened') ? dur * OMEN_TUNING.quickenedCast : dur;
     e.interruptible = interruptible;
     this.events.push({ type: 'castStart', index: i, name });
   }
@@ -1493,7 +1511,17 @@ export class World {
       dmg *= 2;
       crit = true;
     }
+    if (e.ward > 0) {
+      const soak = Math.min(e.ward, dmg);
+      e.ward -= soak;
+      dmg -= soak;
+    }
     e.hp -= dmg;
+    if (!e.warded && e.hp > 0 && e.hp < e.maxHp * 0.5 && this.hasOmen('warded') && !this.stress) {
+      e.warded = true;
+      e.ward = e.maxHp * OMEN_TUNING.wardShare;
+      this.events.push({ type: 'ward', index: i, amount: e.ward });
+    }
     this.damageDealt += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
@@ -1522,6 +1550,7 @@ export class World {
     this.aliveEnemies--;
     this.kills++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
+    this.omensOnKill(e);
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
       const bleed = Math.max(e.burnDps, 14 * this.dmgMult);
@@ -1617,6 +1646,40 @@ export class World {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
     Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
+  }
+
+  // ---------------------------------------------------------------- omens
+
+  hasOmen(id: OmenId): boolean {
+    return this.omens.includes(id);
+  }
+
+  /** Per-tick Omens during a fight. */
+  private runOmens(dt: number): void {
+    if (!this.hasOmen('volatileGround') || this.victory) return;
+    this.volatileT += dt;
+    // Never erupt while a soak circle is up: standing still in gold must stay safe.
+    if (this.volatileT >= OMEN_TUNING.volatileEvery && !this.telegraphs.some((t) => t.alive && t.kind === 'soak')) {
+      this.volatileT = 0;
+      const p = this.player;
+      this.addTelegraph('circle', p.x, p.y, OMEN_TUNING.volatileRadius, 0, 0, OMEN_TUNING.volatileDelay, OMEN_TUNING.volatileDamage);
+    }
+  }
+
+  private omensOnKill(e: Enemy): void {
+    if (e.def.rank === 'boss' || this.stress) return;
+    if (this.hasOmen('kindledDead') && e.def.rank !== 'normal') {
+      this.addTelegraph('circle', e.x, e.y, OMEN_TUNING.kindledRadius, 0, 0, OMEN_TUNING.kindledDelay, OMEN_TUNING.kindledDamage);
+    }
+    if (this.hasOmen('sharedPain') && e.def.rank !== 'normal') {
+      for (const o of this.enemies) {
+        if (!o.alive || o === e || o.def.rank === 'normal') continue;
+        const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal);
+        if (amount <= 0) continue;
+        o.hp += amount;
+        this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
+      }
+    }
   }
 
   private updateTelegraphs(dt: number): void {
