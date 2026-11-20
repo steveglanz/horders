@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'fs';
 // Plays 40 consecutive runs with the autopilot, carrying hero progress between them.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
@@ -14,6 +15,9 @@ let streak = 0;
 let worstStreak = 0;
 
 const h = newHero();
+// SNAP=4,6 writes the hero to SNAP_DIR/hero-t<N>.json the first time that tier unlocks (a geared reference hero for balance tools).
+const snaps = new Set((process.env.SNAP ?? '').split(',').filter(Boolean).map(Number));
+const snapDir = process.env.SNAP_DIR ?? 'tools/heroes';
 const order: PassiveId[] = ['might', 'fortitude', 'alacrity', 'insight'];
 let wins = 0;
 let tier = 1;
@@ -44,6 +48,11 @@ for (let run = 1; run <= runs; run++) {
   }
   let guard = 0;
   while (pointsAvailable(h) > 0 && guard++ < 20) if (!spendPoint(h, order[guard % 4])) continue;
+  if (snaps.has(h.maxTier)) {
+    snaps.delete(h.maxTier);
+    mkdirSync(snapDir, { recursive: true });
+    writeFileSync(`${snapDir}/hero-t${h.maxTier}.json`, JSON.stringify(h));
+  }
   if (true) {
     console.log(`run ${String(run).padStart(2)}: T${s.tier} ${s.victory ? 'WIN ' : 'loss'} ${s.time.toFixed(0).padStart(3)}s  hero lvl ${h.level}  gear ${gearScore(h)}  +${r.heroXp}xp  items ${r.items.map((i) => i.rarity[0]).join('')} quests ${s.questsDone}  embers ${h.embers} forged ${forgedTotal}  wins so far ${wins}`);
   }

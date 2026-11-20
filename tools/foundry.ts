@@ -2,11 +2,17 @@
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
+import { readFileSync } from 'fs';
+import { equippedItems, HeroProfile } from '../sim/hero';
+
+// HERO=path/to/hero.json plays with that hero's gear, passives and level (see SNAP in tools/progression.ts).
+const hero: HeroProfile | null = process.env.HERO ? JSON.parse(readFileSync(process.env.HERO, 'utf8')) : null;
+const heroOpts = hero ? { gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
 
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {
-  const w = new World({ seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
+  const w = new World({ ...heroOpts, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
   const c: Record<string, number> = {};
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0, maxTemper = 0, temperTicks = 0, bossTicks = 0;

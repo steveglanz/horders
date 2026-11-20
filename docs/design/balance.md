@@ -123,3 +123,19 @@ Without the 2-level head start it was 17/30 and 1/30, because the hero reached t
 The skills team found that Maelra is a long fight with no healing at all, so the Lumen (the only class that heals itself) won 54 of 60 there while the others trailed. The encounter fix: boiling off her Temper in a steam vent now heals the hero 4% of max health per stack (up to 5 stacks, so 20%). Healing comes from playing the fight's verb, not from a free rest.
 
 Emberwright with the autopilot, Foundry tier 1, seeds 1 to 60 (`tools/foundry.ts`): 47 wins before, 51 after. The boss fight still averages 62 to 63 s. (Duskblade reads 0 on this branch because its melee bot fixes are in PR #4. The skills team re-measures all four classes on a merge.)
+
+## Geared reference heroes (20 Nov 2026)
+
+Balance tools play an ungeared bot by default, which badly understates real heroes at higher tiers. `tools/progression.ts` now takes `SNAP=4,6,8`, which saves the hero (gear, passives, level) the first time each tier unlocks, to `tools/heroes/hero-t<N>.json`. `tools/foundry.ts` takes `HERO=<path>` to play with that hero. The autopilot unlocks tier 4 after 3 runs, tier 6 after 6 and tier 8 after 8.
+
+Emberwright, seeds 1 to 40:
+
+| Tier | Dungeon | No gear | Reference hero |
+|---|---|---|---|
+| 4 | Foundry | 8 | 40 |
+| 6 | Foundry | 0 | 38 |
+| 6 | Kiln | – | 38 |
+| 8 | Foundry | – | 34 |
+| 8 | Kiln | – | 35 |
+
+With gear, the Foundry plays about as hard as the Kiln at the same tier, which was the goal. Class balance at tier 4 and above should be measured with these heroes, not ungeared.
