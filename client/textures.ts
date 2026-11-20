@@ -510,6 +510,207 @@ function drawAcolyte(ctx: Ctx, _s: number, f: number): void {
   ctx.restore();
 }
 
+/** The Lumen: a healer in pale robes with a halo and a lantern staff. Faces right. */
+function drawLumen(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const sway = [-1.4, 0, 1.4, 0][f];
+  const step = [1, 0, -1, 0][f];
+  const swing = [0.08, 0, -0.08, 0][f];
+  ctx.fillStyle = '#4a3a28';
+  ell(ctx, 20 + step * 2, 43.5, 3, 1.6); ctx.fill();
+  ell(ctx, 28 - step * 2, 43.5, 3, 1.6); ctx.fill();
+  // Lantern staff, the lantern swinging on its hook.
+  limb(ctx, 34, 12 + bob, 32, 45, 2, '#c9a46a');
+  ctx.save();
+  ctx.translate(36, 11 + bob);
+  ctx.rotate(swing);
+  limb(ctx, 0, 0, 2, 4, 0.8, '#8a6a3a');
+  softGlow(ctx, 2, 8, 11, 'rgba(255,230,150,0.95)');
+  ctx.beginPath(); ctx.rect(-0.5, 5, 5, 6); shade(ctx, '#fff8d8', '#e0b04a', 5, 11, 0.9);
+  ctx.restore();
+  // Robe.
+  ctx.beginPath();
+  ctx.moveTo(18, 19 + bob);
+  ctx.quadraticCurveTo(24, 16 + bob, 30, 19 + bob);
+  ctx.lineTo(36 + sway, 42);
+  ctx.quadraticCurveTo(24 + sway * 0.5, 45, 12 + sway, 42);
+  ctx.closePath();
+  shade(ctx, '#fbf4e2', '#b9ad94', 18, 44);
+  // Gold stole down the front.
+  ctx.save();
+  ctx.fillStyle = '#e8b84a';
+  ctx.beginPath();
+  ctx.moveTo(22, 20 + bob); ctx.lineTo(25, 20 + bob); ctx.lineTo(26 + sway * 0.4, 42); ctx.lineTo(22.5 + sway * 0.4, 42.5); ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#8a6420'; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.restore();
+  // Arm to the staff.
+  limb(ctx, 27, 23 + bob, 32.5, 26 + bob, 3.4, '#e9e0c8');
+  ctx.fillStyle = '#e2b48a';
+  ell(ctx, 33, 26 + bob, 1.7, 1.7); ctx.fill();
+  // Hood, open face, halo.
+  ctx.beginPath();
+  ctx.moveTo(16, 10 + bob);
+  ctx.quadraticCurveTo(23, 5 + bob, 29, 9 + bob);
+  ctx.quadraticCurveTo(32, 14 + bob, 30, 20 + bob);
+  ctx.quadraticCurveTo(24, 23 + bob, 18, 20 + bob);
+  ctx.quadraticCurveTo(15, 15 + bob, 16, 10 + bob);
+  ctx.closePath();
+  shade(ctx, '#ffffff', '#cfc4a8', 5, 22);
+  ell(ctx, 26.2, 14.8 + bob, 3.6, 4); ctx.fillStyle = '#e8bf98'; ctx.fill();
+  ctx.fillStyle = '#3a2a20';
+  ell(ctx, 25.4, 14.4 + bob, 0.6, 0.8); ctx.fill();
+  ell(ctx, 28.2, 14.4 + bob, 0.6, 0.8); ctx.fill();
+  ctx.save();
+  ctx.strokeStyle = '#ffe08a';
+  ctx.shadowColor = '#ffd27a';
+  ctx.shadowBlur = 5;
+  ctx.lineWidth = 1.6;
+  ell(ctx, 23, 4.5 + bob + Math.sin(f * 1.57) * 0.4, 7, 2.2); ctx.stroke();
+  ctx.restore();
+}
+
+/** The Bulwark: a plated knight behind a tower shield, mace in hand. Faces right. */
+function drawBulwark(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -0.8, 0, -0.8][f];
+  const step = [1.5, 0, -1.5, 0][f];
+  ctx.fillStyle = '#2a2f38';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.2;
+  ell(ctx, 21 - step, 47, 4.5, 2.6); ctx.fill(); ctx.stroke();
+  ell(ctx, 31 + step, 47, 4.5, 2.6); ctx.fill(); ctx.stroke();
+  // Mace raised behind.
+  limb(ctx, 17, 26 + bob, 11, 15 + bob, 2.2, '#6a4a2a');
+  ell(ctx, 10, 13 + bob, 4, 4); shade(ctx, '#c8d0dc', '#4a5260', 9, 17, 1.1);
+  ctx.fillStyle = '#e8eef6';
+  for (const [x, y] of [[6.5, 11], [10, 8.6], [13.5, 11]]) { ell(ctx, x, y + bob, 1, 1); ctx.fill(); }
+  // Body: a broad plated torso.
+  ctx.beginPath();
+  ctx.moveTo(15, 22 + bob);
+  ctx.quadraticCurveTo(26, 15 + bob, 37, 22 + bob);
+  ctx.lineTo(35, 42);
+  ctx.quadraticCurveTo(26, 45, 17, 42);
+  ctx.closePath();
+  shade(ctx, '#8a97ab', '#2c323e', 16, 44, 1.5);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(17, 31 + bob); ctx.quadraticCurveTo(26, 34 + bob, 35, 31 + bob); ctx.stroke();
+  ctx.restore();
+  // Pauldron and helm with a visor slit.
+  ell(ctx, 18, 22 + bob, 6, 4.5); shade(ctx, '#b4c0d2', '#4a5262', 17, 27, 1.2);
+  ctx.beginPath();
+  ctx.moveTo(19, 18 + bob);
+  ctx.quadraticCurveTo(19, 6 + bob, 27, 6 + bob);
+  ctx.quadraticCurveTo(34, 7 + bob, 33, 18 + bob);
+  ctx.closePath();
+  shade(ctx, '#c4cedc', '#566070', 6, 18, 1.3);
+  ctx.fillStyle = '#0c0e12';
+  ctx.fillRect(25, 11.5 + bob, 8, 2);
+  eyes(ctx, [[30.5, 12.5 + bob]], 0.8, '#ffd27a');
+  ctx.fillStyle = '#d04a3a';
+  ctx.beginPath(); ctx.moveTo(26, 6 + bob); ctx.quadraticCurveTo(20, 2 + bob, 16, 6 + bob); ctx.quadraticCurveTo(21, 4.5 + bob, 26, 7.5 + bob); ctx.fill();
+  // Tower shield in front, with an ember sigil.
+  ctx.beginPath();
+  ctx.moveTo(33, 18 + bob);
+  ctx.lineTo(45, 20 + bob);
+  ctx.lineTo(45, 34 + bob);
+  ctx.quadraticCurveTo(44, 43 + bob, 38, 46 + bob);
+  ctx.quadraticCurveTo(33, 42 + bob, 32, 34 + bob);
+  ctx.closePath();
+  shade(ctx, '#6d7d96', '#2a3242', 18, 46, 1.6);
+  ctx.save();
+  ctx.strokeStyle = '#dfe7f2';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#ffd27a';
+  ctx.shadowColor = '#ffb347';
+  ctx.shadowBlur = 3;
+  // An ember sigil: a ringed sun.
+  ell(ctx, 38.8, 31 + bob, 3.2, 3.2); ctx.fill();
+  ctx.lineWidth = 1.1;
+  ctx.strokeStyle = '#ffd27a';
+  ell(ctx, 38.8, 31 + bob, 5.4, 5.4); ctx.stroke();
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(38.8 + Math.cos(a) * 6.4, 31 + bob + Math.sin(a) * 6.4); ctx.lineTo(38.8 + Math.cos(a) * 8, 31 + bob + Math.sin(a) * 8); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A route gate: a broken stone arch. The portal inside is a separate tinted glow. */
+function drawGate(ctx: Ctx, s: number): void {
+  const c = s / 2;
+  ctx.beginPath();
+  ctx.moveTo(c - 30, s - 6);
+  ctx.lineTo(c - 30, 34);
+  ctx.quadraticCurveTo(c - 30, 8, c, 8);
+  ctx.quadraticCurveTo(c + 30, 8, c + 30, 34);
+  ctx.lineTo(c + 30, s - 6);
+  ctx.lineTo(c + 20, s - 6);
+  ctx.lineTo(c + 20, 36);
+  ctx.quadraticCurveTo(c + 20, 18, c, 18);
+  ctx.quadraticCurveTo(c - 20, 18, c - 20, 36);
+  ctx.lineTo(c - 20, s - 6);
+  ctx.closePath();
+  shade(ctx, '#6a5e58', '#2a2220', 8, s - 6, 1.8);
+  // Stone joints and a keystone.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(10,5,5,0.55)';
+  ctx.lineWidth = 1;
+  for (const y of [44, 56, 68]) {
+    ctx.beginPath(); ctx.moveTo(c - 30, y); ctx.lineTo(c - 20, y); ctx.moveTo(c + 20, y); ctx.lineTo(c + 30, y); ctx.stroke();
+  }
+  for (const a of [-1.1, -0.55, 0.55, 1.1]) {
+    ctx.beginPath();
+    ctx.moveTo(c + Math.sin(a) * 10, 28 - Math.cos(a) * 10);
+    ctx.lineTo(c + Math.sin(a) * 23, 28 - Math.cos(a) * 21);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.beginPath();
+  ctx.moveTo(c - 5, 7); ctx.lineTo(c + 5, 7); ctx.lineTo(c + 4, 19); ctx.lineTo(c - 4, 19); ctx.closePath();
+  shade(ctx, '#8a7c74', '#3a3030', 7, 19, 1.3);
+  // Rubble at the feet.
+  for (const [x, r] of [[c - 34, 3], [c + 33, 2.5], [c + 26, 2]] as [number, number][]) {
+    ell(ctx, x, s - 6, r * 1.3, r); shade(ctx, '#5a4e48', '#221a18', s - 6 - r, s - 6 + r, 1);
+  }
+}
+
+/** Portal glow that fills a gate arch (white, tinted by the gate's kind). */
+function drawPortal(ctx: Ctx, s: number): void {
+  const c = s / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(c - 20, s - 6);
+  ctx.lineTo(c - 20, 36);
+  ctx.quadraticCurveTo(c - 20, 18, c, 18);
+  ctx.quadraticCurveTo(c + 20, 18, c + 20, 36);
+  ctx.lineTo(c + 20, s - 6);
+  ctx.closePath();
+  ctx.clip();
+  const g = ctx.createRadialGradient(c, s * 0.6, 2, c, s * 0.6, 34);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0.15)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, s, s);
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1.2;
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    for (let t = 0; t <= 1.001; t += 0.05) {
+      const a = k * 2.1 + t * 4;
+      const r = 3 + t * 16;
+      const x = c + Math.cos(a) * r;
+      const y = s * 0.6 + Math.sin(a) * r * 1.3;
+      if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ------------------------------------------------------------------ the Drowned Foundry
 
 /** Glass Warden: a golem of cracked furnace glass around a banked ember. */
@@ -857,55 +1058,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   // Characters (sprite sheets, faced right).
   sheet(scene, 'player', 48, 4, drawPlayer);
   sheet(scene, 'duskblade', 48, 4, drawDuskblade);
-  // The Lumen and the Bulwark (skills team placeholders; one frame until they get walk cycles).
-  sheet(scene, 'lumen', 48, 1, (ctx, s) => {
-    const c = s / 2;
-    ctx.strokeStyle = '#ffd27a';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.ellipse(c, 9, 10, 4, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = '#f3ecd8';
-    ctx.strokeStyle = '#fff2b0';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(c, 13);
-    ctx.lineTo(s - 11, s - 6);
-    ctx.quadraticCurveTo(c, s - 12, 11, s - 6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#ffd27a';
-    ctx.beginPath();
-    ctx.arc(c, c + 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  sheet(scene, 'bulwark', 52, 1, (ctx, s) => {
-    const c = s / 2;
-    ctx.fillStyle = '#3a4150';
-    ctx.strokeStyle = '#9aa7bb';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(c, c - 4, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#7d8da6';
-    ctx.strokeStyle = '#dfe7f2';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(c, 12);
-    ctx.lineTo(c + 13, 17);
-    ctx.lineTo(c + 13, 28);
-    ctx.quadraticCurveTo(c + 10, s - 8, c, s - 4);
-    ctx.quadraticCurveTo(c - 10, s - 8, c - 13, 28);
-    ctx.lineTo(c - 13, 17);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#ffd27a';
-    ctx.fillRect(c - 2, 18, 4, 18);
-    ctx.fillRect(c - 7, 23, 14, 4);
-  });
+  sheet(scene, 'lumen', 48, 4, drawLumen);
+  sheet(scene, 'bulwark', 52, 4, drawBulwark);
   sheet(scene, 'ashling', 24, 4, drawAshling);
   sheet(scene, 'cinderhound', 36, 4, drawHound);
   sheet(scene, 'husk', 56, 4, drawWarden);
@@ -923,6 +1077,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'vent', 64, 4, drawVent);
   make(scene, 'steam', 48, drawSteam);
   make(scene, 'water', 128, drawWater);
+  sheet(scene, 'gate', 80, 1, drawGate);
+  sheet(scene, 'portal', 80, 1, drawPortal);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {
