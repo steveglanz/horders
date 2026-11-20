@@ -15,6 +15,27 @@ So with four ranks per capstone, the capstone (the "evolution" moment) almost ne
 3. **Ability talents.** Every branch has at least one talent that changes an action-bar ability, not only a passive number, so a pick changes how you play the next fight.
 4. **General fallbacks** (+10% damage, heal) stay for when the tree runs dry.
 
+## One verb per class
+
+The positioning doc (game design) asks for deep kits rather than more spells, with one verb per class that no other class has:
+
+| Class | Its verb | Where it lives |
+| --- | --- | --- |
+| Emberwright | **Burn**: fire that stays on the ground and spreads from foe to foe | Kindled Ground, Searing Burn, Pyroclasm, Combustion's burn |
+| Duskblade | **Execute**: a finisher that doubles on wounded foes | Execution, Exsanguinate |
+| Bulwark | **Turn back**: damage taken comes back out | Bastion, Spiked Shield, Thornwall, Unbreakable |
+| Lumen | **Overheal into light**: healing past full becomes damage | Brilliance, High Noon |
+
+New talents should deepen a class's own verb before they borrow another class's.
+
+## Dungeon checks every kit must pass
+
+From the Drowned Foundry spec (roadmap R6), every class needs:
+1. **An interrupt.** All four have one in slot F: Quench, Kick, Shield Toss and Hush.
+2. **Cleave or a quick target swap,** for foes that must die together. Emberwright fire and Flame Wave, Duskblade swings and Blade Storm, Bulwark Shield Sweep, Lumen Radiant Burst and Prism. Auto-attacks retarget on their own.
+3. **Movement that works while being pulled:** Blink, Sidestep and Rending Dash, Charge, Glimmer Step.
+4. **Damage while moving,** for kiting: all four auto-attacks fire on the move. Melee keeps up with Rending Dash and Charge.
+
 ## Shared action bar shape
 
 Every class has the same four slots so the boss mechanics work for all of them:
