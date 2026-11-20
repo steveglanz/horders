@@ -63,3 +63,35 @@ describe('Duskblade Open Wounds', () => {
     expect(heal(3)).toBeCloseTo(FOUNDRY.bloomHeal / 2, 5);
   });
 });
+
+describe('Novice aid for melee heroes', () => {
+  type Hurt = { hurtPlayer(a: number, s?: number): void };
+  const hitFromTarget = (tier: number) => {
+    const w = new World({ seed: 2, cls: 'duskblade', tier });
+    w.player.guardId = 0;
+    w.enemies[0].alive = true;
+    const hp0 = w.player.hp;
+    (w as unknown as Hurt).hurtPlayer.call(w, 20, 0);
+    return hp0 - w.player.hp;
+  };
+
+  it('fades from full at tier 1 to nothing by tier 4', () => {
+    expect(new World({ seed: 1, tier: 1 }).noviceAid).toBe(1);
+    expect(new World({ seed: 1, tier: 4 }).noviceAid).toBe(0);
+    expect(new World({ seed: 1, tier: 8 }).noviceAid).toBe(0);
+  });
+
+  it('Blade Guard halves hits from the Duskblade\'s target at tier 1 only', () => {
+    expect(hitFromTarget(1)).toBeCloseTo(10, 5);
+    expect(hitFromTarget(4)).toBeCloseTo(20, 5);
+  });
+
+  it('Second Wind catches a melee hero once per fight at tier 1', () => {
+    const w = new World({ seed: 2, cls: 'bulwark', tier: 1 });
+    const hurt = (w as unknown as Hurt).hurtPlayer.bind(w);
+    w.player.hp = w.player.maxHp * 0.35;
+    hurt(w.player.maxHp * 0.1 / 0.8);
+    expect(w.player.windUsed).toBe(true);
+    expect(w.player.hp).toBeGreaterThan(w.player.maxHp * 0.4);
+  });
+});
