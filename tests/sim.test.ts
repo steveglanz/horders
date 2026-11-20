@@ -92,3 +92,36 @@ describe('simulation', () => {
     expect(ms).toBeLessThan(4);
   });
 });
+
+describe('classes', () => {
+  it('drafts only the Duskblade tree when playing a Duskblade', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const w = new World({ seed: 3, cls: 'duskblade' });
+    let drafts = 0;
+    while (w.state !== 'ended' && w.time < 400) {
+      if (w.state === 'draft') {
+        for (const c of w.choices) expect([undefined, 'duskblade']).toContain(TALENTS[c.id].cls);
+        drafts++;
+        w.choose(botChoose(w));
+      } else w.step(botInput(w, 1));
+    }
+    expect(drafts).toBeGreaterThan(0);
+    expect(w.damageDealt).toBeGreaterThan(1000);
+    expect(w.player.maxHp).toBeGreaterThanOrEqual(190);
+  });
+
+  it('is deterministic for the Duskblade too', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const play = () => {
+      const w = new World({ seed: 11, cls: 'duskblade' });
+      for (let k = 0; k < 3000 && w.state !== 'ended'; k++) {
+        if (w.state === 'draft') w.choose(botChoose(w));
+        else w.step(botInput(w, 1));
+      }
+      return w.hash();
+    };
+    expect(play()).toBe(play());
+  });
+});

@@ -4,6 +4,7 @@
  * server later (loot must be rolled server-side once cloud saves exist).
  */
 import { Rng } from './rng';
+import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
   Item, MYTHICS, MythicId, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat,
@@ -35,6 +36,8 @@ export interface HeroProfile {
   nextItemId: number;
   /** Highest difficulty tier unlocked (win a tier to unlock the next). */
   maxTier: number;
+  /** Class picked on the title screen (older saves have none: Emberwright). */
+  cls?: ClassId;
 }
 
 export function newHero(): HeroProfile {

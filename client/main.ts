@@ -102,6 +102,7 @@ function startRun(): void {
     heroLevel: hero.level,
     nextItemId: hero.nextItemId,
     tier: hub.tier,
+    cls: hero.cls ?? 'emberwright',
   };
   game.scene.start('game', {
     opts,

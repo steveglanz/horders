@@ -1,6 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { World } from '../sim/world';
-import { ABILITIES, BRANCH_NAMES, CAPSTONE_RANKS, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
+import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
+import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
 import { HeroProfile, RunRewards } from '../sim/hero';
@@ -12,6 +13,9 @@ const BRANCH_COLOR: Record<string, string> = {
   kindling: '#ffc861',
   ashguard: '#9db7d8',
   general: '#c9b8a8',
+  bloodletting: '#e0465a',
+  tempo: '#b58cff',
+  guard: '#8fc7a8',
 };
 
 export interface RunHandlers {
@@ -21,7 +25,17 @@ export interface RunHandlers {
   onCast: (slot: number) => void;
 }
 
-/** Simple original glyphs for the action bar. */
+/** Simple original glyphs for the action bar, per class. */
+const DUSK_ICONS = [
+  // Rending Dash: a slash with motion lines.
+  '<svg viewBox="0 0 32 32"><path d="M4 22 H14" stroke="#b58cff" stroke-width="3" stroke-linecap="round" opacity=".6"/><path d="M8 27 L28 5" stroke="#f1e6ff" stroke-width="4" stroke-linecap="round"/><path d="M20 26 L26 20" stroke="#e0465a" stroke-width="3" stroke-linecap="round"/></svg>',
+  // Sidestep: a curved arrow.
+  '<svg viewBox="0 0 32 32"><path d="M6 24 Q6 8 22 8" stroke="#8fc7a8" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M18 3 L25 8 L18 13" fill="#8fc7a8"/></svg>',
+  // Execution: crossed blades.
+  '<svg viewBox="0 0 32 32"><path d="M5 5 L27 27 M27 5 L5 27" stroke="#f1e6ff" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="16" r="4" fill="#e0465a"/></svg>',
+  // Kick: a boot heel.
+  '<svg viewBox="0 0 32 32"><path d="M10 4 H18 V18 L27 22 V27 H8 Z" fill="#8fd8ff"/><path d="M8 23 H27" stroke="#fff" stroke-width="2"/></svg>',
+];
 const ICONS = [
   // Flame Wave: a fan of fire.
   '<svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Q16 20 4 26Z" fill="#ff8a3d"/><path d="M10 24 L16 13 L22 24 Q16 21 10 24Z" fill="#ffe08a"/></svg>',
@@ -58,13 +72,25 @@ export class Hud {
     $('pauseBtn').addEventListener('click', () => this.handlers?.onPause());
     $('resumeBtn').addEventListener('click', () => this.handlers?.onPause());
     this.setupStick();
+  }
+
+  private barFor: ClassId | null = null;
+
+  /** Builds the action bar for the class being played. */
+  private buildBar(cls: ClassId): void {
+    if (this.barFor === cls) return;
+    this.barFor = cls;
     const bar = $('abilities');
-    ABILITIES.forEach((a, i) => {
+    bar.innerHTML = '';
+    this.abButtons = [];
+    const def = CLASSES[cls];
+    const icons = cls === 'duskblade' ? DUSK_ICONS : ICONS;
+    def.abilities.forEach((a, i) => {
       const b = document.createElement('button');
       b.className = 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
-      b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} Heat` : ''}: ${a.text}`;
-      b.innerHTML = `${ICONS[i]}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
+      b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}`;
+      b.innerHTML = `${icons[i]}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -100,6 +126,8 @@ export class Hud {
     $('target').hidden = true;
     $('toasts').innerHTML = '';
     $('perf').hidden = !this.showPerf;
+    this.buildBar(w.cls);
+    $('heat').dataset.cls = w.cls;
     this.draftShownFor = -1;
     this.questKey = '';
     this.tick(w, { avg: 0, p95ms: 0 }, true);
@@ -126,12 +154,12 @@ export class Hud {
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
-    $('heatText').textContent = `${Math.floor(p.heat)} Heat`;
+    $('heatText').textContent = `${Math.floor(p.heat)} ${w.classDef.resource}`;
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
       const cd = p.cds[i];
       const total = w.abilityCooldown(i);
-      const gcd = !ABILITIES[i].offGcd && p.gcd > 0 ? p.gcd / 0.4 : 0;
+      const gcd = !w.abilities[i].offGcd && p.gcd > 0 ? p.gcd / 0.4 : 0;
       const frac = cd > 0 ? cd / total : gcd;
       const cdEl = b.querySelector('.cd') as HTMLElement;
       cdEl.style.setProperty('--p', String(Math.min(1, frac)));
@@ -194,7 +222,7 @@ export class Hud {
       cast.classList.toggle('kick', e.interruptible);
       $('tCastFill').style.width = `${(100 * e.castT) / e.castDur}%`;
       const touch = matchMedia('(pointer: coarse)').matches;
-      $('tCastName').textContent = e.interruptible ? `${e.castName} · ${touch ? 'tap Quench!' : 'press F to Quench!'}` : e.castName;
+      $('tCastName').textContent = e.interruptible ? `${e.castName} · ${touch ? `tap ${w.abilities[3].name}!` : `press F to ${w.abilities[3].name}!`}` : e.castName;
     } else cast.hidden = true;
   }
 

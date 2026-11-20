@@ -34,6 +34,8 @@ interface FloatText {
 /** Short-lived vector effects drawn with Graphics (ability shapes, beams). */
 interface Shape {
   kind: 'cone' | 'line' | 'pillar' | 'ring';
+  /** Cone width in radians (default 110 degrees). */
+  arc?: number;
   x: number;
   y: number;
   x2: number;
@@ -138,7 +140,7 @@ export class GameScene extends Phaser.Scene {
       this.enemyKinds.push('ashling');
     });
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
-    this.player = this.add.image(0, 0, 'player').setDepth(6);
+    this.player = this.add.image(0, 0, w.cls === 'duskblade' ? 'duskblade' : 'player').setDepth(6);
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'orb').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
     for (let i = 0; i < 160; i++) {
@@ -319,12 +321,23 @@ export class GameScene extends Phaser.Scene {
             this.addShape({ kind: 'line', x: w.player.x, y: w.player.y, x2: ev.x, y2: ev.y, r: 0, angle: 0, color: 0x8fd8ff, life: 0.25 });
           }
           break;
+        case 'swing':
+          this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, arc: ev.arc, color: ev.spin ? 0xe0465a : 0xd9c8ff, life: 0.16 });
+          break;
+        case 'dash':
+          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: ev.dodge ? 0x8fc7a8 : 0xb58cff, life: 0.25 });
+          if (!ev.dodge) this.burst(ev.x2, ev.y2, 8);
+          break;
+        case 'parry':
+          this.floatText(ev.x, ev.y - 34, 'Parry!', '#f1e6ff', 18);
+          this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: 46, angle: 0, color: 0xf1e6ff, life: 0.3 });
+          break;
         case 'blink':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);
           break;
         case 'castStart':
-          if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', 'Interrupt it with Quench, or brace for impact');
+          if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -335,7 +348,7 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'phase':
           if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
-          else this.hud.banner('Phase 3: The kiln cracks', 'She casts faster. Keep Quench ready');
+          else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
@@ -566,7 +579,7 @@ export class GameScene extends Phaser.Scene {
       if (s.life <= 0) { this.shapes.splice(k, 1); continue; }
       const f = s.life / s.max;
       if (s.kind === 'cone') {
-        const half = (110 * Math.PI) / 360;
+        const half = (s.arc ?? (110 * Math.PI) / 180) / 2;
         g.fillStyle(s.color, 0.45 * f).slice(s.x, s.y, s.r * (1.1 - f * 0.3), s.angle - half, s.angle + half, false).fillPath();
       } else if (s.kind === 'line') {
         g.lineStyle(8 * f + 2, s.color, f).lineBetween(s.x, s.y, s.x2, s.y2);

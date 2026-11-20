@@ -114,6 +114,32 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.arc(c, c + 4, 10, 0, Math.PI * 2);
     ctx.fill();
   });
+  // The Duskblade: a cloaked figure with two crossed blades.
+  make(scene, 'duskblade', 48, (ctx, s) => {
+    const c = s / 2;
+    ctx.strokeStyle = '#e9dcff';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(6, 10); ctx.lineTo(s - 10, s - 8);
+    ctx.moveTo(s - 6, 10); ctx.lineTo(10, s - 8);
+    ctx.stroke();
+    ctx.fillStyle = '#1f1830';
+    ctx.strokeStyle = '#b58cff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c, 6);
+    ctx.lineTo(s - 12, s - 8);
+    ctx.quadraticCurveTo(c, s - 15, 12, s - 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#e0465a';
+    ctx.beginPath();
+    ctx.arc(c - 4, c + 1, 2, 0, Math.PI * 2);
+    ctx.arc(c + 4, c + 1, 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // The Hollow Tide.

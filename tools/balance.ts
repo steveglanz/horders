@@ -6,7 +6,7 @@ const skill = Number(process.env.SKILL ?? 1);
 const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
 for (const seed of seeds) {
-  const w = new World({ seed });
+  const w = new World({ seed, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright' });
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);
   let bossAt = 0;

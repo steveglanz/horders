@@ -4,6 +4,7 @@ import {
   grantBossReward, pointsAvailable, salvage, spendPoint,
 } from '../sim/hero';
 import { BossStatus, cloud } from './cloud';
+import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
 
@@ -40,8 +41,19 @@ export class Hub {
       const r = h.passives[id] ?? 0;
       return `<button data-p="${id}" title="${def.text}" ${pts > 0 && r < def.max ? '' : 'disabled'}>${def.name} ${r}/${def.max}${pts > 0 && r < def.max ? ' +' : ''}</button>`;
     }).join('');
+    const cls = h.cls ?? 'emberwright';
+    $('classes').innerHTML = CLASS_IDS.map((id) => {
+      const c = CLASSES[id];
+      return `<button class="cls ${id === cls ? 'active' : ''}" aria-pressed="${id === cls}" data-cls="${id}"><b>${c.name}</b><div>${c.role}. ${c.blurb}</div></button>`;
+    }).join('') + '<div class="cls locked"><b>Bulwark</b><div>Tank. Arrives in a later build.</div></div>';
+    $('classes').querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) =>
+      b.addEventListener('click', () => {
+        h.cls = b.dataset.cls as typeof cls;
+        this.save();
+        this.render();
+      }));
     $('heroCard').innerHTML = `
-      <div class="top"><b>Emberwright · Level ${h.level}</b><div class="xp" title="Hero experience"><div style="width:${xpPct}%"></div></div>
+      <div class="top"><b>${CLASSES[cls].name} · Level ${h.level}</b><div class="xp" title="Hero experience"><div style="width:${xpPct}%"></div></div>
         <span class="muted small" style="margin:0">Gear score ${gearScore(h)} · ${h.wins} wins / ${h.runs} delves</span></div>
       <div class="gear">${gear}</div>
       <div class="passives"><span class="muted">Talent points: ${pts}</span>${passives}<button id="bagBtn">Bags (${h.inventory.length})</button></div>`;

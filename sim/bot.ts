@@ -7,11 +7,43 @@ import { TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'searingBurn', 'heatSink',
-  'kindledGround', 'emberRain', 'cinderSkin', 'rollingInferno', 'searingFocus', 'mend', 'flicker', 'magnetism', 'smallHeal', 'stoke',
+  'kindledGround', 'emberRain', 'cinderSkin', 'rollingInferno', 'searingFocus', 'mend', 'flicker', 'magnetism',
+  // Duskblade
+  'crimsonTide', 'bladeStorm', 'riposte', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
+  'momentumFlow', 'precision', 'deepCuts', 'secondWind', 'evasion', 'nimble',
+  'smallHeal', 'stoke',
 ];
+
+/** Duskblade action choices: kick casts, execute big foes, dash in, sidestep danger. */
+function bladeCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  // Step out of a telegraph we are standing in.
+  if (attentive && w.canCast(1)) {
+    for (const t of w.telegraphs) {
+      if (!t.alive || t.kind === 'soak' || t.t > t.dur - 0.5) continue;
+      if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2 && t.shape === 'circle') return 1;
+    }
+  }
+  const t = w.bladeTarget(w.swingReach + 60);
+  if (t >= 0 && w.canCast(2)) {
+    const e = w.enemies[t];
+    if (e.def.rank !== 'normal' || e.hp < e.maxHp * 0.35) return 2;
+  }
+  const far = w.bladeTarget(340);
+  if (far >= 0 && w.canCast(0)) {
+    const e = w.enemies[far];
+    const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
+    if (d > 110 || (e.def.rank === 'normal' && d < 60)) return 0;
+  }
+  if (w.canCast(1) && p.hp < p.maxHp * 0.35) return 1;
+  return undefined;
+}
 
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
+  if (w.cls === 'duskblade') return bladeCast(w, skill);
   const p = w.player;
   // A lower-skill bot misses some interrupts.
   const attentive = (w.tick % 20) / 20 < skill;
@@ -41,8 +73,24 @@ export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   let fx = 0;
   let fy = 0;
+  const melee = w.cls === 'duskblade';
+  if (melee) {
+    // Close in on the target and stay in blade reach.
+    const t = w.bladeTarget(900);
+    if (t >= 0) {
+      const e = w.enemies[t];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const want = e.def.radius + w.swingReach * 0.6;
+      if (d > want) {
+        fx += (dx / d) * 0.05;
+        fy += (dy / d) * 0.05;
+      }
+    }
+  }
   for (const e of w.enemies) {
-    if (!e.alive) continue;
+    if (!e.alive || melee) continue;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const d2 = dx * dx + dy * dy;
@@ -71,8 +119,9 @@ export function botInput(w: World, skill = 1): Input {
     const dy = p.y - t.y;
     const d = Math.hypot(dx, dy) || 1;
     if (d < t.r + 30) {
-      fx += (dx / d) * 0.2 * skill;
-      fy += (dy / d) * 0.2 * skill;
+      const k = melee ? 0.6 : 0.2;
+      fx += (dx / d) * k * skill;
+      fy += (dy / d) * k * skill;
     }
   }
   // Collect nearby XP when it is reasonably safe.
@@ -96,7 +145,7 @@ export function botInput(w: World, skill = 1): Input {
       const dx = b.x - p.x;
       const dy = b.y - p.y;
       const d = Math.hypot(dx, dy) || 1;
-      if (d > 340) {
+      if (d > (melee ? 160 : 340)) {
         fx += (dx / d) * 0.03 * skill;
         fy += (dy / d) * 0.03 * skill;
       }
