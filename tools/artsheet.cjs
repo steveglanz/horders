@@ -11,7 +11,7 @@ const out = process.argv[2] || 'tools/shots/artsheet.png';
   await page.waitForFunction(() => window.__ember.scene() && window.__ember.scene().textures.exists('player'));
   const imgs = await page.evaluate(() => {
     const tm = window.__ember.scene().textures;
-    const keys = ['player', 'duskblade', 'ashling', 'cinderhound', 'husk', 'cinderBrute', 'ashmaw', 'acolyte', 'kilnMother', 'glassWarden', 'emberTwin', 'emberTwinB', 'sluiceCrawler', 'maelra', 'vent', 'steam', 'water', 'rift', 'vein', 'loot', 'gem', 'bolt', 'hitstar', 'puff', 'ring', 'ground'];
+    const keys = ['slagCrone', 'player', 'duskblade', 'lumen', 'bulwark', 'gate', 'portal', 'ashling', 'cinderhound', 'husk', 'cinderBrute', 'ashmaw', 'acolyte', 'kilnMother', 'glassWarden', 'emberTwin', 'emberTwinB', 'sluiceCrawler', 'maelra', 'vent', 'steam', 'water', 'rift', 'vein', 'loot', 'gem', 'bolt', 'hitstar', 'puff', 'ring', 'ground'];
     return keys.filter((k) => tm.exists(k)).map((k) => ({ k, src: tm.get(k).getSourceImage().toDataURL() }));
   });
   const html = `<body style="margin:0;background:#18100e;color:#d9c3b0;font:12px system-ui;padding:16px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">${imgs
