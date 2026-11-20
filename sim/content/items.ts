@@ -103,8 +103,8 @@ export const MYTHICS: Record<MythicId, { name: string; text: string; cls?: Class
   redLedger: { cls: 'duskblade', name: 'Red Ledger', text: 'Execution doubles below 50% health instead of 35%, and an Execution kill brings Rending Dash back.' },
   tetheredShield: { cls: 'bulwark', name: 'Tethered Shield', text: 'Shield Toss interrupts up to 3 casters, and for 4s Charge rushes the first one, from further away.' },
   ringwallVow: { cls: 'bulwark', name: 'Ringwall Vow', text: 'Shield Block guards every side for 20%, and Shield Slam pulls the horde in instead of shoving it.' },
-  anchoredDawn: { cls: 'lumen', name: 'Anchored Dawn', text: 'Sanctuary lasts twice as long but stays put, and Radiant Burst recovers twice as fast while you stand in it.' },
-  eclipseGlass: { cls: 'lumen', name: 'Eclipse Glass', text: 'Radiant Burst reaches 30% further and deals double damage, but heals half as much.' },
+  anchoredDawn: { cls: 'lumen', name: 'Anchored Dawn', text: 'Sanctuary lasts 50% longer but stays put, and Radiant Burst recovers 50% faster while you stand in it.' },
+  eclipseGlass: { cls: 'lumen', name: 'Eclipse Glass', text: 'Radiant Burst reaches 10% further and deals 40% more damage, but heals half as much.' },
 };
 
 /** The Mythic effects a `cls` hero can roll: the shared four plus their own class's. */

@@ -146,8 +146,8 @@ Each class has two Mythics of its own, on top of the shared four. A Mythic shoul
 | Duskblade | Red Ledger | Execution doubles below 50% health instead of 35%, and an Execution kill brings Rending Dash back. | A chain executioner |
 | Bulwark | Tethered Shield | Shield Toss interrupts up to 3 casters, and for 4 s Charge rushes the first one, from up to 640 away. | A mobile interrupter |
 | Bulwark | Ringwall Vow | Shield Block guards every side for 20% instead of the front for 35%. Shield Slam pulls the horde in, but still shoves big foes so it can steer them out of blooms. | A gather-and-hold tank |
-| Lumen | Anchored Dawn | Sanctuary lasts twice as long but stays put, even with Lingering Sanctuary. Radiant Burst recovers twice as fast inside it. | An anchored battle-priest |
-| Lumen | Eclipse Glass | Radiant Burst reaches 30% further and deals double damage, but heals half as much. | A damage Lumen |
+| Lumen | Anchored Dawn | Sanctuary lasts 50% longer but stays put, even with Lingering Sanctuary. Radiant Burst recovers 50% faster inside it. | An anchored battle-priest |
+| Lumen | Eclipse Glass | Radiant Burst reaches 10% further and deals 40% more damage, but heals half as much. | A damage Lumen |
 
 Tests are in `tests/mythics.test.ts`.
 
