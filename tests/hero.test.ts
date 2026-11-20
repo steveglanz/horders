@@ -71,3 +71,69 @@ describe('world boss rewards', () => {
     expect(newerHero(a, b)).toBe(a);
   });
 });
+
+describe('one hero per class', () => {
+  it('each class keeps its own level, gear, bags and tier', async () => {
+    const { newHero, switchClass, characterOf } = await import('../sim/hero');
+    const h = newHero();
+    h.cls = 'emberwright';
+    Object.assign(h, { level: 7, xp: 50, embers: 30, maxTier: 4, passives: { might: 3 } });
+    h.inventory = [{ id: 'i1', slot: 'weapon', rarity: 'epic', ilvl: 5, name: 'Titanheart Focus', stats: [] }];
+    h.equipped = { weapon: 'i1' };
+    switchClass(h, 'duskblade');
+    expect(h.cls).toBe('duskblade');
+    expect(h.level).toBe(1);
+    expect(h.inventory).toEqual([]);
+    expect(h.equipped).toEqual({});
+    expect(h.passives).toEqual({});
+    expect(h.maxTier).toBe(1);
+    expect(h.embers).toBe(0);
+    h.level = 2;
+    switchClass(h, 'emberwright');
+    expect(h.level).toBe(7);
+    expect(h.equipped).toEqual({ weapon: 'i1' });
+    expect(h.passives).toEqual({ might: 3 });
+    expect(h.maxTier).toBe(4);
+    expect(characterOf(h, 'duskblade')?.level).toBe(2);
+    expect(characterOf(h, 'bulwark')).toBeUndefined();
+    expect(h.roster?.emberwright).toBeUndefined(); // the played class lives at the top level only
+  });
+
+  it('a save from before rosters keeps its progress on the class it had selected', async () => {
+    const { newHero, switchClass, characterOf } = await import('../sim/hero');
+    const old = { ...newHero(), cls: 'duskblade' as const, level: 2, runs: 1, wins: 1 };
+    expect(characterOf(old, 'duskblade')?.level).toBe(2);
+    switchClass(old, 'lumen');
+    expect(old.level).toBe(1);
+    expect(old.roster?.duskblade?.wins).toBe(1);
+  });
+
+  it('item ids stay unique across classes', async () => {
+    const { newHero, switchClass } = await import('../sim/hero');
+    const h = newHero();
+    h.nextItemId = 42;
+    switchClass(h, 'bulwark');
+    expect(h.nextItemId).toBe(42);
+  });
+
+  it('picks the newer save by progress across every class', async () => {
+    const { newHero, switchClass, newerHero } = await import('../sim/hero');
+    const a = newHero();
+    a.runs = 5;
+    switchClass(a, 'lumen'); // a's played class now has 0 runs; 5 are in the roster
+    const b = { ...newHero(), runs: 3 };
+    expect(newerHero(a, b)).toBe(a);
+  });
+
+  it('weapons are named for the class that found them', async () => {
+    const { makeItem } = await import('../sim/hero');
+    const { Rng } = await import('../sim/rng');
+    const { WEAPON_NAMES } = await import('../sim/content/items');
+    for (const cls of ['emberwright', 'duskblade', 'bulwark', 'lumen'] as const) {
+      const it = makeItem(new Rng(3), 'i1', 'weapon', 'rare', 4, cls);
+      expect(WEAPON_NAMES[cls].some((n) => it.name.endsWith(n))).toBe(true);
+      // Only the name changes: stats are the same roll for every class.
+      expect(it.stats).toEqual(makeItem(new Rng(3), 'i1', 'weapon', 'rare', 4).stats);
+    }
+  });
+});
