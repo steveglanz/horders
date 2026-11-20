@@ -59,3 +59,27 @@ describe('omens', () => {
     expect(run()).toEqual(run());
   });
 });
+
+describe('world boss omen', () => {
+  it('adds the boss Omen to every tier, without duplicates, and raises luck', () => {
+    const base = new World({ seed: 1, tier: 1, week: 100 });
+    const w = new World({ seed: 1, tier: 1, week: 100, bossOmen: 'kindledDead' });
+    expect(base.omens).toEqual([]);
+    expect(w.omens).toEqual(['kindledDead']);
+    expect(w.bossOmen).toBe('kindledDead');
+    expect(w.luck).toBeCloseTo(base.luck * (1 + OMEN_TUNING.luckPerOmen) * (1 + OMEN_TUNING.bossOmenLuck));
+
+    // When the tier already rolled the boss's Omen it is not added twice, but the boss bonus still applies.
+    const weekly = omensFor(3, 100);
+    const t3 = new World({ seed: 1, tier: 3, week: 100 });
+    const dup = new World({ seed: 1, tier: 3, week: 100, bossOmen: weekly[0] });
+    expect(dup.omens).toEqual(weekly);
+    expect(dup.bossOmen).toBeUndefined();
+    expect(dup.luck).toBeCloseTo(t3.luck * (1 + OMEN_TUNING.bossOmenLuck));
+  });
+
+  it('ignores an unknown Omen id from the server', () => {
+    const w = new World({ seed: 1, tier: 1, bossOmen: 'notAnOmen' as never });
+    expect(w.omens).toEqual([]);
+  });
+});

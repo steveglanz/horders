@@ -108,6 +108,7 @@ function startRun(): void {
     cls: hero.cls ?? 'emberwright',
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
+    bossOmen: hub.bossOmen(),
   };
   game.scene.start('game', {
     opts,

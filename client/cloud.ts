@@ -30,6 +30,8 @@ export interface BossStatus {
   title: string;
   hp: number;
   max_hp: number;
+  /** OmenId the boss adds to every delve while it lives (null on old servers). */
+  omen?: string | null;
   fighters: number;
   my_damage: number;
   unclaimed: { boss_id: number; name: string; damage: number; max_hp: number }[];

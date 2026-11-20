@@ -9,7 +9,7 @@ const offline = process.argv[3] === 'offline';
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   const errors = []; const calls = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  let boss = { id: 1, name: 'Grandmother Slag', title: 'Mother of Kilns', hp: 488000, max_hp: 500000, fighters: 3, my_damage: 0,
+  let boss = { id: 1, name: 'Grandmother Slag', title: 'Mother of Kilns', hp: 488000, max_hp: 500000, omen: 'kindledDead', fighters: 3, my_damage: 0,
     unclaimed: [{ boss_id: 0, name: 'Old Ashmaw', damage: 9000, max_hp: 500000 }] };
   let saved = null;
   await page.route('https://gadnkjsxpnchmvsjgnum.supabase.co/**', async (route) => {
@@ -43,6 +43,7 @@ const offline = process.argv[3] === 'offline';
   }
   await page.click('#startBtn');
   await page.waitForTimeout(500);
+  const runOmens = await page.evaluate(() => window.__ember.scene().world.omens);
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.warp = 12; });
   const t0 = Date.now();
   while (Date.now() - t0 < 150000) {
@@ -55,7 +56,7 @@ const offline = process.argv[3] === 'offline';
   await page.click('#menuBtn');
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(out, `${tag}-2-menu.png`) });
-  console.log(JSON.stringify({ tag, panel0, claimNote, epic, endBoss, panel1: await page.textContent('#worldBoss'),
+  console.log(JSON.stringify({ tag, runOmens, panel0, claimNote, epic, endBoss, panel1: await page.textContent('#worldBoss'),
     saveNote: await page.textContent('#saveNote'), savedRuns: saved && saved.runs, calls: [...new Set(calls)], errors }, null, 1));
   await browser.close();
 })();

@@ -40,6 +40,8 @@ export const OMEN_TUNING = {
   volatileDamage: 16,
   /** Extra loot luck per active Omen. */
   luckPerOmen: 0.08,
+  /** Extra loot luck while a world boss lives and adds its Omen. */
+  bossOmenLuck: 0.15,
 };
 
 /** The first tier that carries Omens. */

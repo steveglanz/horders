@@ -7,7 +7,7 @@ import { BossStatus, cloud } from './cloud';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
-import { OMENS, OMEN_FROM_TIER, omensFor, weekOf } from '../sim/content/omens';
+import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -86,6 +86,18 @@ export class Hub {
     return `<div class="muted small omens">This week's Omens: ${omens.map((o) => `<b title="${OMENS[o].tip}">${OMENS[o].name}</b>: ${OMENS[o].text}`).join(' ')} More loot for each Omen.</div>`;
   }
 
+  /** The living boss's Omen, which every delve carries while it lives. */
+  bossOmen(): OmenId | undefined {
+    const o = this.boss?.omen;
+    return cloud.online && o && o in OMENS ? (o as OmenId) : undefined;
+  }
+
+  private bossOmenLine(b: BossStatus): string {
+    const o = b.omen && b.omen in OMENS ? OMENS[b.omen as OmenId] : null;
+    if (!o) return '';
+    return `<div class="muted small omens">Its Omen: <b title="${o.tip}">${o.name}</b>: ${o.text} Every delve carries it while the boss lives, for ${Math.round(OMEN_TUNING.bossOmenLuck * 100)}% more loot.</div>`;
+  }
+
   /** Fetches the shared world boss and redraws its panel. */
   async refreshBoss(): Promise<void> {
     const b = await cloud.bossStatus();
@@ -109,6 +121,7 @@ export class Hub {
     el.innerHTML = `
       <div class="wb-top"><b>${b.name}, ${b.title}</b><span class="muted">World boss · ${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
       <div class="wb-bar"><div style="width:${pct}%"></div><span>${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}</span></div>
+      ${this.bossOmenLine(b)}
       <div class="muted">Every delve you finish strikes it with the damage you dealt. Your damage so far: <b>${b.my_damage.toLocaleString()}</b>. When it falls, everyone who struck it gets an Epic reward.</div>
       ${claims}${this.bossNote ? `<div style="margin-top:6px;color:var(--gold)">${this.bossNote}</div>` : ''}`;
     el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>

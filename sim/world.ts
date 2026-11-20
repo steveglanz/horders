@@ -14,7 +14,7 @@ import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
-import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
+import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -289,6 +289,8 @@ export interface WorldOptions {
   week?: number;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
   omens?: OmenId[];
+  /** The living world boss's Omen: added to every delve on top of the tier's Omens, for extra luck. */
+  bossOmen?: OmenId;
   /** Name of the living world boss; when set, a won delve offers a bonus fight against its shadow. */
   worldBoss?: string;
 }
@@ -339,6 +341,8 @@ export class World {
   readonly luck: number;
   /** Tier modifiers active in every fight of this run. */
   readonly omens: OmenId[];
+  /** The world boss's Omen when it added one the tier didn't already have. */
+  readonly bossOmen: OmenId | undefined;
   private volatileT = 0;
   quests: Quest[] = [];
   rareSpawned = false;
@@ -405,8 +409,12 @@ export class World {
     this.loadout = loadoutFrom(this.passives, this.gear);
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
-    this.omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
-    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length);
+    const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
+    const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
+    this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
+    this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
+    // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
+    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1);
     const hp = this.classDef.baseHp + this.loadout.maxHpBonus;
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
