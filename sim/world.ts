@@ -13,8 +13,10 @@ import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
-import { ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
+import { BOUNTY } from './content/bounty';
+import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
+import { clampParty, partyHealth, gritMult } from './content/scaling';
 
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
@@ -129,7 +131,8 @@ export interface Telegraph {
   dur: number;
   dmg: number;
   /** 'hit' damages whoever is inside; 'soak' punishes the raid if nobody stands in it. */
-  kind: 'hit' | 'soak';
+  /** 'bloom' (Sluice Crawler) also heals any enemy inside when it bursts. */
+  kind: 'hit' | 'soak' | 'bloom';
   /** Enemy whose cast created it; interrupting that enemy removes it. */
   owner: number;
 }
@@ -308,6 +311,14 @@ export interface WorldOptions {
   bossOmen?: OmenId;
   /** Name of the living world boss; when set, a won delve offers a bonus fight against its shadow. */
   worldBoss?: string;
+  /** Which dungeon to delve (default the Kiln Depths). */
+  dungeon?: DungeonId;
+  /** Heroes in the party (1 to 4). Scales enemy health and targeted mechanics. */
+  partySize?: number;
+  /** Grit stacks from losses in a row on this tier (see content/scaling). */
+  grit?: number;
+  /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
+  bounty?: number;
 }
 
 export interface RunSummary {
@@ -324,6 +335,9 @@ export interface RunSummary {
   questsDone?: number;
   omens?: OmenId[];
   paths?: GateKind[];
+  dungeon?: DungeonId;
+  /** Day number when this was a daily bounty. */
+  bounty?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -358,6 +372,20 @@ export class World {
   readonly omens: OmenId[];
   /** The world boss's Omen when it added one the tier didn't already have. */
   readonly bossOmen: OmenId | undefined;
+  readonly dungeonId: DungeonId;
+  readonly bounty: number | undefined;
+  readonly partySize: number;
+  readonly grit: number;
+  /** Current arena radius (Maelra's Rising Water shrinks it). */
+  arenaR = ARENA;
+  /** Maelra's steam vents (empty in other fights). */
+  vents: { x: number; y: number; r: number }[] = [];
+  /** Maelra's Temper stacks: each cuts her damage taken. */
+  temper = 0;
+  private temperT = 0;
+  private undertowT = 0;
+  private ventT = 0;
+  private waterT = 0;
   private volatileT = 0;
   quests: Quest[] = [];
   rareSpawned = false;
@@ -424,13 +452,17 @@ export class World {
     this.loadout = loadoutFrom(this.passives, this.gear);
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
+    this.dungeonId = opts.dungeon ?? 'kiln';
+    this.bounty = opts.bounty;
+    this.partySize = clampParty(opts.partySize);
+    this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
     this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1);
-    const hp = this.classDef.baseHp + this.loadout.maxHpBonus;
+    const hp = Math.round((this.classDef.baseHp + this.loadout.maxHpBonus) * gritMult(this.grit));
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
       hp, maxHp: hp,
@@ -456,7 +488,13 @@ export class World {
     this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
     const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
-    this.route = opts.route ?? rollRoute((n) => this.rng.int(n));
+    this.route = opts.route ?? rollRoute((n) => this.rng.int(n), this.dungeonId);
+    if (this.bounty !== undefined) {
+      // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
+      this.player.level += BOUNTY.headStart;
+      this.player.pendingLevels += BOUNTY.headStart;
+      this.player.xpToNext = xpFor(this.player.level);
+    }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
   }
@@ -482,7 +520,7 @@ export class World {
     // Vengeance: the Bulwark hits harder the more hurt it is.
     const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance;
+    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit);
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -586,6 +624,8 @@ export class World {
       tier: this.tier,
       omens: [...this.omens],
       paths: [...this.paths],
+      dungeon: this.dungeonId,
+      bounty: this.bounty,
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -617,6 +657,10 @@ export class World {
   // ---------------------------------------------------------------- spawning
 
   // ---------------------------------------------------------------- dungeon
+
+  get dungeonDef() {
+    return DUNGEONS[this.dungeonId];
+  }
 
   get encounterDef() {
     return ENCOUNTERS[this.route[Math.min(this.encounter, this.route.length - 1)]];
@@ -669,7 +713,7 @@ export class World {
     for (const sp of def.spawns) {
       for (let j = 0; j < sp.n; j++, k++) {
         const a = base + (k - (n - 1) / 2) * 0.35;
-        const r = ARENA - 60;
+        const r = this.arenaR - 60;
         const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
         if (i < 0) continue;
         const e = this.enemies[i];
@@ -688,6 +732,14 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
+          this.events.push({ type: 'bossSpawn' });
+        }
+        // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
+        if (sp.kind === 'glassWarden') e.abilityT = 3 + j * 2.5;
+        if (sp.kind === 'maelra') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.startMaelra();
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'cinderBrute') this.eliteSpawned = true;
@@ -721,7 +773,7 @@ export class World {
 
   /** After a clear: offer a fork if this point in the route has one, else count down to the next fight. */
   private openFork(): void {
-    const offer = this.stress ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q));
+    const offer = this.stress || this.bounty !== undefined ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q), this.dungeonId);
     if (!offer) {
       this.phase = 'intro';
       this.phaseT = INTRO_TIME;
@@ -754,7 +806,7 @@ export class World {
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
     const d = Math.hypot(o.x, o.y);
-    const max = ARENA - r;
+    const max = this.arenaR - r;
     if (d > max) {
       o.x *= max / d;
       o.y *= max / d;
@@ -833,7 +885,7 @@ export class World {
     if (idx < 0) return -1;
     const def = ENEMIES[kind];
     const e = this.enemies[idx];
-    const tierHp = Math.pow(1.22, this.tier - 1);
+    const tierHp = Math.pow(1.22, this.tier - 1) * (this.stress ? 1 : partyHealth(this.partySize));
     const depth = this.stress ? 1 : def.rank === 'boss' ? 1 : 1 + 0.12 * this.encounter;
     const scale = (this.stress && def.rank === 'normal' ? 1 + this.time / 220 : depth) * tierHp;
     e.alive = true;
@@ -1992,6 +2044,18 @@ export class World {
       const p = this.player;
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
+    } else if (id === 'mirror') {
+      e.aux2 = FOUNDRY.mirrorTime;
+    } else if (id === 'rekindle') {
+      // Bring the fallen twin back beside this one at half health.
+      const k = this.spawn('emberTwin', e.x + 30, e.y);
+      if (k >= 0) this.enemies[k].hp = this.enemies[k].maxHp * 0.5;
+    } else if (id === 'undertow') {
+      const p = this.player;
+      p.x += (e.x - p.x) * FOUNDRY.undertowPull;
+      p.y += (e.y - p.y) * FOUNDRY.undertowPull;
+      this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
+      this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
     } else if (id === 'gorge') {
       const amount = e.maxHp * 0.1;
       e.hp = Math.min(e.maxHp, e.hp + amount);
@@ -2046,6 +2110,14 @@ export class World {
           this.addTelegraph('cone', e.x, e.y, 260, ang, (60 * Math.PI) / 180, 1.0, 22, 'hit', i);
         }
       }
+      return;
+    }
+    if (e.kind === 'glassWarden' || e.kind === 'emberTwin' || e.kind === 'sluiceCrawler') {
+      this.runFoundryElite(i, dt);
+      return;
+    }
+    if (e.kind === 'maelra') {
+      this.runMaelra(i, dt);
       return;
     }
     if (e.def.rank !== 'boss') return;
@@ -2130,6 +2202,11 @@ export class World {
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
     }
+    if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
+    if (e.kind === 'glassWarden' && e.aux2 > 0 && !this.invulnerable) {
+      // Mirror Ward: part of the damage comes back at the attacker.
+      this.hurtPlayer(dmg * FOUNDRY.mirrorReflect);
+    }
     if (e.ward > 0) {
       const soak = Math.min(e.ward, dmg);
       e.ward -= soak;
@@ -2181,6 +2258,7 @@ export class World {
         n.burnT = Math.max(n.burnT, 3);
       });
     }
+    if (e.kind === 'emberTwin') this.twinFell();
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
       const bleed = Math.max(e.burnDps, 14 * this.dmgMult);
@@ -2276,11 +2354,145 @@ export class World {
 
   private addTelegraph(
     shape: 'circle' | 'cone', x: number, y: number, r: number, angle: number, arc: number, dur: number, dmg: number,
-    kind: 'hit' | 'soak' = 'hit', owner = -1,
+    kind: 'hit' | 'soak' | 'bloom' = 'hit', owner = -1,
   ): void {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
     Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
+  }
+
+  // ---------------------------------------------------------------- the Drowned Foundry
+
+  /** Glass Wardens mirror, Ember Twins snap and rekindle, Sluice Crawlers bloom. */
+  private runFoundryElite(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    if (e.aux2 > 0) e.aux2 = Math.max(0, e.aux2 - dt);
+    if (e.castId) {
+      e.castT += dt;
+      if (e.castT >= e.castDur) this.finishCast(i);
+      return;
+    }
+    e.abilityT -= dt;
+    if (e.abilityT > 0) return;
+    if (e.kind === 'glassWarden') {
+      e.aux++;
+      if (e.aux % 2 === 1 && e.aux2 <= 0) {
+        e.abilityT = 4.5;
+        this.startCast(i, 'mirror', 'Mirror Ward', FOUNDRY.mirrorCast, true);
+      } else if (dist2(p.x, p.y, e.x, e.y) < 220 * 220) {
+        e.abilityT = 3.5;
+        this.startCast(i, 'slam', 'Glass Shatter', 1.1, false);
+        this.addTelegraph('circle', e.x, e.y, 105, 0, 0, 1.1, 22, 'hit', i);
+      } else e.abilityT = 0.5;
+    } else if (e.kind === 'emberTwin') {
+      if (dist2(p.x, p.y, e.x, e.y) < 170 * 170) {
+        e.abilityT = 3 + this.rng.next();
+        const ang = Math.atan2(p.y - e.y, p.x - e.x);
+        this.startCast(i, 'flare', 'Twin Flare', 0.7, false);
+        this.addTelegraph('cone', e.x, e.y, 110, ang, (70 * Math.PI) / 180, 0.7, 14, 'hit', i);
+      } else e.abilityT = 0.5;
+    } else if (e.kind === 'sluiceCrawler') {
+      e.abilityT = FOUNDRY.bloomEvery;
+      this.addTelegraph('circle', p.x, p.y, FOUNDRY.bloomRadius, 0, 0, FOUNDRY.bloomDelay, FOUNDRY.bloomDamage, 'bloom', -1);
+    }
+  }
+
+  /** A twin fell: a living twin tries to Rekindle it. Quench it or kill the caster. */
+  private twinFell(): void {
+    for (let j = 0; j < this.enemies.length; j++) {
+      const o = this.enemies[j];
+      if (o.alive && o.kind === 'emberTwin' && !o.castId) {
+        this.startCast(j, 'rekindle', 'Rekindle', FOUNDRY.rekindleCast, true);
+        return;
+      }
+    }
+  }
+
+  private startMaelra(): void {
+    this.temper = 0;
+    this.temperT = FOUNDRY.temperEvery;
+    this.undertowT = 10;
+    this.ventT = FOUNDRY.ventEvery;
+    this.waterT = 0;
+    this.vents = [Math.PI / 2, (7 * Math.PI) / 6, (11 * Math.PI) / 6].map((a) => ({
+      x: Math.cos(a) * FOUNDRY.ventRing, y: Math.sin(a) * FOUNDRY.ventRing, r: FOUNDRY.ventRadius,
+    }));
+  }
+
+  /** Maelra, the Drowned Bellows: Temper stacks you boil off at vents, rising water, Undertow. */
+  private runMaelra(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    if (!this.bossEnraged && this.time - e.spawnedAt > FOUNDRY.enrageAfter) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    const frac = e.hp / e.maxHp;
+    const phase = frac > 0.6 ? 1 : frac > 0.25 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+    }
+    // Temper builds over time; dragging her through a vent boils it away.
+    this.temperT -= dt;
+    if (this.temperT <= 0) {
+      this.temperT = FOUNDRY.temperEvery;
+      if (this.temper < FOUNDRY.temperMax) this.temper++;
+    }
+    if (this.temper > 0) {
+      for (const v of this.vents) {
+        if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
+          // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
+          const heal = Math.min(p.maxHp - p.hp, p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
+          if (heal > 0) {
+            p.hp += heal;
+            this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
+          }
+          this.temper = 0;
+          this.temperT = FOUNDRY.temperEvery;
+          this.events.push({ type: 'explode', x: v.x, y: v.y, r: v.r + 20 });
+          break;
+        }
+      }
+    }
+    // Phase 2: the water rises and the arena shrinks.
+    if (phase >= 2 && this.arenaR > FOUNDRY.waterMin) {
+      this.waterT += dt;
+      this.arenaR = Math.max(FOUNDRY.waterMin, ARENA - (ARENA - FOUNDRY.waterMin) * Math.min(1, this.waterT / FOUNDRY.waterTime));
+      this.clampArena(p, PLAYER_RADIUS);
+    }
+    // Phase 3: vents erupt on their own.
+    if (phase >= 3) {
+      this.ventT -= dt;
+      if (this.ventT <= 0) {
+        this.ventT = FOUNDRY.ventEvery;
+        for (const v of this.vents) this.addTelegraph('circle', v.x, v.y, v.r + 10, 0, 0, FOUNDRY.ventDelay, FOUNDRY.ventDamage);
+      }
+    }
+    if (e.castId) {
+      e.castT += dt;
+      if (e.castT >= e.castDur) this.finishCast(i);
+      return;
+    }
+    if (phase >= 2) {
+      this.undertowT -= dt;
+      if (this.undertowT <= 0) {
+        this.undertowT = FOUNDRY.undertowEvery;
+        this.startCast(i, 'undertow', 'Undertow', FOUNDRY.undertowCast, true);
+        return;
+      }
+    }
+    e.abilityT -= dt;
+    if (e.abilityT > 0) return;
+    const mult = this.bossEnraged ? 2 : 1;
+    e.abilityT = this.bossEnraged ? 1.6 : phase === 3 ? 2.6 : 3.2;
+    if (this.rng.int(2) === 0) {
+      this.addTelegraph('circle', p.x, p.y, 110, 0, 0, 1.3, 32 * mult);
+    } else {
+      const ang = Math.atan2(p.y - e.y, p.x - e.x);
+      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, 28 * mult);
+    }
   }
 
   // ---------------------------------------------------------------- omens
@@ -2337,6 +2549,17 @@ export class World {
         continue;
       }
       this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
+      if (t.kind === 'bloom') {
+        // The burst feeds any enemy caught in it.
+        this.forEachNear(t.x, t.y, t.r + 40, (j) => {
+          const o = this.enemies[j];
+          if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal);
+          if (amount <= 0) return;
+          o.hp += amount;
+          this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
+        });
+      }
       let inside = false;
       const dd = dist2(p.x, p.y, t.x, t.y);
       if (t.shape === 'circle') inside = dd <= (t.r + PLAYER_RADIUS * 0.5) ** 2;
@@ -2642,6 +2865,36 @@ export function xpFor(level: number): number {
 
 export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
+/** Drowned Foundry tuning. */
+export const FOUNDRY = {
+  mirrorCast: 2,
+  mirrorTime: 3,
+  mirrorReflect: 0.12,
+  /** Share of max health healed per Temper stack boiled off in a vent. */
+  ventHealPerStack: 0.04,
+  rekindleCast: 6,
+  bloomEvery: 9,
+  bloomRadius: 90,
+  bloomDelay: 2.5,
+  bloomDamage: 18,
+  bloomHeal: 0.25,
+  temperEvery: 6,
+  temperMax: 5,
+  temperCut: 0.15,
+  ventRing: 250,
+  ventRadius: 55,
+  ventEvery: 7,
+  ventDelay: 1.5,
+  ventDamage: 30,
+  waterMin: 360,
+  waterTime: 20,
+  undertowEvery: 12,
+  undertowCast: 2.5,
+  undertowPull: 0.6,
+  undertowDamage: 12,
+  enrageAfter: 180,
+};
+
 const ACOLYTE_RING = 190;
 /** Share of the boss's health each acolyte restores per second. */
 const ACOLYTE_HEAL = 0.008;

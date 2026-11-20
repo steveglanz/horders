@@ -236,7 +236,8 @@ export class Hud {
     const shadow = e.kind === 'worldShadow';
     $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.def.name;
     $('tTitle').textContent = e.def.title ?? (e.def.stationary ? 'Objective' : '');
-    $('tPhase').textContent = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
+    const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? 'Warded' : '';
+    $('tPhase').textContent = (e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '') + extra;
     if (shadow) {
       // The shadow can't die: its bar is the clock, and the number is damage dealt.
       $('tFill').style.width = `${(100 * w.shadowLeft) / 60}%`;
@@ -264,7 +265,7 @@ export class Hud {
     if (key === this.questKey) return;
     this.questKey = key;
     if (w.stress) { $('quests').innerHTML = ''; return; }
-    $('quests').innerHTML = '<h3>The Kiln Depths</h3>' + w.route.map((id, i) => {
+    $('quests').innerHTML = `<h3>${w.dungeonDef.name}</h3>` + w.route.map((id, i) => {
       const def = ENCOUNTERS[id];
       const done = i < w.encounter;
       const now = i === w.encounter;
@@ -376,6 +377,7 @@ export class Hud {
     $('target').hidden = true;
     const lines: string[] = [];
     if (rewards && hero) {
+      if (rewards.bountyEmbers) lines.push(`<div class="line" style="color:var(--gold)">Daily bounty paid: +${rewards.bountyEmbers} embers</div>`);
       lines.push(`<div class="line">+${rewards.heroXp} hero experience${rewards.levelsGained ? ` · <b style="color:var(--gold)">Hero level ${hero.level}!</b>` : ''}</div>`);
       lines.push(`<div class="line muted">Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}</div>`);
       const equipped = new Set(Object.values(hero.equipped));
@@ -384,9 +386,9 @@ export class Hud {
     $('rewards').innerHTML = lines.join('');
     $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
     $('endSub').textContent = s.victory
-      ? 'Smolderhusk falls. Emberhold will sing of this.'
+      ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
       : w.bossSpawned
-        ? 'So close. The Kiln Mother still burns.'
+        ? `So close. ${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} still stands.`
         : `${w.encounterDef.name} bested you. Your gear and levels carry into the next delve.`;
     $('stats').innerHTML = [
       ['Time', fmt(s.time)],

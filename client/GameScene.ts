@@ -363,7 +363,10 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
+          if (w.dungeonId === 'foundry') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
+          } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
@@ -416,7 +419,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
         case 'bossEnrage':
-          this.hud.banner('The Kiln Mother is enraged', 'Finish it, fast');
+          this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} is enraged`, 'Finish it, fast');
           break;
         case 'revive':
           if (w.cls === 'lumen' && w.player.haloUsed && w.player.hp <= 1) this.hud.banner("Martyr's Halo", 'The killing blow is turned aside');
@@ -547,9 +550,19 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.
-      g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, ARENA + 450);
-      g.lineStyle(4, 0xff8a3d, 0.55).strokeCircle(0, 0, ARENA);
-      g.lineStyle(14, 0xff5a1f, 0.12).strokeCircle(0, 0, ARENA + 6);
+      // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
+      const R = w.arenaR ?? ARENA;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : 0xff8a3d;
+      g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
+      if (R < ARENA) g.lineStyle(ARENA - R, 0x0d3550, 0.55).strokeCircle(0, 0, (ARENA + R) / 2);
+      g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
+      g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      // Maelra's steam vents (placeholder look for the visuals team).
+      for (const v of w.vents) {
+        const puff = 1 + Math.sin(this.time.now / 300 + v.x) * 0.06;
+        g.fillStyle(0xbfe6ff, 0.12).fillCircle(v.x, v.y, v.r * puff);
+        g.lineStyle(2, 0xbfe6ff, 0.6).strokeCircle(v.x, v.y, v.r * puff);
+      }
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
     const GATE_COL = { steady: 0xd8cfc4, named: 0xffc861, shrine: 0x5fe0c8 } as const;

@@ -4,6 +4,8 @@
  * server later (loot must be rolled server-side once cloud saves exist).
  */
 import { Rng } from './rng';
+import { GRIT } from './content/scaling';
+import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
@@ -40,6 +42,10 @@ export interface HeroProfile {
   cls?: ClassId;
   /** Forge actions taken; seeds temper rolls so they can be re-checked. */
   forged?: number;
+  /** Losses in a row on one dungeon and tier, which grant Grit there. */
+  grit?: { key: string; stacks: number };
+  /** Day of the last daily bounty that paid out. */
+  bountyDay?: number;
 }
 
 export function newHero(): HeroProfile {
@@ -127,6 +133,8 @@ export interface RunRewards {
   heroXp: number;
   items: Item[];
   levelsGained: number;
+  /** Embers paid by the daily bounty (0 if not a bounty, a loss, or already paid today). */
+  bountyEmbers?: number;
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -220,9 +228,25 @@ export function applyRun(
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
   hero.runs++;
-  if (s.victory) {
-    hero.wins++;
-    if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;
+  let bountyEmbersPaid = 0;
+  if (s.bounty !== undefined) {
+    // A bounty is a side run: it never moves the tier ladder or Grit, and pays once a day.
+    if (s.victory) {
+      hero.wins++;
+      if (hero.bountyDay !== s.bounty) {
+        hero.bountyDay = s.bounty;
+        bountyEmbersPaid = bountyEmbers(s.tier ?? 1);
+        hero.embers += bountyEmbersPaid;
+      }
+    }
+  } else {
+    const key = gritKey(s.dungeon ?? 'kiln', s.tier ?? 1);
+    if (s.victory) hero.grit = undefined;
+    else hero.grit = { key, stacks: Math.min(GRIT.maxStacks, (hero.grit?.key === key ? hero.grit.stacks : 0) + 1) };
+    if (s.victory) {
+      hero.wins++;
+      if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;
+    }
   }
   hero.bestTime = Math.max(hero.bestTime, s.time);
   hero.pity = loot.pity;
@@ -238,7 +262,16 @@ export function applyRun(
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid };
+}
+
+function gritKey(dungeon: string, tier: number): string {
+  return `${dungeon}:${tier}`;
+}
+
+/** Grit stacks the hero brings into a delve of this dungeon and tier. */
+export function gritFor(hero: HeroProfile, dungeon: string, tier: number): number {
+  return hero.grit?.key === gritKey(dungeon, tier) ? hero.grit.stacks : 0;
 }
 
 export function equip(hero: HeroProfile, itemId: string): void {

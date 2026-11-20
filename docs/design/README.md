@@ -11,6 +11,8 @@ Companion files:
 
 Each delve is a short dungeon: a handful of tough, named fights in an arena, ending in a boss with raid-style mechanics (cast bars to interrupt, telegraphs to dodge, gold circles to soak, healers to kill first, phases and an enrage). Every fight you clear is a level, a talent draft and a loot bag, so your build snowballs inside the run like a survivors game. Your hero keeps the gear, levels and permanent points, so a loss still moves you forward. Above it all sits the shared world boss: every delve anyone finishes chips its health, and everyone who hit it gets paid when it falls.
 
+Also: [positioning.md](positioning.md) (how we stay different from Azeroth Survivors) and [group-play.md](group-play.md) (party scaling, roles and threat, with sources).
+
 ## Design pillars
 
 These come from Steve's feedback during the alpha. Every feature should serve at least one and break none.
@@ -25,7 +27,7 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 
 1. Hub: equip, spend points, forge, pick a tier, check the world boss.
 2. Delve: 5 fights. After each: level, a talent draft, loot bag, 30% heal. After fights 1 to 3, a fork: walk into the steady fight, a harder named fight with better loot, or sometimes a shrine.
-3. Boss: the Kiln Mother. Win to unlock the next tier.
+3. Boss: the Kiln Mother, or Maelra in the Foundry. Win to unlock the next tier.
 4. Results: hero XP, the items you picked up, a small end chest on a win, and a strike on the world boss.
 5. Back to 1.
 
@@ -36,7 +38,7 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 - A route is rolled from the seed: two openers, a named foe, a hard fight, then the boss.
 - Fights scale with depth (+12% enemy health per fight cleared) and tier (+22% health and +12% damage per tier).
 - **Forks (R1):** after fights 1 to 3 you choose your next fight by walking into a gate: steady, named (harder, better loot) or a shrine (full heal and a level, no loot).
-- **Gap:** there is still one dungeon with 7 encounters, so a player has seen every fight within a handful of runs. See R6.
+- **Two dungeons (R6):** the Kiln Depths (dodge, interrupt, soak) and, from tier 4, the Drowned Foundry (stop-or-interrupt mirrors, twins you must kill together, rings you drag away from enemies, and Maelra, a boss you kite through steam vents while the water rises).
 
 ### Bosses
 - Every boss teaches one or two verbs and tests them together at the end. The Kiln Mother: dodge (red telegraphs), interrupt (Molten Cataclysm), soak (gold circles), three phases and an enrage at 150 seconds.

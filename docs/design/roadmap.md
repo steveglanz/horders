@@ -1,6 +1,6 @@
 # Horders design roadmap
 
-Ordered by how much each item adds to "one more run" for the work it takes. Game design builds the items marked **design**; the other owners are noted. Each item lists what it needs from other teams so they can plan.
+Ordered by how much each item adds to "one more run" for the work it takes, and by how much it sets Horders apart ([positioning.md](positioning.md)). Game design builds the items marked **design**; the other owners are noted. Each item lists what it needs from other teams so they can plan.
 
 Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 
@@ -10,11 +10,12 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R1 | Route choices between fights | 🔨 built | design | Visuals: real gate art (placeholder circles and labels now) |
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
 | R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
-| R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
-| R6 | Second dungeon (zone 2) with a new boss | 💡 | design | Visuals: new enemy and arena art |
-| R7 | Daily bounty: one delve with a single twist rule, extra reward | 💡 | design | Engineering: a daily seed from the server |
+| R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | Visuals: art for 3 new enemies, the boss, steam vents and the water edge |
+| R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
+| R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
+| R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
+| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
-| R9 | Co-op delves, then raids | 💡 | engineering | Everyone |
 
 ## R2. The Forge
 
@@ -66,5 +67,49 @@ Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three).
 
 **Design sketch.** Each world boss arrives as a sixth, optional fight at the end of a won delve: "Grandmother Slag's shadow" for a 60-second damage race with her signature mechanic. Damage there counts 3x toward the shared bar. Each world boss also sets a weekly blessing or curse on delves while it lives, which ties the shared world to every run. This is the solo version of "bigger enemies need a group"; co-op makes it a real raid later.
 
-## R4, R6, R7, R8
+## R6. Second dungeon: the Drowned Foundry
+
+**Problem.** One dungeon with 7 encounters. After a handful of runs you've seen every fight, and the Kiln Mother tests the same three verbs (dodge, interrupt, soak) every time.
+
+**Design.** A flooded forge under Emberhold, unlocked once you've beaten the Kiln Mother on tier 3. In the hub you pick which dungeon to delve; tiers, Omens and forks work the same in both. Every new enemy brings a verb the Kiln Depths doesn't have:
+
+| Enemy | Rank | Verb | How it works |
+|-------|------|------|--------------|
+| Glass Warden | elite | **Stop or interrupt** | Casts Mirror Ward (2 s, can be Quenched). If it lands, for 3 s the warden reflects 40% of the damage it takes back at you. |
+| Ember Twins | elite pair | **Balance damage** | Two linked twins. When one falls, the other starts a 6 s Rekindle cast that revives its twin at half health unless it dies or is Quenched first. |
+| Sluice Crawler | elite | **Spread** | Every 9 s it marks your position with a ring that bursts 2.5 s later. Standing near other enemies when it bursts heals them, so drag the ring away. |
+| **Maelra, the Drowned Bellows** | boss | **Kite through hazards** | See below. |
+
+**Maelra.** 4,600 health and a 180 s enrage. Three steam vents sit at fixed spots in the arena.
+- **Phase 1, Tempering:** every 7 s she gains a Temper stack (−12% damage taken each, up to 5). Kite her over a vent to boil the stacks off. This is the first fight where you lead the boss matters.
+- **Phase 2 (below 60%), Rising Water:** the arena shrinks from 560 to 360 over 20 s, and she casts Undertow (can be Quenched), which drags you towards her.
+- **Phase 3 (below 25%), Overpressure:** vents now erupt under their own telegraphs every 8 s. Kiting her over them is now a risk too, so time it between eruptions.
+
+**Routes.** Opener (Twins, or Glass Wardens), opener (Sluice Crawler and two hounds), named (Glass Warden), hard (Twins plus an Acolyte), then Maelra. Forks pull named and hard alternatives from the same dungeon.
+
+**Targets.** Boss fight 60 to 120 s for the good bot. Tier 1 Foundry win rate should be 15 to 25 points below the Kiln Depths at the same gear, since it unlocks later.
+
+**As built.** Dungeons are a registry (`DUNGEONS` in `sim/content/dungeon.ts`), and `WorldOptions.dungeon` picks one. The Kiln route roll is unchanged. The hub has a dungeon picker, and the Foundry is locked until tier 4. Changes from the spec, found in tuning:
+- The opener is one Glass Warden with two hounds, not two wardens. Two wardens killed a fresh hero in 4 of 24 runs in under 40 s.
+- Mirror reflects 12%, not 40%, and wardens take turns mirroring.
+- Maelra has 6,000 health, Temper is −15% per stack every 6 s, Undertow comes every 12 s, and phase 3 vents erupt every 7 s. All tuning is in `FOUNDRY` in `sim/world.ts`.
+
+Placeholder art (needs the visuals team): the four new enemies use the generic creature shape in new colours. Vents are pale circles, and the shrinking water is a blue band. The target frame shows "Temper ×N", "Mirrored" or "Warded".
+
+## R7. Daily bounty
+
+**Why:** a shared reason to come back each day, and one of our differences ([positioning.md](positioning.md), point 4): every player gets the same delve.
+
+**What:** from tier 2, the hub shows today's bounty. It's 3 fights (a named foe, a hard fight, then the dungeon's boss), with no forks and one twist, an Omen picked for the day. The day, seed, dungeon, fights and twist come only from the date (UTC), so everyone gets the same run with no server needed. Only the tier is your own, at one below your best, so it's a confident run, not a wall. If the day's dungeon is still locked for you, you get the Kiln version of the same day.
+
+**Rules:** you start with 2 levels and drafts, for the two openers the bounty skips. Your first win each day pays 30 + 6 × tier embers on top of the usual loot. Replays are free practice. A bounty never changes your tier ladder or your Grit.
+
+**Code:** `sim/content/bounty.ts` (`bountyFor`, `dayOf`, `BOUNTY`), `WorldOptions.bounty`, `HeroProfile.bountyDay`, `RunRewards.bountyEmbers`, the hub's bounty line, and `tools/bounty.ts` for balance. Tests are in `tests/bounty.test.ts`.
+
+**Later:** a daily leaderboard by clear time (engineering), since the runs are directly comparable.
+
+## R4, R8
 Specs get written here when each one is next.
+
+## Backlog notes
+- **Acolyte heals as a real cast (Kiln).** Today acolytes channel into the boss on every tick, so "kill the healer" has no visible tell. Make each heal a short interruptible cast with a cast bar, so a player can either Quench it or kill the acolyte (pillar 4). The skills team's Lumen targeting will switch to "while the cast bar is up" when this lands.
