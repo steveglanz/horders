@@ -10,8 +10,8 @@ const PRIORITY: TalentId[] = [
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
   'flicker', 'magnetism',
   // Duskblade
-  'crimsonTide', 'bladeStorm', 'riposte', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
-  'momentumFlow', 'precision', 'deepCuts', 'secondWind', 'evasion', 'nimble',
+  'crimsonTide', 'bladeStorm', 'riposte', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
+  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',

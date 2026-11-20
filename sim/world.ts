@@ -486,6 +486,7 @@ export class World {
   /** Resource cost of an action-bar slot after talents. */
   abilityCost(slot: number): number {
     if (this.cls === 'emberwright' && slot === 0) return ABILITIES[0].cost - 6 * this.rank('rollingInferno');
+    if (this.cls === 'duskblade' && slot === 0 && this.rank('flurryStep') >= 2) return this.abilities[0].cost - 10;
     return this.abilities[slot]?.cost ?? 0;
   }
 
@@ -1427,16 +1428,20 @@ export class World {
     p.shieldT = Math.max(p.shieldT, 0.2);
     const dmg = 55 * this.dmgMult;
     const bleed = 12 * (1 + 0.5 * this.rank('deepCuts')) * this.dmgMult;
+    let killed = false;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
       if (!e.alive) continue;
       if (segDist2(e.x, e.y, x1, y1, p.x, p.y) > (40 + e.def.radius) ** 2) continue;
       this.damageEnemy(i, dmg, true);
+      if (!e.alive) killed = true;
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, bleed);
         e.burnT = Math.max(e.burnT, 4);
       }
     }
+    // Flurry Step: a kill brings the dash straight back.
+    if (killed && this.rank('flurryStep') > 0) p.cds[0] = 0;
     // Land swinging.
     p.volleyT = Math.min(p.volleyT, 0.05);
     this.events.push({ type: 'dash', x1, y1, x2: p.x, y2: p.y, dodge: false });
@@ -1457,8 +1462,13 @@ export class World {
     this.clampArena(p, PLAYER_RADIUS);
     p.px = p.x;
     p.py = p.y;
-    p.shieldT = 0.7;
+    const counter = this.rank('counterstep');
+    p.shieldT = counter >= 2 ? 1.4 : 0.7;
     if (this.rank('evasion') > 0) p.nextCrit = true;
+    if (counter > 0) {
+      const n = this.nearestEnemies(p.x, p.y, 1, this.swingReach + 40)[0];
+      if (n !== undefined) this.damageEnemy(n, 60 * this.dmgMult, true);
+    }
     this.events.push({ type: 'dash', x1, y1, x2: p.x, y2: p.y, dodge: true });
   }
 
@@ -1474,7 +1484,9 @@ export class World {
     }
     const e = this.enemies[t];
     const low = e.hp < e.maxHp * 0.35;
-    this.damageEnemy(t, 230 * this.dmgMult * (low ? 2 : 1), true);
+    // Exsanguinate: the bleed's next 3s (6s at rank 2) land at once.
+    const tear = e.burnT > 0 ? e.burnDps * 3 * this.rank('exsanguinate') : 0;
+    this.damageEnemy(t, 230 * this.dmgMult * (low ? 2 : 1) + tear, true);
     const cx = e.x;
     const cy = e.y;
     this.forEachNear(cx, cy, 120, (i) => {

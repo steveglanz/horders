@@ -63,7 +63,10 @@ Branches:
 
 ## Duskblade (melee damage)
 
-Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. The skills work on it is tuning (its bot win rate is far below the Emberwright's) and one ability talent per branch, the same as the other classes.
+Engineering's class-system PR shipped a first-pass Duskblade: Momentum resource, auto swings, Rending Dash (Q), Sidestep (E), Execution (R), Kick (F), and the Bloodletting, Tempo and Guard branches. That kit plays well and is kept as the base, so the earlier Energy and Marks sketch is dropped. Most of its low bot win rate turned out to be the bot standing in contact with big foes and running straight back from cone attacks; fixing the melee bot took it from 13 to 47 wins out of 60. It also gets one ability talent per branch, like the other classes:
+- Bloodletting, **Exsanguinate** (2 ranks): Execution also deals the target's next 3s of bleed at once (6s at rank 2).
+- Tempo, **Flurry Step** (2 ranks): Rending Dash comes back at once if it kills; rank 2 makes it cost 10 less Momentum.
+- Guard, **Counterstep** (2 ranks): Sidestep cuts the nearest foe for 60 as you land; rank 2 doubles the dodge window.
 
 ## Order of work
 

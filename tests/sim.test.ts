@@ -213,6 +213,15 @@ describe('classes', () => {
     };
     expect(play()).toBe(play());
   });
+
+  it('Duskblade ability talents change Sidestep and Rending Dash', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 4, cls: 'duskblade' });
+    w.talents = { counterstep: 2, flurryStep: 2 };
+    expect(w.abilityCost(0)).toBe(w.abilities[0].cost - 10);
+    w.step({ x: 1, y: 0, cast: 1 });
+    expect(w.player.shieldT).toBeGreaterThan(1.3);
+  });
 });
 
 describe('world boss shadow fight', () => {
