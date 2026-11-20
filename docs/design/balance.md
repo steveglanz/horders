@@ -91,3 +91,18 @@ Tuning history: Volatile Ground started at 24 damage every 12 s with a 1.5 s war
 | Weak (skill 0.5) | 22 of 24 | 17 of 24 | 71 s average |
 
 **Reading:** the Foundry is about 20 points harder than the Kiln for the weak bot and about the same for the good bot. The new fights punish sloppy play (missed Quenches, never kiting) more than they punish raw power, which is the intent. The good bot kites Maelra over a vent every time her Temper reaches 2, so her average Temper stays near 1. Humans will likely carry more stacks, so watch this in playtests. The weak bot doing better than the good bot in the Kiln is noise from forks and drafts over 24 seeds.
+
+## Grit (20 Nov 2026)
+
+50-run progression, autopilot, Kiln (`tools/progression.ts`, `NO_GRIT=1` for off). Ran twice, same results both times.
+
+| Week | Grit | Wins | Longest losing streak | Final tier |
+|------|------|------|----------------------|-----------|
+| 0 | off | 21 | 6 | 13 |
+| 0 | on | 20 | 4 | 12 |
+| 2901 | off | 19 | 6 | 12 |
+| 2901 | on | 20 | 5 | 13 |
+
+Grit shortens the worst losing streak by 1 to 2 runs without changing total wins or how far the hero climbs. That fits the goal: it gets you past a wall, it doesn't carry you. The target is a longest streak of 4 or fewer, so week 2901 is still one over. Next lever if playtests agree: 4 stacks, not a bigger per-stack bonus.
+
+Party health scaling (×1, 1.775, 2.5, 3.175) doesn't change solo, so it has no solo numbers yet. It needs co-op playtests.
