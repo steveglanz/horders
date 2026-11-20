@@ -144,3 +144,19 @@ With gear, the Foundry plays about as hard as the Kiln at the same tier, which w
 
 1. **Geared tiers come first.** Use each class's own heroes (`CLS=<class> SNAP=4,6,8`), averaged over 3 progressions (`SEED_OFFSET=0,1,2`, saved as `hero-t<N>-<offset>.json`), because a single hero is noisy. Target: every class within 10 points of the others in each dungeon at tiers 4, 6 and 8.
 2. **Tier 1 with no gear is the first-impression check.** Every class should win 40 to 60% with the weak bot (`SKILL=0.5`) and stay within 15 points of the others with the full bot. It must not be the bar for tuning, because players leave tier 1 within a few runs.
+
+## Tier 1 first impression: a better novice proxy (20 Nov 2026)
+
+`SKILL=0.5` barely weakens the autopilot, because its move direction is normalised: halving every avoidance force leaves the direction almost unchanged. So the Kiln at tier 1 read 83 to 100% even "at half skill". The bot now has a reaction time: `laggedBot(lagTicks, skill)` in `sim/bot.ts`, or `LAG=<seconds>` in `tools/balance.ts`. It acts on what it decided that long ago, moves and casts alike. A phone player's reaction time is a fair stand-in for a new player.
+
+Kiln, tier 1, seeds 1 to 24, `SKILL=0.5`, on `stack` 750b9d5:
+
+| Reaction time | Emberwright wins |
+|---|---|
+| 0 s | 22 |
+| 0.3 s | 13 |
+| 0.5 s | 8 |
+
+With `LAG=0.3 SKILL=0.5` (the new novice reference): Emberwright 13, Duskblade 0, Bulwark 6, Lumen 23 out of 24.
+
+Tier 1 itself is in range: the Emberwright is at 54% against the 40 to 60% target, so I'm leaving the fight alone. The spread between classes for slow players is the problem. The Duskblade is unplayable and the Lumen near-automatic, which goes to the skills team as forgiveness in the kits.
