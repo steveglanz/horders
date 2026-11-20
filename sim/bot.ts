@@ -69,8 +69,28 @@ export function botCast(w: World, skill = 1): number | undefined {
   return undefined;
 }
 
+/**
+ * Which gate the bot takes at a fork: the named path when healthy, a shrine
+ * when hurt, otherwise the steady fight. BOT_PATH=steady|named forces a choice
+ * for balance comparisons.
+ */
+export function botGate(w: World): number {
+  const force = typeof process !== 'undefined' ? process.env?.BOT_PATH : undefined;
+  const idx = (k: string) => w.gates.findIndex((g) => g.kind === k);
+  if (force === 'steady') return Math.max(0, idx('steady'));
+  if (force === 'named' && idx('named') >= 0) return idx('named');
+  const hpPct = w.player.hp / w.player.maxHp;
+  if (idx('shrine') >= 0 && hpPct < 0.6) return idx('shrine');
+  if (idx('named') >= 0 && hpPct >= 0.6) return idx('named');
+  return Math.max(0, idx('steady'));
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
+  if (w.phase === 'choose' && w.gates.length) {
+    const g = w.gates[botGate(w)];
+    return { x: g.x - p.x, y: g.y - p.y };
+  }
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade';

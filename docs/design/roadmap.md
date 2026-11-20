@@ -7,7 +7,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | # | Item | Status | Owner | Needs from others |
 |---|------|--------|-------|-------------------|
 | R2 | The Forge: embers upgrade and temper gear | ✅ PR #2 | design | Visuals: a nicer Forge panel later |
-| R1 | Route choices between fights | ⏭ | design | Visuals: door/choice icons; engineering: none |
+| R1 | Route choices between fights | 🔨 built | design | Visuals: real gate art (placeholder circles and labels now) |
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | Visuals: an icon per Omen, a shield bar for Warded (`ward` on Enemy, `ward` event) |
 | R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
 | R4 | Build-changing loot: more mythics, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
@@ -40,6 +40,8 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 **Why.** Push-your-luck choices are what make a run feel like yours, and they fit pillar 2: a strong hero takes the named path, a struggling one takes the shrine.
 
 **Measure.** The bot picks named paths when its health is over 60%. Win rate on tier 1 should stay about where it is; average loot rarity should rise for players who take risks.
+
+**As built.** After fights 1, 2 and 3, two gates appear a short walk from the player, so both fit on a phone screen. You have 10 seconds to walk into one, or the steady fight is taken. The other gate is a named fight that isn't already in your route (its loot bag is one rarity better), or, 30% of the time or when no named fight is left, an Ember Shrine. A shrine replaces the fight: full heal and a level (so a talent draft), but no loot bag. Code: `rollFork` in `sim/content/dungeon.ts`, the `choose` phase in `World`, `botGate` in the bot, gate drawing in `GameScene`. `tools/paths.ts` compares path policies. Numbers are in balance.md.
 
 ## R3. Tier modifiers ("Omens")
 

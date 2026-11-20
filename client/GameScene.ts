@@ -83,6 +83,8 @@ export class GameScene extends Phaser.Scene {
   private orbiterSprites: Phaser.GameObjects.Image[] = [];
   private plates: Phaser.GameObjects.Text[] = [];
   private soakText!: Phaser.GameObjects.Text;
+  /** Labels over the two gates at a fork (game design: placeholder look, visuals can restyle). */
+  private gateTexts: Phaser.GameObjects.Text[] = [];
   private gfx!: Phaser.GameObjects.Graphics;
   private bars!: Phaser.GameObjects.Graphics;
   private fx: Fx[] = [];
@@ -150,6 +152,7 @@ export class GameScene extends Phaser.Scene {
     this.bars = this.add.graphics().setDepth(9);
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
+    for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
@@ -391,6 +394,12 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner(def.name, def.tip + omens);
           break;
         }
+        case 'fork':
+          this.hud.banner('Choose your path', 'Walk into a gate. The steady fight is taken if you wait.');
+          break;
+        case 'gateChosen':
+          if (ev.kind === 'named') this.hud.ding('Named path!');
+          break;
         case 'encounterClear':
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
@@ -526,6 +535,19 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(4, 0xff8a3d, 0.55).strokeCircle(0, 0, ARENA);
       g.lineStyle(14, 0xff5a1f, 0.12).strokeCircle(0, 0, ARENA + 6);
     }
+    // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
+    const GATE_COL = { steady: 0xd8cfc4, named: 0xffc861, shrine: 0x5fe0c8 } as const;
+    this.gateTexts.forEach((txt, k) => {
+      const gate = w.phase === 'choose' ? w.gates[k] : undefined;
+      if (!gate) { if (txt.visible) txt.setVisible(false); return; }
+      const col = GATE_COL[gate.kind];
+      const pulse = 1 + Math.sin(this.time.now / 250 + k) * 0.05;
+      g.fillStyle(col, 0.12).fillCircle(gate.x, gate.y, gate.r * pulse);
+      g.lineStyle(3, col, 0.9).strokeCircle(gate.x, gate.y, gate.r * pulse);
+      const name = ENCOUNTERS[gate.encounter].name;
+      const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
+      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 6);
+    });
     let soakShown = false;
     for (const t of w.telegraphs) {
       if (!t.alive) continue;

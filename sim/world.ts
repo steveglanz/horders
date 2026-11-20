@@ -13,7 +13,7 @@ import { CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
-import { ENCOUNTERS, EncounterId, rollRoute } from './content/dungeon';
+import { ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMEN_TUNING, OmenId, omensFor } from './content/omens';
 
 export const TICK = 1 / 30;
@@ -25,6 +25,10 @@ export const RARE_AT = 150;
 export const ARENA = 560;
 /** Seconds between a cleared fight (after the draft) and the next one. */
 export const INTRO_TIME = 2.5;
+/** Seconds to pick a gate at a fork before the steady path is taken. */
+export const CHOOSE_TIME = 10;
+/** Gate size and spacing at a fork. */
+export const GATE_RADIUS = 46;
 export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
 /** Chance that a normal enemy drops an item. */
@@ -145,6 +149,14 @@ export interface Quest {
   done: boolean;
 }
 
+export interface Gate {
+  kind: GateKind;
+  encounter: EncounterId;
+  x: number;
+  y: number;
+  r: number;
+}
+
 export interface Strike {
   alive: boolean;
   x: number;
@@ -214,6 +226,8 @@ export type SimEvent =
   | { type: 'castDone'; x: number; y: number; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
   | { type: 'ward'; index: number; amount: number }
+  | { type: 'fork'; gates: Gate[] }
+  | { type: 'gateChosen'; kind: GateKind; id: EncounterId; timedOut: boolean }
   | { type: 'phase'; phase: number }
   | { type: 'rareSpawn' }
   | { type: 'riftOpen'; x: number; y: number }
@@ -272,6 +286,7 @@ export interface RunSummary {
   talents: Partial<Record<TalentId, number>>;
   questsDone?: number;
   omens?: OmenId[];
+  paths?: GateKind[];
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -311,7 +326,13 @@ export class World {
   /** The dungeon: the route of fights, which one is next, and where we are in it. */
   route: EncounterId[] = [];
   encounter = 0;
-  phase: 'intro' | 'fight' | 'cleared' = 'intro';
+  phase: 'intro' | 'fight' | 'cleared' | 'choose' = 'intro';
+  /** Gates on offer while `phase` is 'choose'. */
+  gates: Gate[] = [];
+  /** Paths taken at each fork, for the summary. */
+  paths: GateKind[] = [];
+  /** The current fight was a named path: its loot bag is one rarity better. */
+  private namedFight = false;
   phaseT = INTRO_TIME;
   eliteKilled = false;
   revived = false;
@@ -503,6 +524,7 @@ export class World {
       victory: this.victory,
       tier: this.tier,
       omens: [...this.omens],
+      paths: [...this.paths],
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -541,6 +563,14 @@ export class World {
     if (this.phase === 'intro') {
       this.phaseT -= dt;
       if (this.phaseT <= 0) this.startEncounter();
+      return;
+    }
+    if (this.phase === 'choose') {
+      this.phaseT -= dt;
+      const p = this.player;
+      const g = this.gates.find((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 <= (q.r + PLAYER_RADIUS) ** 2);
+      if (g) this.takeGate(g, false);
+      else if (this.phaseT <= 0) this.takeGate(this.gates[0], true);
       return;
     }
     if (this.phase === 'fight') this.runOmens(dt);
@@ -589,11 +619,49 @@ export class World {
     p.pendingLevels++;
     this.events.push({ type: 'levelUp', level: p.level });
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
-    const min: Rarity = this.encounter >= 3 ? 'rare' : this.encounter >= 2 ? 'fine' : 'common';
-    this.dropLoot(p.x + 40, p.y, min);
+    if (def.id === 'shrine') {
+      p.hp = p.maxHp;
+    } else {
+      const order: Rarity[] = ['common', 'fine', 'rare', 'epic'];
+      let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
+      if (this.namedFight) min++;
+      this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
+    }
+    this.namedFight = false;
     this.encounter++;
+    this.openFork();
+  }
+
+  /** After a clear: offer a fork if this point in the route has one, else count down to the next fight. */
+  private openFork(): void {
+    const offer = this.stress ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q));
+    if (!offer) {
+      this.phase = 'intro';
+      this.phaseT = INTRO_TIME;
+      return;
+    }
+    // Two gates side by side, a short walk from the player towards the arena's
+    // centre, so both are on a phone screen at once.
+    const p = this.player;
+    const toward = Math.hypot(p.x, p.y) > 60 ? Math.atan2(-p.y, -p.x) : -Math.PI / 2;
+    const cx = p.x + Math.cos(toward) * 140;
+    const cy = p.y + Math.sin(toward) * 140;
+    const px = -Math.sin(toward) * 85;
+    const py = Math.cos(toward) * 85;
+    this.gates = offer.map((o, k) => ({ kind: o.kind, encounter: o.encounter, x: cx + (k ? px : -px), y: cy + (k ? py : -py), r: GATE_RADIUS }));
+    this.phase = 'choose';
+    this.phaseT = CHOOSE_TIME;
+    this.events.push({ type: 'fork', gates: this.gates.map((g) => ({ ...g })) });
+  }
+
+  private takeGate(g: Gate, timedOut: boolean): void {
+    this.route[this.encounter] = g.encounter;
+    this.namedFight = g.kind === 'named';
+    this.paths.push(g.kind);
+    this.gates = [];
+    this.events.push({ type: 'gateChosen', kind: g.kind, id: g.encounter, timedOut });
     this.phase = 'intro';
-    this.phaseT = INTRO_TIME;
+    this.phaseT = INTRO_TIME * 0.6;
   }
 
   private clampArena(o: { x: number; y: number }, r: number): void {

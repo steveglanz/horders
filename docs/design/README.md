@@ -24,7 +24,7 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 ## Core loop
 
 1. Hub: equip, spend points, forge, pick a tier, check the world boss.
-2. Delve: 5 fights. After each: level, draft 1 of 3 talents, loot bag, 30% heal.
+2. Delve: 5 fights. After each: level, a talent draft, loot bag, 30% heal. After fights 1 to 3, a fork: walk into the steady fight, a harder named fight with better loot, or sometimes a shrine.
 3. Boss: the Kiln Mother. Win to unlock the next tier.
 4. Results: hero XP, the items you picked up, a small end chest on a win, and a strike on the world boss.
 5. Back to 1.
@@ -35,7 +35,8 @@ These come from Steve's feedback during the alpha. Every feature should serve at
 - Content is data in `sim/content/dungeon.ts` and `sim/content/enemies.ts`.
 - A route is rolled from the seed: two openers, a named foe, a hard fight, then the boss.
 - Fights scale with depth (+12% enemy health per fight cleared) and tier (+22% health and +12% damage per tier).
-- **Gap:** there is one dungeon with 7 encounters, so a player has seen everything in about 5 runs, and the player makes no choices between fights. See roadmap items R1 and R3.
+- **Forks (R1):** after fights 1 to 3 you choose your next fight by walking into a gate: steady, named (harder, better loot) or a shrine (full heal and a level, no loot).
+- **Gap:** there is still one dungeon with 7 encounters, so a player has seen every fight within a handful of runs. See R6.
 
 ### Bosses
 - Every boss teaches one or two verbs and tests them together at the end. The Kiln Mother: dodge (red telegraphs), interrupt (Molten Cataclysm), soak (gold circles), three phases and an enrage at 150 seconds.

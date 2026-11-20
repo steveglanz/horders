@@ -69,3 +69,14 @@ Tuning history: Volatile Ground started at 24 damage every 12 s with a 1.5 s war
 | Week 2901 (Quickened, Shared Pain, Kindled Dead) | T8, hero 7 | T12, hero 14 | T13, hero 18 | 20 of 50 | about 12 to 13 |
 
 **Reading:** the wall tier moves by about one or two depending on the week, which is the weekly variety we want, and total wins hold steady. Hero pacing is unchanged.
+
+## Forks (20 Nov 2026, on the classes branch plus Omens)
+
+`BOT_PATH=steady|named npx vite-node tools/paths.ts` runs 24 tier 1 delves with no Omens.
+
+| Path policy | Wins | Average delve | Items picked up | Average rarity (0 Common to 4 Mythic) | Epic or better |
+|-------------|------|---------------|-----------------|----------------------------------------|----------------|
+| Always steady | 20 of 24 | 211 s | 164 | 1.46 | 23 |
+| Named when offered | 19 of 24 | 225 s | 177 | 1.58 | 34 |
+
+**Reading:** the named path costs about one win in 24 and 14 seconds, and pays about 50% more Epics. That's the trade we want: worth it for a confident player, not mandatory. Shrines show up in roughly two of every three forks that have no named option left, which is mostly the third fork. The bot only takes a shrine below 60% health, which it rarely is after the 30% heal, so shrine numbers need human playtests.

@@ -4,7 +4,7 @@
  */
 import { EnemyKind } from './enemies';
 
-export type EncounterId = 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother';
+export type EncounterId = 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -21,12 +21,35 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
   ashmaw: { id: 'ashmaw', name: 'Ashmaw the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
   acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
+  shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
 const OPENERS: EncounterId[] = ['pack', 'wardens', 'warpack'];
 const NAMED: EncounterId[] = ['brute', 'ashmaw'];
 const HARD: EncounterId[] = ['acolytes', 'ashmaw'];
+
+/** A fork between fights: walk into one of two gates. */
+export type GateKind = 'steady' | 'named' | 'shrine';
+
+export interface GateOffer {
+  kind: GateKind;
+  encounter: EncounterId;
+}
+
+/**
+ * The fork offered before fight `index` (1 to 3): the planned fight, or a
+ * harder named fight with better loot, or sometimes a shrine. Returns null
+ * where there's no fork (the first fight and the boss).
+ */
+export function rollFork(route: EncounterId[], index: number, pick: (n: number) => number, chance: (p: number) => boolean): [GateOffer, GateOffer] | null {
+  if (index < 1 || index > 3 || index >= route.length - 1) return null;
+  const steady: GateOffer = { kind: 'steady', encounter: route[index] };
+  const used = new Set(route);
+  const harder: EncounterId[] = (index === 1 ? NAMED : [...HARD, ...NAMED]).filter((e) => !used.has(e));
+  if (!harder.length || chance(0.3)) return [steady, { kind: 'shrine', encounter: 'shrine' }];
+  return [steady, { kind: 'named', encounter: harder[pick(harder.length)] }];
+}
 
 /** Rolls a 5-fight route: two openers, a named foe, a hard fight, the boss. */
 export function rollRoute(pick: (n: number) => number): EncounterId[] {

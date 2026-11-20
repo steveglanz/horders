@@ -147,6 +147,7 @@ export class Hud {
     $('killsLabel').textContent = w.stress ? 'kills' : 'slain';
     let next = '';
     if (w.stress) next = 'Stress test';
+    else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
     else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} in ${Math.ceil(w.phaseT)}`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
