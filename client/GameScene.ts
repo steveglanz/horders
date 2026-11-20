@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
-import { buildTextures } from './textures';
+import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
 
@@ -17,19 +17,31 @@ const SOAK = 0xffc861; // gold: stand in it
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
 
+/** A pooled sprite effect: moves, spins, fades and scales from (sx0, sy0) to (sx1, sy1). */
 interface Fx {
   img: Phaser.GameObjects.Image;
   life: number;
   max: number;
-  grow: number;
   vx: number;
   vy: number;
+  drag: number;
+  spin: number;
+  sx0: number;
+  sy0: number;
+  sx1: number;
+  sy1: number;
 }
 
 interface FloatText {
   txt: Phaser.GameObjects.Text;
   life: number;
+  age: number;
+  vx: number;
 }
+
+/** Characters draw a little larger than their hitboxes so they read on phones. */
+const BASE = 1.15 / SPRITE_RES;
+const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /** Short-lived vector effects drawn with Graphics (ability shapes, beams). */
 interface Shape {
@@ -85,6 +97,19 @@ export class GameScene extends Phaser.Scene {
   private gfx!: Phaser.GameObjects.Graphics;
   private bars!: Phaser.GameObjects.Graphics;
   private fx: Fx[] = [];
+  /** Ash puffs and dying bodies: normal blending, drawn at body depth. */
+  private smoke: Fx[] = [];
+  private shadows: Phaser.GameObjects.Image[] = [];
+  private playerShadow!: Phaser.GameObjects.Image;
+  private enemyFrames: number[] = [];
+  private motes: { img: Phaser.GameObjects.Image; ph: number; sp: number }[] = [];
+  private facing = 1;
+  private hitSparks = 0;
+  private hitStop = 0;
+  /** Set when the frame rate sags: drops cosmetic extras (shadows under fodder, embers in the air). */
+  lowFx = false;
+  private fxCheckAt = 0;
+  private vignette: HTMLElement | null = null;
   private floats: FloatText[] = [];
   private shapes: Shape[] = [];
   private shake = 0;
@@ -105,6 +130,12 @@ export class GameScene extends Phaser.Scene {
     this.paused = false;
     this.queued = null;
     this.fx = [];
+    this.smoke = [];
+    this.shadows = [];
+    this.enemyFrames = [];
+    this.motes = [];
+    this.facing = 1;
+    this.hitStop = 0;
     this.floats = [];
     this.shapes = [];
     this.enemySprites = [];
@@ -136,23 +167,34 @@ export class GameScene extends Phaser.Scene {
       this.dropSprites.push(this.add.image(0, 0, 'loot').setVisible(false).setDepth(3.5));
     });
     w.enemies.forEach(() => {
-      this.enemySprites.push(this.add.image(0, 0, 'ashling').setVisible(false).setDepth(4));
+      this.shadows.push(this.add.image(0, 0, 'shadow').setVisible(false).setDepth(2.5));
+      this.enemySprites.push(this.add.image(0, 0, 'ashling', '0').setScale(BASE).setVisible(false).setDepth(4));
       this.enemyKinds.push('ashling');
+      this.enemyFrames.push(0);
     });
+    for (let i = 0; i < 48; i++) this.smoke.push(this.newFx('puff', 4.5, false));
+    this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
-    this.player = this.add.image(0, 0, w.cls === 'duskblade' ? 'duskblade' : 'player').setDepth(6);
-    w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'orb').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
+    if (w.cls === 'duskblade') this.aura.setTint(0x9a6cff);
+    this.player = this.add.image(0, 0, w.cls === 'duskblade' ? 'duskblade' : 'player', '0').setScale(BASE).setDepth(6);
+    w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
-    for (let i = 0; i < 160; i++) {
-      this.fx.push({ img: this.add.image(0, 0, 'spark').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(8), life: 0, max: 1, grow: 0, vx: 0, vy: 0 });
+    for (let i = 0; i < 200; i++) this.fx.push(this.newFx('spark', 8, true));
+    // Drifting embers in the air, wrapped around the camera.
+    if (!w.stress) {
+      for (let i = 0; i < 34; i++) {
+        const img = this.add.image(Math.random() * 1400 - 700, Math.random() * 1000 - 500, 'spark').setBlendMode(Phaser.BlendModes.ADD).setDepth(8.5);
+        this.motes.push({ img, ph: Math.random() * 6.28, sp: 8 + Math.random() * 18 });
+      }
     }
+    this.vignette = document.getElementById('vignette');
     this.bars = this.add.graphics().setDepth(9);
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
-      this.floats.push({ txt, life: 0 });
+      this.floats.push({ txt, life: 0, age: 0, vx: 0 });
     }
 
     const kb = this.input.keyboard!;
@@ -186,7 +228,10 @@ export class GameScene extends Phaser.Scene {
   private layout(): void {
     const { width, height } = this.scale;
     const short = Math.min(width, height);
-    const zoom = short / viewFor(short);
+    // The canvas may be at device resolution (see --dpr in index.html); pick the
+    // view from the CSS size so phones and desktops frame the same as before.
+    const dpr = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dpr')) || 1;
+    const zoom = short / viewFor(short / dpr);
     this.cameras.main.setZoom(zoom);
     // Scroll-factor-0 objects still scale with zoom around the screen centre,
     // so size the ground in world units and centre it.
@@ -241,7 +286,8 @@ export class GameScene extends Phaser.Scene {
     this.frameTimes.push(deltaMs);
     if (this.frameTimes.length > 240) this.frameTimes.shift();
 
-    if (!this.paused && w.state === 'running') {
+    if (this.hitStop > 0) this.hitStop -= deltaMs / 1000;
+    else if (!this.paused && w.state === 'running') {
       this.acc += Math.min(deltaMs / 1000, 0.25) * this.warp;
       while (this.acc >= TICK && w.state === 'running') {
         const input = this.autopilot ? botInput(w) : this.readInput();
@@ -287,34 +333,53 @@ export class GameScene extends Phaser.Scene {
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
+          if (this.hitSparks < 12) {
+            this.hitSparks++;
+            this.impact(ev.x, ev.y, ev.crit ? 0.75 : 0.45);
+          }
           if (ev.crit || ev.amount >= 40) this.floatText(ev.x, ev.y - 10, Math.round(ev.amount).toString(), ev.crit ? '#ffe08a' : '#ffffff', ev.crit ? 18 : 14);
           break;
         case 'kill':
+          this.death(ev.kind, ev.x, ev.y);
           if (ev.kind === 'kilnMother' || ev.kind === 'cinderBrute' || ev.kind === 'ashmaw') {
             this.burst(ev.x, ev.y, ev.kind === 'kilnMother' ? 40 : 24);
+            this.ring(ev.x, ev.y, ev.kind === 'kilnMother' ? 220 : 120, 0xffb347, 0.5);
             this.shake = 0.5;
+            this.hitStop = ev.kind === 'kilnMother' ? 0.18 : 0.08;
           } else this.burst(ev.x, ev.y, 4);
           break;
         case 'explode':
         case 'strike':
           this.blast(ev.x, ev.y, ev.r);
+          this.ring(ev.x, ev.y, ev.r, 0xffa050, 0.3);
           break;
         case 'slam':
           this.blast(ev.x, ev.y, ev.r, DANGER);
+          this.ring(ev.x, ev.y, ev.r, DANGER, 0.35);
           this.shake = Math.max(this.shake, 0.18);
           break;
         case 'playerHurt':
           this.shake = Math.max(this.shake, ev.amount >= 20 ? 0.3 : 0.08);
+          this.pulseVignette(ev.amount >= 20 ? 'hurt big' : 'hurt');
           break;
         case 'levelUp':
           this.burst(w.player.x, w.player.y, 16);
+          this.ring(w.player.x, w.player.y, 110, 0xffd27a, 0.6);
           this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
           break;
         case 'ability':
           if (ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xff8a3d, life: 0.3 });
+            // Flames licking out along the wave front.
+            for (let k = 0; k < 9; k++) {
+              const a = ev.angle + (k / 8 - 0.5) * 1.8;
+              const d = ev.r * (0.35 + Math.random() * 0.25);
+              this.spark(ev.x + Math.cos(a) * d, ev.y + Math.sin(a) * d, Math.cos(a) * 260, Math.sin(a) * 260, 0.35, 2.2);
+            }
           } else if (ev.slot === 2) {
             this.blast(ev.x, ev.y, ev.r);
+            this.ring(ev.x, ev.y, ev.r * 1.1, 0xffb347, 0.45);
+            this.burst(ev.x, ev.y, 18);
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: 0xffb347, life: 0.4 });
             this.shake = Math.max(this.shake, 0.25);
           } else if (ev.slot === 3) {
@@ -342,6 +407,7 @@ export class GameScene extends Phaser.Scene {
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
           this.burst(ev.x, ev.y, 14);
+          this.ring(ev.x, ev.y, 90, 0x8fd8ff, 0.4);
           break;
         case 'heal':
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
@@ -429,7 +495,19 @@ export class GameScene extends Phaser.Scene {
     this.ground.setTilePosition(cam.worldView.x, cam.worldView.y);
     this.ground.setTileScale(1);
 
-    this.player.setPosition(px, py);
+    // The hero: walk cycle while moving, a gentle breath while still.
+    const now = this.time.now;
+    const pdx = p.x - p.px;
+    const pdy = p.y - p.py;
+    const moving = pdx * pdx + pdy * pdy > 0.01;
+    if (pdx > 0.05) this.facing = 1;
+    else if (pdx < -0.05) this.facing = -1;
+    const pf = moving ? Math.floor(now / 110) % 4 : 0;
+    if (this.player.frame.name !== String(pf)) this.player.setFrame(String(pf));
+    const breath = moving ? 0 : Math.sin(now / 420) * 0.025;
+    const squash = p.hurtFlash > 0 ? 0.1 : 0;
+    this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
+    this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.player.clearTint();
@@ -439,26 +517,58 @@ export class GameScene extends Phaser.Scene {
     const margin = 80;
     const onScreen = (x: number, y: number) => x > view.x - margin && x < view.right + margin && y > view.y - margin && y < view.bottom + margin;
 
+    this.hitSparks = 0;
+    if (now > this.fxCheckAt && this.frameTimes.length >= 120) {
+      this.fxCheckAt = now + 2000;
+      const fps = this.fps().avg;
+      if (fps < 42) this.lowFx = true;
+      else if (fps > 56) this.lowFx = false;
+    }
+    const cheap = this.lowFx;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       const s = this.enemySprites[i];
+      const sh = this.shadows[i];
       if (!e.alive) {
-        if (s.visible) s.setVisible(false);
+        if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
       const x = lerp(e.px, e.x);
       const y = lerp(e.py, e.y);
       if (!onScreen(x, y)) {
-        if (s.visible) s.setVisible(false);
+        if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
       if (this.enemyKinds[i] !== e.kind) {
-        s.setTexture(e.kind);
+        s.setTexture(e.kind, '0');
         this.enemyKinds[i] = e.kind;
+        this.enemyFrames[i] = 0;
       }
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px);
-      if (e.kind === 'rift') s.setRotation(this.time.now / 900);
-      else s.setRotation(e.stunT > 0 ? Math.sin(this.time.now / 60) * 0.15 : 0);
+      // Walk cycle while moving; big and stationary foes idle-animate slowly.
+      const frames = FRAMES[e.kind] ?? 1;
+      if (frames > 1) {
+        const dx = e.x - e.px;
+        const dy = e.y - e.py;
+        const walking = dx * dx + dy * dy > 0.01;
+        const idle = e.def.stationary || e.def.rank === 'boss' || e.def.rank === 'rare';
+        const fps = walking ? 6 + e.def.speed / 12 : idle ? 5 : 0;
+        const fr = fps ? Math.floor(now / (1000 / fps) + i * 1.7) % frames : 0;
+        if (fr !== this.enemyFrames[i]) { s.setFrame(String(fr)); this.enemyFrames[i] = fr; }
+      }
+      // Spawn: rise out of the ground with a little overshoot. Hit: squash.
+      const age = w.time - e.spawnedAt;
+      let k = 1;
+      if (age < 0.3) {
+        const t = age / 0.3;
+        k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
+      }
+      const hit = e.flash > 0 ? 0.12 : 0;
+      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit), BASE * k * (1 - hit));
+      const r = e.def.radius;
+      if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
+      if (e.kind === 'rift') s.setRotation(now / 900);
+      else s.setRotation(e.stunT > 0 ? Math.sin(now / 60) * 0.15 : 0);
+      if (!cheap && e.burnT > 0 && Math.random() < 0.03) this.spark(x + (Math.random() - 0.5) * r, y - r * 0.5, 0, -50, 0.5, 1.4);
       if (e.flash > 0) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -469,7 +579,7 @@ export class GameScene extends Phaser.Scene {
       const o = w.orbs[i];
       const s = this.orbSprites[i];
       if (!o.alive) { if (s.visible) s.setVisible(false); continue; }
-      s.setVisible(true).setPosition(lerp(o.px, o.x), lerp(o.py, o.y));
+      s.setVisible(true).setPosition(lerp(o.px, o.x), lerp(o.py, o.y)).setRotation(Math.atan2(o.vy, o.vx));
     }
     for (let i = 0; i < w.gems.length; i++) {
       const g = w.gems[i];
@@ -580,7 +690,12 @@ export class GameScene extends Phaser.Scene {
       const f = s.life / s.max;
       if (s.kind === 'cone') {
         const half = (s.arc ?? (110 * Math.PI) / 180) / 2;
-        g.fillStyle(s.color, 0.45 * f).slice(s.x, s.y, s.r * (1.1 - f * 0.3), s.angle - half, s.angle + half, false).fillPath();
+        // A sweeping front: a soft outer band, a brighter crest, and a hot core near the caster.
+        const reach = s.r * (1.1 - f * 0.3);
+        g.fillStyle(s.color, 0.22 * f).slice(s.x, s.y, reach, s.angle - half, s.angle + half, false).fillPath();
+        g.fillStyle(s.color, 0.35 * f).slice(s.x, s.y, reach * 0.86, s.angle - half * 0.92, s.angle + half * 0.92, false).fillPath();
+        g.fillStyle(0xffe6a8, 0.3 * f).slice(s.x, s.y, reach * 0.5, s.angle - half * 0.7, s.angle + half * 0.7, false).fillPath();
+        g.lineStyle(3 * f + 1, 0xfff0c8, 0.7 * f).beginPath().arc(s.x, s.y, reach, s.angle - half, s.angle + half, false).strokePath();
       } else if (s.kind === 'line') {
         g.lineStyle(8 * f + 2, s.color, f).lineBetween(s.x, s.y, s.x2, s.y2);
       } else if (s.kind === 'ring') {
@@ -611,58 +726,147 @@ export class GameScene extends Phaser.Scene {
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
-    for (const f of this.fx) {
+    this.stepFx(this.fx, dt);
+    this.stepFx(this.smoke, dt);
+    for (const t of this.floats) {
+      if (t.life <= 0) continue;
+      t.life -= dt;
+      t.age += dt;
+      t.txt.y -= 34 * dt;
+      t.txt.x += t.vx * dt;
+      t.vx *= 0.92;
+      // Pop in big, settle, then fade.
+      t.txt.setScale(1 + Math.max(0, 1 - t.age / 0.14) * 0.7);
+      t.txt.setAlpha(Math.min(1, t.life * 2.5));
+      if (t.life <= 0) t.txt.setVisible(false);
+    }
+    // Ambient embers drift up through the camera view and wrap around it.
+    for (const m of this.motes) {
+      const img = m.img;
+      if (img.visible === this.lowFx) img.setVisible(!this.lowFx);
+      img.y -= m.sp * dt;
+      img.x += Math.sin(now / 900 + m.ph) * 10 * dt;
+      if (img.y < view.y - 20) img.y += view.height + 40;
+      else if (img.y > view.bottom + 20) img.y -= view.height + 40;
+      if (img.x < view.x - 20) img.x += view.width + 40;
+      else if (img.x > view.right + 20) img.x -= view.width + 40;
+      img.setAlpha(0.25 + 0.35 * (0.5 + 0.5 * Math.sin(now / 500 + m.ph * 3)));
+    }
+    if (this.vignette) this.vignette.classList.toggle('low', p.hp > 0 && p.hp / p.maxHp < 0.3);
+  }
+
+  private newFx(tex: string, depth: number, add: boolean): Fx {
+    const img = this.add.image(0, 0, tex).setVisible(false).setDepth(depth);
+    if (add) img.setBlendMode(Phaser.BlendModes.ADD);
+    return { img, life: 0, max: 1, vx: 0, vy: 0, drag: 1, spin: 0, sx0: 1, sy0: 1, sx1: 1, sy1: 1 };
+  }
+
+  private stepFx(pool: Fx[], dt: number): void {
+    for (const f of pool) {
       if (f.life <= 0) continue;
       f.life -= dt;
       if (f.life <= 0) { f.img.setVisible(false); continue; }
       const k = f.life / f.max;
-      f.img.x += f.vx * dt;
-      f.img.y += f.vy * dt;
-      f.img.setAlpha(k);
-      if (f.grow) f.img.setScale(f.grow * (1.15 - k * 0.5));
-    }
-    for (const t of this.floats) {
-      if (t.life <= 0) continue;
-      t.life -= dt;
-      t.txt.y -= 30 * dt;
-      t.txt.setAlpha(Math.min(1, t.life * 2));
-      if (t.life <= 0) t.txt.setVisible(false);
+      const t = easeOut(1 - k);
+      const img = f.img;
+      img.x += f.vx * dt;
+      img.y += f.vy * dt;
+      if (f.drag !== 1) { const d = Math.pow(f.drag, dt * 60); f.vx *= d; f.vy *= d; }
+      if (f.spin) img.rotation += f.spin * dt;
+      img.setAlpha(k).setScale(f.sx0 + (f.sx1 - f.sx0) * t, f.sy0 + (f.sy1 - f.sy0) * t);
     }
   }
 
-  private nextFx(): Fx | undefined {
+  private pulseVignette(cls: string): void {
+    const v = this.vignette;
+    if (!v) return;
+    v.classList.remove('hurt', 'big');
+    void v.offsetWidth; // restart the CSS animation
+    v.classList.add(...cls.split(' '));
+  }
+
+  private nextFx(pool: Fx[] = this.fx): Fx | undefined {
     let best: Fx | undefined;
-    for (const f of this.fx) {
+    for (const f of pool) {
       if (f.life <= 0) return f;
       if (!best || f.life < best.life) best = f;
     }
     return best;
   }
 
+  /** Start a pooled effect. Scales are absolute; tint 0 clears the tint. */
+  private emit(pool: Fx[], tex: string, frame: string | undefined, x: number, y: number, life: number, o: Partial<Fx> & { tint?: number; rot?: number; flip?: boolean } = {}): Fx | undefined {
+    const f = this.nextFx(pool);
+    if (!f) return undefined;
+    const img = f.img;
+    if (img.texture.key !== tex || (frame !== undefined && img.frame.name !== frame)) img.setTexture(tex, frame);
+    img.setVisible(true).setPosition(x, y).setAlpha(1).setRotation(o.rot ?? 0).setFlipX(!!o.flip);
+    if (o.tint) img.setTint(o.tint).setTintMode(Phaser.TintModes.MULTIPLY);
+    else img.clearTint();
+    f.life = life;
+    f.max = life;
+    f.vx = o.vx ?? 0;
+    f.vy = o.vy ?? 0;
+    f.drag = o.drag ?? 1;
+    f.spin = o.spin ?? 0;
+    f.sx0 = o.sx0 ?? 1;
+    f.sy0 = o.sy0 ?? f.sx0;
+    f.sx1 = o.sx1 ?? f.sx0;
+    f.sy1 = o.sy1 ?? f.sx1;
+    return f;
+  }
+
+  private spark(x: number, y: number, vx: number, vy: number, life: number, size = 1.5): void {
+    this.emit(this.fx, 'spark', undefined, x, y, life, { vx, vy, drag: 0.93, sx0: size, sx1: size * 0.4 });
+  }
+
   private burst(x: number, y: number, n: number): void {
     for (let i = 0; i < n; i++) {
-      const f = this.nextFx();
-      if (!f) return;
       const a = Math.random() * Math.PI * 2;
-      const sp = 40 + Math.random() * 120;
-      f.img.setTexture('spark').clearTint().setVisible(true).setPosition(x, y).setScale(1 + Math.random()).setAlpha(1);
-      Object.assign(f, { life: 0.4 + Math.random() * 0.3, max: 0.7, grow: 0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+      const sp = 60 + Math.random() * 160;
+      const sz = 1 + Math.random() * 1.2;
+      this.emit(this.fx, 'spark', undefined, x, y, 0.4 + Math.random() * 0.35, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.94, sx0: sz, sx1: sz * 0.3 });
     }
   }
 
   private blast(x: number, y: number, r: number, tint?: number): void {
-    const f = this.nextFx();
-    if (!f) return;
-    f.img.setTexture('blast').setVisible(true).setPosition(x, y).setAlpha(1);
-    if (tint) f.img.setTint(tint).setTintMode(Phaser.TintModes.MULTIPLY);
-    else f.img.clearTint();
-    Object.assign(f, { life: 0.3, max: 0.3, grow: (r * 2.2) / 64, vx: 0, vy: 0 });
+    const g = (r * 2.2) / 64;
+    this.emit(this.fx, 'blast', undefined, x, y, 0.3, { tint, sx0: g * 0.65, sx1: g * 1.15 });
+  }
+
+  /** An expanding shockwave ring that reaches radius r. */
+  private ring(x: number, y: number, r: number, tint: number, life: number): void {
+    const g = (r * 2) / 128;
+    this.emit(this.fx, 'ring', undefined, x, y, life, { tint, sx0: g * 0.25, sx1: g });
+  }
+
+  /** A quick white impact star where a hit landed. */
+  private impact(x: number, y: number, size: number): void {
+    this.emit(this.fx, 'hitstar', undefined, x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, 0.14, { rot: Math.random() * Math.PI, sx0: size * 0.6, sx1: size * 1.1 });
+  }
+
+  /** Death: the body flashes, flattens and fades into a puff of ash. */
+  private death(kind: string, x: number, y: number): void {
+    const big = kind === 'kilnMother' || kind === 'cinderBrute' || kind === 'ashmaw' || kind === 'husk';
+    if (this.textures.exists(kind)) {
+      const f = this.emit(this.smoke, kind, '0', x, y, big ? 0.45 : 0.22, { flip: x > this.world.player.x, sx0: BASE * 1.1, sy0: BASE * 0.95, sx1: BASE * 1.35, sy1: BASE * 0.15 });
+      f?.img.setTint(0xffd7a0).setTintMode(Phaser.TintModes.FILL);
+    }
+    const n = big ? 5 : 1;
+    for (let k = 0; k < n; k++) {
+      const s = (big ? 1.4 : 0.6) + Math.random() * 0.4;
+      this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * (big ? 40 : 6), y + (Math.random() - 0.5) * (big ? 30 : 6), 0.5 + Math.random() * 0.3, {
+        tint: 0x9a8a84, vy: -18, vx: (Math.random() - 0.5) * 20, spin: (Math.random() - 0.5) * 2, rot: Math.random() * 6, sx0: s * 0.6, sx1: s * 1.3,
+      });
+    }
   }
 
   private floatText(x: number, y: number, s: string, color: string, size: number): void {
     let t = this.floats.find((q) => q.life <= 0);
     if (!t) t = this.floats.reduce((a, b) => (a.life < b.life ? a : b));
-    t.txt.setText(s).setPosition(x, y).setVisible(true).setAlpha(1).setColor(color).setFontSize(size);
+    t.txt.setText(s).setPosition(x, y).setVisible(true).setAlpha(1).setColor(color).setFontSize(size).setScale(1.7);
+    t.age = 0;
+    t.vx = (Math.random() - 0.5) * 60;
     t.life = color === '#ffffff' || color === '#ffe08a' ? 0.7 : 1.1;
   }
 }

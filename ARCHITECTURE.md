@@ -17,7 +17,7 @@ shared world bosses. TypeScript, Phaser 4 for rendering, Vite single-file build.
 | `client/` | Phaser scene (`GameScene.ts`), procedural textures (`textures.ts`), HTML HUD (`ui.ts`), hub (`hub.ts`), saves (`save.ts`, `cloud.ts`), entry (`main.ts`, `index.html`). |
 | `supabase/migrations/` | Backend schema: cloud saves, world boss tables and functions (RLS on everything). |
 | `tests/` | Vitest: sim determinism, dungeon flow, classes, hero/loot. |
-| `tools/` | `balance.ts` (bot win rates, `CLS=duskblade SEEDS=1,2,3`), `progression.ts`, Playwright playtests (`mmoshots.cjs`, `cloudcheck.cjs`). |
+| `tools/` | `balance.ts` (bot win rates, `CLS=duskblade SEEDS=1,2,3`), `progression.ts`, Playwright playtests (`mmoshots.cjs`, `cloudcheck.cjs`), art review (`artsheet.cjs` contact sheet of every texture, `fxshots.cjs` busy-moment screenshots), `perf.cjs` (600-enemy stress, includes a 2x-DPR phone). |
 
 ## Adding a class
 

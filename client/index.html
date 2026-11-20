@@ -16,10 +16,20 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
   #game { position: fixed; inset: 0; }
+  /* main.ts renders the canvas at device resolution (capped at 2x) and shows it at CSS size. */
+  #game canvas { width: 100% !important; height: 100% !important; }
   #game canvas { display: block; }
   [hidden] { display: none !important; }
   button { font: inherit; color: inherit; cursor: pointer; }
 
+  /* Screen-edge mood vignette; flashes red when hit and pulses at low health. */
+  #vignette { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(5,2,2,0.55) 100%); }
+  #vignette::after { content: ""; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(220,30,40,0.55) 100%); }
+  #vignette.hurt::after { animation: hurtFlash 0.35s ease-out; }
+  #vignette.hurt.big::after { animation: hurtFlash 0.6s ease-out; }
+  #vignette.low::after { animation: lowPulse 1s ease-in-out infinite alternate; }
+  @keyframes hurtFlash { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes lowPulse { from { opacity: 0.25; } to { opacity: 0.8; } }
   #touch { position: fixed; inset: 0; z-index: 5; }
   #stickBase { position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,200,140,0.35); background: rgba(255,140,60,0.08); z-index: 6; pointer-events: none; }
   #stickKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,170,90,0.55); transform: translate(-50%, -50%); }
@@ -184,7 +194,9 @@
     #heat { width: 140px; }
     #abilities { display: grid; grid-template-columns: repeat(2, 64px); gap: 8px; }
     .ab { width: 64px; height: 64px; }
-    #toasts { bottom: auto; top: 56px; left: 50%; transform: translateX(-50%); max-width: 80vw; }
+    #toasts { bottom: max(14px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); max-width: calc(100vw - 190px); }
+    .toast { font-size: 12px; padding: 5px 8px; }
+    .toast:nth-child(n+3) { display: none; }
     .gear { grid-template-columns: repeat(2, 1fr); }
     .stat { font-size: 12px; }
     .stat b { font-size: 16px; }
@@ -199,6 +211,7 @@
 </head>
 <body>
 <div id="game"></div>
+<div id="vignette"></div>
 <div id="touch"></div>
 <div id="stickBase" hidden><div id="stickKnob"></div></div>
 
