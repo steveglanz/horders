@@ -42,15 +42,23 @@ void (async () => {
   await hub.refreshBoss();
 })();
 
+// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out.
+const DPR = params.has('lowres') ? 1 : Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+document.documentElement.style.setProperty('--dpr', String(DPR));
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#120b0a',
-  scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
+  scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60 },
   banner: false,
 });
+// NONE scale mode: follow the window ourselves so the backing store stays at device resolution.
+const fit = () => game.scale.resize(Math.round(window.innerWidth * DPR), Math.round(window.innerHeight * DPR));
+window.addEventListener('resize', fit);
+window.visualViewport?.addEventListener('resize', fit);
 
 function seed(): number {
   const s = params.get('seed');
