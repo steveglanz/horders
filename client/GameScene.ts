@@ -438,6 +438,14 @@ export class GameScene extends Phaser.Scene {
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);
           break;
+        case 'ward': {
+          const we = w.enemies[ev.index];
+          if (we) {
+            this.ring(we.x, we.y, we.def.radius + 30, 0xcfe6ff, 0.4);
+            this.floatText(we.x, we.y - we.def.radius - 30, 'Warded!', '#dfeeff', 16);
+          }
+          break;
+        }
         case 'castDone':
           if (ev.name === 'Undertow') {
             // Water rushes from the hero to Maelra.
@@ -597,9 +605,9 @@ export class GameScene extends Phaser.Scene {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
-      // The world boss shadow borrows the Kiln Mother's sheet until it gets its own art;
+      // The world boss shadow is Grandmother Slag's silhouette;
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      const tex = e.kind === 'worldShadow' ? 'kilnMother' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind;
+      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -624,7 +632,7 @@ export class GameScene extends Phaser.Scene {
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
       }
       const hit = e.flash > 0 ? 0.12 : 0;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.15 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.15 : 1));
+      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.05 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.05 : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -859,6 +867,13 @@ export class GameScene extends Phaser.Scene {
       if (e.castId) {
         b.fillStyle(0x000000, 0.7).fillRect(e.x - bw / 2, top + 8, bw, 5);
         b.fillStyle(e.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(e.x - bw / 2, top + 8, (bw * e.castT) / e.castDur, 5);
+      }
+      // Warded: a pale shield segment over the health bar, and a bubble on the body.
+      if (e.ward > 0) {
+        const wf = Math.min(1, e.ward / e.maxHp);
+        b.fillStyle(0xe8f4ff, 0.95).fillRect(e.x - bw / 2, top - 3, bw * Math.min(1, wf * 5), 3);
+        g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
+        g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
       const t = this.plates[plate++];
       if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.def.name).setColor(NAME_COLOR[e.def.rank]);

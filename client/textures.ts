@@ -711,6 +711,73 @@ function drawPortal(ctx: Ctx, s: number): void {
   ctx.restore();
 }
 
+/** Grandmother Slag (world boss): a towering crone of cooled slag with a molten ladle. Faces right. */
+function drawSlagCrone(ctx: Ctx, s: number, f: number): void {
+  const sway = [0, 1.5, 3, 1.5][f];
+  const drip = [0, 2, 4, 6][f];
+  const c = s / 2;
+  // Skirts of layered slag, wide at the ground.
+  ctx.beginPath();
+  ctx.moveTo(c - 44, 120);
+  ctx.quadraticCurveTo(c - 40, 70, c - 18, 48);
+  ctx.lineTo(c + 18, 48);
+  ctx.quadraticCurveTo(c + 40, 70, c + 44 + sway * 0.4, 120);
+  ctx.quadraticCurveTo(c, 126, c - 44, 120);
+  ctx.closePath();
+  shade(ctx, '#4a3f3c', '#151110', 48, 124, 2.2);
+  // Glowing seams in the skirts.
+  cracks(ctx, [[[c - 30, 112], [c - 24, 96], [c - 28, 80]], [[c + 2, 118], [c + 6, 100], [c + 1, 86], [c + 5, 70]], [[c + 28, 114], [c + 24, 98]]], '#ff8a3d', 1.6);
+  // Hunched back with a shawl.
+  ell(ctx, c - 6, 50, 30, 20, -0.2);
+  shade(ctx, '#5a4d48', '#1f1917', 30, 70, 2);
+  ctx.save();
+  ctx.fillStyle = '#7a2e22';
+  ctx.beginPath();
+  ctx.moveTo(c - 34, 46); ctx.quadraticCurveTo(c - 6, 30, c + 22, 44); ctx.quadraticCurveTo(c + 6, 66, c - 28, 62); ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.restore();
+  // Back arm leaning on a staff of fused rebar.
+  limb(ctx, c - 24, 56, c - 36, 82, 6, '#3d3331');
+  limb(ctx, c - 38, 30, c - 36, 122, 3.4, '#2a2624');
+  // Head jutting forward: a hooded skull-face with ember eyes and a long chin.
+  ctx.beginPath();
+  ctx.moveTo(c + 4, 26);
+  ctx.quadraticCurveTo(c + 14, 10, c + 30, 18);
+  ctx.quadraticCurveTo(c + 38, 30, c + 30, 42);
+  ctx.quadraticCurveTo(c + 18, 46, c + 8, 40);
+  ctx.closePath();
+  shade(ctx, '#6a5a54', '#2a221f', 10, 46, 1.8);
+  ell(ctx, c + 26, 30, 7, 8); ctx.fillStyle = '#c9b8a8'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = INK; ctx.stroke();
+  ctx.fillStyle = '#1a0e0a';
+  ell(ctx, c + 26, 37, 3, 1.4); ctx.fill();
+  eyes(ctx, [[c + 23.5, 28], [c + 29, 28]], 1.8, '#ffb347');
+  // Wild ash hair.
+  ctx.save();
+  ctx.strokeStyle = '#9a8f88';
+  ctx.lineWidth = 1.4;
+  ctx.lineCap = 'round';
+  for (const [x, y, dx, dy] of [[c + 6, 22, -10, 6], [c + 10, 16, -12, -2], [c + 16, 13, -8, -8], [c + 4, 30, -12, 12]]) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + dx * 0.6, y + dy * 0.2 - 3, x + dx, y + dy); ctx.stroke();
+  }
+  ctx.restore();
+  // Front arm holding out a ladle of molten slag that drips.
+  limb(ctx, c + 14, 54, c + 34, 62, 6, '#4a3e3a');
+  limb(ctx, c + 34, 62, c + 52, 58 + sway * 0.5, 2.4, '#3a3230');
+  softGlow(ctx, c + 54, 62 + sway * 0.5, 16, 'rgba(255,150,60,0.9)');
+  ell(ctx, c + 54, 62 + sway * 0.5, 8, 4.4);
+  shade(ctx, '#fff0b0', '#e0601f', 58, 66, 1.4);
+  ctx.save();
+  ctx.fillStyle = '#ffb347';
+  ctx.shadowColor = '#ff8a3d';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  const dy = 66 + sway * 0.5;
+  ctx.moveTo(c + 52, dy); ctx.quadraticCurveTo(c + 54, dy + 4 + drip, c + 52, dy + 6 + drip); ctx.quadraticCurveTo(c + 50, dy + 4 + drip, c + 52, dy);
+  ctx.fill();
+  ctx.restore();
+}
+
 // ------------------------------------------------------------------ the Drowned Foundry
 
 /** Glass Warden: a golem of cracked furnace glass around a banked ember. */
@@ -1078,6 +1145,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'steam', 48, drawSteam);
   make(scene, 'water', 128, drawWater);
   sheet(scene, 'gate', 80, 1, drawGate);
+  sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
   sheet(scene, 'portal', 80, 1, drawPortal);
 
   // Hollow Rift: a violet tear with a swirling eye.
