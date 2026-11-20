@@ -1876,6 +1876,12 @@ export class World {
     if (this.temper > 0) {
       for (const v of this.vents) {
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
+          // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
+          const heal = Math.min(p.maxHp - p.hp, p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
+          if (heal > 0) {
+            p.hp += heal;
+            this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
+          }
           this.temper = 0;
           this.temperT = FOUNDRY.temperEvery;
           this.events.push({ type: 'explode', x: v.x, y: v.y, r: v.r + 20 });
@@ -2270,6 +2276,8 @@ export const FOUNDRY = {
   mirrorCast: 2,
   mirrorTime: 3,
   mirrorReflect: 0.12,
+  /** Share of max health healed per Temper stack boiled off in a vent. */
+  ventHealPerStack: 0.04,
   rekindleCast: 6,
   bloomEvery: 9,
   bloomRadius: 90,

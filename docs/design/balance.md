@@ -117,3 +117,9 @@ Autopilot with no gear, 30 days in a row (days 20400 to 20429), `tools/bounty.ts
 | 5 | 4 | 10/30 | 225 s | 46% | 6/12 |
 
 Without the 2-level head start it was 17/30 and 1/30, because the hero reached the hard fights underleveled. With the head start, a bounty plays a little harder than a normal delve at the same tier, which is about right for a run you take one tier below your best. Real heroes have gear, which this bot doesn't, so they'll win more. Volatile Ground was the hardest twist at tier 4 (0 of 6), so watch it once players arrive. Runs take 2 to 4 minutes, which suits a quick daily.
+
+## Foundry sustain: vent heal (20 Nov 2026)
+
+The skills team found that Maelra is a long fight with no healing at all, so the Lumen (the only class that heals itself) won 54 of 60 there while the others trailed. The encounter fix: boiling off her Temper in a steam vent now heals the hero 4% of max health per stack (up to 5 stacks, so 20%). Healing comes from playing the fight's verb, not from a free rest.
+
+Emberwright with the autopilot, Foundry tier 1, seeds 1 to 60 (`tools/foundry.ts`): 47 wins before, 51 after. The boss fight still averages 62 to 63 s. (Duskblade reads 0 on this branch because its melee bot fixes are in PR #4. The skills team re-measures all four classes on a merge.)
