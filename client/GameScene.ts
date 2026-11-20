@@ -638,10 +638,14 @@ export class GameScene extends Phaser.Scene {
       if (!t.alive) continue;
       const f = Math.min(1, t.t / t.dur);
       const col = t.kind === 'soak' ? SOAK : DANGER;
+      // The edge glows and flickers faster as the strike gets close.
+      const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
         g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
         g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
-        g.lineStyle(t.kind === 'soak' ? 3 : 2, col, 0.9).strokeCircle(t.x, t.y, t.r);
+        g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
+        g.lineStyle(t.kind === 'soak' ? 3 : 2, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
+        g.lineStyle(1.5, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
           this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
@@ -651,7 +655,8 @@ export class GameScene extends Phaser.Scene {
         const a1 = t.angle + t.arc / 2;
         g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
         g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
-        g.lineStyle(2, col, 0.9).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+        g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
+        g.lineStyle(2, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
