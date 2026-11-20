@@ -36,6 +36,24 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 3. **Movement that works while being pulled:** Blink, Sidestep and Rending Dash, Charge, Glimmer Step.
 4. **Damage while moving,** for kiting: all four auto-attacks fire on the move. Melee keeps up with Rending Dash and Charge.
 
+## Novice aid (melee, tiers 1 to 3)
+
+A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
+- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by up to 50%.
+- **Duskblade Sidestep:** heals up to 3% of max health.
+- **Bulwark:** Bastion heals up to 10% of max health (on top of Last Stand), and Shield Block also covers every big foe within 75° of the last sweep.
+- **Second Wind (both):** once per fight, dropping below 30% health heals up to 20% of max health.
+
+Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
+
+## Co-op threat hooks
+
+With a party, enemies pick targets by threat (`sim/threat.ts`). The kits add to it:
+- **Bulwark:** 4× threat from damage (engineering's damage hook), and **Charge taunts** everything it hits onto the Bulwark for 3s.
+- **Duskblade:** **Sidestep halves** its threat on every enemy.
+- **Healing:** effective healing (no overheal) makes 0.5 threat per point, split across the living enemies. This goes through `World.healPlayer`.
+Solo ignores all of this.
+
 ## Shared action bar shape
 
 Every class has the same four slots so the boss mechanics work for all of them:

@@ -9,7 +9,7 @@ import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { RunSummary } from './world';
 import {
-  Item, MYTHICS, MythicId, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat,
+  Item, MYTHICS, MythicId, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
@@ -48,6 +48,56 @@ export interface HeroProfile {
   grit?: { key: string; stacks: number };
   /** Day of the last daily bounty that paid out. */
   bountyDay?: number;
+  /**
+   * The classes not being played right now, each with its own progress. The
+   * top-level fields are always the selected class's character. Saves from
+   * before this field have none: their progress belongs to the selected class.
+   */
+  roster?: Partial<Record<ClassId, Character>>;
+}
+
+/** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit'] as const;
+export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
+
+function freshCharacter(): Character {
+  const n = newHero();
+  return { level: n.level, xp: n.xp, passives: {}, embers: n.embers, inventory: [], equipped: {}, pity: n.pity, runs: 0, wins: 0, bestTime: 0, maxTier: n.maxTier };
+}
+
+function takeCharacter(h: HeroProfile): Character {
+  const c = {} as Record<string, unknown>;
+  for (const k of CHARACTER_KEYS) if (h[k] !== undefined) c[k] = h[k];
+  return c as unknown as Character;
+}
+
+/** Switches the played class: the current character goes to the roster, and the new class's own character (or a fresh one) comes out. */
+export function switchClass(h: HeroProfile, cls: ClassId): void {
+  const cur = h.cls ?? 'emberwright';
+  if (cur === cls) return;
+  const roster = { ...(h.roster ?? {}) };
+  roster[cur] = takeCharacter(h);
+  const next = roster[cls] ?? freshCharacter();
+  delete roster[cls];
+  for (const k of CHARACTER_KEYS) delete h[k];
+  Object.assign(h, freshCharacter(), next);
+  h.roster = roster;
+  h.cls = cls;
+}
+
+/** The character for `cls`, whether it is being played or waiting in the roster. */
+export function characterOf(h: HeroProfile, cls: ClassId): Character | undefined {
+  return (h.cls ?? 'emberwright') === cls ? takeCharacter(h) : h.roster?.[cls];
+}
+
+/** Delves and levels across every class, for picking the newer of two saves. */
+function totals(h: HeroProfile): { runs: number; levels: number; xp: number } {
+  const all = [takeCharacter(h), ...Object.values(h.roster ?? {})] as Character[];
+  return {
+    runs: all.reduce((a, c) => a + (c.runs ?? 0), 0),
+    levels: all.reduce((a, c) => a + (c.level ?? 1), 0),
+    xp: all.reduce((a, c) => a + (c.xp ?? 0), 0),
+  };
 }
 
 export function newHero(): HeroProfile {
@@ -140,11 +190,11 @@ export interface RunRewards {
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
-export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', tier = MYTHIC_FROM_TIER): Item {
+export function rollDrop(rng: Rng, id: string, ilvl: number, luck: number, minRarity: Rarity = 'common', cls?: ClassId, tier = MYTHIC_FROM_TIER): Item {
   let rarity = rollRarity(rng, luck, tier);
   if (RARITIES.indexOf(rarity) < RARITIES.indexOf(minRarity)) rarity = minRarity;
   const slot = SLOTS[rng.int(SLOTS.length)];
-  return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1));
+  return makeItem(rng, id, slot, rarity, Math.max(1, ilvl + rng.int(3) - 1), cls);
 }
 
 function rollRarity(rng: Rng, luck: number, tier = MYTHIC_FROM_TIER): Rarity {
@@ -158,7 +208,8 @@ function rollRarity(rng: Rng, luck: number, tier = MYTHIC_FROM_TIER): Rarity {
   return 'common';
 }
 
-export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number): Item {
+/** `cls` names the weapon for the class that found it; other slots and every stat roll are the same for all classes. */
+export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl: number, cls?: ClassId): Item {
   const main = SLOT_MAIN[slot];
   // A flat base keeps early drops meaningful; item level still scales them.
   const lvl = ilvl + 5;
@@ -169,7 +220,7 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
     stats.push({ stat, value: round1(STATS[stat].perLevel * lvl * rng.range(0.7, 1.2)) });
   }
   const prefixes = RARITY_PREFIX[rarity];
-  const nouns = SLOT_NAMES[slot];
+  const nouns = slot === 'weapon' && cls ? WEAPON_NAMES[cls] : SLOT_NAMES[slot];
   const item: Item = {
     id, slot, rarity, ilvl,
     name: `${prefixes[rng.int(prefixes.length)]} ${nouns[rng.int(nouns.length)]}`,
@@ -208,7 +259,7 @@ export function rollLoot(
     if (rarity === 'epic' || rarity === 'mythic') gotEpic = true;
     const slot = SLOTS[rng.int(SLOTS.length)];
     const ilvl = Math.max(1, baseIlvl + rng.int(3) - 1);
-    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl));
+    items.push(makeItem(rng, `i${hero.nextItemId + runDrops.length + k}`, slot, rarity, ilvl, hero.cls ?? 'emberwright'));
   }
   pity = gotEpic ? 0 : pity + 1;
   return { items, pity };
@@ -322,7 +373,7 @@ export interface BossReward {
  */
 export function grantBossReward(hero: HeroProfile, bossId: number, damage: number): BossReward {
   const rng = new Rng((bossId * 2654435761) ^ hero.nextItemId);
-  const item = rollDrop(rng, `i${hero.nextItemId}`, hero.level + 3, 2, 'epic');
+  const item = rollDrop(rng, `i${hero.nextItemId}`, hero.level + 3, 2, 'epic', hero.cls ?? 'emberwright');
   hero.nextItemId++;
   hero.inventory.push(item);
   const embers = 50 + Math.floor(Math.max(0, damage) / 1000);
@@ -332,8 +383,10 @@ export function grantBossReward(hero: HeroProfile, bossId: number, damage: numbe
 
 /** Which of two saves of the same hero has made more progress. */
 export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
-  if (a.runs !== b.runs) return a.runs > b.runs ? a : b;
-  if (a.level !== b.level) return a.level > b.level ? a : b;
-  if (a.xp !== b.xp) return a.xp > b.xp ? a : b;
+  const ta = totals(a);
+  const tb = totals(b);
+  if (ta.runs !== tb.runs) return ta.runs > tb.runs ? a : b;
+  if (ta.levels !== tb.levels) return ta.levels > tb.levels ? a : b;
+  if (ta.xp !== tb.xp) return ta.xp > tb.xp ? a : b;
   return a.nextItemId >= b.nextItemId ? a : b;
 }

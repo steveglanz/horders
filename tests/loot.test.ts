@@ -19,16 +19,16 @@ function win(opts: ConstructorParameters<typeof World>[0]): World | null {
 describe('loot rarity', () => {
   it('no mythics below their tier, even with high luck', () => {
     const rng = new Rng(7);
-    for (let k = 0; k < 4000; k++) expect(rollDrop(rng, `x${k}`, 5, 3, 'common', MYTHIC_FROM_TIER - 1).rarity).not.toBe('mythic');
+    for (let k = 0; k < 4000; k++) expect(rollDrop(rng, `x${k}`, 5, 3, 'common', undefined, MYTHIC_FROM_TIER - 1).rarity).not.toBe('mythic');
     let mythics = 0;
-    for (let k = 0; k < 4000; k++) if (rollDrop(rng, `y${k}`, 5, 3, 'common', MYTHIC_FROM_TIER).rarity === 'mythic') mythics++;
+    for (let k = 0; k < 4000; k++) if (rollDrop(rng, `y${k}`, 5, 3, 'common', undefined, MYTHIC_FROM_TIER).rarity === 'mythic') mythics++;
     expect(mythics).toBeGreaterThan(0);
   });
 
   it('epics are rare from ordinary rolls', () => {
     const rng = new Rng(11);
     let epic = 0;
-    for (let k = 0; k < 4000; k++) if (rollDrop(rng, `z${k}`, 5, 1, 'common', 1).rarity === 'epic') epic++;
+    for (let k = 0; k < 4000; k++) if (rollDrop(rng, `z${k}`, 5, 1, 'common', undefined, 1).rarity === 'epic') epic++;
     expect(epic / 4000).toBeLessThan(0.025);
   });
 

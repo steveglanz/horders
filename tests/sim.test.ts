@@ -194,7 +194,8 @@ describe('classes', () => {
 
   it('Shield Block cuts hits from the foe the shield faces', async () => {
     const { World } = await import('../sim/world');
-    const w = new World({ seed: 2, cls: 'bulwark' });
+    // Tier 4: no novice aid, so only the sweep target is blocked.
+    const w = new World({ seed: 2, cls: 'bulwark', tier: 4 });
     const hurt = (w as unknown as { hurtPlayer(a: number, s?: number): void }).hurtPlayer.bind(w);
     w.player.guardId = 0;
     w.enemies[0].alive = true;

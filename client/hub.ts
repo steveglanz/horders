@@ -1,6 +1,6 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  HeroProfile, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
+  HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, cloud } from './cloud';
@@ -52,11 +52,15 @@ export class Hub {
     const cls = h.cls ?? 'emberwright';
     $('classes').innerHTML = CLASS_IDS.map((id) => {
       const c = CLASSES[id];
-      return `<button class="cls ${id === cls ? 'active' : ''}" aria-pressed="${id === cls}" data-cls="${id}"><b>${c.name}</b><div>${c.role}. ${c.blurb}</div></button>`;
+      const ch = characterOf(h, id);
+      const lvl = ch ? ` <span class="muted small">Level ${ch.level}</span>` : '';
+      return `<button class="cls ${id === cls ? 'active' : ''}" aria-pressed="${id === cls}" data-cls="${id}"><b>${c.name}</b>${lvl}<div>${c.role}. ${c.blurb}</div></button>`;
     }).join('');
     $('classes').querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) =>
       b.addEventListener('click', () => {
-        h.cls = b.dataset.cls as typeof cls;
+        // Each class is its own hero, with its own level, talents, gear and bags.
+        switchClass(h, b.dataset.cls as typeof cls);
+        this.tier = h.maxTier;
         this.save();
         this.render();
       }));
