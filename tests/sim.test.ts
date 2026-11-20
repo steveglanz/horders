@@ -213,6 +213,15 @@ describe('classes', () => {
     };
     expect(play()).toBe(play());
   });
+
+  it('Duskblade ability talents change Sidestep and Rending Dash', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 4, cls: 'duskblade' });
+    w.talents = { counterstep: 2, flurryStep: 2 };
+    expect(w.abilityCost(0)).toBe(w.abilities[0].cost - 10);
+    w.step({ x: 1, y: 0, cast: 1 });
+    expect(w.player.shieldT).toBeGreaterThan(1.3);
+  });
 });
 
 describe('world boss shadow fight', () => {
@@ -243,5 +252,59 @@ describe('world boss shadow fight', () => {
     expect(w.victory).toBe(true);
     expect(w.route).not.toContain('worldShadow');
     expect(w.summary().shadowTime).toBe(0);
+  });
+
+  it('plays the Lumen through a run with only Lumen talents', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const w = new World({ seed: 6, cls: 'lumen' });
+    let drafts = 0;
+    while (w.state !== 'ended' && w.time < 600) {
+      if (w.state === 'draft') {
+        for (const c of w.choices) expect([undefined, 'lumen']).toContain(TALENTS[c.id].cls);
+        drafts++;
+        w.choose(botChoose(w));
+      } else w.step(botInput(w, 1));
+    }
+    expect(drafts).toBeGreaterThanOrEqual(3);
+    expect(w.encounter).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Lumen overhealing is stored as Brilliance', async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 2, cls: 'lumen' });
+    w.player.hp = w.player.maxHp - 10;
+    expect(w.healPlayer(30)).toBeCloseTo(10, 5);
+    expect(w.player.brilliance).toBeCloseTo(20, 5);
+    w.talents = { kindledLight: 1 };
+    w.healPlayer(10);
+    expect(w.player.brilliance).toBeCloseTo(33, 5);
+  });
+
+  it("Martyr's Halo stops one killing blow per fight", async () => {
+    const { World } = await import('../sim/world');
+    const w = new World({ seed: 2, cls: 'lumen' });
+    w.talents = { martyrsHalo: 1 };
+    const hurt = (w as unknown as { hurtPlayer(a: number): void }).hurtPlayer.bind(w);
+    hurt(500);
+    expect(w.player.hp).toBe(1);
+    expect(w.player.shieldT).toBeGreaterThan(1.9);
+    w.player.shieldT = 0;
+    hurt(500);
+    expect(w.player.hp).toBeLessThan(0);
+  });
+
+  it('is deterministic for the Lumen too', async () => {
+    const { World } = await import('../sim/world');
+    const { botChoose, botInput } = await import('../sim/bot');
+    const play = () => {
+      const w = new World({ seed: 11, cls: 'lumen' });
+      for (let k = 0; k < 3000 && w.state !== 'ended'; k++) {
+        if (w.state === 'draft') w.choose(botChoose(w));
+        else w.step(botInput(w, 1));
+      }
+      return w.hash();
+    };
+    expect(play()).toBe(play());
   });
 });

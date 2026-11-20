@@ -315,7 +315,10 @@ export class GameScene extends Phaser.Scene {
           this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
           break;
         case 'ability':
-          if (w.cls === 'bulwark' && ev.slot === 0) {
+          if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
+            this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
+            if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
+          } else if (w.cls === 'bulwark' && ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
             this.shake = Math.max(this.shake, 0.12);
           } else if (w.cls === 'bulwark' && ev.slot === 2) {
@@ -337,6 +340,9 @@ export class GameScene extends Phaser.Scene {
         case 'dash':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: ev.dodge ? 0x8fc7a8 : 0xb58cff, life: 0.25 });
           if (!ev.dodge) this.burst(ev.x2, ev.y2, 8);
+          break;
+        case 'mote':
+          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
           break;
         case 'parry':
           this.floatText(ev.x, ev.y - 34, 'Parry!', '#f1e6ff', 18);
@@ -413,7 +419,8 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner('The Kiln Mother is enraged', 'Finish it, fast');
           break;
         case 'revive':
-          this.hud.banner('Phoenix Feather', 'You rise from the ashes');
+          if (w.cls === 'lumen' && w.player.haloUsed && w.player.hp <= 1) this.hud.banner("Martyr's Halo", 'The killing blow is turned aside');
+          else this.hud.banner('Phoenix Feather', 'You rise from the ashes');
           break;
         case 'chest':
           this.burst(ev.x, ev.y, 30);
@@ -579,6 +586,13 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
+    // The Lumen's Sanctuary and Blessed Ground pool.
+    const lp = w.player;
+    if (lp.sanctT > 0) {
+      g.fillStyle(0xffe9a8, 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
+      g.lineStyle(2, 0xffd27a, 0.6).strokeCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
+    }
+    if (lp.poolT > 0) g.fillStyle(0xb8ffd0, 0.12).fillCircle(lp.poolX, lp.poolY, 70);
     for (const l of w.lances) {
       if (!l.alive) continue;
       const k = l.life / 0.25;

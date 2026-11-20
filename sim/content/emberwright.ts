@@ -9,8 +9,9 @@ export type Branch =
   | 'wildfire' | 'kindling' | 'ashguard'
   | 'bloodletting' | 'tempo' | 'guard'
   | 'bastion' | 'retribution' | 'vanguard'
+  | 'dawn' | 'grace' | 'choir'
   | 'general';
-export type ClassId = 'emberwright' | 'duskblade' | 'bulwark';
+export type ClassId = 'emberwright' | 'duskblade' | 'bulwark' | 'lumen';
 
 export type TalentId =
   | 'kindledGround'
@@ -50,6 +51,10 @@ export type TalentId =
   | 'pyroclasm'
   | 'ignition'
   | 'blazingSpeed'
+  // Duskblade ability talents
+  | 'exsanguinate'
+  | 'flurryStep'
+  | 'counterstep'
   // Bulwark
   | 'holdTheLine'
   | 'ward'
@@ -62,7 +67,20 @@ export type TalentId =
   | 'wideSweep'
   | 'momentum'
   | 'batteringRam'
-  | 'warpath';
+  | 'warpath'
+  // Lumen
+  | 'kindledLight'
+  | 'searingRadiance'
+  | 'sunflare'
+  | 'noon'
+  | 'aegisOfLight'
+  | 'renewal'
+  | 'blessedGround'
+  | 'martyrsHalo'
+  | 'hastedHymn'
+  | 'prism'
+  | 'lingeringSanctuary'
+  | 'choirOfDawn';
 
 export interface TalentDef {
   id: TalentId;
@@ -110,18 +128,21 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   hemorrhage: { id: 'hemorrhage', cls: 'duskblade', name: 'Hemorrhage', branch: 'bloodletting', maxRank: 3, text: 'Bleeding enemies take 10% more damage from you.' },
   deepCuts: { id: 'deepCuts', cls: 'duskblade', name: 'Deep Cuts', branch: 'bloodletting', maxRank: 3, text: 'Rending Dash bleeds harder and recharges 1s faster.' },
   thirst: { id: 'thirst', cls: 'duskblade', name: 'Thirst', branch: 'bloodletting', maxRank: 3, text: 'Heal for 2% of the damage you deal.' },
+  exsanguinate: { id: 'exsanguinate', cls: 'duskblade', name: 'Exsanguinate', branch: 'bloodletting', maxRank: 2, text: 'Execution also tears open the target\'s bleed, dealing 3s of it at once (6s at rank 2).' },
   crimsonTide: { id: 'crimsonTide', cls: 'duskblade', name: 'Crimson Tide', branch: 'bloodletting', maxRank: 1, capstone: true, text: 'CAPSTONE: bleeding foes burst when they die, spreading the bleed.' },
   // Tempo: speed and crits
   quickBlades: { id: 'quickBlades', cls: 'duskblade', name: 'Quick Blades', branch: 'tempo', maxRank: 3, text: 'Swing 12% faster.' },
   longReach: { id: 'longReach', cls: 'duskblade', name: 'Long Reach', branch: 'tempo', maxRank: 3, text: 'Swings reach 15% farther and wider.' },
   precision: { id: 'precision', cls: 'duskblade', name: 'Precision', branch: 'tempo', maxRank: 3, text: '+12% chance to crit for double damage.' },
   momentumFlow: { id: 'momentumFlow', cls: 'duskblade', name: 'Flow', branch: 'tempo', maxRank: 3, text: 'Hits build 30% more Momentum; Execution recharges 3s faster.' },
+  flurryStep: { id: 'flurryStep', cls: 'duskblade', name: 'Flurry Step', branch: 'tempo', maxRank: 2, text: 'Rending Dash comes back at once if it kills. Rank 2: it costs 10 less Momentum.' },
   bladeStorm: { id: 'bladeStorm', cls: 'duskblade', name: 'Blade Storm', branch: 'tempo', maxRank: 1, capstone: true, text: 'CAPSTONE: every fourth swing is a full spin for double damage.' },
   // Guard: survival
   thickHide: { id: 'thickHide', cls: 'duskblade', name: 'Thick Hide', branch: 'guard', maxRank: 3, text: '+30 max health, and heal 30.' },
   secondWind: { id: 'secondWind', cls: 'duskblade', name: 'Second Wind', branch: 'guard', maxRank: 3, text: 'Regenerate 1 health per second.' },
   nimble: { id: 'nimble', cls: 'duskblade', name: 'Nimble', branch: 'guard', maxRank: 3, text: '+40% pickup range, +7% move speed.' },
   evasion: { id: 'evasion', cls: 'duskblade', name: 'Evasion', branch: 'guard', maxRank: 3, text: 'Sidestep recharges 1.5s faster; your next swing crits.' },
+  counterstep: { id: 'counterstep', cls: 'duskblade', name: 'Counterstep', branch: 'guard', maxRank: 2, text: 'Sidestep cuts the nearest foe for 60 as you land. Rank 2: you dodge for twice as long.' },
   riposte: { id: 'riposte', cls: 'duskblade', name: 'Riposte', branch: 'guard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 6s, parry the next hit and strike back hard.' },
 
   // Bulwark. Bastion: soak and shields
@@ -139,6 +160,22 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   momentum: { id: 'momentum', cls: 'bulwark', name: 'Momentum', branch: 'vanguard', maxRank: 3, text: '+5% move speed; Charge recharges 2s faster.' },
   batteringRam: { id: 'batteringRam', cls: 'bulwark', name: 'Battering Ram', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.' },
   warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th Shield Sweep sends out a shockwave for double damage.' },
+
+  // Lumen. Dawn: healing turned into damage
+  kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
+  searingRadiance: { id: 'searingRadiance', cls: 'lumen', name: 'Searing Radiance', branch: 'dawn', maxRank: 3, text: 'Sunmotes deal 15% more damage.' },
+  sunflare: { id: 'sunflare', cls: 'lumen', name: 'Sunflare', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
+  noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4s, stored Brilliance fires a piercing sunbeam.' },
+  // Grace: shields and staying alive
+  aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Aegis of Light', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
+  renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health and 1 health per second.' },
+  blessedGround: { id: 'blessedGround', cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 10 per second for 4s.' },
+  martyrsHalo: { id: 'martyrsHalo', cls: 'lumen', name: "Martyr's Halo", branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.' },
+  // Choir: more light, faster
+  hastedHymn: { id: 'hastedHymn', cls: 'lumen', name: 'Hasted Hymn', branch: 'choir', maxRank: 3, text: 'Sunmotes fly 12% more often.' },
+  prism: { id: 'prism', cls: 'lumen', name: 'Prism', branch: 'choir', maxRank: 2, text: 'Each Sunmote also strikes one more enemy.' },
+  lingeringSanctuary: { id: 'lingeringSanctuary', cls: 'lumen', name: 'Lingering Sanctuary', branch: 'choir', maxRank: 2, text: 'Sanctuary lasts 2s longer and moves with you.' },
+  choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle you, burning foes and healing you with each hit.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {
@@ -151,6 +188,9 @@ export const BRANCH_NAMES: Record<Branch, string> = {
   bastion: 'Bastion',
   retribution: 'Retribution',
   vanguard: 'Vanguard',
+  dawn: 'Dawn',
+  grace: 'Grace',
+  choir: 'Choir',
   general: 'General',
 };
 

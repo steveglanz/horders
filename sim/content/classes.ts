@@ -32,6 +32,13 @@ export const BULWARK_ABILITIES: AbilityDef[] = [
   { name: 'Shield Toss', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Throw the shield to interrupt a cast and stun the caster.' },
 ];
 
+export const LUMEN_ABILITIES: AbilityDef[] = [
+  { name: 'Radiant Burst', key: 'Q', cost: 25, cooldown: 4, text: 'A pulse of light: heals you and burns everything close.' },
+  { name: 'Glimmer Step', key: 'E', cost: 0, cooldown: 8, text: 'Step through light to where you are moving.' },
+  { name: 'Sanctuary', key: 'R', cost: 60, cooldown: 22, text: 'Hallow the ground for 6s: you heal inside it and foes burn.' },
+  { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Silence an enemy cast and stun the caster.' },
+];
+
 export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
@@ -44,6 +51,10 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'Tank', blurb: 'Shield and armor. Soak the hits, hit back.',
     resource: 'Resolve', baseHp: 160, speed: 128, interruptRange: 420, abilities: BULWARK_ABILITIES,
+  },
+  lumen: {
+    id: 'lumen', name: 'Lumen', role: 'Healer', blurb: 'Light that mends. Overhealing turns into damage.',
+    resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, abilities: LUMEN_ABILITIES,
   },
 };
 
