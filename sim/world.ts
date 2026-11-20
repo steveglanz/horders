@@ -1311,6 +1311,20 @@ export class World {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < LUMEN_RANGE * LUMEN_RANGE) t = this.bossIndex;
     }
+    // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
+    // acolytes on its own: light seeks out an acolyte that is healing a wounded boss first.
+    if (this.bossIndex >= 0) {
+      const boss = this.enemies[this.bossIndex];
+      if (boss.alive && boss.hp < boss.maxHp) {
+        let best = LUMEN_RANGE * LUMEN_RANGE;
+        for (let i = 0; i < this.enemies.length; i++) {
+          const e = this.enemies[i];
+          if (!e.alive || e.kind !== 'acolyte' || e.aux2 !== this.bossIndex) continue;
+          const d2 = dist2(p.x, p.y, e.x, e.y);
+          if (d2 < best) { best = d2; t = i; }
+        }
+      }
+    }
     p.volleyT += this.moteCooldown;
     if (p.volleyT < 0) p.volleyT = 0;
     this.sunmote(t);
