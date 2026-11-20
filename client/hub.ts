@@ -12,6 +12,7 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
+import { CLASS_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
@@ -26,10 +27,13 @@ export class Hub {
   onBounty: () => void = () => {};
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
-    $('bagClose').addEventListener('click', () => {
+    const closeBag = () => {
       $('bag').hidden = true;
       this.render();
-    });
+    };
+    $('bagClose').addEventListener('click', closeBag);
+    $('bagBack').addEventListener('click', closeBag);
+    $('bagBtn').addEventListener('click', () => this.openBag());
   }
 
   render(): void {
@@ -37,24 +41,50 @@ export class Hub {
     this.tier = Math.min(Math.max(1, this.tier), h.maxTier);
     const pts = pointsAvailable(h);
     const atCap = h.level >= heroMaxLevel();
-    const xpPct = atCap ? 100 : (100 * h.xp) / heroXpToNext(h.level);
+    const need = heroXpToNext(h.level);
+    const xpPct = atCap ? 100 : (100 * h.xp) / need;
+    const cls = h.cls ?? 'emberwright';
+    $('emberCount').textContent = h.embers.toLocaleString();
+    $('bagCount').textContent = String(h.inventory.length);
+
+    // Hero card: level and XP, the six gear slots, and talent points.
     const items = equippedItems(h);
     const gear = SLOTS.map((slot) => {
       const it = items.find((i) => i.slot === slot);
-      const name = it ? `<div style="color:${RARITY[it.rarity].color}">${it.name}</div><div class="muted">ilvl ${it.ilvl}</div>` : '<div class="muted">Empty</div>';
-      return `<div class="slot"><div class="sl">${SLOT_LABEL[slot]}</div>${name}</div>`;
+      return it
+        ? `<div class="slot" style="--rc:${RARITY[it.rarity].color}" title="${RARITY[it.rarity].name}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
+        : `<div class="slot empty"><div class="sl"><span>${SLOT_LABEL[slot]}</span></div><div class="nm">Empty</div></div>`;
     }).join('');
     const passives = (Object.keys(PASSIVES) as PassiveId[]).map((id) => {
       const def = PASSIVES[id];
       const r = h.passives[id] ?? 0;
-      return `<button data-p="${id}" title="${def.text}" ${pts > 0 && r < def.max ? '' : 'disabled'}>${def.name} ${r}/${def.max}${pts > 0 && r < def.max ? ' +' : ''}</button>`;
+      const can = pts > 0 && r < def.max;
+      return `<button data-p="${id}" class="${can ? 'can' : ''}" title="${def.text}" ${can ? '' : 'disabled'}>${def.name} ${r}/${def.max}${can ? ' +' : ''}</button>`;
     }).join('');
-    const cls = h.cls ?? 'emberwright';
+    const ci = CLASS_ICON[cls];
+    $('heroCard').innerHTML = `
+      <div class="who"><span class="gtile" style="--gc:${ci.color};width:52px;height:52px">${glyph(ci.d, 30)}</span>
+        <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
+      <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
+      <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
+      <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
+      <div class="gear">${gear}</div>
+      <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
+      <div class="passives">${passives}</div>`;
+    $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (spendPoint(h, b.dataset.p as PassiveId)) {
+          this.save();
+          this.render();
+        }
+      }));
+
     $('classes').innerHTML = CLASS_IDS.map((id) => {
       const c = CLASSES[id];
       const ch = characterOf(h, id);
-      const lvl = ch ? ` <span class="muted small">Level ${ch.level}</span>` : '';
-      return `<button class="cls ${id === cls ? 'active' : ''}" aria-pressed="${id === cls}" data-cls="${id}"><b>${c.name}</b>${lvl}<div>${c.role}. ${c.blurb}</div></button>`;
+      const ic = CLASS_ICON[id];
+      return `<button class="cls ${id === cls ? 'active' : ''}" style="--gc:${ic.color}" aria-pressed="${id === cls}" data-cls="${id}" title="${c.role}. ${c.blurb}">`
+        + `<span class="gtile" style="width:40px;height:40px">${glyph(ic.d, 24)}</span><b>${c.name}</b><span class="cl">${ch ? `Lv ${ch.level}` : c.role}</span></button>`;
     }).join('');
     $('classes').querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -64,30 +94,23 @@ export class Hub {
         this.save();
         this.render();
       }));
-    $('heroCard').innerHTML = `
-      <div class="top"><b>${CLASSES[cls].name} · Level ${h.level}</b><div class="xp" title="Hero experience"><div style="width:${xpPct}%"></div></div>
-        <span class="muted small" style="margin:0">Gear score ${gearScore(h)} · ${h.wins} wins / ${h.runs} delves</span></div>
-      <div class="gear">${gear}</div>
-      <div class="passives"><span class="muted">Talent points: ${pts}</span>${passives}<button id="bagBtn">Bags (${h.inventory.length})</button></div>`;
-    $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (spendPoint(h, b.dataset.p as PassiveId)) {
-          this.save();
-          this.render();
-        }
-      }));
-    $('bagBtn').addEventListener('click', () => this.openBag());
 
-    // Dungeon picker: the Foundry unlocks once tier 4 is unlocked.
+    // Delve setup. The Foundry unlocks once tier 4 is unlocked.
     if (h.maxTier < DUNGEONS[this.dungeon].unlockTier) this.dungeon = 'kiln';
     const dungeons = DUNGEON_IDS.map((id) => {
       const d = DUNGEONS[id];
       const locked = h.maxTier < d.unlockTier;
-      return `<button data-d="${id}" class="${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} title="${locked ? `Unlocks when you reach tier ${d.unlockTier}` : d.blurb}">${d.name}${locked ? ` (tier ${d.unlockTier})` : ''}</button>`;
+      return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}">`
+        + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span></button>`;
     }).join('');
     const tiers: string[] = [];
-    for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}">${t}</button>`);
-    $('tiers').innerHTML = `<div class="dungeons"><span class="muted">Dungeon</span>${dungeons}</div><span class="muted">Difficulty tier</span>${tiers.join('')}${h.maxTier === 1 ? '<span class="muted small" style="margin:0">Beat the Kiln Mother to unlock tier 2</span>' : ''}${this.omenLine()}${this.gritLine()}${this.bountyLine()}`;
+    for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
+    const omens = omensFor(this.tier, weekOf(Date.now()));
+    $('tiers').innerHTML = `<div class="dungeons">${dungeons}</div>`
+      + `<div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
+      + `<div class="tierrow">${tiers.join('')}</div>`
+      + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
+      + this.omenLine(omens) + this.gritLine() + this.bountyLine();
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -99,6 +122,7 @@ export class Hub {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
+    $('startBtn').textContent = `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
   }
 
@@ -110,9 +134,11 @@ export class Hub {
     const b = bountyFor(day, h.maxTier);
     const paid = h.bountyDay === day;
     const twist = OMENS[b.twist];
-    return `<div class="small bounty"><b>Daily bounty</b> · ${DUNGEONS[b.dungeon].name}, tier ${b.tier}, 3 fights. Twist: <b title="${twist.tip}">${twist.name}</b>: ${twist.text} `
-      + (paid ? '<span class="muted">Paid today. Play it again for practice, or come back tomorrow.</span>' : `<span style="color:var(--gold)">First win today pays ${bountyEmbers(b.tier)} embers.</span>`)
-      + ` <button data-bounty>${paid ? 'Replay bounty' : 'Take the bounty'}</button></div>`;
+    return `<div class="box bounty"><div class="lbl">Daily bounty</div>`
+      + `<div class="ttl">${DUNGEONS[b.dungeon].name}, tier ${b.tier} · 3 fights</div>`
+      + `<div class="tw" title="${twist.tip}">${omenTile(b.twist, 30)}<div>Twist: <b>${twist.name}</b>. ${twist.text}</div></div>`
+      + `<div class="row2">${paid ? '<span class="muted">Paid today. Replay it for practice.</span>' : `<span>First win today <span class="pay">+${bountyEmbers(b.tier)} embers</span></span>`}`
+      + `<button class="sbtn gold" data-bounty>${paid ? 'Replay bounty' : 'Take the bounty'}</button></div></div>`;
   }
 
   /** Grit after losses in a row on the picked dungeon and tier. */
@@ -120,14 +146,18 @@ export class Hub {
     const n = gritFor(this.hero(), this.dungeon, this.tier);
     if (!n) return '';
     const pct = Math.round(n * GRIT.perStack * 100);
-    return `<div class="small omens" style="color:var(--gold)">Grit ×${n}: +${pct}% damage and health here until you win.</div>`;
+    return `<div class="grit">Grit ×${n}: +${pct}% damage and health here until you win.</div>`;
+  }
+
+  private omenRow(id: OmenId, cls = 'box omen'): string {
+    const o = OMENS[id];
+    return `<div class="${cls}" title="${o.tip}">${omenTile(id)}<div><b>${o.name}</b><div>${o.text}</div></div></div>`;
   }
 
   /** This week's Omens for the picked tier, or a hint about when they start. */
-  private omenLine(): string {
-    const omens = omensFor(this.tier, weekOf(Date.now()));
-    if (!omens.length) return this.hero().maxTier >= OMEN_FROM_TIER - 1 ? `<div class="muted small omens">From tier ${OMEN_FROM_TIER}, fights carry Omens that change each week.</div>` : '';
-    return `<div class="muted small omens">This week's Omens: ${omens.map((o) => `<b title="${OMENS[o].tip}">${OMENS[o].name}</b>: ${OMENS[o].text}`).join(' ')} More loot for each Omen.</div>`;
+  private omenLine(omens: OmenId[]): string {
+    if (!omens.length) return this.hero().maxTier >= OMEN_FROM_TIER - 1 ? `<div class="hint">From tier ${OMEN_FROM_TIER}, fights carry Omens that change each week.</div>` : '';
+    return `<div class="sec-h"><span>This week's Omens</span><span class="muted">More loot for each</span></div><div class="omens">${omens.map((o) => this.omenRow(o)).join('')}</div>`;
   }
 
   /** The living boss's Omen, which every delve carries while it lives. */
@@ -137,9 +167,8 @@ export class Hub {
   }
 
   private bossOmenLine(b: BossStatus): string {
-    const o = b.omen && b.omen in OMENS ? OMENS[b.omen as OmenId] : null;
-    if (!o) return '';
-    return `<div class="muted small omens">Its Omen: <b title="${o.tip}">${o.name}</b>: ${o.text} Every delve carries it while the boss lives, for ${Math.round(OMEN_TUNING.bossOmenLuck * 100)}% more loot.</div>`;
+    if (!b.omen || !(b.omen in OMENS)) return '';
+    return this.omenRow(b.omen as OmenId, 'omen') + `<p>Every delve carries its Omen while it lives, for ${Math.round(OMEN_TUNING.bossOmenLuck * 100)}% more loot.</p>`;
   }
 
   /** Fetches the shared world boss and redraws its panel. */
@@ -154,20 +183,21 @@ export class Hub {
     const b = this.boss;
     $('saveNote').textContent = cloud.online ? 'Your hero saves to the cloud and this browser.' : 'Your hero saves in this browser.';
     if (!b) {
-      el.innerHTML = cloud.online === false
-        ? '<div class="wb-top"><b>World boss</b><span class="muted">Offline</span></div><div class="muted">The shared world boss needs the online build. Your delves still count here.</div>'
-        : '<div class="wb-top"><b>World boss</b><span class="muted">Looking for it…</span></div>';
+      el.innerHTML = `<div class="top"><span class="lbl">World boss</span><span>${cloud.online === false ? 'Offline' : 'Looking for it…'}</span></div>`
+        + (cloud.online === false ? '<p>The shared world boss needs the online build. Your delves still count here.</p>' : '');
       return;
     }
     const pct = Math.max(0, Math.min(100, (100 * b.hp) / b.max_hp));
     const claims = b.unclaimed.map((u) =>
       `<button class="primary" data-claim="${u.boss_id}" data-dmg="${u.damage}" ${this.claiming ? 'disabled' : ''}>Claim reward: ${u.name} fell</button>`).join('');
     el.innerHTML = `
-      <div class="wb-top"><b>${b.name}, ${b.title}</b><span class="muted">World boss · ${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
-      <div class="wb-bar"><div style="width:${pct}%"></div><span>${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}</span></div>
+      <div class="top"><span class="lbl">World boss</span><span>${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
+      <div class="ttl">${b.name}, ${b.title}</div>
+      <div class="meter danger" title="${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}"><div style="width:${pct}%"></div></div>
+      <div class="kv"><span>${Math.round(pct)}% remaining · ${b.hp.toLocaleString()} health</span><span>You: ${b.my_damage.toLocaleString()} damage</span></div>
       ${this.bossOmenLine(b)}
-      <div class="muted">Every delve you finish strikes it with the damage you dealt. Your damage so far: <b>${b.my_damage.toLocaleString()}</b>. When it falls, everyone who struck it gets an Epic reward.</div>
-      ${claims}${this.bossNote ? `<div style="margin-top:6px;color:var(--gold)">${this.bossNote}</div>` : ''}`;
+      <p>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.</p>
+      ${claims}${this.bossNote ? `<p style="color:var(--gold)">${this.bossNote}</p>` : ''}`;
     el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>
       btn.addEventListener('click', () => void this.claim(Number(btn.dataset.claim))));
   }
@@ -193,15 +223,16 @@ export class Hub {
     const h = this.hero();
     const worn = new Set(Object.values(h.equipped));
     const sorted = [...h.inventory].sort((a, b) => (worn.has(b.id) ? 1 : 0) - (worn.has(a.id) ? 1 : 0) || itemScore(b) - itemScore(a));
-    $('bagSub').textContent = `${h.inventory.length} items · ${h.embers} embers. Salvage spare gear for embers, then spend them at the Forge: Upgrade raises item level, Temper rerolls the weakest bonus stat.`;
+    $('bagSub').textContent = `${h.inventory.length} ${h.inventory.length === 1 ? 'item' : 'items'} · ${worn.size} equipped`;
+    $('bagEmbers').textContent = h.embers.toLocaleString();
     $('bagList').innerHTML = sorted.map((it) => {
       const isWorn = worn.has(it.id);
       const up = canUpgrade(h, it);
       const tm = canTemper(h, it);
-      const forge = `<button data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade ${up.cost}</button>`
-        + (it.stats.length > 1 ? `<button data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper ${tm.cost}</button>` : '');
-      const btns = (isWorn ? '<span class="tagE">Equipped</span>' : `<button data-e="${it.id}">Equip</button><button data-s="${it.id}">Salvage</button>`) + forge;
-      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it)}<div class="acts">${btns}</div></div>`;
+      const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
+        + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
+      const btns = (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '')}<div class="acts">${btns}</div></div>`;
     }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) =>
       b.addEventListener('click', () => { equip(h, b.dataset.e!); this.save(); this.openBag(); }));
