@@ -184,6 +184,12 @@ describe('audio', () => {
     expect(cueFor({ type: 'burnout', warn: false }, { cls: 'lumen', acting: 0 })?.id).toBe('burnout');
     expect(cueFor({ type: 'namedSpawn', index: 0, name: 'Grisk the Vengeful', affix: 'Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedSpawn');
     expect(cueFor({ type: 'namedKill', x: 0, y: 0, name: 'Grisk the Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedKill');
+    const alt = { type: 'ability', alt: true, slot: 1, x: 0, y: 0, angle: 0, r: 40 } as const;
+    expect(cueFor(alt, { cls: 'emberwright', acting: 0 })?.id).toBe('emberWard');
+    expect(cueFor({ ...alt, slot: 0 }, { cls: 'duskblade', acting: 0 })?.id).toBe('hamstring');
+    expect(cueFor({ ...alt, slot: 2 }, { cls: 'bulwark', acting: 0 })?.id).toBe('rallyingCry');
+    expect(cueFor(alt, { cls: 'lumen', acting: 0 })?.id).toBe('lightwell');
+    expect(cueFor(alt, { cls: 'slagbinder', acting: 0 })?.id).toBe('slagPit');
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
   });
 });
