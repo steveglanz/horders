@@ -1925,6 +1925,19 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // The Coldmarrow's Hearthcoal light: warm and bright at the coal, a long even falloff,
+  // and still faintly lit at the very edge, so the light's reach reads on the frozen floor.
+  make(scene, 'coalLight', 256, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,214,150,0.62)');
+    g.addColorStop(0.18, 'rgba(255,170,90,0.42)');
+    g.addColorStop(0.6, 'rgba(255,130,60,0.24)');
+    g.addColorStop(0.94, 'rgba(255,110,45,0.13)');
+    g.addColorStop(1, 'rgba(255,110,45,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // Ember Vein: a gatherable crystal cluster.

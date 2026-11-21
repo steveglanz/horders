@@ -6,7 +6,7 @@ import { OMENS } from '../sim/content/omens';
 import { CoopSession, SNAP_SECONDS } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -22,6 +22,10 @@ const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
 // Telegraph colours come from the display palette (client/settings.ts): standard or colour-blind.
 /** G6 revive green. */
 const REVIVE = 0x9fe8a8;
+/** The Coldmarrow: ice blue, the Hearthcoal's warm orange, and the frozen floor. */
+const FROST = 0xbfe4ff;
+const COAL = 0xff8a3d;
+const COLD_FLOOR = 0x7e98c4;
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
@@ -167,6 +171,10 @@ export class GameScene extends Phaser.Scene {
   lowFx = false;
   private fxCheckAt = 0;
   private vignette: HTMLElement | null = null;
+  /** The Coldmarrow: the additive Hearthcoal light layer, and the frost creeping in from the screen edge. */
+  private coalLights: Phaser.GameObjects.Image[] = [];
+  private frost: HTMLElement | null = null;
+  private laceShown = false;
   private floats: FloatText[] = [];
   private shapes: Shape[] = [];
   private shake = 0;
@@ -235,11 +243,19 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'hammerdeep') this.ground.setTint(0x9c98a8);
     // The Ashvents' floor is pale ash, so the gold vents and rose embers stand out on it.
     else if (w.dungeonId === 'ashvents') this.ground.setTint(0xb8a49a);
+    // The Coldmarrow's floor is frozen slate, so each Hearthcoal's warm light pools on it.
+    else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
     this.gfx = this.add.graphics().setDepth(2);
     this.overFx = this.add.graphics().setDepth(8.6);
+    this.coalLights = [];
+    this.laceShown = false;
+    // The Coldmarrow: Hearthcoal light is added onto the floor, under every sprite.
+    if (w.dungeonId === 'coldmarrow') for (let k = 0; k < w.heroes.length; k++) this.coalLights.push(this.add.image(0, 0, 'coalLight').setDepth(1.2).setBlendMode(Phaser.BlendModes.ADD).setVisible(false));
+    this.frost = document.getElementById('frost');
+    if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
     w.gems.forEach(() => this.gemSprites.push(this.add.image(0, 0, 'gem').setVisible(false).setDepth(3)));
     w.drops.forEach(() => {
       this.beamSprites.push(this.add.image(0, 0, 'beam').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(3));
@@ -275,6 +291,8 @@ export class GameScene extends Phaser.Scene {
     if (!w.stress) {
       for (let i = 0; i < 34; i++) {
         const img = this.add.image(Math.random() * 1400 - 700, Math.random() * 1000 - 500, 'spark').setBlendMode(Phaser.BlendModes.ADD).setDepth(8.5);
+        // The Coldmarrow: the embers are snow.
+        if (w.dungeonId === 'coldmarrow') img.setTint(FROST);
         this.motes.push({ img, ph: Math.random() * 6.28, sp: 8 + Math.random() * 18 });
       }
     }
@@ -314,7 +332,10 @@ export class GameScene extends Phaser.Scene {
     kb.on('keydown-ESC', () => this.togglePause());
 
     this.scale.on('resize', this.layout, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.layout, this);
+      if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
+    });
     this.layout();
     this.cameras.main.centerOn(0, 0);
 
@@ -632,6 +653,28 @@ export class GameScene extends Phaser.Scene {
             this.shakeBy(0.35);
           } else if (ev.name === 'Scatter Embers') {
             this.shakeBy(0.2);
+          } else if (ev.name === 'Snuff') {
+            // Every coal gutters: a puff of dark smoke and a closing ring on each hero.
+            for (let k = 0; k < w.heroes.length; k++) {
+              const q = w.heroData(k).player;
+              if (q.hp <= 0) continue;
+              this.ring(q.x, q.y, (q.coalR ?? COLD.maxR) * 0.9, 0x6a86b8, 0.45);
+              for (let n = 0; n < 8; n++) {
+                const a = (n / 8) * Math.PI * 2;
+                this.emit(this.fx, 'spark', undefined, q.x + Math.cos(a) * 20, q.y + Math.sin(a) * 12, 0.7, { tint: 0x8fb0e8, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30 - 40, drag: 0.92, sx0: 1.6, sx1: 3 });
+              }
+            }
+            this.shakeBy(0.12);
+          } else if (ev.name === 'Long Night') {
+            // The cold breaks over everyone: a white frost ring per hero, a hard shake and the frost edge flaring.
+            for (let k = 0; k < w.heroes.length; k++) {
+              const q = w.heroData(k).player;
+              if (q.hp > 0) this.ring(q.x, q.y, 120, 0xdff4ff, 0.5);
+            }
+            this.ring(ev.x, ev.y, 650, FROST, 0.7);
+            this.shakeBy(0.4);
+            this.pulseVignette('hurt big');
+            if (this.frost) { this.frost.classList.remove('flash'); void this.frost.offsetWidth; this.frost.classList.add('flash'); }
           }
           break;
         case 'castStart':
@@ -642,6 +685,14 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
+          else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', "It can't be stopped. Get into the brightest light you can");
+          else if (ev.name === 'Snuffer Tide') this.hud.banner('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
+          else if (ev.name === 'Frost Lace' && !this.laceShown) {
+            // Once a fight: the Weaver casts it every few seconds, and its cast bar says the rest.
+            this.laceShown = true;
+            this.hud.banner('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
+          }
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -852,6 +903,7 @@ export class GameScene extends Phaser.Scene {
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
     else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
+    else if ((p.chill ?? 0) >= COLD.frozenAt) this.player.setTint(FROST).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.player.clearTint();
     this.aura.setPosition(px, py).setScale(1 + Math.sin(this.time.now / 300) * 0.05 + (p.heat / 100) * 0.25);
     for (const al of this.allies) {
@@ -935,6 +987,7 @@ export class GameScene extends Phaser.Scene {
       if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
+      else if (e.kind === 'frostWarden' && this.coalWarmth(e.x, e.y, r) > 0) s.setTint(0xffc49a).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'worldShadow') s.setTint(0x8a6cff).setTintMode(Phaser.TintModes.MULTIPLY);
       else s.clearTint();
     }
@@ -996,6 +1049,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
     this.overFx.clear();
+    if (this.coalLights.length) this.coldDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -1076,7 +1130,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1215,6 +1269,7 @@ export class GameScene extends Phaser.Scene {
           }
         }
         if (t.kind === 'soak' && t.owner === -2 && w.dungeonId === 'ashvents') this.ventMark(g, t, f, now);
+        if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
           this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
@@ -1290,6 +1345,7 @@ export class GameScene extends Phaser.Scene {
       }
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if (e.kind === 'ysmeret' && e.castId) this.ysmeretCast(g, e, now);
+      if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
@@ -1416,7 +1472,7 @@ export class GameScene extends Phaser.Scene {
     for (const m of this.motes) {
       const img = m.img;
       if (img.visible === this.lowFx) img.setVisible(!this.lowFx);
-      img.y -= m.sp * dt;
+      img.y += (this.coalLights.length ? 1.2 : -1) * m.sp * dt;
       img.x += Math.sin(now / 900 + m.ph) * 10 * dt;
       if (img.y < view.y - 20) img.y += view.height + 40;
       else if (img.y > view.bottom + 20) img.y -= view.height + 40;
@@ -1600,6 +1656,197 @@ export class GameScene extends Phaser.Scene {
    * A vent with a hero in it shows a check and a steady ring; an empty one flashes "!",
    * so the party can see at a glance which vent still needs someone.
    */
+  /** The warmest living Hearthcoal whose light reaches this spot (World.warmthAt, read on the client). */
+  private coalWarmth(x: number, y: number, r0 = 0): number {
+    const w = this.world;
+    let best = 0;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = w.heroData(k).player;
+      if (q.hp <= 0 || !q.coal) continue;
+      const r = (q.coalR ?? COLD.maxR) + r0;
+      if ((q.x - x) ** 2 + (q.y - y) ** 2 <= r * r) best = Math.max(best, q.coal);
+    }
+    return best;
+  }
+
+  /**
+   * The Coldmarrow, drawn each frame: every hero's Hearthcoal pools warm light on the frozen
+   * floor out to its radius (the edge is dashed, so you can tell exactly what's inside), your
+   * own coal shows as a gauge at your feet with Chill pips under it, Frost Wardens in any light
+   * glow with ember cracks, and Chill frosts the screen edge. The Long Night darkens the floor,
+   * so only the lights are left.
+   */
+  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const night = boss?.alive && boss.castId === 'longNight' ? boss.castT / boss.castDur : 0;
+    // The floor sinks toward black under the Long Night.
+    const dim = 1 - 0.6 * night;
+    const fr = ((COLD_FLOOR >> 16) & 255) * dim, fg = ((COLD_FLOOR >> 8) & 255) * dim, fb = (COLD_FLOOR & 255) * (1 - 0.45 * night);
+    this.ground.setTint((Math.round(fr) << 16) | (Math.round(fg) << 8) | Math.round(fb));
+    // The frost edge: Chill creeps in from the screen's rim, and the Long Night brings it in too.
+    let frostOp = night * 0.55;
+    let frozenMe = false;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = w.heroData(k).player;
+      const light = this.coalLights[k];
+      if (q.hp <= 0 || q.coal === undefined) { light?.setVisible(false); continue; }
+      const al = k === w.acting ? undefined : this.allies.find((a) => a.hero === k);
+      const x = al ? al.img.x : this.player.x;
+      const y = al ? al.img.y : this.player.y;
+      const r = q.coalR ?? COLD.maxR;
+      if (q.coal > 0) {
+        const flick = 1 + 0.025 * Math.sin(now / 90 + k * 2) + 0.015 * Math.sin(now / 37 + k);
+        // Brighter while the coal is full, and brighter still against the Long Night.
+        light?.setVisible(true).setPosition(x, y).setDisplaySize(r * 2 * flick, r * 2 * flick).setAlpha(Math.min(1, (0.6 + 0.4 * q.coal) * (1 + 0.6 * night)));
+        // The edge: a slowly turning dashed ring, pulsing red-orange when the coal runs low.
+        const low = q.coal < 0.25 ? 0.5 + 0.5 * Math.sin(now / 120) : 0;
+        const edge = low ? 0xff5a3a : 0xffb070;
+        const n = 28;
+        const rot = now / 4000 + k;
+        g.lineStyle(2, edge, 0.35 + 0.35 * q.coal + 0.3 * low);
+        for (let d = 0; d < n; d++) {
+          const a0 = rot + (d / n) * Math.PI * 2;
+          g.beginPath().arc(x, y, r, a0, a0 + (Math.PI * 2) / n * 0.55, false).strokePath();
+        }
+      } else {
+        light?.setVisible(false);
+        // Out: a cold grey ring where the light was.
+        g.lineStyle(1.5, 0x9fb6d0, 0.35).strokeCircle(x, y, r);
+      }
+      if (k !== w.acting) continue;
+      // Your coal gauge: an arc under your feet that empties as the coal burns down.
+      const gx = x, gy = y + 4, gr = 30;
+      const a0 = Math.PI * 0.15, span = Math.PI * 0.7;
+      g.lineStyle(5, 0x000000, 0.45).beginPath().arc(gx, gy, gr, a0, a0 + span, false).strokePath();
+      if (q.coal > 0) g.lineStyle(3, q.coal < 0.25 ? 0xff5a3a : 0xffb347, 0.95).beginPath().arc(gx, gy, gr, a0 + span * (1 - q.coal), a0 + span, false).strokePath();
+      // Chill pips: five frost diamonds under the gauge, filling as the cold gets in.
+      const chill = q.chill ?? 0;
+      if (chill > 0.05) {
+        const frozen = chill >= COLD.frozenAt;
+        for (let c = 0; c < COLD.frozenAt; c++) {
+          const cx = gx + (c - 2) * 11;
+          const cy = gy + gr + 10;
+          const fill = Math.max(0, Math.min(1, chill - c));
+          const dia = (h: number, hw: number) => g.fillTriangle(cx, cy - h, cx + hw, cy, cx - hw, cy).fillTriangle(cx, cy + h, cx + hw, cy, cx - hw, cy);
+          g.fillStyle(0x0b1420, 0.6);
+          dia(5, 4);
+          if (fill > 0) {
+            g.fillStyle(frozen ? 0xffffff : FROST, (frozen ? 0.7 + 0.3 * Math.sin(now / 90) : 0.95) * (0.35 + 0.65 * fill));
+            dia(4, 3);
+          }
+        }
+      }
+      frostOp = Math.min(1, (chill / COLD.frozenAt) * 0.95 + night * 0.55);
+      frozenMe = chill >= COLD.frozenAt;
+    }
+    // Frost Wardens inside a coal's light: ember cracks glow through the ice and chips flake off.
+    const o = this.overFx;
+    for (let i = 0; i < w.enemies.length; i++) {
+      const e = w.enemies[i];
+      if (!e.alive || e.kind !== 'frostWarden') continue;
+      const s = this.enemySprites[i];
+      if (!s?.visible) continue;
+      const r = e.def.radius;
+      if (this.coalWarmth(e.x, e.y, r) <= 0) continue;
+      const pulse = 0.55 + 0.35 * Math.sin(now / 110 + i);
+      const cx = s.x, cy = s.y - r * 0.2;
+      for (let c = 0; c < 4; c++) {
+        let a = ((i * 2.399 + c * 1.571) % (Math.PI * 2));
+        let lx = cx, ly = cy;
+        o.lineStyle(2.5, 0xffb347, pulse).beginPath().moveTo(lx, ly);
+        for (let seg = 0; seg < 3; seg++) {
+          a += (seg % 2 ? 0.6 : -0.5);
+          lx += Math.cos(a) * r * 0.32;
+          ly += Math.sin(a) * r * 0.32;
+          o.lineTo(lx, ly);
+        }
+        o.strokePath();
+      }
+      o.lineStyle(3, COAL, 0.25 + 0.2 * pulse).strokeCircle(s.x, s.y - r * 0.1, r + 6);
+      if (!this.lowFx && Math.random() < 0.12) this.emit(this.fx, 'spark', undefined, cx + (Math.random() - 0.5) * r, cy, 0.6, { tint: FROST, vx: (Math.random() - 0.5) * 70, vy: -60 - Math.random() * 40, drag: 0.94, sx0: 1.4, sx1: 0.4 });
+    }
+    if (this.frost) {
+      this.frost.style.opacity = frostOp.toFixed(3);
+      this.frost.classList.toggle('frozen', frozenMe);
+    }
+  }
+
+  /** Frost Lace: a six-fold lace of ice turns inside the ring, and a thread runs back to its Weaver. */
+  private laceMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
+    const wv = this.world.enemies[t.owner];
+    const a = 0.45 + 0.45 * f;
+    const rot = now / 2500;
+    g.lineStyle(2, FROST, a);
+    for (let k = 0; k < 6; k++) {
+      const ang = rot + (k / 6) * Math.PI * 2;
+      const c = Math.cos(ang), sn = Math.sin(ang);
+      const L = t.r * 0.82;
+      g.lineBetween(t.x, t.y, t.x + c * L, t.y + sn * L);
+      for (const at of [0.45, 0.7]) {
+        const bx = t.x + c * L * at, by = t.y + sn * L * at;
+        const bl = L * (at === 0.45 ? 0.22 : 0.16);
+        for (const side of [-1, 1]) {
+          const b = ang + side * 0.7;
+          g.lineBetween(bx, by, bx + Math.cos(b) * bl, by + Math.sin(b) * bl);
+        }
+      }
+    }
+    g.fillStyle(FROST, 0.5 * a).fillCircle(t.x, t.y, 5);
+    if (wv?.alive) {
+      // A dashed thread of frost from the Weaver's hands to the ring.
+      const dx = t.x - wv.x, dy = t.y - wv.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const n = Math.floor(d / 18);
+      g.lineStyle(2, FROST, 0.5);
+      const off = (now / 60) % 18;
+      for (let k = 0; k < n; k++) {
+        const s0 = (k * 18 + off) / d, s1 = Math.min(1, (k * 18 + off + 9) / d);
+        if (s0 >= 1) break;
+        g.lineBetween(wv.x + dx * s0, wv.y + dy * s0, wv.x + dx * s1, wv.y + dy * s1);
+      }
+    }
+  }
+
+  /**
+   * Nhevra's wind-ups. Snuff: dark tendrils reach from her to every hero, and a dashed ring
+   * shows how far each coal's light will shrink if it lands. Long Night: her blue flame swells
+   * (the floor darkening is in coldDraw).
+   */
+  private nhevraCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const f = e.castT / e.castDur;
+    if (e.castId === 'snuff') {
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        // A wavy tendril, reaching further as the cast fills.
+        const dx = q.x - e.x, dy = q.y - e.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const nx = -dy / d, ny = dx / d;
+        const steps = 16;
+        for (const [wd, col, al] of [[9, 0x6a86b8, 0.35], [4, 0x0d1424, 0.85]] as const) {
+          g.lineStyle(wd, col, al * (0.5 + 0.5 * f)).beginPath().moveTo(e.x, e.y);
+          for (let s = 1; s <= steps * f; s++) {
+            const u = s / steps;
+            const wob = Math.sin(u * 9 - now / 120 + k) * 14 * (1 - u * 0.5);
+            g.lineTo(e.x + dx * u + nx * wob, e.y + dy * u + ny * wob);
+          }
+          g.strokePath();
+        }
+        if (q.coal) {
+          const after = COLD.minR + (COLD.maxR - COLD.minR) * Math.max(0, q.coal - COLD.snuffCut);
+          g.lineStyle(2, 0x6a86b8, 0.4 + 0.5 * f).strokeCircle(q.x, q.y, after);
+        }
+      }
+      g.lineStyle(3, 0x6a86b8, 0.6).strokeCircle(e.x, e.y, e.def.radius + 10 + (1 - f) * 40);
+    } else if (e.castId === 'longNight') {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+      g.fillStyle(FROST, 0.08 + 0.12 * f).fillCircle(e.x, e.y, e.def.radius + 20 + f * 60);
+      g.lineStyle(4, FROST, 0.5 + 0.4 * pulse).strokeCircle(e.x, e.y, e.def.radius + 20 + f * 60);
+    }
+  }
+
   private ventMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
     const w = this.world;
     const o = this.overFx;
