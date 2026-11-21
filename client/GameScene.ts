@@ -1029,6 +1029,10 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'hoard') {
+            // Names and counters from docs/design/raid2.md. Without this the Hoard fell through to the Kiln's banners.
+            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'When he swallows an ally, switch to the Craw at once');
+            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he does');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
