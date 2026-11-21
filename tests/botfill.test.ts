@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { BOT_FILL, botFillBlocker, fillClasses, standInGear } from '../sim/content/botfill';
+import { BOT_FILL, fillLootShare, botFillBlocker, fillClasses, standInGear } from '../sim/content/botfill';
 import type { Item } from '../sim/content/items';
 
 type Kill = { spawn(id: string, x: number, y: number): unknown; killEnemy(e: unknown): void; use(k: number): void };
@@ -58,6 +58,16 @@ describe('Fill with bots', () => {
       return n / 2000;
     };
     expect(kept(0)).toBe(1);
-    expect(Math.abs(kept(1) - BOT_FILL.lootShare)).toBeLessThan(0.04);
+    // V7: the share scales with the bots: 3 bots keep lootShare, 2 keep 60%, 1 keeps 80%.
+    expect(Math.abs(kept(3) - BOT_FILL.lootShare)).toBeLessThan(0.04);
+    expect(Math.abs(kept(2) - 0.6)).toBeLessThan(0.04);
+    expect(Math.abs(kept(1) - 0.8)).toBeLessThan(0.04);
+  });
+
+  it('V7: fillLootShare is 40% for 3 bots, 60% for 2, 80% for 1 and all for none', () => {
+    expect(fillLootShare(3)).toBeCloseTo(BOT_FILL.lootShare);
+    expect(fillLootShare(2)).toBeCloseTo(0.6);
+    expect(fillLootShare(1)).toBeCloseTo(0.8);
+    expect(fillLootShare(0)).toBe(1);
   });
 });

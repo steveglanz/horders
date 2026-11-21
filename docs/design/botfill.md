@@ -68,7 +68,17 @@ Bots made the raid as easy as 37 of 40 (93%), above the 70% ceiling, and how eas
 
 ## Open
 - The bots' ally names show as "Lumen (bot)" and so on.
-- Fill bots aren't in online co-op. A party of 2 or 3 real players can't top up with bots, because bots would need the co-op host to run them. If that's wanted, it's an engineering item.
+- Online co-op (V7, 21 Nov 2026): the host of a party of 2 or 3 can Fill with bots up to 4. The bots join after the real guests, wear the host's stand-in gear, and the host runs them; guests see them through the snapshots. The run keeps `fillLootShare(bots)` of its in-run drops: 3 bots 40%, 2 bots 60%, 1 bot 80% (`1 - (1 - lootShare) × bots / 3`). Check: `tools/coopbotscheck.cjs`.
+
+**Measured (game design, 21 Nov 2026), on #270's head.** The main hero's loot per minute in a party of 4, where the first N heroes are real (each in its own heroes-r2 file) and the rest are bots in stand-in copies of the main hero's gear. All are bot-driven at full skill, seeds 1 to 20, no Omens. Items per minute / Rare or better per minute:
+
+| | 4 real | 3 real + 1 bot | 2 real + 2 bots | 1 real + 3 bots (solo fill) |
+|---|---|---|---|---|
+| Hammerdeep tier 6 (hero-t6-0) | 2.64 / 1.20 | 1.95 / 0.85 | 1.55 / 0.65 | 1.22 / 0.63 |
+| Ashvents tier 6 (hero-t6-0) | 2.16 / 1.25 | 1.59 / 0.77 | 1.24 / 0.65 | 0.93 / 0.43 |
+| Hammerdeep tier 8 (hero-t8-0) | 1.94 / 1.03 | 1.39 / 0.62 | 1.04 / 0.46 | 0.66 / 0.22 |
+
+Every row steps down as bots replace real heroes, so each real player added pays more, and a mixed party never out-farms a full real one. The full real party is also the only one that gets the extra group boss item. Wins at tier 8 (of 20): 10, 6, 9 and 4. The 6 for "3 real + 1 bot" against 9 for "2 + 2" is within the noise of 20 seeds. A 3 real + 1 bot party out-farms the best solo dungeon (Hammerdeep 1.95 items a minute against the Kiln's 1.74 in the table above, though that used the tools/heroes files). That's intended, because three of the four are real people.
 
 ## With skills' party cards (#241)
 Party cards let bots draft party-only cards too, so I re-measured tier 8 on #241's head (7dcf076), with the same seeds and heroes. The real-party numbers are skills' measurements on #241.
