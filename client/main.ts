@@ -176,13 +176,6 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
   await hub.refreshBoss();
 }
 
-/** The season trail the hero wears, at the best stage they've earned (looks only). */
-function wornTrail(): { id: string; stage: number } | undefined {
-  const id = hero.wear?.trail;
-  const stage = id ? hero.trails?.[id] ?? 0 : 0;
-  return id && stage > 0 ? { id, stage } : undefined;
-}
-
 function startRun(bounty = false, key = false): void {
   // In someone else's party, the host starts the delves.
   if (coop?.role === 'guest') return;
@@ -245,7 +238,7 @@ function startRun(bounty = false, key = false): void {
     opts: runOpts,
     hud,
     glow: hero.wear?.glow,
-    trail: wornTrail(),
+    trail: wornTrail(hero),
     coop: hosting ? coop! : undefined,
     onEnd: (w: World) => {
       const rewards = finishRun(w);
@@ -345,9 +338,16 @@ mountDisplayOptions(el('hubOpts'));
 let coop: CoopSession | null = null;
 let coopNote = '';
 
+/** The season trail this hero wears and the stage earned, for the party to see. */
+function wornTrail(h: HeroProfile): HeroCard['trail'] {
+  const id = h.wear?.trail;
+  const stage = id ? h.trails?.[id] ?? 0 : 0;
+  return id && stage >= 1 ? { id, stage } : undefined;
+}
+
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero) };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */
@@ -485,7 +485,7 @@ const coopEvents = {
       opts,
       hud,
       glow: hero.wear?.glow,
-      trail: wornTrail(),
+      trail: wornTrail(hero),
       coop: coop!,
       onEnd: (w: World) => {
         const rewards = finishRun(w);
