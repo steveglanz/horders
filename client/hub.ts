@@ -2,7 +2,7 @@
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
+  grantBossReward, pointsAvailable, potionWorksIn, salvage, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
@@ -727,7 +727,8 @@ export class Hub {
       return `<button data-potion="${id}" data-sfx="${on ? 'select' : 'brew'}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
         + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
-    const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
+    const kept = h.potion && !potionWorksIn(h.potion, this.dungeon) ? ' (kept for a solo delve)' : '';
+    const brewed = h.potion ? `${POTIONS[h.potion].name} ready${kept}` : 'none brewed';
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`
       + `<div class="pots">${cards}</div>`
       + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';

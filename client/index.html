@@ -580,6 +580,8 @@
     .hub-top .snd-cell, .hub-top > #bagBtn { grid-column: 3; grid-row: 1; }
     .hub-top .logo { grid-column: 1 / -1; grid-row: 2; }
   }
+  /* Phones: the logo is the Delve home's; on the Hero and Group tabs it only pushes the content down (a row of its own at 320). */
+  @media (max-width: 560px) { body.tabs .hub:is([data-tab="hero"], [data-tab="group"]) .hub-top .logo { display: none; } }
   @media (max-width: 400px) { .primary.big { font-size: clamp(17px, 5.4vw, 21px); } }
   @media (max-width: 560px) {
     .hub-top .pill { min-height: 40px; padding: 0 12px; font-size: 14px; }

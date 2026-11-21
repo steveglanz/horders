@@ -2130,7 +2130,8 @@ export class World {
       this.events.push({ type: 'revive', hero: this.acting });
       return;
     }
-    if (amount >= p.hp && this.potions[this.acting] === 'risingDraught' && !this.potionSpent[this.acting]) {
+    // Solo dungeons only: in a group dungeon or the raid the party picks you up instead (potionWorksIn).
+    if (amount >= p.hp && this.potions[this.acting] === 'risingDraught' && !this.potionSpent[this.acting] && this.dungeonDef.style === 'solo') {
       // Rising Draught: the hero who brewed it gets back up once, at a quarter health with a moment's shield.
       this.potionSpent[this.acting] = true;
       p.hp = p.maxHp * POTION.riseHp;

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
-import { SOUNDS, SoundId } from '../client/audio/sounds';
+import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
 import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
-import { phoneShare } from '../tools/mixcheck';
+import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
 import { World } from '../sim/world';
@@ -81,6 +81,13 @@ describe('audio', () => {
 
   it('keeps every sound audible on a phone speaker (a quarter of its energy above 350 Hz)', () => {
     for (const [id, recipe] of Object.entries(SOUNDS)) expect(phoneShare(render(recipe, 32000), 32000), id).toBeGreaterThan(0.25);
+  });
+
+  it('keeps every must-hear cue at least as loud on a phone as the floor, so none is buried in a 4-hero fight', () => {
+    for (const id of PRIORITY) {
+      const db = phoneDb(render(SOUNDS[id], 22050), 22050);
+      expect(db, `${id} ${db.toFixed(1)} dB`).toBeGreaterThanOrEqual(PHONE_FLOOR_DB);
+    }
   });
 
   it('gives the Hammerdeep its theme and Ondrel\'s casts their own sounds', () => {
@@ -214,6 +221,14 @@ describe('audio', () => {
     // An in-season win chimes after a season level and before smaller unlocks.
     expect(rewardCues({ ...(base as object), seasonFrom: 3, seasonTo: 4, seasonFeatured: true, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['seasonUp', 'inSeason', 'unlock']);
     expect(rewardCues({ ...(base as object), seasonFeatured: true } as never).map((c) => c.id)).toEqual(['inSeason']);
+    // P3 keys and the daily bounty (both listed on the end screen by client/ui.ts).
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 5 } as never).map((c) => c.id)).toEqual(['keyUp']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 6 } as never).map((c) => c.id)).toEqual(['keyFast']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 3 } as never).map((c) => c.id)).toEqual(['keyDown']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 4 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 0 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 40, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['bountyPaid', 'unlock']);
+    expect(rewardCues({ ...(base as object), seasonFrom: 1, seasonTo: 2, keyFrom: 2, keyTo: 3, seasonFeatured: true } as never).map((c) => c.id)).toEqual(['seasonUp', 'keyUp', 'inSeason']);
   });
 
   it('keys every boss-cast sound to a cast id the sim really uses', () => {
