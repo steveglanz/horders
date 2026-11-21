@@ -92,7 +92,7 @@ Phases 2 to 5 are built, apart from real-device work. Phase 6 keeps every team b
 |---|---|---|---|
 | V1 | **Party quest:** a weekly quest for 2 group wins with another real hero | design | ✅ #266 (weekly-quests.md, "The party quest") |
 | V2 | **Seasons 5 and 6:** new themes, so the rotation doesn't repeat Season 1 from 6 May 2027 (week 2992). Featured dungeons: the Pressworks (group), then the Wrackline (solo) | design | ✅ The Falling Press and the Low Ebb (season.md, "Seasons 5 and 6") |
-| V3 | **Pressworks content QA:** the soft-lock check, and a co-op sweep with a guest dropping during a Downstroke | QA | ⏭ tools/contentcheck.ts, tools/coopsweep.cjs |
+| V3 | **Pressworks content QA:** the soft-lock check, and a co-op sweep with a guest dropping during a Downstroke | QA | ✅ #278: contentcheck plays the Pressworks at tier 10 (0 stuck in 256 runs); `coopsweep.cjs --pressworks` drops a guest mid-Downstroke and the run reaches the end screen |
 | V4 | **Talent branch traps:** the Emberwright's Ashguard and the Slagbinder's Crust can't finish a boss | skills | 🔨 Fix agreed with design: enough damage to finish, still defensive |
 | V5 | **Season 3 key art and colours** | visuals | ✅ #252 (SEASON_ART[2], glow marks, Rime Dust frost trail). Next: Season 4 art, then 5 and 6 (/mnt/project-files/horders/design/season5-6-brief.md) |
 | V6 | **Season 3 hub theme**, and a cue for the Relayer buff (`Player.relayT`) | sound | ✅ hubHearth (Season 3), the Relayed cue #265, and hub themes for Seasons 4 to 6 #272 |
