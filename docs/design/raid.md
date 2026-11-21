@@ -63,6 +63,24 @@ The Slagbinder plays the Duskblade's hero files, as in docs/skills.md. These oth
 - Sound already has `Ladle Pour` and `Cinder Marks` cues and a raid phase sting for each phase.
 - `ladlePourTarget` names the hero the pour will land on, for a wind-up marker.
 
+## The Kinbound set (21 Nov 2026)
+The raid's verb set. Grandmother Slag's head, hands and trinket drops can be Kinbound pieces (`withSet`, 60% of set-slot drops). Every dungeon now has a set. The verb is **cover each other**: in the Crucible a healer's heal clears Ladle Burn, and a Bulwark's Called Out takes a Seared pour off a tank. All numbers are in `SET_TUNING` (`kn*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** when an ally heals you, you are **Covered**: 6% less damage for 4 s. Solo it does nothing, and the item text says so.
+- **3 pieces:** when you heal an ally, or taunt the boss off one with Called Out, you and that ally are **Bonded**: 6% more damage for 4 s. The ally doesn't need to wear the set.
+- Both show as chips in the buff row ("Covered", "Kinbound +6%").
+
+**Measured** with tools/group.ts (`DUNGEON=crucible SET=kinbound SETN=3`), heroes-r2 hero-t8-0 for every hero, tier 8, seeds 1 to 40, on main 9195d8f plus this change. Wins out of 40:
+
+| | No set | Every hero 3 pieces |
+|---|---|---|
+| Bulwark, Lumen, Duskblade, Emberwright (one tank) | 26 | 30 |
+| Bulwark, Lumen, Bulwark, Emberwright (two tanks) | 30 | 34 |
+
+That is +4 for each, inside the 2 to 7 the other sets give. The two-tank party is above the raid's 70% ceiling with or without the set (75% without), as it was after the tank swap. That is a raid tuning item, not this set's.
+
+**Name:** "Kinbound" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web (21 Nov 2026). "Covered" and "Bonded" are plain words.
+
 ## Bots
 No new bot logic was needed:
 - The healer bots already heal and Purify the Ladle Burn.

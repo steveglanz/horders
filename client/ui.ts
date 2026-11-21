@@ -422,6 +422,8 @@ export class Hud {
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
     if ((p.gwT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Glarewarden +10%</span>`);
+    if ((p.coverT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Covered</span>`);
+    if ((p.bondT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kinbound +6%</span>`);
     if (p.planted && w.setCount('wrackrider') >= 2) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Planted</span>`);
     // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).
     if (w.setCount('hearthkeeper') >= 2) {
