@@ -137,8 +137,9 @@ export const SET_ICON: Record<SetId, string> = {
   deepguard: 'M12 7.5l-3.8 1.4v3c0 2.5 1.6 4.2 3.8 5.1 2.2-.9 3.8-2.6 3.8-5.1v-3Z M7.5 3.6a9.5 9.5 0 0 1 9 0 M20.4 7.5a9.5 9.5 0 0 1 0 9 M16.5 20.4a9.5 9.5 0 0 1-9 0 M3.6 16.5a9.5 9.5 0 0 1 0-9',
   // Ventwalker (split up): one path forking to two vent circles, one hero to each.
   ventwalker: 'M12 21.5v-6.5l-5-5 M12 15l5-5 M5.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M18.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z',
-  // Kinbound (cover each other): two linked rings (placeholder until visuals draws one).
-  kinbound: 'M8.5 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z M15.5 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z',
+  // Kinbound (cover each other): two arrows turning round a heal, each hero covering the other in turn.
+  // (Linked rings read as a chain or a link icon.)
+  kinbound: 'M12 3.5a8.5 8.5 0 0 1 7.4 4.3 M17.3 9.6l3.6.4.4-3.6 M12 20.5a8.5 8.5 0 0 1-7.4-4.3 M6.7 14.4l-3.6-.4-.4 3.6 M12 9v6 M9 12h6',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
