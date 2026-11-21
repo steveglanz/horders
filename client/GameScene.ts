@@ -745,6 +745,12 @@ export class GameScene extends Phaser.Scene {
         case 'bossSpawn':
           this.shake = 0.6;
           break;
+        case 'namedSpawn':
+          this.hud.banner(ev.name, `A named foe (${ev.affix}). It carries its own loot.`);
+          break;
+        case 'namedKill':
+          this.hud.ding(`${ev.name.split(',')[0]} falls!`);
+          break;
         case 'encounterStart': {
           this.bossFell = false;
           const def = ENCOUNTERS[ev.id];
@@ -1387,7 +1393,8 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
       const t = this.plates[plate++];
-      if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.def.name).setColor(NAME_COLOR[e.def.rank]);
+      // C2: a named elite shows its title in the rare colour.
+      if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name).setColor(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
