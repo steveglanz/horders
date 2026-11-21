@@ -261,7 +261,7 @@
   .pot.on .gtile { box-shadow: 0 0 14px color-mix(in srgb, var(--gc) 45%, transparent); }
   .pot:disabled { opacity: 0.5; cursor: default; }
   .primary:disabled { opacity: 0.55; cursor: default; filter: saturate(0.5); box-shadow: none; }
-  .dg b { font: 600 17px var(--serif); }
+  .dg b { font: 600 clamp(15px, 4.8vw, 17px) var(--serif); }
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
@@ -272,8 +272,8 @@
   .seg { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
   .seg button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
   .seg button.on { background: var(--btn, linear-gradient(180deg, #ffb070, #ff7a2f)); color: #2a1206; }
-  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .dg .style.group { color: var(--gold); align-self: flex-start; padding: 3px 9px 3px 4px; border-radius: 999px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
+  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .dg .style.group { color: var(--gold); align-self: flex-start; max-width: 100%; box-sizing: border-box; padding: 3px 9px 3px 4px; border-radius: 12px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
   .dg .style .roles { display: inline-flex; gap: 3px; }
   .dg .style .gtile, .rolechip .gtile { width: 20px; height: 20px; border-radius: 6px; }
   /* Group dungeons: the roles your party has, as chips. */
@@ -424,6 +424,14 @@
     .end-grid { grid-template-columns: 1fr 1fr; max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
     #stats { max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
     .bagwrap { max-width: 860px; }
+  }
+  /* Under ~400px the ember pill, the logo and the speaker + Bags cell don't fit on one row
+     (on a 320px iPhone SE the Bags button sat 50px off the right edge): the logo gets its own row. */
+  @media (max-width: 400px) {
+    .hub-top .ember { grid-column: 1; grid-row: 1; }
+    .hub-top .snd-cell, .hub-top > #bagBtn { grid-column: 3; grid-row: 1; }
+    .hub-top .logo { grid-column: 1 / -1; grid-row: 2; }
+    .primary.big { font-size: clamp(17px, 5.4vw, 21px); }
   }
   @media (max-width: 560px) {
     .hub-top .pill { min-height: 36px; padding: 0 11px; font-size: 14px; }
