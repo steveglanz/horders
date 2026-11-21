@@ -8,7 +8,7 @@ import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
-import { DUNGEONS } from '../sim/content/dungeon';
+import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
 import { CoopSession, HeroCard } from './net/coop';
@@ -166,7 +166,12 @@ function finishRun(w: World) {
   // R7: a won daily bounty goes on that day's board for its tier (solo runs only).
   if (summary.victory && summary.bounty !== undefined && summary.dungeon && !coop) void submitBounty(summary.bounty, summary.tier ?? 1, summary.dungeon, summary.time);
   const shadow = summary.shadowDamage ?? 0;
-  void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
+  if (raidCountsTriple(summary.dungeon, hub.boss?.name)) {
+    void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
+  } else {
+    // W3: this raid's boss isn't the live world boss, so its hits count once, as ordinary delve damage.
+    void strikeBoss(summary.damageDealt, summary.time, 0, 0, DUNGEONS[summary.dungeon!].worldBoss);
+  }
   return rewards;
 }
 
@@ -183,7 +188,7 @@ async function submitKey(dungeon: string, level: number, seconds: number): Promi
 }
 
 /** Sends a finished delve's damage to the shared world boss. */
-async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number): Promise<void> {
+async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number, offBoss?: string): Promise<void> {
   const out = el('endBoss');
   out.innerHTML = '';
   if (damage + shadowDamage <= 0) return;
@@ -195,7 +200,8 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
     out.innerHTML = r.defeated
       ? card('Killing blow!', `<b style="color:var(--gold)">Your delve felled ${r.name}!</b> Claim your reward from the main menu.`)
       : card(`−${(r.dealt ?? 0).toLocaleString()}`, `<div class="meter danger"><div style="width:${Math.max(0, Math.min(100, (100 * r.hp) / r.max_hp))}%"></div></div>`
-        + `<div style="margin-top:6px">Your delve struck <b>${r.name}</b>${r.shadow ? ` (${r.shadow.toLocaleString()} from the shadow fight or the raid, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.</div>`);
+        + `<div style="margin-top:6px">Your delve struck <b>${r.name}</b>${r.shadow ? ` (${r.shadow.toLocaleString()} from the shadow fight or the raid, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.</div>`
+        + (offBoss ? `<div class="muted" style="margin-top:4px">${offBoss} isn't the world boss this week, so the raid's hits counted once, not triple.</div>` : ''));
   } else if (r.reason === 'too_soon') {
     out.innerHTML = card('Recovering', 'The world boss is recovering. Your next delve can strike it again.');
   }

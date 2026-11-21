@@ -88,6 +88,11 @@ export interface DungeonDef {
   minParty: number;
   /** C3: a raid. Its route is two openers and a named fight, then the boss, with no hard fight and no shadow fight after. */
   raid?: boolean;
+  /**
+   * W3: a raid's world boss, by its name on the server's rotation. Hits on the raid boss count
+   * triple toward the world boss only while this boss is the live one (raidCountsTriple).
+   */
+  worldBoss?: string;
 }
 
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
@@ -134,7 +139,8 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   crucible: {
     id: 'crucible', name: 'The Crucible', boss: 'grandmotherSlag', unlockTier: 8,
     openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
-    blurb: 'The raid. Four heroes face Grandmother Slag herself, and every hit on her counts triple toward the world boss.', style: 'group', minParty: 4, raid: true,
+    blurb: 'The raid. Four heroes face Grandmother Slag herself, and while she is the live world boss, every hit on her counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'Grandmother Slag',
   },
 };
 
@@ -209,4 +215,14 @@ export function rollRoute(pick: (n: number) => number, dungeon: DungeonId = 'kil
   if (DUNGEONS[dungeon].raid) return [a, b, named, boss];
   const hard = HARD.filter((h) => h !== named);
   return [a, b, named, hard[pick(hard.length)], boss];
+}
+
+/**
+ * W3: whether a run's boss hits (shadowDamage) count triple toward the live world boss. A shadow
+ * fight always does: it is the live boss's shadow. A raid does only when its own boss is the live
+ * one; in another week its hits still count, once, as ordinary delve damage (finishRun in main.ts).
+ */
+export function raidCountsTriple(dungeon: DungeonId | undefined, liveBoss: string | undefined): boolean {
+  const d = dungeon ? DUNGEONS[dungeon] : undefined;
+  return !d?.raid || (!!d.worldBoss && d.worldBoss === liveBoss);
 }
