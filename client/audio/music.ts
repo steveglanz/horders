@@ -20,7 +20,7 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery' | 'hubHunger' | 'hubPlate';
 export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride';
 
 export interface Theme {
@@ -64,6 +64,10 @@ export const THEMES: Record<ThemeId, Theme> = {
   hubPress: { root: -11, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, 3, -4], bpm: 80, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.5, bed: 'press', bedVol: 0.3, droneAt: 0 },
   // Season 6, the Low Ebb (the Wrackline): the harp over a slow harbour surf, in aeolian.
   hubEbb: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 64, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.45, bed: 'surf', bedVol: 0.3, droneAt: 0 },
+  // Season 7, the Long Hunger (the Hoard): the harp in the Hoard's phrygian, its progression and tempo, over a far-off chewing in the deep.
+  hubHunger: { root: -4, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 62, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.45, bed: 'chew', bedVol: 0.26, droneAt: 0 },
+  // Season 8, the Cracked Plate (the Smeltery): the harp in the Smeltery's harmonic minor over the Colossus's slow distant stride.
+  hubPlate: { root: -5, scale: [0, 2, 3, 5, 7, 8, 11, 12], progression: [0, -4, -5, -1], bpm: 60, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.45, bed: 'stride', bedVol: 0.26, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
   ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
@@ -535,8 +539,11 @@ class ThemePlayer {
   }
 }
 
-/** The hub's theme for each season (SEASONS order in sim/content/season.ts). A season without a variant keeps the plain hub. */
-export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows', 'hubHearth', 'hubSlag', 'hubPress', 'hubEbb'];
+/**
+ * The hub's theme for each season (SEASONS order in sim/content/season.ts). A season without a variant keeps the plain hub.
+ * Entries past the end of SEASONS wait for their season (Y10 adds Seasons 7 and 8); hubThemeFor wraps before reaching them.
+ */
+export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows', 'hubHearth', 'hubSlag', 'hubPress', 'hubEbb', 'hubHunger', 'hubPlate'];
 
 /** The hub theme for a season id (seasonOf); the seasons rotate through SEASONS, so this wraps the same way. */
 export function hubThemeFor(seasonId: number, seasons: number): ThemeId {
