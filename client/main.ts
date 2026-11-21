@@ -366,6 +366,8 @@ mountDisplayOptions(el('hubOpts'));
   scene: () => game.scene.getScene('game') as GameScene | null,
   hero: () => hero,
   audio,
+  /** For tools/cooprejoincheck.cjs: the co-op session, to cut its link. */
+  coop: () => coop,
 };
 
 // ------------------------------------------------------------------ co-op
@@ -382,13 +384,69 @@ function wornTrail(h: HeroProfile): HeroCard['trail'] {
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion, pid: playerId() };
+}
+
+/** This device's player id, kept in storage so a dropped guest can rejoin their delve (CoopSession.resume). */
+let pidCache = '';
+function playerId(): string {
+  if (pidCache) return pidCache;
+  const fresh = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join('') + Date.now().toString(36).slice(-4);
+  try {
+    const kept = localStorage.getItem(PID_KEY);
+    pidCache = kept && /^[a-z0-9]{8,16}$/.test(kept) ? kept : fresh();
+    localStorage.setItem(PID_KEY, pidCache);
+  } catch {
+    pidCache = fresh(); // private mode: one id for this visit
+  }
+  return pidCache;
+}
+const PID_KEY = 'horders.pid';
+
+/**
+ * A guest whose link to the host drops mid-delve tries to rejoin the same party a
+ * few times before giving up; the host hands their hero back (CoopSession.resume).
+ */
+const REJOIN_TRIES = 3;
+const REJOIN_WAIT_MS = 8000;
+let rejoin: { code: string; tries: number; timer: number } | null = null;
+
+function tryRejoin(code: string): void {
+  coop?.close();
+  coop = null;
+  rejoin ??= { code, tries: 0, timer: 0 };
+  clearTimeout(rejoin.timer);
+  if (rejoin.tries >= REJOIN_TRIES) { giveUpRejoin(); return; }
+  rejoin.tries++;
+  hud.banner('Connection lost', `Reconnecting to the party (${rejoin.tries} of ${REJOIN_TRIES})`);
+  coop = CoopSession.join(code, myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
+  rejoin.timer = window.setTimeout(() => tryRejoin(code), REJOIN_WAIT_MS);
+}
+
+/** Snapshots come several times a second; this long without one mid-delve means the host is gone or cut off. */
+const HOST_QUIET_MS = 10000;
+window.setInterval(() => {
+  if (coop?.role !== 'guest' || rejoin || coop.quietMs < HOST_QUIET_MS) return;
+  const scene = game.scene.getScene('game') as GameScene | null;
+  if (scene?.world && game.scene.isActive('game') && scene.world.state !== 'ended') coopEvents.onEnded('hostLeft');
+}, 1000);
+
+function giveUpRejoin(): void {
+  if (rejoin) clearTimeout(rejoin.timer);
+  rejoin = null;
+  const scene = game.scene.getScene('game') as GameScene | null;
+  if (scene?.world && game.scene.isActive('game') && scene.world.state !== 'ended') {
+    finishRun(scene.world);
+    backToMenu();
+  }
+  leaveParty('Lost the connection to the party.');
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */
 let rosterSize = 0;
 
 function leaveParty(note = ''): void {
+  if (rejoin) { clearTimeout(rejoin.timer); rejoin = null; }
   rosterSize = 0;
   coop?.close();
   coop = null;
@@ -509,6 +567,7 @@ const coopEvents = {
     renderCoop();
   },
   onStart: (opts: WorldOptions, me: number) => {
+    if (rejoin) { clearTimeout(rejoin.timer); rejoin = null; }
     if (game.scene.getScene('game')) game.scene.stop('game');
     el('end').hidden = true;
     el('title').hidden = true;
@@ -534,7 +593,7 @@ const coopEvents = {
       },
     });
   },
-  onEnded: (reason: 'menu' | 'hostLeft' | 'refused') => {
+  onEnded: (reason: 'menu' | 'hostLeft' | 'hostClosed' | 'refused') => {
     if (reason === 'menu') {
       if (!el('end').hidden || game.scene.isActive('game')) {
         const scene = game.scene.getScene('game') as GameScene | null;
@@ -544,8 +603,14 @@ const coopEvents = {
       return;
     }
     const scene = game.scene.getScene('game') as GameScene | null;
-    if (scene?.world && game.scene.isActive('game') && scene.world.state !== 'ended') {
-      finishRun(scene.world);
+    const midDelve = !!scene?.world && game.scene.isActive('game') && scene.world.state !== 'ended';
+    // Mid-delve, a lost host link (or a refused rejoin) is first retried: the host keeps our hero.
+    if (coop?.role === 'guest' && reason !== 'hostClosed' && (rejoin || (reason === 'hostLeft' && midDelve))) {
+      tryRejoin(coop.code);
+      return;
+    }
+    if (midDelve) {
+      finishRun(scene!.world);
       backToMenu();
     }
     const was = coop;

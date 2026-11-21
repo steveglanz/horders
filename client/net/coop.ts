@@ -32,6 +32,13 @@ export interface HeroCard {
   glow?: string;
   /** The potion brewed for the next delve; a guest's counts for their own hero. Older clients send none. */
   potion?: string;
+  /** A device's own id, kept across reconnects, so a dropped guest can take their hero back mid-delve. */
+  pid?: string;
+}
+
+/** A player id as sent in a HeroCard: 8 to 16 lowercase letters and digits, or nothing. */
+export function cleanPid(p: unknown): string | undefined {
+  return typeof p === 'string' && /^[a-z0-9]{8,16}$/.test(p) ? p : undefined;
 }
 
 /**
@@ -80,7 +87,7 @@ export interface CoopEvents {
   /** Guest: the host started a delve. `me` is your hero's index in it. */
   onStart?: (opts: WorldOptions, me: number) => void;
   /** Guest: the host went back to the menu or left. */
-  onEnded?: (reason: 'menu' | 'hostLeft' | 'refused') => void;
+  onEnded?: (reason: 'menu' | 'hostLeft' | 'hostClosed' | 'refused') => void;
 }
 
 export function makeSignal(code: string, url: string, key: string): Signal {
@@ -103,10 +110,16 @@ export class CoopSession {
   private casts = new Map<string, { slot: number; ticks: number; cd: number }>();
   private picks: { id: string; i: number }[] = [];
   private gone = new Set<string>();
+  /** Host: each member's player id (kept after they leave, so a rejoin can be matched). */
+  private pids = new Map<string, string>();
+  /** Host: the running delve's start options, sent again to a guest who rejoins. */
+  private runOpts: WorldOptions | null = null;
   private events: SimEvent[] = [];
   private lastSnapTick = -1;
   private lastSnapAt = 0;
   private latest: Snapshot | null = null;
+  /** Guest: when the last snapshot came in (performance.now()), or when the delve started. */
+  private heardAt = 0;
   private fresh = false;
 
   constructor(
@@ -118,7 +131,7 @@ export class CoopSession {
   ) {
     this.party = new Party(signal, role, { name: mine.name, cls: mine.cls }, {
       onJoin: (m) => this.onJoin(m),
-      onLeave: (id) => this.onLeave(id),
+      onLeave: (id, left) => this.onLeave(id, left),
       onMessage: (from, _ch, data) => this.onMessage(from, data as Msg),
       onRefused: () => this.events_.onEnded?.('refused'),
     });
@@ -182,6 +195,7 @@ export class CoopSession {
     this.events = [];
     this.lastSnapTick = -1;
     this.running = true;
+    this.runOpts = full;
     this.party.broadcast('rel', { t: 'start', opts: full, order: this.order } satisfies Msg);
     return full;
   }
@@ -229,13 +243,33 @@ export class CoopSession {
     this.party.broadcast('fast', { t: 'snap', s } satisfies Msg);
   }
 
+  /** Host: hero slot `old` (a guest who dropped) now belongs to member `id`, who gets the delve's start again. */
+  private resume(old: string, id: string): void {
+    const k = this.order.indexOf(old);
+    if (k < 0 || !this.runOpts) return;
+    this.order[k] = id;
+    this.gone.delete(old);
+    this.inputs.delete(old);
+    this.casts.delete(old);
+    this.party.send(id, 'rel', { t: 'start', opts: this.runOpts, order: this.order } satisfies Msg);
+    // A snapshot right away, so the returning guest's mirror catches up at once.
+    this.lastSnapTick = -1;
+    this.lastSnapAt = 0;
+  }
+
   /** Host: back to the menu; guests follow. */
   endRun(): void {
     this.running = false;
+    this.runOpts = null;
     this.party.broadcast('rel', { t: 'menu' } satisfies Msg);
   }
 
   // ------------------------------------------------------------ guest side
+
+  /** Guest: ms since the host's last snapshot. A host page that is gone sends nothing, and its link can take long to fail. */
+  get quietMs(): number {
+    return this.heardAt ? performance.now() - this.heardAt : 0;
+  }
 
   sendInput(x: number, y: number): void {
     this.party.broadcast('fast', { t: 'in', x, y } satisfies Msg);
@@ -264,9 +298,10 @@ export class CoopSession {
     this.events_.onRoster?.();
   }
 
-  private onLeave(id: string): void {
+  private onLeave(id: string, left = false): void {
     if (this.role === 'guest') {
-      this.events_.onEnded?.('hostLeft');
+      // The host closing the party on purpose ends it; a failed link may be retried (main.ts tryRejoin).
+      this.events_.onEnded?.(left ? 'hostClosed' : 'hostLeft');
       return;
     }
     this.heroes.delete(id);
@@ -284,11 +319,17 @@ export class CoopSession {
 
   private onMessage(from: string, m: Msg): void {
     switch (m.t) {
-      case 'hero':
+      case 'hero': {
+        const pid = cleanPid(m.hero?.pid);
+        if (pid) this.pids.set(from, pid);
+        // A guest who dropped mid-delve and came back: give them their hero again.
+        const back = this.role === 'host' && this.running && pid ? this.order.find((id) => this.gone.has(id) && this.pids.get(id) === pid) : undefined;
         this.heroes.set(from, withCleanLooks(m.hero));
+        if (back) this.resume(back, from);
         this.shareRoster();
         this.events_.onRoster?.();
         break;
+      }
       case 'roster':
         if (this.role !== 'guest') break;
         this.heroes.clear();
@@ -298,6 +339,7 @@ export class CoopSession {
       case 'start':
         if (this.role !== 'guest') break;
         this.me = m.order.indexOf(this.party.id) + 1;
+        this.heardAt = performance.now();
         this.latest = null;
         this.fresh = false;
         if (this.me > 0) this.events_.onStart?.(m.opts, this.me);
@@ -312,6 +354,7 @@ export class CoopSession {
         if (Number.isInteger(m.i) && m.i >= 0 && m.i < 3) this.picks.push({ id: from, i: m.i });
         break;
       case 'snap':
+        this.heardAt = performance.now();
         if (this.role === 'guest' && (!this.latest || m.s.tick >= this.latest.tick)) {
           this.latest = m.s;
           this.fresh = true;

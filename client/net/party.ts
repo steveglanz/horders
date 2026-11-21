@@ -26,7 +26,8 @@ export interface Member {
 export interface PartyEvents {
   /** A peer's channels are both open (host: a guest joined; guest: linked to host). */
   onJoin?: (m: Member) => void;
-  onLeave?: (id: string) => void;
+  /** `left` is true when the peer said goodbye (closed the party on purpose), false when the link failed. */
+  onLeave?: (id: string, left: boolean) => void;
   onMessage?: (from: string, ch: Channel, data: unknown) => void;
   /** Guest only: the host refused (party full). */
   onRefused?: (reason: string) => void;
@@ -101,7 +102,7 @@ export class Party {
 
   private async onSignal(m: SignalMsg): Promise<void> {
     if (this.closed || m.from === this.id || (m.to && m.to !== this.id)) return;
-    if (m.t === 'bye') return this.drop(m.from);
+    if (m.t === 'bye') return this.drop(m.from, true);
     if (this.role === 'host') {
       if (m.t === 'hello') return this.acceptGuest(m);
     } else {
@@ -160,12 +161,12 @@ export class Party {
     this.signal.send({ t: 'answer', from: this.id, to: m.from, sdp: l.pc.localDescription!.toJSON() });
   }
 
-  private drop(id: string): void {
+  private drop(id: string, left = false): void {
     const l = this.links.get(id);
     if (!l) return;
     this.links.delete(id);
     l.pc.close();
-    if (l.open) this.events.onLeave?.(id);
+    if (l.open) this.events.onLeave?.(id, left);
     if (id === this.hostId) this.hostId = null;
   }
 }
