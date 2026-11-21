@@ -654,7 +654,7 @@ export class Hub {
       const p = POTIONS[id];
       const on = h.potion === id;
       const why = brewBlocker(h, id);
-      return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
+      return `<button data-potion="${id}" data-sfx="${on ? 'select' : 'brew'}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
         + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
@@ -776,9 +776,9 @@ export class Hub {
     const h = this.hero();
     const up = canUpgrade(h, it);
     const tm = canTemper(h, it);
-    const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
-      + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
-    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+    const forge = `<button class="sbtn" data-u="${it.id}" data-sfx="forge" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
+      + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" data-sfx="temper" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
+    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
   }
 
   /** Wires item action buttons under root; after() runs once the hero changed. */

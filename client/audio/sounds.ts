@@ -445,6 +445,13 @@ export const SOUNDS = {
   ]),
 
   // ---- co-op
+  /** G4: the party's tank or healer went down: the ally-down fall over a low alarm horn, because the fight just changed. */
+  roleDown: join(
+    [{ wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
+     { wave: 'tri', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.3, curve: 1.5 }],
+    horn(note(-14), 0.5, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.15 })),
+    horn(note(-15), 0.6, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+  ),
   allyDown: [
     { wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
     { wave: 'tri', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.3, curve: 1.5 },
@@ -474,6 +481,27 @@ export const SOUNDS = {
   ],
   /** Opening a panel (bags, pause): a soft upward swell. */
   open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
+
+  // ---- the ember purse (shared by every class): embers in, embers spent
+  /** Salvage: the item crumbles to cinders and embers clink into the purse. */
+  salvage: join(
+    [{ wave: 'noise', f: 0, dur: 0.22, vol: 0.18, lp: 3500, lp2: 900, hp: 400, curve: 2 }],
+    chime(E6, 0.12, 0.14, 0.25), chime(A5 * 2, 0.2, 0.14, 0.35),
+  ),
+  /** Upgrade at the Forge: one ringing hammer strike on the anvil, with sparks. */
+  forge: join(clang(880, 0.32, 0.6), [
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.35, lp: 6000, hp: 1200, curve: 3 },
+    ...[0.06, 0.12, 0.2].map((d) => ({ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.12, lp: 11000, hp: 5000, curve: 3 })),
+  ]),
+  /** Temper: a hammer strike, then the quench hiss as the reforged bonus sets. */
+  temper: join(clang(660, 0.28, 0.4), [
+    { wave: 'noise', f: 0, dur: 0.6, delay: 0.15, vol: 0.2, a: 0.02, lp: 9000, lp2: 2500, hp: 1500, curve: 1.6 },
+  ]),
+  /** Brew a potion: bubbles rise and a cork pops. */
+  brew: join(
+    ...[0, 0.07, 0.13, 0.2, 0.26].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 90, f2: 900 + k * 120, dur: 0.06, delay: d, vol: 0.12, curve: 2 }]),
+    [{ wave: 'noise', f: 0, dur: 0.04, delay: 0.36, vol: 0.3, lp: 5000, hp: 900, curve: 3 }, { wave: 'sine', f: 900, f2: 500, dur: 0.06, delay: 0.36, vol: 0.12 }],
+  ),
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;

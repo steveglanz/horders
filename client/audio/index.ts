@@ -301,7 +301,7 @@ class AudioEngine {
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     if (ctx.hp && ctx.hp.length > 1) {
-      for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting)) {
+      for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting, ctx.roles)) {
         this.cue(c);
         if (c.id === 'selfDown') this.haptics.buzz(BUZZ.down);
       }

@@ -122,6 +122,10 @@ describe('audio', () => {
     expect(partyCues(down, [0, 0, 60], 0).map((c) => c.id)).toEqual(['selfDown']);
     expect(partyCues(down, [30, 24, 60], 0).map((c) => c.id)).toEqual(['allyUp', 'allyUp']);
     expect(partyCues(down, [30, 24], 0)).toEqual([]); // someone left: start over quietly
+    const roles = ['dps', 'tank', 'healer', 'dps'];
+    const d2: boolean[] = [];
+    partyCues(d2, [9, 9, 9, 9], 0, roles);
+    expect(partyCues(d2, [9, 0, 0, 0], 0, roles).map((c) => c.id)).toEqual(['roleDown', 'roleDown', 'allyDown']);
   });
 
   it('buzzes for your own big hits and boss telegraphs, not for allies', () => {
@@ -171,6 +175,7 @@ describe('audio', () => {
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'select' }))).toBe('select');
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'none' }))).toBeNull();
     expect(uiSoundFor(el(['div']))).toBeNull();
+    for (const id of ['salvage', 'forge', 'temper', 'brew']) expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': id }))).toBe(id);
   });
 
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {

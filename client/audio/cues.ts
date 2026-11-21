@@ -27,6 +27,8 @@ export interface CueContext {
   boss?: EnemyKind;
   /** The Hammerdeep: Anvilfall is winding up on this screen's hero (World.anvilOnMe). */
   anvilOnMe?: boolean;
+  /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
+  roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
   revive?: { t: number[]; need: number; left: number };
 }
@@ -172,7 +174,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
  * no event for either, so this compares each hero's health with last tick's.
  * `wasDown` is updated in place.
  */
-export function partyCues(wasDown: boolean[], hp: readonly number[], acting: number): Cue[] {
+export function partyCues(wasDown: boolean[], hp: readonly number[], acting: number, roles?: readonly string[]): Cue[] {
   const out: Cue[] = [];
   if (wasDown.length !== hp.length) {
     wasDown.length = 0;
@@ -181,7 +183,8 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
   }
   hp.forEach((h, i) => {
     const down = h <= 0;
-    if (down && !wasDown[i]) out.push({ id: i === acting ? 'selfDown' : 'allyDown' });
+    // G4: losing the tank or the healer gets its own, more urgent call (the party frames show who they are).
+    if (down && !wasDown[i]) out.push({ id: i === acting ? 'selfDown' : roles?.[i] === 'tank' || roles?.[i] === 'healer' ? 'roleDown' : 'allyDown' });
     else if (!down && wasDown[i]) out.push({ id: 'allyUp', vol: i === acting ? 1 : 0.7 });
     wasDown[i] = down;
   });
@@ -233,7 +236,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'selfDown', 'allyDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
 ]);
 
