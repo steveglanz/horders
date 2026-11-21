@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
-import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
+import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
+import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -88,6 +89,46 @@ describe('audio', () => {
       const db = phoneDb(render(SOUNDS[id], 22050), 22050);
       expect(db, `${id} ${db.toFixed(1)} dB`).toBeGreaterThanOrEqual(PHONE_FLOOR_DB);
     }
+  });
+
+  it('plays every dungeon its own theme (the Crucible plays the raid), and GameScene asks themeFor', () => {
+    for (const id of DUNGEON_IDS) expect(themeFor(id) in THEMES, id).toBe(true);
+    expect(themeFor('hoard')).toBe('hoard');
+    expect(themeFor('crucible')).toBe('raid');
+    // #296's Hoard theme was lost once in a merge: GameScene must go through themeFor, not its own mapping.
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toContain('audio.theme(themeFor(w.dungeonId))');
+  });
+
+  it('gives each world boss shadow its own sting, keyed by the server names', () => {
+    const c = { cls: 'bulwark' as const, acting: 0, boss: 'worldShadow' as const };
+    const sql = readFileSync(new URL('../supabase/migrations/0007_rename_old_ashmaw.sql', import.meta.url), 'utf8');
+    const names = /names\s+text\[\]\s*:=\s*array\[([^\]]+)\]/.exec(sql)![1].split(',').map((n) => n.trim().replace(/^'|'$/g, ''));
+    expect(names.length).toBe(4);
+    const stings = new Set<string>();
+    for (const n of names) {
+      const id = cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: n })?.id;
+      expect(id, n).toBe(SHADOW_STING[n]);
+      expect(PRIORITY.has(id as SoundId), n).toBe(true);
+      stings.add(id!);
+    }
+    expect(stings.size).toBe(4);
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: 'Old Ashmaw' })?.id).toBe('shadowCoal');
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: 'Someone New' })?.id).toBe('phaseShadow');
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseShadow');
+    // A real boss fight in a world boss's dungeon keeps its own sting.
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, boss: 'coalmouth', worldBoss: 'Old Coalmouth' })?.id).toBe('phaseSwallow');
+  });
+
+  it('gives the hub its equip, passive point and world boss claim sounds', () => {
+    const stub = (sfx: string): Tappable => ({ closest: () => stub(sfx), getAttribute: (n) => (n === 'data-sfx' ? sfx : null) });
+    expect(uiSoundFor(stub('equip'))).toBe('equip');
+    expect(uiSoundFor(stub('passive'))).toBe('passive');
+    const hub = readFileSync(new URL('../client/hub.ts', import.meta.url), 'utf8');
+    expect(hub).toContain('data-sfx="equip"');
+    expect(hub).toContain("data-sfx=\"${can ? 'passive' : 'click'}\"");
+    expect(hub).toContain('this.onClaimed();');
+    expect(readFileSync(new URL('../client/main.ts', import.meta.url), 'utf8')).toContain("hub.onClaimed = () => audio.play('bossClaim');");
   });
 
   it('gives the Hoard its own theme and every Old Coalmouth moment a sound', () => {

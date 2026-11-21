@@ -46,6 +46,8 @@ export interface CueContext {
   pressed?: boolean;
   /** Slagbinder: this screen's hero's stance ('anvil' tanks behind thick plate, 'bellows' deals damage). */
   stance?: string;
+  /** The living world boss's name (World.worldBoss), so its shadow gets its own sting. */
+  worldBoss?: string;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -171,6 +173,19 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
+/**
+ * Each world boss's shadow sting, keyed by the server's boss names (supabase/migrations/0007). 'Old Ashmaw' is
+ * the name before migration 0007 renames it, so a live server that hasn't run it still gets Coalmouth's sting.
+ * A name not listed falls back to PHASE_STING.worldShadow.
+ */
+export const SHADOW_STING: Record<string, SoundId> = {
+  'Grandmother Slag': 'shadowSlag',
+  'The Cinder Colossus': 'shadowColossus',
+  'Old Coalmouth': 'shadowCoal',
+  'Old Ashmaw': 'shadowCoal',
+  'The Furnace Regent': 'shadowRegent',
+};
+
 export function phaseSting(boss: string | undefined, phase: number): SoundId {
   const s = boss ? PHASE_STING[boss] : undefined;
   if (!s) return 'phase';
@@ -212,7 +227,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'namedSpawn': return { id: 'namedSpawn' };
     case 'namedKill': return { id: 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
-    case 'phase': return { id: phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
+    case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
     case 'slam': return { id: 'slam' };
@@ -370,6 +385,7 @@ export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
+  ...Object.values(SHADOW_STING),
 ]);
 
 /**
