@@ -110,7 +110,7 @@ Phase 6 is built, apart from the bounty board's migration. Phase 7 brings the ne
 | W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | 🔨 A party-side trim; solo L7 must still pass |
 | W5 | **Pressworks content QA** (carried over from V3) | QA | ✅ #278: contentcheck plays the Pressworks at tier 10 (0 stuck in 256 runs); `coopsweep.cjs --pressworks` drops a guest mid-Downstroke and the run reaches the end screen. Re-run on main at 60b2e73 |
 | W6 | **The Hoard's art:** Coalmouth, the Craw, the swallowed state, the embers, a hub card | visuals | 🔨 Brief: /mnt/project-files/horders/design/hoard-visuals-brief.md |
-| W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | 🔨 Brief: /mnt/project-files/horders/design/hoard-sound-brief.md |
+| W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | ✅ Theme `hoard` (chew bed), Swallow sting, belly muffle and heartbeat, and every Hoard event and cast cued (PR after #295) |
 
 ## R2. The Forge
 

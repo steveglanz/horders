@@ -321,7 +321,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId === 'crucible' || w.dungeonId === 'hoard' ? 'raid' : w.dungeonId);
+    audio.theme(w.dungeonId === 'crucible' ? 'raid' : w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -697,6 +697,7 @@ export class GameScene extends Phaser.Scene {
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
+      swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
