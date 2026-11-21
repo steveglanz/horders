@@ -114,6 +114,23 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     expect(w.events).toContainEqual({ type: 'digested', hero: k });
   });
 
+  it('a hero still inside when he falls comes out with the win, so nobody ends the run swallowed', () => {
+    const { w, inner, b } = hoard();
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+    inner.swallowT = 0;
+    inner.coalClock(0.01);
+    const k = inner.swallowed;
+    expect(k).toBeGreaterThan(0);
+    inner.damageEnemy(b, 1e9, false);
+    const idle = w.heroes.map(() => ({ x: 0, y: 0 }));
+    for (let n = 0; n < 600 && w.state !== 'ended'; n++) w.step(idle);
+    expect(w.state).toBe('ended');
+    expect(w.summary().victory).toBe(true);
+    expect(w.heroes[k].player.swallowT ?? 0).toBe(0);
+    expect(w.heroes[k].player.hp).toBeGreaterThan(0);
+    expect(inner.swallowed).toBe(-1);
+  });
+
   it('Ember Feast: an ember a hero grabs is gone; one left too long feeds him, and every one fed makes him hit harder', () => {
     const { w, inner, b } = hoard();
     const e = w.enemies[b];

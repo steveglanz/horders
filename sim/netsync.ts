@@ -13,9 +13,26 @@ import { ENEMIES } from './content/enemies';
 import { ThreatTable } from './threat';
 
 /** Pools sent as their living entries: [index, ...values in `keys` order]. */
-const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins', 'cracks'] as const;
-/** Small arrays of plain data sent whole. */
-const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'colDmg'] as const;
+export const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins', 'cracks'] as const;
+/**
+ * Small arrays of plain data sent whole. A new array on World must go here, in POOLS, or in
+ * NOT_SENT (tests/netsync-coverage.test.ts fails otherwise): the Hoard's embers once missed it.
+ */
+export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg'] as const;
+/** Arrays a snapshot carries in fields of their own (Snapshot.heroes, strikeOwner, bossThreat, events). */
+export const SENT_APART = ['heroes', 'strikeOwner', 'threat', 'events'] as const;
+/** Arrays on World that a guest never needs, and why. */
+export const NOT_SENT: Record<string, string> = {
+  head: 'spatial hash, rebuilt from enemies every step',
+  next: 'spatial hash, rebuilt from enemies every step',
+  potions: 'only the host applies potions (hurtPlayer, abilityCooldown); fixed at the start',
+  potionSpent: 'only the host decides Rising Draught',
+  // Per-hero fields of the hero swapped in: sent per hero through Snapshot.heroes (heroData).
+  gear: 'per hero, fixed at the start from the start options',
+  runDrops: 'per hero, sent in Snapshot.heroes',
+  runEquipped: 'per hero, sent in Snapshot.heroes',
+  choices: 'per hero, sent in Snapshot.heroes',
+};
 /** Fields a guest keeps for itself. */
 const LOCAL = new Set(['acting', 'stress']);
 /** Previous-position fields: the guest fills them from its last copy, for smooth motion. */
