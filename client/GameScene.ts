@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -328,6 +328,9 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
     // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
     else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
+    // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
+    // plate and the red Rivets both read on it.
+    else if (w.dungeonId === 'pressworks') this.ground.setTint(0x9aa070);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -1464,7 +1467,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1607,6 +1610,8 @@ export class GameScene extends Phaser.Scene {
           }
         }
         if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
+        if (w.dungeonId === 'pressworks' && t.kind === 'soak' && t.owner === -3) this.pressMark(g, t, f, now);
+        if (w.dungeonId === 'pressworks' && t.kind === 'hit' && t.owner === -1 && t.r === OSKEL.rivetRadius) this.rivetMark(t, f);
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
@@ -1687,6 +1692,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
+      if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
       if (e.kind === 'grandmotherSlag' && e.castId) this.slagCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
@@ -1747,6 +1753,19 @@ export class GameScene extends Phaser.Scene {
           ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
           ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
         );
+      }
+    }
+    // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
+    // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
+    if (w.dungeonId === 'pressworks') {
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        const left = q.pressedT ?? 0;
+        if (left <= 0 || q.hp <= 0) continue;
+        const al = k === w.acting ? undefined : this.allies.find((a) => a.hero === k);
+        const hx = al ? al.img.x : this.player.x;
+        const hy = al ? al.img.y : this.player.y;
+        this.pressedMark(hx + 32, hy - 30, left / OSKEL.pressed);
       }
     }
     // The Ashvents: an empty vent off screen gets a gold arrow at the edge, so nobody misses it.
@@ -2900,6 +2919,111 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(FROST, 0.08 + 0.12 * f).fillCircle(e.x, e.y, e.def.radius + 20 + f * 60);
       g.lineStyle(4, FROST, 0.5 + 0.4 * pulse).strokeCircle(e.x, e.y, e.def.radius + 20 + f * 60);
     }
+  }
+
+  /**
+   * The Pressworks' Downstroke: a steel stamping plate with a hazard-striped rim inside the gold soak circle, and the
+   * press head's square shadow closing down onto it, so it reads as "a press comes down here", not an Ashvents vent.
+   * Over it, a badge: a tick while someone who isn't Pressed stands on it, a cross when a Pressed hero is on it (they
+   * would be crushed and don't count), "!" when nobody is. A Pressed hero on the plate gets a red warning ring.
+   */
+  private pressMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    let ok = 0;
+    let crushed = false;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = w.heroData(k).player;
+      if (q.hp <= 0 || (q.x - t.x) ** 2 + (q.y - t.y) ** 2 > t.r * t.r) continue;
+      if ((q.pressedT ?? 0) > 0) {
+        crushed = true;
+        const blink = 0.5 + 0.5 * Math.sin(now / 70);
+        o.lineStyle(3, DANGER, 0.5 + 0.5 * blink).strokeCircle(q.x, q.y + 6, 24);
+      } else ok++;
+    }
+    // The press head's shadow, closing in and darkening as it comes down.
+    const sh = t.r * (1.5 - 0.5 * f);
+    g.fillStyle(0x000000, 0.12 + 0.3 * f).fillRoundedRect(t.x - sh / 2 * 1.2, t.y - sh / 2 * 0.9, sh * 1.2, sh * 0.9, 8);
+    // The plate: dark steel, a striped rim and a rivet in each corner.
+    const pw = t.r * 1.15;
+    const ph = t.r * 0.85;
+    g.fillStyle(0x4a524a, 0.7).fillRect(t.x - pw / 2, t.y - ph / 2, pw, ph);
+    g.lineStyle(5, 0xf2c230, 0.9).strokeRect(t.x - pw / 2, t.y - ph / 2, pw, ph);
+    g.lineStyle(2.5, 0x16120c, 0.85);
+    const dash = (x1: number, y1: number, x2: number, y2: number) => {
+      const n = Math.max(2, Math.round(Math.hypot(x2 - x1, y2 - y1) / 11));
+      for (let k = 0; k < n; k++) {
+        const x = x1 + ((x2 - x1) * (k + 0.5)) / n;
+        const y = y1 + ((y2 - y1) * (k + 0.5)) / n;
+        g.lineBetween(x - 2.5, y + 2.5, x + 2.5, y - 2.5);
+      }
+    };
+    const L = t.x - pw / 2, R = t.x + pw / 2, T = t.y - ph / 2, B = t.y + ph / 2;
+    dash(L, T, R, T); dash(L, B, R, B); dash(L, T, L, B); dash(R, T, R, B);
+    g.fillStyle(0xd8e0d4, 0.9);
+    for (const [x, y] of [[L + 8, T + 8], [R - 8, T + 8], [L + 8, B - 8], [R - 8, B - 8]]) g.fillCircle(x, y, 2.6);
+    if (!ok) this.emptyVents.push({ x: t.x, y: t.y });
+    // The badge over the circle.
+    const bx = t.x;
+    const by = t.y - t.r - 16;
+    const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+    if (crushed) {
+      o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
+      o.lineStyle(3, DANGER, 1).lineBetween(bx - 5, by - 5, bx + 5, by + 5).lineBetween(bx - 5, by + 5, bx + 5, by - 5);
+    } else if (ok) {
+      o.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
+      o.fillStyle(0x10200f, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, 0x9fe8a8, 1).strokeCircle(bx, by, 11);
+      o.lineStyle(3, 0x9fe8a8, 1).beginPath().moveTo(bx - 5, by).lineTo(bx - 1, by + 4).lineTo(bx + 6, by - 4).strokePath();
+    } else {
+      o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
+      o.fillStyle(DANGER, 1).fillRect(bx - 1.5, by - 7, 3, 9).fillRect(bx - 1.5, by + 4, 3, 3);
+    }
+  }
+
+  /** Oskel's Rivets: a domed rivet drops onto each ring's middle, its shadow growing under it as it falls. */
+  private rivetMark(t: World['telegraphs'][number], f: number): void {
+    const o = this.overFx;
+    this.gfx.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(t.x, t.y + 4, 10 + 14 * f, 4 + 6 * f);
+    const ry = t.y - (1 - f) * (1 - f) * 140;
+    o.fillStyle(0x6a4a1c, 1).fillRect(t.x - 2.5, ry - 2, 5, 10);
+    o.fillStyle(0xd8a850, 1).fillEllipse(t.x, ry - 3, 18, 10);
+    o.fillStyle(0xf8dc94, 0.9).fillEllipse(t.x - 3, ry - 5, 6, 3);
+    o.lineStyle(1.5, 0x1a1008, 0.9).strokeEllipse(t.x, ry - 3, 18, 10);
+  }
+
+  /** Oskel's Stamp: a hazard-striped die drops onto the tank, with a closing reticle and a darkening shadow. */
+  private stampMark(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const f = Math.min(1, e.castT / e.castDur);
+    const t = w.heroData(w.stampOn).player;
+    const o = this.overFx;
+    const close = 0.6 + 0.4 * Math.sin(now / (f > 0.75 ? 40 : 90));
+    g.fillStyle(0x000000, 0.25 + 0.35 * f).fillRect(t.x - (20 + 22 * f), t.y + 12, 40 + 44 * f, 10 + 10 * f);
+    const r = 100 - 52 * f;
+    o.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
+    const dy = t.y - 50 - (1 - f) * (1 - f) * 150;
+    o.fillStyle(0x5a645a, 0.97).fillRect(t.x - 24, dy - 12, 48, 24);
+    o.fillStyle(0xf2c230, 1).fillRect(t.x - 23, dy + 5, 46, 6);
+    o.lineStyle(2.5, 0x16120c, 1);
+    for (let x = -20; x <= 18; x += 7) o.lineBetween(t.x + x, dy + 11, t.x + x + 5, dy + 5);
+    o.lineStyle(2, 0x0c0506, 1).strokeRect(t.x - 24, dy - 12, 48, 24);
+    o.fillStyle(0xd8e0d4, 1).fillCircle(t.x - 18, dy - 5, 2).fillCircle(t.x + 18, dy - 5, 2);
+    o.fillStyle(0xe8eee6, 0.95).fillRect(t.x - 4, dy - 40, 8, 28);
+    o.lineStyle(1.5, 0x0c0506, 1).strokeRect(t.x - 4, dy - 40, 8, 28);
+  }
+
+  /** A Pressed hero's mark: a small red plate with a press-down glyph, ringed by the time left (`k`, 1 to 0). */
+  private pressedMark(x: number, y: number, k: number): void {
+    const o = this.overFx;
+    o.fillStyle(0x200a0e, 0.9).fillCircle(x, y, 10);
+    o.lineStyle(2, 0x5a2028, 0.9).strokeCircle(x, y, 10);
+    o.lineStyle(2.5, DANGER, 1).beginPath().arc(x, y, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, k)), false).strokePath();
+    o.fillStyle(DANGER, 1).fillRect(x - 5, y - 6, 10, 3).fillRect(x - 1.25, y - 3, 2.5, 5);
+    o.fillTriangle(x - 4, y + 1, x + 4, y + 1, x, y + 5);
+    o.fillRect(x - 5, y + 5, 10, 1.6);
   }
 
   private ventMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
