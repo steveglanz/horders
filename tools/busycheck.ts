@@ -5,7 +5,7 @@
 //   VOICES=20 DUNGEONS=crucible SEEDS=1,2,3 PARTY=bulwark,lumen,duskblade,slagbinder npx vite-node tools/busycheck.ts
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { bellyCues, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -16,7 +16,7 @@ const VOICES = Number(process.env.VOICES ?? 12); // the low-end phone cap
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dungeons = (process.env.DUNGEONS ?? 'crucible,hammerdeep,coldmarrow').split(',') as DungeonId[];
 const seeds = (process.env.SEEDS ?? '1,2,3').split(',').map(Number);
-const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9 };
+const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10 };
 BOT_PARTY.revive = true;
 const len = new Map<SoundId, number>();
 const RATE = 16000;
@@ -104,7 +104,7 @@ for (const dungeon of dungeons) {
       });
       wearSet();
       w.step(inputs);
-      const ctx = { cls: w.cls, acting: w.acting, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined };
+      const ctx = { cls: w.cls, acting: w.acting, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w) };
       for (const ev of w.events) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);

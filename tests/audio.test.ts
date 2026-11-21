@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -160,6 +160,62 @@ describe('audio', () => {
     // The Gorge wind-up has to fit inside its 3 s cast, so the interrupt lands on a sound that is still going.
     expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
   });
+
+  it('gives every Cinder Colossus moment in the Smeltery a sound', () => {
+    expect(THEMES.smeltery).not.toEqual(THEMES.raid);
+    const c = { cls: 'duskblade' as const, acting: 0, boss: 'colossus' as const };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'slagSweep', name: 'Slag Sweep' }, c)?.id).toBe('sweepWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'slagSweep', name: 'Slag Sweep' }, c)?.id).toBe('slagSweep');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'wheel', name: 'Wheel' }, c)?.id).toBe('wheelWarn');
+    // Wheel's end is the wheel event plus the Sweep wind-up on the same tick, so its own castDone stays quiet.
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'wheel', name: 'Wheel' }, c)).toBeNull();
+    expect(cueFor({ type: 'castStart', index: 0, id: 'pourOut', name: 'Pour Out' }, c)?.id).toBe('pourOutWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'pourOut', name: 'Pour Out' }, c)?.id).toBe('pourOut');
+    expect(cueFor({ type: 'wheel', hero: 0 }, c)?.id).toBe('wheelOnMe');
+    expect(cueFor({ type: 'wheel', hero: 2 }, c)).toBeNull();
+    expect(cueFor({ type: 'meltPulse', n: 1 }, c)?.vol).toBeCloseTo(0.73);
+    expect(cueFor({ type: 'meltPulse', n: 40 }, c)?.vol).toBe(1.3);
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseWheel');
+    expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseMeltdown');
+    for (const id of ['sweepWarn', 'wheelWarn', 'pourOutWarn', 'wheelOnMe', 'phaseWheel', 'phaseMeltdown'] as const) expect(PRIORITY.has(id), id).toBe(true);
+    // Front and back: only this screen's own hits on him, and only while the plate holds (colossusCue unset in phase 3).
+    const hit = (hero: number | undefined, x = 100, y = 50) => ({ type: 'hit' as const, x, y, amount: 10, crit: false, hero });
+    const at = (side: number) => ({ ...c, colossus: { x: 100, y: 50, side } });
+    expect(cueFor(hit(0), at(0.5))?.id).toBe('plateHit');
+    expect(cueFor(hit(0), at(1.5))?.id).toBe('backHit');
+    expect(cueFor(hit(0), at(1))?.id).toBe('hit');
+    expect(cueFor(hit(1), at(1.5))?.id).toBe('hit');
+    expect(cueFor(hit(0, 300, 50), at(1.5))?.id).toBe('hit');
+    expect(cueFor(hit(0), c)?.id).toBe('hit');
+    // Pour Out's wind-up fits inside its 5 s cast.
+    expect(recipeLength(SOUNDS.pourOutWarn)).toBeLessThan(5);
+  });
+
+  it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
+    const w = new World({ seed: 3, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    const heard = new Set<string>();
+    let phase3Side = false;
+    while (w.state !== 'ended' && w.time < 900) {
+      if (w.state === 'draft') {
+        const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
+        w.use(h);
+        const pick = botChoose(w);
+        w.use(0);
+        w.choose(pick, h);
+        continue;
+      }
+      const inputs = w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; });
+      w.step(inputs);
+      const col = colossusCue(w);
+      if (col && w.bossPhase >= 3) phase3Side = true;
+      for (const ev of w.events) {
+        const cue = cueFor(ev, { cls: w.cls, acting: 0, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: col });
+        if (cue) heard.add(cue.id);
+      }
+    }
+    for (const id of ['sweepWarn', 'slagSweep', 'wheelWarn', 'phaseWheel', 'phaseMeltdown', 'meltPulse', 'backHit']) expect(heard.has(id), id).toBe(true);
+    expect(phase3Side).toBe(false);
+  }, 60_000);
 
   it('gives the Anvil Slagbinder plated hits and each stance its own pick sound', () => {
     const anvil = { cls: 'slagbinder' as const, acting: 0, stance: 'anvil' };

@@ -813,6 +813,65 @@ export const SOUNDS = {
     horn(note(-17), 1.1, 0.26),
     chime(G5, 0.3, 0.14, 0.4), chime(D5 * 2, 0.45, 0.14, 0.5),
   ),
+  // ---- Raid 3, the Smeltery: the Cinder Colossus (docs/design/raid3.md)
+  /** Slag Sweep wind-up (1.5 s, a cone out of his front): a huge arm of slag drawn back, scraping and rising. */
+  sweepWarn: [
+    { wave: 'noise', f: 0, dur: 1.35, vol: 0.42, a: 0.2, lp: 500, lp2: 4200, hp: 250, curve: 0.7 },
+    { wave: 'saw', f: 90, f2: 200, dur: 1.35, vol: 0.24, a: 0.15, lp: 1300, lp2: 2600, vib: [9, 0.03], curve: 0.7 },
+    { wave: 'square', f: note(-2), f2: note(5), dur: 1.2, delay: 0.1, vol: 0.09, a: 0.3, lp: 3200, curve: 0.8 },
+  ],
+  /** Slag Sweep lands: a heavy molten swipe that hisses as it passes. */
+  slagSweep: join(
+    whoosh(800, 4200, 0.4, 0.42),
+    [{ wave: 'saw', f: 150, f2: 80, dur: 0.35, vol: 0.16, lp: 1500 },
+     { wave: 'noise', f: 0, dur: 0.5, delay: 0.12, vol: 0.2, lp: 7000, hp: 2200, trem: [24, 0.5], curve: 1.5 }],
+  ),
+  /** Wheel wind-up (2 s): the giant turns on his heel, stone grinding on stone with a slow ratchet. */
+  wheelWarn: join(
+    [{ wave: 'saw', f: 70, f2: 105, dur: 1.9, vol: 0.26, a: 0.2, lp: 900, lp2: 1800, trem: [11, 0.5], curve: 0.8 },
+     { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
+    ...[0.15, 0.55, 0.95, 1.35, 1.7].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.035, delay: d, vol: 0.24 + k * 0.03, lp: 5000, hp: 1400, curve: 3 }]),
+  ),
+  /** Wheel picked you: he is facing you now and the Sweep is coming. Two stone knocks and a hard rising ping. */
+  wheelOnMe: join(
+    clang(note(-5), 0.3, 0.3), clang(note(-5), 0.32, 0.3).map((v) => ({ ...v, delay: 0.14 })),
+    [{ wave: 'square', f: note(17), f2: note(22), dur: 0.22, delay: 0.28, vol: 0.18, lp: 5000, curve: 1.5 }],
+  ),
+  /** Pour Out (the enrage, 5 s): the Smeltery's channels open, a molten roar that keeps rising. */
+  pourOutWarn: [
+    { wave: 'noise', f: 0, dur: 2.9, vol: 0.42, a: 2.2, lp: 300, lp2: 5000, hp: 200, trem: [5, 0.3], curve: 0.4 },
+    { wave: 'saw', f: note(-29), f2: note(-17), dur: 2.9, vol: 0.22, a: 2.0, lp: 900, lp2: 2400, vib: [4, 0.02], curve: 0.4 },
+    { wave: 'saw', f: note(-22), f2: note(-10), dur: 2.7, delay: 0.2, vol: 0.12, a: 2.0, lp: 1400, lp2: 3000, curve: 0.5 },
+  ],
+  /** Pour Out lands: the floor floods with slag. */
+  pourOut: join(boom(38, 1.3, 0.7), whoosh(600, 7000, 1.0, 0.3), horn(note(-22), 1.1, 0.28)),
+  /** Meltdown pulse (every 3 s in phase 3): the cracked plate throbs and spits heat. Louder as the pulses grow. */
+  meltPulse: [
+    { wave: 'sine', f: 120, f2: 70, dur: 0.3, vol: 0.28, curve: 2 },
+    { wave: 'saw', f: 220, f2: 140, dur: 0.25, vol: 0.12, lp: 1600, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.4, vol: 0.2, a: 0.02, lp: 6500, hp: 1800, trem: [20, 0.5], curve: 1.6 },
+  ],
+  /** Your hit lands on his plated front (half damage): a dull, quiet clank, "wrong side". */
+  plateHit: join(clang(300, 0.16, 0.14), [{ wave: 'noise', f: 0, dur: 0.03, vol: 0.12, lp: 3000, hp: 600 }]),
+  /** Your hit lands on his open back (half again): a meaty crunch of cracked stone, "right side". */
+  backHit: [
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.26, lp: 4200, hp: 700, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.04, delay: 0.035, vol: 0.2, lp: 3200, hp: 500, curve: 3 },
+    { wave: 'tri', f: 460, f2: 210, dur: 0.07, vol: 0.22, curve: 3 },
+  ],
+  /** Phase 2, Wheel: the giant turns for the first time, a grinding heave and a footfall. */
+  phaseWheel: join(
+    [{ wave: 'saw', f: 60, f2: 95, dur: 1.0, vol: 0.3, a: 0.1, lp: 1100, trem: [11, 0.5], curve: 1 },
+     { wave: 'noise', f: 0, dur: 1.0, vol: 0.32, a: 0.1, lp: 1500, lp2: 3500, hp: 400, trem: [11, 0.6], curve: 1 }],
+    boom(48, 0.8, 0.55).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.8 })),
+    horn(note(-14), 0.9, 0.24).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.8 })),
+  ),
+  /** Phase 3, Meltdown: the plate cracks open, a split and a long hiss of heat. */
+  phaseMeltdown: join(
+    clang(note(-3), 0.4, 0.5), clang(note(-8), 0.42, 0.7).map((v) => ({ ...v, delay: 0.18 })),
+    boom(42, 0.9, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
+    [{ wave: 'noise', f: 0, dur: 1.3, delay: 0.3, vol: 0.28, a: 0.1, lp: 8000, hp: 2000, trem: [18, 0.4], curve: 1.2 }],
+  ),
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;
@@ -849,6 +908,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   sinkWarn: 5.7,
   snufferTide: 2.2,
   stampWarn: 1.6,
+  wheelWarn: 2.8,
+  phaseWheel: 2.3,
 };
 for (const [id, db] of Object.entries(PHONE_LIFT) as [SoundId, number][]) {
   const g = Math.pow(10, db / 20);
