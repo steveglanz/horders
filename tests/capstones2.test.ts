@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, CAPSTONES_2 } from '../sim/world';
+import { World, CAPSTONES_2, LUMEN_CAPS } from '../sim/world';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
 import type { ClassId } from '../sim/content/emberwright';
 
@@ -189,7 +189,7 @@ describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
     };
     const a = mote(false);
     const b = mote(true);
-    // Same seed, same crit roll: exactly 40% more.
+    // Same seed, same crit roll: exactly noonfireMult more.
     expect(b).toBeCloseTo(a * CAPSTONES_2.noonfireMult);
   });
 
@@ -215,5 +215,29 @@ describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
       motes += n();
     }
     expect(motes).toBe(CAPSTONES_2.chorusEvery + 1);
+  });
+
+  it('High Noon fires every few seconds even with no Brilliance stored', () => {
+    const { w, inner } = w2('lumen');
+    inner.talents.noon = 1;
+    w.player.brilliance = 0;
+    const e = w.enemies[inner.spawn('cinderBrute', w.player.x + 200, w.player.y)];
+    e.hp = 1e6;
+    inner.rebuildHash();
+    const any = inner as unknown as { sunbeam(): void; updateLight(dt: number): void };
+    let beams = 0;
+    const orig = any.sunbeam.bind(inner);
+    any.sunbeam = () => { beams++; orig(); };
+    for (let t = 0; t < LUMEN_CAPS.noonEvery * 2 + 0.1; t += 1 / 30) any.updateLight(1 / 30);
+    expect(beams).toBe(2);
+  });
+
+  it("Choir of Dawn's wisps circle wider than Ring of Ash", () => {
+    const { w, inner } = w2('lumen');
+    inner.talents.choirOfDawn = 1;
+    for (const o of w.orbiters()) expect(Math.hypot(o.x - w.player.x, o.y - w.player.y)).toBeCloseTo(LUMEN_CAPS.choirR);
+    const ash = world('emberwright');
+    ash.inner.talents.ringOfAsh = 1;
+    for (const o of ash.w.orbiters()) expect(Math.hypot(o.x - ash.w.player.x, o.y - ash.w.player.y)).toBeCloseTo(78);
   });
 });
