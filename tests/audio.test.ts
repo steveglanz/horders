@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, partyCues } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, targetCue } from '../client/audio/cues';
+import { ENEMIES } from '../sim/content/enemies';
+import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
+import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneShare } from '../tools/mixcheck';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
@@ -86,6 +89,26 @@ describe('audio', () => {
     expect(cueFor({ type: 'cleanse', x: 0, y: 0 }, c)?.id).toBe('cleanse');
   });
 
+  it('gives every boss its own phase-change sting', () => {
+    const bosses = Object.values(ENEMIES).filter((e) => e.rank === 'boss').map((e) => e.id);
+    expect(bosses.length).toBeGreaterThan(0);
+    for (const b of bosses) {
+      const id = cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0, boss: b })?.id;
+      expect(id, b).toBe(PHASE_STING[b] ?? 'phase'); // a brand-new boss falls back to the generic sting
+      expect(SOUNDS[id!], b).toBeDefined();
+    }
+    expect(cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0 })?.id).toBe('phase');
+  });
+
+  it('stings once when Anvilfall winds up on you, and again on the next one', () => {
+    const t = { on: false };
+    expect(targetCue(t, false)).toBeNull();
+    expect(targetCue(t, true)?.id).toBe('targeted');
+    expect(targetCue(t, true)).toBeNull(); // same wind-up
+    expect(targetCue(t, false)).toBeNull();
+    expect(targetCue(t, true)?.id).toBe('targeted');
+  });
+
   it('hears co-op heroes go down and get back up', () => {
     const down: boolean[] = [];
     expect(partyCues(down, [100, 80, 60], 0)).toEqual([]); // first look only records
@@ -94,5 +117,54 @@ describe('audio', () => {
     expect(partyCues(down, [0, 0, 60], 0).map((c) => c.id)).toEqual(['selfDown']);
     expect(partyCues(down, [30, 24, 60], 0).map((c) => c.id)).toEqual(['allyUp', 'allyUp']);
     expect(partyCues(down, [30, 24], 0)).toEqual([]); // someone left: start over quietly
+  });
+
+  it('buzzes for your own big hits and boss telegraphs, not for allies', () => {
+    const c = { cls: 'bulwark' as const, acting: 0 };
+    expect(buzzFor({ type: 'playerHurt', amount: 30, hero: 0 }, c)).toBe(BUZZ.hurtBig);
+    expect(buzzFor({ type: 'playerHurt', amount: 5 }, c)).toBe(BUZZ.hurt);
+    expect(buzzFor({ type: 'playerHurt', amount: 30, hero: 1 }, c)).toBeNull();
+    expect(buzzFor({ type: 'castStart', index: 0, name: 'Anvilfall' }, c)).toBe(BUZZ.telegraph);
+    expect(buzzFor({ type: 'hit', x: 0, y: 0, amount: 9, crit: false }, c)).toBeNull();
+    for (const p of Object.values(BUZZ)) expect(p.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(400);
+  });
+
+  it('throttles vibration, letting a longer pattern cut in', () => {
+    const calls: number[][] = [];
+    const g = globalThis as unknown as { navigator?: unknown };
+    const saved = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', { value: { vibrate: (p: number[]) => calls.push(p) }, configurable: true });
+    try {
+      const h = new Haptics();
+      h.buzz(BUZZ.hurt, 1000);
+      h.buzz(BUZZ.hurt, 1050); // too soon, not longer: dropped
+      h.buzz(BUZZ.targeted, 1060); // longer: cuts in
+      h.buzz(BUZZ.hurt, 1300);
+      h.enabled = false;
+      h.buzz(BUZZ.hurtBig, 2000);
+      expect(calls).toEqual([BUZZ.hurt, BUZZ.targeted, BUZZ.hurt]);
+    } finally {
+      if (saved) Object.defineProperty(globalThis, 'navigator', saved);
+      else delete g.navigator;
+    }
+  });
+
+  it('picks interface sounds by what was tapped', () => {
+    // A stand-in element: matches a selector if any of its "tags" appear in it.
+    const el = (tags: string[], attrs: Record<string, string> = {}): Tappable => {
+      const self: Tappable = {
+        closest: (sel) => (sel.split(',').some((q) => tags.some((t) => q.trim() === t)) ? self : null),
+        getAttribute: (n) => attrs[n] ?? null,
+      };
+      return self;
+    };
+    expect(uiSoundFor(el(['button', '#startBtn']))).toBe('confirm');
+    expect(uiSoundFor(el(['button', '#menuBtn']))).toBe('back');
+    expect(uiSoundFor(el(['button', '#bagBtn']))).toBe('open');
+    expect(uiSoundFor(el(['button', '[data-cls]'], { 'aria-pressed': 'false' }))).toBe('select');
+    expect(uiSoundFor(el(['button']))).toBe('click');
+    expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'select' }))).toBe('select');
+    expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'none' }))).toBeNull();
+    expect(uiSoundFor(el(['div']))).toBeNull();
   });
 });

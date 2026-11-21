@@ -75,6 +75,7 @@ export function installSoundControls(): void {
   const sliders = [slider('Music', 'music'), slider('Effects', 'sfx')];
   const panel = document.querySelector('#pause .panel');
   let muteBox: HTMLInputElement | null = null;
+  let buzzBox: HTMLInputElement | null = null;
   if (panel) {
     const box = document.createElement('div');
     box.className = 'snd-panel';
@@ -84,6 +85,18 @@ export function installSoundControls(): void {
     muteBox = row.querySelector('input');
     muteBox!.addEventListener('change', () => audio.set({ muted: !muteBox!.checked }));
     box.append(row, ...sliders.map((s) => s.el));
+    // Vibration only where the phone supports it (Android); iOS and desktops never see the row.
+    if (audio.haptics.supported) {
+      const hr = document.createElement('label');
+      hr.className = 'row';
+      hr.innerHTML = '<span>Vibration</span><input type="checkbox" aria-label="Vibration on">';
+      buzzBox = hr.querySelector('input');
+      buzzBox!.addEventListener('change', () => {
+        audio.set({ haptics: buzzBox!.checked });
+        if (buzzBox!.checked) audio.haptics.buzz([30]);
+      });
+      box.append(hr);
+    }
     const resume = document.getElementById('resumeBtn');
     if (resume) panel.insertBefore(box, resume);
     else panel.appendChild(box);
@@ -98,6 +111,7 @@ export function installSoundControls(): void {
       b.title = off ? 'Sound off (M)' : 'Sound on (M)';
     }
     if (muteBox) muteBox.checked = !off;
+    if (buzzBox) buzzBox.checked = audio.settings.haptics;
     sliders.forEach((s) => s.sync());
   };
   audio.onChange(sync);

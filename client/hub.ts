@@ -17,7 +17,21 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const KIT_KEY = 'horders.ui.kit';
+function readKitOpen(): boolean {
+  try {
+    const v = localStorage.getItem(KIT_KEY);
+    if (v === '1' || v === '0') return v === '1';
+  } catch { /* storage blocked */ }
+  return typeof matchMedia === 'function' && matchMedia('(min-width: 900px) and (min-height: 600px)').matches;
+}
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
+
+/** A role's class glyph in a small tinted tile (the Bulwark is the tank, the Lumen the healer). */
+function roleTile(cls: 'bulwark' | 'lumen', size: number): string {
+  const ic = CLASS_ICON[cls];
+  return `<span class="gtile" style="--gc:${ic.color}">${glyph(ic.d, size)}</span>`;
+}
 
 export class Hub {
   tier = 1;
@@ -29,6 +43,8 @@ export class Hub {
   onBounty: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
+  /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
+  private kitOpen = readKitOpen();
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     const closeBag = () => {
@@ -66,15 +82,25 @@ export class Hub {
       return `<button data-p="${id}" class="${can ? 'can' : ''}" title="${def.text}" ${can ? '' : 'disabled'}>${def.name} ${r}/${def.max}${can ? ' +' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
+    const worn = items.length;
     $('heroCard').innerHTML = `
-      <div class="who"><span class="gtile" style="--gc:${ci.color};width:52px;height:52px">${glyph(ci.d, 30)}</span>
+      <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
         <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
-      <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
-      <div class="gear">${gear}</div>
-      <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
-      <div class="passives">${passives}</div>`;
+      <details class="kit" ${this.kitOpen ? 'open' : ''}>
+        <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
+          + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
+        <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
+        <div class="gear">${gear}</div>
+        <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
+        <div class="passives">${passives}</div>
+      </details>`;
+    const kit = $('heroCard').querySelector<HTMLDetailsElement>('details.kit')!;
+    kit.addEventListener('toggle', () => {
+      this.kitOpen = kit.open;
+      try { localStorage.setItem(KIT_KEY, kit.open ? '1' : '0'); } catch { /* private mode: keep it for this visit */ }
+    });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
         if (spendPoint(h, b.dataset.p as PassiveId)) {
@@ -107,7 +133,7 @@ export class Hub {
       const { label } = partyLabel(id, this.classes());
       return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}">`
         + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
-        + `<span class="style ${d.style}">${label}</span></button>`;
+        + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
     }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
@@ -192,9 +218,13 @@ export class Hub {
   private partyLine(): string {
     if (DUNGEONS[this.dungeon].style !== 'group') return '';
     const { missing } = partyLabel(this.dungeon, this.classes());
-    const has = (r: string) => (missing.includes(r as never) ? '✗' : '✓');
-    const need = missing.length ? ` · Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}` : '';
-    return `<div class="hint partyroles">Party: Tank ${has('tank')} · Healer ${has('healer')}${need}. Invite friends with Party, or open it to Quick join.</div>`;
+    const chip = (role: 'tank' | 'healer', cls: 'bulwark' | 'lumen', name: string): string => {
+      const ok = !missing.includes(role);
+      return `<span class="rolechip ${ok ? 'ok' : 'need'}" style="--gc:${CLASS_ICON[cls].color}">${roleTile(cls, 14)}${name} ${ok ? '✓' : '✗'}</span>`;
+    };
+    const need = missing.length ? `Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}. ` : '';
+    return `<div class="partyroles"><div class="chips"><span class="muted">Party</span>${chip('tank', 'bulwark', 'Tank')}${chip('healer', 'lumen', 'Healer')}</div>`
+      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div></div>`;
   }
 
   private gritLine(): string {

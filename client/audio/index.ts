@@ -9,8 +9,10 @@
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, partyCues, THROTTLE } from './cues';
+import { Cue, CueContext, cueFor, partyCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
+import { buzzFor, BUZZ, Haptics } from './haptics';
+import { uiSoundFor } from './ui';
 
 export type { ThemeId } from './music';
 
@@ -19,12 +21,19 @@ export interface AudioSettings {
   /** 0 to 1. */
   music: number;
   sfx: number;
+  /** Vibrate on big hits and boss telegraphs (Android only). */
+  haptics: boolean;
 }
 
 const KEY = 'horders.audio';
-const DEFAULTS: AudioSettings = { muted: false, music: 0.6, sfx: 0.8 };
-/** Most sound effects playing at once; extras are skipped (cheap phones). */
-const MAX_VOICES = 20;
+const DEFAULTS: AudioSettings = { muted: false, music: 0.6, sfx: 0.8, haptics: true };
+/**
+ * Low-end phones (few cores or little memory) get fewer simultaneous voices.
+ * Extra sounds are skipped, never queued.
+ */
+const LOW_END = typeof navigator !== 'undefined'
+  && ((navigator.hardwareConcurrency ?? 8) <= 4 || ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) <= 2);
+const MAX_VOICES = LOW_END ? 12 : 20;
 /**
  * Sound effects render at this rate (the browser resamples on playback): plenty
  * for these sounds, and a third cheaper to build than 48 kHz.
@@ -38,6 +47,7 @@ function loadSettings(): AudioSettings {
       muted: typeof s.muted === 'boolean' ? s.muted : DEFAULTS.muted,
       music: typeof s.music === 'number' ? Math.max(0, Math.min(1, s.music)) : DEFAULTS.music,
       sfx: typeof s.sfx === 'number' ? Math.max(0, Math.min(1, s.sfx)) : DEFAULTS.sfx,
+      haptics: typeof s.haptics === 'boolean' ? s.haptics : DEFAULTS.haptics,
     };
   } catch {
     return { ...DEFAULTS };
@@ -58,6 +68,12 @@ class AudioEngine {
   private wantIntensity = 0;
   private listeners = new Set<() => void>();
   private wasDown: boolean[] = [];
+  private targeted = { on: false };
+  readonly haptics = new Haptics();
+
+  constructor() {
+    this.haptics.enabled = this.settings.haptics;
+  }
 
   get unlocked(): boolean {
     return this.ctx !== null;
@@ -85,8 +101,8 @@ class AudioEngine {
     });
     // A soft tick on every button press, so the menus feel physical.
     document.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.closest?.('button, .card, [role="button"]')) this.play('click');
+      const id = uiSoundFor(e.target instanceof Element ? e.target : null);
+      if (id) this.play(id);
     }, true);
     window.addEventListener('keydown', (e) => {
       if ((e.key === 'm' || e.key === 'M') && !(e.target instanceof HTMLInputElement)) this.toggleMute();
@@ -133,12 +149,17 @@ class AudioEngine {
       // first, so the first hit or level-up never waits on a render.
       const order = Object.keys(SOUNDS) as SoundId[];
       let k = 0;
-      const warm = () => {
-        if (k >= order.length) return;
-        this.buffer(order[k++]);
-        setTimeout(warm, 20);
+      // When the browser can tell us it is idle, render in idle time only.
+      const idle = (window as unknown as { requestIdleCallback?: (f: (d: { timeRemaining(): number }) => void, o?: { timeout: number }) => void }).requestIdleCallback;
+      const warm = (d?: { timeRemaining(): number }) => {
+        do {
+          if (k >= order.length) return;
+          this.buffer(order[k++]);
+        } while (d && d.timeRemaining() > 8);
+        if (idle) idle(warm, { timeout: 1000 });
+        else setTimeout(warm, 20);
       };
-      setTimeout(warm, 250);
+      setTimeout(() => (idle ? idle(warm, { timeout: 1000 }) : warm()), 250);
     }
     if (this.ctx.state !== 'running' && !this.settings.muted) void this.ctx.resume();
   }
@@ -160,6 +181,7 @@ class AudioEngine {
     } catch {
       // Private mode: settings last for this visit only.
     }
+    this.haptics.enabled = this.settings.haptics;
     this.applySettings();
     if (this.ctx && !this.settings.muted && this.ctx.state === 'suspended' && !document.hidden) void this.ctx.resume();
     this.listeners.forEach((f) => f());
@@ -218,7 +240,15 @@ class AudioEngine {
 
   /** Plays the sounds for one simulation tick's events. */
   events(evs: readonly SimEvent[], ctx: CueContext): void {
-    if (!this.ctx) return;
+    this.haptics.enabled = this.settings.haptics;
+    if (this.haptics.supported && this.haptics.enabled) {
+      for (const ev of evs) this.haptics.buzz(buzzFor(ev, ctx));
+      if (ctx.anvilOnMe && !this.targeted.on) this.haptics.buzz(BUZZ.targeted);
+    }
+    if (!this.ctx) {
+      this.targeted.on = !!ctx.anvilOnMe;
+      return;
+    }
     for (const ev of evs) {
       if (ev.type === 'bossSpawn') this.intensity(1);
       else if (ev.type === 'encounterClear') this.intensity(0);
@@ -226,7 +256,14 @@ class AudioEngine {
       else if (ev.type === 'end') this.theme(null);
       this.cue(cueFor(ev, ctx));
     }
-    if (ctx.hp && ctx.hp.length > 1) partyCues(this.wasDown, ctx.hp, ctx.acting).forEach((c) => this.cue(c));
+    // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
+    this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
+    if (ctx.hp && ctx.hp.length > 1) {
+      for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting)) {
+        this.cue(c);
+        if (c.id === 'selfDown') this.haptics.buzz(BUZZ.down);
+      }
+    }
     else this.wasDown.length = 0;
   }
 

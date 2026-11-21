@@ -11,6 +11,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { CLASS_ICON } from './icons';
+import { display, onDisplayChange, palette, shakeScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
@@ -18,8 +19,20 @@ import { audio } from './audio';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
-const DANGER = 0xff3b6b; // the one colour used for enemy attacks
-const SOAK = 0xffc861; // gold: stand in it
+// Telegraph colours come from the display palette (client/settings.ts): standard or colour-blind.
+let DANGER = 0xff3b6b; // the one colour used for enemy attacks
+let SOAK = 0xffc861; // gold: stand in it
+let BLOOM = 0x5fe0c8;
+let HATCH = false;
+function applyPalette(): void {
+  const p = palette();
+  DANGER = p.danger;
+  SOAK = p.soak;
+  BLOOM = p.bloom;
+  HATCH = p.hatch;
+}
+applyPalette();
+onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
 
@@ -47,8 +60,6 @@ interface FloatText {
 
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
-/** Players who ask the OS for less motion get a gentler shake and no camera lean. */
-const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
@@ -118,6 +129,8 @@ export class GameScene extends Phaser.Scene {
   /** Labels over the two gates at a fork (game design: placeholder look, visuals can restyle). */
   private gateTexts: Phaser.GameObjects.Text[] = [];
   private gfx!: Phaser.GameObjects.Graphics;
+  /** Wind-ups that must read over the sprites (Ondrel's falling anvil). */
+  private overFx!: Phaser.GameObjects.Graphics;
   private bars!: Phaser.GameObjects.Graphics;
   private fx: Fx[] = [];
   /** Ash puffs and dying bodies: normal blending, drawn at body depth. */
@@ -214,10 +227,13 @@ export class GameScene extends Phaser.Scene {
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
     if (w.dungeonId === 'glarewell') this.ground.setTint(0xa49ccc);
+    // The Hammerdeep's floor is cold forge iron, so slag and the red telegraphs read hot against it.
+    else if (w.dungeonId === 'hammerdeep') this.ground.setTint(0x9c98a8);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
     this.gfx = this.add.graphics().setDepth(2);
+    this.overFx = this.add.graphics().setDepth(8.6);
     w.gems.forEach(() => this.gemSprites.push(this.add.image(0, 0, 'gem').setVisible(false).setDepth(3)));
     w.drops.forEach(() => {
       this.beamSprites.push(this.add.image(0, 0, 'beam').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(3));
@@ -447,7 +463,13 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
-    audio.events(events, { cls: w.cls, acting: w.acting, hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined });
+    audio.events(events, {
+      cls: w.cls,
+      acting: w.acting,
+      hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
+      boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
+      anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+    });
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
@@ -572,6 +594,26 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
           else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Bastion now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
+          break;
+        case 'castDone':
+          if (ev.name === 'Anvilfall') {
+            // The anvil lands: a heavy shake and a ring of grit.
+            const t = w.heroData(w.anvilfallTarget).player;
+            this.ring(t.x, t.y, 110, 0xc8d0e0, 0.45);
+            this.burst(t.x, t.y, 16);
+            this.shakeBy(0.45);
+          } else if (ev.name === 'Choir of Iron') {
+            // The iron bell tolls through every hero.
+            for (let k = 0; k < w.heroes.length; k++) {
+              const q = w.heroData(k).player;
+              if (q.hp > 0) this.ring(q.x, q.y, 80, 0xffd27a, 0.45);
+            }
+            this.ring(ev.x, ev.y, 600, 0xffd27a, 0.6);
+            this.shakeBy(0.22);
+            this.pulseVignette('hurt');
+          } else if (ev.name === 'Hammer Sweep') {
+            this.shakeBy(0.15);
+          }
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -728,11 +770,12 @@ export class GameScene extends Phaser.Scene {
     let sy = 0;
     if (this.punch > 0) {
       this.punch = Math.max(0, this.punch - dt * 0.12);
-      cam.setZoom(this.baseZoom * (1 + (REDUCED_MOTION ? 0 : this.punch)));
+      // The camera lean is part of the shake: only at Full.
+      cam.setZoom(this.baseZoom * (1 + (display.shake === 'full' ? this.punch : 0)));
     } else if (cam.zoom !== this.baseZoom) cam.setZoom(this.baseZoom);
     if (this.shake > 0) {
       this.shake -= dt;
-      const m = Math.min(1, this.shake) * (REDUCED_MOTION ? 3 : 10);
+      const m = Math.min(1, this.shake) * 10 * shakeScale();
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
@@ -835,7 +878,8 @@ export class GameScene extends Phaser.Scene {
       if (!cheap && e.burnT > 0 && Math.random() < 0.03) this.spark(x + (Math.random() - 0.5) * r, y - r * 0.5, 0, -50, 0.5, 1.4);
       // Hit flash: small foes blink solid white; bosses and rares brighten instead, so a
       // big boss being hit nonstop never turns into a white silhouette.
-      if (e.flash > 0) s.setTint(idleRank(e) ? 0x6a5a4a : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
+      // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
+      if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'worldShadow') s.setTint(0x8a6cff).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -898,6 +942,7 @@ export class GameScene extends Phaser.Scene {
     // Telegraphs, lances, beams and health bars are redrawn each frame.
     const g = this.gfx;
     g.clear();
+    this.overFx.clear();
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -918,11 +963,35 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+    // Hammerdeep: Slag Grip glows at a hero's feet with one pip per stack; Sundered cracks a ring above them.
+    if (w.dungeonId === 'hammerdeep') {
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        const img = k === w.acting ? this.player : this.allies.find((al) => al.hero === k)?.img;
+        if (!img || q.hp <= 0) continue;
+        const slag = q.slag ?? 0;
+        if (slag > 0) {
+          const pulse = 0.6 + 0.4 * Math.sin(now / 160);
+          g.lineStyle(3, 0xff7a1f, 0.5 + 0.4 * pulse).strokeEllipse(img.x, img.y + 22, 50, 18);
+          g.fillStyle(0xff7a1f, 0.12 * slag).fillEllipse(img.x, img.y + 22, 50, 18);
+          for (let n = 0; n < slag; n++) g.fillStyle(0xffb347, 1).fillCircle(img.x - (slag - 1) * 5 + n * 10, img.y + 36, 3);
+        }
+        if ((q.sunderT ?? 0) > 0) {
+          // Beside the hero (above is their name and health bar).
+          const x = img.x - 30;
+          const y = img.y - 8;
+          g.fillStyle(0x000000, 0.5).fillCircle(x, y, 12);
+          g.lineStyle(2.5, DANGER, 0.9).beginPath().arc(x, y, 9, -2.6, -0.9, false).strokePath();
+          g.beginPath().arc(x, y, 9, -0.5, 1.2, false).strokePath();
+          g.lineStyle(2, DANGER, 0.9).lineBetween(x - 2, y - 10, x + 2, y - 3).lineBetween(x + 2, y - 3, x - 1, y + 2);
+        }
+      }
+    }
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1040,7 +1109,7 @@ export class GameScene extends Phaser.Scene {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
       if (!t.alive || this.bossFell) continue;
       const f = Math.min(1, t.t / t.dur);
-      const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? 0x5fe0c8 : DANGER;
+      const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? BLOOM : DANGER;
       // The edge glows and flickers faster as the strike gets close.
       const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
@@ -1049,6 +1118,16 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
         g.lineStyle(t.kind === 'soak' ? 3 : 2, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
         g.lineStyle(1.5, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
+        // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
+        if (HATCH && t.kind === 'hit') {
+          g.lineStyle(2, col, 0.45);
+          for (let d = -t.r + 14; d < t.r; d += 16) {
+            // Diagonal chords across the circle.
+            const h = Math.sqrt(t.r * t.r - d * d);
+            const c = Math.SQRT1_2;
+            g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+          }
+        }
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
           this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
@@ -1060,6 +1139,15 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
         g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
         g.lineStyle(2, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+        if (HATCH && t.kind === 'hit') {
+          // Hatched cones: spokes every few degrees and arcs across them.
+          g.lineStyle(2, col, 0.45);
+          const n = Math.max(3, Math.round(t.arc / 0.14));
+          for (let k = 1; k < n; k++) {
+            const a = a0 + (t.arc * k) / n;
+            g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+          }
+        }
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
@@ -1113,6 +1201,7 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
+      if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
@@ -1337,6 +1426,61 @@ export class GameScene extends Phaser.Scene {
       this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * (big ? 40 : 6), y + (Math.random() - 0.5) * (big ? 30 : 6), 0.5 + Math.random() * 0.3, {
         tint: 0x9a8a84, vy: -18, vx: (Math.random() - 0.5) * 20, spin: (Math.random() - 0.5) * 2, rot: Math.random() * 6, sx0: s * 0.6, sx1: s * 1.3,
       });
+    }
+  }
+
+  /**
+   * Ondrel's wind-ups, drawn over the generic telegraphs:
+   * Anvilfall drops an anvil onto its target, Hammer Sweep swings a hammer head
+   * across its cone, and Choir of Iron sends bell rings out to every hero.
+   */
+  private ondrelCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], i: number, now: number): void {
+    const w = this.world;
+    const f = Math.min(1, e.castT / e.castDur);
+    if (e.castId === 'anvilfall') {
+      const t = w.heroData(w.anvilfallTarget).player;
+      const close = 0.6 + 0.4 * Math.sin(now / (f > 0.75 ? 40 : 90));
+      const o = this.overFx;
+      // A shadow that grows and darkens as the anvil comes down.
+      g.fillStyle(0x000000, 0.25 + 0.35 * f).fillEllipse(t.x, t.y + 18, 40 + 50 * f, 14 + 18 * f);
+      // A closing reticle in the boss's red.
+      const r = 110 - 60 * f;
+      o.lineStyle(3, DANGER, 0.85 * close).strokeCircle(t.x, t.y, r);
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2 + now / 900;
+        o.lineBetween(t.x + Math.cos(a) * (r + 6), t.y + Math.sin(a) * (r + 6), t.x + Math.cos(a) * (r + 20), t.y + Math.sin(a) * (r + 20));
+      }
+      // The anvil itself, falling from above the target.
+      const ay = t.y - 46 - (1 - f) * (1 - f) * 150;
+      const ax = t.x;
+      const pts = [
+        [-26, -10], [22, -10], [34, -6], [22, -2], [14, -2], [10, 6], [16, 12], [-16, 12], [-10, 6], [-14, -2], [-26, -2],
+      ].map(([x, y]) => new Phaser.Math.Vector2(ax + x * 1.2, ay + y * 1.2));
+      o.fillStyle(0x3a3642, 0.95).fillPoints(pts, true);
+      o.lineStyle(2, 0x0c0506, 1).strokePoints(pts, true);
+      o.lineStyle(2, 0xc8d0e0, 0.9).lineBetween(ax - 29, ay - 11, ax + 25, ay - 11);
+    } else if (e.castId === 'hammerSweep') {
+      const tg = w.telegraphs.find((t) => t.alive && t.owner === i && t.shape === 'cone');
+      if (!tg) return;
+      // A hammer head travels along the cone's rim from one edge to the other.
+      const a = tg.angle - tg.arc / 2 + tg.arc * f;
+      const hx = tg.x + Math.cos(a) * tg.r * 0.85;
+      const hy = tg.y + Math.sin(a) * tg.r * 0.85;
+      g.lineStyle(5, 0x5b3a24, 0.9).lineBetween(tg.x + Math.cos(a) * 50, tg.y + Math.sin(a) * 50, hx, hy);
+      g.fillStyle(0x9aa3b8, 0.95).fillCircle(hx, hy, 14);
+      g.lineStyle(2, 0x0c0506, 1).strokeCircle(hx, hy, 14);
+      g.lineStyle(3, 0xc8d0e0, 0.5).beginPath().arc(tg.x, tg.y, tg.r * 0.85, tg.angle - tg.arc / 2, a, false).strokePath();
+    } else if (e.castId === 'choir') {
+      // Bell rings roll out from Ondrel and each hero's ring tightens as the toll comes.
+      for (let k = 0; k < 3; k++) {
+        const p = (now / 900 + k / 3) % 1;
+        g.lineStyle(3, 0xffd27a, 0.5 * (1 - p)).strokeCircle(e.x, e.y, e.def.radius + p * 520);
+      }
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        g.lineStyle(2.5, 0xffd27a, 0.4 + 0.5 * f).strokeCircle(q.x, q.y, 60 - 30 * f);
+      }
     }
   }
 

@@ -91,3 +91,20 @@ describe('quitting a delve straight away', () => {
     expect(h.inventory).toHaveLength(0);
   });
 });
+
+describe('group loot (G5)', () => {
+  type Kill = { killEnemy(i: number): void; spawn(kind: string, x: number, y: number): number; use(i: number): void };
+  it('every hero gets their own boss item, and group dungeons add a second', () => {
+    for (const [dungeon, each] of [['kiln', 1], ['hammerdeep', 2]] as const) {
+      const w = new World({ seed: 9, dungeon, omens: [], cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] });
+      const inner = w as unknown as Kill;
+      const b = inner.spawn(dungeon === 'kiln' ? 'kilnMother' : 'ondrel', 0, 0);
+      inner.use(2); // the Duskblade lands the killing blow
+      inner.killEnemy(b);
+      inner.use(0);
+      for (let k = 0; k < 3; k++) expect(w.heroData(k).runDrops.length).toBe(each);
+      const all = [0, 1, 2].flatMap((k) => w.heroData(k).runDrops);
+      expect(all.every((it) => ['rare', 'epic', 'mythic'].includes(it.rarity))).toBe(true);
+    }
+  });
+});
