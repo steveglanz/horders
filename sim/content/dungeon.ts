@@ -9,7 +9,7 @@ export type EncounterId =
   | 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine'
   | 'twins' | 'glass' | 'crawlers' | 'bellwarden' | 'tidepair' | 'twinsAcolyte' | 'maelra'
   | 'shades' | 'lensbearer' | 'brandkeeper' | 'lamps' | 'lensShades' | 'brandShades' | 'lensmother'
-  | 'worldShadow' | 'anvilguard' | 'ondrel';
+  | 'worldShadow' | 'anvilguard' | 'ondrel' | 'ysmeret';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -44,10 +44,11 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
   anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
   ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
+  ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -88,6 +89,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
     openers: ['warpack', 'wardens', 'glass'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
     blurb: 'A group dungeon. A tank holds Ondrel\'s Anvilfall, a healer keeps the party standing.', style: 'group', minParty: 2,
+  },
+  ashvents: {
+    id: 'ashvents', name: 'The Ashvents', boss: 'ysmeret', unlockTier: 7,
+    openers: ['glass', 'crawlers', 'warpack'], named: ['anvilguard', 'tidepair'], hard: ['acolytes', 'bellwarden'],
+    blurb: 'A group dungeon. Split up to cover both of Ysmeret\'s vents, and never stand together when the Embers mark you.', style: 'group', minParty: 2,
   },
 };
 

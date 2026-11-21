@@ -557,13 +557,18 @@ export class World {
   private choirT = 0;
   private choirN = 0;
   private gripT = 0;
+  // The Ashvents (Ysmeret): Twin Vents, Scatter Embers, Bellow Slam.
+  private ventT = 0;
+  private scatterT = 0;
+  private bellowT = 0;
+  private bellowTarget = 0;
   private slagTickT = 0;
   private bossBrandT = 0;
   private crackT = 0;
   private crackPending: { index: number; t: number } | null = null;
   private temperT = 0;
   private undertowT = 0;
-  private ventT = 0;
+  private twinVentT = 0;
   private waterT = 0;
   private volatileT = 0;
   quests: Quest[] = [];
@@ -1070,6 +1075,7 @@ export class World {
     if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
@@ -1155,6 +1161,14 @@ export class World {
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'ysmeret') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.twinVentT = YSMERET.firstVents;
+          this.scatterT = YSMERET.firstScatter;
+          this.bellowT = YSMERET.firstBellow;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -2838,6 +2852,33 @@ export class World {
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
       this.use(at);
+    } else if (id === 'bellowSlam') {
+      // Ysmeret's tank hit: lands on the hero picked at wind-up, through dodges and shields.
+      const at = this.acting;
+      this.use(this.bellowTarget);
+      const p = this.player;
+      if (p.hp > 0) {
+        this.hurtPlayer(YSMERET.bellow * this.tierDamage, i, true);
+        this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+      }
+      this.use(at);
+    } else if (id === 'scatter') {
+      // Scatter Embers: every marked hero bursts. Each burst singes its hero a little
+      // and hits every other hero inside it hard, so the party must spread out.
+      const at = this.acting;
+      const r2 = YSMERET.scatterRadius * YSMERET.scatterRadius;
+      const n = this.heroes.length;
+      const pos = [];
+      for (let k = 0; k < n; k++) { const q = this.heroPlayer(k); pos.push({ x: q.x, y: q.y, up: q.hp > 0 }); }
+      for (let k = 0; k < n; k++) {
+        if (!pos[k].up) continue;
+        this.use(k);
+        let share = YSMERET.scatterSelf;
+        for (let j = 0; j < n; j++) if (j !== k && pos[j].up && dist2(pos[j].x, pos[j].y, pos[k].x, pos[k].y) <= r2) share += YSMERET.scatterOther;
+        this.hurtPlayer(this.player.maxHp * share, i, true);
+        this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
+      }
+      this.use(at);
     } else if (id === 'choir') {
       // Every hero takes a share of their health, a bit more each time: the healer's job.
       const at = this.acting;
@@ -2926,6 +2967,7 @@ export class World {
       this.runOndrel(i);
       return;
     }
+    if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -3451,6 +3493,52 @@ export class World {
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
     this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage * this.tierDamage, 'hit', i);
+  }
+
+  // ---------------------------------------------------------------- the Ashvents
+
+  /**
+   * Ysmeret's clocks. Twin Vents (split): two gold soak circles on opposite sides,
+   * square to its target; each one needs a hero in it. Scatter Embers (spread) never
+   * lands while vents are open. Bellow Slam is the tank hit.
+   */
+  private ysmeretClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'ysmeret') return;
+    const late = this.time - e.spawnedAt > YSMERET.enrageAfter;
+    if (late && !this.bossEnraged) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    this.twinVentT -= dt;
+    this.scatterT -= dt;
+    this.bellowT -= dt;
+    const ventsOpen = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+    if (this.twinVentT <= 0 && !ventsOpen) {
+      this.twinVentT = late ? YSMERET.ventEnraged : YSMERET.ventEvery;
+      const tgt = this.heroPlayer(this.targetOf(i, 0));
+      const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
+      for (const s of [1, -1]) {
+        const x = e.x + Math.cos(a) * YSMERET.ventDist * s;
+        const y = e.y + Math.sin(a) * YSMERET.ventDist * s;
+        const c = { x, y };
+        this.clampArena(c, YSMERET.ventRadius + 10);
+        // owner -2: a boss mechanic no interrupt removes.
+        this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
+      }
+      this.events.push({ type: 'castStart', index: i, name: 'Twin Vents' });
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (this.bellowT <= 0) {
+      this.bellowT = YSMERET.bellowEvery;
+      this.bellowTarget = this.targetOf(i, 0);
+      this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
+    } else if (this.scatterT <= 0 && !ventsOpen && this.twinVentT > YSMERET.scatterCast + 0.5) {
+      this.scatterT = YSMERET.scatterEvery;
+      this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
+    }
   }
 
   /** Ondrel's clocks run during casts too: Anvilfall, Choir of Iron, Slag Grip ticks, Sundered. */
@@ -4225,6 +4313,18 @@ export const FOUNDRY = {
  * Ondrel, the Anvilward: a group boss whose mechanics each ask one role for one thing.
  * See docs/design/group-dungeons.md. Damage numbers are before tierDamage.
  */
+/** The Ashvents' group boss (G3; docs/design/group-dungeons.md). */
+export const YSMERET = {
+  /** Twin Vents: two soak circles this far either side of Ysmeret; an empty one blasts every hero. */
+  ventEvery: 16, ventEnraged: 8, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70, firstVents: 8,
+  /** Scatter Embers: each hero's burst costs them `scatterSelf` of max health and each other hero inside `scatterOther`. */
+  scatterEvery: 14, scatterCast: 2.5, scatterRadius: 80, scatterSelf: 0.1, scatterOther: 0.35, firstScatter: 4,
+  /** Bellow Slam: the tank hit, through dodges and shields. Lighter than Anvilfall: the tank also runs to vents. */
+  bellow: 90, bellowEvery: 9, bellowCast: 1.5, firstBellow: 5,
+  /** Soft enrage: vents open twice as often. */
+  enrageAfter: 270,
+};
+
 export const ONDREL = {
   /** Anvilfall: the tank-buster on the threat target, through dodges and shields. */
   anvil: 160, anvilEvery: 12, anvilCast: 2.5, firstAnvil: 6,

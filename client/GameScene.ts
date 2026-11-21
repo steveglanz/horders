@@ -868,8 +868,8 @@ export class GameScene extends Phaser.Scene {
       }
       // The world boss shadow is Grandmother Slag's silhouette;
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      // Ondrel borrows the Kiln Mother's sheet until its own sprite lands.
-      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother' : e.kind;
+      // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
+      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
