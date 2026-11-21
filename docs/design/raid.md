@@ -3,7 +3,7 @@
 The theme brief is at `/mnt/project-files/horders/design/briefs-c1-c3.md`. All the numbers are in `SLAG` in `sim/world.ts`.
 
 **What it is.** The world boss steps out of the menu bar and into a fight. The Crucible is a group dungeon for 4 heroes (`minParty: 4`, `raid: true`) that unlocks at tier 8. A run takes about 8 minutes:
-- Two opener fights and a named fight, from the Hammerdeep's and the Foundry's pools.
+- Two opener fights (from Warden and Hounds, Glass Warden and Hounds, Sluice Crawler and Hounds) and a named fight (The Anvil Guard or Warden of the Bell).
 - Then Grandmother Slag herself, for about 4 to 5 minutes.
 - No hard fight, and no shadow fight after her, because she is the world boss in person.
 
