@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { POTIONS, POTION } from '../sim/content/potions';
+import { POTIONS, POTION, potionCost } from '../sim/content/potions';
 import { brewBlocker, brewPotion, newHero, switchClass, takePotion } from '../sim/hero';
 
 const ROUTE = ['pack', 'pack', 'pack', 'pack', 'kilnMother'] as const;
@@ -24,6 +24,17 @@ describe('Alchemy: one potion per delve', () => {
     expect(brewPotion(h, 'risingDraught')).toBe(false);
     expect(h.potion).toBeUndefined();
     expect(h.embers).toBe(POTIONS.risingDraught.cost - 1);
+  });
+
+  it('Rising Draught costs more as the hero climbs; the others stay flat (P7)', () => {
+    expect(potionCost('risingDraught', 1)).toBe(POTIONS.risingDraught.cost);
+    expect(potionCost('risingDraught', 11)).toBe(POTIONS.risingDraught.cost + 10 * (POTIONS.risingDraught.costPerTier ?? 0));
+    expect(potionCost('stillwater', 11)).toBe(POTIONS.stillwater.cost);
+    const h = newHero();
+    h.maxTier = 11;
+    h.embers = potionCost('risingDraught', 11);
+    expect(brewPotion(h, 'risingDraught')).toBe(true);
+    expect(h.embers).toBe(0);
   });
 
   it('a delve takes the potion and uses it up', () => {

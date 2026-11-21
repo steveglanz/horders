@@ -5,7 +5,7 @@ import {
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, cloud } from './cloud';
-import { POTIONS, POTION_IDS, PotionId } from '../sim/content/potions';
+import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml, setsWorn } from './ui';
@@ -416,7 +416,7 @@ export class Hub {
       const on = h.potion === id;
       const why = brewBlocker(h, id);
       return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
-        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${p.cost} embers`}</em></button>`;
+        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`

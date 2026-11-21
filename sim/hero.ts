@@ -8,7 +8,7 @@ import { Rng } from './rng';
 import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
-import { POTIONS, PotionId } from './content/potions';
+import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
 import {
@@ -481,7 +481,8 @@ export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
 /** Why a potion can't be brewed right now, or null if it can. */
 export function brewBlocker(hero: HeroProfile, id: PotionId): string | null {
   if (hero.potion === id) return 'Already brewed for your next delve';
-  if (hero.embers < POTIONS[id].cost) return `Needs ${POTIONS[id].cost} embers`;
+  const cost = potionCost(id, hero.maxTier);
+  if (hero.embers < cost) return `Needs ${cost} embers`;
   return null;
 }
 
@@ -491,7 +492,7 @@ export function brewBlocker(hero: HeroProfile, id: PotionId): string | null {
  */
 export function brewPotion(hero: HeroProfile, id: PotionId): boolean {
   if (brewBlocker(hero, id)) return false;
-  hero.embers -= POTIONS[id].cost;
+  hero.embers -= potionCost(id, hero.maxTier);
   hero.potion = id;
   return true;
 }
