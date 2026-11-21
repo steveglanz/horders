@@ -226,7 +226,7 @@
   .slot.empty .nm { color: var(--muted); font-weight: 400; }
   .passives { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .tal { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 48px; padding: 6px 30px 6px 12px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.3); text-align: left; }
-  .tal .tn { display: flex; gap: 6px; align-items: baseline; width: 100%; }
+  .tal .tn { display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 0; align-items: baseline; width: 100%; }
   .tal b { font: 600 14px var(--serif); }
   .tal em { font-style: normal; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tal .te { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -427,7 +427,9 @@
   #target { background: var(--panel); border-radius: 14px; padding: 8px 12px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
   #target .tname { font-size: 16px; font-weight: 600; }
   #tTitle { color: var(--gold); font-weight: 700; font-size: 10px; letter-spacing: 0.14em; }
-  #target .bar { height: 10px; margin-top: 6px; }
+  /* 13px holds the 11px percent label; at 10px the bar clipped the bottom of the digits. */
+  #target .bar { height: 13px; margin-top: 6px; }
+  #tPct { line-height: 1; }
   #tCast { height: 18px; border-radius: 6px; }
   #heat { height: 6px; margin-top: 16px; overflow: visible; border: 0; background: rgba(0,0,0,0.55); border-radius: 3px; }
   #heatFill { border-radius: 3px; }
