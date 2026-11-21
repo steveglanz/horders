@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, sectionAt, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -257,5 +257,13 @@ describe('audio', () => {
       // The plan repeats only after six passes.
       expect(sectionAt(6 * pass, th, false)).toEqual(sectionAt(0, th, false));
     }
+  });
+
+  it('stings when a capstone is taken (it opens the branch\'s deep cards), and not for other picks', () => {
+    expect(pickCue('unbreakable')?.id).toBe('capstone');
+    expect(pickCue('bladeStorm')?.id).toBe('capstone');
+    expect(pickCue('rivetedPlates')).toBeNull(); // a deep card
+    expect(pickCue('stoke')).toBeNull();
+    expect(pickCue(undefined)).toBeNull();
   });
 });

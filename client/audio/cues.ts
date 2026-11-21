@@ -4,7 +4,7 @@
  * whatever comes back.
  */
 import type { SimEvent } from '../../sim/world';
-import type { ClassId } from '../../sim/content/emberwright';
+import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 
@@ -189,6 +189,15 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
     wasDown[i] = down;
   });
   return out;
+}
+
+/**
+ * A talent pick. Taking a capstone gets its own sting: it crowns the branch and opens
+ * that branch's deep cards (C5 round 2) for the rest of the run. Other picks only
+ * make the card tap's own sound.
+ */
+export function pickCue(id: TalentId | undefined): Cue | null {
+  return id && TALENTS[id]?.capstone ? { id: 'capstone' } : null;
 }
 
 /** What reviveCues remembers between ticks. */
