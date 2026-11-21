@@ -1,6 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
-import { World, REVIVE_SECONDS } from '../sim/world';
+import { World, REVIVE_SECONDS, BOSS_PHASES } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -303,7 +303,8 @@ export class Hud {
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
-    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
+    const phases = BOSS_PHASES[e.kind] ?? 3;
+    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {

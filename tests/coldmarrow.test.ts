@@ -87,4 +87,44 @@ describe('the Coldmarrow (C1)', () => {
     expect(w.enemies[b].castId).toBe('snuff');
     expect(w.enemies[b].interruptible).toBe(true);
   });
+
+  it('Thin Ice: at half health the river cracks either side of Nhevra, and open water hurts and chills', () => {
+    const { w, inner } = cold();
+    const b = inner.spawn('nhevra', 0, -300);
+    inner.bossIndex = b;
+    Object.assign(inner, { nightT: 99, tideT: 99, snuffT: 99 });
+    const e = w.enemies[b];
+    inner.coldClock(0.1);
+    expect(w.coldPhase).toBe(1);
+    e.hp = e.maxHp * COLD.phase2 - 1;
+    inner.coldClock(0.1);
+    expect(w.coldPhase).toBe(2);
+    expect(w.events.some((ev) => ev.type === 'phase' && ev.phase === 2)).toBe(true);
+    expect(w.cracks.some((c) => c.alive)).toBe(false);
+    inner.coldClock(COLD.firstCrack);
+    const open = w.cracks.filter((c) => c.alive);
+    expect(open).toHaveLength(COLD.crackLanes);
+    // Nhevra stands midway between the two cracks.
+    expect(w.crackDist(open[0], e.x, e.y)).toBeCloseTo(COLD.crackGap / 2, 3);
+    // A warning isn't water yet.
+    Object.assign(w.player, { x: open[0].x, y: open[0].y, coal: 1, chill: 0 });
+    expect(w.inWater(w.player.x, w.player.y)).toBe(false);
+    inner.coldClock(COLD.crackWarn);
+    expect(w.inWater(w.player.x, w.player.y)).toBe(true);
+    expect(w.riverOpen()).toBe(true);
+    const hp = w.player.hp;
+    const coal = w.player.coal ?? 0;
+    inner.coldClock(0.5);
+    expect(w.player.hp).toBeLessThan(hp);
+    expect(w.player.coal ?? 0).toBeLessThan(coal - COLD.drain * 0.5);
+    expect(w.player.chill ?? 0).toBeGreaterThan(0);
+    // While the river is open she takes more damage.
+    const before = e.hp;
+    inner.damageEnemy(b, 100, false);
+    expect(before - e.hp).toBeCloseTo(100 * (1 + COLD.thinIceExposed), 3);
+    // The cracks close again.
+    inner.coldClock(COLD.crackOpen);
+    expect(w.cracks.some((c) => c.alive)).toBe(false);
+    expect(w.riverOpen()).toBe(false);
+  });
 });

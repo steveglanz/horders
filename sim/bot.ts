@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, Input, World } from './world';
+import { ARENA, COLD, Input, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
@@ -382,6 +382,22 @@ export function botInput(w: World, skill = 1): Input {
     if (near && near.d < SCATTER_GAP) {
       fx += (-near.dx / (near.d || 1)) * 0.7 * skill;
       fy += (-near.dy / (near.d || 1)) * 0.7 * skill;
+    }
+  }
+  // Coldmarrow Thin Ice: keep off cracks (warned or open). Step out toward Nhevra's side if she's
+  // up (she holds still in her strip while the river is cracked), else the near side.
+  const nhevra = w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].kind === 'nhevra' ? w.enemies[w.bossIndex] : null;
+  for (const c of w.cracks) {
+    if (!c.alive) continue;
+    const nx = -Math.sin(c.angle);
+    const ny = Math.cos(c.angle);
+    const side = (p.x - c.x) * nx + (p.y - c.y) * ny;
+    if (Math.abs(side) < COLD.crackHalfW + 40) {
+      const bossSide = nhevra ? (nhevra.x - c.x) * nx + (nhevra.y - c.y) * ny : 0;
+      // Only cross toward her while the crack is still a warning; once it's open water, take the near side.
+      const sg = nhevra && c.t < COLD.crackWarn ? Math.sign(bossSide) || 1 : Math.sign(side) || 1;
+      fx += nx * sg * 0.8 * skill;
+      fy += ny * sg * 0.8 * skill;
     }
   }
   const vent = soakFor(w);
