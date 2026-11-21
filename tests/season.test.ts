@@ -133,4 +133,26 @@ describe('season track (P2)', () => {
     expect(w.summary().day).toBe(123);
     expect('day' in new World({ seed: 1, dungeon: 'kiln', omens: [] }).summary()).toBe(false);
   });
+  it('Seasons 7 and 8 keep every colour at least 22 CIE76 delta E from every older season colour', () => {
+    const lab = (hex: string): number[] => {
+      const lin = (c: number) => (c > 0.04045 ? ((c + 0.055) / 1.055) ** 2.4 : c / 12.92);
+      const [r, g, b] = [1, 3, 5].map((k) => lin(parseInt(hex.slice(k, k + 2), 16) / 255));
+      const f = (v: number) => (v > 0.008856 ? Math.cbrt(v) : 7.787 * v + 16 / 116);
+      const x = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047);
+      const y = f(r * 0.2126 + g * 0.7152 + b * 0.0722);
+      const z = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
+      return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+    };
+    const colours = (k: number) => [...SEASONS[k].glows.map((g) => g.color), SEASONS[k].trail.color];
+    expect(SEASONS[6].dungeon).toBe('hoard');
+    expect(SEASONS[7].dungeon).toBe('smeltery');
+    for (const k of [6, 7]) {
+      for (let j = 0; j < k; j++) {
+        for (const a of colours(k)) for (const b of colours(j)) {
+          const [p, q] = [lab(a), lab(b)];
+          expect(Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]), `${a} vs ${b}`).toBeGreaterThanOrEqual(22);
+        }
+      }
+    }
+  });
 });
