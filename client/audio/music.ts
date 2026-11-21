@@ -9,12 +9,17 @@
  *  - foundry:   Drowned Foundry. Hissing steam swells, water drips, cold minor.
  *  - glarewell: Light and shadow. High bells over a dark drone, shimmer bed.
  *  - hammerdeep: The group dungeon. Bellows breathing, anvil strikes on the beat, a low dorian march.
+ *  - ashvents:   Ysmeret's group dungeon. Two vents breathing in turn, ember plucks, a restless 3-against-2 pulse.
+ *  - coldmarrow: Sparse glass bells, wind, a slow heartbeat; the Hearthcoal's crackle is the one warm sound
+ *                and thins as the coal dims (see setWarmth).
+ *  - raid:       Grandmother Slag. A slow, ceremonial 3/4 march: low brass, anvil and bell. Each phase
+ *                builds: phase 2 floods in bubbling slag, phase 3 doubles the tempo.
  * A boss fight raises the intensity: a drum pulse and a bass line join in.
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag';
 
 interface Theme {
   /** Root pitch in semitones from A4. */
@@ -26,19 +31,32 @@ interface Theme {
   bpm: number;
   drone: OscillatorType;
   droneLp: number;
-  pluck: 'harp' | 'bell' | 'drip' | 'ember' | 'anvil';
+  pluck: 'harp' | 'bell' | 'drip' | 'ember' | 'anvil' | 'glass' | 'brass';
   /** Chance a beat gets a melody note (calm themes leave space). */
   density: number;
   bed: BedKind;
   bedVol: number;
   /** Drone register in semitones from the root (default -12, an octave down). */
   droneAt?: number;
+  /** Beats per bar (default 4). The raid marches in 3. */
+  meter?: number;
+  /** Tempo multiplier by intensity (0 calm, 1 boss, then boss phases 2 and 3). Default [1, 1.25]. */
+  phaseTempo?: number[];
+  /** A slow lub-dub instead of the drum pulse (the Coldmarrow). */
+  heartbeat?: boolean;
+  /** Has a Hearthcoal crackle layer whose loudness follows setWarmth. */
+  coal?: boolean;
+  /** Bed loudness multiplier from boss phase 2 on (the raid's slag floods in). */
+  floodBed?: number;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
   hub: { root: -7, scale: [0, 2, 4, 7, 9, 12, 14, 16], progression: [0, 5, -3, 7], bpm: 76, drone: 'triangle', droneLp: 700, pluck: 'harp', density: 0.6, bed: 'hearth', bedVol: 0.3, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
+  ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
+  coldmarrow: { root: -3, scale: [0, 2, 3, 7, 8, 12, 14, 15], progression: [0, -4, -2, -5], bpm: 58, drone: 'triangle', droneLp: 600, pluck: 'glass', density: 0.25, bed: 'frost', bedVol: 0.32, heartbeat: true, coal: true, droneAt: -12 },
+  raid: { root: -14, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 72, drone: 'sawtooth', droneLp: 450, pluck: 'brass', density: 0.4, bed: 'slag', bedVol: 0.3, meter: 3, phaseTempo: [1, 1.1, 1.2, 2], floodBed: 2.2 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -95,6 +113,29 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = lp * 0.6 * breath + brown * 1.2;
         break;
       }
+      case 'frost': {
+        // Cold wind: band-passed noise in long gusts, with a thin whistle on top.
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.12;
+        const gust = 0.3 + 0.7 * Math.pow(0.5 - 0.5 * Math.cos(t * Math.PI * 4), 3);
+        raw[i] = lp * 0.35 * gust + Math.sin((2 * Math.PI * 1100 * i) / rate) * 0.015 * gust + brown * 0.4;
+        break;
+      }
+      case 'vents': {
+        // Two vents breathing in turn: a hot roar that swells on one beat and the other.
+        lp += (w - lp) * 0.05;
+        const a = Math.pow(Math.max(0, Math.sin(t * Math.PI * 4)), 3);
+        const b = Math.pow(Math.max(0, -Math.sin(t * Math.PI * 4)), 3);
+        raw[i] = lp * (0.5 * a + 0.35 * b) + brown * 1.2;
+        break;
+      }
+      case 'slag': {
+        // A slow molten churn; the glugs are added below.
+        lp += (w - lp) * 0.015;
+        raw[i] = lp * 0.5 + brown * 1.6;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -107,23 +148,25 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Pops for fire, drips for steam (short decaying tones placed at random).
-  const events = kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : 0;
+  const events = kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
   for (let k = 0; k < events; k++) {
     const at = Math.floor(r() * (period - rate * 0.3));
-    const drip = kind === 'steam';
-    // Forge: distant hammer clinks (bright, inharmonic, quiet) instead of fire pops.
-    const clink = kind === 'forge';
+    // Steam drips; slag glugs (a low bubble that pops upward).
+    const drip = kind === 'steam' || kind === 'slag';
+    const glug = kind === 'slag';
+    // Forge: distant hammer clinks; frost: tiny ice ticks (bright, inharmonic, quiet) instead of fire pops.
+    const clink = kind === 'forge' || kind === 'frost';
     const tone = drip || clink;
-    const len = Math.floor(rate * (drip ? 0.18 : clink ? 0.25 : 0.004 + r() * 0.02));
-    const amp = (drip ? 0.25 : clink ? 0.12 + r() * 0.12 : 0.2 + r() * 0.5) * (kind === 'hearth' ? 0.6 : 1);
-    const f0 = drip ? 900 + r() * 900 : clink ? 1800 + r() * 1400 : 0;
+    const len = Math.floor(rate * (glug ? 0.12 : drip ? 0.18 : clink ? 0.25 : 0.004 + r() * 0.02));
+    const amp = (glug ? 0.35 : drip ? 0.25 : kind === 'frost' ? 0.08 : clink ? 0.12 + r() * 0.12 : 0.2 + r() * 0.5) * (kind === 'hearth' ? 0.6 : 1);
+    const f0 = glug ? 110 + r() * 160 : drip ? 900 + r() * 900 : kind === 'frost' ? 3200 + r() * 2000 : clink ? 1800 + r() * 1400 : 0;
     let ph = 0;
     let ph2 = 0;
     for (let i = 0; i < len; i++) {
       const env = Math.pow(1 - i / len, tone ? 3 : 2);
       let s: number;
       if (drip) {
-        ph += (f0 * (1 + 1.2 * (i / len))) / rate;
+        ph += (f0 * (1 + (glug ? 2.5 : 1.2) * (i / len))) / rate;
         s = Math.sin(ph * Math.PI * 2);
       } else if (clink) {
         ph += f0 / rate;
@@ -154,13 +197,17 @@ class ThemePlayer {
   private droneFilter: BiquadFilterNode;
   private bed: AudioBufferSourceNode;
   private bassGain: GainNode;
+  private bedGain: GainNode;
+  private coalGain: GainNode | null = null;
+  private coalSrc: AudioBufferSourceNode | null = null;
+  private flooded = false;
   private beat = 0;
   private nextAt: number;
   private r = rng(Date.now() & 0xffff);
   private lastNote = 0;
   intensity = 0;
 
-  constructor(private ctx: AudioContext, dest: AudioNode, readonly id: ThemeId, private theme: Theme, bedBuf: AudioBuffer) {
+  constructor(private ctx: AudioContext, dest: AudioNode, readonly id: ThemeId, private theme: Theme, bedBuf: AudioBuffer, coalBuf?: AudioBuffer, warmth = 1) {
     const t = ctx.currentTime;
     this.out = ctx.createGain();
     this.out.gain.setValueAtTime(0, t);
@@ -197,6 +244,7 @@ class ThemePlayer {
     this.bed.buffer = bedBuf;
     this.bed.loop = true;
     const bedGain = ctx.createGain();
+    this.bedGain = bedGain;
     bedGain.gain.value = theme.bedVol;
     const bedFilter = ctx.createBiquadFilter();
     bedFilter.type = 'lowpass';
@@ -204,14 +252,30 @@ class ThemePlayer {
     this.bed.connect(bedFilter).connect(bedGain).connect(this.out);
     this.bed.start(t, this.r() * bedBuf.duration);
 
+    if (theme.coal && coalBuf) {
+      // The Hearthcoal: a close, warm crackle in front of the cold mix.
+      this.coalSrc = ctx.createBufferSource();
+      this.coalSrc.buffer = coalBuf;
+      this.coalSrc.loop = true;
+      this.coalGain = ctx.createGain();
+      this.coalGain.gain.value = 0.32 * warmth;
+      this.coalSrc.connect(this.coalGain).connect(this.out);
+      this.coalSrc.start(t, this.r() * coalBuf.duration);
+    }
+
     this.bassGain = ctx.createGain();
     this.bassGain.gain.value = 0;
     this.bassGain.connect(this.out);
     this.nextAt = t + 0.3;
   }
 
+  /** 0 (out) to 1 (a full coal): the Hearthcoal crackle's loudness. */
+  setWarmth(w: number): void {
+    this.coalGain?.gain.setTargetAtTime(0.32 * Math.max(0, Math.min(1, w)), this.ctx.currentTime, 0.4);
+  }
+
   private chordRoot(): number {
-    const bar = Math.floor(this.beat / 4);
+    const bar = Math.floor(this.beat / (this.theme.meter ?? 4));
     return this.theme.progression[Math.floor(bar / 2) % this.theme.progression.length];
   }
 
@@ -221,11 +285,18 @@ class ThemePlayer {
     if (this.nextAt < ctx.currentTime) this.nextAt = ctx.currentTime + 0.05;
     const th = this.theme;
     const fast = this.intensity > 0;
-    const spb = 60 / (th.bpm * (fast ? 1.25 : 1));
+    const tempo = th.phaseTempo ?? [1, 1.25];
+    const spb = 60 / (th.bpm * tempo[Math.min(this.intensity, tempo.length - 1)]);
+    const meter = th.meter ?? 4;
+    const flood = !!th.floodBed && this.intensity >= 2;
+    if (flood !== this.flooded) {
+      this.flooded = flood;
+      this.bedGain.gain.setTargetAtTime(th.bedVol * (flood ? th.floodBed! : 1), ctx.currentTime, 1.2);
+    }
     while (this.nextAt < until) {
       const at = this.nextAt;
       const chord = this.chordRoot();
-      if (this.beat % 8 === 0) {
+      if (this.beat % (meter * 2) === 0) {
         // Move the drone to the new chord.
         this.drones.slice(0, 3).forEach((o, k) => o.frequency.setTargetAtTime(note(th.root + (th.droneAt ?? -12) + chord + (k === 2 ? 7 : 0)), at, 0.8));
       }
@@ -240,7 +311,21 @@ class ThemePlayer {
           this.pluck(note(semis), at + s * spb * 0.5, 0.5 + this.r() * 0.5);
         }
       }
-      if (fast) {
+      if (meter === 3) {
+        // A march in three: a heavy downbeat with an anvil-and-bell hit, two lighter steps.
+        const down = this.beat % 3 === 0;
+        this.drum(at, down ? (fast ? 1 : 0.7) : fast ? 0.5 : 0.3);
+        if (down) {
+          this.pluck(note(th.root + chord), at, 0.9);
+          this.bass(note(th.root - 12 + chord), at, spb * 2.6);
+        }
+      } else if (th.heartbeat && !fast) {
+        // The Coldmarrow's slow heartbeat: lub-dub once a bar.
+        if (this.beat % meter === 0) {
+          this.drum(at, 0.45);
+          this.drum(at + 0.22, 0.28);
+        }
+      } else if (fast) {
         this.drum(at, this.beat % 2 === 0 ? 1 : 0.55);
         if (this.beat % 2 === 0) this.bass(note(th.root - 12 + chord), at, spb * 1.6);
       } else if (th.pluck === 'anvil' && this.beat % 2 === 0) {
@@ -260,16 +345,16 @@ class ThemePlayer {
     const ctx = this.ctx;
     const kind = this.theme.pluck;
     const g = ctx.createGain();
-    const dur = kind === 'bell' ? 2.4 : kind === 'harp' ? 1.6 : kind === 'drip' ? 0.5 : kind === 'anvil' ? 1.4 : 1.2;
-    const peak = (kind === 'bell' ? 0.055 : kind === 'drip' ? 0.06 : kind === 'harp' ? 0.11 : 0.07) * vel;
+    const dur = kind === 'bell' ? 2.4 : kind === 'glass' ? 2.0 : kind === 'brass' ? 1.1 : kind === 'harp' ? 1.6 : kind === 'drip' ? 0.5 : kind === 'anvil' ? 1.4 : 1.2;
+    const peak = (kind === 'bell' ? 0.055 : kind === 'glass' ? 0.05 : kind === 'brass' ? 0.06 : kind === 'drip' ? 0.06 : kind === 'harp' ? 0.11 : 0.07) * vel;
     g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(peak, at + 0.008);
+    g.gain.linearRampToValueAtTime(peak, at + (kind === 'brass' ? 0.06 : 0.008));
     g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
     g.connect(this.out);
-    const partials = kind === 'anvil' ? [[1, 1], [2.32, 0.5], [4.25, 0.25], [6.1, 0.12]] : kind === 'bell' ? [[1, 1], [2.76, 0.35], [5.4, 0.12]] : kind === 'harp' ? [[1, 1], [2, 0.4], [3, 0.15]] : [[1, 1]];
+    const partials = kind === 'glass' ? [[1, 1], [3.01, 0.3], [5.98, 0.1]] : kind === 'brass' ? [[1, 1], [2, 0.6], [3, 0.4], [4, 0.2]] : kind === 'anvil' ? [[1, 1], [2.32, 0.5], [4.25, 0.25], [6.1, 0.12]] : kind === 'bell' ? [[1, 1], [2.76, 0.35], [5.4, 0.12]] : kind === 'harp' ? [[1, 1], [2, 0.4], [3, 0.15]] : [[1, 1]];
     for (const [mult, amp] of partials) {
       const o = ctx.createOscillator();
-      o.type = kind === 'ember' ? 'triangle' : 'sine';
+      o.type = kind === 'ember' || kind === 'brass' ? 'triangle' : 'sine';
       o.frequency.setValueAtTime(f * mult, at);
       if (kind === 'drip') o.frequency.exponentialRampToValueAtTime(f * 1.6, at + 0.12);
       const pg = ctx.createGain();
@@ -334,6 +419,7 @@ class ThemePlayer {
     const end = t + secs + 0.1;
     this.drones.forEach((o) => o.stop(end));
     this.bed.stop(end);
+    this.coalSrc?.stop(end);
     setTimeout(() => this.out.disconnect(), (secs + 0.5) * 1000);
   }
 }
@@ -343,8 +429,27 @@ export class MusicPlayer {
   private current: ThemePlayer | null = null;
   private beds = new Map<BedKind, AudioBuffer>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private warmth = 1;
 
   constructor(private ctx: AudioContext, private dest: AudioNode) {}
+
+  private bedBuffer(kind: BedKind): AudioBuffer {
+    let bed = this.beds.get(kind);
+    if (!bed) {
+      // 24 kHz is plenty for a texture bed and halves the work on slow phones.
+      const data = bedSamples(kind, 24000);
+      bed = this.ctx.createBuffer(1, data.length, 24000);
+      bed.getChannelData(0).set(data);
+      this.beds.set(kind, bed);
+    }
+    return bed;
+  }
+
+  /** The Coldmarrow's Hearthcoal: 1 is a full coal, 0 is out. */
+  setWarmth(w: number): void {
+    this.warmth = w;
+    this.current?.setWarmth(w);
+  }
 
   get theme(): ThemeId | null {
     return this.current?.id ?? null;
@@ -356,15 +461,7 @@ export class MusicPlayer {
     this.current = null;
     if (!id) return this.halt();
     const th = THEMES[id];
-    let bed = this.beds.get(th.bed);
-    if (!bed) {
-      // 24 kHz is plenty for a texture bed and halves the work on slow phones.
-      const data = bedSamples(th.bed, 24000);
-      bed = this.ctx.createBuffer(1, data.length, 24000);
-      bed.getChannelData(0).set(data);
-      this.beds.set(th.bed, bed);
-    }
-    this.current = new ThemePlayer(this.ctx, this.dest, id, th, bed);
+    this.current = new ThemePlayer(this.ctx, this.dest, id, th, this.bedBuffer(th.bed), th.coal ? this.bedBuffer('hearth') : undefined, this.warmth);
     if (!this.timer) this.timer = setInterval(() => this.current?.schedule(this.ctx.currentTime + 0.25), 60);
   }
 

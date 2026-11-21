@@ -45,6 +45,7 @@ const horn = (f: number, dur: number, vol = 0.45): Recipe => [
 ];
 
 const join = (...parts: Recipe[]): Recipe => parts.flat();
+const B5 = () => note(14);
 
 export const SOUNDS = {
   // ---- combat, frequent (keep these tiny)
@@ -241,6 +242,76 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
     ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
   ],
+
+  // ---- the Ashvents: Ysmeret, the Twofold Flame
+  /** Twin Vents opening: two hot breaths, one each side, and a gold rising call to split up. */
+  ventWarn: join(
+    whoosh(400, 3500, 0.55, 0.35), whoosh(400, 3500, 0.55, 0.3).map((v) => ({ ...v, delay: 0.45 })),
+    chime(E5, 0.1, 0.2, 0.5), chime(B5(), 0.55, 0.22, 0.7),
+  ),
+  /** Scatter Embers (and the raid's Cinder Marks): a crackling sparkle that says "get apart". */
+  scatterWarn: [
+    { wave: 'noise', f: 0, dur: 1.2, vol: 0.25, a: 0.9, curve: 0.7, lp: 3000, lp2: 9000, hp: 1200, trem: [14, 0.7] },
+    { wave: 'square', f: note(14), dur: 0.08, vol: 0.12, lp: 5000 },
+    { wave: 'square', f: note(14), dur: 0.08, delay: 0.5, vol: 0.12, lp: 5000 },
+    { wave: 'square', f: note(17), dur: 0.12, delay: 1.0, vol: 0.14, lp: 5000 },
+  ],
+  scatter: join(...[0, 0.05, 0.11, 0.16].map((d, k) => boom(90 + k * 20, 0.3, 0.3).map((v) => ({ ...v, delay: d })))),
+  /** Bellow Slam wind-up: shorter cousin of Anvilfall's, a growl with a single alarm. */
+  bellowWarn: [
+    { wave: 'saw', f: 110, f2: 240, dur: 1.5, vol: 0.28, a: 1.3, curve: 0.6, lp: 500, lp2: 2400 },
+    { wave: 'noise', f: 0, dur: 1.5, vol: 0.2, a: 1.3, curve: 0.5, lp: 600, lp2: 3500 },
+    { wave: 'tri', f: A5, dur: 0.2, delay: 1.25, vol: 0.3, curve: 1 },
+  ],
+  bellow: join(boom(45, 0.9, 0.75), whoosh(5000, 400, 0.6, 0.35)),
+  phaseYsmeret: join(whoosh(300, 6000, 0.7, 0.4), whoosh(300, 6000, 0.7, 0.35).map((v) => ({ ...v, delay: 0.35 })), boom(45, 0.9, 0.55).map((v) => ({ ...v, delay: 0.6 }))),
+
+  // ---- the Coldmarrow: Nhevra, the Cold Hearth
+  /** Long Night wind-up: a choir-like wind swelling as the cold closes in. */
+  longNightWarn: [
+    ...[note(-9), note(-6), note(-2), note(3)].map((f) => ({ wave: 'tri' as const, f, dur: 2.2, vol: 0.1, a: 1.8, curve: 0.6, lp: 1800, vib: [5, 0.01] as [number, number] })),
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.25, a: 1.9, curve: 0.5, lp: 800, lp2: 6000, hp: 300 },
+  ],
+  /** Long Night lands: the room freezes with a glassy crack. */
+  longNight: [
+    { wave: 'noise', f: 0, dur: 0.2, vol: 0.5, lp: 9000, hp: 2000, curve: 3 },
+    { wave: 'sine', f: note(27), dur: 1.2, vol: 0.12, curve: 3 },
+    { wave: 'sine', f: note(27) * 2.76, dur: 0.8, vol: 0.06, curve: 4 },
+    { wave: 'sine', f: note(22), dur: 1.4, delay: 0.05, vol: 0.12, curve: 3 },
+    ...boom(40, 0.8, 0.4),
+  ],
+  /** Snuff: your coal's light shrinks (a fire hissing down). */
+  snuff: [
+    { wave: 'noise', f: 0, dur: 0.6, vol: 0.35, lp: 6000, lp2: 300, curve: 1.5 },
+    { wave: 'sine', f: 400, f2: 120, dur: 0.5, vol: 0.15 },
+  ],
+  snufferTide: join(whoosh(200, 1500, 0.9, 0.3), [{ wave: 'tri', f: note(-2), f2: note(-7), dur: 0.9, vol: 0.18, a: 0.2, vib: [6, 0.02] }]),
+  /** Ice cracking: Nhevra's phase change. */
+  phaseIce: join(
+    ...[0, 0.12, 0.2, 0.38].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.4 - k * 0.05, lp: 8000, hp: 1500, curve: 3 }]),
+    [{ wave: 'saw', f: 70, f2: 50, dur: 1.2, delay: 0.1, vol: 0.2, a: 0.3, lp: 700, vib: [3, 0.04] }],
+    boom(40, 0.7, 0.35).map((v) => ({ ...v, delay: 0.38 })),
+  ),
+
+  // ---- the raid: Grandmother Slag
+  ladleWarn: [
+    { wave: 'sine', f: 180, f2: 90, dur: 1.0, vol: 0.15, a: 0.3, vib: [9, 0.05] },
+    { wave: 'tri', f: 540, f2: 270, dur: 1.0, vol: 0.15, a: 0.3, vib: [9, 0.05] },
+    { wave: 'noise', f: 0, dur: 1.0, vol: 0.3, a: 0.5, lp: 900, lp2: 2800, trem: [9, 0.6] },
+  ],
+  /** Ladle Pour lands: a heavy molten glug and splash. */
+  ladle: join(boom(50, 0.8, 0.6), [
+    { wave: 'sine', f: 140, f2: 360, dur: 0.15, delay: 0.05, vol: 0.25 },
+    { wave: 'sine', f: 120, f2: 300, dur: 0.15, delay: 0.25, vol: 0.2 },
+    { wave: 'noise', f: 0, dur: 0.5, delay: 0.05, vol: 0.25, lp: 2500, lp2: 600 },
+  ]),
+  calledOut: join(horn(note(-16), 0.6, 0.3), chime(E5, 0.1, 0.2, 0.4)),
+  /** Phase 2, The Pour: brass rises as the pit floods. */
+  phaseRaid2: join(horn(note(-21), 1.6, 0.4), horn(note(-14), 1.4, 0.3).map((v) => ({ ...v, delay: 0.3 })),
+    [{ wave: 'noise', f: 0, dur: 1.6, vol: 0.3, a: 0.6, lp: 300, lp2: 2500, trem: [7, 0.5] }], boom(40, 0.8, 0.5)),
+  /** Phase 3, Last Ember: a bell, then a drum roll into double time. */
+  phaseRaid3: join(clang(note(-9), 0.5, 1.4), ...[0.3, 0.42, 0.54, 0.62, 0.7, 0.76, 0.82].map((d) => boom(70, 0.18, 0.35).map((v) => ({ ...v, delay: d }))),
+    horn(note(-14), 1.2, 0.3).map((v) => ({ ...v, delay: 0.85 }))),
 
   // ---- co-op
   allyDown: [

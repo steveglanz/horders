@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, phaseSting, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -166,5 +166,17 @@ describe('audio', () => {
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'select' }))).toBe('select');
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'none' }))).toBeNull();
     expect(uiSoundFor(el(['div']))).toBeNull();
+  });
+
+  it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {
+    for (const t of ['ashvents', 'coldmarrow', 'raid'] as const) expect(THEMES[t], t).toBeDefined();
+    expect(THEMES.raid.meter).toBe(3);
+    expect(THEMES.coldmarrow.coal).toBe(true);
+    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Ladle Pour']) expect(CAST_SOUNDS[name], name).toBeDefined();
+    expect(phaseSting('grandmotherSlag', 2)).toBe('phaseRaid2');
+    expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
+    expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
+    expect(phaseSting('nobodyYet', 2)).toBe('phase');
+    for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
   });
 });

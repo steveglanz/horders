@@ -45,16 +45,41 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   Anvilfall: { start: 'anvilWarn', done: 'anvilfall' },
   'Choir of Iron': { done: 'choir' },
   'Hammer Sweep': { done: 'sweep' },
+  // The Ashvents: Ysmeret, the Twofold Flame (PR #66).
+  'Twin Vents': { start: 'ventWarn' },
+  'Scatter Embers': { start: 'scatterWarn', done: 'scatter' },
+  'Bellow Slam': { start: 'bellowWarn', done: 'bellow' },
+  // The Coldmarrow: Nhevra, the Cold Hearth (design brief C1). Names as in the brief.
+  'Long Night': { start: 'longNightWarn', done: 'longNight' },
+  Snuff: { start: 'snuff' },
+  'Snuffer Tide': { start: 'snufferTide' },
+  // The raid: Grandmother Slag (design brief C3).
+  'Ladle Pour': { start: 'ladleWarn', done: 'ladle' },
+  'Called Out': { done: 'calledOut' },
+  'Cinder Marks': { start: 'scatterWarn', done: 'scatter' },
 };
 
 /** Each boss's own phase-change sting. */
-export const PHASE_STING: Partial<Record<EnemyKind, SoundId>> = {
+/** Keyed by EnemyKind (as a string, so bosses still in open PRs can be listed before they land). */
+export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   kilnMother: 'phaseKiln',
   maelra: 'phaseMaelra',
   lensmother: 'phaseLens',
   ondrel: 'phaseOndrel',
   worldShadow: 'phaseShadow',
+  // Bosses in open PRs or still being built: these keys must match their EnemyKind when they land.
+  ysmeret: 'phaseYsmeret',
+  nhevra: 'phaseIce',
+  // The raid has its own sting per phase: [phase 2 The Pour, phase 3 Last Ember].
+  grandmotherSlag: ['phaseRaid2', 'phaseRaid3'],
 };
+
+/** The sting for a boss reaching `phase` (2 or 3). */
+export function phaseSting(boss: string | undefined, phase: number): SoundId {
+  const s = boss ? PHASE_STING[boss] : undefined;
+  if (!s) return 'phase';
+  return Array.isArray(s) ? s[Math.max(0, Math.min(s.length - 1, phase - 2))] : s;
+}
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
   const mine = (hero?: number) => hero === undefined || hero === c.acting;
@@ -74,7 +99,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
     case 'bossEnrage': return { id: 'enrage' };
-    case 'phase': return { id: (c.boss && PHASE_STING[c.boss]) || 'phase', vol: ev.phase >= 3 ? 1.15 : 1 };
+    case 'phase': return { id: phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
     case 'slam': return { id: 'slam' };

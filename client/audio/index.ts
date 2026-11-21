@@ -252,6 +252,8 @@ class AudioEngine {
     for (const ev of evs) {
       if (ev.type === 'bossSpawn') this.intensity(1);
       else if (ev.type === 'encounterClear') this.intensity(0);
+      // Boss phases push the music further (the raid's march floods at 2 and doubles at 3).
+      else if (ev.type === 'phase') this.intensity(ev.phase);
       // The music bows out under the victory or defeat sting; the menu brings the hub theme back.
       else if (ev.type === 'end') this.theme(null);
       this.cue(cueFor(ev, ctx));
@@ -280,6 +282,11 @@ class AudioEngine {
   intensity(level: number): void {
     this.wantIntensity = level;
     this.music?.setIntensity(level);
+  }
+
+  /** The Coldmarrow's Hearthcoal, 1 (full) to 0 (out): its crackle in the music thins as it dims. */
+  warmth(level: number): void {
+    this.music?.setWarmth(level);
   }
 }
 

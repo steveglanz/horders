@@ -64,6 +64,13 @@ fs.mkdirSync(out, { recursive: true });
     a.theme(null); ids.forEach((id, k) => setTimeout(() => a.play(id), k * 480));`);
   await record('10-phase-stings', 11000, `a.theme(null);
     ['targeted','phaseKiln','phaseMaelra','phaseLens','phaseOndrel','phaseShadow'].forEach((id, k) => setTimeout(() => a.play(id), k * 1800));`);
+  await record('11-ashvents', 14000, "a.theme('ashvents')");
+  await record('12-coldmarrow', 20000, "a.theme('coldmarrow'); a.warmth(1); setTimeout(() => a.warmth(0.5), 7000); setTimeout(() => a.warmth(0.1), 13000)");
+  await record('13-raid-phases', 30000, `a.theme('raid'); a.intensity(1);
+    setTimeout(() => { a.play('phaseRaid2'); a.intensity(2); }, 10000);
+    setTimeout(() => { a.play('phaseRaid3'); a.intensity(3); }, 20000);`);
+  await record('14-new-boss-cues', 16000, `a.theme(null);
+    ['ventWarn','scatterWarn','scatter','bellowWarn','bellow','longNightWarn','longNight','snuff','phaseIce','ladle'].forEach((id, k) => setTimeout(() => a.play(id), k * 1500));`);
   // Mute should silence everything.
   const muted = await page.evaluate(() => { const a = window.__ember.audio; a.set({ muted: true }); return { muted: a.settings.muted, stored: localStorage.getItem('horders.audio') }; });
   console.log('mute:', JSON.stringify(muted));
