@@ -83,6 +83,11 @@
   .pfr.tank { color: #9ab8ff; background: rgba(154,184,255,0.16); }
   .pfr.healer { color: #8ff0a8; background: rgba(111,224,138,0.16); }
   .pf.down .pfr { display: none; }
+  /* Fill with bots: the bot mark on the class tile's corner, in a dark disc ringed in the class colour. */
+  .pf.bot .gtile { position: relative; overflow: visible; }
+  .pfbot { position: absolute; right: -4px; bottom: -4px; width: 13px; height: 13px; display: grid; place-items: center; border-radius: 50%; background: #120a08; border: 1px solid var(--gc); color: var(--gc); }
+  .pf .gtile .pfbot svg { width: 9px; height: 9px; }
+  .pf.down .pfbot { opacity: 0.5; }
   .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
   .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
   /* Downed: the name and icon grey out, the bar turns into the revive meter. */
@@ -390,6 +395,8 @@
   /* Group dungeons: the roles your party has, as chips. */
   .partyroles { margin-top: 8px; }
   .partyroles .fillbots { margin-top: 8px; }
+  .partyroles .fillbots svg { flex: none; opacity: 0.75; }
+  .partyroles .fillbots.on svg { opacity: 1; color: var(--gold); }
   .partyroles .chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
   .rolechip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
   .rolechip.ok { border-color: color-mix(in srgb, var(--gc) 60%, transparent); color: var(--gc); background: color-mix(in srgb, var(--gc) 10%, transparent); }
@@ -683,6 +690,8 @@
     .pf { padding: 3px 6px 4px 3px; gap: 5px; }
     .pf .gtile { width: 20px; height: 20px; }
     .pf .gtile svg { width: 13px; height: 13px; }
+    .pfbot { right: -4px; bottom: -4px; width: 12px; height: 12px; }
+    .pf .gtile .pfbot svg { width: 8px; height: 8px; }
     #bannerTitle { font-size: 22px; }
     #bannerSub { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     #banner.full #bannerSub { -webkit-line-clamp: 4; }

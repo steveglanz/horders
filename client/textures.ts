@@ -7,6 +7,7 @@
  * (frames '0'..'n-1') for its walk or idle cycle. Soft glows stay at 1x.
  */
 import Phaser from 'phaser';
+import { BOT_GLYPH } from './icons';
 
 export const SPRITE_RES = 2;
 
@@ -2325,6 +2326,20 @@ export function buildTextures(scene: Phaser.Scene): void {
     g.addColorStop(1, 'rgba(24,10,6,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, s, s);
+  });
+
+  // Fill with bots: the bot mark (icons.ts BOT_GLYPH) in white, tinted by the scene to the ally's class colour.
+  make(scene, 'botMark', 48, (ctx, s) => {
+    ctx.scale(s / 24, s / 24);
+    const p = new Path2D(BOT_GLYPH);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 5;
+    ctx.stroke(p);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.4;
+    ctx.stroke(p);
   });
 
   // Season trail mote: a small white glow, so the trail's tint shows true (the orange spark would darken a blue trail).
