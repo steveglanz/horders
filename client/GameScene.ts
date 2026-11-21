@@ -447,7 +447,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
-    audio.events(events, { cls: w.cls, acting: w.acting });
+    audio.events(events, { cls: w.cls, acting: w.acting, hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined });
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':

@@ -8,12 +8,13 @@
  *  - kiln:      Kiln Depths. Low furnace drone, crackling fire, heavy pulse.
  *  - foundry:   Drowned Foundry. Hissing steam swells, water drips, cold minor.
  *  - glarewell: Light and shadow. High bells over a dark drone, shimmer bed.
+ *  - hammerdeep: The group dungeon. Bellows breathing, anvil strikes on the beat, a low dorian march.
  * A boss fight raises the intensity: a drum pulse and a bass line join in.
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge';
 
 interface Theme {
   /** Root pitch in semitones from A4. */
@@ -25,17 +26,20 @@ interface Theme {
   bpm: number;
   drone: OscillatorType;
   droneLp: number;
-  pluck: 'harp' | 'bell' | 'drip' | 'ember';
+  pluck: 'harp' | 'bell' | 'drip' | 'ember' | 'anvil';
   /** Chance a beat gets a melody note (calm themes leave space). */
   density: number;
   bed: BedKind;
   bedVol: number;
+  /** Drone register in semitones from the root (default -12, an octave down). */
+  droneAt?: number;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
-  hub: { root: -7, scale: [0, 2, 4, 7, 9, 12, 14, 16], progression: [0, 5, -3, 7], bpm: 76, drone: 'triangle', droneLp: 700, pluck: 'harp', density: 0.55, bed: 'hearth', bedVol: 0.3 },
+  hub: { root: -7, scale: [0, 2, 4, 7, 9, 12, 14, 16], progression: [0, 5, -3, 7], bpm: 76, drone: 'triangle', droneLp: 700, pluck: 'harp', density: 0.6, bed: 'hearth', bedVol: 0.3, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
+  hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
 
@@ -72,8 +76,8 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
       case 'hearth':
       case 'fire': {
         // Low roar plus sparse pops that ring briefly.
-        lp += (w - lp) * 0.02;
-        raw[i] = brown * (kind === 'fire' ? 1.6 : 0.8) + lp * (kind === 'fire' ? 0.5 : 0.25);
+        lp += (w - lp) * 0.06;
+        raw[i] = brown * (kind === 'fire' ? 1.4 : 0.6) + lp * (kind === 'fire' ? 0.4 : 0.3);
         break;
       }
       case 'steam': {
@@ -82,6 +86,13 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         prev = w;
         const swell = 0.25 + 0.75 * Math.pow(0.5 - 0.5 * Math.cos(t * Math.PI * 4), 2);
         raw[i] = hp * 0.16 * swell + brown * 0.9;
+        break;
+      }
+      case 'forge': {
+        // Bellows: a deep breath in and out, three times around the loop.
+        lp += (w - lp) * 0.04;
+        const breath = Math.pow(Math.sin(t * Math.PI * 3), 2);
+        raw[i] = lp * 0.6 * breath + brown * 1.2;
         break;
       }
       case 'shimmer': {
@@ -96,20 +107,28 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Pops for fire, drips for steam (short decaying tones placed at random).
-  const events = kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : 0;
+  const events = kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : 0;
   for (let k = 0; k < events; k++) {
     const at = Math.floor(r() * (period - rate * 0.3));
     const drip = kind === 'steam';
-    const len = Math.floor(rate * (drip ? 0.18 : 0.004 + r() * 0.02));
-    const amp = (drip ? 0.25 : 0.2 + r() * 0.5) * (kind === 'hearth' ? 0.6 : 1);
-    const f0 = drip ? 900 + r() * 900 : 0;
+    // Forge: distant hammer clinks (bright, inharmonic, quiet) instead of fire pops.
+    const clink = kind === 'forge';
+    const tone = drip || clink;
+    const len = Math.floor(rate * (drip ? 0.18 : clink ? 0.25 : 0.004 + r() * 0.02));
+    const amp = (drip ? 0.25 : clink ? 0.12 + r() * 0.12 : 0.2 + r() * 0.5) * (kind === 'hearth' ? 0.6 : 1);
+    const f0 = drip ? 900 + r() * 900 : clink ? 1800 + r() * 1400 : 0;
     let ph = 0;
+    let ph2 = 0;
     for (let i = 0; i < len; i++) {
-      const env = Math.pow(1 - i / len, drip ? 3 : 2);
+      const env = Math.pow(1 - i / len, tone ? 3 : 2);
       let s: number;
       if (drip) {
         ph += (f0 * (1 + 1.2 * (i / len))) / rate;
         s = Math.sin(ph * Math.PI * 2);
+      } else if (clink) {
+        ph += f0 / rate;
+        ph2 += (f0 * 2.76) / rate;
+        s = Math.sin(ph * Math.PI * 2) + 0.4 * Math.sin(ph2 * Math.PI * 2);
       } else s = white();
       raw[at + i] += s * env * amp;
     }
@@ -159,7 +178,7 @@ class ThemePlayer {
     for (const [semi, cents] of [[0, -6], [0, 7], [7, 0]] as const) {
       const o = ctx.createOscillator();
       o.type = theme.drone;
-      o.frequency.value = note(theme.root - 12 + semi);
+      o.frequency.value = note(theme.root + (theme.droneAt ?? -12) + semi);
       o.detune.value = cents;
       o.connect(this.droneFilter);
       o.start(t);
@@ -208,7 +227,7 @@ class ThemePlayer {
       const chord = this.chordRoot();
       if (this.beat % 8 === 0) {
         // Move the drone to the new chord.
-        this.drones.slice(0, 3).forEach((o, k) => o.frequency.setTargetAtTime(note(th.root - 12 + chord + (k === 2 ? 7 : 0)), at, 0.8));
+        this.drones.slice(0, 3).forEach((o, k) => o.frequency.setTargetAtTime(note(th.root + (th.droneAt ?? -12) + chord + (k === 2 ? 7 : 0)), at, 0.8));
       }
       // Melody: an 8th-note pattern when intense, otherwise sparse quarter notes.
       const steps = fast ? 2 : 1;
@@ -224,6 +243,10 @@ class ThemePlayer {
       if (fast) {
         this.drum(at, this.beat % 2 === 0 ? 1 : 0.55);
         if (this.beat % 2 === 0) this.bass(note(th.root - 12 + chord), at, spb * 1.6);
+      } else if (th.pluck === 'anvil' && this.beat % 2 === 0) {
+        // The Hammerdeep marches: a hammer on every other beat, the anvil rings on the bar.
+        this.drum(at, this.beat % 4 === 0 ? 0.6 : 0.35);
+        if (this.beat % 4 === 0) this.pluck(note(th.root + 12 + chord), at, 0.8);
       } else if (this.beat % 4 === 0 && (th.pluck === 'ember' || th.pluck === 'drip')) {
         // A slow, distant pulse under the dungeon themes.
         this.drum(at, 0.35);
@@ -237,13 +260,13 @@ class ThemePlayer {
     const ctx = this.ctx;
     const kind = this.theme.pluck;
     const g = ctx.createGain();
-    const dur = kind === 'bell' ? 2.4 : kind === 'harp' ? 1.6 : kind === 'drip' ? 0.5 : 1.2;
-    const peak = (kind === 'bell' ? 0.05 : kind === 'drip' ? 0.06 : 0.07) * vel;
+    const dur = kind === 'bell' ? 2.4 : kind === 'harp' ? 1.6 : kind === 'drip' ? 0.5 : kind === 'anvil' ? 1.4 : 1.2;
+    const peak = (kind === 'bell' ? 0.055 : kind === 'drip' ? 0.06 : kind === 'harp' ? 0.11 : 0.07) * vel;
     g.gain.setValueAtTime(0, at);
     g.gain.linearRampToValueAtTime(peak, at + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
     g.connect(this.out);
-    const partials = kind === 'bell' ? [[1, 1], [2.76, 0.35], [5.4, 0.12]] : kind === 'harp' ? [[1, 1], [2, 0.25]] : [[1, 1]];
+    const partials = kind === 'anvil' ? [[1, 1], [2.32, 0.5], [4.25, 0.25], [6.1, 0.12]] : kind === 'bell' ? [[1, 1], [2.76, 0.35], [5.4, 0.12]] : kind === 'harp' ? [[1, 1], [2, 0.4], [3, 0.15]] : [[1, 1]];
     for (const [mult, amp] of partials) {
       const o = ctx.createOscillator();
       o.type = kind === 'ember' ? 'triangle' : 'sine';
@@ -270,6 +293,18 @@ class ThemePlayer {
     o.connect(g).connect(this.out);
     o.start(at);
     o.stop(at + 0.45);
+    // Phone speakers drop the low thump, so a short knock an octave and more up carries the beat.
+    const k = ctx.createOscillator();
+    const kg = ctx.createGain();
+    k.type = 'triangle';
+    k.frequency.setValueAtTime(260, at);
+    k.frequency.exponentialRampToValueAtTime(130, at + 0.08);
+    kg.gain.setValueAtTime(0.0001, at);
+    kg.gain.exponentialRampToValueAtTime(0.09 * vel, at + 0.004);
+    kg.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
+    k.connect(kg).connect(this.out);
+    k.start(at);
+    k.stop(at + 0.15);
   }
 
   private bass(f: number, at: number, dur: number): void {
@@ -280,8 +315,8 @@ class ThemePlayer {
     o.type = 'sawtooth';
     o.frequency.value = f;
     flt.type = 'lowpass';
-    flt.frequency.setValueAtTime(600, at);
-    flt.frequency.exponentialRampToValueAtTime(150, at + dur);
+    flt.frequency.setValueAtTime(900, at);
+    flt.frequency.exponentialRampToValueAtTime(320, at + dur);
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(0.07, at + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, at + dur);

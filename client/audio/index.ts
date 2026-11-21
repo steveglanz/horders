@@ -8,8 +8,8 @@
  */
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
-import { MusicPlayer, ThemeId } from './music';
-import { Cue, CueContext, cueFor, THROTTLE } from './cues';
+import { MusicPlayer, ThemeId, THEMES } from './music';
+import { Cue, CueContext, cueFor, partyCues, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 
 export type { ThemeId } from './music';
@@ -57,6 +57,7 @@ class AudioEngine {
   private wantTheme: ThemeId | null = null;
   private wantIntensity = 0;
   private listeners = new Set<() => void>();
+  private wasDown: boolean[] = [];
 
   get unlocked(): boolean {
     return this.ctx !== null;
@@ -110,7 +111,11 @@ class AudioEngine {
       comp.ratio.value = 6;
       comp.attack.value = 0.003;
       comp.release.value = 0.2;
-      this.master.connect(comp).connect(ctx.destination);
+      // Nothing below 40 Hz: no phone or laptop plays it, and it eats the limiter's headroom.
+      const floor = ctx.createBiquadFilter();
+      floor.type = 'highpass';
+      floor.frequency.value = 40;
+      this.master.connect(floor).connect(comp).connect(ctx.destination);
       this.sfxBus = ctx.createGain();
       this.musicBus = ctx.createGain();
       this.sfxBus.connect(this.master);
@@ -221,10 +226,14 @@ class AudioEngine {
       else if (ev.type === 'end') this.theme(null);
       this.cue(cueFor(ev, ctx));
     }
+    if (ctx.hp && ctx.hp.length > 1) partyCues(this.wasDown, ctx.hp, ctx.acting).forEach((c) => this.cue(c));
+    else this.wasDown.length = 0;
   }
 
   /** Switches the music (null for silence). Crossfades from whatever is playing. */
-  theme(id: ThemeId | null): void {
+  theme(place: string | null): void {
+    // A place without its own theme yet borrows the Kiln's rather than going silent.
+    const id: ThemeId | null = place === null ? null : place in THEMES ? (place as ThemeId) : 'kiln';
     if (id !== this.wantTheme) this.wantIntensity = 0;
     this.wantTheme = id;
     this.music?.play(id);
