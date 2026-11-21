@@ -70,7 +70,7 @@ The watch item said the Forge runs at about 3 upgrades a delve against a target 
 - Salvage pays a flat amount per rarity, while upgrade cost grows with item level. So the Forge slows down on its own as the hero climbs.
 - Worn gear sits about 3 levels below the cap from day 2 on. The cap rises with hero level and tier faster than embers can follow, so the Forge never maxes everything out.
 - The power it adds is modest: about one tier and one win over 30 delves against a hero who never forges.
-- Embers never pile up. In that run the most left at the end of a day was 26, and the 8 `forge` runs ended day 10 with 2 to 60 embers (2, 60, 11, 2, 11, 26, 55, 22), under one upgrade's cost at that level.
+- Embers never pile up. In that run the most left at the end of a day was 26, and the 8 `forge` runs ended day 10 with 2 to 60 embers (2, 60, 11, 2, 11, 26, 55, 22). A level-25 Rare costs 42 to upgrade, so that is one or two upgrades at most.
 
 **Decision: no cost change.** Each upgrade is +1 level on one of six items, so the number of upgrades was the wrong measure. The outcome the target was written for (steady progress, no power spike, nothing piling up) is met. Tripling the cost to reach "1 a delve" would leave gear further behind fresh drops and make the Forge feel slow, for a power change of under a tier. balance.md now states the target as outcomes:
 - Worn gear trails the cap by 2 to 4 levels.
