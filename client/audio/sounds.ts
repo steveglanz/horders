@@ -259,7 +259,11 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.3, vol: 0.1, lp: 4000, lp2: 800, hp: 600, curve: 2 },
   ],
   /** The boss fight's one pick-up is spent: a low toll, so everyone knows the next fall is for good. */
-  revivesSpent: join(clang(note(-2), 0.4, 1.4), clang(note(-14), 0.25, 1.4), horn(note(-14), 1.0, 0.22)),
+  revivesSpent: join(clang(note(-2), 0.4, 1.4), clang(note(-14), 0.25, 1.4), horn(note(-14), 1.0, 0.22), [
+    // A falling two-note toll in the 500 Hz-2 kHz band, so a phone hears "no revives left" over a 4-hero fight.
+    { wave: 'saw', f: note(10), f2: note(9), dur: 0.35, vol: 0.16, a: 0.01, lp: 2600, curve: 2 },
+    { wave: 'saw', f: note(3), f2: note(2), dur: 0.6, delay: 0.3, vol: 0.16, a: 0.01, lp: 2200, curve: 2 },
+  ]),
   revive: join(chime(C5, 0, 0.25, 0.8), chime(G5, 0.1, 0.25, 0.8), chime(C6, 0.2, 0.3, 1.0), whoosh(500, 6000, 0.6, 0.15)),
 
   // ---- encounters
@@ -271,6 +275,8 @@ export const SOUNDS = {
     horn(note(-18), 0.35, 0.3).map((v) => ({ ...v, delay: 0.22 })),
     horn(note(-14), 0.9, 0.34).map((v) => ({ ...v, delay: 0.44 })),
     clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.44 })),
+    // A brassy edge on the three-step call, so a phone hears a named elite arrive mid-fight.
+    [0, 0.22, 0.44].map((delay, i) => ({ wave: 'saw' as const, f: note([-9, -6, -2][i]), dur: i === 2 ? 0.7 : 0.3, delay, vol: 0.12, a: 0.02, lp: 2400, curve: 1.5 })),
   ),
   /** A named elite falls: a heavy thud, then a rising sparkle for the loot it drops. */
   namedKill: join(boom(60, 0.6, 0.45), chime(E5, 0.15, 0.22, 0.5), chime(B5(), 0.25, 0.22, 0.5), chime(E6, 0.35, 0.26, 0.9)),
@@ -281,7 +287,8 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.9, vol: 0.3, a: 0.2, lp: 1200 },
     { wave: 'sine', f: 45, dur: 1.0, vol: 0.25, a: 0.1 },
     // A snarl in the 500 Hz-2 kHz band, so a phone speaker hears the enrage over a busy fight.
-    { wave: 'square', f: 282, f2: 222, dur: 0.9, vol: 0.1, a: 0.1, lp: 2400, vib: [9, 0.05] },
+    { wave: 'square', f: 282, f2: 222, dur: 0.9, vol: 0.2, a: 0.1, lp: 2400, vib: [9, 0.05] },
+    { wave: 'saw', f: 564, f2: 444, dur: 0.8, vol: 0.08, a: 0.1, lp: 3000, vib: [9, 0.05] },
   ],
   phase: join(boom(45, 0.8, 0.55), [{ wave: 'saw', f: 110, f2: 220, dur: 0.6, vol: 0.12, lp: 900, a: 0.2 }]),
   riftOpen: [
@@ -395,7 +402,10 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.6, vol: 0.35, lp: 6000, lp2: 300, curve: 1.5 },
     { wave: 'sine', f: 400, f2: 120, dur: 0.5, vol: 0.15 },
   ],
-  snufferTide: join(whoosh(200, 1500, 0.9, 0.3), [{ wave: 'tri', f: note(-2), f2: note(-7), dur: 0.9, vol: 0.18, a: 0.2, vib: [6, 0.02] }]),
+  snufferTide: join(whoosh(200, 1500, 0.9, 0.3), whoosh(1500, 5000, 0.8, 0.18), [
+    { wave: 'tri', f: note(-2), f2: note(-7), dur: 0.9, vol: 0.18, a: 0.2, vib: [6, 0.02] },
+    { wave: 'saw', f: note(10), f2: note(5), dur: 0.8, vol: 0.08, a: 0.2, lp: 2400, vib: [6, 0.02] },
+  ]),
   /** Frost Lace: a ring of ice knitting itself at your feet, high glassy notes closing in. */
   frostLace: join(
     ...[0, 0.09, 0.18, 0.27, 0.36].map((d, k) => chime(note(27 - k * 2), d, 0.16, 0.35)),
@@ -566,9 +576,14 @@ export const SOUNDS = {
     { wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
     { wave: 'tri', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.3, curve: 1.5 },
     { wave: 'noise', f: 0, dur: 0.15, delay: 0.22, vol: 0.2, lp: 1500 },
+    // A square edge on the same two-step fall: triangles carry little above 1 kHz on a phone.
+    { wave: 'square', f: A5, f2: note(5), dur: 0.25, vol: 0.09, lp: 3200, curve: 1.5 },
+    { wave: 'square', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.09, lp: 3200, curve: 1.5 },
   ],
   selfDown: join(boom(50, 0.8, 0.6), [
     { wave: 'tri', f: note(0), f2: note(-12), dur: 0.9, vol: 0.3, a: 0.02, curve: 1.2 },
+    // The same fall as a filtered saw, so the phone speaker carries it over a busy fight.
+    { wave: 'saw', f: note(12), f2: note(0), dur: 0.7, vol: 0.18, a: 0.01, lp: 3000, lp2: 1200, curve: 1.5 },
   ]),
   allyUp: join(chime(G5, 0, 0.2, 0.5), chime(C6, 0.09, 0.22, 0.7)),
   matchFound: join(chime(C5, 0, 0.25, 0.4), chime(G5, 0.09, 0.25, 0.4), chime(C6, 0.18, 0.3, 0.9), whoosh(800, 7000, 0.4, 0.12)),
@@ -615,3 +630,39 @@ export const SOUNDS = {
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;
+
+/**
+ * Must-hear cues (PRIORITY in cues.ts) that came out quieter than the rest on a
+ * phone speaker, and how many dB they are raised by. tools/busycheck.ts found them
+ * buried in 4-hero fights; tests/audio.test.ts keeps every priority cue at or above
+ * PHONE_FLOOR_DB so a new warning can't fall below the pack.
+ */
+export const PHONE_FLOOR_DB = -26.5;
+const PHONE_LIFT: Partial<Record<SoundId, number>> = {
+  ebbPull: 1.9,
+  haulWarn: 8.9,
+  ladleWarn: 1.0,
+  lastEmberWarn: 2.5,
+  namedSpawn: 2.1,
+  phase: 2.2,
+  phaseIce: 3.9,
+  phaseMaelra: 0.7,
+  phaseOndrel: 1.2,
+  phaseRaid2: 2.0,
+  phaseRaid3: 1.5,
+  phaseShadow: 1.8,
+  phaseYsmeret: 1.7,
+  // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
+  revivesSpent: 4,
+  reviveStart: 0.5,
+  rivetsWarn: 1.4,
+  scatterWarn: 2.0,
+  shoalCall: 4.5,
+  sinkWarn: 5.7,
+  snufferTide: 2.2,
+  stampWarn: 1.6,
+};
+for (const [id, db] of Object.entries(PHONE_LIFT) as [SoundId, number][]) {
+  const g = Math.pow(10, db / 20);
+  (SOUNDS as Record<SoundId, Recipe>)[id] = SOUNDS[id].map((v) => ({ ...v, vol: (v.vol ?? 0.5) * g }));
+}
