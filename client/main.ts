@@ -123,7 +123,7 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
     out.innerHTML = r.defeated
       ? card('Killing blow!', `<b style="color:var(--gold)">Your delve felled ${r.name}!</b> Claim your reward from the main menu.`)
       : card(`−${(r.dealt ?? 0).toLocaleString()}`, `<div class="meter danger"><div style="width:${Math.max(0, Math.min(100, (100 * r.hp) / r.max_hp))}%"></div></div>`
-        + `<div style="margin-top:6px">Your delve struck <b>${r.name}</b>${r.shadow ? ` (${r.shadow.toLocaleString()} from the shadow fight, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.</div>`);
+        + `<div style="margin-top:6px">Your delve struck <b>${r.name}</b>${r.shadow ? ` (${r.shadow.toLocaleString()} from the shadow fight or the raid, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.</div>`);
   } else if (r.reason === 'too_soon') {
     out.innerHTML = card('Recovering', 'The world boss is recovering. Your next delve can strike it again.');
   }

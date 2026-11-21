@@ -96,7 +96,8 @@ describe('audio', () => {
     expect(bosses.length).toBeGreaterThan(0);
     for (const b of bosses) {
       const id = cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0, boss: b })?.id;
-      expect(id, b).toBe(PHASE_STING[b] ?? 'phase'); // a brand-new boss falls back to the generic sting
+      expect(id, b).toBe(phaseSting(b, 2)); // a brand-new boss falls back to the generic sting
+      expect(id === 'phase', b).toBe(!PHASE_STING[b]);
       expect(SOUNDS[id!], b).toBeDefined();
     }
     expect(cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0 })?.id).toBe('phase');

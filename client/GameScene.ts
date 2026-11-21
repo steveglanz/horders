@@ -226,7 +226,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId);
+    audio.theme(w.dungeonId === 'crucible' ? 'raid' : w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -642,6 +642,12 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
+          // The raid: Grandmother Slag.
+          else if (ev.name === 'Ladle Pour') this.hud.banner('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
+          else if (ev.name === 'The Pour') this.hud.banner('The Pour!', 'Molten lanes: step out of the red');
+          else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -656,7 +662,7 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 44, 'Slag Grip cleared', '#9fffc8', 15);
           break;
         case 'slagGrip':
-          this.floatText(ev.x, ev.y - 44, `Slag Grip ×${ev.stacks}`, '#ff9a4a', 15);
+          this.floatText(ev.x, ev.y - 44, `${w.dungeonId === 'crucible' ? 'Ladle Burn' : 'Slag Grip'} ×${ev.stacks}`, '#ff9a4a', 15);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -898,7 +904,8 @@ export class GameScene extends Phaser.Scene {
       // The world boss shadow is Grandmother Slag's silhouette;
       // Ember Twins alternate palettes by slot so a pair always reads as two.
       // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
-      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother' : e.kind;
+      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
+        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1289,7 +1296,7 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
-      if (e.kind === 'ysmeret' && e.castId) this.ysmeretCast(g, e, now);
+      if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
