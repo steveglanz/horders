@@ -380,10 +380,17 @@ export class Hub {
       }));
     root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
       b.addEventListener('click', () => {
-        if (brewPotion(h, b.dataset.potion as PotionId)) {
+        const id = b.dataset.potion as PotionId;
+        if (brewPotion(h, id)) {
           this.save();
           this.render();
           if (!$('sheet').hidden && $('sheet').dataset.prep === 'potion') this.openPrep('potion', []);
+          // R8: the fresh brew pours in: the flask flares and bubbles burst up out of it.
+          document.querySelectorAll<HTMLElement>(`[data-potion="${id}"]`).forEach((el) => {
+            el.classList.remove('poured');
+            void el.offsetWidth;
+            el.classList.add('poured');
+          });
         }
       }));
   }
@@ -648,7 +655,7 @@ export class Hub {
       const on = h.potion === id;
       const why = brewBlocker(h, id);
       return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
-        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
+        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`
