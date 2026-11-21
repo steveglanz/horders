@@ -8,7 +8,7 @@ import { loadHero, resetHero, saveHero } from './save';
 import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion } from '../sim/hero';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
-import { Lobby, LISTEN_MS, makeLobby, pickParty, shouldMerge } from './net/lobby';
+import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
@@ -278,7 +278,7 @@ function syncLobby(): void {
     });
   }
   const n = coop!.roster.length;
-  lobby.advertise(!coop!.running && n < MAX_PARTY ? { code: coop!.code, n, max: MAX_PARTY, name: coop!.mine.name } : null);
+  lobby.advertise(!coop!.running && n < MAX_PARTY ? { code: coop!.code, n, max: MAX_PARTY, name: coop!.mine.name, roles: coop!.roster.map((r) => roleOf(CLASSES[r.hero.cls].role)) } : null);
 }
 
 /** Two quick-join players who both found nothing each opened a party: the one with the larger code joins the other. */
@@ -320,7 +320,7 @@ async function quickJoin(skip: string[] = []): Promise<void> {
   }
   seeking = false;
   if (coop) return;
-  const pick = pickParty(l.list().filter((a) => !skip.includes(a.code)));
+  const pick = pickParty(l.list().filter((a) => !skip.includes(a.code)), undefined, roleOf(CLASSES[myCard().cls].role));
   quickSkip = skip;
   if (pick) {
     coopQuick = true;
