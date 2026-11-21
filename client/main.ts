@@ -19,6 +19,8 @@ import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
 import { installSoundControls } from './audio/controls';
+import { hubThemeFor } from './audio/music';
+import { SEASONS, seasonOf } from '../sim/content/season';
 
 const el = (id: string) => document.getElementById(id)!;
 audio.install();
@@ -26,7 +28,7 @@ installSoundControls();
 // The hub plays its own theme whenever the main menu is showing.
 {
   const title = document.getElementById('title')!;
-  const follow = () => { if (!title.hidden) audio.theme('hub'); };
+  const follow = () => { if (!title.hidden) audio.theme(hubThemeFor(seasonOf(weekOf(Date.now())), SEASONS.length)); };
   new MutationObserver(follow).observe(title, { attributes: true, attributeFilter: ['hidden'] });
   follow();
 }
