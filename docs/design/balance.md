@@ -421,4 +421,4 @@ Every cell passes. The novice Lumen (+13) is the accepted exception, and the nov
 | Slagbinder, Foundry 6 / Kiln 8 | 30.7 / 12.3 | 32.0 / 11.0 |
 | Slagbinder, Kiln 1 novice | 36 | 35 |
 
-Every cell still passes. The largest gaps are the Bulwark at Foundry 8 (-9.4) and the novice Bulwark at tier 1 (16 against 26, exactly the -10 bar). Watch the novice Bulwark.
+Every cell still passes. The largest gaps are the Bulwark at Foundry 8 (-9.4) and the novice Bulwark at tier 1 (16 against 26, exactly the -10 bar). Seeds 1 to 40 were an unlucky sample for the novice Bulwark: over seeds 1 to 160 it wins 81/160 (20.3 per 40) against the Emberwright's 91/160 (22.8), a gap of 2.5. Tier 1 novice cells are now gated on 160 seeds.
