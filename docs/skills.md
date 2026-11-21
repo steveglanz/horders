@@ -168,6 +168,32 @@ Balance: matrix.sh with heroes-r2, 3 heroes per class, 40 seeds. Numbers are ave
 
 The Duskblade numbers are from the first pass; its capstones haven't changed since. The first Searing Bloom (a 40% splash, no burn) was up to 13 wins behind, because it does nothing against a lone boss, so it gained the burn.
 
+## Second capstones (roadmap C5, part 2: Bulwark and Lumen)
+
+| Class | Branch | Existing capstone | New capstone |
+|---|---|---|---|
+| Bulwark | Bastion | Unbreakable | **Iron Vigil:** Bastion lasts 10 s instead of 6 |
+| Bulwark | Retribution | Thornwall | **Grudge:** every 4th hit that lands on you, strike every foe within 150 px for 30 plus twice the damage those hits did, and stagger them 0.5 s |
+| Bulwark | Vanguard | Warpath | **Shield Wake:** Charge lands with a shockwave: 50 damage and a 1 s stun within 120 px |
+| Lumen | Dawn | High Noon | **Noonfire:** Sunmotes deal 15% more to elites, rares and bosses |
+| Lumen | Grace | Martyr's Halo | **Haven:** 30% less damage taken inside your own Sanctuary |
+| Lumen | Choir | Choir of Dawn | **Chorus:** every 8th Sunmote strikes its target twice |
+
+Balance: matrix.sh with heroes-r2, 3 heroes per class, 40 seeds, against main at 699d5b7. Numbers are average wins out of 40, old capstones / new.
+
+| | Foundry 6 | Foundry 8 | Glarewell 6 | Glarewell 8 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|---|---|
+| Bulwark | 37.7 / 37.7 | 22.0 / 19.3 | 37.0 / 38.0 | 32.7 / 32.3 | 38.0 / 38.7 | 30.3 / 24.0 |
+| Lumen | 34.3 / 36.3 | 25.7 / 32.0 | 39.7 / 39.7 | 33.0 / 37.7 | 36.0 / 39.3 | 17.7 / 31.3 |
+
+What the numbers show:
+- **Bulwark:** the bot mostly takes Thornwall. With no capstone at all, the bot scores 15.3 at Foundry 8 and 25.7 at Kiln 8. So Thornwall is worth about 5 to 7 wins at tier 8.
+  - Grudge started as a Shield Slam damage stack. Even at +30% a stack it stayed 6 to 8 wins behind, so it now returns the damage you take, like a burst version of Thornwall.
+  - It's still 6 behind at Kiln 8.
+- **Lumen:** with no capstone, the bot scores 17.7 at Kiln 8, exactly the same as with High Noon and Choir of Dawn. So those capstones add nothing there.
+  - Small damage gains swing the Lumen a lot at tier 8. Noonfire at +40% and Chorus on every 4th mote won 38.3 there, so both were cut back.
+  - The old Lumen capstones need a look of their own (watch item for game design).
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.

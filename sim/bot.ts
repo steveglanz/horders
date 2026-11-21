@@ -13,10 +13,10 @@ const PRIORITY: TalentId[] = [
   'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
   // Bulwark
-  'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
+  'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',
   // Lumen
-  'noon', 'choirOfDawn', 'martyrsHalo', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
+  'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
   'renewal', 'lingeringSanctuary', 'blessedGround',
   'smallHeal', 'stoke',
 ];
@@ -582,7 +582,10 @@ export function botInput(w: World, skill = 1): Input {
   return { x: fx / len, y: fy / len, cast };
 }
 
-const NEW_CAPS: TalentId[] = ['cinderTide', 'searingBloom', 'ashenMantle', 'openVeins', 'killingRhythm', 'shadowSlip'];
+const NEW_CAPS: TalentId[] = [
+  'cinderTide', 'searingBloom', 'ashenMantle', 'openVeins', 'killingRhythm', 'shadowSlip',
+  'ironVigil', 'grudge', 'shieldWake', 'noonfire', 'haven', 'chorus',
+];
 const MEASURE_NEW = typeof process !== 'undefined' && !!process.env.NEW_CAPS;
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
