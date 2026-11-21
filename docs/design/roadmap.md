@@ -122,6 +122,15 @@ Every visuals item in Phases 6 and 7 is done. These are gaps found in the code o
 | X3 | **The Wrackline's hub card art:** every other dungeon has a `.dg[data-d=...]` art rule in index.html; the Wrackline has none | visuals | ⏭ Suggested: rafts on dark water with a drain spiral, matching Season 6's palette (season5-6-brief.md) |
 | X4 | **Small fixes:** the Hoard's arena rim falls to the Kiln's orange default (the `rim` chain in GameScene.ts has no `hoard`); the Ysmeret "borrows the Kiln Mother's sheet" comment and fallback are stale now that `ysmeret` has a sheet | visuals | ⏭ One small PR |
 
+### Sound batch S (after Phase 7, game design, 21 Nov 2026)
+Every sound item in Phases 6 and 7 is done (#296, #302, #305). These are gaps found in the code on main at 89c7ab3, most important first.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| S1 | **The Hoard's theme never plays:** `hoard` is in THEMES (music.ts, #296), but GameScene still calls `audio.theme(w.dungeonId === 'crucible' \|\| w.dungeonId === 'hoard' ? 'raid' : w.dungeonId)`, so the Hoard gets the Crucible's raid theme | sound | ⏭ Map only the Crucible to `raid`. A one-line fix; check the chew bed by ear |
+| S2 | **The hub is silent:** hub.ts imports no audio. Brewing a potion, Forge upgrade and temper, salvage, equipping, spending a passive point and claiming a world boss reward all make no sound (main.ts plays only matchmaking and party cues) | sound | ⏭ Short, quiet UI cues; the world boss claim gets the biggest one (an Epic reward). Respect the mute setting and keep them under the hub theme |
+| S3 | **A shadow sting per world boss:** every shadow fight uses the one `worldShadow: 'phaseShadow'` cue (cues.ts), whichever boss is live | sound | ⏭ Pair with visuals X1. Four boss stings keyed by `w.worldBoss`: Grandmother Slag, the Cinder Colossus, Old Coalmouth (can reuse the Hoard's chew) and the Furnace Regent |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
