@@ -404,6 +404,41 @@ export const SOUNDS = {
     boom(40, 0.7, 0.35).map((v) => ({ ...v, delay: 0.38 })),
   ),
 
+  // ---- the Wrackline: Hessa of the Ebb
+  /** The Ebb is coming (3 s warning): the sea draws in, a rising inrush over the water sucking back. */
+  ebbWarn: [
+    { wave: 'noise', f: 0, dur: 2.8, vol: 0.35, a: 2.4, curve: 0.5, lp: 300, lp2: 4500, hp: 200 },
+    { wave: 'tri', f: 220, f2: 110, dur: 2.8, vol: 0.14, a: 1.0, curve: 0.8, vib: [3, 0.03] },
+    { wave: 'sine', f: 600, f2: 1500, dur: 2.6, vol: 0.08, a: 2.0, curve: 0.6 },
+  ],
+  /** The Ebb pulls: a heavy, churning drag toward the drain. */
+  ebbPull: [
+    { wave: 'saw', f: 75, f2: 60, dur: 2.2, vol: 0.3, a: 0.15, lp: 900, trem: [5, 0.5] },
+    { wave: 'saw', f: 150, f2: 120, dur: 2.2, vol: 0.14, a: 0.15, lp: 1800, trem: [5, 0.5] },
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.3, a: 0.1, lp: 1800, lp2: 700, trem: [5, 0.6] },
+  ],
+  /** Sink winds up (2.2 s): a raft's planks groan and bubbles rise under it. */
+  sinkWarn: join(
+    [{ wave: 'saw', f: 180, f2: 120, dur: 1.9, vol: 0.14, a: 0.3, lp: 1400, vib: [2.5, 0.06] }],
+    ...[0.2, 0.5, 0.75, 1.0, 1.2, 1.4, 1.6, 1.75].map((d, k) => [{ wave: 'sine' as const, f: 300 + k * 45, f2: 600 + k * 70, dur: 0.06, delay: d, vol: 0.13, curve: 2 }]),
+  ),
+  /** Sink lands: a raft goes under with a splash and a deep glug. */
+  sink: join(whoosh(3000, 500, 0.5, 0.4), boom(50, 0.7, 0.45), [{ wave: 'sine', f: 400, f2: 120, dur: 0.4, delay: 0.15, vol: 0.2 }]),
+  /** Haul winds up (1.6 s): a hawser creaks taut. */
+  haulWarn: [
+    { wave: 'saw', f: 140, f2: 260, dur: 1.5, vol: 0.14, a: 0.5, lp: 1600, vib: [9, 0.03] },
+    { wave: 'noise', f: 0, dur: 1.5, vol: 0.12, a: 1.0, lp: 2500, hp: 600, trem: [13, 0.7] },
+  ],
+  /** Haul lands: the rope snaps tight, a yank and a thud. */
+  haul: join(whoosh(800, 4000, 0.2, 0.35), [{ wave: 'saw', f: 300, f2: 90, dur: 0.18, vol: 0.2, lp: 2500 }], boom(70, 0.35, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.15 }))),
+  /** Call the Shoal: a hollow conch call, then splashes as Lurkers swim in. */
+  shoalCall: join(
+    horn(note(-17), 0.8, 0.3),
+    ...[0.6, 0.8].map((d) => whoosh(4000, 900, 0.25, 0.25).map((v) => ({ ...v, delay: d }))),
+  ),
+  /** Hessa's phase 2, Riptide: a wave breaks over the harbour under a falling horn. */
+  phaseHessa: join(whoosh(500, 6000, 1.0, 0.45), boom(40, 1.0, 0.5), horn(note(-14), 1.2, 0.3), horn(note(-19), 1.0, 0.28).map((v) => ({ ...v, delay: 0.5 }))),
+
   // ---- the raid: Grandmother Slag
   ladleWarn: [
     { wave: 'sine', f: 180, f2: 90, dur: 1.0, vol: 0.15, a: 0.3, vib: [9, 0.05] },
