@@ -90,13 +90,16 @@ export const INTERRUPT_SLOT = 3;
 
 /** Verb sets share one teal so a set piece reads at a glance; the glyph names the dungeon's verb. */
 export const SET_COLOR = '#5fe0c8';
-export const SET_ICON: Record<SetId, string> = {
+// 'hearthkeeper' (the Coldmarrow's set) is drawn ahead of its sim; once SetId has it, the extra key folds in.
+export const SET_ICON: Record<SetId | 'hearthkeeper', string> = {
   // Kilnbreaker (interrupt): a kiln dome split by a crack.
   kilnbreaker: 'M5 20v-8a7 7 0 0 1 14 0v8Z M3 20h18 M12.5 5l-2 4.5 3 2-2 4.5',
   // Tidewalker (keep moving): two rolling waves.
   tidewalker: 'M2.5 9.5q2.4-3 4.8 0t4.8 0 4.8 0 4.6 0 M2.5 15.5q2.4-3 4.8 0t4.8 0 4.8 0 4.6 0',
   // Glarewarden (step out): a watching eye and a step to the side.
   glarewarden: 'M2 11s3.6-5 9-5 9 5 9 5-3.6 5-9 5-9-5-9-5Z M11 8.8a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z M15 20.5h7 M19.5 18l2.5 2.5-2.5 2.5',
+  // Hearthkeeper (keep the flame): a flame cupped in two hands.
+  hearthkeeper: 'M12 3.5c2.2 2.8 3.6 4.6 3.6 7a3.6 3.6 0 0 1-7.2 0c0-2.4 1.4-4.2 3.6-7Z M12 9.5c.9 1.2 1.4 2 1.4 3a1.4 1.4 0 0 1-2.8 0c0-1 .5-1.8 1.4-3Z M2.5 13.5c2.2 0 3.2 1.2 4.3 3.2s2.8 3.3 5.2 3.3 4.1-1.3 5.2-3.3 2.1-3.2 4.3-3.2',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
