@@ -416,11 +416,15 @@ export const SOUNDS = {
     { wave: 'saw', f: 75, f2: 60, dur: 2.2, vol: 0.3, a: 0.15, lp: 900, trem: [5, 0.5] },
     { wave: 'saw', f: 150, f2: 120, dur: 2.2, vol: 0.14, a: 0.15, lp: 1800, trem: [5, 0.5] },
     { wave: 'noise', f: 0, dur: 2.2, vol: 0.3, a: 0.1, lp: 1800, lp2: 700, trem: [5, 0.6] },
+    // A churning surface hiss on the same tremolo: phone speakers lose the rumble, so this carries the pull (busycheck had it 2.5 dB over a party).
+    { wave: 'noise', f: 0, dur: 2.1, vol: 0.26, a: 0.12, lp: 5000, lp2: 2500, hp: 900, trem: [5, 0.7] },
+    { wave: 'saw', f: 300, f2: 240, dur: 2.1, vol: 0.11, a: 0.2, lp: 2400, trem: [5, 0.5] },
   ],
   /** Sink winds up (2.2 s): a raft's planks groan and bubbles rise under it. */
   sinkWarn: join(
-    [{ wave: 'saw', f: 180, f2: 120, dur: 1.9, vol: 0.14, a: 0.3, lp: 1400, vib: [2.5, 0.06] }],
-    ...[0.2, 0.5, 0.75, 1.0, 1.2, 1.4, 1.6, 1.75].map((d, k) => [{ wave: 'sine' as const, f: 300 + k * 45, f2: 600 + k * 70, dur: 0.06, delay: d, vol: 0.13, curve: 2 }]),
+    [{ wave: 'saw', f: 180, f2: 120, dur: 1.9, vol: 0.14, a: 0.3, lp: 1800, vib: [2.5, 0.06] }],
+    // The bubbles carry the warning on a phone (a busy party masked them at 0.13), so they sit brighter and louder.
+    ...[0.2, 0.5, 0.75, 1.0, 1.2, 1.4, 1.6, 1.75].map((d, k) => [{ wave: 'sine' as const, f: 420 + k * 55, f2: 820 + k * 90, dur: 0.07, delay: d, vol: 0.18, curve: 2 }]),
   ),
   /** Sink lands: a raft goes under with a splash and a deep glug. */
   sink: join(whoosh(3000, 500, 0.5, 0.4), boom(50, 0.7, 0.45), [{ wave: 'sine', f: 400, f2: 120, dur: 0.4, delay: 0.15, vol: 0.2 }]),
@@ -438,6 +442,23 @@ export const SOUNDS = {
   ),
   /** Hessa's phase 2, Riptide: a wave breaks over the harbour under a falling horn. */
   phaseHessa: join(whoosh(500, 6000, 1.0, 0.45), boom(40, 1.0, 0.5), horn(note(-14), 1.2, 0.3), horn(note(-19), 1.0, 0.28).map((v) => ({ ...v, delay: 0.5 }))),
+  // Verb-set procs (sim/content/sets.ts). Short and mid-loud: they reward a habit, so they repeat often.
+  /** Wrackrider: Planted. Two stakes knock into wet timber. */
+  planted: join(
+    [{ wave: 'sine', f: 240, f2: 150, dur: 0.12, vol: 0.2, curve: 3 }, { wave: 'noise', f: 0, dur: 0.03, vol: 0.22, lp: 4000, hp: 600 }],
+    [{ wave: 'sine', f: 300, f2: 180, dur: 0.1, delay: 0.07, vol: 0.16, curve: 3 }, { wave: 'noise', f: 0, dur: 0.025, delay: 0.07, vol: 0.18, lp: 4500, hp: 700 }],
+  ),
+  /** Tidewalker: the 30% surge is ready. A quick rising swell of water. */
+  surgeReady: join(whoosh(700, 5000, 0.28, 0.18), [{ wave: 'sine', f: E5, f2: A5, dur: 0.22, vol: 0.1, a: 0.04, curve: 2 }]),
+  /** Kilnbreaker: an interrupt sharpens you. A whetstone scrape that rings. */
+  sharpen: join([{ wave: 'noise', f: 0, dur: 0.14, vol: 0.16, lp: 9000, hp: 3000, curve: 2 }], clang(1900, 0.18, 0.3).map((v) => ({ ...v, delay: 0.08 }))),
+  /** Glarewarden: stepped out of a marked attack in time. A light sidestep and a teal ping. */
+  dodged: join(whoosh(4500, 1400, 0.16, 0.16), chime(E6, 0.05, 0.14, 0.3)),
+  /** Hearthkeeper: Warmth reaches 5. A low fire swells and two warm notes settle. */
+  warmthFull: join(
+    [{ wave: 'noise', f: 0, dur: 0.45, vol: 0.18, a: 0.15, lp: 2200, hp: 400, trem: [18, 0.5] }],
+    chime(C5, 0.1, 0.16, 0.5), chime(G5, 0.22, 0.14, 0.5),
+  ),
 
   // ---- the raid: Grandmother Slag
   ladleWarn: [

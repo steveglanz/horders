@@ -4,7 +4,7 @@ import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -299,5 +299,32 @@ describe('season hub themes', () => {
     expect(hubThemeFor(SEASONS.length + 1, SEASONS.length)).toBe('hubBellows');
     expect(hubThemeFor(-1, SEASONS.length)).toBe(HUB_BY_SEASON[SEASONS.length - 1] ?? 'hub');
     for (let i = 0; i < SEASONS.length; i++) expect(THEMES[hubThemeFor(i, SEASONS.length)]).toBeDefined();
+  });
+});
+
+describe('verb-set proc cues', () => {
+  const p = { hp: 100, planted: true, surge: true, kbT: 3, warmth: 5 };
+  it('reads each flag only with the pieces that grant it, and never on a dead hero', () => {
+    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false });
+    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true });
+    // Tidewalker's surge and Hearthkeeper's full Warmth are the 3-piece bonuses.
+    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false });
+    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false });
+    expect(setFlagsOf({ ...p, warmth: 4 }, () => 3).warmFull).toBe(false);
+  });
+  it('sounds a proc as it turns on, once', () => {
+    const was = {};
+    const off = { planted: false, surge: false, sharp: false, warmFull: false };
+    expect(setCues(was, off)).toEqual([]);
+    expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
+    expect(setCues(was, { ...off, planted: true })).toEqual([]);
+    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
+    expect(setCues(was, off)).toEqual([]);
+    expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
+    expect(THROTTLE.planted).toBeGreaterThan(0);
+  });
+  it("Glarewarden's dodge has its own sound", () => {
+    expect(cueFor({ type: 'dodge', x: 0, y: 0, healed: 5 }, { cls: 'emberwright', acting: 0 })?.id).toBe('dodged');
+    for (const id of ['planted', 'surgeReady', 'sharpen', 'dodged', 'warmthFull'] as const) expect(SOUNDS[id]).toBeDefined();
   });
 });
