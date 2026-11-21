@@ -17,7 +17,9 @@ because the build is a single file.
 ## Screenshots
 
 The screenshots are too large to keep in the repo (about 2 MB each), so they are
-regenerated on demand. Previews of the current set are in `docs/art/store/`.
+regenerated on demand. Previews of the current set are in `docs/art/store/`; the
+full-size set was last made on 21 Nov 2026 from the build deployed that morning, and
+is in the project files under `horders/visuals/store/v3/`.
 
 `node tools/storeshots.cjs <outDir>` (after `npm run build`) writes:
 
