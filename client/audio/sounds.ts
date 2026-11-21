@@ -286,6 +286,11 @@ export const SOUNDS = {
     { wave: 'sine', f: 400, f2: 120, dur: 0.5, vol: 0.15 },
   ],
   snufferTide: join(whoosh(200, 1500, 0.9, 0.3), [{ wave: 'tri', f: note(-2), f2: note(-7), dur: 0.9, vol: 0.18, a: 0.2, vib: [6, 0.02] }]),
+  /** Frost Lace: a ring of ice knitting itself at your feet, high glassy notes closing in. */
+  frostLace: join(
+    ...[0, 0.09, 0.18, 0.27, 0.36].map((d, k) => chime(note(27 - k * 2), d, 0.16, 0.35)),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.12, a: 0.4, lp: 9000, hp: 3000 }],
+  ),
   /** Ice cracking: Nhevra's phase change. */
   phaseIce: join(
     ...[0, 0.12, 0.2, 0.38].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.4 - k * 0.05, lp: 8000, hp: 1500, curve: 3 }]),

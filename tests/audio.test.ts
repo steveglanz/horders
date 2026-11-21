@@ -174,7 +174,7 @@ describe('audio', () => {
     for (const t of ['ashvents', 'coldmarrow', 'raid'] as const) expect(THEMES[t], t).toBeDefined();
     expect(THEMES.raid.meter).toBe(3);
     expect(THEMES.coldmarrow.coal).toBe(true);
-    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Ladle Pour']) expect(CAST_SOUNDS[name], name).toBeDefined();
+    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Frost Lace', 'Ladle Pour']) expect(CAST_SOUNDS[name], name).toBeDefined();
     expect(phaseSting('grandmotherSlag', 2)).toBe('phaseRaid2');
     expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
     expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
