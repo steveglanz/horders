@@ -48,4 +48,16 @@ describe('Fill with bots', () => {
       for (let k = 0; k < 3; k++) expect(w.heroData(k).runDrops.length).toBe(each);
     }
   });
+
+  it('a bot-filled run keeps only lootShare of its in-run drops; a real party keeps them all', () => {
+    type Keep = { fillKeeps(): boolean };
+    const kept = (fillBots: number) => {
+      const w = new World({ seed: 9, dungeon: 'hammerdeep', omens: [], cls: 'bulwark', party: [{ cls: 'lumen' }], fillBots }) as unknown as Keep;
+      let n = 0;
+      for (let k = 0; k < 2000; k++) if (w.fillKeeps()) n++;
+      return n / 2000;
+    };
+    expect(kept(0)).toBe(1);
+    expect(Math.abs(kept(1) - BOT_FILL.lootShare)).toBeLessThan(0.04);
+  });
 });
