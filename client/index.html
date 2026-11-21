@@ -75,7 +75,12 @@
   .pfn i { display: none; margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.06em; }
   .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
   .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
-  .pf.down { opacity: 0.6; filter: grayscale(0.8); }
+  /* Downed: the name and icon grey out, the bar turns into the revive meter. */
+  .pf.down { border-left-color: #6a5a54; }
+  .pf.down .gtile, .pf.down .pfn b { opacity: 0.55; filter: grayscale(0.85); }
+  .pf.down .pfbar div { background: linear-gradient(90deg, #6fd08a, #d8ffd8); transition: none; }
+  .pf.reviving { border-color: rgba(159,232,168,0.7); box-shadow: 0 0 10px rgba(159,232,168,0.45); }
+  .pf.reviving .pfn i { color: #9fe8a8; }
   .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }
   .buff { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid var(--bc, var(--line)); color: var(--bc, var(--ink)); white-space: nowrap; }
