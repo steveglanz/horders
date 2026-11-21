@@ -7,7 +7,7 @@
  * no Date/Math.random/performance calls in here.
  */
 import { Rng } from './rng';
-import { BOT_FILL } from './content/botfill';
+import { fillLootShare } from './content/botfill';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
@@ -5680,13 +5680,13 @@ export class World {
   }
 
   /**
-   * Fill with bots: bot fills clear faster than solo runs, so only BOT_FILL.lootShare of the
+   * Fill with bots: bot fills clear faster than solo runs, so only fillLootShare(bots) of the
    * in-run drops (clear bags, elite and named drops, quest items) survive. Boss items don't thin.
    */
   private fillKeeps(): boolean {
     if (!this.fillBots) return true;
     this.fillRng ??= new Rng((this.seed ^ 0x66696c6c) >>> 0);
-    return this.fillRng.chance(BOT_FILL.lootShare);
+    return this.fillRng.chance(fillLootShare(this.fillBots));
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {

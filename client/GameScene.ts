@@ -576,12 +576,18 @@ export class GameScene extends Phaser.Scene {
     if (this.workTimes.length > 240) this.workTimes.shift();
   }
 
-  /** Inputs for bot allies in a local party (heroes 1..n). */
-  private botAllies(w: World): Input[] {
+  /** Inputs for bot allies (heroes from..n): a local party from 1, or a co-op host's fill bots after the guests. */
+  private botAllies(w: World, from = 1): Input[] {
     const out: Input[] = [];
-    for (let i = 1; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
+    for (let i = from; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
     w.use(0);
     return out;
+  }
+
+  /** Host: this hero, the guests' inputs, then any fill bots (V7), which the host runs. */
+  private coopInputs(w: World, input: Input): Input[] {
+    const guests = this.coop!.remoteInputs(w);
+    return w.fillBots ? [input, ...guests, ...this.botAllies(w, 1 + guests.length)] : [input, ...guests];
   }
 
   /** Average milliseconds of game code (simulation + scene updates) per frame. */
@@ -611,7 +617,7 @@ export class GameScene extends Phaser.Scene {
         }
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
+        w.step(this.coop ? this.coopInputs(w, input) : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
         this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
@@ -623,8 +629,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.coop?.role === 'host') this.coop.frame(w, this.time.now);
     // A local bot party (?botparty): allies take the bot's card.
-    if (!this.coop && w.state === 'draft') {
-      for (let i = 1; i < w.heroes.length; i++) if (w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
+    // A co-op host picks for its fill bots (V7); guests pick their own.
+    if ((!this.coop || this.coop.role === 'host') && w.state === 'draft') {
+      for (let i = 1; i < w.heroes.length; i++) if ((!this.coop || isBotAlly(w, i)) && w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
     }
     if ((!this.paused || this.coop) && w.state === 'draft') {
       const key = w.player.level * 100 + w.player.pendingLevels;
