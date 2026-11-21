@@ -3,6 +3,7 @@
  * a 24-unit grid, one stroke path, 2.4 stroke, round caps, coloured by currentColor.
  */
 import type { OmenId } from '../sim/content/omens';
+import type { PotionId } from '../sim/content/potions';
 import type { ClassId } from '../sim/content/emberwright';
 
 const FLAME = 'M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-5 1-8Z';
@@ -85,3 +86,13 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
 
 /** Slot 3 (F) is every class's interrupt. */
 export const INTERRUPT_SLOT = 3;
+
+/** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
+export const POTION_ICON: Record<PotionId, { color: string; d: string }> = {
+  // Rising Draught: a round flask with a rising arrow (you get back up).
+  risingDraught: { color: '#ffc861', d: 'M10 3h4 M10.5 3v4.5 M13.5 3v4.5 M10.5 7.5C7 8.8 5 11.5 5 14.5a7 7 0 0 0 14 0c0-3-2-5.7-5.5-7 M12 18.5v-6 M9.5 15 12 12.5l2.5 2.5' },
+  // Stillwater Tonic: a tall vial holding a calm wave (interrupt blue).
+  stillwater: { color: '#8fd8ff', d: 'M9 3h6 M10 3v15.5a2 2 0 0 0 4 0V3 M10 12.5q1-1.2 2 0t2 0' },
+  // Kindling Brew: a conical flask with a flame inside.
+  kindling: { color: '#ff8a3d', d: 'M9.5 3h5 M10.5 3v5L5.5 18.5A1.6 1.6 0 0 0 6.9 21h10.2a1.6 1.6 0 0 0 1.4-2.5L13.5 8V3 M12 12c.6 1.8 2.5 2.6 2.5 4.6a2.5 2.5 0 0 1-5 0c0-1 .6-1.8 1.2-2.4 0 .8.5 1.3 1 1.3 0-1.4 0-2.3.3-3.5Z' },
+};
