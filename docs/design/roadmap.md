@@ -17,7 +17,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | Visuals: replace the placeholder art; skills: add it to the class matrix; engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | Visuals: potion icons and a brewing look in the hub |
-| R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 📝 spec ([group-dungeons.md](group-dungeons.md)) | design | Skills: role kits vs Anvilfall, Slag Grip; engineering: roles in Quick join; visuals: Ondrel sprite, role badges |
+| R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | Skills: role kits vs Anvilfall, Slag Grip; engineering: roles in Quick join; visuals: Ondrel sprite, role badges |
 
 ## R2. The Forge
 
