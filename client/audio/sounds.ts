@@ -216,6 +216,8 @@ export const SOUNDS = {
     chime(G5, 0, 0.26, 0.5), chime(C6, 0.1, 0.26, 0.5), chime(E6, 0.2, 0.26, 0.6), chime(G6, 0.3, 0.3, 1.2),
     [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.3, vol: 0.08, a: 0.2, lp: 11000, hp: 6000 }],
   ),
+  /** A party card taken (Season 2, offered only in a party): two voices answer each other, then ring together. */
+  partyCard: join(chime(E5, 0, 0.18, 0.4), chime(A5, 0.1, 0.18, 0.4), chime(C6, 0.24, 0.16, 0.6), chime(E6, 0.24, 0.14, 0.7)),
   /** A capstone taken: a low anvil ring, then a deep rising horn and a bell, as the branch opens up below. */
   capstone: join(
     clang(note(-9), 0.3, 1.2),

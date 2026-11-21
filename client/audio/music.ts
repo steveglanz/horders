@@ -59,9 +59,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
   ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
   coldmarrow: { root: -3, scale: [0, 2, 3, 7, 8, 12, 14, 15], progression: [0, -4, -2, -5], bpm: 58, drone: 'triangle', droneLp: 600, pluck: 'glass', density: 0.25, bed: 'frost', bedVol: 0.32, heartbeat: true, coal: true, droneAt: -12 },
-  raid: { root: -14, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 72, drone: 'sawtooth', droneLp: 450, pluck: 'brass', density: 0.4, bed: 'slag', bedVol: 0.3, meter: 3, phaseTempo: [1, 1.1, 1.2, 2], floodBed: 2.2 },
+  raid: { root: -14, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 72, drone: 'sawtooth', droneLp: 750, pluck: 'brass', density: 0.4, bed: 'slag', bedVol: 0.3, meter: 3, phaseTempo: [1, 1.1, 1.2, 2], floodBed: 2.2 },
   // The Wrackline: a wrecked, sea-dark harbour. Slow aeolian swell, buoy bells, surf breaking on the pilings.
-  wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'triangle', droneLp: 520, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
+  wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'sawtooth', droneLp: 600, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };

@@ -268,6 +268,7 @@ describe('audio', () => {
     expect(pickCue('bladeStorm')?.id).toBe('capstone');
     expect(pickCue('rivetedPlates')).toBeNull(); // a deep card
     expect(pickCue('stoke')).toBeNull();
+    for (const id of ['leeSide', 'frontMend', 'turnedBack', 'closeWarmth', 'wideShell'] as const) expect(pickCue(id)?.id, id).toBe('partyCard');
     expect(pickCue(undefined)).toBeNull();
   });
 
