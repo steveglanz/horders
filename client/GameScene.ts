@@ -120,6 +120,8 @@ interface FloatText {
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
+/** A hero's sprite sheet. The Emberwright's is the original 'player' sheet; an Anvil Slagbinder wears the slab. */
+const heroTex = (cls: string, stance?: string): string => (cls === 'emberwright' ? 'player' : cls === 'slagbinder' && stance === 'anvil' ? 'slagbinderAnvil' : cls);
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
@@ -372,7 +374,7 @@ export class GameScene extends Phaser.Scene {
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
-    this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
+    this.player = this.add.image(0, 0, heroTex(w.cls, w.heroData(w.acting).player.stance), '0').setScale(BASE).setDepth(6);
     // Co-op: everyone else in the party, with their name over their head and (P6) the title and glow they wear.
     // Looks come from other players' browsers, so they are cleaned again here.
     const looks = this.looks;
@@ -388,7 +390,7 @@ export class GameScene extends Phaser.Scene {
         name,
         mark: bot ? this.add.image(0, 0, 'botMark').setOrigin(1, 0.5).setDepth(9.5).setTint(hex(CLASS_ICON[cls].color)) : undefined,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
-        img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
+        img: this.add.image(0, 0, heroTex(cls, w.heroData(j).player.stance), '0').setScale(BASE).setDepth(5.9),
         label: this.add.text(0, 0, name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.glowImage(ag) : undefined,
