@@ -90,8 +90,7 @@ export const INTERRUPT_SLOT = 3;
 
 /** Verb sets share one teal so a set piece reads at a glance; the glyph names the dungeon's verb. */
 export const SET_COLOR = '#5fe0c8';
-// 'hearthkeeper' (the Coldmarrow's set) is drawn ahead of its sim; once SetId has it, the extra key folds in.
-export const SET_ICON: Record<SetId | 'hearthkeeper', string> = {
+export const SET_ICON: Record<SetId, string> = {
   // Kilnbreaker (interrupt): a kiln dome split by a crack.
   kilnbreaker: 'M5 20v-8a7 7 0 0 1 14 0v8Z M3 20h18 M12.5 5l-2 4.5 3 2-2 4.5',
   // Tidewalker (keep moving): two rolling waves.

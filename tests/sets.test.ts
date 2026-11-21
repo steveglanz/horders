@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World } from '../sim/world';
+import { COLD, COLD_FED_BY, World } from '../sim/world';
 import { loadoutFrom } from '../sim/hero';
 import { Item } from '../sim/content/items';
 import { SETS, SET_TUNING, SetId, setForDungeon } from '../sim/content/sets';
@@ -25,6 +25,7 @@ type Inner = {
   setDamageMult(e: unknown, silent: boolean): number;
   addTelegraph(shape: 'circle', x: number, y: number, r: number, a: number, arc: number, dur: number, dmg: number): void;
   withSet(it: Item): Item;
+  killEnemy(i: number): void;
 };
 const inner = (w: World) => w as unknown as Inner;
 
@@ -33,8 +34,10 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('kiln')).toBe('kilnbreaker');
     expect(setForDungeon('foundry')).toBe('tidewalker');
     expect(setForDungeon('glarewell')).toBe('glarewarden');
+    expect(setForDungeon('coldmarrow')).toBe('hearthkeeper');
+    expect(setForDungeon('hammerdeep')).toBeUndefined();
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(3);
+    expect(Object.keys(SETS)).toHaveLength(4);
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -95,6 +98,51 @@ describe('verb sets (R4)', () => {
       again += w.events.filter((e) => e.type === 'dodge').length;
     }
     expect(again).toBe(0);
+  });
+
+  it('Hearthkeeper: kills build Warmth for damage (2), full Warmth cuts damage taken (3), and it fades', () => {
+    for (const n of [1, 2, 3]) {
+      const w = world(gear('hearthkeeper', n));
+      const i = w.enemies.findIndex((e) => e.alive);
+      for (let k = 0; k < 6; k++) {
+        // The same foe, revived, so the fight around it doesn't change.
+        w.enemies[i].alive = true;
+        w.aliveEnemies++;
+        inner(w).killEnemy(i);
+      }
+      const p = w.player;
+      expect(p.warmth ?? 0).toBe(n >= 2 ? SET_TUNING.hkMax : 0);
+      const e = w.enemies[i];
+      expect(inner(w).setDamageMult(e, true)).toBeCloseTo(n >= 2 ? 1 + SET_TUNING.hkDamage * SET_TUNING.hkMax : 1, 5);
+      p.hp = p.maxHp;
+      inner(w).hurtPlayer(50);
+      expect(p.maxHp - p.hp).toBeCloseTo(n >= 3 ? 50 * (1 - SET_TUNING.hkCut) : 50, 3);
+    }
+    // With no kills, a stack fades every hkFade seconds.
+    const w = world(gear('hearthkeeper', 3));
+    w.player.warmth = 3;
+    w.player.warmT = 0;
+    const t0 = w.time;
+    while (w.time - t0 < SET_TUNING.hkFade + 0.05 && (w.player.warmth ?? 0) === 3) w.step({ x: 0, y: 0 });
+    expect(w.player.warmth).toBe(2);
+    expect(w.time - t0).toBeGreaterThan(SET_TUNING.hkFade - 0.1);
+  });
+
+  it('Hearthkeeper (2) feeds the Hearthcoal 50% more in the Coldmarrow', () => {
+    const fed = (n: number): number => {
+      const w = new World({ seed: 3, dungeon: 'coldmarrow', omens: [], gear: gear('hearthkeeper', n), invulnerable: true });
+      while (w.time < 30 && w.phase !== 'fight') {
+        if (w.state === 'draft') w.choose(0);
+        else w.step({ x: 0, y: 0 });
+      }
+      w.player.coal = 0.5;
+      const i = w.enemies.findIndex((e) => e.alive && COLD_FED_BY.includes(e.kind) && e.kind !== 'snuffer');
+      expect(i).toBeGreaterThanOrEqual(0);
+      inner(w).killEnemy(i);
+      return (w.player.coal ?? 0) - 0.5;
+    };
+    expect(fed(0)).toBeCloseTo(COLD.feed, 5);
+    expect(fed(2)).toBeCloseTo(COLD.feed * (1 + SET_TUNING.hkFeed), 5);
   });
 
   it('a boss item in a set slot can become a piece of that dungeon set, but never in a bounty', () => {

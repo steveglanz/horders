@@ -27,8 +27,24 @@ Soft enrage at 200 s: the Long Night comes twice as often. Burnout (#73) still a
 
 **Deferred to a later pass:**
 - Phase 2: the frozen river cracks into lanes you can't cross.
-- The Hearthkeeper verb set.
 - A co-op check that Long Night pulls a party together.
+
+## The Hearthkeeper set (21 Nov 2026)
+Nhevra's head, hands and trinket drops can be Hearthkeeper pieces, the same way the other solo bosses drop their sets (`withSet`, 60% of set-slot drops, never in bounties). The verb is **keep the flame**: keep killing to stay warm. All numbers are in `SET_TUNING` (`hk*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** each kill adds a Warmth, up to 5. Each one gives +2% damage. Without a kill, one fades every 2 s. In the Coldmarrow, kills also feed your Hearthcoal 50% more.
+- **3 pieces:** at 5 Warmth you take 8% less damage.
+
+Like the other sets, it works in every dungeon. It is strongest in horde fights and weakest against a lone boss, which is the opposite of the Kilnbreaker.
+
+**Measured** with `SET=hearthkeeper` in `tools/foundry.ts`, heroes-r2 hero-t8-0, Coldmarrow tier 10, seeds 1 to 80, on main 7c1c369 or later (with #124). Wins out of 80, full set against none:
+
+| | Emberwright | Duskblade | Bulwark | Lumen |
+|---|---|---|---|---|
+| No set | 57 | 54 | 61 | 51 |
+| Hearthkeeper (3) | 67 | 56 | 68 | 59 |
+
+That is +1 to +5 wins in 40, inside the range the other sets give (2 to 7 in 40, balance.md). The no-set seeds 1 to 40 match the skills team's L7 table (26, 28, 25, 26).
 
 ## Bots
 A ranged bot moves close enough to a Frost Warden that the warden's body is inside its coal's light. The bots already Quench Snuff and Frost Lace through the existing interrupt logic.
