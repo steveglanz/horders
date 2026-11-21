@@ -44,6 +44,8 @@ export interface CueContext {
   swallowLeft?: number;
   /** The Pressworks: this screen's hero is Pressed (Player.pressedT > 0) and must sit out the next Downstroke. */
   pressed?: boolean;
+  /** Slagbinder: this screen's hero's stance ('anvil' tanks behind thick plate, 'bellows' deals damage). */
+  stance?: string;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -200,6 +202,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'playerHurt':
       if (!mine(ev.hero)) return null;
+      // An Anvil Slagbinder's hits land on plate (SLAG_KIT.anvilArmor), so they clank.
+      if (c.cls === 'slagbinder' && c.stance === 'anvil') return ev.amount >= 20 ? { id: 'hurtBigAnvil' } : { id: 'hurtAnvil', jitter: 0.1 };
       return ev.amount >= 20 ? { id: 'hurtBig' } : { id: 'hurt', jitter: 0.1 };
     case 'levelUp': return mine(ev.hero) ? { id: 'levelUp' } : { id: 'levelUp', vol: 0.4 };
     case 'eliteSpawn': return { id: 'eliteSpawn' };

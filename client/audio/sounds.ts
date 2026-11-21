@@ -75,6 +75,17 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.22, vol: 0.45, lp: 2200, lp2: 300 },
     { wave: 'square', f: 260, f2: 120, dur: 0.2, vol: 0.18, lp: 1500 },
   ],
+  /** Slagbinder in the Anvil stance (SLAG_KIT.anvilArmor): a hit lands on thick slag plate, a dull clank instead of a body blow. */
+  hurtAnvil: join(clang(330, 0.34, 0.25), [
+    { wave: 'noise', f: 0, dur: 0.06, vol: 0.38, lp: 2600, hp: 500, curve: 3 },
+    { wave: 'sine', f: 150, f2: 70, dur: 0.12, vol: 0.3 },
+  ]),
+  /** A big hit on the Anvil: the plate rings and the weight goes through it. */
+  hurtBigAnvil: join(clang(220, 0.34, 0.45), [
+    { wave: 'sine', f: 120, f2: 45, dur: 0.3, vol: 0.26 },
+    { wave: 'noise', f: 0, dur: 0.18, vol: 0.38, lp: 2400, lp2: 400, curve: 2 },
+    { wave: 'saw', f: 240, f2: 130, dur: 0.18, vol: 0.12, lp: 1600 },
+  ]),
   heal: [
     { wave: 'sine', f: A5, f2: E6, dur: 0.3, vol: 0.12, a: 0.05, curve: 2 },
     { wave: 'sine', f: E5, dur: 0.3, vol: 0.08, a: 0.06 },
@@ -259,6 +270,10 @@ export const SOUNDS = {
     ]),
     chime(E6, 0.32, 0.16, 0.5),
   ),
+  /** Picking the Anvil stance in the hub: one heavy strike on the anvil. */
+  anvilPick: join(clang(260, 0.2, 0.5), boom(70, 0.25, 0.18)),
+  /** Picking the Bellows stance in the hub: the bellows breathe once and the coals brighten. */
+  bellowsPick: join(whoosh(300, 3200, 0.4, 0.3), chime(E5 * 2, 0.25, 0.12, 0.3)),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
