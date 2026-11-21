@@ -85,6 +85,20 @@ Make it feel finished on a phone.
 | L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | 🔨 Engineering part done: tests/save-migration.test.ts loads every older save shape with nothing lost, and tools/offlinecheck.cjs plays a delve with the cloud refused and keeps the hero across a reload. Real devices still need QA |
 | L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | ✅ #124; tables in /mnt/project-files/horders/skills/balance/l7-lock.md Re-checked with five classes on 21 Nov: all cells pass (the Slagbinder is at most 8.7 below the Emberwright) |
 
+### Phase 6: Live (proposed by game design, 21 Nov 2026)
+Phases 2 to 5 are built, apart from real-device work. Phase 6 keeps every team building toward a game that runs for months: new seasons, more reasons to group, and finishing the Pressworks.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| V1 | **Party quest:** a weekly quest for 2 group wins with another real hero | design | ✅ #266 (weekly-quests.md, "The party quest") |
+| V2 | **Seasons 5 and 6:** new themes, so the rotation doesn't repeat Season 1 from 6 May 2027 (week 2992). Featured dungeons: the Pressworks (group), then the Wrackline (solo) | design | ⏭ Names checked first |
+| V3 | **Pressworks content QA:** the soft-lock check, and a co-op sweep with a guest dropping during a Downstroke | QA | ⏭ tools/contentcheck.ts, tools/coopsweep.cjs |
+| V4 | **Talent branch traps:** the Emberwright's Ashguard and the Slagbinder's Crust can't finish a boss | skills | 🔨 Fix agreed with design: enough damage to finish, still defensive |
+| V5 | **Season 3 key art and colours** | visuals | ⏭ Brief: /mnt/project-files/horders/design/season3-cold-hearth-brief.md |
+| V6 | **Season 3 hub theme**, and a cue for the Relayer buff (`Player.relayT`) | sound | ⏭ |
+| V7 | **Bots in online co-op:** 2 or 3 real heroes top up with bots, under the bot-fill limits | engineering + design | 💡 Needs the host to run bots (botfill.md, Open) |
+| V8 | **Daily bounty leaderboard** by clear time | engineering | 💡 From R7 |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
