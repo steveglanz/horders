@@ -55,6 +55,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   boss('boss:wrackline', 'wrackline', 'Ebbproof', 'Hessa of the Ebb in the Wrackline', 'the Ebbproof'),
   boss('boss:hammerdeep', 'hammerdeep', 'Anvilbreaker', 'Ondrel in the Hammerdeep', 'Anvilbreaker'),
   boss('boss:ashvents', 'ashvents', 'Twice-Burned', 'Ysmeret in the Ashvents', 'Twice-Burned'),
+  boss('boss:pressworks', 'pressworks', 'Pressbreaker', 'Oskel in the Pressworks', 'Pressbreaker'),
   boss('boss:crucible', 'crucible', 'Slagbane', 'Grandmother Slag in the Crucible', 'Slagbane', T.big),
   {
     id: 'classes', name: 'Many Hands', text: 'Win a delve with every class.', title: 'the Many-Handed', embers: T.big,

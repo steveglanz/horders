@@ -372,6 +372,8 @@ export interface Player {
   /** P1 weekly quests: casts this hero interrupted this run. */
   interrupts?: number;
   sunderT?: number;
+  /** Relay (verb set): seconds left of the damage bonus from a soak. */
+  relayT?: number;
   /** The Pressworks: seconds left Pressed after taking a Downstroke (a Pressed hero can't take the next one). */
   pressedT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
@@ -4341,6 +4343,7 @@ export class World {
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
     if ((p.bondT ?? 0) > 0) m *= 1 + SET_TUNING.knBond;
+    if ((p.relayT ?? 0) > 0) m *= 1 + SET_TUNING.rlDamage;
     if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
@@ -4358,6 +4361,7 @@ export class World {
     if ((p.gwT ?? 0) > 0) p.gwT = (p.gwT ?? 0) - dt;
     if ((p.coverT ?? 0) > 0) p.coverT = (p.coverT ?? 0) - dt;
     if ((p.bondT ?? 0) > 0) p.bondT = (p.bondT ?? 0) - dt;
+    if ((p.relayT ?? 0) > 0) p.relayT = (p.relayT ?? 0) - dt;
     if ((p.warmth ?? 0) > 0) {
       p.warmT = (p.warmT ?? 0) + dt;
       if (p.warmT >= SET_TUNING.hkFade) { p.warmT -= SET_TUNING.hkFade; p.warmth = (p.warmth ?? 0) - 1; }
@@ -5174,11 +5178,11 @@ export class World {
 
   /**
    * A Downstroke lands: who is under it, who counts, and the crush on any Pressed hero.
-   * Returns whether it was taken (at least one hero who wasn't Pressed stood under it).
+   * Returns the heroes who took it (stood under it without being Pressed); none means it was missed.
    */
-  private resolveDownstroke(t: Telegraph): boolean {
+  private resolveDownstroke(t: Telegraph): number[] {
     const at = this.acting;
-    let ok = false;
+    const took: number[] = [];
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.hp <= 0 || dist2(q.x, q.y, t.x, t.y) > (t.r + PLAYER_RADIUS) ** 2) continue;
@@ -5187,12 +5191,46 @@ export class World {
         this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true);
         this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
       } else {
-        ok = true;
+        took.push(k);
         q.pressedT = OSKEL.pressed;
       }
     }
     this.use(at);
-    return ok;
+    return took;
+  }
+
+  /** The heroes standing in a gold circle as it lands (the Downstroke has its own rule). */
+  private soakers(t: Telegraph): number[] {
+    if (t.owner === -3) return this.resolveDownstroke(t);
+    const out: number[] = [];
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) out.push(k);
+    }
+    return out;
+  }
+
+  /** Relay (verb set): a soaker with 2 pieces deals more damage for a while; with 3, so does the nearest ally. */
+  private relaySoak(took: number[]): void {
+    const at = this.acting;
+    for (const k of took) {
+      this.use(k);
+      const n = this.setCount('relay');
+      if (n < 2) continue;
+      const q = this.player;
+      q.relayT = SET_TUNING.rlTime;
+      if (n < 3) continue;
+      let best = -1;
+      let bd = Infinity;
+      for (let j = 0; j < this.heroes.length; j++) {
+        const o = this.heroPlayer(j);
+        if (j === k || o.hp <= 0) continue;
+        const d = dist2(o.x, o.y, q.x, q.y);
+        if (d < bd) { bd = d; best = j; }
+      }
+      if (best >= 0) this.heroPlayer(best).relayT = SET_TUNING.rlTime;
+    }
+    this.use(at);
   }
 
   // ---------------------------------------------------------------- the raid
@@ -5512,7 +5550,9 @@ export class World {
       if (t.t < t.dur) continue;
       t.alive = false;
       if (t.kind === 'soak') {
-        const ok = t.owner === -3 ? this.resolveDownstroke(t) : dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
+        const took = this.soakers(t);
+        const ok = took.length > 0;
+        this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
         // Ventwalker (3): standing in the gold circle heals.
         if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
@@ -5564,9 +5604,9 @@ export class World {
       if (t.t < t.dur) continue;
       t.alive = false;
       if (t.kind === 'soak') {
-        let ok = false;
-        if (t.owner === -3) ok = this.resolveDownstroke(t);
-        else for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
+        const took = this.soakers(t);
+        const ok = took.length > 0;
+        this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {

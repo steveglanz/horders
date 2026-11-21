@@ -158,7 +158,23 @@ The HUD shows a red "Pressed 12s" chip while it lasts. The banners say "Downstro
 
 **Reuses:** the trash comes from existing families (warpack, glass, wardens; named anvilguard and bellwarden), so the boss is the only new art. Visuals drew it on this branch (sprite, plate, rivets, Stamp die, Pressed mark, floor and card). Sound needs a theme and cues for `downstroke`, `rivets` and `stamp`.
 
-**Follow-ups:** a verb set for the Pressworks ("take turns") and a boss achievement, each with a name check.
+**Its verb set, the Relayer ("take turns", `SETS.relay`).** Oskel drops it like the other dungeon sets. With 2 pieces, a hero who stands in a gold circle when it lands gets **8% more damage for 12s** (`SET_TUNING.rlDamage`, `rlTime`). With 3, the nearest living ally gets it too. It counts a Downstroke you took (Pressed or crushed) and the Ashvents' and the raid's gold circles, so it rewards whoever takes the soak, which in the Pressworks is a different hero each time. The HUD shows a "Relayer +8%" chip.
+
+Measured with `tools/group.ts`, every hero in all 3 pieces against no set, 40 seeds, each hero in its heroes-r2 hero-t8-0 file:
+
+| | No set | Relayer |
+|---|---|---|
+| Pressworks tier 10 | 27 | 28 |
+| Pressworks tier 11 | 6 | 7 |
+| Pressworks duo (Bulwark, Lumen) tier 9 | 11 | 12 |
+| Ashvents tier 8 | 29 | 32 |
+| Crucible tier 8 | 27 | 27 |
+
+The gain is small in the Pressworks because Stamp, not damage, decides most losses there. 10% for 13s did no better in the Pressworks (28 at tier 10, 8 at tier 11) and the same in the Ashvents, so I kept the smaller number. The set is a reward for playing the fight well, not a key to it.
+
+**Its achievement, Pressbreaker:** beat Oskel in the Pressworks, for the title Pressbreaker and 40 embers, like the other group bosses (achievements.md).
+
+**Names (21 Nov 2026):** "Relayer" and "Pressbreaker" have no WoW or Azeroth Survivors matches in web searches. "Relay" only shows up inside WoW item and addon names (for example the Gnomish Relay addon on CurseForge), not as a game name of its own. The set is named Relayer, not Relay, so its collection title reads "the Relayer".
 
 **Names:** every new name was searched on wowhead.com, warcraft.wiki.gg, wowpedia and wowsurvivors.com on 21 Nov 2026. "Pressworks", "Oskel" and "Downstroke" have no WoW matches. The only "Downstroke" hit is a Wowhead forum thread title, not a game name. "Rivets", "Stamp" and "Pressed" are plain words. None of them is used elsewhere in the game.
 

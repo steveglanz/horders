@@ -153,6 +153,8 @@ export const SET_ICON: Record<SetId, string> = {
   // Kinbound (cover each other): two arrows turning round a heal, each hero covering the other in turn.
   // (Linked rings read as a chain or a link icon.)
   kinbound: 'M12 3.5a8.5 8.5 0 0 1 7.4 4.3 M17.3 9.6l3.6.4.4-3.6 M12 20.5a8.5 8.5 0 0 1-7.4-4.3 M6.7 14.4l-3.6-.4-.4 3.6 M12 9v6 M9 12h6',
+  // Relay (take turns): placeholder until visuals draws one. Two arrows passing in a circle.
+  relay: 'M4 12a8 8 0 0 1 14.5-4.6 M18.5 3.5v4h-4 M20 12a8 8 0 0 1-14.5 4.6 M5.5 20.5v-4h4',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
@@ -263,6 +265,8 @@ export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
   // Slagbane: Grandmother Slag's crucible, still steaming.
   'boss:crucible': { color: '#ff9b4a', d: 'M3.5 9.5h17 M5 9.5l1.4 8.7a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.8L19 9.5 M9 6.5c0-1.4 1.6-1.6 1.6-3.5 M13.5 6.5c0-1.4 1.6-1.6 1.6-3.5 M9.5 14h5' },
   // The Wrackline (Ebbproof): Hessa's drain, a whirlpool over a wave. Seafoam, so it stays clear of the Foundry's blue.
+  // Pressbreaker: a press plate split down the middle (placeholder until visuals draws one).
+  'boss:pressworks': { color: '#c8c27a', d: 'M4 6h16v4H4Z M7 10v4 M17 10v4 M3 18h18 M12 6l-1.5 2 1.5 2-1.5 2' },
   'boss:wrackline': { color: '#6fe0b0', d: 'M12 12.5a1.6 1.6 0 1 1 3.2 0a3.8 3.8 0 0 1-7.6 0a6 6 0 0 1 12 0 M3 20.5q2.25-2 4.5 0t4.5 0 4.5 0 4.5 0' },
   // Many Hands: five heroes joined in a ring.
   classes: { color: '#e8d9a8', d: 'M12 5 18.7 9.8 16.1 17.7H7.9L5.3 9.8Z M12 3.6v.01 M20 9.4v.01 M17 19v.01 M7 19v.01 M4 9.4v.01' },
