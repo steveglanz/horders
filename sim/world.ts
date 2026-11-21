@@ -3500,7 +3500,6 @@ export function xpFor(level: number): number {
 
 export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
-/** Drowned Foundry tuning. */
 /** First tier whose first clear guarantees an Epic from the boss. */
 export const FIRST_CLEAR_EPIC_TIER = 2;
 
@@ -3541,6 +3540,7 @@ export const GLARE = {
   sweepDamage: 26,
 };
 
+/** Drowned Foundry tuning. */
 export const FOUNDRY = {
   mirrorCast: 2,
   mirrorTime: 3,
