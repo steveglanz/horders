@@ -232,10 +232,20 @@
 
   /* Title backdrop: the buried forge's great furnace arch, with embers rising. */
   #title { isolation: isolate; }
-  .backdrop { position: absolute; left: 0; right: 0; top: 0; height: min(46vh, 380px); opacity: 0.85; z-index: -1; overflow: hidden; pointer-events: none; }
+  .backdrop { position: absolute; left: 0; right: 0; top: 0; height: min(46vh, 380px); opacity: 0.85; z-index: -1; overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(#000 72%, transparent); mask-image: linear-gradient(#000 72%, transparent); }
+  /* The mask: on wide screens the arch is cropped above its own floor fade, which left a hard step where the backdrop ends. */
   .backdrop svg { width: 100%; height: 100%; display: block; }
-  .backdrop i { position: absolute; left: var(--x); bottom: 12%; width: 4px; height: 4px; border-radius: 50%; background: #ffc861; box-shadow: 0 0 8px 2px rgba(255,138,61,0.8); opacity: 0; animation: bdEmber var(--d) linear var(--t) infinite; }
-  @keyframes bdEmber { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--dx, 0px), -60vh); opacity: 0; } }
+  .backdrop i { position: absolute; left: var(--x); bottom: var(--b, 12%); width: var(--s, 4px); height: var(--s, 4px); border-radius: 50%; background: #ffc861; box-shadow: 0 0 8px 2px rgba(255,138,61,0.8); opacity: 0; animation: bdEmber var(--d) linear var(--t) infinite; }
+  /* Smaller, deeper-orange sparks from the side forges, so the margins beside the cards drift too. */
+  .backdrop i.s { background: #ff9a4a; box-shadow: 0 0 6px 1px rgba(255,110,40,0.75); }
+  @keyframes bdEmber { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(calc(var(--dx, 0px) * -0.5), -30vh); } 100% { transform: translate(var(--dx, 0px), -60vh); opacity: 0; } }
+  /* The furnace breathes: a warm glow behind the name, over the furnace mouth and up the side walls swells and settles.
+     The name and the side margins are what the hub's cards leave uncovered. Only opacity animates. */
+  .backdrop .breath { position: absolute; inset: 0; background: radial-gradient(ellipse 30% 34% at 50% 14%, rgba(255,140,60,0.42), rgba(255,100,40,0.12) 60%, transparent 85%), radial-gradient(ellipse 34% 46% at 50% 82%, rgba(255,150,70,0.5), rgba(255,100,40,0.18) 55%, transparent 80%), radial-gradient(ellipse 9% 42% at 4% 48%, rgba(255,120,50,0.4), transparent 80%), radial-gradient(ellipse 9% 42% at 96% 48%, rgba(255,120,50,0.4), transparent 80%); -webkit-mask-image: linear-gradient(#000 45%, transparent 98%); mask-image: linear-gradient(#000 45%, transparent 98%); opacity: 0.35; animation: bdBreath 5.2s ease-in-out infinite alternate; }
+  @keyframes bdBreath { 0% { opacity: 0.3; } 55% { opacity: 0.85; } 70% { opacity: 0.7; } 100% { opacity: 0.95; } }
+  /* Battery saver: a still glow and three embers. */
+  body.saver .backdrop .breath { animation: none; opacity: 0.6; }
+  body.saver .backdrop i:nth-of-type(n+4) { display: none; }
   .hub { position: relative; }
   #title .box, #title .cls, #title .pot, #title .tierrow { background-color: var(--card-solid); backdrop-filter: blur(2px); }
   /* Title & hub. */
@@ -1154,7 +1164,9 @@
       <path d="M540 392 H660 L648 376 H700 Q700 360 680 356 H520 Q500 360 500 376 H552Z" fill="#0b0605"/>
       <rect width="1200" height="420" fill="url(#bdFade)"/>
     </svg>
+    <div class="breath"></div>
     <i style="--x:46%;--dx:-20px;--d:7s;--t:0s"></i><i style="--x:52%;--dx:14px;--d:9s;--t:2s"></i><i style="--x:57%;--dx:30px;--d:8s;--t:4s"></i><i style="--x:41%;--dx:-36px;--d:10s;--t:1s"></i><i style="--x:61%;--dx:22px;--d:11s;--t:3s"></i><i style="--x:49%;--dx:-8px;--d:12s;--t:6s"></i>
+    <i class="s" style="--x:5%;--b:6%;--s:3px;--dx:18px;--d:9s;--t:1.5s"></i><i class="s" style="--x:95%;--b:6%;--s:3px;--dx:-16px;--d:10s;--t:4.5s"></i><i class="s" style="--x:7%;--b:4%;--s:2px;--dx:-12px;--d:11s;--t:7s"></i><i class="s" style="--x:93%;--b:4%;--s:2px;--dx:10px;--d:8s;--t:2.5s"></i><i class="s" style="--x:54%;--s:2px;--dx:-26px;--d:9.5s;--t:5s"></i><i class="s" style="--x:44%;--s:3px;--dx:24px;--d:10.5s;--t:8s"></i>
   </div>
   <div class="hub">
     <header class="hub-top">
