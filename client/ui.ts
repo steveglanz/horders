@@ -137,7 +137,7 @@ export class Hud {
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
-    $('heatText').textContent = `${Math.floor(p.heat)} ${w.classDef.resource}`;
+    $('heatText').innerHTML = `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`;
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
       // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
@@ -291,6 +291,7 @@ export class Hud {
     if (!w.choices.length) {
       // Co-op: you've picked; the run resumes when the rest of the party has.
       cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to pick their talents.</div>';
+      $('draftLevel').textContent = 'Level up';
       $('draftTitle').textContent = 'Waiting for your party';
       $('draft').hidden = false;
       return;
@@ -307,11 +308,12 @@ export class Hud {
         progress = `<div class="progress">${BRANCH_NAMES[def.branch]} ${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
+      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       cards.appendChild(btn);
     });
-    $('draftTitle').textContent = w.player.pendingLevels > 1 ? `Level up! (${w.player.pendingLevels} picks)` : 'Level up!';
+    $('draftLevel').textContent = `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
+    $('draftTitle').textContent = 'Choose a talent';
     $('draft').hidden = false;
   }
 

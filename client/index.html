@@ -318,6 +318,28 @@
   .bag-foot { text-align: center; }
   .bag-foot .primary { margin: 0; min-width: 200px; }
 
+
+  /* In-run HUD and talent draft: design system screens 04 and 05. */
+  .lvl { border-color: var(--gold); color: var(--gold); font-family: var(--serif); font-size: 18px; box-shadow: 0 0 12px rgba(255,200,97,0.25); }
+  #target { background: var(--panel); border-radius: 14px; padding: 8px 12px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+  #target .tname { font-size: 16px; font-weight: 600; }
+  #tTitle { color: var(--gold); font-weight: 700; font-size: 10px; letter-spacing: 0.14em; }
+  #target .bar { height: 10px; margin-top: 6px; }
+  #tCast { height: 18px; border-radius: 6px; }
+  #heat { height: 6px; margin-top: 16px; overflow: visible; border: 0; background: rgba(0,0,0,0.55); border-radius: 3px; }
+  #heatFill { border-radius: 3px; }
+  #heatText { inset: auto 0 9px 0; display: flex; justify-content: space-between; place-items: initial; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ember); }
+  #heatText b { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  #quests .q.now { display: inline-block; padding: 5px 10px; border-radius: 10px; background: rgba(28,18,16,0.85); border: 1px solid var(--line); }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--xp); }
+  #draft h2 { font-size: clamp(26px, 6vw, 34px); margin-top: 4px; text-shadow: none; }
+  #draft .panel { background: radial-gradient(ellipse at top, rgba(79,227,193,0.08), transparent 55%), var(--panel); }
+  .card { border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, var(--branch) 10%, transparent), rgba(0,0,0,0.3) 60%); border-top-width: 3px; }
+  .card .branch { font-weight: 700; letter-spacing: 0.14em; display: flex; justify-content: space-between; gap: 6px; padding-right: 18px; }
+  .card .cap { color: var(--gold); }
+  .card .name { font-weight: 600; font-size: 20px; }
+  .card .text { color: var(--muted); }
+  .card .text, .card .rank { line-height: 1.4; }
   @media (min-width: 900px) {
     .hub-grid { grid-template-columns: minmax(340px, 420px) 1fr; }
     .hub-foot { display: flex; justify-content: flex-end; }
@@ -418,8 +440,9 @@
 
 <div id="draft" class="overlay" hidden>
   <div class="panel">
-    <h2 id="draftTitle">Level up!</h2>
-    <div class="muted">Choose a talent (tap, or press 1, 2 or 3)</div>
+    <div class="eyebrow" id="draftLevel">Level up</div>
+    <h2 id="draftTitle">Choose a talent</h2>
+    <div class="muted small">Tap a card, or press 1, 2 or 3</div>
     <div id="cards"></div>
   </div>
 </div>
