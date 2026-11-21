@@ -1030,6 +1030,9 @@ export class GameScene extends Phaser.Scene {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
+          } else if (w.dungeonId === 'hoard') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows an ally. Everyone else: break the Craw at his side');
+            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
