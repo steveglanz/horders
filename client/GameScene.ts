@@ -44,6 +44,8 @@ interface FloatText {
 
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
+/** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
+const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /** Short-lived vector effects drawn with Graphics (ability shapes, beams). */
@@ -189,6 +191,8 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
+    // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
+    if (w.dungeonId === 'glarewell') this.ground.setTint(0xa49ccc);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -763,7 +767,9 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'rift') s.setRotation(now / 900);
       else s.setRotation(e.stunT > 0 ? Math.sin(now / 60) * 0.15 : 0);
       if (!cheap && e.burnT > 0 && Math.random() < 0.03) this.spark(x + (Math.random() - 0.5) * r, y - r * 0.5, 0, -50, 0.5, 1.4);
-      if (e.flash > 0) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      // Hit flash: small foes blink solid white; bosses and rares brighten instead, so a
+      // big boss being hit nonstop never turns into a white silhouette.
+      if (e.flash > 0) s.setTint(idleRank(e) ? 0x6a5a4a : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'worldShadow') s.setTint(0x8a6cff).setTintMode(Phaser.TintModes.MULTIPLY);

@@ -9,11 +9,12 @@ const out = process.argv[2] || 'tools/shots/artsheet.png';
   await page.goto('file://' + path.resolve('dist/index.html') + '?seed=1&god=1');
   await page.click('#startBtn');
   await page.waitForFunction(() => window.__ember.scene() && window.__ember.scene().textures.exists('player'));
-  const imgs = await page.evaluate(() => {
+  const only = process.env.KEYS ? process.env.KEYS.split(',') : null;
+  const imgs = await page.evaluate((only) => {
     const tm = window.__ember.scene().textures;
-    const keys = ['slagCrone', 'player', 'duskblade', 'lumen', 'bulwark', 'gate', 'portal', 'ashling', 'cinderhound', 'husk', 'cinderBrute', 'ashmaw', 'acolyte', 'kilnMother', 'glassWarden', 'emberTwin', 'emberTwinB', 'sluiceCrawler', 'maelra', 'vent', 'steam', 'water', 'rift', 'vein', 'loot', 'gem', 'bolt', 'hitstar', 'puff', 'ring', 'ground'];
+    const keys = only || ['slagCrone', 'lensbearer', 'shade', 'brandkeeper', 'twinLamp', 'lensmother', 'pillar', 'player', 'duskblade', 'lumen', 'bulwark', 'gate', 'portal', 'ashling', 'cinderhound', 'husk', 'cinderBrute', 'ashmaw', 'acolyte', 'kilnMother', 'glassWarden', 'emberTwin', 'emberTwinB', 'sluiceCrawler', 'maelra', 'vent', 'steam', 'water', 'rift', 'vein', 'loot', 'gem', 'bolt', 'hitstar', 'puff', 'ring', 'ground'];
     return keys.filter((k) => tm.exists(k)).map((k) => ({ k, src: tm.get(k).getSourceImage().toDataURL() }));
-  });
+  }, only);
   const html = `<body style="margin:0;background:#18100e;color:#d9c3b0;font:12px system-ui;padding:16px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">${imgs
     .map((i) => `<figure style="margin:0;text-align:center"><img src="${i.src}" style="image-rendering:auto;max-width:${i.k === 'ground' ? 256 : 1240}px"><figcaption>${i.k}</figcaption></figure>`)
     .join('')}</body>`;

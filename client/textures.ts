@@ -1045,174 +1045,302 @@ function drawWater(ctx: Ctx, s: number): void {
 
 // ------------------------------------------------------------------ the Glarewell
 // A sunken observatory: pale gold light that burns, indigo shadow that hides
-// you, and Shades living in that shadow.
+// you, and Shades living in that shadow. Light always falls from above (the
+// great lens), so every Glarewell creature gets a warm gold rim on top and
+// cool indigo below.
 
-/** Lensbearer: a hunched keeper in indigo robes, holding up a great brass lens. Faces right. */
-function drawLensbearer(ctx: Ctx, _s: number, f: number): void {
-  const bob = [0, -1, 0, -1][f];
-  const step = [1, 0, -1, 0][f];
-  ctx.fillStyle = '#1c1830';
-  ell(ctx, 22 + step * 2, 50, 4, 2); ctx.fill();
-  ell(ctx, 32 - step * 2, 50, 4, 2); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(27, 14 + bob);
-  ctx.quadraticCurveTo(39, 24, 40, 50);
-  ctx.quadraticCurveTo(27, 53, 14, 50);
-  ctx.quadraticCurveTo(15, 24, 27, 14 + bob);
-  ctx.closePath();
-  shade(ctx, '#4a4478', '#1a1630', 14, 52);
-  ell(ctx, 26, 15 + bob, 6, 6);
-  shade(ctx, '#3c3866', '#16132a', 9, 21);
-  eyes(ctx, [[27.5, 15.5 + bob], [30.5, 15.5 + bob]], 0.9, '#ffe9a8');
-  // The lens: a brass ring on a pole, glass catching the light.
-  limb(ctx, 36, 28 + bob, 44, 14 + bob, 2.4, '#b88a3a');
-  softGlow(ctx, 45, 12 + bob, 11, 'rgba(255,230,150,0.75)');
-  ell(ctx, 45, 12 + bob, 6.5, 6.5);
-  shade(ctx, '#fff6d0', '#e0b85a', 6, 18, 1.6);
+/** A thin gold rim light along the top of the current path. */
+function rimLight(ctx: Ctx, y0: number, y1: number, color = 'rgba(255,226,150,0.85)', w = 1.2): void {
   ctx.save();
-  ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 1.6;
-  ell(ctx, 45, 12 + bob, 6.5, 6.5); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ell(ctx, 43, 10 + bob, 1.6, 1); ctx.fill();
+  ctx.clip();
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(255,226,150,0)');
+  ctx.strokeStyle = g;
+  ctx.lineWidth = w * 2.4;
+  ctx.stroke();
   ctx.restore();
 }
 
-/** Shade: a wisp of living shadow with two cold eyes. Faces right. */
-function drawShade(ctx: Ctx, _s: number, f: number): void {
-  const w = [0, 1, 0, -1][f];
-  softGlow(ctx, 18, 18, 17, 'rgba(40,30,90,0.55)');
-  ctx.beginPath();
-  ctx.moveTo(18, 4);
-  ctx.quadraticCurveTo(30, 8, 29, 20);
-  ctx.quadraticCurveTo(28 + w, 28, 24 - w, 33);
-  ctx.quadraticCurveTo(21, 28, 18, 32 + w);
-  ctx.quadraticCurveTo(15, 28, 12 + w, 33);
-  ctx.quadraticCurveTo(8, 26, 7, 20);
-  ctx.quadraticCurveTo(6, 8, 18, 4);
-  ctx.closePath();
-  shade(ctx, '#2c2650', '#0a0818', 4, 33, 1.2);
-  eyes(ctx, [[19, 15], [24, 15]], 1.3, '#a8c8ff');
+/** The sun-eye sigil of the Glarewell's keepers: a ring, a pupil and six short rays. */
+function sunEye(ctx: Ctx, x: number, y: number, r: number, color: string, w = 1.2): void {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.shadowColor = color; ctx.shadowBlur = r;
+  ell(ctx, x, y, r, r * 0.62); ctx.stroke();
+  ell(ctx, x, y, r * 0.3, r * 0.3); ctx.fill();
+  for (let k = 0; k < 6; k++) {
+    const a = -Math.PI / 2 + (k - 2.5) * 0.42;
+    ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r * 1.15, y + Math.sin(a) * r * 0.95); ctx.lineTo(x + Math.cos(a) * r * 1.6, y + Math.sin(a) * r * 1.35); ctx.stroke();
+  }
+  ctx.restore();
 }
 
-/** Brandkeeper: a tall figure with a glowing gold sigil burned into its chest. Faces right. */
+/** A brass-ringed lens with a highlight. */
+function lens(ctx: Ctx, x: number, y: number, r: number, ring = 1.6): void {
+  softGlow(ctx, x, y, r * 1.9, 'rgba(255,232,160,0.7)');
+  ell(ctx, x, y, r, r);
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, '#fffdf2'); g.addColorStop(0.55, '#fde6a4'); g.addColorStop(1, '#d9a64a');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save();
+  ctx.lineWidth = ring + 1.4; ctx.strokeStyle = INK; ctx.stroke();
+  ctx.lineWidth = ring; ctx.strokeStyle = '#a8792e'; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ell(ctx, x - r * 0.35, y - r * 0.38, r * 0.28, r * 0.16, -0.5); ctx.fill();
+  ctx.restore();
+}
+
+/** Lensbearer: a hooded keeper in indigo robes, raising a brass lens on a staff. Faces right. */
+function drawLensbearer(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const step = [1, 0, -1, 0][f];
+  ctx.fillStyle = '#141024';
+  ell(ctx, 21 + step * 2, 50, 4.2, 2); ctx.fill();
+  ell(ctx, 31 - step * 2, 50, 4.2, 2); ctx.fill();
+  // Robe, flaring at the hem.
+  ctx.beginPath();
+  ctx.moveTo(26, 15 + bob);
+  ctx.quadraticCurveTo(37, 22, 39, 49);
+  ctx.quadraticCurveTo(33, 52, 26, 50.5);
+  ctx.quadraticCurveTo(19, 52, 13, 49);
+  ctx.quadraticCurveTo(15, 22, 26, 15 + bob);
+  ctx.closePath();
+  shade(ctx, '#4e4888', '#16122c', 15, 52);
+  rimLight(ctx, 15 + bob, 30);
+  // Gold-stitched hem and a centre seam.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(232,188,96,0.85)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(14, 47.5); ctx.quadraticCurveTo(19, 50, 26, 49); ctx.quadraticCurveTo(33, 50, 38, 47.5); ctx.stroke();
+  ctx.strokeStyle = 'rgba(20,14,40,0.6)';
+  ctx.beginPath(); ctx.moveTo(27, 26 + bob); ctx.quadraticCurveTo(28, 38, 27, 49); ctx.stroke();
+  ctx.restore();
+  // Hood with a deep shadowed opening.
+  ctx.beginPath();
+  ctx.moveTo(19, 22 + bob); ctx.quadraticCurveTo(18, 9 + bob, 27, 8 + bob); ctx.quadraticCurveTo(35, 9 + bob, 34, 21 + bob); ctx.quadraticCurveTo(27, 24 + bob, 19, 22 + bob);
+  ctx.closePath();
+  shade(ctx, '#5a54a0', '#221c46', 8, 24);
+  rimLight(ctx, 8 + bob, 16);
+  ell(ctx, 28.5, 16.5 + bob, 4.2, 4.6); ctx.fillStyle = '#0a0816'; ctx.fill();
+  eyes(ctx, [[28.5, 16.5 + bob], [31, 16.5 + bob]], 0.9, '#ffe9a8');
+  // Staff and lens; the lens casts a few rays downward.
+  limb(ctx, 35, 40 + bob, 44, 16 + bob, 2.2, '#b98b3c');
+  limb(ctx, 34, 29 + bob, 38, 27 + bob, 3, '#3a3470');
+  ctx.save();
+  ctx.globalAlpha = 0.35; ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+  for (const [dx, dy] of [[-5, 12], [0, 14], [5, 12]]) { ctx.beginPath(); ctx.moveTo(45, 18 + bob); ctx.lineTo(45 + dx, 18 + bob + dy); ctx.stroke(); }
+  ctx.restore();
+  lens(ctx, 45, 11 + bob, 6.2);
+}
+
+/** Shade: a wisp of living shadow with a trailing tail and two cold eyes. Faces right. */
+function drawShade(ctx: Ctx, _s: number, f: number): void {
+  const w = [0, 1.2, 0, -1.2][f];
+  softGlow(ctx, 19, 17, 17, 'rgba(60,40,140,0.5)');
+  // Tail: three tapering streamers drifting behind (to the left).
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const [y, a, ww] of [[16, 0.55, 5], [22, 0.45, 4], [27, 0.35, 3]] as [number, number, number][]) {
+    ctx.strokeStyle = `rgba(30,22,70,${a})`; ctx.lineWidth = ww;
+    ctx.beginPath(); ctx.moveTo(14, y); ctx.quadraticCurveTo(8, y + w * 2, 2, y - 2 + w); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.beginPath();
+  ctx.moveTo(20, 4);
+  ctx.quadraticCurveTo(32, 7, 31, 19);
+  ctx.quadraticCurveTo(30 + w, 27, 26 - w, 32);
+  ctx.quadraticCurveTo(23, 27, 20, 31 + w);
+  ctx.quadraticCurveTo(17, 27, 14 + w, 32);
+  ctx.quadraticCurveTo(10, 25, 10, 19);
+  ctx.quadraticCurveTo(9, 7, 20, 4);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, 4, 0, 33);
+  g.addColorStop(0, 'rgba(58,48,112,0.97)'); g.addColorStop(0.6, 'rgba(22,16,52,0.95)'); g.addColorStop(1, 'rgba(10,8,24,0.55)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(138,156,255,0.55)'; ctx.stroke();
+  eyes(ctx, [[21.5, 15], [26.5, 15]], 1.4, '#a8c8ff');
+  ctx.save(); ctx.strokeStyle = 'rgba(168,200,255,0.5)'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(21, 21); ctx.quadraticCurveTo(24, 23, 27, 21); ctx.stroke(); ctx.restore();
+}
+
+/** Brandkeeper: a tall mantled keeper with the sun-eye sigil burning on its chest. Faces right. */
 function drawBrandkeeper(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
   const step = [1, 0, -1, 0][f];
   const pulse = [0, 1, 2, 1][f];
-  ctx.fillStyle = '#1a1424';
-  ell(ctx, 21 + step * 2, 48, 3.6, 1.8); ctx.fill();
-  ell(ctx, 30 - step * 2, 48, 3.6, 1.8); ctx.fill();
+  ctx.fillStyle = '#16101e';
+  ell(ctx, 21 + step * 2, 48, 3.8, 1.8); ctx.fill();
+  ell(ctx, 30 - step * 2, 48, 3.8, 1.8); ctx.fill();
   ctx.beginPath();
   ctx.moveTo(26, 12 + bob);
-  ctx.quadraticCurveTo(37, 20, 37, 48);
-  ctx.lineTo(15, 48);
-  ctx.quadraticCurveTo(15, 20, 26, 12 + bob);
+  ctx.quadraticCurveTo(37, 19, 37.5, 48);
+  ctx.lineTo(14.5, 48);
+  ctx.quadraticCurveTo(15, 19, 26, 12 + bob);
   ctx.closePath();
-  shade(ctx, '#5a3a5c', '#20121e', 12, 48);
-  limb(ctx, 18, 24 + bob, 12, 36, 2.6, '#3e2640');
-  limb(ctx, 34, 24 + bob, 41, 18 + bob, 2.6, '#3e2640');
-  ell(ctx, 26, 12 + bob, 5.5, 5.8);
-  shade(ctx, '#6a4668', '#241426', 6, 18);
-  eyes(ctx, [[27.5, 12.5 + bob], [30.3, 12.5 + bob]], 0.85, '#ffd36a');
-  // The brand: a gold ring with a cross, on the chest and in the raised hand.
-  softGlow(ctx, 26, 30 + bob, 9 + pulse, 'rgba(255,200,80,0.8)');
-  softGlow(ctx, 42, 16 + bob, 6 + pulse, 'rgba(255,200,80,0.8)');
-  ctx.save();
-  ctx.strokeStyle = '#ffe7a0'; ctx.lineWidth = 1.3;
-  ell(ctx, 26, 30 + bob, 4, 4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(26, 25.5 + bob); ctx.lineTo(26, 34.5 + bob); ctx.moveTo(21.5, 30 + bob); ctx.lineTo(30.5, 30 + bob); ctx.stroke();
-  ctx.restore();
+  shade(ctx, '#5e3c66', '#1c1020', 12, 48);
+  rimLight(ctx, 12 + bob, 26);
+  // Gold-edged mantle over the shoulders.
+  ctx.beginPath();
+  ctx.moveTo(16, 24 + bob); ctx.quadraticCurveTo(26, 15 + bob, 36, 24 + bob); ctx.lineTo(33, 28 + bob); ctx.quadraticCurveTo(26, 22 + bob, 19, 28 + bob); ctx.closePath();
+  shade(ctx, '#7a4e3a', '#3a2018', 15, 28, 1);
+  ctx.save(); ctx.strokeStyle = '#e8bc60'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(19, 28 + bob); ctx.quadraticCurveTo(26, 22 + bob, 33, 28 + bob); ctx.stroke(); ctx.restore();
+  limb(ctx, 18, 25 + bob, 12, 37, 2.6, '#3e2640');
+  limb(ctx, 34, 25 + bob, 41, 18 + bob, 2.6, '#3e2640');
+  // Head: a smooth mask with a single slit.
+  ell(ctx, 26, 11.5 + bob, 5.5, 6);
+  shade(ctx, '#e8dcc0', '#8c7c62', 5.5, 17.5);
+  ctx.fillStyle = '#1a1020';
+  ctx.fillRect(25.5, 11 + bob, 6, 1.6);
+  softGlow(ctx, 29, 11.8 + bob, 3, 'rgba(255,211,106,0.9)');
+  // The brand: the sun-eye on the chest and a spark of it in the raised hand.
+  softGlow(ctx, 26, 34 + bob, 10 + pulse, 'rgba(255,200,80,0.75)');
+  softGlow(ctx, 42, 16 + bob, 6 + pulse, 'rgba(255,200,80,0.85)');
+  sunEye(ctx, 26, 35 + bob, 3.6, '#ffe7a0', 1.1);
+  ell(ctx, 42, 16 + bob, 1.8, 1.8); ctx.fillStyle = '#fff4c8'; ctx.fill();
 }
 
-/** Twin Lamp: a floating brass lantern with a white-gold flame. Faces right. */
+/** Twin Lamp: a floating brass lantern, white-gold flame behind glass panes. Faces right. */
 function drawTwinLamp(ctx: Ctx, _s: number, f: number): void {
   const hover = [0, -1, -1.5, -1][f];
   const fl = [0, 1, 0.5, 1.5][f];
-  softGlow(ctx, 22, 20 + hover, 21, 'rgba(255,236,170,0.6)');
+  softGlow(ctx, 22, 21 + hover, 22, 'rgba(255,236,170,0.6)');
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ell(ctx, 22, 41, 7, 2); ctx.fill();
-  limb(ctx, 22, 4 + hover, 22, 9 + hover, 1.2, '#8a6224');
+  // Ring and chain stub.
+  ctx.save(); ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 1.3;
+  ell(ctx, 22, 4.5 + hover, 2.2, 2.2); ctx.stroke(); ctx.restore();
+  limb(ctx, 22, 6.5 + hover, 22, 9 + hover, 1.2, '#8a6224');
+  // Body: a hexagonal lantern, tapering down.
   ctx.beginPath();
-  ctx.moveTo(14, 11 + hover); ctx.lineTo(30, 11 + hover); ctx.lineTo(28, 31 + hover); ctx.lineTo(16, 31 + hover);
+  ctx.moveTo(14, 12 + hover); ctx.lineTo(30, 12 + hover); ctx.lineTo(28.5, 30 + hover); ctx.lineTo(15.5, 30 + hover);
   ctx.closePath();
-  shade(ctx, '#e8c070', '#7a5420', 11, 31, 1.4);
-  ctx.beginPath();
-  ctx.rect(17, 14 + hover, 10, 14);
-  ctx.fillStyle = 'rgba(255,250,225,0.95)';
-  ctx.fill();
+  shade(ctx, '#e8c070', '#6e4a1a', 12, 30, 1.4);
+  // Glass panes with the flame inside.
+  ctx.beginPath(); ctx.rect(16.5, 14 + hover, 11, 14);
+  const glass = ctx.createLinearGradient(0, 14 + hover, 0, 28 + hover);
+  glass.addColorStop(0, '#fffbe8'); glass.addColorStop(1, '#ffe39a');
+  ctx.fillStyle = glass; ctx.fill();
   ctx.save();
-  ctx.fillStyle = '#ffd36a';
+  ctx.shadowColor = '#ffb84a'; ctx.shadowBlur = 6;
+  ctx.fillStyle = '#ffc24f';
   ctx.beginPath();
-  ctx.moveTo(22, 15 + hover - fl); ctx.quadraticCurveTo(26, 22 + hover, 22, 27 + hover); ctx.quadraticCurveTo(18, 22 + hover, 22, 15 + hover - fl);
+  ctx.moveTo(22, 15 + hover - fl); ctx.quadraticCurveTo(26.5, 22 + hover, 22, 27 + hover); ctx.quadraticCurveTo(17.5, 22 + hover, 22, 15 + hover - fl);
   ctx.fill();
+  ctx.fillStyle = '#fffbe6';
+  ctx.beginPath(); ctx.moveTo(22, 19 + hover - fl * 0.5); ctx.quadraticCurveTo(24, 23 + hover, 22, 26 + hover); ctx.quadraticCurveTo(20, 23 + hover, 22, 19 + hover - fl * 0.5); ctx.fill();
   ctx.restore();
-  ell(ctx, 22, 9 + hover, 6, 2.4);
-  shade(ctx, '#c49a4a', '#6a4618', 7, 11, 1);
-  ell(ctx, 22, 32 + hover, 5, 2);
-  shade(ctx, '#c49a4a', '#6a4618', 30, 34, 1);
+  // Brass frame bars over the glass.
+  ctx.save(); ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 1.2;
+  for (const x of [16.5, 22, 27.5]) { ctx.beginPath(); ctx.moveTo(x, 14 + hover); ctx.lineTo(x, 28 + hover); ctx.stroke(); }
+  ctx.restore();
+  ell(ctx, 22, 10 + hover, 7, 2.6);
+  shade(ctx, '#d8ae5a', '#6a4618', 7.5, 12.5, 1);
+  ell(ctx, 22, 31 + hover, 5.5, 2.2);
+  shade(ctx, '#c49a4a', '#6a4618', 29, 33, 1);
+  // A couple of motes drifting off the flame.
+  ctx.fillStyle = 'rgba(255,240,190,0.9)';
+  ell(ctx, 31 + fl, 8 - fl * 2 + hover, 0.9, 0.9); ctx.fill();
+  ell(ctx, 13 - fl * 0.5, 15 - fl + hover, 0.7, 0.7); ctx.fill();
 }
 
-/** The Lensmother: a vast veiled figure whose face is one great lens. Idles. */
+/** The Lensmother: a vast veiled figure whose face is one great lens, crowned by a halo of small lenses. Idles. */
 function drawLensmother(ctx: Ctx, s: number, f: number): void {
   const c = s / 2;
   const breathe = [0, 1, 2, 1][f];
-  softGlow(ctx, c, 40, 46 + breathe * 2, 'rgba(255,226,140,0.45)');
-  // Robes: layered indigo veils sweeping to the floor.
+  softGlow(ctx, c, 36, 50 + breathe * 2, 'rgba(255,226,140,0.42)');
+  // Halo: six small lenses on a thin brass ring behind the head.
+  ctx.save(); ctx.strokeStyle = 'rgba(200,150,70,0.8)'; ctx.lineWidth = 1.6;
+  ell(ctx, c, 26, 24, 20); ctx.stroke(); ctx.restore();
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI + (k / 5) * Math.PI;
+    lens(ctx, c + Math.cos(a) * 24, 26 + Math.sin(a) * 20, 3 + (k % 2) * 0.6 + breathe * 0.15, 1.1);
+  }
+  // Outer veil.
   ctx.beginPath();
-  ctx.moveTo(c, 26);
-  ctx.quadraticCurveTo(c + 40, 40, c + 46, s - 8);
-  ctx.quadraticCurveTo(c, s - 2, c - 46, s - 8);
-  ctx.quadraticCurveTo(c - 40, 40, c, 26);
+  ctx.moveTo(c, 24);
+  ctx.quadraticCurveTo(c + 42, 38, c + 48, s - 8);
+  ctx.quadraticCurveTo(c + 24, s - 3, c, s - 5);
+  ctx.quadraticCurveTo(c - 24, s - 3, c - 48, s - 8);
+  ctx.quadraticCurveTo(c - 42, 38, c, 24);
   ctx.closePath();
-  shade(ctx, '#3e3870', '#110e22', 26, s - 4, 2);
+  shade(ctx, '#423c7c', '#100d22', 24, s - 4, 2);
+  rimLight(ctx, 24, 60, 'rgba(255,226,150,0.7)', 1.6);
+  // A scatter of star-chart points on the veil.
+  ctx.save(); ctx.fillStyle = 'rgba(255,232,170,0.7)';
+  for (const [x, y, r] of [[-30, 70, 1], [-22, 84, 0.8], [-36, 92, 1.1], [28, 74, 1], [36, 90, 0.8], [22, 96, 1.1], [-12, 100, 0.7], [12, 104, 0.9]] as [number, number, number][]) { ell(ctx, c + x, y, r, r); ctx.fill(); }
+  ctx.strokeStyle = 'rgba(255,232,170,0.25)'; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(c - 30, 70); ctx.lineTo(c - 22, 84); ctx.lineTo(c - 36, 92); ctx.moveTo(c + 28, 74); ctx.lineTo(c + 36, 90); ctx.lineTo(c + 22, 96); ctx.stroke();
+  ctx.restore();
+  // Inner veil with a gold-stitched edge.
   ctx.beginPath();
   ctx.moveTo(c, 40);
   ctx.quadraticCurveTo(c + 24, 60, c + 26, s - 12);
-  ctx.quadraticCurveTo(c, s - 8, c - 26, s - 12);
+  ctx.quadraticCurveTo(c, s - 7, c - 26, s - 12);
   ctx.quadraticCurveTo(c - 24, 60, c, 40);
   ctx.closePath();
-  shade(ctx, '#57508e', '#1c1838', 40, s - 8, 1.4);
-  // Arms raised, holding small lenses.
-  limb(ctx, c - 30, 54, c - 46, 30 - breathe, 4, '#2c2852');
-  limb(ctx, c + 30, 54, c + 46, 30 - breathe, 4, '#2c2852');
-  for (const x of [c - 47, c + 47]) {
-    softGlow(ctx, x, 27 - breathe, 9, 'rgba(255,230,150,0.9)');
-    ell(ctx, x, 27 - breathe, 4.5, 4.5);
-    shade(ctx, '#fff6d0', '#d8a848', 22, 32, 1.2);
+  shade(ctx, '#5c5498', '#1c1838', 40, s - 8, 1.4);
+  ctx.save(); ctx.strokeStyle = 'rgba(232,188,96,0.9)'; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(c - 26, s - 12); ctx.quadraticCurveTo(c, s - 7, c + 26, s - 12); ctx.stroke(); ctx.restore();
+  // Sleeved arms raised, each holding a lens.
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(c + sx * 26, 50); ctx.quadraticCurveTo(c + sx * 40, 46, c + sx * 46, 32 - breathe); ctx.lineTo(c + sx * 50, 36 - breathe); ctx.quadraticCurveTo(c + sx * 44, 56, c + sx * 30, 60);
+    ctx.closePath();
+    shade(ctx, '#3a3470', '#16132c', 30, 60, 1.4);
+    lens(ctx, c + sx * 48, 27 - breathe, 5);
   }
-  // The face: one great lens in a brass ring, with a burning pupil.
-  softGlow(ctx, c, 28, 22 + breathe, 'rgba(255,240,190,0.95)');
-  ell(ctx, c, 28, 15, 15);
-  shade(ctx, '#fffbe6', '#e8c070', 13, 43, 2.4);
+  // The face: one great lens with iris rings and a burning pupil.
+  softGlow(ctx, c, 28, 24 + breathe, 'rgba(255,240,190,0.95)');
+  lens(ctx, c, 28, 15, 3);
   ctx.save();
-  ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 3;
-  ell(ctx, c, 28, 15, 15); ctx.stroke();
-  ctx.fillStyle = '#ff9a3c';
-  ell(ctx, c + 2, 29, 4.2 + breathe * 0.4, 4.2 + breathe * 0.4); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ell(ctx, c - 5, 22, 3.4, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,140,60,0.55)'; ctx.lineWidth = 1;
+  ell(ctx, c + 1, 29, 9, 9); ctx.stroke();
+  ell(ctx, c + 1.5, 29, 6.2, 6.2); ctx.stroke();
+  ctx.fillStyle = '#ff9a3c'; ctx.shadowColor = '#ff7a1f'; ctx.shadowBlur = 8;
+  ell(ctx, c + 2, 29, 4 + breathe * 0.4, 4 + breathe * 0.4); ctx.fill();
+  ctx.fillStyle = '#fff4d8'; ctx.shadowBlur = 0;
+  ell(ctx, c + 2, 29, 1.4, 1.4); ctx.fill();
   ctx.restore();
 }
 
-/** Observatory pillar: a cracked marble column seen from above, gold-veined. */
+/** Observatory pillar from above: a fluted marble drum with a gold inlay ring. Frame 1 is cracked and chipped. */
 function drawPillar(ctx: Ctx, s: number, f: number): void {
   const c = s / 2;
   const broken = f === 1;
+  const R = c * 0.86;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ell(ctx, c + 2, c + 4, c * 0.9, c * 0.9); ctx.fill();
-  ell(ctx, c, c, c * 0.86, c * 0.86);
-  shade(ctx, broken ? '#8a8494' : '#e4dccb', broken ? '#3c3846' : '#8a8070', 2, s - 2, 2);
-  ell(ctx, c, c, c * 0.6, c * 0.6);
-  shade(ctx, broken ? '#9a94a2' : '#f4eedf', broken ? '#4a4652' : '#b0a690', 8, s - 8, 1);
-  ctx.save();
-  ctx.strokeStyle = broken ? 'rgba(20,10,30,0.9)' : 'rgba(210,170,80,0.7)';
-  ctx.lineWidth = broken ? 2 : 1.2;
+  // Fluted edge: a scalloped outline.
+  const flutes = 16;
   ctx.beginPath();
-  ctx.moveTo(c - 14, c - 6); ctx.lineTo(c - 4, c); ctx.lineTo(c + 2, c - 10);
-  ctx.moveTo(c + 4, c + 12); ctx.lineTo(c + 10, c + 2);
-  if (broken) { ctx.moveTo(c - 10, c + 14); ctx.lineTo(c, c + 2); ctx.lineTo(c + 14, c + 8); }
-  ctx.stroke();
+  for (let k = 0; k <= flutes * 2; k++) {
+    const a = (k / (flutes * 2)) * Math.PI * 2;
+    let r = k % 2 ? R : R - 2.2;
+    if (broken && a > 0.4 && a < 1.3) r -= 6 * Math.sin(((a - 0.4) / 0.9) * Math.PI);
+    const x = c + Math.cos(a) * r;
+    const y = c + Math.sin(a) * r;
+    k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  shade(ctx, broken ? '#8a8494' : '#efe6d2', broken ? '#3c3846' : '#8c8270', 2, s - 2, 2);
+  // Capital: an inner disc with a gold inlay ring and a sun-eye at the centre.
+  ell(ctx, c, c, R * 0.66, R * 0.66);
+  shade(ctx, broken ? '#9a94a2' : '#fbf6ea', broken ? '#4a4652' : '#b8ad96', 8, s - 8, 1);
+  ctx.save();
+  ctx.strokeStyle = broken ? 'rgba(120,100,70,0.6)' : 'rgba(214,170,80,0.85)';
+  ctx.lineWidth = 1.4;
+  ell(ctx, c, c, R * 0.5, R * 0.5); ctx.stroke();
   ctx.restore();
+  if (!broken) sunEye(ctx, c, c, 4.2, 'rgba(200,150,60,0.9)', 1);
+  if (broken) {
+    cracks(ctx, [[[c - 16, c - 8], [c - 5, c], [c + 2, c - 12]], [[c + 5, c + 14], [c + 12, c + 2], [c + 18, c + 6]], [[c - 12, c + 16], [c, c + 3], [c + 15, c + 9]]], 'rgba(20,10,30,0.95)', 2);
+    // Rubble spilled from the chipped side.
+    ctx.fillStyle = '#6a6474';
+    for (const [x, y, r] of [[c + 22, c + 20, 2.4], [c + 26, c + 14, 1.8], [c + 17, c + 25, 1.6]] as [number, number, number][]) { ell(ctx, x, y, r, r * 0.8); ctx.fill(); }
+  } else {
+    cracks(ctx, [[[c - 13, c - 7], [c - 6, c - 3]], [[c + 6, c + 11], [c + 10, c + 5]]], 'rgba(214,170,80,0.55)', 1);
+  }
 }
 
 export function buildTextures(scene: Phaser.Scene): void {
