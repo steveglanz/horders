@@ -9,7 +9,7 @@ const ON = '\u{1F50A}';
 const OFF = '\u{1F507}';
 
 const CSS = `
-.snd-toggle { pointer-events: auto; width: 38px; height: 38px; border-radius: 50%; background: var(--panel, rgba(28,18,16,0.85)); border: 1px solid var(--line, #5a4038); font-size: 16px; line-height: 1; padding: 0; color: inherit; }
+.snd-toggle { pointer-events: auto; flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--panel, rgba(28,18,16,0.85)); border: 1px solid var(--line, #5a4038); font-size: 16px; line-height: 1; padding: 0; color: inherit; }
 .snd-toggle.off { opacity: 0.6; }
 .hub-top .snd-toggle { width: 36px; height: 36px; flex: none; }
 .snd-cell { display: flex; align-items: center; gap: 6px; justify-self: end; }
