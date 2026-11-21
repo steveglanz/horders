@@ -6254,6 +6254,8 @@ export class World {
     }
     // The run ends on a win, or when the whole party is down.
     if ((this.victory && !this.shadowPending) || down === this.heroes.length) {
+      // The Hoard: a hero still inside when Old Coalmouth falls comes out with the win (coalClock never runs again).
+      if (this.victory) this.releaseSwallowed(false);
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });
     }
