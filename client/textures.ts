@@ -2328,6 +2328,60 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // Season 3 glow marks (icons.ts GLOW_MARK). Facet: six crystal points stand on the ring, so Rime Blue reads apart
+  // from Season 1's Tide Silver. The points are drawn tall because the scene squashes the glow to about a third
+  // of its width under the hero.
+  make(scene, 'heroGlowFacet', 128, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.16)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.22)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0.6)');
+    g.addColorStop(0.88, 'rgba(255,255,255,0.3)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = '#ffffff';
+    for (let k = 0; k < 6; k++) {
+      const a = (k * Math.PI) / 3;
+      const x = s / 2 + Math.cos(a) * s * 0.4;
+      const y = s / 2 + Math.sin(a) * s * 0.36;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 10);
+      ctx.lineTo(x + 4.5, y);
+      ctx.lineTo(x, y + 10);
+      ctx.lineTo(x - 4.5, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
+  // Crack: the ring breaks into glowing pieces with dark seams, like a coal, so Coal Glow reads apart from the
+  // Deep Bellows' smooth Bellows Orange.
+  make(scene, 'heroGlowCrack', 128, (ctx, s) => {
+    // The seams are cut by clipping (the whole square minus thin wedges, even-odd), not by erasing, so no dark
+    // pixels are left behind for the additive blend to show.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, s, s);
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2 + 0.3;
+      const p = (r: number, d: number) => [s / 2 + Math.cos(a + d) * s * r, s / 2 + Math.sin(a + d) * s * r] as const;
+      const pts = [p(0.32, -0.035), p(0.46, 0.06), p(0.46, 0.13), p(0.32, 0.035)];
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const [x, y] of pts.slice(1)) ctx.lineTo(x, y);
+      ctx.closePath();
+    }
+    ctx.clip('evenodd');
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.2)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.3)');
+    g.addColorStop(0.78, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.9, 'rgba(255,255,255,0.45)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+    ctx.restore();
+  });
+
   // Fill with bots: the bot mark (icons.ts BOT_GLYPH) in white, tinted by the scene to the ally's class colour.
   make(scene, 'botMark', 48, (ctx, s) => {
     ctx.scale(s / 24, s / 24);
@@ -2344,6 +2398,29 @@ export function buildTextures(scene: Phaser.Scene): void {
 
   // Season trail mote: a small white glow, so the trail's tint shows true (the orange spark would darken a blue trail).
   make(scene, 'trailMote', 16, (ctx, s) => glow(ctx, s, '#ffffff', 'rgba(255,255,255,0.55)', 0.4));
+
+  // Season 3 trail crystal (Rime Dust): a six-armed frost star in white with a dark outline, tinted by the scene,
+  // drawn normal-blended so it still shows on the Coldmarrow's pale frost.
+  make(scene, 'frostFlake', 16, (ctx, s) => {
+    const c = s / 2;
+    const arms = (r: number) => {
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = (k * Math.PI) / 3;
+        ctx.moveTo(c - Math.cos(a) * r, c - Math.sin(a) * r);
+        ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+      }
+    };
+    ctx.lineCap = 'round';
+    arms(6.2);
+    ctx.strokeStyle = 'rgba(8,16,32,0.85)';
+    ctx.lineWidth = 3.4;
+    ctx.stroke();
+    arms(6);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+  });
 
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
