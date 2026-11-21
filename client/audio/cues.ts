@@ -57,6 +57,9 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The raid: Grandmother Slag (design brief C3).
   'Ladle Pour': { start: 'ladleWarn', done: 'ladle' },
   'Called Out': { done: 'calledOut' },
+  'The Pour': { start: 'pourWarn', done: 'ladle' },
+  'Crucible Vents': { start: 'soakCall' },
+  'Last Ember': { start: 'lastEmberWarn', done: 'lastEmber' },
   'Cinder Marks': { start: 'scatterWarn', done: 'scatter' },
 };
 

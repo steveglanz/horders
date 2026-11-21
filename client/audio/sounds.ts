@@ -319,6 +319,24 @@ export const SOUNDS = {
     { wave: 'sine', f: 120, f2: 300, dur: 0.15, delay: 0.25, vol: 0.2 },
     { wave: 'noise', f: 0, dur: 0.5, delay: 0.05, vol: 0.25, lp: 2500, lp2: 600 },
   ]),
+  /** The Pour winds up (1.6 s): the crucible tips, a deepening molten roar with a rising hiss. */
+  pourWarn: [
+    { wave: 'saw', f: 220, f2: 110, dur: 1.5, vol: 0.14, a: 0.6, lp: 1600, vib: [7, 0.04] },
+    { wave: 'noise', f: 0, dur: 1.5, vol: 0.3, a: 1.2, curve: 0.6, lp: 1200, lp2: 5000, hp: 400 },
+    { wave: 'tri', f: note(-2), f2: note(5), dur: 1.5, vol: 0.12, a: 0.8, curve: 0.8 },
+  ],
+  /** Crucible Vents: two soak circles. A bright two-bell call that says "stand here". */
+  soakCall: join(chime(note(10), 0, 0.3, 0.45), chime(note(15), 0.18, 0.3, 0.45), chime(note(10), 0.5, 0.26, 0.45), chime(note(15), 0.68, 0.3, 0.7), [
+    { wave: 'noise', f: 0, dur: 0.9, vol: 0.12, a: 0.3, lp: 3000, hp: 800, trem: [6, 0.5] },
+  ]),
+  /** Last Ember (a 5 s hard enrage): a low drone climbing a fifth under a racing pulse. */
+  lastEmberWarn: join(
+    [{ wave: 'saw', f: note(-26), f2: note(-19), dur: 2.6, vol: 0.2, a: 0.5, lp: 1200, lp2: 2400, vib: [5, 0.02] },
+     { wave: 'square', f: note(-14), f2: note(-7), dur: 2.6, vol: 0.08, a: 1.0, lp: 2500 }],
+    ...[0, 0.55, 1.0, 1.4, 1.75, 2.05, 2.3].map((d) => boom(70, 0.2, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+  ),
+  /** Last Ember goes off: everything burns. */
+  lastEmber: join(boom(40, 1.6, 0.7), whoosh(200, 6000, 1.4, 0.5), horn(note(-21), 1.4, 0.3)),
   calledOut: join(horn(note(-16), 0.6, 0.3), chime(E5, 0.1, 0.2, 0.4)),
   /** Phase 2, The Pour: brass rises as the pit floods. */
   phaseRaid2: join(horn(note(-21), 1.6, 0.4), horn(note(-14), 1.4, 0.3).map((v) => ({ ...v, delay: 0.3 })),
