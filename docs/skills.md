@@ -216,6 +216,83 @@ The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
 
 The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is within design's ±15 of the Emberwright. A first version, with a 60 base and 200 px, won 34.3 at Kiln 8, 15.3 ahead of the Emberwright, so both numbers were trimmed.
 
+## Fifth class: the Slagbinder (spec, draft for design review)
+**Role: Warden, an off-tank and support hybrid.** The Bulwark holds the boss, and the Lumen heals after the damage lands. The Slagbinder stops damage before it lands, on whoever is about to take it. It wears molten slag as armour and pours it onto allies as plating. Solo, it plates itself and fights at mid range. In a party, it picks up loose adds, takes a hit for a friend, and makes the boss Brittle for everyone.
+
+**Name check (21 Nov 2026):** a web search for "Slagbinder" found no game, class or product of that name, only unrelated Dutch hardware listings. Slag already belongs to Horders' own world (Grandmother Slag, Slag Grip).
+
+### Base stats
+| Stat | Value | Compared with the others |
+|---|---|---|
+| Health | 150 | Between the Lumen (100) and the Bulwark (160) |
+| Speed | 134 | Between the Bulwark (128) and the Lumen (138) |
+| Resource | **Slag**, 0 to 100 | You gain 1 per 2 damage taken and 4 per hit landed. It cools by 2 a second out of combat. |
+| Threat | ×2 | Between damage dealers (×1) and the Bulwark (×4), so it peels adds but never steals the boss by accident |
+| Interrupt range | 380 | |
+
+**Basic attack, Slag Lob:** every 0.7 s, a glob lands on the nearest foe within 320 px. It deals 18 and splashes 9 within 50 px. This is mid range: close enough to stay with the party, far enough to step out of a cleave.
+
+### Action bar
+| Key | Ability | Cost | Cooldown | Solo | Party |
+|---|---|---|---|---|---|
+| Q | **Molten Plating** | 30 | 6 s | Plates you with a ward of 15% max health for 6 s. When it breaks or runs out, it bursts for 40 within 90 px. | Plates the most hurt hero within 300 px instead, the Slagbinder included. |
+| E | **Interpose** | 0 | 10 s | Leap 150 px the way you're moving, immune for 0.4 s, and knock small foes back on landing. | Leap to the most hurt ally. For 3 s you take 60% of the damage aimed at them, at 30% less. |
+| R | **Cooling Shell** | 60 | 24 s | For 5 s you take 35% less damage, and anything that hits you is Brittle for 6 s (takes 15% more damage). | The 35% applies to every hero within 160 px. |
+| F | **Clinker** (interrupt) | 0 | 10 s | Hurl a clinker within 380 px: it interrupts a cast and stuns the caster for 1.5 s. | With nothing to interrupt, it makes the boss Brittle for 6 s. |
+
+Brittle is the class's party signature. It doesn't stack, so one Slagbinder in a party is the point.
+
+### Talents (three branches, like the other classes)
+- **Forge (plating):**
+  - Thick Pour: plating +20% per rank.
+  - Searing Shell: plating bursts +30% per rank.
+  - Quickset: Molten Plating cooldown −1 s per rank.
+  - Capstones:
+    - **Ever-Molten:** plating that runs out without breaking refunds 15 Slag.
+    - **Twin Pour:** plating also coats a second hero.
+- **Clinker (damage and Brittle):**
+  - Heavy Lob: Lob +15% per rank.
+  - Shrapnel: splash radius +15 px per rank.
+  - Brittle Mind: Brittle lasts +2 s per rank.
+  - Capstones:
+    - **Shatterpoint:** Brittle foes take 25% more from Slag Lob.
+    - **Cinder Hail:** every 5th Lob throws three globs.
+- **Crust (self-tank):**
+  - Thick Skin: max health +6% per rank.
+  - Hot Blood: +1 Slag per hit taken per rank.
+  - Hardened: Cooling Shell lasts +1 s per rank.
+  - Capstones:
+    - **Clinker Heart:** below 30% health, you gain a 25% plating once every 30 s.
+    - **Slag Tide:** Interpose's landing deals 60 and stuns for 1 s.
+
+Each branch gets 3 card talents and two capstones from the start, so this class ships at C5 parity.
+
+### Bot
+- Plate on cooldown: yourself solo, the most hurt hero in a party.
+- Interpose an ally below 50% who is the target of a telegraph or boss cast.
+- Cooling Shell below 55% health, or when 3 or more foes are in melee reach.
+- Clinker: casts first, then the boss for Brittle.
+- Hold mid range (about 220 px) and step out of telegraphs as the Lumen does.
+
+### What other teams need
+- **Visuals:**
+  - Four ability icons (ABILITY_GLYPH.slagbinder).
+  - A class sprite: a heavy figure in cooling slag plate, with an orange glow in the seams.
+  - A plating ring on the plated hero.
+  - A Brittle crack mark on foes.
+- **Sound:**
+  - Cues for Lob, plating applied and plating burst, Interpose leap, Cooling Shell, Clinker, and Brittle applied.
+- **Engineering:**
+  - The new ClassId in the hub, the class picker, save files and Quick join role badges.
+  - The role is "Warden": it fills a damage slot in Quick join and counts as neither tank nor healer for the Hammerdeep's tank and healer rule.
+
+### Balance targets
+- The same as L7:
+  - At tier 1 on the Kiln, within ±10 of the Emberwright for the good bot and the novice reference.
+  - Within ±15 at tiers 6 and 8 on the Foundry and the Kiln, using heroes built with tools/progression.ts.
+- Solo hashcheck for the four existing classes must stay identical.
+- In parties, swapping the Slagbinder for a damage dealer shouldn't raise a full party's Crucible win rate above about 70%.
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.
