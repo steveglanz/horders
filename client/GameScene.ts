@@ -947,6 +947,9 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          // Raid 2: Old Coalmouth.
+          else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
+          else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -1031,6 +1034,9 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'hoard') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
