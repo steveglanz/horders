@@ -461,6 +461,25 @@ export function soakFor(w: World): World['telegraphs'][number] | null {
   return best;
 }
 
+/**
+ * The Pressworks: which hero takes this Downstroke. The nearest living hero who isn't
+ * Pressed, leaving the tank on Oskel unless nobody else can go. -1 if nobody can.
+ */
+export function downstrokeTaker(w: World, t: World['telegraphs'][number]): number {
+  let best = -1;
+  let bd = Infinity;
+  for (let pass = 0; pass < 2 && best < 0; pass++) {
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = w.heroData(k).player;
+      if (q.hp <= 0 || (q.pressedT ?? 0) > 0) continue;
+      if (pass === 0 && w.heroes.length > 1 && w.isTank(k)) continue;
+      const d = Math.hypot(q.x - t.x, q.y - t.y);
+      if (d < bd) { bd = d; best = k; }
+    }
+  }
+  return best;
+}
+
 /** The Wrackline: while the Ebb warns or pulls, the way to the nearest afloat raft (null when already well on one, or no Ebb). */
 function ebbRaft(w: World): { dx: number; dy: number; d?: number } | null {
   if (!w.rafts.length || (w.ebbWarnT <= 0 && w.ebbT <= 0)) return null;
@@ -670,6 +689,15 @@ export function botInput(w: World, skill = 1): Input {
   for (const t of w.telegraphs) {
     if (!t.alive) continue;
     if (smother && t.kind === 'bloom') continue;
+    // NOTURNS=1 (measuring only): every hero runs under every Downstroke, as if nobody took turns.
+    if (t.kind === 'soak' && t.owner === -3 && process.env.NOTURNS !== '1' && downstrokeTaker(w, t) !== w.acting) {
+      // The Pressworks: a Downstroke that isn't this hero's turn is a hazard, so step out of it.
+      const dx = p.x - t.x;
+      const dy = p.y - t.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < t.r + 30) { fx += (dx / d) * 0.6 * skill; fy += (dy / d) * 0.6 * skill; }
+      continue;
+    }
     if (t.kind === 'soak') {
       // Co-op: only go to the circle this hero was given (so a pair of vents is split).
       if (vent && t !== vent) continue;

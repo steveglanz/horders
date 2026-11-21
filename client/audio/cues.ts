@@ -131,6 +131,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   sink: { start: 'sinkWarn', done: 'sink' }, // Sink
   haul: { start: 'haulWarn', done: 'haul' }, // Haul (the Barge Hauler)
   shoalCall: { start: 'shoalCall' }, // Call the Shoal
+  // The Pressworks (Oskel). The Downstroke lands as a soak (soakOk / soakFail); the Rivets land as strikes.
+  downstroke: { start: 'downstrokeWarn' }, rivets: { start: 'rivetsWarn' }, stamp: { start: 'stampWarn', done: 'stamp' },
 };
 
 /** Each boss's own phase-change sting. */
@@ -147,6 +149,7 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   // The raid has its own sting per phase: [phase 2 The Pour, phase 3 Last Ember].
   grandmotherSlag: ['phaseRaid2', 'phaseRaid3'],
   hessa: 'phaseHessa',
+  oskel: 'phaseOskel',
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
@@ -256,7 +259,11 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
  * make the card tap's own sound.
  */
 export function pickCue(id: TalentId | undefined): Cue | null {
-  return id && TALENTS[id]?.capstone ? { id: 'capstone' } : null;
+  if (!id) return null;
+  if (TALENTS[id]?.capstone) return { id: 'capstone' };
+  // Party cards (Season 2, #241): a card for the party gets its own call-and-answer chime.
+  if (TALENTS[id]?.party) return { id: 'partyCard' };
+  return null;
 }
 
 /** What reviveCues remembers between ticks. */

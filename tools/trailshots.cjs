@@ -1,13 +1,21 @@
 // Screenshots the season trails behind a moving hero: Bellows Sparks at stages 1, 2 and 3
 // (stage 3 just after a dash), and all four seasons' trails at stage 2. No network.
-// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver]
+// With `rime`: Rime Dust (the Cold Hearth's falling frost) at stages 1 and 2, stage 2 on the Glarewell's pale floor, and stage 3's dash in the Coldmarrow.
+// `full` sets Graphics to Full: software GL runs under 42 fps, so Auto would trim the trail to Battery saver's rate.
+// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver|full] [rime]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
-const out = process.argv[2] || 'tools/shots'; const saver = process.argv.includes('saver');
+const out = process.argv[2] || 'tools/shots'; const saver = process.argv.includes('saver'); const full = process.argv.includes('full');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const SHOTS = [
+const RIME = [
+  { name: 'rime-1', id: 'rimeDust', stage: 1, cls: 'emberwright' },
+  { name: 'rime-2', id: 'rimeDust', stage: 2, cls: 'emberwright' },
+  { name: 'rime-glare-2', id: 'rimeDust', stage: 2, cls: 'emberwright', dungeon: 'glarewell' },
+  { name: 'rime-cold-3-dash', id: 'rimeDust', stage: 3, cls: 'duskblade', dash: true, dungeon: 'coldmarrow' },
+];
+const ALL = [
   { name: 'bellows-1', id: 'bellowsSparks', stage: 1, cls: 'emberwright' },
   { name: 'bellows-2', id: 'bellowsSparks', stage: 2, cls: 'emberwright' },
   { name: 'bellows-3-dash', id: 'bellowsSparks', stage: 3, cls: 'duskblade', dash: true },
@@ -17,11 +25,12 @@ const SHOTS = [
   // A bot party: our Bellows Sparks II plus two allies' trails from the party's shared looks.
   { name: 'party', id: 'bellowsSparks', stage: 2, cls: 'emberwright', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'bulwark', name: 'Bulwark 9' }], looks: [{}, { trail: { id: 'saltMist', stage: 2 } }, { trail: { id: 'rimeDust', stage: 3 } }] },
 ];
+const SHOTS = process.argv.includes('rime') ? RIME : ALL;
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
   await ctx.route('https://*.supabase.co/**', (r) => r.abort());
-  if (saver) await ctx.addInitScript(() => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'saver' })));
+  if (saver || full) await ctx.addInitScript((g) => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: g })), saver ? 'saver' : 'full');
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
   await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=7&god=1`);
@@ -31,7 +40,7 @@ const SHOTS = [
   for (const sh of SHOTS) {
     await page.evaluate((sh) => {
       const s = window.__ember.scene();
-      s.scene.restart({ opts: { seed: 7, cls: sh.cls, dungeon: 'kiln', tier: 3, invulnerable: true, party: sh.party, looks: sh.looks }, hud: s.hud, onEnd: () => {}, trail: { id: sh.id, stage: sh.stage } });
+      s.scene.restart({ opts: { seed: 7, cls: sh.cls, dungeon: sh.dungeon ?? 'kiln', tier: 3, invulnerable: true, party: sh.party, looks: sh.looks }, hud: s.hud, onEnd: () => {}, trail: { id: sh.id, stage: sh.stage } });
     }, sh);
     await page.waitForTimeout(600);
     await page.evaluate((sh) => {
@@ -52,7 +61,7 @@ const SHOTS = [
       await page.keyboard.down('d'); await page.keyboard.down('w');
       await page.waitForTimeout(1400);
     }
-    await page.screenshot({ path: path.join(out, `trail-${sh.name}${saver ? '-saver' : ''}.png`), clip: sh.party ? { x: 0, y: 0, width: 1280, height: 720 } : { x: 440, y: 230, width: 400, height: 260 } });
+    await page.screenshot({ path: path.join(out, `trail-${sh.name}${saver ? '-saver' : full ? '-full' : ''}.png`), clip: sh.party ? { x: 0, y: 0, width: 1280, height: 720 } : { x: 440, y: 230, width: 400, height: 260 } });
     if (!sh.dash && !sh.party) { await page.keyboard.up('d'); await page.keyboard.up('w'); }
     else if (sh.dash) console.log(sh.name, await page.evaluate(() => ({ dashLen: window.__dashLen, liveMotes: window.__ember.scene().trails.reduce((n, t) => n + t.fx.filter((f) => f.life > 0).length, 0) })));
     if (sh.dash) await page.evaluate(() => window.__ember.scene().scene.resume());

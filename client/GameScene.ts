@@ -7,14 +7,14 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
-import { CLASS_ICON, GLOW_MARK } from './icons';
+import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
@@ -90,6 +90,10 @@ interface Fx {
 
 /** Season trails drawn as rising, cooling embers instead of soft motes (TRAILS ids). */
 const SPARK_TRAILS = new Set(['bellowsSparks']);
+/** Season trails drawn as falling frost crystals that settle and fade (the Cold Hearth's Rime Dust). */
+const FROST_TRAILS = new Set(['rimeDust']);
+/** The deeper rime blue a settled crystal turns, so a near-white trail still shows on the Coldmarrow's frost. */
+const FROST_SETTLE = 0x7fa6e8;
 /** The dim forge red an ember cools to. */
 const EMBER_COOL = 0x9a2e1c;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
@@ -172,6 +176,10 @@ export class GameScene extends Phaser.Scene {
     tag?: Phaser.GameObjects.Text;
     /** P6: their worn season glow, on the floor under them. */
     glow?: Phaser.GameObjects.Image;
+    /** Fill with bots: the bot mark just left of the name, which then drops its "(bot)". */
+    mark?: Phaser.GameObjects.Image;
+    /** The name as shown (a bot's without "(bot)"). */
+    name: string;
   }[] = [];
   autoPick = true;
   warp = 1;
@@ -320,6 +328,9 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
     // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
     else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
+    // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
+    // plate and the red Rivets both read on it.
+    else if (w.dungeonId === 'pressworks') this.ground.setTint(0x9aa070);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -360,11 +371,15 @@ export class GameScene extends Phaser.Scene {
       const cls = w.heroes[j].cls;
       const look = cleanLooks(looks[j]);
       const ag = look.glow ? GLOWS[look.glow] : undefined;
+      const bot = isBotAlly(w, j);
+      const name = bot ? botName(w.heroes[j].name) : w.heroes[j].name;
       this.allies.push({
         hero: j,
+        name,
+        mark: bot ? this.add.image(0, 0, 'botMark').setOrigin(1, 0.5).setDepth(9.5).setTint(hex(CLASS_ICON[cls].color)) : undefined,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
-        label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+        label: this.add.text(0, 0, name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.glowImage(ag) : undefined,
       });
@@ -477,7 +492,7 @@ export class GameScene extends Phaser.Scene {
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
   /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
-  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean }[] = [];
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean; frost: boolean }[] = [];
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
   /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
@@ -510,7 +525,9 @@ export class GameScene extends Phaser.Scene {
    */
   private deepUnlock(branch: keyof typeof BRANCH_NAMES): void {
     const cls = this.world.cls;
-    const n = Object.values(TALENTS).filter((d) => d.cls === cls && d.branch === branch && (d as { deep?: boolean }).deep).length;
+    // Party cards are deep cards that only a party is offered, so a solo hero isn't told about them.
+    const solo = this.world.heroes.length < 2;
+    const n = Object.values(TALENTS).filter((d) => d.cls === cls && d.branch === branch && (d as { deep?: boolean }).deep && !(solo && (d as { party?: boolean }).party)).length;
     if (!n) return;
     const p = this.world.player;
     const c = hex(BRANCH_COLOR[branch]);
@@ -887,6 +904,8 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Downstroke') this.hud.banner('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
+          else if (ev.name === 'Stamp') this.hud.banner('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
           else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
@@ -1177,10 +1196,17 @@ export class GameScene extends Phaser.Scene {
         // the tank in a crowd, always shows; a touch dimmer than your own so a full party doesn't crowd a phone.
         al.glow.setPosition(ax, ay + 22).setScale((78 + gp * 3) / 128, (29 + gp * 1) / 128).setAlpha(down ? 0.25 : 0.62 + gp * 0.12);
       }
-      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${al.name} · down` : al.name);
       setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
     this.unstackLabels();
+    // A bot's mark rides just left of its name (after the names lift apart), at the name's cap height.
+    for (const al of this.allies) {
+      if (!al.mark) continue;
+      const lb = al.label;
+      const s = (lb.displayHeight * 0.78) / 48;
+      al.mark.setScale(s).setPosition(lb.x - lb.displayWidth / 2 - 4, lb.y - lb.displayHeight * 0.5).setAlpha(lb.alpha * (w.heroData(al.hero).player.hp <= 0 ? 0.5 : 1));
+    }
 
     const view = cam.worldView;
     const margin = 80;
@@ -1441,7 +1467,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1584,6 +1610,8 @@ export class GameScene extends Phaser.Scene {
           }
         }
         if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
+        if (w.dungeonId === 'pressworks' && t.kind === 'soak' && t.owner === -3) this.pressMark(g, t, f, now);
+        if (w.dungeonId === 'pressworks' && t.kind === 'hit' && t.owner === -1 && t.r === OSKEL.rivetRadius) this.rivetMark(t, f);
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
@@ -1664,6 +1692,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
+      if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
       if (e.kind === 'grandmotherSlag' && e.castId) this.slagCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
@@ -1726,6 +1755,19 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
+    // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
+    // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
+    if (w.dungeonId === 'pressworks') {
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        const left = q.pressedT ?? 0;
+        if (left <= 0 || q.hp <= 0) continue;
+        const al = k === w.acting ? undefined : this.allies.find((a) => a.hero === k);
+        const hx = al ? al.img.x : this.player.x;
+        const hy = al ? al.img.y : this.player.y;
+        this.pressedMark(hx + 32, hy - 30, left / OSKEL.pressed);
+      }
+    }
     // The Ashvents: an empty vent off screen gets a gold arrow at the edge, so nobody misses it.
     for (const ev of this.emptyVents) {
       const v = cam.worldView;
@@ -1749,6 +1791,9 @@ export class GameScene extends Phaser.Scene {
       );
     }
     let plate = 0;
+    // A pack of the same elite (four Shoal Lurkers round a raft) shows its name once, over the topmost one: the
+    // same name printed over each stacks into an unreadable block on a phone. Every one keeps its own health bar.
+    const names: { x: number; y: number; text: string; color: string }[] = [];
     for (const e of w.enemies) {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
       if (!onScreen(e.x, e.y)) continue;
@@ -1768,9 +1813,16 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
-      const t = this.plates[plate++];
       // C2: a named elite shows its title in the rare colour.
-      if (t) setColorIf(t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name), NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
+      names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+    }
+    names.sort((a, c) => a.y - c.y);
+    const shown: typeof names = [];
+    for (const n of names) {
+      if (shown.some((q) => q.text === n.text && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
+      shown.push(n);
+      const t = this.plates[plate++];
+      if (t) setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
@@ -1807,7 +1859,8 @@ export class GameScene extends Phaser.Scene {
   /** A season glow under a hero, with its mark (GLOW_MARK): an edged glow blends normally so its dark rim shows. */
   private glowImage(g: { id: string; color: string }): Phaser.GameObjects.Image {
     const mark = GLOW_MARK[g.id];
-    const img = this.add.image(0, 0, mark === 'double' ? 'heroGlowDouble' : mark === 'edge' ? 'heroGlowEdge' : 'heroGlow').setTint(hex(g.color)).setDepth(1.3);
+    const tex = { double: 'heroGlowDouble', edge: 'heroGlowEdge', facet: 'heroGlowFacet', crack: 'heroGlowCrack' }[mark ?? ''] ?? 'heroGlow';
+    const img = this.add.image(0, 0, tex).setTint(hex(g.color)).setDepth(1.3);
     return mark === 'edge' ? img : img.setBlendMode(Phaser.BlendModes.ADD);
   }
 
@@ -1886,6 +1939,7 @@ export class GameScene extends Phaser.Scene {
     while (tr.acc >= 1) {
       tr.acc -= 1;
       if (tr.sparks) { this.trailEmbers(tr, px, py, rich); continue; }
+      if (tr.frost) { this.trailFrost(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -1910,6 +1964,22 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A frost trail (the Cold Hearth): small six-armed crystals shed off the hero's heels that drift down, turn
+   * slowly and settle on the floor, deepening from the trail's near-white to rime blue as they fade: the
+   * opposite of the Deep Bellows' rising sparks. They blend normally so their dark outline holds on pale frost.
+   */
+  private trailFrost(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    // Shed at the heels and wide of the body (the hero's sprite would hide them), falling about 13 px to settle.
+    const life = rich ? 1 : 0.6;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.6 : 0.85) + Math.random() * 0.15;
+      this.emit(tr.fx, 'frostFlake', undefined, px + (Math.random() - 0.5) * 34, py + 14 + (Math.random() - 0.5) * 8, life * (i ? 0.8 : 1),
+        { tint: tr.color, tint1: FROST_SETTLE, rot: Math.random() * Math.PI, vx: (Math.random() - 0.5) * 12, vy: 34 + Math.random() * 12, drag: 0.95, spin: (Math.random() - 0.5) * 3, sx0: sz, sx1: sz * 0.8 });
+    }
+  }
+
   /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
    * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
    * can't steal its motes. */
@@ -1917,8 +1987,9 @@ export class GameScene extends Phaser.Scene {
     const def = worn ? TRAILS[worn.id] : undefined;
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
-    for (let i = 0; i < pool; i++) fx.push(this.newFx('trailMote', 1.35, true));
-    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id) });
+    const frost = FROST_TRAILS.has(def.id);
+    for (let i = 0; i < pool; i++) fx.push(this.newFx(frost ? 'frostFlake' : 'trailMote', 1.35, !frost));
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id), frost });
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
@@ -1935,6 +2006,12 @@ export class GameScene extends Phaser.Scene {
         // Embers: the landing ones fly up and out like a struck forge, then cool.
         this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.35,
           { tint: tr.color, tint1: EMBER_COOL, vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 30, drag: 0.95, sx0: 1.3, sy0: 1.9, sx1: 0.45, sy1: 0.65 });
+        continue;
+      }
+      if (tr.frost) {
+        // Frost: the landing crystals scatter outward, then fall and settle like shaken rime.
+        this.emit(tr.fx, 'frostFlake', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 8, 0.6 + t * 0.4,
+          { tint: tr.color, tint1: FROST_SETTLE, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 + 30, drag: 0.93, spin: (Math.random() - 0.5) * 5, sx0: 0.8, sx1: 0.55 });
         continue;
       }
       this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
@@ -2345,13 +2422,15 @@ export class GameScene extends Phaser.Scene {
       const w2 = lb.displayWidth / 2;
       let bottom = lb.y;
       const h = lb.displayHeight;
+      // A bot's mark sits left of its name, so it takes room too.
+      const l = lb.x - w2 - (al.mark ? h * 0.78 + 4 : 0);
       for (let pass = 0; pass < 4; pass++) {
-        const hit = placed.find((q) => lb.x - w2 < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
+        const hit = placed.find((q) => l < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
         if (!hit) break;
         bottom = hit.t - 1;
       }
       lb.y = bottom; // only the name moves; a title stays over its hero's head
-      placed.push({ l: lb.x - w2, r: lb.x + w2, t: bottom - h, b: bottom });
+      placed.push({ l, r: lb.x + w2, t: bottom - h, b: bottom });
     }
   }
 
@@ -2840,6 +2919,111 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(FROST, 0.08 + 0.12 * f).fillCircle(e.x, e.y, e.def.radius + 20 + f * 60);
       g.lineStyle(4, FROST, 0.5 + 0.4 * pulse).strokeCircle(e.x, e.y, e.def.radius + 20 + f * 60);
     }
+  }
+
+  /**
+   * The Pressworks' Downstroke: a steel stamping plate with a hazard-striped rim inside the gold soak circle, and the
+   * press head's square shadow closing down onto it, so it reads as "a press comes down here", not an Ashvents vent.
+   * Over it, a badge: a tick while someone who isn't Pressed stands on it, a cross when a Pressed hero is on it (they
+   * would be crushed and don't count), "!" when nobody is. A Pressed hero on the plate gets a red warning ring.
+   */
+  private pressMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    let ok = 0;
+    let crushed = false;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = w.heroData(k).player;
+      if (q.hp <= 0 || (q.x - t.x) ** 2 + (q.y - t.y) ** 2 > t.r * t.r) continue;
+      if ((q.pressedT ?? 0) > 0) {
+        crushed = true;
+        const blink = 0.5 + 0.5 * Math.sin(now / 70);
+        o.lineStyle(3, DANGER, 0.5 + 0.5 * blink).strokeCircle(q.x, q.y + 6, 24);
+      } else ok++;
+    }
+    // The press head's shadow, closing in and darkening as it comes down.
+    const sh = t.r * (1.5 - 0.5 * f);
+    g.fillStyle(0x000000, 0.12 + 0.3 * f).fillRoundedRect(t.x - sh / 2 * 1.2, t.y - sh / 2 * 0.9, sh * 1.2, sh * 0.9, 8);
+    // The plate: dark steel, a striped rim and a rivet in each corner.
+    const pw = t.r * 1.15;
+    const ph = t.r * 0.85;
+    g.fillStyle(0x4a524a, 0.7).fillRect(t.x - pw / 2, t.y - ph / 2, pw, ph);
+    g.lineStyle(5, 0xf2c230, 0.9).strokeRect(t.x - pw / 2, t.y - ph / 2, pw, ph);
+    g.lineStyle(2.5, 0x16120c, 0.85);
+    const dash = (x1: number, y1: number, x2: number, y2: number) => {
+      const n = Math.max(2, Math.round(Math.hypot(x2 - x1, y2 - y1) / 11));
+      for (let k = 0; k < n; k++) {
+        const x = x1 + ((x2 - x1) * (k + 0.5)) / n;
+        const y = y1 + ((y2 - y1) * (k + 0.5)) / n;
+        g.lineBetween(x - 2.5, y + 2.5, x + 2.5, y - 2.5);
+      }
+    };
+    const L = t.x - pw / 2, R = t.x + pw / 2, T = t.y - ph / 2, B = t.y + ph / 2;
+    dash(L, T, R, T); dash(L, B, R, B); dash(L, T, L, B); dash(R, T, R, B);
+    g.fillStyle(0xd8e0d4, 0.9);
+    for (const [x, y] of [[L + 8, T + 8], [R - 8, T + 8], [L + 8, B - 8], [R - 8, B - 8]]) g.fillCircle(x, y, 2.6);
+    if (!ok) this.emptyVents.push({ x: t.x, y: t.y });
+    // The badge over the circle.
+    const bx = t.x;
+    const by = t.y - t.r - 16;
+    const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+    if (crushed) {
+      o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
+      o.lineStyle(3, DANGER, 1).lineBetween(bx - 5, by - 5, bx + 5, by + 5).lineBetween(bx - 5, by + 5, bx + 5, by - 5);
+    } else if (ok) {
+      o.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
+      o.fillStyle(0x10200f, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, 0x9fe8a8, 1).strokeCircle(bx, by, 11);
+      o.lineStyle(3, 0x9fe8a8, 1).beginPath().moveTo(bx - 5, by).lineTo(bx - 1, by + 4).lineTo(bx + 6, by - 4).strokePath();
+    } else {
+      o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
+      o.fillStyle(DANGER, 1).fillRect(bx - 1.5, by - 7, 3, 9).fillRect(bx - 1.5, by + 4, 3, 3);
+    }
+  }
+
+  /** Oskel's Rivets: a domed rivet drops onto each ring's middle, its shadow growing under it as it falls. */
+  private rivetMark(t: World['telegraphs'][number], f: number): void {
+    const o = this.overFx;
+    this.gfx.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(t.x, t.y + 4, 10 + 14 * f, 4 + 6 * f);
+    const ry = t.y - (1 - f) * (1 - f) * 140;
+    o.fillStyle(0x6a4a1c, 1).fillRect(t.x - 2.5, ry - 2, 5, 10);
+    o.fillStyle(0xd8a850, 1).fillEllipse(t.x, ry - 3, 18, 10);
+    o.fillStyle(0xf8dc94, 0.9).fillEllipse(t.x - 3, ry - 5, 6, 3);
+    o.lineStyle(1.5, 0x1a1008, 0.9).strokeEllipse(t.x, ry - 3, 18, 10);
+  }
+
+  /** Oskel's Stamp: a hazard-striped die drops onto the tank, with a closing reticle and a darkening shadow. */
+  private stampMark(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const f = Math.min(1, e.castT / e.castDur);
+    const t = w.heroData(w.stampOn).player;
+    const o = this.overFx;
+    const close = 0.6 + 0.4 * Math.sin(now / (f > 0.75 ? 40 : 90));
+    g.fillStyle(0x000000, 0.25 + 0.35 * f).fillRect(t.x - (20 + 22 * f), t.y + 12, 40 + 44 * f, 10 + 10 * f);
+    const r = 100 - 52 * f;
+    o.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
+    const dy = t.y - 50 - (1 - f) * (1 - f) * 150;
+    o.fillStyle(0x5a645a, 0.97).fillRect(t.x - 24, dy - 12, 48, 24);
+    o.fillStyle(0xf2c230, 1).fillRect(t.x - 23, dy + 5, 46, 6);
+    o.lineStyle(2.5, 0x16120c, 1);
+    for (let x = -20; x <= 18; x += 7) o.lineBetween(t.x + x, dy + 11, t.x + x + 5, dy + 5);
+    o.lineStyle(2, 0x0c0506, 1).strokeRect(t.x - 24, dy - 12, 48, 24);
+    o.fillStyle(0xd8e0d4, 1).fillCircle(t.x - 18, dy - 5, 2).fillCircle(t.x + 18, dy - 5, 2);
+    o.fillStyle(0xe8eee6, 0.95).fillRect(t.x - 4, dy - 40, 8, 28);
+    o.lineStyle(1.5, 0x0c0506, 1).strokeRect(t.x - 4, dy - 40, 8, 28);
+  }
+
+  /** A Pressed hero's mark: a small red plate with a press-down glyph, ringed by the time left (`k`, 1 to 0). */
+  private pressedMark(x: number, y: number, k: number): void {
+    const o = this.overFx;
+    o.fillStyle(0x200a0e, 0.9).fillCircle(x, y, 10);
+    o.lineStyle(2, 0x5a2028, 0.9).strokeCircle(x, y, 10);
+    o.lineStyle(2.5, DANGER, 1).beginPath().arc(x, y, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, k)), false).strokePath();
+    o.fillStyle(DANGER, 1).fillRect(x - 5, y - 6, 10, 3).fillRect(x - 1.25, y - 3, 2.5, 5);
+    o.fillTriangle(x - 4, y + 1, x + 4, y + 1, x, y + 5);
+    o.fillRect(x - 5, y + 5, 10, 1.6);
   }
 
   private ventMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {

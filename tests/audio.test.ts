@@ -268,7 +268,20 @@ describe('audio', () => {
     expect(pickCue('bladeStorm')?.id).toBe('capstone');
     expect(pickCue('rivetedPlates')).toBeNull(); // a deep card
     expect(pickCue('stoke')).toBeNull();
+    for (const id of ['leeSide', 'frontMend', 'turnedBack', 'closeWarmth', 'wideShell'] as const) expect(pickCue(id)?.id, id).toBe('partyCard');
     expect(pickCue(undefined)).toBeNull();
+  });
+
+  it("gives the Pressworks its press-cycle theme, and Oskel's casts and phase their sounds", () => {
+    expect(THEMES.pressworks.bed).toBe('press');
+    const c = { cls: 'bulwark' as const, acting: 0 };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'downstroke', name: 'Downstroke' }, c)?.id).toBe('downstrokeWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'rivets', name: 'Rivets' }, c)?.id).toBe('rivetsWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'stamp', name: 'Stamp' }, c)?.id).toBe('stampWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'stamp', name: 'Stamp' }, c)?.id).toBe('stamp');
+    expect(phaseSting('oskel', 2)).toBe('phaseOskel');
+    // Rivets come every 9 s: the warning stays short, so its duck is brief.
+    expect(recipeLength(SOUNDS.rivetsWarn)).toBeLessThan(0.4);
   });
 
   it('gives the Wrackline its theme, Hessa\'s casts their sounds, and the Ebb a drag when the pull starts', () => {
@@ -294,6 +307,11 @@ describe('season hub themes', () => {
     expect(hubThemeFor(0, SEASONS.length)).toBe('hub');
     expect(hubThemeFor(1, SEASONS.length)).toBe('hubBellows');
     expect(THEMES.hubBellows.bed).toBe('forge');
+    // Season 3, the Cold Hearth: the Coldmarrow's frost and its Hearthcoal crackle.
+    expect(SEASONS[2].name).toBe('the Cold Hearth');
+    expect(hubThemeFor(2, SEASONS.length)).toBe('hubHearth');
+    expect(THEMES.hubHearth.bed).toBe('frost');
+    expect(THEMES.hubHearth.coal).toBe(true);
     // Season 2 starts on week 2974 (docs/design/season.md).
     expect(hubThemeFor(seasonOf(SEASON_START_WEEK + SEASON.weeks), SEASONS.length)).toBe('hubBellows');
   });

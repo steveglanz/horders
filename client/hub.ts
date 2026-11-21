@@ -16,6 +16,8 @@ import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
+import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
+import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS } from '../sim/content/weekly';
@@ -23,7 +25,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -82,6 +84,8 @@ export class Hub {
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
+  /** Fill with bots: a solo hero takes bot allies into a group dungeon (sim/content/botfill). */
+  fillBots = false;
   /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
   private kitOpen = readKitOpen();
   /** The open hub tab in tab mode (the Bags tab is the bag overlay). */
@@ -343,6 +347,10 @@ export class Hub {
       }));
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
+    $('tiers').querySelector<HTMLButtonElement>('[data-fill]')?.addEventListener('click', () => {
+      this.fillBots = !this.fillBots;
+      this.render();
+    });
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
       b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
@@ -361,7 +369,8 @@ export class Hub {
     const blocked = this.partyBlocker();
     const start = $('startBtn') as HTMLButtonElement;
     start.disabled = !!blocked;
-    start.textContent = blocked || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
+    // A solo hero in a group dungeon: point at Fill with bots, which sits well above this button on a phone.
+    start.textContent = (blocked && this.canFill() ? 'Needs a party or bots' : blocked) || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
     this.renderTabs();
   }
@@ -545,7 +554,7 @@ export class Hub {
     const today = st.firstWinDay === dayOf(Date.now());
     const rewards = seasonRewards(st.id).map((r) => {
       const got = lvl >= r.level;
-      const what = r.kind === 'glow' ? `<span class="swatch${glowMarkClass(r.glow.id)}" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
+      const what = r.kind === 'glow' ? `<span class="swatch${glowMarkClass(r.glow.id)}" style="--sw:${r.glow.color}"></span>${r.glow.name}${/glow$/i.test(r.glow.name) ? '' : ' glow'}` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
       return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
     }).join('');
     const titles = h.titles ?? [];
@@ -557,7 +566,7 @@ export class Hub {
     const sea = this.seasonArt();
     // The key art's gradient ids are made unique, since the box can be drawn twice (the hub and its sheet).
     const n = ++this.bannerN;
-    const art = sea?.banner ? `<div class="kart-wrap">${sea.banner.replace(/\b(kbSky|kbHeat|kbSpill)\b/g, (m) => `${m}-${n}`)}</div>` : '';
+    const art = sea?.banner ? `<div class="kart-wrap">${sea.banner.replace(/\b(kb[A-Z]\w*)\b/g, (m) => `${m}-${n}`)}</div>` : '';
     return `<div class="box season"${sea?.vars ? ` style="${sea.vars}"` : ''}>${art}<div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
       + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
       + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
@@ -688,9 +697,21 @@ export class Hub {
       + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';
   }
 
-  /** Classes in the delve: the party's, or just yours. */
+  /** Classes in the delve: the party's, or yours plus any fill bots. */
   private classes(): string[] {
-    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright'];
+    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright', ...this.fillParty()];
+  }
+
+  /** Fill with bots is offered to a hero with no online party, in a group dungeon other than the raid. */
+  canFill(): boolean {
+    return this.partyClasses.length <= 1 && !botFillBlocker(this.dungeon);
+  }
+
+  /** The bot allies' classes for this delve ([] when filling is off or not offered). */
+  fillParty(): ClassId[] {
+    if (!this.fillBots || !this.canFill()) return [];
+    const h = this.hero();
+    return fillClasses([{ cls: h.cls ?? 'emberwright', stance: h.stance }]);
   }
 
   /** Why the picked dungeon can't start with this party, or ''. */
@@ -708,7 +729,16 @@ export class Hub {
     };
     const need = missing.length ? `Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}. ` : '';
     return `<div class="partyroles"><div class="chips"><span class="muted">Party</span>${chip('tank', 'bulwark', 'Tank')}${chip('healer', 'lumen', 'Healer')}</div>`
-      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div></div>`;
+      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div>${this.fillLine()}</div>`;
+  }
+
+  /** The Fill with bots toggle, and what bots change. */
+  private fillLine(): string {
+    if (this.partyClasses.length > 1) return '';
+    const blocked = botFillBlocker(this.dungeon);
+    if (blocked) return `<div class="hint">${blocked}: no bots.</div>`;
+    const tip = `Bots fill the party to ${BOT_FILL.partySize}. They wear copies of your gear at ${Math.round(BOT_FILL.gearScale * 100)}% strength, without Mythics, weapon effects or sets, so a real party does better. A bot-filled win pays like a solo dungeon: no extra group item from the boss.`;
+    return `<button class="prep-chip fillbots${this.fillBots ? ' on' : ''}" data-fill aria-pressed="${this.fillBots}" data-tip="${tip}">${glyph(BOT_GLYPH, 15)}Fill with bots${this.fillBots ? ' ✓' : ''}</button>`;
   }
 
   private gritLine(): string {

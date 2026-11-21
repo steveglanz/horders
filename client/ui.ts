@@ -9,7 +9,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { roleOf } from './net/lobby';
@@ -418,6 +418,8 @@ export class Hud {
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
+    // The Pressworks: Pressed means stay out of the next Downstroke.
+    if ((p.pressedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:#ff6a5a" title="You took the last Downstroke: stay out of the next one">Pressed ${Math.ceil(p.pressedT ?? 0)}s</span>`);
     // Verb sets: show the timed bonuses while they run.
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
@@ -522,7 +524,8 @@ export class Hud {
       const color = BRANCH_COLOR[def.branch];
       const btn = document.createElement('button');
       const deep = !!(def as { deep?: boolean }).deep;
-      btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '');
+      const party = !!(def as { party?: boolean }).party;
+      btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '') + (party ? ' party' : '');
       btn.style.setProperty('--branch', color);
       let progress = '';
       // A deep card comes after the capstone, so it has no capstone progress to show.
@@ -531,10 +534,11 @@ export class Hud {
         progress = `<div class="progress"><span class="pb">${BRANCH_NAMES[def.branch]} </span>${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep, party)}<div class="branch"><span class="bn">${BRANCH_NAMES[def.branch]}</span>${def.capstone ? '<span class="cap">Capstone</span>' : party ? '<span class="deeptag party">Party</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
+        : deep ? `${party ? 'Party card: offered only when you delve with others, after' : 'Deep card: offered after'} the ${BRANCH_NAMES[def.branch]} capstone.`
         : def.branch !== 'general' ? `${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]} unlock its capstone.` : '';
       setTip(btn, () => `<b>${def.name}</b>${rank ? ` · ${rank}` : ''}<br>${tip}${why ? `<br><span class="tip-m">${why}</span>` : ''}<br><span class="tip-m">${HELP.bothKinds}</span>`);
       cards.appendChild(btn);
@@ -578,7 +582,10 @@ export class Hud {
       // G4: tanks and healers get a role chip (an Anvil Slagbinder tanks); damage needs no label.
       const role = roleOf(CLASSES[h.cls].role, w.heroData(j).player.stance);
       const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
-      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      // Fill with bots: a bot's class tile wears the bot mark on its corner instead of "(bot)" after the name,
+      // so the name and role chip keep the row's room on a phone.
+      const bot = isBotAlly(w, j) ? `<span class="pfbot" title="Bot" aria-label="Bot">${glyph(BOT_GLYPH, 10)}</span>` : '';
+      rows.push(`<div class="pf${bot ? ' bot' : ''}" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}${bot}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
     // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
     if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
@@ -588,7 +595,7 @@ export class Hud {
     box.hidden = rows.length === 0;
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
-      el.querySelector('b')!.textContent = w.heroes[hero].name;
+      el.querySelector('b')!.textContent = isBotAlly(w, hero) ? botName(w.heroes[hero].name) : w.heroes[hero].name;
       this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, down: false, reviving: false });
     });
   }
@@ -660,7 +667,7 @@ export class Hud {
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
       if (rewards.seasonMarks) notes.push(`<span class="booknote"><span aria-hidden="true">✦</span> Season +${rewards.seasonMarks} marks${rewards.seasonFirstWin ? ' (first win today)' : ''}${rewards.seasonFeatured ? ' (in season)' : ''}${(rewards.seasonTo ?? 0) > (rewards.seasonFrom ?? 0) ? ` · <b>Season level ${rewards.seasonTo}</b>` : ''}</span>`);
-      for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : r.kind === 'trail' ? `${trailLabel(r.trail, r.stage)} trail` : `title ${r.title}`}</b>`);
+      for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name}${/glow$/i.test(r.glow.name) ? '' : ' glow'}` : r.kind === 'trail' ? `${trailLabel(r.trail, r.stage)} trail` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
       for (const a of rewards.achievements ?? []) notes.push(`<span class="deednote">${medalTile(a.id, true, 26)}<span><b>Achievement: ${a.name}</b> +${a.embers} embers, title <i>${a.title}</i></span></span>`);

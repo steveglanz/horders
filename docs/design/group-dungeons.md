@@ -127,6 +127,41 @@ That is +5 and +4 wins in 40, inside the 2 to 7 range the other sets give. Solo 
 
 **Name:** "Ventwalker" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web (21 Nov 2026). "Split up" is a plain phrase used as the verb label only.
 
+## The Pressworks (G9, third group dungeon, 21 Nov 2026)
+A stamping works, from tier 10. Its group check is new: **take turns**. The Hammerdeep asks the party to stay close and the Ashvents to split up. The Pressworks asks the party to share one job in rotation. Code: `OSKEL` and `oskelClock` in `sim/world.ts`, and `downstrokeTaker` in `sim/bot.ts`. Tests: `tests/pressworks.test.ts`.
+
+**Oskel of the Pressworks** (6 400 health before tier and party scaling):
+
+| Cast | What it does | Answer |
+|---|---|---|
+| **Downstroke** | Every 13 s (8 s after the 270 s soft enrage), one gold plate 200 from Oskel, with a 4 s fuse. A missed plate hits every hero for 70 and spawns adds, like any missed soak. Everyone under it who wasn't Pressed becomes **Pressed** for 20 s. A Pressed hero under the next plate takes 50% of max health and doesn't count | One hero who isn't Pressed stands under each plate. Pressed lasts longer than the gap between plates, so nobody can take two in a row: the party takes turns |
+| **Rivets** | Every 9 s, a ring (radius 60, 1.6 s) under every hero | Step out |
+| **Stamp** | Every 10 s, a 2 s cast, then a tank hit (75) through dodges and shields | A tank cooldown. Bots treat it as a tank-buster (`busterTarget`) |
+
+The HUD shows a red "Pressed 12s" chip while it lasts. The banners say "Downstroke!" (or "You're Pressed: stay out of this one") and "Stamp!".
+
+**Bots:** the nearest living hero who isn't Pressed takes the plate. The tank stays on Oskel unless nobody else can go. Everyone else steps out of it. NOTURNS=1 makes every bot run under every plate, to measure what taking turns is worth.
+
+**Measured** with tools/group.ts, full party (Bulwark, Lumen, Duskblade, Emberwright), seeds 1 to 40, on main 63ddacc plus this change. Wins out of 40:
+
+| | hero-t8-0 | hero-t8-1 | hero-t8-2 |
+|---|---|---|---|
+| Tier 10, bots take turns | 27 | 33 | 35 |
+| Tier 10, nobody takes turns (NOTURNS=1) | 0 | | |
+
+- **Tier 10 with hero-t8-0:** 27 of 40 (68%), inside the 60 to 75% group target at the unlock tier. Tier 11 gave 6 and tier 12 gave 2, as steep as the Ashvents, which went from 14 of 20 at tier 8 to 3 of 20 at tier 10 with the same heroes.
+- **Taking turns is the check.** Without it the party won 0 of 40. A Bulwark and Lumen duo at tier 8 also went from 37 to 0 of 40.
+- **Duo (Bulwark and Lumen, hero-t8-0):** 37 of 40 at tier 8, 11 at tier 9 and 5 at tier 10. The duo can do it, but it's the hard way, as in the other group dungeons.
+- **Stamp was tuned down** from a first-pass 110 to 75. At 110 the full party won 0 of 6 at tier 10, every run lost to Stamp on the tank. At 60 it won 20 of 20.
+
+**No Fill with bots here** (`botFillBlocker`). Bots never miss a turn, so a bot fill won as often as a real party. Across 12 fills (4 player classes × 3 hero files) at tier 10 it averaged 30.7 of 40, against the real party's 31.7. Lowering the bots' gear barely helped: a Bulwark with bots at 60% gear still won 31 and 38 of 40 with two hero files. Filling only to 3 heroes didn't help either (32 to 39 of 40). The guardrail from botfill.md is "a bot fill wins less than a real party", and only leaving the Pressworks out keeps it. The hub says "Taking turns needs real heroes: no bots."
+
+**Reuses:** the trash comes from existing families (warpack, glass, wardens; named anvilguard and bellwarden), so the boss is the only new art. Visuals drew it on this branch (sprite, plate, rivets, Stamp die, Pressed mark, floor and card). Sound needs a theme and cues for `downstroke`, `rivets` and `stamp`.
+
+**Follow-ups:** a verb set for the Pressworks ("take turns") and a boss achievement, each with a name check.
+
+**Names:** every new name was searched on wowhead.com, warcraft.wiki.gg, wowpedia and wowsurvivors.com on 21 Nov 2026. "Pressworks", "Oskel" and "Downstroke" have no WoW matches. The only "Downstroke" hit is a Wowhead forum thread title, not a game name. "Rivets", "Stamp" and "Pressed" are plain words. None of them is used elsewhere in the game.
+
 ## In-fight revives (G6): the boss rules
 
 **The rule.** Standing on a downed ally picks them up at 30% health (`REVIVE_RADIUS`, `REVIVE_HEALTH`). Outside a boss fight it takes 3 s, with no limit. While a boss is up, it takes 9 s, and the party gets one pick-up for the whole boss fight (`REVIVE_RULES` in sim/world.ts, read through `World.reviveSeconds` and `World.revivesLeft`). Once it's used, the downed hero's bar says "no revives left this boss", and the revive circle goes away.
