@@ -78,6 +78,11 @@
   .pfn { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.2; text-shadow: 0 1px 2px #000; }
   .pfn b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pfn i { display: none; margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.06em; }
+  /* G4: role chip after the name, for tanks and healers. */
+  .pfr { flex: none; font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 4px; border-radius: 4px; line-height: 14px; }
+  .pfr.tank { color: #9ab8ff; background: rgba(154,184,255,0.16); }
+  .pfr.healer { color: #8ff0a8; background: rgba(111,224,138,0.16); }
+  .pf.down .pfr { display: none; }
   .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
   .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
   /* Downed: the name and icon grey out, the bar turns into the revive meter. */

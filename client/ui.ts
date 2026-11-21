@@ -11,6 +11,7 @@ import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
+import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
@@ -498,7 +499,10 @@ export class Hud {
       if (j === w.acting) continue;
       const h = w.heroes[j];
       const ic = CLASS_ICON[h.cls];
-      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b><i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      // G4: tanks and healers get a role chip (an Anvil Slagbinder tanks); damage needs no label.
+      const role = roleOf(CLASSES[h.cls].role, w.heroData(j).player.stance);
+      const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
+      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
     box.innerHTML = rows.join('');
     box.hidden = rows.length === 0;
