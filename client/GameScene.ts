@@ -260,6 +260,7 @@ export class GameScene extends Phaser.Scene {
     this.trails = [];
     this.raftImgs = [];
     this.drainImg = undefined;
+    this.plantK = 0;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -465,6 +466,8 @@ export class GameScene extends Phaser.Scene {
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
   /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
+  /** Wrackrider Planted cue: 0 to 1 as the stakes drive in (eased in plantedDraw). */
+  private plantK = 0;
   private raftImgs: { deck: Phaser.GameObjects.Image; rim: Phaser.GameObjects.Image }[] = [];
   private drainImg?: Phaser.GameObjects.Image;
 
@@ -1307,6 +1310,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.warmSeen = warm;
+    // Wrackrider: while Planted (2 pieces), four teal stakes stand driven in round the hero's feet.
+    if (w.setCount('wrackrider') >= 2) this.plantedDraw(g, this.player.x, this.player.y + 22, !!w.player.planted && w.player.hp > 0, dt);
     this.slagDraw(g, now);
     this.altDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
@@ -2432,6 +2437,29 @@ export class GameScene extends Phaser.Scene {
    * pale lines rush inward from the rim; while it pulls, the floor darkens and streaks run
    * to the drain. A sunk raft is a dim ring of ripples until it bobs back up.
    */
+  /**
+   * Wrackrider's Planted (the set's 2-piece bonus): four short stakes driven in round the hero's feet
+   * on a faint teal ring, in the set colour. They drive in over 0.15 s with a small ring, and pull out
+   * over 0.25 s when the hero moves off.
+   */
+  private plantedDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, on: boolean, dt: number): void {
+    const was = this.plantK;
+    this.plantK = on ? Math.min(1, was + dt / 0.15) : Math.max(0, was - dt / 0.25);
+    if (on && was === 0) this.emit(this.fx, 'ring', undefined, x, y, 0.3, { tint: 0x5fe0c8, sx0: 0.45, sx1: 0.2 });
+    const k = this.plantK;
+    if (k <= 0) return;
+    g.lineStyle(1.5, 0x5fe0c8, 0.4 * k).strokeEllipse(x, y, 54, 20);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      const sx = x + Math.cos(a) * 27, sy = y + Math.sin(a) * 10;
+      // Drawn from the cap down: a stake rises 8 px out of the ground, shorter as it drives in.
+      const h = 8 * (1.6 - 0.6 * k);
+      g.lineStyle(4, 0x0c1a18, 0.7 * k).lineBetween(sx, sy, sx, sy - h);
+      g.lineStyle(2.4, 0x5fe0c8, 0.9 * k).lineBetween(sx, sy, sx, sy - h);
+      g.fillStyle(0xd8fff6, 0.9 * k).fillRect(sx - 2, sy - h - 1.5, 4, 2);
+    }
+  }
+
   private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const pulling = w.ebbT > 0;

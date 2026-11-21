@@ -129,8 +129,9 @@ export const SET_ICON: Record<SetId, string> = {
   glarewarden: 'M2 11s3.6-5 9-5 9 5 9 5-3.6 5-9 5-9-5-9-5Z M11 8.8a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z M15 20.5h7 M19.5 18l2.5 2.5-2.5 2.5',
   // Hearthkeeper (keep the flame): a flame cupped in two hands.
   hearthkeeper: 'M12 3.5c2.2 2.8 3.6 4.6 3.6 7a3.6 3.6 0 0 1-7.2 0c0-2.4 1.4-4.2 3.6-7Z M12 9.5c.9 1.2 1.4 2 1.4 3a1.4 1.4 0 0 1-2.8 0c0-1 .5-1.8 1.4-3Z M2.5 13.5c2.2 0 3.2 1.2 4.3 3.2s2.8 3.3 5.2 3.3 4.1-1.3 5.2-3.3 2.1-3.2 4.3-3.2',
-  // Wrackrider (stand fast): a figure planted on a raft over a wave (placeholder until visuals draws one).
-  wrackrider: 'M12 3.5a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6Z M12 7.5v6 M8.5 10h7 M9.5 17l2.5-3.5 2.5 3.5 M4 17h16 M2.5 21q2.4-2.4 4.8 0t4.8 0 4.8 0 4.6 0',
+  // Wrackrider (stand fast): a mooring bollard on the quay with a rope made fast, over a wave.
+  // (An anchor would read better, but Anchored Dawn's talent already uses one.)
+  wrackrider: 'M5.5 7q6.5-4.5 13 0Z M8.5 7c1.4 2.6 1.4 6.4 0 9.5 M15.5 7c-1.4 2.6-1.4 6.4 0 9.5 M5 16.5h14 M14.6 11.5c3 0 5.2 1.4 6.6 4 M2.5 21q2.4-2.4 4.8 0t4.8 0 4.8 0 4.6 0',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
