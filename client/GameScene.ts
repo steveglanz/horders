@@ -1223,6 +1223,7 @@ export class GameScene extends Phaser.Scene {
       const s = (lb.displayHeight * 0.78) / 48;
       al.mark.setScale(s).setPosition(lb.x - lb.displayWidth / 2 - 4, lb.y - lb.displayHeight * 0.5).setAlpha(lb.alpha * (w.heroData(al.hero).player.hp <= 0 ? 0.5 : 1));
     }
+    this.hideCoveredLabels();
 
     const view = cam.worldView;
     const margin = 80;
@@ -1654,6 +1655,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
+    // Under the top panels the countdown only shows through the panel as a smear: the edge arrow points there instead.
+    if (soakShown && this.soakText.y < this.clearView().y) this.soakText.setVisible(false);
     // The Lumen's Sanctuary and Blessed Ground pool.
     const lp = w.player;
     if (lp.sanctT > 0) {
@@ -2061,8 +2064,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
-   * twice a second: reading the layout every frame would force a reflow. */
-  private hudCover = { px: 0, at: -1 };
+   * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
+   * shows (CSS px), or undefined. */
+  private hudCover: { px: number; at: number; banner?: DOMRect } = { px: 0, at: -1 };
+
+  /**
+   * Allies' names (with their title and bot mark) that sit under the HUD's top panels or behind the cast banner are
+   * hidden: the boss panel is see-through, so a name under it shows as a smear across the boss's name, and names
+   * over the banner's text make both unreadable on a phone. Their health bars and edge arrows stay.
+   */
+  private hideCoveredLabels(): void {
+    const v = this.clearView();
+    const full = this.cameras.main.worldView;
+    const c = this.game.canvas.getBoundingClientRect();
+    const bn = this.hudCover.banner;
+    // The banner's box in world units.
+    const bw = bn && c.width && c.height ? {
+      l: full.x + ((bn.left - c.left) / c.width) * full.width, r: full.x + ((bn.right - c.left) / c.width) * full.width,
+      t: full.y + ((bn.top - c.top) / c.height) * full.height, b: full.y + ((bn.bottom - c.top) / c.height) * full.height,
+    } : undefined;
+    for (const al of this.allies) {
+      const lb = al.label;
+      const top = lb.y - lb.displayHeight * lb.originY;
+      const hw = lb.displayWidth / 2;
+      const behind = !!bw && lb.x + hw > bw.l && lb.x - hw < bw.r && top + lb.displayHeight > bw.t && top < bw.b;
+      const show = top >= v.y && !behind;
+      if (lb.visible !== show) lb.setVisible(show);
+      if (al.tag && al.tag.visible !== show) al.tag.setVisible(show);
+      if (al.mark && al.mark.visible !== show) al.mark.setVisible(show);
+    }
+  }
 
   /**
    * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
@@ -2083,6 +2114,9 @@ export class GameScene extends Phaser.Scene {
         if (r.height > 0 && r.width > window.innerWidth * 0.5) px = Math.max(px, r.bottom);
       }
       this.hudCover.px = px;
+      const banner = document.getElementById('banner');
+      const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
+      this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
     }
     const ch = this.game.canvas.getBoundingClientRect().height || 1;
     // Never take more than 40% of the view, so a tall panel can't push arrows down into the fight.
