@@ -43,6 +43,7 @@ Make playing together the best way to play.
 | G6 | **Revive between fights and in fights:** a downed hero can be picked up by standing on them for 3 s | engineering + design | ✅ built. Boss rules: one pick-up per boss fight, 9 s while the boss is up (docs/design/group-dungeons.md) |
 | G7 | **Group cues in sound:** tank-buster warning, party hit, "you're targeted" | sound | ✅ Boss wind-ups by cast id (CAST_SOUNDS), a "you're targeted" sting for Anvilfall, ally/tank/healer down calls, pick-up cues; priority cues duck the rest (tools/busycheck.ts) |
 | G8 | **Co-op QA sweep:** 2, 3 and 4 heroes, a guest dropping mid-fight, Quick join role matching, the Hammerdeep solo block | QA | ✅ tools/coopsweep.cjs (solo block, parties of 2-4, guest drop, Hammerdeep boss revive cap, `--raid` for the guest's Swap tanks! cue); Quick join in tools/quickjoincheck.cjs, roles in tests/lobby.test.ts. Real Safari co-op still needs a device (headless WebKit has no WebRTC) |
+| G9 | **Third group dungeon** for tier 10+: a new group check | design | ✅ The Pressworks: boss Oskel, Downstroke "take turns" soak (Pressed heroes can't take the next one), Rivets, Stamp ([group-dungeons.md](group-dungeons.md)). No Fill with bots there. Next: its verb set and achievement |
 
 ### Phase 3: Content
 More places to go, so the weekly loop has variety.

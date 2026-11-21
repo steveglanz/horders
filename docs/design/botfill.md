@@ -7,7 +7,8 @@ A hero with no online party can pick a group dungeon (the Hammerdeep or the Ashv
 
 ## The guardrails
 1. **Bots are weaker than real players.** Each bot wears stand-in gear: copies of the player's own equipped items at **80% of their stats** (`BOT_FILL.gearScale`). The copies have no Mythic, no class weapon effect and no set tag. So a bot is never better geared than you, and it never gets Deepguard or Ventwalker bonuses.
-2. **No bots in the raid.** The Crucible needs four real heroes (`botFillBlocker`). The raid's hits count triple toward the world boss, and the raid is the social goal at the top of the game.
+2. **No bots in the raid or the Pressworks.** In the Pressworks, taking turns is the whole fight and bots never miss a turn, so a bot fill won as often as a real party (group-dungeons.md, the Pressworks).
+   **The raid:** The Crucible needs four real heroes (`botFillBlocker`). The raid's hits count triple toward the world boss, and the raid is the social goal at the top of the game.
 3. **A bot-filled win pays like a solo dungeon.** Every hero in a group dungeon normally gets a second Rare-or-better boss item. A bot-filled party doesn't (`WorldOptions.fillBots`). Everything else is unchanged: the normal boss item (and the first-clear Epic), set drops, XP, the tier ladder and season marks. The hero still has a reason to play, but a real party pays better.
 
 Bot skill was tried as the knob first and rejected, because it barely changes anything. With a Bulwark player at tier 8, bots at skill 1, 0.7 and 0.5 won 18, 19 and 19 of 40 in the Hammerdeep, and 36, 35 and 32 of 40 in the Crucible.
