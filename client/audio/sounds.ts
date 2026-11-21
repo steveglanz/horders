@@ -454,6 +454,10 @@ export const SOUNDS = {
   sharpen: join([{ wave: 'noise', f: 0, dur: 0.14, vol: 0.16, lp: 9000, hp: 3000, curve: 2 }], clang(1900, 0.18, 0.3).map((v) => ({ ...v, delay: 0.08 }))),
   /** Glarewarden: stepped out of a marked attack in time. A light sidestep and a teal ping. */
   dodged: join(whoosh(4500, 1400, 0.16, 0.16), chime(E6, 0.05, 0.14, 0.3)),
+  /** Kinbound (2): Covered. A soft warm shimmer closes round you, like a cloak drawn tight. */
+  covered: join(whoosh(1200, 3800, 0.22, 0.12), [{ wave: 'tri', f: A5, f2: E6, dur: 0.25, vol: 0.09, a: 0.05, curve: 2 }, { wave: 'sine', f: E5, dur: 0.3, vol: 0.07, a: 0.06, curve: 2 }]),
+  /** Kinbound (3): Bonded. Two notes a fifth apart ring together, then a bright glint. */
+  bonded: join(chime(D5 * 2, 0, 0.14, 0.4), chime(A5 * 2, 0.06, 0.13, 0.4), [{ wave: 'saw', f: 880, f2: 1320, dur: 0.12, delay: 0.1, vol: 0.05, lp: 4000, curve: 2 }]),
   /** Hearthkeeper: Warmth reaches 5. A low fire swells and two warm notes settle. */
   warmthFull: join(
     [{ wave: 'noise', f: 0, dur: 0.45, vol: 0.18, a: 0.15, lp: 2200, hp: 400, trem: [18, 0.5] }],
