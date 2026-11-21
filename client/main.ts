@@ -260,7 +260,8 @@ function startRun(bounty = false, key = false): void {
   // They are bots, so they count as a bot fill: the same loot limits, and no party quest.
   if (!hosting && botParty?.length) Object.assign(opts, { party: botParty.map((cls) => ({ cls })), partySize: 1 + botParty.length, fillBots: botParty.length });
   // Fill with bots (sim/content/botfill): bot allies in stand-in copies of this hero's gear.
-  const fill = !hosting && !botParty?.length && !bounty && !stress && !(coop && coop.roster.length > 1) ? hub.fillParty() : [];
+  // V7: an online party's host can fill too (up to BOT_FILL.partySize); guests never start runs.
+  const fill = !botParty?.length && !bounty && !stress && (hosting || !(coop && coop.roster.length > 1)) ? hub.fillParty() : [];
   if (fill.length) {
     const gear = standInGear(equippedItems(hero));
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
@@ -629,6 +630,7 @@ const hubRender = hub.render.bind(hub);
 hub.render = () => {
   // Group dungeons need the party's classes for their labels and the party-size check.
   hub.partyClasses = coop && coop.roster.length > 1 ? coop.roster.map((r) => r.hero.cls) : [];
+  hub.hosting = !!coop && coop.role === 'host' && coop.roster.length > 1;
   hubRender();
   coopButton();
 };

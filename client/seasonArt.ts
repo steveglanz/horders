@@ -105,7 +105,143 @@ const COLD_HEARTH = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio
 </g>
 </svg>`;
 
+/**
+ * The Slag Moon (docs/design/season.md; no brief, palette from SEASONS[3]). Grandmother Slag's molten moon hangs over the
+ * Glarewell, the sunken observatory, dripping slag, and its glare pours across the floor. One hero has ducked into a
+ * pillar's shadow (the Glarewell's Glare: hide behind a pillar) while the observatory's great lens points up at the moon
+ * through the open slit of its dome. Slag Gold moon with Pour Crimson cracks and Moon Ash maria. The moon's halo
+ * pulses slowly and the drips fall, both stopping for Battery saver and for reduced motion (index.html).
+ */
+const SLAG_MOON = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbDusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0510"/><stop offset="1" stop-color="#26111c"/></linearGradient>
+<radialGradient id="kbMoon" cx="0.42" cy="0.38" r="0.62"><stop offset="0" stop-color="#fff0c2"/><stop offset="0.45" stop-color="#ffc861"/><stop offset="0.85" stop-color="#e8743a"/><stop offset="1" stop-color="#ff6a8a"/></radialGradient>
+<radialGradient id="kbHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffc861" stop-opacity="0.5"/><stop offset="0.5" stop-color="#ff8a5a" stop-opacity="0.16"/><stop offset="1" stop-color="#ff6a8a" stop-opacity="0"/></radialGradient>
+<linearGradient id="kbGlare" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc861" stop-opacity="0.34"/><stop offset="1" stop-color="#ffc861" stop-opacity="0.1"/></linearGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbDusk)"/>
+<g fill="#c9c2b8"><circle cx="30" cy="20" r="0.7"/><circle cx="74" cy="12" r="0.9"/><circle cx="120" cy="26" r="0.6"/><circle cx="168" cy="10" r="0.8"/><circle cx="206" cy="30" r="0.6"/><circle cx="330" cy="16" r="0.8"/><circle cx="346" cy="44" r="0.6"/><circle cx="12" cy="46" r="0.6"/></g>
+<circle class="sm-moon" cx="270" cy="60" r="50" fill="url(#kbHalo)"/>
+<path d="M258 68 L118 104 H244 L288 76 Z" fill="url(#kbGlare)"/>
+<g transform="translate(270 60) scale(0.88) translate(-268 -40)">
+<circle cx="268" cy="40" r="25" fill="url(#kbMoon)"/>
+<path d="M254 30a6 5 0 1 0 12 0a6 5 0 1 0-12 0Z M272 46a4.5 3.5 0 1 0 9 0a4.5 3.5 0 1 0-9 0Z M262 52a3 2.4 0 1 0 6 0a3 2.4 0 1 0-6 0Z" fill="#c9c2b8" fill-opacity="0.55"/>
+<path d="M246 44q6 2 8 8 M280 26q4 6 10 7 M266 22l2 7 5 3" fill="none" stroke="#ff6a8a" stroke-opacity="0.75" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M258 62.5q1 5 0 7a1.6 1.6 0 0 0 3 0q-1-3 0-7 M270 64.8q.8 7 0 10a1.8 1.8 0 0 0 3.4 0q-1-4 0-10.4 M281 61q.6 4 0 6a1.4 1.4 0 0 0 2.6 0q-.6-2.4 0-6.6" fill="#ffc861" stroke="#ff8a5a" stroke-width="0.6"/>
+<g class="sm-drips" fill="#ffcf6e"><circle cx="259.5" cy="74" r="1.4" style="--d:0s"/><circle cx="271.7" cy="79" r="1.6" style="--d:1.3s"/><circle cx="282.3" cy="71" r="1.2" style="--d:2.4s"/></g>
+</g>
+<path d="M18 104V70a52 44 0 0 1 104 0v34Z" fill="#120a14" stroke="#4a3048" stroke-width="1.5"/>
+<path d="M64 26.5 80 26.5 76 104H68Z" fill="#2c1626"/><path d="M64 26.5 68 104 M80 26.5 76 104" stroke="#ffc861" stroke-opacity="0.35" stroke-width="1"/>
+<path d="M36 46q8 10 8 58 M104 46q-8 10-8 58" fill="none" stroke="#2a1a2a" stroke-width="1.5"/>
+<path d="M66 72l42-30 5 6-40 31Z" fill="#1c1220" stroke="#c9c2b8" stroke-opacity="0.6" stroke-width="1.2" stroke-linejoin="round"/>
+<ellipse cx="111" cy="45" rx="3.6" ry="5" transform="rotate(-36 111 45)" fill="#fff0c2" stroke="#ffc861" stroke-width="1"/>
+<path d="M68 78l-6 26 M74 76l4 28" stroke="#2a1a2a" stroke-width="2"/>
+<rect y="103" width="360" height="7" fill="#120810"/>
+<path d="M0 103.5h360" stroke="#ffc861" stroke-opacity="0.22" stroke-width="1"/>
+<path d="M118 104 L244 104" stroke="#ffcf6e" stroke-opacity="0.6" stroke-width="1.4"/>
+<path d="M196 104V62h12v42Z" fill="#160c16" stroke="#ffc861" stroke-opacity="0.55" stroke-width="1"/>
+<path d="M193 62h18v-4h-18Z M193 104h18v-3h-18Z" fill="#1e1220" stroke="#c9c2b8" stroke-opacity="0.5" stroke-width="0.8"/>
+<path d="M196 104 H138 L196 79Z" fill="#05030a" fill-opacity="0.85"/>
+<g fill="#07040a" stroke="#ffc861" stroke-opacity="0.5" stroke-width="1.1" stroke-linejoin="round">
+<path d="M170 104l3-18q2-9 8-10l6 1 4 6-3 3-4-2 2 6 2 14Z"/>
+<circle cx="182" cy="69" r="5.6"/>
+</g>
+<path d="M190 82l6-6" stroke="#07040a" stroke-width="3" stroke-linecap="round"/>
+</svg>`;
+
+/**
+ * The Falling Press (docs/design/season.md; brief: horders/design/season5-6-brief.md). A party in the Pressworks under
+ * Oskel's press as the Downstroke falls: one hero braces in the gold circle, arms up, while the other two step out of
+ * it, the Pressworks' "take turns". Rivet Blue rivets on the press head, a Hot Stamp glow under its die and Oil Green
+ * drips. The press head bobs slowly and the gold circle pulses, both stopping for Battery saver and reduced motion.
+ */
+const FALLING_PRESS = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbShop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#06080a"/><stop offset="1" stop-color="#141a12"/></linearGradient>
+<radialGradient id="kbCircle" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd76a" stop-opacity="0.75"/><stop offset="0.7" stop-color="#ffc861" stop-opacity="0.3"/><stop offset="1" stop-color="#ffc861" stop-opacity="0"/></radialGradient>
+<radialGradient id="kbStamp" cx="0.5" cy="0" r="0.9"><stop offset="0" stop-color="#ff4fd8" stop-opacity="0.55"/><stop offset="1" stop-color="#ff4fd8" stop-opacity="0"/></radialGradient>
+<linearGradient id="kbSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3436"/><stop offset="1" stop-color="#151b1c"/></linearGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbShop)"/>
+<path d="M0 30h360 M0 34h360" stroke="#1c2420" stroke-width="2"/>
+<path d="M40 30v74 M320 30v74" stroke="#1a201c" stroke-width="10"/>
+<path d="M35 30h10 M315 30h10" stroke="#7fd46a" stroke-opacity="0.25" stroke-width="1"/>
+<g fill="#4f7dff"><circle cx="40" cy="44" r="1.4"/><circle cx="40" cy="60" r="1.4"/><circle cx="40" cy="76" r="1.4"/><circle cx="320" cy="44" r="1.4"/><circle cx="320" cy="60" r="1.4"/><circle cx="320" cy="76" r="1.4"/></g>
+<path d="M150 0h60v24h-60Z" fill="#11161a" stroke="#3a4448" stroke-width="1.2"/>
+<path d="M150 6h60 M150 12h60 M150 18h60" stroke="#f0c66a" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="6 6"/>
+<g class="fp-press">
+<path d="M172 24h16v24h-16Z" fill="#20282a" stroke="#4f7dff" stroke-opacity="0.45" stroke-width="1"/>
+<path d="M140 48h80l-4 14h-72Z" fill="url(#kbSteel)" stroke="#8a969a" stroke-opacity="0.7" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M146 62h68" stroke="#ff4fd8" stroke-width="1.8" stroke-linecap="round"/>
+<g fill="#4f7dff" stroke="#b8c8ff" stroke-width="0.5"><circle cx="150" cy="54" r="1.8"/><circle cx="166" cy="54" r="1.8"/><circle cx="194" cy="54" r="1.8"/><circle cx="210" cy="54" r="1.8"/></g>
+<path d="M144 62h72v18h-72Z" fill="url(#kbStamp)" opacity="0.8"/>
+<path d="M156 62q.6 4 0 6a1.3 1.3 0 0 0 2.5 0q-.6-2 0-6 M203 62q.5 3 0 4.5a1.2 1.2 0 0 0 2.3 0q-.5-1.6 0-4.5" fill="#7fd46a"/>
+</g>
+<rect y="103" width="360" height="7" fill="#0a0d0a"/>
+<path d="M0 103.5h360" stroke="#f0c66a" stroke-opacity="0.25" stroke-width="1"/>
+<path d="M60 104l6-4h12l-6 4Z M88 104l6-4h12l-6 4Z M254 104l6-4h12l-6 4Z M282 104l6-4h12l-6 4Z" fill="#f0c66a" fill-opacity="0.35"/>
+<ellipse class="fp-circle" cx="180" cy="102" rx="40" ry="9" fill="url(#kbCircle)"/>
+<ellipse cx="180" cy="102" rx="30" ry="5" fill="none" stroke="#ffd76a" stroke-width="1.4"/>
+<g fill="#070908" stroke="#ffd76a" stroke-opacity="0.75" stroke-width="1.1" stroke-linejoin="round">
+<path d="M170 103l2-16q1-8 8-9 7 1 8 9l2 16Z"/>
+<circle cx="180" cy="72" r="5.4"/>
+<path d="M171 82l-8-10 3-3 9 8 M189 82l8-10-3-3-9 8"/>
+</g>
+<g fill="#070908" stroke="#7fd46a" stroke-opacity="0.65" stroke-width="1.1" stroke-linejoin="round">
+<g transform="translate(0 -2) rotate(-14 121 103) translate(242 0) scale(-1 1)"><path d="M112 103l5-13-4-8q2-6 8-6 5 1 6 6l-1 8 6 13h-5l-5-10-4 10Z"/>
+<circle cx="121" cy="70" r="5"/></g>
+<g transform="translate(0 -2) rotate(14 239 103) translate(478 0) scale(-1 1)"><path d="M248 103l-5-13 4-8q-2-6-8-6-5 1-6 6l1 8-6 13h5l5-10 4 10Z"/>
+<circle cx="239" cy="70" r="5"/></g>
+</g>
+<path d="M136 80h-8 M138 88h-12 M224 80h8 M222 88h12" stroke="#7fd46a" stroke-opacity="0.55" stroke-width="1.2" stroke-linecap="round"/>
+</svg>`;
+
+/**
+ * The Low Ebb (docs/design/season.md; brief: horders/design/season5-6-brief.md). One hero on a Wrackline raft, holding
+ * fast to its pole as the Ebb drags the water into Hessa's drain, a spiral of Drain Blue and Ebb Indigo. Wrack Olive
+ * weed and Raft Splinters drift toward it. The spiral turns slowly and the wrack bobs, both stopping for Battery saver
+ * and reduced motion.
+ */
+const LOW_EBB = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbTide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05040e"/><stop offset="0.5" stop-color="#0d0c24"/><stop offset="1" stop-color="#06202c"/></linearGradient>
+<radialGradient id="kbDrain" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#020208"/><stop offset="0.35" stop-color="#1a1450"/><stop offset="0.7" stop-color="#2fa8d8" stop-opacity="0.35"/><stop offset="1" stop-color="#2fa8d8" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbTide)"/>
+<g fill="#cfc8ff" fill-opacity="0.7"><circle cx="24" cy="12" r="0.7"/><circle cx="88" cy="22" r="0.6"/><circle cx="150" cy="8" r="0.8"/><circle cx="214" cy="18" r="0.6"/><circle cx="300" cy="10" r="0.7"/><circle cx="340" cy="28" r="0.6"/></g>
+<path d="M0 52h360" stroke="#7a5cff" stroke-opacity="0.35" stroke-width="1"/>
+<path d="M0 60q40-3 80 0t80 0 M0 70q30-4 70 0 M0 82q24-4 52 0" fill="none" stroke="#2fa8d8" stroke-opacity="0.3" stroke-width="1.2" stroke-linecap="round"/>
+<g transform="translate(272 84) scale(1 0.34)">
+<circle r="96" fill="url(#kbDrain)"/>
+<g class="le-spiral" fill="none" stroke-linecap="round">
+<path d="M0 0a8 8 0 0 1 16 0a16 16 0 0 1-32 0a24 24 0 0 1 48 0a32 32 0 0 1-64 0a40 40 0 0 1 80 0a48 48 0 0 1-96 0" stroke="#2fa8d8" stroke-opacity="0.75" stroke-width="3"/>
+<path d="M0 0a4 4 0 0 0-8 0a12 12 0 0 0 24 0a20 20 0 0 0-40 0a28 28 0 0 0 56 0a36 36 0 0 0-72 0" stroke="#7a5cff" stroke-opacity="0.65" stroke-width="2.2"/>
+</g>
+</g>
+<path d="M90 96q60-10 130-6 M70 104q80-8 150-4 M120 88q50-6 104-4" fill="none" stroke="#2fa8d8" stroke-opacity="0.45" stroke-width="1.2" stroke-linecap="round"/>
+<g class="le-wrack" fill="none" stroke="#b5c24a" stroke-opacity="0.8" stroke-width="1.4" stroke-linecap="round">
+<path d="M212 96q6-3 10 0t9 0"/><path d="M196 86q5-2 8 0t7 0"/><path d="M230 102q5-3 9 0"/>
+</g>
+<g transform="rotate(-4 130 98)">
+<path d="M98 96h64l-5 7H93Z" fill="#3a2614" stroke="#c8915a" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M114 96l-4 7 M130 96l-4 7 M146 96l-4 7" stroke="#c8915a" stroke-opacity="0.7" stroke-width="1"/>
+<path d="M104 96v-30" stroke="#5a3e22" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M104 68l14 4-14 4" fill="#b5c24a" fill-opacity="0.35" stroke="#b5c24a" stroke-opacity="0.6" stroke-width="0.8"/>
+<g fill="#06050e" stroke="#2fa8d8" stroke-opacity="0.8" stroke-width="1.1" stroke-linejoin="round">
+<path d="M122 96l6-14q1-8 8-9 6 1 6 8l2 4 8 11h-6l-6-8-4 8Z"/>
+<circle cx="135" cy="66" r="5.2"/>
+<path d="M131 76l-14-4"/>
+</g>
+<path d="M117 72l-13 2" stroke="#c8915a" stroke-width="1" stroke-opacity="0.8"/>
+</g>
+<g fill="#c8915a" fill-opacity="0.8"><path d="M176 96l5-1 .5 1.4-5 1Z"/><path d="M190 92l4-1.6.6 1.2-4 1.6Z"/></g>
+<rect y="106" width="360" height="4" fill="#041016"/>
+</svg>`;
+
 export const SEASON_ART: Record<number, SeasonArt> = {
   1: { accent: '#ff9a3c', hi: '#ffc98a', deep: '#d9442c', banner: DEEP_BELLOWS },
   2: { accent: '#8fb8ff', hi: '#d8f4ff', deep: '#3f62b0', banner: COLD_HEARTH },
+  3: { accent: '#ffc861', hi: '#ffe6a8', deep: '#a8522a', banner: SLAG_MOON },
+  4: { accent: '#7fd46a', hi: '#d2f7b0', deep: '#2f7a3a', banner: FALLING_PRESS },
+  5: { accent: '#2fa8d8', hi: '#b8e8ff', deep: '#4a3cb0', banner: LOW_EBB },
 };

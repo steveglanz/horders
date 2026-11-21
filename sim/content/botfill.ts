@@ -31,6 +31,16 @@ export function standInGear(items: Item[], scale = BOT_FILL.gearScale): Item[] {
   }));
 }
 
+/**
+ * The share of in-run drops a run keeps with `bots` fill bots. lootShare was tuned for one hero
+ * and 3 bots; a party that is mostly real players keeps more (design, V7): 3 bots 40%, 2 bots
+ * 60%, 1 bot 80%, no bots everything.
+ */
+export function fillLootShare(bots: number): number {
+  const b = Math.max(0, Math.min(BOT_FILL.partySize - 1, bots));
+  return 1 - (1 - BOT_FILL.lootShare) * (b / (BOT_FILL.partySize - 1));
+}
+
 /** Why bots can't fill this dungeon, or '' if they can. */
 export function botFillBlocker(d: DungeonId): string {
   const def = DUNGEONS[d];

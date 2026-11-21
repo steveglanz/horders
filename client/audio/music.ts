@@ -20,7 +20,7 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb';
 export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press';
 
 export interface Theme {
@@ -58,6 +58,12 @@ export const THEMES: Record<ThemeId, Theme> = {
   hubBellows: { root: -9, scale: [0, 2, 4, 7, 9, 10, 12, 14], progression: [0, -2, 5, 0], bpm: 72, drone: 'triangle', droneLp: 620, pluck: 'harp', density: 0.55, bed: 'forge', bedVol: 0.26, droneAt: 0 },
   // Season 3, the Cold Hearth: the hearth harp gone cold, in dorian over the Coldmarrow's frost wind, with a Hearthcoal crackle as the one warm sound.
   hubHearth: { root: -3, scale: [0, 2, 3, 7, 9, 12, 14, 15], progression: [0, -4, 3, -2], bpm: 66, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.5, bed: 'frost', bedVol: 0.28, coal: true, droneAt: 0 },
+  // Season 4, the Slag Moon (the Glarewell in season): the harp turns lydian and starlit over the Glarewell's shimmer.
+  hubSlag: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14], progression: [0, 2, -1, 4], bpm: 70, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.5, bed: 'shimmer', bedVol: 0.26, droneAt: 0 },
+  // Season 5, the Falling Press (the Pressworks): the harp keeps time with a distant press cycle.
+  hubPress: { root: -11, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, 3, -4], bpm: 80, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.5, bed: 'press', bedVol: 0.3, droneAt: 0 },
+  // Season 6, the Low Ebb (the Wrackline): the harp over a slow harbour surf, in aeolian.
+  hubEbb: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 64, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.45, bed: 'surf', bedVol: 0.3, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
   ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
@@ -490,7 +496,7 @@ class ThemePlayer {
 }
 
 /** The hub's theme for each season (SEASONS order in sim/content/season.ts). A season without a variant keeps the plain hub. */
-export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows', 'hubHearth'];
+export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows', 'hubHearth', 'hubSlag', 'hubPress', 'hubEbb'];
 
 /** The hub theme for a season id (seasonOf); the seasons rotate through SEASONS, so this wraps the same way. */
 export function hubThemeFor(seasonId: number, seasons: number): ThemeId {

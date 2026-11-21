@@ -88,14 +88,22 @@ interface Fx {
   tint1: number;
 }
 
-/** Season trails drawn as rising, cooling embers instead of soft motes (TRAILS ids). */
-const SPARK_TRAILS = new Set(['bellowsSparks']);
-/** Season trails drawn as falling frost crystals that settle and fade (the Cold Hearth's Rime Dust). */
-const FROST_TRAILS = new Set(['rimeDust']);
+/**
+ * How each season trail is drawn (TRAILS ids); any other trail is soft motes. 'sparks': rising, cooling embers (the
+ * Deep Bellows). 'frost': falling crystals that settle (the Cold Hearth). 'drip': molten drops that fall and cool (the
+ * Slag Moon). 'oil': iridescent oil drops that spread into a green slick (the Falling Press). 'chips': wood splinters
+ * that tumble off the heels (the Low Ebb).
+ */
+type TrailStyle = 'motes' | 'sparks' | 'frost' | 'drip' | 'oil' | 'chips';
+const TRAIL_STYLE: Record<string, TrailStyle> = { bellowsSparks: 'sparks', rimeDust: 'frost', slagDrips: 'drip', oilSheen: 'oil', raftSplinters: 'chips' };
 /** The deeper rime blue a settled crystal turns, so a near-white trail still shows on the Coldmarrow's frost. */
 const FROST_SETTLE = 0x7fa6e8;
 /** The dim forge red an ember cools to. */
 const EMBER_COOL = 0x9a2e1c;
+/** The dull crust red a slag drop cools to once it lands. */
+const SLAG_CRUST = 0x8a2a2a;
+/** The dark wet wood a splinter darkens to as it settles. */
+const WET_WOOD = 0x5a3a22;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
 function mixRgb(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * t)) << sh;
@@ -492,7 +500,7 @@ export class GameScene extends Phaser.Scene {
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
   /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
-  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean; frost: boolean }[] = [];
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; style: TrailStyle }[] = [];
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
   /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
@@ -576,12 +584,18 @@ export class GameScene extends Phaser.Scene {
     if (this.workTimes.length > 240) this.workTimes.shift();
   }
 
-  /** Inputs for bot allies in a local party (heroes 1..n). */
-  private botAllies(w: World): Input[] {
+  /** Inputs for bot allies (heroes from..n): a local party from 1, or a co-op host's fill bots after the guests. */
+  private botAllies(w: World, from = 1): Input[] {
     const out: Input[] = [];
-    for (let i = 1; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
+    for (let i = from; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
     w.use(0);
     return out;
+  }
+
+  /** Host: this hero, the guests' inputs, then any fill bots (V7), which the host runs. */
+  private coopInputs(w: World, input: Input): Input[] {
+    const guests = this.coop!.remoteInputs(w);
+    return w.fillBots ? [input, ...guests, ...this.botAllies(w, 1 + guests.length)] : [input, ...guests];
   }
 
   /** Average milliseconds of game code (simulation + scene updates) per frame. */
@@ -611,7 +625,7 @@ export class GameScene extends Phaser.Scene {
         }
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
+        w.step(this.coop ? this.coopInputs(w, input) : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
         this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
@@ -623,8 +637,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.coop?.role === 'host') this.coop.frame(w, this.time.now);
     // A local bot party (?botparty): allies take the bot's card.
-    if (!this.coop && w.state === 'draft') {
-      for (let i = 1; i < w.heroes.length; i++) if (w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
+    // A co-op host picks for its fill bots (V7); guests pick their own.
+    if ((!this.coop || this.coop.role === 'host') && w.state === 'draft') {
+      for (let i = 1; i < w.heroes.length; i++) if ((!this.coop || isBotAlly(w, i)) && w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
     }
     if ((!this.paused || this.coop) && w.state === 'draft') {
       const key = w.player.level * 100 + w.player.pendingLevels;
@@ -1938,8 +1953,11 @@ export class GameScene extends Phaser.Scene {
     tr.acc += dt * (rich && !this.lowFx ? 6 : 3);
     while (tr.acc >= 1) {
       tr.acc -= 1;
-      if (tr.sparks) { this.trailEmbers(tr, px, py, rich); continue; }
-      if (tr.frost) { this.trailFrost(tr, px, py, rich); continue; }
+      if (tr.style === 'sparks') { this.trailEmbers(tr, px, py, rich); continue; }
+      if (tr.style === 'frost') { this.trailFrost(tr, px, py, rich); continue; }
+      if (tr.style === 'drip') { this.trailDrip(tr, px, py, rich); continue; }
+      if (tr.style === 'oil') { this.trailOil(tr, px, py, rich); continue; }
+      if (tr.style === 'chips') { this.trailChips(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -1980,6 +1998,50 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A drip trail (the Slag Moon): molten drops shaken off the hero's heels. Each falls a short way, stretched like a
+   * drop, then squashes flat where it lands and cools from the trail's gold to a dull crust red as it fades. Unlike
+   * the Deep Bellows' embers they fall instead of rising, and they pool instead of drifting. They blend normally (addTrail),
+ * so the cooled crust stays visible on a dark floor instead of fading out.
+   */
+  private trailDrip(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1.2 : 0.7;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.8 : 1.1) + Math.random() * 0.2;
+      this.emit(tr.fx, 'trailMote', undefined, px + (Math.random() - 0.5) * 30, py + 8 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: tr.color, tint1: SLAG_CRUST, vx: (Math.random() - 0.5) * 6, vy: 46 + Math.random() * 14, drag: 0.9, sx0: sz * 0.8, sy0: sz * 1.8, sx1: sz * 1.5, sy1: sz * 0.55 });
+    }
+  }
+
+  /**
+   * An oil trail (the Falling Press): small drops flicked off the heels that land and spread into a flat slick. Each
+   * starts untinted, showing the texture's rainbow sheen, and settles to the trail's oil green as it fades.
+   */
+  private trailOil(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1.1 : 0.65;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.7 : 0.95) + Math.random() * 0.2;
+      this.emit(tr.fx, 'oilDrop', undefined, px + (Math.random() - 0.5) * 30, py + 14 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: 0xffffff, tint1: tr.color, vx: (Math.random() - 0.5) * 16, vy: 6 + Math.random() * 6, drag: 0.9, sx0: sz * 0.8, sy0: sz * 0.8, sx1: sz * 1.5, sy1: sz * 0.7 });
+    }
+  }
+
+  /**
+   * A splinter trail (the Low Ebb): wood chips kicked off the heels that tumble out sideways, spinning, and darken
+   * from the trail's raft brown to wet wood as they settle, like a raft shedding splinters.
+   */
+  private trailChips(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 0.9 : 0.55;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.7 : 0.95) + Math.random() * 0.2;
+      this.emit(tr.fx, 'woodChip', undefined, px + (Math.random() - 0.5) * 26, py + 14 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: tr.color, tint1: WET_WOOD, rot: Math.random() * Math.PI, vx: (Math.random() - 0.5) * 44, vy: -8 + Math.random() * 16, drag: 0.92, spin: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 5), sx0: sz, sx1: sz * 0.85 });
+    }
+  }
+
   /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
    * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
    * can't steal its motes. */
@@ -1987,9 +2049,12 @@ export class GameScene extends Phaser.Scene {
     const def = worn ? TRAILS[worn.id] : undefined;
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
-    const frost = FROST_TRAILS.has(def.id);
-    for (let i = 0; i < pool; i++) fx.push(this.newFx(frost ? 'frostFlake' : 'trailMote', 1.35, !frost));
-    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id), frost });
+    const style = TRAIL_STYLE[def.id] ?? 'motes';
+    const tex = style === 'frost' ? 'frostFlake' : style === 'oil' ? 'oilDrop' : style === 'chips' ? 'woodChip' : 'trailMote';
+    // Motes and sparks glow (additive). The others blend normally, so what settles on the floor (rime blue, slag crust,
+    // an oil slick, wet wood) stays visible instead of fading into it.
+    for (let i = 0; i < pool; i++) fx.push(this.newFx(tex, 1.35, style === 'motes' || style === 'sparks'));
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, style });
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
@@ -2002,13 +2067,31 @@ export class GameScene extends Phaser.Scene {
       const t = k / (n - 1);
       const a = Math.random() * Math.PI * 2;
       const sp = k >= n - 3 ? 40 + Math.random() * 40 : 8;
-      if (tr.sparks) {
+      if (tr.style === 'oil') {
+        // Oil: the landing drops splash out and spread flat.
+        this.emit(tr.fx, 'oilDrop', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.6 + t * 0.4,
+          { tint: 0xffffff, tint1: tr.color, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.35, drag: 0.9, sx0: 0.8, sx1: 1.5, sy1: 0.65 });
+        continue;
+      }
+      if (tr.style === 'chips') {
+        // Splinters: the landing ones burst out spinning, like a plank giving way.
+        this.emit(tr.fx, 'woodChip', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.5 + t * 0.35,
+          { tint: tr.color, tint1: WET_WOOD, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, drag: 0.92, spin: (Math.random() - 0.5) * 16, sx0: 1, sx1: 0.85 });
+        continue;
+      }
+      if (tr.style === 'sparks') {
         // Embers: the landing ones fly up and out like a struck forge, then cool.
         this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.35,
           { tint: tr.color, tint1: EMBER_COOL, vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 30, drag: 0.95, sx0: 1.3, sy0: 1.9, sx1: 0.45, sy1: 0.65 });
         continue;
       }
-      if (tr.frost) {
+      if (tr.style === 'drip') {
+        // Slag: the landing drops splash out low and flat, then cool where they land.
+        this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.55 + t * 0.4,
+          { tint: tr.color, tint1: SLAG_CRUST, vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp * 0.25 + 20, drag: 0.9, sx0: 1, sy0: 1.6, sx1: 1.6, sy1: 0.6 });
+        continue;
+      }
+      if (tr.style === 'frost') {
         // Frost: the landing crystals scatter outward, then fall and settle like shaken rime.
         this.emit(tr.fx, 'frostFlake', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 8, 0.6 + t * 0.4,
           { tint: tr.color, tint1: FROST_SETTLE, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 + 30, drag: 0.93, spin: (Math.random() - 0.5) * 5, sx0: 0.8, sx1: 0.55 });

@@ -954,6 +954,8 @@
   .wq.done .wq-top, .wq.done .wq-txt { opacity: 0.6; }
   .wq-n { font-size: 11px; color: var(--muted); margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
   .lbl.wq-party { margin-top: 14px; }
+  /* Phones: the count sits beside its bar, not on a line of its own (a line saved per quest). */
+  @media (max-width: 560px), (max-height: 520px) { .wq-main { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: center; } .wq-main > .wq-top, .wq-main > .wq-txt { grid-column: 1 / -1; } .wq-main > .wq-bar { grid-column: 1; } .wq-main > .wq-n { margin-top: 6px; line-height: 1; } }
   .wq-title { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed rgba(255,200,97,0.3); font-size: 12px; color: var(--muted); }
   .wq-title .crest { color: rgba(255,200,97,0.55); font-size: 16px; }
   .wq-title b { color: var(--gold); }
@@ -979,9 +981,21 @@
   .kart .ch-frost circle { animation: chFall 6s linear infinite; animation-delay: var(--d); opacity: 0; }
   @keyframes chCoal { 0%, 100% { opacity: 0.78; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1.03); } }
   @keyframes chFall { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(var(--x), 84px); } }
+  .kart .sm-moon { animation: smGlow 6s ease-in-out infinite; transform-origin: 270px 60px; }
+  .kart .sm-drips circle { animation: smDrip 3.6s ease-in infinite; animation-delay: var(--d); opacity: 0; }
+  @keyframes smGlow { 0%, 100% { opacity: 0.75; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.04); } }
+  @keyframes smDrip { 0% { opacity: 0; transform: translateY(0); } 10% { opacity: 1; } 85% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(28px); } }
+  .kart .fp-press { animation: fpPress 4s ease-in-out infinite; }
+  .kart .fp-circle { animation: fpCircle 2s ease-in-out infinite; transform-origin: 180px 102px; }
+  @keyframes fpPress { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+  @keyframes fpCircle { 0%, 100% { opacity: 0.7; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.04); } }
+  .kart .le-spiral { animation: leSpin 14s linear infinite; transform-origin: 0 0; }
+  .kart .le-wrack { animation: leWrack 3.4s ease-in-out infinite; }
+  @keyframes leSpin { to { transform: rotate(360deg); } }
+  @keyframes leWrack { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -1px); } }
   body.saver .kart *, .kart.still * { animation: none !important; }
-  body.saver .kart :is(.kb-sparks, .ch-frost) circle { opacity: 0.7; }
-  @media (prefers-reduced-motion: reduce) { .kart * { animation: none !important; } .kart :is(.kb-sparks, .ch-frost) circle { opacity: 0.7; } }
+  body.saver .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; }
+  @media (prefers-reduced-motion: reduce) { .kart * { animation: none !important; } .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; } }
   /* "In season": the season's dungeon in the list gets a warm edge and a small badge in the season's colour. */
   .dg.insea { border-color: color-mix(in srgb, var(--sa, #b48cff) 55%, transparent); }
   .dg.insea::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 18px color-mix(in srgb, var(--sa, #b48cff) 30%, transparent); }
