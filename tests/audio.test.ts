@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
-import { bedSamples, THEMES } from '../client/audio/music';
+import { bedSamples, chordAt, sectionAt, THEMES } from '../client/audio/music';
 import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
@@ -236,5 +236,26 @@ describe('audio', () => {
     for (const id of ['targeted', 'allyDown', 'selfDown', 'bossSpawn', 'revivesSpent'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(true);
     for (const id of ['hit', 'swing', 'mote', 'crit', 'heal'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(false);
     expect(DUCK.gain).toBeLessThan(1);
+  });
+
+  it('plays a season-track level-up after any achievements', () => {
+    const r = { heroXp: 0, items: [], levelsGained: 0, seasonFrom: 3, seasonTo: 4, achievements: [{ id: 'x', name: 'A', title: 'T', embers: 1 }] } as never;
+    expect(rewardCues(r).map((c) => c.id)).toEqual(['achievement', 'seasonUp']);
+  });
+
+  it('varies long sessions: every theme walks a section plan, keeping its chords, and boss fights never break down', () => {
+    for (const th of Object.values(THEMES)) {
+      const meter = th.meter ?? 4;
+      const pass = 2 * th.progression.length * meter; // beats in one pass through the progression
+      const names = Array.from({ length: 6 }, (_, k) => sectionAt(k * pass, th, false).name);
+      expect(new Set(names).size, th.root + '').toBeGreaterThanOrEqual(3);
+      expect(names).toContain('breakdown');
+      for (let b = 0; b < pass * 6; b += meter) {
+        expect(th.progression).toContain(chordAt(b, th, false));
+        expect(sectionAt(b, th, true).name).not.toBe('breakdown');
+      }
+      // The plan repeats only after six passes.
+      expect(sectionAt(6 * pass, th, false)).toEqual(sectionAt(0, th, false));
+    }
   });
 });

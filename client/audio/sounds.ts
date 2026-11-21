@@ -216,6 +216,12 @@ export const SOUNDS = {
     chime(G5, 0, 0.26, 0.5), chime(C6, 0.1, 0.26, 0.5), chime(E6, 0.2, 0.26, 0.6), chime(G6, 0.3, 0.3, 1.2),
     [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.3, vol: 0.08, a: 0.2, lp: 11000, hp: 6000 }],
   ),
+  /** A new season-track level: a quick climbing run of five notes into a bright bell, over a whoosh. */
+  seasonUp: join(
+    chime(C5, 0, 0.2, 0.3), chime(E5, 0.06, 0.2, 0.3), chime(G5, 0.12, 0.2, 0.3), chime(C6, 0.18, 0.22, 0.3),
+    clang(note(22), 0.2, 1.0).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.26 })),
+    whoosh(800, 7000, 0.4, 0.1),
+  ),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),

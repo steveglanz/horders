@@ -21,7 +21,7 @@ import { note } from './synth';
 export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid';
 export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag';
 
-interface Theme {
+export interface Theme {
   /** Root pitch in semitones from A4. */
   root: number;
   /** Scale degrees the melody may use, in semitones above the root. */
@@ -62,6 +62,39 @@ export const THEMES: Record<ThemeId, Theme> = {
 };
 
 // ---------------------------------------------------------------- beds (pure)
+
+/**
+ * Long-session variety: a theme plays as a six-part plan, one part per pass through its
+ * progression (8 bars, about 20-35 s), so the same 8 bars never just loop:
+ *  - main: as written;
+ *  - turn: the same chords, starting halfway through (rotated), for a new harmonic road;
+ *  - high: the melody climbs an octave;
+ *  - breakdown: the melody thins out and the slow pulse rests, a breath before the theme returns.
+ * Boss fights (intensity) never break down. The melody itself is still a fresh walk each time.
+ */
+export type Section = { name: 'main' | 'turn' | 'high' | 'breakdown'; rotate: number; octave: number; density: number; pulse: boolean };
+const PLAN: Section[] = [
+  { name: 'main', rotate: 0, octave: 0, density: 1, pulse: true },
+  { name: 'main', rotate: 0, octave: 0, density: 1, pulse: true },
+  { name: 'turn', rotate: 2, octave: 0, density: 1, pulse: true },
+  { name: 'high', rotate: 0, octave: 12, density: 0.8, pulse: true },
+  { name: 'breakdown', rotate: 0, octave: 0, density: 0.35, pulse: false },
+  { name: 'turn', rotate: 2, octave: 12, density: 0.9, pulse: true },
+];
+/** The section for a beat of a theme. Pure, so tests can walk a whole plan. */
+export function sectionAt(beat: number, th: Pick<Theme, 'meter' | 'progression'>, intense: boolean): Section {
+  const bar = Math.floor(beat / (th.meter ?? 4));
+  const cycle = Math.floor(bar / (2 * th.progression.length));
+  const sec = PLAN[cycle % PLAN.length];
+  return intense && sec.name === 'breakdown' ? PLAN[0] : sec;
+}
+/** The chord (semitones from the root) for a beat, following the section plan. */
+export function chordAt(beat: number, th: Pick<Theme, 'meter' | 'progression'>, intense: boolean): number {
+  const bar = Math.floor(beat / (th.meter ?? 4));
+  const { rotate } = sectionAt(beat, th, intense);
+  const n = th.progression.length;
+  return th.progression[(Math.floor(bar / 2) + rotate) % n];
+}
 
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 1;
@@ -275,8 +308,7 @@ class ThemePlayer {
   }
 
   private chordRoot(): number {
-    const bar = Math.floor(this.beat / (this.theme.meter ?? 4));
-    return this.theme.progression[Math.floor(bar / 2) % this.theme.progression.length];
+    return chordAt(this.beat, this.theme, this.intensity > 0);
   }
 
   /** Schedules every beat that starts before `until`. */
@@ -296,6 +328,7 @@ class ThemePlayer {
     while (this.nextAt < until) {
       const at = this.nextAt;
       const chord = this.chordRoot();
+      const sec = sectionAt(this.beat, th, fast);
       if (this.beat % (meter * 2) === 0) {
         // Move the drone to the new chord.
         this.drones.slice(0, 3).forEach((o, k) => o.frequency.setTargetAtTime(note(th.root + (th.droneAt ?? -12) + chord + (k === 2 ? 7 : 0)), at, 0.8));
@@ -303,11 +336,11 @@ class ThemePlayer {
       // Melody: an 8th-note pattern when intense, otherwise sparse quarter notes.
       const steps = fast ? 2 : 1;
       for (let s = 0; s < steps; s++) {
-        if (this.r() < th.density + (fast ? 0.2 : 0)) {
+        if (this.r() < th.density * sec.density + (fast ? 0.2 : 0)) {
           // Walk the scale in small steps so lines feel sung, not random.
           const move = Math.floor(this.r() * 5) - 2;
           this.lastNote = Math.max(0, Math.min(th.scale.length - 1, this.lastNote + move));
-          const semis = th.root + 12 + th.scale[this.lastNote];
+          const semis = th.root + 12 + sec.octave + th.scale[this.lastNote];
           this.pluck(note(semis), at + s * spb * 0.5, 0.5 + this.r() * 0.5);
         }
       }
@@ -319,6 +352,8 @@ class ThemePlayer {
           this.pluck(note(th.root + chord), at, 0.9);
           this.bass(note(th.root - 12 + chord), at, spb * 2.6);
         }
+      } else if (!sec.pulse) {
+        // Breakdown: the pulse rests for one pass.
       } else if (th.heartbeat && !fast) {
         // The Coldmarrow's slow heartbeat: lub-dub once a bar.
         if (this.beat % meter === 0) {
