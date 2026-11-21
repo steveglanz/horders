@@ -857,6 +857,17 @@ export class World {
   private spillT = 0;
   private swallowed = -1;
   private crawIndex = -1;
+  /** The Hoard's Craw while it is up (for the bot), or -1. */
+  get craw(): number {
+    return this.crawIndex >= 0 && this.enemies[this.crawIndex]?.alive && this.enemies[this.crawIndex].kind === 'craw' ? this.crawIndex : -1;
+  }
+  /** The Craw if it is up and within `range` of the acting hero: ranged attacks hit it before the boss, as blades do. */
+  private crawIn(range: number): number {
+    const c = this.craw;
+    if (c < 0) return -1;
+    const e = this.enemies[c];
+    return dist2(this.player.x, this.player.y, e.x, e.y) < (range + e.def.radius) ** 2 ? c : -1;
+  }
   /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
   coalFed = 0;
   /** Spilled embers on the floor, with seconds left before he inhales them. */
@@ -2919,6 +2930,7 @@ export class World {
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (SLAG_KIT.lobRange + boss.def.radius) ** 2) t = this.bossIndex;
+      if (this.crawIn(SLAG_KIT.lobRange) >= 0) t = this.crawIn(SLAG_KIT.lobRange);
       // As with Sunmote: an acolyte healing a wounded boss is struck first.
       if (boss.alive && boss.hp < boss.maxHp) {
         let best = (SLAG_KIT.lobRange + 40) ** 2;
@@ -3104,6 +3116,7 @@ export class World {
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
+      if (this.crawIn(this.lumenRange) >= 0) t = this.crawIn(this.lumenRange);
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
     // acolytes on its own: light seeks out an acolyte that is healing a wounded boss first.
@@ -3749,6 +3762,7 @@ export class World {
       const b = this.enemies[this.bossIndex];
       if (b.alive && b.def.rank === 'boss' && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
     }
+    if (this.crawIn(480) >= 0) targets.unshift(this.crawIn(480));
     for (let k = 0; k < n; k++) {
       const orb = this.orbs.find((o) => !o.alive);
       if (!orb) return;

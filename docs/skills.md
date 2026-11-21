@@ -735,6 +735,27 @@ Sweep, 80 seeds (Crucible out of 90):
 
 At 20% the Anvil matches the Bulwark in three of the four. The Pressworks is the exception: Oskel's Stamp kills the Anvil there, so it becomes the hard way to tank it (34%). Solo replay fingerprints are identical to main.
 
+## The Hoard: class coverage (Y5, 21 Nov 2026)
+Measured on the Hoard t9 with tools/group.ts, heroes-r2 hero-t8-0 (the Slagbinder on the Duskblade's files), 40 seeds, no potions. The band is 22 to 28 of 40.
+
+**The bug:** Slag Lob, Sunmote and the Emberwright's first orb always lock onto a boss in range. Only blades (`bladeTarget`) ever went for the Craw. A party without a Duskblade couldn't break it, so its swallowed heroes were Digested. The Anvil tank also kited Old Coalmouth away from the Craw, so even the Duskblade lost reach.
+
+**The fix:**
+- While the Craw is up and in range, it comes first for all three (`crawIn` in sim/world.ts).
+- A hero more than 280 px from it walks to it (sim/bot.ts). The boss follows its tank there.
+- Solo play can't meet a Craw, so solo replay fingerprints are identical to main.
+
+| Party | Before | After |
+|---|---|---|
+| Base: Bulwark, Lumen, Duskblade, Emberwright | 27 | 38 |
+| Two Duskblades | 31 | 34 |
+| Two Emberwrights | 18 | 37 |
+| Bellows Slagbinder for the Duskblade | 12 | 36 |
+| Bellows Slagbinder for the Emberwright | 31 | 38 |
+| Anvil Slagbinder as the tank | 0 | 37 |
+
+The class spread is gone: every party now wins 34 to 38. That puts the Hoard over its band. COAL was tuned around a Craw that only blades could break, so design retunes it (design, Y5).
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
