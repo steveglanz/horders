@@ -31,8 +31,10 @@ describe('quick join lobby', () => {
   });
   it('maps every class to a lobby role', () => {
     expect(Object.values(CLASSES).map((c) => [c.id, roleOf(c.role)])).toEqual([
-      ['emberwright', 'dps'], ['duskblade', 'dps'], ['bulwark', 'tank'], ['lumen', 'healer'],
+      ['emberwright', 'dps'], ['duskblade', 'dps'], ['bulwark', 'tank'], ['lumen', 'healer'], ['slagbinder', 'dps'],
     ]);
+    // A Slagbinder's stance decides: Anvil tanks.
+    expect(roleOf(CLASSES.slagbinder.role, 'anvil')).toBe('tank');
   });
   it('sends a healer to the party without one, ahead of a fuller party', () => {
     const withRoles = (code: string, roles: LobbyRole[]): LobbyAd => ({ ...ad(code, roles.length), roles });

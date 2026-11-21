@@ -269,7 +269,21 @@ export class Hub {
       const ic = CLASS_ICON[id];
       return `<button class="cls ${id === cls ? 'active' : ''}" style="--gc:${ic.color}" aria-pressed="${id === cls}" data-cls="${id}" title="${c.role}. ${c.blurb}">`
         + `<span class="gtile" style="width:40px;height:40px">${glyph(ic.d, 24)}</span><b>${c.name}</b><span class="cl">${ch ? `Lv ${ch.level}` : c.role}</span></button>`;
-    }).join('');
+    }).join('')
+      // The Slagbinder picks a stance before the run: Anvil tanks, Bellows fills a damage slot.
+      + (cls === 'slagbinder'
+        ? `<div class="stance" role="group" aria-label="Stance">${(['anvil', 'bellows'] as const).map((st) => {
+          const on = (h.stance ?? 'bellows') === st;
+          const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer.';
+          return `<button data-stance="${st}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
+        }).join('')}</div>`
+        : '');
+    $('classes').querySelectorAll<HTMLButtonElement>('[data-stance]').forEach((b) =>
+      b.addEventListener('click', () => {
+        h.stance = b.dataset.stance as 'anvil' | 'bellows';
+        this.save();
+        this.render();
+      }));
     $('classes').querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) =>
       b.addEventListener('click', () => {
         // Each class is its own hero, with its own level, talents, gear and bags.

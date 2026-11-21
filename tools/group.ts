@@ -23,11 +23,11 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main,
+    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main, stance: process.env.STANCE as 'anvil' | undefined,
     ...(mp ? { gear: equippedItems(mp), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
-      return { cls, name: `${cls}${k + 1}`, ...(hp ? { gear: equippedItems(hp), passives: hp.passives } : {}) };
+      return { cls, stance: process.env.STANCE as 'anvil' | undefined, name: `${cls}${k + 1}`, ...(hp ? { gear: equippedItems(hp), passives: hp.passives } : {}) };
     }),
   };
   const w = new World(opts);

@@ -18,6 +18,9 @@ const PRIORITY: TalentId[] = [
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
   'renewal', 'lingeringSanctuary', 'blessedGround',
+  // Slagbinder
+  'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
+  'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
   'smallHeal', 'stoke',
 ];
 
@@ -27,7 +30,7 @@ function bladeCast(w: World, skill: number): number | undefined {
   const attentive = (w.tick % 20) / 20 < skill;
   if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
   // Co-op: pulled the boss off a living Bulwark, so Sidestep to dump threat back to it.
-  if (w.canCast(1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && h.cls === 'bulwark' && h.player.hp > 0)) return 1;
+  if (w.canCast(1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && (h.cls === 'bulwark' || h.player.stance === 'anvil') && h.player.hp > 0)) return 1;
   // Step out of a telegraph we are standing in.
   if (attentive && w.canCast(1)) {
     for (const t of w.telegraphs) {
@@ -149,8 +152,42 @@ function lightCast(w: World, skill: number): number | undefined {
   return undefined;
 }
 
+/** Slagbinder action choices: Clinker casts (then the boss), plate on cooldown, shell when it hurts, cover a hurt ally. */
+function slagCast(w: World, skill: number): number | undefined {
+  const p = w.player;
+  const attentive = (w.tick % 20) / 20 < skill;
+  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  let touching = 0;
+  let bigNear = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (d2 < 90 * 90) touching++;
+    if (e.def.rank !== 'normal' && d2 < 320 * 320) bigNear = true;
+  }
+  const hurt = 1 - p.hp / p.maxHp;
+  // Co-op: Clinker the boss for Brittle (an Anvil also takes it back) when nothing needs interrupting.
+  if (w.heroes.length > 1 && w.canCast(3) && w.interruptTarget() < 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) return 3;
+  // Co-op: an ally below half health with the boss or a telegraph on them gets covered.
+  if (w.heroes.length > 1 && w.canCast(1)) {
+    for (let k = 0; k < w.heroes.length; k++) {
+      if (k === w.acting) continue;
+      const a = w.hero(k).player;
+      if (a.hp > 0 && a.hp < a.maxHp * 0.5 && (w.bossTarget === k || w.telegraphs.some((t) => t.alive && (t.x - a.x) ** 2 + (t.y - a.y) ** 2 < (t.r + 20) ** 2))) return 1;
+    }
+  }
+  // A big boss blow winding up on me (Anvilfall, Ladle Pour): harden first.
+  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : null;
+  const bigOnMe = w.anvilOnMe || (!!boss && boss.alive && boss.castId === 'ladlePour' && w.ladlePourTarget === w.acting);
+  if (w.canCast(2) && (bigOnMe || hurt > 0.45 || touching >= 3 || (bigNear && hurt > 0.25))) return 2;
+  if (w.canCast(0) && (p.plateUntil ?? -1) <= w.time && (hurt > 0.1 || bigNear || touching >= 1 || w.heroes.length > 1)) return 0;
+  if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
+  return undefined;
+}
+
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
+  if (w.cls === 'slagbinder') return slagCast(w, skill);
   if (w.cls === 'duskblade') return bladeCast(w, skill);
   if (w.cls === 'bulwark') return shieldCast(w, skill);
   if (w.cls === 'lumen') return lightCast(w, skill);

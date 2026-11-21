@@ -183,6 +183,7 @@ function startRun(bounty = false, key = false): void {
     grit: gritFor(hero, hub.dungeon, hub.tier),
     firstClear: hub.tier >= hero.maxTier,
     cls: hero.cls ?? 'emberwright',
+    stance: hero.stance,
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
@@ -317,7 +318,7 @@ let coopNote = '';
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives } };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives } };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */
@@ -361,7 +362,7 @@ function syncLobby(): void {
     });
   }
   const n = coop!.roster.length;
-  lobby.advertise(!coop!.running && n < MAX_PARTY ? { code: coop!.code, n, max: MAX_PARTY, name: coop!.mine.name, roles: coop!.roster.map((r) => roleOf(CLASSES[r.hero.cls].role)) } : null);
+  lobby.advertise(!coop!.running && n < MAX_PARTY ? { code: coop!.code, n, max: MAX_PARTY, name: coop!.mine.name, roles: coop!.roster.map((r) => roleOf(CLASSES[r.hero.cls].role, r.hero.stance)) } : null);
 }
 
 /** Two quick-join players who both found nothing each opened a party: the one with the larger code joins the other. */
@@ -404,7 +405,7 @@ async function quickJoin(skip: string[] = []): Promise<void> {
   }
   seeking = false;
   if (coop) return;
-  const pick = pickParty(l.list().filter((a) => !skip.includes(a.code)), undefined, roleOf(CLASSES[myCard().cls].role));
+  const pick = pickParty(l.list().filter((a) => !skip.includes(a.code)), undefined, roleOf(CLASSES[myCard().cls].role, myCard().stance));
   quickSkip = skip;
   if (pick) {
     coopQuick = true;

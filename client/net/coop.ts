@@ -19,6 +19,8 @@ export interface HeroCard {
   level: number;
   gear: NonNullable<HeroOptions['gear']>;
   passives: NonNullable<HeroOptions['passives']>;
+  /** Slagbinder stance; older clients send none (Bellows). */
+  stance?: HeroOptions['stance'];
 }
 
 type Msg =
@@ -118,7 +120,7 @@ export class CoopSession {
     this.order = this.party.members.map((m) => m.id).filter((id) => this.heroes.has(id));
     const party: HeroOptions[] = this.order.map((id) => {
       const h = this.heroes.get(id)!;
-      return { cls: h.cls, gear: h.gear, passives: h.passives, name: h.name };
+      return { cls: h.cls, stance: h.stance, gear: h.gear, passives: h.passives, name: h.name };
     });
     const full: WorldOptions = { ...opts, heroName: this.mine.name, party, partySize: 1 + party.length };
     this.inputs.clear();

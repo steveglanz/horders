@@ -34,6 +34,8 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
   lumen: ['lumenBurst', null, 'lumenSanctuary', 'zap'],
   bulwark: ['bulwarkSlam', null, 'bulwarkBastion', 'zap'],
   duskblade: [null, null, 'duskExecute', 'zap'],
+  // Slagbinder: borrowed cues until sound makes its own (Plating, Interpose, Cooling Shell, Clinker).
+  slagbinder: ['bulwarkSlam', null, 'bulwarkBastion', 'zap'],
 };
 
 /**

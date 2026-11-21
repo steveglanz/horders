@@ -216,6 +216,139 @@ The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
 
 The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is within design's ±15 of the Emberwright. A first version, with a 60 base and 200 px, won 34.3 at Kiln 8, 15.3 ahead of the Emberwright, so both numbers were trimmed.
 
+## Fifth class: the Slagbinder (spec, draft for design review)
+**Role: Off-tank, an off-tank and support hybrid.** The Bulwark holds the boss, and the Lumen heals after the damage lands. The Slagbinder stops damage before it lands, on whoever is about to take it. It wears molten slag as armour and pours it onto allies as plating. Solo, it plates itself and fights at mid range. In a party, it picks up loose adds, takes a hit for a friend, and makes the boss Brittle for everyone.
+
+**Name check (21 Nov 2026):** a web search for "Slagbinder" found no game, class or product of that name, only unrelated Dutch hardware listings. Slag already belongs to Horders' own world (Grandmother Slag, Slag Grip).
+
+### Base stats
+| Stat | Value | Compared with the others |
+|---|---|---|
+| Health | 150 | Between the Lumen (100) and the Bulwark (160) |
+| Speed | 134 | Between the Bulwark (128) and the Lumen (138) |
+| Resource | **Slag**, 0 to 100 | You gain 1 per 2 damage taken and 4 per hit landed. It cools by 2 a second out of combat. |
+| Threat | ×2 | Between damage dealers (×1) and the Bulwark (×4), so it peels adds but never steals the boss by accident |
+| Interrupt range | 380 | |
+
+**Basic attack, Slag Lob:** every 0.7 s, a glob lands on the nearest foe within 320 px. It deals 18 and splashes 9 within 50 px. This is mid range: close enough to stay with the party, far enough to step out of a cleave.
+
+### Action bar
+| Key | Ability | Cost | Cooldown | Solo | Party |
+|---|---|---|---|---|---|
+| Q | **Molten Plating** | 30 | 6 s | Plates you with a ward of 15% max health for 6 s. When it breaks or runs out, it bursts for 40 within 90 px. | Plates the most hurt hero within 300 px instead, the Slagbinder included. |
+| E | **Interpose** | 0 | 10 s | Leap 150 px the way you're moving, immune for 0.4 s, and knock small foes back on landing. | Leap to the most hurt ally. For 3 s you take 60% of the damage aimed at them, at 30% less. |
+| R | **Cooling Shell** | 60 | 24 s | For 5 s you take 35% less damage, and anything that hits you is Brittle for 6 s (takes 15% more damage). | The 35% applies to every hero within 160 px. |
+| F | **Clinker** (interrupt) | 0 | 10 s | Hurl a clinker within 380 px: it interrupts a cast and stuns the caster for 1.5 s. | With nothing to interrupt, it makes the boss Brittle for 6 s. |
+
+Brittle is the class's party signature. It doesn't stack, so one Slagbinder in a party is the point.
+
+**What Interpose moves (design review):** only direct hits from an enemy, such as contact, swings, slams with a source and projectiles. It never moves:
+- soak telegraphs or the soak head count,
+- percent-of-max-health ticks (the Crucible's heat, the Coldmarrow's cold, Ladle Burn, Slag Grip),
+- telegraph hits with no source.
+
+In code, it redirects only when the hit has a source enemy and is not unblockable.
+
+**Weapon effects and Mythics, for parity with the other classes:**
+- Weapon effects:
+  - **Clinging Slag:** Lob leaves a 2 s burn.
+  - **Tempered Lob:** Lob on a Brittle foe builds 3 more Slag.
+- Mythics:
+  - **Molten Core:** plating an ally plates you for half, and bursts reach 50% further.
+  - **Clinker Crown:** Clinker strikes a second foe and Brittle lasts twice as long, but Cooling Shell recovers 4 s slower.
+
+**The stance persists per character**, saved with the hero like the class, and is sent to co-op peers.
+
+### Stance: one role per run
+The player picks a stance in the hub before the run, and it is locked for the run. That way one hero never fills both the tank and the healer slot of a group dungeon (design, 21 Nov 2026).
+
+| Stance | Role for Quick join and group gates | Threat | Change |
+|---|---|---|---|
+| **Anvil** | Tank | ×4, like the Bulwark | Cooling Shell lasts +2 s. Clinker on the boss also taunts it, the way Shield Toss does. Plating is 25% weaker. |
+| **Bellows** (default) | Damage slot | ×2 | Plating as listed above. Interpose lasts +1 s. (Not "Pour": that clashes with Grandmother Slag's pour lanes and Ladle Pour.) |
+
+Solo, the stance only changes the numbers in its row. To support this, `roleOf` in sim/content/dungeon.ts takes the hero's stance as well as the class, and threat reads the multiplier from it rather than from `cls === 'bulwark'`. The Bulwark-only checks for call-outs and Smother stay Bulwark-only.
+
+### Talents (three branches, like the other classes)
+- **Forge (plating):**
+  - Thick Coat: plating +20% per rank.
+  - Searing Shell: plating bursts +30% per rank.
+  - Quickset: Molten Plating cooldown −1 s per rank.
+  - Capstones:
+    - **Ever-Molten:** plating that runs out without breaking refunds 15 Slag.
+    - **Twin Coat:** plating also coats a second hero.
+- **Clinker (damage and Brittle):**
+  - Heavy Lob: Lob +15% per rank.
+  - Shrapnel: splash radius +15 px per rank.
+  - Brittle Mind: Brittle lasts +2 s per rank.
+  - Capstones:
+    - **Shatterpoint:** Brittle foes take 25% more from Slag Lob.
+    - **Cinder Hail:** every 5th Lob throws three globs.
+- **Crust (self-tank):**
+  - Thick Skin: max health +6% per rank.
+  - Hot Blood: +1 Slag per hit taken per rank.
+  - Hardened: Cooling Shell lasts +1 s per rank.
+  - Capstones:
+    - **Clinker Heart:** below 30% health, you gain a 25% plating once every 30 s.
+    - **Slag Tide:** Interpose's landing deals 60 and stuns for 1 s.
+
+Each branch gets 3 card talents and two capstones from the start, so this class ships at C5 parity.
+
+### Bot
+- Plate on cooldown: yourself solo, the most hurt hero in a party.
+- Interpose an ally below 50% who is the target of a telegraph or boss cast.
+- Cooling Shell below 55% health, or when 3 or more foes are in melee reach.
+- Clinker: casts first, then the boss for Brittle.
+- Hold mid range (about 220 px) and step out of telegraphs as the Lumen does.
+
+### What other teams need
+- **Visuals:**
+  - Four ability icons (ABILITY_GLYPH.slagbinder).
+  - A class sprite: a heavy figure in cooling slag plate, with an orange glow in the seams.
+  - A plating ring on the plated hero.
+  - A Brittle crack mark on foes.
+- **Sound:**
+  - Cues for Lob, plating applied and plating burst, Interpose leap, Cooling Shell, Clinker, and Brittle applied.
+- **Engineering:**
+  - The new ClassId in the hub, the class picker, save files and Quick join role badges.
+  - Its role comes from the stance: Anvil counts as tank, Bellows as a damage slot. The hub's party role chips (client/hub.ts) need a stance toggle for the Slagbinder.
+
+### Balance targets
+- The same as L7:
+  - At tier 1 on the Kiln, within ±10 of the Emberwright for the good bot and the novice reference.
+  - Within ±15 at tiers 6 and 8 on the Foundry and the Kiln, using heroes built with tools/progression.ts.
+- Solo hashcheck for the four existing classes must stay identical.
+- In parties, swapping the Slagbinder for a damage dealer shouldn't raise a full party's Crucible win rate above about 70%.
+
+### Build notes and balance (21 Nov 2026)
+**Tuning lives in `SLAG_KIT` in sim/world.ts.** What changed from the draft while building:
+- **Slag Lob:** 20 damage, and Heavy Lob is +30% per rank. It strikes an acolyte that is healing a wounded boss first, as Sunmote does. Before that, the Kiln Mother out-healed it: the good bot won 0 of 40 at Kiln tier 1.
+- **Molten Plating:** a pool of its own (`plate`), separate from ward. It stops blows but never unblockable ticks (heat, cold, Ladle Pour, Slag Grip). While it soaked them, a Slagbinder in place of the Duskblade won the Crucible 30 of 30. Now it wins 20 of 30, the same as the Duskblade.
+- **Anvil stance:** takes 35% less damage and has +40 max health. Without that, an Anvil tank won 1 of 30 in the Crucible.
+- **Clinker:** stuns for 2 s, like every interrupt.
+- **Slag:** passive regen is 1 a second, like the Bulwark's Resolve. There is no out-of-combat cooling.
+
+**Balance.** Wins out of 40, 40 seeds. "Fair" means the Slagbinder plays the Duskblade's heroes-r2 profiles, because a Slagbinder hero built with tools/progression.ts reaches tier 8 at level 12, against level 8 for the heroes-r2 heroes.
+
+| | Kiln 1 good | Kiln 1 novice | Foundry 4 | Foundry 6 | Foundry 8 | Kiln 4 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|---|---|---|---|
+| Slagbinder | 40 | 33 | 31.3 | 24.0 | 18.3 | 18.7 | 20.0 | 10.3 |
+| Emberwright | 34 | 26 | 32.3 | 30.3 | 28.7 | 29.0 | 30.0 | 19.0 |
+
+Every cell is within the L7 bands (±10 at tier 1, ±15 at tiers 6 and 8). It is the weakest solo class at tier 8, which suits a support hybrid, and it's the first thing to raise if players find it slow.
+
+**Group content:** heroes-r2 hero-t8-0 and hero-t6-0, 30 seeds.
+
+| Party | Wins |
+|---|---|
+| Crucible 8: Bulwark, Lumen, Duskblade, Emberwright | 20/30 |
+| Crucible 8: Bulwark, Lumen, Bellows Slagbinder, Emberwright | 20/30 |
+| Crucible 8: Anvil Slagbinder, Lumen, Duskblade, Emberwright | about 7/30 |
+| Hammerdeep 6: Bulwark tank | 29/30 |
+| Hammerdeep 6: Anvil Slagbinder tank | 23/30 |
+
+The Anvil can tank the Hammerdeep but is far behind the Bulwark in the raid, mostly to Ladle Pour with Slag Grip stacks. That's open with design.
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.
