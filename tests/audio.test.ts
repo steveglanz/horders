@@ -272,6 +272,18 @@ describe('audio', () => {
     expect(pickCue(undefined)).toBeNull();
   });
 
+  it("gives the Pressworks its press-cycle theme, and Oskel's casts and phase their sounds", () => {
+    expect(THEMES.pressworks.bed).toBe('press');
+    const c = { cls: 'bulwark' as const, acting: 0 };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'downstroke', name: 'Downstroke' }, c)?.id).toBe('downstrokeWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'rivets', name: 'Rivets' }, c)?.id).toBe('rivetsWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'stamp', name: 'Stamp' }, c)?.id).toBe('stampWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'stamp', name: 'Stamp' }, c)?.id).toBe('stamp');
+    expect(phaseSting('oskel', 2)).toBe('phaseOskel');
+    // Rivets come every 9 s: the warning stays short, so its duck is brief.
+    expect(recipeLength(SOUNDS.rivetsWarn)).toBeLessThan(0.4);
+  });
+
   it('gives the Wrackline its theme, Hessa\'s casts their sounds, and the Ebb a drag when the pull starts', () => {
     expect(THEMES.wrackline.bed).toBe('surf');
     const c = { cls: 'lumen' as const, acting: 0 };

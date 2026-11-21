@@ -131,6 +131,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   sink: { start: 'sinkWarn', done: 'sink' }, // Sink
   haul: { start: 'haulWarn', done: 'haul' }, // Haul (the Barge Hauler)
   shoalCall: { start: 'shoalCall' }, // Call the Shoal
+  // The Pressworks (Oskel). The Downstroke lands as a soak (soakOk / soakFail); the Rivets land as strikes.
+  downstroke: { start: 'downstrokeWarn' }, rivets: { start: 'rivetsWarn' }, stamp: { start: 'stampWarn', done: 'stamp' },
 };
 
 /** Each boss's own phase-change sting. */
@@ -147,6 +149,7 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   // The raid has its own sting per phase: [phase 2 The Pour, phase 3 Last Ember].
   grandmotherSlag: ['phaseRaid2', 'phaseRaid3'],
   hessa: 'phaseHessa',
+  oskel: 'phaseOskel',
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
