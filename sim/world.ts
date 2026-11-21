@@ -851,7 +851,7 @@ export class World {
   /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
   coalFed = 0;
   /** Spilled embers on the floor, with seconds left before he inhales them. */
-  readonly coalEmbers: { x: number; y: number; t: number }[] = [];
+  coalEmbers: { x: number; y: number; t: number }[] = [];
   private rivetT = 0;
   private stampT = 0;
   private stampTarget = 0;

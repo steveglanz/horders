@@ -100,6 +100,14 @@ describe('audio', () => {
     expect(scene).toContain('audio.theme(themeFor(w.dungeonId))');
   });
 
+  it('drafts raid 3 its own theme (Y7): the Colossus stride, unlike the other raids', () => {
+    expect(THEMES.colossus.bed).toBe('stride');
+    for (const other of ['raid', 'hoard'] as const) {
+      expect(THEMES.colossus.bed).not.toBe(THEMES[other].bed);
+      expect(THEMES.colossus.scale).not.toEqual(THEMES[other].scale);
+    }
+  });
+
   it('gives each world boss shadow its own sting, keyed by the server names', () => {
     const c = { cls: 'bulwark' as const, acting: 0, boss: 'worldShadow' as const };
     const sql = readFileSync(new URL('../supabase/migrations/0007_rename_old_ashmaw.sql', import.meta.url), 'utf8');
