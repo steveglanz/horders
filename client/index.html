@@ -577,7 +577,8 @@
     /* Fight intro: a compact card in the upper band instead of a paragraph over your hero. */
     #banner { top: 21%; width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
     /* With party frames down the left, the intro card drops below your hero instead of covering them. */
-    #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: 56%; }
+    /* Anchored to the action bar's top edge (HEAT + 2 rows of 64px buttons), so a long raid hint never covers HEAT. */
+    #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px); }
     #party { width: 140px; gap: 4px; }
     .pf { padding: 3px 6px 4px 3px; gap: 5px; }
     .pf .gtile { width: 20px; height: 20px; }
@@ -617,7 +618,10 @@
     .hp { width: min(21vw, 200px); }
     #tPct { display: none; }
     .toast:nth-child(n+3) { display: none; }
-    #banner, #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: 24%; max-width: min(46vw, 440px); }
+    /* Just under the top row, so the card clears your hero and its nameplate in the middle of a short screen. */
+    #banner, #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: calc(max(8px, env(safe-area-inset-top)) + 60px); bottom: auto; max-width: min(46vw, 440px); padding: 6px 14px 8px; }
+    #bannerTitle { font-size: 20px; }
+    #bannerSub { font-size: 12px; }
     #endTitle { margin-top: 4px; font-size: 36px; }
     .end-grid { grid-template-columns: 1fr 1fr; }
     #draft .panel { padding: 14px 18px; }
@@ -719,6 +723,10 @@
   .po b { font: 600 14px var(--serif); }
   .po i { font-style: normal; font-size: 12px; color: var(--muted); }
 
+  /* 360px and narrower: a boss's name matters more than its rank ("RAID BOSS"), so the rank steps aside instead of cutting the name to "Grandmother ...". */
+  @media (max-width: 360px) {
+    #hud.vsboss #tTitle { display: none; }
+  }
   /* Touch screens (tablets too): settings toggles and the tier row keep 44px taps. */
   @media (pointer: coarse) {
     .seg button { min-height: 44px; }
