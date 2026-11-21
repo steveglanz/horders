@@ -229,6 +229,8 @@ export const SOUNDS = {
     clang(note(22), 0.2, 1.0).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.26 })),
     whoosh(800, 7000, 0.4, 0.1),
   ),
+  /** A win in the season's own dungeon paid the in-season marks: a puff of sparks and two bright notes. */
+  inSeason: join(whoosh(1500, 6000, 0.25, 0.12), chime(G5, 0.05, 0.16, 0.35), chime(D5 * 2, 0.13, 0.17, 0.45)),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
