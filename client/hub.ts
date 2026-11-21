@@ -1,6 +1,6 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
+  achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
@@ -8,6 +8,7 @@ import { BossStatus, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
+import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
 import { GLOWS, SEASON, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
@@ -217,7 +218,7 @@ export class Hub {
         <div><b>${CLASSES[cls].name}</b>${h.wear?.title ? `<div class="worn-title">${h.wear.title}</div>` : ''}<div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
-      ${h.runs > 0 ? this.collectionButton() : ''}
+      ${h.runs > 0 ? this.collectionButton() + this.deedsButton() : ''}
       <details class="kit" ${this.kitOpen || this.tabs?.matches ? 'open' : ''}>
         <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
           + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
@@ -232,6 +233,7 @@ export class Hub {
       </details>`;
     const worn2 = setsWorn(h);
     $('heroCard').querySelector<HTMLButtonElement>('[data-book]')?.addEventListener('click', () => openSheet('Collection', this.collectionLine()));
+    $('heroCard').querySelector<HTMLButtonElement>('[data-deeds]')?.addEventListener('click', () => openSheet('Achievements', this.deedsLine()));
     $('heroCard').querySelectorAll<HTMLElement>('.slot[data-slot]').forEach((el) => {
       const it = items.find((i) => i.slot === el.dataset.slot);
       if (it) setTip(el, () => itemHtml(it, '', worn2));
@@ -533,6 +535,30 @@ export class Hub {
       + (titles.length || glows.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
         + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') : '')
       + `</div>`;
+  }
+
+  /** P6: the hero card's one-line Achievements button, with how many are done. */
+  private deedsButton(): string {
+    const n = (this.hero().achieved ?? []).length;
+    return `<button class="bookbtn" data-deeds data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Achievements</span><b>${n}/${ACHIEVEMENTS.length}</b><i class="chev" aria-hidden="true"></i></button>`;
+  }
+
+  /** P6: every achievement with its progress, title and embers; shared by every class. */
+  private deedsLine(): string {
+    const h = this.hero();
+    const view = achievementView(h);
+    const done = new Set(h.achieved ?? []);
+    const rows = ACHIEVEMENTS.map((a) => {
+      const ok = done.has(a.id);
+      const n = Math.min(a.need, a.have(view));
+      return `<div class="wq${ok ? ' done' : ''}"><span class="pip" aria-hidden="true">${ok ? '✓' : '❖'}</span><div class="wq-main">`
+        + `<div class="wq-top"><b>${a.name}</b><span>${ok ? 'Done' : `<span class="pay">+${a.embers}</span>`}</span></div>`
+        + `<div class="wq-txt">${a.text} Title: <b>${a.title}</b></div>`
+        + (a.need > 1 ? `<div class="wq-bar"><i style="width:${((100 * (ok ? a.need : n)) / a.need).toFixed(1)}%"></i></div><div class="wq-n">${(ok ? a.need : n).toLocaleString()} / ${a.need.toLocaleString()}</div>` : '')
+        + `</div></div>`;
+    }).join('');
+    return `<div class="box weekly"><div class="lbl">Deeds <span class="wq-count">${done.size}/${ACHIEVEMENTS.length}</span></div>${rows}`
+      + `<div class="hint">Shared by every class. Each pays its title once, plus embers to the class you're playing. Wear titles from the Season sheet.</div></div>`;
   }
 
   /** P4: the hero card's one-line Collection button, with the book's count. */

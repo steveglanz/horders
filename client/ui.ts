@@ -558,6 +558,7 @@ export class Hud {
       for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
+      for (const a of rewards.achievements ?? []) notes.push(`<b>Achievement: ${a.name} +${a.embers} embers, title ${a.title}</b>`);
       if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {
         const d = rewards.keyTo - rewards.keyFrom;
         // A key pill that reads up, flat or down at a glance.
