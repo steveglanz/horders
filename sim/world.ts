@@ -106,6 +106,13 @@ export const CAPSTONES_2 = {
   chorusEvery: 8,
 };
 
+/** Party cards (Season 2): deep talent cards offered only with 2 or more heroes. Per rank unless noted. */
+export const PARTY_CARDS = {
+  leeRadius: 200, leeCut: 0.05, broadHeal: 0.06, frontMend: 0.12, wideDawn: 0.2, turnedBack: 0.06,
+  breathRange: 300, breathHeal: 0.04, kindleTime: 2, kindleRadius: 60, warmRadius: 260, warmRegen: 1.5,
+  standTime: 1, shellRadius: 50,
+};
+
 export const GROUP_TOOLS = {
   /** Emberwright, Kindling: Combustion lifts allies within this radius by this much damage for this long. */
   kindleRadius: 320, kindleMult: 1.1, kindleTime: 6,
@@ -1100,6 +1107,19 @@ export class World {
     return this.talents[id] ?? 0;
   }
 
+  /** Party cards: the highest rank of `id` among the other living heroes within `r` of q. */
+  private allyRank(id: TalentId, q: Player, r: number): number {
+    let best = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const n = this.heroes[k].talents[id] ?? 0;
+      if (n <= best) continue;
+      const h = this.heroes[k].player;
+      if (h.hp > 0 && dist2(h.x, h.y, q.x, q.y) <= r * r) best = n;
+    }
+    return best;
+  }
+
   branchRanks(branch: Branch): number {
     let n = 0;
     for (const id of Object.keys(this.talents) as TalentId[]) {
@@ -1144,7 +1164,9 @@ export class World {
   }
   get regen(): number {
     const low = this.player.hp < this.player.maxHp * 0.5 ? 4 * this.rank('slowPulse') + 3 * this.rank('bankedFire') + 3 * this.rank('quietMend') : 0;
-    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal') + low;
+    // Close Warmth (party card): an Emberwright that took it warms the heroes around it.
+    const warm = this.heroes.length > 1 ? PARTY_CARDS.warmRegen * this.allyRank('closeWarmth', this.player, PARTY_CARDS.warmRadius) : 0;
+    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal') + low + warm;
   }
   get abilities(): AbilityDef[] {
     if (!this.player.alt) return this.classDef.abilities;
@@ -1971,6 +1993,8 @@ export class World {
     if (this.cls === 'duskblade') amount *= 1 - 0.04 * this.rank('lowStance');
     // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
+    // Lee Side (party card): heroes close to a Bulwark that took it take less.
+    if (this.heroes.length > 1) amount *= 1 - PARTY_CARDS.leeCut * this.allyRank('leeSide', p, PARTY_CARDS.leeRadius);
     // Ember Ward: whatever strikes the ward catches fire.
     if (src >= 0 && p.plateBy === -1 && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time && this.enemies[src]?.alive) {
       const e = this.enemies[src];
@@ -2234,8 +2258,9 @@ export class World {
       for (let k = 0; k < this.heroes.length; k++) {
         if (k === this.acting) continue;
         const ally = this.heroes[k].player;
-        if (ally.hp > 0 && dist2(p.x, p.y, ally.x, ally.y) <= GROUP_TOOLS.kindleRadius ** 2) {
-          ally.kindleUntil = this.time + GROUP_TOOLS.kindleTime;
+        const long = this.rank('longKindle');
+        if (ally.hp > 0 && dist2(p.x, p.y, ally.x, ally.y) <= (GROUP_TOOLS.kindleRadius + PARTY_CARDS.kindleRadius * long) ** 2) {
+          ally.kindleUntil = this.time + GROUP_TOOLS.kindleTime + PARTY_CARDS.kindleTime * long;
         }
       }
     }
@@ -2362,7 +2387,15 @@ export class World {
     taunt(this.threat[b], this.heroes[this.acting].id);
     this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
     this.kinCover(k, true);
+    this.broadBack(k);
     return true;
+  }
+
+  /** Broad Back (party card): taking the boss off hero k heals k. */
+  private broadBack(k: number): void {
+    if (k < 0 || k === this.acting || this.rank('broadBack') === 0) return;
+    const a = this.heroPlayer(k);
+    if (a.hp > 0) this.healAllies(a.x, a.y, 1, a.maxHp * PARTY_CARDS.broadHeal, k, false);
   }
 
   // ---------------------------------------------------------------- weapons
@@ -2565,7 +2598,8 @@ export class World {
     for (let k = 0; k < this.heroes.length; k++) {
       const h = this.heroPlayer(k);
       if ((h.shellUntil ?? -1) <= this.time || h.hp <= 0) continue;
-      if (h === q || dist2(h.x, h.y, q.x, q.y) <= SLAG_KIT.shellRadius ** 2) return true;
+      const r = SLAG_KIT.shellRadius + PARTY_CARDS.shellRadius * (this.heroes[k].talents.wideShell ?? 0);
+      if (h === q || dist2(h.x, h.y, q.x, q.y) <= r * r) return true;
     }
     return false;
   }
@@ -2666,7 +2700,7 @@ export class World {
       const go = Math.max(0, d - 40);
       p.x += (dx / d) * go;
       p.y += (dy / d) * go;
-      a.interposeUntil = this.time + SLAG_KIT.interposeTime + (p.stance === 'anvil' ? 0 : SLAG_KIT.bellowsInterpose);
+      a.interposeUntil = this.time + SLAG_KIT.interposeTime + (p.stance === 'anvil' ? 0 : SLAG_KIT.bellowsInterpose) + PARTY_CARDS.standTime * this.rank('longStand');
       a.interposeBy = this.acting;
     } else {
       let ang: number;
@@ -2707,7 +2741,7 @@ export class World {
   private coolingShell(): void {
     const p = this.player;
     p.shellUntil = this.time + SLAG_KIT.shellTime + this.rank('hardened') + (p.stance === 'anvil' ? SLAG_KIT.anvilShell : 0);
-    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: this.heroes.length > 1 ? SLAG_KIT.shellRadius : 50 });
+    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: this.heroes.length > 1 ? SLAG_KIT.shellRadius + PARTY_CARDS.shellRadius * this.rank('wideShell') : 50 });
   }
 
   /** Co-op Clinker with nothing to interrupt: the boss goes Brittle, and an Anvil takes it back. */
@@ -2836,11 +2870,14 @@ export class World {
     if (this.cls === 'lumen') amount *= 1 + 0.1 * this.rank('lampglowCare');
     let total = 0;
     let over = 0;
+    const tank = this.rank('frontMend') > 0 ? this.bossTarget : -1;
     for (let k = 0; k < this.heroes.length; k++) {
       if (k === this.acting || (only >= 0 && k !== only)) continue;
       const a = this.heroes[k].player;
       if (a.hp <= 0 || dist2(x, y, a.x, a.y) > r * r) continue;
-      const eff = Math.max(0, Math.min(a.maxHp - a.hp, amount));
+      // Front Mend (party card): heals on the hero the boss is attacking land stronger.
+      const amt = k === tank ? amount * (1 + PARTY_CARDS.frontMend * this.rank('frontMend')) : amount;
+      const eff = Math.max(0, Math.min(a.maxHp - a.hp, amt));
       a.hp += eff;
       total += eff;
       // Slag Grip: only another hero's heal can loosen it.
@@ -2848,7 +2885,7 @@ export class World {
         a.slag = 0;
         this.events.push({ type: 'cleanse', x: a.x, y: a.y });
       }
-      over += amount - eff;
+      over += amt - eff;
       if (eff > 0) {
         this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
         this.kinCover(k);
@@ -3006,7 +3043,7 @@ export class World {
     const eclipse = this.hasMythic('eclipseGlass');
     const burstHeal = (eclipse ? 7.5 : 15) * (1 + 0.1 * this.rank('daybreakPulse'));
     this.healPlayer(burstHeal);
-    this.healAllies(p.x, p.y, this.burstRadius, burstHeal);
+    this.healAllies(p.x, p.y, this.burstRadius, burstHeal * (1 + PARTY_CARDS.wideDawn * this.rank('wideDawn')));
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;
@@ -3288,6 +3325,7 @@ export class World {
     p.facing = ang;
     p.shieldT = Math.max(p.shieldT, 0.2);
     const ram = this.rank('batteringRam');
+    const off = this.rank('broadBack') > 0 ? this.bossTarget : -1;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
       if (!e.alive) continue;
@@ -3295,6 +3333,7 @@ export class World {
       if (!isTarget && (ram === 0 || segDist2(e.x, e.y, x1, y1, p.x, p.y) > (36 + e.def.radius) ** 2)) continue;
       // Co-op: Charge taunts what it hits onto the Bulwark.
       if (this.threat.length) taunt(this.threat[i], this.heroes[this.acting].id);
+      if (i === this.bossIndex) this.broadBack(off);
       this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * (1 + 0.5 * this.rank('fullWeight')) * this.dmgMult, true);
       if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, isTarget ? 0.8 : 0.5);
     }
@@ -3491,6 +3530,17 @@ export class World {
     }
     // Catch your breath: Sidestep mends a little.
     this.healPlayer(p.maxHp * SIDESTEP_HEAL * this.noviceAid);
+    // Shared Breath (party card): and the most hurt ally close by.
+    if (this.rank('sharedBreath') > 0) {
+      let k = -1;
+      let low = 1;
+      for (let j = 0; j < this.heroes.length; j++) {
+        const a = this.heroPlayer(j);
+        if (j === this.acting || a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > PARTY_CARDS.breathRange ** 2) continue;
+        if (a.hp / a.maxHp < low) { low = a.hp / a.maxHp; k = j; }
+      }
+      if (k >= 0) this.healAllies(p.x, p.y, PARTY_CARDS.breathRange, this.heroPlayer(k).maxHp * PARTY_CARDS.breathHeal, k);
+    }
     if (counter > 0) {
       const n = this.nearestEnemies(p.x, p.y, 1, this.swingReach + 40)[0];
       if (n !== undefined) this.damageEnemy(n, 60 * this.dmgMult, true);
@@ -4166,6 +4216,11 @@ export class World {
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
+    // Turned Back (party card): the boss is busy with someone else.
+    if (i === this.bossIndex && this.rank('turnedBack') > 0) {
+      const k = this.bossTarget;
+      if (k >= 0 && k !== this.acting) dmg *= 1 + PARTY_CARDS.turnedBack * this.rank('turnedBack');
+    }
     // Brittle (Slagbinder): cracked slag on the foe, so every hero hits it harder.
     if ((e.brittleUntil ?? 0) > this.time) dmg *= SLAG_KIT.brittleMult;
     dmg *= this.setDamageMult(e, silent);
@@ -5681,7 +5736,7 @@ export class World {
     let capCards = 0;
     // A hero with an ability option never drafts talents for the ability it replaced.
     const swapped = this.player.alt ? ALT_ABILITIES[this.cls].slot : -1;
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped));
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped) && (!d.party || this.heroes.length > 1));
     for (const b of this.branches) {
       const caps = defs.filter((d) => d.branch === b && d.capstone);
       const capped = caps.some((c) => this.rank(c.id) > 0);

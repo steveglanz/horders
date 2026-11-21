@@ -70,8 +70,11 @@ void (async () => {
 
 // Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out and
 // ?hires=1 lifts the cap to 3x (store screenshots, tools/storeshots.cjs).
-// The Battery saver graphics setting also renders at 1x.
-const fullDpr = () => (params.has('lowres') || display.graphics === 'saver' ? 1 : Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1)));
+// The Battery saver graphics setting also renders at 1x. On Auto, a phone that still runs
+// slow with the light effects steps the render scale down (autoScale, see lowerRes below).
+let autoScale = 1;
+const fullDpr = () => (params.has('lowres') || display.graphics === 'saver' ? 1
+  : Math.max(1, Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1)) * (display.graphics === 'auto' ? autoScale : 1)));
 let DPR = fullDpr();
 document.documentElement.style.setProperty('--dpr', String(DPR));
 
@@ -105,6 +108,18 @@ const applyDisplay = () => {
 };
 applyDisplay();
 onDisplayChange(applyDisplay);
+/**
+ * L2: Graphics on Auto, and a run still under 36 fps with the light effects already on. Most
+ * phones that slow are limited by pixels drawn (tools/partyperf.cjs: 18 fps at 2x against 47 at
+ * 1x under software WebGL), so draw fewer: 2x, then 1.5x, then 1x. It holds for the session.
+ * Returns false once there is nothing left to lower.
+ */
+game.registry.set('lowerRes', (): boolean => {
+  if (display.graphics !== 'auto' || DPR <= 1) return false;
+  autoScale = autoScale > 0.75 ? 0.75 : 0.5;
+  applyDisplay();
+  return DPR > 1;
+});
 // The hub is an opaque screen over the canvas, so nothing the game draws there can be seen.
 // The game loop sleeps while it shows (tools/hubperf.cjs: the idle hub's main-thread time on a
 // phone drops from about a third to the CSS embers alone) and wakes when a run takes over.

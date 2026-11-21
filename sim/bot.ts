@@ -11,23 +11,23 @@ export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
   'flicker', 'magnetism',
-  'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire',
+  'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire', 'longKindle', 'closeWarmth',
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
-  'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend',
+  'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend', 'turnedBack', 'sharedBreath',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',
-  'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse',
+  'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse', 'leeSide', 'broadBack',
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
   'renewal', 'lingeringSanctuary', 'blessedGround',
-  'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers',
+  'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers', 'frontMend', 'wideDawn',
   // Slagbinder
   'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
   'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
-  'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool',
+  'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool', 'longStand', 'wideShell',
   'smallHeal', 'stoke',
 ];
 
@@ -319,8 +319,10 @@ export function botGate(w: World): number {
 /**
  * Party bot switches. `revive`: bots pick up downed allies, under the G6 boss rules in
  * REVIVE_RULES (one pick-up per boss fight, 9 s while the boss is up). REVIVE=0 in tools/group.ts turns it off.
+ * `huddle` (off): ranged bots keep within Deepguard reach of an ally with no set worn. A worn Ventwalker
+ * still wins. HUDDLE=1 in tools/group.ts turns it on. Off until game design retunes Hammerdeep for it.
  */
-export const BOT_PARTY = { revive: true };
+export const BOT_PARTY = { revive: true, huddle: false };
 
 /**
  * Co-op: the downed ally this hero should go and pick up, or null. The rescuer is the living hero
@@ -638,8 +640,9 @@ export function botInput(w: World, skill = 1): Input {
     if (near && near.d > 0) {
       const r = SET_TUNING.dgRange;
       let k = 0;
-      if (w.setCount('deepguard') >= 2 && near.d > r * 0.75) k = 0.15;
-      else if (w.setCount('ventwalker') >= 2 && w.cls !== 'lumen' && near.d < r * 1.2) k = -0.15;
+      const vent = w.setCount('ventwalker') >= 2 && w.cls !== 'lumen';
+      if ((w.setCount('deepguard') >= 2 || (BOT_PARTY.huddle && !vent)) && near.d > r * 0.75) k = 0.15;
+      else if (vent && near.d < r * 1.2) k = -0.15;
       fx += (near.dx / near.d) * k * skill;
       fy += (near.dy / near.d) * k * skill;
     }

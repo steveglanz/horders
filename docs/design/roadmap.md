@@ -42,7 +42,7 @@ Make playing together the best way to play.
 | G5 | **Group loot rules:** every hero gets their own boss item; group dungeons add a second Rare-or-better item each | design | ✅ built (it was killer-only before) |
 | G6 | **Revive between fights and in fights:** a downed hero can be picked up by standing on them for 3 s | engineering + design | ✅ built. Boss rules: one pick-up per boss fight, 9 s while the boss is up (docs/design/group-dungeons.md) |
 | G7 | **Group cues in sound:** tank-buster warning, party hit, "you're targeted" | sound | Cast names: Anvilfall, Choir of Iron, Hammer Sweep |
-| G8 | **Co-op QA sweep:** 2, 3 and 4 heroes, a guest dropping mid-fight, Quick join role matching, the Hammerdeep solo block | QA | Repro scripts in tools/ |
+| G8 | **Co-op QA sweep:** 2, 3 and 4 heroes, a guest dropping mid-fight, Quick join role matching, the Hammerdeep solo block | QA | ✅ tools/coopsweep.cjs (solo block, parties of 2-4, guest drop, Hammerdeep boss revive cap, `--raid` for the guest's Swap tanks! cue); Quick join in tools/quickjoincheck.cjs, roles in tests/lobby.test.ts. Real Safari co-op still needs a device (headless WebKit has no WebRTC) |
 
 ### Phase 3: Content
 More places to go, so the weekly loop has variety.

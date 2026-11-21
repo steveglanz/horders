@@ -32,6 +32,8 @@ const tagSet = (items: Item[]): Item[] => {
 };
 // REVIVE=0: bots never pick up downed allies (BOT_PARTY.revive, on by default).
 BOT_PARTY.revive = process.env.REVIVE !== '0';
+// HUDDLE=1: ranged bots stay near an ally with no set (BOT_PARTY.huddle).
+BOT_PARTY.huddle = process.env.HUDDLE === '1';
 // TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   const [path, v] = kv.split('=');

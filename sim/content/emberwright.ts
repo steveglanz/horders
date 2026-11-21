@@ -103,7 +103,8 @@ export type TalentId =
   | 'daybreakPulse' | 'lanternHeart' | 'lampglowCare' | 'steadyHalo' | 'longNote' | 'hallowedEmbers'
   | 'deepCoat' | 'wideSpatter' | 'fastLadle' | 'denseGlob' | 'slagScales' | 'slowCool'
   | 'deepSmoulder' | 'emberCarpet' | 'brightWick' | 'fastFuse' | 'sootCloak' | 'bankedFire'
-  | 'slowDrip' | 'hungrySteel' | 'lightGrip' | 'keenLunge' | 'lowStance' | 'quietMend';
+  | 'slowDrip' | 'hungrySteel' | 'lightGrip' | 'keenLunge' | 'lowStance' | 'quietMend'
+  | 'leeSide' | 'broadBack' | 'frontMend' | 'wideDawn' | 'turnedBack' | 'sharedBreath' | 'longKindle' | 'closeWarmth' | 'longStand' | 'wideShell';
 
 export interface TalentDef {
   id: TalentId;
@@ -115,6 +116,8 @@ export interface TalentDef {
   capstone?: boolean;
   /** A deep card (C5 round 2): offered only once its branch's capstone is taken, so it never crowds out the picks that build toward it. */
   deep?: boolean;
+  /** A party card (Season 2): offered only with 2 or more heroes, so solo drafts never see it. Party cards are deep cards too. */
+  party?: boolean;
   /** Short line shown on the draft card; {r} is replaced with the next rank. */
   text: string;
   /** Long-press tooltip with the numbers, for cards whose text has none. Falls back to `text`. */
@@ -262,6 +265,17 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   keenLunge: { id: 'keenLunge', ability: 0, cls: 'duskblade', name: 'Keen Lunge', branch: 'tempo', deep: true, maxRank: 2, text: 'Rending Dash hits 25% harder.' },
   lowStance: { id: 'lowStance', cls: 'duskblade', name: 'Low Stance', branch: 'guard', deep: true, maxRank: 3, text: 'You take 4% less damage.' },
   quietMend: { id: 'quietMend', cls: 'duskblade', name: 'Quiet Mend', branch: 'guard', deep: true, maxRank: 2, text: 'Below half health, heal 3 health per second.' },
+  // Party cards (Season 2, the Deep Bellows): deep cards offered only in a party of 2 or more.
+  leeSide: { id: 'leeSide', cls: 'bulwark', name: 'Lee Side', branch: 'bastion', deep: true, party: true, maxRank: 2, text: 'Allies within 200 px of you take 5% less damage.' },
+  broadBack: { id: 'broadBack', cls: 'bulwark', name: 'Broad Back', branch: 'vanguard', deep: true, party: true, maxRank: 1, text: 'Taunting the boss off an ally heals that ally for 6% of its max health.' },
+  frontMend: { id: 'frontMend', cls: 'lumen', name: 'Front Mend', branch: 'grace', deep: true, party: true, maxRank: 2, text: 'Your heals on the hero the boss is attacking are 12% stronger.' },
+  wideDawn: { id: 'wideDawn', ability: 0, cls: 'lumen', name: 'Wide Dawn', branch: 'dawn', deep: true, party: true, maxRank: 2, text: 'Radiant Burst heals allies 20% more.' },
+  turnedBack: { id: 'turnedBack', cls: 'duskblade', name: 'Turned Back', branch: 'bloodletting', deep: true, party: true, maxRank: 2, text: 'Deal 6% more damage to the boss while it attacks someone else.' },
+  sharedBreath: { id: 'sharedBreath', ability: 1, cls: 'duskblade', name: 'Shared Breath', branch: 'guard', deep: true, party: true, maxRank: 1, text: 'Sidestep also heals the most hurt ally within 300 px for 4% of its max health.' },
+  longKindle: { id: 'longKindle', cls: 'emberwright', name: 'Long Kindle', branch: 'kindling', deep: true, party: true, maxRank: 2, text: 'Kindling lasts 2s longer and reaches 60 px farther.' },
+  closeWarmth: { id: 'closeWarmth', cls: 'emberwright', name: 'Close Warmth', branch: 'ashguard', deep: true, party: true, maxRank: 2, text: 'Allies within 260 px of you heal 1.5 health per second.' },
+  longStand: { id: 'longStand', ability: 1, cls: 'slagbinder', name: 'Long Stand', branch: 'crust', deep: true, party: true, maxRank: 2, text: 'Interpose guards your ally 1s longer, in either stance.' },
+  wideShell: { id: 'wideShell', ability: 2, cls: 'slagbinder', name: 'Wide Shell', branch: 'forge', deep: true, party: true, maxRank: 2, text: 'Cooling Shell covers allies 50 px farther away, in either stance.' },
   clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'Falling below 30% health plates you for 25% of your max health, once every 30s.' },
   slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
 };

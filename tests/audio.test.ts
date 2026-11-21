@@ -210,6 +210,9 @@ describe('audio', () => {
     expect(cues.map((c) => c.id)).toEqual(['achievement', 'achievement', 'unlock']);
     expect(cues[0].at).toBeGreaterThan(1.5);
     expect(cues[1].at).toBeGreaterThan(cues[0].at);
+    // An in-season win chimes after a season level and before smaller unlocks.
+    expect(rewardCues({ ...(base as object), seasonFrom: 3, seasonTo: 4, seasonFeatured: true, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['seasonUp', 'inSeason', 'unlock']);
+    expect(rewardCues({ ...(base as object), seasonFeatured: true } as never).map((c) => c.id)).toEqual(['inSeason']);
   });
 
   it('keys every boss-cast sound to a cast id the sim really uses', () => {
