@@ -1025,9 +1025,10 @@ export class GameScene extends Phaser.Scene {
               ? ` ${w.omens.length === 1 ? 'Omen' : 'Omens'}: ${w.omens.map((o) => OMENS[o].name).join(', ')} (details in pause).`
               : ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`)
             : '';
-          // L1: the first delve coaches each fight instead of the usual tip.
+          // L1: the first delve coaches each fight instead of the usual tip. Coach lines, and on phones a first
+          // fight that also names its Omens, get the full-length banner so nothing is cut off.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens, !!coach);
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens, !!coach || (this.hud.compact && !!omens));
           break;
         }
         case 'fork':
