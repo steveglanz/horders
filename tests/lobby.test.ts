@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { pickParty, shouldMerge, LobbyAd, cleanAd } from '../client/net/lobby';
+import { pickParty, shouldMerge, LobbyAd, cleanAd, roleOf, needs, LobbyRole } from '../client/net/lobby';
+import { CLASSES } from '../sim/content/classes';
 
 const ad = (code: string, n: number, max = 4): LobbyAd => ({ code, n, max, name: 'Hero ' + code });
 
@@ -27,5 +28,23 @@ describe('quick join lobby', () => {
     expect(cleanAd({ code: 'ABCDE', n: 1, max: 4, name: '<img src=x onerror=alert(1)>Mal' })?.name).toBe('img srcx onerroralert1Mal');
     expect(cleanAd({ code: 'ABCDE', n: 1, max: 4, name: '<>' })?.name).toBe('A hero');
     expect(cleanAd({ code: 'abc', n: 1, max: 4, name: 'x' })).toBeNull();
+  });
+  it('maps every class to a lobby role', () => {
+    expect(Object.values(CLASSES).map((c) => [c.id, roleOf(c.role)])).toEqual([
+      ['emberwright', 'dps'], ['duskblade', 'dps'], ['bulwark', 'tank'], ['lumen', 'healer'],
+    ]);
+  });
+  it('sends a healer to the party without one, ahead of a fuller party', () => {
+    const withRoles = (code: string, roles: LobbyRole[]): LobbyAd => ({ ...ad(code, roles.length), roles });
+    const ads = [withRoles('AAAAA', ['tank', 'healer', 'dps']), withRoles('BBBBB', ['tank'])];
+    expect(pickParty(ads, undefined, 'healer')?.code).toBe('BBBBB');
+    expect(pickParty(ads, undefined, 'dps')?.code).toBe('AAAAA');
+    expect(pickParty(ads)?.code).toBe('AAAAA');
+    expect(needs(['tank'])).toEqual(['healer']);
+    expect(needs()).toEqual(['tank', 'healer']);
+  });
+  it('keeps only known roles from the network', () => {
+    expect(cleanAd({ code: 'ABCDE', n: 2, max: 4, name: 'x', roles: ['tank', '<b>', 'healer'] })?.roles).toEqual(['tank', 'healer']);
+    expect(cleanAd({ code: 'ABCDE', n: 1, max: 4, name: 'x' })?.roles).toBeUndefined();
   });
 });
