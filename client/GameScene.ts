@@ -1776,6 +1776,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private burst(x: number, y: number, n: number): void {
+    // Trimmed effects keep a third of the sparks: kills and pick-ups fire this dozens of times a second.
+    if (this.lowFx) n = Math.ceil(n / 3);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 60 + Math.random() * 160;
@@ -1814,7 +1816,8 @@ export class GameScene extends Phaser.Scene {
       const f = this.emit(this.smoke, kind, '0', x, y, big ? 0.45 : 0.22, { flip: x > this.world.player.x, sx0: BASE * 1.1, sy0: BASE * 0.95, sx1: BASE * 1.35, sy1: BASE * 0.15 });
       f?.img.setTint(0xffd7a0).setTintMode(Phaser.TintModes.FILL);
     }
-    const n = big ? 5 : 1;
+    // Trimmed effects: a small foe leaves only its fading silhouette, a big one two puffs.
+    const n = this.lowFx ? (big ? 2 : 0) : big ? 5 : 1;
     for (let k = 0; k < n; k++) {
       const s = (big ? 1.4 : 0.6) + Math.random() * 0.4;
       this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * (big ? 40 : 6), y + (Math.random() - 0.5) * (big ? 30 : 6), 0.5 + Math.random() * 0.3, {
@@ -2712,8 +2715,8 @@ export class GameScene extends Phaser.Scene {
       const a = (k / 8) * Math.PI * 2 + Math.random() * 0.3;
       this.addShape({ kind: 'line', x, y, x2: x + Math.cos(a) * 260, y2: y + Math.sin(a) * 260, r: 0, angle: 0, color: gold, life: 0.6 });
     }
-    // Ash and embers rise from where it stood.
-    for (let k = 0; k < 14; k++) {
+    // Ash and embers rise from where it stood (every other one when effects are trimmed).
+    for (let k = 0; k < 14; k += this.lowFx ? 2 : 1) {
       this.time.delayedCall(200 + k * 60, () => {
         this.spark(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 40, -120 - Math.random() * 120, 0.9, 1.8);
         if (k % 3 === 0) {
@@ -2731,7 +2734,7 @@ export class GameScene extends Phaser.Scene {
     if (rarity === 'common') return;
     this.ring(x, y, rarity === 'fine' ? 50 : 90, c, 0.45);
     if (rarity === 'fine') return;
-    for (let k = 0; k < 10; k++) {
+    for (let k = 0; k < (this.lowFx ? 4 : 10); k++) {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
       const sp = 140 + Math.random() * 120;
       this.spark(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.6, 1.6);
