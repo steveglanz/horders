@@ -131,7 +131,7 @@ export const CAPSTONE_RANKS = 3;
 
 export const TALENTS: Record<TalentId, TalentDef> = {
   // Wildfire: area damage
-  kindledGround: { id: 'kindledGround', cls: 'emberwright', name: 'Kindled Ground', branch: 'wildfire', maxRank: 3, text: 'Orbs leave burning ground behind.', tip: "Each orb hit leaves burning ground for 2s: 5 damage per second per rank, and the patch grows with each rank." },
+  kindledGround: { id: 'kindledGround', cls: 'emberwright', name: 'Kindled Ground', branch: 'wildfire', maxRank: 3, text: 'Orbs leave burning ground behind, and +6% damage.', tip: "Each orb hit leaves burning ground for 2s: 5 damage per second per rank, and the patch grows with each rank. Each rank also gives +6% damage." },
   emberRain: { id: 'emberRain', cls: 'emberwright', name: 'Ember Rain', branch: 'wildfire', maxRank: 3, text: 'Every 4s, embers fall on nearby enemies.', tip: "Every 4s, 2 embers per rank fall on random foes within 380 px, 28 damage each." },
   searingBurn: { id: 'searingBurn', cls: 'emberwright', name: 'Searing Burn', branch: 'wildfire', maxRank: 3, text: 'Orb hits set enemies on fire.', tip: "Orb hits set the target burning for 3s: 6 damage per second per rank." },
   rollingInferno: { id: 'rollingInferno', cls: 'emberwright', name: 'Rolling Inferno', branch: 'wildfire', maxRank: 3, text: 'Flame Wave costs 6 less Heat and leaves fire behind.' },
@@ -217,8 +217,8 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'Every 4s, a piercing sunbeam fires at your target, stronger with stored Brilliance.', tip: "Every 4s, a 520 px sunbeam pierces everything in line with your target: 40 damage plus 1.5 per Brilliance, and it spends all your Brilliance." },
   noonfire: { id: 'noonfire', cls: 'lumen', name: 'Noonfire', branch: 'dawn', maxRank: 1, capstone: true, text: 'Sunmotes deal 15% more to elites, rares and bosses.' },
   // Grace: shields and staying alive
-  aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Gleam Guard', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
-  renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health and 1 health per second.' },
+  aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Gleam Guard', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health, and +8% damage.' },
+  renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health, 1 health per second, and +8% damage.' },
   blessedGround: { id: 'blessedGround', ability: 1, cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 5 per second per rank for 4s.', tip: "Glimmer Step leaves a pool for 4s that heals you and allies in it 5 per second per rank." },
   lampglowCare: { id: 'lampglowCare', cls: 'lumen', name: 'Lampglow Care', branch: 'grace', deep: true, maxRank: 3, text: 'All your healing is 10% stronger.' },
   steadyHalo: { id: 'steadyHalo', cls: 'lumen', name: 'Steady Halo', branch: 'grace', deep: true, maxRank: 2, text: 'You take 5% less damage.' },
@@ -240,7 +240,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   deepCoat: { id: 'deepCoat', ability: 0, cls: 'slagbinder', name: 'Deep Coat', branch: 'forge', deep: true, maxRank: 2, text: 'Molten Plating lasts 1s longer and holds 10% more.' },
   wideSpatter: { id: 'wideSpatter', ability: 0, cls: 'slagbinder', name: 'Wide Spatter', branch: 'forge', deep: true, maxRank: 3, text: 'Plating bursts 15 px wider and 10% harder.' },
   everMolten: { id: 'everMolten', cls: 'slagbinder', name: 'Ever-Molten', branch: 'forge', maxRank: 1, capstone: true, text: 'Plating that runs out unbroken gives back 15 Slag.' },
-  twinPour: { id: 'twinPour', cls: 'slagbinder', name: 'Twin Coat', branch: 'forge', maxRank: 1, capstone: true, text: 'Molten Plating coats a second hero. Alone, it is 50% thicker.' },
+  twinPour: { id: 'twinPour', cls: 'slagbinder', name: 'Twin Coat', branch: 'forge', maxRank: 1, capstone: true, text: 'Molten Plating coats a second hero. Alone, it is 50% thicker. +40% damage while plated.' },
   heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Heavy Lob', branch: 'clinker', maxRank: 3, text: 'Slag Lob deals 30% more damage.' },
   shrapnel: { id: 'shrapnel', cls: 'slagbinder', name: 'Shrapnel', branch: 'clinker', maxRank: 2, text: 'Slag Lob splashes 15 px wider and 30% harder.' },
   brittleMind: { id: 'brittleMind', cls: 'slagbinder', name: 'Lasting Cracks', branch: 'clinker', maxRank: 2, text: 'Brittle lasts 2s longer.' },

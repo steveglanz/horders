@@ -43,3 +43,33 @@ describe('defence branches deal damage (Ashguard, Crust)', () => {
     expect(TALENTS.clinkerHeart.text).toContain(`+${Math.round(DEFENCE_BRANCH.clinkerDmg * 100)}% damage while plated`);
   });
 });
+
+describe('more branch coverage (Forge, Grace, Wildfire)', () => {
+  it('Twin Coat hits harder only while plated, and says so', () => {
+    const { w, inner } = world('slagbinder');
+    const p = w.player;
+    const base = w.dmgMult;
+    p.plate = 20;
+    p.plateUntil = w.time + 5;
+    inner.talents = { twinPour: 1 };
+    expect(w.dmgMult).toBeCloseTo(base * (1 + DEFENCE_BRANCH.twinDmg));
+    p.plateUntil = w.time - 1;
+    expect(w.dmgMult).toBeCloseTo(base);
+    expect(TALENTS.twinPour.text).toContain(`+${Math.round(DEFENCE_BRANCH.twinDmg * 100)}% damage while plated`);
+  });
+
+  it('Renewal, Gleam Guard and Kindled Ground add damage per rank, and say so', () => {
+    const lumen = world('lumen');
+    const lb = lumen.w.dmgMult;
+    lumen.inner.talents = { renewal: 2, aegisOfLight: 1 };
+    expect(lumen.w.dmgMult).toBeCloseTo(lb * (1 + 3 * DEFENCE_BRANCH.graceDmg));
+    const ember = world('emberwright');
+    const eb = ember.w.dmgMult;
+    ember.inner.talents = { kindledGround: 3 };
+    expect(ember.w.dmgMult).toBeCloseTo(eb * (1 + 3 * DEFENCE_BRANCH.groundDmg));
+    const pct = (k: number) => `+${Math.round(k * 100)}% damage`;
+    expect(TALENTS.renewal.text).toContain(pct(DEFENCE_BRANCH.graceDmg));
+    expect(TALENTS.aegisOfLight.text).toContain(pct(DEFENCE_BRANCH.graceDmg));
+    expect(TALENTS.kindledGround.text).toContain(pct(DEFENCE_BRANCH.groundDmg));
+  });
+});

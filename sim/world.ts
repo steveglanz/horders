@@ -114,6 +114,8 @@ export const CAPSTONES_2 = {
  */
 export const DEFENCE_BRANCH = {
   ringDamage: 45, ringR: 200, skinDmg: 0.06, mendDmg: 0.06, clinkerDmg: 0.5,
+  /** Twin Coat (Forge): damage while plated. Kindled Ground (Wildfire), Renewal and Gleam Guard (Grace): damage per rank. */
+  twinDmg: 0.4, groundDmg: 0.06, graceDmg: 0.08,
 };
 
 /** Party cards (Season 2): deep talent cards offered only with 2 or more heroes. Per rank unless noted. */
@@ -1172,8 +1174,8 @@ export class World {
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
     const kindled = this.time < (p.kindleUntil ?? -1) ? GROUP_TOOLS.kindleMult : 1;
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
-    const clinker = this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0;
-    const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend')) * (1 + clinker);
+    const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
+    const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
     return guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
