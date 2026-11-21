@@ -10,6 +10,7 @@ import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
+import type { SetId } from '../sim/content/sets';
 
 const VOICES = Number(process.env.VOICES ?? 12); // the low-end phone cap
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
@@ -52,7 +53,11 @@ for (const dungeon of dungeons) {
     const [main, ...rest] = classes;
     const w = new World({ seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main, party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}` })) });
     // SET=kinbound SETN=3: every hero wears that many pieces of a verb set, to hear its proc cues.
-    if (process.env.SET) for (const h of w.heroes) h.loadout.sets = { ...h.loadout.sets, [process.env.SET]: Number(process.env.SETN ?? 3) };
+    // The sim rebuilds each loadout from gear between fights, so this is re-applied every tick.
+    const wearSet = () => {
+      if (process.env.SET) for (const h of w.heroes) if (h.loadout.sets?.[process.env.SET as SetId] !== Number(process.env.SETN ?? 3)) h.loadout.sets = { ...h.loadout.sets, [process.env.SET]: Number(process.env.SETN ?? 3) };
+    };
+    wearSet();
     w.use(0);
     const ends: { t: number; id: SoundId }[] = [];
     const last = new Map<SoundId, number>();
@@ -95,6 +100,7 @@ for (const dungeon of dungeons) {
         w.use(0);
         return inp;
       });
+      wearSet();
       w.step(inputs);
       const ctx = { cls: w.cls, acting: w.acting, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined };
       for (const ev of w.events) {

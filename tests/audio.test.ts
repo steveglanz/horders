@@ -326,20 +326,20 @@ describe('season hub themes', () => {
 describe('verb-set proc cues', () => {
   const p = { hp: 100, planted: true, surge: true, kbT: 3, warmth: 5, coverT: 0, bondT: 0 };
   it('reads each flag only with the pieces that grant it, and never on a dead hero', () => {
-    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false });
-    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false });
+    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false });
+    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false });
     // Tidewalker's surge and Hearthkeeper's full Warmth are the 3-piece bonuses.
-    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false });
-    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false });
+    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false, relayed: false });
+    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false });
     expect(setFlagsOf({ ...p, warmth: 4 }, () => 3).warmFull).toBe(false);
   });
   it('sounds a proc as it turns on, once', () => {
     const was = {};
-    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false };
+    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false };
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(setCues(was, { ...off, planted: true })).toEqual([]);
-    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
+    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(THROTTLE.planted).toBeGreaterThan(0);
@@ -347,7 +347,7 @@ describe('verb-set proc cues', () => {
   it('Kinbound: Covered and Bonded sound as they start, and a dead hero hears neither', () => {
     const q = { hp: 100, coverT: 4, bondT: 4 };
     expect(setFlagsOf(q, () => 0)).toMatchObject({ covered: true, bonded: true });
-    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false });
+    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false, relayed: false });
     const was = {};
     const off = setFlagsOf({ hp: 100 }, () => 0);
     setCues(was, off);
@@ -356,8 +356,15 @@ describe('verb-set proc cues', () => {
     expect(THROTTLE.covered).toBeGreaterThan(0);
     expect(THROTTLE.bonded).toBeGreaterThan(0);
   });
+  it('Relayer: Relayed sounds as it starts, not as a gold circle refreshes it', () => {
+    const was = {};
+    setCues(was, setFlagsOf({ hp: 100 }, () => 0));
+    expect(setCues(was, setFlagsOf({ hp: 100, relayT: 12 }, () => 0)).map((c) => c.id)).toEqual(['relayed']);
+    expect(setCues(was, setFlagsOf({ hp: 100, relayT: 12 }, () => 0))).toEqual([]);
+    expect(setFlagsOf({ hp: 0, relayT: 12 }, () => 0).relayed).toBe(false);
+  });
   it("Glarewarden's dodge has its own sound", () => {
     expect(cueFor({ type: 'dodge', x: 0, y: 0, healed: 5 }, { cls: 'emberwright', acting: 0 })?.id).toBe('dodged');
-    for (const id of ['planted', 'surgeReady', 'sharpen', 'dodged', 'warmthFull', 'covered', 'bonded'] as const) expect(SOUNDS[id]).toBeDefined();
+    for (const id of ['planted', 'surgeReady', 'sharpen', 'dodged', 'warmthFull', 'covered', 'bonded', 'relayed'] as const) expect(SOUNDS[id]).toBeDefined();
   });
 });
