@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -321,7 +321,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId === 'crucible' ? 'raid' : w.dungeonId);
+    audio.theme(w.dungeonId === 'crucible' || w.dungeonId === 'hoard' ? 'raid' : w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -334,6 +334,8 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
     // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
+    // The Hoard's floor is coal-dark brown (visuals' pick: at least 24 Delta-E from every other floor), so the glowing embers and the Craw stand out.
+    else if (w.dungeonId === 'hoard') this.ground.setTint(0x70584e);
     // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
     else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
     // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
@@ -696,6 +698,7 @@ export class GameScene extends Phaser.Scene {
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
+      swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
@@ -942,6 +945,9 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          // Raid 2: Old Coalmouth.
+          else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
+          else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -957,6 +963,22 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'slagGrip':
           this.floatText(ev.x, ev.y - 44, `${w.dungeonId === 'crucible' ? 'Ladle Burn' : 'Slag Grip'} ×${ev.stacks}`, '#ff9a4a', 15);
+          break;
+        // The Hoard: Swallow, the Craw and Ember Feast.
+        case 'swallowed':
+        case 'spatOut':
+        case 'digested': {
+          const q = w.hero(ev.hero).player;
+          const msg = ev.type === 'swallowed' ? 'Swallowed! Break the Craw' : ev.type === 'spatOut' ? 'Spat out' : 'Digested';
+          this.floatText(q.x, q.y - 50, msg, ev.type === 'spatOut' ? '#9fffc8' : '#ff9a4a', 16);
+          if (ev.type === 'swallowed') this.shakeBy(0.1);
+          break;
+        }
+        case 'emberEaten':
+          this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
+          break;
+        case 'emberTaken':
+          this.burst(ev.x, ev.y, 6);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -1010,6 +1032,9 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'hoard') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
@@ -1023,7 +1048,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
           break;
         case 'rareSpawn':
-          this.hud.banner('Rare: Ashmaw the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
+          this.hud.banner('Rare: Coalmouth the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
           break;
         case 'riftOpen':
           this.hud.banner('A Hollow Rift tears open', 'Close it before the Tide pours out');
@@ -1223,6 +1248,7 @@ export class GameScene extends Phaser.Scene {
       const s = (lb.displayHeight * 0.78) / 48;
       al.mark.setScale(s).setPosition(lb.x - lb.displayWidth / 2 - 4, lb.y - lb.displayHeight * 0.5).setAlpha(lb.alpha * (w.heroData(al.hero).player.hp <= 0 ? 0.5 : 1));
     }
+    this.hideCoveredLabels();
 
     const view = cam.worldView;
     const margin = 80;
@@ -1262,7 +1288,9 @@ export class GameScene extends Phaser.Scene {
       // Ember Twins alternate palettes by slot so a pair always reads as two.
       // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
       const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother' : e.kind;
+        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother'
+        // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
+        : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1296,7 +1324,10 @@ export class GameScene extends Phaser.Scene {
       // Hit flash: small foes blink solid white; bosses and rares brighten instead, so a
       // big boss being hit nonstop never turns into a white silhouette.
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
-      if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
+      // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
+      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up.
+      if (e.flash > 0 && e.kind === 'coalmouth') s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'frostWarden' && this.coalWarmth(e.x, e.y, r) > 0) s.setTint(0xffc49a).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1361,6 +1392,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
     this.overFx.clear();
+    if (this.world.dungeonId === 'hoard') this.hoardHeroes(g, now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
@@ -1654,6 +1686,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
+    // Under the top panels the countdown only shows through the panel as a smear: the edge arrow points there instead.
+    if (soakShown && this.soakText.y < this.clearView().y) this.soakText.setVisible(false);
     // The Lumen's Sanctuary and Blessed Ground pool.
     const lp = w.player;
     if (lp.sanctT > 0) {
@@ -1705,6 +1739,7 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
+      if (e.kind === 'coalmouth') this.hoardDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
@@ -2060,9 +2095,118 @@ export class GameScene extends Phaser.Scene {
     this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, style });
   }
 
+  /**
+   * The Hoard (raid 2) art over the telegraph layer:
+   * - Ember Feast: each spilled ember is a glowing coal nugget that flickers harder as it gutters out, inside a
+   *   pickup ring whose arc runs down with its time (he eats it at zero).
+   * - Fed: a furnace glow round his mouth that grows with every ember he has eaten (each one makes him hit harder).
+   * - Gorge: an interruptible cast, so it wears the interrupt blue (the same as an interruptible cast bar): a ring
+   *   closing in on him with the cast, and a pulsing outer ring.
+   * - The Craw: a pulsing "hit this" ring of four brackets round it and an arc running down with the swallowed
+   *   hero's time.
+   * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
+   */
+  private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    for (const m of w.coalEmbers) {
+      const f = Math.max(0, Math.min(1, m.t / COALMOUTH.emberLife));
+      // Steady while fresh, guttering in the last third.
+      const flick = f > 0.35 ? 1 : 0.55 + 0.45 * Math.abs(Math.sin(now / 70 + m.x));
+      const r = 7 + 2 * Math.sin(now / 200 + m.y);
+      g.fillStyle(0xff7a2a, 0.22 * flick).fillCircle(m.x, m.y, r * 2.4);
+      // A six-sided coal nugget with a hot core.
+      const pts: Phaser.Math.Vector2[] = [];
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + m.x * 0.1;
+        const rr = r * (k % 2 ? 0.8 : 1.05);
+        pts.push(new Phaser.Math.Vector2(m.x + Math.cos(a) * rr, m.y + Math.sin(a) * rr * 0.85));
+      }
+      g.fillStyle(0x2a1a14, 0.95).fillPoints(pts, true);
+      g.lineStyle(2, 0xffa040, 0.9 * flick).strokePoints(pts, true);
+      g.fillStyle(0xffe6a0, 0.85 * flick).fillCircle(m.x, m.y, r * 0.42);
+      // The pickup ring, its arc the time left.
+      g.lineStyle(1.5, 0xffe2a0, 0.25).strokeCircle(m.x, m.y, COALMOUTH.emberPick);
+      g.lineStyle(3, 0xffc861, 0.85).beginPath().arc(m.x, m.y, COALMOUTH.emberPick, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
+    }
+    // Fed: his mouth burns brighter for every ember he has eaten (capped at 6).
+    if (w.coalFed > 0) {
+      const fed = Math.min(6, w.coalFed) / 6;
+      const mx = e.x + (this.enemySprites[w.enemies.indexOf(e)]?.flipX ? -1 : 1) * e.def.radius * 0.35;
+      g.fillStyle(0xff8a3d, 0.1 + 0.18 * fed + 0.05 * Math.sin(now / 180)).fillCircle(mx, e.y, e.def.radius * (0.7 + 0.5 * fed));
+    }
+    if (e.castId === 'coalGorge') {
+      const k = Math.min(1, e.castT / e.castDur);
+      const pulse = 0.5 + 0.5 * Math.sin(now / 90);
+      o.lineStyle(3, 0x8fd8ff, 0.45 + 0.35 * pulse).strokeCircle(e.x, e.y, e.def.radius + 46);
+      o.lineStyle(6, 0x8fd8ff, 0.9).strokeCircle(e.x, e.y, e.def.radius + 46 - 34 * k);
+    }
+    // The Craw.
+    const cw = w.enemies.find((q) => q.alive && q.kind === 'craw');
+    let left = 0;
+    for (let k = 0; k < w.heroes.length; k++) left = Math.max(left, w.heroData(k).player.swallowT ?? 0);
+    if (cw) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 110);
+      const R = cw.def.radius + 14 + 4 * pulse;
+      o.lineStyle(4, 0xfff0b0, 0.65 + 0.35 * pulse);
+      for (let q = 0; q < 4; q++) {
+        const a = q * (Math.PI / 2) + Math.PI / 4;
+        o.beginPath().arc(cw.x, cw.y, R, a - 0.35, a + 0.35, false).strokePath();
+      }
+      if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / COALMOUTH.swallowTime) * Math.PI * 2, false).strokePath();
+    }
+  }
+
+  /** The Hoard, every frame (even after he falls, so nobody stays faded): a swallowed hero fades nearly out, since
+   * they are inside him, and a ring in their class colour pulses on his belly. */
+  private hoardHeroes(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    const heroes = [{ k: w.acting, img: this.player as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }, ...this.allies.map((al) => ({ k: al.hero, img: al.img as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }))];
+    for (const { k, img } of heroes) {
+      const q = w.heroData(k).player;
+      const inside = (q.swallowT ?? 0) > 0;
+      const a = inside ? 0.18 : 1;
+      if (img.alpha !== a) img.setAlpha(a);
+      if (!inside) continue;
+      const col = hex(CLASS_ICON[w.heroes[k].cls].color);
+      const beat = 0.5 + 0.5 * Math.sin(now / 140);
+      g.fillStyle(col, 0.18 + 0.12 * beat).fillCircle(img.x, img.y + 6, 20 + 4 * beat);
+      o.lineStyle(3, col, 0.75 + 0.25 * beat).strokeCircle(img.x, img.y + 6, 20 + 4 * beat);
+    }
+  }
+
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
-   * twice a second: reading the layout every frame would force a reflow. */
-  private hudCover = { px: 0, at: -1 };
+   * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
+   * shows (CSS px), or undefined. */
+  private hudCover: { px: number; at: number; banner?: DOMRect } = { px: 0, at: -1 };
+
+  /**
+   * Allies' names (with their title and bot mark) that sit under the HUD's top panels or behind the cast banner are
+   * hidden: the boss panel is see-through, so a name under it shows as a smear across the boss's name, and names
+   * over the banner's text make both unreadable on a phone. Their health bars and edge arrows stay.
+   */
+  private hideCoveredLabels(): void {
+    const v = this.clearView();
+    const full = this.cameras.main.worldView;
+    const c = this.game.canvas.getBoundingClientRect();
+    const bn = this.hudCover.banner;
+    // The banner's box in world units.
+    const bw = bn && c.width && c.height ? {
+      l: full.x + ((bn.left - c.left) / c.width) * full.width, r: full.x + ((bn.right - c.left) / c.width) * full.width,
+      t: full.y + ((bn.top - c.top) / c.height) * full.height, b: full.y + ((bn.bottom - c.top) / c.height) * full.height,
+    } : undefined;
+    for (const al of this.allies) {
+      const lb = al.label;
+      const top = lb.y - lb.displayHeight * lb.originY;
+      const hw = lb.displayWidth / 2;
+      const behind = !!bw && lb.x + hw > bw.l && lb.x - hw < bw.r && top + lb.displayHeight > bw.t && top < bw.b;
+      const show = top >= v.y && !behind;
+      if (lb.visible !== show) lb.setVisible(show);
+      if (al.tag && al.tag.visible !== show) al.tag.setVisible(show);
+      if (al.mark && al.mark.visible !== show) al.mark.setVisible(show);
+    }
+  }
 
   /**
    * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
@@ -2083,6 +2227,9 @@ export class GameScene extends Phaser.Scene {
         if (r.height > 0 && r.width > window.innerWidth * 0.5) px = Math.max(px, r.bottom);
       }
       this.hudCover.px = px;
+      const banner = document.getElementById('banner');
+      const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
+      this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
     }
     const ch = this.game.canvas.getBoundingClientRect().height || 1;
     // Never take more than 40% of the view, so a tall panel can't push arrows down into the fight.

@@ -161,3 +161,26 @@ describe('party cards (Season 2)', () => {
     expect(kindled(1)).toBe(true);
   });
 });
+
+describe('Slagbinder in a party (party-only trim)', () => {
+  it('a Bellows Slagbinder deals partyDmg in a party, an Anvil one and a solo one do not', () => {
+    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [] });
+    const duo = party('slagbinder', ['bulwark']).w;
+    expect(duo.dmgMult).toBeCloseTo(solo.dmgMult * SLAG_KIT.partyDmg);
+    duo.player.stance = 'anvil';
+    const anvilSolo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' });
+    expect(duo.dmgMult).toBeCloseTo(anvilSolo.dmgMult);
+  });
+
+  it('Cooling Shell cuts its wearer by shellCut and allies by allyShellCut', () => {
+    const { w, inner } = party('duskblade', ['slagbinder'], 50);
+    w.heroes[1].player.shellUntil = w.time + 5;
+    const before = w.player.hp;
+    inner.hurtPlayer(100);
+    const ally = before - w.player.hp;
+    const base = party('duskblade', ['slagbinder'], 50);
+    const b0 = base.w.player.hp;
+    base.inner.hurtPlayer(100);
+    expect(ally).toBeCloseTo((b0 - base.w.player.hp) * (1 - SLAG_KIT.allyShellCut));
+  });
+});

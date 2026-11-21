@@ -161,6 +161,12 @@ export const SLAG_KIT = {
   everMoltenRefund: 15, heartAt: 0.3, heartShare: 0.25, heartEvery: 30,
   tideRadius: 120, tideDamage: 60, tideStun: 1,
   hailEvery: 4, shatterMult: 1.25,
+  /** Party only: Cooling Shell's cut on allies (its own wearer keeps shellCut), and plating poured on an ally. */
+  allyShellCut: 0.2, allyPlate: 0.5,
+  /** Party only: how much harder Brittle foes take hits from the Slagbinder's allies (its own hits use brittleMult). */
+  allyBrittle: 1.15,
+  /** Party only: a Bellows Slagbinder's damage when it has allies. */
+  partyDmg: 0.7,
 };
 
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
@@ -385,6 +391,8 @@ export interface Player {
   sunderT?: number;
   /** Relay (verb set): seconds left of the damage bonus from a soak. */
   relayT?: number;
+  /** Raid 2: seconds left inside Old Coalmouth (swallowed: can't act, can't be hit, digests at 0). */
+  swallowT?: number;
   /** The Pressworks: seconds left Pressed after taking a Downstroke (a Pressed hero can't take the next one). */
   pressedT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
@@ -520,6 +528,11 @@ export type SimEvent =
   | { type: 'bossEnrage' }
   /** C7: a fight has gone on too long (`warn`: 30 s left; otherwise the fire now takes everything). */
   | { type: 'burnout'; warn: boolean }
+  | { type: 'emberTaken'; x: number; y: number }
+  | { type: 'emberEaten'; x: number; y: number; fed: number }
+  | { type: 'swallowed'; hero: number }
+  | { type: 'digested'; hero: number }
+  | { type: 'spatOut'; hero: number }
   | { type: 'explode'; x: number; y: number; r: number }
   /** Glarewell: a Glare went off; `hit` is whether it caught the hero in the light. */
   | { type: 'glare'; x: number; y: number; hit: boolean }
@@ -827,6 +840,16 @@ export class World {
   private bellowTarget = 0;
   // The Pressworks (Oskel): Downstroke, Rivets, Stamp.
   private downT = 0;
+  /** Raid 2 (the Hoard): Old Coalmouth's clocks, the swallowed hero, the Craw and the spilled embers. */
+  private gorgeT = 0;
+  private swallowT = 0;
+  private spillT = 0;
+  private swallowed = -1;
+  private crawIndex = -1;
+  /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
+  coalFed = 0;
+  /** Spilled embers on the floor, with seconds left before he inhales them. */
+  readonly coalEmbers: { x: number; y: number; t: number }[] = [];
   private rivetT = 0;
   private stampT = 0;
   private stampTarget = 0;
@@ -1131,14 +1154,14 @@ export class World {
     if (this.heroes.length === 1) return 0;
     const id = updateTarget(this.threat[i], dt);
     let k = id ? this.heroes.findIndex((h) => h.id === id) : -1;
-    if (k >= 0 && this.heroPlayer(k).hp > 0) return k;
+    if (k >= 0 && this.heroPlayer(k).hp > 0 && !((this.heroPlayer(k).swallowT ?? 0) > 0)) return k;
     // Nobody has threat yet (or the target is down): the nearest living hero.
     const e = this.enemies[i];
     let best = 0;
     let bestD = Infinity;
     for (let j = 0; j < this.heroes.length; j++) {
       const hp = this.heroPlayer(j);
-      if (hp.hp <= 0) continue;
+      if (hp.hp <= 0 || (hp.swallowT ?? 0) > 0) continue;
       const d = dist2(hp.x, hp.y, e.x, e.y);
       if (d < bestD) { bestD = d; best = j; }
     }
@@ -1195,7 +1218,8 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    return guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    const party = this.cls === 'slagbinder' && p.stance !== 'anvil' && this.heroes.length > 1 ? SLAG_KIT.partyDmg : 1;
+    return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -1312,9 +1336,11 @@ export class World {
       this.checkEnd();
       return;
     }
-    this.eachHero((h) => this.updatePlayer(inputs[h] ?? idle, dt));
+    this.eachHero((h) => this.updatePlayer((this.player.swallowT ?? 0) > 0 ? idle : inputs[h] ?? idle, dt));
     this.rebuildHash();
     this.eachHero((h) => {
+      // Swallowed (raid 2): held inside the boss, the hero neither moves nor fights.
+      if ((this.player.swallowT ?? 0) > 0) return this.holdSwallowed();
       this.updateAbilities(inputs[h] ?? idle, dt);
       this.updateWeapons(dt);
     });
@@ -1492,6 +1518,7 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'hoard') this.coalClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -1703,6 +1730,21 @@ export class World {
           this.raidVentT = 4;
           this.marksT = 9;
           this.raidBurnT = 1;
+          this.lastEmberCast = false;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'coalmouth') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.bossPhase = 1;
+          this.raidStart = this.time;
+          this.gorgeT = COAL.firstGorge;
+          this.swallowT = COAL.firstSwallow;
+          this.spillT = COAL.firstSpill;
+          this.swallowed = -1;
+          this.crawIndex = -1;
+          this.coalFed = 0;
+          this.coalEmbers.length = 0;
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2033,6 +2075,8 @@ export class World {
   /** `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). */
   private hurtPlayer(amount: number, src = -1, unblockable = false): void {
     if (this.invulnerable || (this.player.shieldT > 0 && !unblockable)) return;
+    // Swallowed: nothing outside can reach this hero (coalClock digests them).
+    if ((this.player.swallowT ?? 0) > 0) return;
     const p = this.player;
     // Interpose: a Slagbinder beside this hero takes most of each direct hit, at less damage.
     // Only hits from a foe that can be blocked: never soaks, percent ticks, Ladle Burn or Slag Grip.
@@ -2048,7 +2092,8 @@ export class World {
       }
     }
     // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
-    if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
+    const ownShell = this.cls === 'slagbinder' && (p.shellUntil ?? -1) > this.time;
+    if (ownShell || this.shellCovers(p)) amount *= 1 - (ownShell ? SLAG_KIT.shellCut : SLAG_KIT.allyShellCut) - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
@@ -2294,7 +2339,7 @@ export class World {
   /** Combustion goes for the target that matters most: healers, then named foes. */
   private combustionTarget(): number {
     const p = this.player;
-    const order = ['acolyte', 'ashmaw', 'cinderBrute', 'kilnMother', 'rift'];
+    const order = ['craw', 'acolyte', 'ashmaw', 'cinderBrute', 'kilnMother', 'rift'];
     let best = -1;
     let bestRank = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
@@ -2672,6 +2717,7 @@ export class World {
   private plate(k: number, amount: number): void {
     const q = this.heroPlayer(k);
     if (q.hp <= 0) return;
+    if (k !== this.acting) amount *= SLAG_KIT.allyPlate;
     // A fresh coat replaces the old one, so it never stacks past one plating.
     q.plate = amount;
     q.plateAmt = amount;
@@ -3462,7 +3508,8 @@ export class World {
       const d = Math.sqrt(dist2(p.x, p.y, e.x, e.y)) - e.def.radius;
       if (d > maxDist) continue;
       // Big foes count as a little closer, so the blades stay on them.
-      const score = d - (e.def.rank === 'normal' ? 0 : 40);
+      // The Craw comes first of all: a hero is inside.
+      const score = d - (e.kind === 'craw' ? 400 : e.def.rank === 'normal' ? 0 : 40);
       if (score < bestD) { bestD = score; best = i; }
     }
     return best;
@@ -3869,7 +3916,7 @@ export class World {
 
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
         e.touchCd = 0.6;
-        const mult = e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1;
+        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'coalmouth' ? 1 + COAL.emberDamage * this.coalFed : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
         // A Snuffer's touch drinks the hero's light.
         if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
@@ -4069,6 +4116,16 @@ export class World {
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
       this.use(at);
+    } else if (id === 'coalGorge') {
+      // Old Coalmouth's Gorge: not interrupted, he heals.
+      const amount = e.maxHp * COAL.gorgeHeal * this.healTakenMult(e);
+      e.hp = Math.min(e.maxHp, e.hp + amount);
+      this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+    } else if (id === 'lastMeal') {
+      // Raid 2's hard enrage: he swallows everyone.
+      const at = this.acting;
+      this.eachHero(() => this.hurtPlayer(this.player.maxHp * 10, i, true));
+      this.use(at);
     } else if (id === 'lastEmber') {
       // The hard enrage: nothing stands through it.
       const at = this.acting;
@@ -4225,6 +4282,7 @@ export class World {
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
+    if (e.kind === 'coalmouth' || e.kind === 'craw') return; // all on coalClock
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -4307,7 +4365,7 @@ export class World {
       if (k >= 0 && k !== this.acting) dmg *= 1 + PARTY_CARDS.turnedBack * this.rank('turnedBack');
     }
     // Brittle (Slagbinder): cracked slag on the foe, so every hero hits it harder.
-    if ((e.brittleUntil ?? 0) > this.time) dmg *= SLAG_KIT.brittleMult;
+    if ((e.brittleUntil ?? 0) > this.time) dmg *= this.cls === 'slagbinder' ? SLAG_KIT.brittleMult : SLAG_KIT.allyBrittle;
     dmg *= this.setDamageMult(e, silent);
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
@@ -4352,8 +4410,8 @@ export class World {
     }
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
-    // The shadow fight and the raid boss both count triple toward the world boss.
-    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag') this.shadowDamage += dmg;
+    // The shadow fight and the raid bosses all count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
@@ -4516,6 +4574,7 @@ export class World {
       });
     }
     if (e.kind === 'emberTwin') this.twinFell();
+    if (e.kind === 'craw') this.crawBroken();
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
       const bleed = Math.max(e.burnDps, 14 * this.dmgMult);
@@ -5373,6 +5432,160 @@ export class World {
     }
   }
 
+  /**
+   * Old Coalmouth's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
+   * Swallow: a hero goes inside and the Craw appears; break it to free them. Phase 3 Ember
+   * Feast: spilled embers he eats unless the heroes grab them first. Last Meal at `hardEnrage`.
+   */
+  private coalClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'coalmouth') {
+      this.releaseSwallowed(false);
+      return;
+    }
+    const frac = e.hp / e.maxHp;
+    const phase = frac > COAL.phase2 ? 1 : frac > COAL.phase3 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+    }
+    const at = this.acting;
+    // The swallowed hero digests; when the time runs out they are downed.
+    if (this.swallowed >= 0) {
+      const q = this.heroPlayer(this.swallowed);
+      q.swallowT = Math.max(0, (q.swallowT ?? 0) - dt);
+      q.hp -= q.maxHp * COAL.swallowTick * dt;
+      if (q.swallowT <= 0 || q.hp <= 0) this.releaseSwallowed(true);
+    }
+    // Spilled embers: a hero who walks over one takes it; he inhales the ones left too long.
+    for (let k = this.coalEmbers.length - 1; k >= 0; k--) {
+      const m = this.coalEmbers[k];
+      m.t -= dt;
+      let taken = false;
+      for (let h = 0; h < this.heroes.length && !taken; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp > 0 && !((q.swallowT ?? 0) > 0) && dist2(q.x, q.y, m.x, m.y) <= COAL.emberPick * COAL.emberPick) taken = true;
+      }
+      if (taken) {
+        this.coalEmbers.splice(k, 1);
+        this.events.push({ type: 'emberTaken', x: m.x, y: m.y });
+      } else if (m.t <= 0 || dist2(e.x, e.y, m.x, m.y) <= (e.def.radius + 10) ** 2) {
+        this.coalEmbers.splice(k, 1);
+        this.coalFed++;
+        const amount = e.maxHp * COAL.emberHeal * this.healTakenMult(e);
+        e.hp = Math.min(e.maxHp, e.hp + amount);
+        this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+        this.events.push({ type: 'emberEaten', x: m.x, y: m.y, fed: this.coalFed });
+      }
+    }
+    if (phase === 3) {
+      this.spillT -= dt;
+      if (this.spillT <= 0) {
+        this.spillT = COAL.spillEvery;
+        for (let k = 0; k < COAL.spillN; k++) {
+          const a = this.rng.range(0, Math.PI * 2);
+          const r = this.rng.range(COAL.spillMin, COAL.spillMax);
+          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+          this.clampArena(c, 30);
+          this.coalEmbers.push({ x: c.x, y: c.y, t: COAL.emberLife });
+        }
+        this.events.push({ type: 'castStart', index: i, id: 'emberSpill', name: 'Ember Spill' });
+      }
+    }
+    if (phase >= 2 && this.swallowed < 0) this.swallowT -= dt;
+    this.use(at);
+    if (e.castId || e.stunT > 0) return;
+    if (!this.lastEmberCast && this.time - e.spawnedAt >= COAL.hardEnrage) {
+      this.lastEmberCast = true;
+      if (!this.bossEnraged) {
+        this.bossEnraged = true;
+        this.events.push({ type: 'bossEnrage' });
+      }
+      this.startCast(i, 'lastMeal', 'Last Meal', COAL.lastMealCast, false);
+      return;
+    }
+    this.gorgeT -= dt;
+    if (phase >= 2 && this.swallowT <= 0 && this.swallowed < 0) {
+      this.swallowT = COAL.swallowEvery;
+      this.swallow(i);
+    } else if (this.gorgeT <= 0) {
+      this.gorgeT = COAL.gorgeEvery;
+      this.startCast(i, 'coalGorge', 'Gorge', COAL.gorgeCast, true);
+    }
+  }
+
+  /** Swallow: the living non-tank hero furthest from Old Coalmouth goes inside, and the Craw appears. */
+  private swallow(i: number): void {
+    const e = this.enemies[i];
+    let pick = -1;
+    let far = -1;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || this.isTank(k)) continue;
+      const d = dist2(q.x, q.y, e.x, e.y);
+      if (d > far) { far = d; pick = k; }
+    }
+    if (pick < 0) return;
+    const q = this.heroPlayer(pick);
+    q.swallowT = COAL.swallowTime;
+    this.swallowed = pick;
+    // The Craw bulges on his far side from the hero he is fighting.
+    const tgt = this.heroPlayer(this.targetOf(i, 0));
+    const a = Math.atan2(e.y - tgt.y, e.x - tgt.x);
+    const c = { x: e.x + Math.cos(a) * COAL.crawDist, y: e.y + Math.sin(a) * COAL.crawDist };
+    this.clampArena(c, 30);
+    this.crawIndex = this.spawn('craw', c.x, c.y);
+    this.events.push({ type: 'castStart', index: i, id: 'swallow', name: 'Swallow' });
+    this.events.push({ type: 'swallowed', hero: pick });
+  }
+
+  /** The Craw broke: he spits the swallowed hero out beside it, with a moment's shield. */
+  private crawBroken(): void {
+    this.crawIndex = -1;
+    this.releaseSwallowed(false);
+  }
+
+  /**
+   * Lets the swallowed hero out. `digested`: the time ran out, so they come out downed.
+   * Any Craw still standing goes too.
+   */
+  private releaseSwallowed(digested: boolean): void {
+    if (this.swallowed < 0) return;
+    const k = this.swallowed;
+    const q = this.heroPlayer(k);
+    q.swallowT = 0;
+    this.swallowed = -1;
+    const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    const craw = this.crawIndex >= 0 ? this.enemies[this.crawIndex] : undefined;
+    const out = craw?.alive ? craw : b;
+    if (out) {
+      const a = b ? Math.atan2(out.y - b.y, out.x - b.x) : 0;
+      q.x = q.px = out.x + Math.cos(a) * 60;
+      q.y = q.py = out.y + Math.sin(a) * 60;
+      this.clampArena(q, PLAYER_RADIUS);
+    }
+    if (craw?.alive && craw.kind === 'craw') this.despawn(this.crawIndex);
+    this.crawIndex = -1;
+    if (digested) {
+      q.hp = 0;
+      this.events.push({ type: 'digested', hero: k });
+    } else {
+      q.hp = Math.max(1, q.hp);
+      q.shieldT = Math.max(q.shieldT, COAL.spitShield);
+      this.events.push({ type: 'spatOut', hero: k });
+    }
+  }
+
+  /** A swallowed hero stays inside the boss: pinned to his middle, doing nothing. */
+  private holdSwallowed(): void {
+    const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    if (!b) return;
+    this.player.x = this.player.px = b.x;
+    this.player.y = this.player.py = b.y;
+  }
+
   /** Ondrel's clocks run during casts too: Anvilfall, Choir of Iron, Slag Grip ticks, Sundered. */
   private ondrelClock(dt: number): void {
     if (this.bossIndex < 0) return;
@@ -6078,8 +6291,10 @@ export class World {
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
       if (!e.alive) continue;
-      const d = dist2(x, y, e.x, e.y);
-      if (d > m2) continue;
+      const d0 = dist2(x, y, e.x, e.y);
+      if (d0 > m2) continue;
+      // The Craw counts as much nearer, so auto-attacks break it and free the hero inside.
+      const d = e.kind === 'craw' ? d0 * 0.05 : d0;
       if (best.length < n) best.push({ i, d });
       else {
         let worst = 0;
@@ -6278,6 +6493,25 @@ export const SLAG = {
   marksEvery: 14,
   /** Hard enrage: this long after she appears, she casts Last Ember, which wipes the party. */
   hardEnrage: 420, lastEmberCast: 5,
+};
+
+export const COAL = {
+  /** Phases start at these shares of his health: 2 Swallow, 3 Ember Feast. */
+  phase2: 0.6, phase3: 0.25,
+  /** Gorge: an interruptible channel; if it finishes he heals `gorgeHeal` of max health. */
+  gorgeEvery: 12, gorgeCast: 3, gorgeHeal: 0.08, firstGorge: 6,
+  /**
+   * Swallow (phase 2 on): the non-tank hero furthest from him goes inside for `swallowTime` s,
+   * losing `swallowTick` of max health a second. Break the Craw at his side to get them out;
+   * otherwise they are Digested (downed). `crawDist` is how far from his middle the Craw sits.
+   */
+  swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.04, crawDist: 90, spitShield: 1.5,
+  /** Ember Feast (phase 3): `spillN` embers scatter `spillMin`..`spillMax` from him; he inhales any left after `emberLife` s. */
+  spillEvery: 10, firstSpill: 3, spillN: 6, spillMin: 140, spillMax: 320, emberLife: 7, emberPick: 34,
+  /** Each ember he eats heals him this share and makes his blows this much harder for the rest of the fight. */
+  emberHeal: 0.02, emberDamage: 0.05,
+  /** The hard enrage, the same as the Crucible's (Burnout reads SLAG's numbers for any raid). */
+  hardEnrage: 420, lastMealCast: 5,
 };
 
 export const YSMERET = {

@@ -13,7 +13,7 @@ export type EncounterId =
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
   | 'grandmotherSlag'
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
-  | 'oskel';
+  | 'oskel' | 'coalmouth';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -28,7 +28,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardens: { id: 'wardens', name: 'Hollow Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
   warpack: { id: 'warpack', name: 'Warden and Hounds', tip: 'A warden with its hounds. Thin the hounds first.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
-  ashmaw: { id: 'ashmaw', name: 'Ashmaw the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
+  ashmaw: { id: 'ashmaw', name: 'Coalmouth the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
   acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -60,6 +60,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardenShoal: { id: 'wardenShoal', name: 'Warden in the Shoals', tip: 'Let the water take the Warden: the drain wears it down while you wait on a raft.', spawns: [{ kind: 'husk', n: 2 }, { kind: 'shoalLurker', n: 3 }] },
   twoHaulers: { id: 'twoHaulers', name: 'Two Haulers', tip: 'They take turns to Haul. Save a Quench for each.', spawns: [{ kind: 'bargeHauler', n: 2 }] },
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'coalmouth', n: 1 }] },
   oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
@@ -67,7 +68,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -88,6 +89,11 @@ export interface DungeonDef {
   minParty: number;
   /** C3: a raid. Its route is two openers and a named fight, then the boss, with no hard fight and no shadow fight after. */
   raid?: boolean;
+  /**
+   * W3: a raid's world boss, by its name on the server's rotation. Hits on the raid boss count
+   * triple toward the world boss only while this boss is the live one (raidCountsTriple).
+   */
+  worldBoss?: string;
 }
 
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
@@ -134,7 +140,14 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   crucible: {
     id: 'crucible', name: 'The Crucible', boss: 'grandmotherSlag', unlockTier: 8,
     openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
-    blurb: 'The raid. Four heroes face Grandmother Slag herself, and every hit on her counts triple toward the world boss.', style: 'group', minParty: 4, raid: true,
+    blurb: 'The raid. Four heroes face Grandmother Slag herself, and while she is the live world boss, every hit on her counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'Grandmother Slag',
+  },
+  hoard: {
+    id: 'hoard', name: 'The Hoard', boss: 'coalmouth', unlockTier: 9,
+    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    blurb: 'The second raid. Four heroes face Old Coalmouth in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'Old Coalmouth',
   },
 };
 
@@ -209,4 +222,14 @@ export function rollRoute(pick: (n: number) => number, dungeon: DungeonId = 'kil
   if (DUNGEONS[dungeon].raid) return [a, b, named, boss];
   const hard = HARD.filter((h) => h !== named);
   return [a, b, named, hard[pick(hard.length)], boss];
+}
+
+/**
+ * W3: whether a run's boss hits (shadowDamage) count triple toward the live world boss. A shadow
+ * fight always does: it is the live boss's shadow. A raid does only when its own boss is the live
+ * one; in another week its hits still count, once, as ordinary delve damage (finishRun in main.ts).
+ */
+export function raidCountsTriple(dungeon: DungeonId | undefined, liveBoss: string | undefined): boolean {
+  const d = dungeon ? DUNGEONS[dungeon] : undefined;
+  return !d?.raid || (!!d.worldBoss && d.worldBoss === liveBoss);
 }

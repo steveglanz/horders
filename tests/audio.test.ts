@@ -4,7 +4,7 @@ import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { BELLY, beatGap, bellyCues, DRY, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -88,6 +88,46 @@ describe('audio', () => {
       const db = phoneDb(render(SOUNDS[id], 22050), 22050);
       expect(db, `${id} ${db.toFixed(1)} dB`).toBeGreaterThanOrEqual(PHONE_FLOOR_DB);
     }
+  });
+
+  it('gives the Hoard its own theme and every Old Coalmouth moment a sound', () => {
+    expect(THEMES.hoard.bed).toBe('chew');
+    expect(THEMES.hoard).not.toEqual(THEMES.raid);
+    const c = { cls: 'bulwark' as const, acting: 0, boss: 'coalmouth' as const };
+    expect(cueFor({ type: 'swallowed', hero: 1 }, c)?.id).toBe('swallowed');
+    expect(PRIORITY.has('swallowed')).toBe(true);
+    expect(cueFor({ type: 'spatOut', hero: 0 }, c)).toEqual({ id: 'spatOut' });
+    expect(cueFor({ type: 'spatOut', hero: 1 }, c)).toEqual({ id: 'spatOut', vol: 0.7 });
+    expect(cueFor({ type: 'digested', hero: 1 }, c)).toEqual({ id: 'digested', vol: 0.8 });
+    expect(cueFor({ type: 'kill', x: 0, y: 0, kind: 'craw' }, c)?.id).toBe('crawBreak');
+    expect(cueFor({ type: 'emberTaken', x: 0, y: 0 }, c)?.id).toBe('emberTaken');
+    expect(cueFor({ type: 'emberEaten', x: 0, y: 0, fed: 1 }, c)?.vol).toBeCloseTo(0.84);
+    expect(cueFor({ type: 'emberEaten', x: 0, y: 0, fed: 30 }, c)?.vol).toBe(1.2);
+    expect(cueFor({ type: 'castStart', index: 0, id: 'coalGorge', name: 'Gorge' }, c)?.id).toBe('gorgeWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'lastMeal', name: 'Last Meal' }, c)?.id).toBe('lastMealWarn');
+    expect(PRIORITY.has('gorgeWarn') && PRIORITY.has('lastMealWarn')).toBe(true);
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseSwallow');
+    expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseFeast');
+    // The Gorge wind-up has to fit inside its 3 s cast, so the interrupt lands on a sound that is still going.
+    expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
+  });
+
+  it('muffles the mix and runs a quickening heartbeat while swallowed', () => {
+    expect(BELLY.shut).toBeLessThan(BELLY.open);
+    // A phone speaker plays little below 350 Hz: the muffle must leave it something.
+    expect(BELLY.shut).toBeGreaterThan(700);
+    expect(DRY.has('heartbeat')).toBe(true);
+    const st = { on: false, next: 0 };
+    expect(bellyCues(st, 0, 0)).toEqual([]);
+    expect(bellyCues(st, 8, 10)).toEqual([]); // swallowed: the gulp lands first
+    expect(st.on).toBe(true);
+    expect(bellyCues(st, 7.9, 10.2)).toEqual([]);
+    expect(bellyCues(st, 7.8, 10.4).map((b) => b.id)).toEqual(['heartbeat']);
+    expect(st.next).toBeCloseTo(10.4 + beatGap(7.8));
+    expect(beatGap(1)).toBeLessThan(beatGap(8));
+    expect(bellyCues(st, 0.5, 20)[0].vol).toBeGreaterThan(bellyCues({ on: true, next: 0 }, 8, 0)[0].vol ?? 1);
+    expect(bellyCues(st, 0, 21)).toEqual([]); // out
+    expect(st.on).toBe(false);
   });
 
   it('gives the Hammerdeep its theme and Ondrel\'s casts their own sounds', () => {
@@ -221,6 +261,14 @@ describe('audio', () => {
     // An in-season win chimes after a season level and before smaller unlocks.
     expect(rewardCues({ ...(base as object), seasonFrom: 3, seasonTo: 4, seasonFeatured: true, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['seasonUp', 'inSeason', 'unlock']);
     expect(rewardCues({ ...(base as object), seasonFeatured: true } as never).map((c) => c.id)).toEqual(['inSeason']);
+    // P3 keys and the daily bounty (both listed on the end screen by client/ui.ts).
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 5 } as never).map((c) => c.id)).toEqual(['keyUp']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 6 } as never).map((c) => c.id)).toEqual(['keyFast']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 3 } as never).map((c) => c.id)).toEqual(['keyDown']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 4 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 0 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 40, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['bountyPaid', 'unlock']);
+    expect(rewardCues({ ...(base as object), seasonFrom: 1, seasonTo: 2, keyFrom: 2, keyTo: 3, seasonFeatured: true } as never).map((c) => c.id)).toEqual(['seasonUp', 'keyUp', 'inSeason']);
   });
 
   it('keys every boss-cast sound to a cast id the sim really uses', () => {

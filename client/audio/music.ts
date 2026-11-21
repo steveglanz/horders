@@ -20,8 +20,8 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew';
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -73,6 +73,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'sawtooth', droneLp: 600, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
   // The Pressworks: a working rhythm. The bed is a press cycle (thud, then steam), the plucks ring like struck plate, and the drone is a saw so it holds up on phones.
   pressworks: { root: -11, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, -2, 1, -4], bpm: 80, drone: 'sawtooth', droneLp: 650, pluck: 'anvil', density: 0.32, bed: 'press', bedVol: 0.5 },
+  // The Hoard (raid 2): Old Coalmouth's coal cave. A slow, heavy chewing groove in phrygian: the bed is his jaw
+  // grinding coal three times round the loop, the plucks are embers, and the march of the Crucible's raid is gone.
+  hoard: { root: -16, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 62, drone: 'sawtooth', droneLp: 650, pluck: 'ember', density: 0.3, bed: 'chew', bedVol: 0.5, phaseTempo: [1, 1.15, 1.25, 1.35], floodBed: 1.5 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -205,6 +208,19 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = lp * 0.7 * (0.3 + 0.7 * roll) + hp * 0.12 * crest + brown * 0.8;
         break;
       }
+      case 'chew': {
+        // A jaw grinding coal three times round the loop: a gritty band of noise that swells with each chew,
+        // chopped at 13 Hz like teeth on stone, over a low growl. The coal crunches are added below.
+        hp = 0.93 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.35;
+        const ph = (t * 3) % 1;
+        const jaw = ph < 0.6 ? Math.pow(Math.sin((Math.PI * ph) / 0.6), 2) : 0;
+        const grit = Math.sin((2 * Math.PI * 13 * i) / rate) > 0.2 ? 1 : 0.25;
+        const growl = Math.sin(2 * Math.PI * 49 * (i / rate)) + 0.5 * Math.sin(2 * Math.PI * 98 * (i / rate));
+        raw[i] = lp * 0.5 * jaw * grit + growl * 0.12 * jaw + brown * 1.2;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -217,9 +233,10 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Pops for fire, drips for steam (short decaying tones placed at random).
-  const events = kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
+  const events = kind === 'chew' ? 54 : kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
   for (let k = 0; k < events; k++) {
-    const at = Math.floor(r() * (period - rate * 0.3));
+    // Chew: the crunches land while the jaw is closing (the first 60% of each of the three chews).
+    const at = kind === 'chew' ? Math.floor((Math.floor(r() * 3) + r() * 0.6) * (period / 3)) % Math.max(1, period - Math.floor(rate * 0.05)) : Math.floor(r() * (period - rate * 0.3));
     // Steam drips; slag glugs (a low bubble that pops upward).
     const drip = kind === 'steam' || kind === 'slag';
     const glug = kind === 'slag';

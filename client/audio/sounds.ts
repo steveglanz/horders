@@ -233,6 +233,32 @@ export const SOUNDS = {
   ),
   /** A win in the season's own dungeon paid the in-season marks: a puff of sparks and two bright notes. */
   inSeason: join(whoosh(1500, 6000, 0.25, 0.12), chime(G5, 0.05, 0.16, 0.35), chime(D5 * 2, 0.13, 0.17, 0.45)),
+  /** P3: the Delver's Key went up: a key turns in its lock (two clicks), then the lock rings open on a rising pair. */
+  keyUp: join(
+    ...[0, 0.09].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.3, lp: 7000, hp: 2000, curve: 3 }]),
+    clang(note(10), 0.2, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
+    chime(D5 * 2, 0.28, 0.2, 0.6),
+  ),
+  /** A fast clear moved the key two or more: the same turn, and a third, higher note rings out. */
+  keyFast: join(
+    ...[0, 0.09].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.3, lp: 7000, hp: 2000, curve: 3 }]),
+    clang(note(10), 0.2, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
+    chime(D5 * 2, 0.28, 0.2, 0.5), chime(G6, 0.4, 0.22, 0.8),
+  ),
+  /** The key went down: the lock drops shut, a dull clunk under two falling notes. */
+  keyDown: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.28, lp: 3000, hp: 500, curve: 3 }],
+    clang(note(-2), 0.18, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.04 })),
+    chime(E5, 0.12, 0.14, 0.3), chime(C5, 0.26, 0.14, 0.5),
+  ),
+  /** The daily bounty paid out: embers drop into the purse, a quick run of bright pings. */
+  bountyPaid: join(
+    ...[0, 0.07, 0.13, 0.2, 0.26].map((d, k) => [
+      { wave: 'sine' as const, f: [2093, 1760, 2349, 1976, 2637][k], dur: 0.12, delay: d, vol: 0.2, curve: 4 },
+      { wave: 'noise' as const, f: 0, dur: 0.015, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 },
+    ]),
+    chime(E6, 0.32, 0.16, 0.5),
+  ),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
@@ -626,6 +652,91 @@ export const SOUNDS = {
   brew: join(
     ...[0, 0.07, 0.13, 0.2, 0.26].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 90, f2: 900 + k * 120, dur: 0.06, delay: d, vol: 0.12, curve: 2 }]),
     [{ wave: 'noise', f: 0, dur: 0.04, delay: 0.36, vol: 0.3, lp: 5000, hp: 900, curve: 3 }, { wave: 'sine', f: 900, f2: 500, dur: 0.06, delay: 0.36, vol: 0.12 }],
+  ),
+
+  // ---- the Hoard (raid 2): Old Coalmouth
+  /** Swallow: a big wet gulp, the fight's main alarm. The throat drops, then a bright smack so a phone hears it. */
+  swallowed: join(
+    [{ wave: 'sine', f: 320, f2: 55, dur: 0.7, vol: 0.5, a: 0.01, curve: 1.6 },
+     { wave: 'saw', f: 240, f2: 95, dur: 0.6, vol: 0.22, a: 0.01, lp: 2200, lp2: 600, curve: 1.6 },
+     { wave: 'noise', f: 0, dur: 0.08, vol: 0.45, lp: 6000, hp: 1200, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.5, delay: 0.08, vol: 0.3, lp: 2600, lp2: 300, curve: 2 }],
+    ...[0.18, 0.3, 0.44].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 70, f2: 640 + k * 120, dur: 0.08, delay: d, vol: 0.22, curve: 2 }]),
+  ),
+  /** One heartbeat inside the belly (lub-dub), played past the muffle so it stays close. */
+  heartbeat: [
+    // The thump itself is mostly sub, so a knock in the 400 Hz-2 kHz band carries each beat on a phone.
+    { wave: 'sine', f: 70, f2: 42, dur: 0.14, vol: 0.3, a: 0.004, curve: 2 },
+    { wave: 'saw', f: 220, f2: 120, dur: 0.12, vol: 0.32, lp: 1600, curve: 2.5 },
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.3, lp: 2500, hp: 500, curve: 3 },
+    { wave: 'sine', f: 60, f2: 40, dur: 0.12, delay: 0.2, vol: 0.2, a: 0.004, curve: 2 },
+    { wave: 'saw', f: 190, f2: 110, dur: 0.1, delay: 0.2, vol: 0.24, lp: 1400, curve: 2.5 },
+    { wave: 'noise', f: 0, dur: 0.04, delay: 0.2, vol: 0.22, lp: 2200, hp: 500, curve: 3 },
+  ],
+  /** Spat out: a cough and a spit, then a small relieved lift. */
+  spatOut: join(
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.4, lp: 5000, hp: 700, curve: 2 },
+     { wave: 'saw', f: 200, f2: 150, dur: 0.1, vol: 0.12, lp: 1800, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.18, delay: 0.16, vol: 0.32, lp: 7000, lp2: 2500, hp: 900, curve: 2 }],
+    chime(G5, 0.3, 0.16, 0.3), chime(C6, 0.4, 0.18, 0.5),
+  ),
+  /** Digested: a short, grim gurgle that sinks. */
+  digested: join(
+    [{ wave: 'saw', f: note(-14), f2: note(-21), dur: 0.9, vol: 0.18, a: 0.02, lp: 1400, lp2: 500, curve: 1.4 }],
+    ...[0, 0.14, 0.3, 0.5].map((d, k) => [{ wave: 'sine' as const, f: 180 - k * 20, f2: 420 - k * 50, dur: 0.11, delay: d, vol: 0.3 - k * 0.04, curve: 2 }]),
+  ),
+  /** The Craw breaks: a pop and a burst, the switch paid off. */
+  crawBreak: join(
+    boom(90, 0.35, 0.45),
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.45, lp: 9000, hp: 1500, curve: 3 }],
+    clang(note(15), 0.22, 0.5),
+    chime(E6, 0.08, 0.16, 0.4),
+  ),
+  /** Gorge (3 s, interrupt it): a rising, rhythmic slurp that says "stop him". */
+  gorgeWarn: [
+    { wave: 'noise', f: 0, dur: 2.6, vol: 0.5, a: 0.3, lp: 500, lp2: 3800, hp: 250, trem: [7, 0.85], curve: 0.6 },
+    { wave: 'saw', f: 110, f2: 230, dur: 2.6, vol: 0.26, a: 0.3, lp: 1400, lp2: 2600, trem: [7, 0.6], curve: 0.6 },
+    { wave: 'square', f: note(5), f2: note(12), dur: 2.4, delay: 0.2, vol: 0.1, a: 0.4, lp: 3000, trem: [7, 0.9], curve: 0.8 },
+  ],
+  /** Gorge went through and he healed: a satisfied gulp. */
+  gorge: join(
+    [{ wave: 'sine', f: 260, f2: 70, dur: 0.45, vol: 0.4, curve: 1.8 },
+     { wave: 'saw', f: 200, f2: 100, dur: 0.35, vol: 0.14, lp: 1800, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.06, vol: 0.3, lp: 5000, hp: 900, curve: 3 }],
+    chime(note(3), 0.25, 0.12, 0.4),
+  ),
+  /** A hero takes a spilled ember: a bright pick-up tick. */
+  emberTaken: join(
+    [{ wave: 'noise', f: 0, dur: 0.02, vol: 0.2, lp: 9000, hp: 3000, curve: 3 }],
+    chime(E6, 0, 0.16, 0.18), chime(A5 * 2, 0.05, 0.14, 0.22),
+  ),
+  /** He eats an ember: a dark crunch of coal. */
+  emberEaten: join(
+    ...[0, 0.05, 0.12].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.35, lp: 2800, hp: 500, curve: 3 }]),
+    [{ wave: 'sine', f: 140, f2: 80, dur: 0.22, vol: 0.3, curve: 2 },
+     { wave: 'saw', f: 180, f2: 110, dur: 0.18, vol: 0.12, lp: 1200, curve: 2 }],
+  ),
+  /** Last Meal (the enrage): one long inhale, everything in the cave pulled toward his mouth. */
+  lastMealWarn: [
+    { wave: 'noise', f: 0, dur: 2.8, vol: 0.4, a: 2.4, lp: 300, lp2: 6000, hp: 200, curve: 0.4 },
+    { wave: 'saw', f: note(-26), f2: note(-14), dur: 2.8, vol: 0.2, a: 2.0, lp: 900, lp2: 2400, vib: [5, 0.02], curve: 0.4 },
+    { wave: 'square', f: note(-2), f2: note(5), dur: 2.6, delay: 0.2, vol: 0.06, a: 2.0, lp: 3000, curve: 0.5 },
+  ],
+  /** Last Meal lands: one huge bite. */
+  lastMeal: join(boom(40, 1.2, 0.7), [{ wave: 'noise', f: 0, dur: 0.1, vol: 0.5, lp: 6000, hp: 800, curve: 3 }], horn(note(-21), 1.0, 0.3)),
+  /** Phase 2, Swallow: his jaw opens, a slow wet growl. */
+  phaseSwallow: join(
+    boom(45, 0.9, 0.5),
+    [{ wave: 'saw', f: 98, f2: 70, dur: 1.2, vol: 0.36, a: 0.1, lp: 1600, vib: [6, 0.05], curve: 1.2 },
+     { wave: 'square', f: 196, f2: 140, dur: 1.0, vol: 0.16, a: 0.1, lp: 2400, vib: [6, 0.05], curve: 1.2 }],
+    ...[0.5, 0.7].map((d) => [{ wave: 'sine' as const, f: 220, f2: 520, dur: 0.1, delay: d, vol: 0.2, curve: 2 }]),
+  ),
+  /** Phase 3, Ember Feast: his hoard spills, a crash of coals scattering. */
+  phaseFeast: join(
+    boom(55, 0.8, 0.5),
+    ...[0.05, 0.12, 0.2, 0.26, 0.35, 0.43, 0.55].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.3 - k * 0.02, lp: 7000, hp: 1200, curve: 3 }]),
+    horn(note(-17), 1.1, 0.26),
+    chime(G5, 0.3, 0.14, 0.4), chime(D5 * 2, 0.45, 0.14, 0.5),
   ),
 } satisfies Record<string, Recipe>;
 
