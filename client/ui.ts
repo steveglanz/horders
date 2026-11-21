@@ -1,5 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
+import { coachLine } from '../sim/content/firstdelve';
 import { World, REVIVE_SECONDS, BOSS_PHASES } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
@@ -350,7 +351,9 @@ export class Hud {
       const def = ENCOUNTERS[id];
       const done = i < w.encounter;
       const now = i === w.encounter;
-      return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${def.tip}</div>` : ''}</div>`;
+      // L1: the first delve's coach line replaces the fight's tip here too.
+      const tip = (w.firstDelve && coachLine(id, w.abilities[3].name)) || def.tip;
+      return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
     }).join('');
   }
 
