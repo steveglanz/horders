@@ -214,14 +214,15 @@ export class Hud {
     if (this.narrow.matches) {
       tTop = Math.round($('buffs').getBoundingClientRect().bottom + 6);
       qTop = Math.max(118, target.hidden ? tTop : Math.round(tTop + target.offsetHeight + 6));
-      key = `${tTop}:${qTop}:${quests.offsetHeight}:${party.hidden}`;
+      key = `${tTop}:${qTop}:${quests.offsetHeight}:${target.hidden}:${party.hidden}`;
     }
     if (key === this.stacked) return;
     this.stacked = key;
     target.style.top = key ? `${tTop}px` : '';
     quests.style.top = key ? `${qTop}px` : '';
     // Co-op party frames go under the route line.
-    party.style.top = key ? `${Math.max(150, Math.round(quests.getBoundingClientRect().bottom + 6))}px` : '';
+    const above = quests.offsetHeight ? quests : target.hidden ? $('buffs') : target;
+    party.style.top = key ? `${Math.max(150, Math.round(above.getBoundingClientRect().bottom + 6))}px` : '';
   }
 
   private targetIndex(w: World): number {
@@ -248,10 +249,13 @@ export class Hud {
     const box = $('target');
     if (i < 0) {
       box.hidden = true;
+      $('hud').classList.remove('vsboss');
       return;
     }
     const e = w.enemies[i];
     box.hidden = false;
+    // Phones hide the route line during the boss: the boss frame already names the fight.
+    $('hud').classList.toggle('vsboss', e.def.rank === 'boss');
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
     const shadow = e.kind === 'worldShadow';
     $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.def.name;
