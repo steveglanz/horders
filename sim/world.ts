@@ -4854,6 +4854,11 @@ export class World {
       for (let n = 0; n < WRACK.shoalN; n++) this.spawnAtRing('shoalLurker', 420);
       this.events.push({ type: 'castStart', index: i, id: 'shoalCall', name: 'Call the Shoal' });
     }
+    // Sink's circle rides along with the raft it marked.
+    if (e.castId === 'sink') {
+      const r = this.rafts[e.aux | 0];
+      if (r) for (const t of this.telegraphs) if (t.alive && t.owner === i) { t.x = r.x; t.y = r.y; }
+    }
     if (e.castId || e.stunT > 0) return;
     if (this.sinkT <= 0) {
       // Sink the afloat raft nearest her target, so the hero has to find another.
