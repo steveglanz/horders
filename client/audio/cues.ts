@@ -21,6 +21,8 @@ export interface CueContext {
   cls: ClassId;
   /** The hero this screen plays (co-op: events for others are quieter or silent). */
   acting: number;
+  /** Co-op: every hero's health, so the engine can hear heroes go down and get up. */
+  hp?: readonly number[];
 }
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {
@@ -28,6 +30,17 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
   lumen: ['lumenBurst', null, 'lumenSanctuary', 'zap'],
   bulwark: ['bulwarkSlam', null, 'bulwarkBastion', 'zap'],
   duskblade: [null, null, 'duskExecute', 'zap'],
+};
+
+/**
+ * Casts with their own sounds, by the cast's name (start = wind-up, done = it lands).
+ * Matching on names lets a new boss get its sounds without a new event type.
+ */
+export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
+  // The Hammerdeep: Ondrel, the Anvilward (docs/design/group-dungeons.md).
+  Anvilfall: { start: 'anvilWarn', done: 'anvilfall' },
+  'Choir of Iron': { done: 'choir' },
+  'Hammer Sweep': { done: 'sweep' },
 };
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
@@ -69,9 +82,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'swing': return { id: 'swing', jitter: 0.15, vol: ev.spin ? 1.4 : 1 };
     case 'parry': return { id: 'parry' };
     case 'mote': return { id: 'mote', jitter: 0.2 };
-    case 'castStart': return { id: 'castWarn' };
+    case 'castStart': return { id: CAST_SOUNDS[ev.name]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
-    case 'castDone': return { id: 'castDone' };
+    case 'castDone': return { id: CAST_SOUNDS[ev.name]?.done ?? 'castDone' };
     case 'heal': return { id: 'heal', jitter: 0.05 };
     case 'ward': return { id: 'ward' };
     case 'fork': return { id: 'fork' };
@@ -89,6 +102,27 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
+}
+
+/**
+ * Co-op: sounds for heroes going down and getting back up. The simulation has
+ * no event for either, so this compares each hero's health with last tick's.
+ * `wasDown` is updated in place.
+ */
+export function partyCues(wasDown: boolean[], hp: readonly number[], acting: number): Cue[] {
+  const out: Cue[] = [];
+  if (wasDown.length !== hp.length) {
+    wasDown.length = 0;
+    hp.forEach((h) => wasDown.push(h <= 0));
+    return out;
+  }
+  hp.forEach((h, i) => {
+    const down = h <= 0;
+    if (down && !wasDown[i]) out.push({ id: i === acting ? 'selfDown' : 'allyDown' });
+    else if (!down && wasDown[i]) out.push({ id: 'allyUp', vol: i === acting ? 1 : 0.7 });
+    wasDown[i] = down;
+  });
+  return out;
 }
 
 /**

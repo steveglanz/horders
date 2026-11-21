@@ -53,6 +53,12 @@ fs.mkdirSync(out, { recursive: true });
   await record('3-foundry', 16000, "a.theme('foundry')");
   await record('4-glarewell', 16000, "a.theme('glarewell')");
   await record('5-boss-intensity', 12000, "a.theme('kiln'); a.intensity(1)");
+  await record('7-hammerdeep', 16000, "a.theme('hammerdeep')");
+  await record('8-hammerdeep-boss', 12000, `a.theme('hammerdeep'); a.intensity(1);
+    a.play('anvilWarn'); setTimeout(() => a.play('anvilfall'), 2500); setTimeout(() => a.play('sweep'), 5000);
+    setTimeout(() => a.play('choir'), 7000); setTimeout(() => a.play('anvilWarn'), 8500); setTimeout(() => a.play('anvilfall'), 11000);`);
+  await record('9-coop-cues', 6000, `a.theme(null);
+    ['matchFound','partyJoin','allyDown','allyUp','selfDown','partyLeave'].forEach((id, k) => setTimeout(() => a.play(id), k * 900));`);
   await record('6-sfx-tour', 9000, `
     const ids = ['hit','crit','emberWave','emberNova','duskDash','duskExecute','bulwarkSlam','bulwarkBastion','lumenBurst','lumenSanctuary','interrupt','castWarn','levelUp','dropEpic','dropMythic','chest','bossSpawn','victory'];
     a.theme(null); ids.forEach((id, k) => setTimeout(() => a.play(id), k * 480));`);

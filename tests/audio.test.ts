@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
-import { cueFor } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, partyCues } from '../client/audio/cues';
+import { phoneShare } from '../tools/mixcheck';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -67,5 +68,29 @@ describe('audio', () => {
     });
     // The core moments of a run all make a sound.
     for (const id of ['hit', 'levelUp', 'emberWave', 'duskDash', 'bulwarkSlam', 'lumenBurst'] as SoundId[]) expect(heard, id).toContain(id);
+  });
+
+  it('keeps every sound audible on a phone speaker (a quarter of its energy above 350 Hz)', () => {
+    for (const [id, recipe] of Object.entries(SOUNDS)) expect(phoneShare(render(recipe, 32000), 32000), id).toBeGreaterThan(0.25);
+  });
+
+  it('gives the Hammerdeep its theme and Ondrel\'s casts their own sounds', () => {
+    expect(THEMES.hammerdeep).toBeDefined();
+    for (const s of Object.values(CAST_SOUNDS)) for (const id of [s.start, s.done]) if (id) expect(SOUNDS[id]).toBeDefined();
+    const c = { cls: 'bulwark' as const, acting: 0 };
+    expect(cueFor({ type: 'castStart', index: 0, name: 'Anvilfall' }, c)?.id).toBe('anvilWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Anvilfall' }, c)?.id).toBe('anvilfall');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Choir of Iron' }, c)?.id).toBe('choir');
+    expect(cueFor({ type: 'castStart', index: 0, name: 'Molten Cataclysm' }, c)?.id).toBe('castWarn');
+  });
+
+  it('hears co-op heroes go down and get back up', () => {
+    const down: boolean[] = [];
+    expect(partyCues(down, [100, 80, 60], 0)).toEqual([]); // first look only records
+    expect(partyCues(down, [100, 0, 60], 0).map((c) => c.id)).toEqual(['allyDown']);
+    expect(partyCues(down, [100, 0, 60], 0)).toEqual([]); // still down: no repeat
+    expect(partyCues(down, [0, 0, 60], 0).map((c) => c.id)).toEqual(['selfDown']);
+    expect(partyCues(down, [30, 24, 60], 0).map((c) => c.id)).toEqual(['allyUp', 'allyUp']);
+    expect(partyCues(down, [30, 24], 0)).toEqual([]); // someone left: start over quietly
   });
 });

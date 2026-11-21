@@ -253,7 +253,11 @@ function myCard(): HeroCard {
   return { name: `${CLASSES[cls].name} ${hero.level}`, cls, level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives } };
 }
 
+/** Party size at the last roster update, for the join and leave chimes. */
+let rosterSize = 0;
+
 function leaveParty(note = ''): void {
+  rosterSize = 0;
   coop?.close();
   coop = null;
   coopNote = note;
@@ -300,6 +304,7 @@ function foldLoneParty(): void {
   if (!into) return;
   coop.close();
   coopOpen = false;
+  audio.play('matchFound');
   joinParty(into.code, `Joined ${into.name}'s party.`);
   coopQuick = true;
   syncLobby();
@@ -336,6 +341,7 @@ async function quickJoin(skip: string[] = []): Promise<void> {
   quickSkip = skip;
   if (pick) {
     coopQuick = true;
+    audio.play('matchFound');
     joinParty(pick.code, `Joined ${pick.name}'s party.`);
     syncLobby();
     return;
@@ -362,7 +368,14 @@ function backToMenu(): void {
 }
 
 const coopEvents = {
-  onRoster: () => renderCoop(),
+  onRoster: () => {
+    // A chime when someone joins or leaves your party (not for your own arrival).
+    const n = coop?.roster.length ?? 0;
+    if (rosterSize && n > rosterSize) audio.play('partyJoin');
+    else if (rosterSize && n && n < rosterSize) audio.play('partyLeave');
+    rosterSize = n;
+    renderCoop();
+  },
   onStart: (opts: WorldOptions, me: number) => {
     if (game.scene.getScene('game')) game.scene.stop('game');
     el('end').hidden = true;
