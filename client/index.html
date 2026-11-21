@@ -742,7 +742,7 @@
     body.tabs .hub-delve .sec-h { margin-top: 8px; }
     body.tabs .hub[data-tab="delve"] { padding-bottom: 12px; }
     body.tabs .prep { max-width: calc(100% - min(360px, 50%) - 12px); }
-    body.tabs .hub-foot { background: none; pointer-events: none; margin-top: -58px; }
+    body.tabs .hub[data-tab="delve"] .hub-foot { background: none; pointer-events: none; margin-top: -58px; }
     body.tabs .hub-foot button { pointer-events: auto; }
     .sheet-panel { max-height: 92vh; }
   }
@@ -780,6 +780,21 @@
   }
   /* Group tab: the world boss card keeps its numbers; the explanations move to a long press. */
   body.tabs .wboss > p:not([style]) { display: none; }
+
+  /* First run and parties on phones. */
+  body.tabs .solo-tier { display: none; }
+  .firstrun { margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px dashed rgba(255,200,97,0.4); background: rgba(255,200,97,0.06); font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .firstrun b { color: var(--gold); }
+  body.tabs .coop label.open { min-height: 44px; }
+  body.tabs .coop label.open input { width: 22px; height: 22px; }
+
+  /* Landscape phones: Group and Hero use the width (two columns) instead of scrolling. */
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+    body.tabs .hub[data-tab="group"] [data-pane="group"] { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+    body.tabs .hub[data-tab="group"] .coop { margin-top: 4px; }
+    body.tabs .hub[data-tab="hero"] .kit-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-items: start; }
+    body.tabs .hub[data-tab="hero"] .kit-cols .sec-h:first-child { margin-top: 4px; }
+  }
 </style>
 </head>
 <body>
