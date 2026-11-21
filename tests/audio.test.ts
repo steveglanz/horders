@@ -497,9 +497,9 @@ describe('season hub themes', () => {
     expect(hubThemeFor(2, SEASONS.length)).toBe('hubHearth');
     expect(THEMES.hubHearth.bed).toBe('frost');
     expect(THEMES.hubHearth.coal).toBe(true);
-    // Seasons 4 to 6 take their featured dungeon's bed: the Glarewell's shimmer, the Pressworks' press, the Wrackline's surf.
-    expect(SEASONS.slice(3).map((d) => d.name)).toEqual(['the Slag Moon', 'the Falling Press', 'the Low Ebb']);
-    expect([3, 4, 5].map((i) => THEMES[hubThemeFor(i, SEASONS.length)].bed)).toEqual(['shimmer', 'press', 'surf']);
+    // Seasons 4 to 8 take their featured dungeon's bed: the Glarewell's shimmer, the Pressworks' press, the Wrackline's surf, the Hoard's chew, the Smeltery's stride.
+    expect(SEASONS.slice(3).map((d) => d.name)).toEqual(['the Slag Moon', 'the Falling Press', 'the Low Ebb', 'the Long Hunger', 'the Cracked Plate']);
+    expect([3, 4, 5, 6, 7].map((i) => THEMES[hubThemeFor(i, SEASONS.length)].bed)).toEqual(['shimmer', 'press', 'surf', 'chew', 'stride']);
     // Every season has its own hub theme.
     expect(new Set(SEASONS.map((_, i) => hubThemeFor(i, SEASONS.length))).size).toBe(SEASONS.length);
     // Season 2 starts on week 2974 (docs/design/season.md).
