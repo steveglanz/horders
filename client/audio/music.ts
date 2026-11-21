@@ -20,8 +20,8 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'colossus';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride';
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -76,6 +76,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   // The Hoard (raid 2): Old Coalmouth's coal cave. A slow, heavy chewing groove in phrygian: the bed is his jaw
   // grinding coal three times round the loop, the plucks are embers, and the march of the Crucible's raid is gone.
   hoard: { root: -16, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 62, drone: 'sawtooth', droneLp: 650, pluck: 'ember', density: 0.3, bed: 'chew', bedVol: 0.5, phaseTempo: [1, 1.15, 1.25, 1.35], floodBed: 1.5 },
+  // Raid 3 (draft, roadmap Y7): the Cinder Colossus in person. A slow, grand march in harmonic minor; the bed is
+  // the giant's stride (two footfalls round the loop, cinders pattering down after each) and the brass is its herald.
+  colossus: { root: -17, scale: [0, 2, 3, 5, 7, 8, 11, 12], progression: [0, -4, -5, -1], bpm: 56, drone: 'sawtooth', droneLp: 900, pluck: 'brass', density: 0.3, bed: 'stride', bedVol: 0.5, phaseTempo: [1, 1.1, 1.2, 1.3], floodBed: 1.6 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -229,6 +232,17 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = lp * 0.5 * jaw * grit + growl * 0.12 * jaw + brown * 1.2;
         break;
       }
+      case 'stride': {
+        // The Colossus walking: two footfalls round the loop, each a deep thud with a stone crunch on top,
+        // under a hot wind. The cinders that rain off each step are added below.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (w - lp) * 0.02;
+        const ph = (t * 2) % 1;
+        const fall = Math.exp(-ph * 14) * Math.sin(2 * Math.PI * 41 * (i / rate)) * 1.3 + Math.exp(-ph * 24) * hp * 1.4;
+        raw[i] = fall + lp * 0.4 + brown * 1.0;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -241,10 +255,11 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Pops for fire, drips for steam (short decaying tones placed at random).
-  const events = kind === 'chew' ? 54 : kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
+  const events = kind === 'stride' ? 60 : kind === 'chew' ? 54 : kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
   for (let k = 0; k < events; k++) {
     // Chew: the crunches land while the jaw is closing (the first 60% of each of the three chews).
-    const at = kind === 'chew' ? Math.floor((Math.floor(r() * 3) + r() * 0.6) * (period / 3)) % Math.max(1, period - Math.floor(rate * 0.05)) : Math.floor(r() * (period - rate * 0.3));
+    // Stride: the cinders fall in the second after each footfall (thickest right after it lands).
+    const at = kind === 'stride' ? Math.floor((Math.floor(r() * 2) * 0.5 + 0.02 + Math.pow(r(), 2) * 0.3) * period) % Math.max(1, period - Math.floor(rate * 0.05)) : kind === 'chew' ? Math.floor((Math.floor(r() * 3) + r() * 0.6) * (period / 3)) % Math.max(1, period - Math.floor(rate * 0.05)) : Math.floor(r() * (period - rate * 0.3));
     // Steam drips; slag glugs (a low bubble that pops upward).
     const drip = kind === 'steam' || kind === 'slag';
     const glug = kind === 'slag';
