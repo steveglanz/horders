@@ -87,8 +87,29 @@ async function shots(browser, tag) {
   page.on('pageerror', (e) => errs.push(e.message));
   await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=7&god=1&hires=1`);
   await page.waitForTimeout(900);
-  // A hero with some history, so the hub isn't a fresh level-1 card.
-  await page.evaluate(() => { const h = window.__ember.hero(); h.maxTier = Math.max(h.maxTier, 7); h.level = Math.max(h.level, 14); window.__ember.save?.(); });
+  // A hero with some history, so the hub isn't a fresh level-1 card: tier 7, level 14, and a
+  // full set of gear (two Kilnbreaker pieces and an Epic weapon). Items are plain records in
+  // the save's own shape; switching class away and back re-renders the hub with them.
+  await page.evaluate(() => {
+    const h = window.__ember.hero();
+    h.maxTier = Math.max(h.maxTier, 7); h.level = Math.max(h.level, 14);
+    const gear = [
+      { slot: 'weapon', rarity: 'epic', name: 'Searing Emberbrand', stats: [['power', 15.6], ['crit', 4.8], ['haste', 6.1], ['vitality', 34]] },
+      { slot: 'head', rarity: 'rare', name: 'Kilnbreaker Helm', set: 'kilnbreaker', stats: [['vitality', 61], ['power', 9.2], ['reach', 13]] },
+      { slot: 'chest', rarity: 'rare', name: 'Ashen Hauberk', stats: [['vitality', 61], ['haste', 5.4], ['swiftness', 3.9]] },
+      { slot: 'hands', rarity: 'rare', name: 'Kilnbreaker Grips', set: 'kilnbreaker', stats: [['haste', 10.7], ['power', 8.8], ['crit', 4.1]] },
+      { slot: 'ring', rarity: 'fine', name: 'Cinder Band', stats: [['crit', 9.2], ['vitality', 30]] },
+      { slot: 'trinket', rarity: 'epic', name: 'Banked Coal', stats: [['power', 18.3], ['haste', 6.6], ['crit', 4.4], ['vitality', 41]] },
+    ];
+    for (const g of gear) {
+      const id = 'store' + g.slot;
+      h.inventory = h.inventory.filter((i) => i.id !== id);
+      h.inventory.push({ id, slot: g.slot, rarity: g.rarity, ilvl: 14, name: g.name, stats: g.stats.map(([stat, value]) => ({ stat, value })), ...(g.set ? { set: g.set } : {}) });
+      h.equipped[g.slot] = id;
+    }
+    h.passives = { might: 6, fortitude: 4, insight: 2 };
+    h.embers = Math.max(h.embers, 340);
+  });
   await page.click('[data-cls="bulwark"]');
   await page.click('[data-cls="emberwright"]');
   // Scroll the hub so the delve cards lead (a new hero's gear card is empty).
