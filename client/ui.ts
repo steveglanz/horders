@@ -522,6 +522,7 @@ export class Hud {
       const color = BRANCH_COLOR[def.branch];
       const btn = document.createElement('button');
       const deep = !!(def as { deep?: boolean }).deep;
+      const party = !!(def as { party?: boolean }).party;
       btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '');
       btn.style.setProperty('--branch', color);
       let progress = '';
@@ -531,10 +532,11 @@ export class Hud {
         progress = `<div class="progress"><span class="pb">${BRANCH_NAMES[def.branch]} </span>${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? `<span class="deeptag">${party ? 'Party' : 'Deep'}</span>` : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
+        : deep ? `${party ? 'Party card: offered only when you delve with others, after' : 'Deep card: offered after'} the ${BRANCH_NAMES[def.branch]} capstone.`
         : def.branch !== 'general' ? `${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]} unlock its capstone.` : '';
       setTip(btn, () => `<b>${def.name}</b>${rank ? ` · ${rank}` : ''}<br>${tip}${why ? `<br><span class="tip-m">${why}</span>` : ''}<br><span class="tip-m">${HELP.bothKinds}</span>`);
       cards.appendChild(btn);
