@@ -58,6 +58,8 @@ export class CoopSession {
   order: string[] = [];
   /** Guest: your hero index in the running delve. */
   me = 0;
+  /** Host: a delve is under way (guests can only join between delves). */
+  running = false;
   private inputs = new Map<string, Input>();
   /** Pending ability presses: held up to QUEUE_TICKS until they fire, like the solo spell queue. */
   private casts = new Map<string, { slot: number; ticks: number; cd: number }>();
@@ -125,6 +127,7 @@ export class CoopSession {
     this.gone.clear();
     this.events = [];
     this.lastSnapTick = -1;
+    this.running = true;
     this.party.broadcast('rel', { t: 'start', opts: full, order: this.order } satisfies Msg);
     return full;
   }
@@ -174,6 +177,7 @@ export class CoopSession {
 
   /** Host: back to the menu; guests follow. */
   endRun(): void {
+    this.running = false;
     this.party.broadcast('rel', { t: 'menu' } satisfies Msg);
   }
 
