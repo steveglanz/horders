@@ -212,11 +212,14 @@ export class Hub {
       <details class="kit" ${this.kitOpen || this.tabs?.matches ? 'open' : ''}>
         <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
           + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
+        <div class="kit-cols"><div>
         <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
         <div class="gear">${gear}</div>
+        </div><div>
         <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
         <div class="tal-help">${HELP.heroTalents} Hold a talent for details.</div>
         <div class="passives">${passives}</div>
+        </div></div>
       </details>`;
     const worn2 = setsWorn(h);
     $('heroCard').querySelectorAll<HTMLElement>('.slot[data-slot]').forEach((el) => {
@@ -280,9 +283,11 @@ export class Hub {
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
     const omens = omensFor(this.tier, weekOf(Date.now()));
     $('tiers').innerHTML = `<div class="dungeons">${dungeons}</div>`
-      + `<div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
-      + `<div class="tierrow">${tiers.join('')}</div>`
+      // One tier unlocked: nothing to choose yet, so the row waits until tier 2 (tab mode hides it via .solo-tier).
+      + `<div class="${h.maxTier === 1 ? 'solo-tier' : ''}"><div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
+      + `<div class="tierrow">${tiers.join('')}</div></div>`
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
+      + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
       + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
@@ -291,6 +296,7 @@ export class Hub {
         this.render();
       }));
     this.bindPrep($('tiers'));
+    $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
       b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
@@ -336,7 +342,8 @@ export class Hub {
       chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
     }
     const pot = h.potion ? POTION_ICON[h.potion] : null;
-    chips.push(`<button class="prep-chip ${h.potion ? 'on' : ''}" data-prep="potion" data-sfx="open">`
+    // Potions cost embers, which come from salvage: the chip waits until after the first delve.
+    if (h.runs > 0 || h.potion) chips.push(`<button class="prep-chip ${h.potion ? 'on' : ''}" data-prep="potion" data-sfx="open">`
       + `<span class="gtile" style="--gc:${pot ? pot.color : 'var(--muted)'};width:24px;height:24px">${glyph((pot ?? POTION_ICON[POTION_IDS[0]]).d, 16)}</span>`
       + `<span>${h.potion ? POTIONS[h.potion].name : 'Potion'}</span></button>`);
     if (h.maxTier >= BOUNTY.unlockTier) {
@@ -345,6 +352,10 @@ export class Hub {
       const b = bountyFor(day, h.maxTier);
       chips.push(`<button class="prep-chip bounty-chip" data-prep="bounty" data-sfx="open"><span class="star" aria-hidden="true">★</span>`
         + `<span>Bounty${paid ? '' : ` <b>+${bountyEmbers(b.tier)}</b>`}</span></button>`);
+    }
+    // In a party: a chip with the head count that opens the Group tab.
+    if (this.partyClasses.length > 1) {
+      chips.unshift(`<button class="prep-chip on" data-group data-sfx="open"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M15 14.6c3 .1 5.2 1.9 5.8 5.4"/></svg><span>Party <b>${this.partyClasses.length}/4</b></span></button>`);
     }
     return `<div class="prep">${chips.join('')}</div>`;
   }
@@ -576,7 +587,8 @@ export class Hub {
       };
       const wornItems = sorted.filter((i) => worn.has(i.id));
       const spare = sorted.filter((i) => !worn.has(i.id));
-      $('bagList').innerHTML = `<div class="sec-h"><span>Equipped</span><span class="gold">Gear score ${gearScore(h)}</span></div><div class="igrid">${wornItems.map(tile).join('')}</div>`
+      $('bagList').innerHTML = `<div class="sec-h"><span>Equipped</span><span class="gold">Gear score ${gearScore(h)}</span></div>`
+        + (wornItems.length ? `<div class="igrid">${wornItems.map(tile).join('')}</div>` : '<div class="muted small">Nothing yet. Equip loot from your bag.</div>')
         + `<div class="sec-h"><span>Bag</span><span class="muted">${spare.length ? 'Tap an item · hold for stats' : ''}</span></div>`
         + (spare.length ? `<div class="igrid">${spare.map(tile).join('')}</div>` : '<div class="muted small">Nothing spare. Loot drops during delves.</div>');
       $('bagList').querySelectorAll<HTMLButtonElement>('[data-i]').forEach((b) => {
