@@ -285,3 +285,35 @@ Emberwright 29, Bulwark 35 and Lumen 38 of 40 before Kindle; the shipped channel
 Duskblade with Tidewalker over 80 seeds (1 to 80): 60 with the set, 51 without. Tidewalker was trimmed from 8% / +40% because it read about +10 for the Duskblade in 40.
 
 **Reading, with a noise warning:** at these tiers a 40-seed run moves by ±5 wins from any change in timing, so single cells aren't reliable (Kilnbreaker's Emberwright cell fell from 17 to 12 when the buff went *up*). Overall, Tidewalker and Glarewarden help by about 2 to 7 wins in 40, and Kilnbreaker's effect is inside the noise. Kilnbreaker only pays off when you land interrupts, and the bots interrupt less than a good player. Revisit with real player data before tuning it further.
+
+## The Hammerdeep: first pass (21 Nov 2026)
+
+`tools/group.ts` runs one bot per hero (`PARTY=bulwark,lumen,duskblade,emberwright HEROES=<heroes-r2 dir>`). heroes-r2 hero-t6-0, tier 6. The seeds differ by party because the runs were done in separate batches:
+
+| Party | Seeds | Wins |
+|---|---|---|
+| Bulwark + Lumen + Duskblade + Emberwright | 1 to 36 | 15 |
+| No healer (Bulwark + Emberwright + Duskblade + Emberwright) | 1 to 36 | 5 |
+| No tank (Duskblade + Lumen + Duskblade + Emberwright) | 1 to 36 | 3 |
+| Four damage dealers | 13 to 36 | 1 |
+| Bulwark + Lumen duo | 13 to 36 | 1 |
+
+Earlier tuning that didn't ship:
+- **Sundered lasting 14 s** (longer than Anvilfall's 12 s cycle): every Anvilfall after the first was Sundered, and the tank died to the second or third.
+- **Hammer Sweep at 26:** the tank took 65 per sweep on top of Anvilfall.
+- **Choir at 10% +1.5%:** full party 18 of 36, but no healer 13 and no tank 13, so roles stopped mattering.
+
+**Reading:** roles matter in the order we want. The full party is below the 60 to 75% target because the bots play their roles badly. The Bulwark doesn't save Bastion for Anvilfall, and in traces the Lumen sat about 340 px from the tank and barely healed it. The skills team is fixing both bots. Retune after that, then give the duo its own pass.
+
+## Kiln Brand placed away from the Kiln Mother: tried, not shipped (21 Nov 2026)
+
+The skills team found melee heroes losing health to her contact hits while soaking the Kiln Brand. I dropped the Brand on the hero's far side from her (within 45°). Kiln tier 6, hero-t6-0, seeds 1 to 80, main against the change:
+
+| Class | Main | Brand away |
+|---|---|---|
+| Emberwright | 60 | 65 |
+| Duskblade | 60 | 61 |
+| Bulwark | 71 | 77 |
+| Lumen | 75 | 74 |
+
+The Duskblade, the class it was meant to help, didn't move, and the Bulwark gained the most, which widens the Kiln class spread. So it's not shipped. The Duskblade's Kiln losses need another cause.
