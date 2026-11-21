@@ -53,6 +53,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   'Long Night': { start: 'longNightWarn', done: 'longNight' },
   Snuff: { start: 'snuff' },
   'Snuffer Tide': { start: 'snufferTide' },
+  'Frost Lace': { start: 'frostLace' },
   // The raid: Grandmother Slag (design brief C3).
   'Ladle Pour': { start: 'ladleWarn', done: 'ladle' },
   'Called Out': { done: 'calledOut' },

@@ -447,6 +447,8 @@ export class MusicPlayer {
 
   /** The Coldmarrow's Hearthcoal: 1 is a full coal, 0 is out. */
   setWarmth(w: number): void {
+    // Called every frame in the Coldmarrow: only touch the audio graph when the coal has visibly changed.
+    if (Math.abs(w - this.warmth) < 0.02 && (w > 0 || this.warmth === 0)) return;
     this.warmth = w;
     this.current?.setWarmth(w);
   }
