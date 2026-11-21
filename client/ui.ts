@@ -134,6 +134,7 @@ export class Hud {
   private abButtons: HTMLButtonElement[] = [];
   private coach = new Coach();
   private hpHtml = '';
+  private wasDown = false;
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -190,7 +191,11 @@ export class Hud {
     // G6: downed in a party, the health text says how to get back up and how far along it is.
     const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / REVIVE_SECONDS) : -1;
     // Numbers only, so innerHTML is safe; the max sits in its own span so a narrow phone can drop it.
-    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `Reviving ${Math.round(rev * 100)}%` : 'Down · an ally can revive you';
+    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
+    // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
+    const down = rev >= 0;
+    if (down && !this.wasDown && this.compact) this.banner("You're down", 'Stay put: an ally standing on you revives you');
+    this.wasDown = down;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;

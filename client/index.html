@@ -993,6 +993,8 @@
   /* On a 320px phone the health bar gets about 50px of the top row: "1040 / 1040" wrapped out of sight.
      Under 341px it shows the current health only; the fill shows the share. */
   @media (max-width: 340px) { #hpText .hpmax { display: none; } }
+  /* Downed in co-op: phones keep "Down" and the revive percent; the how-to shows once as a banner (client/ui.ts). */
+  @media (max-width: 560px), (max-height: 520px) { #hpText .hplong { display: none; } }
 </style>
 </head>
 <body>
