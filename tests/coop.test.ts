@@ -163,3 +163,61 @@ describe('co-op threat from class kits', () => {
     expect(w.threat[b].amounts[id]).toBeCloseTo(10, 5);
   });
 });
+
+describe('co-op healing from the Lumen', () => {
+  type Inner = { radiantBurst(): void; sunmote(t: number): void; use(i: number): void; spawn(kind: string, x: number, y: number): number; rebuildHash(): void };
+
+  /** A Lumen (hero 0) with a wounded Bulwark (hero 1) beside it and no enemies. */
+  function pair(dist: number) {
+    const w = new World({ seed: 4, cls: 'lumen', party: [{ cls: 'bulwark' }] });
+    const inner = w as unknown as Inner;
+    for (const e of w.enemies) e.alive = false;
+    inner.use(0);
+    const tank = w.heroes[1].player;
+    tank.x = w.player.x + dist;
+    tank.y = w.player.y;
+    tank.hp = tank.maxHp * 0.5;
+    inner.rebuildHash();
+    return { w, inner, tank };
+  }
+
+  it('Radiant Burst heals allies inside its radius, not beyond it', () => {
+    const near = pair(60);
+    const hp0 = near.tank.hp;
+    near.inner.radiantBurst();
+    expect(near.tank.hp).toBeCloseTo(hp0 + 15, 5);
+
+    const far = pair(near.w.burstRadius + 50);
+    const hp1 = far.tank.hp;
+    far.inner.radiantBurst();
+    expect(far.tank.hp).toBe(hp1);
+  });
+
+  it("Sunmote's heal goes to the most wounded hero in range", () => {
+    const { w, inner, tank } = pair(200);
+    const t = inner.spawn('cinderBrute', w.player.x + 300, w.player.y);
+    inner.rebuildHash();
+    w.player.hp = w.player.maxHp * 0.9;
+    const mine = w.player.hp;
+    const hp0 = tank.hp;
+    inner.sunmote(t);
+    expect(tank.hp).toBeGreaterThan(hp0);
+    expect(w.player.hp).toBe(mine);
+  });
+
+  it('ally healing draws threat for the Lumen and skips downed heroes', () => {
+    const { w, inner, tank } = pair(60);
+    const a = inner.spawn('cinderBrute', 300, 0);
+    inner.rebuildHash();
+    inner.radiantBurst();
+    expect(w.threat[a].amounts[w.heroes[0].id]).toBeGreaterThan(0);
+    tank.hp = 0;
+    expect(w.healAllies(w.player.x, w.player.y, 500, 50)).toBe(0);
+    expect(tank.hp).toBe(0);
+  });
+
+  it('does nothing solo', () => {
+    const w = new World({ seed: 4, cls: 'lumen' });
+    expect(w.healAllies(0, 0, 1000, 50)).toBe(0);
+  });
+});
