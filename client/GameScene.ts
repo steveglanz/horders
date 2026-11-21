@@ -209,7 +209,8 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId);
+    // The Hammerdeep has no theme of its own yet: it plays the Foundry's (forge and iron).
+    audio.theme(w.dungeonId === 'hammerdeep' ? 'foundry' : w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -570,6 +571,8 @@ export class GameScene extends Phaser.Scene {
           if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
           else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
           else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Bastion now. Everyone else: heal them');
+          else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -578,6 +581,13 @@ export class GameScene extends Phaser.Scene {
           // The skill moment of the game: a short freeze and a nudge of the camera.
           if (!this.coop) this.stop(0.06);
           this.shakeBy(0.12);
+          break;
+        case 'cleanse':
+          // Hammerdeep: an ally's heal broke Slag Grip.
+          this.floatText(ev.x, ev.y - 44, 'Slag Grip cleared', '#9fffc8', 15);
+          break;
+        case 'slagGrip':
+          this.floatText(ev.x, ev.y - 44, `Slag Grip ×${ev.stacks}`, '#ff9a4a', 15);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -792,7 +802,8 @@ export class GameScene extends Phaser.Scene {
       }
       // The world boss shadow is Grandmother Slag's silhouette;
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind;
+      // Ondrel borrows the Kiln Mother's sheet until its own sprite lands.
+      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;

@@ -9,7 +9,7 @@ export type EncounterId =
   | 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine'
   | 'twins' | 'glass' | 'crawlers' | 'bellwarden' | 'tidepair' | 'twinsAcolyte' | 'maelra'
   | 'shades' | 'lensbearer' | 'brandkeeper' | 'lamps' | 'lensShades' | 'brandShades' | 'lensmother'
-  | 'worldShadow';
+  | 'worldShadow' | 'anvilguard' | 'ondrel';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -42,10 +42,12 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   brandShades: { id: 'brandShades', name: 'Brand and Lens', tip: 'Brands crack pillars. Burst them in the open so you keep your cover.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'lensbearer', n: 1 }] },
   lensmother: { id: 'lensmother', name: 'The Lensmother', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
+  anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
+  ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -58,25 +60,59 @@ export interface DungeonDef {
   unlockTier: number;
   /** Shown in the hub. */
   blurb: string;
+  /**
+   * 'solo': any party, 1 to 4 heroes, any classes. 'group': a party of at least
+   * `minParty`, built around a tank and a healer (recommended, not enforced).
+   */
+  style: 'solo' | 'group';
+  minParty: number;
 }
 
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   kiln: {
     id: 'kiln', name: 'The Kiln Depths', boss: 'kilnMother', unlockTier: 1,
     openers: ['pack', 'wardens', 'warpack'], named: ['brute', 'ashmaw'], hard: ['acolytes', 'ashmaw'],
-    blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.',
+    blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.', style: 'solo', minParty: 1,
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
     openers: ['twins', 'glass', 'crawlers'], named: ['bellwarden', 'tidepair'], hard: ['twinsAcolyte', 'tidepair'],
-    blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.',
+    blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
     openers: ['shades', 'lensbearer', 'brandkeeper'], named: ['lamps', 'brandShades'], hard: ['lensShades', 'lamps'],
-    blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.',
+    blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
+  },
+  hammerdeep: {
+    id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
+    openers: ['warpack', 'wardens', 'glass'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
+    blurb: 'A group dungeon. A tank holds Ondrel\'s Anvilfall, a healer keeps the party standing.', style: 'group', minParty: 2,
   },
 };
+
+/** Solo-friendly dungeons, in the order the daily bounty draws from (unchanged by group dungeons). */
+export const SOLO_DUNGEON_IDS = (Object.keys(DUNGEONS) as DungeonId[]).filter((id) => DUNGEONS[id].style === 'solo');
+
+/** Party roles, from the classes' roles. */
+export type PartyRole = 'tank' | 'healer' | 'damage';
+export function roleOf(cls: string): PartyRole {
+  return cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'damage';
+}
+
+/** Why a party can't enter this dungeon, or '' if it can. */
+export function partyBlocker(d: DungeonId, partySize: number): string {
+  const def = DUNGEONS[d];
+  return partySize < def.minParty ? `Needs a party of ${def.minParty} or more` : '';
+}
+
+/** The delve-setup label: who the dungeon is built for, and what this party lacks. */
+export function partyLabel(d: DungeonId, classes: string[]): { label: string; missing: PartyRole[] } {
+  if (DUNGEONS[d].style === 'solo') return { label: 'Solo friendly · any party', missing: [] };
+  const roles = classes.map(roleOf);
+  const missing = (['tank', 'healer'] as PartyRole[]).filter((r) => !roles.includes(r));
+  return { label: 'Group · tank + healer recommended', missing };
+}
 
 export const DUNGEON_IDS = Object.keys(DUNGEONS) as DungeonId[];
 

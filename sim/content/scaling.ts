@@ -46,6 +46,8 @@ export function clampParty(n: number | undefined): number {
 export const GRIT = {
   perStack: 0.05,
   maxStacks: 3,
+  /** A loss counts toward Grit only after this many seconds, or once a fight is cleared. */
+  minTime: 30,
 };
 
 export function gritMult(stacks: number | undefined): number {

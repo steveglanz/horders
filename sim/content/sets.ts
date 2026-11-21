@@ -39,8 +39,9 @@ export const SETS: Record<SetId, SetDef> = {
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
 
-export function setForDungeon(d: DungeonId): SetId {
-  return SET_IDS.find((s) => SETS[s].dungeon === d)!;
+/** The set a dungeon drops, if it has one (the Hammerdeep has none yet). */
+export function setForDungeon(d: DungeonId): SetId | undefined {
+  return SET_IDS.find((s) => SETS[s].dungeon === d);
 }
 
 /** Tuning. `dropChance` applies when the boss's item rolls into a set slot. */

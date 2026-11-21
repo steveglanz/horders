@@ -265,6 +265,9 @@
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
+  .dg[data-d="hammerdeep"] { --art: radial-gradient(ellipse at 80% 0%, rgba(190,200,220,0.30), transparent 60%), linear-gradient(160deg, rgba(60,56,70,0.65), transparent 70%); }
+  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); }
+  .dg .style.group { color: var(--gold); }
   /* In the flow (not absolute) so a long name on a narrow card can't run under it. */
   .dg .lock { order: -1; align-self: flex-end; margin: 0 0 auto; padding-bottom: 6px; font-size: 11px; color: var(--gold); }
   /* Tiers have no cap: past what fits, the row scrolls sideways (hub.ts keeps the picked tier in view). */

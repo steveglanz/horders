@@ -10,7 +10,7 @@ import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
-import { DUNGEONS, DUNGEON_IDS, DungeonId } from '../sim/content/dungeon';
+import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
@@ -27,6 +27,8 @@ export class Hub {
   private claiming = false;
   /** Set by main: starts today's bounty run. */
   onBounty: () => void = () => {};
+  /** Set by main: the classes in your party (empty when you play alone). */
+  partyClasses: string[] = [];
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     const closeBag = () => {
@@ -102,8 +104,10 @@ export class Hub {
     const dungeons = DUNGEON_IDS.map((id) => {
       const d = DUNGEONS[id];
       const locked = h.maxTier < d.unlockTier;
+      const { label } = partyLabel(id, this.classes());
       return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}">`
-        + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span></button>`;
+        + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
+        + `<span class="style ${d.style}">${label}</span></button>`;
     }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
@@ -112,7 +116,7 @@ export class Hub {
       + `<div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
       + `<div class="tierrow">${tiers.join('')}</div>`
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
-      + this.omenLine(omens) + this.gritLine() + this.potionLine() + this.bountyLine();
+      + this.partyLine() + this.omenLine(omens) + this.gritLine() + this.potionLine() + this.bountyLine();
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -135,7 +139,10 @@ export class Hub {
     const row = $('tiers').querySelector<HTMLElement>('.tierrow');
     const on = row?.querySelector<HTMLElement>('button.on');
     if (row && on && row.scrollWidth > row.clientWidth) row.scrollLeft += on.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - on.offsetWidth) / 2;
-    $('startBtn').textContent = `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
+    const blocked = this.partyBlocker();
+    const start = $('startBtn') as HTMLButtonElement;
+    start.disabled = !!blocked;
+    start.textContent = blocked || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
   }
 
@@ -169,6 +176,25 @@ export class Hub {
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`
       + `<div class="pots">${cards}</div>`
       + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';
+  }
+
+  /** Classes in the delve: the party's, or just yours. */
+  private classes(): string[] {
+    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright'];
+  }
+
+  /** Why the picked dungeon can't start with this party, or ''. */
+  partyBlocker(): string {
+    return partyBlocker(this.dungeon, this.classes().length);
+  }
+
+  /** Group dungeons: which roles the party has, and what it still needs. */
+  private partyLine(): string {
+    if (DUNGEONS[this.dungeon].style !== 'group') return '';
+    const { missing } = partyLabel(this.dungeon, this.classes());
+    const has = (r: string) => (missing.includes(r as never) ? '✗' : '✓');
+    const need = missing.length ? ` · Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}` : '';
+    return `<div class="hint partyroles">Party: Tank ${has('tank')} · Healer ${has('healer')}${need}. Invite friends with Party, or open it to Quick join.</div>`;
   }
 
   private gritLine(): string {
