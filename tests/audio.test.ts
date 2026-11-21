@@ -100,11 +100,11 @@ describe('audio', () => {
     expect(scene).toContain('audio.theme(themeFor(w.dungeonId))');
   });
 
-  it('drafts raid 3 its own theme (Y7): the Colossus stride, unlike the other raids', () => {
-    expect(THEMES.colossus.bed).toBe('stride');
+  it('gives raid 3, the Smeltery, its own theme (Y7): the Colossus stride, unlike the other raids', () => {
+    expect(THEMES.smeltery.bed).toBe('stride');
     for (const other of ['raid', 'hoard'] as const) {
-      expect(THEMES.colossus.bed).not.toBe(THEMES[other].bed);
-      expect(THEMES.colossus.scale).not.toEqual(THEMES[other].scale);
+      expect(THEMES.smeltery.bed).not.toBe(THEMES[other].bed);
+      expect(THEMES.smeltery.scale).not.toEqual(THEMES[other].scale);
     }
   });
 

@@ -20,7 +20,7 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'colossus';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery';
 export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride';
 
 export interface Theme {
@@ -76,9 +76,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   // The Hoard (raid 2): Old Coalmouth's coal cave. A slow, heavy chewing groove in phrygian: the bed is his jaw
   // grinding coal three times round the loop, the plucks are embers, and the march of the Crucible's raid is gone.
   hoard: { root: -16, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 62, drone: 'sawtooth', droneLp: 650, pluck: 'ember', density: 0.3, bed: 'chew', bedVol: 0.5, phaseTempo: [1, 1.15, 1.25, 1.35], floodBed: 1.5 },
-  // Raid 3 (draft, roadmap Y7): the Cinder Colossus in person. A slow, grand march in harmonic minor; the bed is
+  // Raid 3, the Smeltery (roadmap Y7, docs/design/raid3.md): the Cinder Colossus in person. A slow, grand march in harmonic minor; the bed is
   // the giant's stride (two footfalls round the loop, cinders pattering down after each) and the brass is its herald.
-  colossus: { root: -17, scale: [0, 2, 3, 5, 7, 8, 11, 12], progression: [0, -4, -5, -1], bpm: 56, drone: 'sawtooth', droneLp: 900, pluck: 'brass', density: 0.3, bed: 'stride', bedVol: 0.5, phaseTempo: [1, 1.1, 1.2, 1.3], floodBed: 1.6 },
+  smeltery: { root: -17, scale: [0, 2, 3, 5, 7, 8, 11, 12], progression: [0, -4, -5, -1], bpm: 56, drone: 'sawtooth', droneLp: 900, pluck: 'brass', density: 0.3, bed: 'stride', bedVol: 0.5, phaseTempo: [1, 1.1, 1.2, 1.3], floodBed: 1.6 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
