@@ -17,7 +17,7 @@ All the numbers are in `KEYS` in `sim/content/keys.ts`. The hero side is `applyK
   | Win over par | stays the same |
   | Loss | −1 (never below +1) |
 - **Rewards:** a key win pays 8 embers per key level, on top of the normal loot. Loot luck already grows with each Omen.
-- **A side run, like the bounty:** a key run never moves the tier ladder or Grit, and it can't open a shadow fight's first-clear Epic.
+- **A side run, like the bounty:** a key run never moves the tier ladder or Grit, and it never counts as a first clear (so no guaranteed Epic).
 - **Solo only:** key runs are for solo dungeons outside a party. Party keys need the host and guests to agree on a level, so they wait for the leaderboard work.
 - **Per class:** `keys` and `keyBest` (the best level beaten in each dungeon) are stored per class, in `CHARACTER_KEYS`, because they measure that hero's power.
 
