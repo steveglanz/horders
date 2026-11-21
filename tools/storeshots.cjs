@@ -30,6 +30,7 @@ const SCENES = [
   { name: '4-lensmother', opts: { cls: 'duskblade', dungeon: 'glarewell', route: ['lensmother'], tier: 7 }, boss: 'lensmother', cast: 'lensSweep', at: 0.45 },
   { name: '5-maelra', opts: { cls: 'lumen', dungeon: 'foundry', route: ['maelra'], tier: 5 }, boss: 'maelra', cast: null, at: 0 },
   { name: '6-raid', opts: { cls: 'bulwark', dungeon: 'crucible', route: ['grandmotherSlag'], tier: 8, heroName: 'Bulwark 8', party: [{ cls: 'lumen', name: 'Lumen 8' }, { cls: 'emberwright', name: 'Emberwright 8' }, { cls: 'duskblade', name: 'Duskblade 8' }] }, boss: 'grandmotherSlag', cast: 'ladlePour', at: 0.85 },
+  { name: '7-ysmeret', opts: { cls: 'slagbinder', dungeon: 'ashvents', route: ['ysmeret'], tier: 8, alt: true, heroName: 'Slagbinder 8', party: [{ cls: 'bulwark', name: 'Bulwark 8' }, { cls: 'lumen', name: 'Lumen 8' }, { cls: 'duskblade', name: 'Duskblade 8' }] }, boss: 'ysmeret', cast: null, tele: 'soak', at: 0 },
 ];
 
 function serve() {
@@ -69,7 +70,7 @@ async function fight(page, sc, tag, errs) {
     await page.waitForFunction((sc) => {
       const w = window.__ember.scene().world;
       // Freeze in the same frame the condition holds, so the wind-up can't finish first.
-      const ok = w.enemies.some((e) => e.alive && e.kind === sc.boss && w.time - e.spawnedAt > 7 && (sc.cast === null ? w.time - e.spawnedAt > 14 : e.castId && (sc.cast === 'any' || e.castId === sc.cast) && e.castT / e.castDur > sc.at));
+      const ok = w.enemies.some((e) => e.alive && e.kind === sc.boss && w.time - e.spawnedAt > 7 && (sc.cast === null ? w.time - e.spawnedAt > 14 && (!sc.tele || w.telegraphs.some((t) => t.alive && t.kind === sc.tele && t.t / t.dur > 0.5)) : e.castId && (sc.cast === 'any' || e.castId === sc.cast) && e.castT / e.castDur > sc.at));
       if (ok) window.__ember.scene().warp = 0;
       return ok;
     }, sc, { timeout: 150000, polling: 30 }).catch(() => errs.push('timeout ' + sc.name));

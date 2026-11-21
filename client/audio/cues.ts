@@ -48,30 +48,28 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
 };
 
 /**
- * Casts with their own sounds, by the cast's name (start = wind-up, done = it lands).
- * Matching on names lets a new boss get its sounds without a new event type.
+ * Boss casts with their own sounds (start = wind-up, done = it lands), keyed by the sim's cast id,
+ * not its display name, so renaming a cast never silences it. A new boss needs no new event type.
  */
 export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
   // The Hammerdeep: Ondrel, the Anvilward (docs/design/group-dungeons.md).
-  Anvilfall: { start: 'anvilWarn', done: 'anvilfall' },
-  'Choir of Iron': { done: 'choir' },
-  'Hammer Sweep': { done: 'sweep' },
-  // The Ashvents: Ysmeret, the Twofold Flame (PR #66).
-  'Twin Vents': { start: 'ventWarn' },
-  'Scatter Embers': { start: 'scatterWarn', done: 'scatter' },
-  'Bellow Slam': { start: 'bellowWarn', done: 'bellow' },
-  // The Coldmarrow: Nhevra, the Cold Hearth (design brief C1). Names as in the brief.
-  'Long Night': { start: 'longNightWarn', done: 'longNight' },
-  Snuff: { start: 'snuff' },
-  'Snuffer Tide': { start: 'snufferTide' },
-  'Frost Lace': { start: 'frostLace' },
-  // The raid: Grandmother Slag (design brief C3).
-  'Ladle Pour': { start: 'ladleWarn', done: 'ladle' },
-  'Called Out': { done: 'calledOut' },
-  'The Pour': { start: 'pourWarn', done: 'ladle' },
-  'Crucible Vents': { start: 'soakCall' },
-  'Last Ember': { start: 'lastEmberWarn', done: 'lastEmber' },
-  'Cinder Marks': { start: 'scatterWarn', done: 'scatter' },
+  anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
+  choir: { done: 'choir' }, // Choir of Iron
+  hammerSweep: { done: 'sweep' }, // Hammer Sweep
+  // The Ashvents: Ysmeret, the Twofold Flame.
+  twinVents: { start: 'ventWarn' }, // Twin Vents
+  scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
+  bellowSlam: { start: 'bellowWarn', done: 'bellow' }, // Bellow Slam
+  // The Coldmarrow: Nhevra, the Cold Hearth.
+  longNight: { start: 'longNightWarn', done: 'longNight' }, // Long Night
+  snuff: { start: 'snuff' }, // Snuff
+  snufferTide: { start: 'snufferTide' }, // Snuffer Tide
+  frostLace: { start: 'frostLace' }, // Frost Lace
+  // The raid: Grandmother Slag.
+  ladlePour: { start: 'ladleWarn', done: 'ladle' }, // Ladle Pour
+  pour: { start: 'pourWarn', done: 'ladle' }, // The Pour
+  crucibleVents: { start: 'soakCall' }, // Crucible Vents
+  lastEmber: { start: 'lastEmberWarn', done: 'lastEmber' }, // Last Ember
 };
 
 /** Each boss's own phase-change sting. */
@@ -142,11 +140,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'lob': return { id: 'slagLob', jitter: 0.15 };
     case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
-    case 'castStart': return { id: CAST_SOUNDS[ev.name]?.start ?? 'castWarn' };
+    case 'castStart': return { id: CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
-    case 'castDone': return { id: CAST_SOUNDS[ev.name]?.done ?? 'castDone' };
+    case 'castDone': return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     case 'heal': return { id: 'heal', jitter: 0.05 };
     case 'ward': return { id: 'ward' };
     case 'fork': return { id: 'fork' };
