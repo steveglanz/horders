@@ -176,6 +176,13 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
   await hub.refreshBoss();
 }
 
+/** The season trail the hero wears, at the best stage they've earned (looks only). */
+function wornTrail(): { id: string; stage: number } | undefined {
+  const id = hero.wear?.trail;
+  const stage = id ? hero.trails?.[id] ?? 0 : 0;
+  return id && stage > 0 ? { id, stage } : undefined;
+}
+
 function startRun(bounty = false, key = false): void {
   // In someone else's party, the host starts the delves.
   if (coop?.role === 'guest') return;
@@ -238,6 +245,7 @@ function startRun(bounty = false, key = false): void {
     opts: runOpts,
     hud,
     glow: hero.wear?.glow,
+    trail: wornTrail(),
     coop: hosting ? coop! : undefined,
     onEnd: (w: World) => {
       const rewards = finishRun(w);
@@ -484,6 +492,7 @@ const coopEvents = {
       opts,
       hud,
       glow: hero.wear?.glow,
+      trail: wornTrail(),
       coop: coop!,
       onEnd: (w: World) => {
         const rewards = finishRun(w);
