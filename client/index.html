@@ -574,8 +574,8 @@
     /* Icon-only action buttons: the names live in the pause menu (hold for details). */
     .ab .n { display: none; }
     .ab svg { margin-top: 13px; }
-    /* Fight intro: a compact card in the upper band instead of a paragraph over your hero. */
-    #banner { top: 21%; width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
+    /* Fight intro: a compact card in the upper band instead of a paragraph over your hero, below the target frame (up to 152px with a cast bar). */
+    #banner { top: max(21%, 164px); width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
     /* With party frames down the left, the intro card drops below your hero instead of covering them. */
     /* Anchored to the action bar's top edge (HEAT + 2 rows of 64px buttons), so a long raid hint never covers HEAT. */
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px); }
@@ -587,6 +587,9 @@
     #bannerSub { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     #target .tname { gap: 6px; }
     #tName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* A long name ("Morrowfang, Hollow Warden") keeps its line; the rank and state drop to a second line only when they don't fit. */
+    #target .tname { flex-wrap: wrap; row-gap: 1px; }
+    #tName { flex: 0 1 auto; max-width: 100%; }
     #tTitle, #tPhase { flex: none; white-space: nowrap; }
     #stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
     #stats div { padding: 8px 2px; }
