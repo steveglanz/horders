@@ -108,6 +108,8 @@ export class GameScene extends Phaser.Scene {
   private motes: { img: Phaser.GameObjects.Image; ph: number; sp: number }[] = [];
   private ventSprites: Phaser.GameObjects.Image[] = [];
   private pillarSprites: Phaser.GameObjects.Image[] = [];
+  /** A Glare's white-gold wash over the room, fading from 1 to 0. */
+  private glareFlash = 0;
   private gateSprites: { arch: Phaser.GameObjects.Image; portal: Phaser.GameObjects.Image }[] = [];
   private steamAt = 0;
   private facing = 1;
@@ -143,6 +145,7 @@ export class GameScene extends Phaser.Scene {
     this.motes = [];
     this.ventSprites = [];
     this.pillarSprites = [];
+    this.glareFlash = 0;
     this.gateSprites = [];
     this.facing = 1;
     this.hitStop = 0;
@@ -470,7 +473,7 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'glare':
           // The whole room flashes white-gold; a hit also shakes it.
-          this.cameras.main.flash(ev.hit ? 260 : 160, 255, 240, 190, true);
+          this.glareFlash = ev.hit ? 1 : 0.6;
           if (ev.hit) {
             this.shake = Math.max(this.shake, 0.3);
             this.floatText(ev.x, ev.y - 40, 'Glared!', '#ffe08a', 18);
@@ -748,8 +751,10 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
       g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
     }
-    // The Glarewell: pillars cast shadow wedges away from the centre lens.
-    // The wedges match World.shadowed(), so what you see is where you're safe.
+    // The Glarewell: the floor is lit pale gold, and pillars cast shadow wedges
+    // away from the centre lens. The wedges match World.shadowed(), so what you
+    // see is where you're safe.
+    if (w.pillars.length) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
     this.pillarSprites.forEach((ps, k) => {
       const c = w.pillars[k];
       if (!c) { if (ps.visible) ps.setVisible(false); return; }
@@ -760,13 +765,14 @@ export class GameScene extends Phaser.Scene {
         const L = GLARE.shadowLength;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
-        g.fillStyle(0x0c0a24, 0.5).beginPath();
+        g.fillStyle(0x06051a, 0.62).lineStyle(2, 0x8a9cff, 0.35).beginPath();
         g.moveTo(c.x - uy * w0, c.y + ux * w0);
         g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
         g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
         g.lineTo(c.x + uy * w0, c.y - ux * w0);
         g.closePath();
         g.fillPath();
+        g.strokePath();
       }
       const fr = c.cracked ? '1' : '0';
       if (ps.frame.name !== fr) ps.setFrame(fr);
@@ -795,6 +801,11 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
       g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
       g.strokePath();
+    }
+    if (this.glareFlash > 0) {
+      // Bright enough to sting, faint enough that you can still see the fight.
+      this.glareFlash = Math.max(0, this.glareFlash - this.game.loop.delta / 450);
+      g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
