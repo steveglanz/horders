@@ -671,6 +671,34 @@ The default Slagbinder bot drafts Twin Coat often, so fixing Forge lifts the cla
 
 Design accepted the Slagbinder rise (it was the weakest class at Kiln). Against the new default, Forge at Kiln t6 is just outside at -11 of 40, like Wildfire was at -10.5. Clinker (72) stays untouched because it is under Lumen's 79.
 
+## Slagbinder in a party: party-only trim (21 Nov 2026)
+With a Bellows Slagbinder in place of the Duskblade (Bulwark, Lumen, Slagbinder, Emberwright, hero-t8-0 from heroes-fair), every group dungeon was above its 55 to 70% band, or the raid's 70% ceiling. Design asked for a trim that leaves solo play alone.
+
+**Where the edge comes from** (Hammerdeep t8, 40 seeds, 32 wins as the base):
+- With every ally effect off (shell and plating on allies, Interpose, Brittle for allies), it still wins 30.
+- With its own shell and plating also off, it wins 28.
+- The edge is mostly the Slagbinder's own damage and the way it survives Anvilfall. Little of it comes from what it gives allies.
+
+**The trim,** in `SLAG_KIT` (sim/world.ts). Every part applies only with allies and is stated in the game:
+- **Bellows damage in a party:** x0.7 (`partyDmg`). The stance tip says "In a party, you deal 30% less damage." An Anvil Slagbinder isn't touched.
+- **Cooling Shell on allies:** 20% less damage, against 35% for the wearer (`allyShellCut`). The ability text says so.
+- **Molten Plating on an ally:** half as thick (`allyPlate`). The ability text says so.
+
+**Results,** main 5b42ce0 against this branch, 80 seeds (Crucible out of 90), no potions:
+
+| | Main | Branch | Band |
+|---|---|---|---|
+| Hammerdeep t8 | 70 (88%) | 44 (55%) | 55 to 70% |
+| Ashvents t8 | 65 (81%) | 54 (68%) | 55 to 70% |
+| Pressworks t10 | 73 (91%) | 65 (81%) | 55 to 70% |
+| Crucible t8 | 72 (80%) | 52 (58%) | 70% or under |
+
+The Duskblade party on the same main wins Hammerdeep 45, Ashvents 54 and Pressworks 59 of 80. So the Pressworks is above its band (74%) without a Slagbinder too: that's the dungeon's tuning. The Slagbinder party now sits close to the Duskblade one everywhere.
+
+Solo replay fingerprints are identical to main, so solo L7 is unchanged.
+
+**Watch:** an Anvil Slagbinder tanking the Hammerdeep t8 (Slagbinder, Lumen, Duskblade, Emberwright) wins 78 of 80 on main and 79 on this branch, against 45 for a Bulwark tank. That was there before this change.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
