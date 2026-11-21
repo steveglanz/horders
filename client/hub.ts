@@ -727,8 +727,38 @@ export class Hub {
       }));
     act('[data-e]', 'e', (id) => equip(h, id));
     act('[data-s]', 's', (id) => salvage(h, id), true);
-    act('[data-u]', 'u', (id) => upgradeItem(h, id));
-    act('[data-tm]', 'tm', (id) => temperItem(h, id));
+    // The Forge: note the stats before the hammer falls, then light what changed on the redrawn card.
+    const forged = (id: string, kind: 'up' | 'temper', fn: () => unknown): unknown => {
+      const it = h.inventory.find((i) => i.id === id);
+      const before = it ? it.stats.map((s) => `${s.stat}:${s.value}`) : [];
+      const r = fn();
+      if (r !== false && it) {
+        const changed = it.stats.map((s, k) => `${s.stat}:${s.value}` !== before[k]);
+        queueMicrotask(() => this.forgeFlourish(id, kind, changed));
+      }
+      return r;
+    };
+    act('[data-u]', 'u', (id) => forged(id, 'up', () => upgradeItem(h, id)));
+    act('[data-tm]', 'tm', (id) => forged(id, 'temper', () => temperItem(h, id)));
+  }
+
+  /** Forge feedback on every card showing the item: a hammer flash and sparks, the item level (Upgrade) and changed stats lit. */
+  private forgeFlourish(id: string, kind: 'up' | 'temper', changed: boolean[]): void {
+    document.querySelectorAll<HTMLElement>(`[data-it="${id}"]`).forEach((card) => {
+      card.classList.remove('forged', 'up', 'temper');
+      void card.offsetWidth;
+      card.classList.add('forged', kind);
+      if (kind === 'up') card.querySelector('.il')?.classList.add('lit');
+      card.querySelectorAll('.sv').forEach((sv, k) => { if (changed[k]) sv.classList.add('lit'); });
+      if (!card.querySelector('.sparks')) {
+        const sp = document.createElement('i');
+        sp.className = 'sparks';
+        sp.setAttribute('aria-hidden', 'true');
+        sp.innerHTML = '<b></b>'.repeat(8);
+        card.appendChild(sp);
+      }
+      setTimeout(() => { card.classList.remove('forged', 'up', 'temper'); card.querySelector('.sparks')?.remove(); }, 1400);
+    });
   }
 
   /** Phones: one item's full card, what you wear in that slot, and its actions, in a sheet. */
@@ -740,7 +770,7 @@ export class Hub {
     const isWorn = wornIds.has(it.id);
     const sets = setsWorn(h);
     const cur = isWorn ? undefined : equippedItems(h).find((i) => i.slot === it.slot);
-    const body = `<div class="item sheet-item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
+    const body = `<div class="item sheet-item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
       + (cur ? `<div class="sec-h"><span>Wearing now</span><span class="muted">Gear score ${itemScore(it) >= itemScore(cur) ? `<b class="up">+${Math.round(itemScore(it) - itemScore(cur))}</b>` : `<b class="down">${Math.round(itemScore(it) - itemScore(cur))}</b>`}</span></div>`
         + `<div class="item sheet-item cur" style="--rc:${RARITY[cur.rarity].color}">${itemHtml(cur, '', sets)}</div>` : '')
       + `<div class="sheet-acts">${this.itemActs(it, isWorn)}</div>`
@@ -793,7 +823,7 @@ export class Hub {
     } else {
       $('bagList').innerHTML = sorted.map((it) => {
         const isWorn = worn.has(it.id);
-        return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
+        return `<div class="item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
       }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
       this.bindActs($('bagList'), () => this.openBag());
     }

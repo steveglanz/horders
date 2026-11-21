@@ -406,6 +406,22 @@
   #bagList { display: flex; flex-direction: column; gap: 8px; text-align: left; }
   .item { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); border-left: 3px solid var(--rc); font-size: 13px; }
   .item .info { flex: 1 1 220px; min-width: 0; }
+  /* The Forge: a hammer flash across the card, sparks off the anvil, and the changed numbers lit. */
+  .item.forged { position: relative; animation: forgeHit 0.9s ease-out; }
+  .item.forged.temper { animation-name: temperHit; }
+  .item.forged .il.lit, .item.forged .sv.lit { color: #ffe0a0; text-shadow: 0 0 8px rgba(255,150,60,0.9); animation: forgeNum 1.2s ease-out; display: inline-block; }
+  .item.forged.temper .sv.lit { color: #c9f4ff; text-shadow: 0 0 8px rgba(120,210,255,0.9); }
+  .item .sparks { position: absolute; left: 22px; top: 50%; width: 0; height: 0; pointer-events: none; }
+  .item .sparks b { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #fff0c8; box-shadow: 0 0 8px 2px #ff8a2a; opacity: 0; animation: forgeSpark 0.7s ease-out forwards; }
+  .item.temper .sparks b { background: #f0fbff; box-shadow: 0 0 8px 2px #4fb8ff; }
+  .item .sparks b:nth-child(1) { --sx: 46px; --sy: -30px; } .item .sparks b:nth-child(2) { --sx: 30px; --sy: -44px; animation-delay: 0.03s; }
+  .item .sparks b:nth-child(3) { --sx: 62px; --sy: -10px; animation-delay: 0.05s; } .item .sparks b:nth-child(4) { --sx: 14px; --sy: -50px; }
+  .item .sparks b:nth-child(5) { --sx: -14px; --sy: -40px; animation-delay: 0.04s; } .item .sparks b:nth-child(6) { --sx: 54px; --sy: 16px; animation-delay: 0.06s; }
+  .item .sparks b:nth-child(7) { --sx: 38px; --sy: 30px; animation-delay: 0.02s; } .item .sparks b:nth-child(8) { --sx: -10px; --sy: 24px; animation-delay: 0.07s; }
+  @keyframes forgeSpark { 0% { opacity: 1; transform: translate(0, 0) scale(1.2); } 100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.4); } }
+  @keyframes forgeHit { 0% { box-shadow: inset 0 0 0 999px rgba(255,170,80,0.32), 0 0 18px rgba(255,120,40,0.7); transform: scale(1.015); } 25% { transform: none; } 100% { box-shadow: none; } }
+  @keyframes temperHit { 0% { box-shadow: inset 0 0 0 999px rgba(140,210,255,0.22), 0 0 16px rgba(110,190,255,0.6); transform: scale(1.012); } 25% { transform: none; } 100% { box-shadow: none; } }
+  @keyframes forgeNum { 0% { transform: scale(1.18); } 25% { transform: scale(1); } }
   .item .nm { color: var(--rc); font: 600 15px var(--serif); }
   .item .st { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .item .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

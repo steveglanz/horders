@@ -52,7 +52,8 @@ export function setsWorn(h: HeroProfile): Partial<Record<string, number>> {
 /** `worn`: the hero's set piece counts, so the card can light the bonuses already active. */
 export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, number>>): string {
   const c = RARITY[it.rarity].color;
-  const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
+  // Each stat in its own span so the Forge can light the one it changed.
+  const stats = it.stats.map((s) => `<span class="sv">${STATS[s.stat].format(s.value)}</span>`).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
   const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const set = it.set ? SETS[it.set] : undefined;
@@ -63,7 +64,7 @@ export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, num
       + '</div>'
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · <span class="il">iLvl ${it.ilvl}</span> · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
