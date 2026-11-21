@@ -80,7 +80,7 @@ Make it feel finished on a phone.
 | L3 | **Accessibility:** colour-blind telegraph palettes, a reduced-shake option, text size | visuals + engineering | ✅ #61 (shake setting, colour-blind palette with hatching), #126 (text size) |
 | L4 | **Audio mix and settings:** volume sliders, mute-on-blur, and a phone-speaker pass on every theme | sound | |
 | L5 | **Store page assets:** icon, screenshots and a 30 s trailer capture | visuals | ✅ #68 (docs/store/), screenshots refreshed in #132 |
-| L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | |
+| L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | 🔨 Engineering part done: tests/save-migration.test.ts loads every older save shape with nothing lost, and tools/offlinecheck.cjs plays a delve with the cloud refused and keeps the hero across a reload. Real devices still need QA |
 | L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | ✅ #124; tables in /mnt/project-files/horders/skills/balance/l7-lock.md Re-checked with five classes on 21 Nov: all cells pass (the Slagbinder is at most 8.7 below the Emberwright) |
 
 ## R2. The Forge
