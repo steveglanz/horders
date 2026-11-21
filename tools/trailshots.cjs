@@ -2,7 +2,7 @@
 // (stage 3 just after a dash), and all four seasons' trails at stage 2. No network.
 // With `rime`: Rime Dust (the Cold Hearth's falling frost) at stages 1 and 2, stage 2 on the Glarewell's pale floor, and stage 3's dash in the Coldmarrow.
 // `full` sets Graphics to Full: software GL runs under 42 fps, so Auto would trim the trail to Battery saver's rate.
-// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver|full] [rime]
+// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver|full] [rime|slag]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots'; const saver = process.argv.includes('saver'); const full = process.argv.includes('full');
@@ -15,6 +15,13 @@ const RIME = [
   { name: 'rime-glare-2', id: 'rimeDust', stage: 2, cls: 'emberwright', dungeon: 'glarewell' },
   { name: 'rime-cold-3-dash', id: 'rimeDust', stage: 3, cls: 'duskblade', dash: true, dungeon: 'coldmarrow' },
 ];
+// With `slag`: Slag Drips (the Slag Moon's falling molten drops) at stages 1 and 2, stage 2 in the Glarewell (the season's dungeon), and stage 3's dash.
+const SLAG = [
+  { name: 'slag-1', id: 'slagDrips', stage: 1, cls: 'emberwright' },
+  { name: 'slag-2', id: 'slagDrips', stage: 2, cls: 'emberwright' },
+  { name: 'slag-glare-2', id: 'slagDrips', stage: 2, cls: 'emberwright', dungeon: 'glarewell' },
+  { name: 'slag-3-dash', id: 'slagDrips', stage: 3, cls: 'duskblade', dash: true, dungeon: 'glarewell' },
+];
 const ALL = [
   { name: 'bellows-1', id: 'bellowsSparks', stage: 1, cls: 'emberwright' },
   { name: 'bellows-2', id: 'bellowsSparks', stage: 2, cls: 'emberwright' },
@@ -25,7 +32,7 @@ const ALL = [
   // A bot party: our Bellows Sparks II plus two allies' trails from the party's shared looks.
   { name: 'party', id: 'bellowsSparks', stage: 2, cls: 'emberwright', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'bulwark', name: 'Bulwark 9' }], looks: [{}, { trail: { id: 'saltMist', stage: 2 } }, { trail: { id: 'rimeDust', stage: 3 } }] },
 ];
-const SHOTS = process.argv.includes('rime') ? RIME : ALL;
+const SHOTS = process.argv.includes('rime') ? RIME : process.argv.includes('slag') ? SLAG : ALL;
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
