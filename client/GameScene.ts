@@ -14,7 +14,7 @@ import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
-import { CLASS_ICON, GLOW_MARK } from './icons';
+import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
@@ -172,6 +172,10 @@ export class GameScene extends Phaser.Scene {
     tag?: Phaser.GameObjects.Text;
     /** P6: their worn season glow, on the floor under them. */
     glow?: Phaser.GameObjects.Image;
+    /** Fill with bots: the bot mark just left of the name, which then drops its "(bot)". */
+    mark?: Phaser.GameObjects.Image;
+    /** The name as shown (a bot's without "(bot)"). */
+    name: string;
   }[] = [];
   autoPick = true;
   warp = 1;
@@ -360,11 +364,15 @@ export class GameScene extends Phaser.Scene {
       const cls = w.heroes[j].cls;
       const look = cleanLooks(looks[j]);
       const ag = look.glow ? GLOWS[look.glow] : undefined;
+      const bot = isBotAlly(w, j);
+      const name = bot ? botName(w.heroes[j].name) : w.heroes[j].name;
       this.allies.push({
         hero: j,
+        name,
+        mark: bot ? this.add.image(0, 0, 'botMark').setOrigin(1, 0.5).setDepth(9.5).setTint(hex(CLASS_ICON[cls].color)) : undefined,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
-        label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+        label: this.add.text(0, 0, name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.glowImage(ag) : undefined,
       });
@@ -1179,10 +1187,17 @@ export class GameScene extends Phaser.Scene {
         // the tank in a crowd, always shows; a touch dimmer than your own so a full party doesn't crowd a phone.
         al.glow.setPosition(ax, ay + 22).setScale((78 + gp * 3) / 128, (29 + gp * 1) / 128).setAlpha(down ? 0.25 : 0.62 + gp * 0.12);
       }
-      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${al.name} · down` : al.name);
       setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
     this.unstackLabels();
+    // A bot's mark rides just left of its name (after the names lift apart), at the name's cap height.
+    for (const al of this.allies) {
+      if (!al.mark) continue;
+      const lb = al.label;
+      const s = (lb.displayHeight * 0.78) / 48;
+      al.mark.setScale(s).setPosition(lb.x - lb.displayWidth / 2 - 4, lb.y - lb.displayHeight * 0.5).setAlpha(lb.alpha * (w.heroData(al.hero).player.hp <= 0 ? 0.5 : 1));
+    }
 
     const view = cam.worldView;
     const margin = 80;
@@ -2347,13 +2362,15 @@ export class GameScene extends Phaser.Scene {
       const w2 = lb.displayWidth / 2;
       let bottom = lb.y;
       const h = lb.displayHeight;
+      // A bot's mark sits left of its name, so it takes room too.
+      const l = lb.x - w2 - (al.mark ? h * 0.78 + 4 : 0);
       for (let pass = 0; pass < 4; pass++) {
-        const hit = placed.find((q) => lb.x - w2 < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
+        const hit = placed.find((q) => l < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
         if (!hit) break;
         bottom = hit.t - 1;
       }
       lb.y = bottom; // only the name moves; a title stays over its hero's head
-      placed.push({ l: lb.x - w2, r: lb.x + w2, t: bottom - h, b: bottom });
+      placed.push({ l, r: lb.x + w2, t: bottom - h, b: bottom });
     }
   }
 

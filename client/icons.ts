@@ -313,6 +313,20 @@ export const BRANCH_GLYPH: Record<Branch, string> = {
 };
 
 /** Party cards (Season 2): two heroes side by side, on a small badge at the tile's corner. */
+/** Fill with bots (sim/content/botfill): a bot ally's mark, a little construct head, worn beside its name in the
+ * party frames and over its head in a run, so a stand-in reads at a glance without a word after every name. */
+export const BOT_GLYPH = 'M7 8.5h10a2.5 2.5 0 0 1 2.5 2.5v6.5a2.5 2.5 0 0 1-2.5 2.5H7a2.5 2.5 0 0 1-2.5-2.5V11A2.5 2.5 0 0 1 7 8.5Z M12 8.5V5 M12 3h0 M9.3 14.2h0 M14.7 14.2h0 M1.8 12.5v3 M22.2 12.5v3';
+
+/** Whether hero `j` is a Fill with bots stand-in: bots join after everyone else (World's constructor). */
+export function isBotAlly(w: { fillBots: number; heroes: readonly unknown[] }, j: number): boolean {
+  return w.fillBots > 0 && j >= w.heroes.length - w.fillBots;
+}
+
+/** A bot's name as it is shown next to its mark (main.ts names it "Class (bot)"; the mark says the rest). */
+export function botName(name: string): string {
+  return name.replace(/ \(bot\)$/, '');
+}
+
 export const PARTY_GLYPH = 'M8 5.5a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2Z M16 5.5a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2Z M2.5 19.5a5.5 5.5 0 0 1 11 0 M10.5 19.5a5.5 5.5 0 0 1 11 0';
 
 /** The glyph tile on a talent card; a capstone's sits inside a ring, a deep card's (C5) in a double frame, and a

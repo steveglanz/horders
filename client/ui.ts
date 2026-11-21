@@ -9,7 +9,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { roleOf } from './net/lobby';
@@ -580,7 +580,10 @@ export class Hud {
       // G4: tanks and healers get a role chip (an Anvil Slagbinder tanks); damage needs no label.
       const role = roleOf(CLASSES[h.cls].role, w.heroData(j).player.stance);
       const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
-      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      // Fill with bots: a bot's class tile wears the bot mark on its corner instead of "(bot)" after the name,
+      // so the name and role chip keep the row's room on a phone.
+      const bot = isBotAlly(w, j) ? `<span class="pfbot" title="Bot" aria-label="Bot">${glyph(BOT_GLYPH, 10)}</span>` : '';
+      rows.push(`<div class="pf${bot ? ' bot' : ''}" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}${bot}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
     // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
     if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
@@ -590,7 +593,7 @@ export class Hud {
     box.hidden = rows.length === 0;
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
-      el.querySelector('b')!.textContent = w.heroes[hero].name;
+      el.querySelector('b')!.textContent = isBotAlly(w, hero) ? botName(w.heroes[hero].name) : w.heroes[hero].name;
       this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, down: false, reviving: false });
     });
   }

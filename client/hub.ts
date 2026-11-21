@@ -25,7 +25,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -738,7 +738,7 @@ export class Hub {
     const blocked = botFillBlocker(this.dungeon);
     if (blocked) return `<div class="hint">${blocked}: no bots.</div>`;
     const tip = `Bots fill the party to ${BOT_FILL.partySize}. They wear copies of your gear at ${Math.round(BOT_FILL.gearScale * 100)}% strength, without Mythics, weapon effects or sets, so a real party does better. A bot-filled win pays like a solo dungeon: no extra group item from the boss.`;
-    return `<button class="prep-chip fillbots${this.fillBots ? ' on' : ''}" data-fill aria-pressed="${this.fillBots}" data-tip="${tip}">${this.fillBots ? '✓ ' : ''}Fill with bots</button>`;
+    return `<button class="prep-chip fillbots${this.fillBots ? ' on' : ''}" data-fill aria-pressed="${this.fillBots}" data-tip="${tip}">${glyph(BOT_GLYPH, 15)}Fill with bots${this.fillBots ? ' ✓' : ''}</button>`;
   }
 
   private gritLine(): string {
