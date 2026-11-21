@@ -2119,7 +2119,7 @@ export class GameScene extends Phaser.Scene {
    * by shape as well as colour (L3: the colours alone can merge for colour-blind players).
    */
   private dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, now: number): void {
-    const n = Math.max(12, Math.round(r / 7));
+    const n = Math.max(12, Math.round(r / (this.lowFx ? 14 : 7)));
     const step = (Math.PI * 2) / n;
     const turn = now / 4000;
     for (let k = 0; k < n; k++) {
@@ -2144,13 +2144,13 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xffffff, 0.08 * fade).fillCircle(wx, wy, r * 0.35);
         g.lineStyle(2.5, WELL, 0.75 * fade);
         this.dashedCircle(g, wx, wy, r, now);
-        // Slow-turning rays in the pool.
+        // Slow-turning rays in the pool (skipped when effects are trimmed).
         g.lineStyle(1.5, WELL, 0.3 * fade);
-        for (let k = 0; k < 6; k++) {
+        if (!this.lowFx) for (let k = 0; k < 6; k++) {
           const a = now / 2400 + (k / 6) * Math.PI * 2;
           g.lineBetween(wx + Math.cos(a) * r * 0.3, wy + Math.sin(a) * r * 0.3, wx + Math.cos(a) * r * 0.85, wy + Math.sin(a) * r * 0.85);
         }
-        if (Math.random() < 0.35 * fade) {
+        if (!this.lowFx && Math.random() < 0.35 * fade) {
           const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * r * 0.9;
           this.emit(this.fx, 'spark', undefined, wx + Math.cos(a) * d, wy + Math.sin(a) * d, 0.8, { tint: WELL, vy: -50, drag: 0.98, sx0: 1.3, sx1: 0.3 });
         }
@@ -2170,7 +2170,7 @@ export class GameScene extends Phaser.Scene {
             .lineTo(px + Math.cos(a + 0.25) * r * 0.5, py + Math.sin(a + 0.25) * r * 0.5)
             .lineTo(px + Math.cos(a) * r * 0.85, py + Math.sin(a) * r * 0.85).strokePath();
         }
-        for (let k = 0; k < 4; k++) {
+        if (!this.lowFx) for (let k = 0; k < 4; k++) {
           const ph = (now / 900 + k * 0.27) % 1;
           const a = k * 1.9 + 0.7, d = r * (0.3 + 0.12 * k);
           g.lineStyle(1.5, 0xffd9a0, (1 - ph) * 0.8 * fade).strokeCircle(px + Math.cos(a) * d, py + Math.sin(a) * d, 2 + ph * 6);
@@ -2213,6 +2213,11 @@ export class GameScene extends Phaser.Scene {
       const fade = Math.min(1, ((e.slowUntil ?? 0) - t) / 0.5);
       const fy = e.y + r * 0.85 + 3;
       const rr = Math.max(20, r * 1.1);
+      if (this.lowFx) {
+        // Trimmed effects: one ring per slowed foe, since a slowed pack can be dozens of foes.
+        g.lineStyle(2.5, SLOWED, 0.8 * fade).strokeEllipse(e.x, fy, rr * 2, rr * 0.8);
+        continue;
+      }
       g.fillStyle(SLOWED, 0.12 * fade).fillEllipse(e.x, fy, rr * 2, rr * 0.8);
       g.lineStyle(2.5, SLOWED, 0.85 * fade);
       for (let k = 0; k < 5; k++) {
@@ -2321,7 +2326,7 @@ export class GameScene extends Phaser.Scene {
         // The current: short glints drifting along the strip.
         const drift = (now / 1000) * 38;
         g.lineStyle(1.5, 0x9fd8ff, 0.45 * a);
-        for (let k = 0; k < Math.ceil(len / 70); k++) {
+        if (!this.lowFx) for (let k = 0; k < Math.ceil(len / 70); k++) {
           const s = ((k * 70 + drift + (k % 2) * 35) % len + len) % len;
           const o = ((k * 37) % 5 - 2) * hw * 0.22;
           const gx = x0 + dx * s + nx * o, gy = y0 + dy * s + ny * o;
@@ -2335,7 +2340,7 @@ export class GameScene extends Phaser.Scene {
         edge(hw - 2, 1); edge(-hw + 2, -1);
         // Small floes broken off the edges, bobbing in the water.
         g.fillStyle(0xd8eeff, 0.55 * a);
-        for (let i = 2; i < n - 1; i += 3) {
+        if (!this.lowFx) for (let i = 2; i < n - 1; i += 3) {
           const side = i % 2 ? 1 : -1;
           const bob = Math.sin(now / 400 + i) * 2;
           const [fx, fy] = along(i, side * (hw - 9) + bob, side);
