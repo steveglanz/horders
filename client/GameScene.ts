@@ -363,7 +363,20 @@ export class GameScene extends Phaser.Scene {
     // Scroll-factor-0 objects still scale with zoom around the screen centre,
     // so size the ground in world units and centre it.
     this.ground.setPosition(width / 2, height / 2).setSize(width / zoom + 4, height / zoom + 4);
+    // Phones see the world zoomed out (a 500-unit view on a ~375px screen), which shrank
+    // nameplates and combat text to 9-10px. Grow world text back to at least its design size.
+    this.textK = Math.min(1.4, Math.max(1, viewFor(short / dpr) / (short / dpr)));
+    const k = this.textK;
+    const res = Math.max(1, Math.min(3, zoom * k));
+    for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
+    for (const t of this.gateTexts) t.setFontSize(13 * k).setResolution(res);
+    this.soakText?.setFontSize(13 * k).setResolution(res);
+    for (const a of this.allies) a.label.setFontSize(12 * k).setResolution(res);
+    for (const f of this.floats) f.txt.setResolution(res);
   }
+
+  /** World text multiplier for small screens (see layout). */
+  private textK = 1;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -2084,7 +2097,7 @@ export class GameScene extends Phaser.Scene {
   private floatText(x: number, y: number, s: string, color: string, size: number): void {
     let t = this.floats.find((q) => q.life <= 0);
     if (!t) t = this.floats.reduce((a, b) => (a.life < b.life ? a : b));
-    t.txt.setText(s).setPosition(x, y).setVisible(true).setAlpha(1).setColor(color).setFontSize(size).setScale(1.7);
+    t.txt.setText(s).setPosition(x, y).setVisible(true).setAlpha(1).setColor(color).setFontSize(Math.round(size * this.textK)).setScale(1.7);
     t.age = 0;
     t.vx = (Math.random() - 0.5) * 60;
     t.life = color === '#ffffff' || color === '#ffe08a' ? 0.7 : 1.1;
