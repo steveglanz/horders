@@ -12,6 +12,7 @@ import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
+import { GLOWS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
@@ -98,6 +99,8 @@ export interface SceneData {
   onEnd: (w: World) => void;
   /** Co-op: the party session (host steps the World, guest mirrors it). */
   coop?: CoopSession;
+  /** P2: the season glow the hero wears (GLOWS id), drawn under them. Looks only. */
+  glow?: string;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -215,6 +218,8 @@ export class GameScene extends Phaser.Scene {
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
+    this.glowId = data.glow;
+    this.heroGlow = undefined;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -281,6 +286,9 @@ export class GameScene extends Phaser.Scene {
     });
     for (let i = 0; i < 48; i++) this.smoke.push(this.newFx('puff', 4.5, false));
     this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
+    // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
+    const glow = this.glowId ? GLOWS[this.glowId] : undefined;
+    if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
@@ -391,6 +399,9 @@ export class GameScene extends Phaser.Scene {
   private textSeen = display.text;
   /** Hearthkeeper Warmth last frame, to flare once when it fills. */
   private warmSeen = 0;
+  /** P2: the worn season glow under the hero, if any. */
+  private glowId?: string;
+  private heroGlow?: Phaser.GameObjects.Image;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -975,6 +986,10 @@ export class GameScene extends Phaser.Scene {
     const squash = p.hurtFlash > 0 ? 0.1 : 0;
     this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
     this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
+    if (this.heroGlow) {
+      const gp = Math.sin(now / 520);
+      this.heroGlow.setPosition(px, py + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(p.hp > 0 ? 0.8 + gp * 0.15 : 0.3);
+    }
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
     else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
