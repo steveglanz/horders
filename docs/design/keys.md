@@ -58,4 +58,22 @@ So Omens now come every two levels, and par is 480 s.
 
 That's a Supabase migration, so it's engineering's call. The sim already reports `summary.keyLevel`, `summary.time` and `summary.dungeon`.
 
+## For engineering: a board per season (21 Nov 2026)
+Migration 0004 ranks all-time bests, so the top of each board fills once and then freezes, and a new player can never reach it. Phase 4 polish: the board the hub shows should start fresh each season (`season.md`, 6 weeks).
+
+**What players see**
+- The leaderboard box is titled "Season N leaderboard" and ranks the best key each hero has beaten **this season**.
+- Your own row stays pinned under the top five. Under it is one muted line, "Your best ever: +L", from `hero.keyBest`, which is already stored locally.
+- Keys themselves never reset. A +7 key is still +7 when the season turns. Only the board starts again, so a strong hero climbs back to the top within their first few runs, and everyone else gets a fresh shot at the top five.
+- Show no all-time board in the hub. It would be the frozen list this fixes.
+
+**What the server needs (engineering's call; a sketch, not a migration)**
+- **Season rows.** Add a `season int` column to `key_bests` and make the primary key `(user_id, dungeon, season)`. Existing rows become season 0. Season 1 began on week 2968, so it is id 0 there, matching `seasonOf` in `sim/content/season.ts`.
+- **Derive the season on the server.** `submit_key` should not trust the client's week. Compute `week = floor(extract(epoch from now()) / 604800)`, which is the same as the client's `weekOf` (whole weeks since 1 Jan 1970), then `season = floor((week - 2968) / 6)`.
+- **Keep the clamp honest across seasons.** The +2-per-run clamp should measure against the hero's best in any season, not only this one. Otherwise a new season's first row could claim any level. That means `lvl := least(p_level, coalesce(max level for this user and dungeon over all seasons, 0) + 2, 99)`.
+- **Pass the season to `top_keys` and `key_rank`.** They read the current season by default, with an optional `p_season` for a past season if a "last season" view is ever wanted.
+- **The 60 s wait** can stay per user and dungeon across seasons.
+
+**Not now:** season-end rewards for a top rank, such as a title. That needs the server to grant something, and cosmetics are local today, so it waits on a server-held cosmetic list.
+
 `tools/hashcheck.ts` is identical to main: with no key, `keyScale` is exactly 1.

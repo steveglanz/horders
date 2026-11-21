@@ -538,6 +538,7 @@ export class Hub {
       + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
       + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
       + `<div class="hint">${today ? 'First win of the day: done. Come back tomorrow for another' : `Your first win today pays <b>+${SEASON.firstWin}</b> marks`}. A win pays ${SEASON.win}, a loss ${SEASON.lossBase} plus ${SEASON.lossPerFight} a fight, each weekly quest ${SEASON.weekly}.</div>`
+      + `<div class="hint">In season: <b>${DUNGEONS[def.dungeon].name}</b>, <span class="pay">+${SEASON.featured}</span> marks a win.</div>`
       + `<div class="sec-h"><span>Rewards</span><span class="muted">Looks only</span></div>${rewards}`
       + (titles.length || glows.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
         + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') : '')

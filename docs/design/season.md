@@ -14,6 +14,7 @@ A 30-level track over a 6-week season, earned by playing, with cosmetic rewards 
 | A loss | 20 + 10 per fight cleared (up to 5) |
 | The first win of each day | +200 |
 | Each weekly quest finished | +150 |
+| A win in the season's own dungeon (below) | +60 more |
 
 500 marks a level, so 15,000 for all 30.
 
@@ -30,6 +31,22 @@ From those daily rates (arithmetic, not simulated):
 - One who plays every other day with 1 delve reaches about level 20.
 
 The first win of the day is the biggest single source on purpose: it is the reason to come back tomorrow.
+
+## The season's dungeon (21 Nov 2026)
+Each season theme names one dungeon that is **in season**. A win there (a delve, a key run or a bounty) pays **+60 marks** on top of the 120. A loss there pays nothing extra, so the bonus never rewards throwing runs. The point is variety: every six weeks the track pulls players toward a different dungeon, and group seasons pull them into parties.
+
+| Season | Theme | In season | Why |
+|---|---|---|---|
+| 1 (from week 2968, Thu 19 Nov 2026) | the Hollow Tide | The Drowned Foundry | The rising water |
+| 2 (from week 2974, Thu 31 Dec 2026) | the Deep Bellows | The Hammerdeep | The forge's bellows; the first group season, so a reason to queue as tank or healer |
+| 3 (from week 2980, Thu 11 Feb 2027) | the Cold Hearth | The Coldmarrow | Nhevra's cold deep under the Kiln |
+| 4 | the Slag Moon | The Glarewell | The sunken observatory that watches the sky |
+
+The weeks were checked with node (`new Date(w * 7 * 864e5)`): week numbers count from 1 Jan 1970, a Thursday, so every season turns on a Thursday (UTC). The Crucible is never in season, because it needs four heroes and a bonus there would only reward players who already have a raid group. No theme shares a dungeon (`tests/season.test.ts`).
+
+**Pacing (arithmetic, not simulated):** a player who wins 3 delves a day, all in season, earns up to 180 more marks a day: about 820 instead of 640, so level 30 in about 18 days instead of 23. A player who never visits the season's dungeon is unchanged. Both stay inside the 3 to 6 week range above.
+
+**Where it shows:** the season sheet has an "In season: The Hammerdeep, +60 marks a win." line under the marks rules, and the end screen's season note adds "(in season)" when the win paid it. Code: `SeasonDef.dungeon`, `SEASON.featured` and `runMarks(..., featured)` in `sim/content/season.ts`; `applySeason` in `sim/hero.ts` sets `RunRewards.seasonFeatured`. No new names, so nothing needed a WoW search.
 
 ## Rewards: looks only
 | Level | Reward |
@@ -56,3 +73,4 @@ The first win of the day is the biggest single source on purpose: it is the reas
 **Watch items:**
 - Real play rates. If most players finish in under 3 weeks, raise `marksPerLevel`.
 - More cosmetic kinds (P6), so levels between the six rewards give something too.
+- How many wins land in the season's dungeon. If almost none do, the bonus is too small to pull players there; if nearly all do, the other dungeons go quiet for six weeks.

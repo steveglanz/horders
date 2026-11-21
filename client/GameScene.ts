@@ -23,6 +23,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
+import { pickCue } from './audio/cues';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
@@ -453,6 +454,7 @@ export class GameScene extends Phaser.Scene {
     if (this.world.state !== 'draft') return;
     const chosen = this.world.choices[i] ? TALENTS[this.world.choices[i].id as TalentId] : undefined;
     if (chosen?.capstone) this.deepUnlock(chosen.branch);
+    audio.cue(pickCue(this.world.choices[i]?.id));
     if (this.coop?.role === 'guest') {
       // The host applies it; hide the cards until the next snapshot shows what's left.
       if (!this.world.choices[i]) return;

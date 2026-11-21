@@ -5,6 +5,8 @@
  * reads the clock. Spec: docs/design/season.md.
  */
 
+import type { DungeonId } from './dungeon';
+
 export interface SeasonState {
   /** Season number (seasonOf(week)). A new season starts the track again; cosmetics stay. */
   id: number;
@@ -15,7 +17,12 @@ export interface SeasonState {
 
 export interface Glow { id: string; name: string; color: string }
 
-export interface SeasonDef { name: string; glows: [Glow, Glow, Glow] }
+export interface SeasonDef {
+  name: string;
+  glows: [Glow, Glow, Glow];
+  /** The season's dungeon: a win there (delve, key run or bounty) pays SEASON.featured more marks. */
+  dungeon: DungeonId;
+}
 
 export const SEASON = {
   weeks: 6,
@@ -29,6 +36,8 @@ export const SEASON = {
   firstWin: 200,
   /** Each weekly quest finished. */
   weekly: 150,
+  /** Extra marks for a win in the season's own dungeon (SeasonDef.dungeon). */
+  featured: 60,
   /** Reward levels: a glow at 5, 15 and 25, a title at 10, 20 and 30. */
   glowAt: [5, 15, 25],
   titleAt: [10, 20, 30],
@@ -37,10 +46,10 @@ export const SEASON = {
 
 /** Season themes, in turn. Every name is Horders' own (its world, bosses and tagline). */
 export const SEASONS: SeasonDef[] = [
-  { name: 'the Hollow Tide', glows: [{ id: 'tideSilver', name: 'Tide Silver', color: '#9fd8ff' }, { id: 'hollowViolet', name: 'Hollow Violet', color: '#b48cff' }, { id: 'undertowTeal', name: 'Undertow Teal', color: '#4fe3c1' }] },
-  { name: 'the Deep Bellows', glows: [{ id: 'bellowsOrange', name: 'Bellows Orange', color: '#ff9a3c' }, { id: 'kilnRed', name: 'Kiln Red', color: '#ff5a4a' }, { id: 'whiteHeat', name: 'White Heat', color: '#fff1d6' }] },
-  { name: 'the Cold Hearth', glows: [{ id: 'rimeBlue', name: 'Rime Blue', color: '#8fb8ff' }, { id: 'coalGlow', name: 'Coal Glow', color: '#ffb36b' }, { id: 'frostbite', name: 'Frostbite', color: '#d8f4ff' }] },
-  { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }] },
+  { name: 'the Hollow Tide', glows: [{ id: 'tideSilver', name: 'Tide Silver', color: '#9fd8ff' }, { id: 'hollowViolet', name: 'Hollow Violet', color: '#b48cff' }, { id: 'undertowTeal', name: 'Undertow Teal', color: '#4fe3c1' }], dungeon: 'foundry' },
+  { name: 'the Deep Bellows', glows: [{ id: 'bellowsOrange', name: 'Bellows Orange', color: '#ff9a3c' }, { id: 'kilnRed', name: 'Kiln Red', color: '#ff5a4a' }, { id: 'whiteHeat', name: 'White Heat', color: '#fff1d6' }], dungeon: 'hammerdeep' },
+  { name: 'the Cold Hearth', glows: [{ id: 'rimeBlue', name: 'Rime Blue', color: '#8fb8ff' }, { id: 'coalGlow', name: 'Coal Glow', color: '#ffb36b' }, { id: 'frostbite', name: 'Frostbite', color: '#d8f4ff' }], dungeon: 'coldmarrow' },
+  { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }], dungeon: 'glarewell' },
 ];
 
 /** Season 1 starts on the week of 21 Nov 2026: weekOf(Date.UTC(2026, 10, 21)) = 2968. */
@@ -89,8 +98,8 @@ export function seasonRewards(id: number): SeasonReward[] {
 /** Every glow any season can give, by id (for wearing one from an earlier season). */
 export const GLOWS: Record<string, Glow> = Object.fromEntries(SEASONS.flatMap((s) => s.glows).map((g) => [g.id, g]));
 
-/** Marks for one run. */
-export function runMarks(victory: boolean, fightsCleared: number, weeklyDone: number, firstWin: boolean): number {
+/** Marks for one run. `featured`: the run was in the season's own dungeon (only a win pays it). */
+export function runMarks(victory: boolean, fightsCleared: number, weeklyDone: number, firstWin: boolean, featured = false): number {
   const base = victory ? SEASON.win : SEASON.lossBase + SEASON.lossPerFight * Math.max(0, Math.min(5, fightsCleared));
-  return base + (firstWin ? SEASON.firstWin : 0) + SEASON.weekly * weeklyDone;
+  return base + (victory && featured ? SEASON.featured : 0) + (firstWin ? SEASON.firstWin : 0) + SEASON.weekly * weeklyDone;
 }

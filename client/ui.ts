@@ -481,12 +481,13 @@ export class Hud {
       btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '');
       btn.style.setProperty('--branch', color);
       let progress = '';
-      if (def.branch !== 'general' && !def.capstone) {
+      // A deep card comes after the capstone, so it has no capstone progress to show.
+      if (def.branch !== 'general' && !def.capstone && !deep) {
         const have = Math.min(CAPSTONE_RANKS, w.branchRanks(def.branch) + 1);
-        progress = `<div class="progress">${BRANCH_NAMES[def.branch]} ${have}/${CAPSTONE_RANKS} toward capstone</div>`;
+        progress = `<div class="progress"><span class="pb">${BRANCH_NAMES[def.branch]} </span>${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
@@ -614,7 +615,7 @@ export class Hud {
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
-      if (rewards.seasonMarks) notes.push(`<span class="booknote"><span aria-hidden="true">✦</span> Season +${rewards.seasonMarks} marks${rewards.seasonFirstWin ? ' (first win today)' : ''}${(rewards.seasonTo ?? 0) > (rewards.seasonFrom ?? 0) ? ` · <b>Season level ${rewards.seasonTo}</b>` : ''}</span>`);
+      if (rewards.seasonMarks) notes.push(`<span class="booknote"><span aria-hidden="true">✦</span> Season +${rewards.seasonMarks} marks${rewards.seasonFirstWin ? ' (first win today)' : ''}${rewards.seasonFeatured ? ' (in season)' : ''}${(rewards.seasonTo ?? 0) > (rewards.seasonFrom ?? 0) ? ` · <b>Season level ${rewards.seasonTo}</b>` : ''}</span>`);
       for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
