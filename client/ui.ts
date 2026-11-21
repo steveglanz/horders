@@ -353,7 +353,10 @@ export class Hud {
       const atCap = hero.level >= heroMaxLevel();
       const need = heroXpToNext(hero.level);
       const pct = atCap ? 100 : (100 * hero.xp) / need;
-      const notes = [`Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}`];
+      // The run ends on the boss's killing blow, before the clear is counted; the
+      // world boss's shadow fight is a bonus, not one of the delve's fights.
+      const fights = w.route.filter((r) => r !== 'worldShadow').length;
+      const notes = [`Fights cleared: ${s.victory ? fights : Math.min(w.encounter, fights)} of ${fights}`];
       if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`

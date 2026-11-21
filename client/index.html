@@ -191,6 +191,8 @@
   #title h1 { font: 700 clamp(30px, 8vw, 44px) var(--serif); letter-spacing: 0.12em; text-transform: uppercase; background: linear-gradient(180deg, #ffc861, #ff8a3d 70%, #e8642a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(255,110,40,0.45)); }
   .logo .tag { font: italic 13px var(--serif); color: var(--muted); margin-top: 2px; }
   .hub-grid { display: grid; gap: 4px 28px; margin-top: 14px; }
+  /* Grid items default to min-width: auto, so a wide child (a long tier row) would stretch the column past the screen. */
+  .hub-grid > * { min-width: 0; }
   .hero .who { display: flex; align-items: center; gap: 12px; }
   .hero .who .gtile { border-radius: 14px; }
   .hero .who b { display: block; font: 600 20px var(--serif); }
@@ -235,9 +237,12 @@
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
-  .dg .lock { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--gold); }
-  .tierrow { display: flex; gap: 6px; padding: 4px; border-radius: 999px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); }
-  .tierrow button { flex: 1; min-height: 40px; border: 0; border-radius: 999px; background: transparent; font: 600 16px var(--serif); color: var(--muted); }
+  /* In the flow (not absolute) so a long name on a narrow card can't run under it. */
+  .dg .lock { order: -1; align-self: flex-end; margin: 0 0 auto; padding-bottom: 6px; font-size: 11px; color: var(--gold); }
+  /* Tiers have no cap: past what fits, the row scrolls sideways (hub.ts keeps the picked tier in view). */
+  .tierrow { display: flex; gap: 6px; padding: 4px; border-radius: 999px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); overflow-x: auto; scrollbar-width: none; }
+  .tierrow::-webkit-scrollbar { display: none; }
+  .tierrow button { flex: 1 0 40px; min-height: 40px; border: 0; border-radius: 999px; background: transparent; font: 600 16px var(--serif); color: var(--muted); }
   .tierrow button.on { background: var(--btn); color: #2a0f05; box-shadow: 0 4px 14px rgba(255,110,40,0.35); }
   .hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
   .omens { display: flex; flex-direction: column; gap: 6px; }

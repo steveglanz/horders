@@ -131,6 +131,10 @@ export class Hub {
         this.tier = Number(b.dataset.t);
         this.render();
       }));
+    // A long tier row scrolls: keep the picked tier on screen.
+    const row = $('tiers').querySelector<HTMLElement>('.tierrow');
+    const on = row?.querySelector<HTMLElement>('button.on');
+    if (row && on && row.scrollWidth > row.clientWidth) row.scrollLeft += on.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - on.offsetWidth) / 2;
     $('startBtn').textContent = `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
   }
