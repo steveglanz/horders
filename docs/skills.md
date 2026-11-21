@@ -451,6 +451,20 @@ The player picks a stance in the hub before the run, and it is locked for the ru
 | **Anvil** | Tank | ×4, like the Bulwark | Cooling Shell lasts +2 s. Clinker on the boss also taunts it, the way Shield Toss does. Plating is 25% weaker. |
 | **Bellows** (default) | Damage slot | ×2 | Plating as listed above. Interpose lasts +1 s. (Not "Pour": that clashes with Grandmother Slag's pour lanes and Ladle Pour.) |
 
+**In a party** (21 Nov 2026, PRs #294 and #308):
+- A Bellows Slagbinder deals 30% less damage.
+- An Anvil takes 20% less from every hit, against 35% alone (`SLAG_KIT.partyAnvilArmor`). The stance tip says so.
+
+Anvil-tank party (Anvil Slagbinder, Lumen, Duskblade, Emberwright), 80 seeds, Crucible out of 90:
+
+| | Hammerdeep t8 | Ashvents t8 | Pressworks t10 | Crucible t8 |
+|---|---|---|---|---|
+| Anvil, 35% (before) | 79 | 75 | 68 | 71 |
+| Anvil, 20% | 50 (63%) | 54 (68%) | 27 (34%) | 57 (63%) |
+| Bulwark tank | 45 | 54 | 59 | 55 |
+
+The Anvil is the hard way to tank Oskel. Stamp is meant to punish a tank that can't block it. A Bulwark party wins it 59 of 80, and no group is forced into an Anvil. There is no Pressworks-only exception (design).
+
 Solo, the stance only changes the numbers in its row. To support this, `roleOf` in sim/content/dungeon.ts takes the hero's stance as well as the class, and threat reads the multiplier from it rather than from `cls === 'bulwark'`. The Bulwark-only checks for call-outs and Smother stay Bulwark-only.
 
 ### Talents (three branches, like the other classes)
