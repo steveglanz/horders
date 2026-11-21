@@ -9,6 +9,7 @@ import { SETS } from '../sim/content/sets';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
+import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
@@ -125,6 +126,7 @@ export class Hud {
   }
 
   private abButtons: HTMLButtonElement[] = [];
+  private coach = new Coach();
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -212,6 +214,8 @@ export class Hud {
       b.classList.toggle('nores', p.heat < w.abilityCost(i));
       b.classList.toggle('hot', i === 3 && kick && cd <= 0);
     });
+    if (!$('pause').hidden || !$('draft').hidden) this.coach.hide();
+    else this.coach.tick(w, this.abButtons);
 
     this.updateTarget(w);
     this.updateQuests(w);
@@ -497,6 +501,7 @@ export class Hud {
 
   showEnd(w: World, rewards?: RunRewards, hero?: HeroProfile): void {
     const s = w.summary();
+    this.coach.hide();
     $('draft').hidden = true;
     $('actionbar').hidden = true;
     $('target').hidden = true;

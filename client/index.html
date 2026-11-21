@@ -711,6 +711,16 @@
   .po b { font: 600 14px var(--serif); }
   .po i { font-style: normal; font-size: 12px; color: var(--muted); }
 
+  /* First-delve coach (client/coach.ts). */
+  #coach { position: fixed; z-index: 13; left: 50%; bottom: 20%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: min(300px, calc(100vw - 32px)); pointer-events: none; text-align: center; animation: tipIn 0.2s ease-out; }
+  #coach span { padding: 8px 14px; border-radius: 12px; background: rgba(20,12,10,0.9); border: 1px solid var(--gold); color: var(--ink); font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  #coach[data-kind="cast"], #coach[data-kind="kick"] { transform: none; bottom: auto; }
+  #coach[data-kind="kick"] span { border-color: var(--interrupt); }
+  .ch-drag { position: relative; width: 84px; height: 84px; border-radius: 50%; border: 2px dashed rgba(255,200,140,0.5); }
+  .ch-drag::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: rgba(255,200,97,0.75); box-shadow: 0 0 14px rgba(255,200,97,0.7); animation: chDrag 1.6s ease-in-out infinite; }
+  @keyframes chDrag { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(22px, -14px); } 65% { transform: translate(-20px, 12px); } }
+  .ab.coach { animation: coachPulse 0.8s ease-in-out infinite alternate; }
+  @keyframes coachPulse { from { box-shadow: 0 0 0 0 rgba(255,200,97,0.0); } to { box-shadow: 0 0 0 6px rgba(255,200,97,0.55); } }
   /* Delve tab: dungeons scroll sideways, prep (Omens, potion, bounty) folds into chips that open sheets. */
   .prep { display: none; }
   body.tabs .prep-full { display: none; }
