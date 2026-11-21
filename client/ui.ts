@@ -100,6 +100,7 @@ export class Hud {
       const b = document.createElement('button');
       b.className = i === INTERRUPT_SLOT ? 'ab kick' : 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
+      b.dataset.tipTouch = 'off';
       b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}`;
       b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {

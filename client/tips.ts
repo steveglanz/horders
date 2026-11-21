@@ -100,7 +100,8 @@ export function installTips(): void {
     const el = tipTarget(e.target);
     if (shownFor && shownFor !== el) hideTip();
     clearHold();
-    if (!el || e.pointerType === 'mouse') return;
+    // Combat buttons (data-tip-touch="off") act on press, so a hold must not pop a tip over the fight.
+    if (!el || e.pointerType === 'mouse' || el.getAttribute('data-tip-touch') === 'off') return;
     holdFrom = { x: e.clientX, y: e.clientY, el };
     holdTimer = window.setTimeout(() => {
       if (!holdFrom) return;
