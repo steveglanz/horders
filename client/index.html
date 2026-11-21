@@ -1035,6 +1035,7 @@
   body.tabs .dg { flex: 0 0 min(72%, 300px); scroll-snap-align: start; min-height: 128px; }
   body.tabs .dg:disabled { flex-basis: min(46%, 180px); min-height: 128px; }
   body.tabs .tierrow button { min-height: 44px; }
+  @media (pointer: coarse) { body.tabs .tierrow button { flex-basis: 44px; } }
   @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
     body.tabs .dg { flex-basis: min(42%, 300px); min-height: 104px; }
     body.tabs .dg:disabled { flex-basis: min(26%, 180px); min-height: 104px; }
