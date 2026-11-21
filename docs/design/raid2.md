@@ -18,9 +18,9 @@ The Crucible tests tanks swapping and soaking. The Hoard tests the party switchi
 
 | Phase | Health | What he does | The answer |
 |---|---|---|---|
-| 1, Gorge | 100 to 60% | **Gorge** every 12 s: a 3 s channel that heals him 3% a second. | Interrupt it (the Kiln rare's lesson, at raid scale). |
+| 1, Gorge | 100 to 60% | **Gorge** every 12 s: a 3 s interruptible cast that heals him 8% if it lands. | Interrupt it (the Kiln rare's lesson, at raid scale). |
 | 2, Swallow | 60 to 25% | Gorge continues. **Swallow** every 18 s: he swallows the non-tank hero furthest from him. That hero vanishes, can't act, and loses 4% of max health a second. A **Craw** (a weak spot with its own health) appears at his side. Break it inside 8 s and he spits the hero out. Otherwise the hero is Digested (downed). | Switch to the Craw at once. |
-| 3, Ember Feast | 25 to 0% | Swallow continues. Every 10 s **Ember Spill** scatters 6 embers around the arena. Each one he reaches heals him 2% and makes him hit 5% harder for the rest of the fight. | Grab the embers before he does. |
+| 3, Ember Feast | 25 to 0% | Swallow continues. Every 10 s **Ember Spill** scatters 6 embers around the arena. A hero who walks over one takes it. One left 7 s, or that he walks over, he eats: it heals him 2% and makes him hit 5% harder for the rest of the fight. | Grab the embers before he does. |
 | Hard enrage | 420 s after he appears | **Last Meal**: a 5 s cast that can't be stopped, then he swallows everyone. | Kill him first. |
 
 **Targets** (the same as the Crucible): a real party in hero-t8-0 gear wins 55 to 70% at tier 9, and never more than 70%. Two-tank parties have no special answer here: the check is everyone's, not the tanks'.
@@ -28,4 +28,21 @@ The Crucible tests tanks swapping and soaking. The Hoard tests the party switchi
 **Bots:** the party bot targets the Craw while it stands (breaking it is everyone's job), interrupts Gorge as it does the Kiln rare's, and walks to the nearest ember in phase 3.
 
 ## Status
-Design. The sim, bot and tests come next, then measurements, then briefs for visuals (Coalmouth, the Craw, the embers and the Hoard) and sound (a theme and a Swallow cue). Every number above is a first guess until the tables are run.
+Built in the W2 PR (21 Nov 2026). Tuning lives in `COAL` (sim/world.ts) and `ENEMIES.coalmouth` / `ENEMIES.craw` (sim/content/enemies.ts). Achievement **Crawbreaker** (boss:hoard); "Crawbreaker" has no WoW match in a search on 21 Nov 2026. `worldBoss: 'Old Coalmouth'`, so his hits count triple only in his weeks (W3, #293).
+
+**Measurements** (tools/group.ts, Bulwark, Lumen, Duskblade and Emberwright in heroes-r2 hero-t8-0 gear, tier 9, seeds 1 to 40, bot skill 1 unless noted):
+
+| Old Coalmouth base hp | Craw base hp | Wins of 40 |
+|---|---|---|
+| 20000 | 900 | 0 of 6 seeds (every Swallow digested: a 900 Craw scales to about 19,000 at tier 9) |
+| 13000 | 120 | 9 of 10 seeds |
+| 15000 | 120 | 31 (78%) |
+| 16500 | 120 | 29 (73%) |
+| **18000** | **120** | **27 (68%), chosen** |
+| 19500 | 120 | 20 (50%) |
+| 18000, bot skill 0.7 | 120 | 18 (45%) |
+| 18000, tier 10 | 120 | 0 (tier 10 needs better than t8 gear) |
+
+At 18000 a run sees about 6 to 8 Swallows, 2 to 3 of them Digested, and most Gorges interrupted. The bots grab most embers, so Ember Feast mostly punishes a party that loses track.
+
+Placeholder art: Old Coalmouth borrows the Coalmouth rare's sheet and the Craw the rift's, until visuals (W6) draws them. Embers and the Gorge ring are drawn in GameScene. The raid theme plays (sound, W7).

@@ -24,6 +24,7 @@ export type EnemyKind =
   | 'worldShadow' | 'ondrel' | 'ysmeret' | 'oskel'
   | 'rimehound' | 'snuffer' | 'frostWarden' | 'hoarfrostWeaver' | 'nhevra'
   | 'grandmotherSlag' | 'slagling'
+  | 'coalmouth' | 'craw'
   | 'shoalLurker' | 'bargeHauler' | 'hessa';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
@@ -58,6 +59,9 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ondrel: { id: 'ondrel', name: 'Ondrel of the Hammerdeep', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
   // The raid (C3): the world boss in person, and her adds.
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', hp: 22000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
+  // Raid 2 (Phase 7): the next world boss in person, and the Craw that holds a swallowed hero.
+  coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', hp: 18000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
+  craw: { id: 'craw', name: 'Craw', hp: 120, speed: 0, damage: 0, radius: 22, xp: 0, rank: 'elite', stationary: true, title: 'Break it to free your ally' },
   slagling: { id: 'slagling', name: 'Slagling', hp: 120, speed: 70, damage: 6, radius: 11, xp: 1, rank: 'normal' },
   // The Wrackline (fifth solo dungeon): the Ebb drags everything to the drain, except what swims in it.
   shoalLurker: { id: 'shoalLurker', name: 'Shoal Lurker', hp: 280, speed: 84, damage: 6, radius: 14, xp: 2, rank: 'elite', title: "Can't board rafts" },
