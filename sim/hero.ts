@@ -1,8 +1,10 @@
+import type { DungeonId } from './content/dungeon';
 /**
  * The persistent hero: levels, permanent talent points, inventory and gear.
  * Everything here is pure functions over plain data so it can run on the
  * server later (loot must be rolled server-side once cloud saves exist).
  */
+import { KEYS, keyEmbers, keyStep } from './content/keys';
 import { WeeklyQuest, WeeklyRun, WeeklyState, weekState, weeklyStep, weeklyTitle } from './content/weekly';
 import { Rng } from './rng';
 import { GRIT } from './content/scaling';
@@ -73,10 +75,13 @@ export interface HeroProfile {
   weekly?: WeeklyState;
   /** Titles earned (P1 weekly quests give one for finishing all three). */
   titles?: string[];
+  /** P3: Delver's Key level per solo dungeon, and the best key level beaten in each (for leaderboards). */
+  keys?: Partial<Record<DungeonId, number>>;
+  keyBest?: Partial<Record<DungeonId, number>>;
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {
@@ -216,6 +221,10 @@ export interface RunRewards {
   weeklyDone?: WeeklyQuest[];
   weeklyEmbers?: number;
   title?: string;
+  /** P3: a key run's key level before and after, and the embers it paid. */
+  keyFrom?: number;
+  keyTo?: number;
+  keyEmbers?: number;
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -335,7 +344,12 @@ export function applyRun(
   hero.runs++;
   const maxTierBefore = hero.maxTier;
   let bountyEmbersPaid = 0;
-  if (s.bounty !== undefined) {
+  let key: Pick<RunRewards, 'keyFrom' | 'keyTo' | 'keyEmbers'> = {};
+  if (s.keyLevel) {
+    // A key run is a side run like the bounty: it never moves the tier ladder or Grit.
+    if (s.victory) hero.wins++;
+    key = applyKey(hero, s);
+  } else if (s.bounty !== undefined) {
     // A bounty is a side run: it never moves the tier ladder or Grit, and pays once a day.
     if (s.victory) {
       hero.wins++;
@@ -372,7 +386,29 @@ export function applyRun(
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key };
+}
+
+/** The hero's key level in a dungeon (keys start at 1 once unlocked). */
+export function keyLevelOf(hero: HeroProfile, d: DungeonId): number {
+  return hero.keys?.[d] ?? 1;
+}
+
+/** Whether this hero can run Delver's Keys yet. */
+export function keysOpen(hero: HeroProfile): boolean {
+  return hero.maxTier >= KEYS.unlockTier;
+}
+
+/** P3: moves the key for a key run's dungeon and pays a win. */
+function applyKey(hero: HeroProfile, s: RunSummary): Pick<RunRewards, 'keyFrom' | 'keyTo' | 'keyEmbers'> {
+  const d = s.dungeon ?? 'kiln';
+  const from = s.keyLevel ?? 1;
+  const to = Math.max(1, Math.min(KEYS.maxLevel, from + keyStep(s.victory, s.time)));
+  hero.keys = { ...(hero.keys ?? {}), [d]: to };
+  if (s.victory) hero.keyBest = { ...(hero.keyBest ?? {}), [d]: Math.max(hero.keyBest?.[d] ?? 0, from) };
+  const embers = keyEmbers(from, s.victory);
+  hero.embers += embers;
+  return { keyFrom: from, keyTo: to, keyEmbers: embers };
 }
 
 /** P1: moves this week's quests, pays the ones that finish, and gives the week's title for all three. */

@@ -1,6 +1,6 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  brewBlocker, brewPotion,
+  brewBlocker, brewPotion, keyLevelOf, keysOpen,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
@@ -14,6 +14,7 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../s
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS } from '../sim/content/weekly';
+import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
@@ -72,6 +73,8 @@ export class Hub {
   private claiming = false;
   /** Set by main: starts today's bounty run. */
   onBounty: () => void = () => {};
+  /** Set by main: starts a Delver's Key run in the picked dungeon. */
+  onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
   /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
@@ -290,7 +293,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.weeklyLine()}</div>`;
+      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -299,7 +302,7 @@ export class Hub {
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -325,6 +328,7 @@ export class Hub {
   private bindPrep(root: HTMLElement): void {
     const h = this.hero();
     root.querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onBounty(); });
+    root.querySelector<HTMLButtonElement>('[data-key]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onKey(); });
     root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
       b.addEventListener('click', () => {
         if (brewPotion(h, b.dataset.potion as PotionId)) {
@@ -354,6 +358,10 @@ export class Hub {
       chips.push(`<button class="prep-chip bounty-chip" data-prep="bounty" data-sfx="open"><span class="star" aria-hidden="true">★</span>`
         + `<span>Bounty${paid ? '' : ` <b>+${bountyEmbers(b.tier)}</b>`}</span></button>`);
     }
+    if (this.keyOpen()) {
+      chips.push(`<button class="prep-chip" data-prep="key" data-sfx="open"><span class="star" aria-hidden="true">⚿</span>`
+        + `<span>Key <b>+${keyLevelOf(h, this.dungeon)}</b></span></button>`);
+    }
     // Weekly quests wait until after the first delve, like the potion.
     if (h.runs > 0) {
       const wk = weekState(h.weekly, weekOf(Date.now()), h.maxTier);
@@ -369,14 +377,34 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly', omens: OmenId[]): void {
-    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests' };
+  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens: OmenId[]): void {
+    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key" };
     const body = kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
-      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : this.bountyLine();
+      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
     this.bindPrep($('sheetBody'));
+  }
+
+  /** P3: Delver's Keys are open for this hero, in the picked dungeon, outside a party. */
+  private keyOpen(): boolean {
+    return keysOpen(this.hero()) && DUNGEONS[this.dungeon].style === 'solo' && this.partyClasses.length <= 1;
+  }
+
+  /** P3: the picked dungeon's Delver's Key: its level, what it adds, and the par time. */
+  private keyLine(): string {
+    if (!this.keyOpen()) return '';
+    const h = this.hero();
+    const level = keyLevelOf(h, this.dungeon);
+    const tier = keyTier(h.maxTier);
+    const om = keyOmens(tier, weekOf(Date.now()), level);
+    const best = h.keyBest?.[this.dungeon];
+    const sc = keyScale(level);
+    return `<div class="box key"><div class="lbl">Delver's Key</div>`
+      + `<div class="ttl">${DUNGEONS[this.dungeon].name} +${level} · tier ${tier} · ${om.length} Omens</div>`
+      + `<div class="hint">Foes have +${Math.round((sc.hp - 1) * 100)}% health. Win inside ${Math.round(KEYS.par / 60)} minutes and the key goes up (two levels inside ${Math.round((KEYS.par * KEYS.fast) / 60 * 10) / 10}); lose and it drops one.${best ? ` Your best here: +${best}.` : ''}</div>`
+      + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div></div>`;
   }
 
   /** P1: this week's three quests, the same for everyone, and the title for all three. */
