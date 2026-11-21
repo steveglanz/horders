@@ -131,7 +131,7 @@ export const SLAG_KIT = {
   slagPerDamage: 0.5,
   plateShare: 0.15, plateTime: 6, plateBurst: 40, plateBurstR: 90, plateRange: 300,
   interposeLeap: 150, interposeRange: 450, interposeTime: 3, interposeShare: 0.6, interposeCut: 0.3,
-  shellTime: 5, shellCut: 0.35, shellRadius: 160,
+  plateMend: 1, shellTime: 5, shellCut: 0.35, shellRadius: 160,
   brittleMult: 1.15, brittleTime: 6,
   bellowsThreat: 2, anvilPlate: 0.75, anvilShell: 2, bellowsInterpose: 1,
   anvilArmor: 0.35, anvilHp: 40,
@@ -2489,6 +2489,8 @@ export class World {
       const done = this.time >= q.plateUntil;
       if (!broken && !done) continue;
       if (!broken && this.rank('everMolten') > 0) this.addHeat(SLAG_KIT.everMoltenRefund);
+      // Your own plating that runs out unspent melts back into you (allies' plating doesn't).
+      if (k === this.acting && (q.plate ?? 0) > 0) this.healPlayer((q.plate ?? 0) * SLAG_KIT.plateMend);
       q.plateUntil = undefined;
       q.plate = 0;
       q.plateAmt = 0;

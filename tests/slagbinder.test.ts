@@ -72,6 +72,18 @@ describe('Slagbinder (fifth class)', () => {
     expect(w.player.plateUntil).toBeUndefined();
   });
 
+  it('your own plating that runs out unspent heals you for what is left', () => {
+    const { w, inner } = world('slagbinder');
+    inner.rebuildHash();
+    inner.moltenPlating();
+    const left = w.player.plate ?? 0;
+    w.player.hp = w.player.maxHp * 0.5;
+    const hp = w.player.hp;
+    inner.time = (w.player.plateUntil ?? 0) + 0.01;
+    inner.updatePlates();
+    expect(w.player.hp - hp).toBeCloseTo(left * SLAG_KIT.plateMend);
+  });
+
   it('Molten Plating never soaks an unblockable tick', () => {
     const { w, inner } = world('slagbinder');
     inner.moltenPlating();
