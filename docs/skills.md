@@ -451,6 +451,20 @@ The player picks a stance in the hub before the run, and it is locked for the ru
 | **Anvil** | Tank | ×4, like the Bulwark | Cooling Shell lasts +2 s. Clinker on the boss also taunts it, the way Shield Toss does. Plating is 25% weaker. |
 | **Bellows** (default) | Damage slot | ×2 | Plating as listed above. Interpose lasts +1 s. (Not "Pour": that clashes with Grandmother Slag's pour lanes and Ladle Pour.) |
 
+**In a party** (21 Nov 2026, PRs #294 and #308):
+- A Bellows Slagbinder deals 30% less damage.
+- An Anvil takes 20% less from every hit, against 35% alone (`SLAG_KIT.partyAnvilArmor`). The stance tip says so.
+
+Anvil-tank party (Anvil Slagbinder, Lumen, Duskblade, Emberwright), 80 seeds, Crucible out of 90:
+
+| | Hammerdeep t8 | Ashvents t8 | Pressworks t10 | Crucible t8 |
+|---|---|---|---|---|
+| Anvil, 35% (before) | 79 | 75 | 68 | 71 |
+| Anvil, 20% | 50 (63%) | 54 (68%) | 27 (34%) | 57 (63%) |
+| Bulwark tank | 45 | 54 | 59 | 55 |
+
+The Anvil is the hard way to tank Oskel. Stamp is meant to punish a tank that can't block it. A Bulwark party wins it 59 of 80, and no group is forced into an Anvil. There is no Pressworks-only exception (design).
+
 Solo, the stance only changes the numbers in its row. To support this, `roleOf` in sim/content/dungeon.ts takes the hero's stance as well as the class, and threat reads the multiplier from it rather than from `cls === 'bulwark'`. The Bulwark-only checks for call-outs and Smother stay Bulwark-only.
 
 ### Talents (three branches, like the other classes)
@@ -698,6 +712,28 @@ The Duskblade party on the same main wins Hammerdeep 45, Ashvents 54 and Presswo
 Solo replay fingerprints are identical to main, so solo L7 is unchanged.
 
 **Watch:** an Anvil Slagbinder tanking the Hammerdeep t8 (Slagbinder, Lumen, Duskblade, Emberwright) wins 78 of 80 on main and 79 on this branch, against 45 for a Bulwark tank. That was there before this change.
+
+### The Anvil as a party tank
+An Anvil Slagbinder tanking (Slagbinder, Lumen, Duskblade, Emberwright, heroes-fair hero-t8-0) was far above every band.
+
+**Ablation** (Hammerdeep t8, 40 seeds, base 40 of 40):
+- With no Anvil damage cut it wins 2. With no plating it wins 15, with no shell 25, with no ally effects 32, and with no extra health 35.
+- Cutting only blockable hits by 35% changes nothing (79 of 80). The strength is the Anvil's 35% cut on unblockable hits: Anvilfall, Stamp, Glare.
+
+**The trim:** with allies, the Anvil's cut is `SLAG_KIT.partyAnvilArmor` = 20%. Alone it keeps `anvilArmor` = 35%. The stance tip says "hits land 35% lighter (20% in a party)".
+
+Sweep, 80 seeds (Crucible out of 90):
+
+| Party cut | Hammerdeep t8 | Ashvents t8 | Pressworks t10 | Crucible t8 |
+|---|---|---|---|---|
+| 35% (main 633b46a) | 79 | 75 | 68 | 71 |
+| 30% | 70 | 72 | 59 | 66 |
+| 25% | 62 | 62 | 49 | 64 |
+| **20% (this change)** | **50** | **54** | **27** | **57** |
+| 15% | 36 | 37 | 21 | 50 |
+| Bulwark tank, for reference | 45 | 54 | 59 | 55 |
+
+At 20% the Anvil matches the Bulwark in three of the four. The Pressworks is the exception: Oskel's Stamp kills the Anvil there, so it becomes the hard way to tank it (34%). Solo replay fingerprints are identical to main.
 
 ## Order of work
 
