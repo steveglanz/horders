@@ -406,6 +406,8 @@ export class GameScene extends Phaser.Scene {
 
   private updateInner(deltaMs: number): void {
     const w = this.world;
+    // The Coldmarrow: the music's coal crackle follows your Hearthcoal.
+    if (w.dungeonId === 'coldmarrow' && w.player.coal !== undefined) audio.warmth(w.player.coal);
     this.frameTimes.push(deltaMs);
     if (this.frameTimes.length > 240) this.frameTimes.shift();
 

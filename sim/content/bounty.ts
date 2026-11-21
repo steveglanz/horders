@@ -5,7 +5,7 @@
  * the hero's own, so it stays a fair challenge for everyone.
  */
 import { Rng } from '../rng';
-import { DUNGEONS, SOLO_DUNGEON_IDS, DungeonId, EncounterId } from './dungeon';
+import { DUNGEONS, BOUNTY_DUNGEON_IDS, DungeonId, EncounterId } from './dungeon';
 import { OMEN_IDS, OmenId } from './omens';
 
 export const BOUNTY = {
@@ -47,7 +47,7 @@ export function bountyFor(day: number, maxTier: number): Bounty {
   const seed = rng.int(2 ** 31);
   const twist = OMEN_IDS[rng.int(OMEN_IDS.length)];
   // Group dungeons never host the bounty: everyone must be able to run it alone.
-  const dayDungeon = SOLO_DUNGEON_IDS[rng.int(SOLO_DUNGEON_IDS.length)];
+  const dayDungeon = BOUNTY_DUNGEON_IDS[rng.int(BOUNTY_DUNGEON_IDS.length)];
   const pickN = rng.int(1 << 16);
   const pickH = rng.int(1 << 16);
   const dungeon = maxTier >= DUNGEONS[dayDungeon].unlockTier ? dayDungeon : 'kiln';

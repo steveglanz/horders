@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World, ONDREL } from '../sim/world';
-import { DUNGEONS, SOLO_DUNGEON_IDS, partyBlocker, partyLabel } from '../sim/content/dungeon';
+import { DUNGEONS, BOUNTY_DUNGEON_IDS, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { bountyFor } from '../sim/content/bounty';
 import { applyRun, newHero } from '../sim/hero';
 
@@ -36,7 +36,7 @@ describe('group dungeons', () => {
   });
 
   it('the daily bounty still draws only from the solo dungeons, in the old order', () => {
-    expect(SOLO_DUNGEON_IDS).toEqual(['kiln', 'foundry', 'glarewell']);
+    expect(BOUNTY_DUNGEON_IDS).toEqual(['kiln', 'foundry', 'glarewell']);
     for (let day = 0; day < 60; day++) expect(bountyFor(day, 20).dungeon).not.toBe('hammerdeep');
   });
 

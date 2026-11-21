@@ -9,7 +9,8 @@ export type EncounterId =
   | 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine'
   | 'twins' | 'glass' | 'crawlers' | 'bellwarden' | 'tidepair' | 'twinsAcolyte' | 'maelra'
   | 'shades' | 'lensbearer' | 'brandkeeper' | 'lamps' | 'lensShades' | 'brandShades' | 'lensmother'
-  | 'worldShadow' | 'anvilguard' | 'ondrel' | 'ysmeret';
+  | 'worldShadow' | 'anvilguard' | 'ondrel' | 'ysmeret'
+  | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -45,10 +46,16 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
   ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
   ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
+  rimepack: { id: 'rimepack', name: 'The Rime Pack', tip: 'Five hounds out of the dark. Every kill feeds your coal.', spawns: [{ kind: 'rimehound', n: 5 }] },
+  snuffers: { id: 'snuffers', name: 'Snuffers in the Dark', tip: 'Snuffers drink your light. Kill them before they touch you.', spawns: [{ kind: 'snuffer', n: 2 }, { kind: 'rimehound', n: 2 }] },
+  frostwardens: { id: 'frostwardens', name: 'The Frost Wardens', tip: 'Ice shrugs off hits. Fight them inside your coal\'s light to crack them.', spawns: [{ kind: 'frostWarden', n: 2 }] },
+  weaver: { id: 'weaver', name: 'The Hoarfrost Weaver', tip: 'Step out of Frost Lace, or Quench it, or the cold gets in.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'rimehound', n: 3 }] },
+  weaverWardens: { id: 'weaverWardens', name: 'Weaver and Warden', tip: 'Quench the Lace while you warm the Warden.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'frostWarden', n: 1 }, { kind: 'snuffer', n: 1 }] },
+  nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -85,6 +92,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     openers: ['shades', 'lensbearer', 'brandkeeper'], named: ['lamps', 'brandShades'], hard: ['lensShades', 'lamps'],
     blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
   },
+  coldmarrow: {
+    id: 'coldmarrow', name: 'The Coldmarrow', boss: 'nhevra', unlockTier: 10,
+    openers: ['rimepack', 'snuffers', 'frostwardens'], named: ['weaver', 'frostwardens'], hard: ['weaverWardens', 'snuffers'],
+    blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
+  },
   hammerdeep: {
     id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
     openers: ['warpack', 'wardens', 'glass'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
@@ -99,6 +111,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
 
 /** Solo-friendly dungeons, in the order the daily bounty draws from (unchanged by group dungeons). */
 export const SOLO_DUNGEON_IDS = (Object.keys(DUNGEONS) as DungeonId[]).filter((id) => DUNGEONS[id].style === 'solo');
+/**
+ * The dungeons the daily bounty draws from, in its fixed order. Kept explicit so a
+ * new dungeon doesn't reshuffle every past and future day's bounty.
+ */
+export const BOUNTY_DUNGEON_IDS: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
 
 /** Party roles, from the classes' roles. */
 export type PartyRole = 'tank' | 'healer' | 'damage';

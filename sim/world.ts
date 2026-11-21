@@ -268,6 +268,11 @@ export interface Lance {
 }
 
 export interface Player {
+  /** The Coldmarrow: Hearthcoal warmth (0 to 1), its light radius in world units, and Chill stacks (frozen at COLD.frozenAt). */
+  coal?: number;
+  coalR?: number;
+  chill?: number;
+  chillT?: number;
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   sunderT?: number;
@@ -603,6 +608,10 @@ export class World {
   private temperT = 0;
   private undertowT = 0;
   private twinVentT = 0;
+  // The Coldmarrow (Nhevra): Snuff, Snuffer Tide, Long Night.
+  private snuffT = 0;
+  private tideT = 0;
+  private nightT = 0;
   private waterT = 0;
   private volatileT = 0;
   quests: Quest[] = [];
@@ -884,7 +893,8 @@ export class World {
   }
   get moveSpeed(): number {
     const boost = (this.player.hasteT > 0 ? 1.3 : 1) * (1 + 0.05 * this.rank('momentum'));
-    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost;
+    const chill = this.player.chill ? 1 - COLD.chillSlow * this.player.chill : 1;
+    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill;
   }
   get regen(): number {
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal');
@@ -1115,6 +1125,7 @@ export class World {
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -1161,6 +1172,16 @@ export class World {
     const def = this.encounterDef;
     this.phase = 'fight';
     this.fightStartedAt = this.time;
+    if (this.dungeonId === 'coldmarrow') {
+      // Every fight starts with a full Hearthcoal and no Chill.
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        q.coal = 1;
+        q.coalR = COLD.maxR;
+        q.chill = 0;
+        q.chillT = 0;
+      }
+    }
     this.burnoutWarned = false;
     this.burnoutTickT = 0;
     this.burnoutOn = false;
@@ -1233,6 +1254,15 @@ export class World {
           e.abilityT = ONDREL.sweepEvery;
           this.events.push({ type: 'bossSpawn' });
         }
+        if (sp.kind === 'nhevra') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.snuffT = COLD.firstSnuff;
+          this.tideT = COLD.firstTide;
+          this.nightT = COLD.firstNight;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
         if (sp.kind === 'ysmeret') {
           this.bossSpawned = true;
           this.bossIndex = i;
@@ -2814,6 +2844,8 @@ export class World {
         e.touchCd = 0.6;
         const mult = e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1;
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
+        // A Snuffer's touch drinks the hero's light.
+        if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
       }
     }
     this.use(0);
@@ -2939,6 +2971,29 @@ export class World {
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
       this.use(at);
+    } else if (id === 'frostLace') {
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp > 0 && dist2(q.x, q.y, e.aux, e.aux2) <= (COLD.laceR + PLAYER_RADIUS * 0.5) ** 2) q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + COLD.laceChill);
+      }
+    } else if (id === 'snuff') {
+      // Snuff: every hero's coal dims.
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.coal !== undefined) q.coal = Math.max(0, q.coal - COLD.snuffCut);
+      }
+    } else if (id === 'longNight') {
+      // The Long Night: the cold takes whatever your warmest coal can't hold back.
+      const at = this.acting;
+      const warmth: number[] = [];
+      for (let k = 0; k < this.heroes.length; k++) { const q = this.heroPlayer(k); warmth.push(this.warmthAt(q.x, q.y)); }
+      for (let k = 0; k < this.heroes.length; k++) {
+        this.use(k);
+        if (this.player.hp <= 0) continue;
+        this.hurtPlayer(this.player.maxHp * COLD.nightMax * (1 - warmth[k]), i, true);
+        this.events.push({ type: 'slam', x: this.player.x, y: this.player.y, r: 40 });
+      }
+      this.use(at);
     } else if (id === 'bellowSlam') {
       // Ysmeret's tank hit: lands on the hero picked at wind-up, through dodges and shields.
       const at = this.acting;
@@ -3034,6 +3089,18 @@ export class World {
       }
       return;
     }
+    if (e.kind === 'hoarfrostWeaver') {
+      if (e.abilityT <= 0) {
+        // Frost Lace: a ring at the hero's feet. Quench it, or step out, or take Chill.
+        e.abilityT = COLD.laceEvery;
+        e.aux = p.x;
+        e.aux2 = p.y;
+        this.startCast(i, 'frostLace', 'Frost Lace', COLD.laceCast, true);
+        this.addTelegraph('circle', p.x, p.y, COLD.laceR, 0, 0, COLD.laceCast, COLD.laceDamage, 'hit', i);
+      }
+      return;
+    }
+    if (e.kind === 'nhevra') return; // all on coldClock
     if (e.kind === 'glassWarden' || e.kind === 'emberTwin' || e.kind === 'sluiceCrawler') {
       this.runFoundryElite(i, dt);
       return;
@@ -3155,6 +3222,7 @@ export class World {
     }
     if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
     if (e.kind === 'shade' && this.shadowed(e.x, e.y)) dmg *= GLARE.shadeShadowTaken;
+    if (e.kind === 'frostWarden') dmg *= this.warmthAt(e.x, e.y, e.def.radius) > 0 ? COLD.wardenWarm : COLD.wardenCold;
     if (e.kind === 'glassWarden' && e.aux2 > 0 && !this.invulnerable) {
       // Mirror Ward: part of the damage comes back at the attacker.
       this.hurtPlayer(dmg * FOUNDRY.mirrorReflect);
@@ -3246,6 +3314,10 @@ export class World {
     this.aliveEnemies--;
     this.kills++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
+    if (this.dungeonId === 'coldmarrow' && COLD_FED_BY.includes(e.kind) && this.player.coal !== undefined) {
+      // A frost-touched kill feeds the killer's Hearthcoal.
+      this.player.coal = Math.min(1, this.player.coal + (e.kind === 'snuffer' ? COLD.snufferFeed : COLD.feed));
+    }
     this.omensOnKill(e);
     // Pyroclasm: a foe that dies burning passes its fire to its neighbours.
     if (e.burnT > 0 && this.rank('pyroclasm') > 0) {
@@ -3595,6 +3667,74 @@ export class World {
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
     this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage * this.tierDamage, 'hit', i);
+  }
+
+  // ---------------------------------------------------------------- the Coldmarrow
+
+  /** The warmest living Hearthcoal whose light reaches this spot, or touches a body of radius `r` there (0 if none). */
+  private warmthAt(x: number, y: number, r0 = 0): number {
+    let best = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || !q.coal) continue;
+      const r = (q.coalR ?? COLD.maxR) + r0;
+      if (dist2(q.x, q.y, x, y) <= r * r) best = Math.max(best, q.coal);
+    }
+    return best;
+  }
+
+  /** Hearthcoals burn down, Chill builds while a coal is out, and Nhevra's clocks. */
+  private coldClock(dt: number): void {
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0) continue;
+      if (q.coal === undefined) { q.coal = 1; q.chill = 0; q.chillT = 0; }
+      q.coal = Math.max(0, q.coal - COLD.drain * dt);
+      q.coalR = COLD.minR + (COLD.maxR - COLD.minR) * q.coal;
+      if (q.coal <= 0) {
+        // Out: the cold creeps in a stack at a time.
+        q.chillT = (q.chillT ?? 0) + dt;
+        if (q.chillT >= COLD.chillEvery) {
+          q.chillT -= COLD.chillEvery;
+          q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + 1);
+        }
+      } else if ((q.chill ?? 0) > 0) {
+        q.chillT = 0;
+        q.chill = Math.max(0, (q.chill ?? 0) - COLD.chillDecay * dt);
+      }
+      if ((q.chill ?? 0) >= COLD.frozenAt && q.hp > 0) {
+        // Frozen: the cold itself hurts.
+        const at = this.acting;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
+        this.use(at);
+      }
+    }
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'nhevra') return;
+    const late = this.time - e.spawnedAt > COLD.enrageAfter;
+    if (late && !this.bossEnraged) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    this.snuffT -= dt;
+    this.tideT -= dt;
+    this.nightT -= dt;
+    if (this.tideT <= 0) {
+      this.tideT = COLD.tideEvery;
+      for (let n = 0; n < COLD.tideN; n++) this.spawnAtRing('snuffer', 420);
+      this.events.push({ type: 'castStart', index: i, name: 'Snuffer Tide' });
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (this.nightT <= 0) {
+      this.nightT = late ? COLD.nightEvery / 2 : COLD.nightEvery;
+      this.startCast(i, 'longNight', 'Long Night', COLD.nightCast, false);
+    } else if (this.snuffT <= 0) {
+      this.snuffT = COLD.snuffEvery;
+      this.startCast(i, 'snuff', 'Snuff', COLD.snuffCast, true);
+    }
   }
 
   // ---------------------------------------------------------------- the Ashvents
@@ -4418,6 +4558,28 @@ export const FOUNDRY = {
  * Ondrel, the Anvilward: a group boss whose mechanics each ask one role for one thing.
  * See docs/design/group-dungeons.md. Damage numbers are before tierDamage.
  */
+/** The Coldmarrow (C1): the Hearthcoal, Chill, its foes and Nhevra. */
+export const COLD = {
+  /** Hearthcoal: warmth lost per second in a fight, and gained per frost-touched kill. Light radius from minR (out) to maxR (full). */
+  drain: 0.01, feed: 0.07, minR: 70, maxR: 170,
+  /** A Snuffer's touch takes this much warmth; killing one takes it back (it carries stolen light). */
+  snufferDim: 0.15, snufferFeed: 0.15,
+  /** Chill: a stack every `chillEvery` s while the coal is out, `chillDecay` stacks/s lost while it burns. Each stack slows `chillSlow`. Frozen at `frozenAt`: `frozenBurn` of max health per second. */
+  chillEvery: 1.5, chillDecay: 2, chillSlow: 0.1, frozenAt: 5, frozenBurn: 0.04,
+  /** Frost Warden: damage taken outside any coal's light, and inside it. */
+  wardenCold: 0.4, wardenWarm: 1.4,
+  /** Hoarfrost Weaver: Frost Lace (Quenchable), Chill stacks and damage on whoever is in it. */
+  laceEvery: 7, laceCast: 1.4, laceR: 75, laceChill: 2, laceDamage: 10,
+  /** Nhevra: Snuff (Quenchable) dims every coal; Snuffer Tide; Long Night hits for nightMax × (1 − warmth). */
+  snuffEvery: 11, snuffCast: 2.2, snuffCut: 0.2, firstSnuff: 6,
+  tideEvery: 24, tideN: 2, firstTide: 12,
+  nightEvery: 30, nightCast: 3, nightMax: 0.6, firstNight: 20,
+  /** Soft enrage: the Long Night comes twice as often. */
+  enrageAfter: 200,
+};
+/** Kinds whose kill feeds the Hearthcoal. */
+export const COLD_FED_BY: EnemyKind[] = ['rimehound', 'snuffer', 'frostWarden', 'hoarfrostWeaver'];
+
 /** The Ashvents' group boss (G3; docs/design/group-dungeons.md). */
 export const YSMERET = {
   /** Twin Vents: two soak circles this far either side of Ysmeret; an empty one blasts every hero. */
