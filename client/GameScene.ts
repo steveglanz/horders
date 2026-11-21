@@ -18,7 +18,7 @@ import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
-import { buildTextures, FRAMES, SPRITE_RES } from './textures';
+import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures';
 import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
@@ -103,6 +103,8 @@ const FROST_SETTLE = 0x7fa6e8;
 const EMBER_COOL = 0x9a2e1c;
 /** The dull crust red a slag drop cools to once it lands. */
 const SLAG_CRUST = 0x8a2a2a;
+/** The Hoard's arena rim: deep coal red, apart from the Kiln's orange and the Crucible's molten. */
+const HOARD_RIM = 0xd8382a;
 /** The dark wet wood a splinter darkens to as it settles. */
 const WET_WOOD = 0x5a3a22;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
@@ -123,6 +125,8 @@ const BASE = 1.15 / SPRITE_RES;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
 /** A hero's sprite sheet. The Emberwright's is the original 'player' sheet; an Anvil Slagbinder wears the slab. */
 const heroTex = (cls: string, stance?: string): string => (cls === 'emberwright' ? 'player' : cls === 'slagbinder' && stance === 'anvil' ? 'slagbinderAnvil' : cls);
+/** The live world boss's sheet for its shadow fight; Grandmother Slag's when the name is unknown. */
+const shadowSheet = (name?: string): { key: string; size: number } => (name && WORLD_BOSS_SHEET[name]) || WORLD_BOSS_SHEET['Grandmother Slag'];
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
@@ -1290,11 +1294,10 @@ export class GameScene extends Phaser.Scene {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
-      // The world boss shadow is Grandmother Slag's silhouette;
+      // The world boss shadow is the live boss's silhouette (Grandmother Slag's if the name is unknown);
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
-      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother'
+      const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
+        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
         // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
         : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
@@ -1321,7 +1324,9 @@ export class GameScene extends Phaser.Scene {
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
       }
       const hit = e.flash > 0 ? 0.12 : 0;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.05 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.05 : 1));
+      // Every shadow shows at the size Grandmother Slag's 128-unit sheet always did, whatever its sheet's size.
+      const shadowScale = e.kind === 'worldShadow' ? (1.05 * 128) / shadowSheet(w.worldBoss).size : 1;
+      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -1520,8 +1525,9 @@ export class GameScene extends Phaser.Scene {
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
+      // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
