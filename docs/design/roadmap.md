@@ -117,14 +117,14 @@ Make it feel finished on a phone.
 
 **Design.** From tier 3, each tier adds one Omen to every fight, picked from a weekly rotation (a seed from the week number), so the ladder changes each week. Starting set, each one asks for a different reaction:
 - **Kindled Dead:** elites leave a burning pool where they die. (Move after kills.)
-- **Shared Pain:** when an enemy dies, the others in the fight heal 15%. (Kill evenly, or burst them together.)
+- **Shared Pain:** when an elite dies, the other elites in the fight heal 15%, but never the boss. (Kill evenly, or burst them together.)
 - **Quickened:** enemy casts are 30% faster. (Interrupt sooner.)
 - **Warded:** the first time each enemy drops under half health, it gains a shield worth 20% of its health. (Save a cooldown for it.)
 - **Volatile Ground:** a slow red circle appears under you every 12 seconds. (Keep moving.)
 
 Higher tiers stack more Omens (tier 3 to 5: one, 6 to 9: two, 10 and up: three). Each Omen also adds +8% loot luck, so the hard ladder pays.
 
-**As built.** `sim/content/omens.ts` holds the definitions and every tuning number. `omensFor(tier, week)` is a fixed shuffle per week; a tier takes the first N, so tier 7 has tier 3's Omen plus one more. The client passes the week number, so the sim stays clock-free and deterministic. Fairness rules: Volatile Ground never erupts while a soak circle is up, Kindled Dead and Shared Pain only trigger on elites and named foes, and none of them touch the boss's own death. The hub shows this week's Omens under the tier picker, and the first fight's banner names them with their tips. Tuning results are in balance.md.
+**As built.** `sim/content/omens.ts` holds the definitions and every tuning number. `omensFor(tier, week)` is a fixed shuffle per week; a tier takes the first N, so tier 7 has tier 3's Omen plus one more. The client passes the week number, so the sim stays clock-free and deterministic. Fairness rules: Volatile Ground never erupts while a soak circle is up, Kindled Dead and Shared Pain only trigger on elites and named foes, and none of them touch the boss's own death. Shared Pain never heals a boss either (21 Nov 2026): Hessa's Call the Shoal brings elite Lurkers, and QA measured her regaining 30 to 38% of her health from them in one fight. The hub shows this week's Omens under the tier picker, and the first fight's banner names them with their tips. Tuning results are in balance.md.
 
 **World boss tie-in (proposal for engineering).** While a world boss lives, it adds one fixed Omen to every delve at every tier, with +15% loot luck. That gives each boss a weekly flavour using the same system, and only needs one `omen` column on the boss row.
 

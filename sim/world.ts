@@ -5251,7 +5251,8 @@ export class World {
     }
     if (this.hasOmen('sharedPain') && e.def.rank !== 'normal') {
       for (const o of this.enemies) {
-        if (!o.alive || o === e || o.def.rank === 'normal') continue;
+        // Bosses are exempt: a boss's own adds would otherwise refill her (Hessa's Shoal Lurkers are elites).
+        if (!o.alive || o === e || o.def.rank === 'normal' || o.def.rank === 'boss') continue;
         const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal * this.healTakenMult(o));
         if (amount <= 0) continue;
         o.hp += amount;
