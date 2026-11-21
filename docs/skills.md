@@ -316,14 +316,14 @@ Season 2 (the Deep Bellows) is the Hammerdeep group season, so every class gets 
 
 | Class | Card | Branch | Effect |
 |---|---|---|---|
-| Bulwark | Lee Side | Bastion | Allies within 200 px take 5% less damage per rank (2 ranks) |
+| Bulwark | Lee Side | Bastion | Allies within 200 px take 4% less damage per rank (2 ranks) |
 | Bulwark | Broad Back | Vanguard | A taunt that takes the boss off an ally (Called Out or Charge) heals that ally for 6% of its max health |
-| Lumen | Front Mend | Grace | Heals on the hero the boss is attacking are 12% stronger per rank (2) |
+| Lumen | Front Mend | Grace | Heals on the hero the boss is attacking are 4% stronger (1 rank) |
 | Lumen | Wide Dawn | Dawn | Radiant Burst heals allies 20% more per rank (2) |
 | Duskblade | Turned Back | Bloodletting | 6% more damage per rank (2) to the boss while it attacks someone else |
 | Duskblade | Shared Breath | Guard | Sidestep also heals the most hurt ally within 300 px for 4% of its max health |
 | Emberwright | Long Kindle | Kindling | Kindling lasts 2 s longer and reaches 60 px farther per rank (2) |
-| Emberwright | Close Warmth | Ashguard | Allies within 260 px heal 1.5 health per second per rank (2) |
+| Emberwright | Close Warmth | Ashguard | Allies within 260 px heal 0.2 health per second per rank (2) |
 | Slagbinder | Long Stand | Crust | Interpose guards the ally 1 s longer per rank (2), in either stance |
 | Slagbinder | Wide Shell | Forge | Cooling Shell covers allies 50 px farther per rank (2), in either stance |
 
@@ -341,6 +341,19 @@ tools/group.ts, wins, main 4dd9163 / this change. Game design's bar: within +5 o
 | Crucible tier 8, full party, of 90 | 56 (62%) | 56 (62%) |
 
 In 30 Hammerdeep tier 8 runs (both parties, 120 heroes), the bots took Long Kindle 13 times, Broad Back 8, Turned Back 8, Wide Dawn 7, Wide Shell 3 and Long Stand 2. The other four (Lee Side, Front Mend, Shared Breath and Close Warmth) sit in branches whose capstone the bot rarely takes, so their effect on the numbers above is untested in runs. Only the unit tests cover them.
+
+**Retune of the four the bot doesn't draft (after #241).** `GRANT=leeSide:2` in tools/group.ts gives each hero of the card's class those ranks from the start of the run. Granted ranks don't count toward the branch's capstone, so the bot's own draft stays as it was. Each card was compared with the same grant at zero effect (`TUNE=PARTY_CARDS.leeCut=0`), and those controls match main (42, 28 and 56). Holding a card from the very start is an upper bound, because a drafted deep card arrives after the capstone.
+
+Wins with the card held from the start, at #241's values and then at the new ones. Main is 42 of 80 for Hammerdeep tier 8, 28 of 80 for the tier 6 duo, and 56 of 90 for the Crucible tier 8:
+
+| Card | #241 value | Hammerdeep t8 | t6 duo | Crucible t8 | New value | Hammerdeep t8 | t6 duo | Crucible t8 |
+|---|---|---|---|---|---|---|---|---|
+| Lee Side | 5% ×2 | 43 | 28 | 63 | 4% ×2 | 43 | 28 | 62 |
+| Front Mend | 12% ×2 | 46 | 59 | 73 | 4% ×1 | 42 | 36 | 61 |
+| Close Warmth | 1.5 hp/s ×2 | 58 | n/a | 80 | 0.2 hp/s ×2 | 45 | n/a | 66 |
+| Shared Breath | 4% | 45 | n/a | 57 | unchanged | | | |
+
+The tier 6 duo is very sensitive to any extra healing on the tank. Front Mend at 2% still read 38, and at 3% ×2 it read 37. So it is kept to one rank, and its upper bound on the duo is +8 of 80. Close Warmth readings are noisy, at about ±5 of 90: 0.1 hp/s read 54, 0.2 read 66, 0.3 read 64 and 0.5 read 70. Values this small change nothing at all, which rules out a hidden side effect: 0.0001 for Front Mend read 28, and 0.001 for Close Warmth read 55.
 
 ## Party bots huddle with no set: a flag, off (21 Nov 2026)
 

@@ -108,8 +108,8 @@ export const CAPSTONES_2 = {
 
 /** Party cards (Season 2): deep talent cards offered only with 2 or more heroes. Per rank unless noted. */
 export const PARTY_CARDS = {
-  leeRadius: 200, leeCut: 0.05, broadHeal: 0.06, frontMend: 0.12, wideDawn: 0.2, turnedBack: 0.06,
-  breathRange: 300, breathHeal: 0.04, kindleTime: 2, kindleRadius: 60, warmRadius: 260, warmRegen: 1.5,
+  leeRadius: 200, leeCut: 0.04, broadHeal: 0.06, frontMend: 0.04, wideDawn: 0.2, turnedBack: 0.06,
+  breathRange: 300, breathHeal: 0.04, kindleTime: 2, kindleRadius: 60, warmRadius: 260, warmRegen: 0.2,
   standTime: 1, shellRadius: 50,
 };
 

@@ -11,6 +11,7 @@ import { equippedItems, HeroProfile } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
 import type { Item } from '../sim/content/items';
 import { SET_SLOTS, SetId } from '../sim/content/sets';
+import { TALENTS, TalentId } from '../sim/content/emberwright';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
@@ -22,6 +23,16 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
+const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
+if (grants.length) {
+  const proto = World.prototype as unknown as { branchRanks(b: string): number; talents: Partial<Record<TalentId, number>>; cls: ClassId };
+  const orig = proto.branchRanks;
+  proto.branchRanks = function (this: typeof proto, b: string): number {
+    let n = orig.call(this, b);
+    for (const [id, r] of grants) if (TALENTS[id].branch === b && TALENTS[id].cls === this.cls) n -= Math.min(r, this.talents[id] ?? 0);
+    return n;
+  };
+}
 // SET=deepguard SETN=2|3 turns every hero's head, hands and trinket (in that order) into pieces of that set.
 const setId = process.env.SET as SetId | undefined;
 const setN = Number(process.env.SETN ?? 3);
@@ -57,6 +68,16 @@ for (const seed of seeds) {
     }),
   };
   const w = new World(opts);
+  // GRANT=leeSide:2,frontMend:2 gives each hero of the card's class those ranks from the start
+  // (to measure cards the bot rarely drafts). Granted ranks don't count toward the branch's capstone,
+  // so the bot's own draft and capstone timing stay as they were.
+  for (const [id, r] of grants) {
+    w.heroes.forEach((_, k) => {
+      w.use(k);
+      if (TALENTS[id].cls === w.cls) (w as unknown as { talents: Partial<Record<TalentId, number>> }).talents[id] = r;
+      w.use(0);
+    });
+  }
   const c: Record<string, number> = {};
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0;
