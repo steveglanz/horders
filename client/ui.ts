@@ -298,18 +298,27 @@ export class Hud {
   private bannerTop = '';
 
   /**
-   * Landscape phones: the banner sits just under the HUD row, so a boss frame that grows a
-   * phase line and a cast bar ran into the banner's title. Push the banner below the frame.
+   * Phones: the banner sits at a fixed top, so a boss frame that grows a phase line and a cast
+   * bar (landscape), or a target frame pushed down by two rows of buff chips (portrait), ran
+   * under the banner. Push the banner below the frame and the chips while it shows.
    */
   private placeBanner(): void {
     const b = $('banner');
     if (!b.classList.contains('show')) return; // keep its place while it fades out
     const target = $('target');
     let top = '';
-    if (this.compact && !this.narrow.matches && !target.hidden) {
-      // 68 px is the stylesheet's own landscape top (HUD row + 60); only ever push it lower.
-      const below = Math.round(target.getBoundingClientRect().bottom + 8);
-      if (below > 68) top = `${below}px`;
+    // Portrait phones with party frames anchor the banner above the action bar instead (CSS).
+    const landscape = !this.narrow.matches;
+    if (this.compact && (landscape || $('party').hidden)) {
+      // The stylesheet's own top: 68 px in landscape (HUD row + 60), max(21%, 164 px) in portrait.
+      // Only ever push it lower: below the target frame and the buff chips (Planted, Warmth, Ward...).
+      const base = landscape ? 68 : Math.max(0.21 * window.innerHeight, 164);
+      const buffs = $('buffs');
+      const below = Math.round(Math.max(
+        target.hidden ? 0 : target.getBoundingClientRect().bottom + 8,
+        buffs.childElementCount ? buffs.getBoundingClientRect().bottom + 6 : 0,
+      ));
+      if (below > base) top = `${below}px`;
     }
     if (top === this.bannerTop) return;
     this.bannerTop = top;
