@@ -395,3 +395,16 @@ The rows are now "good bot: 70% or more" and "novice reference: 40 to 65%". Thre
 **Watch items:**
 - Coldmarrow runs take up to 9 minutes, against the 3 to 6 minute delve target. Its boss fights are already a watch item in coldmarrow.md. The first lever is Nhevra's health.
 - At tier 10 the Coldmarrow is about where its tier 9 table put it. Two class pairs are more than 15 points apart: Duskblade and Emberwright, and Duskblade and Lumen.
+
+## L7 re-check with five classes (21 Nov 2026, main 7c75cc9)
+matrix.sh, heroes-r2, 3 heroes x 40 seeds; the Slagbinder plays the Duskblade's heroes-r2 files. Bars: tier 1 Kiln within ±10 of the Emberwright, tiers 6 and 8 within ±15.
+
+| | Foundry 6 | Foundry 8 | Kiln 6 | Kiln 8 | Kiln 1 good | Kiln 1 novice |
+|---|---|---|---|---|---|---|
+| Emberwright | 30.3 | 28.7 | 30.0 | 19.0 | 34 | 26 |
+| Duskblade | 36.7 | 23.3 | 30.7 | 17.7 | 40 | 20 |
+| Bulwark | 36.0 | 21.3 | 39.0 | 27.3 | 40 | 21 |
+| Lumen | 36.0 | 32.7 | 38.7 | 30.3 | 40 | 39 |
+| Slagbinder | 30.7 | 21.0 | 21.3 | 12.3 | 40 | 36 |
+
+Every cell passes. The novice Lumen (+13) is the accepted exception, and the novice Slagbinder sits exactly at +10. Watch the Slagbinder at Kiln 6 and 8, the lowest cells. The full write-up is in the skills team's l7-lock.md.

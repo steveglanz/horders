@@ -78,6 +78,11 @@
   .pfn { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.2; text-shadow: 0 1px 2px #000; }
   .pfn b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pfn i { display: none; margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.06em; }
+  /* G4: role chip after the name, for tanks and healers. */
+  .pfr { flex: none; font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 4px; border-radius: 4px; line-height: 14px; }
+  .pfr.tank { color: #9ab8ff; background: rgba(154,184,255,0.16); }
+  .pfr.healer { color: #8ff0a8; background: rgba(111,224,138,0.16); }
+  .pf.down .pfr { display: none; }
   .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
   .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
   /* Downed: the name and icon grey out, the bar turns into the revive meter. */
@@ -85,6 +90,14 @@
   .pf.down .gtile, .pf.down .pfn b { opacity: 0.55; filter: grayscale(0.85); }
   .pf.down .pfbar div { background: linear-gradient(90deg, #6fd08a, #d8ffd8); transition: none; }
   .pf.reviving { border-color: rgba(159,232,168,0.7); box-shadow: 0 0 10px rgba(159,232,168,0.45); }
+  .pfrev { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border-radius: 10px; background: rgba(12,26,16,0.72); border: 1px solid rgba(159,232,168,0.55); font-size: 10px; font-weight: 600; color: #c8ffd0; text-shadow: 0 1px 2px #000; white-space: nowrap; align-self: flex-start; }
+  .pfrev[hidden] { display: none; }
+  .pfrev .rvg { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; flex: none; background: #9fe8a8; color: #0c1a10; font-weight: 800; font-size: 13px; line-height: 1; }
+  .pfrev.used { background: rgba(12,7,6,0.72); border-color: var(--line); color: #a89892; }
+  .pfrev.used .rvg { background: #6a5a54; color: #1a1210; position: relative; }
+  .pfrev.used .rvg::after { content: ''; position: absolute; left: 1px; right: 1px; top: 7px; height: 2px; background: #ff6b6b; transform: rotate(-45deg); }
+  .pfrev.spent { animation: revSpent 0.9s ease-out; }
+  @keyframes revSpent { 0% { box-shadow: 0 0 0 0 rgba(159,232,168,0.9); transform: scale(1.06); } 100% { box-shadow: 0 0 0 10px rgba(159,232,168,0); transform: scale(1); } }
   .pf.reviving .pfn i { color: #9fe8a8; }
   .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }
@@ -155,7 +168,7 @@
 
   #draft .panel { text-align: center; }
   #cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
-  .card { position: relative; text-align: left; padding: 14px 14px 12px; border-radius: 12px; background: rgba(0,0,0,0.35); border: 1px solid color-mix(in srgb, var(--branch) 45%, transparent); border-top: 4px solid var(--branch); min-height: 150px; transition: transform 0.1s, background 0.1s; }
+  .card { position: relative; display: flex; flex-direction: column; justify-content: flex-start; text-align: left; padding: 14px 14px 12px; border-radius: 12px; background: rgba(0,0,0,0.35); border: 1px solid color-mix(in srgb, var(--branch) 45%, transparent); border-top: 4px solid var(--branch); min-height: 150px; transition: transform 0.1s, background 0.1s; }
   .card:hover, .card:focus-visible { transform: translateY(-4px); background: color-mix(in srgb, var(--branch) 12%, rgba(0,0,0,0.35)); box-shadow: 0 8px 24px color-mix(in srgb, var(--branch) 30%, transparent); outline: none; }
   .card:active { transform: translateY(-1px) scale(0.98); }
   /* Level-up: the panel rises in and the cards deal out one after another. */
@@ -175,6 +188,9 @@
   .card .text { font-size: 14px; line-height: 1.35; }
   .card .rank { margin-top: 10px; font-size: 12px; color: var(--muted); }
   .card .progress { font-size: 12px; color: var(--branch); margin-top: 2px; }
+  .card .tglyph { position: absolute; right: 12px; top: 30px; border-radius: 10px; }
+  .card .name, .card .text { padding-right: 44px; }
+  .card .tglyph.cap { border-radius: 50%; box-shadow: 0 0 0 2px var(--gc), 0 0 14px color-mix(in srgb, var(--gc) 55%, transparent); }
 
   @keyframes kindle { 0%, 100% { text-shadow: 0 0 26px rgba(255,100,40,0.45); } 50% { text-shadow: 0 0 40px rgba(255,120,50,0.75), 0 0 8px rgba(255,200,120,0.5); } }
   .primary { transition: transform 0.1s, box-shadow 0.2s; }
@@ -450,7 +466,7 @@
   .item .acts .cost { color: var(--ember); font-weight: 700; margin-left: 4px; }
   .item .acts button:disabled { opacity: 0.45; cursor: default; }
   .item .acts .eq { background: var(--btn); color: #2a0f05; border: 0; }
-  .tagE { font-size: 10px; color: #7fd67a; border: 1px solid #7fd67a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; font-family: var(--sans); font-weight: 600; vertical-align: 2px; }
+  .tagE { font-size: 11px; color: #7fd67a; border: 1px solid #7fd67a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; font-family: var(--sans); font-weight: 600; vertical-align: 2px; }
 
   /* End of run. */
   .endwrap { text-align: center; }
@@ -469,6 +485,8 @@
   #endXp .top span { color: var(--xp); font-weight: 700; }
   #endXp .note { margin-top: 6px; font-size: 12px; color: var(--muted); }
   #endXp .note b { color: var(--gold); }
+  /* Phones: one reward per line instead of a run-on paragraph. */
+  @media (max-width: 560px), (max-height: 520px) { #endXp .note .sep { display: none; } #endXp .note .n { display: block; } #endXp .note .n + .n { margin-top: 4px; } }
   #rewards .top span { font-size: 12px; color: var(--muted); }
   #rewards .item { background: rgba(0,0,0,0.22); }
   #rewards .item + .item { margin-top: 6px; }
@@ -544,6 +562,8 @@
     .gear { gap: 5px; }
     .slot { padding: 6px 7px; font-size: 11px; }
     #stats { grid-template-columns: repeat(2, 1fr); }
+    /* In a run the pause menu has Sound, Music and Effects; the extra round button only crowded the top row. */
+    #hud .snd-toggle { display: none; }
   }
   @media (max-width: 560px) {
     #target { top: 56px; width: calc(100vw - 24px); }
@@ -637,6 +657,8 @@
     /* Anchored to the action bar's top edge (HEAT + 2 rows of 64px buttons), so a long raid hint never covers HEAT. */
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px); }
     #party { width: 140px; gap: 4px; }
+    /* Large text zooms each frame 1.18x, which left 'Bulw…' and 'Lu…' beside their role chips. */
+    body.text-large #party { width: 168px; }
     .pf { padding: 3px 6px 4px 3px; gap: 5px; }
     .pf .gtile { width: 20px; height: 20px; }
     .pf .gtile svg { width: 13px; height: 13px; }
@@ -691,6 +713,17 @@
     .card { min-height: 0; padding: 10px 12px; }
     .card .name { font-size: 17px; margin: 2px 0 4px; }
     .card .text { font-size: 13px; }
+    .card .tglyph { top: 22px; right: 10px; width: 28px !important; height: 28px !important; }
+    .card .tglyph svg { width: 17px; height: 17px; }
+    .card .name, .card .text { padding-right: 36px; }
+  }
+  /* Narrow phones: the talent glyph sits beside the branch and name only, so the text gets the
+     card's full width and the third card is back in view on a 320 x 568 screen. */
+  @media (max-width: 560px) {
+    .card .tglyph { top: 12px; right: 12px; width: 32px !important; height: 32px !important; }
+    .card .tglyph svg { width: 19px; height: 19px; }
+    .card .name { padding-right: 40px; }
+    .card .text { padding-right: 0; }
   }
 
   /* ---- Phone hub: four tabs (Delve, Hero, Bags, Group), one Delve button, sheets. docs/design/mobile-ux.md ---- */

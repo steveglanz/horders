@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, partyCues, targetCue, THROTTLE } from './cues';
+import { Cue, CueContext, cueFor, DUCK, partyCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -61,6 +61,13 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private sfxBus!: GainNode;
+  /** Ordinary sounds go through here, so a priority cue can duck them (DUCK). */
+  private fxBus!: GainNode;
+  /** The music, ducked a little less. */
+  private musicDuck!: GainNode;
+  private duckUntil = 0;
+  /** Ordinary sounds still playing, oldest first, so a priority cue can take a voice from a full mix. */
+  private ordinary: AudioBufferSourceNode[] = [];
   private musicBus!: GainNode;
   private music: MusicPlayer | null = null;
   private buffers = new Map<SoundId, AudioBuffer>();
@@ -71,6 +78,7 @@ class AudioEngine {
   private listeners = new Set<() => void>();
   private wasDown: boolean[] = [];
   private targeted = { on: false };
+  private reviving: ReviveState = { t: [], left: Infinity };
   readonly haptics = new Haptics();
 
   constructor() {
@@ -136,8 +144,11 @@ class AudioEngine {
       this.master.connect(floor).connect(comp).connect(ctx.destination);
       this.sfxBus = ctx.createGain();
       this.musicBus = ctx.createGain();
+      this.fxBus = ctx.createGain();
+      this.musicDuck = ctx.createGain();
+      this.fxBus.connect(this.sfxBus);
       this.sfxBus.connect(this.master);
-      this.musicBus.connect(this.master);
+      this.musicBus.connect(this.musicDuck).connect(this.master);
       this.music = new MusicPlayer(ctx, this.musicBus);
       this.applySettings();
       // iOS: playing a silent buffer inside the tap fully wakes the output.
@@ -216,7 +227,17 @@ class AudioEngine {
     const now = ctx.currentTime;
     const gap = THROTTLE[id];
     if (gap !== undefined && now - (this.last.get(id) ?? -1) < gap) return;
-    if (this.voices >= MAX_VOICES) return;
+    const priority = PRIORITY.has(id);
+    if (this.voices >= MAX_VOICES) {
+      // A boss warning or a party moment never loses out to a full mix: it takes the oldest ordinary voice.
+      const old = priority ? this.ordinary.shift() : undefined;
+      if (!old) return;
+      try {
+        old.stop();
+      } catch {
+        // Already ended; its onended frees the voice.
+      }
+    }
     this.last.set(id, now);
     const src = ctx.createBufferSource();
     src.buffer = this.buffer(id);
@@ -227,13 +248,30 @@ class AudioEngine {
       g.gain.value = vol;
       node = src.connect(g);
     }
-    node.connect(this.sfxBus);
+    node.connect(priority ? this.sfxBus : this.fxBus);
     this.voices++;
+    if (priority) this.duck(now, src.buffer.duration);
+    else this.ordinary.push(src);
     src.onended = () => {
       this.voices--;
       node.disconnect();
+      if (!priority) {
+        const k = this.ordinary.indexOf(src);
+        if (k >= 0) this.ordinary.splice(k, 1);
+      }
     };
     src.start(now);
+  }
+
+  /** Pulls ordinary sounds (and a little of the music) down while a priority cue plays, so it reads on a phone. */
+  private duck(now: number, dur: number): void {
+    const until = Math.max(this.duckUntil, now + Math.min(DUCK.max, dur));
+    for (const [g, to] of [[this.fxBus.gain, DUCK.gain], [this.musicDuck.gain, DUCK.music]] as const) {
+      g.cancelScheduledValues(now);
+      g.setTargetAtTime(to, now, DUCK.attack / 3);
+      g.setTargetAtTime(1, until, DUCK.release / 3);
+    }
+    this.duckUntil = until;
   }
 
   cue(c: Cue | null): void {
@@ -263,12 +301,14 @@ class AudioEngine {
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     if (ctx.hp && ctx.hp.length > 1) {
-      for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting)) {
+      for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting, ctx.roles)) {
         this.cue(c);
         if (c.id === 'selfDown') this.haptics.buzz(BUZZ.down);
       }
     }
     else this.wasDown.length = 0;
+    if (ctx.revive) for (const c of reviveCues(this.reviving, ctx.revive.t, ctx.revive.need, ctx.revive.left)) this.cue(c);
+    else this.reviving = { t: [], left: Infinity };
   }
 
   /** Switches the music (null for silence). Crossfades from whatever is playing. */

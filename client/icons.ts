@@ -4,7 +4,7 @@
  */
 import type { OmenId } from '../sim/content/omens';
 import type { PotionId } from '../sim/content/potions';
-import type { ClassId } from '../sim/content/emberwright';
+import type { Branch, ClassId } from '../sim/content/emberwright';
 import type { SetId } from '../sim/content/sets';
 import type { MythicId, WeaponFxId } from '../sim/content/items';
 
@@ -258,4 +258,38 @@ export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
 export function medalTile(id: string, done: boolean, size = 34): string {
   const ic = ACHIEVEMENT_ICON[id] ?? { color: '#ffc861', d: MEDAL_ICON };
   return `<span class="medal${done ? ' won' : ''}" style="--gc:${ic.color};width:${size}px;height:${size}px">${glyph(ic.d, Math.round(size * 0.58))}${done ? '<i class="tick" aria-hidden="true"></i>' : ''}</span>`;
+}
+
+/**
+ * Talent cards: one glyph per talent branch (Branch in sim/content/emberwright.ts), drawn in the
+ * branch colour on the draft card. A new talent picks up its branch's glyph; a new branch needs
+ * an entry here. Capstones show the same glyph inside a ring.
+ */
+export const BRANCH_GLYPH: Record<Branch, string> = {
+  // Emberwright
+  wildfire: 'M12 3c1 3 5 5 5 9.5a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 1.8.9 2.8 2 2.8-.6-2.6 0-5 .5-7.3Z',
+  kindling: 'M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M12 3v2.5 M12 18.5V21 M3 12h2.5 M18.5 12H21 M5.6 5.6l1.8 1.8 M16.6 16.6l1.8 1.8',
+  ashguard: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6Z M12 9c.9 1.3 2.2 2 2.2 3.6a2.2 2.2 0 0 1-4.4 0c0-1 .6-1.7 1.3-2.3',
+  // Duskblade
+  bloodletting: 'M4 20 14 10 M14 10l4-6 2 2-6 4 M17.5 14.5c1.2 1.6 2 2.6 2 3.6a2 2 0 0 1-4 0c0-1 .8-2 2-3.6Z',
+  tempo: 'M13 8a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13Z M13 11v3.5l2.2 1.5 M11 3h4 M13 3v5 M2.5 11.5h4 M3.5 15.5h2.5',
+  guard: 'M5 5l14 14 M19 5 5 19 M5 5h3.5 M5 5v3.5 M19 5h-3.5 M19 5v3.5 M8 17l-1 1 M16 17l1 1',
+  // Bulwark
+  bastion: 'M6 3h12v9c0 4-3 7-6 9-3-2-6-5-6-9Z M12 6.5v11 M8.5 10.5h7',
+  retribution: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6Z M13.2 7.5l-3 4.8h3.8l-3 4.8',
+  vanguard: 'M4 6l6 6-6 6 M11 6l6 6-6 6 M19.5 5v14',
+  // Lumen
+  dawn: 'M3 18h18 M7 18a5 5 0 0 1 10 0 M12 5.5v3 M5.4 9.4l2 2 M18.6 9.4l-2 2 M8.5 21.5h7',
+  grace: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z M12 9.5v5 M9.5 12h5',
+  choir: 'M9 17.5V6l10-2v11.5 M9 17.5a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0Z M19 15.5a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0Z M9 9.5l10-2',
+  // Slagbinder
+  forge: 'M3.5 8h13a4 4 0 0 0 4-4 M3.5 8c0 3 2 4.5 5.5 4.5h4 M10.5 12.5v3.5 M7 20h10l-2-4H9Z',
+  clinker: 'M3.5 18l3.5-6.5 4 2.2 3.2-5.2 6.3 9.5Z M8.5 7.5l1.6-3.2 2.2 1.6',
+  crust: 'M5 7.5l7-3 7 3 M5 11.5l7-3 7 3 M5 15.5l7-3 7 3v3.5l-7 3-7-3Z',
+  general: 'M12 3l2.2 5.8 6.1.7-4.6 4 1.4 6L12 16.4 6.9 19.5l1.4-6-4.6-4 6.1-.7Z',
+};
+
+/** The glyph tile on a talent card; a capstone's sits inside a ring. */
+export function talentTile(branch: Branch, color: string, capstone = false, size = 34): string {
+  return `<span class="gtile tglyph${capstone ? ' cap' : ''}" style="--gc:${color};width:${size}px;height:${size}px">${glyph(BRANCH_GLYPH[branch], Math.round(size * 0.6))}</span>`;
 }

@@ -17,7 +17,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | ✅ Visuals: Glarewell art (#31); skills: add it to the class matrix; engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | ✅ Visuals: potion icons (#35) and the brewing look (#163) |
-| R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | Skills: role kits vs Anvilfall, Slag Grip; engineering: roles in Quick join; visuals: Ondrel sprite, role badges |
+| R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | ✅ built #51 ([group-dungeons.md](group-dungeons.md)); retuned with bot revives in #173 |
 
 ## Phases (plan of record, 21 Nov 2026)
 
@@ -37,8 +37,8 @@ Make playing together the best way to play.
 |---|---|---|---|
 | G1 | **Role kits pass:** each class gets one group tool (Bulwark taunt-swap cue, Lumen cleanse button, Duskblade threat dump, Emberwright party buff) | skills | Feeds G3. Keep solo unchanged (hashcheck) |
 | G2 | **Ondrel art and readability:** sprite, Anvilfall target marker over the hero, Slag Grip stack pips | visuals | ✅ #58 (Ondrel sprite, Anvilfall marker, Slag Grip pips) |
-| G3 | **Second group dungeon boss** for tier 7+: the "split" check (party must stand in two places) and the "spread" check (no stacking) | design | Same pattern as Ondrel; spec first in group-dungeons.md |
-| G4 | **Party HUD:** party frames with health, role icon, Slag Grip and down state; a ping on the hero Ondrel targets | engineering | Mobile layout first |
+| G3 | **Second group dungeon boss** for tier 7+: the "split" check (party must stand in two places) and the "spread" check (no stacking) | design | ✅ #66 (the Ashvents: Ysmeret, split and spread; group-dungeons.md). Retuned with revives in #173 |
+| G4 | **Party HUD:** party frames with health, role icon, Slag Grip and down state; a ping on the hero Ondrel targets | engineering | ✅ Frames, down and revive state, Slag Grip pips and the Anvilfall marker (visuals #41, #58); Tank and Healer chips on the frames (an Anvil Slagbinder counts as a tank) |
 | G5 | **Group loot rules:** every hero gets their own boss item; group dungeons add a second Rare-or-better item each | design | ✅ built (it was killer-only before) |
 | G6 | **Revive between fights and in fights:** a downed hero can be picked up by standing on them for 3 s | engineering + design | ✅ built. Boss rules: one pick-up per boss fight, 9 s while the boss is up (docs/design/group-dungeons.md) |
 | G7 | **Group cues in sound:** tank-buster warning, party hit, "you're targeted" | sound | Cast names: Anvilfall, Choir of Iron, Hammer Sweep |
@@ -49,13 +49,13 @@ More places to go, so the weekly loop has variety.
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| C1 | **Fourth solo dungeon** (tier 10+): a new verb, e.g. carrying a light source, or a moving safe zone | design | Its own set and boss. Spec, then build |
-| C2 | **Rare spawns and named elites:** one surprise named foe per delve, with its own loot table | design | Small, high payoff |
-| C3 | **Raid (R9):** an 8-minute, 4-hero world boss fight with phases, built on the world boss bar | engineering + design | Needs G4 and G6 |
+| C1 | **Fourth solo dungeon** (tier 10+): a new verb, e.g. carrying a light source, or a moving safe zone | design | ✅ #90 (the Coldmarrow: carry your Hearthcoal through the dark; coldmarrow.md). Thin Ice #141, huddle #142 |
+| C2 | **Rare spawns and named elites:** one surprise named foe per delve, with its own loot table | design | ✅ #95 (sim/content/named.ts; named-elites.md) |
+| C3 | **Raid (R9):** an 8-minute, 4-hero world boss fight with phases, built on the world boss bar | engineering + design | ✅ #100 (the Crucible and Grandmother Slag; raid.md). Tank swap #150 |
 | C4 | **New enemy families** for C1, plus art for every placeholder enemy left (Glarewell, Hammerdeep trash) | visuals | ✅ Every enemy has drawn art (checked 21 Nov 2026): Glarewell #31, Hammerdeep #58, Ashvents #72, Coldmarrow #74, the raid #108 |
 | C5 | **Class talents round 2:** a third talent branch per class (capstone choices) | skills | ✅ Every branch has two capstones (docs/skills.md, "Second capstones" parts 1 and 2), plus two more cards per Bulwark, Lumen and Slagbinder branch (docs/skills.md, "Class talents round 2") |
 | C6 | **Dungeon themes and ambience** for C1 and the raid; a boss phase-change sting for each boss | sound | |
-| C7 | **Content QA:** each new dungeon's soft-lock check (can a run get stuck?), and the bot win-rate table in balance.md | QA + design | |
+| C7 | **Content QA:** each new dungeon's soft-lock check (can a run get stuck?), and the bot win-rate table in balance.md | QA + design | ✅ #106 (tools/contentcheck.ts soft-lock check); bot tables live in balance.md and l7-lock.md |
 
 ### Phase 4: Progression and retention
 Reasons to come back tomorrow and next week.
@@ -66,7 +66,7 @@ Reasons to come back tomorrow and next week.
 | P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | ✅ season.md (local track, titles and glows). ✅ Visuals: glows render under the hero in runs (#137). Engineering: P6 shows the worn title in co-op |
 | P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | ✅ #117 (Delver's Keys). The leaderboard waits on engineering's migration 0004 |
 | P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | ✅ collections.md (sim, hub sheet, end-screen notes). ✅ Visuals: book art (#138) |
-| P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | Cloud saves |
+| P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | ✅ One character per class (switch on the title screen) and one shared ember purse; old per-class purses are added together on load (economy.md, Shared purse) |
 | P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | 🔨 Engineering: the worn season title (under the name) and glow (under the feet) now show over each hero in co-op, cleaned on receipt (client/net/coop.ts cleanLooks). Design: ✅ achievements built ([achievements.md](achievements.md)): 14 deeds, each a title, hub sheet, end-screen notes. ✅ Visuals: a medal per achievement (#161) |
 | P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | ✅ #114 (Rising Draught scales with tier); Forge rate settled in economy.md |
 
@@ -81,7 +81,7 @@ Make it feel finished on a phone.
 | L4 | **Audio mix and settings:** volume sliders, mute-on-blur, and a phone-speaker pass on every theme | sound | |
 | L5 | **Store page assets:** icon, screenshots and a 30 s trailer capture | visuals | ✅ #68 (docs/store/), screenshots refreshed in #132 |
 | L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | |
-| L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | ✅ #124; tables in /mnt/project-files/horders/skills/balance/l7-lock.md |
+| L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | ✅ #124; tables in /mnt/project-files/horders/skills/balance/l7-lock.md Re-checked with five classes on 21 Nov: all cells pass (the Slagbinder is at most 8.7 below the Emberwright) |
 
 ## R2. The Forge
 

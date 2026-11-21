@@ -73,7 +73,7 @@ describe('world boss rewards', () => {
 });
 
 describe('one hero per class', () => {
-  it('each class keeps its own level, gear, bags and tier', async () => {
+  it('each class keeps its own level, gear, bags and tier (embers are shared, P5)', async () => {
     const { newHero, switchClass, characterOf } = await import('../sim/hero');
     const h = newHero();
     h.cls = 'emberwright';
@@ -87,7 +87,8 @@ describe('one hero per class', () => {
     expect(h.equipped).toEqual({});
     expect(h.passives).toEqual({});
     expect(h.maxTier).toBe(1);
-    expect(h.embers).toBe(0);
+    expect(h.embers).toBe(30); // P5: one purse for every class
+    h.embers = 12;
     h.level = 2;
     switchClass(h, 'emberwright');
     expect(h.level).toBe(7);
@@ -97,6 +98,27 @@ describe('one hero per class', () => {
     expect(characterOf(h, 'duskblade')?.level).toBe(2);
     expect(characterOf(h, 'bulwark')).toBeUndefined();
     expect(h.roster?.emberwright).toBeUndefined(); // the played class lives at the top level only
+    expect(h.embers).toBe(12);
+  });
+
+  it('P5: an old save folds every class purse into the shared one, once', async () => {
+    const { newHero, shareEmbers, switchClass } = await import('../sim/hero');
+    const h = newHero();
+    h.cls = 'lumen';
+    h.embers = 10;
+    h.roster = {
+      emberwright: { level: 5, xp: 0, passives: {}, inventory: [], equipped: {}, pity: 0, runs: 3, wins: 1, bestTime: 0, maxTier: 2, embers: 25 } as never,
+      bulwark: { level: 2, xp: 0, passives: {}, inventory: [], equipped: {}, pity: 0, runs: 1, wins: 0, bestTime: 0, maxTier: 1, embers: 7 } as never,
+      duskblade: { level: 1, xp: 0, passives: {}, inventory: [], equipped: {}, pity: 0, runs: 0, wins: 0, bestTime: 0, maxTier: 1, embers: 'x' } as never,
+    };
+    shareEmbers(h);
+    expect(h.embers).toBe(42);
+    for (const c of Object.values(h.roster)) expect('embers' in (c as object)).toBe(false);
+    shareEmbers(h);
+    expect(h.embers).toBe(42);
+    switchClass(h, 'emberwright');
+    expect(h.level).toBe(5);
+    expect(h.embers).toBe(42);
   });
 
   it('a save from before rosters keeps its progress on the class it had selected', async () => {

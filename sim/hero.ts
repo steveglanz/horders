@@ -104,18 +104,35 @@ export function altOn(h: Pick<HeroProfile, 'alt' | 'level'>): boolean {
   return !!h.alt && h.level >= ALT_UNLOCK_LEVEL;
 }
 
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt'] as const;
+/** P5: embers are not here. One purse is shared by every class (see shareEmbers and economy.md). */
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {
   const n = newHero();
-  return { level: n.level, xp: n.xp, passives: {}, embers: n.embers, inventory: [], equipped: {}, pity: n.pity, runs: 0, wins: 0, bestTime: 0, maxTier: n.maxTier };
+  return { level: n.level, xp: n.xp, passives: {}, inventory: [], equipped: {}, pity: n.pity, runs: 0, wins: 0, bestTime: 0, maxTier: n.maxTier };
 }
 
 function takeCharacter(h: HeroProfile): Character {
   const c = {} as Record<string, unknown>;
   for (const k of CHARACTER_KEYS) if (h[k] !== undefined) c[k] = h[k];
   return c as unknown as Character;
+}
+
+/**
+ * P5: one ember purse for the whole account. Saves from before this kept a
+ * purse per class in the roster; fold those into the shared one so nobody
+ * loses embers. Safe to run on every load (it does nothing once merged).
+ */
+export function shareEmbers(h: HeroProfile): HeroProfile {
+  if (!h.roster) return h;
+  for (const c of Object.values(h.roster) as (Character & { embers?: unknown })[]) {
+    if (!c || !('embers' in c)) continue;
+    const e = typeof c.embers === 'number' && Number.isFinite(c.embers) ? Math.max(0, Math.floor(c.embers)) : 0;
+    h.embers = (h.embers ?? 0) + e;
+    delete c.embers;
+  }
+  return h;
 }
 
 /** Switches the played class: the current character goes to the roster, and the new class's own character (or a fresh one) comes out. */

@@ -80,3 +80,8 @@ The watch item said the Forge runs at about 3 upgrades a delve against a target 
 **Watch items:**
 - Day 1's burst of cheap upgrades means many taps in the Forge panel. An "upgrade the lowest worn item" button (visuals and engineering) would fit the bot's pattern.
 - If a later change raises ember income (a season track, for example), check the gap to the cap again. If it drops under 2 levels, the Forge is turning into a power spike.
+
+## Shared purse (P5, 21 Nov 2026)
+Embers are one purse for the whole account, not one per class. Every source keeps paying as before (delves, bounties, weekly quests, collections, achievements, the world boss), and all of it lands in the shared purse.
+- **Old saves:** on load, every class's purse is added to the shared one, so nobody loses embers (`shareEmbers` in sim/hero.ts, run on the local save and on the cloud save). It's safe to run again.
+- **Why sharing doesn't make a power spike:** the Forge cap still follows each class's own hero level and best tier, so embers earned on one class can't push another class's gear past what that class could reach on its own. Purses end a day with 2 to 60 embers (see above), so the one-time windfall is small.

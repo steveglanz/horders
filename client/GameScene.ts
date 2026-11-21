@@ -15,7 +15,8 @@ import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
-import { ALT_ABILITIES } from '../sim/content/classes';
+import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
+import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
@@ -50,6 +51,14 @@ applyPalette();
 onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
+/**
+ * L2: Phaser's Text.setColor redraws the text and re-uploads its texture even
+ * when the colour is unchanged (TextStyle.setColor always calls update), unlike
+ * setText. Labels updated every frame go through this instead.
+ */
+function setColorIf<T extends Phaser.GameObjects.Text>(t: T, color: string): T {
+  return t.style.color === color ? t : (t.setColor(color) as T);
+}
 /** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
 const SLAG = 0xff9b4a;
 const SLAG_COOL = 0xbcd6e6;
@@ -164,6 +173,7 @@ export class GameScene extends Phaser.Scene {
   private orbiterSprites: Phaser.GameObjects.Image[] = [];
   private plates: Phaser.GameObjects.Text[] = [];
   private soakText!: Phaser.GameObjects.Text;
+  private reviveText!: Phaser.GameObjects.Text;
   /** Labels over the two gates at a fork (game design: placeholder look, visuals can restyle). */
   private gateTexts: Phaser.GameObjects.Text[] = [];
   private gfx!: Phaser.GameObjects.Graphics;
@@ -360,6 +370,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
+    this.reviveText = this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', color: '#c8ffd0' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
       this.floats.push({ txt, life: 0, age: 0, vx: 0 });
@@ -418,6 +429,7 @@ export class GameScene extends Phaser.Scene {
     for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
     for (const t of this.gateTexts) t.setFontSize(13 * k).setResolution(res);
     this.soakText?.setFontSize(13 * k).setResolution(res);
+    this.reviveText?.setFontSize(13 * k).setResolution(res);
     for (const a of this.allies) {
       a.label.setFontSize(12 * k).setResolution(res);
       a.tag?.setFontSize(10 * k).setResolution(res);
@@ -590,6 +602,8 @@ export class GameScene extends Phaser.Scene {
       hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+      roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
+      revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
     for (const ev of events) {
       switch (ev.type) {
@@ -1080,7 +1094,8 @@ export class GameScene extends Phaser.Scene {
         const gp = Math.sin(now / 520 + al.hero);
         al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
       }
-      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
+      setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
     this.unstackLabels();
 
@@ -1238,13 +1253,28 @@ export class GameScene extends Phaser.Scene {
     // G6: a downed hero lies in a soft green circle that an ally must stand in. A dashed
     // ring turns slowly, a "+" bobs over the body until someone arrives, and then a
     // tether runs from the rescuer while the ring fills, with motes lifting off the body.
+    let reviveShown = false;
     if (w.heroes.length > 1) {
       const me = w.player;
       const spots = [...this.allies.map((al) => ({ k: al.hero, q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y })), { k: w.acting, q: me, x: this.player.x, y: this.player.y }];
       const o = this.overFx;
       for (const { k, q, x, y } of spots) {
-        // G6 boss rule: with no pick-ups left, there is no revive circle to stand in.
-        if (q.hp > 0 || w.revivesLeft <= 0) continue;
+        if (q.hp > 0) continue;
+        // G6 boss rule: with no pick-ups left, there is no revive circle to stand in. A grey,
+        // broken ring and a struck-through cross mark the body instead, so nobody runs over.
+        if (w.revivesLeft <= 0) {
+          g.lineStyle(2, 0x8a7d78, 0.5);
+          for (let d = 0; d < 6; d++) {
+            const a0 = (d * Math.PI * 2) / 6 + 0.2;
+            g.beginPath().arc(x, y + 6, REVIVE_RADIUS * 0.8, a0, a0 + 0.55, false).strokePath();
+          }
+          const by = y - 64;
+          o.fillStyle(0x140c0a, 0.75).fillCircle(x, by, 10);
+          o.lineStyle(2, 0x8a7d78, 0.9).strokeCircle(x, by, 10);
+          o.fillStyle(0x8a7d78, 1).fillRect(x - 5, by - 1.5, 10, 3).fillRect(x - 1.5, by - 5, 3, 10);
+          o.lineStyle(2.5, 0xff6b6b, 0.95).lineBetween(x - 8, by + 8, x + 8, by - 8);
+          continue;
+        }
         const t = Math.min(1, (q.reviveT ?? 0) / w.reviveSeconds);
         const pulse = 0.5 + 0.5 * Math.sin(now / 250);
         const R = REVIVE_RADIUS;
@@ -1268,6 +1298,11 @@ export class GameScene extends Phaser.Scene {
             }
           }
           if (found) o.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
+          // A boss pick-up takes 9 s, so it counts down under the circle.
+          if (w.bossUp && !reviveShown) {
+            reviveShown = true;
+            this.reviveText.setVisible(true).setPosition(x, y + 6 + R + 4).setText(`Reviving ${Math.max(0, w.reviveSeconds * (1 - t)).toFixed(1)}`);
+          }
           const a1 = -Math.PI / 2 + t * Math.PI * 2;
           o.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
           o.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
@@ -1283,6 +1318,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+    if (!reviveShown && this.reviveText.visible) this.reviveText.setVisible(false);
     // Hammerdeep: Slag Grip glows at a hero's feet with one pip per stack; Sundered cracks a ring above them.
     // The Crucible's Ladle Burn is the same stacks (Player.slag), shown the same way.
     if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {
@@ -1425,7 +1461,7 @@ export class GameScene extends Phaser.Scene {
       }
       const name = ENCOUNTERS[gate.encounter].name;
       const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
-      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
+      setColorIf(txt.setVisible(true).setText(label), '#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
@@ -1641,7 +1677,7 @@ export class GameScene extends Phaser.Scene {
       }
       const t = this.plates[plate++];
       // C2: a named elite shows its title in the rare colour.
-      if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name).setColor(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
+      if (t) setColorIf(t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name), NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
@@ -1740,6 +1776,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private burst(x: number, y: number, n: number): void {
+    // Trimmed effects keep a third of the sparks: kills and pick-ups fire this dozens of times a second.
+    if (this.lowFx) n = Math.ceil(n / 3);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 60 + Math.random() * 160;
@@ -1778,7 +1816,8 @@ export class GameScene extends Phaser.Scene {
       const f = this.emit(this.smoke, kind, '0', x, y, big ? 0.45 : 0.22, { flip: x > this.world.player.x, sx0: BASE * 1.1, sy0: BASE * 0.95, sx1: BASE * 1.35, sy1: BASE * 0.15 });
       f?.img.setTint(0xffd7a0).setTintMode(Phaser.TintModes.FILL);
     }
-    const n = big ? 5 : 1;
+    // Trimmed effects: a small foe leaves only its fading silhouette, a big one two puffs.
+    const n = this.lowFx ? (big ? 2 : 0) : big ? 5 : 1;
     for (let k = 0; k < n; k++) {
       const s = (big ? 1.4 : 0.6) + Math.random() * 0.4;
       this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * (big ? 40 : 6), y + (Math.random() - 0.5) * (big ? 30 : 6), 0.5 + Math.random() * 0.3, {
@@ -2676,8 +2715,8 @@ export class GameScene extends Phaser.Scene {
       const a = (k / 8) * Math.PI * 2 + Math.random() * 0.3;
       this.addShape({ kind: 'line', x, y, x2: x + Math.cos(a) * 260, y2: y + Math.sin(a) * 260, r: 0, angle: 0, color: gold, life: 0.6 });
     }
-    // Ash and embers rise from where it stood.
-    for (let k = 0; k < 14; k++) {
+    // Ash and embers rise from where it stood (every other one when effects are trimmed).
+    for (let k = 0; k < 14; k += this.lowFx ? 2 : 1) {
       this.time.delayedCall(200 + k * 60, () => {
         this.spark(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 40, -120 - Math.random() * 120, 0.9, 1.8);
         if (k % 3 === 0) {
@@ -2695,7 +2734,7 @@ export class GameScene extends Phaser.Scene {
     if (rarity === 'common') return;
     this.ring(x, y, rarity === 'fine' ? 50 : 90, c, 0.45);
     if (rarity === 'fine') return;
-    for (let k = 0; k < 10; k++) {
+    for (let k = 0; k < (this.lowFx ? 4 : 10); k++) {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
       const sp = 140 + Math.random() * 120;
       this.spark(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.6, 1.6);

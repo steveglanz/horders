@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
-import { bedSamples, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, phaseSting, targetCue } from '../client/audio/cues';
+import { bedSamples, chordAt, sectionAt, THEMES } from '../client/audio/music';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -122,6 +122,10 @@ describe('audio', () => {
     expect(partyCues(down, [0, 0, 60], 0).map((c) => c.id)).toEqual(['selfDown']);
     expect(partyCues(down, [30, 24, 60], 0).map((c) => c.id)).toEqual(['allyUp', 'allyUp']);
     expect(partyCues(down, [30, 24], 0)).toEqual([]); // someone left: start over quietly
+    const roles = ['dps', 'tank', 'healer', 'dps'];
+    const d2: boolean[] = [];
+    partyCues(d2, [9, 9, 9, 9], 0, roles);
+    expect(partyCues(d2, [9, 0, 0, 0], 0, roles).map((c) => c.id)).toEqual(['roleDown', 'roleDown', 'allyDown']);
   });
 
   it('buzzes for your own big hits and boss telegraphs, not for allies', () => {
@@ -171,6 +175,7 @@ describe('audio', () => {
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'select' }))).toBe('select');
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'none' }))).toBeNull();
     expect(uiSoundFor(el(['div']))).toBeNull();
+    for (const id of ['salvage', 'forge', 'temper', 'brew']) expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': id }))).toBe(id);
   });
 
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {
@@ -209,5 +214,48 @@ describe('audio', () => {
   it('keys every boss-cast sound to a cast id the sim really uses', () => {
     const sim = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
     for (const id of Object.keys(CAST_SOUNDS)) expect(sim.includes(`'${id}'`), id).toBe(true);
+  });
+
+  it('hears a boss-fight pick-up start, count up, break off, and the last one spent', () => {
+    const st = { t: [] as number[], left: Infinity };
+    const ids = (t: number[], left = 1) => reviveCues(st, t, 9, left).map((c) => c.id);
+    expect(ids([0, 0])).toEqual([]); // first look only records
+    expect(ids([0, 0.03])).toEqual(['reviveStart']);
+    expect(ids([0, 0.9])).toEqual([]);
+    expect(ids([0, 1.02])).toEqual(['reviveTick']);
+    expect(ids([0, 0])).toEqual(['reviveLost']); // stepped off at 1 s of 9
+    expect(ids([0, 8.97])).toEqual(['reviveStart']);
+    expect(ids([0, 0], 0)).toEqual(['revivesSpent']); // picked up: the pick-up is the 'revive' event, and that was the only one
+    expect(ids([0, 0], 0)).toEqual([]);
+    expect(ids([0, 0], Infinity)).toEqual([]); // the boss fell: no limit again
+  });
+
+  it('gives every boss warning priority over the fight noise', () => {
+    for (const id of PRIORITY) expect(SOUNDS[id], id).toBeDefined();
+    for (const s of Object.values(CAST_SOUNDS)) if (s.start) expect(PRIORITY.has(s.start), s.start).toBe(true);
+    for (const id of ['targeted', 'allyDown', 'selfDown', 'bossSpawn', 'revivesSpent'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(true);
+    for (const id of ['hit', 'swing', 'mote', 'crit', 'heal'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(false);
+    expect(DUCK.gain).toBeLessThan(1);
+  });
+
+  it('plays a season-track level-up after any achievements', () => {
+    const r = { heroXp: 0, items: [], levelsGained: 0, seasonFrom: 3, seasonTo: 4, achievements: [{ id: 'x', name: 'A', title: 'T', embers: 1 }] } as never;
+    expect(rewardCues(r).map((c) => c.id)).toEqual(['achievement', 'seasonUp']);
+  });
+
+  it('varies long sessions: every theme walks a section plan, keeping its chords, and boss fights never break down', () => {
+    for (const th of Object.values(THEMES)) {
+      const meter = th.meter ?? 4;
+      const pass = 2 * th.progression.length * meter; // beats in one pass through the progression
+      const names = Array.from({ length: 6 }, (_, k) => sectionAt(k * pass, th, false).name);
+      expect(new Set(names).size, th.root + '').toBeGreaterThanOrEqual(3);
+      expect(names).toContain('breakdown');
+      for (let b = 0; b < pass * 6; b += meter) {
+        expect(th.progression).toContain(chordAt(b, th, false));
+        expect(sectionAt(b, th, true).name).not.toBe('breakdown');
+      }
+      // The plan repeats only after six passes.
+      expect(sectionAt(6 * pass, th, false)).toEqual(sectionAt(0, th, false));
+    }
   });
 });

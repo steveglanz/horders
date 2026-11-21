@@ -566,7 +566,7 @@ export class Hub {
     }).join('');
     return `<div class="box weekly deeds"><div class="lbl">Deeds <span class="wq-count">${done.size}/${ACHIEVEMENTS.length}</span></div>`
       + `<div class="deed-strip" aria-hidden="true">${ACHIEVEMENTS.map((a) => medalTile(a.id, done.has(a.id), 22)).join('')}</div>${rows}`
-      + `<div class="hint">Shared by every class. Each pays its title once, plus embers to the class you're playing. Wear titles from the Season sheet.</div></div>`;
+      + `<div class="hint">Shared by every class. Each pays its title once, plus embers to your shared purse. Wear titles from the Season sheet.</div></div>`;
   }
 
   /** P4: the hero card's one-line Collection button, with the book's count. */
@@ -606,7 +606,7 @@ export class Hub {
       + `<div class="lbl">Mythics</div><div class="bk-grid">${mythics}</div>`
       + `<div class="lbl">Weapon effects</div><div class="bk-grid">${fx}</div>`
       + `<div class="lbl">Rewards</div>${rewards}`
-      + `<div class="hint">Shared by every class. A find counts once it reaches your bags, even if you salvage it later. Rewards pay embers to the class you're playing.</div></div>`;
+      + `<div class="hint">Shared by every class. A find counts once it reaches your bags, even if you salvage it later. Rewards pay embers to your shared purse, which every class spends from.</div></div>`;
   }
 
   /** P1: this week's three quests, the same for everyone, and the title for all three. */
@@ -654,7 +654,7 @@ export class Hub {
       const p = POTIONS[id];
       const on = h.potion === id;
       const why = brewBlocker(h, id);
-      return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
+      return `<button data-potion="${id}" data-sfx="${on ? 'select' : 'brew'}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
         + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
@@ -776,9 +776,9 @@ export class Hub {
     const h = this.hero();
     const up = canUpgrade(h, it);
     const tm = canTemper(h, it);
-    const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
-      + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
-    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+    const forge = `<button class="sbtn" data-u="${it.id}" data-sfx="forge" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
+      + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" data-sfx="temper" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
+    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
   }
 
   /** Wires item action buttons under root; after() runs once the hero changed. */

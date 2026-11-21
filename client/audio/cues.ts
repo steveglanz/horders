@@ -27,6 +27,10 @@ export interface CueContext {
   boss?: EnemyKind;
   /** The Hammerdeep: Anvilfall is winding up on this screen's hero (World.anvilOnMe). */
   anvilOnMe?: boolean;
+  /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
+  roles?: string[];
+  /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
+  revive?: { t: number[]; need: number; left: number };
 }
 
 /** Each class's ability option (sim ALT_ABILITIES), whichever slot it replaces. */
@@ -170,7 +174,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
  * no event for either, so this compares each hero's health with last tick's.
  * `wasDown` is updated in place.
  */
-export function partyCues(wasDown: boolean[], hp: readonly number[], acting: number): Cue[] {
+export function partyCues(wasDown: boolean[], hp: readonly number[], acting: number, roles?: readonly string[]): Cue[] {
   const out: Cue[] = [];
   if (wasDown.length !== hp.length) {
     wasDown.length = 0;
@@ -179,9 +183,41 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
   }
   hp.forEach((h, i) => {
     const down = h <= 0;
-    if (down && !wasDown[i]) out.push({ id: i === acting ? 'selfDown' : 'allyDown' });
+    // G4: losing the tank or the healer gets its own, more urgent call (the party frames show who they are).
+    if (down && !wasDown[i]) out.push({ id: i === acting ? 'selfDown' : roles?.[i] === 'tank' || roles?.[i] === 'healer' ? 'roleDown' : 'allyDown' });
     else if (!down && wasDown[i]) out.push({ id: 'allyUp', vol: i === acting ? 1 : 0.7 });
     wasDown[i] = down;
+  });
+  return out;
+}
+
+/** What reviveCues remembers between ticks. */
+export interface ReviveState {
+  t: number[];
+  left: number;
+}
+
+/**
+ * G6 pick-ups (PR #173): a soft start when an ally begins standing on a downed hero,
+ * a pulse each second (louder towards the end; 9 s while a boss is up), a fizzle if
+ * the ally steps off early, and a low toll when the boss fight's one pick-up is spent.
+ * The pick-up itself already sounds on the sim's 'revive' event. `state` is updated in place.
+ */
+export function reviveCues(state: ReviveState, reviveT: readonly number[], need: number, revivesLeft: number): Cue[] {
+  const out: Cue[] = [];
+  if (state.left > 0 && revivesLeft === 0) out.push({ id: 'revivesSpent' });
+  state.left = revivesLeft;
+  if (state.t.length !== reviveT.length) {
+    state.t = [...reviveT];
+    return out;
+  }
+  reviveT.forEach((now, i) => {
+    const prev = state.t[i];
+    if (now > 0 && prev === 0) out.push({ id: 'reviveStart' });
+    else if (now > 0 && Math.floor(now) > Math.floor(prev)) out.push({ id: 'reviveTick', vol: 0.6 + 0.6 * Math.min(1, now / need) });
+    // Back to zero short of the goal is a broken pick-up; at the goal it's the pick-up itself.
+    else if (now === 0 && prev > 0 && prev < need - 0.1) out.push({ id: 'reviveLost' });
+    state.t[i] = now;
   });
   return out;
 }
@@ -194,11 +230,29 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 }
 
 /**
+ * Sounds that must never be lost to a full mix: boss warnings, the moments that need a reaction,
+ * and party news. When every voice is busy, one of these takes the voice of the oldest ordinary sound.
+ */
+export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
+  ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
+  'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  ...Object.values(PHASE_STING).flat(),
+]);
+
+/**
+ * While a PRIORITY sound plays, every ordinary sound drops to `gain` (about -6 dB) and the music to `music`
+ * (about -3 dB), for at most `max` seconds. tools/busycheck.ts measures what this buys on a phone.
+ */
+export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.25 };
+
+/**
  * Minimum seconds between two plays of the same sound. Keeps a 40-enemy pile-up
  * from turning into a wall of noise (and keeps phones from running out of voices).
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  reviveTick: 0.3,
   slag: 0.2,
   crit: 0.06,
   kill: 0.05,

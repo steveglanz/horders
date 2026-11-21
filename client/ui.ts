@@ -8,14 +8,18 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
+import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
+const setText = (el: HTMLElement, s: string) => { if (el.textContent !== s) el.textContent = s; };
+const setHtml = (el: HTMLElement, s: string) => { if (el.innerHTML !== s) el.innerHTML = s; };
 
 /** Every branch needs a colour (draft card border and title, end-screen chips): typed so a new branch can't be missed. */
 const BRANCH_COLOR: Record<Branch, string> = {
@@ -138,6 +142,7 @@ export class Hud {
   private coach = new Coach();
   private hpHtml = '';
   private wasDown = false;
+  private wasNoRevive = false;
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -202,8 +207,11 @@ export class Hud {
     const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : noRevive ? '<span>Down<span class="hplong"> · no revives left this boss</span></span>' : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
     // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
     const down = rev >= 0;
-    if (down && !this.wasDown && this.compact) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
+    // Phones hide the long health text, so the banner says it, and says it again if the party
+    // spends its last boss pick-up while you're already down ("Stay put" would be stale).
+    if (this.compact && down && (!this.wasDown || (noRevive && !this.wasNoRevive))) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
     this.wasDown = down;
+    this.wasNoRevive = noRevive;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
@@ -218,11 +226,11 @@ export class Hud {
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
-    $('next').textContent = next;
+    setText($('next'), next);
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
-    $('heatText').innerHTML = `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`;
+    setHtml($('heatText'), `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`);
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
       // A stored Blink charge (Hot Heels) makes the button ready while the cooldown runs.
@@ -232,7 +240,7 @@ export class Hud {
       const frac = cd > 0 ? cd / total : gcd;
       const cdEl = b.querySelector('.cd') as HTMLElement;
       cdEl.style.setProperty('--p', String(Math.min(1, frac)));
-      cdEl.textContent = cd > 0.05 ? (cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1)) : '';
+      setText(cdEl, cd > 0.05 ? (cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1)) : '');
       b.classList.toggle('nores', p.heat < w.abilityCost(i));
       b.classList.toggle('hot', i === 3 && kick && cd <= 0);
     });
@@ -243,6 +251,7 @@ export class Hud {
     this.updateQuests(w);
     this.updateBuffs(w);
     this.stackTop();
+    this.placeBanner();
 
     if (this.showPerf) {
       $('perf').textContent = `${fps.avg.toFixed(0)} fps · p95 ${fps.p95ms.toFixed(1)} ms · ${w.aliveEnemies} enemies`;
@@ -283,6 +292,28 @@ export class Hud {
     // Co-op party frames go under the route line.
     const above = quests.offsetHeight ? quests : target.hidden ? $('buffs') : target;
     party.style.top = key ? `${Math.max(150, Math.round(above.getBoundingClientRect().bottom + 6))}px` : '';
+  }
+
+  private bannerTop = '';
+
+  /**
+   * Landscape phones: the banner sits just under the HUD row, so a boss frame that grows a
+   * phase line and a cast bar ran into the banner's title. Push the banner below the frame.
+   */
+  private placeBanner(): void {
+    const b = $('banner');
+    if (!b.classList.contains('show')) return; // keep its place while it fades out
+    const target = $('target');
+    let top = '';
+    if (this.compact && !this.narrow.matches && !target.hidden) {
+      // 68 px is the stylesheet's own landscape top (HUD row + 60); only ever push it lower.
+      const below = Math.round(target.getBoundingClientRect().bottom + 8);
+      if (below > 68) top = `${below}px`;
+    }
+    if (top === this.bannerTop) return;
+    this.bannerTop = top;
+    b.style.top = top;
+    this.placeDing();
   }
 
   private targetIndex(w: World): number {
@@ -454,7 +485,7 @@ export class Hud {
         progress = `<div class="progress">${BRANCH_NAMES[def.branch]} ${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
@@ -498,9 +529,16 @@ export class Hud {
       if (j === w.acting) continue;
       const h = w.heroes[j];
       const ic = CLASS_ICON[h.cls];
-      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b><i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      // G4: tanks and healers get a role chip (an Anvil Slagbinder tanks); damage needs no label.
+      const role = roleOf(CLASSES[h.cls].role, w.heroData(j).player.stance);
+      const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
+      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
+    // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
+    if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
     box.innerHTML = rows.join('');
+    this.revChip = box.querySelector<HTMLElement>('.pfrev');
+    this.revState = '';
     box.hidden = rows.length === 0;
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
@@ -509,7 +547,23 @@ export class Hud {
     });
   }
 
+  private revChip: HTMLElement | null = null;
+  private revState = '';
+
   private tickParty(w: World): void {
+    if (this.revChip) {
+      const left = w.revivesLeft;
+      const st = !w.bossUp ? '' : left > 0 ? `${left}` : 'used';
+      if (st !== this.revState) {
+        const was = this.revState;
+        this.revState = st;
+        this.revChip.hidden = st === '';
+        this.revChip.classList.toggle('used', st === 'used');
+        this.revChip.querySelector('.rvt')!.textContent = st === 'used' ? 'Boss revive used' : `Boss: ${left} revive`;
+        // The moment the pick-up is spent, the chip flashes once.
+        if (st === 'used' && was !== '') { this.revChip.classList.remove('spent'); void this.revChip.offsetWidth; this.revChip.classList.add('spent'); }
+      }
+    }
     for (const r of this.partyRows) {
       const q = w.heroData(r.hero).player;
       const down = q.hp <= 0;
@@ -572,7 +626,7 @@ export class Hud {
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
-        + `<div class="note">${notes.join(' · ')}</div>`;
+        + `<div class="note">${notes.map((t) => `<span class="n">${t}</span>`).join('<span class="sep"> · </span>')}</div>`;
       const equipped = new Set(Object.values(hero.equipped));
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;

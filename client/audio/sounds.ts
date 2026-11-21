@@ -216,6 +216,12 @@ export const SOUNDS = {
     chime(G5, 0, 0.26, 0.5), chime(C6, 0.1, 0.26, 0.5), chime(E6, 0.2, 0.26, 0.6), chime(G6, 0.3, 0.3, 1.2),
     [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.3, vol: 0.08, a: 0.2, lp: 11000, hp: 6000 }],
   ),
+  /** A new season-track level: a quick climbing run of five notes into a bright bell, over a whoosh. */
+  seasonUp: join(
+    chime(C5, 0, 0.2, 0.3), chime(E5, 0.06, 0.2, 0.3), chime(G5, 0.12, 0.2, 0.3), chime(C6, 0.18, 0.22, 0.3),
+    clang(note(22), 0.2, 1.0).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.26 })),
+    whoosh(800, 7000, 0.4, 0.1),
+  ),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
@@ -229,6 +235,20 @@ export const SOUNDS = {
     { wave: 'tri', f: note(-7), dur: 1.4, delay: 0.7, vol: 0.28, a: 0.02, curve: 1.5, vib: [4, 0.01] },
     { wave: 'sine', f: note(-19), dur: 2.0, delay: 0.7, vol: 0.3, a: 0.2 },
   ],
+  /** G6: an ally starts picking a downed hero up: a soft rising pair. */
+  reviveStart: join(chime(C5, 0, 0.2, 0.4), chime(G5, 0.1, 0.2, 0.5)),
+  /** Each second of a pick-up: a quiet ember pulse (louder as it nears the end). */
+  reviveTick: [
+    { wave: 'tri', f: E6, dur: 0.14, vol: 0.12, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.08, vol: 0.06, lp: 8000, hp: 3000, curve: 3 },
+  ],
+  /** The pick-up broke off (the ally stepped out): a fizzling fall. */
+  reviveLost: [
+    { wave: 'tri', f: G5, f2: C5, dur: 0.35, vol: 0.18, curve: 1.5 },
+    { wave: 'noise', f: 0, dur: 0.3, vol: 0.1, lp: 4000, lp2: 800, hp: 600, curve: 2 },
+  ],
+  /** The boss fight's one pick-up is spent: a low toll, so everyone knows the next fall is for good. */
+  revivesSpent: join(clang(note(-2), 0.4, 1.4), clang(note(-14), 0.25, 1.4), horn(note(-14), 1.0, 0.22)),
   revive: join(chime(C5, 0, 0.25, 0.8), chime(G5, 0.1, 0.25, 0.8), chime(C6, 0.2, 0.3, 1.0), whoosh(500, 6000, 0.6, 0.15)),
 
   // ---- encounters
@@ -249,6 +269,8 @@ export const SOUNDS = {
     { wave: 'saw', f: 141, f2: 111, dur: 1.0, vol: 0.3, a: 0.1, lp: 2000, vib: [9, 0.05] },
     { wave: 'noise', f: 0, dur: 0.9, vol: 0.3, a: 0.2, lp: 1200 },
     { wave: 'sine', f: 45, dur: 1.0, vol: 0.25, a: 0.1 },
+    // A snarl in the 500 Hz-2 kHz band, so a phone speaker hears the enrage over a busy fight.
+    { wave: 'square', f: 282, f2: 222, dur: 0.9, vol: 0.1, a: 0.1, lp: 2400, vib: [9, 0.05] },
   ],
   phase: join(boom(45, 0.8, 0.55), [{ wave: 'saw', f: 110, f2: 220, dur: 0.6, vol: 0.12, lp: 900, a: 0.2 }]),
   riftOpen: [
@@ -400,7 +422,8 @@ export const SOUNDS = {
   /** Last Ember (a 5 s hard enrage): a low drone climbing a fifth under a racing pulse. */
   lastEmberWarn: join(
     [{ wave: 'saw', f: note(-26), f2: note(-19), dur: 2.6, vol: 0.2, a: 0.5, lp: 1200, lp2: 2400, vib: [5, 0.02] },
-     { wave: 'square', f: note(-14), f2: note(-7), dur: 2.6, vol: 0.08, a: 1.0, lp: 2500 }],
+     { wave: 'square', f: note(-14), f2: note(-7), dur: 2.6, vol: 0.14, a: 1.0, lp: 3000 },
+     { wave: 'saw', f: note(-2), f2: note(5), dur: 2.6, vol: 0.08, a: 1.4, lp: 3500 }],
     ...[0, 0.55, 1.0, 1.4, 1.75, 2.05, 2.3].map((d) => boom(70, 0.2, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
   ),
   /** Last Ember goes off: everything burns. */
@@ -428,6 +451,13 @@ export const SOUNDS = {
   ]),
 
   // ---- co-op
+  /** G4: the party's tank or healer went down: the ally-down fall over a low alarm horn, because the fight just changed. */
+  roleDown: join(
+    [{ wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
+     { wave: 'tri', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.3, curve: 1.5 }],
+    horn(note(-14), 0.5, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.15 })),
+    horn(note(-15), 0.6, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+  ),
   allyDown: [
     { wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
     { wave: 'tri', f: note(5), f2: note(0), dur: 0.4, delay: 0.22, vol: 0.3, curve: 1.5 },
@@ -457,6 +487,27 @@ export const SOUNDS = {
   ],
   /** Opening a panel (bags, pause): a soft upward swell. */
   open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
+
+  // ---- the ember purse (shared by every class): embers in, embers spent
+  /** Salvage: the item crumbles to cinders and embers clink into the purse. */
+  salvage: join(
+    [{ wave: 'noise', f: 0, dur: 0.22, vol: 0.18, lp: 3500, lp2: 900, hp: 400, curve: 2 }],
+    chime(E6, 0.12, 0.14, 0.25), chime(A5 * 2, 0.2, 0.14, 0.35),
+  ),
+  /** Upgrade at the Forge: one ringing hammer strike on the anvil, with sparks. */
+  forge: join(clang(880, 0.32, 0.6), [
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.35, lp: 6000, hp: 1200, curve: 3 },
+    ...[0.06, 0.12, 0.2].map((d) => ({ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.12, lp: 11000, hp: 5000, curve: 3 })),
+  ]),
+  /** Temper: a hammer strike, then the quench hiss as the reforged bonus sets. */
+  temper: join(clang(660, 0.28, 0.4), [
+    { wave: 'noise', f: 0, dur: 0.6, delay: 0.15, vol: 0.2, a: 0.02, lp: 9000, lp2: 2500, hp: 1500, curve: 1.6 },
+  ]),
+  /** Brew a potion: bubbles rise and a cork pops. */
+  brew: join(
+    ...[0, 0.07, 0.13, 0.2, 0.26].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 90, f2: 900 + k * 120, dur: 0.06, delay: d, vol: 0.12, curve: 2 }]),
+    [{ wave: 'noise', f: 0, dur: 0.04, delay: 0.36, vol: 0.3, lp: 5000, hp: 900, curve: 3 }, { wave: 'sine', f: 900, f2: 500, dur: 0.06, delay: 0.36, vol: 0.12 }],
+  ),
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;
