@@ -4,7 +4,7 @@ import {
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
-import { BossStatus, cloud } from './cloud';
+import { BossStatus, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, RARITY, SLOTS, Slot } from '../sim/content/items';
@@ -392,6 +392,36 @@ export class Hub {
     return keysOpen(this.hero()) && DUNGEONS[this.dungeon].style === 'solo' && this.partyClasses.length <= 1;
   }
 
+  /** P3 leaderboards by dungeon: undefined = not asked yet, null = unreachable (or the table isn't there yet). */
+  private keyBoards = new Map<string, KeyBoard | null | 'loading'>();
+
+  /** A key was submitted: fetch that dungeon's board again on the next render. */
+  keyBoardStale(dungeon: string): void {
+    this.keyBoards.delete(dungeon);
+    this.render();
+  }
+
+  /** The top five for the picked dungeon, and your rank; nothing while loading or offline. */
+  private keyBoardHtml(): string {
+    const d = this.dungeon;
+    const b = this.keyBoards.get(d);
+    if (b === undefined) {
+      this.keyBoards.set(d, 'loading');
+      void cloud.topKeys(d, 5).then((r) => {
+        this.keyBoards.set(d, r && Array.isArray(r.top) ? r : null);
+        if (this.dungeon === d) this.render();
+      });
+      return '';
+    }
+    if (!b || b === 'loading' || !b.top.length) return '';
+    const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    const time = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const row = (r: { rank: number; name: string; cls: string; level: number; seconds: number }, you = false) =>
+      `<li${you ? ' class="you"' : ''}><span class="kr">${r.rank}</span><b>${esc(r.name)}</b><span class="kl">+${r.level}</span><span class="kt">${time(r.seconds)}</span></li>`;
+    const mine = b.me && !b.top.some((r) => r.rank === b.me!.rank && r.name === b.me!.name) ? row(b.me, true) : '';
+    return `<div class="key-board"><div class="lbl">Leaderboard</div><ol>${b.top.map((r) => row(r, !!b.me && r.rank === b.me.rank && r.name === b.me.name)).join('')}${mine}</ol></div>`;
+  }
+
   /** P3: the picked dungeon's Delver's Key: its level, what it adds, and the par time. */
   private keyLine(): string {
     if (!this.keyOpen()) return '';
@@ -410,7 +440,8 @@ export class Hub {
       + `<div class="key-sub">Tier ${tier} · ${om.length} Omens ${om.map((o) => omenTile(o, 20)).join('')}</div></div></div>`
       + `<div class="key-stats"><span>Foe health <b>+${Math.round((sc.hp - 1) * 100)}%</b></span><span>Foe damage <b>+${Math.round((sc.dmg - 1) * 100)}%</b></span><span>Par <b>${par} min</b></span></div>`
       + `<div class="key-ladder"><span class="up2">▲▲ +2 inside ${fast} min</span><span class="up1">▲ +1 inside ${par} min</span><span class="dn">▼ −1 on a loss</span></div>`
-      + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div></div>`;
+      + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div>`
+      + `${this.keyBoardHtml()}</div>`;
   }
 
   /** P1: this week's three quests, the same for everyone, and the title for all three. */
