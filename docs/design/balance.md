@@ -408,3 +408,17 @@ matrix.sh, heroes-r2, 3 heroes x 40 seeds; the Slagbinder plays the Duskblade's 
 | Slagbinder | 30.7 | 21.0 | 21.3 | 12.3 | 40 | 36 |
 
 Every cell passes. The novice Lumen (+13) is the accepted exception, and the novice Slagbinder sits exactly at +10. Watch the Slagbinder at Kiln 6 and 8, the lowest cells. The full write-up is in the skills team's l7-lock.md.
+
+**Main dadb0df** (after #190, the C5 round 2 deep cards, and other merges since 7c75cc9), same setup. Only the cells that moved:
+
+| | Before | After |
+|---|---|---|
+| Bulwark, Foundry 6 / 8 | 36.0 / 21.3 | 35.7 / 19.3 |
+| Bulwark, Kiln 6 / 8 | 39.0 / 27.3 | 37.7 / 28.0 |
+| Bulwark, Kiln 1 novice | 21 | 16 |
+| Lumen, Foundry 8 / Kiln 6 / Kiln 8 | 32.7 / 38.7 / 30.3 | 33.0 / 39.3 / 29.3 |
+| Lumen, Foundry 6 | 36.0 | 36.0 |
+| Slagbinder, Foundry 6 / Kiln 8 | 30.7 / 12.3 | 32.0 / 11.0 |
+| Slagbinder, Kiln 1 novice | 36 | 35 |
+
+Every cell still passes. The largest gaps are the Bulwark at Foundry 8 (-9.4) and the novice Bulwark at tier 1 (16 against 26, exactly the -10 bar). Seeds 1 to 40 were an unlucky sample for the novice Bulwark: over seeds 1 to 160 it wins 81/160 (20.3 per 40) against the Emberwright's 91/160 (22.8), a gap of 2.5. Tier 1 novice cells are now gated on 160 seeds.
