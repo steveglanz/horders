@@ -164,6 +164,7 @@ export class GameScene extends Phaser.Scene {
   private orbiterSprites: Phaser.GameObjects.Image[] = [];
   private plates: Phaser.GameObjects.Text[] = [];
   private soakText!: Phaser.GameObjects.Text;
+  private reviveText!: Phaser.GameObjects.Text;
   /** Labels over the two gates at a fork (game design: placeholder look, visuals can restyle). */
   private gateTexts: Phaser.GameObjects.Text[] = [];
   private gfx!: Phaser.GameObjects.Graphics;
@@ -360,6 +361,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
+    this.reviveText = this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', color: '#c8ffd0' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
       this.floats.push({ txt, life: 0, age: 0, vx: 0 });
@@ -418,6 +420,7 @@ export class GameScene extends Phaser.Scene {
     for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
     for (const t of this.gateTexts) t.setFontSize(13 * k).setResolution(res);
     this.soakText?.setFontSize(13 * k).setResolution(res);
+    this.reviveText?.setFontSize(13 * k).setResolution(res);
     for (const a of this.allies) {
       a.label.setFontSize(12 * k).setResolution(res);
       a.tag?.setFontSize(10 * k).setResolution(res);
@@ -1239,13 +1242,28 @@ export class GameScene extends Phaser.Scene {
     // G6: a downed hero lies in a soft green circle that an ally must stand in. A dashed
     // ring turns slowly, a "+" bobs over the body until someone arrives, and then a
     // tether runs from the rescuer while the ring fills, with motes lifting off the body.
+    let reviveShown = false;
     if (w.heroes.length > 1) {
       const me = w.player;
       const spots = [...this.allies.map((al) => ({ k: al.hero, q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y })), { k: w.acting, q: me, x: this.player.x, y: this.player.y }];
       const o = this.overFx;
       for (const { k, q, x, y } of spots) {
-        // G6 boss rule: with no pick-ups left, there is no revive circle to stand in.
-        if (q.hp > 0 || w.revivesLeft <= 0) continue;
+        if (q.hp > 0) continue;
+        // G6 boss rule: with no pick-ups left, there is no revive circle to stand in. A grey,
+        // broken ring and a struck-through cross mark the body instead, so nobody runs over.
+        if (w.revivesLeft <= 0) {
+          g.lineStyle(2, 0x8a7d78, 0.5);
+          for (let d = 0; d < 6; d++) {
+            const a0 = (d * Math.PI * 2) / 6 + 0.2;
+            g.beginPath().arc(x, y + 6, REVIVE_RADIUS * 0.8, a0, a0 + 0.55, false).strokePath();
+          }
+          const by = y - 64;
+          o.fillStyle(0x140c0a, 0.75).fillCircle(x, by, 10);
+          o.lineStyle(2, 0x8a7d78, 0.9).strokeCircle(x, by, 10);
+          o.fillStyle(0x8a7d78, 1).fillRect(x - 5, by - 1.5, 10, 3).fillRect(x - 1.5, by - 5, 3, 10);
+          o.lineStyle(2.5, 0xff6b6b, 0.95).lineBetween(x - 8, by + 8, x + 8, by - 8);
+          continue;
+        }
         const t = Math.min(1, (q.reviveT ?? 0) / w.reviveSeconds);
         const pulse = 0.5 + 0.5 * Math.sin(now / 250);
         const R = REVIVE_RADIUS;
@@ -1269,6 +1287,11 @@ export class GameScene extends Phaser.Scene {
             }
           }
           if (found) o.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
+          // A boss pick-up takes 9 s, so it counts down under the circle.
+          if (w.bossUp && !reviveShown) {
+            reviveShown = true;
+            this.reviveText.setVisible(true).setPosition(x, y + 6 + R + 4).setText(`Reviving ${Math.max(0, w.reviveSeconds * (1 - t)).toFixed(1)}`);
+          }
           const a1 = -Math.PI / 2 + t * Math.PI * 2;
           o.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
           o.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
@@ -1284,6 +1307,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+    if (!reviveShown && this.reviveText.visible) this.reviveText.setVisible(false);
     // Hammerdeep: Slag Grip glows at a hero's feet with one pip per stack; Sundered cracks a ring above them.
     // The Crucible's Ladle Burn is the same stacks (Player.slag), shown the same way.
     if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {

@@ -78,6 +78,11 @@
   .pfn { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.2; text-shadow: 0 1px 2px #000; }
   .pfn b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pfn i { display: none; margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.06em; }
+  /* G4: role chip after the name, for tanks and healers. */
+  .pfr { flex: none; font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 4px; border-radius: 4px; line-height: 14px; }
+  .pfr.tank { color: #9ab8ff; background: rgba(154,184,255,0.16); }
+  .pfr.healer { color: #8ff0a8; background: rgba(111,224,138,0.16); }
+  .pf.down .pfr { display: none; }
   .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
   .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
   /* Downed: the name and icon grey out, the bar turns into the revive meter. */
@@ -85,6 +90,14 @@
   .pf.down .gtile, .pf.down .pfn b { opacity: 0.55; filter: grayscale(0.85); }
   .pf.down .pfbar div { background: linear-gradient(90deg, #6fd08a, #d8ffd8); transition: none; }
   .pf.reviving { border-color: rgba(159,232,168,0.7); box-shadow: 0 0 10px rgba(159,232,168,0.45); }
+  .pfrev { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border-radius: 10px; background: rgba(12,26,16,0.72); border: 1px solid rgba(159,232,168,0.55); font-size: 10px; font-weight: 600; color: #c8ffd0; text-shadow: 0 1px 2px #000; white-space: nowrap; align-self: flex-start; }
+  .pfrev[hidden] { display: none; }
+  .pfrev .rvg { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; flex: none; background: #9fe8a8; color: #0c1a10; font-weight: 800; font-size: 13px; line-height: 1; }
+  .pfrev.used { background: rgba(12,7,6,0.72); border-color: var(--line); color: #a89892; }
+  .pfrev.used .rvg { background: #6a5a54; color: #1a1210; position: relative; }
+  .pfrev.used .rvg::after { content: ''; position: absolute; left: 1px; right: 1px; top: 7px; height: 2px; background: #ff6b6b; transform: rotate(-45deg); }
+  .pfrev.spent { animation: revSpent 0.9s ease-out; }
+  @keyframes revSpent { 0% { box-shadow: 0 0 0 0 rgba(159,232,168,0.9); transform: scale(1.06); } 100% { box-shadow: 0 0 0 10px rgba(159,232,168,0); transform: scale(1); } }
   .pf.reviving .pfn i { color: #9fe8a8; }
   .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }

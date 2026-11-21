@@ -11,6 +11,7 @@ import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
+import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
@@ -138,6 +139,7 @@ export class Hud {
   private coach = new Coach();
   private hpHtml = '';
   private wasDown = false;
+  private wasNoRevive = false;
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -202,8 +204,11 @@ export class Hud {
     const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : noRevive ? '<span>Down<span class="hplong"> · no revives left this boss</span></span>' : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
     // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
     const down = rev >= 0;
-    if (down && !this.wasDown && this.compact) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
+    // Phones hide the long health text, so the banner says it, and says it again if the party
+    // spends its last boss pick-up while you're already down ("Stay put" would be stale).
+    if (this.compact && down && (!this.wasDown || (noRevive && !this.wasNoRevive))) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
     this.wasDown = down;
+    this.wasNoRevive = noRevive;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
@@ -498,9 +503,16 @@ export class Hud {
       if (j === w.acting) continue;
       const h = w.heroes[j];
       const ic = CLASS_ICON[h.cls];
-      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b><i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      // G4: tanks and healers get a role chip (an Anvil Slagbinder tanks); damage needs no label.
+      const role = roleOf(CLASSES[h.cls].role, w.heroData(j).player.stance);
+      const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
+      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
+    // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
+    if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
     box.innerHTML = rows.join('');
+    this.revChip = box.querySelector<HTMLElement>('.pfrev');
+    this.revState = '';
     box.hidden = rows.length === 0;
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
@@ -509,7 +521,23 @@ export class Hud {
     });
   }
 
+  private revChip: HTMLElement | null = null;
+  private revState = '';
+
   private tickParty(w: World): void {
+    if (this.revChip) {
+      const left = w.revivesLeft;
+      const st = !w.bossUp ? '' : left > 0 ? `${left}` : 'used';
+      if (st !== this.revState) {
+        const was = this.revState;
+        this.revState = st;
+        this.revChip.hidden = st === '';
+        this.revChip.classList.toggle('used', st === 'used');
+        this.revChip.querySelector('.rvt')!.textContent = st === 'used' ? 'Boss revive used' : `Boss: ${left} revive`;
+        // The moment the pick-up is spent, the chip flashes once.
+        if (st === 'used' && was !== '') { this.revChip.classList.remove('spent'); void this.revChip.offsetWidth; this.revChip.classList.add('spent'); }
+      }
+    }
     for (const r of this.partyRows) {
       const q = w.heroData(r.hero).player;
       const down = q.hp <= 0;
