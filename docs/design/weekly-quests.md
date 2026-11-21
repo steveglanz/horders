@@ -43,3 +43,18 @@ That is a search check, not a legal clearance.
 - **Visuals:** the box uses the existing `.box` styling. It's yours to restyle.
 
 `tools/hashcheck.ts` is identical to main: the sim only counts things, and nothing it counts changes play.
+
+## The party quest (21 Nov 2026)
+**Why.** Phase 2's goal is "make playing together the best way to play", and Steve's worry about Fill with bots is that bots make group content easy to farm. Bots now pay less than solo (botfill.md), but nothing paid *more* for finding real people. The party quest does.
+
+**What it is.** A fourth quest every week, the same for everyone: **Delve Together**, "Win 2 group dungeons with another real hero". It pays **1.5 times** a normal quest (`WEEKLY.partyPay`), so 132 embers at tier 6 and 156 at tier 8. It also counts as a weekly quest for season marks.
+- **What counts:** a win in the Hammerdeep, the Ashvents, the Pressworks or the raid, with at least 2 real heroes (`RunSummary.realHeroes`, the party minus bots). A hero with bots doesn't count, and neither does a solo dungeon or a loss.
+- **When it opens:** once the hero can enter the Hammerdeep (tier 4, `WEEKLY.partyTier`).
+- **The title doesn't need it.** The weekly title is still "all three", so a solo player never misses one. The party quest is extra embers, not a gate.
+- **The rolls stay the same.** The party quest isn't in the pool the three are drawn from (`WEEKLY_IDS`), so every week rolls the quests it rolled before. A save from earlier this week gets the party quest added when it's next read (`weekState`).
+
+**Economy.** At tier 6 the three quests pay 264 embers a week, and the party quest adds 132 for a hero who groups. That's about 1.5 delves of income (economy.md), once a week. It's a nudge toward playing together, not a new main income.
+
+**In the hub:** the weekly sheet shows a "Party quest" row under the title line, with "Bots don't count. It isn't needed for the title." The chip still counts the three (Weekly n/3). Phone shot: /mnt/project-files/horders/design/party-quest-phone.png.
+
+**Names.** "Delve Together" is two plain words. A web search turned up no WoW achievement or Azeroth Survivors name with that phrase, only WoW's general Delve achievements.
