@@ -13,8 +13,19 @@ import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
+import { audio } from './audio';
+import { installSoundControls } from './audio/controls';
 
 const el = (id: string) => document.getElementById(id)!;
+audio.install();
+installSoundControls();
+// The hub plays its own theme whenever the main menu is showing.
+{
+  const title = document.getElementById('title')!;
+  const follow = () => { if (!title.hidden) audio.theme('hub'); };
+  new MutationObserver(follow).observe(title, { attributes: true, attributeFilter: ['hidden'] });
+  follow();
+}
 const params = new URLSearchParams(location.search);
 let stress = params.has('stress');
 const hud = new Hud();
@@ -229,6 +240,7 @@ document.addEventListener('visibilitychange', () => {
 (window as unknown as { __ember: unknown }).__ember = {
   scene: () => game.scene.getScene('game') as GameScene | null,
   hero: () => hero,
+  audio,
 };
 
 // ------------------------------------------------------------------ co-op
