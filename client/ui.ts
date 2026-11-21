@@ -1,5 +1,5 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
-import { World } from '../sim/world';
+import { World, REVIVE_SECONDS } from '../sim/world';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
@@ -147,7 +147,9 @@ export class Hud {
     this.lastTick = now;
     const p = w.player;
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
-    $('hpText').textContent = `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`;
+    // G6: downed in a party, the health text says how to get back up and how far along it is.
+    const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / REVIVE_SECONDS) : -1;
+    $('hpText').textContent = rev < 0 ? `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}` : rev > 0 ? `Reviving ${Math.round(rev * 100)}%` : 'Down · an ally can revive you';
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
     $('level').textContent = String(p.level);
@@ -397,7 +399,7 @@ export class Hud {
   }
 
   /** Co-op party frames: one row per ally, with class glyph, name and health. */
-  private partyRows: { hero: number; el: HTMLElement; fill: HTMLElement; down: boolean }[] = [];
+  private partyRows: { hero: number; el: HTMLElement; fill: HTMLElement; tag: HTMLElement; down: boolean; reviving: boolean }[] = [];
 
   private buildParty(w: World): void {
     const box = $('party');
@@ -414,18 +416,26 @@ export class Hud {
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
       el.querySelector('b')!.textContent = w.heroes[hero].name;
-      this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, down: false });
+      this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, down: false, reviving: false });
     });
   }
 
   private tickParty(w: World): void {
     for (const r of this.partyRows) {
       const q = w.heroData(r.hero).player;
-      r.fill.style.width = `${(100 * Math.max(0, q.hp)) / q.maxHp}%`;
       const down = q.hp <= 0;
+      // G6: while a hero is down, their bar shows the revive filling instead of health.
+      const rev = down ? Math.min(1, (q.reviveT ?? 0) / REVIVE_SECONDS) : 0;
+      r.fill.style.width = `${down ? 100 * rev : (100 * Math.max(0, q.hp)) / q.maxHp}%`;
       if (down !== r.down) {
         r.down = down;
         r.el.classList.toggle('down', down);
+      }
+      const reviving = rev > 0;
+      if (reviving !== r.reviving) {
+        r.reviving = reviving;
+        r.el.classList.toggle('reviving', reviving);
+        r.tag.textContent = reviving ? 'Reviving' : 'Down';
       }
     }
   }
