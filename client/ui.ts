@@ -1,5 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { World, REVIVE_SECONDS } from '../sim/world';
+import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
@@ -296,8 +297,8 @@ export class Hud {
     $('hud').classList.add('tgt');
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
     const shadow = e.kind === 'worldShadow';
-    $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.def.name;
-    $('tTitle').textContent = e.def.title ?? (e.def.stationary ? 'Objective' : '');
+    $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.named >= 0 ? w.namedName(i) : e.def.name;
+    $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? 'Warded' : '';
     $('tPhase').textContent = (e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '') + extra;
     if (shadow) {

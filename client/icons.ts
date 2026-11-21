@@ -111,3 +111,19 @@ export const POTION_ICON: Record<PotionId, { color: string; d: string }> = {
   // Kindling Brew: a conical flask with a flame inside.
   kindling: { color: '#ff8a3d', d: 'M9.5 3h5 M10.5 3v5L5.5 18.5A1.6 1.6 0 0 0 6.9 21h10.2a1.6 1.6 0 0 0 1.4-2.5L13.5 8V3 M12 12c.6 1.8 2.5 2.6 2.5 4.6a2.5 2.5 0 0 1-5 0c0-1 .6-1.8 1.2-2.4 0 .8.5 1.3 1 1.3 0-1.4 0-2.3.3-3.5Z' },
 };
+
+/** Gear slots, for the bag grid on phones (docs/design/mobile-ux.md §3.4). */
+export const SLOT_ICON: Record<'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 'trinket', string> = {
+  // Weapon: a sword, point up-left.
+  weapon: 'M14.5 17.5 3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2',
+  // Head: a helm with a visor slit.
+  head: 'M5 18v-5a7 7 0 0 1 14 0v5h-4v-4H9v4Z',
+  // Chest: a tunic.
+  chest: 'M8 3 4 6v6h3v9h10v-9h3V6l-4-3c0 2-2 3-4 3S8 5 8 3Z',
+  // Hands: a glove.
+  hands: 'M7 21v-9V6a1.5 1.5 0 0 1 3 0v5 M10 11V4.5a1.5 1.5 0 0 1 3 0V11 M13 11V5.5a1.5 1.5 0 0 1 3 0V12 M16 12V8.5a1.5 1.5 0 0 1 3 0V15c0 3-2 6-6 6H7',
+  // Ring: a band with a stone.
+  ring: 'M12 9a6 6 0 1 1 0 12a6 6 0 0 1 0-12Z M9 4h6l-3 5Z',
+  // Trinket: an amulet on a cord.
+  trinket: 'M7 3l5 7 5-7 M12 10a5 5 0 1 1 0 10a5 5 0 0 1 0-10Z M12 13v4',
+};
