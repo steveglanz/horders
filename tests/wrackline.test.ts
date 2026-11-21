@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World, WRACK } from '../sim/world';
 import { DUNGEONS, BOUNTY_DUNGEON_IDS, SOLO_DUNGEON_IDS, WEEKLY_DUNGEON_IDS } from '../sim/content/dungeon';
 import { weeklyFor } from '../sim/content/weekly';
+import { CLASSES } from '../sim/content/classes';
 
 type Inner = {
   spawn(kind: string, x: number, y: number): number;
@@ -54,7 +55,7 @@ describe('the Wrackline (fifth solo dungeon)', () => {
     Object.assign(w.player, { x: -300, y: 0 });
     inner.wrackClock(1);
     expect(w.player.x).toBeGreaterThan(-300);
-    expect(w.player.x).toBeCloseTo(-300 + WRACK.drag, 0);
+    expect(w.player.x).toBeCloseTo(-300 + WRACK.drag * CLASSES[w.cls].speed, 0);
     expect(w.player.hp).toBeLessThan(hp);
   });
 

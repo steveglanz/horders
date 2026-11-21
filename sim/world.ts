@@ -4824,12 +4824,14 @@ export class World {
     if (this.ebbT > 0) {
       this.ebbT = Math.max(0, this.ebbT - dt);
       const pull = WRACK.drag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
+      const foePull = WRACK.foeDrag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
         const d = Math.hypot(q.x, q.y) || 1;
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
-        const step = this.anchored(q) ? 0 : Math.min(d, pull * dt);
+        // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
+        const step = this.anchored(q) ? 0 : Math.min(d, pull * CLASSES[this.heroes[k].cls].speed * dt);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
         const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
@@ -4843,7 +4845,7 @@ export class World {
         const e = this.enemies[i];
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
-        const step = Math.min(d, pull * WRACK.foeDrag * dt);
+        const step = Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step;
         e.y -= (e.y / d) * step;
         if (d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
@@ -5880,10 +5882,10 @@ export const WRACK = {
   raftR: 78, raftRings: [300, 125, 410], drift: 38,
   /** The Ebb: every `tideEvery` s in trash fights (`tideBoss` with Hessa up), `tideWarn` s of warning, then `tideOpen` s of pull. */
   tideEvery: 18, tideBoss: 14, tideLate: 7, firstTide: 8, tideWarn: 3, tideOpen: 4,
-  /** Off a raft in the Ebb: dragged `drag` units/s toward the centre, burned `tideBurn` of max health/s, plus `drainBurn` inside `drainR`. */
-  drag: 75, tideBurn: 0.04, drainR: 90, drainBurn: 0.1,
-  /** Foes drift at `foeDrag` of the pull, and the drain takes `foeDrain` of their max health a second. Shoal Lurkers swim faster in it instead. */
-  foeDrag: 0.8, foeDrain: 0.06, lurkerSurge: 1.3,
+  /** Off a raft in the Ebb: dragged toward the centre at `drag` of your class speed (the Bulwark 64 u/s, the Duskblade 76), burned `tideBurn` of max health/s, plus `drainBurn` inside `drainR`. */
+  drag: 0.5, tideBurn: 0.04, drainR: 90, drainBurn: 0.1,
+  /** Foes drift at `foeDrag` units a second (75 × 0.8 before the pull became a share of hero speed), and the drain takes `foeDrain` of their max health a second. Shoal Lurkers swim faster in it instead. */
+  foeDrag: 60, foeDrain: 0.06, lurkerSurge: 1.3,
   /** Barge Hauler: Haul (Quenchable) yanks its target up to `haul` units toward it. */
   haulEvery: 8, haulCast: 1.6, haul: 160, haulRange: 520, haulDamage: 8,
   /** Hessa: Sink (Quenchable) sinks the raft nearest her target for `sinkTime` s; Call the Shoal brings Lurkers. */
