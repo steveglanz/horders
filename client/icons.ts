@@ -312,7 +312,12 @@ export const BRANCH_GLYPH: Record<Branch, string> = {
   general: 'M12 3l2.2 5.8 6.1.7-4.6 4 1.4 6L12 16.4 6.9 19.5l1.4-6-4.6-4 6.1-.7Z',
 };
 
-/** The glyph tile on a talent card; a capstone's sits inside a ring, a deep card's (C5) in a double frame. */
-export function talentTile(branch: Branch, color: string, capstone = false, size = 34, deep = false): string {
-  return `<span class="gtile tglyph${capstone ? ' cap' : deep ? ' deep' : ''}" style="--gc:${color};width:${size}px;height:${size}px">${glyph(BRANCH_GLYPH[branch], Math.round(size * 0.6))}</span>`;
+/** Party cards (Season 2): two heroes side by side, on a small badge at the tile's corner. */
+export const PARTY_GLYPH = 'M8 5.5a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2Z M16 5.5a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2Z M2.5 19.5a5.5 5.5 0 0 1 11 0 M10.5 19.5a5.5 5.5 0 0 1 11 0';
+
+/** The glyph tile on a talent card; a capstone's sits inside a ring, a deep card's (C5) in a double frame, and a
+ * party card (a deep card offered only in a party) adds a two-hero badge on its corner. */
+export function talentTile(branch: Branch, color: string, capstone = false, size = 34, deep = false, party = false): string {
+  return `<span class="gtile tglyph${capstone ? ' cap' : deep ? ' deep' : ''}" style="--gc:${color};width:${size}px;height:${size}px">${glyph(BRANCH_GLYPH[branch], Math.round(size * 0.6))}`
+    + `${party ? `<span class="pbadge" aria-hidden="true">${glyph(PARTY_GLYPH, 11)}</span>` : ''}</span>`;
 }
