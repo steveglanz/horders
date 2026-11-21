@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -321,7 +321,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId === 'crucible' ? 'raid' : w.dungeonId);
+    audio.theme(w.dungeonId === 'crucible' || w.dungeonId === 'hoard' ? 'raid' : w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -334,6 +334,7 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
     // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
+    else if (w.dungeonId === 'hoard') this.ground.setTint(0x9a8478);
     // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
     else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
     // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
@@ -958,6 +959,22 @@ export class GameScene extends Phaser.Scene {
         case 'slagGrip':
           this.floatText(ev.x, ev.y - 44, `${w.dungeonId === 'crucible' ? 'Ladle Burn' : 'Slag Grip'} ×${ev.stacks}`, '#ff9a4a', 15);
           break;
+        // The Hoard: Swallow, the Craw and Ember Feast.
+        case 'swallowed':
+        case 'spatOut':
+        case 'digested': {
+          const q = w.hero(ev.hero).player;
+          const msg = ev.type === 'swallowed' ? 'Swallowed! Break the Craw' : ev.type === 'spatOut' ? 'Spat out' : 'Digested';
+          this.floatText(q.x, q.y - 50, msg, ev.type === 'spatOut' ? '#9fffc8' : '#ff9a4a', 16);
+          if (ev.type === 'swallowed') this.shakeBy(0.1);
+          break;
+        }
+        case 'emberEaten':
+          this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
+          break;
+        case 'emberTaken':
+          this.burst(ev.x, ev.y, 6);
+          break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
           this.floatText(ev.x, ev.y - 44, ev.healed > 0 ? `Dodged +${Math.round(ev.healed)}` : 'Dodged', '#5fe0c8', 16);
@@ -1263,7 +1280,9 @@ export class GameScene extends Phaser.Scene {
       // Ember Twins alternate palettes by slot so a pair always reads as two.
       // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
       const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother' : e.kind;
+        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother'
+        // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
+        : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1707,6 +1726,15 @@ export class GameScene extends Phaser.Scene {
           g.lineStyle(1.5, 0x3a4250, 1).strokeCircle(px2, py2, 4);
         }
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
+      }
+      if (e.kind === 'coalmouth') {
+        // Ember Feast: spilled embers glow and gutter as they run out; Gorge shows a filling ring.
+        for (const m of w.coalEmbers) {
+          const f = Math.max(0, Math.min(1, m.t / COALMOUTH.emberLife));
+          g.fillStyle(0xff8a3d, 0.35 + 0.6 * f).fillCircle(m.x, m.y, 8 + 4 * Math.sin(now / 160 + m.x));
+          g.lineStyle(2, 0xffe2a0, 0.5 * f).strokeCircle(m.x, m.y, COALMOUTH.emberPick);
+        }
+        if (e.castId === 'coalGorge') g.lineStyle(5, 0xffb060, 0.7).strokeCircle(e.x, e.y, e.def.radius + 12 + 30 * (1 - e.castT / e.castDur));
       }
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
