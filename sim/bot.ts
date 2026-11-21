@@ -6,11 +6,11 @@ import { ARENA, Input, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 
 const PRIORITY: TalentId[] = [
-  'conflagration', 'phoenixLance', 'ringOfAsh', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
+  'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
   'flicker', 'magnetism',
   // Duskblade
-  'crimsonTide', 'bladeStorm', 'riposte', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
+  'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
@@ -564,6 +564,8 @@ export function botInput(w: World, skill = 1): Input {
   return { x: fx / len, y: fy / len, cast };
 }
 
+const NEW_CAPS: TalentId[] = ['cinderTide', 'searingBloom', 'ashenMantle', 'openVeins', 'killingRhythm', 'shadowSlip'];
+const MEASURE_NEW = typeof process !== 'undefined' && !!process.env.NEW_CAPS;
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
@@ -571,7 +573,7 @@ export function botChoose(w: World): number {
   w.choices.forEach((c, i) => {
     const def = TALENTS[c.id];
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
-    const s = (def.capstone ? -1000 : 0) - committed * 100 + PRIORITY.indexOf(c.id);
+    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 + PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;
