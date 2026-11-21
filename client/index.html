@@ -675,7 +675,7 @@
   }
 
   /* Landscape phones: two columns (hero and class | delve), a short header, and a Delve button that sits to the right. */
-  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
     .hub-top { grid-template-columns: 1fr auto 1fr; }
     #title h1 { font-size: 24px; }
     .logo .tag { display: none; }
@@ -736,7 +736,7 @@
     #pause .panel button { min-height: 48px; }
   }
   /* Landscape phones: the action bar moves under the right thumb, the route shows only the current fight. */
-  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
     #actionbar { left: auto; right: max(14px, env(safe-area-inset-right)); transform: none; align-items: flex-end; }
     #heat { width: 200px; }
     .ab { width: 60px; height: 60px; }
@@ -780,6 +780,29 @@
     .card .tglyph svg { width: 19px; height: 19px; }
     .card .name, .card .branch { padding-right: 40px; }
     .card .text { padding-right: 0; }
+  }
+  /* Short narrow phones (320 x 568): tighter draft spacing so all three cards fit without scrolling
+     (talent text grew and pushed the third card ~40px off screen). */
+  @media (max-width: 560px) and (max-height: 620px) {
+    #draft { padding: 8px 12px; }
+    #draft .panel { padding: 10px 12px; }
+    #draft h2 { font-size: 22px; margin-top: 0; }
+    #cards { gap: 8px; margin-top: 8px; }
+    .card { padding: 9px 12px 8px; }
+    .card .name { font-size: 17px; margin: 2px 0 3px; }
+    .card .text { font-size: 13px; line-height: 1.3; }
+    .card .meta { margin-top: 5px; }
+  }
+  /* The smallest landscape phones (568 x 320): the same squeeze for the three-column draft. */
+  @media (orientation: landscape) and (max-height: 340px) {
+    #draft { padding: 6px 12px; }
+    #draft .panel { padding: 8px 14px; }
+    #draft h2 { font-size: 20px; margin-top: 0; }
+    #cards { margin-top: 6px; gap: 8px; }
+    .card { padding: 8px 10px; }
+    .card .name { font-size: 16px; margin: 2px 0 3px; }
+    .card .text { font-size: 12px; line-height: 1.3; }
+    .card .meta { margin-top: 5px; }
   }
 
   /* ---- Phone hub: four tabs (Delve, Hero, Bags, Group), one Delve button, sheets. docs/design/mobile-ux.md ---- */
@@ -850,7 +873,7 @@
   #heroStrip .hs-pts { flex: none; padding: 3px 9px; border-radius: 999px; background: rgba(255,200,97,0.16); color: var(--gold); font-size: 12px; font-weight: 700; }
   #heroStrip .chev { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); margin-right: 4px; }
   /* Landscape phones: the tab bar becomes a rail on the left so panes keep their height. */
-  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
     body.tabs #tabbar:not([hidden]) { top: 0; right: auto; width: calc(64px + env(safe-area-inset-left)); height: auto; grid-template-columns: 1fr; grid-template-rows: repeat(4, 1fr); padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left); border-top: 0; border-right: 1px solid var(--card-line); }
     body.tabs #tabbar button.on::before { top: 30%; bottom: 30%; left: auto; right: 0; width: 2px; height: auto; }
     body.tabs .hub-foot { bottom: 0; }
@@ -1097,7 +1120,7 @@
   body.tabs .dg:disabled { flex-basis: min(46%, 180px); min-height: 128px; }
   body.tabs .tierrow button { min-height: 44px; }
   @media (pointer: coarse) { body.tabs .tierrow button { flex-basis: 44px; } }
-  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
     body.tabs .dg { flex-basis: min(42%, 300px); min-height: 104px; }
     body.tabs .dg:disabled { flex-basis: min(26%, 180px); min-height: 104px; }
     body.tabs .dungeons { margin: 0; padding: 0 0 2px; }
@@ -1139,7 +1162,7 @@
   body.tabs .coop .row2 .quick { flex: 1 1 100%; justify-content: center; font-size: 15px; }
 
   /* Short landscape phones (iPhone SE turned): the hero strip lives on the Hero tab only, so the delve setup fits beside the Delve button. */
-  @media (orientation: landscape) and (max-height: 420px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 420px) and (min-width: 561px) {
     body.tabs #heroStrip { display: none; }
     body.tabs .hub-delve [data-pane="delve"] .dungeons { margin-top: 6px; }
     body.tabs .dg, body.tabs .dg:disabled { min-height: 84px; padding: 10px 12px; }
@@ -1156,7 +1179,7 @@
   body.tabs .coop label.open input { width: 22px; height: 22px; }
 
   /* Landscape phones: Group and Hero use the width (two columns) instead of scrolling. */
-  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
     body.tabs .hub[data-tab="group"] [data-pane="group"] { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
     body.tabs .hub[data-tab="group"] .coop { margin-top: 4px; }
     body.tabs .hub[data-tab="hero"] .kit-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-items: start; }
