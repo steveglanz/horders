@@ -14,7 +14,7 @@ import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
-import { CLASS_ICON } from './icons';
+import { CLASS_ICON, GLOW_MARK } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
@@ -83,6 +83,19 @@ interface Fx {
   sy0: number;
   sx1: number;
   sy1: number;
+  /** Optional colour shift over the effect's life: from tint0 to tint1 (0 = none). */
+  tint0: number;
+  tint1: number;
+}
+
+/** Season trails drawn as rising, cooling embers instead of soft motes (TRAILS ids). */
+const SPARK_TRAILS = new Set(['bellowsSparks']);
+/** The dim forge red an ember cools to. */
+const EMBER_COOL = 0x9a2e1c;
+/** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
+function mixRgb(a: number, b: number, t: number): number {
+  const m = (sh: number) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * t)) << sh;
+  return m(16) | m(8) | m(0);
 }
 
 interface FloatText {
@@ -331,7 +344,7 @@ export class GameScene extends Phaser.Scene {
     this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
     // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
     const glow = this.glowId ? GLOWS[this.glowId] : undefined;
-    if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
+    if (glow) this.heroGlow = this.glowImage(glow);
     this.addTrail(w.acting, this.ownTrail, 40);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
@@ -351,7 +364,7 @@ export class GameScene extends Phaser.Scene {
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
         label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
-        glow: ag ? this.add.image(0, 0, 'heroGlow').setTint(hex(ag.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3) : undefined,
+        glow: ag ? this.glowImage(ag) : undefined,
       });
       // An ally's trail: a smaller pool, since it is somebody else's flourish.
       this.addTrail(j, look.trail, 24);
@@ -462,7 +475,7 @@ export class GameScene extends Phaser.Scene {
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
   /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
-  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number }[] = [];
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean }[] = [];
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
   /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
@@ -1158,7 +1171,9 @@ export class GameScene extends Phaser.Scene {
       if (al.tag) al.tag.setPosition(ax, ay - 34).setAlpha(down ? 0.5 : 1);
       if (al.glow) {
         const gp = Math.sin(now / 520 + al.hero);
-        al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
+        // An ally's glow sits just outside their class ring (44 x 16), so the ring, which is how a healer finds
+        // the tank in a crowd, always shows; a touch dimmer than your own so a full party doesn't crowd a phone.
+        al.glow.setPosition(ax, ay + 22).setScale((78 + gp * 3) / 128, (29 + gp * 1) / 128).setAlpha(down ? 0.25 : 0.62 + gp * 0.12);
       }
       al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
       setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
@@ -1781,10 +1796,17 @@ export class GameScene extends Phaser.Scene {
     if (this.vignette) this.vignette.classList.toggle('low', p.hp > 0 && p.hp / p.maxHp < 0.3);
   }
 
+  /** A season glow under a hero, with its mark (GLOW_MARK): an edged glow blends normally so its dark rim shows. */
+  private glowImage(g: { id: string; color: string }): Phaser.GameObjects.Image {
+    const mark = GLOW_MARK[g.id];
+    const img = this.add.image(0, 0, mark === 'double' ? 'heroGlowDouble' : mark === 'edge' ? 'heroGlowEdge' : 'heroGlow').setTint(hex(g.color)).setDepth(1.3);
+    return mark === 'edge' ? img : img.setBlendMode(Phaser.BlendModes.ADD);
+  }
+
   private newFx(tex: string, depth: number, add: boolean): Fx {
     const img = this.add.image(0, 0, tex).setVisible(false).setDepth(depth);
     if (add) img.setBlendMode(Phaser.BlendModes.ADD);
-    return { img, life: 0, max: 1, vx: 0, vy: 0, drag: 1, spin: 0, sx0: 1, sy0: 1, sx1: 1, sy1: 1 };
+    return { img, life: 0, max: 1, vx: 0, vy: 0, drag: 1, spin: 0, sx0: 1, sy0: 1, sx1: 1, sy1: 1, tint0: 0, tint1: 0 };
   }
 
   private stepFx(pool: Fx[], dt: number): void {
@@ -1800,6 +1822,7 @@ export class GameScene extends Phaser.Scene {
       if (f.drag !== 1) { const d = Math.pow(f.drag, dt * 60); f.vx *= d; f.vy *= d; }
       if (f.spin) img.rotation += f.spin * dt;
       img.setAlpha(k).setScale(f.sx0 + (f.sx1 - f.sx0) * t, f.sy0 + (f.sy1 - f.sy0) * t);
+      if (f.tint1) img.setTint(mixRgb(f.tint0, f.tint1, 1 - k));
     }
   }
 
@@ -1839,6 +1862,8 @@ export class GameScene extends Phaser.Scene {
     f.sy0 = o.sy0 ?? f.sx0;
     f.sx1 = o.sx1 ?? f.sx0;
     f.sy1 = o.sy1 ?? f.sx1;
+    f.tint0 = o.tint ?? 0;
+    f.tint1 = o.tint1 ?? 0;
     return f;
   }
 
@@ -1852,6 +1877,7 @@ export class GameScene extends Phaser.Scene {
     tr.acc += dt * (rich && !this.lowFx ? 6 : 3);
     while (tr.acc >= 1) {
       tr.acc -= 1;
+      if (tr.sparks) { this.trailEmbers(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -1859,6 +1885,20 @@ export class GameScene extends Phaser.Scene {
       const y = py + 14 + (Math.random() - 0.5) * 8;
       this.emit(tr.fx, 'trailMote', undefined, x, y, life, { tint: tr.color, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 8, drag: 0.96, sx0: sz, sx1: sz * 0.45 });
       if (!this.lowFx) this.emit(tr.fx, 'trailMote', undefined, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 10, life * 0.8, { tint: tr.color, vy: -16 - Math.random() * 10, drag: 0.95, sx0: sz * 0.5, sx1: sz * 0.15 });
+    }
+  }
+
+  /**
+   * A sparks trail (the Deep Bellows): small embers flicked up off the hero's heels that rise and cool
+   * from the trail's colour to a dim forge red as they fade, like sparks off a bellows, instead of mist.
+   */
+  private trailEmbers(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 0.8 : 0.4;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.8 : 1.2) + Math.random() * 0.25;
+      this.emit(tr.fx, 'trailMote', undefined, px + (Math.random() - 0.5) * 30, py + 18 + (Math.random() - 0.5) * 8, life * (i ? 0.75 : 1),
+        { tint: tr.color, tint1: EMBER_COOL, vx: (Math.random() - 0.5) * 26, vy: -20 - Math.random() * 14, drag: 0.97, sx0: sz, sy0: sz * 1.5, sx1: sz * 0.4, sy1: sz * 0.55 });
     }
   }
 
@@ -1870,7 +1910,7 @@ export class GameScene extends Phaser.Scene {
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
     for (let i = 0; i < pool; i++) fx.push(this.newFx('trailMote', 1.35, true));
-    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0 });
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id) });
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
@@ -1883,6 +1923,12 @@ export class GameScene extends Phaser.Scene {
       const t = k / (n - 1);
       const a = Math.random() * Math.PI * 2;
       const sp = k >= n - 3 ? 40 + Math.random() * 40 : 8;
+      if (tr.sparks) {
+        // Embers: the landing ones fly up and out like a struck forge, then cool.
+        this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.35,
+          { tint: tr.color, tint1: EMBER_COOL, vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 30, drag: 0.95, sx0: 1.3, sy0: 1.9, sx1: 0.45, sy1: 0.65 });
+        continue;
+      }
       this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
         { tint: tr.color, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - 8, drag: 0.93, sx0: 1.8, sx1: 0.6 });
     }

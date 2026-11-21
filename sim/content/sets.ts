@@ -41,11 +41,11 @@ export const SETS: Record<SetId, SetDef> = {
   },
   wrackrider: {
     id: 'wrackrider', name: 'Wrackrider', verb: 'Stand fast', dungeon: 'wrackline',
-    bonus: ['After 1s standing still you are Planted: you take 6% less damage. In the Wrackline, a raft keeps you Planted even while you walk.', 'While Planted, your hits deal +10% damage.'],
+    bonus: ['After 0.5s standing still you are Planted, and you stay Planted for 1s after you move: you take 6% less damage. In the Wrackline, a raft keeps you Planted even while you walk.', 'While Planted, your hits deal +8% damage.'],
   },
   deepguard: {
     id: 'deepguard', name: 'Deepguard', verb: 'Stay close', dungeon: 'hammerdeep',
-    bonus: ['While an ally stands within 140 of you, you take 6% less damage. (A group set: it does nothing solo.)', 'Allies within 140 of you take 5% less damage.'],
+    bonus: ['While an ally stands within 140 of you, you take 3% less damage. (A group set: it does nothing solo.)', 'Allies within 140 of you take 2.5% less damage.'],
   },
   ventwalker: {
     id: 'ventwalker', name: 'Ventwalker', verb: 'Split up', dungeon: 'ashvents',
@@ -75,7 +75,7 @@ export const SET_TUNING = {
   /** Wrackrider: seconds standing still to be Planted, seconds it lasts once you walk off, the damage cut while Planted (2), and the damage while Planted (3). */
   wrStill: 0.5, wrHold: 1, wrCut: 0.06, wrDamage: 0.08,
   /** Deepguard: how close an ally must be, the cut with an ally near (2), and the cut the wearer gives allies near it (3, does not stack). */
-  dgRange: 140, dgCut: 0.04, dgAura: 0.03,
+  dgRange: 140, dgCut: 0.03, dgAura: 0.025,
   /** Ventwalker: the damage while split from every living ally (2, same 140 range as Deepguard), and the heal for standing in a gold circle (3). */
   vwDamage: 0.06, vwHeal: 0.05,
   /** Kinbound: the cut after an ally's heal (2), the damage after you cover an ally (3, for you and them), and how long each lasts. */

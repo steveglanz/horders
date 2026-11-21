@@ -220,6 +220,24 @@ describe('verb sets (R4)', () => {
     expect(taken(far)).toBeCloseTo(100, 3);
   });
 
+  it("the newer sets' bonus texts quote SET_TUNING", () => {
+    const pct = (v: number) => `${+(v * 100).toFixed(1)}%`;
+    const wr = SETS.wrackrider.bonus;
+    expect(wr[0]).toContain(`After ${SET_TUNING.wrStill}s standing still`);
+    expect(wr[0]).toContain(`Planted for ${SET_TUNING.wrHold}s after`);
+    expect(wr[0]).toContain(`take ${pct(SET_TUNING.wrCut)} less`);
+    expect(wr[1]).toContain(`+${pct(SET_TUNING.wrDamage)} damage`);
+    const kn = SETS.kinbound.bonus;
+    expect(kn[0]).toContain(`take ${pct(SET_TUNING.knCovered)} less damage for ${SET_TUNING.knTime}s`);
+    expect(kn[1]).toContain(`deal ${pct(SET_TUNING.knBond)} more damage for ${SET_TUNING.knTime}s`);
+    const dg = SETS.deepguard.bonus;
+    expect(dg[0]).toContain(`take ${pct(SET_TUNING.dgCut)} less`);
+    expect(dg[1]).toContain(`take ${pct(SET_TUNING.dgAura)} less`);
+    const vw = SETS.ventwalker.bonus;
+    expect(vw[0]).toContain(`deal ${pct(SET_TUNING.vwDamage)} more`);
+    expect(vw[1]).toContain(`heals you ${pct(SET_TUNING.vwHeal)}`);
+  });
+
   it('Ventwalker: split from every living ally for more damage (2); a gold circle heals its wearer (3)', () => {
     const solo = world(gear('ventwalker', 3));
     const e0 = solo.enemies.find((o) => o.alive) ?? solo.enemies[0];
