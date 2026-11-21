@@ -447,7 +447,13 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
-    audio.events(events, { cls: w.cls, acting: w.acting, hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined });
+    audio.events(events, {
+      cls: w.cls,
+      acting: w.acting,
+      hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
+      boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
+      anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+    });
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':

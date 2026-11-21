@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, partyCues } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, targetCue } from '../client/audio/cues';
+import { ENEMIES } from '../sim/content/enemies';
 import { phoneShare } from '../tools/mixcheck';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
@@ -84,6 +85,26 @@ describe('audio', () => {
     expect(cueFor({ type: 'castStart', index: 0, name: 'Molten Cataclysm' }, c)?.id).toBe('castWarn');
     expect(cueFor({ type: 'slagGrip', x: 0, y: 0, stacks: 5 }, c)).toMatchObject({ id: 'slag', vol: 1.05 });
     expect(cueFor({ type: 'cleanse', x: 0, y: 0 }, c)?.id).toBe('cleanse');
+  });
+
+  it('gives every boss its own phase-change sting', () => {
+    const bosses = Object.values(ENEMIES).filter((e) => e.rank === 'boss').map((e) => e.id);
+    expect(bosses.length).toBeGreaterThan(0);
+    for (const b of bosses) {
+      const id = cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0, boss: b })?.id;
+      expect(id, b).toBe(PHASE_STING[b] ?? 'phase'); // a brand-new boss falls back to the generic sting
+      expect(SOUNDS[id!], b).toBeDefined();
+    }
+    expect(cueFor({ type: 'phase', phase: 2 }, { cls: 'lumen', acting: 0 })?.id).toBe('phase');
+  });
+
+  it('stings once when Anvilfall winds up on you, and again on the next one', () => {
+    const t = { on: false };
+    expect(targetCue(t, false)).toBeNull();
+    expect(targetCue(t, true)?.id).toBe('targeted');
+    expect(targetCue(t, true)).toBeNull(); // same wind-up
+    expect(targetCue(t, false)).toBeNull();
+    expect(targetCue(t, true)?.id).toBe('targeted');
   });
 
   it('hears co-op heroes go down and get back up', () => {
