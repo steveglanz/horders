@@ -233,7 +233,7 @@ export class Hud {
     setHtml($('heatText'), `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`);
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
-      // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
+      // A stored Blink charge (Hot Heels) makes the button ready while the cooldown runs.
       const cd = i === 1 && p.blinkCharges > 0 ? 0 : p.cds[i];
       const total = w.abilityCooldown(i);
       const gcd = !w.abilities[i].offGcd && p.gcd > 0 ? p.gcd / 0.4 : 0;
@@ -270,7 +270,7 @@ export class Hud {
 
   /**
    * Phones: the target frame spans the screen, so it used to sit on top of the
-   * buff chips (Kiln Brand's "stand in the gold circle!", Ward, Bastion) and the
+   * buff chips (Kiln Brand's "stand in the gold circle!", Ward, Anvil Skin) and the
    * route line. Stack them instead: buffs, the target frame, the route, then party frames.
    */
   private stackTop(): void {
@@ -402,8 +402,8 @@ export class Hud {
     const soak = w.telegraphs.find((t) => t.alive && t.kind === 'soak');
     if (soak) out.push(`<span class="buff debuff">${soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!'}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
-    if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Blazing Speed</span>');
-    if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Bastion</span>');
+    if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
+    if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Anvil Skin</span>');
     if (p.sanctT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Sanctuary</span>');
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);

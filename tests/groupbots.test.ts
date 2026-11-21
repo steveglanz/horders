@@ -21,11 +21,11 @@ function party(): { w: World; inner: Inner; b: number } {
 }
 
 describe('group dungeon bots', () => {
-  it('the Bulwark raises Bastion on the Anvilfall wind-up aimed at it, and holds it otherwise', () => {
+  it('the Bulwark raises Anvil Skin on the Anvilfall wind-up aimed at it, and holds it otherwise', () => {
     const { w, inner, b } = party();
     w.player.heat = 100;
     w.player.hp = w.player.maxHp * 0.4;
-    // Low on health with no Anvilfall coming: Bastion stays banked in this fight.
+    // Low on health with no Anvilfall coming: Anvil Skin stays banked in this fight.
     expect(botCast(w)).not.toBe(2);
     inner.anvilTarget = 2;
     inner.startCast(b, 'anvilfall', 'Anvilfall', 2.5, false);

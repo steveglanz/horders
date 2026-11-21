@@ -59,7 +59,7 @@ Hunicke and Chapman's Hamlet system ([AI for Dynamic Difficulty Adjustment in Ga
 - **Tank:** holds the boss and turns it away from the group (cones and frontal hits matter more in co-op), and swaps or uses a big cooldown on a stacking hit.
 
 How the current kits carry these (skills team):
-- **Bulwark:** threat ×4 is a class passive, not a stance, because every class has four fixed slots. In co-op, Charge also taunts its target. Thorns, Bastion reflects and Thornwall count as damage for threat.
+- **Bulwark:** threat ×4 is a class passive, not a stance, because every class has four fixed slots. In co-op, Charge also taunts its target. Thorns, Anvil Skin reflects and Thornwall count as damage for threat.
 - **Duskblade:** in co-op, Sidestep halves your threat on every enemy (the melee threat dump). Solo it's unchanged.
 - **Emberwright:** no change. Combustion is its burn window, and Quench covers interrupts.
 - **Lumen:** overheal becomes damage solo, and a stacking tank bleed only a heal clears.

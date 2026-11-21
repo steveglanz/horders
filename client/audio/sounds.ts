@@ -156,17 +156,17 @@ export const SOUNDS = {
     { wave: 'saw', f: 500, f2: 140, dur: 0.12, vol: 0.18, lp: 3500 },
     { wave: 'tri', f: 260, f2: 130, dur: 0.5, delay: 0.1, vol: 0.14, a: 0.05, curve: 1.5, vib: [4, 0.03] },
   ]),
-  /** Rallying Cry: a rising two-horn call over a stamp. */
+  /** Muster: a rising two-horn call over a stamp. */
   rallyingCry: join(
     horn(note(-16), 0.35, 0.32),
     horn(note(-9), 0.8, 0.36).map((v) => ({ ...v, delay: 0.25 })),
     boom(70, 0.4, 0.4),
   ),
-  /** Lightwell: a spring of light opens, a bright rising arpeggio with shimmer. */
+  /** Glow Pool: a spring of light opens, a bright rising arpeggio with shimmer. */
   lightwell: join(chime(C5, 0, 0.22, 0.9), chime(G5, 0.1, 0.2, 0.9), chime(C6, 0.2, 0.2, 1.0), chime(E6, 0.3, 0.16, 1.1), [
     { wave: 'noise', f: 0, dur: 1.0, vol: 0.08, a: 0.4, lp: 10000, hp: 5000, trem: [5, 0.5] },
   ]),
-  /** Slag Pit: a pool of slag spreads, glugging and bubbling. */
+  /** Cinder Sump: a pool of slag spreads, glugging and bubbling. */
   slagPit: join(
     [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.08, lp: 1800, lp2: 600, trem: [9, 0.6] }],
     ...[0.05, 0.2, 0.33, 0.5, 0.62].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 40, f2: 520 + k * 60, dur: 0.07, delay: d, vol: 0.16, curve: 2 }]),

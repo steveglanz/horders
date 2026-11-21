@@ -95,7 +95,7 @@ describe('ability options', () => {
     expect(w.enemies[big].slowMult).toBeCloseTo(ALT_KIT.slowBig);
   });
 
-  it('Rallying Cry cuts damage for heroes near the Bulwark in a party, and mends it alone', () => {
+  it('Muster cuts damage for heroes near the Bulwark in a party, and mends it alone', () => {
     const { w, inner } = world('bulwark', ['lumen']);
     const ally = w.heroes[1].player;
     ally.x = w.player.x + 100;
@@ -114,7 +114,7 @@ describe('ability options', () => {
     expect(solo.w.player.hp - h0).toBeCloseTo((solo.w.player.maxHp * ALT_KIT.cryHeal) / ALT_KIT.cryTime);
   });
 
-  it('Lightwell heals an ally in it but never clears Slag Grip', () => {
+  it('Glow Pool heals an ally in it but never clears Slag Grip', () => {
     const { w, inner } = world('lumen', ['bulwark']);
     const ally = w.heroes[1].player;
     ally.x = w.player.x + 20;
@@ -130,7 +130,7 @@ describe('ability options', () => {
     expect(ally.slag).toBe(2);
   });
 
-  it('Slag Pit slows foes standing in it', () => {
+  it('Cinder Sump slows foes standing in it', () => {
     const { w, inner } = world('slagbinder');
     const e = inner.spawn('slagling', w.player.x + 150, w.player.y);
     w.enemies[e].hp = 1e6;

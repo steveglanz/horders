@@ -62,7 +62,7 @@ function setColorIf<T extends Phaser.GameObjects.Text>(t: T, color: string): T {
 /** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
 const SLAG = 0xff9b4a;
 const SLAG_COOL = 0xbcd6e6;
-// Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Rallying Cry gold, Lightwell light.
+// Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
 const WARD_FIRE = 0xff7a2e;
 const SLOWED = 0xa58cff;
 const CRY = 0xffd27a;
@@ -819,7 +819,7 @@ export class GameScene extends Phaser.Scene {
           if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
           else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
           else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
-          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Bastion now. Everyone else: heal them');
+          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
@@ -2129,7 +2129,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case 'bulwark': {
-        // Rallying Cry: three gold waves roll out to the cry's reach.
+        // Muster: three gold waves roll out to the cry's reach.
         for (let k = 0; k < 3; k++) this.emit(this.fx, 'ring', undefined, x, y, 0.4 + k * 0.15, { tint: CRY, sx0: 0.15, sx1: ((r * 2) / 128) * (0.7 + k * 0.15) });
         this.addShape({ kind: 'ring', x, y, x2: 0, y2: 0, r, angle: 0, color: CRY, life: 0.55 });
         this.shakeBy(0.1);
@@ -2137,14 +2137,14 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case 'lumen': {
-        // Lightwell: a shaft of light lands and the well spreads out.
+        // Glow Pool: a shaft of light lands and the well spreads out.
         this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 22, angle: 0, color: WELL, life: 0.7 });
         this.ring(x, y, r, WELL, 0.5);
         this.floatText(x, y - 40, name, '#fff0b0', 18);
         break;
       }
       case 'slagbinder': {
-        // Slag Pit: a glob arcs out and the pit splashes open where it lands.
+        // Cinder Sump: a glob arcs out and the pit splashes open where it lands.
         this.slagLob(this.player.x, this.player.y, x, y);
         this.ring(x, y, r, SLAG, 0.4);
         this.burst(x, y, 10);
@@ -2156,7 +2156,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * A dashed, slowly turning rim. Friendly ground effects (Sanctuary, Lightwell, Slag Pit) use it,
+   * A dashed, slowly turning rim. Friendly ground effects (Sanctuary, Glow Pool, Cinder Sump) use it,
    * and telegraphs keep their solid rim, so a hero can tell "good to stand in" from "a mechanic"
    * by shape as well as colour (L3: the colours alone can merge for colour-blind players).
    */
@@ -2201,7 +2201,7 @@ export class GameScene extends Phaser.Scene {
     const t = w.time;
     const heroes = [{ q: w.player, x: this.player.x, y: this.player.y }, ...this.allies.map((al) => ({ q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y }))];
     for (const { q, x, y } of heroes) {
-      // Lightwell and Slag Pit stay where they were cast, even after the caster goes down.
+      // Glow Pool and Cinder Sump stay where they were cast, even after the caster goes down.
       if ((q.wellUntil ?? -1) > t && q.wellX !== undefined && q.wellY !== undefined) {
         const fade = Math.min(1, ((q.wellUntil ?? 0) - t) / 0.8);
         const wx = q.wellX, wy = q.wellY, r = ALT_KIT.wellRadius;
@@ -2258,7 +2258,7 @@ export class GameScene extends Phaser.Scene {
           o.fillStyle(k % 2 ? 0xffb347 : WARD_FIRE, 0.85 * fade).fillTriangle(bx - 4, by + 2, bx + 4, by + 2, bx + Math.cos(a) * 3, by - fl);
         }
       }
-      // Rallying Cry: a gold ring at the feet with chevrons rising through it.
+      // Muster: a gold ring at the feet with chevrons rising through it.
       if ((q.cryUntil ?? -1) > t) {
         const fade = Math.min(1, ((q.cryUntil ?? 0) - t) / 0.6);
         g.lineStyle(2.5, CRY, 0.75 * fade).strokeEllipse(x, y + 20, 50, 18);
@@ -2272,7 +2272,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    // Hamstring and Slag Pit: a slowed foe drags a violet shackle ring at its feet.
+    // Hamstring and Cinder Sump: a slowed foe drags a violet shackle ring at its feet.
     for (const e of w.enemies) {
       if (!e.alive || (e.slowUntil ?? 0) <= t) continue;
       const r = e.def.radius;

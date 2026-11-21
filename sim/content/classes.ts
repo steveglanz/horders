@@ -26,9 +26,9 @@ export const DUSKBLADE_ABILITIES: AbilityDef[] = [
 ];
 
 export const BULWARK_ABILITIES: AbilityDef[] = [
-  { name: 'Shield Slam', key: 'Q', cost: 25, cooldown: 5, text: 'Slam the shield forward: a wide hit that stuns the horde.' },
+  { name: 'Rim Smash', key: 'Q', cost: 25, cooldown: 5, text: 'Slam the shield forward: a wide hit that stuns the horde.' },
   { name: 'Charge', key: 'E', cost: 0, cooldown: 9, text: 'Rush the biggest foe nearby and stun it.' },
-  { name: 'Bastion', key: 'R', cost: 50, cooldown: 20, text: 'For 6s take 60% less damage and turn a quarter of it back on the attacker.' },
+  { name: 'Anvil Skin', key: 'R', cost: 50, cooldown: 20, text: 'For 6s take 60% less damage and turn a quarter of it back on the attacker.' },
   { name: 'Shield Toss', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Throw the shield to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it takes the boss back.' },
 ];
 
@@ -79,7 +79,7 @@ export const ALT_UNLOCK_LEVEL = 8;
 export const ALT_ABILITIES: Record<ClassId, { slot: number; replaces: string; def: AbilityDef }> = {
   emberwright: { slot: 1, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
   duskblade: { slot: 0, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },
-  bulwark: { slot: 2, replaces: 'Bastion', def: { name: 'Rallying Cry', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
-  lumen: { slot: 1, replaces: 'Glimmer Step', def: { name: 'Lightwell', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
-  slagbinder: { slot: 1, replaces: 'Interpose', def: { name: 'Slag Pit', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+  bulwark: { slot: 2, replaces: 'Anvil Skin', def: { name: 'Muster', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
+  lumen: { slot: 1, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
+  slagbinder: { slot: 1, replaces: 'Interpose', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
 };

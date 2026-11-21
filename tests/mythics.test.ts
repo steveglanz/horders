@@ -125,7 +125,7 @@ describe('class Mythics (R4)', () => {
     expect(w.chargeTarget()).toBe(p.tossId);
   });
 
-  it('Ringwall Vow blocks 20% from every side and Shield Slam pulls foes in', () => {
+  it('Ringwall Vow blocks 20% from every side and Rim Smash pulls foes in', () => {
     const block = (mythic?: MythicId) => {
       const { w, inner } = world('bulwark', mythic);
       const p = w.player;
