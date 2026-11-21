@@ -132,6 +132,8 @@ export const SET_ICON: Record<SetId, string> = {
   // Wrackrider (stand fast): a mooring bollard on the quay with a rope made fast, over a wave.
   // (An anchor would read better, but Anchored Dawn's talent already uses one.)
   wrackrider: 'M5.5 7q6.5-4.5 13 0Z M8.5 7c1.4 2.6 1.4 6.4 0 9.5 M15.5 7c-1.4 2.6-1.4 6.4 0 9.5 M5 16.5h14 M14.6 11.5c3 0 5.2 1.4 6.6 4 M2.5 21q2.4-2.4 4.8 0t4.8 0 4.8 0 4.6 0',
+  // Deepguard (stay close): two shields side by side (placeholder until visuals draws one).
+  deepguard: 'M3 5.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8C5 16.1 3 13.9 3 10.5Z M12 7.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8-2.5-1.2-4.5-3.4-4.5-6.8Z',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */

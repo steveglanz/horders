@@ -291,7 +291,7 @@ export const SOUNDS = {
   soakOk: chime(A5, 0, 0.22, 0.4),
   soakFail: [{ wave: 'square', f: 280, f2: 200, dur: 0.3, vol: 0.14, lp: 1800 }],
 
-  // ---- the Hammerdeep (group dungeon): Ondrel, the Anvilward
+  // ---- the Hammerdeep (group dungeon): Ondrel of the Hammerdeep
   /** Anvilfall wind-up (2.5 s): a swelling, rising grind the whole party learns to fear. */
   anvilWarn: [
     { wave: 'saw', f: 90, f2: 260, dur: 2.5, vol: 0.3, a: 2.2, curve: 0.6, lp: 400, lp2: 2600 },

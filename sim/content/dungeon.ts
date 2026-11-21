@@ -46,7 +46,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   lensmother: { id: 'lensmother', name: 'The Lensmother', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
   anvilguard: { id: 'anvilguard', name: 'The Anvil Guard', tip: 'Two Brutes at once: one hero holds both while the rest Quench.', spawns: [{ kind: 'cinderBrute', n: 2 }] },
-  ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
+  ondrel: { id: 'ondrel', name: 'Ondrel of the Hammerdeep', tip: 'Tank holds Anvilfall, everyone else stays behind it, healer clears Slag Grip.', spawns: [{ kind: 'ondrel', n: 1 }] },
   ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', tip: 'Someone in each gold vent, spread out when Embers mark you, tank takes Bellow Slam.', spawns: [{ kind: 'ysmeret', n: 1 }] },
   rimepack: { id: 'rimepack', name: 'The Rime Pack', tip: 'Five hounds out of the dark. Every kill feeds your coal.', spawns: [{ kind: 'rimehound', n: 5 }] },
   snuffers: { id: 'snuffers', name: 'Snuffers in the Dark', tip: 'Snuffers drink your light. Kill them before they touch you.', spawns: [{ kind: 'snuffer', n: 2 }, { kind: 'rimehound', n: 2 }] },

@@ -36,9 +36,10 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('glarewell')).toBe('glarewarden');
     expect(setForDungeon('coldmarrow')).toBe('hearthkeeper');
     expect(setForDungeon('wrackline')).toBe('wrackrider');
-    expect(setForDungeon('hammerdeep')).toBeUndefined();
+    expect(setForDungeon('hammerdeep')).toBe('deepguard');
+    expect(setForDungeon('ashvents')).toBeUndefined();
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(5);
+    expect(Object.keys(SETS)).toHaveLength(6);
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -193,5 +194,28 @@ describe('verb sets (R4)', () => {
     w.step({ x: 0.001, y: 1 });
     expect(w.player.moving).toBe(true);
     expect(w.player.planted).toBe(true);
+  });
+
+  it('Deepguard: an ally close by cuts your damage (2), and a 3-piece wearer guards the allies near it; nothing solo', () => {
+    const solo = world(gear('deepguard', 3));
+    const hp = solo.player.hp;
+    inner(solo).hurtPlayer(50);
+    expect(hp - solo.player.hp).toBeCloseTo(50, 3);
+
+    const party = (me: number, ally: number) => {
+      const w = new World({ seed: 3, dungeon: 'hammerdeep', omens: [], gear: gear('deepguard', me), party: [{ cls: 'lumen', gear: gear('deepguard', ally) }] });
+      const a = w.hero(1).player;
+      Object.assign(a, { x: w.player.x + 60, y: w.player.y });
+      return w;
+    };
+    const taken = (w: World) => { w.player.hp = w.player.maxHp; const h0 = w.player.hp; inner(w).hurtPlayer(100); return h0 - w.player.hp; };
+    expect(taken(party(0, 0))).toBeCloseTo(100, 3);
+    expect(taken(party(2, 0))).toBeCloseTo(100 * (1 - SET_TUNING.dgCut), 3);
+    expect(taken(party(0, 3))).toBeCloseTo(100 * (1 - SET_TUNING.dgAura), 3);
+    expect(taken(party(3, 3))).toBeCloseTo(100 * (1 - SET_TUNING.dgCut) * (1 - SET_TUNING.dgAura), 3);
+    // Too far apart: nothing.
+    const far = party(3, 3);
+    Object.assign(far.hero(1).player, { x: far.player.x + SET_TUNING.dgRange + 40, y: far.player.y });
+    expect(taken(far)).toBeCloseTo(100, 3);
   });
 });
