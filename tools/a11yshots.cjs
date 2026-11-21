@@ -15,7 +15,7 @@ const phone = process.argv[3] === 'phone';
   const tag = phone ? 'phone' : 'desk';
   await page.goto('file://' + path.resolve('dist/index.html') + '?seed=2&god=1');
   await page.waitForTimeout(600);
-  await page.evaluate(() => { document.querySelector('details.how').open = true; });
+  await page.evaluate(() => { document.getElementById('setBtn').click(); document.querySelector('details.how').open = true; });
   await (await page.$('#hubOpts')).screenshot({ path: path.join(out, `${tag}-a11y-hub-options.png`) });
   await page.click('#startBtn');
   await page.waitForFunction(() => window.__ember.scene()?.world?.phase === 'fight', null, { timeout: 30000 });

@@ -46,7 +46,7 @@ const phone = process.argv[3] === 'phone';
   await page.click('#menuBtn');
   await page.waitForTimeout(300);
   await shot('8-hub');
-  await page.click('#bagBtn');
+  await page.evaluate(() => document.getElementById('bagBtn').click()); // hidden on phones, where the Bags tab opens it
   await page.waitForTimeout(300);
   await shot('9-bag');
   const saved = await page.evaluate(() => localStorage.getItem('horders.hero.v1')?.length ?? 0);

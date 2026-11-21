@@ -35,6 +35,17 @@ function readKitOpen(): boolean {
   } catch { /* storage blocked */ }
   return typeof matchMedia === 'function' && matchMedia('(min-width: 900px) and (min-height: 600px)').matches;
 }
+/** Phones and small tablets get the tabbed hub (docs/design/mobile-ux.md §3.1); wide screens keep two columns. */
+const TABS_MQ = '(max-width: 899px), (max-height: 599px)';
+export type HubTab = 'delve' | 'hero' | 'bags' | 'group';
+const SEEN_KEY = 'horders.ui.seen';
+/** Item ids each class has already seen in its bags, for the Bags badge. */
+function readSeen(): Record<string, string[]> {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch { return {}; }
+}
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
 
 /** A role's class glyph in a small tinted tile (the Bulwark is the tank, the Lumen the healer). */
@@ -55,6 +66,10 @@ export class Hub {
   partyClasses: string[] = [];
   /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
   private kitOpen = readKitOpen();
+  /** The open hub tab in tab mode (the Bags tab is the bag overlay). */
+  tab: HubTab = 'delve';
+  private tabs = typeof matchMedia === 'function' ? matchMedia(TABS_MQ) : null;
+  private seen = readSeen();
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     const closeBag = () => {
@@ -64,6 +79,85 @@ export class Hub {
     $('bagClose').addEventListener('click', closeBag);
     $('bagBack').addEventListener('click', closeBag);
     $('bagBtn').addEventListener('click', () => this.openBag());
+
+    // Tabs: the bar shows while the hub or the bags are on screen, in tab mode only.
+    const apply = () => {
+      document.body.classList.toggle('tabs', !!this.tabs?.matches);
+      this.render();
+    };
+    this.tabs?.addEventListener('change', apply);
+    document.body.classList.toggle('tabs', !!this.tabs?.matches);
+    $('tabbar').querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) =>
+      b.addEventListener('click', () => this.go(b.dataset.tab as HubTab)));
+    const follow = () => { $('tabbar').hidden = $('title').hidden && $('bag').hidden; this.syncTabbar(); };
+    const mo = new MutationObserver(follow);
+    mo.observe($('title'), { attributes: true, attributeFilter: ['hidden'] });
+    mo.observe($('bag'), { attributes: true, attributeFilter: ['hidden'] });
+    follow();
+    $('heroStrip').addEventListener('click', () => this.go('hero'));
+
+    // Settings sheet: display options, how to play, reset.
+    const sheet = $('settings');
+    const snd = $('bagBtn').parentElement;
+    if (snd && snd !== $('title').querySelector('.hub-top')) snd.append($('setBtn'));
+    $('setBtn').addEventListener('click', () => { sheet.hidden = false; });
+    sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
+    sheet.querySelector('.sheet-x')!.addEventListener('click', () => { sheet.hidden = true; });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sheet.hidden) sheet.hidden = true; });
+  }
+
+  /** Opens a hub tab. Bags is the bag overlay; the others are panes of the hub. */
+  go(tab: HubTab): void {
+    if (tab === 'bags') {
+      this.openBag();
+      return;
+    }
+    this.tab = tab;
+    if (!$('bag').hidden) $('bag').hidden = true;
+    $('title').scrollTop = 0;
+    this.render();
+  }
+
+  private syncTabbar(): void {
+    const on: HubTab = !$('bag').hidden ? 'bags' : this.tab;
+    $('tabbar').querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
+      const yes = b.dataset.tab === on;
+      b.classList.toggle('on', yes);
+      if (yes) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+
+  /** Items in this hero's bags that the player hasn't opened the bags to see yet. */
+  private newItems(): number {
+    const h = this.hero();
+    const key = h.cls ?? 'emberwright';
+    const seen = this.seen[key];
+    if (!seen) {
+      // First visit with this build: everything already held counts as seen.
+      this.markSeen();
+      return 0;
+    }
+    const set = new Set(seen);
+    return h.inventory.filter((i) => !set.has(i.id)).length;
+  }
+
+  private markSeen(): void {
+    const h = this.hero();
+    this.seen[h.cls ?? 'emberwright'] = h.inventory.map((i) => i.id);
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(this.seen)); } catch { /* private mode */ }
+  }
+
+  private renderTabs(): void {
+    const h = this.hero();
+    $('title').querySelector<HTMLElement>('.hub')!.dataset.tab = this.tab;
+    const pts = pointsAvailable(h);
+    $('heroBadge').hidden = pts === 0;
+    $('heroBadge').title = pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'} to spend` : '';
+    const fresh = $('bag').hidden ? this.newItems() : 0;
+    $('bagBadge').hidden = fresh === 0;
+    $('bagBadge').textContent = fresh > 9 ? '9+' : String(fresh);
+    $('groupBadge').hidden = !(this.boss?.unclaimed.length);
+    this.syncTabbar();
   }
 
   render(): void {
@@ -99,7 +193,7 @@ export class Hub {
         <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
-      <details class="kit" ${this.kitOpen ? 'open' : ''}>
+      <details class="kit" ${this.kitOpen || this.tabs?.matches ? 'open' : ''}>
         <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
           + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
         <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
@@ -113,8 +207,15 @@ export class Hub {
       const it = items.find((i) => i.slot === el.dataset.slot);
       if (it) setTip(el, () => itemHtml(it, '', worn2));
     });
+    // Delve tab's hero strip: class, level and XP in one row; tap for the Hero tab.
+    $('heroStrip').innerHTML = `<span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 22)}</span>`
+      + `<span class="hs-main"><span class="hs-name"><b>${CLASSES[cls].name}</b><span class="lv">Lv ${h.level}</span></span>`
+      + `<span class="meter" style="display:block"><span style="display:block;width:${xpPct}%"></span></span></span>`
+      + (pts ? `<span class="hs-pts">${pts} ${pts === 1 ? 'point' : 'points'}</span>` : '') + '<i class="chev" aria-hidden="true"></i>';
+    $('heroStrip').setAttribute('aria-label', `${CLASSES[cls].name}, level ${h.level}. Open hero`);
     const kit = $('heroCard').querySelector<HTMLDetailsElement>('details.kit')!;
     kit.addEventListener('toggle', () => {
+      if (this.tabs?.matches) return;
       this.kitOpen = kit.open;
       try { localStorage.setItem(KIT_KEY, kit.open ? '1' : '0'); } catch { /* private mode: keep it for this visit */ }
     });
@@ -194,6 +295,7 @@ export class Hub {
     start.disabled = !!blocked;
     start.textContent = blocked || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
+    this.renderTabs();
   }
 
   /** Today's bounty: the same fights and twist for every player. */
@@ -307,6 +409,7 @@ export class Hub {
       ${this.bossOmenLine(b)}
       <p>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.</p>
       ${claims}${this.bossNote ? `<p style="color:var(--gold)">${this.bossNote}</p>` : ''}`;
+    $('groupBadge').hidden = !b.unclaimed.length;
     el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>
       btn.addEventListener('click', () => void this.claim(Number(btn.dataset.claim))));
   }
@@ -330,6 +433,8 @@ export class Hub {
 
   openBag(): void {
     const h = this.hero();
+    this.markSeen();
+    $('bagBadge').hidden = true;
     const worn = new Set(Object.values(h.equipped));
     const sorted = [...h.inventory].sort((a, b) => (worn.has(b.id) ? 1 : 0) - (worn.has(a.id) ? 1 : 0) || itemScore(b) - itemScore(a));
     $('bagSub').textContent = `${h.inventory.length} ${h.inventory.length === 1 ? 'item' : 'items'} · ${worn.size} equipped`;
