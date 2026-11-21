@@ -99,6 +99,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'eliteSpawn': return { id: 'eliteSpawn' };
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
+    case 'namedSpawn': return { id: 'namedSpawn' };
+    case 'namedKill': return { id: 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
     case 'phase': return { id: phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':

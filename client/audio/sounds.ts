@@ -166,6 +166,15 @@ export const SOUNDS = {
   // ---- encounters
   bossSpawn: join(horn(note(-28) * 2, 1.6, 0.4), horn(note(-28), 1.6, 0.25), horn(note(-21), 1.4, 0.3).map((v) => ({ ...v, delay: 0.25 })), boom(40, 1.2, 0.5)),
   eliteSpawn: horn(note(-21), 0.8, 0.35),
+  /** A named elite joins the fight: a short minor fanfare (low, then a minor third and a fifth up) under a cold bell. */
+  namedSpawn: join(
+    horn(note(-21), 0.35, 0.3),
+    horn(note(-18), 0.35, 0.3).map((v) => ({ ...v, delay: 0.22 })),
+    horn(note(-14), 0.9, 0.34).map((v) => ({ ...v, delay: 0.44 })),
+    clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.44 })),
+  ),
+  /** A named elite falls: a heavy thud, then a rising sparkle for the loot it drops. */
+  namedKill: join(boom(60, 0.6, 0.45), chime(E5, 0.15, 0.22, 0.5), chime(B5(), 0.25, 0.22, 0.5), chime(E6, 0.35, 0.26, 0.9)),
   rareSpawn: join(horn(note(-16), 0.8, 0.3), chime(E6, 0.3, 0.15, 0.6)),
   enrage: [
     { wave: 'saw', f: 70, f2: 55, dur: 1.0, vol: 0.4, a: 0.1, lp: 900, lp2: 2000, vib: [9, 0.05] },

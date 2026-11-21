@@ -34,6 +34,7 @@ export function buzzFor(ev: SimEvent, c: CueContext): Buzz | null {
     case 'castStart': return BUZZ.telegraph;
     case 'bossSpawn': return BUZZ.bossSpawn;
     case 'phase': return BUZZ.phase;
+    case 'namedSpawn': return BUZZ.telegraph;
     case 'levelUp': return mine(ev.hero) ? BUZZ.levelUp : null;
     case 'interrupt': return BUZZ.interrupt;
     case 'burnout': return ev.warn ? BUZZ.telegraph : BUZZ.hurtBig;
