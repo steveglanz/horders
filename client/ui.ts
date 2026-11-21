@@ -521,6 +521,15 @@ export class Hud {
     }
     $('endXp').innerHTML = xp;
     $('rewards').innerHTML = loot;
+    // Phones show one line per item; the full card (stats, set bonuses) is a hold away.
+    if (rewards && hero) {
+      const equipped = new Set(Object.values(hero.equipped));
+      const worn = setsWorn(hero);
+      $('rewards').querySelectorAll<HTMLElement>('.item').forEach((el, k) => {
+        const it = rewards.items[k];
+        if (it) setTip(el, () => itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', worn));
+      });
+    }
     $('end').classList.toggle('win', s.victory);
     $('end').classList.toggle('loss', !s.victory);
     $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
