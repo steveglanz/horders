@@ -161,6 +161,12 @@ export const SLAG_KIT = {
   everMoltenRefund: 15, heartAt: 0.3, heartShare: 0.25, heartEvery: 30,
   tideRadius: 120, tideDamage: 60, tideStun: 1,
   hailEvery: 4, shatterMult: 1.25,
+  /** Party only: Cooling Shell's cut on allies (its own wearer keeps shellCut), and plating poured on an ally. */
+  allyShellCut: 0.2, allyPlate: 0.5,
+  /** Party only: how much harder Brittle foes take hits from the Slagbinder's allies (its own hits use brittleMult). */
+  allyBrittle: 1.15,
+  /** Party only: a Bellows Slagbinder's damage when it has allies. */
+  partyDmg: 0.7,
 };
 
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
@@ -1195,7 +1201,8 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    return guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    const party = this.cls === 'slagbinder' && p.stance !== 'anvil' && this.heroes.length > 1 ? SLAG_KIT.partyDmg : 1;
+    return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -2048,7 +2055,8 @@ export class World {
       }
     }
     // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
-    if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
+    const ownShell = this.cls === 'slagbinder' && (p.shellUntil ?? -1) > this.time;
+    if (ownShell || this.shellCovers(p)) amount *= 1 - (ownShell ? SLAG_KIT.shellCut : SLAG_KIT.allyShellCut) - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
@@ -2672,6 +2680,7 @@ export class World {
   private plate(k: number, amount: number): void {
     const q = this.heroPlayer(k);
     if (q.hp <= 0) return;
+    if (k !== this.acting) amount *= SLAG_KIT.allyPlate;
     // A fresh coat replaces the old one, so it never stacks past one plating.
     q.plate = amount;
     q.plateAmt = amount;
@@ -4307,7 +4316,7 @@ export class World {
       if (k >= 0 && k !== this.acting) dmg *= 1 + PARTY_CARDS.turnedBack * this.rank('turnedBack');
     }
     // Brittle (Slagbinder): cracked slag on the foe, so every hero hits it harder.
-    if ((e.brittleUntil ?? 0) > this.time) dmg *= SLAG_KIT.brittleMult;
+    if ((e.brittleUntil ?? 0) > this.time) dmg *= this.cls === 'slagbinder' ? SLAG_KIT.brittleMult : SLAG_KIT.allyBrittle;
     dmg *= this.setDamageMult(e, silent);
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
