@@ -11,6 +11,7 @@ import { Party, Member, partyCode } from './party';
 import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
+import { POTION_IDS } from '../../sim/content/potions';
 import { Snapshot, snapshot } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
@@ -29,6 +30,8 @@ export interface HeroCard {
   /** Season trail worn and its stage (cleaned by cleanLooks like the glow). */
   trail?: { id: string; stage: number };
   glow?: string;
+  /** The potion brewed for the next delve; a guest's counts for their own hero. Older clients send none. */
+  potion?: string;
 }
 
 /**
@@ -109,7 +112,7 @@ export class CoopSession {
   constructor(
     readonly code: string,
     readonly role: 'host' | 'guest',
-    readonly mine: HeroCard,
+    public mine: HeroCard,
     signal: Signal,
     readonly events_: CoopEvents = {},
   ) {
@@ -146,6 +149,17 @@ export class CoopSession {
     this.party.close();
   }
 
+  /**
+   * Your hero changed in the hub (gear, level, class, a potion brewed): send the
+   * new card, so the host starts the next delve with it. Only when it differs.
+   */
+  updateMine(card: HeroCard): void {
+    if (this.running || JSON.stringify(card) === JSON.stringify(this.mine)) return;
+    this.mine = card;
+    if (this.role === 'host') this.shareRoster();
+    else this.party.broadcast('rel', { t: 'hero', hero: card } satisfies Msg);
+  }
+
   // ------------------------------------------------------------- host side
 
   /** Host: the party option for World, and tells guests to start. */
@@ -153,7 +167,8 @@ export class CoopSession {
     this.order = this.party.members.map((m) => m.id).filter((id) => this.heroes.has(id));
     const party: HeroOptions[] = this.order.map((id) => {
       const h = this.heroes.get(id)!;
-      return { cls: h.cls, stance: h.stance, alt: h.alt, gear: h.gear, passives: h.passives, name: h.name };
+      const potion = POTION_IDS.find((p) => p === h.potion);
+      return { cls: h.cls, stance: h.stance, alt: h.alt, gear: h.gear, passives: h.passives, name: h.name, potion };
     });
     // V7: Fill with bots tops the party up after the real guests; the host runs them (GameScene).
     const bots = opts.fillBots ? (opts.party ?? []).slice(-opts.fillBots) : [];

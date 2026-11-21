@@ -224,7 +224,7 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 - Each class keeps its own potion, like its embers and bags.
 - No new button: every potion works on its own, which keeps the phone action bar at four.
 - The **daily bounty ignores potions** (and doesn't use yours up), because everyone plays the same delve that day.
-- In co-op only the lead hero's potion counts for now. Per-hero potions come with engineering's party saves.
+- In co-op each hero's own potion counts (engineering, 21 Nov 2026): a guest's brewed potion goes with their hero card and is used up when the host starts the delve; the bounty still takes none.
 
 **The potions (one verb each, never a raw stat):**
 

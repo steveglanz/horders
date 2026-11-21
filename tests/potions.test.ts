@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { POTIONS, POTION, potionCost } from '../sim/content/potions';
+import { POTIONS, POTION, PotionId, potionCost } from '../sim/content/potions';
 import { brewBlocker, brewPotion, newHero, switchClass, takePotion } from '../sim/hero';
 
 const ROUTE = ['pack', 'pack', 'pack', 'pack', 'kilnMother'] as const;
@@ -84,5 +84,52 @@ describe('Alchemy: one potion per delve', () => {
   it('the daily bounty ignores potions, so every player runs the same delve', () => {
     const w = new World({ seed: 1, route: [...ROUTE], omens: [], potion: 'kindling', bounty: 100 });
     expect(w.potion).toBeUndefined();
+  });
+});
+
+describe('co-op: each hero brings their own potion', () => {
+  const party = (potion?: PotionId, lead?: PotionId, bounty?: number) =>
+    new World({ seed: 1, route: [...ROUTE], omens: [], potion: lead, bounty, party: [{ cls: 'bulwark', potion }], partySize: 2 });
+
+  it('a party member\'s Rising Draught saves them, once, and leaves the lead hero\'s alone', () => {
+    const w = party('risingDraught');
+    const hurt = (w as unknown as { hurtPlayer(a: number): void }).hurtPlayer.bind(w);
+    w.use(1);
+    hurt(w.player.hp + 50);
+    expect(w.player.hp).toBeCloseTo(w.player.maxHp * POTION.riseHp, 5);
+    w.player.shieldT = 0;
+    hurt(w.player.hp + 50);
+    expect(w.player.hp).toBeLessThanOrEqual(0);
+    w.use(0);
+    expect(w.potionUsed).toBe(false);
+    hurt(w.player.hp + 50);
+    expect(w.player.hp).toBeLessThanOrEqual(0);
+  });
+
+  it('the lead hero\'s potion no longer covers the party', () => {
+    const w = party(undefined, 'stillwater');
+    const lead = w.abilityCooldown(3);
+    w.use(1);
+    const plain = new World({ seed: 1, route: [...ROUTE], omens: [], party: [{ cls: 'bulwark' }], partySize: 2 });
+    plain.use(1);
+    expect(w.abilityCooldown(3)).toBe(plain.abilityCooldown(3));
+    w.use(0);
+    expect(lead).toBeCloseTo(plain.abilityCooldown(3) * POTION.stillwaterCd, 5);
+  });
+
+  it('a party member\'s Stillwater Tonic and Kindling Brew work for them', () => {
+    const tonic = party('stillwater');
+    const plain = party();
+    tonic.use(1); plain.use(1);
+    expect(tonic.abilityCooldown(3)).toBeCloseTo(plain.abilityCooldown(3) * POTION.stillwaterCd, 5);
+    const kin = party('kindling');
+    expect(kin.hero(1).player.level).toBe(2);
+    expect(kin.hero(1).player.pendingLevels).toBe(1);
+    expect(kin.player.level).toBe(1);
+  });
+
+  it('a bounty ignores party potions, and an unknown potion is ignored', () => {
+    expect(party('kindling', undefined, 100).hero(1).player.level).toBe(party(undefined, undefined, 100).hero(1).player.level);
+    expect(party('bogus' as PotionId).hero(1).player.level).toBe(1);
   });
 });

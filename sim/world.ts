@@ -18,7 +18,7 @@ import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
-import { POTION, PotionId } from './content/potions';
+import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
@@ -589,6 +589,8 @@ export interface HeroOptions {
   gear?: Item[];
   passives?: Partial<Record<PassiveId, number>>;
   name?: string;
+  /** Co-op: the potion this party member brewed (the lead hero's comes from WorldOptions.potion). */
+  potion?: PotionId;
 }
 
 /** The per-hero state a co-op snapshot carries (the rest of HeroSlot comes from the start options). */
@@ -758,9 +760,12 @@ export class World {
   /** The world boss's Omen when it added one the tier didn't already have. */
   readonly bossOmen: OmenId | undefined;
   readonly dungeonId: DungeonId;
-  /** The potion brewed for this delve; `potionUsed` once Rising Draught has fired. */
+  /** The lead hero's potion for this delve; `potionUsed` once their Rising Draught has fired. */
   readonly potion: PotionId | undefined;
-  potionUsed = false;
+  get potionUsed(): boolean { return this.potionSpent[0]; }
+  /** Each hero's potion, by hero index (0 is `potion`), and whether their Rising Draught has fired. */
+  private readonly potions: (PotionId | undefined)[] = [];
+  private readonly potionSpent: boolean[] = [];
   /** The run's seed, for side streams that mustn't disturb the main rolls. */
   readonly seed: number;
   readonly bounty: number | undefined;
@@ -1022,7 +1027,21 @@ export class World {
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
     this.heroes.push(this.saveSlot('h0', opts.heroName ?? 'Hero'));
     const extra = (opts.party ?? []).slice(0, MAX_PARTY - 1);
-    extra.forEach((h, k) => this.heroes.push(this.makeHero(h, k + 1, opts)));
+    this.potions.push(this.potion);
+    extra.forEach((h, k) => {
+      this.heroes.push(this.makeHero(h, k + 1, opts));
+      this.potions.push(opts.bounty === undefined && h.potion && POTION_IDS.includes(h.potion) ? h.potion : undefined);
+    });
+    for (let i = 0; i < this.heroes.length; i++) {
+      this.potionSpent.push(false);
+      // Kindling Brew on a party member: one level (and one pick) before the first fight, as for the lead hero.
+      if (i > 0 && this.potions[i] === 'kindling') {
+        const p = this.heroes[i].player;
+        p.level += 1;
+        p.pendingLevels += 1;
+        p.xpToNext = xpFor(p.level);
+      }
+    }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
   }
 
@@ -1223,7 +1242,7 @@ export class World {
   abilityCooldown(slot: number): number {
     const cd = this.baseCooldown(slot);
     // Stillwater Tonic: the interrupt comes back faster all delve.
-    return slot === 3 && this.potion === 'stillwater' ? cd * POTION.stillwaterCd : cd;
+    return slot === 3 && this.potions[this.acting] === 'stillwater' ? cd * POTION.stillwaterCd : cd;
   }
 
   private baseCooldown(slot: number): number {
@@ -2111,9 +2130,9 @@ export class World {
       this.events.push({ type: 'revive', hero: this.acting });
       return;
     }
-    if (amount >= p.hp && this.potion === 'risingDraught' && !this.potionUsed && this.acting === 0) {
-      // Rising Draught: the lead hero gets back up once, at a quarter health with a moment's shield.
-      this.potionUsed = true;
+    if (amount >= p.hp && this.potions[this.acting] === 'risingDraught' && !this.potionSpent[this.acting]) {
+      // Rising Draught: the hero who brewed it gets back up once, at a quarter health with a moment's shield.
+      this.potionSpent[this.acting] = true;
       p.hp = p.maxHp * POTION.riseHp;
       p.shieldT = POTION.riseShield;
       this.events.push({ type: 'potion', id: 'risingDraught', x: p.x, y: p.y });
