@@ -29,14 +29,14 @@ export const BULWARK_ABILITIES: AbilityDef[] = [
   { name: 'Shield Slam', key: 'Q', cost: 25, cooldown: 5, text: 'Slam the shield forward: a wide hit that stuns the horde.' },
   { name: 'Charge', key: 'E', cost: 0, cooldown: 9, text: 'Rush the biggest foe nearby and stun it.' },
   { name: 'Bastion', key: 'R', cost: 50, cooldown: 20, text: 'For 6s take 60% less damage and turn a quarter of it back on the attacker.' },
-  { name: 'Shield Toss', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Throw the shield to interrupt a cast and stun the caster.' },
+  { name: 'Shield Toss', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Throw the shield to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it takes the boss back.' },
 ];
 
 export const LUMEN_ABILITIES: AbilityDef[] = [
   { name: 'Radiant Burst', key: 'Q', cost: 25, cooldown: 4, text: 'A pulse of light: heals you and burns everything close.' },
   { name: 'Glimmer Step', key: 'E', cost: 0, cooldown: 8, text: 'Step through light to where you are moving.' },
   { name: 'Sanctuary', key: 'R', cost: 60, cooldown: 22, text: 'Hallow the ground for 6s: you heal inside it and foes burn.' },
-  { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Silence an enemy cast and stun the caster.' },
+  { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: "Silence an enemy cast and stun the caster. In a party, with nothing to silence, it clears an ally's Slag Grip." },
 ];
 
 export const CLASSES: Record<ClassId, ClassDef> = {

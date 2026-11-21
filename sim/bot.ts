@@ -26,6 +26,8 @@ function bladeCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
   if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  // Co-op: pulled the boss off a living Bulwark, so Sidestep to dump threat back to it.
+  if (w.canCast(1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && h.cls === 'bulwark' && h.player.hp > 0)) return 1;
   // Step out of a telegraph we are standing in.
   if (attentive && w.canCast(1)) {
     for (const t of w.telegraphs) {
@@ -73,6 +75,13 @@ function shieldCast(w: World, skill: number): number | undefined {
   const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
   const ondrel = !!boss && boss.alive && boss.kind === 'ondrel';
   if (ondrel && w.canCast(2) && w.anvilOnMe) return 2;
+  // Co-op taunt cue: the boss is on someone else, so take it back.
+  if (w.tauntCue) {
+    const b = w.enemies[w.bossIndex];
+    const d = Math.hypot(b.x - p.x, b.y - p.y) - b.def.radius;
+    if (w.canCast(3) && d < 420) return 3;
+    if (w.canCast(1) && w.chargeTarget() === w.bossIndex) return 1;
+  }
   if (!ondrel && w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
   if (w.canCast(0) && (near >= 3 || bigClose)) return 0;
   const c = w.chargeTarget();
@@ -124,6 +133,8 @@ function lightCast(w: World, skill: number): number | undefined {
     if (d2 < 60 * 60) touching++;
   }
   const hurt = 1 - p.hp / p.maxHp;
+  // Co-op Purify: Hush clears an ally's Slag Grip when nothing needs silencing.
+  if (w.canCast(3) && w.interruptTarget() < 0 && w.purifyTarget() >= 0) return 3;
   // Co-op: Radiant Burst and Sanctuary reach the ward when it's close enough.
   const ward = lumenWard(w);
   if (ward >= 0) {

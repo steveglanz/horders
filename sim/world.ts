@@ -40,6 +40,11 @@ export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
+/** G6: an ally standing within this distance of a downed hero picks them up... */
+export const REVIVE_RADIUS = 40;
+/** ...after this many seconds, at this share of their health. Leaving the circle resets the count. */
+export const REVIVE_SECONDS = 3;
+export const REVIVE_HEALTH = 0.3;
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
@@ -53,6 +58,22 @@ const SIDESTEP_HEAL = 0.03;
 const SECOND_WIND = 0.2;
 /** Share of max health Bastion heals before Last Stand. */
 const BASTION_HEAL = 0.1;
+/**
+ * Group tools (roadmap G1). Each class gets one, and each fires only with more than one
+ * hero, so solo play is unchanged.
+ */
+export const GROUP_TOOLS = {
+  /** Emberwright, Kindling: Combustion lifts allies within this radius by this much damage for this long. */
+  kindleRadius: 320, kindleMult: 1.1, kindleTime: 6,
+  /**
+   * Lumen, Purify: Hush with nothing to silence clears Slag Grip from an ally within this range.
+   * It doesn't heal and doesn't clear Sundered: an 8% heal on top took a 4-hero party from 40 to 57
+   * wins in 60 and a Bulwark + Lumen pair from 15 to 47, and clearing Sundered undoes the tank swap.
+   */
+  purifyRange: 500,
+  /** Bulwark, Called Out: Shield Toss with nothing to interrupt taunts the boss within this range. */
+  callOutRange: 420,
+};
 /** Health each Sunmote hit gives the Lumen. */
 const SUNMOTE_HEAL = 1;
 /** Shield Sweep damage multiplier against elites and bosses. */
@@ -138,6 +159,8 @@ export interface Gem {
   py: number;
   value: number;
   pulled: boolean;
+  /** Co-op: the hero this gem is flying to. */
+  to?: number;
 }
 
 export interface Zone {
@@ -171,6 +194,8 @@ export interface Telegraph {
   owner: number;
   /** The hero was inside when it appeared (so leaving it before it lands is a dodge). */
   wasIn?: boolean;
+  /** Co-op: bit i set if hero i was inside when it appeared. */
+  inMask?: number;
 }
 
 export interface Drop {
@@ -224,6 +249,8 @@ export interface Player {
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   sunderT?: number;
+  /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
+  kindleUntil?: number;
   x: number;
   y: number;
   px: number;
@@ -241,6 +268,8 @@ export interface Player {
   surge?: boolean;
   gwT?: number;
   gwReadyAt?: number;
+  /** Co-op, while downed: seconds an ally has stood on this hero (G6 in-fight revive). */
+  reviveT?: number;
   volleyT: number;
   rainT: number;
   lanceT: number;
@@ -314,7 +343,7 @@ export type SimEvent =
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
-  | { type: 'revive'; hero?: number }
+  | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
   | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
@@ -794,7 +823,8 @@ export class World {
     // Vengeance: the Bulwark hits harder the more hurt it is.
     const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit);
+    const kindled = this.time < (p.kindleUntil ?? -1) ? GROUP_TOOLS.kindleMult : 1;
+    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -903,11 +933,39 @@ export class World {
     this.eachHero((h) => this.updateZones(dt, h), true);
     this.eachHero((h) => this.updateStrikes(dt, h), true);
     this.updateLances(dt);
-    this.eachHero(() => this.updateTelegraphs(dt));
+    // Shared things tick once per step and then resolve for each hero (not once per hero).
+    this.updatePartyTelegraphs(dt);
     this.eachHero(() => this.updateDrops());
-    this.eachHero(() => this.updateVeins(dt));
-    this.eachHero(() => this.updateGems(dt));
+    this.updatePartyVeins(dt);
+    this.updatePartyGems(dt);
+    this.updateRevives(dt);
     this.checkEnd();
+  }
+
+  /** G6: a downed hero gets back up after a living ally stands on them for REVIVE_SECONDS. */
+  private updateRevives(dt: number): void {
+    for (let i = 0; i < this.heroes.length; i++) {
+      const d = this.heroPlayer(i);
+      if (d.hp > 0) {
+        d.reviveT = 0;
+        continue;
+      }
+      let by = -1;
+      for (let j = 0; j < this.heroes.length && by < 0; j++) {
+        const a = this.heroPlayer(j);
+        if (j !== i && a.hp > 0 && dist2(a.x, a.y, d.x, d.y) <= REVIVE_RADIUS * REVIVE_RADIUS) by = j;
+      }
+      if (by < 0) {
+        d.reviveT = 0;
+        continue;
+      }
+      d.reviveT = (d.reviveT ?? 0) + dt;
+      if (d.reviveT >= REVIVE_SECONDS - 1e-9) {
+        d.reviveT = 0;
+        d.hp = d.maxHp * REVIVE_HEALTH;
+        this.events.push({ type: 'revive', hero: i, by });
+      }
+    }
   }
 
   /** Apply a draft choice while the sim is paused for a level-up. */
@@ -1341,6 +1399,23 @@ export class World {
     return !!b && b.alive && b.castId === 'anvilfall' && this.acting === this.anvilTarget;
   }
 
+  /** Co-op: the hero the boss is attacking, or -1 (solo, no boss, or nobody yet). */
+  get bossTarget(): number {
+    if (this.heroes.length === 1 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return -1;
+    const id = this.threat[this.bossIndex]?.target;
+    return id ? this.heroes.findIndex((h) => h.id === id) : -1;
+  }
+
+  /**
+   * Co-op: the Bulwark's taunt cue. The boss is on another living hero, and Charge or
+   * Shield Toss can take it back. The HUD and the bot both read it.
+   */
+  get tauntCue(): boolean {
+    if (this.cls !== 'bulwark') return false;
+    const k = this.bossTarget;
+    return k >= 0 && k !== this.acting && this.heroPlayer(k).hp > 0 && (this.canCast(1) || this.canCast(3));
+  }
+
   get tierDamage(): number {
     return Math.pow(1.12, this.tier - 1);
   }
@@ -1538,6 +1613,16 @@ export class World {
     const y = t >= 0 ? this.enemies[t].y : p.y;
     const r = banked ? 190 : 150;
     let kills = 0;
+    // Co-op Kindling: the blast lifts nearby allies' damage for a few seconds.
+    if (this.heroes.length > 1) {
+      for (let k = 0; k < this.heroes.length; k++) {
+        if (k === this.acting) continue;
+        const ally = this.heroes[k].player;
+        if (ally.hp > 0 && dist2(p.x, p.y, ally.x, ally.y) <= GROUP_TOOLS.kindleRadius ** 2) {
+          ally.kindleUntil = this.time + GROUP_TOOLS.kindleTime;
+        }
+      }
+    }
     const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
@@ -1601,6 +1686,9 @@ export class World {
       }
       return;
     }
+    // Co-op group tools on the interrupt slot, when there's nothing to interrupt.
+    if (this.heroes.length > 1 && this.cls === 'lumen' && this.purify()) return;
+    if (this.heroes.length > 1 && this.cls === 'bulwark' && this.callOut()) return;
     // Nothing to interrupt: half the cooldown back (and a small bolt for casters).
     p.cds[3] = this.abilityCooldown(3) / 2;
     if (this.cls === 'duskblade') return;
@@ -1610,6 +1698,50 @@ export class World {
       this.damageEnemy(n, 30 * this.dmgMult, true);
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 30 });
     }
+  }
+
+  /** The ally a Lumen's Purify would cleanse: the one in range with the most Slag Grip stacks. -1 if none. */
+  purifyTarget(): number {
+    if (this.heroes.length === 1 || this.cls !== 'lumen') return -1;
+    const p = this.player;
+    let best = -1;
+    let bestScore = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const a = this.heroPlayer(k);
+      if (a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > GROUP_TOOLS.purifyRange ** 2) continue;
+      const score = a.slag ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        best = k;
+      }
+    }
+    return best;
+  }
+
+  /** Lumen, Purify: clears Slag Grip from one ally. False if nobody needs it. */
+  private purify(): boolean {
+    const k = this.purifyTarget();
+    if (k < 0) return false;
+    const a = this.heroPlayer(k);
+    a.slag = 0;
+    this.events.push({ type: 'cleanse', x: a.x, y: a.y });
+    this.events.push({ type: 'ability', slot: 3, x: a.x, y: a.y, angle: 0, r: 40 });
+    return true;
+  }
+
+  /** Bulwark, Called Out: Shield Toss taunts the boss when it's on someone else. False if not. */
+  private callOut(): boolean {
+    const b = this.bossIndex;
+    if (b < 0 || !this.enemies[b].alive || !this.threat[b]) return false;
+    const k = this.bossTarget;
+    if (k < 0 || k === this.acting) return false;
+    const e = this.enemies[b];
+    const p = this.player;
+    if (dist2(p.x, p.y, e.x, e.y) > (GROUP_TOOLS.callOutRange + e.def.radius) ** 2) return false;
+    taunt(this.threat[b], this.heroes[this.acting].id);
+    this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+    return true;
   }
 
   // ---------------------------------------------------------------- weapons
@@ -3102,11 +3234,19 @@ export class World {
     if (!t) return;
     Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner, wasIn: false });
     t.wasIn = kind === 'hit' && this.insideTelegraph(t);
+    if (this.heroes.length > 1) {
+      let m = 0;
+      if (kind === 'hit') for (let i = 0; i < this.heroes.length; i++) { const q = this.heroPlayer(i); if (q.hp > 0 && this.insideFor(t, q)) m |= 1 << i; }
+      t.inMask = m;
+    }
   }
 
   /** Is the acting hero inside this telegraph's area right now? */
   private insideTelegraph(t: Telegraph): boolean {
-    const p = this.player;
+    return this.insideFor(t, this.player);
+  }
+
+  private insideFor(t: Telegraph, p: Player): boolean {
     const dd = dist2(p.x, p.y, t.x, t.y);
     if (t.shape === 'circle') return dd <= (t.r + PLAYER_RADIUS * 0.5) ** 2;
     if (dd > t.r * t.r) return false;
@@ -3563,6 +3703,63 @@ export class World {
     }
   }
 
+  /**
+   * Co-op telegraphs: each one advances once per tick and, when it lands, hits
+   * every living hero inside it. A soak is made if any hero stands in it; a
+   * missed soak hurts everyone. A Bulwark inside with the Resolve smothers a bloom.
+   */
+  private updatePartyTelegraphs(dt: number): void {
+    const n = this.heroes.length;
+    for (const t of this.telegraphs) {
+      if (!t.alive) continue;
+      t.t += dt;
+      if (t.t < t.dur) continue;
+      t.alive = false;
+      if (t.kind === 'soak') {
+        let ok = false;
+        for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
+        this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        if (!ok) {
+          this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage));
+          for (let k = 0; k < 6; k++) {
+            const a = (k / 6) * Math.PI * 2;
+            this.spawn('ashling', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
+          }
+        }
+        continue;
+      }
+      this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
+      let smother = -1;
+      if (t.kind === 'bloom') {
+        for (let i = 0; i < n && smother < 0; i++) {
+          const q = this.heroPlayer(i);
+          if (q.hp > 0 && this.heroes[i].cls === 'bulwark' && q.heat >= SMOTHER_COST && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) smother = i;
+        }
+        if (smother >= 0) {
+          const q = this.heroPlayer(smother);
+          q.heat -= SMOTHER_COST;
+          this.events.push({ type: 'parry', x: q.x, y: q.y });
+        } else {
+          this.forEachNear(t.x, t.y, t.r + 40, (j) => {
+            const o = this.enemies[j];
+            if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+            const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
+            if (amount <= 0) return;
+            o.hp += amount;
+            this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
+          });
+        }
+      }
+      const mask = t.inMask ?? 0;
+      this.eachHero((h) => {
+        const inside = this.insideTelegraph(t);
+        if (!inside && t.kind === 'hit' && (mask >> h) & 1) this.dodged();
+        // A smothered bloom lands on the shield: that Bulwark takes half.
+        if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1));
+      });
+    }
+  }
+
   // ---------------------------------------------------------------- loot
 
   private makeItem(min: Rarity): Item {
@@ -3650,6 +3847,27 @@ export class World {
     }
   }
 
+  /** Co-op veins: one living hero on a vein fills it (it only drains when nobody is on it); that hero gets the reward. */
+  private updatePartyVeins(dt: number): void {
+    for (const v of this.veins) {
+      if (!v.alive) continue;
+      let on = -1;
+      for (let i = 0; i < this.heroes.length && on < 0; i++) { const q = this.heroPlayer(i); if (q.hp > 0 && dist2(q.x, q.y, v.x, v.y) <= 40 * 40) on = i; }
+      if (on >= 0) v.progress += dt;
+      else v.progress = Math.max(0, v.progress - dt);
+      if (v.progress < VEIN_TIME) continue;
+      v.alive = false;
+      this.use(on);
+      const p = this.player;
+      this.addHeat(30);
+      p.hp = Math.min(p.maxHp, p.hp + 10);
+      this.gainXp(3);
+      this.progressQuest('veins');
+      this.events.push({ type: 'gather', x: v.x, y: v.y });
+      this.use(0);
+    }
+  }
+
   // ---------------------------------------------------------------- quests
 
   pickQuests(): QuestId[] {
@@ -3703,6 +3921,35 @@ export class World {
       }
     }
     if (this.player.pendingLevels > 0 && this.state === 'running' && this.phase !== 'fight') { if (this.heroes.length === 1) this.openDraft(); else this.openDraftAll(); }
+  }
+
+  /** Co-op gems: a gem flies to the first hero who pulls it, moving once per tick. */
+  private updatePartyGems(dt: number): void {
+    for (const g of this.gems) {
+      if (!g.alive) continue;
+      g.px = g.x;
+      g.py = g.y;
+      if (g.pulled && (g.to === undefined || this.heroPlayer(g.to).hp <= 0)) g.pulled = false;
+    }
+    this.eachHero((h) => {
+      const p = this.player;
+      const pr2 = this.pickupRadius ** 2;
+      const sp = Math.max(260, this.moveSpeed * 2.2);
+      for (const g of this.gems) {
+        if (!g.alive) continue;
+        const dd = dist2(g.x, g.y, p.x, p.y);
+        if (!g.pulled && dd <= pr2) { g.pulled = true; g.to = h; }
+        if (!g.pulled || g.to !== h) continue;
+        const d = Math.sqrt(dd) || 1;
+        g.x += ((p.x - g.x) / d) * sp * dt;
+        g.y += ((p.y - g.y) / d) * sp * dt;
+        if (d < 14) {
+          g.alive = false;
+          this.gainXp(g.value);
+        }
+      }
+    });
+    if (this.state === 'running' && this.phase !== 'fight' && this.heroes.some((_, i) => this.heroPlayer(i).pendingLevels > 0)) this.openDraftAll();
   }
 
   private gainXp(v: number): void {

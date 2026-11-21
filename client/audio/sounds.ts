@@ -258,6 +258,20 @@ export const SOUNDS = {
 
   // ---- interface
   click: [{ wave: 'tri', f: 1100, f2: 900, dur: 0.035, vol: 0.12, curve: 3 }],
+  /** Picking one of a set (class, dungeon, tier): a bright, short double tick. */
+  select: [
+    { wave: 'tri', f: 1320, dur: 0.03, vol: 0.12, curve: 3 },
+    { wave: 'sine', f: 1980, dur: 0.06, delay: 0.025, vol: 0.1, curve: 3 },
+  ],
+  /** Delve / Delve again: a confident rising pair with a breath of air. */
+  confirm: join(chime(G5, 0, 0.18, 0.25), chime(D5 * 2, 0.07, 0.2, 0.4), whoosh(1200, 6000, 0.25, 0.08)),
+  /** Back, close, main menu: the same pair, falling and softer. */
+  back: [
+    { wave: 'tri', f: 990, dur: 0.04, vol: 0.1, curve: 2 },
+    { wave: 'tri', f: 740, dur: 0.07, delay: 0.04, vol: 0.09, curve: 3 },
+  ],
+  /** Opening a panel (bags, pause): a soft upward swell. */
+  open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;

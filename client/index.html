@@ -208,7 +208,7 @@
   /* Grid items default to min-width: auto, so a wide child (a long tier row) would stretch the column past the screen. */
   .hub-grid > * { min-width: 0; }
   .hero .who { display: flex; align-items: center; gap: 12px; }
-  .hero .who .gtile { border-radius: 14px; }
+  .hero .who .gtile { width: 52px; height: 52px; border-radius: 14px; }
   .hero .who b { display: block; font: 600 20px var(--serif); }
   .hero .who .sub { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 13px; color: var(--muted); }
   .hero .meter { margin-top: 12px; }
@@ -263,7 +263,7 @@
   .pot.on .gtile { box-shadow: 0 0 14px color-mix(in srgb, var(--gc) 45%, transparent); }
   .pot:disabled { opacity: 0.5; cursor: default; }
   .primary:disabled { opacity: 0.55; cursor: default; filter: saturate(0.5); box-shadow: none; }
-  .dg b { font: 600 17px var(--serif); }
+  .dg b { font: 600 clamp(15px, 4.8vw, 17px) var(--serif); }
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
@@ -274,8 +274,8 @@
   .seg { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
   .seg button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
   .seg button.on { background: var(--btn, linear-gradient(180deg, #ffb070, #ff7a2f)); color: #2a1206; }
-  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .dg .style.group { color: var(--gold); align-self: flex-start; padding: 3px 9px 3px 4px; border-radius: 999px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
+  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .dg .style.group { color: var(--gold); align-self: flex-start; max-width: 100%; box-sizing: border-box; padding: 3px 9px 3px 4px; border-radius: 12px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
   .dg .style .roles { display: inline-flex; gap: 3px; }
   .dg .style .gtile, .rolechip .gtile { width: 20px; height: 20px; border-radius: 6px; }
   /* Group dungeons: the roles your party has, as chips. */
@@ -427,8 +427,16 @@
     #stats { max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
     .bagwrap { max-width: 860px; }
   }
+  /* Under ~400px the ember pill, the logo and the speaker + Bags cell don't fit on one row
+     (on a 320px iPhone SE the Bags button sat 50px off the right edge): the logo gets its own row. */
+  @media (max-width: 400px) {
+    .hub-top .ember { grid-column: 1; grid-row: 1; }
+    .hub-top .snd-cell, .hub-top > #bagBtn { grid-column: 3; grid-row: 1; }
+    .hub-top .logo { grid-column: 1 / -1; grid-row: 2; }
+    .primary.big { font-size: clamp(17px, 5.4vw, 21px); }
+  }
   @media (max-width: 560px) {
-    .hub-top .pill { min-height: 36px; padding: 0 11px; font-size: 14px; }
+    .hub-top .pill { min-height: 40px; padding: 0 12px; font-size: 14px; }
     .hub-top { grid-template-columns: auto 1fr auto; }
     #title h1 { font-size: 30px; letter-spacing: 0.08em; }
     .logo .tag { font-size: 11px; }
@@ -458,6 +466,57 @@
     #cards { grid-template-columns: 1fr; }
     .card { min-height: 0; }
     .panel { padding: 16px; }
+  }
+
+  /* Hero kit: gear and talents fold into one tappable summary row (open by default on wide screens). */
+  .kit { margin-top: 12px; }
+  .kit > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); font-size: 13px; color: var(--muted); cursor: pointer; }
+  .kit > summary::-webkit-details-marker { display: none; }
+  .kit > summary .ks b { color: var(--gold); }
+  .kit > summary .ks + .ks::before { content: "\00B7"; margin-right: 8px; color: rgba(255,240,225,0.25); }
+  .kit > summary .pts { color: var(--gold); font-weight: 700; }
+  .kit > summary .pts::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold); vertical-align: 1px; }
+  .kit .chev { margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translate(-2px, -2px); transition: transform 0.15s; }
+  .kit[open] .chev { transform: rotate(-135deg) translate(-2px, -2px); }
+  .kit[open] > summary { margin-bottom: 2px; }
+
+  /* Phones: a compact first screen, so the delve choice shows above the Delve button. */
+  @media (max-width: 560px), (max-height: 520px) {
+    .hub-grid { margin-top: 10px; }
+    .hero { padding: 12px 14px; }
+    .hero .who { gap: 10px; }
+    .hero .who .gtile { width: 40px; height: 40px; border-radius: 12px; }
+    .hero .who .gtile svg { width: 24px; height: 24px; }
+    .hero .who b { font-size: 18px; }
+    .hero .who .sub { margin-top: 2px; font-size: 12px; }
+    .hero .meter { margin-top: 10px; height: 6px; }
+    .kv { margin-top: 4px; }
+    .kit { margin-top: 10px; }
+    .passives button { min-height: 44px; }
+    .sec-h { margin: 12px 0 6px; }
+    .sec-h.big { font-size: 20px; }
+    .cls { min-height: 0; gap: 2px; padding: 8px 2px 7px; }
+    .cls .gtile { width: 30px !important; height: 30px !important; border-radius: 9px; }
+    .cls .gtile svg { width: 18px; height: 18px; }
+    .cls b { font-size: 12px; }
+    .cls .cl { font-size: 11px; }
+    .dg { min-height: 96px; padding: 12px; }
+    .dg b { font-size: 16px; }
+    .hub-foot { padding-top: 10px; }
+    .primary.big { padding: 13px 22px; font-size: 19px; }
+  }
+
+  /* Landscape phones: two columns (hero and class | delve), a short header, and a Delve button that sits to the right. */
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+    .hub-top { grid-template-columns: 1fr auto 1fr; }
+    #title h1 { font-size: 24px; }
+    .logo .tag { display: none; }
+    .backdrop { height: 160px; }
+    .backdrop .sigil { display: none; }
+    .hub-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 4px 18px; align-items: start; }
+    .hub-delve > .sec-h.big:first-child { margin-top: 0; }
+    .hub-foot { display: flex; justify-content: flex-end; padding-top: 8px; }
+    .hub-foot .primary.big { width: min(360px, 50%); }
   }
 </style>
 </head>

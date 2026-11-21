@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, WorldOptions } from '../sim/world';
+import { World, WorldOptions, REVIVE_HEALTH, REVIVE_RADIUS, TICK, VEIN_TIME } from '../sim/world';
 import { botInput } from '../sim/bot';
 
 const party = (n: number): WorldOptions['party'] =>
@@ -85,6 +85,102 @@ describe('co-op party', () => {
     (w as unknown as { afterClear: (d: unknown) => void }).afterClear(undefined);
     expect(w.hero(1).player.hp).toBeGreaterThan(0);
     expect(w.hero(1).player.hp).toBeLessThan(w.hero(1).player.maxHp);
+  });
+
+  it('an ally standing on a downed hero for 3 s picks them up mid-fight', () => {
+    const w = new World({ seed: 8, party: party(2) });
+    run(w, () => w.phase === 'fight');
+    const down = w.hero(1).player, ally = w.hero(0).player;
+    down.hp = 0;
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    const hold = () => { ally.hp = ally.maxHp = 1e6; ally.x = down.x + REVIVE_RADIUS - 5; ally.y = down.y; };
+    hold();
+    w.step(still);
+    expect(down.hp).toBe(0);
+    let events: string[] = [];
+    for (let t = 0; t < Math.round(2.8 / TICK); t++) { hold(); w.step(still); }
+    expect(down.hp).toBe(0); // not yet at 2.8 s
+    for (let t = 0; t < Math.round(0.3 / TICK) && down.hp === 0; t++) { hold(); w.step(still); events = w.events.map((e) => e.type); }
+    expect(down.hp).toBeCloseTo(down.maxHp * REVIVE_HEALTH, 5);
+    expect(events).toContain('revive');
+    expect(w.events.find((e) => e.type === 'revive')).toMatchObject({ hero: 1, by: 0 });
+  });
+
+  it('stepping off a downed hero resets the revive, and the downed cannot revive each other', () => {
+    const w = new World({ seed: 8, party: party(3) });
+    run(w, () => w.phase === 'fight');
+    const [a, b, c] = [0, 1, 2].map((i) => w.hero(i).player);
+    b.hp = 0;
+    c.hp = 0;
+    c.x = b.x; c.y = b.y; // a downed hero on top of another does nothing
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+    const near = () => { a.hp = a.maxHp = 1e6; a.x = b.x + 10; a.y = b.y; };
+    const far = () => { a.hp = a.maxHp = 1e6; a.x = b.x + REVIVE_RADIUS * 3; a.y = b.y; };
+    for (let t = 0; t < Math.round(2 / TICK); t++) { near(); w.step(still); }
+    for (let t = 0; t < 2; t++) { far(); w.step(still); }
+    for (let t = 0; t < Math.round(2 / TICK); t++) { near(); w.step(still); }
+    expect(b.hp).toBe(0); // 2 s + 2 s with a gap is not 3 s in a row
+    for (let t = 0; t < Math.round(1.2 / TICK); t++) { near(); w.step(still); }
+    expect(b.hp).toBeGreaterThan(0);
+    expect(c.hp).toBeGreaterThan(0); // c lies on the same spot, so the same ally picks both up
+  });
+
+  it('telegraphs land on time with any party size and hit every hero inside', () => {
+    let solo = -1;
+    for (const n of [1, 2, 4]) {
+      const w = new World({ seed: 8, party: n > 1 ? party(n) : undefined });
+      run(w, () => w.phase === 'fight');
+      for (const e of w.enemies) e.alive = false;
+      const ps = w.heroes.map((_, i) => w.hero(i).player);
+      ps.forEach((q, i) => { q.hp = q.maxHp; q.x = 10 * i; q.y = 0; });
+      const priv = w as unknown as { addTelegraph: (...a: unknown[]) => void };
+      priv.addTelegraph('circle', 0, 0, 120, 0, 0, 1.0, 20);
+      const still = w.heroes.map(() => ({ x: 0, y: 0 }));
+      let landed = -1;
+      for (let t = 1; t <= 60 && landed < 0; t++) {
+        w.step(still);
+        if (w.events.some((e) => e.type === 'slam')) landed = t;
+      }
+      // A 1 s telegraph lands on the tick it reaches 1 s (30 or 31 with float steps), the same for every party size.
+      if (n === 1) solo = landed;
+      expect(landed, `party of ${n}`).toBe(solo);
+      expect(landed).toBeGreaterThanOrEqual(30);
+      expect(landed).toBeLessThanOrEqual(31);
+      for (const q of ps) expect(q.hp, `party of ${n}`).toBeLessThan(q.maxHp);
+    }
+  });
+
+  it('a vein fills while one hero stands on it, even with an ally elsewhere', () => {
+    const w = new World({ seed: 8, party: party(2) });
+    run(w, () => w.phase === 'fight');
+    for (const e of w.enemies) e.alive = false;
+    const v = w.veins[0];
+    Object.assign(v, { alive: true, x: 0, y: 0, progress: 0 });
+    const [a, b] = [w.hero(0).player, w.hero(1).player];
+    a.x = 300; a.y = 300; b.x = 0; b.y = 0;
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    let gathered = false;
+    for (let t = 0; t < Math.round((VEIN_TIME + 0.2) / TICK) && !gathered; t++) {
+      w.step(still);
+      gathered = w.events.some((e) => e.type === 'gather');
+    }
+    expect(gathered).toBe(true);
+  });
+
+  it('a pulled gem flies to one hero and is collected', () => {
+    const w = new World({ seed: 8, party: party(2) });
+    run(w, () => w.phase === 'fight');
+    for (const e of w.enemies) e.alive = false;
+    for (const g of w.gems) g.alive = false;
+    const [a, b] = [w.hero(0).player, w.hero(1).player];
+    a.x = -400; a.y = 0; b.x = 400; b.y = 0;
+    const g = w.gems[0];
+    Object.assign(g, { alive: true, x: 380, y: 0, px: 380, py: 0, value: 1, pulled: false });
+    const xp = b.xp, lvl = b.level;
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    for (let t = 0; t < 30 && g.alive; t++) w.step(still);
+    expect(g.alive).toBe(false);
+    expect(b.xp > xp || b.level > lvl).toBe(true);
   });
 
   it('each hero picks their own cards, and the run waits for everyone', () => {
