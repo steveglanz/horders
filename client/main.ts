@@ -1,4 +1,5 @@
 import { weekOf } from '../sim/content/omens';
+import { keyOmens, keyTier } from '../sim/content/keys';
 import { bountyFor, dayOf } from '../sim/content/bounty';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
@@ -6,7 +7,8 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion } from '../sim/hero';
+import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen } from '../sim/hero';
+import { DUNGEONS } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
@@ -105,6 +107,7 @@ function seed(): number {
 let runSeed = 0;
 let runApplied = true;
 let lastBounty = false;
+let lastKey = false;
 
 /** Banks a finished (or abandoned) run into the saved hero, once. */
 function finishRun(w: World) {
@@ -147,7 +150,7 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
   await hub.refreshBoss();
 }
 
-function startRun(bounty = false): void {
+function startRun(bounty = false, key = false): void {
   // In someone else's party, the host starts the delves.
   if (coop?.role === 'guest') return;
   // A group dungeon needs a party (the hub shows why and disables Delve).
@@ -185,7 +188,15 @@ function startRun(bounty = false): void {
     runSeed = b.seed;
     Object.assign(opts, { seed: b.seed, tier: b.tier, dungeon: b.dungeon, route: [...b.route], omens: [b.twist], bounty: b.day, grit: 0 });
   }
+  // P3: a Delver's Key run, solo only: the key's tier, Omens and level for the picked dungeon.
+  key = key && !bounty && !stress && keysOpen(hero) && DUNGEONS[hub.dungeon].style === 'solo' && !(coop && coop.roster.length > 1);
+  if (key) {
+    const level = keyLevelOf(hero, hub.dungeon);
+    const tier = keyTier(hero.maxTier);
+    Object.assign(opts, { tier, omens: keyOmens(tier, weekOf(Date.now()), level), keyLevel: level, grit: 0, firstClear: false });
+  }
   lastBounty = bounty;
+  lastKey = key;
   const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;
   // ?botparty=bulwark,lumen,duskblade: bot allies in a local party, for performance checks (tools/partyperf.cjs).
   const botParty = params.get('botparty')?.split(',').filter((c): c is keyof typeof CLASSES => c in CLASSES).slice(0, 3);
@@ -225,10 +236,14 @@ el('resetBtn').addEventListener('click', () => {
   save();
   hub.render();
 });
-el('againBtn').addEventListener('click', () => startRun(lastBounty));
+el('againBtn').addEventListener('click', () => startRun(lastBounty, lastKey));
 hub.onBounty = () => {
   stress = false;
   startRun(true);
+};
+hub.onKey = () => {
+  stress = false;
+  startRun(false, true);
 };
 el('menuBtn').addEventListener('click', () => {
   if (coop?.role === 'host') coop.endRun();
@@ -412,6 +427,7 @@ const coopEvents = {
     runSeed = opts.seed;
     runApplied = false;
     lastBounty = false;
+    lastKey = false;
     game.scene.start('game', {
       opts,
       hud,

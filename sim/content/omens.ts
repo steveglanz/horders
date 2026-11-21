@@ -62,13 +62,18 @@ export function omenCount(tier: number): number {
  * the clock.
  */
 export function omensFor(tier: number, week: number): OmenId[] {
+  return omenOrder(week).slice(0, omenCount(tier));
+}
+
+/** The week's full Omen order (omensFor takes a prefix of it; keys take a longer one). */
+export function omenOrder(week: number): OmenId[] {
   const order = [...OMEN_IDS];
   const rng = new Rng(((week | 0) * 2654435761) ^ 0x51ed270b);
   for (let i = order.length - 1; i > 0; i--) {
     const j = rng.int(i + 1);
     [order[i], order[j]] = [order[j], order[i]];
   }
-  return order.slice(0, omenCount(tier));
+  return order;
 }
 
 /** Week number used for the rotation (weeks since 1 Jan 1970, a Thursday). */

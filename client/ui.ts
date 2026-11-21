@@ -526,6 +526,10 @@ export class Hud {
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
+      if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {
+        const d = rewards.keyTo - rewards.keyFrom;
+        notes.push(`<b>Delver's Key +${rewards.keyFrom} → +${rewards.keyTo}${d > 1 ? ' (fast clear!)' : d === 0 && s.victory ? ' (over par)' : ''}</b>${rewards.keyEmbers ? ` · +${rewards.keyEmbers} embers` : ''}`);
+      }
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
