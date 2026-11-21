@@ -473,6 +473,10 @@ function coopButton(): void {
   b.disabled = coop?.role === 'guest';
   if (coop?.role === 'guest') b.textContent = 'Waiting for the host';
   else if (coop?.role === 'host' && coop.roster.length > 1) b.textContent = b.textContent!.replace(/^Delve/, 'Delve together');
+  // The end screen's "Delve again" did nothing for a guest: only the host starts delves.
+  const again = el('againBtn') as HTMLButtonElement;
+  again.disabled = coop?.role === 'guest';
+  again.textContent = coop?.role === 'guest' ? 'Waiting for the host' : 'Delve again';
 }
 const hubRender = hub.render.bind(hub);
 hub.render = () => {

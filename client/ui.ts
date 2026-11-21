@@ -1,6 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { World } from '../sim/world';
-import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
+import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
@@ -10,7 +10,8 @@ import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BRANCH_COLOR: Record<string, string> = {
+/** Every branch needs a colour (draft card border and title, end-screen chips): typed so a new branch can't be missed. */
+const BRANCH_COLOR: Record<Branch, string> = {
   wildfire: '#ff7a2f',
   kindling: '#ffc861',
   ashguard: '#9db7d8',
@@ -18,6 +19,14 @@ const BRANCH_COLOR: Record<string, string> = {
   bloodletting: '#e0465a',
   tempo: '#b58cff',
   guard: '#8fc7a8',
+  // Bulwark
+  bastion: '#a9bccf',
+  retribution: '#e8a33c',
+  vanguard: '#e0735a',
+  // Lumen
+  dawn: '#ffd98a',
+  grace: '#7fe0c4',
+  choir: '#c7a6ff',
 };
 
 export interface RunHandlers {
@@ -163,6 +172,7 @@ export class Hud {
     this.updateTarget(w);
     this.updateQuests(w);
     this.updateBuffs(w);
+    this.stackTop();
 
     if (this.showPerf) {
       $('perf').textContent = `${fps.avg.toFixed(0)} fps · p95 ${fps.p95ms.toFixed(1)} ms · ${w.aliveEnemies} enemies`;
@@ -171,6 +181,34 @@ export class Hud {
       $('banner').classList.remove('show');
       this.bannerTimer = 0;
     }
+  }
+
+  private narrow = matchMedia('(max-width: 560px)');
+  private stacked = '';
+
+  /**
+   * Phones: the target frame spans the screen, so it used to sit on top of the
+   * buff chips (Kiln Brand's "stand in the gold circle!", Ward, Bastion) and the
+   * route line. Stack them instead: buffs, the target frame, the route, then party frames.
+   */
+  private stackTop(): void {
+    const target = $('target');
+    const quests = $('quests');
+    const party = $('party');
+    let key = '';
+    let tTop = 0;
+    let qTop = 0;
+    if (this.narrow.matches) {
+      tTop = Math.round($('buffs').getBoundingClientRect().bottom + 6);
+      qTop = Math.max(118, target.hidden ? tTop : Math.round(tTop + target.offsetHeight + 6));
+      key = `${tTop}:${qTop}:${quests.offsetHeight}:${party.hidden}`;
+    }
+    if (key === this.stacked) return;
+    this.stacked = key;
+    target.style.top = key ? `${tTop}px` : '';
+    quests.style.top = key ? `${qTop}px` : '';
+    // Co-op party frames go under the route line.
+    party.style.top = key ? `${Math.max(150, Math.round(quests.getBoundingClientRect().bottom + 6))}px` : '';
   }
 
   private targetIndex(w: World): number {
