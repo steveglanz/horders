@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World, WRACK } from '../sim/world';
-import { botInput } from '../sim/bot';
+import { BOT_PARTY, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 
 type Inner = { wrackClock(dt: number): void; tideClockT: number };
@@ -69,5 +69,17 @@ describe('party bots play their verb set', () => {
     expect(Math.abs(botInput(pair(null, 300)).y)).toBeLessThan(0.01);
     expect(botInput(pair('deepguard', 300)).y).toBeGreaterThan(0.5);
     expect(botInput(pair('ventwalker', 100)).y).toBeLessThan(-0.5);
+  });
+
+  it('BOT_PARTY.huddle (off by default) gives the stay-close drift with no set', () => {
+    expect(BOT_PARTY.huddle).toBe(false);
+    BOT_PARTY.huddle = true;
+    try {
+      expect(botInput(pair(null, 300)).y).toBeGreaterThan(0.5);
+      // A worn Ventwalker still wins: it pushes away even where the huddle would pull in.
+      expect(botInput(pair('ventwalker', 150)).y).toBeLessThan(-0.5);
+    } finally {
+      BOT_PARTY.huddle = false;
+    }
   });
 });
