@@ -80,6 +80,8 @@ export class Hub {
   private claiming = false;
   /** Set by main: starts today's bounty run. */
   onBounty: () => void = () => {};
+  /** A world boss reward was claimed (an Epic): main.ts plays its chime. */
+  onClaimed: () => void = () => {};
   /** Set by main: starts a Delver's Key run in the picked dungeon. */
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
@@ -214,7 +216,7 @@ export class Hub {
       const def = PASSIVES[id];
       const r = h.passives[id] ?? 0;
       const can = pts > 0 && r < def.max;
-      return `<button data-p="${id}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
+      return `<button data-p="${id}" data-sfx="${can ? 'passive' : 'click'}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
         + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
@@ -858,6 +860,7 @@ export class Hub {
       const reward = grantBossReward(this.hero(), bossId, r.damage ?? 0);
       this.save();
       this.bossNote = `Reward claimed: ${reward.item.name} and ${reward.embers} embers. Check your bags.`;
+      this.onClaimed();
       this.render();
     } else {
       this.bossNote = r ? 'That reward was already claimed.' : 'Could not reach the server. Try again in a moment.';
@@ -875,7 +878,7 @@ export class Hub {
     const tm = canTemper(h, it);
     const forge = `<button class="sbtn" data-u="${it.id}" data-sfx="forge" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
       + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" data-sfx="temper" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
-    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}" data-sfx="equip">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
   }
 
   /** Wires item action buttons under root; after() runs once the hero changed. */

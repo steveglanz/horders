@@ -323,6 +323,8 @@ el('resetBtn').addEventListener('click', () => {
   hub.render();
 });
 el('againBtn').addEventListener('click', () => startRun(lastBounty, lastKey));
+// A claimed world boss reward is an Epic: the hub's biggest chime (it respects mute like every sound).
+hub.onClaimed = () => audio.play('bossClaim');
 hub.onBounty = () => {
   stress = false;
   startRun(true);

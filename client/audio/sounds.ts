@@ -45,6 +45,15 @@ const horn = (f: number, dur: number, vol = 0.45): Recipe => [
 ];
 
 const join = (...parts: Recipe[]): Recipe => parts.flat();
+
+/** A world boss's shadow arrives: a dark, swelling chord, then a deep landing. Each boss's shadow adds its own mark. */
+const phaseShadow = (): Recipe => [
+  { wave: 'saw', f: note(-17), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+  { wave: 'saw', f: note(-16), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+  { wave: 'saw', f: note(-11), dur: 1.4, vol: 0.12, a: 0.9, curve: 0.8, lp: 1200 },
+  { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
+  ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
+];
 const B5 = () => note(14);
 
 export const SOUNDS = {
@@ -270,6 +279,17 @@ export const SOUNDS = {
     ]),
     chime(E6, 0.32, 0.16, 0.5),
   ),
+  /** A passive point spent in the hub: a spark catches and climbs two notes. */
+  passive: join([{ wave: 'noise', f: 0, dur: 0.05, vol: 0.08, lp: 9000, hp: 3000, curve: 3 }], chime(A5, 0.02, 0.1, 0.18), chime(E6, 0.08, 0.1, 0.3)),
+  /**
+   * A world boss reward claimed (an Epic item and embers): the hub's biggest moment, a low horn under a
+   * rising five-note run and a shimmer. Still well under the victory fanfare, so it sits under the hub theme.
+   */
+  bossClaim: join(
+    horn(note(-9), 1.0, 0.16),
+    chime(C5, 0, 0.14, 0.4), chime(E5, 0.08, 0.14, 0.4), chime(G5, 0.16, 0.15, 0.4), chime(C6, 0.24, 0.16, 0.5), chime(E6, 0.32, 0.18, 1.0),
+    [{ wave: 'noise', f: 0, dur: 0.8, delay: 0.3, vol: 0.05, a: 0.2, lp: 11000, hp: 6000 }],
+  ),
   /** Picking the Anvil stance in the hub: one heavy strike on the anvil. */
   anvilPick: join(clang(260, 0.2, 0.5), boom(70, 0.25, 0.18)),
   /** Picking the Bellows stance in the hub: the bellows breathe once and the coals brighten. */
@@ -411,13 +431,35 @@ export const SOUNDS = {
     whoosh(2000, 10000, 0.9, 0.18), boom(38, 0.9, 0.45).map((v) => ({ ...v, delay: 0.5 })),
   ),
   phaseOndrel: join(clang(196, 0.5, 0.7), clang(147, 0.55, 0.9).map((v) => ({ ...v, delay: 0.32 })), boom(42, 0.9, 0.55).map((v) => ({ ...v, delay: 0.32 }))),
-  phaseShadow: [
-    { wave: 'saw', f: note(-17), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
-    { wave: 'saw', f: note(-16), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
-    { wave: 'saw', f: note(-11), dur: 1.4, vol: 0.12, a: 0.9, curve: 0.8, lp: 1200 },
-    { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
-    ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
-  ],
+  phaseShadow: phaseShadow(),
+
+  // World boss shadows: the shared phaseShadow swell (a dark chord and a deep landing) with each boss's own mark on it.
+  /** Shadow of Grandmother Slag: the raid's molten glugs and a brass call under the swell. */
+  shadowSlag: join(
+    phaseShadow(),
+    ...[0.2, 0.45, 0.7].map((d, k) => [{ wave: 'sine' as const, f: 140 + k * 40, f2: 420 + k * 80, dur: 0.12, delay: d, vol: 0.22, curve: 2 }]),
+    horn(note(-14), 0.9, 0.24).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.9 })),
+  ),
+  /** Shadow of the Cinder Colossus: two giant footfalls of hot stone, cinders raining off each. */
+  shadowColossus: join(
+    phaseShadow(),
+    ...[0.15, 0.7].map((d) => boom(55, 0.5, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    ...[0.2, 0.28, 0.75, 0.84].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.2, lp: 7000, hp: 2000, curve: 3 }]),
+  ),
+  /** Shadow of Old Coalmouth: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
+  shadowCoal: join(
+    phaseShadow(),
+    ...[0.15, 0.22, 0.31, 0.55, 0.63].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.3, lp: 2800, hp: 500, curve: 3 }]),
+    [{ wave: 'sine', f: 300, f2: 60, dur: 0.6, delay: 0.75, vol: 0.4, curve: 1.6 },
+     { wave: 'saw', f: 220, f2: 95, dur: 0.5, delay: 0.75, vol: 0.18, lp: 2000, lp2: 600, curve: 1.6 }],
+  ),
+  /** Shadow of the Furnace Regent: a stately call over the furnace's roar, a crown of a bright ring on top. */
+  shadowRegent: join(
+    phaseShadow(),
+    whoosh(300, 4500, 1.0, 0.22),
+    horn(note(-9), 0.5, 0.22), horn(note(-2), 0.8, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 })),
+    clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 })),
+  ),
 
   // ---- the Ashvents: Ysmeret, the Twofold Flame
   /** Twin Vents opening: two hot breaths, one each side, and a gold rising call to split up. */
@@ -801,6 +843,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   reviveStart: 0.5,
   rivetsWarn: 1.4,
   scatterWarn: 2.0,
+  shadowCoal: 0.6,
+  shadowSlag: 1.5,
   shoalCall: 4.5,
   sinkWarn: 5.7,
   snufferTide: 2.2,
