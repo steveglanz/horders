@@ -837,6 +837,39 @@
   .wq-title b { color: var(--gold); }
   .wq-title.earned { border-style: solid; border-color: rgba(255,200,97,0.55); background: rgba(255,200,97,0.08); color: var(--ink); }
   .wq-title.earned .crest { color: var(--gold); text-shadow: 0 0 8px rgba(255,200,97,0.6); }
+  .box.season { margin-top: 12px; border-color: rgba(180,140,255,0.3); background: linear-gradient(160deg, rgba(180,140,255,0.08), transparent 55%), var(--card); }
+  .season .lbl { color: #cdb6ff; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .season .wq-count { font: 700 12px var(--sans); color: var(--ink); background: rgba(180,140,255,0.14); border: 1px solid rgba(180,140,255,0.35); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .season .wq-bar i { background: linear-gradient(90deg, #8a6cff, #cdb6ff); }
+  .season .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-top: 6px; flex-wrap: wrap; }
+  .season .hint b { color: var(--ember); }
+  .sr { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .sr-lv { flex: none; width: 26px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: rgba(0,0,0,0.35); border: 1px solid rgba(180,140,255,0.3); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sr-what { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .sr-what b { color: var(--ink); }
+  .sr.got { color: var(--ink); } .sr.got .sr-lv { background: #8a6cff; border-color: #8a6cff; color: #fff; }
+  .sr-st { color: #cdb6ff; font-weight: 800; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 8px var(--sw); flex: none; }
+  .wears { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .wear { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--ink); font: 600 12px var(--sans); cursor: pointer; }
+  .wear.on { border-color: #cdb6ff; background: rgba(180,140,255,0.18); }
+  .worn-title { font-size: 12px; color: var(--gold); font-style: italic; margin-top: 1px; }
+  .bookbtn { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,200,97,0.3); background: rgba(255,200,97,0.06); color: var(--ink); font: 600 13px var(--sans); text-align: left; cursor: pointer; }
+  .bookbtn .crest { color: var(--gold); }
+  .bookbtn b { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .box.book .lbl { margin-top: 12px; color: var(--gold); }
+  .box.book .lbl:first-child { margin-top: 0; }
+  .bk-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; flex-wrap: wrap; }
+  .bk-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+  .bk-name .muted { font-size: 11px; }
+  .bk-pips { display: flex; gap: 4px; }
+  .bk-pip { font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px dashed rgba(255,255,255,0.2); color: var(--muted); }
+  .bk-pip.on { border-style: solid; border-color: rgba(255,200,97,0.6); background: rgba(255,200,97,0.12); color: var(--ink); }
+  .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin-top: 8px; }
+  .bk-item { font-size: 12px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.3); color: var(--muted); border: 1px dashed rgba(255,255,255,0.12); line-height: 1.3; }
+  .bk-item.on { color: var(--ink); border: 1px solid rgba(255,140,60,0.45); background: rgba(255,140,60,0.08); }
+  .bk-item .muted { display: block; font-size: 10px; }
+  .booknote { display: inline-flex; align-items: center; gap: 4px; color: var(--gold); font-weight: 600; }
   .sheet .pots { margin-top: 4px; }
   .sheet .omens { margin-top: 10px; }
   body.tabs .dungeons { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }

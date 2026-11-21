@@ -63,9 +63,9 @@ Reasons to come back tomorrow and next week.
 | # | Feature | Owner | Notes |
 |---|---|---|---|
 | P1 | **Weekly quests:** 3 goals a week (beat X with Y, interrupt 30 casts), paying embers and a cosmetic | design | ✅ #110 (sim/content/weekly.ts) |
-| P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | No pay-to-win |
+| P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | ✅ season.md (local track, titles and glows). Visuals: render glows in runs. Engineering: P6 shows the worn title in co-op |
 | P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | ✅ #117 (Delver's Keys). The leaderboard waits on engineering's migration 0004 |
-| P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | |
+| P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | ✅ collections.md (sim, hub sheet, end-screen notes). Visuals: book art later |
 | P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | Cloud saves |
 | P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | |
 | P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | ✅ #114 (Rising Draught scales with tier); Forge rate settled in economy.md |

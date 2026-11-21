@@ -1,3 +1,5 @@
+import { SEASON, SeasonReward, SeasonState, runMarks, seasonLevel, seasonRewards, seasonState } from './content/season';
+import { COLLECTION_REWARDS, CollectionReward, EntryKey, entriesOf, rewardProgress } from './content/collections';
 import type { DungeonId } from './content/dungeon';
 /**
  * The persistent hero: levels, permanent talent points, inventory and gear.
@@ -78,6 +80,13 @@ export interface HeroProfile {
   /** P3: Delver's Key level per solo dungeon, and the best key level beaten in each (for leaderboards). */
   keys?: Partial<Record<DungeonId, number>>;
   keyBest?: Partial<Record<DungeonId, number>>;
+  /** P4: every collection book entry the account has held (shared by every class), and the rewards already paid. */
+  collection?: EntryKey[];
+  collectionPaid?: string[];
+  /** P2: this season's track (shared by every class), the glows earned in any season, and what the hero wears. */
+  season?: SeasonState;
+  glows?: string[];
+  wear?: { title?: string; glow?: string };
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -225,6 +234,15 @@ export interface RunRewards {
   keyFrom?: number;
   keyTo?: number;
   keyEmbers?: number;
+  /** P4: book entries this run added for the first time, and the collection rewards it completed. */
+  collectionNew?: EntryKey[];
+  collectionRewards?: CollectionReward[];
+  /** P2: season marks this run earned (first win of the day included), the level before and after, and rewards reached. */
+  seasonMarks?: number;
+  seasonFrom?: number;
+  seasonTo?: number;
+  seasonRewards?: SeasonReward[];
+  seasonFirstWin?: boolean;
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -338,6 +356,7 @@ export function applyRun(
   const xpMult = loadoutFor(hero).xpMult;
   const heroXp = Math.round(heroXpForRun(s) * xpMult);
   const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
+  const known = collectionOf(hero);
   hero.inventory.push(...runDrops);
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
@@ -386,7 +405,65 @@ export function applyRun(
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key };
+  const collection = applyCollection(hero, known);
+  const season = s.week !== undefined ? applySeason(hero, s, weekly?.weeklyDone?.length ?? 0) : undefined;
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key, ...collection, ...season };
+}
+
+/**
+ * P4: the collection book as it stands. The stored list plus anything held
+ * by any class right now, so saves from before collections count what they
+ * still own.
+ */
+export function collectionOf(hero: HeroProfile): Set<EntryKey> {
+  const have = new Set<EntryKey>(hero.collection ?? []);
+  const bags = [hero.inventory, ...Object.values(hero.roster ?? {}).map((c) => c?.inventory ?? [])];
+  for (const bag of bags) for (const it of bag) for (const e of entriesOf(it)) have.add(e);
+  return have;
+}
+
+/** P2: adds this run's season marks and grants every reward the track passed. */
+function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick<RunRewards, 'seasonMarks' | 'seasonFrom' | 'seasonTo' | 'seasonRewards' | 'seasonFirstWin'> {
+  const st = { ...seasonState(hero.season, s.week ?? 0) };
+  const firstWin = s.victory && s.day !== undefined && st.firstWinDay !== s.day;
+  if (firstWin) st.firstWinDay = s.day;
+  const marks = runMarks(s.victory, s.fightsCleared ?? 0, weeklyDone, firstWin);
+  const from = seasonLevel(st.marks);
+  st.marks = Math.min(SEASON.levels * SEASON.marksPerLevel, st.marks + marks);
+  hero.season = st;
+  const to = seasonLevel(st.marks);
+  const got = seasonRewards(st.id).filter((r) => r.level > from && r.level <= to);
+  for (const r of got) {
+    if (r.kind === 'glow') hero.glows = [...new Set([...(hero.glows ?? []), r.glow.id])];
+    else hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
+  }
+  return { seasonMarks: marks, seasonFrom: from, seasonTo: to, ...(got.length ? { seasonRewards: got } : {}), ...(firstWin ? { seasonFirstWin: true } : {}) };
+}
+
+/** P2: wear an earned title or glow (undefined takes it off). Returns false if the hero hasn't earned it. */
+export function wearCosmetic(hero: HeroProfile, kind: 'title' | 'glow', id: string | undefined): boolean {
+  if (id !== undefined && !(kind === 'title' ? hero.titles ?? [] : hero.glows ?? []).includes(id)) return false;
+  hero.wear = { ...(hero.wear ?? {}), [kind]: id };
+  if (id === undefined) delete hero.wear[kind];
+  return true;
+}
+
+/** P4: records the book and pays every reward it now completes, once each. `known` is the book before this run. */
+function applyCollection(hero: HeroProfile, known: Set<EntryKey>): Pick<RunRewards, 'collectionNew' | 'collectionRewards'> {
+  const have = collectionOf(hero);
+  hero.collection = [...have].sort();
+  const fresh = hero.collection.filter((e) => !known.has(e));
+  const paid = new Set(hero.collectionPaid ?? []);
+  const done: CollectionReward[] = [];
+  for (const r of COLLECTION_REWARDS) {
+    if (paid.has(r.id) || rewardProgress(r, have) < r.need) continue;
+    paid.add(r.id);
+    hero.embers += r.embers;
+    if (r.title) hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
+    done.push(r);
+  }
+  hero.collectionPaid = [...paid];
+  return { ...(fresh.length ? { collectionNew: fresh } : {}), ...(done.length ? { collectionRewards: done } : {}) };
 }
 
 /** The hero's key level in a dungeon (keys start at 1 once unlocked). */
