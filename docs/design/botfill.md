@@ -62,6 +62,10 @@ Bots made the raid as easy as 37 of 40 (93%), above the 70% ceiling, and how eas
 
 **The 80% gear scale.** At 100%, bot fills in the Hammerdeep at tier 8 won 18 (Bulwark) and 30 (Emberwright) of 40, against the real party's 21.5. At 80%, they won 16 and 16, below it in every class.
 
+## Real parties pay more (21 Nov 2026)
+- **The party quest** (weekly-quests.md) pays 1.5 times a normal weekly quest for 2 group wins with another real hero. Bot fills don't count toward it, so a real party now pays more than bots in two ways: the group boss item and this quest.
+- **The `?botparty=` loophole is closed.** That URL switch (for tools/partyperf.cjs) built a bot party without marking it as bots, so it got full drops and the group boss item. It now sets `fillBots`, so it gets the same limits as Fill with bots.
+
 ## Open
 - The bots' ally names show as "Lumen (bot)" and so on.
 - Fill bots aren't in online co-op. A party of 2 or 3 real players can't top up with bots, because bots would need the co-op host to run them. If that's wanted, it's an engineering item.

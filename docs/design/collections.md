@@ -17,12 +17,12 @@ The book has 44 entries in all. It is **shared by every class**, like titles: a 
 ## Rewards (paid once, to the class being played)
 | Reward | Needs | Embers | Title |
 |---|---|---|---|
-| Each set | All 3 pieces of it | 80 | the Kilnbreaker, the Tidewalker, the Glarewarden, the Hearthkeeper, the Wrackrider, the Deepguard, the Ventwalker, the Kinbound |
+| Each set | All 3 pieces of it | 80 | the Kilnbreaker, the Tidewalker, the Glarewarden, the Hearthkeeper, the Wrackrider, the Deepguard, the Ventwalker, the Kinbound, the Relayer |
 | Half the Mythics | 6 of 12 | 80 | |
 | Every Mythic | 12 of 12 | 200 | the Mythbound |
 | Every weapon effect | 8 of 8 | 120 | Weaponsworn |
 
-- **Total:** 1,040 embers over the whole book (720 before the Wrackrider, Deepguard, Ventwalker and Kinbound sets). At about 85 to 90 embers a delve (economy.md), that is about 12 delves of income (8 before the new sets) spread over weeks of play. Three of the new sets need group or raid runs, so few players fill them fast. The Forge targets in economy.md were checked with the 720 total, not re-run with this one.
+- **Total:** 1,120 embers over the whole book (1,040 before the Relayer set, 720 before the Wrackrider, Deepguard, Ventwalker and Kinbound sets). At about 85 to 90 embers a delve (economy.md), that is about 12 delves of income (8 before the new sets) spread over weeks of play. Three of the new sets need group or raid runs, so few players fill them fast. The Forge targets in economy.md were checked with the 720 total, not re-run with this one.
 - **Names:** the set titles reuse our own set names. Web searches for "Mythbound" and "Weaponsworn" (21 Nov 2026) found no game, title or achievement with those names.
 - **No power:** the rewards are embers and titles, so the book doesn't change win rates or the hashcheck.
 

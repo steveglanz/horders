@@ -52,11 +52,13 @@ export interface SetFlags {
   covered: boolean;
   /** Kinbound (3): Bonded, after the hero covered an ally or was covered by a wearer (an ally can be Bonded without the set). */
   bonded: boolean;
+  /** Relayer: Relayed, +damage after a gold circle (on the soaker, and with 3 pieces the nearest ally too). */
+  relayed: boolean;
 }
 
 /** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
 export function setFlagsOf(
-  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number },
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number },
   count: (id: SetId) => number,
 ): SetFlags {
   const up = p.hp > 0;
@@ -67,10 +69,11 @@ export function setFlagsOf(
     warmFull: up && count('hearthkeeper') >= 3 && (p.warmth ?? 0) >= SET_TUNING.hkMax,
     covered: up && (p.coverT ?? 0) > 0,
     bonded: up && (p.bondT ?? 0) > 0,
+    relayed: up && (p.relayT ?? 0) > 0,
   };
 }
 
-const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded' };
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed' };
 
 /**
  * The set procs have no events of their own (they are states on the hero), so this sounds each one
@@ -340,6 +343,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.
   covered: 2,
   bonded: 2,
+  relayed: 2,
   slag: 0.2,
   crit: 0.06,
   kill: 0.05,

@@ -20,7 +20,7 @@ import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
-import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS } from '../sim/content/weekly';
+import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } from '../sim/content/weekly';
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
@@ -681,19 +681,22 @@ export class Hub {
     const week = weekOf(Date.now());
     const wk = weekState(h.weekly, week, h.maxTier);
     // Each quest: a diamond that fills when done, its name and reward, what it asks, and a progress bar.
-    const rows = wk.quests.map((q) => {
+    const row = (q: WeeklyQuest) => {
       const pct = q.done ? 100 : Math.max(0, Math.min(100, (100 * q.progress) / Math.max(1, q.goal)));
       return `<div class="wq${q.done ? ' done' : ''}"><span class="pip" aria-hidden="true">${q.done ? '✓' : '◆'}</span><div class="wq-main">`
         + `<div class="wq-top"><b>${WEEKLY_QUESTS[q.id].name}</b><span>${q.done ? 'Done' : `<span class="pay">+${q.embers}</span>`}</span></div>`
         + `<div class="wq-txt">${weeklyText(q)}</div>`
         + `<div class="wq-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${q.goal}" aria-valuenow="${Math.min(q.progress, q.goal)}"><i style="width:${pct.toFixed(1)}%"></i></div>`
         + `${q.done ? '' : `<div class="wq-n">${q.progress.toLocaleString()} / ${q.goal.toLocaleString()}</div>`}</div></div>`;
-    }).join('');
+    };
+    const rows = wk.quests.map(row).join('');
+    // The party quest: extra, outside the title. Bots don't count, so it pays for finding real heroes.
+    const party = wk.party ? `<div class="lbl wq-party">Party quest</div>${row(wk.party)}<div class="hint">Bots don't count. It isn't needed for the title.</div>` : '';
     const title = weeklyTitle(week);
     const n = wk.quests.filter((q) => q.done).length;
     return `<div class="box weekly"><div class="lbl">Weekly quests <span class="wq-count">${n}/${wk.quests.length}</span></div>${rows}`
       + `<div class="wq-title${wk.titled ? ' earned' : ''}"><span class="crest" aria-hidden="true">❖</span><span>${wk.titled ? `Title earned: <b>${title}</b>` : `Finish all three for the title <b>${title}</b>`}</span></div>`
-      + `<div class="hint">New quests every week.</div></div>`;
+      + `${party}<div class="hint">New quests every week.</div></div>`;
   }
 
   /** Today's bounty: the same fights and twist for every player. */

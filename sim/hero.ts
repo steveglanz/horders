@@ -1,6 +1,7 @@
 import { SEASON, SeasonReward, SeasonState, runMarks, seasonDef, seasonLevel, seasonRewards, seasonState } from './content/season';
 import { ACHIEVEMENTS, Achievement, AchievementView, Deeds, addDeeds } from './content/achievements';
 import { COLLECTION_REWARDS, CollectionReward, EntryKey, entriesOf, rewardProgress } from './content/collections';
+import { DUNGEONS } from './content/dungeon';
 import type { DungeonId } from './content/dungeon';
 /**
  * The persistent hero: levels, permanent talent points, inventory and gear.
@@ -580,10 +581,11 @@ function applyWeekly(hero: HeroProfile, s: RunSummary, maxTier: number): Pick<Ru
   const run: WeeklyRun = {
     victory: s.victory, dungeon: s.dungeon ?? 'kiln', tier: s.tier ?? 1, maxTier, kills: s.kills,
     interrupts: s.interrupts ?? 0, namedKills: s.namedKills ?? 0, bounty: s.bounty !== undefined,
+    group: DUNGEONS[s.dungeon ?? 'kiln'].style !== 'solo', realHeroes: s.realHeroes,
   };
   const done: WeeklyQuest[] = [];
   let embers = 0;
-  for (const q of st.quests) {
+  for (const q of st.party ? [...st.quests, st.party] : st.quests) {
     if (q.done) continue;
     q.progress = Math.min(q.goal, q.progress + weeklyStep(q, run));
     if (q.progress >= q.goal) {

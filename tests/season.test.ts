@@ -58,6 +58,9 @@ describe('season track (P2)', () => {
     const trails = rs.filter((r) => r.kind === 'trail');
     expect(trails.map((r) => r.level)).toEqual([8, 18, 28]);
     expect(new Set(SEASONS.map((d) => d.trail.id)).size).toBe(SEASONS.length);
+    // Glow ids are unique across every season, so a worn glow from an old season always resolves to itself.
+    const glows = SEASONS.flatMap((d) => d.glows.map((g) => g.id));
+    expect(new Set(glows).size).toBe(glows.length);
     const t = seasonDef(id).trail;
     expect(TRAILS[t.id]).toBe(t);
     expect(trailLabel(t, 3)).toBe(`${t.name} III`);

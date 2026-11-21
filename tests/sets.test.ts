@@ -40,7 +40,8 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('ashvents')).toBe('ventwalker');
     expect(setForDungeon('crucible')).toBe('kinbound');
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(8);
+    expect(Object.keys(SETS)).toHaveLength(9);
+    expect(setForDungeon('pressworks')).toBe('relay');
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -220,8 +221,27 @@ describe('verb sets (R4)', () => {
     expect(taken(far)).toBeCloseTo(100, 3);
   });
 
+  it('Relayer: soaking a gold circle gives the soaker more damage (2), and the nearest ally too (3)', () => {
+    type Soak = { addTelegraph(...a: unknown[]): void; updatePartyTelegraphs(dt: number): void; use(k: number): void; setDamageMult(e: unknown, silent: boolean): number };
+    for (const [n, ally] of [[2, false], [3, true]] as const) {
+      const w = new World({ seed: 3, dungeon: 'pressworks', omens: [], gear: gear('relay', n), party: [{ cls: 'lumen' }] });
+      const q = w as unknown as Soak;
+      w.player.x = 0; w.player.y = 0;
+      const l = w.hero(1).player; l.x = 300; l.y = 0;
+      q.addTelegraph('circle', 0, 0, 60, 0, 0, 0.01, 50, 'soak', -1);
+      q.updatePartyTelegraphs(0.02);
+      expect(w.player.relayT).toBe(SET_TUNING.rlTime);
+      expect((l.relayT ?? 0) > 0).toBe(ally);
+      const e0 = w.enemies.find((o) => o.alive) ?? w.enemies[0];
+      expect(q.setDamageMult(e0, true)).toBeCloseTo(1 + SET_TUNING.rlDamage, 5);
+    }
+  });
+
   it("the newer sets' bonus texts quote SET_TUNING", () => {
     const pct = (v: number) => `${+(v * 100).toFixed(1)}%`;
+    const rl = SETS.relay.bonus;
+    expect(rl[0]).toContain(`${pct(SET_TUNING.rlDamage)} more damage for ${SET_TUNING.rlTime}s`);
+    expect(rl[1]).toContain(`${pct(SET_TUNING.rlDamage)} more damage for ${SET_TUNING.rlTime}s`);
     const wr = SETS.wrackrider.bonus;
     expect(wr[0]).toContain(`After ${SET_TUNING.wrStill}s standing still`);
     expect(wr[0]).toContain(`Planted for ${SET_TUNING.wrHold}s after`);
