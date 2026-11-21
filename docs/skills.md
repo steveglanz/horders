@@ -130,7 +130,7 @@ Auto: **Sunmote**, every 0.7s, an instant bolt of light at the target within 500
 | F | Hush | 0 / 10s, off GCD | Interrupt within 480, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
 
 Branches:
-- **Dawn** (healing into damage): *Kindled Light* (3) overheal stores 30% more Brilliance; *Searing Radiance* (3) Sunmotes +15% damage; *Sunflare* (2, ability) Radiant Burst +40 radius and +50% damage; capstone **High Noon**: every 4s, stored Brilliance fires a piercing sunbeam for 30 plus 1.5 per point.
+- **Dawn** (healing into damage): *Kindled Light* (3) overheal stores 30% more Brilliance; *Searing Radiance* (3) Sunmotes +15% damage; *Noon Flash* (2, ability) Radiant Burst +40 radius and +50% damage; capstone **High Noon**: every 4s, stored Brilliance fires a piercing sunbeam for 30 plus 1.5 per point.
 - **Grace** (shields and staying alive): *Gleam Guard* (3) Radiant Burst shields you for 8% of max health; *Renewal* (3) +20 max health and 1 health per second; *Blessed Ground* (2, ability) Glimmer Step leaves a pool that heals 5 per second per rank for 4s; capstone **Martyr's Halo**: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.
 - **Choir** (more light, faster): *Hasted Hymn* (3) Sunmotes 12% more often; *Prism* (2) each Sunmote also strikes one more enemy for 60%; *Lingering Sanctuary* (2, ability) Sanctuary lasts 2s longer and moves with you; capstone **Choir of Dawn**: three wisps circle you, burning foes and healing you 1.5 with each hit.
 
@@ -355,6 +355,14 @@ Wins with the card held from the start, at #241's values and then at the new one
 
 The tier 6 duo is very sensitive to any extra healing on the tank. Front Mend at 2% still read 38, and at 3% ×2 it read 37. So it is kept to one rank, and its upper bound on the duo is +8 of 80. Close Warmth readings are noisy, at about ±5 of 90: 0.1 hp/s read 54, 0.2 read 66, 0.3 read 64 and 0.5 read 70. Values this small change nothing at all, which rules out a hidden side effect: 0.0001 for Front Mend read 28, and 0.001 for Close Warmth read 55.
 
+## Talent name sweep (21 Nov 2026)
+
+There were 46 talent names that neither game design's audit nor the skills team's own checks had covered. Each one was quote-searched on warcraft.wiki.gg, Wowhead and Wowpedia. Steve's rule of 21 Nov at 15:48 is that only "true wow branded names" change.
+- **Renamed, because they are distinctly WoW:** Sunflare becomes **Noon Flash** (Sunflare is a WoW item). Shatterpoint becomes **Breakpoint** (Shatter Point is a WoW place).
+- **Kept, because they are ordinary English that WoW also uses:** Thick Hide, Heat Sink, High Noon and Shadow Slip.
+
+Only the shown names changed. The talent ids (`sunflare`, `shatterpoint`) are the same, so saves, hashes and the bot's priority list are untouched. The full list is in the wow-name-audit project memory.
+
 ## Party bots huddle with no set: a flag, off (21 Nov 2026)
 
 `BOT_PARTY.huddle` in sim/bot.ts gives ranged party bots the Deepguard drift (toward the nearest ally when it is more than 105 away) with no set worn. A worn Ventwalker still wins. It is **off by default**, so play on main does not change. Game design decides whether to turn it on and retune Hammerdeep. Fill bots won't use it either way. `HUDDLE=1` turns it on in tools/group.ts.
@@ -458,7 +466,7 @@ Solo, the stance only changes the numbers in its row. To support this, `roleOf` 
   - Shrapnel: splash radius +15 px per rank.
   - Brittle Mind: Brittle lasts +2 s per rank.
   - Capstones:
-    - **Shatterpoint:** Brittle foes take 25% more from Slag Lob.
+    - **Breakpoint:** Brittle foes take 25% more from Slag Lob.
     - **Cinder Hail:** every 5th Lob throws three globs.
 - **Crust (self-tank):**
   - Thick Skin: max health +6% per rank.
