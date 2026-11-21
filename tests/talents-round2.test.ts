@@ -115,3 +115,11 @@ describe('class talents round 2 (C5)', () => {
     expect(hitTaken('emberwright', { slagScales: 3, steadyHalo: 2 })).toBeCloseTo(hitTaken('emberwright', {}));
   });
 });
+
+describe('bot talent priority', () => {
+  it('ranks every class talent, so a new card never jumps the queue', async () => {
+    const { BOT_PRIORITY } = await import('../sim/bot');
+    const missing = (Object.keys(TALENTS) as TalentId[]).filter((id) => !BOT_PRIORITY.includes(id));
+    expect(missing).toEqual([]);
+  });
+});

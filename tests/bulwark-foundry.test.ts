@@ -86,7 +86,7 @@ describe('Novice aid for melee heroes', () => {
     expect(hitFromTarget(4)).toBeCloseTo(20, 5);
   });
 
-  it('Second Wind catches a melee hero once per fight at tier 1', () => {
+  it('Steady Breath catches a melee hero once per fight at tier 1', () => {
     const w = new World({ seed: 2, cls: 'bulwark', tier: 1 });
     const hurt = (w as unknown as Hurt).hurtPlayer.bind(w);
     w.player.hp = w.player.maxHp * 0.35;

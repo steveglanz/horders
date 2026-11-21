@@ -304,7 +304,7 @@ Earlier tuning that didn't ship:
 - **Hammer Sweep at 26:** the tank took 65 per sweep on top of Anvilfall.
 - **Choir at 10% +1.5%:** full party 18 of 36, but no healer 13 and no tank 13, so roles stopped mattering.
 
-**Reading:** roles matter in the order we want. The full party is below the 60 to 75% target because the bots play their roles badly. The Bulwark doesn't save Bastion for Anvilfall, and in traces the Lumen sat about 340 px from the tank and barely healed it. The skills team is fixing both bots. Retune after that, then give the duo its own pass.
+**Reading:** roles matter in the order we want. The full party is below the 60 to 75% target because the bots play their roles badly. The Bulwark doesn't save Anvil Skin for Anvilfall, and in traces the Lumen sat about 340 px from the tank and barely healed it. The skills team is fixing both bots. Retune after that, then give the duo its own pass.
 
 ## Kiln Brand placed away from the Kiln Mother: tried, not shipped (21 Nov 2026)
 
@@ -321,7 +321,7 @@ The Duskblade, the class it was meant to help, didn't move, and the Bulwark gain
 
 ## The Hammerdeep retuned for the new group bots (21 Nov 2026)
 
-The skills team's PR #54 fixes two bots: the Bulwark now saves Bastion for an Anvilfall aimed at it, and the co-op Lumen heals the most wounded ally. With those bots and the first-pass numbers, every tier 6 full party won (24 of 24), the Bulwark + Lumen duo won 24 of 24, and a party with no tank won 15 of 24. That means the healer carried parties with no tank.
+The skills team's PR #54 fixes two bots: the Bulwark now saves Anvil Skin for an Anvilfall aimed at it, and the co-op Lumen heals the most wounded ally. With those bots and the first-pass numbers, every tier 6 full party won (24 of 24), the Bulwark + Lumen duo won 24 of 24, and a party with no tank won 15 of 24. That means the healer carried parties with no tank.
 
 The retune:
 - Anvilfall goes from 120 to 160 (before tierDamage), so a non-tank barely survives one hit.

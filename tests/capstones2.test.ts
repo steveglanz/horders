@@ -141,7 +141,7 @@ describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
     }
   });
 
-  it('Iron Vigil: Bastion lasts 10 s', () => {
+  it('Iron Vigil: Anvil Skin lasts 10 s', () => {
     const { w, inner } = w2('bulwark');
     inner.talents.ironVigil = 1;
     inner.bastion();

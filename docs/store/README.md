@@ -41,7 +41,7 @@ The seven shots, in store order:
 4. **The Lensmother**: the Glarewell boss sweeping her lens.
 5. **Maelra, the Drowned Bellows**: the Drowned Foundry boss over her steam vents.
 6. **Grandmother Slag**: the raid, a party of four, a Ladle Pour tipping over the tank.
-7. **Ysmeret, the Twofold Flame**: the Ashvents group boss opening her Twin Vents, with a Slagbinder (the fifth class) leading a party of four, a Slag Pit under the boss and Bellow Slam winding up.
+7. **Ysmeret, the Twofold Flame**: the Ashvents group boss opening her Twin Vents, with a Slagbinder (the fifth class) leading a party of four, a Cinder Sump under the boss and Bellow Slam winding up.
 
 Name a target to make only that set (and `ONLY=2-nhevra,6-raid` to remake only those fights): `icons`, `phone`, `landscape`, `desktop`.
 The game loads with `?hires=1` so the canvas renders at the full 3× of the phone sizes.

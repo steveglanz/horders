@@ -1,6 +1,6 @@
 // Colour-blind check: one frozen scene with every kind of telegraph (attack circle and cone,
-// soak, bloom) beside the newer friendly effects that sit on the floor (a burn zone, Slag Pit,
-// Lightwell, Rallying Cry, slowed foes), in the standard and colour-blind palettes.
+// soak, bloom) beside the newer friendly effects that sit on the floor (a burn zone, Cinder Sump,
+// Glow Pool, Muster, slowed foes), in the standard and colour-blind palettes.
 // tools/cbsim.py then renders each shot as seen with deuteranopia, protanopia and tritanopia.
 // Usage: npm run build && node tools/cbshots.cjs <outDir> [phone] && python3 tools/cbsim.py <outDir>
 const { chromium, devices } = require('playwright');
@@ -40,7 +40,7 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
       w.addTelegraph('circle', p.x - 40, p.y + 170, 65, 0, 0, 10, 0, 'soak');
       w.addTelegraph('circle', p.x + 190, p.y + 150, 60, 0, 0, 10, 0, 'bloom');
       for (const tg of w.telegraphs) if (tg.alive) tg.t = tg.dur * 0.5;
-      // Friendly floor effects: a Slag Pit with slowed foes in it, a Lightwell, Rallying Cry on the party.
+      // Friendly floor effects: a Cinder Sump with slowed foes in it, a Glow Pool, Muster on the party.
       p.pitUntil = t + 5; p.pitX = p.x + 170; p.pitY = p.y - 120;
       foes.slice(0, 3).forEach((e, i) => { e.x = p.pitX + (i - 1) * 40; e.y = p.pitY + (i % 2) * 20; e.slowUntil = t + 4; e.slowMult = 0.4; });
       const a = w.heroData(1).player; a.wellUntil = t + 6; a.wellX = p.x - 190; a.wellY = p.y + 110;

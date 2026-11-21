@@ -57,7 +57,7 @@ describe('simulation', () => {
     expect(capstones).toBeGreaterThanOrEqual(5);
   });
 
-  it('Blazing Speed rank 2 lets Blink be cast twice in a row', () => {
+  it('Hot Heels rank 2 lets Blink be cast twice in a row', () => {
     const w = new World({ seed: 3 });
     w.talents = { blazingSpeed: 1 };
     w.state = 'draft';
@@ -174,7 +174,7 @@ describe('classes', () => {
     expect(w.encounter).toBeGreaterThanOrEqual(3);
   });
 
-  it('Bulwark armor and Bastion cut damage, and Bastion turns some back', async () => {
+  it('Bulwark armor and Anvil Skin cut damage, and Anvil Skin turns some back', async () => {
     const { World } = await import('../sim/world');
     const w = new World({ seed: 2, cls: 'bulwark' });
     const hurt = (w as unknown as { hurtPlayer(a: number, s?: number): void }).hurtPlayer.bind(w);
