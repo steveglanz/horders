@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH, COLO } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -348,6 +348,9 @@ export class GameScene extends Phaser.Scene {
     // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
     // plate and the red Rivets both read on it.
     else if (w.dungeonId === 'pressworks') this.ground.setTint(0x9aa070);
+    // The Smeltery's floor is sooty blue-grey cast iron (at least 20 Delta-E from every other floor), so his hot back,
+    // the Sweep cone and the Meltdown pulses read warm against it.
+    else if (w.dungeonId === 'smeltery') this.ground.setTint(0x606878);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -990,6 +993,20 @@ export class GameScene extends Phaser.Scene {
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
           break;
+        // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
+        case 'wheel': {
+          const e = w.enemies.find((q) => q.alive && q.kind === 'colossus');
+          if (e) this.ring(e.x, e.y, 150, 0xffd27a, 0.35);
+          this.shakeBy(0.08);
+          break;
+        }
+        case 'meltPulse': {
+          const e = w.enemies.find((q) => q.alive && q.kind === 'colossus');
+          this.meltAt = w.time;
+          if (e) { this.ring(e.x, e.y, 420, MOLTEN, 0.7); this.ring(e.x, e.y, 220, 0xffd27a, 0.45); }
+          this.shakeBy(0.05);
+          break;
+        }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
           break;
@@ -1305,6 +1322,8 @@ export class GameScene extends Phaser.Scene {
       const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
         : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
         // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
+        // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
+        : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
         : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
@@ -1332,7 +1351,7 @@ export class GameScene extends Phaser.Scene {
       const hit = e.flash > 0 ? 0.12 : 0;
       // Every shadow shows at the size Grandmother Slag's 128-unit sheet always did, whatever its sheet's size.
       const shadowScale = e.kind === 'worldShadow' ? (1.05 * 128) / shadowSheet(w.worldBoss).size : 1;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
+      s.setVisible(true).setPosition(x, y).setFlipX(e.kind === 'colossus' ? Math.cos(w.colFacing) < 0 : !e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -1342,8 +1361,9 @@ export class GameScene extends Phaser.Scene {
       // big boss being hit nonstop never turns into a white silhouette.
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
       // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
-      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up.
-      if (e.flash > 0 && e.kind === 'coalmouth') s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
+      // Colossus is the same dark cinder, so he gets it too.
+      if (e.flash > 0 && (e.kind === 'coalmouth' || e.kind === 'colossus')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1533,7 +1553,7 @@ export class GameScene extends Phaser.Scene {
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1758,6 +1778,7 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
       if (e.kind === 'coalmouth') this.hoardDraw(g, e, now);
+      if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
@@ -2124,6 +2145,60 @@ export class GameScene extends Phaser.Scene {
    *   hero's time.
    * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
    */
+  /** World time of the last Meltdown pulse, for the countdown ring to the next. */
+  private meltAt = -1;
+
+  /**
+   * The Smeltery (raid 3, "get behind him"), drawn under the sprites. Phases 1 and 2: a cool steel arc on the floor
+   * round his plated front half, and a hot slice behind him where hits land hardest (`colossusSide`'s arcs). Wheel:
+   * gold chevrons circle him faster as the cast runs, with a ring closing in. Meltdown: the arcs go, his plate
+   * cracks (the sheet) and a ring closes in on him until each pulse.
+   */
+  private smelteryDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
+    const R = e.def.radius + 36;
+    const fa = w.colFacing;
+    if (w.bossPhase < 3) {
+      // His plated front: a steel band round the front half, with a chevron where he faces.
+      g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      g.lineStyle(2, 0xeef2ff, 0.75).beginPath().arc(e.x, e.y, R + 5, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      const cx = e.x + Math.cos(fa) * (R + 10);
+      const cy = e.y + Math.sin(fa) * (R + 10);
+      g.fillStyle(0xeef2ff, 0.7).fillTriangle(cx + Math.cos(fa) * 9, cy + Math.sin(fa) * 9, cx + Math.cos(fa + 2.4) * 7, cy + Math.sin(fa + 2.4) * 7, cx + Math.cos(fa - 2.4) * 7, cy + Math.sin(fa - 2.4) * 7);
+      // His open back: a hot slice that breathes.
+      const back = fa + Math.PI;
+      const half = Math.PI - COLO.backArc;
+      const breathe = 0.5 + 0.5 * Math.sin(now / 260);
+      g.fillStyle(0xff8a3d, 0.08 + 0.06 * breathe).slice(e.x, e.y, R + 46, back - half, back + half, false).fillPath();
+      g.lineStyle(4, 0xffb347, 0.55 + 0.25 * breathe).beginPath().arc(e.x, e.y, R + 46, back - half, back + half, false).strokePath();
+    }
+    if (e.castId === 'wheel') {
+      const k = Math.min(1, e.castT / e.castDur);
+      // Chevrons circling him, faster as the cast runs, and a ring closing in.
+      const spin = (now / 1000) * (2 + 8 * k);
+      o.lineStyle(3, 0xffd27a, 0.85);
+      for (let q = 0; q < 3; q++) {
+        const a = spin + (q * Math.PI * 2) / 3;
+        o.beginPath().arc(e.x, e.y, R + 24, a, a + 0.9, false).strokePath();
+        const hx = e.x + Math.cos(a + 0.9) * (R + 24);
+        const hy = e.y + Math.sin(a + 0.9) * (R + 24);
+        const t = a + 0.9 + Math.PI / 2;
+        o.fillStyle(0xffd27a, 0.9).fillTriangle(hx + Math.cos(t) * 8, hy + Math.sin(t) * 8, hx + Math.cos(t + 2.3) * 6, hy + Math.sin(t + 2.3) * 6, hx + Math.cos(t - 2.3) * 6, hy + Math.sin(t - 2.3) * 6);
+      }
+      o.lineStyle(5, 0xffd27a, 0.8).strokeCircle(e.x, e.y, R + 70 - 50 * k);
+    }
+    if (w.bossPhase >= 3) {
+      // Meltdown: a molten ring closes in on him until the next pulse.
+      const since = this.meltAt >= 0 ? w.time - this.meltAt : 0;
+      const k = Math.min(1, Math.max(0, since / COLO.meltEvery));
+      const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+      g.fillStyle(MOLTEN, 0.08 + 0.06 * pulse).fillCircle(e.x, e.y, R + 10);
+      o.lineStyle(4, MOLTEN, 0.35 + 0.5 * k).strokeCircle(e.x, e.y, R + 160 - 150 * k);
+    }
+  }
+
   private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
     const o = this.overFx;
