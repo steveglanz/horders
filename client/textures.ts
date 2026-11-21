@@ -1043,6 +1043,178 @@ function drawWater(ctx: Ctx, s: number): void {
 
 // ------------------------------------------------------------------ build
 
+// ------------------------------------------------------------------ the Glarewell
+// A sunken observatory: pale gold light that burns, indigo shadow that hides
+// you, and Shades living in that shadow.
+
+/** Lensbearer: a hunched keeper in indigo robes, holding up a great brass lens. Faces right. */
+function drawLensbearer(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const step = [1, 0, -1, 0][f];
+  ctx.fillStyle = '#1c1830';
+  ell(ctx, 22 + step * 2, 50, 4, 2); ctx.fill();
+  ell(ctx, 32 - step * 2, 50, 4, 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(27, 14 + bob);
+  ctx.quadraticCurveTo(39, 24, 40, 50);
+  ctx.quadraticCurveTo(27, 53, 14, 50);
+  ctx.quadraticCurveTo(15, 24, 27, 14 + bob);
+  ctx.closePath();
+  shade(ctx, '#4a4478', '#1a1630', 14, 52);
+  ell(ctx, 26, 15 + bob, 6, 6);
+  shade(ctx, '#3c3866', '#16132a', 9, 21);
+  eyes(ctx, [[27.5, 15.5 + bob], [30.5, 15.5 + bob]], 0.9, '#ffe9a8');
+  // The lens: a brass ring on a pole, glass catching the light.
+  limb(ctx, 36, 28 + bob, 44, 14 + bob, 2.4, '#b88a3a');
+  softGlow(ctx, 45, 12 + bob, 11, 'rgba(255,230,150,0.75)');
+  ell(ctx, 45, 12 + bob, 6.5, 6.5);
+  shade(ctx, '#fff6d0', '#e0b85a', 6, 18, 1.6);
+  ctx.save();
+  ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 1.6;
+  ell(ctx, 45, 12 + bob, 6.5, 6.5); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ell(ctx, 43, 10 + bob, 1.6, 1); ctx.fill();
+  ctx.restore();
+}
+
+/** Shade: a wisp of living shadow with two cold eyes. Faces right. */
+function drawShade(ctx: Ctx, _s: number, f: number): void {
+  const w = [0, 1, 0, -1][f];
+  softGlow(ctx, 18, 18, 17, 'rgba(40,30,90,0.55)');
+  ctx.beginPath();
+  ctx.moveTo(18, 4);
+  ctx.quadraticCurveTo(30, 8, 29, 20);
+  ctx.quadraticCurveTo(28 + w, 28, 24 - w, 33);
+  ctx.quadraticCurveTo(21, 28, 18, 32 + w);
+  ctx.quadraticCurveTo(15, 28, 12 + w, 33);
+  ctx.quadraticCurveTo(8, 26, 7, 20);
+  ctx.quadraticCurveTo(6, 8, 18, 4);
+  ctx.closePath();
+  shade(ctx, '#2c2650', '#0a0818', 4, 33, 1.2);
+  eyes(ctx, [[19, 15], [24, 15]], 1.3, '#a8c8ff');
+}
+
+/** Brandkeeper: a tall figure with a glowing gold sigil burned into its chest. Faces right. */
+function drawBrandkeeper(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const step = [1, 0, -1, 0][f];
+  const pulse = [0, 1, 2, 1][f];
+  ctx.fillStyle = '#1a1424';
+  ell(ctx, 21 + step * 2, 48, 3.6, 1.8); ctx.fill();
+  ell(ctx, 30 - step * 2, 48, 3.6, 1.8); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(26, 12 + bob);
+  ctx.quadraticCurveTo(37, 20, 37, 48);
+  ctx.lineTo(15, 48);
+  ctx.quadraticCurveTo(15, 20, 26, 12 + bob);
+  ctx.closePath();
+  shade(ctx, '#5a3a5c', '#20121e', 12, 48);
+  limb(ctx, 18, 24 + bob, 12, 36, 2.6, '#3e2640');
+  limb(ctx, 34, 24 + bob, 41, 18 + bob, 2.6, '#3e2640');
+  ell(ctx, 26, 12 + bob, 5.5, 5.8);
+  shade(ctx, '#6a4668', '#241426', 6, 18);
+  eyes(ctx, [[27.5, 12.5 + bob], [30.3, 12.5 + bob]], 0.85, '#ffd36a');
+  // The brand: a gold ring with a cross, on the chest and in the raised hand.
+  softGlow(ctx, 26, 30 + bob, 9 + pulse, 'rgba(255,200,80,0.8)');
+  softGlow(ctx, 42, 16 + bob, 6 + pulse, 'rgba(255,200,80,0.8)');
+  ctx.save();
+  ctx.strokeStyle = '#ffe7a0'; ctx.lineWidth = 1.3;
+  ell(ctx, 26, 30 + bob, 4, 4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(26, 25.5 + bob); ctx.lineTo(26, 34.5 + bob); ctx.moveTo(21.5, 30 + bob); ctx.lineTo(30.5, 30 + bob); ctx.stroke();
+  ctx.restore();
+}
+
+/** Twin Lamp: a floating brass lantern with a white-gold flame. Faces right. */
+function drawTwinLamp(ctx: Ctx, _s: number, f: number): void {
+  const hover = [0, -1, -1.5, -1][f];
+  const fl = [0, 1, 0.5, 1.5][f];
+  softGlow(ctx, 22, 20 + hover, 21, 'rgba(255,236,170,0.6)');
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ell(ctx, 22, 41, 7, 2); ctx.fill();
+  limb(ctx, 22, 4 + hover, 22, 9 + hover, 1.2, '#8a6224');
+  ctx.beginPath();
+  ctx.moveTo(14, 11 + hover); ctx.lineTo(30, 11 + hover); ctx.lineTo(28, 31 + hover); ctx.lineTo(16, 31 + hover);
+  ctx.closePath();
+  shade(ctx, '#e8c070', '#7a5420', 11, 31, 1.4);
+  ctx.beginPath();
+  ctx.rect(17, 14 + hover, 10, 14);
+  ctx.fillStyle = 'rgba(255,250,225,0.95)';
+  ctx.fill();
+  ctx.save();
+  ctx.fillStyle = '#ffd36a';
+  ctx.beginPath();
+  ctx.moveTo(22, 15 + hover - fl); ctx.quadraticCurveTo(26, 22 + hover, 22, 27 + hover); ctx.quadraticCurveTo(18, 22 + hover, 22, 15 + hover - fl);
+  ctx.fill();
+  ctx.restore();
+  ell(ctx, 22, 9 + hover, 6, 2.4);
+  shade(ctx, '#c49a4a', '#6a4618', 7, 11, 1);
+  ell(ctx, 22, 32 + hover, 5, 2);
+  shade(ctx, '#c49a4a', '#6a4618', 30, 34, 1);
+}
+
+/** The Lensmother: a vast veiled figure whose face is one great lens. Idles. */
+function drawLensmother(ctx: Ctx, s: number, f: number): void {
+  const c = s / 2;
+  const breathe = [0, 1, 2, 1][f];
+  softGlow(ctx, c, 40, 46 + breathe * 2, 'rgba(255,226,140,0.45)');
+  // Robes: layered indigo veils sweeping to the floor.
+  ctx.beginPath();
+  ctx.moveTo(c, 26);
+  ctx.quadraticCurveTo(c + 40, 40, c + 46, s - 8);
+  ctx.quadraticCurveTo(c, s - 2, c - 46, s - 8);
+  ctx.quadraticCurveTo(c - 40, 40, c, 26);
+  ctx.closePath();
+  shade(ctx, '#3e3870', '#110e22', 26, s - 4, 2);
+  ctx.beginPath();
+  ctx.moveTo(c, 40);
+  ctx.quadraticCurveTo(c + 24, 60, c + 26, s - 12);
+  ctx.quadraticCurveTo(c, s - 8, c - 26, s - 12);
+  ctx.quadraticCurveTo(c - 24, 60, c, 40);
+  ctx.closePath();
+  shade(ctx, '#57508e', '#1c1838', 40, s - 8, 1.4);
+  // Arms raised, holding small lenses.
+  limb(ctx, c - 30, 54, c - 46, 30 - breathe, 4, '#2c2852');
+  limb(ctx, c + 30, 54, c + 46, 30 - breathe, 4, '#2c2852');
+  for (const x of [c - 47, c + 47]) {
+    softGlow(ctx, x, 27 - breathe, 9, 'rgba(255,230,150,0.9)');
+    ell(ctx, x, 27 - breathe, 4.5, 4.5);
+    shade(ctx, '#fff6d0', '#d8a848', 22, 32, 1.2);
+  }
+  // The face: one great lens in a brass ring, with a burning pupil.
+  softGlow(ctx, c, 28, 22 + breathe, 'rgba(255,240,190,0.95)');
+  ell(ctx, c, 28, 15, 15);
+  shade(ctx, '#fffbe6', '#e8c070', 13, 43, 2.4);
+  ctx.save();
+  ctx.strokeStyle = '#8a6224'; ctx.lineWidth = 3;
+  ell(ctx, c, 28, 15, 15); ctx.stroke();
+  ctx.fillStyle = '#ff9a3c';
+  ell(ctx, c + 2, 29, 4.2 + breathe * 0.4, 4.2 + breathe * 0.4); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ell(ctx, c - 5, 22, 3.4, 2); ctx.fill();
+  ctx.restore();
+}
+
+/** Observatory pillar: a cracked marble column seen from above, gold-veined. */
+function drawPillar(ctx: Ctx, s: number, f: number): void {
+  const c = s / 2;
+  const broken = f === 1;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ell(ctx, c + 2, c + 4, c * 0.9, c * 0.9); ctx.fill();
+  ell(ctx, c, c, c * 0.86, c * 0.86);
+  shade(ctx, broken ? '#8a8494' : '#e4dccb', broken ? '#3c3846' : '#8a8070', 2, s - 2, 2);
+  ell(ctx, c, c, c * 0.6, c * 0.6);
+  shade(ctx, broken ? '#9a94a2' : '#f4eedf', broken ? '#4a4652' : '#b0a690', 8, s - 8, 1);
+  ctx.save();
+  ctx.strokeStyle = broken ? 'rgba(20,10,30,0.9)' : 'rgba(210,170,80,0.7)';
+  ctx.lineWidth = broken ? 2 : 1.2;
+  ctx.beginPath();
+  ctx.moveTo(c - 14, c - 6); ctx.lineTo(c - 4, c); ctx.lineTo(c + 2, c - 10);
+  ctx.moveTo(c + 4, c + 12); ctx.lineTo(c + 10, c + 2);
+  if (broken) { ctx.moveTo(c - 10, c + 14); ctx.lineTo(c, c + 2); ctx.lineTo(c + 14, c + 8); }
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function buildTextures(scene: Phaser.Scene): void {
   // Ground: dark basalt flagstones with faint ember seams. Tiles seamlessly and
   // stays low-contrast so creatures and telegraphs read on top of it.
@@ -1147,6 +1319,14 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'gate', 80, 1, drawGate);
   sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
   sheet(scene, 'portal', 80, 1, drawPortal);
+
+  // The Glarewell.
+  sheet(scene, 'lensbearer', 54, 4, drawLensbearer);
+  sheet(scene, 'shade', 36, 4, drawShade);
+  sheet(scene, 'brandkeeper', 52, 4, drawBrandkeeper);
+  sheet(scene, 'twinLamp', 44, 4, drawTwinLamp);
+  sheet(scene, 'lensmother', 116, 4, drawLensmother);
+  sheet(scene, 'pillar', 64, 2, drawPillar);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {

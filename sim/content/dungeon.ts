@@ -8,6 +8,7 @@ import { EnemyKind } from './enemies';
 export type EncounterId =
   | 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine'
   | 'twins' | 'glass' | 'crawlers' | 'bellwarden' | 'tidepair' | 'twinsAcolyte' | 'maelra'
+  | 'shades' | 'lensbearer' | 'brandkeeper' | 'lamps' | 'lensShades' | 'brandShades' | 'lensmother'
   | 'worldShadow';
 
 export interface EncounterDef {
@@ -33,11 +34,18 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   tidepair: { id: 'tidepair', name: 'The Tide Pair', tip: 'Two Sluice Crawlers. Keep their rings apart from them.', spawns: [{ kind: 'sluiceCrawler', n: 2 }] },
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
+  shades: { id: 'shades', name: 'Shades in the Dark', tip: 'Shades barely feel hits in shadow. Pull them into the light.', spawns: [{ kind: 'shade', n: 4 }] },
+  lensbearer: { id: 'lensbearer', name: 'The Lensbearer', tip: 'When it raises the lens, hide behind a pillar, or Quench the Glare.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 2 }] },
+  brandkeeper: { id: 'brandkeeper', name: 'The Brandkeeper', tip: 'A Brand on you bursts: get clear of pillars and enemies first.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'shade', n: 2 }] },
+  lamps: { id: 'lamps', name: 'The Twin Lamps', tip: 'Never stand in the light between the lamps. Kill one to break it.', spawns: [{ kind: 'twinLamp', n: 2 }] },
+  lensShades: { id: 'lensShades', name: 'Lensbearer and the Dark', tip: 'Hide from the Glare, but the shadows are full of Shades.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 4 }] },
+  brandShades: { id: 'brandShades', name: 'Brand and Lens', tip: 'Brands crack pillars. Burst them in the open so you keep your cover.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'lensbearer', n: 1 }] },
+  lensmother: { id: 'lensmother', name: 'The Lensmother', tip: 'Hide from her Glare, burst Brands in the open, and save your pillars.', spawns: [{ kind: 'lensmother', n: 1 }] },
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', tip: 'Bonus fight: 60 seconds to hurt it. Every hit counts triple toward the world boss.', spawns: [{ kind: 'worldShadow', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -62,6 +70,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
     openers: ['twins', 'glass', 'crawlers'], named: ['bellwarden', 'tidepair'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.',
+  },
+  glarewell: {
+    id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
+    openers: ['shades', 'lensbearer', 'brandkeeper'], named: ['lamps', 'brandShades'], hard: ['lensShades', 'lamps'],
+    blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.',
   },
 };
 

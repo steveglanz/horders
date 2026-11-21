@@ -182,3 +182,21 @@ Fresh hero, one run, seeds 1 to 40 (`tools/loot.ts`):
 | After (4 heroes) | 20, 19, 15, 16 | 2, 2, 2, 1 | runs 37, 16, 20, 6 | 10, 6, 9, 10 | 19, 21, 21, 18 | 27, 29, 27, 25 |
 
 The ladder doesn't get harder: wins and gear score stay level, because a Rare at the same item level is close in power. Epics now come every 2.5 to 3 runs, and Mythics about one per 25 to 50 runs.
+
+## The Glarewell (21 Nov 2026)
+
+Measured with `tools/foundry.ts`, seeds 1 to 24, with the geared reference heroes (Emberwright). `DUNGEON=glarewell TIER=7 HERO=tools/heroes/hero-t6.json` and so on.
+
+| Hero | Dungeon and tier | Wins of 24 | Boss fight |
+|---|---|---|---|
+| hero-t6 | Foundry, tier 7 | 21 | 115 s |
+| hero-t6 | Glarewell, tier 7 | 22 | 127 to 129 s |
+| hero-t8 | Kiln, tier 8 | 18 | 120 s |
+| hero-t8 | Glarewell, tier 8 | 24 | 104 s |
+| ungeared | Glarewell, tier 7 | 0 of 16 | – |
+
+**Reading:** a geared hero arriving at tier 7 finds the Glarewell about as hard as the Foundry at the same tier, which was the target. Ungeared heroes can't clear it, as with the Foundry at tier 6. Most of the danger is in the Brandkeeper fights (8 to 14 Brand bursts a run) and the long boss fight. Glare hits the bot 1 to 4 times a run, so it hides most of the time. Humans will likely be hit more, so watch Glare in playtests.
+
+**A bug found while tuning:** the first build ran the Glarewell elites' ability timers twice a tick, so the Brandkeeper branded 16 to 19 times a fight. That's fixed. The boss's clocks (enrage, phases, pillar cracks) now run every tick, even while she casts. The Lens Sweep keeps the cadence that was measured (every 1.7 s, every 1 s enraged), now written down as `GLARE.sweepEvery`. The Foundry's elites and Maelra use the same double-timer pattern. It's left alone because their tuning was measured with it, so it's a known quirk rather than a bug to fix silently.
+
+**Kiln and Foundry unchanged:** `tools/hashcheck.ts` (4 classes, 2 dungeons, 3 seeds) prints the same output on main and on this branch.

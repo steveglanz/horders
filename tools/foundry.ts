@@ -23,6 +23,9 @@ for (const seed of seeds) {
     if (w.bossSpawned && !bossAt) bossAt = w.time;
     if (w.bossSpawned) { bossTicks++; temperTicks += w.temper; maxTemper = Math.max(maxTemper, w.temper); if (before > 0 && w.temper === 0) bump('boil'); }
     for (const ev of w.events) {
+      if (ev.type === 'glare' && ev.hit) bump('glareHit');
+      if (ev.type === 'brandBurst') bump('brandBurst');
+      if (ev.type === 'pillarCrack') bump('crack');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'phase') bump('phase' + ev.phase);
