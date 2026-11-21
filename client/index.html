@@ -682,7 +682,11 @@
   #heroStrip .gtile { width: 38px; height: 38px; border-radius: 11px; }
   #heroStrip .hs-main { flex: 1; min-width: 0; }
   #heroStrip .hs-name { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
-  #heroStrip .hs-name b { font: 600 16px var(--serif); }
+  /* On a 320px phone "Emberwright" plus "Lv 30" ran past the strip and the level wrapped under the points badge:
+     the name gives way (ellipsis) and the level stays on one line. */
+  #heroStrip .hs-name b { font: 600 16px var(--serif); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #heroStrip .hs-name .lv { flex: none; white-space: nowrap; }
+  @media (max-width: 360px) { #heroStrip .hs-pw { display: none; } }
   #heroStrip .meter { height: 5px; margin-top: 6px; }
   #heroStrip .meter > span { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2bb59a, var(--xp)); }
   body.tabs .hub-top .snd-toggle { width: 44px; height: 44px; }
