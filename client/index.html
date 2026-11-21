@@ -655,6 +655,8 @@
     /* Anchored to the action bar's top edge (HEAT + 2 rows of 64px buttons), so a long raid hint never covers HEAT. */
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px); }
     #party { width: 140px; gap: 4px; }
+    /* Large text zooms each frame 1.18x, which left 'Bulw…' and 'Lu…' beside their role chips. */
+    body.text-large #party { width: 168px; }
     .pf { padding: 3px 6px 4px 3px; gap: 5px; }
     .pf .gtile { width: 20px; height: 20px; }
     .pf .gtile svg { width: 13px; height: 13px; }

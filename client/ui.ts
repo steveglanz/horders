@@ -248,6 +248,7 @@ export class Hud {
     this.updateQuests(w);
     this.updateBuffs(w);
     this.stackTop();
+    this.placeBanner();
 
     if (this.showPerf) {
       $('perf').textContent = `${fps.avg.toFixed(0)} fps · p95 ${fps.p95ms.toFixed(1)} ms · ${w.aliveEnemies} enemies`;
@@ -288,6 +289,28 @@ export class Hud {
     // Co-op party frames go under the route line.
     const above = quests.offsetHeight ? quests : target.hidden ? $('buffs') : target;
     party.style.top = key ? `${Math.max(150, Math.round(above.getBoundingClientRect().bottom + 6))}px` : '';
+  }
+
+  private bannerTop = '';
+
+  /**
+   * Landscape phones: the banner sits just under the HUD row, so a boss frame that grows a
+   * phase line and a cast bar ran into the banner's title. Push the banner below the frame.
+   */
+  private placeBanner(): void {
+    const b = $('banner');
+    if (!b.classList.contains('show')) return; // keep its place while it fades out
+    const target = $('target');
+    let top = '';
+    if (this.compact && !this.narrow.matches && !target.hidden) {
+      // 68 px is the stylesheet's own landscape top (HUD row + 60); only ever push it lower.
+      const below = Math.round(target.getBoundingClientRect().bottom + 8);
+      if (below > 68) top = `${below}px`;
+    }
+    if (top === this.bannerTop) return;
+    this.bannerTop = top;
+    b.style.top = top;
+    this.placeDing();
   }
 
   private targetIndex(w: World): number {
