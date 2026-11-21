@@ -118,6 +118,8 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
 function startRun(bounty = false): void {
   // In someone else's party, the host starts the delves.
   if (coop?.role === 'guest') return;
+  // A group dungeon needs a party (the hub shows why and disables Delve).
+  if (!bounty && !stress && hub.partyBlocker()) return;
   if (game.scene.getScene('game')) game.scene.stop('game');
   runSeed = seed();
   hub.bossNote = "";
@@ -458,12 +460,14 @@ function renderCoop(): void {
 /** The Delve button follows the party: guests wait, a host with company delves together. */
 function coopButton(): void {
   const b = el('startBtn') as HTMLButtonElement;
-  b.disabled = coop?.role === 'guest';
+  b.disabled = coop?.role === 'guest' || !!hub.partyBlocker();
   if (coop?.role === 'guest') b.textContent = 'Waiting for the host';
   else if (coop?.role === 'host' && coop.roster.length > 1) b.textContent = b.textContent!.replace(/^Delve/, 'Delve together');
 }
 const hubRender = hub.render.bind(hub);
 hub.render = () => {
+  // Group dungeons need the party's classes for their labels and the party-size check.
+  hub.partyClasses = coop && coop.roster.length > 1 ? coop.roster.map((r) => r.hero.cls) : [];
   hubRender();
   coopButton();
 };

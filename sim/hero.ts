@@ -257,6 +257,9 @@ export function makeItem(rng: Rng, id: string, slot: Slot, rarity: Rarity, ilvl:
 export function rollLoot(
   seed: number, s: RunSummary, hero: HeroProfile, eliteKilled: boolean, runDrops: Item[] = [],
 ): { items: Item[]; pity: number } {
+  // A run that cleared no fight earns no end chest and moves no pity, so quitting
+  // a delve straight away can't be farmed for items or a pity Epic.
+  if (!s.victory && s.fightsCleared === 0) return { items: [], pity: hero.pity };
   const rng = new Rng(seed ^ 0x9e3779b9);
   // Most loot now drops during the run; the end chest is a small top-up.
   const count = runDrops.length ? (s.victory ? 1 : 0) : Math.min(7, 1 + Math.floor(s.time / 150) + (eliteKilled ? 1 : 0) + (s.victory ? 2 : 0));
@@ -324,8 +327,11 @@ export function applyRun(
     }
   } else {
     const key = gritKey(s.dungeon ?? 'kiln', s.tier ?? 1);
+    // Grit is for a real attempt: a run quit before clearing a fight or lasting
+    // GRIT.minTime seconds leaves it as it was.
+    const attempt = s.victory || (s.fightsCleared ?? 1) > 0 || s.time >= GRIT.minTime;
     if (s.victory) hero.grit = undefined;
-    else hero.grit = { key, stacks: Math.min(GRIT.maxStacks, (hero.grit?.key === key ? hero.grit.stacks : 0) + 1) };
+    else if (attempt) hero.grit = { key, stacks: Math.min(GRIT.maxStacks, (hero.grit?.key === key ? hero.grit.stacks : 0) + 1) };
     if (s.victory) {
       hero.wins++;
       if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;

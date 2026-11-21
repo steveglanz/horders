@@ -221,6 +221,9 @@ export interface Lance {
 }
 
 export interface Player {
+  /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
+  slag?: number;
+  sunderT?: number;
   x: number;
   y: number;
   px: number;
@@ -320,6 +323,8 @@ export type SimEvent =
   | { type: 'parry'; x: number; y: number }
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
+  | { type: 'cleanse'; x: number; y: number }
+  | { type: 'slagGrip'; x: number; y: number; stacks: number }
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'dodge'; x: number; y: number; healed: number }
   | { type: 'castDone'; x: number; y: number; name: string }
@@ -451,6 +456,8 @@ export interface RunSummary {
   dungeon?: DungeonId;
   /** Day number when this was a daily bounty. */
   bounty?: number;
+  /** Fights cleared before the run ended (a run that clears none earns no chest). */
+  fightsCleared?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -511,6 +518,13 @@ export class World {
   lampBeam: { x1: number; y1: number; x2: number; y2: number } | null = null;
   private lampTickT = 0;
   private glareT = 0;
+  /** Ondrel, the Anvilward (the Hammerdeep's group boss). */
+  private anvilT = 0;
+  private anvilTarget = 0;
+  private choirT = 0;
+  private choirN = 0;
+  private gripT = 0;
+  private slagTickT = 0;
   private bossBrandT = 0;
   private crackT = 0;
   private crackPending: { index: number; t: number } | null = null;
@@ -932,6 +946,7 @@ export class World {
       paths: [...this.paths],
       dungeon: this.dungeonId,
       bounty: this.bounty,
+      fightsCleared: this.encounter,
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -992,6 +1007,7 @@ export class World {
     }
     if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
@@ -1066,6 +1082,17 @@ export class World {
           this.glareT = 6;
           this.bossBrandT = 4;
           this.crackT = GLARE.crackEvery;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'ondrel') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.anvilT = ONDREL.firstAnvil;
+          this.choirT = ONDREL.firstChoir;
+          this.choirN = 0;
+          this.gripT = 0;
+          this.slagTickT = 1;
+          e.abilityT = ONDREL.sweepEvery;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -1309,8 +1336,8 @@ export class World {
   }
 
   /** `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). */
-  private hurtPlayer(amount: number, src = -1): void {
-    if (this.invulnerable || this.player.shieldT > 0) return;
+  private hurtPlayer(amount: number, src = -1, unblockable = false): void {
+    if (this.invulnerable || (this.player.shieldT > 0 && !unblockable)) return;
     const p = this.player;
     if (this.cls === 'bulwark') {
       amount = this.bulwarkMitigate(amount, src);
@@ -1342,7 +1369,7 @@ export class World {
       this.events.push({ type: 'potion', id: 'risingDraught', x: p.x, y: p.y });
       return;
     }
-    if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5) {
+    if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5 && !unblockable) {
       // Parry: the hit is turned aside and answered.
       p.parryT = 6;
       const t = this.nearestEnemies(p.x, p.y, 1, 170)[0];
@@ -1684,6 +1711,11 @@ export class World {
       const eff = Math.max(0, Math.min(a.maxHp - a.hp, amount));
       a.hp += eff;
       total += eff;
+      // Slag Grip: only another hero's heal can loosen it.
+      if (amount > 0 && (a.slag ?? 0) > 0) {
+        a.slag = 0;
+        this.events.push({ type: 'cleanse', x: a.x, y: a.y });
+      }
       over += amount - eff;
       if (eff > 0) this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
     }
@@ -2652,6 +2684,25 @@ export class World {
         this.use(at);
         this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
       }
+    } else if (id === 'anvilfall') {
+      // The tank-buster lands on the hero it picked at wind-up, through dodges and shields.
+      const at = this.acting;
+      this.use(this.anvilTarget);
+      const p = this.player;
+      if (p.hp > 0) {
+        const sundered = (p.sunderT ?? 0) > 0;
+        this.hurtPlayer(ONDREL.anvil * (sundered ? ONDREL.sunderMult : 1) * this.tierDamage, i, true);
+        p.sunderT = ONDREL.sunderTime;
+        this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
+      }
+      this.use(at);
+    } else if (id === 'choir') {
+      // Every hero takes a share of their health, a bit more each time: the healer's job.
+      const at = this.acting;
+      const share = ONDREL.choir + ONDREL.choirGrow * this.choirN;
+      this.choirN++;
+      this.eachHero(() => this.hurtPlayer(this.player.maxHp * share, i, true));
+      this.use(at);
     } else if (id === 'brand') {
       this.markT = GLARE.brandTime;
     } else if (id === 'twinBrand') {
@@ -2727,6 +2778,10 @@ export class World {
     }
     if (e.kind === 'lensmother') {
       this.runLensmother(i, dt);
+      return;
+    }
+    if (e.kind === 'ondrel') {
+      this.runOndrel(i);
       return;
     }
     if (e.def.rank !== 'boss') return;
@@ -3212,6 +3267,64 @@ export class World {
     this.addTelegraph('cone', e.x, e.y, 300, ang, (60 * Math.PI) / 180, 1.1, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
   }
 
+  // ---------------------------------------------------------------- the Hammerdeep
+
+  /** Ondrel between casts: Hammer Sweep at its target, and Slag Grip on whoever it's beating. */
+  private runOndrel(i: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    const reach = e.def.radius + PLAYER_RADIUS + ONDREL.gripReach;
+    if (this.gripT <= 0 && dist2(p.x, p.y, e.x, e.y) < reach * reach) {
+      this.gripT = ONDREL.gripEvery;
+      this.hurtPlayer(e.def.damage * this.tierDamage, i);
+      p.slag = Math.min(ONDREL.slagMax, (p.slag ?? 0) + 1);
+      this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
+    }
+    if (e.abilityT > 0) return;
+    e.abilityT = ONDREL.sweepEvery;
+    const ang = Math.atan2(p.y - e.y, p.x - e.x);
+    this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
+    this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage * this.tierDamage, 'hit', i);
+  }
+
+  /** Ondrel's clocks run during casts too: Anvilfall, Choir of Iron, Slag Grip ticks, Sundered. */
+  private ondrelClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'ondrel') return;
+    const late = this.time - e.spawnedAt > ONDREL.enrageAfter;
+    if (late && !this.bossEnraged) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    if (this.gripT > 0) this.gripT -= dt;
+    this.anvilT -= dt;
+    this.choirT -= dt;
+    if (!e.castId && e.stunT <= 0) {
+      if (this.anvilT <= 0) {
+        this.anvilT = late ? ONDREL.anvilEnraged : ONDREL.anvilEvery;
+        this.anvilTarget = this.targetOf(i, 0);
+        this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
+      } else if (this.choirT <= 0) {
+        this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
+        this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+      }
+    }
+    // Slag Grip burns once a second; Sundered fades.
+    const at = this.acting;
+    this.slagTickT -= dt;
+    const tick = this.slagTickT <= 0;
+    if (tick) this.slagTickT += 1;
+    for (let k = 0; k < this.heroes.length; k++) {
+      this.use(k);
+      const p = this.player;
+      if ((p.sunderT ?? 0) > 0) p.sunderT = (p.sunderT ?? 0) - dt;
+      if (tick && (p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * ONDREL.slagTick * (p.slag ?? 0), -1, true);
+    }
+    this.use(at);
+  }
+
   // ---------------------------------------------------------------- the Drowned Foundry
 
   /** Glass Wardens mirror, Ember Twins snap and rekindle, Sluice Crawlers bloom. */
@@ -3436,10 +3549,10 @@ export class World {
    * the same with or without sets. Bounties and world boss shadows never drop sets.
    */
   private withSet(item: Item): Item {
-    if (this.bounty !== undefined || this.stress || !SET_SLOTS.includes(item.slot) || item.rarity === 'mythic') return item;
+    const set = setForDungeon(this.dungeonId);
+    if (!set || this.bounty !== undefined || this.stress || !SET_SLOTS.includes(item.slot) || item.rarity === 'mythic') return item;
     const r = new Rng((this.seed ^ 0x5e75) + this.nextItemId);
     if (!r.chance(SET_TUNING.dropChance)) return item;
-    const set = setForDungeon(this.dungeonId);
     const noun = item.name.split(' ').slice(1).join(' ');
     return { ...item, set, name: `${SETS[set].name} ${noun}` };
   }
@@ -3833,6 +3946,29 @@ export const FOUNDRY = {
   undertowPull: 0.6,
   undertowDamage: 12,
   enrageAfter: 180,
+};
+
+/**
+ * Ondrel, the Anvilward: a group boss whose mechanics each ask one role for one thing.
+ * See docs/design/group-dungeons.md. Damage numbers are before tierDamage.
+ */
+export const ONDREL = {
+  /** Anvilfall: the tank-buster on the threat target, through dodges and shields. */
+  anvil: 120, anvilEvery: 12, anvilCast: 2.5, firstAnvil: 6,
+  /**
+   * Sundered: the next Anvilfall within this long hits harder. Shorter than
+   * `anvilEvery`, so it only bites once the boss enrages (Anvilfall every
+   * `anvilEnraged` s): then the tank needs a cooldown or a taunt swap.
+   */
+  sunderTime: 8, sunderMult: 1.5, anvilEnraged: 7,
+  /** Hammer Sweep: a frontal cone at the target between Anvilfalls. */
+  sweepEvery: 5, sweepCast: 1.1, sweepRange: 230, sweepArc: 70, sweepDamage: 14,
+  /** Choir of Iron: every hero loses this share of max health, growing each time. */
+  choir: 0.12, choirGrow: 0.02, choirEvery: 10, choirCast: 1.5, firstChoir: 9,
+  /** Slag Grip: a melee hit that stacks a burn (share of max health per second per stack). */
+  gripEvery: 2.5, gripReach: 30, slagTick: 0.01, slagMax: 5,
+  /** Soft enrage: the Choir comes twice as often. */
+  enrageAfter: 240,
 };
 
 const ACOLYTE_RING = 190;
