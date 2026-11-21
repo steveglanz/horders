@@ -8,13 +8,13 @@ import { BossStatus, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
-import { itemHtml } from './ui';
+import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
-import { CLASS_ICON, POTION_ICON, glyph, omenTile } from './icons';
+import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
@@ -56,7 +56,7 @@ export class Hub {
     const gear = SLOTS.map((slot) => {
       const it = items.find((i) => i.slot === slot);
       return it
-        ? `<div class="slot" style="--rc:${RARITY[it.rarity].color}" title="${RARITY[it.rarity].name}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
+        ? `<div class="slot" style="--rc:${RARITY[it.rarity].color}" title="${RARITY[it.rarity].name}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.set ? `<span class="setmark" style="color:${SET_COLOR}" title="Set piece">${glyph(SET_ICON[it.set], 11)}</span>` : ''}${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
         : `<div class="slot empty"><div class="sl"><span>${SLOT_LABEL[slot]}</span></div><div class="nm">Empty</div></div>`;
     }).join('');
     const passives = (Object.keys(PASSIVES) as PassiveId[]).map((id) => {
@@ -280,6 +280,7 @@ export class Hub {
     const sorted = [...h.inventory].sort((a, b) => (worn.has(b.id) ? 1 : 0) - (worn.has(a.id) ? 1 : 0) || itemScore(b) - itemScore(a));
     $('bagSub').textContent = `${h.inventory.length} ${h.inventory.length === 1 ? 'item' : 'items'} · ${worn.size} equipped`;
     $('bagEmbers').textContent = h.embers.toLocaleString();
+    const wornSets = setsWorn(h);
     $('bagList').innerHTML = sorted.map((it) => {
       const isWorn = worn.has(it.id);
       const up = canUpgrade(h, it);
@@ -287,7 +288,7 @@ export class Hub {
       const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
         + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
       const btns = (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
-      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '')}<div class="acts">${btns}</div></div>`;
+      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${btns}</div></div>`;
     }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
     $('bagList').querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) =>
       b.addEventListener('click', () => { equip(h, b.dataset.e!); this.save(); this.openBag(); }));

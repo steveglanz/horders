@@ -14,6 +14,7 @@ import { CLASS_ICON } from './icons';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
+import { audio } from './audio';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
@@ -208,6 +209,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
+    audio.theme(w.dungeonId);
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -445,6 +447,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
+    audio.events(events, { cls: w.cls, acting: w.acting });
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
@@ -588,6 +591,9 @@ export class GameScene extends Phaser.Scene {
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
           this.floatText(ev.x, ev.y - 44, ev.healed > 0 ? `Dodged +${Math.round(ev.healed)}` : 'Dodged', '#5fe0c8', 16);
+          // A teal ripple and a few motes rising off the hero.
+          this.ring(ev.x, ev.y, 70, 0x5fe0c8, 0.4);
+          for (let k = 0; k < 6; k++) this.spark(ev.x + (Math.random() - 0.5) * 30, ev.y + 10, (Math.random() - 0.5) * 40, -90 - Math.random() * 60, 0.6, 1.4);
           break;
         case 'potion':
           // Rising Draught: the hero gets back up in a column of gold.

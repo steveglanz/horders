@@ -20,6 +20,23 @@ export interface LobbyAd {
   max: number;
   /** The host's hero, for the "Joined X's party" line. */
   name: string;
+  /** One role per hero in the party (from CLASSES[cls].role via roleOf). Older clients send none. */
+  roles?: LobbyRole[];
+}
+
+/** What a party needs for group dungeons: a tank, a healer, and damage. */
+export type LobbyRole = 'tank' | 'healer' | 'dps';
+const ROLES: readonly LobbyRole[] = ['tank', 'healer', 'dps'];
+
+/** A class's lobby role, from its CLASSES role text ('Tank', 'Healer', anything else is damage). */
+export function roleOf(classRole: string): LobbyRole {
+  const r = classRole.toLowerCase();
+  return r === 'tank' ? 'tank' : r === 'healer' ? 'healer' : 'dps';
+}
+
+/** Roles a party still lacks, for a "Needs: Healer" line. Damage counts as filled by anyone. */
+export function needs(roles: LobbyRole[] = []): LobbyRole[] {
+  return (['tank', 'healer'] as const).filter((r) => !roles.includes(r));
 }
 
 export interface Lobby {
@@ -39,13 +56,15 @@ export const LISTEN_MS = 2500;
 const LOCAL_TTL = 3000;
 
 /**
- * The party to quick-join: one with a free spot that isn't yours. Fullest
- * first, so parties fill up instead of everyone sitting in pairs, then by
- * code so two seekers with the same view agree.
+ * The party to quick-join: one with a free spot that isn't yours. A tank or
+ * healer goes first to a party that lacks their role; then fullest first, so
+ * parties fill up instead of everyone sitting in pairs; then by code so two
+ * seekers with the same view agree.
  */
-export function pickParty(ads: LobbyAd[], mine?: string): LobbyAd | null {
+export function pickParty(ads: LobbyAd[], mine?: string, role?: LobbyRole): LobbyAd | null {
   const open = ads.filter((a) => a.code !== mine && a.n >= 1 && a.n < Math.min(a.max, MAX_PARTY));
-  open.sort((a, b) => b.n - a.n || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+  const wants = (a: LobbyAd) => (role && role !== 'dps' && a.roles && !a.roles.includes(role) ? 1 : 0);
+  open.sort((a, b) => wants(b) - wants(a) || b.n - a.n || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   return open[0] ?? null;
 }
 
@@ -69,7 +88,8 @@ export function cleanAd(meta: Record<string, unknown>): LobbyAd | null {
   if (typeof n !== 'number' || typeof max !== 'number') return null;
   // Names come from other players and end up in the party panel's HTML: keep letters, digits, spaces and simple punctuation.
   const safe = typeof name === 'string' ? name.replace(/[^\p{L}\p{N} '.-]/gu, '').slice(0, 40).trim() : '';
-  return { code, n, max, name: safe || 'A hero' };
+  const roles = Array.isArray(meta.roles) ? (meta.roles.filter((r) => ROLES.includes(r as LobbyRole)).slice(0, MAX_PARTY) as LobbyRole[]) : undefined;
+  return { code, n, max, name: safe || 'A hero', ...(roles ? { roles } : {}) };
 }
 
 /** Same-browser lobby over BroadcastChannel, for tests and two-tab play. */

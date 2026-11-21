@@ -1,16 +1,17 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { World } from '../sim/world';
-import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
+import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
-import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, glyph } from './icons';
-import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
+import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph } from './icons';
+import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const BRANCH_COLOR: Record<string, string> = {
+/** Every branch needs a colour (draft card border and title, end-screen chips): typed so a new branch can't be missed. */
+const BRANCH_COLOR: Record<Branch, string> = {
   wildfire: '#ff7a2f',
   kindling: '#ffc861',
   ashguard: '#9db7d8',
@@ -18,6 +19,14 @@ const BRANCH_COLOR: Record<string, string> = {
   bloodletting: '#e0465a',
   tempo: '#b58cff',
   guard: '#8fc7a8',
+  // Bulwark
+  bastion: '#a9bccf',
+  retribution: '#e8a33c',
+  vanguard: '#e0735a',
+  // Lumen
+  dawn: '#ffd98a',
+  grace: '#7fe0c4',
+  choir: '#c7a6ff',
 };
 
 export interface RunHandlers {
@@ -27,14 +36,25 @@ export interface RunHandlers {
   onCast: (slot: number) => void;
 }
 
-export function itemHtml(it: Item, extra = ''): string {
+/** How many pieces of each verb set a hero wears. */
+export function setsWorn(h: HeroProfile): Partial<Record<string, number>> {
+  const n: Partial<Record<string, number>> = {};
+  for (const it of equippedItems(h)) if (it.set) n[it.set] = (n[it.set] ?? 0) + 1;
+  return n;
+}
+
+/** `worn`: the hero's set piece counts, so the card can light the bonuses already active. */
+export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, number>>): string {
   const c = RARITY[it.rarity].color;
   const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
   const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const set = it.set ? SETS[it.set] : undefined;
+  const have = set && worn ? worn[set.id] ?? 0 : 0;
   const setHtml = set
-    ? `<div class="st set"><b>${set.name} set</b> (${set.verb}) · 2: ${set.bonus[0]} · 3: ${set.bonus[1]}</div>`
+    ? `<div class="st set setb" style="--gc:${SET_COLOR}"><div class="sh"><span class="gtile">${glyph(SET_ICON[set.id], 14)}</span><b>${set.name} set</b><span class="verb">${set.verb}</span>${worn ? `<span class="pips" title="${have} of 3 worn">${[0, 1, 2].map((k) => `<i${k < have ? ' class="on"' : ''}></i>`).join('')}</span>` : ''}</div>`
+      + set.bonus.map((b, k) => `<div class="sb${worn && have >= k + 2 ? ' on' : ''}"><em>${k + 2}</em>${b}</div>`).join('')
+      + '</div>'
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
   return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
@@ -163,6 +183,7 @@ export class Hud {
     this.updateTarget(w);
     this.updateQuests(w);
     this.updateBuffs(w);
+    this.stackTop();
 
     if (this.showPerf) {
       $('perf').textContent = `${fps.avg.toFixed(0)} fps · p95 ${fps.p95ms.toFixed(1)} ms · ${w.aliveEnemies} enemies`;
@@ -171,6 +192,34 @@ export class Hud {
       $('banner').classList.remove('show');
       this.bannerTimer = 0;
     }
+  }
+
+  private narrow = matchMedia('(max-width: 560px)');
+  private stacked = '';
+
+  /**
+   * Phones: the target frame spans the screen, so it used to sit on top of the
+   * buff chips (Kiln Brand's "stand in the gold circle!", Ward, Bastion) and the
+   * route line. Stack them instead: buffs, the target frame, the route, then party frames.
+   */
+  private stackTop(): void {
+    const target = $('target');
+    const quests = $('quests');
+    const party = $('party');
+    let key = '';
+    let tTop = 0;
+    let qTop = 0;
+    if (this.narrow.matches) {
+      tTop = Math.round($('buffs').getBoundingClientRect().bottom + 6);
+      qTop = Math.max(118, target.hidden ? tTop : Math.round(tTop + target.offsetHeight + 6));
+      key = `${tTop}:${qTop}:${quests.offsetHeight}:${party.hidden}`;
+    }
+    if (key === this.stacked) return;
+    this.stacked = key;
+    target.style.top = key ? `${tTop}px` : '';
+    quests.style.top = key ? `${qTop}px` : '';
+    // Co-op party frames go under the route line.
+    party.style.top = key ? `${Math.max(150, Math.round(quests.getBoundingClientRect().bottom + 6))}px` : '';
   }
 
   private targetIndex(w: World): number {
@@ -253,6 +302,10 @@ export class Hud {
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
+    // Verb sets: show the timed bonuses while they run.
+    if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
+    if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
+    if ((p.gwT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Glarewarden +10%</span>`);
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
@@ -378,6 +431,9 @@ export class Hud {
   }
 
   hideRun(): void {
+    // Quitting from the pause menu during a talent draft (Esc, or the app going
+    // to the background) used to leave the draft over the hub and block every tap.
+    this.hideDraft();
     $('hud').hidden = true;
     $('actionbar').hidden = true;
     $('target').hidden = true;
@@ -408,7 +464,7 @@ export class Hud {
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
       loot = `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
-        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '')}</div>`).join('');
+        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', setsWorn(hero))}</div>`).join('');
     }
     $('endXp').innerHTML = xp;
     $('rewards').innerHTML = loot;

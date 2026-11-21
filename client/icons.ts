@@ -5,6 +5,7 @@
 import type { OmenId } from '../sim/content/omens';
 import type { PotionId } from '../sim/content/potions';
 import type { ClassId } from '../sim/content/emberwright';
+import type { SetId } from '../sim/content/sets';
 
 const FLAME = 'M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-5 1-8Z';
 
@@ -86,6 +87,17 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
 
 /** Slot 3 (F) is every class's interrupt. */
 export const INTERRUPT_SLOT = 3;
+
+/** Verb sets share one teal so a set piece reads at a glance; the glyph names the dungeon's verb. */
+export const SET_COLOR = '#5fe0c8';
+export const SET_ICON: Record<SetId, string> = {
+  // Kilnbreaker (interrupt): a kiln dome split by a crack.
+  kilnbreaker: 'M5 20v-8a7 7 0 0 1 14 0v8Z M3 20h18 M12.5 5l-2 4.5 3 2-2 4.5',
+  // Tidewalker (keep moving): two rolling waves.
+  tidewalker: 'M2.5 9.5q2.4-3 4.8 0t4.8 0 4.8 0 4.6 0 M2.5 15.5q2.4-3 4.8 0t4.8 0 4.8 0 4.6 0',
+  // Glarewarden (step out): a watching eye and a step to the side.
+  glarewarden: 'M2 11s3.6-5 9-5 9 5 9 5-3.6 5-9 5-9-5-9-5Z M11 8.8a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z M15 20.5h7 M19.5 18l2.5 2.5-2.5 2.5',
+};
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
 export const POTION_ICON: Record<PotionId, { color: string; d: string }> = {
