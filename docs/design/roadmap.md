@@ -142,7 +142,7 @@ Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying mig
 | Y4 | **The Hoard on phones:** the swallow countdown chip (#299), the Craw and the ember rings at 360 px wide, and the Swallow banner over the boss panel | mobile | ⏭ Screenshots at 360x740 and 390x844 |
 | Y5 | **Class coverage in the raids:** measure the Hoard at t9 with the Slagbinder (both stances) and with each damage class swapped in, against the 55 to 70% band. The Anvil tank fix (#308, 20% in a party) lands first | skills | ⏭ The same 40-seed table as raid2.md |
 | Y6 | **Raid 3 art:** the Colossus in person (the X1 shadow sprite at raid scale, as slagCroneRaid did for Grandmother Slag), the arena and a hub card | visuals | ⏭ After Y1's brief |
-| Y7 | **Raid 3 sound:** a theme, and cues for its new mechanic | sound | ⏭ After Y1's brief |
+| Y7 | **Raid 3 sound:** a theme, and cues for its new mechanic | sound | ✅ Theme `smeltery` (#313, #315); Slag Sweep, Wheel, Pour Out, Meltdown pulses, phase stings, and a plate clank vs back crunch on your own hits (#321) |
 | Y8 | **Apply the waiting migrations** 0006 (bounty board) and 0007 (Old Coalmouth) | engineering | ⏸ Only after Steve says yes |
 
 ## R2. The Forge
