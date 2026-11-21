@@ -964,7 +964,7 @@ export class GameScene extends Phaser.Scene {
             : '';
           // L1: the first delve coaches each fight instead of the usual tip.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens);
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens, !!coach);
           break;
         }
         case 'fork':
