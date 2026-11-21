@@ -174,13 +174,15 @@ describe('audio', () => {
     for (const t of ['ashvents', 'coldmarrow', 'raid'] as const) expect(THEMES[t], t).toBeDefined();
     expect(THEMES.raid.meter).toBe(3);
     expect(THEMES.coldmarrow.coal).toBe(true);
-    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Frost Lace', 'Ladle Pour']) expect(CAST_SOUNDS[name], name).toBeDefined();
+    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Frost Lace', 'Ladle Pour', 'The Pour', 'Crucible Vents', 'Last Ember']) expect(CAST_SOUNDS[name], name).toBeDefined();
     expect(phaseSting('grandmotherSlag', 2)).toBe('phaseRaid2');
     expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
     expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
     expect(phaseSting('nobodyYet', 2)).toBe('phase');
     expect(cueFor({ type: 'burnout', warn: true }, { cls: 'lumen', acting: 0 })?.id).toBe('burnoutWarn');
     expect(cueFor({ type: 'burnout', warn: false }, { cls: 'lumen', acting: 0 })?.id).toBe('burnout');
+    expect(cueFor({ type: 'namedSpawn', index: 0, name: 'Grisk the Vengeful', affix: 'Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedSpawn');
+    expect(cueFor({ type: 'namedKill', x: 0, y: 0, name: 'Grisk the Vengeful' }, { cls: 'lumen', acting: 0 })?.id).toBe('namedKill');
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
   });
 });

@@ -57,6 +57,9 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The raid: Grandmother Slag (design brief C3).
   'Ladle Pour': { start: 'ladleWarn', done: 'ladle' },
   'Called Out': { done: 'calledOut' },
+  'The Pour': { start: 'pourWarn', done: 'ladle' },
+  'Crucible Vents': { start: 'soakCall' },
+  'Last Ember': { start: 'lastEmberWarn', done: 'lastEmber' },
   'Cinder Marks': { start: 'scatterWarn', done: 'scatter' },
 };
 
@@ -99,6 +102,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'eliteSpawn': return { id: 'eliteSpawn' };
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
+    case 'namedSpawn': return { id: 'namedSpawn' };
+    case 'namedKill': return { id: 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
     case 'phase': return { id: phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
