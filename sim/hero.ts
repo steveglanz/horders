@@ -16,11 +16,21 @@ import {
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
 
-export const PASSIVES: Record<PassiveId, { name: string; text: string; max: number }> = {
-  might: { name: 'Might', text: '+3% damage per point', max: 10 },
-  fortitude: { name: 'Fortitude', text: '+8 health per point', max: 10 },
-  insight: { name: 'Insight', text: '+4% experience per point', max: 5 },
-  alacrity: { name: 'Alacrity', text: '+2% attack speed per point', max: 10 },
+/**
+ * Hero talents: permanent points bought with hero levels. `text` is the short label,
+ * `tip` the long-press tooltip (what it does, per point, and at max).
+ */
+export const PASSIVES: Record<PassiveId, { name: string; text: string; tip: string; max: number }> = {
+  might: { name: 'Might', text: '+3% damage per point', tip: 'Hit harder with everything. +3% damage per point, +30% at 10 points.', max: 10 },
+  fortitude: { name: 'Fortitude', text: '+8 health per point', tip: 'More health. +8 max health per point, +80 at 10 points.', max: 10 },
+  insight: {
+    name: 'Insight', text: '+4% experience per point',
+    tip: 'Level up faster during a delve, so you pick talent cards sooner. +4% experience per point, +20% at 5 points.', max: 5,
+  },
+  alacrity: {
+    name: 'Alacrity', text: '+2% attack speed per point',
+    tip: 'Your basic attack fires faster. +2% attack speed per point, +20% at 10 points.', max: 10,
+  },
 };
 
 export const PITY_LIMIT = 10; // runs without an Epic or better before one is guaranteed

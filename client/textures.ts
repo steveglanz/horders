@@ -1145,6 +1145,54 @@ function drawSlagCrone(ctx: Ctx, s: number, f: number): void {
   ctx.restore();
 }
 
+/**
+ * Grandmother Slag in person, for the raid (R9): the shadow sprite's crone at 1.5x, with
+ * a crown of cooled slag spikes, seams that pulse molten through her skirts, a brimming
+ * ladle that spills, and embers falling around her. Drawn in the 128-unit space of
+ * drawSlagCrone and scaled up, so the two always match.
+ */
+function drawSlagCroneRaid(ctx: Ctx, s: number, f: number): void {
+  const k = s / 128;
+  const c = 64;
+  const pulse = [0.7, 0.85, 1, 0.85][f];
+  const sway = [0, 1.5, 3, 1.5][f];
+  ctx.save();
+  // A touch smaller than the full frame and lowered, so the crown and the spill fit.
+  ctx.scale(k * 0.94, k * 0.94);
+  ctx.translate(0, 6);
+  // A heat haze behind her.
+  softGlow(ctx, c, 80, 60, `rgba(255,110,40,${0.22 * pulse})`);
+  drawSlagCrone(ctx, 128, f);
+  // Molten seams pulsing through the skirts, brighter than the shadow's.
+  cracks(ctx, [[[c - 36, 118], [c - 32, 104], [c - 36, 92], [c - 30, 78]], [[c + 16, 120], [c + 20, 104], [c + 14, 90]], [[c - 12, 122], [c - 8, 108], [c - 14, 96]], [[c + 34, 118], [c + 30, 104], [c + 34, 92]]], `rgba(255,200,90,${pulse})`, 2);
+  // A crown of cooled slag spikes along the hood, their tips still glowing.
+  for (const [x, y, h, lean] of [[c + 8, 22, 9, -0.5], [c + 14, 15, 11, -0.25], [c + 21, 12, 12, 0], [c + 28, 13, 10, 0.25], [c + 34, 19, 8, 0.5]]) {
+    const tx = x + Math.sin(lean) * h;
+    const ty = y - Math.cos(lean) * h;
+    ctx.beginPath(); ctx.moveTo(x - 2.4, y); ctx.lineTo(tx, ty); ctx.lineTo(x + 2.4, y); ctx.closePath();
+    shade(ctx, '#5a4d48', '#211a18', ty, y, 1.1);
+    softGlow(ctx, tx, ty, 3.5, `rgba(255,170,70,${0.9 * pulse})`);
+  }
+  // The ladle brims over: a second, longer pour and drops falling to the floor.
+  const lx = c + 54;
+  const ly = 66 + sway * 0.5;
+  ctx.save();
+  ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.moveTo(lx + 3, ly); ctx.quadraticCurveTo(lx + 6, ly + 14, lx + 4, ly + 26 + f * 2); ctx.quadraticCurveTo(lx + 2, ly + 14, lx + 1, ly); ctx.fill();
+  for (let d = 0; d < 3; d++) { ell(ctx, lx + 4 + (d - 1) * 3, ly + 34 + ((f + d * 2) % 6) * 4, 1.6, 2.2); ctx.fill(); }
+  ctx.restore();
+  // A pool of slag where it lands.
+  ell(ctx, lx + 4, 122, 10, 3);
+  ctx.fillStyle = `rgba(255,140,50,${0.75 * pulse})`; ctx.fill();
+  // Embers drifting up around her.
+  for (const [x, y] of [[c - 46, 60], [c - 30, 30], [c + 44, 34], [c + 6, 4], [c - 50, 96]]) {
+    const yy = y - f * 3;
+    softGlow(ctx, x, yy, 4, 'rgba(255,190,100,0.85)');
+    ctx.fillStyle = '#ffe2a0'; ell(ctx, x, yy, 1, 1); ctx.fill();
+  }
+  ctx.restore();
+}
+
 // ------------------------------------------------------------------ the Drowned Foundry
 
 /** Glass Warden: a golem of cracked furnace glass around a banked ember. */
@@ -1813,6 +1861,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'water', 128, drawWater);
   sheet(scene, 'gate', 80, 1, drawGate);
   sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
+  // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
+  sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
   sheet(scene, 'portal', 80, 1, drawPortal);
 
   // The Glarewell.
