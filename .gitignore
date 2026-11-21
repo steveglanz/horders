@@ -5,3 +5,4 @@ test-results
 publish
 .netlify
 tools/shots
+tools/audio
