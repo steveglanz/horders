@@ -3,7 +3,7 @@ import { World } from '../sim/world';
 import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
-import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
+import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, glyph } from './icons';
 import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
@@ -30,8 +30,9 @@ export function itemHtml(it: Item, extra = ''): string {
   const c = RARITY[it.rarity].color;
   const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
+  const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${myth}</div>`;
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}</div>`;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
@@ -352,7 +353,10 @@ export class Hud {
       const atCap = hero.level >= heroMaxLevel();
       const need = heroXpToNext(hero.level);
       const pct = atCap ? 100 : (100 * hero.xp) / need;
-      const notes = [`Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}`];
+      // The run ends on the boss's killing blow, before the clear is counted; the
+      // world boss's shadow fight is a bonus, not one of the delve's fights.
+      const fights = w.route.filter((r) => r !== 'worldShadow').length;
+      const notes = [`Fights cleared: ${s.victory ? fights : Math.min(w.encounter, fights)} of ${fights}`];
       if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`

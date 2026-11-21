@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
+import { ENEMIES } from '../sim/content/enemies';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
@@ -45,6 +46,8 @@ interface FloatText {
 
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
+/** Players who ask the OS for less motion get a gentler shake and no camera lean. */
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
@@ -131,6 +134,17 @@ export class GameScene extends Phaser.Scene {
   private facing = 1;
   private hitSparks = 0;
   private hitStop = 0;
+  /** Juice: a brief zoom-in on big moments (fraction of the base zoom), and the zoom it returns to. */
+  private punch = 0;
+  private baseZoom = 1;
+  /** Last crit hit-stop (scene ms), so a stream of crits doesn't stutter the game. */
+  private lastCritStop = 0;
+  /** A full-screen flash after a boss falls (colour and strength, 0 to 1). */
+  private bossFlash = 0;
+  /** Set when a boss falls, so the end screen waits for the death moment. */
+  private bossFell = false;
+  /** When each loot drop appeared (scene ms), for its pop-in. */
+  private dropBorn: number[] = [];
   /** Set when the frame rate sags: drops cosmetic extras (shadows under fodder, embers in the air). */
   lowFx = false;
   private fxCheckAt = 0;
@@ -171,6 +185,10 @@ export class GameScene extends Phaser.Scene {
     this.gateSprites = [];
     this.facing = 1;
     this.hitStop = 0;
+    this.punch = 0;
+    this.bossFlash = 0;
+    this.bossFell = false;
+    this.dropBorn = [];
     this.floats = [];
     this.shapes = [];
     this.enemySprites = [];
@@ -293,6 +311,7 @@ export class GameScene extends Phaser.Scene {
     // view from the CSS size so phones and desktops frame the same as before.
     const dpr = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dpr')) || 1;
     const zoom = short / viewFor(short / dpr);
+    this.baseZoom = zoom;
     this.cameras.main.setZoom(zoom);
     // Scroll-factor-0 objects still scale with zoom around the screen centre,
     // so size the ground in world units and centre it.
@@ -435,15 +454,22 @@ export class GameScene extends Phaser.Scene {
             this.hitSparks++;
             this.impact(ev.x, ev.y, ev.crit ? 0.75 : 0.45);
           }
+          // A big crit freezes the frame for a blink (solo only: co-op never stalls the shared run).
+          if (ev.crit && ev.amount >= 60 && !this.coop && this.time.now - this.lastCritStop > 350) {
+            this.lastCritStop = this.time.now;
+            this.stop(0.035);
+          }
           if (ev.crit || ev.amount >= 40) this.floatText(ev.x, ev.y - 10, Math.round(ev.amount).toString(), ev.crit ? '#ffe08a' : '#ffffff', ev.crit ? 18 : 14);
           break;
         case 'kill':
           this.death(ev.kind, ev.x, ev.y);
-          if (ev.kind === 'kilnMother' || ev.kind === 'cinderBrute' || ev.kind === 'ashmaw') {
-            this.burst(ev.x, ev.y, ev.kind === 'kilnMother' ? 40 : 24);
-            this.ring(ev.x, ev.y, ev.kind === 'kilnMother' ? 220 : 120, 0xffb347, 0.5);
-            this.shake = 0.5;
-            this.hitStop = ev.kind === 'kilnMother' ? 0.18 : 0.08;
+          if (ENEMIES[ev.kind].rank === 'boss') this.bossDeath(ev.kind, ev.x, ev.y);
+          else if (ENEMIES[ev.kind].rank === 'rare' || ev.kind === 'cinderBrute') {
+            this.burst(ev.x, ev.y, 24);
+            this.ring(ev.x, ev.y, 120, 0xffb347, 0.5);
+            this.shakeBy(0.4);
+            this.punch = Math.max(this.punch, 0.05);
+            this.stop(0.08);
           } else this.burst(ev.x, ev.y, 4);
           break;
         case 'explode':
@@ -548,6 +574,9 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
           this.burst(ev.x, ev.y, 14);
           this.ring(ev.x, ev.y, 90, 0x8fd8ff, 0.4);
+          // The skill moment of the game: a short freeze and a nudge of the camera.
+          if (!this.coop) this.stop(0.06);
+          this.shakeBy(0.12);
           break;
         case 'potion':
           // Rising Draught: the hero gets back up in a column of gold.
@@ -613,6 +642,9 @@ export class GameScene extends Phaser.Scene {
           this.burst(ev.x, ev.y, 12);
           this.floatText(ev.x, ev.y - 24, '+30 Heat', '#ffb347', 15);
           break;
+        case 'drop':
+          this.dropFlourish(ev.x, ev.y, ev.rarity);
+          break;
         case 'loot':
           if (ev.hero !== undefined && ev.hero !== w.acting) break;
           this.hud.toast(ev.item, ev.equipped, ev.delta);
@@ -627,6 +659,7 @@ export class GameScene extends Phaser.Scene {
           this.shake = 0.6;
           break;
         case 'encounterStart': {
+          this.bossFell = false;
           const def = ENCOUNTERS[ev.id];
           // The first fight also names the run's Omens, so the player knows the twist.
           const omens = ev.index === 0 && w.omens.length ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.` : '';
@@ -657,7 +690,8 @@ export class GameScene extends Phaser.Scene {
           this.burst(ev.x, ev.y, 30);
           break;
         case 'end':
-          this.time.delayedCall(700, () => this.onEnd(this.world));
+          // A fallen boss gets its moment before the end screen covers it.
+          this.time.delayedCall(this.bossFell ? 1700 : 700, () => this.onEnd(this.world));
           break;
       }
     }
@@ -675,9 +709,13 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     let sx = 0;
     let sy = 0;
+    if (this.punch > 0) {
+      this.punch = Math.max(0, this.punch - dt * 0.12);
+      cam.setZoom(this.baseZoom * (1 + (REDUCED_MOTION ? 0 : this.punch)));
+    } else if (cam.zoom !== this.baseZoom) cam.setZoom(this.baseZoom);
     if (this.shake > 0) {
       this.shake -= dt;
-      const m = Math.min(1, this.shake) * 10;
+      const m = Math.min(1, this.shake) * (REDUCED_MOTION ? 3 : 10);
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
@@ -818,7 +856,11 @@ export class GameScene extends Phaser.Scene {
       }
       const c = hex(RARITY[d.item.rarity].color);
       const bob = Math.sin(this.time.now / 250 + i) * 3;
-      bag.setVisible(true).setPosition(d.x, d.y + bob).setTint(c).setTintMode(Phaser.TintModes.MULTIPLY);
+      // Pop-in: the bag hops up out of the kill and lands with a squash.
+      const t = Math.min(1, (this.time.now - (this.dropBorn[i] ?? -1e9)) / 380);
+      const hop = t < 1 ? -Math.sin(t * Math.PI) * 26 : 0;
+      const pop = t < 1 ? 0.4 + 0.6 * (1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2)) : 1;
+      bag.setVisible(true).setPosition(d.x, d.y + bob + hop).setScale(pop).setTint(c).setTintMode(Phaser.TintModes.MULTIPLY);
       const tall = d.item.rarity === 'common' ? 60 : d.item.rarity === 'fine' ? 90 : 150;
       beam.setVisible(true).setPosition(d.x, d.y + 6).setDisplaySize(18, tall).setTint(c).setAlpha(0.55 + Math.sin(this.time.now / 300) * 0.15);
     }
@@ -916,6 +958,10 @@ export class GameScene extends Phaser.Scene {
       this.glareFlash = Math.max(0, this.glareFlash - this.game.loop.delta / 450);
       g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
+    if (this.bossFlash > 0) {
+      this.bossFlash = Math.max(0, this.bossFlash - this.game.loop.delta / 700);
+      g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
+    }
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -953,7 +999,8 @@ export class GameScene extends Phaser.Scene {
     });
     let soakShown = false;
     for (const t of w.telegraphs) {
-      if (!t.alive) continue;
+      // Once the boss has fallen its last wind-up never lands, so stop drawing it.
+      if (!t.alive || this.bossFell) continue;
       const f = Math.min(1, t.t / t.dur);
       const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? 0x5fe0c8 : DANGER;
       // The edge glows and flickers faster as the strike gets close.
@@ -1236,6 +1283,71 @@ export class GameScene extends Phaser.Scene {
         tint: 0x9a8a84, vy: -18, vx: (Math.random() - 0.5) * 20, spin: (Math.random() - 0.5) * 2, rot: Math.random() * 6, sx0: s * 0.6, sx1: s * 1.3,
       });
     }
+  }
+
+  /** Freeze the sim for a moment (keeps the longer of two stops). */
+  private stop(seconds: number): void {
+    this.hitStop = Math.max(this.hitStop, seconds);
+  }
+
+  private shakeBy(amount: number): void {
+    this.shake = Math.max(this.shake, amount);
+  }
+
+  /**
+   * A boss falls: a freeze, a white-gold flash, the camera leans in, and three
+   * shockwaves crack outward while ash rises. The end screen waits for it.
+   */
+  private bossDeath(kind: string, x: number, y: number): void {
+    this.bossFell = true;
+    this.stop(0.2);
+    this.shakeBy(0.7);
+    this.punch = 0.12;
+    this.bossFlash = 1;
+    const def = ENEMIES[kind as keyof typeof ENEMIES];
+    if (def) this.hud.banner(`${def.name.split(',')[0]} falls`, 'The Hollow Tide breaks');
+    const gold = 0xffc861;
+    for (let wave = 0; wave < 3; wave++) {
+      this.time.delayedCall(wave * 260, () => {
+        this.ring(x, y, 140 + wave * 110, wave === 1 ? 0xffffff : gold, 0.55);
+        this.burst(x, y, 20 - wave * 4);
+        this.shakeBy(0.25);
+      });
+    }
+    // Light breaks out of the body in eight rays.
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + Math.random() * 0.3;
+      this.addShape({ kind: 'line', x, y, x2: x + Math.cos(a) * 260, y2: y + Math.sin(a) * 260, r: 0, angle: 0, color: gold, life: 0.6 });
+    }
+    // Ash and embers rise from where it stood.
+    for (let k = 0; k < 14; k++) {
+      this.time.delayedCall(200 + k * 60, () => {
+        this.spark(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 40, -120 - Math.random() * 120, 0.9, 1.8);
+        if (k % 3 === 0) {
+          this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * 60, y, 1, { tint: 0x9a8a84, vy: -40, spin: 1, rot: Math.random() * 6, sx0: 1, sx1: 2.2 });
+        }
+      });
+    }
+  }
+
+  /** Loot hits the floor: the bag pops in, and the better the rarity the louder the arrival. */
+  private dropFlourish(x: number, y: number, rarity: string): void {
+    const i = this.world.drops.findIndex((d) => d.alive && Math.abs(d.x - x) < 1 && Math.abs(d.y - y) < 1);
+    if (i >= 0) this.dropBorn[i] = this.time.now;
+    const c = hex(RARITY[rarity as keyof typeof RARITY].color);
+    if (rarity === 'common') return;
+    this.ring(x, y, rarity === 'fine' ? 50 : 90, c, 0.45);
+    if (rarity === 'fine') return;
+    for (let k = 0; k < 10; k++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+      const sp = 140 + Math.random() * 120;
+      this.spark(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.6, 1.6);
+    }
+    if (rarity === 'rare') return;
+    // Epic and better: a name in the air and a nudge.
+    this.floatText(x, y - 50, `${RARITY[rarity as keyof typeof RARITY].name}!`, RARITY[rarity as keyof typeof RARITY].color, 20);
+    this.shakeBy(0.15);
+    this.punch = Math.max(this.punch, 0.04);
   }
 
   private floatText(x: number, y: number, s: string, color: string, size: number): void {

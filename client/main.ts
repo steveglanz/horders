@@ -8,6 +8,8 @@ import { loadHero, resetHero, saveHero } from './save';
 import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion } from '../sim/hero';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
+import { Lobby, LISTEN_MS, makeLobby, pickParty, shouldMerge } from './net/lobby';
+import { MAX_PARTY } from './net/party';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -161,8 +163,10 @@ function startRun(bounty = false): void {
   }
   lastBounty = bounty;
   const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;
+  const runOpts = hosting ? coop!.startRun(opts) : opts;
+  syncLobby();
   game.scene.start('game', {
-    opts: hosting ? coop!.startRun(opts) : opts,
+    opts: runOpts,
     hud,
     coop: hosting ? coop! : undefined,
     onEnd: (w: World) => {
@@ -201,6 +205,7 @@ hub.onBounty = () => {
 };
 el('menuBtn').addEventListener('click', () => {
   if (coop?.role === 'host') coop.endRun();
+  syncLobby();
   game.scene.stop('game');
   el('end').hidden = true;
   hud.hideRun();
@@ -209,6 +214,7 @@ el('menuBtn').addEventListener('click', () => {
 });
 el('quitBtn').addEventListener('click', () => {
   if (coop?.role === 'host') coop.endRun();
+  syncLobby();
   // Leaving early still keeps the loot and experience earned so far.
   const scene = game.scene.getScene('game') as GameScene | null;
   if (scene?.world) finishRun(scene.world);
@@ -250,8 +256,99 @@ function leaveParty(note = ''): void {
   coop?.close();
   coop = null;
   coopNote = note;
+  coopOpen = false;
+  coopQuick = false;
+  syncLobby();
   renderCoop();
 }
+
+// Quick join: open parties advertise in a shared lobby (client/net/lobby.ts).
+/** The host's party shows up for Quick join. */
+let coopOpen = false;
+/** This party came from Quick join, so it may fold into another lone open party. */
+let coopQuick = false;
+let lobby: Lobby | null = null;
+let seeking = false;
+
+/** Advertise the host's party while it is open, between delves and not full; otherwise drop the ad. */
+function syncLobby(): void {
+  const advertising = coop?.role === 'host' && coopOpen;
+  if (!advertising) {
+    if (lobby && !seeking) {
+      lobby.close();
+      lobby = null;
+    }
+    return;
+  }
+  if (!lobby) {
+    lobby = makeLobby(SUPABASE.url, SUPABASE.key);
+    lobby.onChange = foldLoneParty;
+    lobby.ready.catch(() => {
+      coopNote = 'Quick join is unreachable right now. Friends can still join with your code.';
+      renderCoop();
+    });
+  }
+  const n = coop!.roster.length;
+  lobby.advertise(!coop!.running && n < MAX_PARTY ? { code: coop!.code, n, max: MAX_PARTY, name: coop!.mine.name } : null);
+}
+
+/** Two quick-join players who both found nothing each opened a party: the one with the larger code joins the other. */
+function foldLoneParty(): void {
+  if (!lobby || !coop || coop.role !== 'host' || !coopQuick || coop.running || coop.roster.length !== 1) return;
+  const into = shouldMerge({ code: coop.code, n: 1, max: MAX_PARTY, name: '' }, lobby.list());
+  if (!into) return;
+  coop.close();
+  coopOpen = false;
+  joinParty(into.code, `Joined ${into.name}'s party.`);
+  coopQuick = true;
+  syncLobby();
+}
+
+function joinParty(code: string, note = ''): void {
+  coop = CoopSession.join(code, myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
+  coopNote = note;
+  renderCoop();
+}
+
+/** Join the best open party with a free spot; if there is none, open one for the next player. */
+async function quickJoin(skip: string[] = []): Promise<void> {
+  if (seeking || coop) return;
+  seeking = true;
+  coopNote = 'Looking for an open party...';
+  renderCoop();
+  const l = lobby ?? makeLobby(SUPABASE.url, SUPABASE.key);
+  lobby = l;
+  try {
+    await l.ready;
+    await new Promise((r) => setTimeout(r, LISTEN_MS));
+  } catch {
+    seeking = false;
+    l.close();
+    lobby = null;
+    coopNote = 'Quick join is unreachable right now. Try a party code instead.';
+    renderCoop();
+    return;
+  }
+  seeking = false;
+  if (coop) return;
+  const pick = pickParty(l.list().filter((a) => !skip.includes(a.code)));
+  quickSkip = skip;
+  if (pick) {
+    coopQuick = true;
+    joinParty(pick.code, `Joined ${pick.name}'s party.`);
+    syncLobby();
+    return;
+  }
+  coop = CoopSession.host(myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
+  coopOpen = true;
+  coopQuick = true;
+  coopNote = 'No open party yet, so yours is open. The next player to press Quick join lands here.';
+  lobby.onChange = foldLoneParty;
+  syncLobby();
+  renderCoop();
+}
+/** Codes a quick join already found full, so a retry skips them. */
+let quickSkip: string[] = [];
 
 function backToMenu(): void {
   game.scene.stop('game');
@@ -297,7 +394,11 @@ const coopEvents = {
       finishRun(scene.world);
       backToMenu();
     }
+    const was = coop;
+    const quick = coopQuick && was?.role === 'guest';
     leaveParty(reason === 'refused' ? 'That party is full (4 heroes at most).' : 'The host left the party.');
+    // Quick join lost a race for the last spot: look again, skipping that party.
+    if (quick && reason === 'refused' && was) void quickJoin([...quickSkip, was.code]);
   },
 };
 
@@ -308,19 +409,22 @@ function renderCoop(): void {
     box.innerHTML = `<div class="ttl">Play together</div>
       <div class="muted">Up to four heroes in one delve. Each of you keeps your own loot.</div>
       ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
-      <div class="row2"><button id="hostBtn">Host a party</button>
+      <div class="row2"><button id="quickBtn" class="quick">Quick join</button><button id="hostBtn">Host a party</button></div>
+      <div class="row2">
       <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Party code"><button id="joinBtn">Join</button></div>`;
+    (el('quickBtn') as HTMLButtonElement).disabled = seeking;
+    el('quickBtn').addEventListener('click', () => void quickJoin());
     el('hostBtn').addEventListener('click', () => {
+      if (seeking) return;
       coop = CoopSession.host(myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
       coopNote = '';
       renderCoop();
     });
     const join = () => {
       const code = (el('joinCode') as HTMLInputElement).value.trim().toUpperCase();
-      if (code.length !== 5) return;
-      coop = CoopSession.join(code, myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
-      coopNote = '';
-      renderCoop();
+      if (code.length !== 5 || seeking) return;
+      coopQuick = false;
+      joinParty(code);
     };
     el('joinBtn').addEventListener('click', join);
     el('joinCode').addEventListener('keydown', (e) => {
@@ -334,11 +438,20 @@ function renderCoop(): void {
   box.innerHTML = coop.role === 'host'
     ? `<div class="ttl">Your party</div><div class="muted">Share this code with friends:</div><div class="code" id="partyCode">${coop.code}</div>
        <ul>${people}</ul><div class="muted">${linked ? 'Press Delve together when everyone is in.' : 'Waiting for someone to join.'}</div>
+       <label class="open"><input type="checkbox" id="openBox"${coopOpen ? ' checked' : ''}> Open to anyone (Quick join)</label>
+       ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
        <div class="row2"><button id="leaveBtn">Leave party</button></div>`
     : `<div class="ttl">Party ${coop.code}</div><ul>${people}</ul>
        <div class="muted">${linked ? 'The host starts the delve.' : 'Connecting to the host...'}</div>
+       ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
        <div class="row2"><button id="leaveBtn">Leave party</button></div>`;
   el('leaveBtn').addEventListener('click', () => leaveParty());
+  el('openBox')?.addEventListener('change', (e) => {
+    coopOpen = (e.target as HTMLInputElement).checked;
+    if (!coopOpen) coopQuick = false;
+    syncLobby();
+  });
+  syncLobby();
 }
 /** The Delve button follows the party: guests wait, a host with company delves together. */
 function coopButton(): void {

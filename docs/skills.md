@@ -144,6 +144,23 @@ In a party, the Lumen heals the group, not just itself. Solo play is unchanged: 
 
 Ally healing goes through `World.healAllies`. Like self-healing, effective healing draws 0.5 threat per point split across the living enemies, and overheal still feeds Brilliance. Downed heroes can't be healed, because they stand back up between fights. Tests are in `tests/coop.test.ts`.
 
+## Class weapon effects (roadmap R4)
+
+An Epic or Mythic weapon found by a class carries one of that class's two weapon effects. The effect is picked from the item id, so no other roll changes. Each effect changes the class's basic attack. That keeps them separate from talents, which change abilities and stats, and from Mythics, which change abilities. Data is in `WEAPON_FX` (`sim/content/items.ts`), and the item tooltip shows the effect.
+
+| Class | Effect | What it does |
+|---|---|---|
+| Emberwright | Piercing Cinders | Cinder Volley orbs pass through the first small foe they hit |
+| Emberwright | Banked Flame | Every 5th orb hits for 2.5 times the damage |
+| Duskblade | Cast-Cutter | Swings hit a casting foe 35% harder |
+| Duskblade | Worrying Edge | Each swing at the same target hits 2.5% harder, up to 5 stacks |
+| Bulwark | Rallying Sweep | Shield Sweep builds 2 more Resolve for each foe past the first |
+| Bulwark | Warding Sweep | A sweep that hits a big foe shields you for 1.5% of max health |
+| Lumen | Tender Light | A Sunmote's heal is doubled on a hero below half health |
+| Lumen | Rebuking Light | Sunmotes hit a casting foe 25% harder |
+
+Game design's Kiln set rewards an interrupt *after* the cast stops, so Cast-Cutter and Rebuking Light, which reward hitting *during* the cast, stack only in a small way. Tests are in `tests/weaponfx.test.ts`.
+
 ## Class Mythics (roadmap R4)
 
 Each class has two Mythics of its own, on top of the shared four. A Mythic should change how the class plays, not just add numbers. The bar: at tier 6 each one stays within 3 wins of its class baseline. A Mythic drops only for its own class (`mythicPool` in `sim/content/items.ts`). Names were checked against existing games on 20 Nov 2026.
