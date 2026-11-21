@@ -194,6 +194,28 @@ What the numbers show:
   - Small damage gains swing the Lumen a lot at tier 8. Noonfire at +40% and Chorus on every 4th mote won 38.3 there, so both were cut back.
   - The old Lumen capstones need a look of their own (watch item for game design).
 
+## High Noon and Choir of Dawn rework (roadmap L7)
+Both of the Lumen's original capstones added almost nothing:
+- **High Noon** fired only when the Lumen held 20 Brilliance or more. Sunmote spends up to 10 Brilliance a shot, so the beam almost never fired: 0 times in 10 Kiln 8 runs with hero-t8-0, and 9 times in 10 runs at tier 6.
+- **Choir of Dawn's** wisps circled 78 px out. The Lumen fights from range, so they did under 1% of its boss damage.
+- With no capstone at all, the bot scored 17.7 out of 40 at Kiln 8, the same as with these two.
+
+The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
+- **High Noon:** every 4 s, the beam fires at your target whenever there is one. It deals 40 plus 1.5 per Brilliance, and spends all your Brilliance as before.
+- **Choir of Dawn:** the wisps circle 170 px out. Ring of Ash keeps its 78 px.
+
+**Balance:** matrix.sh with heroes-r2, 3 heroes and 40 seeds each, on main d52313c. Numbers are average wins out of 40.
+
+| | Foundry 6 | Foundry 8 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|
+| Lumen before | 34.3 | 25.7 | 36.0 | 17.7 |
+| Lumen after | 36.0 | 32.7 | 38.7 | 30.3 |
+| Emberwright | 30.3 | 28.7 | 30.0 | 19.0 |
+| Duskblade | 36.7 | 23.3 | 30.7 | 17.7 |
+| Bulwark | 36.0 | 21.3 | 39.0 | 27.3 |
+
+The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is within design's ±15 of the Emberwright. A first version, with a 60 base and 200 px, won 34.3 at Kiln 8, 15.3 ahead of the Emberwright, so both numbers were trimmed.
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.

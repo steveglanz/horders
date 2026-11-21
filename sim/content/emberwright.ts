@@ -189,7 +189,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
   searingRadiance: { id: 'searingRadiance', cls: 'lumen', name: 'Searing Radiance', branch: 'dawn', maxRank: 3, text: 'Sunmotes deal 15% more damage.' },
   sunflare: { id: 'sunflare', cls: 'lumen', name: 'Sunflare', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
-  noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4s, stored Brilliance fires a piercing sunbeam.', tip: "Every 4s, if you have 20 Brilliance or more, all of it fires as a 520 px sunbeam: 30 damage plus 1.5 per Brilliance." },
+  noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4s, a piercing sunbeam fires at your target, stronger with stored Brilliance.', tip: "Every 4s, a 520 px sunbeam pierces everything in line with your target: 40 damage plus 1.5 per Brilliance, and it spends all your Brilliance." },
   noonfire: { id: 'noonfire', cls: 'lumen', name: 'Noonfire', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: Sunmotes deal 15% more to elites, rares and bosses.' },
   // Grace: shields and staying alive
   aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Aegis of Light', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
@@ -201,7 +201,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   hastedHymn: { id: 'hastedHymn', cls: 'lumen', name: 'Hasted Hymn', branch: 'choir', maxRank: 3, text: 'Sunmotes fly 12% more often.' },
   prism: { id: 'prism', cls: 'lumen', name: 'Prism', branch: 'choir', maxRank: 2, text: 'Each Sunmote also strikes one more enemy.' },
   lingeringSanctuary: { id: 'lingeringSanctuary', cls: 'lumen', name: 'Lingering Sanctuary', branch: 'choir', maxRank: 2, text: 'Sanctuary lasts 2s longer and moves with you.' },
-  choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle you, burning foes and healing you with each hit.', tip: "Three wisps circle you and burn each foe they touch for 16, at most once every 0.4s per foe. Each hit heals you 1.5." },
+  choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle wide around you, burning foes and healing you with each hit.', tip: "Three wisps circle you 170 px out and burn each foe they touch for 16, at most once every 0.4s per foe. Each hit heals you 1.5." },
   chorus: { id: 'chorus', cls: 'lumen', name: 'Chorus', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: every 8th Sunmote strikes its target twice.' },
 };
 

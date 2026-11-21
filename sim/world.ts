@@ -124,6 +124,11 @@ const SMOTHER_COST = 10;
 /** Lumen: Sunmote reach and the most Brilliance (stored overheal) it can hold. */
 const LUMEN_RANGE = 500;
 const LUMEN_MAX_BRILLIANCE = 200;
+/** High Noon and Choir of Dawn, reworked in L7 because both added almost nothing (see docs/skills.md). */
+export const LUMEN_CAPS = {
+  noonEvery: 4, noonBase: 40, noonPer: 1.5,
+  choirR: 170, choirDamage: 16,
+};
 
 const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
 
@@ -2074,16 +2079,17 @@ export class World {
     const choir = this.rank('choirOfDawn') > 0;
     if (this.rank('ringOfAsh') > 0 || choir) {
       p.orbitAngle += 3.2 * dt;
+      const r = this.orbitR;
       for (let k = 0; k < 3; k++) {
         const a = p.orbitAngle + (k * Math.PI * 2) / 3;
-        const ox = p.x + Math.cos(a) * 78;
-        const oy = p.y + Math.sin(a) * 78;
+        const ox = p.x + Math.cos(a) * r;
+        const oy = p.y + Math.sin(a) * r;
         this.forEachNear(ox, oy, 60, (i) => {
           const e = this.enemies[i];
           if (e.orbitCd > 0) return;
           if (dist2(ox, oy, e.x, e.y) <= (14 + e.def.radius) ** 2) {
             e.orbitCd = 0.4;
-            this.damageEnemy(i, 16 * this.dmgMult, true);
+            this.damageEnemy(i, (choir ? LUMEN_CAPS.choirDamage : 16) * this.dmgMult, true);
             if (choir) this.healPlayer(1.5);
           }
         });
@@ -2197,8 +2203,8 @@ export class World {
     if (this.rank('noon') > 0) {
       p.noonT -= dt;
       if (p.noonT <= 0) {
-        p.noonT = 4;
-        if (p.brilliance >= 20) this.sunbeam();
+        p.noonT = LUMEN_CAPS.noonEvery;
+        if (this.bladeTarget(LUMEN_RANGE) >= 0) this.sunbeam();
       }
     }
     this.updateOrbit(dt);
@@ -2276,7 +2282,7 @@ export class World {
     const y2 = p.y + Math.sin(ang) * 520;
     const lance = this.lances.find((l) => !l.alive);
     if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2, y2, life: 0.25 });
-    const dmg = (30 + p.brilliance * 1.5) * this.dmgMult;
+    const dmg = (LUMEN_CAPS.noonBase + p.brilliance * LUMEN_CAPS.noonPer) * this.dmgMult;
     p.brilliance = 0;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
@@ -2808,13 +2814,19 @@ export class World {
     this.events.push({ type: 'ability', slot: 2, x: cx, y: cy, angle: 0, r: 90 });
   }
 
+  /** Orbit radius: Choir of Dawn's wisps circle wider than Ring of Ash, out past the Lumen's standoff. */
+  private get orbitR(): number {
+    return this.rank('choirOfDawn') > 0 ? LUMEN_CAPS.choirR : 78;
+  }
+
   /** Orbiter positions for rendering. */
   orbiters(): { x: number; y: number }[] {
     if (this.rank('ringOfAsh') === 0 && this.rank('choirOfDawn') === 0) return [];
     const p = this.player;
+    const r = this.orbitR;
     return [0, 1, 2].map((k) => {
       const a = p.orbitAngle + (k * Math.PI * 2) / 3;
-      return { x: p.x + Math.cos(a) * 78, y: p.y + Math.sin(a) * 78 };
+      return { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
     });
   }
 
