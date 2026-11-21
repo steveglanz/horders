@@ -271,6 +271,25 @@ Capstone card texts no longer start with "CAPSTONE:", since the draft card alrea
 
 **Bot.** Every talent must have a place in `BOT_PRIORITY` (sim/bot.ts). A missing card scores -1 and is drafted ahead of everything. The deep cards sit at the end of each class's list. tests/talents-round2.test.ts fails if any talent is missing.
 
+## Class tools for the Wrackline (21 Nov 2026)
+
+The Wrackline's Ebb drags every hero who is off a raft toward the drain (docs/design/wrackline.md). Each class now has an answer from its own kit. No new abilities and no new names: only existing kits, the Ebb and the Haul are touched, so every other dungeon is unchanged (tools/hashcheck.ts identical to main).
+- **Bulwark, anchored:** while Anvil Skin is up (`bastionT > 0`), neither the Ebb nor a Barge Hauler's Haul can move it. The water still burns. The Bulwark is the only class with no movement ability, and it was the lowest class there. `World.anchored()`.
+- **Emberwright, Lumen and Duskblade:** Blink, Glimmer Step and Sidestep already carry a hero 170, 160 and 130 units. The bot now uses them to reach a raft in the Ebb when walking would be late, and only when the raft is far enough that the hop helps (`raftHop` in sim/bot.ts).
+- **Slagbinder:** the bot keeps Interpose for its usual uses. Hopping to rafts with it cost 3.7 wins of 30 against Hessa.
+
+Wrackline, tier 10, heroes-fair hero-t8-0 to 2, 30 seeds each. Average wins out of 30, main b748f13 / this change:
+
+| Class | Wins | Share of the Ebb spent off a raft |
+|---|---|---|
+| Emberwright | 21.0 / 21.7 | 3% / 2% |
+| Duskblade | 19.0 / 19.3 | 7% / 7% |
+| Bulwark | 15.3 / 17.3 | 13% / 11% |
+| Lumen | 28.0 / 29.0 | 3% / 1% |
+| Slagbinder | 29.0 / 29.0 | 5% / 5% |
+
+The Bulwark still dies mostly to Hessa: 43 of 90 runs on main, 37 here (the second hero's 20 fell to 13). It stays the lowest class here, a watch item for game design.
+
 ## High Noon and Choir of Dawn rework (roadmap L7)
 Both of the Lumen's original capstones added almost nothing:
 - **High Noon** fired only when the Lumen held 20 Brilliance or more. Sunmote spends up to 10 Brilliance a shot, so the beam almost never fired: 0 times in 10 Kiln 8 runs with hero-t8-0, and 9 times in 10 runs at tier 6.

@@ -459,7 +459,7 @@ export function soakFor(w: World): World['telegraphs'][number] | null {
 }
 
 /** The Wrackline: while the Ebb warns or pulls, the way to the nearest afloat raft (null when already well on one, or no Ebb). */
-function ebbRaft(w: World): { dx: number; dy: number } | null {
+function ebbRaft(w: World): { dx: number; dy: number; d?: number } | null {
   if (!w.rafts.length || (w.ebbWarnT <= 0 && w.ebbT <= 0)) return null;
   const p = w.player;
   let best: { x: number; y: number } | null = null;
@@ -483,7 +483,25 @@ function ebbRaft(w: World): { dx: number; dy: number } | null {
   const d = bd || 1;
   // On the raft: drift with it, easing toward its middle (a short vector walks slowly).
   const k = bd < WRACK.raftR * 0.45 ? Math.min(1, bd / (WRACK.raftR * 0.45)) * 0.35 : 1;
-  return { dx: ((best.x - p.x) / d) * k, dy: ((best.y - p.y) / d) * k };
+  return { dx: ((best.x - p.x) / d) * k, dy: ((best.y - p.y) / d) * k, d: bd };
+}
+
+/**
+ * How far each class's movement ability (slot 1) carries it. The Bulwark has none: it anchors with Anvil Skin instead.
+ * The Slagbinder keeps Interpose for its own uses: hopping to rafts with it cost 3.7 wins of 30 against Hessa.
+ */
+const HOP: Partial<Record<string, number>> = { emberwright: 170, lumen: 160, duskblade: 130 };
+
+/**
+ * The Wrackline: making for a raft in the Ebb, use the class's movement ability when the raft is
+ * far enough that the hop helps, or (Bulwark) raise Anvil Skin once the pull starts, so it can't drag.
+ */
+function raftHop(w: World, d: number | undefined): number | undefined {
+  if (d === undefined || w.onRaft(w.player.x, w.player.y)) return undefined;
+  if (w.cls === 'bulwark') return w.ebbT > 0 && d > WRACK.raftR && can(w, 2) ? 2 : undefined;
+  const hop = HOP[w.cls];
+  if (!hop) return undefined;
+  return d > hop * 0.6 && can(w, 1) ? 1 : undefined;
 }
 
 export function botInput(w: World, skill = 1): Input {
@@ -513,7 +531,7 @@ export function botInput(w: World, skill = 1): Input {
   }
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
-  if (raft) return { x: raft.dx, y: raft.dy, cast: botCast(w, skill) };
+  if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
   // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
   const glow = longNightShelter(w);
   if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
