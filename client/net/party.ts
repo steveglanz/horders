@@ -42,6 +42,9 @@ interface Link {
   pendingIce: RTCIceCandidateInit[];
 }
 
+/** Sent on the reliable channel just before closing, so the peer knows the close was on purpose. */
+const BYE = '{"__bye":1}';
+
 export function partyCode(rand: () => number = Math.random): string {
   let s = '';
   for (let i = 0; i < 5; i++) s += CODE_CHARS[Math.floor(rand() * CODE_CHARS.length)];
@@ -95,7 +98,8 @@ export class Party {
     if (this.closed) return;
     this.closed = true;
     this.signal.send({ t: 'bye', from: this.id });
-    for (const l of this.links.values()) l.pc.close();
+    // The channel's close can arrive before the signalled bye, so say it in-band too (ordered, ahead of the close).
+    for (const l of this.links.values()) { if (l.rel?.readyState === 'open') l.rel.send(BYE); l.pc.close(); }
     this.links.clear();
     this.signal.close();
   }
@@ -131,7 +135,10 @@ export class Party {
 
   private wire(l: Link, dc: RTCDataChannel): void {
     if (dc.label === 'rel') l.rel = dc; else l.fast = dc;
-    dc.onmessage = (e) => this.events.onMessage?.(l.member.id, dc.label as Channel, JSON.parse(String(e.data)));
+    dc.onmessage = (e) => {
+      if (e.data === BYE) { this.drop(l.member.id, true); return; }
+      this.events.onMessage?.(l.member.id, dc.label as Channel, JSON.parse(String(e.data)));
+    };
     dc.onopen = () => {
       if (!l.open && l.rel?.readyState === 'open' && l.fast?.readyState === 'open') {
         l.open = true;

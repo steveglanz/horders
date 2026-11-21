@@ -323,7 +323,8 @@ export class CoopSession {
         const pid = cleanPid(m.hero?.pid);
         if (pid) this.pids.set(from, pid);
         // A guest who dropped mid-delve and came back: give them their hero again.
-        const back = this.role === 'host' && this.running && pid ? this.order.find((id) => this.gone.has(id) && this.pids.get(id) === pid) : undefined;
+        // Only a link that isn't already in the delve (two tabs on one device share an id).
+        const back = this.role === 'host' && this.running && pid && !this.order.includes(from) ? this.order.find((id) => this.gone.has(id) && this.pids.get(id) === pid) : undefined;
         this.heroes.set(from, withCleanLooks(m.hero));
         if (back) this.resume(back, from);
         this.shareRoster();
