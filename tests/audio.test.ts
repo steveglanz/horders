@@ -71,7 +71,8 @@ describe('audio', () => {
     });
     // The core moments of a run all make a sound.
     for (const id of ['hit', 'levelUp', 'emberWave', 'duskDash', 'bulwarkSlam', 'lumenBurst'] as SoundId[]) expect(heard, id).toContain(id);
-  });
+    // Four bot runs of up to 150 s each: about 2.4 s locally and 3.7 s on CI on main, so the 5 s default is too tight.
+  }, 20000);
 
   it('keeps every sound audible on a phone speaker (a quarter of its energy above 350 Hz)', () => {
     for (const [id, recipe] of Object.entries(SOUNDS)) expect(phoneShare(render(recipe, 32000), 32000), id).toBeGreaterThan(0.25);
