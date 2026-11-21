@@ -4,6 +4,7 @@ import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } fr
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
+import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, glyph } from './icons';
 import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -24,48 +25,6 @@ export interface RunHandlers {
   onStick: (x: number, y: number) => void;
   onCast: (slot: number) => void;
 }
-
-/** Simple original glyphs for the action bar, per class. */
-const DUSK_ICONS = [
-  // Rending Dash: a slash with motion lines.
-  '<svg viewBox="0 0 32 32"><path d="M4 22 H14" stroke="#b58cff" stroke-width="3" stroke-linecap="round" opacity=".6"/><path d="M8 27 L28 5" stroke="#f1e6ff" stroke-width="4" stroke-linecap="round"/><path d="M20 26 L26 20" stroke="#e0465a" stroke-width="3" stroke-linecap="round"/></svg>',
-  // Sidestep: a curved arrow.
-  '<svg viewBox="0 0 32 32"><path d="M6 24 Q6 8 22 8" stroke="#8fc7a8" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M18 3 L25 8 L18 13" fill="#8fc7a8"/></svg>',
-  // Execution: crossed blades.
-  '<svg viewBox="0 0 32 32"><path d="M5 5 L27 27 M27 5 L5 27" stroke="#f1e6ff" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="16" r="4" fill="#e0465a"/></svg>',
-  // Kick: a boot heel.
-  '<svg viewBox="0 0 32 32"><path d="M10 4 H18 V18 L27 22 V27 H8 Z" fill="#8fd8ff"/><path d="M8 23 H27" stroke="#fff" stroke-width="2"/></svg>',
-];
-const BULWARK_ICONS = [
-  // Shield Slam: a shield with impact lines.
-  '<svg viewBox="0 0 32 32"><path d="M16 4 L26 8 V16 C26 22 21 26 16 28 C11 26 6 22 6 16 V8 Z" fill="#7d8da6" stroke="#dfe7f2" stroke-width="2"/><path d="M27 6 L30 3 M28 12 H31 M27 18 L30 21" stroke="#ffd27a" stroke-width="2" stroke-linecap="round"/></svg>',
-  // Charge: a shield with motion lines.
-  '<svg viewBox="0 0 32 32"><path d="M2 12 H10 M2 18 H8 M2 24 H10" stroke="#dfe7f2" stroke-width="2.5" stroke-linecap="round" opacity=".6"/><path d="M20 5 L29 9 V16 C29 21 25 25 20 27 C15 25 11 21 11 16 V9 Z" fill="#7d8da6"/></svg>',
-  // Bastion: a tower shield inside a ring.
-  '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="#ffd27a" stroke-width="2.5"/><path d="M16 7 L23 10 V16 C23 20 20 23 16 25 C12 23 9 20 9 16 V10 Z" fill="#dfe7f2"/></svg>',
-  // Shield Toss: a spinning disc.
-  '<svg viewBox="0 0 32 32"><circle cx="18" cy="16" r="9" fill="#8fd8ff"/><circle cx="18" cy="16" r="3.5" fill="#fff"/><path d="M3 12 A12 12 0 0 1 9 7 M3 20 A12 12 0 0 0 9 25" stroke="#8fd8ff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
-];
-const LUMEN_ICONS = [
-  // Radiant Burst: a sun.
-  '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="#fff2b0"/><path d="M16 2 V8 M16 24 V30 M2 16 H8 M24 16 H30 M6 6 L10 10 M22 22 L26 26 M26 6 L22 10 M10 22 L6 26" stroke="#ffd27a" stroke-width="2.5" stroke-linecap="round"/></svg>',
-  // Glimmer Step: sparkles along a path.
-  '<svg viewBox="0 0 32 32"><path d="M4 24 Q14 22 20 12" stroke="#fff2b0" stroke-width="2" fill="none" stroke-dasharray="3 3"/><path d="M24 4 L26 9 L31 11 L26 13 L24 18 L22 13 L17 11 L22 9 Z" fill="#fff2b0"/></svg>',
-  // Sanctuary: a ring of light on the ground.
-  '<svg viewBox="0 0 32 32"><ellipse cx="16" cy="22" rx="13" ry="6" fill="none" stroke="#ffd27a" stroke-width="2.5"/><path d="M16 4 V18 M10 10 H22" stroke="#fff2b0" stroke-width="3" stroke-linecap="round"/></svg>',
-  // Hush: a finger to the lips, as a crossed-out wave.
-  '<svg viewBox="0 0 32 32"><path d="M5 16 Q9 9 13 16 T21 16 T29 16" stroke="#8fd8ff" stroke-width="2.5" fill="none"/><path d="M6 26 L26 6" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
-];
-const ICONS = [
-  // Flame Wave: a fan of fire.
-  '<svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Q16 20 4 26Z" fill="#ff8a3d"/><path d="M10 24 L16 13 L22 24 Q16 21 10 24Z" fill="#ffe08a"/></svg>',
-  // Blink: a streak.
-  '<svg viewBox="0 0 32 32"><path d="M3 20 H18" stroke="#ffc861" stroke-width="3" stroke-linecap="round" opacity=".5"/><path d="M8 14 H22" stroke="#ffc861" stroke-width="3" stroke-linecap="round" opacity=".7"/><circle cx="25" cy="16" r="5" fill="#fff0c0"/></svg>',
-  // Combustion: a burst.
-  '<svg viewBox="0 0 32 32"><path d="M16 2 L19 12 L29 9 L21 16 L29 23 L19 20 L16 30 L13 20 L3 23 L11 16 L3 9 L13 12Z" fill="#ff6a2f"/><circle cx="16" cy="16" r="5" fill="#fff3c4"/></svg>',
-  // Quench: a droplet.
-  '<svg viewBox="0 0 32 32"><path d="M16 3 C22 12 26 17 26 21 A10 10 0 0 1 6 21 C6 17 10 12 16 3Z" fill="#8fd8ff"/><path d="M12 20 A4 4 0 0 0 16 25" stroke="#fff" stroke-width="2" fill="none"/></svg>',
-];
 
 export function itemHtml(it: Item, extra = ''): string {
   const c = RARITY[it.rarity].color;
@@ -105,13 +64,14 @@ export class Hud {
     bar.innerHTML = '';
     this.abButtons = [];
     const def = CLASSES[cls];
-    const icons = cls === 'duskblade' ? DUSK_ICONS : cls === 'bulwark' ? BULWARK_ICONS : cls === 'lumen' ? LUMEN_ICONS : ICONS;
+    const icons = ABILITY_GLYPH[cls];
+    bar.style.setProperty('--ac', CLASS_ICON[cls].color);
     def.abilities.forEach((a, i) => {
       const b = document.createElement('button');
-      b.className = 'ab';
+      b.className = i === INTERRUPT_SLOT ? 'ab kick' : 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
       b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}`;
-      b.innerHTML = `${icons[i]}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
+      b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
