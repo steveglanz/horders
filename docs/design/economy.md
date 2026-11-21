@@ -82,7 +82,7 @@ The watch item said the Forge runs at about 3 upgrades a delve against a target 
 - If a later change raises ember income (a season track, for example), check the gap to the cap again. If it drops under 2 levels, the Forge is turning into a power spike.
 
 ## The new sets' book rewards (21 Nov 2026)
-Five sets were added on 21 Nov: Wrackrider, Deepguard, Ventwalker and Kinbound, plus the Hearthkeeper before them. The collection book's set rewards went from 720 to 1,040 embers in all. The watch item above asks whether new income pulls worn gear under 2 levels below the cap.
+Four sets were added on 21 Nov: Wrackrider, Deepguard, Ventwalker and Kinbound. The collection book's set rewards went from 720 to 1,040 embers in all. The watch item above asks whether new income pulls worn gear under 2 levels below the cap.
 
 **Method.** `tools/economy.ts` only delves the Kiln, so it never drops the new sets. A new `WINDFALL=N WINDFALL_DAY=d` adds N embers at the start of day d. Runs: Emberwright, `forge` policy, 10 days, seed offsets 0 to 7, on main 871734b. Average gap below the cap over the 8 runs:
 
