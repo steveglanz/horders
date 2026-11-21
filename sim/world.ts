@@ -418,6 +418,10 @@ export interface Player {
   /** Hearthkeeper: Warmth stacks from kills, and seconds since the last kill (a stack fades every SET_TUNING.hkFade). */
   warmth?: number;
   warmT?: number;
+  /** Wrackrider: seconds standing still, and seconds left Planted, and whether the hero is Planted (still long enough, or on a raft in the Wrackline). */
+  stillT?: number;
+  plantT?: number;
+  planted?: boolean;
   /** Co-op, while downed: seconds an ally has stood on this hero (G6 in-fight revive). */
   reviveT?: number;
   volleyT: number;
@@ -2015,6 +2019,8 @@ export class World {
     if (p.moving && this.setCount('tidewalker') >= 2) amount *= 1 - SET_TUNING.twCut;
     // Hearthkeeper: a hero kept warm by a chain of kills shrugs off part of each hit.
     if ((p.warmth ?? 0) >= SET_TUNING.hkMax && this.setCount('hearthkeeper') >= 3) amount *= 1 - SET_TUNING.hkCut;
+    // Wrackrider: a Planted hero is hard to knock about.
+    if (p.planted && this.setCount('wrackrider') >= 2) amount *= 1 - SET_TUNING.wrCut;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -4215,6 +4221,7 @@ export class World {
     if ((e.exposedT ?? 0) > 0) m *= 1 + SET_TUNING.kbExposed;
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
+    if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
     if (p.surge && !silent) {
       p.surge = false;
       p.moveT = 0;
@@ -4236,6 +4243,13 @@ export class World {
     if (this.setCount('tidewalker') >= 3) {
       p.moveT = moving ? (p.moveT ?? 0) + dt : 0;
       if ((p.moveT ?? 0) >= SET_TUNING.twCharge) p.surge = true;
+    }
+    if (this.setCount('wrackrider') >= 2) {
+      // Standing still for wrStill plants you; walking off keeps you Planted for wrHold more.
+      p.stillT = moving ? 0 : (p.stillT ?? 0) + dt;
+      if (p.stillT >= SET_TUNING.wrStill || (this.rafts.length > 0 && this.onRaft(p.x, p.y))) p.plantT = SET_TUNING.wrHold;
+      else if ((p.plantT ?? 0) > 0) p.plantT = (p.plantT ?? 0) - dt;
+      p.planted = (p.plantT ?? 0) > 0;
     }
   }
 

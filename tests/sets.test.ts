@@ -35,9 +35,10 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('foundry')).toBe('tidewalker');
     expect(setForDungeon('glarewell')).toBe('glarewarden');
     expect(setForDungeon('coldmarrow')).toBe('hearthkeeper');
+    expect(setForDungeon('wrackline')).toBe('wrackrider');
     expect(setForDungeon('hammerdeep')).toBeUndefined();
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(4);
+    expect(Object.keys(SETS)).toHaveLength(5);
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -161,5 +162,36 @@ describe('verb sets (R4)', () => {
     expect(hits).toBeLessThan(40);
     const b = new World({ seed: 1, dungeon: 'kiln', omens: [], bounty: 5 });
     for (let k = 0; k < 10; k++) expect(inner(b).withSet(piece('head')).set).toBeUndefined();
+  });
+
+  it('Wrackrider: standing still plants you (2: less damage taken, 3: more damage dealt), and it lingers a moment', () => {
+    for (const n of [1, 2, 3]) {
+      const w = new World({ seed: 3, dungeon: 'kiln', route: ['pack', 'pack', 'pack', 'pack', 'kilnMother'] as never, omens: [], gear: gear('wrackrider', n) });
+      while (w.phase !== 'fight') w.state === 'draft' ? w.choose(0) : w.step({ x: 0, y: 0 });
+      for (let k = 0; k < 30; k++) w.step({ x: 0, y: 0 });
+      expect(!!w.player.planted).toBe(n >= 2);
+      if (n < 2) continue;
+      const e = w.enemies.find((o) => o.alive) ?? w.enemies[0];
+      expect(inner(w).setDamageMult(e, true)).toBeCloseTo(n >= 3 ? 1 + SET_TUNING.wrDamage : 1, 5);
+      w.player.hp = w.player.maxHp;
+      const hp = w.player.hp;
+      inner(w).hurtPlayer(50);
+      expect(hp - w.player.hp).toBeCloseTo(50 * (1 - SET_TUNING.wrCut), 3);
+      // Walking off keeps you Planted for wrHold, then it fades.
+      w.step({ x: 1, y: 0 });
+      expect(w.player.planted).toBe(true);
+      for (let k = 0; k < Math.ceil(SET_TUNING.wrHold * 30) + 2; k++) w.step({ x: 1, y: 0 });
+      expect(w.player.planted).toBe(false);
+    }
+  });
+
+  it('Wrackrider: in the Wrackline a raft keeps you Planted while you walk', () => {
+    const w = new World({ seed: 5, dungeon: 'wrackline', omens: [], gear: gear('wrackrider', 2), invulnerable: true });
+    while (w.phase !== 'fight' || !w.rafts.length) w.state === 'draft' ? w.choose(0) : w.step({ x: 0, y: 0 });
+    const r = w.rafts[0];
+    Object.assign(w.player, { x: r.x, y: r.y, stillT: 0, plantT: 0 });
+    w.step({ x: 0.001, y: 1 });
+    expect(w.player.moving).toBe(true);
+    expect(w.player.planted).toBe(true);
   });
 });

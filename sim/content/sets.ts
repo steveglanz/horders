@@ -7,7 +7,7 @@
 import type { DungeonId } from './dungeon';
 import type { Slot } from './items';
 
-export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper';
+export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider';
 
 export interface SetDef {
   id: SetId;
@@ -39,6 +39,10 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'hearthkeeper', name: 'Hearthkeeper', verb: 'Keep the flame', dungeon: 'coldmarrow',
     bonus: ['Each kill adds a Warmth (up to 5, one fades every 2s without a kill) for +2% damage each. In the Coldmarrow, kills feed your Hearthcoal 50% more.', 'At 5 Warmth you take 8% less damage.'],
   },
+  wrackrider: {
+    id: 'wrackrider', name: 'Wrackrider', verb: 'Stand fast', dungeon: 'wrackline',
+    bonus: ['After 1s standing still you are Planted: you take 6% less damage. In the Wrackline, a raft keeps you Planted even while you walk.', 'While Planted, your hits deal +10% damage.'],
+  },
 };
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
@@ -56,4 +60,6 @@ export const SET_TUNING = {
   gwHeal: 0.015, gwDamage: 0.1, gwTime: 4, gwEvery: 4,
   /** Hearthkeeper: Warmth stacks from kills, damage per stack, seconds before a stack fades, Hearthcoal feed bonus, and the cut at full Warmth. */
   hkMax: 5, hkDamage: 0.02, hkFade: 2, hkFeed: 0.5, hkCut: 0.08,
+  /** Wrackrider: seconds standing still to be Planted, seconds it lasts once you walk off, the damage cut while Planted (2), and the damage while Planted (3). */
+  wrStill: 0.5, wrHold: 1, wrCut: 0.06, wrDamage: 0.08,
 };
