@@ -6,6 +6,7 @@ import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
+import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
@@ -614,7 +615,7 @@ export class Hud {
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
       if (rewards.seasonMarks) notes.push(`<span class="booknote"><span aria-hidden="true">✦</span> Season +${rewards.seasonMarks} marks${rewards.seasonFirstWin ? ' (first win today)' : ''}${rewards.seasonFeatured ? ' (in season)' : ''}${(rewards.seasonTo ?? 0) > (rewards.seasonFrom ?? 0) ? ` · <b>Season level ${rewards.seasonTo}</b>` : ''}</span>`);
-      for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : `title ${r.title}`}</b>`);
+      for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : r.kind === 'trail' ? `${trailLabel(r.trail, r.stage)} trail` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
       for (const a of rewards.achievements ?? []) notes.push(`<span class="deednote">${medalTile(a.id, true, 26)}<span><b>Achievement: ${a.name}</b> +${a.embers} embers, title <i>${a.title}</i></span></span>`);
