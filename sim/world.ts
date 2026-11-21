@@ -654,6 +654,8 @@ export interface WorldOptions {
   potion?: PotionId;
   /** Heroes in the party (1 to 4). Scales enemy health and targeted mechanics. */
   partySize?: number;
+  /** Fill with bots: how many of the party heroes are bots (content/botfill). A bot-filled party gets no extra group boss item. */
+  fillBots?: number;
   /** Grit stacks from losses in a row on this tier (see content/scaling). */
   grit?: number;
   /** True when this tier is the hero's highest unlocked one: beating its boss guarantees an Epic. */
@@ -745,6 +747,8 @@ export class World {
   readonly seed: number;
   readonly bounty: number | undefined;
   readonly firstClear: boolean;
+  /** Fill with bots: how many party heroes are bots (0 for a real party). */
+  readonly fillBots: number;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
   readonly partySize: number;
@@ -925,6 +929,7 @@ export class World {
     this.keyLevel = opts.keyLevel ?? 0;
     ({ hp: this.keyHp, dmg: this.keyDmg } = keyScale(this.keyLevel));
     this.firstClear = !!opts.firstClear && opts.bounty === undefined;
+    this.fillBots = opts.fillBots ?? 0;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
     if (this.firstDelve) {
@@ -4440,9 +4445,10 @@ export class World {
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
       // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss drops Rare or better.
       // Every hero in the party gets their own boss item (not only whoever landed the
-      // killing blow). Group dungeons add a second Rare-or-better item each.
+      // killing blow). Group dungeons add a second Rare-or-better item each, but only
+      // for a real party: a bot-filled run pays like a solo one.
       const min: Rarity = this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare';
-      const group = this.dungeonDef.style === 'group';
+      const group = this.dungeonDef.style === 'group' && this.fillBots === 0;
       const give = () => {
         this.pickUp(this.withSet(this.makeItem(min)));
         if (group) this.pickUp(this.makeItem('rare'));
