@@ -22,6 +22,7 @@ import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
+import { pickCue } from './audio/cues';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
@@ -450,6 +451,7 @@ export class GameScene extends Phaser.Scene {
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
+    audio.cue(pickCue(this.world.choices[i]?.id));
     if (this.coop?.role === 'guest') {
       // The host applies it; hide the cards until the next snapshot shows what's left.
       if (!this.world.choices[i]) return;
