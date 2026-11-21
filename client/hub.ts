@@ -27,6 +27,12 @@ function readKitOpen(): boolean {
 }
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
 
+/** A role's class glyph in a small tinted tile (the Bulwark is the tank, the Lumen the healer). */
+function roleTile(cls: 'bulwark' | 'lumen', size: number): string {
+  const ic = CLASS_ICON[cls];
+  return `<span class="gtile" style="--gc:${ic.color}">${glyph(ic.d, size)}</span>`;
+}
+
 export class Hub {
   tier = 1;
   dungeon: DungeonId = 'kiln';
@@ -127,7 +133,7 @@ export class Hub {
       const { label } = partyLabel(id, this.classes());
       return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}">`
         + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
-        + `<span class="style ${d.style}">${label}</span></button>`;
+        + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
     }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
@@ -212,9 +218,13 @@ export class Hub {
   private partyLine(): string {
     if (DUNGEONS[this.dungeon].style !== 'group') return '';
     const { missing } = partyLabel(this.dungeon, this.classes());
-    const has = (r: string) => (missing.includes(r as never) ? '✗' : '✓');
-    const need = missing.length ? ` · Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}` : '';
-    return `<div class="hint partyroles">Party: Tank ${has('tank')} · Healer ${has('healer')}${need}. Invite friends with Party, or open it to Quick join.</div>`;
+    const chip = (role: 'tank' | 'healer', cls: 'bulwark' | 'lumen', name: string): string => {
+      const ok = !missing.includes(role);
+      return `<span class="rolechip ${ok ? 'ok' : 'need'}" style="--gc:${CLASS_ICON[cls].color}">${roleTile(cls, 14)}${name} ${ok ? '✓' : '✗'}</span>`;
+    };
+    const need = missing.length ? `Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}. ` : '';
+    return `<div class="partyroles"><div class="chips"><span class="muted">Party</span>${chip('tank', 'bulwark', 'Tank')}${chip('healer', 'lumen', 'Healer')}</div>`
+      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div></div>`;
   }
 
   private gritLine(): string {

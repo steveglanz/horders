@@ -212,6 +212,36 @@ export const SOUNDS = {
   cleanse: join(chime(E6, 0, 0.18, 0.4), chime(A5 * 2, 0.06, 0.16, 0.5), whoosh(1500, 8000, 0.3, 0.14)),
   sweep: join(whoosh(900, 4500, 0.35, 0.4), [{ wave: 'saw', f: 160, f2: 90, dur: 0.3, vol: 0.12, lp: 1500 }]),
 
+  /** You are Anvilfall's target: a sharp, rising triple ping that cuts through everything. */
+  targeted: [
+    { wave: 'square', f: note(19), dur: 0.09, vol: 0.16, lp: 5000, curve: 1 },
+    { wave: 'square', f: note(19), dur: 0.09, delay: 0.12, vol: 0.18, lp: 5000, curve: 1 },
+    { wave: 'square', f: note(24), dur: 0.2, delay: 0.24, vol: 0.2, lp: 5000, curve: 1.5 },
+    { wave: 'sine', f: note(12), dur: 0.5, vol: 0.12, a: 0.02 },
+  ],
+
+  // ---- boss phase changes (one per boss; 'phase' above is the fallback)
+  phaseKiln: join(boom(45, 0.9, 0.55), [
+    { wave: 'noise', f: 0, dur: 0.9, vol: 0.4, a: 0.3, lp: 600, lp2: 5000, curve: 1.2 },
+    { wave: 'saw', f: 90, f2: 180, dur: 0.8, vol: 0.18, a: 0.2, lp: 1400, vib: [8, 0.03] },
+  ]),
+  phaseMaelra: join(boom(40, 0.8, 0.5), [
+    { wave: 'noise', f: 0, dur: 1.1, vol: 0.35, a: 0.5, lp: 300, lp2: 3000, curve: 1.3, trem: [3, 0.4] },
+    { wave: 'sine', f: 330, f2: 110, dur: 1.0, vol: 0.2, a: 0.1 },
+  ], chime(E6, 0.6, 0.12, 0.4), chime(A5 * 2, 0.75, 0.1, 0.4)),
+  phaseLens: join(
+    chime(E5, 0, 0.18, 1.2), chime(note(11), 0.05, 0.16, 1.2), chime(note(18), 0.1, 0.15, 1.2),
+    whoosh(2000, 10000, 0.9, 0.18), boom(38, 0.9, 0.45).map((v) => ({ ...v, delay: 0.5 })),
+  ),
+  phaseOndrel: join(clang(196, 0.5, 0.7), clang(147, 0.55, 0.9).map((v) => ({ ...v, delay: 0.32 })), boom(42, 0.9, 0.55).map((v) => ({ ...v, delay: 0.32 }))),
+  phaseShadow: [
+    { wave: 'saw', f: note(-17), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+    { wave: 'saw', f: note(-16), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+    { wave: 'saw', f: note(-11), dur: 1.4, vol: 0.12, a: 0.9, curve: 0.8, lp: 1200 },
+    { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
+    ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
+  ],
+
   // ---- co-op
   allyDown: [
     { wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
@@ -228,6 +258,20 @@ export const SOUNDS = {
 
   // ---- interface
   click: [{ wave: 'tri', f: 1100, f2: 900, dur: 0.035, vol: 0.12, curve: 3 }],
+  /** Picking one of a set (class, dungeon, tier): a bright, short double tick. */
+  select: [
+    { wave: 'tri', f: 1320, dur: 0.03, vol: 0.12, curve: 3 },
+    { wave: 'sine', f: 1980, dur: 0.06, delay: 0.025, vol: 0.1, curve: 3 },
+  ],
+  /** Delve / Delve again: a confident rising pair with a breath of air. */
+  confirm: join(chime(G5, 0, 0.18, 0.25), chime(D5 * 2, 0.07, 0.2, 0.4), whoosh(1200, 6000, 0.25, 0.08)),
+  /** Back, close, main menu: the same pair, falling and softer. */
+  back: [
+    { wave: 'tri', f: 990, dur: 0.04, vol: 0.1, curve: 2 },
+    { wave: 'tri', f: 740, dur: 0.07, delay: 0.04, vol: 0.09, curve: 3 },
+  ],
+  /** Opening a panel (bags, pause): a soft upward swell. */
+  open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;

@@ -261,13 +261,28 @@
   .pot.on .gtile { box-shadow: 0 0 14px color-mix(in srgb, var(--gc) 45%, transparent); }
   .pot:disabled { opacity: 0.5; cursor: default; }
   .primary:disabled { opacity: 0.55; cursor: default; filter: saturate(0.5); box-shadow: none; }
-  .dg b { font: 600 17px var(--serif); }
+  .dg b { font: 600 clamp(15px, 4.8vw, 17px) var(--serif); }
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
   .dg[data-d="hammerdeep"] { --art: radial-gradient(ellipse at 80% 0%, rgba(190,200,220,0.30), transparent 60%), linear-gradient(160deg, rgba(60,56,70,0.65), transparent 70%); }
-  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); }
-  .dg .style.group { color: var(--gold); }
+  /* Display options (pause menu and main menu): segmented choices. */
+  .opts { display: grid; gap: 10px; margin: 12px 0 10px; text-align: left; }
+  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; flex-wrap: wrap; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); }
+  .seg button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .seg button.on { background: var(--btn, linear-gradient(180deg, #ffb070, #ff7a2f)); color: #2a1206; }
+  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .dg .style.group { color: var(--gold); align-self: flex-start; max-width: 100%; box-sizing: border-box; padding: 3px 9px 3px 4px; border-radius: 12px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
+  .dg .style .roles { display: inline-flex; gap: 3px; }
+  .dg .style .gtile, .rolechip .gtile { width: 20px; height: 20px; border-radius: 6px; }
+  /* Group dungeons: the roles your party has, as chips. */
+  .partyroles { margin-top: 8px; }
+  .partyroles .chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+  .rolechip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
+  .rolechip.ok { border-color: color-mix(in srgb, var(--gc) 60%, transparent); color: var(--gc); background: color-mix(in srgb, var(--gc) 10%, transparent); }
+  .rolechip.need { border-style: dashed; color: var(--muted); }
+  .rolechip.need .gtile { filter: grayscale(1); opacity: 0.6; }
   /* In the flow (not absolute) so a long name on a narrow card can't run under it. */
   .dg .lock { order: -1; align-self: flex-end; margin: 0 0 auto; padding-bottom: 6px; font-size: 11px; color: var(--gold); }
   /* Tiers have no cap: past what fits, the row scrolls sideways (hub.ts keeps the picked tier in view). */
@@ -409,6 +424,14 @@
     .end-grid { grid-template-columns: 1fr 1fr; max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
     #stats { max-width: 1040px; margin-left: auto; margin-right: auto; width: 100%; }
     .bagwrap { max-width: 860px; }
+  }
+  /* Under ~400px the ember pill, the logo and the speaker + Bags cell don't fit on one row
+     (on a 320px iPhone SE the Bags button sat 50px off the right edge): the logo gets its own row. */
+  @media (max-width: 400px) {
+    .hub-top .ember { grid-column: 1; grid-row: 1; }
+    .hub-top .snd-cell, .hub-top > #bagBtn { grid-column: 3; grid-row: 1; }
+    .hub-top .logo { grid-column: 1 / -1; grid-row: 2; }
+    .primary.big { font-size: clamp(17px, 5.4vw, 21px); }
   }
   @media (max-width: 560px) {
     .hub-top .pill { min-height: 40px; padding: 0 12px; font-size: 14px; }
@@ -583,6 +606,7 @@
         <div id="coop" class="box coop"></div>
       </section>
     </div>
+    <details class="how"><summary>Display options</summary><div class="opts" id="hubOpts"></div></details>
     <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
     <div class="small muted foot-note">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
     <div class="hub-foot"><button class="primary big" id="startBtn">Delve</button></div>
@@ -601,6 +625,7 @@
 <div id="pause" class="overlay" hidden>
   <div class="panel" style="text-align:center; max-width: 360px">
     <h2>Paused</h2>
+    <div class="opts" id="pauseOpts"></div>
     <button class="primary" id="resumeBtn">Resume</button>
     <button class="ghost" id="quitBtn">Quit run</button>
   </div>

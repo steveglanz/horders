@@ -5,7 +5,7 @@
  */
 import type { SimEvent } from '../../sim/world';
 import type { ClassId } from '../../sim/content/emberwright';
-import { ENEMIES } from '../../sim/content/enemies';
+import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 
 export interface Cue {
@@ -23,6 +23,10 @@ export interface CueContext {
   acting: number;
   /** Co-op: every hero's health, so the engine can hear heroes go down and get up. */
   hp?: readonly number[];
+  /** The current boss, so each boss gets its own phase-change sting. */
+  boss?: EnemyKind;
+  /** The Hammerdeep: Anvilfall is winding up on this screen's hero (World.anvilOnMe). */
+  anvilOnMe?: boolean;
 }
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {
@@ -43,6 +47,15 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   'Hammer Sweep': { done: 'sweep' },
 };
 
+/** Each boss's own phase-change sting. */
+export const PHASE_STING: Partial<Record<EnemyKind, SoundId>> = {
+  kilnMother: 'phaseKiln',
+  maelra: 'phaseMaelra',
+  lensmother: 'phaseLens',
+  ondrel: 'phaseOndrel',
+  worldShadow: 'phaseShadow',
+};
+
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
   const mine = (hero?: number) => hero === undefined || hero === c.acting;
   switch (ev.type) {
@@ -61,7 +74,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
     case 'bossEnrage': return { id: 'enrage' };
-    case 'phase': return { id: 'phase' };
+    case 'phase': return { id: (c.boss && PHASE_STING[c.boss]) || 'phase', vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
     case 'slam': return { id: 'slam' };
@@ -127,6 +140,13 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
   return out;
 }
 
+/** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
+export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
+  const fire = onMe && !state.on;
+  state.on = onMe;
+  return fire ? { id: 'targeted' } : null;
+}
+
 /**
  * Minimum seconds between two plays of the same sound. Keeps a 40-enemy pile-up
  * from turning into a wall of noise (and keeps phones from running out of voices).
@@ -148,4 +168,8 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   ward: 0.3,
   zap: 0.1,
   click: 0.03,
+  select: 0.03,
+  back: 0.05,
+  open: 0.05,
+  confirm: 0.1,
 };

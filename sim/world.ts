@@ -521,6 +521,10 @@ export class World {
   /** Ondrel, the Anvilward (the Hammerdeep's group boss). */
   private anvilT = 0;
   private anvilTarget = 0;
+  /** Hammerdeep: the hero Anvilfall will land on (read by the client to mark them during the wind-up). */
+  get anvilfallTarget(): number {
+    return this.anvilTarget;
+  }
   private choirT = 0;
   private choirN = 0;
   private gripT = 0;
