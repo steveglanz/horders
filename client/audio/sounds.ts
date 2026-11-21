@@ -446,6 +446,35 @@ export const SOUNDS = {
   ),
   /** Hessa's phase 2, Riptide: a wave breaks over the harbour under a falling horn. */
   phaseHessa: join(whoosh(500, 6000, 1.0, 0.45), boom(40, 1.0, 0.5), horn(note(-14), 1.2, 0.3), horn(note(-19), 1.0, 0.28).map((v) => ({ ...v, delay: 0.5 }))),
+  // ---- the Pressworks: Oskel of the Pressworks
+  /** Downstroke winds up (4 s fuse; this runs 2.6 s so it stays under 3 s): the press head rises on a hydraulic hiss, its ratchet clanks speed up, and a gold ping says "stand under it". */
+  downstrokeWarn: join(
+    [{ wave: 'noise', f: 0, dur: 2.6, vol: 0.26, a: 2.1, curve: 0.7, lp: 1500, lp2: 7000, hp: 600 }],
+    [{ wave: 'saw', f: 110, f2: 220, dur: 2.6, vol: 0.12, a: 1.9, curve: 0.8, lp: 1800 }],
+    ...[0, 0.6, 1.1, 1.5, 1.8, 2.05, 2.25, 2.4].map((d, k) => clang(700 + k * 40, 0.22 + k * 0.015, 0.18).map((v) => ({ ...v, delay: d }))),
+    chime(E6, 0.05, 0.26, 0.5), chime(E6, 2.45, 0.3, 0.45),
+  ),
+  /** Rivets (every 9 s, keep it light): a short rivet-gun burst, rising. */
+  rivetsWarn: join(...[0, 0.07, 0.14, 0.21].map((d, k) => [
+    { wave: 'square' as const, f: 1500 + k * 180, dur: 0.04, delay: d, vol: 0.15, lp: 6000, curve: 3 },
+    { wave: 'noise' as const, f: 0, dur: 0.035, delay: d, vol: 0.2, lp: 8000, hp: 2500, curve: 3 },
+  ])),
+  /** Stamp winds up (2 s) on the tank: a flywheel spins up under a tightening whine. */
+  stampWarn: [
+    { wave: 'saw', f: 55, f2: 140, dur: 1.9, vol: 0.22, a: 1.6, curve: 0.7, lp: 700, lp2: 1800, trem: [6, 0.5] },
+    // The whine and the hiss carry it on a phone; the flywheel's weight is felt more than heard there.
+    { wave: 'saw', f: 440, f2: 880, dur: 1.9, vol: 0.13, a: 1.5, curve: 0.8, lp: 3500 },
+    { wave: 'noise', f: 0, dur: 1.9, vol: 0.2, a: 1.6, curve: 0.8, lp: 4000, hp: 1000, trem: [12, 0.6] },
+  ],
+  /** Stamp lands: the die comes down, a heavy iron clang and a thud. */
+  stamp: join(clang(240, 0.55, 0.9), boom(45, 0.8, 0.7), [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.05, vol: 0.18, lp: 5000, lp2: 1500, hp: 800 }]),
+  /** Oskel's phase 2: the works' steam whistle shrieks two tones over a press slam. */
+  phaseOskel: join(
+    boom(42, 0.9, 0.55),
+    [{ wave: 'square', f: note(14), dur: 0.9, delay: 0.15, vol: 0.08, a: 0.06, lp: 4000, vib: [7, 0.01] }, { wave: 'square', f: note(17), dur: 0.9, delay: 0.15, vol: 0.07, a: 0.06, lp: 4000, vib: [6.3, 0.01] }],
+    whoosh(2500, 9000, 1.0, 0.18).map((v) => ({ ...v, delay: 0.15 })),
+    horn(note(-17), 1.0, 0.24).map((v) => ({ ...v, delay: 0.6 })),
+  ),
   // Verb-set procs (sim/content/sets.ts). Short and mid-loud: they reward a habit, so they repeat often.
   /** Wrackrider: Planted. Two stakes knock into wet timber. */
   planted: join(

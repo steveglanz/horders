@@ -9,6 +9,7 @@
  *  - foundry:   Drowned Foundry. Hissing steam swells, water drips, cold minor.
  *  - glarewell: Light and shadow. High bells over a dark drone, shimmer bed.
  *  - hammerdeep: The group dungeon. Bellows breathing, anvil strikes on the beat, a low dorian march.
+ *  - pressworks: The second group works. A press cycle in the bed (thud, then steam), struck-plate plucks, a phrygian work song.
  *  - ashvents:   Ysmeret's group dungeon. Two vents breathing in turn, ember plucks, a restless 3-against-2 pulse.
  *  - coldmarrow: Sparse glass bells, wind, a slow heartbeat; the Hearthcoal's crackle is the one warm sound
  *                and thins as the coal dims (see setWarmth).
@@ -19,8 +20,8 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press';
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -64,6 +65,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   raid: { root: -14, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 72, drone: 'sawtooth', droneLp: 750, pluck: 'brass', density: 0.4, bed: 'slag', bedVol: 0.3, meter: 3, phaseTempo: [1, 1.1, 1.2, 2], floodBed: 2.2 },
   // The Wrackline: a wrecked, sea-dark harbour. Slow aeolian swell, buoy bells, surf breaking on the pilings.
   wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'sawtooth', droneLp: 600, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
+  // The Pressworks: a working rhythm. The bed is a press cycle (thud, then steam), the plucks ring like struck plate, and the drone is a saw so it holds up on phones.
+  pressworks: { root: -11, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, -2, 1, -4], bpm: 80, drone: 'sawtooth', droneLp: 650, pluck: 'anvil', density: 0.32, bed: 'press', bedVol: 0.5 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -174,6 +177,16 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         // A slow molten churn; the glugs are added below.
         lp += (w - lp) * 0.015;
         raw[i] = lp * 0.5 + brown * 1.6;
+        break;
+      }
+      case 'press': {
+        // A stamping press working four strokes round the loop: a heavy thud, then a vent of steam.
+        hp = 0.92 * (hp + w - prev);
+        prev = w;
+        const ph = (t * 4) % 1;
+        const thud = Math.exp(-ph * 38) * Math.sin(2 * Math.PI * 58 * (i / rate)) * 2.2 + Math.exp(-ph * 60) * w * 0.6;
+        const vent = ph > 0.18 ? Math.exp(-(ph - 0.18) * 9) * hp * 0.6 : 0;
+        raw[i] = thud + vent + brown * 1.1;
         break;
       }
       case 'surf': {
