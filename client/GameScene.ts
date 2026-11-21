@@ -1023,7 +1023,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
           break;
         case 'rareSpawn':
-          this.hud.banner('Rare: Ashmaw the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
+          this.hud.banner('Rare: Coalmouth the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
           break;
         case 'riftOpen':
           this.hud.banner('A Hollow Rift tears open', 'Close it before the Tide pours out');
