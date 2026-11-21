@@ -97,6 +97,23 @@ Tuning steps: Bellow Slam 90 and Scatter 8%/25% gave 1/6 on a quick check, becau
 
 **Names:** web searches on 21 Nov 2026 for "Ashvents" game dungeon and "Ysmeret" game found no game using either (result titles only, so it's a search check, not a legal clearance).
 
+## The Ventwalker set (21 Nov 2026)
+This is the Ashvents' verb set. Ysmeret's head, hands and trinket drops can be Ventwalker pieces (`withSet`, 60% of set-slot drops, never in bounties). The verb is **split up**, the opposite of the Hammerdeep's Deepguard ("stay close"): Ysmeret's Twin Vents need the party in two places at once, and her Embers punish stacking. All the numbers are in `SET_TUNING` (`vw*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** while an ally is alive in the fight and none stands within 140 of you, you deal 6% more damage. Solo it does nothing, and the item text says so.
+- **3 pieces:** standing in a gold circle when it lands (a vent, the raid's vents, or the Kiln Mother's Brand) heals you 5% of your health. This piece works solo too, in the Kiln.
+
+**Measured** with tools/group.ts (`DUNGEON=ashvents SET=ventwalker SETN=3`), heroes-r2, seeds 1 to 80, on main f18add5 plus this change. Wins out of 80:
+
+| | No set | Every hero 3 pieces |
+|---|---|---|
+| Tier 8, full party (hero-t8-0) | 50 | 60 |
+| Tier 6, Bulwark and Lumen duo (hero-t6-0) | 31 | 39 |
+
+That is +5 and +4 wins in 40, inside the 2 to 7 range the other sets give. Solo in the Kiln (tier 7, hero-t8-0, 40 seeds, `tools/foundry.ts`), the 3 pieces add 1 to 3 wins in 40 through the Brand: the Emberwright 27 to 30, the Duskblade 25 to 27, the Bulwark 37 to 38 and the Lumen 39 to 40.
+
+**Name:** "Ventwalker" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web (21 Nov 2026). "Split up" is a plain phrase used as the verb label only.
+
 ## In-fight revives (G6): the boss rules
 
 **The rule.** Standing on a downed ally picks them up at 30% health (`REVIVE_RADIUS`, `REVIVE_HEALTH`). Outside a boss fight it takes 3 s, with no limit. While a boss is up, it takes 9 s, and the party gets one pick-up for the whole boss fight (`REVIVE_RULES` in sim/world.ts, read through `World.reviveSeconds` and `World.revivesLeft`). Once it's used, the downed hero's bar says "no revives left this boss", and the revive circle goes away.
