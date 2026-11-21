@@ -310,6 +310,38 @@ tools/group.ts, heroes-r2, seeds 1 to 80, wins out of 80, main 9195d8f / this ch
 
 **The duo jump is mostly positioning, not the set.** With the Deepguard drift forced on and no set worn, the duo wins 49 of 80 against 24 on main. Its Lumen bot normally stands too far from the Bulwark for Ondrel's fight. On top of that baseline, the set adds 18 of 80 (+9 in 40), above the 2 to 7 range the other sets give. That is game design's call.
 
+## Party cards for Season 2 (21 Nov 2026)
+
+Season 2 (the Deep Bellows) is the Hammerdeep group season, so every class gets two **party cards**. These are deep cards (they join a branch's draft after its capstone) marked `party: true`, and rollDraft offers them only with 2 or more heroes. Solo drafts never see them, and tools/hashcheck.ts is identical to main. Tuning is in `PARTY_CARDS` in sim/world.ts, and the tests are in tests/party-cards.test.ts.
+
+| Class | Card | Branch | Effect |
+|---|---|---|---|
+| Bulwark | Lee Side | Bastion | Allies within 200 px take 5% less damage per rank (2 ranks) |
+| Bulwark | Broad Back | Vanguard | A taunt that takes the boss off an ally (Called Out or Charge) heals that ally for 6% of its max health |
+| Lumen | Front Mend | Grace | Heals on the hero the boss is attacking are 12% stronger per rank (2) |
+| Lumen | Wide Dawn | Dawn | Radiant Burst heals allies 20% more per rank (2) |
+| Duskblade | Turned Back | Bloodletting | 6% more damage per rank (2) to the boss while it attacks someone else |
+| Duskblade | Shared Breath | Guard | Sidestep also heals the most hurt ally within 300 px for 4% of its max health |
+| Emberwright | Long Kindle | Kindling | Kindling lasts 2 s longer and reaches 60 px farther per rank (2) |
+| Emberwright | Close Warmth | Ashguard | Allies within 260 px heal 1.5 health per second per rank (2) |
+| Slagbinder | Long Stand | Crust | Interpose guards the ally 1 s longer per rank (2), in either stance |
+| Slagbinder | Wide Shell | Forge | Cooling Shell covers allies 50 px farther per rank (2), in either stance |
+
+Every name was searched in the repo and on the web (WoW and Wowhead) before it shipped. "Fireside" was dropped for Close Warmth because a Wowhead hit was unclear.
+
+tools/group.ts, wins, main 4dd9163 / this change. Game design's bar: within +5 of 80 of main, and the Crucible under 70%.
+
+| | Main | Party cards |
+|---|---|---|
+| Hammerdeep tier 6, full party (heroes-r2), of 80 | 75 | 77 |
+| Hammerdeep tier 8, full party (heroes-r2), of 80 | 43 | 42 |
+| Hammerdeep tier 6, Bulwark and Lumen duo, of 80 | 24 | 28 |
+| Hammerdeep tier 8, Slagbinder in place of the Duskblade (heroes-fair), of 80 | 72 | 67 |
+| Ashvents tier 8, full party, of 80 | 50 | 53 |
+| Crucible tier 8, full party, of 90 | 56 (62%) | 56 (62%) |
+
+In 30 Hammerdeep tier 8 runs (both parties, 120 heroes), the bots took Long Kindle 13 times, Broad Back 8, Turned Back 8, Wide Dawn 7, Wide Shell 3 and Long Stand 2. The other four (Lee Side, Front Mend, Shared Breath and Close Warmth) sit in branches whose capstone the bot rarely takes, so their effect on the numbers above is untested in runs. Only the unit tests cover them.
+
 ## Party bots huddle with no set: a flag, off (21 Nov 2026)
 
 `BOT_PARTY.huddle` in sim/bot.ts gives ranged party bots the Deepguard drift (toward the nearest ally when it is more than 105 away) with no set worn. A worn Ventwalker still wins. It is **off by default**, so play on main does not change. Game design decides whether to turn it on and retune Hammerdeep. Fill bots won't use it either way. `HUDDLE=1` turns it on in tools/group.ts.
