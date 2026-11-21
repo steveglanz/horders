@@ -970,6 +970,8 @@ export class GameScene extends Phaser.Scene {
       if (fps < 42) this.lowFx = true;
       else if (fps > 56) this.lowFx = false;
     }
+    // The Graphics setting overrides the automatic choice.
+    if (display.graphics !== 'auto') this.lowFx = display.graphics === 'saver';
     const cheap = this.lowFx;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
