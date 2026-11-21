@@ -669,6 +669,8 @@ The fix, also in `DEFENCE_BRANCH`, with every number stated on the card:
 
 The default Slagbinder bot drafts Twin Coat often, so fixing Forge lifts the class by about 5 to 7 of 40. Parties: Hammerdeep t8 43 / 45, with the Slagbinder 66 / 70; Crucible 56 / 55 of 90. Fill bots (Bulwark plus three bots, Hammerdeep t8): 34 / 30, still under the real party. Replay fingerprints are identical to main.
 
+Design accepted the Slagbinder rise (it was the weakest class at Kiln). Against the new default, Forge at Kiln t6 is just outside at -11 of 40, like Wildfire was at -10.5. Clinker (72) stays untouched because it is under Lumen's 79.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
