@@ -1,4 +1,4 @@
-import { SEASON, SeasonReward, SeasonState, runMarks, seasonLevel, seasonRewards, seasonState } from './content/season';
+import { SEASON, SeasonReward, SeasonState, runMarks, seasonDef, seasonLevel, seasonRewards, seasonState } from './content/season';
 import { ACHIEVEMENTS, Achievement, AchievementView, Deeds, addDeeds } from './content/achievements';
 import { COLLECTION_REWARDS, CollectionReward, EntryKey, entriesOf, rewardProgress } from './content/collections';
 import type { DungeonId } from './content/dungeon';
@@ -92,7 +92,9 @@ export interface HeroProfile {
   /** P2: this season's track (shared by every class), the glows earned in any season, and what the hero wears. */
   season?: SeasonState;
   glows?: string[];
-  wear?: { title?: string; glow?: string };
+  /** P2: each season trail earned, by id, at its highest stage (1 to 3). */
+  trails?: Record<string, number>;
+  wear?: { title?: string; glow?: string; trail?: string };
   /** P6: what the account has done (shared by every class), and the achievements already paid. */
   deeds?: Deeds;
   achieved?: string[];
@@ -274,6 +276,8 @@ export interface RunRewards {
   seasonTo?: number;
   seasonRewards?: SeasonReward[];
   seasonFirstWin?: boolean;
+  /** P2: the win was in the season's own dungeon and paid SEASON.featured extra marks. */
+  seasonFeatured?: boolean;
   /** P6: achievements this run completed (each pays its title and embers once). */
   achievements?: Achievement[];
 }
@@ -459,11 +463,12 @@ export function collectionOf(hero: HeroProfile): Set<EntryKey> {
 }
 
 /** P2: adds this run's season marks and grants every reward the track passed. */
-function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick<RunRewards, 'seasonMarks' | 'seasonFrom' | 'seasonTo' | 'seasonRewards' | 'seasonFirstWin'> {
+function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick<RunRewards, 'seasonMarks' | 'seasonFrom' | 'seasonTo' | 'seasonRewards' | 'seasonFirstWin' | 'seasonFeatured'> {
   const st = { ...seasonState(hero.season, s.week ?? 0) };
   const firstWin = s.victory && s.day !== undefined && st.firstWinDay !== s.day;
   if (firstWin) st.firstWinDay = s.day;
-  const marks = runMarks(s.victory, s.fightsCleared ?? 0, weeklyDone, firstWin);
+  const featured = s.victory && s.dungeon !== undefined && s.dungeon === seasonDef(st.id).dungeon;
+  const marks = runMarks(s.victory, s.fightsCleared ?? 0, weeklyDone, firstWin, featured);
   const from = seasonLevel(st.marks);
   st.marks = Math.min(SEASON.levels * SEASON.marksPerLevel, st.marks + marks);
   hero.season = st;
@@ -471,9 +476,14 @@ function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick
   const got = seasonRewards(st.id).filter((r) => r.level > from && r.level <= to);
   for (const r of got) {
     if (r.kind === 'glow') hero.glows = [...new Set([...(hero.glows ?? []), r.glow.id])];
+    else if (r.kind === 'trail') hero.trails = { ...(hero.trails ?? {}), [r.trail.id]: Math.max(hero.trails?.[r.trail.id] ?? 0, r.stage) };
     else hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
   }
-  return { seasonMarks: marks, seasonFrom: from, seasonTo: to, ...(got.length ? { seasonRewards: got } : {}), ...(firstWin ? { seasonFirstWin: true } : {}) };
+  // Trails came mid-season: a hero already past a trail level gets it on their next run.
+  for (const r of seasonRewards(st.id)) {
+    if (r.kind === 'trail' && r.level <= to && (hero.trails?.[r.trail.id] ?? 0) < r.stage) hero.trails = { ...(hero.trails ?? {}), [r.trail.id]: r.stage };
+  }
+  return { seasonMarks: marks, seasonFrom: from, seasonTo: to, ...(got.length ? { seasonRewards: got } : {}), ...(firstWin ? { seasonFirstWin: true } : {}), ...(featured ? { seasonFeatured: true } : {}) };
 }
 
 /** P6: adds the run to the account's deeds and pays every achievement it completes, once each. */
@@ -513,9 +523,10 @@ export function achievementView(hero: HeroProfile): AchievementView {
   return { deeds: hero.deeds ?? {}, keyBest };
 }
 
-/** P2: wear an earned title or glow (undefined takes it off). Returns false if the hero hasn't earned it. */
-export function wearCosmetic(hero: HeroProfile, kind: 'title' | 'glow', id: string | undefined): boolean {
-  if (id !== undefined && !(kind === 'title' ? hero.titles ?? [] : hero.glows ?? []).includes(id)) return false;
+/** P2: wear an earned title, glow or trail (undefined takes it off). Returns false if the hero hasn't earned it. */
+export function wearCosmetic(hero: HeroProfile, kind: 'title' | 'glow' | 'trail', id: string | undefined): boolean {
+  const earned = kind === 'title' ? hero.titles ?? [] : kind === 'glow' ? hero.glows ?? [] : Object.keys(hero.trails ?? {});
+  if (id !== undefined && !earned.includes(id)) return false;
   hero.wear = { ...(hero.wear ?? {}), [kind]: id };
   if (id === undefined) delete hero.wear[kind];
   return true;

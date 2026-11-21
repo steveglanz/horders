@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyRun, newHero, wearCosmetic } from '../sim/hero';
-import { SEASON, SEASON_START_WEEK, runMarks, seasonLevel, seasonOf, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { SEASON, SEASONS, SEASON_START_WEEK, TRAILS, trailLabel, runMarks, seasonDef, seasonLevel, seasonOf, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { DUNGEONS } from '../sim/content/dungeon';
 import type { RunSummary } from '../sim/world';
 import { World } from '../sim/world';
 
@@ -25,6 +26,59 @@ describe('season track (P2)', () => {
     expect(runMarks(false, 2, 0, false)).toBe(SEASON.lossBase + 2 * SEASON.lossPerFight);
     expect(runMarks(false, 9, 0, false)).toBe(SEASON.lossBase + 5 * SEASON.lossPerFight);
     expect(runMarks(true, 5, 2, true)).toBe(SEASON.win + SEASON.firstWin + 2 * SEASON.weekly);
+  });
+
+  it("a win in the season's own dungeon pays the featured bonus; a loss there does not", () => {
+    expect(runMarks(true, 5, 0, false, true)).toBe(SEASON.win + SEASON.featured);
+    expect(runMarks(false, 2, 0, false, true)).toBe(SEASON.lossBase + 2 * SEASON.lossPerFight);
+    // Every theme names a real dungeon, and no two themes share one.
+    for (const d of SEASONS) expect(DUNGEONS[d.dungeon]).toBeDefined();
+    expect(new Set(SEASONS.map((d) => d.dungeon)).size).toBe(SEASONS.length);
+    const h = newHero();
+    h.weekly = { week: W, titled: true, quests: [] };
+    h.season = { id: seasonOf(W), marks: 0, firstWinDay: W * 7 + 1 };
+    const home = seasonDef(seasonOf(W)).dungeon;
+    const a = applyRun(h, 1, run(true, { dungeon: home }), false);
+    expect(a.seasonFeatured).toBe(true);
+    expect(a.seasonMarks).toBe(SEASON.win + SEASON.featured);
+    const b = applyRun(h, 2, run(false, { dungeon: home }), false);
+    expect(b.seasonFeatured).toBeUndefined();
+    const other = home === 'kiln' ? 'foundry' : 'kiln';
+    const c = applyRun(h, 3, run(true, { dungeon: other }), false);
+    expect(c.seasonFeatured).toBeUndefined();
+    expect(c.seasonMarks).toBe(SEASON.win);
+  });
+
+  it('the season trail comes in three stages, keeps its best stage, and can be worn', () => {
+    const id = seasonOf(W);
+    const rs = seasonRewards(id);
+    const levels = rs.map((r) => r.level);
+    // No two rewards share a level: 9 rewards, 5 8 10 15 18 20 25 28 30.
+    expect(levels).toEqual([5, 8, 10, 15, 18, 20, 25, 28, 30]);
+    const trails = rs.filter((r) => r.kind === 'trail');
+    expect(trails.map((r) => r.level)).toEqual([8, 18, 28]);
+    expect(new Set(SEASONS.map((d) => d.trail.id)).size).toBe(SEASONS.length);
+    const t = seasonDef(id).trail;
+    expect(TRAILS[t.id]).toBe(t);
+    expect(trailLabel(t, 3)).toBe(`${t.name} III`);
+    const h = newHero();
+    h.weekly = { week: W, titled: true, quests: [] };
+    expect(wearCosmetic(h, 'trail', t.id)).toBe(false);
+    h.season = { id, marks: SEASON.marksPerLevel * 8 - 10, firstWinDay: W * 7 + 1 };
+    const r = applyRun(h, 1, run(true), false);
+    expect(r.seasonRewards?.some((x) => x.kind === 'trail' && x.stage === 1)).toBe(true);
+    expect(h.trails).toEqual({ [t.id]: 1 });
+    h.season!.marks = SEASON.marksPerLevel * 28 - 10;
+    applyRun(h, 2, run(true), false);
+    expect(h.trails).toEqual({ [t.id]: 3 });
+    expect(wearCosmetic(h, 'trail', t.id)).toBe(true);
+    expect(h.wear?.trail).toBe(t.id);
+    // A save already past level 18 before trails existed gets stage 2 on its next run.
+    const old = newHero();
+    old.weekly = { week: W, titled: true, quests: [] };
+    old.season = { id, marks: SEASON.marksPerLevel * 19, firstWinDay: W * 7 + 1 };
+    applyRun(old, 1, run(false), false);
+    expect(old.trails).toEqual({ [t.id]: 2 });
   });
 
   it('the first win of a day pays once, and runs without a week earn nothing', () => {

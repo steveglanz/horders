@@ -88,6 +88,7 @@ window.visualViewport?.addEventListener('resize', fit);
 // Display settings that live outside the scene: render scale, frame cap and button side.
 const applyDisplay = () => {
   document.body.classList.toggle('lefty', display.hand === 'left');
+  document.body.classList.toggle('saver', display.graphics === 'saver');
   document.body.classList.toggle('text-large', display.text === 'large');
   const next = fullDpr();
   if (next !== DPR) {
@@ -101,6 +102,20 @@ const applyDisplay = () => {
 };
 applyDisplay();
 onDisplayChange(applyDisplay);
+// The hub is an opaque screen over the canvas, so nothing the game draws there can be seen.
+// The game loop sleeps while it shows (tools/hubperf.cjs: the idle hub's main-thread time on a
+// phone drops from about a third to the CSS embers alone) and wakes when a run takes over.
+{
+  const title = document.getElementById('title')!;
+  const follow = () => {
+    if (title.hidden) {
+      if (!game.loop.running) { game.loop.resetDelta(); game.loop.wake(); }
+    } else game.loop.sleep();
+  };
+  new MutationObserver(follow).observe(title, { attributes: true, attributeFilter: ['hidden'] });
+  // Phaser starts its loop after boot, so the first check waits for its first frame.
+  game.events.once('poststep', follow);
+}
 
 function seed(): number {
   const s = params.get('seed');

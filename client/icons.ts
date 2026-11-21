@@ -289,7 +289,7 @@ export const BRANCH_GLYPH: Record<Branch, string> = {
   general: 'M12 3l2.2 5.8 6.1.7-4.6 4 1.4 6L12 16.4 6.9 19.5l1.4-6-4.6-4 6.1-.7Z',
 };
 
-/** The glyph tile on a talent card; a capstone's sits inside a ring. */
-export function talentTile(branch: Branch, color: string, capstone = false, size = 34): string {
-  return `<span class="gtile tglyph${capstone ? ' cap' : ''}" style="--gc:${color};width:${size}px;height:${size}px">${glyph(BRANCH_GLYPH[branch], Math.round(size * 0.6))}</span>`;
+/** The glyph tile on a talent card; a capstone's sits inside a ring, a deep card's (C5) in a double frame. */
+export function talentTile(branch: Branch, color: string, capstone = false, size = 34, deep = false): string {
+  return `<span class="gtile tglyph${capstone ? ' cap' : deep ? ' deep' : ''}" style="--gc:${color};width:${size}px;height:${size}px">${glyph(BRANCH_GLYPH[branch], Math.round(size * 0.6))}</span>`;
 }

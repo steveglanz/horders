@@ -11,7 +11,7 @@ import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/it
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
-import { GLOWS, SEASON, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { GLOWS, SEASON, TRAILS, trailLabel, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -370,7 +370,7 @@ export class Hub {
     root.querySelector<HTMLButtonElement>('[data-key]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onKey(); });
     root.querySelectorAll<HTMLButtonElement>('[data-wear]').forEach((b) =>
       b.addEventListener('click', () => {
-        const kind = b.dataset.wear as 'title' | 'glow';
+        const kind = b.dataset.wear as 'title' | 'glow' | 'trail';
         const id = b.dataset.id || undefined;
         if (wearCosmetic(h, kind, h.wear?.[kind] === id ? undefined : id)) {
           this.save();
@@ -481,7 +481,11 @@ export class Hub {
     const row = (r: { rank: number; name: string; cls: string; level: number; seconds: number }, you = false) =>
       `<li${you ? ' class="you"' : ''}><span class="kr">${r.rank}</span><b>${esc(r.name)}</b><span class="kl">+${r.level}</span><span class="kt">${time(r.seconds)}</span></li>`;
     const mine = b.me && !b.top.some((r) => r.rank === b.me!.rank && r.name === b.me!.name) ? row(b.me, true) : '';
-    return `<div class="key-board"><div class="lbl">Leaderboard</div><ol>${b.top.map((r) => row(r, !!b.me && r.rank === b.me.rank && r.name === b.me.name)).join('')}${mine}</ol></div>`;
+    // A board per season (keys.md): the server says which season it ranks; the all-time board before 0005 has none.
+    const title = typeof b.season === 'number' ? `Season ${seasonNumber(b.season)} leaderboard` : 'Leaderboard';
+    const ever = this.hero().keyBest?.[d];
+    const everLine = typeof b.season === 'number' && ever ? `<div class="hint muted">Your best ever: +${ever}</div>` : '';
+    return `<div class="key-board"><div class="lbl">${title}</div><ol>${b.top.map((r) => row(r, !!b.me && r.rank === b.me.rank && r.name === b.me.name)).join('')}${mine}</ol>${everLine}</div>`;
   }
 
   /** P3: the picked dungeon's Delver's Key: its level, what it adds, and the par time. */
@@ -527,20 +531,23 @@ export class Hub {
     const today = st.firstWinDay === dayOf(Date.now());
     const rewards = seasonRewards(st.id).map((r) => {
       const got = lvl >= r.level;
-      const what = r.kind === 'glow' ? `<span class="swatch" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : `Title: <b>${r.title}</b>`;
+      const what = r.kind === 'glow' ? `<span class="swatch" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
       return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
     }).join('');
     const titles = h.titles ?? [];
     const glows = (h.glows ?? []).map((g) => GLOWS[g]).filter(Boolean);
     const wearT = titles.map((t) => `<button class="wear${h.wear?.title === t ? ' on' : ''}" data-wear="title" data-id="${t}">${t}</button>`).join('');
     const wearG = glows.map((g) => `<button class="wear${h.wear?.glow === g.id ? ' on' : ''}" data-wear="glow" data-id="${g.id}"><span class="swatch" style="--sw:${g.color}"></span>${g.name}</button>`).join('');
+    const trails = Object.entries(h.trails ?? {}).filter(([id]) => TRAILS[id]);
+    const wearR = trails.map(([id, st]) => `<button class="wear${h.wear?.trail === id ? ' on' : ''}" data-wear="trail" data-id="${id}"><span class="swatch trail" style="--sw:${TRAILS[id].color}"></span>${trailLabel(TRAILS[id], st)}</button>`).join('');
     return `<div class="box season"><div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
       + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
       + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
       + `<div class="hint">${today ? 'First win of the day: done. Come back tomorrow for another' : `Your first win today pays <b>+${SEASON.firstWin}</b> marks`}. A win pays ${SEASON.win}, a loss ${SEASON.lossBase} plus ${SEASON.lossPerFight} a fight, each weekly quest ${SEASON.weekly}.</div>`
+      + `<div class="hint">In season: <b>${DUNGEONS[def.dungeon].name}</b>, <span class="pay">+${SEASON.featured}</span> marks a win.</div>`
       + `<div class="sec-h"><span>Rewards</span><span class="muted">Looks only</span></div>${rewards}`
-      + (titles.length || glows.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
-        + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') : '')
+      + (titles.length || glows.length || trails.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
+        + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') + (trails.length ? `<div class="wears">${wearR}</div>` : '') : '')
       + `</div>`;
   }
 

@@ -216,6 +216,13 @@ export const SOUNDS = {
     chime(G5, 0, 0.26, 0.5), chime(C6, 0.1, 0.26, 0.5), chime(E6, 0.2, 0.26, 0.6), chime(G6, 0.3, 0.3, 1.2),
     [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.3, vol: 0.08, a: 0.2, lp: 11000, hp: 6000 }],
   ),
+  /** A capstone taken: a low anvil ring, then a deep rising horn and a bell, as the branch opens up below. */
+  capstone: join(
+    clang(note(-9), 0.3, 1.2),
+    horn(note(-21), 0.9, 0.28).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.12 })),
+    horn(note(-14), 0.9, 0.26).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.32 })),
+    chime(G6, 0.5, 0.2, 0.9),
+  ),
   /** A new season-track level: a quick climbing run of five notes into a bright bell, over a whoosh. */
   seasonUp: join(
     chime(C5, 0, 0.2, 0.3), chime(E5, 0.06, 0.2, 0.3), chime(G5, 0.12, 0.2, 0.3), chime(C6, 0.18, 0.22, 0.3),
