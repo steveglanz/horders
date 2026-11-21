@@ -51,3 +51,23 @@ describe('class tools for the Wrackline', () => {
     expect(botInput(w).cast).not.toBe(1);
   });
 });
+
+describe('party bots play their verb set', () => {
+  /** Two heroes, no foes: the acting Emberwright at the origin, a Bulwark `gap` units straight up. */
+  function pair(set: 'deepguard' | 'ventwalker' | null, gap: number): World {
+    const w = new World({ seed: 3, omens: [], cls: 'emberwright', party: [{ cls: 'bulwark' }] });
+    for (const e of w.enemies) e.alive = false;
+    w.use(1);
+    Object.assign(w.player, { x: 0, y: gap });
+    w.use(0);
+    Object.assign(w.player, { x: 0, y: 0 });
+    if (set) w.loadout.sets = { [set]: 3 };
+    return w;
+  }
+
+  it('Deepguard draws a ranged hero toward its ally, Ventwalker pushes it away, and no set does neither', () => {
+    expect(Math.abs(botInput(pair(null, 300)).y)).toBeLessThan(0.01);
+    expect(botInput(pair('deepguard', 300)).y).toBeGreaterThan(0.5);
+    expect(botInput(pair('ventwalker', 100)).y).toBeLessThan(-0.5);
+  });
+});

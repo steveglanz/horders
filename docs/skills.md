@@ -290,6 +290,26 @@ Wrackline, tier 10, heroes-fair hero-t8-0 to 2, 30 seeds each. Average wins out 
 
 The Bulwark still dies mostly to Hessa: 43 of 90 runs on main, 37 here (the second hero's 20 fell to 13). It stays the lowest class here, a watch item for game design.
 
+## Party bots play their verb set (21 Nov 2026)
+
+The Deepguard ("stay close") and Ventwalker ("split up") sets reward where you stand, but the party bots stood in the same places with or without them. So the set measurements in docs/design/group-dungeons.md were taken from bots that never played the verb. Now, in a party, a ranged bot (Emberwright or Lumen) wearing 2 or more pieces:
+- **Deepguard:** drifts toward its nearest ally when that ally is more than 105 away (the set needs 140).
+- **Ventwalker:** drifts away from its nearest ally when that ally is within 168. The Lumen keeps its healing post instead.
+
+Melee bots stay on their target, and Scatter Embers' spreading still wins over both. Solo play and parties without these sets are unchanged: the no-set party cells below match main exactly, and tools/hashcheck.ts is identical.
+
+tools/group.ts, heroes-r2, seeds 1 to 80, wins out of 80, main 2555b0c / this change:
+
+| | Main | This change |
+|---|---|---|
+| Hammerdeep tier 8, full party, no set | 43 | 43 |
+| Hammerdeep tier 8, full party, 3 Deepguard each | 51 | 55 |
+| Hammerdeep tier 6, Bulwark and Lumen duo, 3 Deepguard each | 37 | 67 |
+| Ashvents tier 8, full party, no set | 50 | 50 |
+| Ashvents tier 8, full party, 3 Ventwalker each | 60 | 59 |
+
+**The duo jump is mostly positioning, not the set.** With the Deepguard drift forced on and no set worn, the duo wins 49 of 80 against 24 on main. Its Lumen bot normally stands too far from the Bulwark for Ondrel's fight. On top of that baseline, the set adds 18 of 80 (+9 in 40), above the 2 to 7 range the other sets give. That is game design's call.
+
 ## High Noon and Choir of Dawn rework (roadmap L7)
 Both of the Lumen's original capstones added almost nothing:
 - **High Noon** fired only when the Lumen held 20 Brilliance or more. Sunmote spends up to 10 Brilliance a shot, so the beam almost never fired: 0 times in 10 Kiln 8 runs with hero-t8-0, and 9 times in 10 runs at tier 6.

@@ -5,6 +5,7 @@
 import { ARENA, COLD, Input, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
+import { SET_TUNING } from './content/sets';
 
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -628,6 +629,19 @@ export function botInput(w: World, skill = 1): Input {
     if (near && near.d < SCATTER_GAP) {
       fx += (-near.dx / (near.d || 1)) * 0.7 * skill;
       fy += (-near.dy / (near.d || 1)) * 0.7 * skill;
+    }
+  }
+  // Verb sets in a party: a ranged hero plays its set's verb. Deepguard: stay within reach of an ally.
+  // Ventwalker: keep clear of every ally (the Lumen keeps its healing post instead). Melee stay on the target.
+  if (!melee && w.heroes.length > 1 && !scatter) {
+    const near = nearestAlly(w);
+    if (near && near.d > 0) {
+      const r = SET_TUNING.dgRange;
+      let k = 0;
+      if (w.setCount('deepguard') >= 2 && near.d > r * 0.75) k = 0.15;
+      else if (w.setCount('ventwalker') >= 2 && w.cls !== 'lumen' && near.d < r * 1.2) k = -0.15;
+      fx += (near.dx / near.d) * k * skill;
+      fy += (near.dy / near.d) * k * skill;
     }
   }
   // Coldmarrow Thin Ice: keep off cracks (warned or open). Step out toward Nhevra's side if she's
