@@ -8,7 +8,7 @@ type Inner = {
   use(i: number): void;
   spawn(kind: string, x: number, y: number): number;
   combustion(): void;
-  hurtPlayer(amount: number, src?: number): void;
+  hurtPlayer(amount: number, src?: number, unblockable?: boolean): void;
   healAllies(x: number, y: number, r: number, amount: number, only?: number, cleanse?: boolean): number;
   damageEnemy(i: number, amount: number, canCrit: boolean): void;
   shellCovers(q: unknown): boolean;
@@ -182,5 +182,21 @@ describe('Slagbinder in a party (party-only trim)', () => {
     const b0 = base.w.player.hp;
     base.inner.hurtPlayer(100);
     expect(ally).toBeCloseTo((b0 - base.w.player.hp) * (1 - SLAG_KIT.allyShellCut));
+  });
+});
+
+describe('Anvil Slagbinder as a party tank', () => {
+  it('takes anvilArmor less alone and partyAnvilArmor less with allies', () => {
+    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' });
+    const sInner = solo as unknown as Inner;
+    for (const e of solo.enemies) e.alive = false;
+    let before = solo.player.hp;
+    sInner.hurtPlayer(100, -1, true);
+    expect(before - solo.player.hp).toBeCloseTo(100 * (1 - SLAG_KIT.anvilArmor));
+    const { w, inner } = party('slagbinder', ['lumen']);
+    w.player.stance = 'anvil';
+    before = w.player.hp;
+    inner.hurtPlayer(100, -1, true);
+    expect(before - w.player.hp).toBeCloseTo(100 * (1 - SLAG_KIT.partyAnvilArmor));
   });
 });

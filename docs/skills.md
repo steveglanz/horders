@@ -699,6 +699,28 @@ Solo replay fingerprints are identical to main, so solo L7 is unchanged.
 
 **Watch:** an Anvil Slagbinder tanking the Hammerdeep t8 (Slagbinder, Lumen, Duskblade, Emberwright) wins 78 of 80 on main and 79 on this branch, against 45 for a Bulwark tank. That was there before this change.
 
+### The Anvil as a party tank
+An Anvil Slagbinder tanking (Slagbinder, Lumen, Duskblade, Emberwright, heroes-fair hero-t8-0) was far above every band.
+
+**Ablation** (Hammerdeep t8, 40 seeds, base 40 of 40):
+- With no Anvil damage cut it wins 2. With no plating it wins 15, with no shell 25, with no ally effects 32, and with no extra health 35.
+- Cutting only blockable hits by 35% changes nothing (79 of 80). The strength is the Anvil's 35% cut on unblockable hits: Anvilfall, Stamp, Glare.
+
+**The trim:** with allies, the Anvil's cut is `SLAG_KIT.partyAnvilArmor` = 20%. Alone it keeps `anvilArmor` = 35%. The stance tip says "hits land 35% lighter (20% in a party)".
+
+Sweep, 80 seeds (Crucible out of 90):
+
+| Party cut | Hammerdeep t8 | Ashvents t8 | Pressworks t10 | Crucible t8 |
+|---|---|---|---|---|
+| 35% (main 633b46a) | 79 | 75 | 68 | 71 |
+| 30% | 70 | 72 | 59 | 66 |
+| 25% | 62 | 62 | 49 | 64 |
+| **20% (this change)** | **50** | **54** | **27** | **57** |
+| 15% | 36 | 37 | 21 | 50 |
+| Bulwark tank, for reference | 45 | 54 | 59 | 55 |
+
+At 20% the Anvil matches the Bulwark in three of the four. The Pressworks is the exception: Oskel's Stamp kills the Anvil there, so it becomes the hard way to tank it (34%). Solo replay fingerprints are identical to main.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
