@@ -69,9 +69,9 @@ const RINGWALL_BLOCK = 0.2;
 const BLADE_GUARD = 0.5;
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
-/** Share of max health Second Wind restores, once per fight, to a melee hero below 30%. */
+/** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
 const SECOND_WIND = 0.2;
-/** Share of max health Bastion heals before Last Stand. */
+/** Share of max health Anvil Skin heals before Mended Iron. */
 const BASTION_HEAL = 0.1;
 /**
  * Group tools (roadmap G1). Each class gets one, and each fires only with more than one
@@ -89,7 +89,7 @@ export const CAPSTONES_2 = {
   veinsMult: 1.6,
   /** Killing Rhythm: swing speed per stack, stack cap, and the longest gap that keeps the rhythm. */
   rhythmStep: 0.04, rhythmMax: 10, rhythmGap: 1.2,
-  /** Iron Vigil: Bastion's length. */
+  /** Iron Vigil: Anvil Skin's length. */
   vigilTime: 10,
   /**
    * Grudge: every this-many hits taken, the Bulwark lashes out at every foe within the radius,
@@ -202,7 +202,7 @@ export interface Enemy {
   exposedT?: number;
   /** Slagbinder: the run time until which this foe is Brittle (takes more damage from everyone). */
   brittleUntil?: number;
-  /** Hamstring and Slag Pit: the run time until which this foe is slowed, and its speed factor. */
+  /** Hamstring and Cinder Sump: the run time until which this foe is slowed, and its speed factor. */
   slowUntil?: number;
   slowMult?: number;
   /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
@@ -366,7 +366,7 @@ export interface Player {
   stance?: Stance;
   /** Ability option: this hero swapped one slot for its class's ALT_ABILITIES entry. */
   alt?: boolean;
-  /** Rallying Cry, Lightwell and Slag Pit timers and positions. */
+  /** Muster, Glow Pool and Cinder Sump timers and positions. */
   cryUntil?: number;
   wellUntil?: number;
   wellX?: number;
@@ -422,12 +422,12 @@ export interface Player {
   swings: number;
   parryT: number;
   nextCrit: boolean;
-  /** Seconds left on the Blazing Speed run boost. */
+  /** Seconds left on the Hot Heels run boost. */
   hasteT: number;
-  /** Stored extra Blink charges (Blazing Speed rank 2) and the timer refilling one. */
+  /** Stored extra Blink charges (Hot Heels rank 2) and the timer refilling one. */
   blinkCharges: number;
   blinkChargeT: number;
-  /** Bulwark: absorb shield, its refresh timer, Bastion time left, damage Bastion stopped, Shield Echo timer and angle. */
+  /** Bulwark: absorb shield, its refresh timer, Anvil Skin time left, damage Anvil Skin stopped, Shield Echo timer and angle. */
   ward: number;
   wardT: number;
   bastionT: number;
@@ -449,7 +449,7 @@ export interface Player {
   poolY: number;
   noonT: number;
   haloUsed: boolean;
-  /** Melee Second Wind: used this fight. */
+  /** Melee Steady Breath: used this fight. */
   windUsed: boolean;
   /** Mirrorstep: afterimage time left and where it stands. */
   imageT: number;
@@ -1906,7 +1906,7 @@ export class World {
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
-    // Rallying Cry: in a party, heroes near the Bulwark take less.
+    // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Ember Ward: whatever strikes the ward catches fire.
     if (src >= 0 && p.plateBy === -1 && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time && this.enemies[src]?.alive) {
@@ -1932,7 +1932,7 @@ export class World {
       amount = this.bulwarkMitigate(amount, src);
       if (amount <= 0) return;
     } else if (p.ward > 0) {
-      // Shields (Aegis of Light) soak the hit first.
+      // Shields (Gleam Guard) soak the hit first.
       const soak = Math.min(p.ward, amount);
       p.ward -= soak;
       amount -= soak;
@@ -1993,7 +1993,7 @@ export class World {
     p.hp -= amount;
     p.hurtFlash = 0.15;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
-    // Second Wind: once per fight, a melee hero knocked low catches its breath.
+    // Steady Breath: once per fight, a melee hero knocked low catches its breath.
     // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
     if (this.cls === 'slagbinder' && this.rank('clinkerHeart') > 0 && p.hp > 0 && p.hp < p.maxHp * SLAG_KIT.heartAt && this.time >= (p.heartReadyAt ?? 0)) {
       p.heartReadyAt = this.time + SLAG_KIT.heartEvery;
@@ -2025,7 +2025,7 @@ export class World {
     if (p.sanctT > 0 && p.cds[0] > 0 && this.hasMythic('anchoredDawn') && dist2(p.x, p.y, p.sanctX, p.sanctY) <= this.sanctuaryRadius ** 2) {
       p.cds[0] = Math.max(0, p.cds[0] - 0.5 * dt);
     }
-    // Blazing Speed rank 2 (Blink) and Shadow Slip (Sidestep): a second charge refills on the cooldown.
+    // Hot Heels rank 2 (Blink) and Shadow Slip (Sidestep): a second charge refills on the cooldown.
     if ((this.rank('blazingSpeed') >= 2 || this.rank('shadowSlip') > 0) && p.blinkCharges < 1) {
       p.blinkChargeT -= dt;
       if (p.blinkChargeT <= 0) {
@@ -2437,7 +2437,7 @@ export class World {
     e.slowUntil = Math.max(e.slowUntil ?? 0, this.time + time);
   }
 
-  /** Per-tick upkeep of the ability options: Rallying Cry's solo mend, Lightwell, Slag Pit's slow. */
+  /** Per-tick upkeep of the ability options: Muster's solo mend, Glow Pool, Cinder Sump's slow. */
   private updateAlt(dt: number): void {
     const p = this.player;
     if (!p.alt) return;
@@ -3001,7 +3001,7 @@ export class World {
     return armor * (p.bastionT > 0 ? 0.4 : 1);
   }
 
-  /** Armor, Bastion, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
+  /** Armor, Anvil Skin, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
   /**
    * Melee forgiveness for new heroes: 1 at tier 1, fading to 0 by tier 4, so the
    * first-impression tiers forgive slow reactions and the geared tiers are untouched.
@@ -3035,7 +3035,7 @@ export class World {
     }
     let back = 0;
     if (src >= 0 && this.rank('spikedShield') > 0) back += 8 * this.rank('spikedShield') * this.dmgMult;
-    // Bastion turns back a quarter of each hit; Thornwall turns back 15% even outside it.
+    // Anvil Skin turns back a quarter of each hit; Thornwall turns back 15% even outside it.
     const reflect = (p.bastionT > 0 ? 0.25 : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0);
     back += raw * reflect * this.dmgMult;
     if (back > 0) {
@@ -3066,7 +3066,7 @@ export class World {
     if (p.bastionT > 0) {
       p.bastionT -= dt;
       if (p.bastionT <= 0 && this.rank('unbreakable') > 0 && p.prevented > 0) {
-        // Unbreakable: everything Bastion stopped comes back out at once.
+        // Unbreakable: everything Anvil Skin stopped comes back out at once.
         const dmg = Math.max(60, p.prevented * 2) * this.dmgMult;
         this.forEachNear(p.x, p.y, 200, (i) => {
           const e = this.enemies[i];
@@ -3135,7 +3135,7 @@ export class World {
     }
   }
 
-  /** Shield Slam's cone. `scale` is the damage multiplier (Shield Echo hits for half). */
+  /** Rim Smash's cone. `scale` is the damage multiplier (Shield Echo hits for half). */
   private slamCone(ang: number, scale: number, stun: boolean): void {
     const p = this.player;
     const r = 150;
@@ -3151,7 +3151,7 @@ export class World {
       this.damageEnemy(i, dmg, true);
       if (stun && e.alive && !e.def.stationary) {
         e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
-        // Shield Slam shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
+        // Rim Smash shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
         let push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
         // Ringwall Vow: the slam drags the horde in to the Bulwark instead, stopping at the shield.
         // Big foes are still shoved, so the slam can still steer them out of blooms.
@@ -3245,7 +3245,7 @@ export class World {
     const p = this.player;
     p.bastionT = this.rank('ironVigil') > 0 ? CAPSTONES_2.vigilTime : 6;
     p.prevented = 0;
-    // Bastion steadies you for 10% of max health; Last Stand adds 12% per rank.
+    // Anvil Skin steadies you for 10% of max health; Mended Iron adds 12% per rank.
     const amount = this.healPlayer(p.maxHp * (BASTION_HEAL * this.noviceAid + 0.12 * this.rank('lastStand')));
     if (amount > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount });
     this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: 70 });
@@ -3438,7 +3438,7 @@ export class World {
     const e = this.enemies[t];
     const ledger = this.hasMythic('redLedger');
     const low = e.hp < e.maxHp * (ledger ? 0.5 : 0.35);
-    // Exsanguinate: the bleed's next 3s (6s at rank 2) land at once.
+    // Wring Out: the bleed's next 3s (6s at rank 2) land at once.
     const tear = e.burnT > 0 ? e.burnDps * 3 * this.rank('exsanguinate') : 0;
     this.damageEnemy(t, 230 * this.dmgMult * (low ? 2 : 1) + tear, true);
     // Red Ledger: an Execution kill brings Rending Dash straight back.
@@ -4193,7 +4193,7 @@ export class World {
       this.player.warmT = 0;
     }
     this.omensOnKill(e);
-    // Pyroclasm: a foe that dies burning passes its fire to its neighbours.
+    // Spreading Coals: a foe that dies burning passes its fire to its neighbours.
     if (e.burnT > 0 && this.rank('pyroclasm') > 0) {
       const dps = e.burnDps;
       this.forEachNear(e.x, e.y, 110, (j) => {

@@ -57,7 +57,7 @@ function bladeCast(w: World, skill: number): number | undefined {
   return undefined;
 }
 
-/** Bulwark action choices: toss at casts, Bastion when it hurts, slam crowds, charge big foes. */
+/** Bulwark action choices: toss at casts, Anvil Skin when it hurts, slam crowds, charge big foes. */
 function shieldCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
@@ -77,9 +77,9 @@ function shieldCast(w: World, skill: number): number | undefined {
     if (!t.alive || t.kind === 'soak') continue;
     if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2) underTelegraph = true;
   }
-  // Ondrel: Bastion is for Anvilfall. Raise it on the wind-up when the hit is coming
+  // Ondrel: Anvil Skin is for Anvilfall. Raise it on the wind-up when the hit is coming
   // to this hero, and don't spend it on anything else in that fight.
-  // Tank-busters (Anvilfall, Bellow Slam, Ladle Pour): Bastion is for them. Raise it on the
+  // Tank-busters (Anvilfall, Bellow Slam, Ladle Pour): Anvil Skin is for them. Raise it on the
   // wind-up when the hit is coming to this hero, and don't spend it on anything else in that fight.
   const ondrel = w.busterFight;
   if (ondrel && can(w, 2) && w.busterTarget === w.acting) return 2;
@@ -250,16 +250,16 @@ function altCast(w: World): number | undefined {
     return t >= 0 && (w.enemies[t].def.rank !== 'normal' || near >= 3 || touching >= 1) ? a.slot : undefined;
   }
   if (w.cls === 'bulwark') {
-    // Rallying Cry: in a party, for a boss blow on the tank or a hurt ally nearby; solo, as a mend.
+    // Muster: in a party, for a boss blow on the tank or a hurt ally nearby; solo, as a mend.
     if (party) return w.anvilOnMe || allyLow(200, 0.6) || (bigNear && hurt > 0.3) ? a.slot : undefined;
     return hurt > 0.4 ? a.slot : undefined;
   }
   if (w.cls === 'lumen') {
-    // Lightwell: drop it where you stand when you or an ally beside you is hurt.
+    // Glow Pool: drop it where you stand when you or an ally beside you is hurt.
     return hurt > 0.2 || (party && allyLow(90, 0.8)) ? a.slot : undefined;
   }
   if (w.cls === 'slagbinder') {
-    // Slag Pit: on a big foe or a crowd in range.
+    // Cinder Sump: on a big foe or a crowd in range.
     const t = w.bladeTarget(360);
     return t >= 0 && (w.enemies[t].def.rank !== 'normal' || near >= 4) ? a.slot : undefined;
   }

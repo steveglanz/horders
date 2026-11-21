@@ -53,11 +53,11 @@ export const ALT_GLYPH: Record<ClassId, string> = {
   emberwright: 'M12 9.5a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M8.2 20.5c.7-2.4 2-3.6 3.8-3.6s3.1 1.2 3.8 3.6 M5 19C2.2 14.8 3 9 7.6 4.6c-.2 2.2.4 3.7 1.8 4.6 M19 19c2.8-4.2 2-10-2.6-14.4.2 2.2-.4 3.7-1.8 4.6',
   // Hamstring: a blade cuts through the stride, so the arrow of movement is broken.
   duskblade: 'M2.5 15.5h5 M14 15.5h4.5 M16.5 12.5l3 3-3 3 M16.5 2.5 10 17.5 M7.6 16.2l5 2.2 M10.1 17.3 9 20.5',
-  // Rallying Cry: a war banner, with the call ringing out from it.
+  // Muster: a war banner, with the call ringing out from it.
   bulwark: 'M5 21.5V2.5 M5 3.5h12l-3 4 3 4H5 M17 15.5a3.5 3.5 0 0 1 0 5 M20 13a7 7 0 0 1 0 10',
-  // Lightwell: a pool with a mending cross rising from it.
+  // Glow Pool: a pool with a mending cross rising from it.
   lumen: 'M3.5 17.5c0 2.6 17 2.6 17 0s-17-2.6-17 0Z M12 4v8 M8 8h8 M6 12.5v.01 M18 12.5v.01',
-  // Slag Pit: a molten pit with bubbles breaking.
+  // Cinder Sump: a molten pit with bubbles breaking.
   slagbinder: 'M3 16.5c0 2.8 18 2.8 18 0s-18-2.8-18 0Z M8.5 9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4Z M15 4a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M14 12.5v.01',
 };
 
@@ -83,11 +83,11 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
     'M9.5 8h2.6v4.4l3.4 1.7v2.3h-6Z ' + CUT,
   ],
   bulwark: [
-    // Shield Slam: a shield with impact lines (from the design set).
+    // Rim Smash: a shield with impact lines (from the design set).
     'M10 5 4 7v5c0 3 2 6 6 8 4-2 6-5 6-8V7Z M19 6l3-2 M20 11h3 M19 16l3 2',
     // Charge: a shield moving forward into an impact star.
     'M14 5 9 7v5c0 3 2 6 5 7.5 3-1.5 5-4.5 5-7.5V7Z M2 9h4 M3 13h3.5 M2 17h4 M21.5 3l1 1 M22.5 8h.01',
-    // Bastion: a braced tower shield, blows bouncing back off it.
+    // Anvil Skin: a braced tower shield, blows bouncing back off it.
     'M12 5 6.5 7.2v5c0 3.3 2.4 5.7 5.5 7.1 3.1-1.4 5.5-3.8 5.5-7.1v-5Z M12 8.5v7.5 M3 8.5a9 9 0 0 0 0 8 M21 8.5a9 9 0 0 1 0 8',
     // Shield Toss: a small shield inside the cut cast ring.
     'M12 8.5 9 9.7v2.4c0 1.8 1.3 3.1 3 3.9 1.7-.8 3-2.1 3-3.9V9.7Z ' + CUT,
@@ -183,7 +183,7 @@ export const MYTHIC_ICON: Record<MythicId, string> = {
   anchoredDawn: 'M12 7v14 M4.5 14c0 4 3.3 7 7.5 7s7.5-3 7.5-7 M2.5 14h4 M17.5 14h4 M8.5 10h7 M12 2.5a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z',
   // Eclipse Glass (more burst, less heal): a sun with the shadow crossing it.
   eclipseGlass: 'M12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11Z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4 M9.5 9.5a3.5 3.5 0 0 1 5 5',
-  // Molten Core (Slagbinder): a core with a fire burning inside.
+  // Shared Melt (Slagbinder): a core with a fire burning inside.
   moltenCore: 'M12 3.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17Z M12 8c1.7 2.1 2.7 3.5 2.7 5.3a2.7 2.7 0 0 1-5.4 0c0-1.8 1-3.2 2.7-5.3Z',
   // Clinker Crown (Slagbinder): a crown of clinker with a glowing stone.
   clinkerCrown: 'M3 19.5h18 M4 19.5 3 9l5 4 4-8 4 8 5-4-1 10.5 M12 14.5l1.6 1.2-1.6 1.3-1.6-1.3Z',

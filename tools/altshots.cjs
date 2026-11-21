@@ -1,6 +1,6 @@
 // Screenshots the ability options (ALT_ABILITIES, level 8): each class's option glyph on the
-// action bar, its cast, and what it leaves behind (Ember Ward, Hamstring's slow, Rallying Cry,
-// Lightwell, Slag Pit). The bot casts options at its own pace, so the tool sets each option's
+// action bar, its cast, and what it leaves behind (Ember Ward, Hamstring's slow, Muster,
+// Glow Pool, Cinder Sump). The bot casts options at its own pace, so the tool sets each option's
 // state directly and plays the cast effect on top. No network.
 // Usage: npm run build && node tools/altshots.cjs <outDir> [phone] [saver]
 // 'saver' sets Graphics to Battery saver, which trims the effects' extra detail.

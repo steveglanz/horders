@@ -22,7 +22,7 @@ Unlocks at tier 4 like the Foundry, so a new co-op group gets there quickly. Tra
 
 | Mechanic | What it does | Who answers it |
 |---|---|---|
-| **Anvilfall** (tank-buster) | Every 12 s, a 2.5 s non-interruptible wind-up on its current threat target, then a hit for 75% of a non-tank's max health. The target also gets **Sundered** (+50% Anvilfall damage for 14 s). | The tank: the Bulwark takes it (armour + Bastion). Two Anvilfalls in a row on a non-tank kill it, so without a tank the party has to taunt-swap. |
+| **Anvilfall** (tank-buster) | Every 12 s, a 2.5 s non-interruptible wind-up on its current threat target, then a hit for 75% of a non-tank's max health. The target also gets **Sundered** (+50% Anvilfall damage for 14 s). | The tank: the Bulwark takes it (armour + Anvil Skin). Two Anvilfalls in a row on a non-tank kill it, so without a tank the party has to taunt-swap. |
 | **Hammer Sweep** | A frontal cone toward its target between Anvilfalls. | Everyone else stands behind or beside it. The tank turns it away. |
 | **Choir of Iron** (party damage) | Every 10 s, every hero takes 12% of max health. It grows +2% each time. | The healer: about 1.2% of the party's health per second has to come back. |
 | **Slag Grip** (healer debuff) | Each melee hit on its target adds a stack (1% max health per second per stack, up to 5). Any heal **from another hero** clears it. | The healer's ally heals. Self-heals don't clear it. |
@@ -95,7 +95,7 @@ Tuning steps: Bellow Slam 90 and Scatter 8%/25% gave 1/6 on a quick check, becau
 
 All four are full parties. Trash-fight revives change nothing: "Boss: none at all" matches main exactly, and a 5 s trash pick-up measured the same as 3 s. One pick-up and two measured the same, so the rule is one. At 9 s the full parties land where they were before bots revived, so the bot party is now a fair stand-in for players who do.
 
-**Ysmeret, 5000 to 6200 health.** The Ashvents full party was already over its 55 to 70% target on main (67 of 80, 84%) after #159's Bastion fix. With 6200 it wins 54 of 80 (68%). 6600 gave 44 of 80 (55%), the bottom of the band.
+**Ysmeret, 5000 to 6200 health.** The Ashvents full party was already over its 55 to 70% target on main (67 of 80, 84%) after #159's Anvil Skin fix. With 6200 it wins 54 of 80 (68%). 6600 gave 44 of 80 (55%), the bottom of the band.
 
 **Final numbers, 80 seeds** (main, then this change):
 

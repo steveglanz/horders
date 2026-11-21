@@ -105,10 +105,10 @@ export const MYTHICS: Record<MythicId, { name: string; text: string; cls?: Class
   mirrorstep: { cls: 'duskblade', name: 'Mirrorstep', text: 'Sidestep recovers 2s sooner and leaves an afterimage for 2s that strikes with your swings at half damage.' },
   redLedger: { cls: 'duskblade', name: 'Red Ledger', text: 'Execution doubles below 50% health instead of 35%, and an Execution kill brings Rending Dash back.' },
   tetheredShield: { cls: 'bulwark', name: 'Tethered Shield', text: 'Shield Toss interrupts up to 3 casters, and for 4s Charge rushes the first one, from further away.' },
-  ringwallVow: { cls: 'bulwark', name: 'Ringwall Vow', text: 'Shield Block guards every side for 20%, and Shield Slam pulls the horde in instead of shoving it.' },
+  ringwallVow: { cls: 'bulwark', name: 'Ringwall Vow', text: 'Shield Block guards every side for 20%, and Rim Smash pulls the horde in instead of shoving it.' },
   anchoredDawn: { cls: 'lumen', name: 'Anchored Dawn', text: 'Sanctuary lasts 50% longer but stays put, and Radiant Burst recovers 50% faster while you stand in it.' },
   eclipseGlass: { cls: 'lumen', name: 'Eclipse Glass', text: 'Radiant Burst reaches 10% further and deals 40% more damage, but heals half as much.' },
-  moltenCore: { cls: 'slagbinder', name: 'Molten Core', text: 'When Molten Plating coats an ally, you get half of it too, and plating bursts reach 50% further.' },
+  moltenCore: { cls: 'slagbinder', name: 'Shared Melt', text: 'When Molten Plating coats an ally, you get half of it too, and plating bursts reach 50% further.' },
   clinkerCrown: { cls: 'slagbinder', name: 'Clinker Crown', text: 'Clinker strikes a second foe, and Brittle lasts twice as long, but Cooling Shell recovers 4s slower.' },
 };
 
