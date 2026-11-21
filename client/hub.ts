@@ -401,9 +401,15 @@ export class Hub {
     const om = keyOmens(tier, weekOf(Date.now()), level);
     const best = h.keyBest?.[this.dungeon];
     const sc = keyScale(level);
-    return `<div class="box key"><div class="lbl">Delver's Key</div>`
-      + `<div class="ttl">${DUNGEONS[this.dungeon].name} +${level} · tier ${tier} · ${om.length} Omens</div>`
-      + `<div class="hint">Foes have +${Math.round((sc.hp - 1) * 100)}% health. Win inside ${Math.round(KEYS.par / 60)} minutes and the key goes up (two levels inside ${Math.round((KEYS.par * KEYS.fast) / 60 * 10) / 10}); lose and it drops one.${best ? ` Your best here: +${best}.` : ''}</div>`
+    const par = Math.round(KEYS.par / 60);
+    const fast = Math.round((KEYS.par * KEYS.fast) / 60 * 10) / 10;
+    // A key badge with its level, the run it opens, what each level adds, and how the key moves.
+    return `<div class="box key"><div class="lbl">Delver's Key${best ? `<span class="key-best">Best +${best}</span>` : ''}</div>`
+      + `<div class="key-head"><div class="key-badge" aria-hidden="true"><span class="kg">⚿</span><b>+${level}</b></div>`
+      + `<div class="key-run"><div class="ttl">${DUNGEONS[this.dungeon].name} +${level}</div>`
+      + `<div class="key-sub">Tier ${tier} · ${om.length} Omens ${om.map((o) => omenTile(o, 20)).join('')}</div></div></div>`
+      + `<div class="key-stats"><span>Foe health <b>+${Math.round((sc.hp - 1) * 100)}%</b></span><span>Foe damage <b>+${Math.round((sc.dmg - 1) * 100)}%</b></span><span>Par <b>${par} min</b></span></div>`
+      + `<div class="key-ladder"><span class="up2">▲▲ +2 inside ${fast} min</span><span class="up1">▲ +1 inside ${par} min</span><span class="dn">▼ −1 on a loss</span></div>`
       + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div></div>`;
   }
 
@@ -413,11 +419,20 @@ export class Hub {
     if (h.runs === 0) return '';
     const week = weekOf(Date.now());
     const wk = weekState(h.weekly, week, h.maxTier);
-    const rows = wk.quests.map((q) => `<div class="kv${q.done ? ' muted' : ''}"><span>${q.done ? '✓ ' : ''}<b>${WEEKLY_QUESTS[q.id].name}</b>: ${weeklyText(q)}</span>`
-      + `<span>${q.done ? 'Done' : `${q.progress.toLocaleString()}/${q.goal.toLocaleString()} · <span class="pay">+${q.embers}</span>`}</span></div>`).join('');
+    // Each quest: a diamond that fills when done, its name and reward, what it asks, and a progress bar.
+    const rows = wk.quests.map((q) => {
+      const pct = q.done ? 100 : Math.max(0, Math.min(100, (100 * q.progress) / Math.max(1, q.goal)));
+      return `<div class="wq${q.done ? ' done' : ''}"><span class="pip" aria-hidden="true">${q.done ? '✓' : '◆'}</span><div class="wq-main">`
+        + `<div class="wq-top"><b>${WEEKLY_QUESTS[q.id].name}</b><span>${q.done ? 'Done' : `<span class="pay">+${q.embers}</span>`}</span></div>`
+        + `<div class="wq-txt">${weeklyText(q)}</div>`
+        + `<div class="wq-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${q.goal}" aria-valuenow="${Math.min(q.progress, q.goal)}"><i style="width:${pct.toFixed(1)}%"></i></div>`
+        + `${q.done ? '' : `<div class="wq-n">${q.progress.toLocaleString()} / ${q.goal.toLocaleString()}</div>`}</div></div>`;
+    }).join('');
     const title = weeklyTitle(week);
-    return `<div class="box weekly"><div class="lbl">Weekly quests</div>${rows}`
-      + `<div class="hint">${wk.titled ? `Title earned: <b>${title}</b>.` : `Finish all three for the title <b>${title}</b>.`} New quests every week.</div></div>`;
+    const n = wk.quests.filter((q) => q.done).length;
+    return `<div class="box weekly"><div class="lbl">Weekly quests <span class="wq-count">${n}/${wk.quests.length}</span></div>${rows}`
+      + `<div class="wq-title${wk.titled ? ' earned' : ''}"><span class="crest" aria-hidden="true">❖</span><span>${wk.titled ? `Title earned: <b>${title}</b>` : `Finish all three for the title <b>${title}</b>`}</span></div>`
+      + `<div class="hint">New quests every week.</div></div>`;
   }
 
   /** Today's bounty: the same fights and twist for every player. */
