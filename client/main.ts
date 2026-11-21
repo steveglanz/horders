@@ -163,9 +163,17 @@ function finishRun(w: World) {
   hub.render();
   // P3: a beaten key goes on the dungeon's leaderboard (solo key runs only).
   if (summary.victory && summary.keyLevel && summary.dungeon && !coop) void submitKey(summary.dungeon, summary.keyLevel, summary.time);
+  // R7: a won daily bounty goes on that day's board for its tier (solo runs only).
+  if (summary.victory && summary.bounty !== undefined && summary.dungeon && !coop) void submitBounty(summary.bounty, summary.tier ?? 1, summary.dungeon, summary.time);
   const shadow = summary.shadowDamage ?? 0;
   void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
   return rewards;
+}
+
+/** Records a daily bounty win's time on that day's board (solo runs only). */
+async function submitBounty(day: number, tier: number, dungeon: string, seconds: number): Promise<void> {
+  const r = await cloud.submitBounty(day, tier, dungeon, hero.cls ?? 'emberwright', seconds, myCard().name);
+  if (r?.ok) hub.bountyBoardStale();
 }
 
 /** Records a timed key clear on the Delver's Keys leaderboard (solo runs only). */

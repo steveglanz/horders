@@ -174,7 +174,7 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 
 **Code:** `sim/content/bounty.ts` (`bountyFor`, `dayOf`, `BOUNTY`), `WorldOptions.bounty`, `HeroProfile.bountyDay`, `RunRewards.bountyEmbers`, the hub's bounty line, and `tools/bounty.ts` for balance. Tests are in `tests/bounty.test.ts`.
 
-**Later:** a daily leaderboard by clear time (engineering), since the runs are directly comparable.
+**Daily board (21 Nov 2026, engineering):** a bounty win's time goes on that day's board for its tier (the tier fixes the dungeon too), fastest first, shown as "Today's fastest" in the bounty sheet. Server side is `supabase/migrations/0006_bounty_board.sql` (`submit_bounty` accepts only the server's day, 40 s to 30 min, one try a minute); it shows nothing until that migration is applied.
 
 ## R11. Third dungeon: the Glarewell
 

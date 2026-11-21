@@ -189,12 +189,27 @@ export const cloud = {
     });
   },
 
+  /** Daily bounty (supabase/migrations/0006): report a bounty win's time. Null when offline or before the migration. */
+  submitBounty(day: number, tier: number, dungeon: string, cls: string, seconds: number, name: string): Promise<BountySubmit | null> {
+    return rpc<BountySubmit>('submit_bounty', {
+      p_day: Math.round(day), p_tier: Math.round(tier), p_dungeon: dungeon, p_cls: cls, p_seconds: Math.round(seconds), p_name: name,
+    });
+  },
+
+  /** Today's fastest bounty clears at a tier, and your own row once you have one. */
+  topBounty(tier: number, limit = 5): Promise<BountyBoard | null> {
+    return rpc<BountyBoard>('top_bounty', { p_tier: tier, p_limit: limit }, !!session);
+  },
+
   /** The top keys for a dungeon, and your own row once you have one. */
   topKeys(dungeon: string, limit = 10): Promise<KeyBoard | null> {
     return rpc<KeyBoard>('top_keys', { p_dungeon: dungeon, p_limit: limit }, !!session);
   },
 };
 
+export interface BountyRow { rank: number; name: string; cls: string; seconds: number }
+export interface BountyBoard { day: number; tier: number; top: BountyRow[]; me: BountyRow | null }
+export interface BountySubmit { ok: boolean; reason?: 'too_soon' | 'bad_input' | 'wrong_day'; best?: boolean; seconds?: number; rank?: number }
 export interface KeyRow { rank: number; name: string; cls: string; level: number; seconds: number }
 /** `season` (a season id, seasonOf) comes from migration 0005; before it the board is all-time and has none. */
 export interface KeyBoard { dungeon: string; season?: number; top: KeyRow[]; me: KeyRow | null }
