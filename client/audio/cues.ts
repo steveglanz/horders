@@ -42,6 +42,8 @@ export interface CueContext {
   sets?: SetFlags;
   /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
   swallowLeft?: number;
+  /** The Pressworks: this screen's hero is Pressed (Player.pressedT > 0) and must sit out the next Downstroke. */
+  pressed?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -331,6 +333,16 @@ export function reviveCues(state: ReviveState, reviveT: readonly number[], need:
   return out;
 }
 
+/**
+ * The Pressworks "take turns" rule: a clamp when this screen's hero becomes Pressed, and a release when
+ * it wears off, so a phone player hears when they may take the next Downstroke. `state.on` is updated in place.
+ */
+export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null {
+  const was = state.on;
+  state.on = pressed;
+  return pressed && !was ? { id: 'pressed' } : !pressed && was ? { id: 'pressedClear' } : null;
+}
+
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
 export function ebbCue(state: { on: boolean }, pulling: boolean): Cue | null {
   const fire = pulling && !state.on;
@@ -352,7 +364,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
 ]);
 
