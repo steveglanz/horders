@@ -2,6 +2,7 @@
 // off below ~350 Hz. Prints the RMS kept after a 350 Hz high-pass vs the full RMS.
 import { render } from '../client/audio/synth';
 import { SOUNDS } from '../client/audio/sounds';
+import { PRIORITY } from '../client/audio/cues';
 import { readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 export function phoneShare(s: Float32Array, rate: number, cut = 350): number {
@@ -15,9 +16,25 @@ export function phoneShare(s: Float32Array, rate: number, cut = 350): number {
   }
   return Math.sqrt(kept / Math.max(1e-12, full));
 }
+/** How loud a sound is on that phone speaker: RMS after the same high-pass, in dB. */
+export function phoneDb(s: Float32Array, rate: number, cut = 350): number {
+  const k = Math.exp((-2 * Math.PI * cut) / rate);
+  let a1 = 0, i1 = 0, a2 = 0, i2 = 0, kept = 0;
+  for (const x of s) {
+    a1 = k * (a1 + x - i1); i1 = x;
+    a2 = k * (a2 + a1 - i2); i2 = a1;
+    kept += a2 * a2;
+  }
+  return 10 * Math.log10(Math.max(1e-12, kept / Math.max(1, s.length)));
+}
 if (process.env.MIX) {
   const rows = Object.entries(SOUNDS).map(([id, r]) => [id, phoneShare(render(r, 32000), 32000)] as const).sort((a, b) => a[1] - b[1]);
   for (const [id, v] of rows) console.log(id.padEnd(16), (v * 100).toFixed(0) + '%');
+}
+// Must-hear cues on a phone, quietest first (tests keep them all at or above PHONE_FLOOR_DB in sounds.ts).
+if (process.env.PRIO) {
+  const rows = [...PRIORITY].map((id) => [id, phoneDb(render(SOUNDS[id], 22050), 22050)] as const).sort((a, b) => a[1] - b[1]);
+  for (const [id, v] of rows) console.log(id.padEnd(16), v.toFixed(1) + ' dB');
 }
 // Themes, recorded in a browser by tools/themecheck.cjs (needs ffmpeg). Every theme should keep at least 25% too.
 if (process.env.THEMES_DIR) {
