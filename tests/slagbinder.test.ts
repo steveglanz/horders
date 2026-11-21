@@ -60,14 +60,26 @@ describe('Slagbinder (fifth class)', () => {
     inner.rebuildHash();
     inner.moltenPlating();
     const plate = w.player.maxHp * SLAG_KIT.plateShare;
-    expect(w.player.ward).toBeCloseTo(plate);
+    expect(w.player.plate).toBeCloseTo(plate);
     const hp = w.player.hp;
     inner.hurtPlayer(plate + 10);
     expect(w.player.hp).toBeCloseTo(hp - 10, 0);
+    // Plating stops blows, not unblockable ticks.
+    expect(w.player.plate).toBe(0);
     const before = e.hp;
     inner.updatePlates();
     expect(e.hp).toBeLessThan(before);
     expect(w.player.plateUntil).toBeUndefined();
+  });
+
+  it('Molten Plating never soaks an unblockable tick', () => {
+    const { w, inner } = world('slagbinder');
+    inner.moltenPlating();
+    const plate = w.player.plate ?? 0;
+    const hp = w.player.hp;
+    inner.hurtPlayer(10, -1, true);
+    expect(w.player.plate).toBeCloseTo(plate);
+    expect(hp - w.player.hp).toBeCloseTo(10);
   });
 
   it('Brittle makes a foe take 15% more damage from everyone', () => {

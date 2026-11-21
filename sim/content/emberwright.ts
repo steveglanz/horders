@@ -214,7 +214,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   quickset: { id: 'quickset', cls: 'slagbinder', name: 'Quickset', branch: 'forge', maxRank: 2, text: 'Molten Plating recovers 1s sooner.' },
   everMolten: { id: 'everMolten', cls: 'slagbinder', name: 'Ever-Molten', branch: 'forge', maxRank: 1, capstone: true, text: 'CAPSTONE: plating that runs out unbroken gives back 15 Slag.' },
   twinPour: { id: 'twinPour', cls: 'slagbinder', name: 'Twin Coat', branch: 'forge', maxRank: 1, capstone: true, text: 'CAPSTONE: Molten Plating coats a second hero. Alone, it is 50% thicker.' },
-  heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Heavy Lob', branch: 'clinker', maxRank: 3, text: 'Slag Lob deals 15% more damage.' },
+  heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Heavy Lob', branch: 'clinker', maxRank: 3, text: 'Slag Lob deals 30% more damage.' },
   shrapnel: { id: 'shrapnel', cls: 'slagbinder', name: 'Shrapnel', branch: 'clinker', maxRank: 2, text: 'Slag Lob splashes 15 px wider and 30% harder.' },
   brittleMind: { id: 'brittleMind', cls: 'slagbinder', name: 'Lasting Cracks', branch: 'clinker', maxRank: 2, text: 'Brittle lasts 2s longer.' },
   shatterpoint: { id: 'shatterpoint', cls: 'slagbinder', name: 'Shatterpoint', branch: 'clinker', maxRank: 1, capstone: true, text: 'CAPSTONE: Slag Lob hits Brittle foes 25% harder, and every 4th Lob makes its target Brittle.' },

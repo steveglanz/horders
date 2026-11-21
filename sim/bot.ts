@@ -176,7 +176,10 @@ function slagCast(w: World, skill: number): number | undefined {
       if (a.hp > 0 && a.hp < a.maxHp * 0.5 && (w.bossTarget === k || w.telegraphs.some((t) => t.alive && (t.x - a.x) ** 2 + (t.y - a.y) ** 2 < (t.r + 20) ** 2))) return 1;
     }
   }
-  if (w.canCast(2) && (hurt > 0.45 || touching >= 3 || (bigNear && hurt > 0.25))) return 2;
+  // A big boss blow winding up on me (Anvilfall, Ladle Pour): harden first.
+  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : null;
+  const bigOnMe = w.anvilOnMe || (!!boss && boss.alive && boss.castId === 'ladlePour' && w.ladlePourTarget === w.acting);
+  if (w.canCast(2) && (bigOnMe || hurt > 0.45 || touching >= 3 || (bigNear && hurt > 0.25))) return 2;
   if (w.canCast(0) && (p.plateUntil ?? -1) <= w.time && (hurt > 0.1 || bigNear || touching >= 1 || w.heroes.length > 1)) return 0;
   if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
   return undefined;

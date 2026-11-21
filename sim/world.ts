@@ -126,13 +126,14 @@ const LUMEN_RANGE = 500;
 const LUMEN_MAX_BRILLIANCE = 200;
 /** The Slagbinder, the fifth class: an off-tank and support hybrid (docs/skills.md). */
 export const SLAG_KIT = {
-  lobEvery: 0.7, lobRange: 360, lobDamage: 18, lobSplash: 14, lobSplashR: 50, lobSlag: 4,
+  lobEvery: 0.7, lobRange: 360, lobDamage: 20, lobSplash: 14, lobSplashR: 50, lobSlag: 4,
   slagPerDamage: 0.5,
   plateShare: 0.15, plateTime: 6, plateBurst: 40, plateBurstR: 90, plateRange: 300,
   interposeLeap: 150, interposeRange: 450, interposeTime: 3, interposeShare: 0.6, interposeCut: 0.3,
   shellTime: 5, shellCut: 0.35, shellRadius: 160,
   brittleMult: 1.15, brittleTime: 6,
   bellowsThreat: 2, anvilPlate: 0.75, anvilShell: 2, bellowsInterpose: 1,
+  anvilArmor: 0.35, anvilHp: 40,
   everMoltenRefund: 15, heartAt: 0.3, heartShare: 0.25, heartEvery: 30,
   tideRadius: 120, tideDamage: 60, tideStun: 1,
   hailEvery: 4, shatterMult: 1.25,
@@ -336,6 +337,8 @@ export interface Player {
   /** Slagbinder: its stance, plating on this hero (until when, how much, who poured it), Interpose cover, Cooling Shell, Lobs thrown, Clinker Heart. */
   stance?: Stance;
   plateUntil?: number;
+  /** Plating left (its own pool, apart from ward: it stops blows, never unblockable ticks), and how much was poured. */
+  plate?: number;
   plateAmt?: number;
   plateBy?: number;
   interposeUntil?: number;
@@ -827,7 +830,10 @@ export class World {
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
-    if (this.cls === 'slagbinder') this.player.stance = opts.stance ?? 'bellows';
+    if (this.cls === 'slagbinder') {
+      this.player.stance = opts.stance ?? 'bellows';
+      if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
+    }
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
@@ -886,6 +892,7 @@ export class World {
     const a = (index / MAX_PARTY) * Math.PI * 2;
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
     player.stance = cls === 'slagbinder' ? h.stance ?? 'bellows' : undefined;
+    if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
     player.px = player.x;
     player.py = player.y;
     if (opts.bounty === undefined) { player.level = 1; player.pendingLevels = 0; player.xpToNext = xpFor(1); }
@@ -1746,7 +1753,16 @@ export class World {
     }
     // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
     if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut;
+    // Molten Plating stops blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip).
+    if (!unblockable && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
+      const soak = Math.min(p.plate ?? 0, amount);
+      p.plate = (p.plate ?? 0) - soak;
+      amount -= soak;
+      if (amount <= 0) return;
+    }
     if (this.cls === 'slagbinder') {
+      // Anvil stance: the slag plate is worn thick, so every hit lands lighter.
+      if (p.stance === 'anvil') amount *= 1 - SLAG_KIT.anvilArmor;
       this.addHeat(amount * SLAG_KIT.slagPerDamage + 2 * this.rank('hotBlood'));
       // Whatever strikes a shelled Slagbinder cracks.
       if (src >= 0 && (p.shellUntil ?? -1) > this.time) this.makeBrittle(src);
@@ -2220,8 +2236,7 @@ export class World {
     const q = this.heroPlayer(k);
     if (q.hp <= 0) return;
     // A fresh coat replaces the old one, so it never stacks past one plating.
-    if ((q.plateUntil ?? -1) > this.time) q.ward = Math.max(0, q.ward - (q.plateAmt ?? 0));
-    q.ward += amount;
+    q.plate = amount;
     q.plateAmt = amount;
     q.plateUntil = this.time + SLAG_KIT.plateTime;
     q.plateBy = this.acting;
@@ -2233,14 +2248,12 @@ export class World {
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.plateUntil === undefined || q.plateBy !== this.acting) continue;
-      const broken = q.ward <= 0.01;
+      const broken = (q.plate ?? 0) <= 0.01;
       const done = this.time >= q.plateUntil;
       if (!broken && !done) continue;
-      if (!broken) {
-        q.ward = Math.max(0, q.ward - (q.plateAmt ?? 0));
-        if (this.rank('everMolten') > 0) this.addHeat(SLAG_KIT.everMoltenRefund);
-      }
+      if (!broken && this.rank('everMolten') > 0) this.addHeat(SLAG_KIT.everMoltenRefund);
       q.plateUntil = undefined;
+      q.plate = 0;
       q.plateAmt = 0;
       const r = SLAG_KIT.plateBurstR * (this.hasMythic('moltenCore') ? 1.5 : 1);
       const dmg = SLAG_KIT.plateBurst * (1 + 0.3 * this.rank('searingShell')) * this.dmgMult;
@@ -2424,7 +2437,7 @@ export class World {
     p.facing = Math.atan2(e.y - p.y, e.x - p.x);
     this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
     const brittle = (e.brittleUntil ?? 0) > this.time;
-    const mult = (1 + 0.15 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
+    const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
     this.addHeat(SLAG_KIT.lobSlag + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
     if (e.alive && this.hasWeaponFx('clingingSlag')) {

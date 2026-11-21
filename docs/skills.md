@@ -320,6 +320,35 @@ Each branch gets 3 card talents and two capstones from the start, so this class 
 - Solo hashcheck for the four existing classes must stay identical.
 - In parties, swapping the Slagbinder for a damage dealer shouldn't raise a full party's Crucible win rate above about 70%.
 
+### Build notes and balance (21 Nov 2026)
+**Tuning lives in `SLAG_KIT` in sim/world.ts.** What changed from the draft while building:
+- **Slag Lob:** 20 damage, and Heavy Lob is +30% per rank. It strikes an acolyte that is healing a wounded boss first, as Sunmote does. Before that, the Kiln Mother out-healed it: the good bot won 0 of 40 at Kiln tier 1.
+- **Molten Plating:** a pool of its own (`plate`), separate from ward. It stops blows but never unblockable ticks (heat, cold, Ladle Pour, Slag Grip). While it soaked them, a Slagbinder in place of the Duskblade won the Crucible 30 of 30. Now it wins 20 of 30, the same as the Duskblade.
+- **Anvil stance:** takes 35% less damage and has +40 max health. Without that, an Anvil tank won 1 of 30 in the Crucible.
+- **Clinker:** stuns for 2 s, like every interrupt.
+- **Slag:** passive regen is 1 a second, like the Bulwark's Resolve. There is no out-of-combat cooling.
+
+**Balance.** Wins out of 40, 40 seeds. "Fair" means the Slagbinder plays the Duskblade's heroes-r2 profiles, because a Slagbinder hero built with tools/progression.ts reaches tier 8 at level 12, against level 8 for the heroes-r2 heroes.
+
+| | Kiln 1 good | Kiln 1 novice | Foundry 4 | Foundry 6 | Foundry 8 | Kiln 4 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|---|---|---|---|
+| Slagbinder | 40 | 33 | 31.3 | 24.0 | 18.3 | 18.7 | 20.0 | 10.3 |
+| Emberwright | 34 | 26 | 32.3 | 30.3 | 28.7 | 29.0 | 30.0 | 19.0 |
+
+Every cell is within the L7 bands (±10 at tier 1, ±15 at tiers 6 and 8). It is the weakest solo class at tier 8, which suits a support hybrid, and it's the first thing to raise if players find it slow.
+
+**Group content:** heroes-r2 hero-t8-0 and hero-t6-0, 30 seeds.
+
+| Party | Wins |
+|---|---|
+| Crucible 8: Bulwark, Lumen, Duskblade, Emberwright | 20/30 |
+| Crucible 8: Bulwark, Lumen, Bellows Slagbinder, Emberwright | 20/30 |
+| Crucible 8: Anvil Slagbinder, Lumen, Duskblade, Emberwright | about 7/30 |
+| Hammerdeep 6: Bulwark tank | 29/30 |
+| Hammerdeep 6: Anvil Slagbinder tank | 23/30 |
+
+The Anvil can tank the Hammerdeep but is far behind the Bulwark in the raid, mostly to Ladle Pour with Slag Grip stacks. That's open with design.
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.
