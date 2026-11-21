@@ -226,6 +226,8 @@ export class GameScene extends Phaser.Scene {
   private dropBorn: number[] = [];
   /** Set when the frame rate sags: drops cosmetic extras (shadows under fodder, embers in the air). */
   lowFx = false;
+  /** The render scale can't go lower (or the Graphics setting isn't Auto). */
+  private resFloor = false;
   private fxCheckAt = 0;
   private vignette: HTMLElement | null = null;
   /** The Coldmarrow: the additive Hearthcoal light layer, and the frost creeping in from the screen edge. */
@@ -1188,6 +1190,12 @@ export class GameScene extends Phaser.Scene {
     if (now > this.fxCheckAt && this.frameTimes.length >= 120) {
       this.fxCheckAt = now + 2000;
       const fps = this.fps().avg;
+      // Still slow with the light effects already on: render fewer pixels (lowerRes in main.ts).
+      if (fps < 36 && this.lowFx && !this.resFloor && display.graphics === 'auto') {
+        const lower = this.registry.get('lowerRes') as (() => boolean) | undefined;
+        if (!lower || !lower()) this.resFloor = true;
+        this.frameTimes.length = 0;
+      }
       if (fps < 42) this.lowFx = true;
       else if (fps > 56) this.lowFx = false;
     }
