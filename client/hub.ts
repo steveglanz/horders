@@ -1,6 +1,6 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen,
+  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
@@ -10,6 +10,7 @@ import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
+import { GLOWS, SEASON, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -212,7 +213,7 @@ export class Hub {
     const worn = items.length;
     $('heroCard').innerHTML = `
       <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
-        <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
+        <div><b>${CLASSES[cls].name}</b>${h.wear?.title ? `<div class="worn-title">${h.wear.title}</div>` : ''}<div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
       ${h.runs > 0 ? this.collectionButton() : ''}
@@ -297,7 +298,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}</div>`;
+      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -306,7 +307,7 @@ export class Hub {
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -333,6 +334,16 @@ export class Hub {
     const h = this.hero();
     root.querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onBounty(); });
     root.querySelector<HTMLButtonElement>('[data-key]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onKey(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-wear]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const kind = b.dataset.wear as 'title' | 'glow';
+        const id = b.dataset.id || undefined;
+        if (wearCosmetic(h, kind, h.wear?.[kind] === id ? undefined : id)) {
+          this.save();
+          this.render();
+          if (!$('sheet').hidden && $('sheet').dataset.prep === 'season') this.openPrep('season', []);
+        }
+      }));
     root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
       b.addEventListener('click', () => {
         if (brewPotion(h, b.dataset.potion as PotionId)) {
@@ -373,6 +384,12 @@ export class Hub {
       chips.push(`<button class="prep-chip ${n === wk.quests.length ? 'on' : ''}" data-prep="weekly" data-sfx="open"><span class="star" aria-hidden="true">◆</span>`
         + `<span>Weekly <b>${n}/${wk.quests.length}</b></span></button>`);
     }
+    // P2: the season track, after the first delve like the weekly quests.
+    if (h.runs > 0) {
+      const st = seasonState(h.season, weekOf(Date.now()));
+      chips.push(`<button class="prep-chip" data-prep="season" data-sfx="open"><span class="star" aria-hidden="true">✦</span>`
+        + `<span>Season <b>${seasonLevel(st.marks)}</b></span></button>`);
+    }
     // In a party: a chip with the head count that opens the Group tab.
     if (this.partyClasses.length > 1) {
       chips.unshift(`<button class="prep-chip on" data-group data-sfx="open"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M15 14.6c3 .1 5.2 1.9 5.8 5.4"/></svg><span>Party <b>${this.partyClasses.length}/4</b></span></button>`);
@@ -381,11 +398,11 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens: OmenId[]): void {
-    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key" };
+  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
+    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
     const body = kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
-      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
+      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
     this.bindPrep($('sheetBody'));
@@ -446,6 +463,44 @@ export class Hub {
       + `<div class="key-ladder"><span class="up2">▲▲ +2 inside ${fast} min</span><span class="up1">▲ +1 inside ${par} min</span><span class="dn">▼ −1 on a loss</span></div>`
       + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div>`
       + `${this.keyBoardHtml()}</div>`;
+  }
+
+  /** P2: the season sheet's title, e.g. "Season 1: the Hollow Tide". */
+  private seasonTitle(): string {
+    const id = seasonState(this.hero().season, weekOf(Date.now())).id;
+    return `Season ${seasonNumber(id)}: ${seasonDef(id).name}`;
+  }
+
+  /** P2: the season track: level, marks, the first win of the day, rewards, and what to wear. */
+  private seasonLine(): string {
+    const h = this.hero();
+    if (h.runs === 0) return '';
+    const week = weekOf(Date.now());
+    const st = seasonState(h.season, week);
+    const def = seasonDef(st.id);
+    const lvl = seasonLevel(st.marks);
+    const maxed = lvl >= SEASON.levels;
+    const into = st.marks - lvl * SEASON.marksPerLevel;
+    const pct = maxed ? 100 : (100 * into) / SEASON.marksPerLevel;
+    const end = seasonWeeks(st.id)[1] * 7 - dayOf(Date.now());
+    const today = st.firstWinDay === dayOf(Date.now());
+    const rewards = seasonRewards(st.id).map((r) => {
+      const got = lvl >= r.level;
+      const what = r.kind === 'glow' ? `<span class="swatch" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : `Title: <b>${r.title}</b>`;
+      return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
+    }).join('');
+    const titles = h.titles ?? [];
+    const glows = (h.glows ?? []).map((g) => GLOWS[g]).filter(Boolean);
+    const wearT = titles.map((t) => `<button class="wear${h.wear?.title === t ? ' on' : ''}" data-wear="title" data-id="${t}">${t}</button>`).join('');
+    const wearG = glows.map((g) => `<button class="wear${h.wear?.glow === g.id ? ' on' : ''}" data-wear="glow" data-id="${g.id}"><span class="swatch" style="--sw:${g.color}"></span>${g.name}</button>`).join('');
+    return `<div class="box season"><div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
+      + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
+      + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
+      + `<div class="hint">${today ? 'First win of the day: done. Come back tomorrow for another' : `Your first win today pays <b>+${SEASON.firstWin}</b> marks`}. A win pays ${SEASON.win}, a loss ${SEASON.lossBase} plus ${SEASON.lossPerFight} a fight, each weekly quest ${SEASON.weekly}.</div>`
+      + `<div class="sec-h"><span>Rewards</span><span class="muted">Looks only</span></div>${rewards}`
+      + (titles.length || glows.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
+        + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') : '')
+      + `</div>`;
   }
 
   /** P4: the hero card's one-line Collection button, with the book's count. */
