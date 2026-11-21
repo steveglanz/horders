@@ -1585,7 +1585,8 @@ export class GameScene extends Phaser.Scene {
         const L = GLARE.shadowLength;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
-        g.fillStyle(0x06051a, 0.62).lineStyle(2, 0x8a9cff, 0.35).beginPath();
+        // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
+        g.fillStyle(0x06051a, 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, 0.65).beginPath();
         g.moveTo(c.x - uy * w0, c.y + ux * w0);
         g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
         g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
