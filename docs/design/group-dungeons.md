@@ -111,15 +111,38 @@ All four are full parties. Trash-fight revives change nothing: "Boss: none at al
 
 **Watch items.**
 - The Ashvents duo of a tank and a healer fell from 72% to 35%, because Ysmeret's extra health weighs most on a party with little damage. There's no duo target, and a duo is short of damage by design, but if real duos struggle, scale Ysmeret's health by party size instead.
-- Hammerdeep 6 with a full party is far over its 60 to 75% target (77 of 80), and was before this change. Health is the wrong lever: Ondrel at 7200 brought it to 29 of 40, but the tier 8 party fell to 6 and the duo to 2. It needs a fight change that scales with tier.
+- Hammerdeep 6 with a full party is far over its old 60 to 75% target (77 of 80), and was before this change. Health is the wrong lever: Ondrel at 7200 brought it to 29 of 40, but the tier 8 party fell to 6 and the duo to 2. Settled below in "Hammerdeep targets, restated".
 - A pair with no tank in the Ashvents still wins 0, inside the "under 25%" target for no tank.
+
+### Hammerdeep targets, restated (21 Nov 2026)
+The Hammerdeep's targets were set at tier 6, when it was the only group dungeon. Now the Ashvents opens at tier 7 and the Crucible at tier 8, so the Hammerdeep is where parties learn to group (it opens at tier 4). Its curve on main 9ab2145 (tools/group.ts, heroes-r2 at the matching tier, 80 seeds):
+
+| Tier | Full party | Bulwark and Lumen |
+|---|---|---|
+| 4 | 80 (100%) | 79 (99%) |
+| 6 | 77 (96%) | 28 (35%) |
+| 8 | 53 (66%) | (not run) |
+
+**New targets:**
+- Tiers 4 to 6, the learning tiers: a full party with a tank and a healer wins at least 80%. The roles must still matter by tier 6. Measured (80 seeds):
+
+  | Tier | No tank (Lumen, 2 Duskblades, Emberwright) | No healer (Bulwark, Duskblade, 2 Emberwrights) |
+  |---|---|---|
+  | 4 | 52 (65%) | 63 (79%) |
+  | 6 | 7 (9%) | 15 (19%) |
+
+  Tier 6 meets the "under 25%" bars. Tier 4 forgives a missing role, which suits a party's first group fight.
+- Tier 8: 55 to 70% for a full party, the same band as the Ashvents. It's 66% now.
+- A tank and healer with no damage dealer has no target. They lack damage by design.
+
+**Why not tune tier 6 down:** every lever measured so far (Ondrel's health, revive timing) moves tier 8 and the duo far more than the tier 6 full party. A first group dungeon that a prepared party clears is the right first lesson.
 
 ## Delve setup and Quick join (engineering)
 - `DungeonDef.style: 'solo' | 'group'`. The delve card shows the label, and in a party it shows the roles present: **Tank ✓ Healer ✗ Damage ✓✓**. Classes map to roles from `CLASSES[].role`.
 - Ask for engineering: add `roles` to `LobbyAd`, and let `pickParty` prefer a party that lacks your role (a Lumen seeker goes to a party with no healer first). The party card shows "Needs: Healer".
 
 ## Testing
-- `tools/group.ts`: a party of bots, each hero driving its own input (`use(i)` then `botInput`). Target win rates with heroes-r2 hero-t6 at tier 6:
+- `tools/group.ts`: a party of bots, each hero driving its own input (`use(i)` then `botInput`). Target win rates with heroes-r2 hero-t6 at tier 6 (the Hammerdeep's full-party band was restated, see "Hammerdeep targets, restated"):
   - Tank + healer + 2 damage: 60 to 75%.
   - No tank, or no healer: under 25%.
   - Two damage dealers only: under 10%.
