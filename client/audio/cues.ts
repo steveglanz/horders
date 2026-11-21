@@ -40,6 +40,8 @@ export interface CueContext {
   listen?: { x: number; half: number };
   /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
   sets?: SetFlags;
+  /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
+  swallowLeft?: number;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -115,6 +117,9 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
  * not its display name, so renaming a cast never silences it. A new boss needs no new event type.
  */
 export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
+  // The Hoard (raid 2): Old Coalmouth. Gorge can be interrupted (the interrupt cue plays then); Last Meal is the enrage.
+  coalGorge: { start: 'gorgeWarn', done: 'gorge' }, // Gorge
+  lastMeal: { start: 'lastMealWarn', done: 'lastMeal' }, // Last Meal
   // The Hammerdeep: Ondrel of the Hammerdeep (docs/design/group-dungeons.md).
   anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
   choir: { done: 'choir' }, // Choir of Iron
@@ -157,6 +162,8 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   grandmotherSlag: ['phaseRaid2', 'phaseRaid3'],
   hessa: 'phaseHessa',
   oskel: 'phaseOskel',
+  // The Hoard: [phase 2 Swallow, phase 3 Ember Feast].
+  coalmouth: ['phaseSwallow', 'phaseFeast'],
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
@@ -182,6 +189,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
   switch (ev.type) {
     case 'hit': return ev.crit ? { id: 'crit', jitter: 0.08 } : { id: 'hit', jitter: 0.15 };
     case 'kill': {
+      // The Hoard: breaking the Craw frees the swallowed hero.
+      if (ev.kind === 'craw') return { id: 'crawBreak' };
       const rank = ENEMIES[ev.kind]?.rank;
       if (rank === 'boss' || rank === 'rare') return { id: 'bigKill' };
       if (rank === 'elite') return { id: 'explode', vol: 0.8, jitter: 0.1 };
@@ -225,6 +234,13 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
     case 'castStart': return { id: CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
+    // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
+    case 'swallowed': return { id: 'swallowed' };
+    case 'spatOut': return mine(ev.hero) ? { id: 'spatOut' } : { id: 'spatOut', vol: 0.7 };
+    case 'digested': return mine(ev.hero) ? { id: 'digested' } : { id: 'digested', vol: 0.8 };
+    case 'emberTaken': return { id: 'emberTaken', jitter: 0.1 };
+    // Each ember he eats feeds him more, so the crunch grows a little with the count.
+    case 'emberEaten': return { id: 'emberEaten', vol: Math.min(1.2, 0.8 + 0.04 * ev.fed), jitter: 0.08 };
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone': return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
@@ -336,7 +352,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'swallowed', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
 ]);
 
@@ -352,6 +368,9 @@ export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  // The Hoard: six embers spill at once and a party can sweep them up together.
+  emberTaken: 0.1,
+  emberEaten: 0.15,
   reviveTick: 0.3,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
@@ -381,3 +400,43 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   open: 0.05,
   confirm: 0.1,
 };
+
+/**
+ * The belly's low-pass on the whole mix, in Hz: wide open, and shut while swallowed. 900 Hz still leaves
+ * a phone speaker (which plays little under 350 Hz) something to hear.
+ */
+export const BELLY = { open: 20000, shut: 900 };
+
+/** Sounds that skip the belly's muffle: the heartbeat is your own, inside with you. */
+export const DRY: ReadonlySet<SoundId> = new Set<SoundId>(['heartbeat']);
+
+/** What bellyCues remembers between ticks. */
+export interface BellyState {
+  on: boolean;
+  /** Audio time of the next heartbeat. */
+  next: number;
+}
+
+/** Heartbeat spacing inside the belly: 0.85 s with the full 8 s left, quickening to 0.45 s as digestion nears. */
+export function beatGap(left: number): number {
+  return 0.45 + 0.4 * Math.max(0, Math.min(1, left / 8));
+}
+
+/**
+ * The Hoard: while this screen's hero is swallowed, a heartbeat that quickens as the time runs out
+ * (the engine also muffles the rest of the mix). `now` is audio time in seconds; `state` is updated in place.
+ */
+export function bellyCues(state: BellyState, left: number, now: number): Cue[] {
+  if (!(left > 0)) {
+    state.on = false;
+    return [];
+  }
+  if (!state.on) {
+    state.on = true;
+    state.next = now + 0.35; // let the gulp land first
+    return [];
+  }
+  if (now < state.next) return [];
+  state.next = now + beatGap(left);
+  return [{ id: 'heartbeat', vol: 0.8 + 0.4 * (1 - Math.min(1, left / 8)) }];
+}

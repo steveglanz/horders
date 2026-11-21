@@ -697,6 +697,7 @@ export class GameScene extends Phaser.Scene {
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
+      swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
