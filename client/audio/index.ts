@@ -15,6 +15,7 @@ import { Cue, CueContext, cueFor, DUCK, ebbCue, partyCues, SetFlags, setCues, PR
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
+import { nextTake, VARIANTS, variantOf } from './variants';
 
 export type { ThemeId } from './music';
 
@@ -70,7 +71,8 @@ class AudioEngine {
   private ordinary: AudioBufferSourceNode[] = [];
   private musicBus!: GainNode;
   private music: MusicPlayer | null = null;
-  private buffers = new Map<SoundId, AudioBuffer>();
+  private buffers = new Map<string, AudioBuffer>();
+  private lastTake = new Map<SoundId, number>();
   private last = new Map<SoundId, number>();
   private voices = 0;
   private wantTheme: ThemeId | null = null;
@@ -162,14 +164,17 @@ class AudioEngine {
       this.music.setIntensity(this.wantIntensity);
       // Build the sounds a few at a time in the background, combat sounds
       // first, so the first hit or level-up never waits on a render.
-      const order = Object.keys(SOUNDS) as SoundId[];
+      // Each busy sound's extra takes (VARIANTS) warm right after the base sounds.
+      const order: [SoundId, number][] = (Object.keys(SOUNDS) as SoundId[]).map((id) => [id, 0]);
+      for (const [id, n] of Object.entries(VARIANTS) as [SoundId, number][]) for (let t = 1; t < n; t++) order.push([id, t]);
       let k = 0;
       // When the browser can tell us it is idle, render in idle time only.
       const idle = (window as unknown as { requestIdleCallback?: (f: (d: { timeRemaining(): number }) => void, o?: { timeout: number }) => void }).requestIdleCallback;
       const warm = (d?: { timeRemaining(): number }) => {
         do {
           if (k >= order.length) return;
-          this.buffer(order[k++]);
+          const [id, t] = order[k++];
+          this.buffer(id, t);
         } while (d && d.timeRemaining() > 8);
         if (idle) idle(warm, { timeout: 1000 });
         else setTimeout(warm, 20);
@@ -210,16 +215,26 @@ class AudioEngine {
     this.listeners.add(f);
   }
 
-  private buffer(id: SoundId): AudioBuffer {
-    let b = this.buffers.get(id);
+  private buffer(id: SoundId, take = 0): AudioBuffer {
+    const key = take ? `${id}#${take}` : id;
+    let b = this.buffers.get(key);
     if (!b) {
       const ctx = this.ctx!;
-      const data = render(SOUNDS[id], SFX_RATE, id.length);
+      const data = render(variantOf(SOUNDS[id], take), SFX_RATE, id.length + take * 101);
       b = ctx.createBuffer(1, data.length, SFX_RATE);
       b.getChannelData(0).set(data);
-      this.buffers.set(id, b);
+      this.buffers.set(key, b);
     }
     return b;
+  }
+
+  /** The take of a busy sound to play next (VARIANTS), never the same one twice running. */
+  private take(id: SoundId): number {
+    const n = VARIANTS[id] ?? 1;
+    if (n <= 1) return 0;
+    const k = nextTake(n, this.lastTake.get(id) ?? -1, Math.random());
+    this.lastTake.set(id, k);
+    return k;
   }
 
   /** Plays one sound effect now. Quietly does nothing before the unlock or when muted. */
@@ -242,7 +257,7 @@ class AudioEngine {
     }
     this.last.set(id, now);
     const src = ctx.createBufferSource();
-    src.buffer = this.buffer(id);
+    src.buffer = this.buffer(id, this.take(id));
     if (jitter) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * jitter;
     let node: AudioNode = src;
     if (vol !== 1) {
