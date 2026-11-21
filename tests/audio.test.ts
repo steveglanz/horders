@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, partyCues, PHASE_STING, phaseSting, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -209,5 +209,27 @@ describe('audio', () => {
   it('keys every boss-cast sound to a cast id the sim really uses', () => {
     const sim = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
     for (const id of Object.keys(CAST_SOUNDS)) expect(sim.includes(`'${id}'`), id).toBe(true);
+  });
+
+  it('hears a boss-fight pick-up start, count up, break off, and the last one spent', () => {
+    const st = { t: [] as number[], left: Infinity };
+    const ids = (t: number[], left = 1) => reviveCues(st, t, 9, left).map((c) => c.id);
+    expect(ids([0, 0])).toEqual([]); // first look only records
+    expect(ids([0, 0.03])).toEqual(['reviveStart']);
+    expect(ids([0, 0.9])).toEqual([]);
+    expect(ids([0, 1.02])).toEqual(['reviveTick']);
+    expect(ids([0, 0])).toEqual(['reviveLost']); // stepped off at 1 s of 9
+    expect(ids([0, 8.97])).toEqual(['reviveStart']);
+    expect(ids([0, 0], 0)).toEqual(['revivesSpent']); // picked up: the pick-up is the 'revive' event, and that was the only one
+    expect(ids([0, 0], 0)).toEqual([]);
+    expect(ids([0, 0], Infinity)).toEqual([]); // the boss fell: no limit again
+  });
+
+  it('gives every boss warning priority over the fight noise', () => {
+    for (const id of PRIORITY) expect(SOUNDS[id], id).toBeDefined();
+    for (const s of Object.values(CAST_SOUNDS)) if (s.start) expect(PRIORITY.has(s.start), s.start).toBe(true);
+    for (const id of ['targeted', 'allyDown', 'selfDown', 'bossSpawn', 'revivesSpent'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(true);
+    for (const id of ['hit', 'swing', 'mote', 'crit', 'heal'] as SoundId[]) expect(PRIORITY.has(id), id).toBe(false);
+    expect(DUCK.gain).toBeLessThan(1);
   });
 });

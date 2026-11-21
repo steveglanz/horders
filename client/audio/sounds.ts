@@ -229,6 +229,20 @@ export const SOUNDS = {
     { wave: 'tri', f: note(-7), dur: 1.4, delay: 0.7, vol: 0.28, a: 0.02, curve: 1.5, vib: [4, 0.01] },
     { wave: 'sine', f: note(-19), dur: 2.0, delay: 0.7, vol: 0.3, a: 0.2 },
   ],
+  /** G6: an ally starts picking a downed hero up: a soft rising pair. */
+  reviveStart: join(chime(C5, 0, 0.2, 0.4), chime(G5, 0.1, 0.2, 0.5)),
+  /** Each second of a pick-up: a quiet ember pulse (louder as it nears the end). */
+  reviveTick: [
+    { wave: 'tri', f: E6, dur: 0.14, vol: 0.12, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.08, vol: 0.06, lp: 8000, hp: 3000, curve: 3 },
+  ],
+  /** The pick-up broke off (the ally stepped out): a fizzling fall. */
+  reviveLost: [
+    { wave: 'tri', f: G5, f2: C5, dur: 0.35, vol: 0.18, curve: 1.5 },
+    { wave: 'noise', f: 0, dur: 0.3, vol: 0.1, lp: 4000, lp2: 800, hp: 600, curve: 2 },
+  ],
+  /** The boss fight's one pick-up is spent: a low toll, so everyone knows the next fall is for good. */
+  revivesSpent: join(clang(note(-2), 0.4, 1.4), clang(note(-14), 0.25, 1.4), horn(note(-14), 1.0, 0.22)),
   revive: join(chime(C5, 0, 0.25, 0.8), chime(G5, 0.1, 0.25, 0.8), chime(C6, 0.2, 0.3, 1.0), whoosh(500, 6000, 0.6, 0.15)),
 
   // ---- encounters
@@ -249,6 +263,8 @@ export const SOUNDS = {
     { wave: 'saw', f: 141, f2: 111, dur: 1.0, vol: 0.3, a: 0.1, lp: 2000, vib: [9, 0.05] },
     { wave: 'noise', f: 0, dur: 0.9, vol: 0.3, a: 0.2, lp: 1200 },
     { wave: 'sine', f: 45, dur: 1.0, vol: 0.25, a: 0.1 },
+    // A snarl in the 500 Hz-2 kHz band, so a phone speaker hears the enrage over a busy fight.
+    { wave: 'square', f: 282, f2: 222, dur: 0.9, vol: 0.1, a: 0.1, lp: 2400, vib: [9, 0.05] },
   ],
   phase: join(boom(45, 0.8, 0.55), [{ wave: 'saw', f: 110, f2: 220, dur: 0.6, vol: 0.12, lp: 900, a: 0.2 }]),
   riftOpen: [
@@ -400,7 +416,8 @@ export const SOUNDS = {
   /** Last Ember (a 5 s hard enrage): a low drone climbing a fifth under a racing pulse. */
   lastEmberWarn: join(
     [{ wave: 'saw', f: note(-26), f2: note(-19), dur: 2.6, vol: 0.2, a: 0.5, lp: 1200, lp2: 2400, vib: [5, 0.02] },
-     { wave: 'square', f: note(-14), f2: note(-7), dur: 2.6, vol: 0.08, a: 1.0, lp: 2500 }],
+     { wave: 'square', f: note(-14), f2: note(-7), dur: 2.6, vol: 0.14, a: 1.0, lp: 3000 },
+     { wave: 'saw', f: note(-2), f2: note(5), dur: 2.6, vol: 0.08, a: 1.4, lp: 3500 }],
     ...[0, 0.55, 1.0, 1.4, 1.75, 2.05, 2.3].map((d) => boom(70, 0.2, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
   ),
   /** Last Ember goes off: everything burns. */
