@@ -88,14 +88,16 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
   out.innerHTML = '';
   if (damage + shadowDamage <= 0) return;
   const r = await cloud.strike(damage, seconds, shadowDamage, shadowSeconds);
+  const card = (right: string, body: string) => `<div class="top"><b>World boss</b><span>${right}</span></div>${body}`;
   if (!r) {
-    out.innerHTML = cloud.online === false ? '<span class="muted">World boss offline: this delve only counted locally.</span>' : '';
+    out.innerHTML = cloud.online === false ? card('Offline', 'This delve only counted locally.') : '';
   } else if (r.ok) {
     out.innerHTML = r.defeated
-      ? `<b style="color:var(--gold)">Your delve landed the killing blow on ${r.name}!</b> Claim your reward from the main menu.`
-      : `Your delve struck <b>${r.name}</b> for ${(r.dealt ?? 0).toLocaleString()}${r.shadow ? ` (${r.shadow.toLocaleString()} of it from the shadow fight, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.`;
+      ? card('Killing blow!', `<b style="color:var(--gold)">Your delve felled ${r.name}!</b> Claim your reward from the main menu.`)
+      : card(`−${(r.dealt ?? 0).toLocaleString()}`, `<div class="meter danger"><div style="width:${Math.max(0, Math.min(100, (100 * r.hp) / r.max_hp))}%"></div></div>`
+        + `<div style="margin-top:6px">Your delve struck <b>${r.name}</b>${r.shadow ? ` (${r.shadow.toLocaleString()} from the shadow fight, counted triple)` : ''}. It has ${r.hp.toLocaleString()} health left.</div>`);
   } else if (r.reason === 'too_soon') {
-    out.innerHTML = '<span class="muted">The world boss is recovering. Your next delve can strike it again.</span>';
+    out.innerHTML = card('Recovering', 'The world boss is recovering. Your next delve can strike it again.');
   }
   await hub.refreshBoss();
 }

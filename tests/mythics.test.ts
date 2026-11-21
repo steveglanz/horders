@@ -152,17 +152,17 @@ describe('class Mythics (R4)', () => {
     expect(dist(big)).toBeGreaterThan(b0);
   });
 
-  it('Anchored Dawn doubles Sanctuary and speeds Radiant Burst inside it', () => {
+  it('Anchored Dawn lengthens Sanctuary by half and speeds Radiant Burst inside it', () => {
     const { w, inner } = world('lumen', 'anchoredDawn');
     const p = w.player;
     inner.sanctuary();
-    expect(p.sanctT).toBe(12);
+    expect(p.sanctT).toBe(9);
     p.cds[0] = 4;
     w.step({ x: 0, y: 0 });
-    expect(4 - p.cds[0]).toBeCloseTo((2 * 1) / 30, 5);
+    expect(4 - p.cds[0]).toBeCloseTo(1.5 / 30, 5);
   });
 
-  it('Eclipse Glass widens Radiant Burst by 30%', () => {
-    expect(world('lumen', 'eclipseGlass').w.burstRadius).toBeCloseTo(world('lumen').w.burstRadius * 1.3);
+  it('Eclipse Glass widens Radiant Burst by 10%', () => {
+    expect(world('lumen', 'eclipseGlass').w.burstRadius).toBeCloseTo(world('lumen').w.burstRadius * 1.1);
   });
 });
