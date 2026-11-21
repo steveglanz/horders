@@ -71,7 +71,7 @@ The six rewards left gaps of five levels, which is two to three days of play for
 
 **Stages:** stage 1 is the name alone ("Bellows Sparks"), then "Bellows Sparks II" and "III". A hero keeps a trail at its best stage forever (`hero.trails[id]`). Trails arrived mid-season 1, so a hero already past level 8 or 18 gets the stage they passed on their next run. Wearing one (`wearCosmetic(hero, 'trail', id)`) always shows its best stage.
 
-**For visuals (rendering):** like glows, trails are stored and worn, but they **don't draw in a run yet**. Here is the brief:
+**Rendering:** visuals draws them in runs (#205), with a small glint beside each mote so the pale colours read. Engineering sends them in co-op looks (#206). The brief they worked from:
 - **Stage 1:** a few small motes, about 3 a second while moving, each fading over 0.4 s.
 - **Stage 2:** about twice as many, and they last longer.
 - **Stage 3:** stage 2 plus a small burst of motes on each dash or blink.

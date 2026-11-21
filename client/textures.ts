@@ -2059,6 +2059,9 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // Season trail mote: a small white glow, so the trail's tint shows true (the orange spark would darken a blue trail).
+  make(scene, 'trailMote', 16, (ctx, s) => glow(ctx, s, '#ffffff', 'rgba(255,255,255,0.55)', 0.4));
+
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // Ember Vein: a gatherable crystal cluster.

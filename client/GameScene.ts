@@ -7,13 +7,13 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
-import { GLOWS } from '../sim/content/season';
+import { GLOWS, TRAILS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
@@ -122,6 +122,8 @@ export interface SceneData {
   coop?: CoopSession;
   /** P2: the season glow the hero wears (GLOWS id), drawn under them. Looks only. */
   glow?: string;
+  /** Season trail the hero wears (TRAILS id) and its best stage, 1 to 3. Looks only. */
+  trail?: { id: string; stage: number };
 }
 
 export class GameScene extends Phaser.Scene {
@@ -254,6 +256,8 @@ export class GameScene extends Phaser.Scene {
     this.warmSeen = 0;
     this.glowId = data.glow;
     this.heroGlow = undefined;
+    this.ownTrail = data.trail;
+    this.trails = [];
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -296,6 +300,8 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
     // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
+    // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
+    else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -323,6 +329,7 @@ export class GameScene extends Phaser.Scene {
     // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
     const glow = this.glowId ? GLOWS[this.glowId] : undefined;
     if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
+    this.addTrail(w.acting, this.ownTrail, 40);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
@@ -343,6 +350,8 @@ export class GameScene extends Phaser.Scene {
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.add.image(0, 0, 'heroGlow').setTint(hex(ag.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3) : undefined,
       });
+      // An ally's trail: a smaller pool, since it is somebody else's flourish.
+      this.addTrail(j, look.trail, 24);
     }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
@@ -449,6 +458,10 @@ export class GameScene extends Phaser.Scene {
   /** P2: the worn season glow under the hero, if any. */
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
+  /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number }[] = [];
+  /** Our own worn trail from the start data, made into a pool in create(). */
+  private ownTrail?: { id: string; stage: number };
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -627,6 +640,7 @@ export class GameScene extends Phaser.Scene {
       hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+      ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -730,6 +744,7 @@ export class GameScene extends Phaser.Scene {
         case 'dash':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: ev.dodge ? 0x8fc7a8 : 0xb58cff, life: 0.25 });
           if (!ev.dodge) this.burst(ev.x2, ev.y2, 8);
+          this.trailDash(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'mote':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
@@ -757,6 +772,7 @@ export class GameScene extends Phaser.Scene {
         case 'blink':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);
+          this.trailDash(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'ward': {
           const we = w.enemies[ev.index];
@@ -857,6 +873,10 @@ export class GameScene extends Phaser.Scene {
             this.laceShown = true;
             this.hud.banner('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
           }
+          // The Wrackline.
+          else if (ev.name === 'The Ebb') this.hud.banner('The Ebb!', 'The water is about to pull. Get on a raft');
+          else if (ev.name === 'Sink') this.hud.banner('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
+          else if (ev.name === 'Call the Shoal') this.hud.banner('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
           // The raid: Grandmother Slag.
           else if (ev.name === 'Ladle Pour') this.hud.banner('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
           else if (ev.name === 'The Pour') this.hud.banner('The Pour!', 'Molten lanes: step out of the red');
@@ -929,6 +949,10 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'foundry') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
+          } else if (w.dungeonId === 'wrackline') {
+            this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'coldmarrow') {
+            // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
@@ -1091,6 +1115,13 @@ export class GameScene extends Phaser.Scene {
     const squash = p.hurtFlash > 0 ? 0.1 : 0;
     this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
     this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
+    // Season trails: ours and each ally's drop motes while that hero moves.
+    for (const tr of this.trails) {
+      const q = w.heroData(tr.hero).player;
+      if (q.hp <= 0) continue;
+      if (tr.hero === w.acting) { if (moving) this.trailStep(tr, px, py, dt); }
+      else if ((q.x - q.px) ** 2 + (q.y - q.py) ** 2 > 0.01) this.trailStep(tr, lerp(q.px, q.x), lerp(q.py, q.y), dt);
+    }
     if (this.heroGlow) {
       const gp = Math.sin(now / 520);
       this.heroGlow.setPosition(px, py + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(p.hp > 0 ? 0.8 + gp * 0.15 : 0.3);
@@ -1256,6 +1287,7 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     this.overFx.clear();
     if (this.coalLights.length) this.coldDraw(g, now);
+    if (w.rafts.length) this.wrackDraw(g, now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1373,7 +1405,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1708,6 +1740,7 @@ export class GameScene extends Phaser.Scene {
 
     this.stepFx(this.fx, dt);
     this.stepFx(this.smoke, dt);
+    for (const tr of this.trails) this.stepFx(tr.fx, dt);
     for (const t of this.floats) {
       if (t.life <= 0) continue;
       t.life -= dt;
@@ -1794,6 +1827,52 @@ export class GameScene extends Phaser.Scene {
     f.sx1 = o.sx1 ?? f.sx0;
     f.sy1 = o.sy1 ?? f.sx1;
     return f;
+  }
+
+  /**
+   * Season trail motes dropped behind the moving hero: stage 1 about 3 a second fading over 0.4 s,
+   * stage 2 and 3 about 6 a second lasting 0.8 s (docs/design/season.md, "Season trails").
+   * Trimmed effects keep stage 1's rate.
+   */
+  private trailStep(tr: GameScene['trails'][number], px: number, py: number, dt: number): void {
+    const rich = tr.stage >= 2;
+    tr.acc += dt * (rich && !this.lowFx ? 6 : 3);
+    while (tr.acc >= 1) {
+      tr.acc -= 1;
+      // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
+      const life = rich ? 0.8 : 0.4;
+      const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
+      const x = px + (Math.random() - 0.5) * 14;
+      const y = py + 14 + (Math.random() - 0.5) * 8;
+      this.emit(tr.fx, 'trailMote', undefined, x, y, life, { tint: tr.color, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 8, drag: 0.96, sx0: sz, sx1: sz * 0.45 });
+      if (!this.lowFx) this.emit(tr.fx, 'trailMote', undefined, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 10, life * 0.8, { tint: tr.color, vy: -16 - Math.random() * 10, drag: 0.95, sx0: sz * 0.5, sx1: sz * 0.15 });
+    }
+  }
+
+  /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
+   * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
+   * can't steal its motes. */
+  private addTrail(hero: number, worn: { id: string; stage: number } | undefined, pool: number): void {
+    const def = worn ? TRAILS[worn.id] : undefined;
+    if (!def || !(worn!.stage >= 1)) return;
+    const fx: Fx[] = [];
+    for (let i = 0; i < pool; i++) fx.push(this.newFx('trailMote', 1.35, true));
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0 });
+  }
+
+  /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
+  private trailDash(x1: number, y1: number, x2: number, y2: number): void {
+    // Dash and blink events carry no hero, so the trail is the one whose hero the dash ends on.
+    const tr = this.trails.find((t) => { const q = this.world.heroData(t.hero).player; return Math.hypot(x2 - q.x, y2 - q.y) <= 4; });
+    if (!tr || tr.stage < 3) return;
+    const n = this.lowFx ? 4 : 10;
+    for (let k = 0; k < n; k++) {
+      const t = k / (n - 1);
+      const a = Math.random() * Math.PI * 2;
+      const sp = k >= n - 3 ? 40 + Math.random() * 40 : 8;
+      this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
+        { tint: tr.color, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - 8, drag: 0.93, sx0: 1.8, sx1: 0.6 });
+    }
   }
 
   private spark(x: number, y: number, vx: number, vy: number, life: number, size = 1.5): void {
@@ -2341,7 +2420,53 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+   /**
+   * The Wrackline: the drain at the centre, the rafts, and the Ebb. During the warning,
+   * pale lines rush inward from the rim; while it pulls, the floor darkens and streaks run
+   * to the drain. A sunk raft is a dim ring of ripples until it bobs back up.
+   */
+  private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const pulling = w.ebbT > 0;
+    const warn = w.ebbWarnT > 0;
+    // The drain: a dark well with a slow swirl, angrier while the water pulls.
+    g.fillStyle(0x061820, pulling ? 0.75 : 0.5).fillCircle(0, 0, WRACK.drainR);
+    for (let k = 0; k < 3; k++) {
+      const a = now / (pulling ? 260 : 900) + (k * 2 * Math.PI) / 3;
+      g.lineStyle(3, 0x7fd0e0, pulling ? 0.7 : 0.35).beginPath().arc(0, 0, WRACK.drainR * (0.45 + 0.18 * k), a, a + 1.6).strokePath();
+    }
+    if (warn || pulling) {
+      // Streaks running from the rim toward the drain.
+      const n = this.lowFx ? 10 : 18;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + 0.2;
+        const t = ((now / (pulling ? 500 : 900) + k * 0.37) % 1);
+        const r0 = ARENA - t * (ARENA - WRACK.drainR);
+        const r1 = Math.max(WRACK.drainR, r0 - (pulling ? 70 : 40));
+        g.lineStyle(pulling ? 3 : 2, 0xbfe9ff, pulling ? 0.55 : 0.35 + 0.3 * Math.sin(now / 90)).lineBetween(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * r1, Math.sin(a) * r1);
+      }
+    }
+    for (const r of w.rafts) {
+      if (r.sunkT > 0) {
+        // Under water: rings of ripples where it went down.
+        const t = (now / 700) % 1;
+        g.lineStyle(2, 0x7fd0e0, 0.45 * (1 - t)).strokeCircle(r.x, r.y, WRACK.raftR * (0.4 + 0.6 * t));
+        g.lineStyle(1, 0x7fd0e0, 0.25).strokeCircle(r.x, r.y, WRACK.raftR);
+        continue;
+      }
+      // Afloat: a pale deck of planks, with a bright rim while the water pulls (safe here).
+      g.fillStyle(0xb79a72, 0.55).fillCircle(r.x, r.y, WRACK.raftR);
+      g.lineStyle(2, 0x5a4630, 0.6);
+      for (let k = -2; k <= 2; k++) {
+        const off = k * 26;
+        const half = Math.sqrt(Math.max(0, WRACK.raftR * WRACK.raftR - off * off));
+        g.lineBetween(r.x - half, r.y + off, r.x + half, r.y + off);
+      }
+      g.lineStyle(warn || pulling ? 4 : 2, warn || pulling ? 0xe8fbff : 0x8a7050, warn || pulling ? 0.9 : 0.7).strokeCircle(r.x, r.y, WRACK.raftR);
+    }
+  }
+
+ private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     const night = boss?.alive && boss.castId === 'longNight' ? boss.castT / boss.castDur : 0;

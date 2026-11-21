@@ -11,7 +11,8 @@ export type EncounterId =
   | 'shades' | 'lensbearer' | 'brandkeeper' | 'lamps' | 'lensShades' | 'brandShades' | 'lensmother'
   | 'worldShadow' | 'anvilguard' | 'ondrel' | 'ysmeret'
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
-  | 'grandmotherSlag';
+  | 'grandmotherSlag'
+  | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -52,12 +53,19 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   frostwardens: { id: 'frostwardens', name: 'The Frost Wardens', tip: 'Ice shrugs off hits. Fight them inside your coal\'s light to crack them.', spawns: [{ kind: 'frostWarden', n: 2 }] },
   weaver: { id: 'weaver', name: 'The Hoarfrost Weaver', tip: 'Step out of Frost Lace, or Quench it, or the cold gets in.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'rimehound', n: 3 }] },
   weaverWardens: { id: 'weaverWardens', name: 'Weaver and Warden', tip: 'Quench the Lace while you warm the Warden.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'frostWarden', n: 1 }, { kind: 'snuffer', n: 1 }] },
+  // The Wrackline: get on a raft before the Ebb, or it drags you to the drain.
+  lurkers: { id: 'lurkers', name: 'Shoal Lurkers', tip: "They swim, so they can't climb onto a raft. Stand in its middle.", spawns: [{ kind: 'shoalLurker', n: 3 }, { kind: 'cinderhound', n: 2 }] },
+  haulers: { id: 'haulers', name: 'The Barge Hauler', tip: 'Quench its Haul, or it yanks you off your raft.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  wardenShoal: { id: 'wardenShoal', name: 'Warden in the Shoals', tip: 'Let the water take the Warden: the drain wears it down while you wait on a raft.', spawns: [{ kind: 'husk', n: 2 }, { kind: 'shoalLurker', n: 3 }] },
+  twoHaulers: { id: 'twoHaulers', name: 'Two Haulers', tip: 'They take turns to Haul. Save a Quench for each.', spawns: [{ kind: 'bargeHauler', n: 2 }] },
+  haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -101,6 +109,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     openers: ['rimepack', 'snuffers', 'frostwardens'], named: ['weaver', 'frostwardens'], hard: ['weaverWardens', 'snuffers'],
     blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
   },
+  wrackline: {
+    id: 'wrackline', name: 'The Wrackline', boss: 'hessa', unlockTier: 13,
+    openers: ['lurkers', 'haulers', 'wardenShoal'], named: ['twoHaulers', 'wardenShoal'], hard: ['haulerWarden', 'twoHaulers'],
+    blurb: 'A wrecked quay where the Ebb drags everything to the drain. Ride the rafts when the water pulls.', style: 'solo', minParty: 1,
+  },
   hammerdeep: {
     id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
     openers: ['warpack', 'wardens', 'glass'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
@@ -125,6 +138,11 @@ export const SOLO_DUNGEON_IDS = (Object.keys(DUNGEONS) as DungeonId[]).filter((i
  * new dungeon doesn't reshuffle every past and future day's bounty.
  */
 export const BOUNTY_DUNGEON_IDS: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
+/**
+ * The dungeons weekly quests draw from, in their fixed order. Kept explicit for the
+ * same reason: the Wrackline (added mid-week) must not reshuffle this week's quests.
+ */
+export const WEEKLY_DUNGEON_IDS: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow'];
 
 /** Party roles, from the classes' roles. A Slagbinder's comes from its stance: Anvil tanks, Bellows deals damage. */
 export type PartyRole = 'tank' | 'healer' | 'damage';

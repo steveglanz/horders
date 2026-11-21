@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, COLD, Input, REVIVE_RADIUS, World } from './world';
+import { ARENA, COLD, Input, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 
@@ -458,6 +458,34 @@ export function soakFor(w: World): World['telegraphs'][number] | null {
   return best;
 }
 
+/** The Wrackline: while the Ebb warns or pulls, the way to the nearest afloat raft (null when already well on one, or no Ebb). */
+function ebbRaft(w: World): { dx: number; dy: number } | null {
+  if (!w.rafts.length || (w.ebbWarnT <= 0 && w.ebbT <= 0)) return null;
+  const p = w.player;
+  let best: { x: number; y: number } | null = null;
+  let bd = Infinity;
+  for (const r of w.rafts) {
+    if (r.sunkT > 0) continue;
+    const d = Math.hypot(r.x - p.x, r.y - p.y);
+    if (d < bd) { bd = d; best = r; }
+  }
+  if (!best) return null;
+  // Still warning and the raft is close enough to make in time: fight on for now.
+  if (w.ebbT <= 0 && bd / w.moveSpeed + 1.2 < w.ebbWarnT) return null;
+  // A circle about to land on us comes first: step out of it, then make for the raft.
+  for (const t of w.telegraphs) {
+    if (!t.alive || t.kind !== 'hit' || t.shape !== 'circle' || t.dmg <= 0 || t.dur - t.t > 0.9) continue;
+    const dx = p.x - t.x;
+    const dy = p.y - t.y;
+    const dd = Math.hypot(dx, dy) || 1;
+    if (dd < t.r + 12) return { dx: dx / dd, dy: dy / dd };
+  }
+  const d = bd || 1;
+  // On the raft: drift with it, easing toward its middle (a short vector walks slowly).
+  const k = bd < WRACK.raftR * 0.45 ? Math.min(1, bd / (WRACK.raftR * 0.45)) * 0.35 : 1;
+  return { dx: ((best.x - p.x) / d) * k, dy: ((best.y - p.y) / d) * k };
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
@@ -483,6 +511,9 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
+  const raft = ebbRaft(w);
+  if (raft) return { x: raft.dx, y: raft.dy, cast: botCast(w, skill) };
   // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
   const glow = longNightShelter(w);
   if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
