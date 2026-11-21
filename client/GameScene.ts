@@ -882,15 +882,18 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(6, 0xfffbe6, fl).lineBetween(b.x1, b.y1, b.x2, b.y2);
     }
     if (w.markT > 0) {
-      // The Brand: a gold ring on the hero the size of the burst, closing in.
-      const p = w.player;
+      // The Brand: a gold ring the size of the burst, closing in. In co-op every living hero carries one.
       const f = Math.min(1, w.markT / GLARE.brandTime);
       const flick = w.markT < 1.2 ? 0.5 + 0.5 * Math.sin(now / 40) : 1;
-      g.fillStyle(0xffc861, 0.08 + 0.1 * (1 - f)).fillCircle(p.x, p.y, GLARE.brandRadius);
-      g.lineStyle(3, 0xffc861, 0.8 * flick).strokeCircle(p.x, p.y, GLARE.brandRadius);
-      g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
-      g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
-      g.strokePath();
+      for (let h = 0; h < w.heroes.length; h++) {
+        const p = h === w.acting ? w.player : w.heroData(h).player;
+        if (w.heroes.length > 1 && p.hp <= 0) continue;
+        g.fillStyle(0xffc861, 0.08 + 0.1 * (1 - f)).fillCircle(p.x, p.y, GLARE.brandRadius);
+        g.lineStyle(3, 0xffc861, 0.8 * flick).strokeCircle(p.x, p.y, GLARE.brandRadius);
+        g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
+        g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
+        g.strokePath();
+      }
     }
     if (this.glareFlash > 0) {
       // Bright enough to sting, faint enough that you can still see the fight.
@@ -984,9 +987,18 @@ export class GameScene extends Phaser.Scene {
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     for (const e of w.enemies) {
       if (!e.alive) continue;
-      if (e.kind === 'acolyte' && boss?.alive) {
-        const pulse = 0.5 + Math.sin(this.time.now / 120) * 0.25;
-        g.lineStyle(3, 0x7dffb0, pulse).lineBetween(e.x, e.y, boss.x, boss.y);
+      if (e.kind === 'acolyte') {
+        // A faint thread to the ward; while Kindle is cast it thickens and
+        // brightens, and a ring fills around the acolyte: that's the tell to Quench.
+        const ward = e.aux2 >= 0 ? w.enemies[e.aux2] : boss;
+        if (ward?.alive) {
+          if (e.castId === 'kindle') {
+            const f = Math.min(1, e.castT / e.castDur);
+            const pulse = 0.6 + Math.sin(now / 60) * 0.25;
+            g.lineStyle(3 + f * 4, 0x7dffb0, pulse).lineBetween(e.x, e.y, ward.x, ward.y);
+            g.lineStyle(4, 0x7dffb0, 0.9).beginPath().arc(e.x, e.y, e.def.radius + 12, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
+          } else g.lineStyle(1.5, 0x7dffb0, 0.2).lineBetween(e.x, e.y, ward.x, ward.y);
+        }
       }
       // Mirror Ward: a glassy shell that flickers while it reflects damage.
       if (e.kind === 'glassWarden' && e.aux2 > 0) {

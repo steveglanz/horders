@@ -993,6 +993,7 @@ export class World {
         if (sp.kind === 'acolyte') {
           e.aux = a;
           e.aux2 = lead;
+          e.abilityT = ACOLYTE.first + j * ACOLYTE.stagger;
         } else if (lead < 0) lead = i;
         if (sp.kind === 'worldShadow') {
           this.bossIndex = i;
@@ -1474,7 +1475,8 @@ export class World {
       const d = dist2(p.x, p.y, e.x, e.y);
       const reach = this.classDef.interruptRange + e.def.radius;
       if (d > reach * reach) continue;
-      const w = weight[e.def.rank] * 1e7 + d;
+      // Heals are the least urgent cast: Quench saves itself for a hit if one is up.
+      const w = (e.castId === 'kindle' ? 2.5 : weight[e.def.rank]) * 1e7 + d;
       if (w < bestW) { bestW = w; best = i; }
     }
     return best;
@@ -1485,9 +1487,12 @@ export class World {
     const t = this.interruptTarget();
     if (t >= 0) {
       const e = this.enemies[t];
+      const healing = e.castId === 'kindle';
       this.events.push({ type: 'interrupt', x: e.x, y: e.y, name: e.castName });
       this.cancelCast(t);
       e.stunT = 2;
+      // Stopping a heal is a small job: half the cooldown comes back.
+      if (healing) p.cds[3] = this.abilityCooldown(3) * ACOLYTE.quenchCost;
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
       if (this.cls === 'bulwark' && this.hasMythic('tetheredShield')) {
         // Tethered Shield: the shield bounces on to two more casters, and Charge can follow it.
@@ -2492,11 +2497,25 @@ export class World {
     if (ward >= 0) {
       const b = this.enemies[ward];
       if (b.alive && b.def.rank !== 'normal') {
-        // Acolytes circle the Kiln Mother and channel heat into her.
-        e.aux += 0.35 * dt;
-        e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
-        e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
-        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE_HEAL * dt * this.healTakenMult(b));
+        // Acolytes circle their ward and cast Kindle on it: a short heal with a
+        // cast bar, so the player can see it coming and Quench it, or kill the
+        // acolyte first. A Quenched acolyte stops circling while it's stunned.
+        if (e.stunT > 0) e.stunT -= dt;
+        else {
+          e.aux += 0.35 * dt;
+          e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
+          e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
+          if (e.castId) {
+            e.castT += dt;
+            if (e.castT >= e.castDur) this.finishCast(i);
+          } else {
+            e.abilityT -= dt;
+            if (e.abilityT <= 0) {
+              e.abilityT = ACOLYTE.every;
+              this.startCast(i, 'kindle', 'Kindle', ACOLYTE.cast, true);
+            }
+          }
+        }
       }
     }
     const p = this.player;
@@ -2531,7 +2550,15 @@ export class World {
     e.castId = '';
     e.castName = '';
     for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
-    if (id === 'cataclysm') {
+    if (id === 'kindle') {
+      // One heal on the acolyte's ward, the same health per second as the old channel.
+      const b = this.enemies[e.aux2];
+      if (b && b.alive) {
+        const amount = b.maxHp * ACOLYTE.heal * this.healTakenMult(b);
+        b.hp = Math.min(b.maxHp, b.hp + amount);
+        this.events.push({ type: 'heal', x: b.x, y: b.y, amount });
+      }
+    } else if (id === 'cataclysm') {
       const p = this.player;
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
@@ -2549,10 +2576,24 @@ export class World {
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
     } else if (id === 'glare') {
       // The lens flares: anyone in the light is burned, anyone in a pillar's shadow is safe.
-      const p = this.player;
-      const hit = !this.shadowed(p.x, p.y);
-      if (hit) this.hurtPlayer(GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
-      this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      const dmg = GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage;
+      if (this.heroes.length === 1) {
+        const p = this.player;
+        const hit = !this.shadowed(p.x, p.y);
+        if (hit) this.hurtPlayer(dmg, i);
+        this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      } else {
+        // Co-op: the flare burns every hero standing in the light.
+        const at = this.acting;
+        let hit = false;
+        this.eachHero((h) => {
+          if (this.shadowed(this.player.x, this.player.y)) return;
+          this.hurtPlayer(dmg, i);
+          if (h === at) hit = true;
+        });
+        this.use(at);
+        this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      }
     } else if (id === 'brand') {
       this.markT = GLARE.brandTime;
     } else if (id === 'twinBrand') {
@@ -2655,6 +2696,7 @@ export class World {
           if (k >= 0) {
             this.enemies[k].aux = a;
             this.enemies[k].aux2 = i;
+            this.enemies[k].abilityT = ACOLYTE.first + (side > 0 ? ACOLYTE.stagger : 0);
           }
         }
         this.brandT = 3;
@@ -2936,9 +2978,30 @@ export class World {
   }
 
   private burstBrand(): void {
-    const p = this.player;
+    if (this.heroes.length > 1) {
+      // Co-op: every living hero carries a Brand. Each burst hits every hero
+      // inside it, so a party that bunches up takes several.
+      const at = this.acting;
+      const centres: { x: number; y: number }[] = [];
+      for (let h = 0; h < this.heroes.length; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp > 0) centres.push({ x: q.x, y: q.y });
+      }
+      for (const c of centres) this.burstBrandAt(c.x, c.y, true);
+      this.use(at);
+      return;
+    }
+    this.burstBrandAt(this.player.x, this.player.y, false);
+  }
+
+  private burstBrandAt(x: number, y: number, party: boolean): void {
+    const p = { x, y };
     const r = GLARE.brandRadius;
-    this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+    if (party) {
+      this.eachHero(() => {
+        if (dist2(this.player.x, this.player.y, x, y) <= (r + PLAYER_RADIUS) ** 2) this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+      });
+    } else this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
     this.pillars.forEach((c, k) => {
       if (!c.cracked && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
         c.cracked = true;
@@ -3589,7 +3652,7 @@ export const GLARE = {
   shadowLength: 300,
   shadowWiden: 0.12,
   /** Warning before a Glare goes off: every class reaches shade on foot in this time. */
-  glareWarn: 2,
+  glareWarn: 2.6,
   glareDamage: 34,
   glareEvery: 9,
   brandCast: 0.8,
@@ -3649,8 +3712,15 @@ export const FOUNDRY = {
 };
 
 const ACOLYTE_RING = 190;
-/** Share of the boss's health each acolyte restores per second. */
-const ACOLYTE_HEAL = 0.008;
+/**
+ * Acolytes cast Kindle on their ward every `every` seconds: a `cast`-second
+ * interruptible cast that heals `heal` of the ward's health. The first comes
+ * `first` seconds after they appear, staggered by `stagger` per acolyte.
+ * 0.048 every 6 s keeps the old channel's 0.8% per second when nobody Quenches.
+ * Quenching a Kindle costs only `quenchCost` of Quench's cooldown, and Quench
+ * prefers any damaging cast over a Kindle.
+ */
+export const ACOLYTE = { every: 6, cast: 1.8, heal: 0.048, first: 2.5, stagger: 1.5, quenchCost: 0.5 };
 
 function angleDiff(a: number, b: number): number {
   let d = a - b;

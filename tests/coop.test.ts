@@ -220,6 +220,7 @@ describe('co-op healing from the Lumen', () => {
     const w = new World({ seed: 4, cls: 'lumen' });
     expect(w.healAllies(0, 0, 1000, 50)).toBe(0);
   });
+
   it('tags personal events with the hero they belong to', () => {
     const w = new World({ seed: 8, party: party(2) });
     const hurt = w as unknown as { use(i: number): void; hurtPlayer(a: number, src?: number): void; events: { type: string; hero?: number }[] };
@@ -227,5 +228,40 @@ describe('co-op healing from the Lumen', () => {
     hurt.hurtPlayer(5, -1);
     hurt.use(0);
     expect(w.events.filter((e) => e.type === 'playerHurt').map((e) => e.hero)).toEqual([1]);
+  });
+
+  it('in a party every hero carries a Brand, and bunching up stacks the bursts', () => {
+    const hits = (spread: boolean) => {
+      const w = new World({ seed: 8, dungeon: 'glarewell', tier: 7, party: party(3) });
+      const W = w as unknown as { burstBrand(): void; events: { type: string; hero?: number; amount?: number }[] };
+      for (let h = 0; h < 3; h++) Object.assign(w.hero(h).player, { x: spread ? h * 400 : h * 5, y: 0 });
+      w.events.length = 0;
+      W.burstBrand();
+      const per = [0, 0, 0];
+      for (const e of W.events) if (e.type === 'playerHurt') per[e.hero!]++;
+      return { per, bursts: W.events.filter((e) => e.type === 'brandBurst').length, acting: w.acting };
+    };
+    const apart = hits(true);
+    expect(apart.bursts).toBe(3);
+    expect(apart.per).toEqual([1, 1, 1]);
+    const together = hits(false);
+    expect(together.per).toEqual([3, 3, 3]);
+    expect(together.acting).toBe(0);
+  });
+
+  it("in a party the Lensmother's Glare burns every hero in the light, not just her target", () => {
+    const w = new World({ seed: 8, dungeon: 'glarewell', tier: 7, party: party(3) });
+    const W = w as unknown as { finishCast(i: number): void; shadowed(x: number, y: number): boolean; events: { type: string; hero?: number }[] };
+    // Stand all three heroes where no pillar shades them.
+    let x = 0;
+    while (W.shadowed(x, 0) && x < 2000) x += 25;
+    for (let h = 0; h < 3; h++) Object.assign(w.hero(h).player, { x: x + h * 3, y: 0 });
+    w.enemies[0].alive = true;
+    w.enemies[0].castId = 'glare';
+    w.events.length = 0;
+    W.finishCast(0);
+    const hurt = W.events.filter((e) => e.type === 'playerHurt').map((e) => e.hero).sort();
+    expect(hurt).toEqual([0, 1, 2]);
+    expect(w.acting).toBe(0);
   });
 });
