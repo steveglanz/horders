@@ -167,6 +167,10 @@ export const MYTHIC_ICON: Record<MythicId, string> = {
   anchoredDawn: 'M12 7v14 M4.5 14c0 4 3.3 7 7.5 7s7.5-3 7.5-7 M2.5 14h4 M17.5 14h4 M8.5 10h7 M12 2.5a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z',
   // Eclipse Glass (more burst, less heal): a sun with the shadow crossing it.
   eclipseGlass: 'M12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11Z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4 M9.5 9.5a3.5 3.5 0 0 1 5 5',
+  // Slagbinder placeholders until visuals draws them. Molten Core: a glowing core in a plate.
+  moltenCore: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 10a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z',
+  // Clinker Crown: a crown of clinker lumps.
+  clinkerCrown: 'M3 18h18 M4 18l-1-9 5 4 4-7 4 7 5-4-1 9',
 };
 
 /** Class weapon effects, coloured by their class (P4 Collection tiles). The two cast-hitters wear the interrupt cut. */
@@ -187,6 +191,10 @@ export const WEAPON_FX_ICON: Record<WeaponFxId, string> = {
   tenderLight: 'M12 20.5S3.5 15.7 3.5 9.8A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.6c0 5.9-8.5 10.7-8.5 10.7Z M12 10.5v6 M9 13.5h6',
   // Rebuking Light: a sun inside the interrupt cut.
   rebukingLight: CUT + ' M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z',
+  // Slagbinder placeholders. Clinging Slag: a glob with drips.
+  clingingSlag: 'M12 4a6 6 0 1 1 0 12a6 6 0 1 1 0-12Z M9 16v3 M12 16v5 M15 16v3',
+  // Tempered Lob: a glob striking a cracked foe.
+  temperedLob: 'M4 6a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0Z M9 8l5 5 M15 10l2 3-2 2 3 3 M12 14l3 1',
 };
 
 /** The Collection book: an open book. */
