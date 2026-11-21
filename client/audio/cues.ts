@@ -48,11 +48,15 @@ export interface SetFlags {
   sharp: boolean;
   /** Hearthkeeper (3): at full Warmth. */
   warmFull: boolean;
+  /** Kinbound (2): Covered, an ally's heal cuts your damage taken (the sim only sets coverT on a wearer). */
+  covered: boolean;
+  /** Kinbound (3): Bonded, after the hero covered an ally or was covered by a wearer (an ally can be Bonded without the set). */
+  bonded: boolean;
 }
 
 /** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
 export function setFlagsOf(
-  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number },
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number },
   count: (id: SetId) => number,
 ): SetFlags {
   const up = p.hp > 0;
@@ -61,10 +65,12 @@ export function setFlagsOf(
     surge: up && count('tidewalker') >= 3 && !!p.surge,
     sharp: up && count('kilnbreaker') >= 2 && (p.kbT ?? 0) > 0,
     warmFull: up && count('hearthkeeper') >= 3 && (p.warmth ?? 0) >= SET_TUNING.hkMax,
+    covered: up && (p.coverT ?? 0) > 0,
+    bonded: up && (p.bondT ?? 0) > 0,
   };
 }
 
-const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull' };
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded' };
 
 /**
  * The set procs have no events of their own (they are states on the hero), so this sounds each one
@@ -324,6 +330,9 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   reviveTick: 0.3,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
+  // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.
+  covered: 2,
+  bonded: 2,
   slag: 0.2,
   crit: 0.06,
   kill: 0.05,
