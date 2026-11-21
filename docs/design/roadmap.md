@@ -19,6 +19,70 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | Visuals: potion icons and a brewing look in the hub |
 | R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | Skills: role kits vs Anvilfall, Slag Grip; engineering: roles in Quick join; visuals: Ondrel sprite, role badges |
 
+## Phases (plan of record, 21 Nov 2026)
+
+Steve (21 Nov 2026): "Keep it all building, we should have phases and features planned that can keep going." Each team takes the top open item in its column and moves on to the next one when it's done. Each item is its own PR, labelled `automerge`. When something blocks an item, skip to the next one and tell the owning team.
+
+**Phase 1: Foundations ✅** (shipped). This covers:
+- Four classes, three solo dungeons and the Forge.
+- Omens, the daily bounty, potions, verb sets and weapon effects.
+- Co-op for 1 to 4 heroes with Quick join.
+- The Hammerdeep group dungeon.
+- Cloud saves.
+
+### Phase 2: Groups (now)
+Make playing together the best way to play.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| G1 | **Role kits pass:** each class gets one group tool (Bulwark taunt-swap cue, Lumen cleanse button, Duskblade threat dump, Emberwright party buff) | skills | Feeds G3. Keep solo unchanged (hashcheck) |
+| G2 | **Ondrel art and readability:** sprite, Anvilfall target marker over the hero, Slag Grip stack pips | visuals | Uses `anvilOnMe`, `slag` on Player |
+| G3 | **Second group dungeon boss** for tier 7+: the "split" check (party must stand in two places) and the "spread" check (no stacking) | design | Same pattern as Ondrel; spec first in group-dungeons.md |
+| G4 | **Party HUD:** party frames with health, role icon, Slag Grip and down state; a ping on the hero Ondrel targets | engineering | Mobile layout first |
+| G5 | **Group loot rules:** each hero rolls their own chest; group dungeons drop one rarity step better at the end | design | Already in the spec; code it and check that it can't be farmed |
+| G6 | **Revive between fights and in fights:** a downed hero can be picked up by standing on them for 3 s | engineering + design | Today they only revive between fights |
+| G7 | **Group cues in sound:** tank-buster warning, party hit, "you're targeted" | sound | Cast names: Anvilfall, Choir of Iron, Hammer Sweep |
+| G8 | **Co-op QA sweep:** 2, 3 and 4 heroes, a guest dropping mid-fight, Quick join role matching, the Hammerdeep solo block | QA | Repro scripts in tools/ |
+
+### Phase 3: Content
+More places to go, so the weekly loop has variety.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| C1 | **Fourth solo dungeon** (tier 10+): a new verb, e.g. carrying a light source, or a moving safe zone | design | Its own set and boss. Spec, then build |
+| C2 | **Rare spawns and named elites:** one surprise named foe per delve, with its own loot table | design | Small, high payoff |
+| C3 | **Raid (R9):** an 8-minute, 4-hero world boss fight with phases, built on the world boss bar | engineering + design | Needs G4 and G6 |
+| C4 | **New enemy families** for C1, plus art for every placeholder enemy left (Glarewell, Hammerdeep trash) | visuals | Placeholder list in the visuals thread |
+| C5 | **Class talents round 2:** a third talent branch per class (capstone choices) | skills | Watch the class spread at tiers 6 and 8 |
+| C6 | **Dungeon themes and ambience** for C1 and the raid; a boss phase-change sting for each boss | sound | |
+| C7 | **Content QA:** each new dungeon's soft-lock check (can a run get stuck?), and the bot win-rate table in balance.md | QA + design | |
+
+### Phase 4: Progression and retention
+Reasons to come back tomorrow and next week.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| P1 | **Weekly quests:** 3 goals a week (beat X with Y, interrupt 30 casts), paying embers and a cosmetic | design | quests.ts exists; extend it |
+| P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | No pay-to-win |
+| P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | Uses Omens and the bounty leaderboard |
+| P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | |
+| P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | Cloud saves |
+| P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | |
+| P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | tools/progression.ts |
+
+### Phase 5: Launch polish
+Make it feel finished on a phone.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| L1 | **First 10 minutes:** a tutorial delve (one fight per verb), and tooltips the first time each mechanic shows up | design + engineering | Measure with the novice proxy |
+| L2 | **Performance:** 60 fps on a mid phone with 4 heroes; asset sizes; a load time under 3 s | engineering | tools/perf.cjs |
+| L3 | **Accessibility:** colour-blind telegraph palettes, a reduced-shake option, text size | visuals + engineering | |
+| L4 | **Audio mix and settings:** volume sliders, mute-on-blur, and a phone-speaker pass on every theme | sound | |
+| L5 | **Store page assets:** icon, screenshots and a 30 s trailer capture | visuals | |
+| L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | |
+| L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
