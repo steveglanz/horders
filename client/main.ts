@@ -3,6 +3,7 @@ import { bountyFor, dayOf } from '../sim/content/bounty';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
+import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion } from '../sim/hero';
@@ -29,6 +30,7 @@ installSoundControls();
 }
 const params = new URLSearchParams(location.search);
 let stress = params.has('stress');
+installTips();
 const hud = new Hud();
 hud.showPerf = stress || params.has('debug');
 let hero: HeroProfile = loadHero();
