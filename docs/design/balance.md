@@ -317,3 +317,30 @@ The skills team found melee heroes losing health to her contact hits while soaki
 | Lumen | 75 | 74 |
 
 The Duskblade, the class it was meant to help, didn't move, and the Bulwark gained the most, which widens the Kiln class spread. So it's not shipped. The Duskblade's Kiln losses need another cause.
+
+## The Hammerdeep retuned for the new group bots (21 Nov 2026)
+
+The skills team's PR #54 fixes two bots: the Bulwark now saves Bastion for an Anvilfall aimed at it, and the co-op Lumen heals the most wounded ally. With those bots and the first-pass numbers, every tier 6 full party won (24 of 24), the Bulwark + Lumen duo won 24 of 24, and a party with no tank won 15 of 24. That means the healer carried parties with no tank.
+
+The retune:
+- Anvilfall goes from 120 to 160 (before tierDamage), so a non-tank barely survives one hit.
+- Ondrel's health goes from 4400 to 4800.
+
+Choir of Iron stays at 12% + 2%.
+
+heroes-r2 hero-t6-0, tier 6, seeds 1 to 60, wins out of 60:
+
+| Party | Wins |
+|---|---|
+| Bulwark + Lumen + Duskblade + Emberwright | 40 (67%) |
+| No healer (Bulwark + Duskblade + Emberwright + Duskblade) | 6 |
+| No tank (Duskblade + Lumen + Emberwright + Duskblade) | 1 |
+| Bulwark + Lumen duo | 15 |
+
+The full party at other tiers (seeds 1 to 24): tier 4 with hero-t4-0 won 24 of 24, and tier 8 with hero-t8-0 won 2 of 24. A trial at Anvilfall 170 with 5600 health dropped the full party to 7 of 24.
+
+**Reading:**
+- The full party is inside the 60 to 75% target.
+- With no tank or no healer, a party mostly loses, which is the point of a group dungeon.
+- The duo can clear it about one run in four.
+- Tier 4, where it unlocks, is a gentle first visit. Tier 8 is steep, so watch it once real parties play.
