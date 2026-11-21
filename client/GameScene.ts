@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD, SLAG_KIT, ALT_KIT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1242,8 +1242,9 @@ export class GameScene extends Phaser.Scene {
       const spots = [...this.allies.map((al) => ({ k: al.hero, q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y })), { k: w.acting, q: me, x: this.player.x, y: this.player.y }];
       const o = this.overFx;
       for (const { k, q, x, y } of spots) {
-        if (q.hp > 0) continue;
-        const t = Math.min(1, (q.reviveT ?? 0) / REVIVE_SECONDS);
+        // G6 boss rule: with no pick-ups left, there is no revive circle to stand in.
+        if (q.hp > 0 || w.revivesLeft <= 0) continue;
+        const t = Math.min(1, (q.reviveT ?? 0) / w.reviveSeconds);
         const pulse = 0.5 + 0.5 * Math.sin(now / 250);
         const R = REVIVE_RADIUS;
         g.fillStyle(REVIVE, 0.07 + 0.05 * pulse + 0.12 * t).fillCircle(x, y + 6, R);

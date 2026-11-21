@@ -311,10 +311,10 @@ export function botGate(w: World): number {
 }
 
 /**
- * Party bot switches. `revive`: bots pick up downed allies. Off until design retunes the
- * group fights for it (with it on, the Crucible bot party wins 29/30); tools/group.ts sets it with REVIVE=1.
+ * Party bot switches. `revive`: bots pick up downed allies, under the G6 boss rules in
+ * REVIVE_RULES (one pick-up per boss fight, 9 s while the boss is up). REVIVE=0 in tools/group.ts turns it off.
  */
-export const BOT_PARTY = { revive: false };
+export const BOT_PARTY = { revive: true };
 
 /**
  * Co-op: the downed ally this hero should go and pick up, or null. The rescuer is the living hero
@@ -322,7 +322,7 @@ export const BOT_PARTY = { revive: false };
  * Nobody rescues into a telegraph that is about to land on the body.
  */
 function rescue(w: World): { dx: number; dy: number; d: number } | null {
-  if (!BOT_PARTY.revive || w.heroes.length < 2) return null;
+  if (!BOT_PARTY.revive || w.heroes.length < 2 || w.revivesLeft <= 0) return null;
   const n = w.heroes.length;
   for (let k = 0; k < n; k++) {
     const down = w.hero(k).player;

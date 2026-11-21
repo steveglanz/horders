@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
-import { World, REVIVE_SECONDS, BOSS_PHASES } from '../sim/world';
+import { World, BOSS_PHASES } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -192,12 +192,14 @@ export class Hud {
     const p = w.player;
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
     // G6: downed in a party, the health text says how to get back up and how far along it is.
-    const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / REVIVE_SECONDS) : -1;
+    const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / w.reviveSeconds) : -1;
+    // G6 boss rule: once the party has used its pick-ups for this boss, nobody can revive you.
+    const noRevive = rev >= 0 && w.revivesLeft <= 0;
     // Numbers only, so innerHTML is safe; the max sits in its own span so a narrow phone can drop it.
-    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
+    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : noRevive ? '<span>Down<span class="hplong"> · no revives left this boss</span></span>' : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
     // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
     const down = rev >= 0;
-    if (down && !this.wasDown && this.compact) this.banner("You're down", 'Stay put: an ally standing on you revives you');
+    if (down && !this.wasDown && this.compact) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
     this.wasDown = down;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
@@ -509,7 +511,7 @@ export class Hud {
       const q = w.heroData(r.hero).player;
       const down = q.hp <= 0;
       // G6: while a hero is down, their bar shows the revive filling instead of health.
-      const rev = down ? Math.min(1, (q.reviveT ?? 0) / REVIVE_SECONDS) : 0;
+      const rev = down ? Math.min(1, (q.reviveT ?? 0) / w.reviveSeconds) : 0;
       r.fill.style.width = `${down ? 100 * rev : (100 * Math.max(0, q.hp)) / q.maxHp}%`;
       if (down !== r.down) {
         r.down = down;

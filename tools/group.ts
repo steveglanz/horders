@@ -20,8 +20,8 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
-// REVIVE=1: bots pick up downed allies (BOT_PARTY.revive, off by default until the group fights are retuned).
-BOT_PARTY.revive = process.env.REVIVE === '1';
+// REVIVE=0: bots never pick up downed allies (BOT_PARTY.revive, on by default).
+BOT_PARTY.revive = process.env.REVIVE !== '0';
 // TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   const [path, v] = kv.split('=');

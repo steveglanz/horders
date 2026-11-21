@@ -4,6 +4,7 @@ import { BOT_PARTY, botInput } from '../sim/bot';
 
 describe('party bots', () => {
   it('walk to a downed ally and pick them up (with BOT_PARTY.revive on)', () => {
+    const was = BOT_PARTY.revive;
     BOT_PARTY.revive = true;
     const w = new World({ seed: 2, cls: 'emberwright', tier: 4, omens: [], party: [{ cls: 'lumen' }] });
     for (const e of w.enemies) e.alive = false;
@@ -18,7 +19,7 @@ describe('party bots', () => {
       for (const e of w.enemies) e.alive = false;
       up = w.heroes[1].player.hp > 0;
     }
-    BOT_PARTY.revive = false;
+    BOT_PARTY.revive = was;
     expect(up).toBe(true);
   });
 });

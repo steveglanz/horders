@@ -53,9 +53,13 @@ const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
 /** G6: an ally standing within this distance of a downed hero picks them up... */
 export const REVIVE_RADIUS = 40;
-/** ...after this many seconds, at this share of their health. Leaving the circle resets the count. */
-export const REVIVE_SECONDS = 3;
+/** ...at this share of their health. Leaving the circle resets the count. */
 export const REVIVE_HEALTH = 0.3;
+/**
+ * G6 pick-up timing. Outside a boss fight a pick-up takes `seconds`, with no limit. While a boss
+ * is up it takes `bossSeconds`, and the party gets `bossCap` pick-ups for the whole boss fight.
+ */
+export const REVIVE_RULES = { seconds: 3, bossSeconds: 9, bossCap: 1 };
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
@@ -816,6 +820,8 @@ export class World {
   damageDealt = 0;
   victory = false;
   bossIndex = -1;
+  /** G6: pick-ups used in this boss fight (REVIVE_RULES.bossCap). */
+  bossRevives = 0;
   eliteSpawned = false;
   bossSpawned = false;
   bossEnraged = false;
@@ -1211,8 +1217,25 @@ export class World {
     this.checkEnd();
   }
 
-  /** G6: a downed hero gets back up after a living ally stands on them for REVIVE_SECONDS. */
+  /** True while a boss is spawned and still standing (G6 boss revive rules apply). */
+  get bossUp(): boolean {
+    const b = this.bossSpawned && this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    return !!b && b.alive && b.hp > 0;
+  }
+
+  /** Seconds an ally must stand on a downed hero right now. */
+  get reviveSeconds(): number {
+    return this.bossUp ? REVIVE_RULES.bossSeconds : REVIVE_RULES.seconds;
+  }
+
+  /** Pick-ups the party still has in this boss fight (Infinity outside a boss fight). */
+  get revivesLeft(): number {
+    return this.bossUp ? Math.max(0, REVIVE_RULES.bossCap - this.bossRevives) : Infinity;
+  }
+
+  /** G6: a downed hero gets back up after a living ally stands on them for reviveSeconds. */
   private updateRevives(dt: number): void {
+    const need = this.reviveSeconds;
     for (let i = 0; i < this.heroes.length; i++) {
       const d = this.heroPlayer(i);
       if (d.hp > 0) {
@@ -1220,18 +1243,21 @@ export class World {
         continue;
       }
       let by = -1;
-      for (let j = 0; j < this.heroes.length && by < 0; j++) {
-        const a = this.heroPlayer(j);
-        if (j !== i && a.hp > 0 && dist2(a.x, a.y, d.x, d.y) <= REVIVE_RADIUS * REVIVE_RADIUS) by = j;
+      if (this.revivesLeft > 0) {
+        for (let j = 0; j < this.heroes.length && by < 0; j++) {
+          const a = this.heroPlayer(j);
+          if (j !== i && a.hp > 0 && dist2(a.x, a.y, d.x, d.y) <= REVIVE_RADIUS * REVIVE_RADIUS) by = j;
+        }
       }
       if (by < 0) {
         d.reviveT = 0;
         continue;
       }
       d.reviveT = (d.reviveT ?? 0) + dt;
-      if (d.reviveT >= REVIVE_SECONDS - 1e-9) {
+      if (d.reviveT >= need - 1e-9) {
         d.reviveT = 0;
         d.hp = d.maxHp * REVIVE_HEALTH;
+        if (this.bossUp) this.bossRevives++;
         this.events.push({ type: 'revive', hero: i, by });
       }
     }
