@@ -85,11 +85,40 @@ Measured with the script at `/mnt/project-files/horders/design/wrackline/wr.ts` 
 **For other teams:**
 - **Visuals:** sprites are needed for the Shoal Lurker, the Barge Hauler and Hessa (they show placeholders), plus the floor and the raft art. The floor tint is #6e8a80, a grey-green harbour colour. Visuals picked it to sit at least 21 ΔE from every other floor.
 - **Sound:** a dungeon theme, plus cues for the Ebb's warning and pull, Sink, Haul and Call the Shoal.
-- **Design follow-up:** a boss achievement and a set for the Wrackline, like the Coldmarrow's Winterproof and Hearthkeeper.
+- **Design follow-up:** done below (the Ebbproof achievement and the Wrackrider set).
+
+## The Ebbproof achievement and the Wrackrider set (21 Nov 2026)
+**Ebbproof:** beat Hessa of the Ebb in the Wrackline. It pays the title "the Ebbproof" and 40 embers, like the other solo bosses (`sim/content/achievements.ts`).
+
+**The Wrackrider set.** Hessa's head, hands and trinket drops can be Wrackrider pieces, the same way the other solo bosses drop their sets (`withSet`, 60% of set-slot drops, never in bounties). The verb is **stand fast**: the Wrackline teaches you to find your footing and hold it while the water pulls. It is the opposite of the Foundry's Tidewalker (keep moving). All numbers are in `SET_TUNING` (`wr*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** after 0.5 s standing still you are **Planted**, and you take 6% less damage. Planted lasts 1 s after you walk off. In the Wrackline, standing on a raft keeps you Planted even while you walk.
+- **3 pieces:** while Planted, your hits deal +8% damage.
+
+A "Planted" chip shows in the buff row while it is on. The set glyph in `client/icons.ts` is a placeholder (a figure on a raft over a wave) until visuals draws one.
+
+**Measured** with `SET=wrackrider` in `tools/foundry.ts`, heroes-r2 hero-t8-0, Wrackline tier 10, seeds 1 to 80, on main d282506 plus this change. Wins out of 80, full set against none:
+
+| | Emberwright | Duskblade | Bulwark | Lumen |
+|---|---|---|---|---|
+| No set | 57 | 54 | 42 | 75 |
+| Wrackrider (3) | 67 | 59 | 44 | 74 |
+
+That is -0.5 to +5 wins in 40, inside the range the other sets give (the Hearthkeeper gave +1 to +5). The Lumen is already near the ceiling.
+
+- **First pass:** Planted only after 1 s still, and no linger. It gave +1 to +2 wins in 40, too little.
+- **Second pass:** 0.5 s still, a 2 s linger and +10% damage. It gave the Emberwright +9 in 40, too much.
+- **Shipped:** 0.5 s, 1 s linger, +8%.
+
+**Outside the Wrackline it is unmeasured.** Our bots almost never stand still: in 6 Kiln runs per class, the Emberwright and Bulwark stood still 0.7 to 0.8% of the fight, and with the shipped numbers the set changed no Kiln result (tier 7, seeds 1 to 40, all four classes). So outside the Wrackline it only helps a player who stops to fight. Whether phone players lift their thumb often enough is for real play data. If they never do, the fix is a longer linger, not a bigger bonus.
+
+`tools/hashcheck.ts` is identical to main b748f13, so nothing changes for heroes without the set.
 
 ## Names
 Each was searched on wowhead.com, warcraft.wiki.gg and wowpedia, and the bigger ones on the open web too.
 - **No exact match:** "Wrackline", "Hessa of the Ebb", "Shoal Lurker", "Barge Hauler", "Call the Shoal" and "Warden in the Shoals".
+- **The set and achievement (searched on the open web, and on the three WoW sites):** "Wrackrider" and "Ebbproof" have no match anywhere. The nearest is WoW's "Wavestrider", a different word.
+- **"Planted"** is a single plain word, kept under Steve's rule. Wowhead lists an internal spell of that name (spell 22935). "Steady" was the first pick, but our own talents already have Steady Halo and Steady Breath. "Anchored" was dropped because Wowhead lists several "Anchored" spells.
 - **Single ordinary words, kept under Steve's rule:** "The Ebb" (Wowpedia has a page named Ebb), "Riptide" (a WoW shaman spell), and "Haul" and "Sink".
 - **Dropped:**
   - "The Slagway": too close to the Slagworks in Blackrock Foundry.
