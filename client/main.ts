@@ -216,6 +216,7 @@ function startRun(bounty = false, key = false): void {
   game.scene.start('game', {
     opts: runOpts,
     hud,
+    glow: hero.wear?.glow,
     coop: hosting ? coop! : undefined,
     onEnd: (w: World) => {
       const rewards = finishRun(w);
@@ -453,6 +454,7 @@ const coopEvents = {
     game.scene.start('game', {
       opts,
       hud,
+      glow: hero.wear?.glow,
       coop: coop!,
       onEnd: (w: World) => {
         const rewards = finishRun(w);

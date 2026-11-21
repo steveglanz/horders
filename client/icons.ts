@@ -6,6 +6,7 @@ import type { OmenId } from '../sim/content/omens';
 import type { PotionId } from '../sim/content/potions';
 import type { ClassId } from '../sim/content/emberwright';
 import type { SetId } from '../sim/content/sets';
+import type { MythicId, WeaponFxId } from '../sim/content/items';
 
 const FLAME = 'M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-5 1-8Z';
 
@@ -126,3 +127,54 @@ export const SLOT_ICON: Record<'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 
   // Trinket: an amulet on a cord.
   trinket: 'M7 3l5 7 5-7 M12 10a5 5 0 1 1 0 10a5 5 0 0 1 0-10Z M12 13v4',
 };
+
+/** Mythics share the Mythic rarity colour; the glyph names the effect (P4 Collection tiles). */
+export const MYTHIC_ICON: Record<MythicId, string> = {
+  // Phoenix Feather (rise again): a quill with its barbs.
+  phoenixFeather: 'M19 3C10 4.5 5.5 10.5 5 21 M19 3c-.5 7.5-5.5 12.5-12.5 13.5 M12.5 13.5 8 12.5 M15 10l-4.5-1.2 M17.2 6.5l-4-1',
+  // Giant's Bane (elites and bosses): crosshairs on a big target.
+  giantsBane: 'M12 4a8 8 0 1 1 0 16a8 8 0 1 1 0-16Z M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z M12 1.5v4.5 M12 18v4.5 M1.5 12H6 M18 12h4.5',
+  // Glutton's Gem (experience): a cut gem.
+  gluttonsGem: 'M7 4h10l4.5 5L12 21 2.5 9Z M2.5 9h19 M9.5 4 12 9l2.5-5 M12 9v12',
+  // Splitting Cinders (extra damage to a nearby foe): an ember cracking into two halves.
+  splittingCinders: 'M10 4.5a7.5 7.5 0 0 0 0 15 M10 4.5l1.5 4-2 3.5 2 3-1.5 4.5 M14.5 4.5a7.5 7.5 0 0 1 0 15 M14.5 4.5l1.5 4-2 3.5 2 3-1.5 4.5',
+  // Wanderer's Wake (Blink burns its path): a dashed trail ending in a flame.
+  wanderersWake: 'M2 19h3 M7 19h3 M12 19h1.5 M17 19c-2 0-3.2-1.5-3.2-3.3 0-2.4 1.9-3.8 3.2-6.7 1.3 2.9 3.2 4.3 3.2 6.7 0 1.8-1.2 3.3-3.2 3.3Z',
+  // Banked Heart (Combustion, Heat back): a heart holding a flame.
+  bankedHeart: 'M12 20.5S3.5 15.7 3.5 9.8A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.6c0 5.9-8.5 10.7-8.5 10.7Z M12 10c1 1.4 1.8 2.3 1.8 3.6a1.8 1.8 0 0 1-3.6 0c0-1.3.8-2.2 1.8-3.6Z',
+  // Mirrorstep (an afterimage): a step to each side of a mirror line.
+  mirrorstep: 'M12 2.5v19 M8.5 7 3.5 12l5 5 M15.5 7l5 5-5 5',
+  // Red Ledger (Execution): a ledger with a tally struck through.
+  redLedger: 'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5Z M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3 M9 7v7 M12 7v7 M15 7v7 M8 13l8-5',
+  // Tethered Shield (Shield Toss, Charge): a shield on a chain.
+  tetheredShield: 'M9 3 3.5 5v5c0 3.5 2.3 6 5.5 7.5 3.2-1.5 5.5-4 5.5-7.5V5Z M14.5 14.5l2 2 M16.5 16.5a2 2 0 1 1 2.8 2.8a2 2 0 1 1-2.8-2.8Z',
+  // Ringwall Vow (guard every side): a ring of wall around a keep.
+  ringwallVow: 'M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18Z M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7Z M12 3v5.5 M12 15.5V21 M3 12h5.5 M15.5 12H21',
+  // Anchored Dawn (Sanctuary stays put): an anchor.
+  anchoredDawn: 'M12 7v14 M4.5 14c0 4 3.3 7 7.5 7s7.5-3 7.5-7 M2.5 14h4 M17.5 14h4 M8.5 10h7 M12 2.5a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z',
+  // Eclipse Glass (more burst, less heal): a sun with the shadow crossing it.
+  eclipseGlass: 'M12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11Z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4 M9.5 9.5a3.5 3.5 0 0 1 5 5',
+};
+
+/** Class weapon effects, coloured by their class (P4 Collection tiles). The two cast-hitters wear the interrupt cut. */
+export const WEAPON_FX_ICON: Record<WeaponFxId, string> = {
+  // Piercing Cinders: an orb with a shot through it.
+  piercingCinders: 'M2 12h20 M18.5 8.5 22 12l-3.5 3.5 M9.5 8a4 4 0 1 1 0 8a4 4 0 1 1 0-8Z',
+  // Banked Flame: small orbs, then a big one.
+  bankedFlame: 'M2.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0Z M7.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0Z M13 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0Z',
+  // Cast-Cutter: the interrupt cut.
+  castCutter: CUT,
+  // Worrying Edge: stacking chevrons.
+  worryingEdge: 'M5 20.5l7-5 7 5 M5 14.5l7-5 7 5 M5 8.5l7-5 7 5',
+  // Rallying Sweep: a sweeping arc with Resolve rising.
+  rallyingSweep: 'M3.5 17a9 9 0 0 1 17 0 M12 18V9 M8.5 12.5 12 9l3.5 3.5',
+  // Warding Sweep: a sweeping arc over a shield.
+  wardingSweep: 'M2.5 12.5a9.5 9.5 0 0 1 19 0 M12 9.5 7.5 11.2v3.3c0 2.4 1.8 4.2 4.5 5.5 2.7-1.3 4.5-3.1 4.5-5.5v-3.3Z',
+  // Tender Light: a heart with a mending cross.
+  tenderLight: 'M12 20.5S3.5 15.7 3.5 9.8A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.6c0 5.9-8.5 10.7-8.5 10.7Z M12 10.5v6 M9 13.5h6',
+  // Rebuking Light: a sun inside the interrupt cut.
+  rebukingLight: CUT + ' M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z',
+};
+
+/** The Collection book: an open book. */
+export const BOOK_ICON = 'M12 6.5C10 5 7 4.5 3 5v14c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Z M12 6.5v14';

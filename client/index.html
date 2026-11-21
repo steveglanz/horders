@@ -89,6 +89,16 @@
   .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }
   .buff { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid var(--bc, var(--line)); color: var(--bc, var(--ink)); white-space: nowrap; }
+  .buff.warmth { display: inline-flex; align-items: center; gap: 4px; color: #c9a37c; border-color: #6b4a2e; transition: color .2s, border-color .2s, box-shadow .2s; }
+  .buff.warmth svg { flex: none; }
+  .buff.warmth.lit { color: var(--bc); border-color: var(--bc); }
+  .buff.warmth .em { display: inline-flex; gap: 3px; margin-left: 1px; }
+  .buff.warmth .em i { width: 7px; height: 7px; border-radius: 50%; background: #3a2a1e; border: 1px solid #6b4a2e; transition: background .15s, box-shadow .15s; }
+  .buff.warmth .em i.on { background: #ffb347; border-color: #ffd28a; box-shadow: 0 0 4px #ff8a2a; }
+  .buff.warmth b { font-weight: 800; color: #fff0d0; }
+  .buff.warmth.full { color: #fff0d0; border-color: #ffd28a; background: radial-gradient(circle at 30% 50%, rgba(255,138,42,.45), rgba(0,0,0,.55) 75%); box-shadow: 0 0 10px rgba(255,138,42,.65); animation: warmGlow 1.1s ease-in-out infinite alternate; }
+  .buff.warmth.full .em i.on { background: #fff0c0; box-shadow: 0 0 6px #ffb347; }
+  @keyframes warmGlow { from { box-shadow: 0 0 6px rgba(255,138,42,.45); } to { box-shadow: 0 0 14px rgba(255,160,60,.85); } }
   .buff.debuff { --bc: var(--gold); animation: pulse 0.5s infinite alternate; }
 
   #quests { position: fixed; right: max(12px, env(safe-area-inset-right)); top: 70px; z-index: 10; pointer-events: none; width: 200px; font-size: 12px; text-shadow: 0 1px 3px #000; }
@@ -220,6 +230,9 @@
   .hub-grid > * { min-width: 0; }
   .hero .who { display: flex; align-items: center; gap: 12px; }
   .hero .who .gtile { width: 52px; height: 52px; border-radius: 14px; }
+  /* The worn season glow, as in a run: a soft disc of its colour under the class tile. */
+  .hero .who .gtile.glowing { position: relative; box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 55%, transparent), 0 0 14px color-mix(in srgb, var(--glow) 40%, transparent); }
+  .hero .who .gtile.glowing::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: -7px; height: 10px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 80%, transparent), transparent); pointer-events: none; }
   .hero .who b { display: block; font: 600 20px var(--serif); }
   .hero .who .sub { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 13px; color: var(--muted); }
   .hero .meter { margin-top: 12px; }
@@ -301,10 +314,14 @@
   /* The Crucible (raid): a molten stream pours down from a dark slag roof into a glowing pool. */
   .dg[data-d="crucible"] { --art: radial-gradient(ellipse 30% 22% at 72% 100%, rgba(255,230,150,0.55), rgba(255,120,40,0.35) 45%, transparent 100%), linear-gradient(90deg, transparent 69.5%, rgba(255,140,50,0.32) 71%, rgba(255,225,150,0.6) 72%, rgba(255,140,50,0.32) 73%, transparent 74.5%), radial-gradient(ellipse at 50% 112%, rgba(255,100,30,0.35), transparent 60%), linear-gradient(180deg, rgba(20,12,10,0.85), rgba(48,26,18,0.6) 45%, transparent 80%); }
   /* Text size: Large (L3). The fight HUD's words and the menus' small print grow; bars and buttons keep their size. */
-  body.text-large :is(#target .tname, #quests, #toasts, #buffs, #ding, #banner, #party .pf) { zoom: 1.18; }
+  /* Zoom the contents, never a fixed-position box itself: zoom also scales its top/bottom/left offsets, which threw the
+     fight hint over the party frames on a 320px phone and moved the route line and toasts off their slots. */
+  body.text-large :is(#target .tname, #quests > *, #toasts > *, #buffs > *, #banner > *, #party .pf) { zoom: 1.18; }
+  body.text-large #ding { font-size: clamp(30px, 7vw, 52px); }
   body.text-large #target .tname { flex-wrap: wrap; row-gap: 0; }
   body.text-large #tName { white-space: nowrap; }
-  @media (min-width: 700px) { body.text-large #target { width: min(80vw, 500px); } }
+  /* Not on landscape phones: there the frame rides in the top row, and 500px covered your health and the clock. */
+  @media (min-width: 700px) and (min-height: 521px) { body.text-large #target { width: min(80vw, 500px); } }
   body.text-large :is(.hint, .kv, .note, .wq-txt, .key-sub, .key-stats span, .key-ladder, .bounty .tw, .prep-chip, [data-tip]::after) { font-size: 14px; }
   /* Display options (pause menu and main menu): segmented choices. */
   .opts { display: grid; gap: 10px; margin: 12px 0 10px; text-align: left; }
@@ -392,6 +409,22 @@
   #bagList { display: flex; flex-direction: column; gap: 8px; text-align: left; }
   .item { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); border-left: 3px solid var(--rc); font-size: 13px; }
   .item .info { flex: 1 1 220px; min-width: 0; }
+  /* The Forge: a hammer flash across the card, sparks off the anvil, and the changed numbers lit. */
+  .item.forged { position: relative; animation: forgeHit 0.9s ease-out; }
+  .item.forged.temper { animation-name: temperHit; }
+  .item.forged .il.lit, .item.forged .sv.lit { color: #ffe0a0; text-shadow: 0 0 8px rgba(255,150,60,0.9); animation: forgeNum 1.2s ease-out; display: inline-block; }
+  .item.forged.temper .sv.lit { color: #c9f4ff; text-shadow: 0 0 8px rgba(120,210,255,0.9); }
+  .item .sparks { position: absolute; left: 22px; top: 50%; width: 0; height: 0; pointer-events: none; }
+  .item .sparks b { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #fff0c8; box-shadow: 0 0 8px 2px #ff8a2a; opacity: 0; animation: forgeSpark 0.7s ease-out forwards; }
+  .item.temper .sparks b { background: #f0fbff; box-shadow: 0 0 8px 2px #4fb8ff; }
+  .item .sparks b:nth-child(1) { --sx: 46px; --sy: -30px; } .item .sparks b:nth-child(2) { --sx: 30px; --sy: -44px; animation-delay: 0.03s; }
+  .item .sparks b:nth-child(3) { --sx: 62px; --sy: -10px; animation-delay: 0.05s; } .item .sparks b:nth-child(4) { --sx: 14px; --sy: -50px; }
+  .item .sparks b:nth-child(5) { --sx: -14px; --sy: -40px; animation-delay: 0.04s; } .item .sparks b:nth-child(6) { --sx: 54px; --sy: 16px; animation-delay: 0.06s; }
+  .item .sparks b:nth-child(7) { --sx: 38px; --sy: 30px; animation-delay: 0.02s; } .item .sparks b:nth-child(8) { --sx: -10px; --sy: 24px; animation-delay: 0.07s; }
+  @keyframes forgeSpark { 0% { opacity: 1; transform: translate(0, 0) scale(1.2); } 100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.4); } }
+  @keyframes forgeHit { 0% { box-shadow: inset 0 0 0 999px rgba(255,170,80,0.32), 0 0 18px rgba(255,120,40,0.7); transform: scale(1.015); } 25% { transform: none; } 100% { box-shadow: none; } }
+  @keyframes temperHit { 0% { box-shadow: inset 0 0 0 999px rgba(140,210,255,0.22), 0 0 16px rgba(110,190,255,0.6); transform: scale(1.012); } 25% { transform: none; } 100% { box-shadow: none; } }
+  @keyframes forgeNum { 0% { transform: scale(1.18); } 25% { transform: scale(1); } }
   .item .nm { color: var(--rc); font: 600 15px var(--serif); }
   .item .st { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .item .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -849,15 +882,23 @@
   .bookbtn b { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
   .box.book .lbl { margin-top: 12px; color: var(--gold); }
   .box.book .lbl:first-child { margin-top: 0; }
+  .bookbtn .crest { display: inline-grid; place-items: center; }
   .bk-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; flex-wrap: wrap; }
-  .bk-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+  .bk-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .bk-name .gtile { width: 28px; height: 28px; border-radius: 8px; }
+  .bk-name .gtile.dim, .bk-item:not(.on) .gtile { color: var(--muted); background: rgba(255,255,255,0.04); opacity: 0.55; }
   .bk-name .muted { font-size: 11px; }
+  .bk-row.full .bk-name .gtile { box-shadow: 0 0 0 1px var(--gc), 0 0 10px color-mix(in srgb, var(--gc) 45%, transparent); }
   .bk-pips { display: flex; gap: 4px; }
-  .bk-pip { font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px dashed rgba(255,255,255,0.2); color: var(--muted); }
-  .bk-pip.on { border-style: solid; border-color: rgba(255,200,97,0.6); background: rgba(255,200,97,0.12); color: var(--ink); }
-  .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin-top: 8px; }
-  .bk-item { font-size: 12px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.3); color: var(--muted); border: 1px dashed rgba(255,255,255,0.12); line-height: 1.3; }
-  .bk-item.on { color: var(--ink); border: 1px solid rgba(255,140,60,0.45); background: rgba(255,140,60,0.08); }
+  .bk-pip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px dashed rgba(255,255,255,0.2); color: var(--muted); }
+  .bk-pip svg { opacity: 0.6; }
+  .bk-pip.on { border-style: solid; border-color: color-mix(in srgb, var(--gc) 60%, transparent); background: color-mix(in srgb, var(--gc) 12%, transparent); color: var(--ink); }
+  .bk-pip.on svg { opacity: 1; color: var(--gc); }
+  .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 8px; }
+  .bk-item { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 8px; border-radius: 9px; background: rgba(0,0,0,0.3); color: var(--muted); border: 1px dashed rgba(255,255,255,0.12); line-height: 1.3; }
+  .bk-item .gtile { width: 30px; height: 30px; border-radius: 8px; }
+  .bk-txt { min-width: 0; }
+  .bk-item.on { color: var(--ink); border: 1px solid color-mix(in srgb, var(--gc) 50%, transparent); background: color-mix(in srgb, var(--gc) 8%, transparent); }
   .bk-item .muted { display: block; font-size: 10px; }
   .booknote { display: inline-flex; align-items: center; gap: 4px; color: var(--gold); font-weight: 600; }
   .sheet .pots { margin-top: 4px; }

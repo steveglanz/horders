@@ -21,7 +21,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, CLASS_ICON, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -210,9 +210,10 @@ export class Hub {
         + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
+    const glow = h.wear?.glow ? GLOWS[h.wear.glow] : undefined;
     const worn = items.length;
     $('heroCard').innerHTML = `
-      <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
+      <div class="who"><span class="gtile${glow ? ' glowing' : ''}" style="--gc:${ci.color}${glow ? `;--glow:${glow.color}` : ''}"${glow ? ` title="Wearing ${glow.name}"` : ''}>${glyph(ci.d, 30)}</span>
         <div><b>${CLASSES[cls].name}</b>${h.wear?.title ? `<div class="worn-title">${h.wear.title}</div>` : ''}<div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
@@ -508,21 +509,25 @@ export class Hub {
     const have = collectionOf(this.hero());
     const total = BOOK.sets.length * BOOK.sets[0].entries.length + BOOK.mythics.length + BOOK.weaponFx.length;
     const n = [...have].length;
-    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
+    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">${glyph(BOOK_ICON, 16)}</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
   }
 
   /** P4: the collection book, shared by every class: sets, Mythics, weapon effects, and the rewards for finishing them. */
   private collectionLine(): string {
     const have = collectionOf(this.hero());
-    const pip = (on: boolean, label: string): string => `<span class="bk-pip${on ? ' on' : ''}" title="${label}${on ? '' : ' (not found yet)'}">${label}</span>`;
+    const pip = (on: boolean, slot: Slot): string => `<span class="bk-pip${on ? ' on' : ''}" title="${SLOT_LABEL[slot]}${on ? '' : ' (not found yet)'}">${glyph(SLOT_ICON[slot as keyof typeof SLOT_ICON], 12)}${SLOT_LABEL[slot]}</span>`;
     const sets = BOOK.sets.map((st) => {
       const def = SETS[st.id];
-      return `<div class="bk-row"><span class="bk-name">${glyph(SET_ICON[st.id], 14)} <b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span>`
-        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), SLOT_LABEL[e.split(':')[2] as Slot])).join('')}</span></div>`;
+      const n = st.entries.filter((e) => have.has(e)).length;
+      return `<div class="bk-row${n === st.entries.length ? ' full' : ''}" style="--gc:${SET_COLOR}"><span class="bk-name"><span class="gtile${n ? '' : ' dim'}">${glyph(SET_ICON[st.id], 16)}</span><span><b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span></span>`
+        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), e.split(':')[2] as Slot)).join('')}</span></div>`;
     }).join('');
-    const tag = (cls?: string): string => (cls ? ` <span class="muted">${CLASSES[cls as keyof typeof CLASSES].name}</span>` : '');
-    const mythics = MYTHIC_IDS.map((m) => `<div class="bk-item${have.has(`mythic:${m}`) ? ' on' : ''}">${have.has(`mythic:${m}`) ? MYTHICS[m].name : '???'}${tag(MYTHICS[m].cls)}</div>`).join('');
-    const fx = WEAPON_FX_IDS.map((f) => `<div class="bk-item${have.has(`fx:${f}`) ? ' on' : ''}">${have.has(`fx:${f}`) ? WEAPON_FX[f].name : '???'}${tag(WEAPON_FX[f].cls)}</div>`).join('');
+    // Tiles: the glyph in its colour once found; a dim outline (the shape, not the name) until then.
+    const tile = (on: boolean, color: string, d: string, name: string, cls?: string): string =>
+      `<div class="bk-item${on ? ' on' : ''}" style="--gc:${color}"><span class="gtile">${glyph(d, 17)}</span><span class="bk-txt">${on ? name : '???'}`
+      + `<span class="muted">${cls ? CLASSES[cls as keyof typeof CLASSES].name : 'Any class'}</span></span></div>`;
+    const mythics = MYTHIC_IDS.map((m) => tile(have.has(`mythic:${m}`), RARITY.mythic.color, MYTHIC_ICON[m], MYTHICS[m].name, MYTHICS[m].cls)).join('');
+    const fx = WEAPON_FX_IDS.map((f) => tile(have.has(`fx:${f}`), CLASS_ICON[WEAPON_FX[f].cls].color, WEAPON_FX_ICON[f], WEAPON_FX[f].name, WEAPON_FX[f].cls)).join('');
     const paid = new Set(this.hero().collectionPaid ?? []);
     const rewards = COLLECTION_REWARDS.map((r) => {
       const n = rewardProgress(r, have);
@@ -723,8 +728,38 @@ export class Hub {
       }));
     act('[data-e]', 'e', (id) => equip(h, id));
     act('[data-s]', 's', (id) => salvage(h, id), true);
-    act('[data-u]', 'u', (id) => upgradeItem(h, id));
-    act('[data-tm]', 'tm', (id) => temperItem(h, id));
+    // The Forge: note the stats before the hammer falls, then light what changed on the redrawn card.
+    const forged = (id: string, kind: 'up' | 'temper', fn: () => unknown): unknown => {
+      const it = h.inventory.find((i) => i.id === id);
+      const before = it ? it.stats.map((s) => `${s.stat}:${s.value}`) : [];
+      const r = fn();
+      if (r !== false && it) {
+        const changed = it.stats.map((s, k) => `${s.stat}:${s.value}` !== before[k]);
+        queueMicrotask(() => this.forgeFlourish(id, kind, changed));
+      }
+      return r;
+    };
+    act('[data-u]', 'u', (id) => forged(id, 'up', () => upgradeItem(h, id)));
+    act('[data-tm]', 'tm', (id) => forged(id, 'temper', () => temperItem(h, id)));
+  }
+
+  /** Forge feedback on every card showing the item: a hammer flash and sparks, the item level (Upgrade) and changed stats lit. */
+  private forgeFlourish(id: string, kind: 'up' | 'temper', changed: boolean[]): void {
+    document.querySelectorAll<HTMLElement>(`[data-it="${id}"]`).forEach((card) => {
+      card.classList.remove('forged', 'up', 'temper');
+      void card.offsetWidth;
+      card.classList.add('forged', kind);
+      if (kind === 'up') card.querySelector('.il')?.classList.add('lit');
+      card.querySelectorAll('.sv').forEach((sv, k) => { if (changed[k]) sv.classList.add('lit'); });
+      if (!card.querySelector('.sparks')) {
+        const sp = document.createElement('i');
+        sp.className = 'sparks';
+        sp.setAttribute('aria-hidden', 'true');
+        sp.innerHTML = '<b></b>'.repeat(8);
+        card.appendChild(sp);
+      }
+      setTimeout(() => { card.classList.remove('forged', 'up', 'temper'); card.querySelector('.sparks')?.remove(); }, 1400);
+    });
   }
 
   /** Phones: one item's full card, what you wear in that slot, and its actions, in a sheet. */
@@ -736,7 +771,7 @@ export class Hub {
     const isWorn = wornIds.has(it.id);
     const sets = setsWorn(h);
     const cur = isWorn ? undefined : equippedItems(h).find((i) => i.slot === it.slot);
-    const body = `<div class="item sheet-item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
+    const body = `<div class="item sheet-item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
       + (cur ? `<div class="sec-h"><span>Wearing now</span><span class="muted">Gear score ${itemScore(it) >= itemScore(cur) ? `<b class="up">+${Math.round(itemScore(it) - itemScore(cur))}</b>` : `<b class="down">${Math.round(itemScore(it) - itemScore(cur))}</b>`}</span></div>`
         + `<div class="item sheet-item cur" style="--rc:${RARITY[cur.rarity].color}">${itemHtml(cur, '', sets)}</div>` : '')
       + `<div class="sheet-acts">${this.itemActs(it, isWorn)}</div>`
@@ -789,7 +824,7 @@ export class Hub {
     } else {
       $('bagList').innerHTML = sorted.map((it) => {
         const isWorn = worn.has(it.id);
-        return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
+        return `<div class="item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
       }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
       this.bindActs($('bagList'), () => this.openBag());
     }

@@ -11,6 +11,8 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
+import { SET_TUNING } from '../sim/content/sets';
+import { GLOWS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
@@ -97,6 +99,8 @@ export interface SceneData {
   onEnd: (w: World) => void;
   /** Co-op: the party session (host steps the World, guest mirrors it). */
   coop?: CoopSession;
+  /** P2: the season glow the hero wears (GLOWS id), drawn under them. Looks only. */
+  glow?: string;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -213,6 +217,9 @@ export class GameScene extends Phaser.Scene {
     this.ventSprites = [];
     this.pillarSprites = [];
     this.glareFlash = 0;
+    this.warmSeen = 0;
+    this.glowId = data.glow;
+    this.heroGlow = undefined;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -279,6 +286,9 @@ export class GameScene extends Phaser.Scene {
     });
     for (let i = 0; i < 48; i++) this.smoke.push(this.newFx('puff', 4.5, false));
     this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
+    // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
+    const glow = this.glowId ? GLOWS[this.glowId] : undefined;
+    if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
@@ -387,6 +397,11 @@ export class GameScene extends Phaser.Scene {
   /** World text multiplier for small screens (see layout). */
   private textK = 1;
   private textSeen = display.text;
+  /** Hearthkeeper Warmth last frame, to flare once when it fills. */
+  private warmSeen = 0;
+  /** P2: the worn season glow under the hero, if any. */
+  private glowId?: string;
+  private heroGlow?: Phaser.GameObjects.Image;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -972,6 +987,10 @@ export class GameScene extends Phaser.Scene {
     const squash = p.hurtFlash > 0 ? 0.1 : 0;
     this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
     this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
+    if (this.heroGlow) {
+      const gp = Math.sin(now / 520);
+      this.heroGlow.setPosition(px, py + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(p.hp > 0 ? 0.8 + gp * 0.15 : 0.3);
+    }
     if (p.hurtFlash > 0) this.player.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
     else if (p.shieldT > 0) this.player.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
     else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1125,6 +1144,18 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     this.overFx.clear();
     if (this.coalLights.length) this.coldDraw(g, now);
+    // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
+    const hk = w.setCount('hearthkeeper');
+    const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
+    if (warm > 0) this.warmthDraw(g, this.player.x, this.player.y + 22, warm, hk >= 3 && warm >= SET_TUNING.hkMax, now);
+    if (hk >= 3 && warm >= SET_TUNING.hkMax && this.warmSeen < SET_TUNING.hkMax) {
+      this.ring(this.player.x, this.player.y + 10, 70, 0xffb347, 0.45);
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        this.emit(this.fx, 'spark', undefined, this.player.x + Math.cos(a) * 18, this.player.y + 14 + Math.sin(a) * 7, 0.55, { tint: 0xffa040, vx: Math.cos(a) * 50, vy: -50 - Math.random() * 40, drag: 0.93, sx0: 0.5, sx1: 0.1 });
+      }
+    }
+    this.warmSeen = warm;
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -1879,6 +1910,22 @@ export class GameScene extends Phaser.Scene {
    * glow with ember cracks, and Chill frosts the screen edge. The Long Night darkens the floor,
    * so only the lights are left.
    */
+  /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
+  private warmthDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, n: number, full: boolean, now: number): void {
+    const f = n / SET_TUNING.hkMax;
+    g.fillStyle(0xff8a2a, 0.06 + 0.1 * f).fillEllipse(x, y, 40 + 16 * f, 15 + 6 * f);
+    if (!full) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+    g.lineStyle(2, 0xffb347, 0.55 + 0.3 * pulse).strokeEllipse(x, y, 58, 21);
+    for (let k = 0; k < SET_TUNING.hkMax; k++) {
+      const a = now / 700 + (k / SET_TUNING.hkMax) * Math.PI * 2;
+      const ex = x + Math.cos(a) * 29;
+      const ey = y + Math.sin(a) * 10.5;
+      g.fillStyle(0xff8a2a, 0.35).fillCircle(ex, ey, 4);
+      g.fillStyle(0xffe0a0, 0.95).fillCircle(ex, ey, 1.8);
+    }
+  }
+
   private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
