@@ -300,6 +300,12 @@
   .dg[data-d="coldmarrow"] { --art: radial-gradient(circle at 82% 88%, rgba(255,140,60,0.42), rgba(255,140,60,0.12) 18%, transparent 34%), radial-gradient(ellipse at 70% 0%, rgba(190,225,255,0.32), transparent 60%), linear-gradient(160deg, rgba(22,38,66,0.75), transparent 72%); }
   /* The Crucible (raid): a molten stream pours down from a dark slag roof into a glowing pool. */
   .dg[data-d="crucible"] { --art: radial-gradient(ellipse 30% 22% at 72% 100%, rgba(255,230,150,0.55), rgba(255,120,40,0.35) 45%, transparent 100%), linear-gradient(90deg, transparent 69.5%, rgba(255,140,50,0.32) 71%, rgba(255,225,150,0.6) 72%, rgba(255,140,50,0.32) 73%, transparent 74.5%), radial-gradient(ellipse at 50% 112%, rgba(255,100,30,0.35), transparent 60%), linear-gradient(180deg, rgba(20,12,10,0.85), rgba(48,26,18,0.6) 45%, transparent 80%); }
+  /* Text size: Large (L3). The fight HUD's words and the menus' small print grow; bars and buttons keep their size. */
+  body.text-large :is(#target .tname, #quests, #toasts, #buffs, #ding, #banner, #party .pf) { zoom: 1.18; }
+  body.text-large #target .tname { flex-wrap: wrap; row-gap: 0; }
+  body.text-large #tName { white-space: nowrap; }
+  @media (min-width: 700px) { body.text-large #target { width: min(80vw, 500px); } }
+  body.text-large :is(.hint, .kv, .note, .wq-txt, .key-sub, .key-stats span, .key-ladder, .bounty .tw, .prep-chip, [data-tip]::after) { font-size: 14px; }
   /* Display options (pause menu and main menu): segmented choices. */
   .opts { display: grid; gap: 10px; margin: 12px 0 10px; text-align: left; }
   .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; flex-wrap: wrap; }

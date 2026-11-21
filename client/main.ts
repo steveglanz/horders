@@ -86,6 +86,7 @@ window.visualViewport?.addEventListener('resize', fit);
 // Display settings that live outside the scene: render scale, frame cap and button side.
 const applyDisplay = () => {
   document.body.classList.toggle('lefty', display.hand === 'left');
+  document.body.classList.toggle('text-large', display.text === 'large');
   const next = fullDpr();
   if (next !== DPR) {
     DPR = next;

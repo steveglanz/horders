@@ -1,6 +1,6 @@
 /**
- * Display options (roadmap L3, accessibility): screen shake strength and a
- * colour-blind telegraph palette. Saved per browser; shown in the pause menu
+ * Display options (roadmap L3, accessibility): screen shake strength, a
+ * colour-blind telegraph palette and text size. Saved per browser; shown in the pause menu
  * and on the main menu, and every copy of the controls stays in sync.
  */
 
@@ -10,12 +10,15 @@ export type PaletteSetting = 'standard' | 'colorblind';
 export type HandSetting = 'right' | 'left';
 /** Auto drops effects when frames dip; Saver also caps at 30 fps and renders at 1x for battery. */
 export type GraphicsSetting = 'auto' | 'saver' | 'full';
+/** Text size (L3): Large grows combat text, the fight HUD's words and the menus' small print. */
+export type TextSetting = 'normal' | 'large';
 
 export interface DisplaySettings {
   shake: ShakeSetting;
   palette: PaletteSetting;
   hand: HandSetting;
   graphics: GraphicsSetting;
+  text: TextSetting;
 }
 
 const KEY = 'horders.display.v1';
@@ -26,7 +29,7 @@ function osReducedMotion(): boolean {
 }
 
 function load(): DisplaySettings {
-  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto' };
+  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto', text: 'normal' };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;
@@ -36,6 +39,7 @@ function load(): DisplaySettings {
       palette: v.palette === 'colorblind' ? 'colorblind' : 'standard',
       hand: v.hand === 'left' ? 'left' : 'right',
       graphics: v.graphics === 'saver' || v.graphics === 'full' ? v.graphics : 'auto',
+      text: v.text === 'large' ? 'large' : 'normal',
     };
   } catch {
     return base;
@@ -47,6 +51,11 @@ export const display: DisplaySettings = load();
 /** How much of the normal screen shake to apply. */
 export function shakeScale(): number {
   return display.shake === 'full' ? 1 : display.shake === 'reduced' ? 0.3 : 0;
+}
+
+/** How much bigger world text (nameplates, damage numbers) draws. */
+export function textScale(): number {
+  return display.text === 'large' ? 1.25 : 1;
 }
 
 /**
@@ -107,7 +116,9 @@ export function mountDisplayOptions(box: HTMLElement): void {
   const pal = segmented<PaletteSetting>('Danger colours', () => display.palette, [['standard', 'Standard'], ['colorblind', 'Colour-blind']], (v) => { display.palette = v; });
   const gfx = segmented<GraphicsSetting>('Graphics', () => display.graphics, [['auto', 'Auto'], ['saver', 'Battery saver'], ['full', 'Full']], (v) => { display.graphics = v; });
   gfx.el.setAttribute('data-tip', 'Auto trims effects when the frame rate dips. Battery saver always does, caps at 30 fps and renders at 1x. Full never trims.');
-  const rows = [shake, pal, gfx];
+  const text = segmented<TextSetting>('Text size', () => display.text, [['normal', 'Normal'], ['large', 'Large']], (v) => { display.text = v; });
+  text.el.setAttribute('data-tip', 'Large grows nameplates, damage numbers, the fight HUD and the small print in menus.');
+  const rows = [shake, pal, text, gfx];
   // Only touch screens have on-screen ability buttons to move.
   if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
     const hand = segmented<HandSetting>('Ability buttons', () => display.hand, [['right', 'Right'], ['left', 'Left']], (v) => { display.hand = v; });

@@ -12,7 +12,7 @@ import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { CLASS_ICON } from './icons';
-import { display, onDisplayChange, palette, shakeScale } from './settings';
+import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
@@ -372,7 +372,9 @@ export class GameScene extends Phaser.Scene {
     this.ground.setPosition(width / 2, height / 2).setSize(width / zoom + 4, height / zoom + 4);
     // Phones see the world zoomed out (a 500-unit view on a ~375px screen), which shrank
     // nameplates and combat text to 9-10px. Grow world text back to at least its design size.
-    this.textK = Math.min(1.4, Math.max(1, viewFor(short / dpr) / (short / dpr)));
+    // The Large text setting (L3) grows it again on top.
+    this.textK = Math.min(1.4, Math.max(1, viewFor(short / dpr) / (short / dpr))) * textScale();
+    this.textSeen = display.text;
     const k = this.textK;
     const res = Math.max(1, Math.min(3, zoom * k));
     for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
@@ -384,6 +386,7 @@ export class GameScene extends Phaser.Scene {
 
   /** World text multiplier for small screens (see layout). */
   private textK = 1;
+  private textSeen = display.text;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -450,6 +453,8 @@ export class GameScene extends Phaser.Scene {
 
   private updateInner(deltaMs: number): void {
     const w = this.world;
+    // Text size changed in the pause menu: resize the world text now.
+    if (this.textSeen !== display.text) this.layout();
     // The Coldmarrow: the music's coal crackle follows your Hearthcoal.
     if (w.dungeonId === 'coldmarrow' && w.player.coal !== undefined) audio.warmth(w.player.coal);
     this.frameTimes.push(deltaMs);
