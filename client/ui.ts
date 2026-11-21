@@ -5,7 +5,8 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
-import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph } from './icons';
+import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
@@ -111,9 +112,32 @@ export class Hud {
       bar.appendChild(b);
       this.abButtons.push(b);
     });
+    // The pause menu lists the same abilities, where a hold can explain them without casting.
+    const pabs = $('pauseAbilities');
+    pabs.style.setProperty('--ac', CLASS_ICON[cls].color);
+    pabs.innerHTML = def.abilities.map((a, i) => `<div class="pab" role="button" tabindex="0">${glyph(icons[i], 24)}<b>${a.name}</b></div>`).join('')
+      + `<div class="pabs-hint" style="grid-column:1/-1">${matchMedia('(pointer: coarse)').matches ? 'Hold' : 'Hover'} an ability for what it does.</div>`;
+    pabs.querySelectorAll('.pab').forEach((el, i) => {
+      const a = def.abilities[i];
+      setTip(el, () => `<b>${a.name}</b><br>${a.text}<br><span class="tip-m">${[a.cost ? `${a.cost} ${def.resource}` : 'Free', `${a.cooldown}s cooldown`, i === INTERRUPT_SLOT ? 'Interrupts casts' : ''].filter(Boolean).join(' · ')}</span>`);
+    });
   }
 
   private abButtons: HTMLButtonElement[] = [];
+
+  /** The pause menu names this delve's Omens; hold or hover one for what it does. */
+  private showOmens(w: World): void {
+    const box = $('pauseOmens');
+    const ids = (w.omens ?? []) as OmenId[];
+    box.hidden = !ids.length;
+    if (!ids.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="po-h">${ids.length === 1 ? 'Omen' : 'Omens'} this delve</div>`
+      + ids.map((id) => `<div class="po" data-omen="${id}">${omenTile(id, 28)}<span><b>${OMENS[id].name}</b><i>${OMENS[id].tip}</i></span></div>`).join('');
+    box.querySelectorAll<HTMLElement>('[data-omen]').forEach((el) => {
+      const o = OMENS[el.dataset.omen as OmenId];
+      setTip(el, () => `<b>${o.name}</b><br>${o.text}<br><span class="tip-g">${o.tip}</span>`);
+    });
+  }
 
   /** Briefly pulses an action button when it fires. */
   flashAbility(slot: number): void {
@@ -139,6 +163,7 @@ export class Hud {
     $('toasts').innerHTML = '';
     $('perf').hidden = !this.showPerf;
     this.buildBar(w.cls);
+    this.showOmens(w);
     this.buildParty(w);
     $('heat').dataset.cls = w.cls;
     this.draftShownFor = -1;
@@ -202,6 +227,9 @@ export class Hud {
   }
 
   private narrow = matchMedia('(max-width: 560px)');
+  private phone = matchMedia('(max-width: 560px), (max-height: 520px)');
+  /** Phone-sized screen: shorter banners, icon-only HUD. */
+  get compact(): boolean { return this.phone.matches; }
   private stacked = '';
 
   /**
@@ -254,13 +282,14 @@ export class Hud {
     const box = $('target');
     if (i < 0) {
       box.hidden = true;
-      $('hud').classList.remove('vsboss');
+      $('hud').classList.remove('vsboss', 'tgt');
       return;
     }
     const e = w.enemies[i];
     box.hidden = false;
-    // Phones hide the route line during the boss: the boss frame already names the fight.
+    // Phones hide the route line while a target frame shows: the frame and "Fight 3 of 5" already say where you are.
     $('hud').classList.toggle('vsboss', e.def.rank === 'boss');
+    $('hud').classList.add('tgt');
     box.style.setProperty('--tcolor', RANK_COLOR[e.def.rank]);
     const shadow = e.kind === 'worldShadow';
     $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.def.name;
@@ -478,6 +507,7 @@ export class Hud {
       const fights = w.route.filter((r) => r !== 'worldShadow').length;
       const notes = [`Fights cleared: ${s.victory ? fights : Math.min(w.encounter, fights)} of ${fights}`];
       if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
+      if (!rewards.items.length) notes.push('No loot this time');
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
@@ -486,7 +516,7 @@ export class Hud {
       const equipped = new Set(Object.values(hero.equipped));
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
-      loot = `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
+      loot = !n ? '' : `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
         + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', setsWorn(hero))}</div>`).join('');
     }
     $('endXp').innerHTML = xp;
@@ -508,9 +538,9 @@ export class Hud {
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
       .map((id) => {
         const def = TALENTS[id];
-        return `<span class="chip" style="--branch:${BRANCH_COLOR[def.branch]}">${def.name}${def.maxRank > 1 && def.maxRank < 99 ? ' ' + s.talents[id] : def.maxRank >= 99 ? ' x' + s.talents[id] : ''}</span>`;
+        return `<span class="chip" style="--branch:${BRANCH_COLOR[def.branch]}" title="${(def as { tip?: string }).tip ?? def.text}">${def.name}${def.maxRank > 1 && def.maxRank < 99 ? ' ' + s.talents[id] : def.maxRank >= 99 ? ' x' + s.talents[id] : ''}</span>`;
       })
-      .join('') || '<span class="muted">No talents taken</span>';
+      .join('');
     $('end').hidden = false;
   }
 

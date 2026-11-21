@@ -2,8 +2,9 @@
  * Talent trees for every class (the file keeps its first class's name), plus
  * the Emberwright's action bar. Each class has three branches, drafted on
  * level-up during a run.
- * Taking CAPSTONE_RANKS ranks in one branch unlocks that branch's capstone,
- * which transforms the class (the survivors "evolution" moment).
+ * Taking CAPSTONE_RANKS ranks in one branch unlocks that branch's capstones,
+ * which transform the class (the survivors "evolution" moment). A branch can
+ * have two capstones: the draft offers both, and taking one closes the other.
  */
 export type Branch =
   | 'wildfire' | 'kindling' | 'ashguard'
@@ -18,10 +19,12 @@ export type TalentId =
   | 'emberRain'
   | 'searingBurn'
   | 'conflagration'
+  | 'cinderTide'
   | 'extraOrb'
   | 'quickcast'
   | 'searingFocus'
   | 'phoenixLance'
+  | 'searingBloom'
   | 'cinderSkin'
   | 'mend'
   | 'magnetism'
@@ -29,6 +32,7 @@ export type TalentId =
   | 'rollingInferno'
   | 'heatSink'
   | 'ringOfAsh'
+  | 'ashenMantle'
   | 'stoke'
   | 'smallHeal'
   // Duskblade
@@ -37,16 +41,19 @@ export type TalentId =
   | 'deepCuts'
   | 'thirst'
   | 'crimsonTide'
+  | 'openVeins'
   | 'quickBlades'
   | 'longReach'
   | 'precision'
   | 'momentumFlow'
   | 'bladeStorm'
+  | 'killingRhythm'
   | 'thickHide'
   | 'secondWind'
   | 'nimble'
   | 'evasion'
   | 'riposte'
+  | 'shadowSlip'
   // Emberwright ability talents
   | 'pyroclasm'
   | 'ignition'
@@ -107,6 +114,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   rollingInferno: { id: 'rollingInferno', cls: 'emberwright', name: 'Rolling Inferno', branch: 'wildfire', maxRank: 3, text: 'Flame Wave costs 6 less Heat and leaves fire behind.' },
   pyroclasm: { id: 'pyroclasm', cls: 'emberwright', name: 'Pyroclasm', branch: 'wildfire', maxRank: 2, text: 'Combustion leaves a fire pool, and burning foes spread their fire when they die.', tip: "Combustion leaves a fire pool for 4s, 14 damage per second per rank. A foe that dies burning passes its fire to foes within 80 px." },
   conflagration: { id: 'conflagration', cls: 'emberwright', name: 'Conflagration', branch: 'wildfire', maxRank: 1, capstone: true, text: 'CAPSTONE: orbs explode on impact, scorching the target and everything near it.', tip: "Every orb explodes on impact: foes beside the target take 60% of the orb's damage, and the target takes another 50%." },
+  cinderTide: { id: 'cinderTide', cls: 'emberwright', name: 'Cinder Tide', branch: 'wildfire', maxRank: 1, capstone: true, text: 'CAPSTONE: Flame Wave bursts out all around you and leaves you standing in fire.', tip: "Flame Wave hits every foe within 230 px, in every direction, and leaves fire at your feet for 3s: 14 damage per second." },
   // Kindling: projectiles and single target
   extraOrb: { id: 'extraOrb', cls: 'emberwright', name: 'Twin Cinders', branch: 'kindling', maxRank: 3, text: 'Cinder Volley fires one more orb.' },
   quickcast: { id: 'quickcast', cls: 'emberwright', name: 'Quickcast', branch: 'kindling', maxRank: 3, text: 'Cinder Volley fires 14% faster.' },
@@ -114,6 +122,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   heatSink: { id: 'heatSink', cls: 'emberwright', name: 'Heat Sink', branch: 'kindling', maxRank: 3, text: 'Orb hits build 35% more Heat; Combustion hits 20% harder and recharges 3s faster.' },
   ignition: { id: 'ignition', cls: 'emberwright', name: 'Ignition', branch: 'kindling', maxRank: 2, text: 'Flame Wave always crits. Rank 2: every crit cuts its cooldown by 0.3s.' },
   phoenixLance: { id: 'phoenixLance', cls: 'emberwright', name: 'Phoenix Lance', branch: 'kindling', maxRank: 1, capstone: true, text: 'CAPSTONE: a piercing lance every 2.5s.', tip: "Every 2.5s, a lance hits everything in a 520 px line for 75 damage." },
+  searingBloom: { id: 'searingBloom', cls: 'emberwright', name: 'Searing Bloom', branch: 'kindling', maxRank: 1, capstone: true, text: 'CAPSTONE: your crits burst onto foes around the target and set the target burning.', tip: "Every crit splashes 60% of the hit onto foes within 90 px of the target, and burns the target for 30 damage per second for 3s." },
   // Ashguard: defense and utility
   cinderSkin: { id: 'cinderSkin', cls: 'emberwright', name: 'Cinder Skin', branch: 'ashguard', maxRank: 3, text: '+25 max health, and heal 25.' },
   mend: { id: 'mend', cls: 'emberwright', name: 'Mend in Embers', branch: 'ashguard', maxRank: 3, text: 'Regenerate 0.8 health per second.' },
@@ -121,6 +130,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   flicker: { id: 'flicker', cls: 'emberwright', name: 'Flicker', branch: 'ashguard', maxRank: 3, text: 'Blink recharges 1.5s faster and shields you briefly.' },
   blazingSpeed: { id: 'blazingSpeed', cls: 'emberwright', name: 'Blazing Speed', branch: 'ashguard', maxRank: 2, text: 'Run 30% faster for 2s after Blink. Rank 2: Blink holds a second charge.' },
   ringOfAsh: { id: 'ringOfAsh', cls: 'emberwright', name: 'Ring of Ash', branch: 'ashguard', maxRank: 1, capstone: true, text: 'CAPSTONE: three embers orbit and burn foes.', tip: "Three embers circle you and burn each foe they touch for 16 damage, at most once every 0.4s per foe." },
+  ashenMantle: { id: 'ashenMantle', cls: 'emberwright', name: 'Ashen Mantle', branch: 'ashguard', maxRank: 1, capstone: true, text: 'CAPSTONE: for 3s after Blink, you take 40% less damage.' },
   // Fallbacks once the tree runs dry
   stoke: { id: 'stoke', name: 'Stoke the Flame', branch: 'general', maxRank: 99, text: '+10% damage.' },
   smallHeal: { id: 'smallHeal', name: 'Warm Hearth', branch: 'general', maxRank: 99, text: 'Heal 40 health.' },
@@ -132,6 +142,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   thirst: { id: 'thirst', cls: 'duskblade', name: 'Thirst', branch: 'bloodletting', maxRank: 3, text: 'Heal for 2% of the damage you deal.' },
   exsanguinate: { id: 'exsanguinate', cls: 'duskblade', name: 'Exsanguinate', branch: 'bloodletting', maxRank: 2, text: 'Execution also tears open the target\'s bleed, dealing 3s of it at once (6s at rank 2).' },
   crimsonTide: { id: 'crimsonTide', cls: 'duskblade', name: 'Crimson Tide', branch: 'bloodletting', maxRank: 1, capstone: true, text: 'CAPSTONE: bleeding foes burst when they die, spreading the bleed.', tip: "A foe that dies bleeding bursts, and every foe within 120 px bleeds for 4s." },
+  openVeins: { id: 'openVeins', cls: 'duskblade', name: 'Open Veins', branch: 'bloodletting', maxRank: 1, capstone: true, text: 'CAPSTONE: your bleeds deal 60% more damage.' },
   // Tempo: speed and crits
   quickBlades: { id: 'quickBlades', cls: 'duskblade', name: 'Quick Blades', branch: 'tempo', maxRank: 3, text: 'Swing 12% faster.' },
   longReach: { id: 'longReach', cls: 'duskblade', name: 'Long Reach', branch: 'tempo', maxRank: 3, text: 'Swings reach 15% farther and wider.' },
@@ -139,6 +150,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   momentumFlow: { id: 'momentumFlow', cls: 'duskblade', name: 'Flow', branch: 'tempo', maxRank: 3, text: 'Hits build 30% more Momentum; Execution recharges 3s faster.' },
   flurryStep: { id: 'flurryStep', cls: 'duskblade', name: 'Flurry Step', branch: 'tempo', maxRank: 2, text: 'Rending Dash comes back at once if it kills. Rank 2: it costs 10 less Momentum.' },
   bladeStorm: { id: 'bladeStorm', cls: 'duskblade', name: 'Blade Storm', branch: 'tempo', maxRank: 1, capstone: true, text: 'CAPSTONE: every fourth swing is a full spin for double damage.' },
+  killingRhythm: { id: 'killingRhythm', cls: 'duskblade', name: 'Killing Rhythm', branch: 'tempo', maxRank: 1, capstone: true, text: 'CAPSTONE: each swing soon after the last is 4% faster, up to 10 times. A pause resets it.' },
   // Guard: survival
   thickHide: { id: 'thickHide', cls: 'duskblade', name: 'Thick Hide', branch: 'guard', maxRank: 3, text: '+30 max health, and heal 30.' },
   secondWind: { id: 'secondWind', cls: 'duskblade', name: 'Second Wind', branch: 'guard', maxRank: 3, text: 'Regenerate 1 health per second.' },
@@ -146,6 +158,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   evasion: { id: 'evasion', cls: 'duskblade', name: 'Evasion', branch: 'guard', maxRank: 3, text: 'Sidestep recharges 1.5s faster; your next swing crits.' },
   counterstep: { id: 'counterstep', cls: 'duskblade', name: 'Counterstep', branch: 'guard', maxRank: 2, text: 'Sidestep cuts the nearest foe for 60 as you land. Rank 2: you dodge for twice as long.' },
   riposte: { id: 'riposte', cls: 'duskblade', name: 'Riposte', branch: 'guard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 6s, parry the next hit and strike back hard.', tip: "Parry the next hit of 5 or more: you take nothing and strike the nearest foe within 170 px for 140. Ready again 6s later." },
+  shadowSlip: { id: 'shadowSlip', cls: 'duskblade', name: 'Shadow Slip', branch: 'guard', maxRank: 1, capstone: true, text: 'CAPSTONE: Sidestep holds a second charge.' },
 
   // Bulwark. Bastion: soak and shields
   holdTheLine: { id: 'holdTheLine', cls: 'bulwark', name: 'Hold the Line', branch: 'bastion', maxRank: 3, text: '+30 max health and 4% less damage taken.' },
