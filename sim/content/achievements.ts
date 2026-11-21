@@ -46,12 +46,12 @@ const boss = (id: string, d: DungeonId, name: string, foe: string, title: string
   id, name, text: `Beat ${foe}.`, title, embers, need: 1, have: (v) => Math.min(1, v.deeds.bosses?.[d] ?? 0),
 });
 
-/** Every achievement, in sheet order. Titles are plain compound words picked for Horders (see achievements.md). */
+/** Every achievement, in sheet order. Titles are plain compound words picked for Horders and checked against WoW and Azeroth Survivors (see achievements.md). */
 export const ACHIEVEMENTS: Achievement[] = [
   boss('boss:kiln', 'kiln', 'Kiln-Breaker', 'the Kiln Mother', 'Kiln-Breaker'),
   boss('boss:foundry', 'foundry', 'Floodwalker', 'Maelra in the Drowned Foundry', 'Floodwalker'),
   boss('boss:glarewell', 'glarewell', 'Lightproof', 'the Lensmother in the Glarewell', 'the Lightproof'),
-  boss('boss:coldmarrow', 'coldmarrow', 'Frostborn', 'Nhevra in the Coldmarrow', 'Frostborn'),
+  boss('boss:coldmarrow', 'coldmarrow', 'Winterproof', 'Nhevra in the Coldmarrow', 'the Winterproof'),
   boss('boss:hammerdeep', 'hammerdeep', 'Anvilbreaker', 'Ondrel in the Hammerdeep', 'Anvilbreaker'),
   boss('boss:ashvents', 'ashvents', 'Twice-Burned', 'Ysmeret in the Ashvents', 'Twice-Burned'),
   boss('boss:crucible', 'crucible', 'Slagbane', 'Grandmother Slag in the Crucible', 'Slagbane', T.big),
@@ -64,7 +64,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     need: T.interrupts[0], have: (v) => Math.min(T.interrupts[0], v.deeds.interrupts ?? 0),
   },
   {
-    id: 'interrupts:2', name: 'Castbreaker', text: `Interrupt ${T.interrupts[1]} casts.`, title: 'Castbreaker', embers: T.big,
+    id: 'interrupts:2', name: 'Spellsnuffer', text: `Interrupt ${T.interrupts[1]} casts.`, title: 'Spellsnuffer', embers: T.big,
     need: T.interrupts[1], have: (v) => Math.min(T.interrupts[1], v.deeds.interrupts ?? 0),
   },
   {

@@ -145,6 +145,33 @@ export const SOUNDS = {
     [{ wave: 'tri', f: 2600, f2: 2200, dur: 0.2, vol: 0.08, curve: 3 }],
   ),
 
+  // Ability options (one per class, chosen instead of a slot's own ability).
+  /** Ember Ward: a ring of fire flares up around you, crackling. */
+  emberWard: join(whoosh(400, 4500, 0.4, 0.3), [
+    { wave: 'saw', f: 160, f2: 320, dur: 0.45, vol: 0.12, a: 0.08, lp: 2200, vib: [13, 0.03] },
+    ...[0.12, 0.22, 0.35, 0.5].map((d) => ({ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.18, lp: 7000, hp: 2000, curve: 3 })),
+  ]),
+  /** Hamstring: a quick low cut, then the foe drags, slowed. */
+  hamstring: join(whoosh(5000, 1500, 0.12, 0.3), [
+    { wave: 'saw', f: 500, f2: 140, dur: 0.12, vol: 0.18, lp: 3500 },
+    { wave: 'tri', f: 260, f2: 130, dur: 0.5, delay: 0.1, vol: 0.14, a: 0.05, curve: 1.5, vib: [4, 0.03] },
+  ]),
+  /** Rallying Cry: a rising two-horn call over a stamp. */
+  rallyingCry: join(
+    horn(note(-16), 0.35, 0.32),
+    horn(note(-9), 0.8, 0.36).map((v) => ({ ...v, delay: 0.25 })),
+    boom(70, 0.4, 0.4),
+  ),
+  /** Lightwell: a spring of light opens, a bright rising arpeggio with shimmer. */
+  lightwell: join(chime(C5, 0, 0.22, 0.9), chime(G5, 0.1, 0.2, 0.9), chime(C6, 0.2, 0.2, 1.0), chime(E6, 0.3, 0.16, 1.1), [
+    { wave: 'noise', f: 0, dur: 1.0, vol: 0.08, a: 0.4, lp: 10000, hp: 5000, trem: [5, 0.5] },
+  ]),
+  /** Slag Pit: a pool of slag spreads, glugging and bubbling. */
+  slagPit: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.08, lp: 1800, lp2: 600, trem: [9, 0.6] }],
+    ...[0.05, 0.2, 0.33, 0.5, 0.62].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 40, f2: 520 + k * 60, dur: 0.07, delay: d, vol: 0.16, curve: 2 }]),
+  ),
+
   // ---- interrupts and enemy casts
   interrupt: join(clang(1480, 0.5, 0.45), [
     { wave: 'square', f: 2000, f2: 600, dur: 0.12, vol: 0.12, lp: 5000 },
