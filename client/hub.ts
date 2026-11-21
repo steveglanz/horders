@@ -231,7 +231,7 @@ export class Hub {
     $('heroStrip').innerHTML = `<span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 22)}</span>`
       + `<span class="hs-main"><span class="hs-name"><b>${CLASSES[cls].name}</b><span class="lv">Lv ${h.level}</span></span>`
       + `<span class="meter" style="display:block"><span style="display:block;width:${xpPct}%"></span></span></span>`
-      + (pts ? `<span class="hs-pts">${pts} ${pts === 1 ? 'point' : 'points'}</span>` : '') + '<i class="chev" aria-hidden="true"></i>';
+      + (pts ? `<span class="hs-pts" title="${pts} talent ${pts === 1 ? 'point' : 'points'} to spend">${pts}<span class="hs-pw"> ${pts === 1 ? 'point' : 'points'}</span></span>` : '') + '<i class="chev" aria-hidden="true"></i>';
     $('heroStrip').setAttribute('aria-label', `${CLASSES[cls].name}, level ${h.level}. Open hero`);
     const kit = $('heroCard').querySelector<HTMLDetailsElement>('details.kit')!;
     kit.addEventListener('toggle', () => {
