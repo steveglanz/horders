@@ -125,6 +125,9 @@ export interface Orb {
   dmg: number;
   /** Hero index that fired it. */
   owner: number;
+  /** Piercing Cinders: foes it can still pass through, and the last one it hit. */
+  pierce: number;
+  lastHit: number;
 }
 
 export interface Gem {
@@ -286,6 +289,10 @@ export interface Player {
   /** Tethered Shield: the caster the shield hit, and how long Charge may rush it. */
   tossId: number;
   tossT: number;
+  /** Banked Flame: orbs fired. Worrying Edge: the swing target and its stacks. */
+  orbsFired: number;
+  worryId: number;
+  worryN: number;
 }
 
 export type SimEvent =
@@ -607,7 +614,7 @@ export class World {
       volleyT: 0.5, rainT: 4, lanceT: 2.5, orbitAngle: 0, hurtFlash: 0, facing: 0,
       heat: 0, cds: [0, 0, 0, 0], gcd: 0, shieldT: 0, swings: 0, parryT: 0, nextCrit: false, hasteT: 0, blinkCharges: 0, blinkChargeT: 0,
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
-      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0,
+      brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -615,7 +622,7 @@ export class World {
       burnDps: 0, burnT: 0, woundT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
       castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
     }));
-    this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0, owner: 0 }));
+    this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0, owner: 0, pierce: 0, lastHit: -1 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
     this.zones = pool(CAP.zones, () => ({ alive: false, x: 0, y: 0, r: 0, dps: 0, life: 0, maxLife: 0, tickT: 0, owner: 0 }));
     this.telegraphs = pool(CAP.telegraphs, () => ({
@@ -1785,12 +1792,15 @@ export class World {
     const hit = (i: number, k: number) => {
       const e = this.enemies[i];
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
-      this.damageEnemy(i, dmg * k, true);
+      this.damageEnemy(i, dmg * k * (e.castId && this.hasWeaponFx('rebukingLight') ? 1.25 : 1), true);
       this.addHeat(3);
       // Co-op: the mote's heal goes to whoever is lowest on health nearby, the Lumen included.
       const ally = this.woundedAlly(LUMEN_RANGE);
-      if (ally >= 0) this.healAllies(this.heroes[ally].player.x, this.heroes[ally].player.y, 1, SUNMOTE_HEAL, ally);
-      else this.healPlayer(SUNMOTE_HEAL);
+      const who = ally >= 0 ? this.heroes[ally].player : p;
+      // Tender Light: double on a hero below half health.
+      const heal = SUNMOTE_HEAL * (who.hp < who.maxHp * 0.5 && this.hasWeaponFx('tenderLight') ? 2 : 1);
+      if (ally >= 0) this.healAllies(who.x, who.y, 1, heal, ally);
+      else this.healPlayer(heal);
     };
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
@@ -1992,6 +2002,7 @@ export class World {
     const half = this.sweepHalfArc;
     const dmg = 30 * this.dmgMult;
     let hits = 0;
+    let big = false;
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -2005,9 +2016,12 @@ export class World {
         e.y += (dy / d) * 22;
       }
       // The shield lands hardest on big foes: elites and bosses take more from each sweep.
+      if (e.def.rank !== 'normal') big = true;
       this.damageEnemy(i, e.def.rank === 'normal' ? dmg : dmg * SWEEP_BIG_MULT, true);
     });
     this.addHeat(Math.min(12, 3 * hits));
+    if (hits > 1 && this.hasWeaponFx('rallyingSweep')) this.addHeat(2 * (hits - 1));
+    if (big && this.hasWeaponFx('wardingSweep')) p.ward = Math.min(p.maxHp * 0.2, p.ward + p.maxHp * 0.015);
     this.events.push({ type: 'swing', x: p.x, y: p.y, angle: ang, r, arc: half * 2, spin: half >= Math.PI });
     if (this.rank('warpath') > 0 && p.swings % 4 === 0) {
       // Warpath: a shockwave ring.
@@ -2180,6 +2194,12 @@ export class World {
     p.nextCrit = false;
     let hits = 0;
     const bleed = this.rank('serratedEdge');
+    let worry = 0;
+    if (this.hasWeaponFx('worryingEdge')) {
+      p.worryN = p.worryId === t ? Math.min(5, p.worryN + 1) : 0;
+      p.worryId = t;
+      worry = p.worryN;
+    }
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -2189,7 +2209,9 @@ export class World {
       if (!spin && Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
       hits++;
       e.woundT = OPEN_WOUNDS_TIME;
-      this.damageEnemy(i, forceCrit ? dmg * 2 : dmg, !forceCrit);
+      // Cast-Cutter: casting foes take more. Worrying Edge: the target takes more each swing in a row.
+      const k = (e.castId && this.hasWeaponFx('castCutter') ? 1.35 : 1) * (i === t ? 1 + 0.025 * worry : 1);
+      this.damageEnemy(i, (forceCrit ? dmg * 2 : dmg) * k, !forceCrit);
       if (bleed > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult);
         e.burnT = Math.max(e.burnT, 3);
@@ -2349,6 +2371,10 @@ export class World {
       orb.target = t;
       orb.dmg = 12 * this.dmgMult;
       orb.owner = this.acting;
+      orb.pierce = this.hasWeaponFx('piercingCinders') ? 1 : 0;
+      orb.lastHit = -1;
+      // Banked Flame: every 5th orb is a big one.
+      if (this.hasWeaponFx('bankedFlame') && ++p.orbsFired % 5 === 0) orb.dmg *= 2.5;
     }
   }
 
@@ -2403,10 +2429,14 @@ export class World {
       this.forEachNear(o.x, o.y, 50, (i) => {
         if (hit >= 0) return;
         const e = this.enemies[i];
-        if (dist2(o.x, o.y, e.x, e.y) <= (6 + e.def.radius) ** 2) hit = i;
+        if (i !== o.lastHit && dist2(o.x, o.y, e.x, e.y) <= (6 + e.def.radius) ** 2) hit = i;
       });
       if (hit < 0) continue;
-      o.alive = false;
+      // Piercing Cinders: the orb carries on through the horde, but stops on a big foe.
+      if (o.pierce > 0 && this.enemies[hit].def.rank === 'normal') {
+        o.pierce--;
+        o.lastHit = hit;
+      } else o.alive = false;
       const e = this.enemies[hit];
       const hx = e.x;
       const hy = e.y;
@@ -2862,6 +2892,10 @@ export class World {
 
   hasMythic(id: Loadout['mythics'][number]): boolean {
     return this.loadout.mythics.includes(id);
+  }
+
+  hasWeaponFx(id: Loadout['weaponFx'][number]): boolean {
+    return this.loadout.weaponFx.includes(id);
   }
 
   private killEnemy(i: number): void {

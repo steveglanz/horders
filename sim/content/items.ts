@@ -123,4 +123,32 @@ export interface Item {
   mythic?: MythicId;
   /** A verb set piece (R4), dropped by that set's dungeon boss. */
   set?: SetId;
+  /** Class weapon effect: Epic and Mythic weapons of a class change its basic attack. */
+  weaponFx?: WeaponFxId;
+}
+
+export type WeaponFxId =
+  | 'piercingCinders' | 'bankedFlame' | 'castCutter' | 'worryingEdge'
+  | 'rallyingSweep' | 'wardingSweep' | 'tenderLight' | 'rebukingLight';
+
+/**
+ * Class weapon effects (roadmap R4). Each class has two, and each one changes its basic
+ * attack, so they don't overlap talents (abilities and stats) or Mythics (abilities).
+ */
+export const WEAPON_FX: Record<WeaponFxId, { cls: ClassId; name: string; text: string }> = {
+  piercingCinders: { cls: 'emberwright', name: 'Piercing Cinders', text: 'Cinder Volley orbs pass through the first small foe they hit.' },
+  bankedFlame: { cls: 'emberwright', name: 'Banked Flame', text: 'Every 5th orb is a big one that hits for 2.5 times the damage.' },
+  castCutter: { cls: 'duskblade', name: 'Cast-Cutter', text: 'Swings hit a foe that is casting 35% harder.' },
+  worryingEdge: { cls: 'duskblade', name: 'Worrying Edge', text: 'Each swing at the same target hits 2.5% harder, up to 5 times.' },
+  rallyingSweep: { cls: 'bulwark', name: 'Rallying Sweep', text: 'Shield Sweep builds 2 more Resolve for each foe past the first.' },
+  wardingSweep: { cls: 'bulwark', name: 'Warding Sweep', text: 'A Shield Sweep that hits a big foe shields you for 1.5% of your max health.' },
+  tenderLight: { cls: 'lumen', name: 'Tender Light', text: "A Sunmote's heal is doubled on a hero below half health." },
+  rebukingLight: { cls: 'lumen', name: 'Rebuking Light', text: 'Sunmotes hit a foe that is casting 25% harder.' },
+};
+
+/** The weapon effect an Epic or Mythic weapon with this id rolls for `cls`. Taken from the id, so no roll changes. */
+export function weaponFxFor(cls: ClassId, id: string): WeaponFxId {
+  const own = (Object.keys(WEAPON_FX) as WeaponFxId[]).filter((f) => WEAPON_FX[f].cls === cls);
+  const n = Number(id.replace(/\D/g, '')) || 0;
+  return own[n % own.length];
 }

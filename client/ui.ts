@@ -3,7 +3,7 @@ import { World } from '../sim/world';
 import { BRANCH_NAMES, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
-import { Item, MYTHICS, RARITY, STATS } from '../sim/content/items';
+import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, glyph } from './icons';
 import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
@@ -31,12 +31,13 @@ export function itemHtml(it: Item, extra = ''): string {
   const c = RARITY[it.rarity].color;
   const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
+  const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const set = it.set ? SETS[it.set] : undefined;
   const setHtml = set
     ? `<div class="st set"><b>${set.name} set</b> (${set.verb}) · 2: ${set.bonus[0]} · 3: ${set.bonus[1]}</div>`
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${myth}${setHtml}</div>`;
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
@@ -142,7 +143,7 @@ export class Hud {
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
-    $('heatText').textContent = `${Math.floor(p.heat)} ${w.classDef.resource}`;
+    $('heatText').innerHTML = `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`;
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
       // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
@@ -296,6 +297,7 @@ export class Hud {
     if (!w.choices.length) {
       // Co-op: you've picked; the run resumes when the rest of the party has.
       cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to pick their talents.</div>';
+      $('draftLevel').textContent = 'Level up';
       $('draftTitle').textContent = 'Waiting for your party';
       $('draft').hidden = false;
       return;
@@ -312,11 +314,12 @@ export class Hud {
         progress = `<div class="progress">${BRANCH_NAMES[def.branch]} ${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
+      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       cards.appendChild(btn);
     });
-    $('draftTitle').textContent = w.player.pendingLevels > 1 ? `Level up! (${w.player.pendingLevels} picks)` : 'Level up!';
+    $('draftLevel').textContent = `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
+    $('draftTitle').textContent = 'Choose a talent';
     $('draft').hidden = false;
   }
 
@@ -355,7 +358,10 @@ export class Hud {
       const atCap = hero.level >= heroMaxLevel();
       const need = heroXpToNext(hero.level);
       const pct = atCap ? 100 : (100 * hero.xp) / need;
-      const notes = [`Fights cleared: ${Math.min(w.encounter, w.route.length)} of ${w.route.length}`];
+      // The run ends on the boss's killing blow, before the clear is counted; the
+      // world boss's shadow fight is a bonus, not one of the delve's fights.
+      const fights = w.route.filter((r) => r !== 'worldShadow').length;
+      const notes = [`Fights cleared: ${s.victory ? fights : Math.min(w.encounter, fights)} of ${fights}`];
       if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
