@@ -337,9 +337,16 @@ mountDisplayOptions(el('hubOpts'));
 let coop: CoopSession | null = null;
 let coopNote = '';
 
+/** The season trail this hero wears and the stage earned, for the party to see. */
+function wornTrail(h: HeroProfile): HeroCard['trail'] {
+  const id = h.wear?.trail;
+  const stage = id ? h.trails?.[id] ?? 0 : 0;
+  return id && stage >= 1 ? { id, stage } : undefined;
+}
+
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero) };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */

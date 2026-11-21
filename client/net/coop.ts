@@ -10,7 +10,7 @@
 import { Party, Member, partyCode } from './party';
 import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
-import { GLOWS } from '../../sim/content/season';
+import { GLOWS, TRAILS } from '../../sim/content/season';
 import { Snapshot, snapshot } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
@@ -26,6 +26,8 @@ export interface HeroCard {
   alt?: boolean;
   /** P6: the worn season title and glow; older clients send none. */
   title?: string;
+  /** Season trail worn and its stage (cleaned by cleanLooks like the glow). */
+  trail?: { id: string; stage: number };
   glow?: string;
 }
 
@@ -34,17 +36,23 @@ export interface HeroCard {
  * players, so keep letters, digits, spaces and simple punctuation (as lobby
  * names do); a glow must be one the game knows.
  */
-export function cleanLooks(c: { title?: unknown; glow?: unknown } | undefined): HeroLooks {
+export function cleanLooks(c: { title?: unknown; glow?: unknown; trail?: unknown } | undefined): HeroLooks {
   const out: HeroLooks = {};
   const t = typeof c?.title === 'string' ? c.title.replace(/[^\p{L}\p{N} '.-]/gu, '').slice(0, 40).trim() : '';
   if (t) out.title = t;
   if (typeof c?.glow === 'string' && Object.prototype.hasOwnProperty.call(GLOWS, c.glow)) out.glow = c.glow;
+  // A trail must be a known TRAILS id; its stage is a whole number from 1 to 3.
+  const tr = c?.trail as { id?: unknown; stage?: unknown } | undefined;
+  if (tr && typeof tr === 'object' && typeof tr.id === 'string' && Object.prototype.hasOwnProperty.call(TRAILS, tr.id)
+    && typeof tr.stage === 'number' && Number.isFinite(tr.stage) && tr.stage >= 1) {
+    out.trail = { id: tr.id, stage: Math.min(3, Math.floor(tr.stage)) };
+  }
   return out;
 }
 
 /** A received hero card with its looks cleaned (other fields as sent). */
 function withCleanLooks(h: HeroCard): HeroCard {
-  const { title: _t, glow: _g, ...rest } = h;
+  const { title: _t, glow: _g, trail: _r, ...rest } = h;
   return { ...rest, ...cleanLooks(h) };
 }
 

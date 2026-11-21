@@ -533,6 +533,8 @@ export interface DraftOption {
 export interface HeroLooks {
   title?: string;
   glow?: string;
+  /** Season trail worn (a TRAILS id) and its best stage, 1 to 3. */
+  trail?: { id: string; stage: number };
 }
 
 export interface HeroOptions {
