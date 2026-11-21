@@ -145,6 +145,9 @@ Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying mig
 | Y7 | **Raid 3 sound:** a theme, and cues for its new mechanic | sound | 🔨 Theme `smeltery` #315; fight cues (Sweep, Wheel, Pour Out, Meltdown, phase stings, front clank and back crunch) in #321 |
 | Y8 | **Apply the waiting migrations** 0006 (bounty board) and 0007 (Old Coalmouth) | engineering | ⏸ Only after Steve says yes |
 | Y9 | **Older boss art at phone size:** a readability pass on the earlier bosses and their telegraphs at 360 px wide, no new names or captions | visuals | 🔨 Visuals' pick, after Y6 |
+| Y10 | **Seasons 7 and 8:** after Season 6 the rotation wraps to Season 1's theme on Thu 29 Jul 2027 (week 3004, season.md). Season 7 **the Long Hunger** features the Hoard, and Season 8 **the Cracked Plate** (from 9 Sep 2027, week 3010) features the Smeltery. Neither name had a WoW match in a search on 21 Nov 2026 | design | 🔨 Glows, trails and SEASONS entries 6 and 7, each colour at least 22 ΔE from older seasons |
+| Y11 | **Season 7 and 8 hub themes** (`HUB_BY_SEASON` entries 6 and 7), drawn from the `hoard` and `smeltery` themes the way hubPress and hubEbb came from their dungeons (#272) | sound | 🔨 Can start now; the ids are the season indexes 6 and 7 |
+| Y12 | **Season 7 and 8 art** (`SEASON_ART` 6 and 7: accent, highlight, deep, banner; glow swatches and trails) | visuals | ⏭ After Y10's palette, and after Y9 |
 
 ## R2. The Forge
 
