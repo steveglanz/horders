@@ -21,7 +21,8 @@ export type EnemyKind =
   | 'cinderBrute' | 'ashmaw' | 'kilnMother'
   | 'glassWarden' | 'emberTwin' | 'sluiceCrawler' | 'maelra'
   | 'lensbearer' | 'shade' | 'brandkeeper' | 'twinLamp' | 'lensmother'
-  | 'worldShadow' | 'ondrel' | 'ysmeret';
+  | 'worldShadow' | 'ondrel' | 'ysmeret'
+  | 'rimehound' | 'snuffer' | 'frostWarden' | 'hoarfrostWeaver' | 'nhevra';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
@@ -45,6 +46,12 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   // The Hammerdeep's group boss: role checks rather than dodge checks.
   ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', hp: 5000, speed: 36, damage: 15, radius: 42, xp: 0, rank: 'boss', title: 'Group boss' },
+  // The Coldmarrow (C1): frost-touched foes. Killing one feeds your Hearthcoal.
+  rimehound: { id: 'rimehound', name: 'Rimehound', hp: 260, speed: 92, damage: 9, radius: 14, xp: 2, rank: 'elite', title: 'Frost-touched' },
+  snuffer: { id: 'snuffer', name: 'Snuffer', hp: 200, speed: 40, damage: 4, radius: 15, xp: 3, rank: 'elite', title: 'Dims your coal' },
+  frostWarden: { id: 'frostWarden', name: 'Frost Warden', hp: 700, speed: 30, damage: 16, radius: 24, xp: 8, rank: 'elite', title: 'Warm it to crack it' },
+  hoarfrostWeaver: { id: 'hoarfrostWeaver', name: 'Hoarfrost Weaver', hp: 700, speed: 36, damage: 8, radius: 18, xp: 6, rank: 'elite', title: 'Frost Lace' },
+  nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', hp: 4400, speed: 30, damage: 20, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
   ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
 };

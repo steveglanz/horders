@@ -334,6 +334,24 @@ export function botInput(w: World, skill = 1): Input {
     fx += dx * wgt;
     fy += dy * wgt;
   }
+  // The Coldmarrow: a ranged hero brings a Frost Warden inside its coal's light to crack it.
+  if (!melee && p.coalR !== undefined) {
+    let wi = -1;
+    let wd = Infinity;
+    for (let k = 0; k < w.enemies.length; k++) {
+      const e = w.enemies[k];
+      if (!e.alive || e.kind !== 'frostWarden') continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < wd) { wd = d; wi = k; }
+    }
+    if (wi >= 0 && wd < 450) {
+      const e = w.enemies[wi];
+      const want = Math.max(e.def.radius + 45, p.coalR + e.def.radius - 25);
+      const k = wd > want ? 0.12 : wd < e.def.radius + 40 ? -0.12 : 0;
+      fx += ((e.x - p.x) / (wd || 1)) * k * skill;
+      fy += ((e.y - p.y) / (wd || 1)) * k * skill;
+    }
+  }
   // Co-op Lumen: keep the hero who most needs healing inside Radiant Burst and Sanctuary
   // reach, standing off to the side of the boss's line so its cones miss.
   const ward = lumenWard(w);
