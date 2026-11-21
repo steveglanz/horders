@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
-import { weeklyFor, weekState, weeklyStep, weeklyTitle, WEEKLY, WEEKLY_QUESTS } from '../sim/content/weekly';
+import { weeklyEmbers, weeklyFor, weekState, weeklyStep, weeklyTitle, WEEKLY, WEEKLY_QUESTS } from '../sim/content/weekly';
 import { applyRun, newHero } from '../sim/hero';
 import type { RunSummary } from '../sim/world';
 import { World } from '../sim/world';
@@ -92,5 +92,55 @@ describe('weekly quests (P1)', () => {
     }
     expect(seen).toBeGreaterThan(0);
     expect(w.summary().interrupts).toBe(seen);
+  });
+});
+
+describe('the party quest', () => {
+  const groupWin = (over: Partial<RunSummary> = {}) => win({ dungeon: 'hammerdeep', tier: 6, realHeroes: 2, ...over });
+
+  it('opens at the Hammerdeep tier, outside the three rolled quests, and leaves the rolls as they were', () => {
+    expect(weekState(undefined, 2900, WEEKLY.partyTier - 1).party).toBeUndefined();
+    const st = weekState(undefined, 2900, 8);
+    expect(st.party?.id).toBe('party');
+    expect(st.party?.embers).toBe(Math.round(weeklyEmbers(8) * WEEKLY.partyPay));
+    expect(st.quests.map((q) => q.id)).toEqual(weeklyFor(2900, 8).map((q) => q.id));
+    expect(st.quests.some((q) => q.id === 'party')).toBe(false);
+    // An older save of this week gets it added.
+    const old = { week: 2900, quests: weeklyFor(2900, 8), titled: false };
+    expect(weekState(old, 2900, 8).party?.id).toBe('party');
+  });
+
+  it('counts only group wins with another real hero: bots, solo dungeons and losses don\'t count', () => {
+    const q = { id: 'party' as const, goal: 2, progress: 0, embers: 0, done: false };
+    const base = { victory: true, dungeon: 'hammerdeep' as const, tier: 6, maxTier: 6, kills: 40, interrupts: 0, namedKills: 0, bounty: false, group: true, realHeroes: 2 };
+    expect(weeklyStep(q, base)).toBe(1);
+    expect(weeklyStep(q, { ...base, realHeroes: 1 })).toBe(0); // the hero plus bots
+    expect(weeklyStep(q, { ...base, realHeroes: undefined })).toBe(0);
+    expect(weeklyStep(q, { ...base, group: false })).toBe(0);
+    expect(weeklyStep(q, { ...base, victory: false })).toBe(0);
+  });
+
+  it('pays once through applyRun, and is not needed for the weekly title', () => {
+    const h = newHero();
+    h.maxTier = 8;
+    h.achieved = ACHIEVEMENTS.map((a) => a.id);
+    h.weekly = { week: 2900, titled: false, quests: (['wins', 'kills', 'wall'] as const).map((id) => ({ id, goal: 99, progress: 0, embers: 100, done: false })) };
+    applyRun(h, 1, groupWin({ realHeroes: 1 }), false);
+    expect(h.weekly.party?.progress).toBe(0);
+    applyRun(h, 2, groupWin(), false);
+    const r = applyRun(h, 3, groupWin({ dungeon: 'crucible', realHeroes: 4 }), false);
+    expect(h.weekly.party?.done).toBe(true);
+    expect(r.weeklyDone?.map((q) => q.id)).toEqual(['party']);
+    expect(r.weeklyEmbers).toBe(h.weekly.party?.embers);
+    expect(r.title).toBeUndefined();
+    expect(applyRun(h, 4, groupWin(), false).weeklyDone).toBeUndefined();
+  });
+
+  it('the sim reports real heroes: a bot fill counts only the player', () => {
+    expect(new World({ seed: 1, omens: [] }).summary().realHeroes).toBeUndefined();
+    const fill = new World({ seed: 1, omens: [], dungeon: 'hammerdeep', party: [{ cls: 'lumen' }, { cls: 'duskblade' }], partySize: 3, fillBots: 2 });
+    expect(fill.summary().realHeroes).toBe(1);
+    const real = new World({ seed: 1, omens: [], dungeon: 'hammerdeep', party: [{ cls: 'lumen' }], partySize: 2 });
+    expect(real.summary().realHeroes).toBe(2);
   });
 });

@@ -7,7 +7,7 @@
 import { Rng } from '../rng';
 import { DUNGEONS, DungeonId, WEEKLY_DUNGEON_IDS } from './dungeon';
 
-export type WeeklyId = 'wins' | 'interrupts' | 'named' | 'dungeon' | 'kills' | 'bounties' | 'wall';
+export type WeeklyId = 'wins' | 'interrupts' | 'named' | 'dungeon' | 'kills' | 'bounties' | 'wall' | 'party';
 
 export interface WeeklyDef {
   id: WeeklyId;
@@ -25,8 +25,10 @@ export const WEEKLY_QUESTS: Record<WeeklyId, WeeklyDef> = {
   kills: { id: 'kills', name: 'Cull the Deep', text: 'Defeat 600 foes', goal: 600 },
   bounties: { id: 'bounties', name: 'Bounty Hunter', text: 'Win 3 daily bounties', goal: 3 },
   wall: { id: 'wall', name: 'Push the Wall', text: 'Win a delve at your best tier', goal: 1 },
+  party: { id: 'party', name: 'Delve Together', text: 'Win 2 group dungeons with another real hero', goal: 2 },
 };
-export const WEEKLY_IDS = Object.keys(WEEKLY_QUESTS) as WeeklyId[];
+/** The pool the three weekly quests are drawn from. The party quest is extra, not in it, so the rolls stay as they were. */
+export const WEEKLY_IDS: WeeklyId[] = ['wins', 'interrupts', 'named', 'dungeon', 'kills', 'bounties', 'wall'];
 
 export const WEEKLY = {
   /** Quests a week. */
@@ -35,6 +37,9 @@ export const WEEKLY = {
   emberBase: 40,
   emberPerTier: 8,
   /** Weekly titles for finishing all three, in turn. Original, searched 21 Nov 2026. */
+  /** The party quest: open once the hero can enter the Hammerdeep, and it pays this many times a normal quest. */
+  partyTier: 4,
+  partyPay: 1.5,
   titles: ['the Unquenched', 'Emberhand', 'of the Deep Road', 'the Slagproof', 'Cinderstrider', 'Keeper of the Last Coal'],
 };
 
@@ -55,6 +60,8 @@ export interface WeeklyState {
   week: number;
   quests: WeeklyQuest[];
   titled: boolean;
+  /** The extra party quest: win group dungeons with real heroes. Not part of the title. */
+  party?: WeeklyQuest;
 }
 
 /** What one run adds to the quests, from its summary. */
@@ -68,6 +75,10 @@ export interface WeeklyRun {
   interrupts: number;
   namedKills: number;
   bounty: boolean;
+  /** A group dungeon or the raid. */
+  group?: boolean;
+  /** Real heroes in the party, bots left out (1 or missing for a solo run). */
+  realHeroes?: number;
 }
 
 export function weeklyEmbers(maxTier: number): number {
@@ -101,9 +112,20 @@ export function weeklyFor(week: number, maxTier: number): WeeklyQuest[] {
   });
 }
 
-/** The hero's week, rolled fresh when the week has turned. */
+/** The week's party quest, or none before the hero can enter a group dungeon. */
+export function partyQuestFor(maxTier: number): WeeklyQuest | undefined {
+  if (maxTier < WEEKLY.partyTier) return undefined;
+  return { id: 'party', goal: WEEKLY_QUESTS.party.goal, progress: 0, embers: Math.round(weeklyEmbers(maxTier) * WEEKLY.partyPay), done: false };
+}
+
+/** The hero's week, rolled fresh when the week has turned. The party quest is added once it opens (older saves too). */
 export function weekState(cur: WeeklyState | undefined, week: number, maxTier: number): WeeklyState {
-  return cur && cur.week === week ? cur : { week, quests: weeklyFor(week, maxTier), titled: false };
+  const st = cur && cur.week === week ? cur : { week, quests: weeklyFor(week, maxTier), titled: false };
+  if (!st.party) {
+    const party = partyQuestFor(maxTier);
+    if (party) st.party = party;
+  }
+  return st;
 }
 
 /** How far one run moves a quest. */
@@ -116,6 +138,7 @@ export function weeklyStep(q: WeeklyQuest, r: WeeklyRun): number {
     case 'kills': return r.kills;
     case 'bounties': return r.victory && r.bounty ? 1 : 0;
     case 'wall': return r.victory && !r.bounty && r.tier >= r.maxTier ? 1 : 0;
+    case 'party': return r.victory && r.group && (r.realHeroes ?? 1) >= 2 ? 1 : 0;
   }
 }
 

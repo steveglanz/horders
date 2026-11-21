@@ -700,6 +700,8 @@ export interface RunSummary {
   day?: number;
   interrupts?: number;
   namedKills?: number;
+  /** Real heroes in the party (bots left out), for a party run only. */
+  realHeroes?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -1398,6 +1400,7 @@ export class World {
       ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
+      ...(this.heroes.length > 1 ? { realHeroes: this.heroes.length - this.fillBots } : {}),
     };
   }
 
