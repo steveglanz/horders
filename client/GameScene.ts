@@ -3,7 +3,7 @@
  * into `World.step` at a fixed rate and renders interpolated state.
  */
 import { OMENS } from '../sim/content/omens';
-import { CoopSession, SNAP_SECONDS } from './net/coop';
+import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD } from '../sim/world';
@@ -125,7 +125,16 @@ export class GameScene extends Phaser.Scene {
   /** Guest: the draft (level and picks left) a pick was already sent for. */
   private sentPick = -1;
   /** The other heroes in a co-op party. */
-  private allies: { hero: number; img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }[] = [];
+  private allies: {
+    hero: number;
+    img: Phaser.GameObjects.Image;
+    shadow: Phaser.GameObjects.Image;
+    label: Phaser.GameObjects.Text;
+    /** P6: their worn season title, under their name. */
+    tag?: Phaser.GameObjects.Text;
+    /** P6: their worn season glow, on the floor under them. */
+    glow?: Phaser.GameObjects.Image;
+  }[] = [];
   autoPick = true;
   warp = 1;
 
@@ -198,6 +207,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data: SceneData): void {
     this.world = new World(data.opts);
+    this.looks = data.opts.looks ?? [];
     this.coop = data.coop ?? null;
     // A guest draws the run as their own hero.
     if (this.coop?.role === 'guest') this.world.use(this.coop.me);
@@ -293,15 +303,21 @@ export class GameScene extends Phaser.Scene {
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
     this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
-    // Co-op: everyone else in the party, with their name over their head.
+    // Co-op: everyone else in the party, with their name over their head and (P6) the title and glow they wear.
+    // Looks come from other players' browsers, so they are cleaned again here.
+    const looks = this.looks;
     for (let j = 0; j < w.heroes.length; j++) {
       if (j === w.acting) continue;
       const cls = w.heroes[j].cls;
+      const look = cleanLooks(looks[j]);
+      const ag = look.glow ? GLOWS[look.glow] : undefined;
       this.allies.push({
         hero: j,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
         label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+        tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
+        glow: ag ? this.add.image(0, 0, 'heroGlow').setTint(hex(ag.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3) : undefined,
       });
     }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
@@ -390,7 +406,10 @@ export class GameScene extends Phaser.Scene {
     for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
     for (const t of this.gateTexts) t.setFontSize(13 * k).setResolution(res);
     this.soakText?.setFontSize(13 * k).setResolution(res);
-    for (const a of this.allies) a.label.setFontSize(12 * k).setResolution(res);
+    for (const a of this.allies) {
+      a.label.setFontSize(12 * k).setResolution(res);
+      a.tag?.setFontSize(10 * k).setResolution(res);
+    }
     for (const f of this.floats) f.txt.setResolution(res);
   }
 
@@ -399,6 +418,8 @@ export class GameScene extends Phaser.Scene {
   private textSeen = display.text;
   /** Hearthkeeper Warmth last frame, to flare once when it fills. */
   private warmSeen = 0;
+  /** P6: each hero's worn title and glow from the start options (cleaned before drawing). */
+  private looks: { title?: unknown; glow?: unknown }[] = [];
   /** P2: the worn season glow under the hero, if any. */
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
@@ -1009,7 +1030,13 @@ export class GameScene extends Phaser.Scene {
       if (q.hurtFlash > 0) al.img.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
       else al.img.clearTint();
       al.shadow.setPosition(ax, ay + 22).setScale(34 / 32, 12 / 32);
-      al.label.setPosition(ax, ay - 34).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
+      // The title sits just over the head and the name above it, so a titled hero reads "name / title".
+      if (al.tag) al.tag.setPosition(ax, ay - 34).setAlpha(down ? 0.5 : 1);
+      if (al.glow) {
+        const gp = Math.sin(now / 520 + al.hero);
+        al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
+      }
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
 
     const view = cam.worldView;
