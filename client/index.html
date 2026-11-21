@@ -119,6 +119,7 @@
   .toast b { color: var(--rc); }
   .toast .sub { font-size: 11px; color: var(--muted); }
   .toast.up .sub { color: #7fd67a; }
+  .toast .ts { display: none; }
   @keyframes toastIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
 
   #ding { position: fixed; left: 0; right: 0; top: 40%; text-align: center; z-index: 12; pointer-events: none; font-family: var(--serif); font-size: clamp(26px, 6vw, 44px); color: var(--gold); text-shadow: 0 0 20px rgba(255,200,97,0.8), 0 2px 6px #000; opacity: 0; }
@@ -583,6 +584,9 @@
     #stats span { font-size: 10px; letter-spacing: 0.06em; }
     #endTitle { margin-top: 8px; }
     #rewards .item { padding: 8px 10px; }
+    .toast { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toast .tr, .toast .tl { display: none; }
+    .toast .ts { display: inline; margin-left: 4px; font-weight: 700; }
     #rewards .item .info > .st ~ .st { display: none; }
     #rewards .top span::after { content: " · hold for stats"; }
     .snd-panel .row input[type=checkbox] { width: 24px; height: 24px; }
