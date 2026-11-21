@@ -600,7 +600,7 @@ export class Hud {
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
-        + `<div class="note">${notes.join(' · ')}</div>`;
+        + `<div class="note">${notes.map((t) => `<span class="n">${t}</span>`).join('<span class="sep"> · </span>')}</div>`;
       const equipped = new Set(Object.values(hero.equipped));
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
