@@ -27,10 +27,38 @@ function scriptLast(): Plugin {
   };
 }
 
+/**
+ * L2: Phaser's source checks build flags with `if (typeof WEBGL_RENDERER)`,
+ * which its own webpack build replaces whole (webpack/config.js DefinePlugin).
+ * Do the same here, for Phaser's files only: both renderers and sound on, the
+ * optional plugins and the WebGL debug layer off.
+ */
+const PHASER_FLAGS: Record<string, string> = {
+  WEBGL_RENDERER: 'true',
+  CANVAS_RENDERER: 'true',
+  FEATURE_SOUND: 'true',
+  PLUGIN_CAMERA3D: 'false',
+  PLUGIN_FBINSTANT: 'false',
+  WEBGL_DEBUG: 'false',
+};
+function phaserFlags(): Plugin {
+  const re = new RegExp(`typeof (${Object.keys(PHASER_FLAGS).join('|')})\\b`, 'g');
+  return {
+    name: 'horders-phaser-flags',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.includes('/node_modules/phaser/src/')) return null;
+      return code.search(re) >= 0 ? { code: code.replace(re, (_m, k: string) => PHASER_FLAGS[k]), map: null } : null;
+    },
+  };
+}
+
 // Single-file build so the prototype can be shared as one private web page.
 export default defineConfig({
   root: 'client',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2020' },
-  plugins: [viteSingleFile(), scriptLast()],
+  // L2: the trimmed Phaser (client/vendor/phaser-lite.js). Tests and types still use the full package.
+  resolve: { alias: [{ find: /^phaser$/, replacement: new URL('./client/vendor/phaser-lite.js', import.meta.url).pathname }] },
+  plugins: [phaserFlags(), viteSingleFile(), scriptLast()],
   test: { root: '.', include: ['tests/**/*.test.ts'] },
 } as any);
