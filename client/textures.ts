@@ -794,6 +794,92 @@ function drawHessa(ctx: Ctx, _s: number, f: number): void {
   for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(35 + k * 2, 56); ctx.lineTo(34 + k * 2, 64 + ((f + k) % 3) * 3); ctx.stroke(); }
 }
 
+/**
+ * Oskel of the Pressworks: the stamping works' foreman, a barrel-bodied brute in oily olive coveralls and a riveted
+ * leather apron. A box helmet with one amber visor slit, a pressure gauge on his chest whose needle swings, steam
+ * puffing from two back stacks, a press lever held up in one fist and, on the other arm, a hydraulic piston that drives
+ * a hazard-striped stamping die down and up (the Stamp and the Downstroke). Brass and steel, not forge red, so he
+ * reads apart from Ondrel's anvil-giant. Faces right.
+ */
+function drawOskel(ctx: Ctx, _s: number, f: number): void {
+  const push = [0, 4, 8, 4][f];
+  const needle = [-0.9, -0.2, 0.7, 0.1][f];
+  const puff = [0.5, 0.8, 1, 0.7][f];
+  const STEEL_HI = '#a8b4a6';
+  const STEEL_LO = '#28302a';
+  const BRASS_HI = '#f0c66a';
+  const BRASS_LO = '#6a4a1c';
+  softGlow(ctx, 60, 64, 56, 'rgba(240,198,106,0.18)');
+  // Steam from the two back stacks.
+  for (const [x, k] of [[38, 0], [50, 1]] as const) {
+    ctx.beginPath(); ctx.rect(x - 4, 14, 8, 20); shade(ctx, BRASS_HI, BRASS_LO, 14, 34, 1.4);
+    softGlow(ctx, x - 2 - k * 2, 8 - puff * 4, 10 + puff * 4, `rgba(230,236,232,${0.55 * puff})`);
+    softGlow(ctx, x - 6, 2 - puff * 2, 7 + puff * 3, `rgba(230,236,232,${0.3 * puff})`);
+  }
+  // Legs: heavy boots with brass toe caps.
+  for (const x of [46, 72]) {
+    limb(ctx, x, 84, x, 100, 11, '#3a4636');
+    ctx.beginPath(); ctx.moveTo(x - 8, 108); ctx.lineTo(x - 7, 99); ctx.lineTo(x + 7, 99); ctx.quadraticCurveTo(x + 13, 102, x + 12, 108); ctx.closePath();
+    shade(ctx, '#4a3a2a', '#1a120c', 99, 108, 1.4);
+    ell(ctx, x + 8, 104, 4, 3.4); shade(ctx, BRASS_HI, BRASS_LO, 101, 107, 1);
+  }
+  // The lever arm (behind): a fist raised on a tall press lever with a red knob.
+  limb(ctx, 42, 44, 30, 32, 8, '#4a5a46');
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(28, 64); ctx.lineTo(26, 16); ctx.stroke();
+  ctx.strokeStyle = STEEL_HI; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(28, 64); ctx.lineTo(26, 16); ctx.stroke();
+  ctx.restore();
+  ell(ctx, 26, 13, 5, 5); shade(ctx, '#ff7a5a', '#8a1e14', 8, 18, 1.2);
+  ell(ctx, 29, 31, 6, 5.5); shade(ctx, '#c49a7a', '#5a3a2a', 26, 37, 1.2);
+  // Body: a barrel torso in oily olive coveralls.
+  ctx.beginPath();
+  ctx.moveTo(36, 40); ctx.quadraticCurveTo(60, 30, 84, 40);
+  ctx.quadraticCurveTo(92, 62, 84, 88); ctx.quadraticCurveTo(60, 94, 36, 88);
+  ctx.quadraticCurveTo(28, 62, 36, 40); ctx.closePath();
+  shade(ctx, '#5c6c54', '#1a2018', 32, 92, 2);
+  rimLight(ctx, 32, 60, 'rgba(240,198,106,0.55)', 1.2);
+  // The apron, riveted down both sides.
+  ctx.beginPath();
+  ctx.moveTo(44, 50); ctx.lineTo(76, 50); ctx.lineTo(80, 92); ctx.quadraticCurveTo(60, 97, 40, 92); ctx.closePath();
+  shade(ctx, '#7a5638', '#2a1a10', 50, 96, 1.6);
+  ctx.fillStyle = BRASS_HI;
+  for (let y = 56; y <= 88; y += 8) for (const x of [47 - (y - 50) * 0.1, 73 + (y - 50) * 0.1]) { ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill(); }
+  // The pressure gauge on his chest: a brass dial whose needle swings with the press.
+  ell(ctx, 60, 60, 8, 8); shade(ctx, BRASS_HI, BRASS_LO, 52, 68, 1.4);
+  ell(ctx, 60, 60, 5.6, 5.6); ctx.fillStyle = '#f4ecd8'; ctx.fill();
+  ctx.save();
+  ctx.strokeStyle = 'rgba(20,16,12,0.7)'; ctx.lineWidth = 0.8;
+  for (let k = 0; k < 5; k++) { const a = -2.4 + k * 0.6; ctx.beginPath(); ctx.moveTo(60 + Math.cos(a) * 4.2, 60 + Math.sin(a) * 4.2); ctx.lineTo(60 + Math.cos(a) * 5.4, 60 + Math.sin(a) * 5.4); ctx.stroke(); }
+  ctx.strokeStyle = '#c42a1e'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(60, 60); ctx.lineTo(60 + Math.cos(needle - Math.PI / 2) * 4.6, 60 + Math.sin(needle - Math.PI / 2) * 4.6); ctx.stroke();
+  ctx.restore();
+  // Head: a riveted box helmet with one amber visor slit.
+  ctx.beginPath();
+  ctx.moveTo(48, 36); ctx.lineTo(48, 22); ctx.quadraticCurveTo(48, 14, 60, 13); ctx.quadraticCurveTo(72, 14, 72, 22); ctx.lineTo(72, 36); ctx.closePath();
+  shade(ctx, STEEL_HI, STEEL_LO, 13, 36, 1.8);
+  ctx.beginPath(); ctx.rect(53, 23, 18, 4.5); ctx.fillStyle = '#120c08'; ctx.fill();
+  ctx.save(); ctx.shadowColor = '#ffb84a'; ctx.shadowBlur = 6; ctx.fillStyle = '#ffb84a'; ctx.fillRect(55, 24.2, 15, 2.2); ctx.restore();
+  ctx.fillStyle = '#d8e0d4';
+  for (const [x, y] of [[51, 18], [69, 18], [51, 33], [69, 33], [60, 15.5]]) { ctx.beginPath(); ctx.arc(x, y, 1.1, 0, Math.PI * 2); ctx.fill(); }
+  // The press arm: a shoulder, a brass piston cylinder and the stamping die it drives down.
+  limb(ctx, 80, 44, 92, 50, 9, '#4a5a46');
+  ctx.beginPath(); ctx.rect(87, 42, 14, 24); shade(ctx, BRASS_HI, BRASS_LO, 42, 66, 1.6);
+  ctx.strokeStyle = 'rgba(40,26,8,0.6)'; ctx.lineWidth = 1;
+  for (const y of [48, 54, 60]) { ctx.beginPath(); ctx.moveTo(87, y); ctx.lineTo(101, y); ctx.stroke(); }
+  ctx.beginPath(); ctx.rect(91.5, 66, 5, 8 + push); shade(ctx, '#e8eee6', '#7a867a', 66, 74 + push, 1.2);
+  const dy = 74 + push;
+  ctx.beginPath(); ctx.rect(80, dy, 28, 14); shade(ctx, STEEL_HI, STEEL_LO, dy, dy + 14, 1.8);
+  // Hazard stripes on the die's face.
+  ctx.save();
+  ctx.beginPath(); ctx.rect(81, dy + 9, 26, 4); ctx.clip();
+  ctx.fillStyle = '#f2c230'; ctx.fillRect(81, dy + 9, 26, 4);
+  ctx.fillStyle = '#16120c';
+  for (let x = 76; x < 110; x += 6) { ctx.beginPath(); ctx.moveTo(x, dy + 13); ctx.lineTo(x + 3, dy + 13); ctx.lineTo(x + 7, dy + 9); ctx.lineTo(x + 4, dy + 9); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  ctx.fillStyle = '#d8e0d4';
+  for (const x of [84, 104]) { ctx.beginPath(); ctx.arc(x, dy + 4, 1.2, 0, Math.PI * 2); ctx.fill(); }
+}
+
 /** Hoarfrost Weaver: a thin robed caster holding a spindle that spins threads of ice. Faces right. */
 function drawHoarfrostWeaver(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
@@ -2162,6 +2248,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'shoalLurker', 36, 4, drawShoalLurker);
   sheet(scene, 'bargeHauler', 56, 4, drawBargeHauler);
   sheet(scene, 'hessa', 120, 4, drawHessa);
+  sheet(scene, 'oskel', 120, 4, drawOskel);
   // The Wrackline's raft: a round deck of driftwood boards, gaps between them, nails, a wet edge
   // and a rope lashed round the rim. Drawn once; GameScene scales it to WRACK.raftR.
   make(scene, 'raft', 256, (ctx, s) => {
