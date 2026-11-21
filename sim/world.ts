@@ -4225,6 +4225,7 @@ export class World {
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
+    if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
       p.moveT = 0;
@@ -4264,6 +4265,21 @@ export class World {
     const healed = this.healPlayer(this.player.maxHp * SET_TUNING.gwHeal);
     if (n >= 3) this.player.gwT = SET_TUNING.gwTime;
     this.events.push({ type: 'dodge', x: this.player.x, y: this.player.y, healed });
+  }
+
+  /** Ventwalker: an ally is alive, and none is within range of the acting hero. */
+  private splitFromAllies(): boolean {
+    const p = this.player;
+    const r2 = SET_TUNING.dgRange * SET_TUNING.dgRange;
+    let alive = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0) continue;
+      if (dist2(p.x, p.y, q.x, q.y) <= r2) return false;
+      alive = true;
+    }
+    return alive;
   }
 
   /** Deepguard (group set): the damage multiplier for the acting hero from its own pieces and from a nearby ally's 3-piece guard. */
@@ -5293,6 +5309,8 @@ export class World {
       if (t.kind === 'soak') {
         const ok = dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        // Ventwalker (3): standing in the gold circle heals.
+        if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
         if (!ok) {
           this.hurtPlayer(t.dmg * this.tierDamage);
           for (let k = 0; k < 6; k++) {
@@ -5344,6 +5362,13 @@ export class World {
         let ok = false;
         for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        // Ventwalker (3): every wearer standing in the gold circle heals.
+        if (ok) {
+          this.eachHero(() => {
+            const q = this.player;
+            if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
+          });
+        }
         if (!ok) {
           this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage));
           for (let k = 0; k < 6; k++) {

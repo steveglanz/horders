@@ -1,7 +1,7 @@
 // Drowned Foundry check: per-run outcome plus how Maelra's mechanics fired.
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools.
 // POTION=risingDraught|stillwater|kindling brews that potion for every run.
-// SET=kilnbreaker|tidewalker|glarewarden|hearthkeeper|wrackrider|deepguard SETN=2|3 turns the hero's head, hands and trinket (in that order) into set pieces.
+// SET=kilnbreaker|tidewalker|glarewarden|hearthkeeper|wrackrider|deepguard|ventwalker SETN=2|3 turns the hero's head, hands and trinket (in that order) into set pieces.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { readFileSync } from 'fs';

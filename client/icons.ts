@@ -135,6 +135,8 @@ export const SET_ICON: Record<SetId, string> = {
   // Deepguard (stay close): a shield inside a broken ring, the reach you have to stay within.
   // (Two shields side by side read as a pair of items, not as standing together.)
   deepguard: 'M12 7.5l-3.8 1.4v3c0 2.5 1.6 4.2 3.8 5.1 2.2-.9 3.8-2.6 3.8-5.1v-3Z M7.5 3.6a9.5 9.5 0 0 1 9 0 M20.4 7.5a9.5 9.5 0 0 1 0 9 M16.5 20.4a9.5 9.5 0 0 1-9 0 M3.6 16.5a9.5 9.5 0 0 1 0-9',
+  // Ventwalker (split up): one path forking to two vent circles, one hero to each.
+  ventwalker: 'M12 21.5v-6.5l-5-5 M12 15l5-5 M5.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M18.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
