@@ -254,6 +254,20 @@ Geared Emberwright (`heroes-r2` hero-t6-0), Glarewell tier 7, seeds 1 to 40: non
 
 **Reading:** Rising Draught is the strongest by far, worth 12 to 17 novice wins in 60, so it costs the most. A 40% version measured 51 of 60 for the Emberwright, which made losing nearly impossible, so it was cut to 25%. Stillwater and Kindling are modest, and seed noise is large (Kindling reads −5 for one class and +13 for the other), so treat them as small helps rather than precise numbers. Watch whether players buy Rising Draught every run once embers pile up. If they do, raise its cost or make it once a day.
 
+### Rising Draught in groups (21 Nov 2026)
+Engineering's #283 lets each hero in co-op bring their own potion. Before that, only the host's counted. Measured with `tools/group.ts` (Bulwark, Lumen, Duskblade, Emberwright, each in its heroes-r2 hero-t8-0 file), seeds 1 to 40, on #283's head. Wins out of 40:
+
+| | No potion | Host's Rising Draught | Everyone's Rising Draught |
+|---|---|---|---|
+| Hammerdeep tier 8 | 25 | 40 | 40 |
+| Ashvents tier 8 | 29 | 36 | 38 |
+| Pressworks tier 10 | 27 | 37 | 37 |
+| Crucible tier 8 | 28 | 31 | 33 |
+
+With the Bulwark as host, one Rising Draught took the Hammerdeep from 25 to 40 of 40, because a saved tank prevents a wipe. With an Emberwright as host it went from 22 to 29, so it was always the tank's potion that mattered. With per-hero potions, every party can have the tank carry one. That pushes the group dungeons far past their 55 to 70% band and the raid past its 70% ceiling. The other potions are mild in groups: everyone on Kindling Brew won 29 in the Hammerdeep and 25 in the Crucible, and everyone on Stillwater Tonic won 24 and 27.
+
+**Change:** Rising Draught works in **solo dungeons only** (`potionWorksIn` in sim/hero.ts, checked in `hurtPlayer`). In a group dungeon or the raid, the party's pick-ups (G6) do its job. A brewed Rising Draught isn't used up by a group run: it stays brewed for the next solo delve, and the potion sheet says "(kept for a solo delve)". Its card now says "Solo dungeons only." After the change, everyone's Rising Draught gives Hammerdeep tier 8 25 of 40 and Pressworks tier 10 27, the same as no potion. A solo Bulwark in the Kiln at tier 8 still goes from 27 to 31.
+
 ## Kindle rolled back (21 Nov 2026)
 
 With the skills team's geared heroes (`heroes-r2` hero-t6-0, Kiln tier 6), the Kindle cast from #29 cost the Duskblade wins. Wins out of the seeds shown:

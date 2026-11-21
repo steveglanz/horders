@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { POTIONS, POTION, PotionId, potionCost } from '../sim/content/potions';
-import { brewBlocker, brewPotion, newHero, switchClass, takePotion } from '../sim/hero';
+import { brewBlocker, brewPotion, newHero, potionWorksIn, switchClass, takePotion } from '../sim/hero';
 
 const ROUTE = ['pack', 'pack', 'pack', 'pack', 'kilnMother'] as const;
 
@@ -131,5 +131,25 @@ describe('co-op: each hero brings their own potion', () => {
   it('a bounty ignores party potions, and an unknown potion is ignored', () => {
     expect(party('kindling', undefined, 100).hero(1).player.level).toBe(party(undefined, undefined, 100).hero(1).player.level);
     expect(party('bogus' as PotionId).hero(1).player.level).toBe(1);
+  });
+});
+
+describe('Rising Draught is solo only', () => {
+  it('does nothing in a group dungeon or the raid, and stays brewed for the next solo delve', () => {
+    for (const dungeon of ['hammerdeep', 'crucible'] as const) {
+      const w = new World({ seed: 1, omens: [], dungeon, potion: 'risingDraught', party: [{ cls: 'bulwark', potion: 'risingDraught' }], partySize: 2 });
+      const hurt = (w as unknown as { hurtPlayer(a: number): void }).hurtPlayer.bind(w);
+      for (const k of [0, 1]) {
+        w.use(k);
+        hurt(w.player.hp + 50);
+        expect(w.player.hp).toBeLessThanOrEqual(0);
+      }
+      w.use(0);
+    }
+    expect(potionWorksIn('risingDraught', 'kiln')).toBe(true);
+    expect(potionWorksIn('risingDraught', 'hammerdeep')).toBe(false);
+    expect(potionWorksIn('risingDraught', 'crucible')).toBe(false);
+    expect(potionWorksIn('stillwater', 'hammerdeep')).toBe(true);
+    expect(potionWorksIn('kindling', 'pressworks')).toBe(true);
   });
 });
