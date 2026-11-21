@@ -82,6 +82,8 @@ describe('audio', () => {
     expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Anvilfall' }, c)?.id).toBe('anvilfall');
     expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Choir of Iron' }, c)?.id).toBe('choir');
     expect(cueFor({ type: 'castStart', index: 0, name: 'Molten Cataclysm' }, c)?.id).toBe('castWarn');
+    expect(cueFor({ type: 'slagGrip', x: 0, y: 0, stacks: 5 }, c)).toMatchObject({ id: 'slag', vol: 1.05 });
+    expect(cueFor({ type: 'cleanse', x: 0, y: 0 }, c)?.id).toBe('cleanse');
   });
 
   it('hears co-op heroes go down and get back up', () => {
