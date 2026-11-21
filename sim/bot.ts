@@ -152,6 +152,17 @@ function lightCast(w: World, skill: number): number | undefined {
   return undefined;
 }
 
+/**
+ * The raid: an Anvil Slagbinder's Clinker taunts, so it waits while the boss is on another
+ * fresh tank. The swap cue says when to take it.
+ */
+function anvilWaits(w: World): boolean {
+  if (!w.dungeonDef.raid || w.player.stance !== 'anvil') return false;
+  if (w.swapCue) return false;
+  const k = w.bossTarget;
+  return k >= 0 && k !== w.acting && w.isTank(k);
+}
+
 /** Slagbinder action choices: Clinker casts (then the boss), plate on cooldown, shell when it hurts, cover a hurt ally. */
 function slagCast(w: World, skill: number): number | undefined {
   const p = w.player;
@@ -167,7 +178,8 @@ function slagCast(w: World, skill: number): number | undefined {
   }
   const hurt = 1 - p.hp / p.maxHp;
   // Co-op: Clinker the boss for Brittle (an Anvil also takes it back) when nothing needs interrupting.
-  if (w.heroes.length > 1 && w.canCast(3) && w.interruptTarget() < 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) return 3;
+  // In the raid an Anvil holds it while the other tank is fresh, and Clinkers to swap once Ladle Pour Seared it.
+  if (w.heroes.length > 1 && w.canCast(3) && w.interruptTarget() < 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && !anvilWaits(w)) return 3;
   // Co-op: an ally below half health with the boss or a telegraph on them gets covered.
   if (w.heroes.length > 1 && w.canCast(1)) {
     for (let k = 0; k < w.heroes.length; k++) {

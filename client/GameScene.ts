@@ -6,7 +6,7 @@ import { OMENS } from '../sim/content/omens';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD, SLAG_KIT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -48,9 +48,6 @@ applyPalette();
 onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
-/** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
-const SLAG = 0xff9b4a;
-const SLAG_COOL = 0xbcd6e6;
 
 /** A pooled sprite effect: moves, spins, fades and scales from (sx0, sy0) to (sx1, sy1). */
 interface Fx {
@@ -125,6 +122,8 @@ export class GameScene extends Phaser.Scene {
   /** Guest: seconds since the last snapshot, for smoothing between them. */
   private snapAge = 0;
   private lastInputAt = 0;
+  /** The raid: whether the tank swap banner is up for this swap. */
+  private swapShown = false;
   /** Guest: the draft (level and picks left) a pick was already sent for. */
   private sentPick = -1;
   /** The other heroes in a co-op party. */
@@ -571,6 +570,10 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
+    // The raid: Ladle Pour Seared the other tank, so this tank takes the boss.
+    const swap = w.swapCue;
+    if (swap && !this.swapShown) this.hud.banner('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
+    this.swapShown = swap;
     audio.events(events, {
       cls: w.cls,
       acting: w.acting,
@@ -638,14 +641,6 @@ export class GameScene extends Phaser.Scene {
           if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
-          } else if (w.cls === 'slagbinder') {
-            // Cooling Shell: a cold ring out to what it covers. Plating and Interpose have their own events.
-            if (ev.slot === 2) {
-              this.ring(ev.x, ev.y, ev.r + 30, SLAG_COOL, 0.5);
-              this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: SLAG_COOL, life: 0.5 });
-              for (let k = 0; k < 6; k++) this.steam(ev.x + (Math.random() - 0.5) * 40, ev.y + (Math.random() - 0.5) * 20, 0.6 + Math.random() * 0.4);
-              this.floatText(ev.x, ev.y - 36, 'Cooling Shell', '#cfe0ea', 18);
-            }
           } else if (w.cls === 'bulwark' && ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
             this.shake = Math.max(this.shake, 0.12);
@@ -679,22 +674,6 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'mote':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
-          break;
-        case 'lob':
-          this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
-          break;
-        case 'plate':
-          // Molten Plating poured on a hero: a bright ring closing in and a few drips.
-          this.emit(this.fx, 'ring', undefined, ev.x, ev.y + 8, 0.35, { tint: SLAG, sx0: 0.9, sx1: 0.35 });
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2;
-            this.emit(this.fx, 'spark', undefined, ev.x + Math.cos(a) * 26, ev.y + Math.sin(a) * 12, 0.4, { tint: SLAG, vx: -Math.cos(a) * 40, vy: 30, drag: 0.92, sx0: 0.5, sx1: 0.15 });
-          }
-          if (ev.hero !== w.acting) this.floatText(ev.x, ev.y - 34, 'Plated', '#ffc08a', 14);
-          break;
-        case 'brittle':
-          this.floatText(ev.x, ev.y - 30, 'Brittle', '#d8d0c6', 13);
-          for (let k = 0; k < 5; k++) this.emit(this.fx, 'spark', undefined, ev.x, ev.y - 6, 0.35, { tint: 0xe8e0d6, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 80, drag: 0.9, sx0: 0.45, sx1: 0.1 });
           break;
         case 'parry':
           this.floatText(ev.x, ev.y - 34, 'Parry!', '#f1e6ff', 18);
@@ -1210,7 +1189,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.warmSeen = warm;
-    this.slagDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -1965,74 +1943,6 @@ export class GameScene extends Phaser.Scene {
    * glow with ember cracks, and Chill frosts the screen edge. The Long Night darkens the floor,
    * so only the lights are left.
    */
-  /** Slag Lob: a glob on a high arc (a trail of embers), and a splash where it lands. */
-  private slagLob(x1: number, y1: number, x2: number, y2: number): void {
-    const d = Math.hypot(x2 - x1, y2 - y1);
-    const h = Math.min(90, d * 0.3);
-    for (let k = 1; k <= 7; k++) {
-      const t = k / 8;
-      this.emit(this.fx, 'spark', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t - Math.sin(Math.PI * t) * h, 0.12 + t * 0.12, { tint: k === 7 ? 0xffd08a : SLAG, sx0: 0.35 + t * 0.35, sx1: 0.1 });
-    }
-    this.emit(this.fx, 'ring', undefined, x2, y2, 0.25, { tint: SLAG, sx0: 0.15, sx1: (SLAG_KIT.lobSplashR * 2) / 128 });
-    for (let k = 0; k < 4; k++) this.emit(this.fx, 'spark', undefined, x2, y2, 0.3, { tint: SLAG, vx: (Math.random() - 0.5) * 180, vy: -30 - Math.random() * 90, drag: 0.9, sx0: 0.4, sx1: 0.1 });
-  }
-
-  /**
-   * Slagbinder states: molten plate around a plated hero (its arc shrinks as the plating is used up),
-   * a cold dome on a hero in Cooling Shell (and in a party the floor it covers), and cracks on Brittle foes.
-   */
-  private slagDraw(g: Phaser.GameObjects.Graphics, now: number): void {
-    const w = this.world;
-    const o = this.overFx;
-    const heroes = [{ q: w.player, x: this.player.x, y: this.player.y }, ...this.allies.map((al) => ({ q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y }))];
-    for (const { q, x, y } of heroes) {
-      if (q.hp <= 0) continue;
-      if ((q.shellUntil ?? -1) > w.time) {
-        const left = (q.shellUntil ?? 0) - w.time;
-        const fade = Math.min(1, left / 0.6);
-        if (w.heroes.length > 1) g.lineStyle(2.5, SLAG_COOL, 0.6 * fade).strokeEllipse(x, y + 10, SLAG_KIT.shellRadius * 2, SLAG_KIT.shellRadius * 0.9).fillStyle(SLAG_COOL, 0.07 * fade).fillEllipse(x, y + 10, SLAG_KIT.shellRadius * 2, SLAG_KIT.shellRadius * 0.9);
-        o.fillStyle(SLAG_COOL, 0.1 * fade).fillEllipse(x, y - 4, 64, 66);
-        o.lineStyle(2, SLAG_COOL, (0.55 + 0.15 * Math.sin(now / 200)) * fade).beginPath().arc(x, y + 6, 32, Math.PI * 1.02, Math.PI * 1.98).strokePath();
-        o.lineStyle(1.5, 0xffffff, 0.35 * fade).beginPath().arc(x - 4, y - 2, 22, Math.PI * 1.2, Math.PI * 1.45).strokePath();
-      }
-      if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0) {
-        const frac = Math.max(0.08, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
-        const spin = now / 900;
-        // A molten band at the feet, broken into plates, fewer as it is spent.
-        const n = 8;
-        for (let k = 0; k < n; k++) {
-          if (k / n >= frac) break;
-          const a0 = spin + (k / n) * Math.PI * 2;
-          for (const [lw, col, al] of [[7, 0x2a1d18, 0.85], [4, SLAG, 0.95]] as const) {
-            g.lineStyle(lw, col, al);
-            g.beginPath();
-            for (let s2 = 0; s2 <= 6; s2++) {
-              const a = a0 + ((Math.PI * 2) / n - 0.2) * (s2 / 6);
-              const px = x + Math.cos(a) * 26;
-              const py = y + 18 + Math.sin(a) * 10;
-              if (s2 === 0) g.moveTo(px, py); else g.lineTo(px, py);
-            }
-            g.strokePath();
-          }
-        }
-        g.fillStyle(SLAG, 0.12 + 0.06 * Math.sin(now / 160)).fillEllipse(x, y + 18, 56, 22);
-      }
-    }
-    for (const e of w.enemies) {
-      if (!e.alive || (e.brittleUntil ?? 0) <= w.time) continue;
-      const r = e.def.radius;
-      const cx = e.x;
-      const cy = e.y - r * 0.2;
-      // Pale fracture lines over the body, the way cooled slag cracks.
-      o.lineStyle(3, 0x1a1412, 0.7);
-      o.beginPath().moveTo(cx - r * 0.5, cy - r * 0.55).lineTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx - r * 0.25, cy + r * 0.2).lineTo(cx + r * 0.15, cy + r * 0.55).strokePath();
-      o.beginPath().moveTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx + r * 0.45, cy - r * 0.3).strokePath();
-      o.lineStyle(1.5, 0xf0e8de, 0.95);
-      o.beginPath().moveTo(cx - r * 0.5, cy - r * 0.55).lineTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx - r * 0.25, cy + r * 0.2).lineTo(cx + r * 0.15, cy + r * 0.55).strokePath();
-      o.beginPath().moveTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx + r * 0.45, cy - r * 0.3).strokePath();
-    }
-  }
-
   /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
   private warmthDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, n: number, full: boolean, now: number): void {
     const f = n / SET_TUNING.hkMax;

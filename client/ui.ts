@@ -133,7 +133,6 @@ export class Hud {
 
   private abButtons: HTMLButtonElement[] = [];
   private coach = new Coach();
-  private hpHtml = '';
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -189,9 +188,7 @@ export class Hud {
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
     // G6: downed in a party, the health text says how to get back up and how far along it is.
     const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / REVIVE_SECONDS) : -1;
-    // Numbers only, so innerHTML is safe; the max sits in its own span so a narrow phone can drop it.
-    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `Reviving ${Math.round(rev * 100)}%` : 'Down · an ally can revive you';
-    if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
+    $('hpText').textContent = rev < 0 ? `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}` : rev > 0 ? `Reviving ${Math.round(rev * 100)}%` : 'Down · an ally can revive you';
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
     $('level').textContent = String(p.level);

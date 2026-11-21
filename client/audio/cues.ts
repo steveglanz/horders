@@ -128,8 +128,6 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'swing': return { id: 'swing', jitter: 0.15, vol: ev.spin ? 1.4 : 1 };
     case 'parry': return { id: 'parry' };
     case 'mote': return { id: 'mote', jitter: 0.2 };
-    // Slag Lob borrows the Sunmote cue until sound gives it its own.
-    case 'lob': return { id: 'mote', jitter: 0.2 };
     case 'castStart': return { id: CAST_SOUNDS[ev.name]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };

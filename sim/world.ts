@@ -465,8 +465,6 @@ export type SimEvent =
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
   | { type: 'parry'; x: number; y: number }
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
-  /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
-  | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'cleanse'; x: number; y: number }
   | { type: 'plate'; x: number; y: number; hero: number }
@@ -1761,7 +1759,27 @@ export class World {
   get tauntCue(): boolean {
     if (this.cls !== 'bulwark') return false;
     const k = this.bossTarget;
-    return k >= 0 && k !== this.acting && this.heroPlayer(k).hp > 0 && (this.canCast(1) || this.canCast(3));
+    if (k < 0 || k === this.acting || this.heroPlayer(k).hp <= 0 || !(this.canCast(1) || this.canCast(3))) return false;
+    // The raid: leave the boss on another tank until Ladle Pour has Seared it.
+    if (this.dungeonDef.raid && this.isTank(k)) return this.swapCue;
+    return true;
+  }
+
+  /** Whether hero k tanks: a Bulwark, or a Slagbinder in the Anvil stance. */
+  isTank(k: number): boolean {
+    return this.heroes[k].cls === 'bulwark' || this.heroPlayer(k).stance === 'anvil';
+  }
+
+  /**
+   * The raid's tank swap cue: Ladle Pour left Seared on the tank the boss is on, and the
+   * acting hero is a fresh tank, so it should taunt the boss now. The HUD and the bots read it.
+   */
+  get swapCue(): boolean {
+    if (!this.dungeonDef.raid || !this.isTank(this.acting) || (this.player.sunderT ?? 0) > 0) return false;
+    const k = this.bossTarget;
+    if (k < 0 || k === this.acting) return false;
+    const t = this.heroPlayer(k);
+    return t.hp > 0 && (t.sunderT ?? 0) > 0;
   }
 
   get tierDamage(): number {
@@ -2469,7 +2487,7 @@ export class World {
     const p = this.player;
     const e = this.enemies[t];
     p.facing = Math.atan2(e.y - p.y, e.x - p.x);
-    this.events.push({ type: 'lob', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+    this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
@@ -3585,8 +3603,11 @@ export class World {
       this.use(this.ladleTarget);
       const p = this.player;
       if (p.hp > 0) {
-        this.hurtPlayer(SLAG.ladle * (1 + SLAG.ladleStackMult * (p.slag ?? 0)) * this.tierDamage, i, true);
+        // Seared: a second pour inside `searTime` hits `searMult` harder, and no heal clears it.
+        const seared = (p.sunderT ?? 0) > 0 ? 1 + SLAG.searMult : 1;
+        this.hurtPlayer(SLAG.ladle * (1 + SLAG.ladleStackMult * (p.slag ?? 0)) * seared * this.tierDamage, i, true);
         p.slag = Math.min(SLAG.slagMax, (p.slag ?? 0) + SLAG.ladleStacks);
+        p.sunderT = SLAG.searTime;
         this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
@@ -4498,6 +4519,10 @@ export class World {
       }
       this.use(at);
     }
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if ((q.sunderT ?? 0) > 0) q.sunderT = Math.max(0, (q.sunderT ?? 0) - dt);
+    }
     if (phase === 2) {
       this.heatT -= dt;
       if (this.heatT <= 0) {
@@ -5400,6 +5425,12 @@ export const SLAG = {
    * and each stack still on the target makes the next pour hit `ladleStackMult` harder.
    */
   ladle: 60, ladleStacks: 2, ladleStackMult: 0.3, ladleEvery: 9, ladleLate: 13, ladleCast: 2, firstLadle: 6,
+  /**
+   * Seared (on `Player.sunderT`, like Hammerdeep's Sundered): a pour on a hero still Seared
+   * hits `searMult` harder. It outlasts the gap between pours (9 s, then 13 s) but not two
+   * gaps, so two tanks trading the boss after each pour never take a Seared pour.
+   */
+  searTime: 15, searMult: 0.4,
   /** Ladle Burn: share of max health per second per stack, up to `slagMax` stacks. */
   burnTick: 0.01, slagMax: 6,
   /** Phase 1: Slaglings pour out of the channels. */
