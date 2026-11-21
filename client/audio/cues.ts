@@ -84,6 +84,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'mote': return { id: 'mote', jitter: 0.2 };
     case 'castStart': return { id: CAST_SOUNDS[ev.name]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
+    case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
+    case 'cleanse': return { id: 'cleanse' };
     case 'castDone': return { id: CAST_SOUNDS[ev.name]?.done ?? 'castDone' };
     case 'heal': return { id: 'heal', jitter: 0.05 };
     case 'ward': return { id: 'ward' };
@@ -131,6 +133,7 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  slag: 0.2,
   crit: 0.06,
   kill: 0.05,
   swing: 0.07,

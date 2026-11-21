@@ -202,6 +202,14 @@ export const SOUNDS = {
     ]),
     boom(55, 0.5, 0.45).map((v) => ({ ...v, delay: 0.3 })),
   ),
+  /** Slag Grip: molten slag clamps on, a sizzle that gets angrier with each stack. */
+  slag: [
+    { wave: 'noise', f: 0, dur: 0.45, vol: 0.3, a: 0.01, lp: 6000, lp2: 2500, hp: 1500, trem: [22, 0.6] },
+    { wave: 'saw', f: 220, f2: 130, dur: 0.25, vol: 0.14, lp: 1400 },
+    { wave: 'tri', f: 380, f2: 180, dur: 0.12, vol: 0.2 },
+  ],
+  /** Cleanse: an ally's heal knocks the slag loose, a bright rinse upward. */
+  cleanse: join(chime(E6, 0, 0.18, 0.4), chime(A5 * 2, 0.06, 0.16, 0.5), whoosh(1500, 8000, 0.3, 0.14)),
   sweep: join(whoosh(900, 4500, 0.35, 0.4), [{ wave: 'saw', f: 160, f2: 90, dur: 0.3, vol: 0.12, lp: 1500 }]),
 
   // ---- co-op
