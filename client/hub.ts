@@ -566,7 +566,7 @@ export class Hub {
     }).join('');
     return `<div class="box weekly deeds"><div class="lbl">Deeds <span class="wq-count">${done.size}/${ACHIEVEMENTS.length}</span></div>`
       + `<div class="deed-strip" aria-hidden="true">${ACHIEVEMENTS.map((a) => medalTile(a.id, done.has(a.id), 22)).join('')}</div>${rows}`
-      + `<div class="hint">Shared by every class. Each pays its title once, plus embers to the class you're playing. Wear titles from the Season sheet.</div></div>`;
+      + `<div class="hint">Shared by every class. Each pays its title once, plus embers to your shared purse. Wear titles from the Season sheet.</div></div>`;
   }
 
   /** P4: the hero card's one-line Collection button, with the book's count. */
@@ -606,7 +606,7 @@ export class Hub {
       + `<div class="lbl">Mythics</div><div class="bk-grid">${mythics}</div>`
       + `<div class="lbl">Weapon effects</div><div class="bk-grid">${fx}</div>`
       + `<div class="lbl">Rewards</div>${rewards}`
-      + `<div class="hint">Shared by every class. A find counts once it reaches your bags, even if you salvage it later. Rewards pay embers to the class you're playing.</div></div>`;
+      + `<div class="hint">Shared by every class. A find counts once it reaches your bags, even if you salvage it later. Rewards pay embers to your shared purse, which every class spends from.</div></div>`;
   }
 
   /** P1: this week's three quests, the same for everyone, and the title for all three. */
