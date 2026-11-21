@@ -28,7 +28,8 @@ const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 const CLASSES: ClassId[] = ['emberwright', 'duskblade', 'bulwark', 'lumen'];
 // ONLY=wrackline runs just the cases whose label starts with it.
 const only = process.env.ONLY;
-type Case = { label: string; opts: WorldOptions; skill: number };
+/** `drop`: this hero stops playing (no input, first card in drafts) once the first Downstroke is up, like a guest who left. */
+type Case = { label: string; opts: WorldOptions; skill: number; drop?: number };
 const cases: Case[] = [];
 for (const seed of seeds) for (const skill of [1, 0.5]) {
   for (const cls of CLASSES) cases.push({ label: `coldmarrow ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'coldmarrow', tier: 10, omens: [] } });
@@ -37,22 +38,33 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
     party: (['lumen', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
   cases.push({ label: 'crucible no healer', skill, opts: { seed, ...main('bulwark'), dungeon: 'crucible', tier: 8, omens: [],
     party: (['emberwright', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
+  // The Pressworks (group, tier 10): Oskel's Downstroke needs an un-Pressed hero under it every time.
+  const press = (label: string, lead: ClassId, rest: ClassId[], drop?: number) =>
+    cases.push({ label, skill, drop, opts: { seed, ...main(lead), dungeon: 'pressworks', tier: 10, omens: [], party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+  press('pressworks duo', 'bulwark', ['lumen']);
+  press('pressworks trio', 'bulwark', ['lumen', 'emberwright']);
+  press('pressworks four', 'bulwark', ['lumen', 'duskblade', 'emberwright']);
+  press('pressworks no tank', 'emberwright', ['lumen', 'duskblade']);
+  press('pressworks drop mid-Downstroke', 'bulwark', ['lumen', 'emberwright'], 2);
+  press('pressworks duo drop mid-Downstroke', 'bulwark', ['lumen'], 1);
 }
 let stuck = 0, longest = 0, mostAlive = 0;
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
 for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   const w = new World(c.opts);
   let maxAlive = 0;
+  let gone = false;
   while (w.state !== 'ended' && w.time < 3000) {
     if (w.state === 'draft') {
       const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
       w.use(h);
-      const pick = botChoose(w);
+      const pick = gone && h === c.drop ? 0 : botChoose(w);
       w.use(0);
       w.choose(pick, h);
       continue;
     }
-    const inputs = w.heroes.map((_, i) => { w.use(i); const inp = botInput(w, c.skill); w.use(0); return inp; });
+    if (c.drop !== undefined && !gone) gone = w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+    const inputs = w.heroes.map((_, i) => { if (gone && i === c.drop) return { x: 0, y: 0 }; w.use(i); const inp = botInput(w, c.skill); w.use(0); return inp; });
     w.step(inputs.length === 1 ? inputs[0] : inputs);
     maxAlive = Math.max(maxAlive, w.aliveEnemies);
   }
