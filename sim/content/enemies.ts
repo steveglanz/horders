@@ -21,7 +21,7 @@ export type EnemyKind =
   | 'cinderBrute' | 'ashmaw' | 'kilnMother'
   | 'glassWarden' | 'emberTwin' | 'sluiceCrawler' | 'maelra'
   | 'lensbearer' | 'shade' | 'brandkeeper' | 'twinLamp' | 'lensmother'
-  | 'worldShadow' | 'ondrel';
+  | 'worldShadow' | 'ondrel' | 'ysmeret';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
@@ -44,6 +44,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // A shadow of the shared world boss: it can't be killed, only hurt for 60 seconds.
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   // The Hammerdeep's group boss: role checks rather than dodge checks.
+  ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', hp: 5000, speed: 36, damage: 15, radius: 42, xp: 0, rank: 'boss', title: 'Group boss' },
   ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
 };

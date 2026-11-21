@@ -219,6 +219,57 @@ function nearestShade(w: World): { x: number; y: number } | null {
   return best;
 }
 
+/** Scatter Embers: how far apart two bots try to stand (twice the burst, plus a margin). */
+const SCATTER_GAP = 2 * 80 + 20;
+
+/** The nearest living ally of the acting hero, or null. */
+function nearestAlly(w: World): { dx: number; dy: number; d: number } | null {
+  const p = w.player;
+  let best: { dx: number; dy: number; d: number } | null = null;
+  for (let k = 0; k < w.heroes.length; k++) {
+    if (k === w.acting) continue;
+    const q = w.heroData(k).player;
+    if (q.hp <= 0) continue;
+    const dx = q.x - p.x;
+    const dy = q.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (!best || d < best.d) best = { dx, dy, d };
+  }
+  return best;
+}
+
+/**
+ * Co-op soaks: which gold circle the acting hero should stand in. Each circle in
+ * turn gets the nearest living hero not yet given one; anyone left goes to their
+ * nearest. Solo (or NOSPLIT=1, to measure what splitting is worth): null, the old rule.
+ */
+export function soakFor(w: World): World['telegraphs'][number] | null {
+  if (w.heroes.length < 2 || process.env.NOSPLIT === '1') return null;
+  const soaks = w.telegraphs.filter((t) => t.alive && t.kind === 'soak');
+  if (soaks.length < 2) return null;
+  const pos = w.heroes.map((_, k) => w.heroData(k).player);
+  const given = new Map<number, number>();
+  for (let s = 0; s < soaks.length; s++) {
+    let bk = -1;
+    let bd = Infinity;
+    for (let k = 0; k < pos.length; k++) {
+      if (pos[k].hp <= 0 || given.has(k)) continue;
+      const d = Math.hypot(pos[k].x - soaks[s].x, pos[k].y - soaks[s].y);
+      if (d < bd) { bd = d; bk = k; }
+    }
+    if (bk >= 0) given.set(bk, s);
+  }
+  const mine = given.get(w.acting);
+  if (mine !== undefined) return soaks[mine];
+  let best = soaks[0];
+  let bd = Infinity;
+  for (const t of soaks) {
+    const d = Math.hypot(w.player.x - t.x, w.player.y - t.y);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
@@ -305,6 +356,17 @@ export function botInput(w: World, skill = 1): Input {
       fy += (dy / d) * 0.08 * skill;
     }
   }
+  // The Ashvents (G3): spread out while Scatter Embers is winding up.
+  const scatter = w.heroes.length > 1 && process.env.NOSPREAD !== '1' && w.bossIndex >= 0
+    && w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter';
+  if (scatter) {
+    const near = nearestAlly(w);
+    if (near && near.d < SCATTER_GAP) {
+      fx += (-near.dx / (near.d || 1)) * 0.7 * skill;
+      fy += (-near.dy / (near.d || 1)) * 0.7 * skill;
+    }
+  }
+  const vent = soakFor(w);
   let soaking = false;
   // A Bulwark with Resolve to spare stands in blooms and smothers them.
   const smother = w.cls === 'bulwark' && p.heat >= 10;
@@ -312,6 +374,8 @@ export function botInput(w: World, skill = 1): Input {
     if (!t.alive) continue;
     if (smother && t.kind === 'bloom') continue;
     if (t.kind === 'soak') {
+      // Co-op: only go to the circle this hero was given (so a pair of vents is split).
+      if (vent && t !== vent) continue;
       // Run into the gold circle and hold still in it.
       const dx = t.x - p.x;
       const dy = t.y - p.y;
