@@ -7,6 +7,7 @@
  * no Date/Math.random/performance calls in here.
  */
 import { Rng } from './rng';
+import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
 import { CLASSES, ClassDef } from './content/classes';
@@ -153,6 +154,9 @@ export interface Enemy {
   /** Warded Omen: remaining shield, and whether it has been granted yet. */
   ward: number;
   warded: boolean;
+  /** C2: index into NAMED_TITLES (-1 for an ordinary foe), and into AFFIXES. */
+  named: number;
+  affix: number;
 }
 
 export interface Orb {
@@ -366,6 +370,9 @@ export type SimEvent =
   | { type: 'levelUp'; level: number; hero?: number }
   | { type: 'eliteSpawn' }
   | { type: 'bossSpawn' }
+  /** C2: a named elite joined this fight, and one fell. */
+  | { type: 'namedKill'; x: number; y: number; name: string }
+  | { type: 'namedSpawn'; index: number; name: string; affix: Affix }
   | { type: 'bossEnrage' }
   /** C7: a fight has gone on too long (`warn`: 30 s left; otherwise the fire now takes everything). */
   | { type: 'burnout'; warn: boolean }
@@ -608,6 +615,10 @@ export class World {
   private temperT = 0;
   private undertowT = 0;
   private twinVentT = 0;
+  /** C2: the fight (encounter index) that hides this delve's named elite; -2 until rolled, -1 for none. */
+  private namedAt = -2;
+  private namedTitle = 0;
+  private namedAffix = 0;
   // The Coldmarrow (Nhevra): Snuff, Snuffer Tide, Long Night.
   private snuffT = 0;
   private tideT = 0;
@@ -720,7 +731,7 @@ export class World {
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
       burnDps: 0, burnT: 0, woundT: 0, flash: 0, abilityT: 0, spawnedAt: 0,
-      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false,
+      castId: '', castName: '', castT: 0, castDur: 0, interruptible: false, stunT: 0, aux: 0, aux2: 0, ward: 0, warded: false, named: -1, affix: 0,
     }));
     this.orbs = pool(CAP.orbs, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, target: -1, dmg: 0, owner: 0, pierce: 0, lastHit: -1 }));
     this.gems = pool(CAP.gems, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, value: 0, pulled: false }));
@@ -1142,6 +1153,43 @@ export class World {
     return this.shadowStart >= 0 ? Math.max(0, SHADOW_TIME - (this.time - this.shadowStart)) : SHADOW_TIME;
   }
 
+  /**
+   * C2: about half of all delves hide one named elite in a fight before the boss.
+   * Rolled on its own stream, so a delve's other rolls don't move.
+   */
+  private rollNamed(elite: number): void {
+    if (this.stress || this.route.length < 2) return;
+    if (this.namedAt === -2) {
+      const r = new Rng((this.seed ^ 0x6e616d65) >>> 0);
+      const fights = this.route.length - 1; // never the boss fight
+      this.namedAt = r.chance(NAMED.chance) ? r.int(fights) : -1;
+      this.namedTitle = r.int(NAMED_TITLES.length);
+      this.namedAffix = r.int(AFFIXES.length);
+    }
+    if (this.encounter !== this.namedAt) return;
+    if (elite < 0) {
+      // A fight with no elite in it (a shrine): the next fight before the boss gets it.
+      this.namedAt = this.encounter + 1 < this.route.length - 1 ? this.encounter + 1 : -1;
+      return;
+    }
+    const e = this.enemies[elite];
+    e.named = this.namedTitle;
+    e.affix = this.namedAffix;
+    e.maxHp *= NAMED.hp;
+    e.hp = e.maxHp;
+    if (AFFIXES[e.affix] === 'Warded') {
+      e.ward = e.maxHp * NAMED.ward;
+      e.warded = true;
+    }
+    this.events.push({ type: 'namedSpawn', index: elite, name: this.namedName(elite), affix: AFFIXES[e.affix] });
+  }
+
+  /** "Ashjaw, Rimehound" for a named elite, else the kind's name. */
+  namedName(i: number): string {
+    const e = this.enemies[i];
+    return e.named >= 0 ? `${NAMED_TITLES[e.named]}, ${e.def.name}` : e.def.name;
+  }
+
   /** Burnout: the hard limit on any fight (see BURNOUT). */
   private burnoutClock(dt: number): void {
     const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? BURNOUT.boss : BURNOUT.fight);
@@ -1203,6 +1251,7 @@ export class World {
     const n = def.spawns.reduce((a, s) => a + s.n, 0);
     let k = 0;
     let lead = -1;
+    let firstElite = -1;
     for (const sp of def.spawns) {
       for (let j = 0; j < sp.n; j++, k++) {
         const a = base + (k - (n - 1) / 2) * 0.35;
@@ -1210,6 +1259,7 @@ export class World {
         const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
         if (i < 0) continue;
         const e = this.enemies[i];
+        if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
         if (sp.kind === 'acolyte') {
           e.aux = a;
           e.aux2 = lead;
@@ -1277,6 +1327,7 @@ export class World {
         if (sp.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
       }
     }
+    this.rollNamed(firstElite);
     this.events.push({ type: 'encounterStart', index: this.encounter, id: def.id });
   }
 
@@ -1485,6 +1536,8 @@ export class World {
     e.aux2 = 0;
     e.ward = 0;
     e.warded = false;
+    e.named = -1;
+    e.affix = 0;
     this.aliveEnemies++;
     return idx;
   }
@@ -2797,7 +2850,7 @@ export class World {
         continue;
       }
 
-      let speed = e.castId ? 0 : e.def.speed;
+      let speed = e.castId ? 0 : e.def.speed * (e.named >= 0 && AFFIXES[e.affix] === 'Swift' ? NAMED.swift : 1);
       if (e.def.rank === 'boss' && this.bossEnraged) speed *= 1.6;
       const dx = p.x - e.x;
       const dy = p.y - e.y;
@@ -3374,6 +3427,13 @@ export class World {
       this.progressQuest('rifts');
       this.addHeat(20);
       this.events.push({ type: 'riftClosed', x: e.x, y: e.y });
+    }
+    if (e.named >= 0) {
+      // A named elite: its own loot, and a Vengeful one bursts where it fell.
+      const r = new Rng((this.seed ^ 0x6c6f6f74) + this.kills);
+      this.dropLoot(e.x, e.y, r.chance(NAMED.epicChance) ? 'epic' : 'rare');
+      if (AFFIXES[e.affix] === 'Vengeful') this.addTelegraph('circle', e.x, e.y, NAMED.burstR, 0, 0, NAMED.burstDelay, NAMED.burstDmg);
+      this.events.push({ type: 'namedKill', x: e.x, y: e.y, name: this.namedName(i) });
     }
     if (e.kind === 'ashmaw') {
       this.progressQuest('ashmaw');
