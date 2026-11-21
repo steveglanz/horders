@@ -2509,6 +2509,29 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.stroke();
   });
 
+  // Oil Sheen (the Falling Press trail): a dark oil drop with a rainbow sheen round its rim and a glint. It is emitted
+  // untinted and tinted toward the trail's green as it settles, so the sheen fades into an oil slick.
+  make(scene, 'oilDrop', 16, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath(); ctx.arc(c, c, 5.6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(10,20,10,0.88)'; ctx.fill();
+    const sheen = ['#ff6ad5', '#ffd36a', '#8dff7a', '#6ae0ff', '#8a7aff', '#ff6ad5'];
+    ctx.lineWidth = 1.5;
+    for (let k = 0; k < 5; k++) {
+      ctx.beginPath(); ctx.arc(c, c, 4.6, (k * 2 * Math.PI) / 5, ((k + 1) * 2 * Math.PI) / 5);
+      ctx.strokeStyle = sheen[k]; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(c - 1.8, c - 1.8, 1.1, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+  });
+
+  // Raft Splinters (the Low Ebb trail): a wood sliver with a dark outline and one grain line, tinted the trail's brown.
+  make(scene, 'woodChip', 16, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath(); ctx.moveTo(c - 6, c + 1.2); ctx.lineTo(c - 4, c - 1.8); ctx.lineTo(c + 6, c - 1); ctx.lineTo(c + 4.5, c + 1.8); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(20,10,4,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(c - 3.5, c + 0.2); ctx.lineTo(c + 4, c - 0.2); ctx.strokeStyle = 'rgba(90,60,30,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+  });
+
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // Ember Vein: a gatherable crystal cluster.
