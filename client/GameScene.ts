@@ -359,7 +359,7 @@ export class GameScene extends Phaser.Scene {
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
-    this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5).setVisible(false).setDepth(9.5);
+    this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
       this.floats.push({ txt, life: 0, age: 0, vx: 0 });
@@ -1082,6 +1082,7 @@ export class GameScene extends Phaser.Scene {
       }
       al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
+    this.unstackLabels();
 
     const view = cam.worldView;
     const margin = 80;
@@ -1456,7 +1457,8 @@ export class GameScene extends Phaser.Scene {
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
-          this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
+          // Under the circle's rim, so it never sits on the names of the heroes standing in it.
+          this.soakText.setVisible(true).setPosition(t.x, t.y + t.r + 4).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
         }
       } else {
         const a0 = t.angle - t.arc / 2;
@@ -2118,6 +2120,30 @@ export class GameScene extends Phaser.Scene {
    * and telegraphs keep their solid rim, so a hero can tell "good to stand in" from "a mechanic"
    * by shape as well as colour (L3: the colours alone can merge for colour-blind players).
    */
+  /**
+   * Ally names lift apart when heroes bunch up (a soak, the tank spot), so two names never print
+   * over each other on a phone. Lower names keep their place; a name that would overlap one
+   * already placed moves up just clear of it.
+   */
+  private unstackLabels(): void {
+    if (this.allies.length < 2) return;
+    const order = [...this.allies].sort((a, b) => b.label.y - a.label.y);
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
+    for (const al of order) {
+      const lb = al.label;
+      const w2 = lb.displayWidth / 2;
+      let bottom = lb.y;
+      const h = lb.displayHeight;
+      for (let pass = 0; pass < 4; pass++) {
+        const hit = placed.find((q) => lb.x - w2 < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
+        if (!hit) break;
+        bottom = hit.t - 1;
+      }
+      lb.y = bottom; // only the name moves; a title stays over its hero's head
+      placed.push({ l: lb.x - w2, r: lb.x + w2, t: bottom - h, b: bottom });
+    }
+  }
+
   private dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, now: number): void {
     const n = Math.max(12, Math.round(r / (this.lowFx ? 14 : 7)));
     const step = (Math.PI * 2) / n;
