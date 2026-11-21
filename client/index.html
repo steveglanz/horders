@@ -562,6 +562,8 @@
     .gear { gap: 5px; }
     .slot { padding: 6px 7px; font-size: 11px; }
     #stats { grid-template-columns: repeat(2, 1fr); }
+    /* In a run the pause menu has Sound, Music and Effects; the extra round button only crowded the top row. */
+    #hud .snd-toggle { display: none; }
   }
   @media (max-width: 560px) {
     #target { top: 56px; width: calc(100vw - 24px); }
