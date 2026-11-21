@@ -137,6 +137,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       return { id: ev.rarity === 'mythic' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
     case 'quest': return { id: 'quest' };
+    case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
     case 'encounterStart': return null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };

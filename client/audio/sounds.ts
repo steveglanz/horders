@@ -313,6 +313,20 @@ export const SOUNDS = {
   phaseRaid3: join(clang(note(-9), 0.5, 1.4), ...[0.3, 0.42, 0.54, 0.62, 0.7, 0.76, 0.82].map((d) => boom(70, 0.18, 0.35).map((v) => ({ ...v, delay: d }))),
     horn(note(-14), 1.2, 0.3).map((v) => ({ ...v, delay: 0.85 }))),
 
+  // ---- burnout (every fight ends: a 30 s warning, then the fire drains everyone)
+  /** 30 s left: a rising heat alarm over a building sizzle. */
+  burnoutWarn: [
+    { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.0, curve: 0.7, lp: 1500, lp2: 7000, hp: 600 },
+    { wave: 'square', f: note(7), dur: 0.14, vol: 0.13, lp: 4000, curve: 1 },
+    { wave: 'square', f: note(10), dur: 0.14, delay: 0.3, vol: 0.14, lp: 4000, curve: 1 },
+    { wave: 'square', f: note(14), dur: 0.14, delay: 0.6, vol: 0.15, lp: 4000, curve: 1 },
+    { wave: 'square', f: note(19), dur: 0.35, delay: 0.9, vol: 0.17, lp: 4000, curve: 1.5 },
+  ],
+  /** The fire takes hold: a roaring ignition. */
+  burnout: join(whoosh(300, 5000, 0.9, 0.45), boom(55, 0.9, 0.5), [
+    { wave: 'saw', f: 110, f2: 220, dur: 0.9, vol: 0.15, a: 0.3, lp: 1500, vib: [11, 0.04] },
+  ]),
+
   // ---- co-op
   allyDown: [
     { wave: 'tri', f: A5, f2: note(5), dur: 0.25, vol: 0.3, curve: 1.5 },
