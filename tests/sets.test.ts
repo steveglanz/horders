@@ -38,9 +38,9 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('wrackline')).toBe('wrackrider');
     expect(setForDungeon('hammerdeep')).toBe('deepguard');
     expect(setForDungeon('ashvents')).toBe('ventwalker');
-    expect(setForDungeon('crucible')).toBeUndefined();
+    expect(setForDungeon('crucible')).toBe('kinbound');
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(7);
+    expect(Object.keys(SETS)).toHaveLength(8);
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -242,5 +242,46 @@ describe('verb sets (R4)', () => {
     inner(w).addTelegraph('circle', w.player.x, w.player.y, 70, 0, 0, 0.01, 0, 'soak');
     w.step({ x: 0, y: 0 });
     expect(w.player.hp).toBeGreaterThan(before + w.player.maxHp * SET_TUNING.vwHeal * 0.9);
+  });
+
+  it('Kinbound: an ally\'s heal Covers a 2-piece wearer; a 3-piece healer Bonds itself and the ally', () => {
+    const party = (healer: number, ally: number) => new World({ seed: 3, dungeon: 'crucible', omens: [], cls: 'lumen', gear: gear('kinbound', healer), party: [{ cls: 'bulwark', gear: gear('kinbound', ally) }, { cls: 'emberwright' }, { cls: 'duskblade' }] });
+    const heal = (w: World) => {
+      const a = w.hero(1).player;
+      Object.assign(a, { x: w.player.x + 30, y: w.player.y, hp: a.maxHp * 0.5 });
+      w.healAllies(w.player.x, w.player.y, 100, 20, 1);
+      return a;
+    };
+    const none = party(0, 0);
+    const a0 = heal(none);
+    expect(a0.coverT ?? 0).toBe(0);
+    expect(a0.bondT ?? 0).toBe(0);
+
+    const covered = party(0, 2);
+    const a2 = heal(covered);
+    expect(a2.coverT).toBe(SET_TUNING.knTime);
+    expect(a2.bondT ?? 0).toBe(0);
+
+    const bonded = party(3, 0);
+    const a3 = heal(bonded);
+    expect(a3.coverT ?? 0).toBe(0);
+    expect(a3.bondT).toBe(SET_TUNING.knTime);
+    expect(bonded.player.bondT).toBe(SET_TUNING.knTime);
+    const e = bonded.enemies.find((o) => o.alive) ?? bonded.enemies[0];
+    expect(inner(bonded).setDamageMult(e, true)).toBeCloseTo(1 + SET_TUNING.knBond, 5);
+
+    // Covered cuts the damage the ally takes.
+    const hit = () => {
+      covered.player.hp = covered.player.maxHp;
+      const h0 = covered.player.hp;
+      (covered as unknown as { hurtPlayer(a: number, s?: number, u?: boolean): void }).hurtPlayer(100, -1, true);
+      return h0 - covered.player.hp;
+    };
+    covered.use(1);
+    const withCover = hit();
+    covered.player.coverT = 0;
+    const without = hit();
+    covered.use(0);
+    expect(withCover / without).toBeCloseTo(1 - SET_TUNING.knCovered, 5);
   });
 });

@@ -7,7 +7,7 @@
 import type { DungeonId } from './dungeon';
 import type { Slot } from './items';
 
-export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker';
+export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound';
 
 export interface SetDef {
   id: SetId;
@@ -51,11 +51,15 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'ventwalker', name: 'Ventwalker', verb: 'Split up', dungeon: 'ashvents',
     bonus: ['While an ally is alive in the fight and none stands within 140 of you, you deal 6% more damage. (A group set: it does nothing solo.)', 'Standing in a gold circle when it lands heals you 5% of your health.'],
   },
+  kinbound: {
+    id: 'kinbound', name: 'Kinbound', verb: 'Cover each other', dungeon: 'crucible',
+    bonus: ['When an ally heals you, you take 6% less damage for 4s. (A group set: it does nothing solo.)', 'When you heal an ally, or taunt the boss off one, you and that ally deal 6% more damage for 4s.'],
+  },
 };
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
 
-/** The set a dungeon drops, if it has one (the raid has none yet). */
+/** The set a dungeon drops, if it has one. Every dungeon has one since the raid's Kinbound. */
 export function setForDungeon(d: DungeonId): SetId | undefined {
   return SET_IDS.find((s) => SETS[s].dungeon === d);
 }
@@ -74,4 +78,6 @@ export const SET_TUNING = {
   dgRange: 140, dgCut: 0.04, dgAura: 0.03,
   /** Ventwalker: the damage while split from every living ally (2, same 140 range as Deepguard), and the heal for standing in a gold circle (3). */
   vwDamage: 0.06, vwHeal: 0.05,
+  /** Kinbound: the cut after an ally's heal (2), the damage after you cover an ally (3, for you and them), and how long each lasts. */
+  knCovered: 0.06, knBond: 0.06, knTime: 4,
 };

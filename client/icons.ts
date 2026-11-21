@@ -136,6 +136,8 @@ export const SET_ICON: Record<SetId, string> = {
   deepguard: 'M3 5.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8C5 16.1 3 13.9 3 10.5Z M12 7.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8-2.5-1.2-4.5-3.4-4.5-6.8Z',
   // Ventwalker (split up): two flames pulling apart (placeholder until visuals draws one).
   ventwalker: 'M6 4c1.8 2.3 3 3.9 3 6a3 3 0 0 1-6 0c0-2.1 1.2-3.7 3-6Z M18 4c1.8 2.3 3 3.9 3 6a3 3 0 0 1-6 0c0-2.1 1.2-3.7 3-6Z M2.5 19h6 M15.5 19h6 M10 19h4',
+  // Kinbound (cover each other): two linked rings (placeholder until visuals draws one).
+  kinbound: 'M8.5 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z M15.5 7.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
