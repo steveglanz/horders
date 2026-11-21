@@ -528,7 +528,8 @@ export class Hud {
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
       if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {
         const d = rewards.keyTo - rewards.keyFrom;
-        notes.push(`<b>Delver's Key +${rewards.keyFrom} → +${rewards.keyTo}${d > 1 ? ' (fast clear!)' : d === 0 && s.victory ? ' (over par)' : ''}</b>${rewards.keyEmbers ? ` · +${rewards.keyEmbers} embers` : ''}`);
+        // A key pill that reads up, flat or down at a glance.
+        notes.push(`<span class="keynote ${d > 0 ? 'up' : d < 0 ? 'down' : ''}"><span aria-hidden="true">⚿</span> Delver's Key +${rewards.keyFrom} → <b>+${rewards.keyTo}</b>${d > 1 ? ' (fast clear!)' : d === 0 && s.victory ? ' (over par)' : ''}</span>${rewards.keyEmbers ? ` · +${rewards.keyEmbers} embers` : ''}`);
       }
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
