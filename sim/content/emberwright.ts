@@ -101,7 +101,9 @@ export type TalentId =
   // C5 round 2: two more cards per branch for the Bulwark, Lumen and Slagbinder
   | 'rivetedPlates' | 'slowPulse' | 'hardKnocks' | 'grimTally' | 'broadShoulders' | 'fullWeight'
   | 'daybreakPulse' | 'lanternHeart' | 'lampglowCare' | 'steadyHalo' | 'longNote' | 'hallowedEmbers'
-  | 'deepCoat' | 'wideSpatter' | 'fastLadle' | 'denseGlob' | 'slagScales' | 'slowCool';
+  | 'deepCoat' | 'wideSpatter' | 'fastLadle' | 'denseGlob' | 'slagScales' | 'slowCool'
+  | 'deepSmoulder' | 'emberCarpet' | 'brightWick' | 'fastFuse' | 'sootCloak' | 'bankedFire'
+  | 'slowDrip' | 'hungrySteel' | 'lightGrip' | 'keenLunge' | 'lowStance' | 'quietMend';
 
 export interface TalentDef {
   id: TalentId;
@@ -248,6 +250,18 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   hardened: { id: 'hardened', cls: 'slagbinder', name: 'Hardened', branch: 'crust', maxRank: 2, text: 'Cooling Shell lasts 1s longer.' },
   slagScales: { id: 'slagScales', cls: 'slagbinder', name: 'Slag Scales', branch: 'crust', deep: true, maxRank: 3, text: 'You take 4% less damage.' },
   slowCool: { id: 'slowCool', ability: 2, cls: 'slagbinder', name: 'Slow Cool', branch: 'crust', deep: true, maxRank: 2, text: 'Your Cooling Shell cuts 5% more of the damage you take.' },
+  deepSmoulder: { id: 'deepSmoulder', cls: 'emberwright', name: 'Deep Smoulder', branch: 'wildfire', deep: true, maxRank: 3, text: 'Orb fires burn 15% harder.' },
+  emberCarpet: { id: 'emberCarpet', ability: 0, cls: 'emberwright', name: 'Ember Carpet', branch: 'wildfire', deep: true, maxRank: 2, text: 'Flame Wave hits 20% harder.' },
+  brightWick: { id: 'brightWick', cls: 'emberwright', name: 'Bright Wick', branch: 'kindling', deep: true, maxRank: 3, text: 'Your crits deal 15% more.' },
+  fastFuse: { id: 'fastFuse', ability: 2, cls: 'emberwright', name: 'Fast Fuse', branch: 'kindling', deep: true, maxRank: 2, text: 'Combustion recharges 2s faster.' },
+  sootCloak: { id: 'sootCloak', cls: 'emberwright', name: 'Soot Cloak', branch: 'ashguard', deep: true, maxRank: 3, text: 'You take 4% less damage.' },
+  bankedFire: { id: 'bankedFire', cls: 'emberwright', name: 'Banked Fire', branch: 'ashguard', deep: true, maxRank: 2, text: 'Below half health, heal 3 health per second.' },
+  slowDrip: { id: 'slowDrip', cls: 'duskblade', name: 'Slow Drip', branch: 'bloodletting', deep: true, maxRank: 3, text: 'Your bleeds deal 10% more damage.' },
+  hungrySteel: { id: 'hungrySteel', ability: 2, cls: 'duskblade', name: 'Hungry Steel', branch: 'bloodletting', deep: true, maxRank: 2, text: 'Execution hits 20% harder.' },
+  lightGrip: { id: 'lightGrip', cls: 'duskblade', name: 'Light Grip', branch: 'tempo', deep: true, maxRank: 3, text: 'Swing 5% faster.' },
+  keenLunge: { id: 'keenLunge', ability: 0, cls: 'duskblade', name: 'Keen Lunge', branch: 'tempo', deep: true, maxRank: 2, text: 'Rending Dash hits 25% harder.' },
+  lowStance: { id: 'lowStance', cls: 'duskblade', name: 'Low Stance', branch: 'guard', deep: true, maxRank: 3, text: 'You take 4% less damage.' },
+  quietMend: { id: 'quietMend', cls: 'duskblade', name: 'Quiet Mend', branch: 'guard', deep: true, maxRank: 2, text: 'Below half health, heal 3 health per second.' },
   clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: falling below 30% health plates you for 25% of your max health, once every 30s.' },
   slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
 };

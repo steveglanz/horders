@@ -20,6 +20,8 @@ const ROUND2: TalentId[] = [
   'rivetedPlates', 'slowPulse', 'hardKnocks', 'grimTally', 'broadShoulders', 'fullWeight',
   'daybreakPulse', 'lanternHeart', 'lampglowCare', 'steadyHalo', 'longNote', 'hallowedEmbers',
   'deepCoat', 'wideSpatter', 'fastLadle', 'denseGlob', 'slagScales', 'slowCool',
+  'deepSmoulder', 'emberCarpet', 'brightWick', 'fastFuse', 'sootCloak', 'bankedFire',
+  'slowDrip', 'hungrySteel', 'lightGrip', 'keenLunge', 'lowStance', 'quietMend',
 ];
 
 function world(cls: ClassId): { w: World; inner: Inner } {
@@ -40,8 +42,8 @@ function hitTaken(cls: ClassId, talents: Partial<Record<TalentId, number>>): num
 }
 
 describe('class talents round 2 (C5)', () => {
-  it('adds two non-capstone cards to every Bulwark, Lumen and Slagbinder branch', () => {
-    const branches = ['bastion', 'retribution', 'vanguard', 'dawn', 'grace', 'choir', 'forge', 'clinker', 'crust'];
+  it('adds two deep cards to every branch of every class', () => {
+    const branches = ['bastion', 'retribution', 'vanguard', 'dawn', 'grace', 'choir', 'forge', 'clinker', 'crust', 'wildfire', 'kindling', 'ashguard', 'bloodletting', 'tempo', 'guard'];
     for (const b of branches) {
       expect(ROUND2.filter((id) => TALENTS[id].branch === b)).toHaveLength(2);
     }
@@ -51,7 +53,7 @@ describe('class talents round 2 (C5)', () => {
   it('deep cards stay out of the draft until their branch capstone is taken', () => {
     const before = new Set<string>();
     const after = new Set<string>();
-    for (const cls of ['bulwark', 'lumen', 'slagbinder'] as ClassId[]) {
+    for (const cls of ['emberwright', 'duskblade', 'bulwark', 'lumen', 'slagbinder'] as ClassId[]) {
       const caps = (Object.values(TALENTS) as { id: TalentId; cls?: ClassId; capstone?: boolean; branch: string }[])
         .filter((d) => d.cls === cls && d.capstone);
       // One capstone from each branch.
@@ -120,6 +122,28 @@ describe('class talents round 2 (C5)', () => {
   it('Steady Halo and Slag Scales cut every hit', () => {
     expect(hitTaken('lumen', { steadyHalo: 2 })).toBeLessThan(hitTaken('lumen', {}));
     expect(hitTaken('slagbinder', { slagScales: 3 })).toBeLessThan(hitTaken('slagbinder', {}));
+  });
+
+  it('Soot Cloak and Low Stance cut every hit', () => {
+    expect(hitTaken('emberwright', { sootCloak: 3 })).toBeLessThan(hitTaken('emberwright', {}));
+    expect(hitTaken('duskblade', { lowStance: 3 })).toBeLessThan(hitTaken('duskblade', {}));
+  });
+
+  it('Fast Fuse: Combustion recharges sooner', () => {
+    const { inner } = world('emberwright');
+    const base = inner.baseCooldown(2);
+    inner.talents = { fastFuse: 2 };
+    expect(inner.baseCooldown(2)).toBeCloseTo(base - 4);
+  });
+
+  it('Light Grip and Slow Drip: faster swings, harder bleeds', () => {
+    const { inner } = world('duskblade');
+    const i = inner as unknown as { swingCooldown: number; bleedMult: number };
+    const cd = i.swingCooldown;
+    const bleed = i.bleedMult;
+    inner.talents = { lightGrip: 3, slowDrip: 3 };
+    expect(i.swingCooldown).toBeCloseTo(cd / 1.15);
+    expect(i.bleedMult).toBeCloseTo(bleed * 1.3);
   });
 
   it('a card from another class does nothing', () => {
