@@ -3863,7 +3863,8 @@ export class World {
         const dx = e.x - p.x;
         const dy = e.y - p.y;
         const d = Math.hypot(dx, dy) || 1;
-        const pull = Math.min(WRACK.haul, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 8));
+        // Anvil Skin anchors the Bulwark: the hook lands but can't move it.
+        const pull = this.anchored(p) ? 0 : Math.min(WRACK.haul, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 8));
         p.x += (dx / d) * pull;
         p.y += (dy / d) * pull;
         this.hurtPlayer(WRACK.haulDamage * this.tierDamage, i);
@@ -4789,6 +4790,12 @@ export class World {
     return false;
   }
 
+  /** The Wrackline: a Bulwark under Anvil Skin is anchored, so neither the Ebb nor a Haul moves it. */
+  private anchored(q: Player): boolean {
+    // Only the Bulwark's Anvil Skin sets bastionT.
+    return q.bastionT > 0;
+  }
+
   /** Rafts drift; every so often the Ebb warns, then drags everyone not on a raft toward the drain. Hessa's clocks. */
   private wrackClock(dt: number): void {
     const boss = this.bossIndex >= 0 && this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa' ? this.enemies[this.bossIndex] : null;
@@ -4807,7 +4814,8 @@ export class World {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
         const d = Math.hypot(q.x, q.y) || 1;
-        const step = Math.min(d, pull * dt);
+        // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
+        const step = this.anchored(q) ? 0 : Math.min(d, pull * dt);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
         const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
