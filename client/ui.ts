@@ -410,7 +410,9 @@ export class Hud {
     const out: string[] = [];
     // Gold soak circles: the Kiln Mother's Brand, or a group boss's vents (owner -2), which need one hero in each.
     const soak = w.telegraphs.find((t) => t.alive && t.kind === 'soak');
-    if (soak) out.push(`<span class="buff debuff">${soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!'}</span>`);
+    // The Pressworks' Downstroke (owner -3) wants one hero who isn't Pressed under the plate; a Pressed hero stays out.
+    const press = soak?.owner === -3 ? ((p.pressedT ?? 0) > 0 ? 'Downstroke: you are Pressed, stay out!' : 'Downstroke: one un-Pressed hero under it!') : '';
+    if (soak) out.push(`<span class="buff debuff">${press || (soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!')}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
     if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Anvil Skin</span>');
@@ -419,7 +421,7 @@ export class Hud {
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
     // The Pressworks: Pressed means stay out of the next Downstroke.
-    if ((p.pressedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:#ff6a5a" title="You took the last Downstroke: stay out of the next one">Pressed ${Math.ceil(p.pressedT ?? 0)}s</span>`);
+    if ((p.pressedT ?? 0) > 0 && !press) out.push(`<span class="buff" style="--bc:#ff6a5a" title="You took the last Downstroke: stay out of the next one">Pressed ${Math.ceil(p.pressedT ?? 0)}s</span>`);
     // Verb sets: show the timed bonuses while they run.
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
