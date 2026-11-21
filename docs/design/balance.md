@@ -219,3 +219,18 @@ Novice proxy (`tools/balance.ts`, LAG=0.3 SKILL=0.5, Kiln tier 1):
 | Lumen | 1 to 40 | 37 | 37 | 38 |
 
 Geared hero-t4 in the Kiln at tier 4, seeds 1 to 40: 37 wins on main, 38 after.
+
+## The Glarewell with the post-#17 heroes (21 Nov 2026)
+
+The first Glarewell numbers above used the old reference heroes in `tools/heroes`. The skills team then found a 22-point class spread with their newer heroes (`heroes-r2`), mostly because the bot didn't hide from Glare. They fixed its shade-seeking (PR #30), and the Glare warning went to 2.6 s (PR #29).
+
+Re-measured on main: `tools/foundry.ts`, tier 7, three hero-t6 heroes per class from the skills team's `heroes-r2`, seeds 1 to 40. Each cell is the average wins out of 40.
+
+| Class | Glarewell, tier 7 | Foundry, tier 7 |
+|---|---|---|
+| Bulwark | 33.0 | 23.3 |
+| Lumen | 32.7 | 21.3 |
+| Emberwright | 30.7 | 27.3 |
+| Duskblade | 26.3 | 28.3 |
+
+**Reading:** the class spread in the Glarewell is 6.7 points, inside our 10-point bar. At tier 7 it plays a little easier than the Foundry at the same tier, which suits the dungeon you've just unlocked. No retune for now. The Bulwark gets Glared most (23% before the 2.6 s warning) because it has no movement skill, so keep an eye on it in playtests. The Foundry's own tier 7 spread is 7 points (Lumen 21.3, Duskblade 28.3). That belongs to the skills team's matrix, not to this change.
