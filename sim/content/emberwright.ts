@@ -211,7 +211,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Lumen. Dawn: healing turned into damage
   kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
   searingRadiance: { id: 'searingRadiance', cls: 'lumen', name: 'Searing Radiance', branch: 'dawn', maxRank: 3, text: 'Sunmotes deal 15% more damage.' },
-  sunflare: { id: 'sunflare', cls: 'lumen', name: 'Sunflare', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
+  sunflare: { id: 'sunflare', cls: 'lumen', name: 'Noon Flash', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
   daybreakPulse: { id: 'daybreakPulse', ability: 0, cls: 'lumen', name: 'Daybreak Pulse', branch: 'dawn', deep: true, maxRank: 2, text: 'Radiant Burst recovers 0.5s sooner and heals 10% more.' },
   lanternHeart: { id: 'lanternHeart', cls: 'lumen', name: 'Lantern Heart', branch: 'dawn', deep: true, maxRank: 3, text: 'You can store 30 more Brilliance, and Sunmotes deal 10% more damage.' },
   noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'Every 4s, a piercing sunbeam fires at your target, stronger with stored Brilliance.', tip: "Every 4s, a 520 px sunbeam pierces everything in line with your target: 40 damage plus 1.5 per Brilliance, and it spends all your Brilliance." },
@@ -246,7 +246,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   brittleMind: { id: 'brittleMind', cls: 'slagbinder', name: 'Lasting Cracks', branch: 'clinker', maxRank: 2, text: 'Brittle lasts 2s longer.' },
   fastLadle: { id: 'fastLadle', cls: 'slagbinder', name: 'Fast Ladle', branch: 'clinker', deep: true, maxRank: 3, text: 'Slag Lob throws 10% more often.' },
   denseGlob: { id: 'denseGlob', cls: 'slagbinder', name: 'Dense Glob', branch: 'clinker', deep: true, maxRank: 2, text: 'Each Slag Lob gives 3 more Slag.' },
-  shatterpoint: { id: 'shatterpoint', cls: 'slagbinder', name: 'Shatterpoint', branch: 'clinker', maxRank: 1, capstone: true, text: 'Slag Lob hits Brittle foes 25% harder, and every 4th Lob makes its target Brittle.' },
+  shatterpoint: { id: 'shatterpoint', cls: 'slagbinder', name: 'Breakpoint', branch: 'clinker', maxRank: 1, capstone: true, text: 'Slag Lob hits Brittle foes 25% harder, and every 4th Lob makes its target Brittle.' },
   cinderHail: { id: 'cinderHail', cls: 'slagbinder', name: 'Cinder Hail', branch: 'clinker', maxRank: 1, capstone: true, text: 'Every 4th Slag Lob throws three globs.' },
   crustedHide: { id: 'crustedHide', cls: 'slagbinder', name: 'Crusted Hide', branch: 'crust', maxRank: 3, text: '+15 max health.' },
   hotBlood: { id: 'hotBlood', cls: 'slagbinder', name: 'Hot Blood', branch: 'crust', maxRank: 2, text: 'Each hit you take gives 2 more Slag.' },
