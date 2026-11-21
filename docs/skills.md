@@ -219,6 +219,39 @@ Two more cards per branch for the Bulwark, Lumen and Slagbinder: 18 in all. They
 | Slagbinder | Crust | Slag Scales | 3 | You take 4% less damage |
 | Slagbinder | Crust | Slow Cool | 2 | Your Cooling Shell cuts 5% more of the damage you take |
 
+**Emberwright and Duskblade deep cards** (added after #190, same rules):
+
+| Class | Branch | Card | Ranks | Effect per rank |
+|---|---|---|---|---|
+| Emberwright | Wildfire | Deep Smoulder | 3 | Orb fires (Searing Burn) burn 15% harder |
+| Emberwright | Wildfire | Ember Carpet | 2 | Flame Wave hits 20% harder |
+| Emberwright | Kindling | Bright Wick | 3 | +8% chance to crit, and crits deal 10% more |
+| Emberwright | Kindling | Fast Fuse | 2 | Combustion recharges 3 s faster and hits 20% harder |
+| Emberwright | Ashguard | Soot Cloak | 3 | You take 4% less damage |
+| Emberwright | Ashguard | Banked Fire | 2 | Below half health, heal 3 health per second |
+| Duskblade | Bloodletting | Slow Drip | 3 | Your bleeds deal 10% more damage |
+| Duskblade | Bloodletting | Hungry Steel | 2 | Execution hits 20% harder |
+| Duskblade | Tempo | Light Grip | 3 | Swing 5% faster |
+| Duskblade | Tempo | Keen Lunge | 2 | Rending Dash hits 25% harder |
+| Duskblade | Guard | Low Stance | 3 | You take 4% less damage |
+| Duskblade | Guard | Quiet Mend | 2 | Below half health, heal 3 health per second |
+
+Balance against main 6f26577 (average wins out of 40, main / this change; heroes-fair, 3 heroes × 40 seeds):
+
+| | F6 | F8 | K6 | K8 | CM9 | CM10 |
+|---|---|---|---|---|---|---|
+| Emberwright | 30.3 / 31.0 | 28.7 / 25.7 | 30.0 / 28.0 | 19.0 / 16.7 | 28.3 / 28.3 | 22.7 / 22.7 |
+| Duskblade | 36.7 / 36.0 | 23.3 / 22.3 | 30.7 / 31.3 | 17.7 / 19.7 | 23.7 / 23.7 | 12.3 / 12.3 |
+
+- Tier 1 Kiln, good bot: Emberwright 34 (34), Duskblade 40 (40). Novice over 160 seeds: Emberwright 89 (91), Duskblade 71 (77).
+- Crucible tier 8, full party, 90 seeds: 56/90 against main's 60/90.
+- The Duskblade row and the Crucible were measured on this branch before Bright Wick and Fast Fuse were raised (that change touches only the Emberwright). The Emberwright row and tier 1 Emberwright numbers are after it; the Crucible was re-run after it.
+- The Emberwright loses about 2 wins at tier 8, because after Phoenix Lance the bot takes a deep card instead of Twin Cinders or Quickcast. Bright Wick and Fast Fuse were raised once (from "crits deal 15% more" and "2 s faster"), which moved Kiln 6 from 26.0 to 28.0. All cells stay inside the ±15 band.
+
+Names rejected on the search or the repo check: White Heat (unclear on Wowhead), Red Ledger (already a Duskblade Mythic) and Warm Hearth (already the shared heal card).
+
+Capstone card texts no longer start with "CAPSTONE:", since the draft card already shows a Capstone chip and the hold tooltip names it (phone team's ask).
+
 **Names.** Each name was web-searched against WoW and Azeroth Survivors before it shipped. Rejected on the search: Shoulder Check (a Hearthstone card), Soft Glow (a WoW quest and spell), Quick Hands (unclear) and Cinder Skin (already an Emberwright talent).
 
 **Why the gate.** A run gets about 5 picks, and each branch already has 13 core ranks. When the new cards joined the pool from the start, they crowded out the core picks. In the first pass the Lumen fell from 30.3 to 16.7 out of 40 at Kiln 8 and the Slagbinder Kiln 6 from 21.3 to 12.3. Hiding the new cards from the draft gave exactly main's numbers, which proved the cause was the offers and not the effects. Raising the cards' numbers alone barely helped (Lumen Kiln 8: 20.7). After the capstone, the core picks have already done their job, so a deep card is a real choice there.

@@ -1094,7 +1094,7 @@ export class World {
     return 1 + this.rank('extraOrb');
   }
   get critChance(): number {
-    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + this.loadout.critBonus;
+    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + this.loadout.critBonus;
   }
   get pickupRadius(): number {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
@@ -1105,7 +1105,7 @@ export class World {
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill;
   }
   get regen(): number {
-    const low = this.player.hp < this.player.maxHp * 0.5 ? 4 * this.rank('slowPulse') : 0;
+    const low = this.player.hp < this.player.maxHp * 0.5 ? 4 * this.rank('slowPulse') + 3 * this.rank('bankedFire') + 3 * this.rank('quietMend') : 0;
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal') + low;
   }
   get abilities(): AbilityDef[] {
@@ -1154,7 +1154,7 @@ export class World {
     if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
     if (this.cls === 'emberwright' && slot === 1) return (base - 1.5 * this.rank('flicker')) * (this.hasMythic('wanderersWake') ? 0.5 : 1);
     if (slot === 1) return base - 1.5 * this.rank('flicker');
-    if (slot === 2) return base - 3 * this.rank('heatSink');
+    if (slot === 2) return base - 3 * this.rank('heatSink') - 3 * this.rank('fastFuse');
     return base;
   }
 
@@ -1906,6 +1906,8 @@ export class World {
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
+    if (this.cls === 'emberwright') amount *= 1 - 0.04 * this.rank('sootCloak');
+    if (this.cls === 'duskblade') amount *= 1 - 0.04 * this.rank('lowStance');
     // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Ember Ward: whatever strikes the ward catches fire.
@@ -2088,7 +2090,7 @@ export class World {
     const r = 230;
     const tide = this.rank('cinderTide') > 0;
     const half = tide ? Math.PI : (110 * Math.PI) / 360;
-    const dmg = 50 * this.dmgMult;
+    const dmg = 50 * (1 + 0.2 * this.rank('emberCarpet')) * this.dmgMult;
     if (tide) this.addZone(p.x, p.y, CAPSTONES_2.tideZoneR, CAPSTONES_2.tideZoneDps * this.dmgMult, CAPSTONES_2.tideZoneTime);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
@@ -2170,7 +2172,7 @@ export class World {
         }
       }
     }
-    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
+    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink') + 0.2 * this.rank('fastFuse'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
       if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
@@ -3255,11 +3257,11 @@ export class World {
 
   get swingCooldown(): number {
     const rhythm = this.rank('killingRhythm') > 0 ? 1 + CAPSTONES_2.rhythmStep * (this.player.rhythmN ?? 0) : 1;
-    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm;
+    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm / (1 + 0.05 * this.rank('lightGrip'));
   }
   /** Open Veins: the Duskblade's bleeds hit harder. */
   get bleedMult(): number {
-    return this.rank('openVeins') > 0 ? CAPSTONES_2.veinsMult : 1;
+    return (this.rank('openVeins') > 0 ? CAPSTONES_2.veinsMult : 1) * (1 + 0.1 * this.rank('slowDrip'));
   }
   get swingReach(): number {
     return 92 * (1 + 0.15 * this.rank('longReach'));
@@ -3367,7 +3369,7 @@ export class World {
     p.py = p.y;
     p.facing = ang;
     p.shieldT = Math.max(p.shieldT, 0.2);
-    const dmg = 55 * this.dmgMult;
+    const dmg = 55 * (1 + 0.25 * this.rank('keenLunge')) * this.dmgMult;
     const bleed = 12 * (1 + 0.5 * this.rank('deepCuts')) * this.dmgMult;
     let killed = false;
     for (let i = 0; i < this.enemies.length; i++) {
@@ -3440,7 +3442,7 @@ export class World {
     const low = e.hp < e.maxHp * (ledger ? 0.5 : 0.35);
     // Wring Out: the bleed's next 3s (6s at rank 2) land at once.
     const tear = e.burnT > 0 ? e.burnDps * 3 * this.rank('exsanguinate') : 0;
-    this.damageEnemy(t, 230 * this.dmgMult * (low ? 2 : 1) + tear, true);
+    this.damageEnemy(t, 230 * (1 + 0.2 * this.rank('hungrySteel')) * this.dmgMult * (low ? 2 : 1) + tear, true);
     // Red Ledger: an Execution kill brings Rending Dash straight back.
     if (ledger && !e.alive) p.cds[0] = 0;
     const cx = e.x;
@@ -3571,7 +3573,7 @@ export class World {
       this.damageEnemy(hit, o.dmg, true);
       this.addHeat(4 * (1 + 0.35 * this.rank('heatSink')));
       if (burn > 0 && e.alive) {
-        e.burnDps = Math.max(e.burnDps, 6 * burn * this.dmgMult);
+        e.burnDps = Math.max(e.burnDps, 6 * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
         e.burnT = 3;
       }
       if (ground > 0) this.addZone(hx, hy, 26 + 8 * ground, 5 * ground * this.dmgMult, 2);
@@ -4062,7 +4064,7 @@ export class World {
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
-      dmg *= 2;
+      dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
