@@ -7,7 +7,7 @@ import {
 import { BossStatus, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
-import { RARITY, SLOTS, Slot } from '../sim/content/items';
+import { Item, RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -16,7 +16,7 @@ import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -52,6 +52,15 @@ const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest
 function roleTile(cls: 'bulwark' | 'lumen', size: number): string {
   const ic = CLASS_ICON[cls];
   return `<span class="gtile" style="--gc:${ic.color}">${glyph(ic.d, size)}</span>`;
+}
+
+/** The shared bottom sheet (docs/design/mobile-ux.md §3.6). Content is game data only. */
+export function openSheet(title: string, html: string): void {
+  $('sheetTitle').textContent = title;
+  $('sheetBody').innerHTML = html;
+  const sheet = $('sheet');
+  delete sheet.dataset.prep;
+  sheet.hidden = false;
 }
 
 export class Hub {
@@ -103,7 +112,14 @@ export class Hub {
     $('setBtn').addEventListener('click', () => { sheet.hidden = false; });
     sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
     sheet.querySelector('.sheet-x')!.addEventListener('click', () => { sheet.hidden = true; });
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sheet.hidden) sheet.hidden = true; });
+    const gen = $('sheet');
+    gen.addEventListener('click', (e) => { if (e.target === gen) gen.hidden = true; });
+    gen.querySelector('.sheet-x')!.addEventListener('click', () => { gen.hidden = true; });
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!gen.hidden) gen.hidden = true;
+      else if (!sheet.hidden) sheet.hidden = true;
+    });
   }
 
   /** Opens a hub tab. Bags is the bag overlay; the others are panes of the hub. */
@@ -267,20 +283,16 @@ export class Hub {
       + `<div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
       + `<div class="tierrow">${tiers.join('')}</div>`
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
-      + this.partyLine() + this.omenLine(omens) + this.gritLine() + this.potionLine() + this.bountyLine();
+      + this.partyLine() + this.gritLine() + this.prepChips(omens)
+      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
         this.render();
       }));
-    $('tiers').querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => this.onBounty());
-    $('tiers').querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (brewPotion(h, b.dataset.potion as PotionId)) {
-          this.save();
-          this.render();
-        }
-      }));
+    this.bindPrep($('tiers'));
+    $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -290,12 +302,62 @@ export class Hub {
     const row = $('tiers').querySelector<HTMLElement>('.tierrow');
     const on = row?.querySelector<HTMLElement>('button.on');
     if (row && on && row.scrollWidth > row.clientWidth) row.scrollLeft += on.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - on.offsetWidth) / 2;
+    // The dungeon carousel (tab mode) redraws at its start: bring the picked dungeon back into view.
+    const dgs = $('tiers').querySelector<HTMLElement>('.dungeons');
+    const dgOn = dgs?.querySelector<HTMLElement>('.dg.on');
+    if (dgs && dgOn && dgs.scrollWidth > dgs.clientWidth) dgs.scrollLeft = dgOn.offsetLeft - dgs.offsetLeft - 16;
     const blocked = this.partyBlocker();
     const start = $('startBtn') as HTMLButtonElement;
     start.disabled = !!blocked;
     start.textContent = blocked || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
     this.renderTabs();
+  }
+
+  /** Bounty and potion buttons, wherever they're drawn (the hub or a sheet). */
+  private bindPrep(root: HTMLElement): void {
+    const h = this.hero();
+    root.querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onBounty(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (brewPotion(h, b.dataset.potion as PotionId)) {
+          this.save();
+          this.render();
+          if (!$('sheet').hidden && $('sheet').dataset.prep === 'potion') this.openPrep('potion', []);
+        }
+      }));
+  }
+
+  /** Tab mode: Omens, the potion and the bounty fold into one row of chips that open sheets. */
+  private prepChips(omens: OmenId[]): string {
+    const h = this.hero();
+    const chips: string[] = [];
+    if (omens.length) {
+      chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
+    }
+    const pot = h.potion ? POTION_ICON[h.potion] : null;
+    chips.push(`<button class="prep-chip ${h.potion ? 'on' : ''}" data-prep="potion" data-sfx="open">`
+      + `<span class="gtile" style="--gc:${pot ? pot.color : 'var(--muted)'};width:24px;height:24px">${glyph((pot ?? POTION_ICON[POTION_IDS[0]]).d, 16)}</span>`
+      + `<span>${h.potion ? POTIONS[h.potion].name : 'Potion'}</span></button>`);
+    if (h.maxTier >= BOUNTY.unlockTier) {
+      const day = dayOf(Date.now());
+      const paid = h.bountyDay === day;
+      const b = bountyFor(day, h.maxTier);
+      chips.push(`<button class="prep-chip bounty-chip" data-prep="bounty" data-sfx="open"><span class="star" aria-hidden="true">★</span>`
+        + `<span>Bounty${paid ? '' : ` <b>+${bountyEmbers(b.tier)}</b>`}</span></button>`);
+    }
+    return `<div class="prep">${chips.join('')}</div>`;
+  }
+
+  /** Opens the sheet for one prep chip. */
+  private openPrep(kind: 'omens' | 'potion' | 'bounty', omens: OmenId[]): void {
+    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty' };
+    const body = kind === 'omens'
+      ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
+      : kind === 'potion' ? this.potionLine() : this.bountyLine();
+    openSheet(titles[kind], body);
+    $('sheet').dataset.prep = kind;
+    this.bindPrep($('sheetBody'));
   }
 
   /** Today's bounty: the same fights and twist for every player. */
@@ -410,6 +472,10 @@ export class Hub {
       <p>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.</p>
       ${claims}${this.bossNote ? `<p style="color:var(--gold)">${this.bossNote}</p>` : ''}`;
     $('groupBadge').hidden = !b.unclaimed.length;
+    // Tab mode hides the card's explanations (CSS); a long press on the card shows them.
+    const om = b.omen && b.omen in OMENS ? OMENS[b.omen as OmenId] : undefined;
+    setTip(el, () => `<b>${b.name}</b><br>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.`
+      + (om ? `<br><span class="tip-m">While it lives, every delve carries ${om.name} for ${Math.round(OMEN_TUNING.bossOmenLuck * 100)}% more loot.</span>` : ''));
     el.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((btn) =>
       btn.addEventListener('click', () => void this.claim(Number(btn.dataset.claim))));
   }
@@ -431,8 +497,65 @@ export class Hub {
     await this.refreshBoss();
   }
 
+  /** Items new since the bags were last opened, kept while the bag stays open. */
+  private freshIds = new Set<string>();
+
+  /** Equip, Salvage, Upgrade and Temper buttons for one item. */
+  private itemActs(it: Item, isWorn: boolean): string {
+    const h = this.hero();
+    const up = canUpgrade(h, it);
+    const tm = canTemper(h, it);
+    const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
+      + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
+    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+  }
+
+  /** Wires item action buttons under root; after() runs once the hero changed. */
+  private bindActs(root: HTMLElement, after: (id: string, gone: boolean) => void): void {
+    const h = this.hero();
+    const act = (sel: string, key: string, fn: (id: string) => unknown, gone = false) =>
+      root.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => b.addEventListener('click', () => {
+        const id = b.dataset[key]!;
+        if (fn(id) === false) return;
+        this.save();
+        after(id, gone);
+      }));
+    act('[data-e]', 'e', (id) => equip(h, id));
+    act('[data-s]', 's', (id) => salvage(h, id), true);
+    act('[data-u]', 'u', (id) => upgradeItem(h, id));
+    act('[data-tm]', 'tm', (id) => temperItem(h, id));
+  }
+
+  /** Phones: one item's full card, what you wear in that slot, and its actions, in a sheet. */
+  private openItem(id: string): void {
+    const h = this.hero();
+    const it = h.inventory.find((i) => i.id === id);
+    if (!it) { $('sheet').hidden = true; return; }
+    const wornIds = new Set(Object.values(h.equipped));
+    const isWorn = wornIds.has(it.id);
+    const sets = setsWorn(h);
+    const cur = isWorn ? undefined : equippedItems(h).find((i) => i.slot === it.slot);
+    const body = `<div class="item sheet-item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
+      + (cur ? `<div class="sec-h"><span>Wearing now</span><span class="muted">Gear score ${itemScore(it) >= itemScore(cur) ? `<b class="up">+${Math.round(itemScore(it) - itemScore(cur))}</b>` : `<b class="down">${Math.round(itemScore(it) - itemScore(cur))}</b>`}</span></div>`
+        + `<div class="item sheet-item cur" style="--rc:${RARITY[cur.rarity].color}">${itemHtml(cur, '', sets)}</div>` : '')
+      + `<div class="sheet-acts">${this.itemActs(it, isWorn)}</div>`
+      + '<div class="hint">Upgrade raises item level. Temper rerolls the weakest bonus stat. Salvage breaks spare gear into embers.</div>';
+    openSheet(SLOT_LABEL[it.slot], body);
+    $('sheet').dataset.item = it.id;
+    this.bindActs($('sheetBody'), (done, gone) => {
+      this.openBag();
+      if (gone) $('sheet').hidden = true;
+      else this.openItem(done);
+    });
+  }
+
   openBag(): void {
     const h = this.hero();
+    if ($('bag').hidden) {
+      const key = h.cls ?? 'emberwright';
+      const seen = new Set(this.seen[key] ?? h.inventory.map((i) => i.id));
+      this.freshIds = new Set(h.inventory.filter((i) => !seen.has(i.id)).map((i) => i.id));
+    }
     this.markSeen();
     $('bagBadge').hidden = true;
     const worn = new Set(Object.values(h.equipped));
@@ -440,23 +563,34 @@ export class Hub {
     $('bagSub').textContent = `${h.inventory.length} ${h.inventory.length === 1 ? 'item' : 'items'} · ${worn.size} equipped`;
     $('bagEmbers').textContent = h.embers.toLocaleString();
     const wornSets = setsWorn(h);
-    $('bagList').innerHTML = sorted.map((it) => {
-      const isWorn = worn.has(it.id);
-      const up = canUpgrade(h, it);
-      const tm = canTemper(h, it);
-      const forge = `<button class="sbtn" data-u="${it.id}" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
-        + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
-      const btns = (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
-      return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${btns}</div></div>`;
-    }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
-    $('bagList').querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) =>
-      b.addEventListener('click', () => { equip(h, b.dataset.e!); this.save(); this.openBag(); }));
-    $('bagList').querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) =>
-      b.addEventListener('click', () => { salvage(h, b.dataset.s!); this.save(); this.openBag(); }));
-    $('bagList').querySelectorAll<HTMLButtonElement>('[data-u]').forEach((b) =>
-      b.addEventListener('click', () => { if (upgradeItem(h, b.dataset.u!)) { this.save(); this.openBag(); } }));
-    $('bagList').querySelectorAll<HTMLButtonElement>('[data-tm]').forEach((b) =>
-      b.addEventListener('click', () => { if (temperItem(h, b.dataset.tm!)) { this.save(); this.openBag(); } }));
+    const grid = !!this.tabs?.matches;
+    $('bagList').classList.toggle('grid', grid);
+    if (grid) {
+      // Phones: icon tiles, tap one for its card and actions (docs/design/mobile-ux.md §3.4).
+      const tile = (it: Item) => {
+        const r = RARITY[it.rarity];
+        return `<button class="itile${worn.has(it.id) ? ' worn' : ''}" data-i="${it.id}" style="--rc:${r.color}" aria-label="${it.name}, ${r.name} ${SLOT_LABEL[it.slot]}, item level ${it.ilvl}${worn.has(it.id) ? ', equipped' : ''}">`
+          + `<span class="ig">${glyph(SLOT_ICON[it.slot], 26)}</span><span class="il">${it.ilvl}</span>`
+          + (it.set ? `<span class="is" style="color:${SET_COLOR}">${glyph(SET_ICON[it.set], 11)}</span>` : '')
+          + (worn.has(it.id) ? '<span class="ie">E</span>' : '') + (this.freshIds.has(it.id) ? '<i class="inew" aria-hidden="true"></i>' : '') + '</button>';
+      };
+      const wornItems = sorted.filter((i) => worn.has(i.id));
+      const spare = sorted.filter((i) => !worn.has(i.id));
+      $('bagList').innerHTML = `<div class="sec-h"><span>Equipped</span><span class="gold">Gear score ${gearScore(h)}</span></div><div class="igrid">${wornItems.map(tile).join('')}</div>`
+        + `<div class="sec-h"><span>Bag</span><span class="muted">${spare.length ? 'Tap an item · hold for stats' : ''}</span></div>`
+        + (spare.length ? `<div class="igrid">${spare.map(tile).join('')}</div>` : '<div class="muted small">Nothing spare. Loot drops during delves.</div>');
+      $('bagList').querySelectorAll<HTMLButtonElement>('[data-i]').forEach((b) => {
+        const it = h.inventory.find((i) => i.id === b.dataset.i)!;
+        setTip(b, () => itemHtml(it, '', wornSets));
+        b.addEventListener('click', () => this.openItem(it.id));
+      });
+    } else {
+      $('bagList').innerHTML = sorted.map((it) => {
+        const isWorn = worn.has(it.id);
+        return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
+      }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
+      this.bindActs($('bagList'), () => this.openBag());
+    }
     $('bag').hidden = false;
   }
 }

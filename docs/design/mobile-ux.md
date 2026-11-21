@@ -48,6 +48,19 @@ Captured with `node tools/uxaudit.cjs <dir>` (new in this PR) on a mid-game hero
 
 Landscape and 390×844 shots: see `docs/ux/audit/before/`.
 
+### After (2026-11-21, PRs #87 and the Delve/bags PR)
+
+| Measure (`tools/uxaudit.cjs`, tier-6 hero) | Before | After |
+|---|---|---|
+| Hub scroll, 375×667 | 3.57 screens | 1.00 (Delve tab fits) |
+| Hub scroll, 390×844 | 2.80 | 1.00 |
+| Hub scroll, 667×375 landscape | 5.38 | 1.12 |
+| Hub scroll, 844×390 landscape | 4.68 | 1.03 |
+| Hub controls under 44pt, 375×667 | 21 | 0 |
+
+Shots: `docs/ux/audit/tabs/` and `docs/ux/audit/delve-bags/` (including a WebKit run,
+`webkit-se.jpg`, since Steve plays on an iPhone).
+
 ## 3. Redesign
 
 ### 3.1 Navigation: one primary action, four tabs
@@ -149,9 +162,11 @@ the Delve button sits bottom right under the right thumb (R1, Unity's landscape 
 
 ## 4. Delivery
 
-1. This spec + `tools/uxaudit.cjs` + before shots.
-2. Hub tabs: tab bar, Delve/Hero/Bags/Group panes, Settings sheet, badges.
-3. Delve tab compaction: dungeon carousel, tier stepper, Omens/Potion sheets, bounty line.
-4. Bags grid and item sheet.
-5. Group tab polish and Quick join first.
+1. ✓ This spec + `tools/uxaudit.cjs` + before shots (#83).
+2. ✓ Hub tabs: tab bar, Delve/Hero/Bags/Group panes, Settings sheet, badges (#87).
+3. ✓ Delve tab compaction: dungeon carousel, Omens/Potion/Bounty chips with sheets. The
+   tier row stayed a row of 44pt buttons instead of a stepper: it already fits six tiers
+   and one tap beats several.
+4. ✓ Bags grid and item sheet.
+5. ✓ Group tab: Quick join full width; world boss explanations on long press.
 6. After shots for every screen with `tools/uxaudit.cjs`, added to §2.
