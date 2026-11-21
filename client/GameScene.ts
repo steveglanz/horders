@@ -747,7 +747,12 @@ export class GameScene extends Phaser.Scene {
           this.bossFell = false;
           const def = ENCOUNTERS[ev.id];
           // The first fight also names the run's Omens, so the player knows the twist.
-          const omens = ev.index === 0 && w.omens.length ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.` : '';
+          // Phones keep the intro short: the Omens get one line, with details in the pause menu.
+          const omens = ev.index === 0 && w.omens.length
+            ? (this.hud.compact
+              ? ` ${w.omens.length === 1 ? 'Omen' : 'Omens'}: ${w.omens.map((o) => OMENS[o].name).join(', ')} (details in pause).`
+              : ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`)
+            : '';
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip + omens);
           break;
         }

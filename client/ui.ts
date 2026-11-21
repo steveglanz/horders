@@ -5,7 +5,8 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
-import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph } from './icons';
+import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
@@ -124,6 +125,20 @@ export class Hud {
 
   private abButtons: HTMLButtonElement[] = [];
 
+  /** The pause menu names this delve's Omens; hold or hover one for what it does. */
+  private showOmens(w: World): void {
+    const box = $('pauseOmens');
+    const ids = (w.omens ?? []) as OmenId[];
+    box.hidden = !ids.length;
+    if (!ids.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="po-h">${ids.length === 1 ? 'Omen' : 'Omens'} this delve</div>`
+      + ids.map((id) => `<div class="po" data-omen="${id}">${omenTile(id, 28)}<span><b>${OMENS[id].name}</b><i>${OMENS[id].tip}</i></span></div>`).join('');
+    box.querySelectorAll<HTMLElement>('[data-omen]').forEach((el) => {
+      const o = OMENS[el.dataset.omen as OmenId];
+      setTip(el, () => `<b>${o.name}</b><br>${o.text}<br><span class="tip-g">${o.tip}</span>`);
+    });
+  }
+
   /** Briefly pulses an action button when it fires. */
   flashAbility(slot: number): void {
     const b = this.abButtons[slot];
@@ -148,6 +163,7 @@ export class Hud {
     $('toasts').innerHTML = '';
     $('perf').hidden = !this.showPerf;
     this.buildBar(w.cls);
+    this.showOmens(w);
     this.buildParty(w);
     $('heat').dataset.cls = w.cls;
     this.draftShownFor = -1;
@@ -211,6 +227,9 @@ export class Hud {
   }
 
   private narrow = matchMedia('(max-width: 560px)');
+  private phone = matchMedia('(max-width: 560px), (max-height: 520px)');
+  /** Phone-sized screen: shorter banners, icon-only HUD. */
+  get compact(): boolean { return this.phone.matches; }
   private stacked = '';
 
   /**
