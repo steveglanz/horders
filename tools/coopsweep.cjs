@@ -1,4 +1,4 @@
-// Usage: npm run build && node tools/coopsweep.cjs [--raid] [--pressworks] [screenshot dir]
+// Usage: npm run build && node tools/coopsweep.cjs [--raid] [--pressworks] [--hoard] [screenshot dir]
 // Roadmap G8, the co-op QA sweep. Every hero is a page in one Chromium (same-browser signalling,
 // real WebRTC), at phone size. Only the host plays (autopilot); guests stand still, so runs use
 // ?god=1 and a hero is downed by hand where a check needs it. Exits 1 if any check fails.
@@ -9,6 +9,8 @@
 //  5. (--raid, ~6 min) Crucible with two Bulwarks: "Swap tanks!" shows on the guest tank after Ladle Pour.
 //  6. (--pressworks, ~5 min) A guest drops while Oskel's Downstroke is up: the run keeps ticking and the
 //     host and the other guest reach the end screen.
+//  7. (--hoard, ~4 min) The Hoard (raid 2): a guest drops while swallowed, and another while the Craw stands
+//     with someone else inside. The run reaches the end screen, nobody is left inside, guests hear the Hoard theme.
 // Quick join has its own script (tools/quickjoincheck.cjs) and role matching is unit tested (tests/lobby.test.ts).
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -16,6 +18,7 @@ const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const RAID = process.argv.includes('--raid');
 const PRESS = process.argv.includes('--pressworks');
+const HOARD = process.argv.includes('--hoard');
 const dir = process.argv.slice(2).find((a) => !a.startsWith('--')) || 'tools/shots';
 const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) process.exitCode = 1; };
 const tab = async (p, t) => { if (await p.evaluate(() => document.body.classList.contains('tabs'))) { await p.click(`#tabbar [data-tab="${t}"]`); await p.waitForTimeout(150); } };
@@ -54,7 +57,7 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
   }
 
   /** Starts the run, plays the host with autopilot, calls `each(host)` every 0.4 s, and waits for the end. */
-  async function play(P, { each, dropAt, dropWhen } = {}) {
+  async function play(P, { each, dropAt, dropWhen, dropWho } = {}) {
     const [A] = P;
     await A.click('#startBtn');
     for (const g of P.slice(1)) await g.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 20000 });
@@ -65,7 +68,7 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
       await A.waitForTimeout(400);
       const st = await world(A, 'return { state: w.state, phase: w.phase, t: w.time };');
       if (st.state === 'ended') break;
-      if (!dropped && ((dropAt && st.phase === 'fight' && st.t > dropAt) || (dropWhen && await dropWhen(A)))) { dropped = true; const k = P.length - 1; await P[k].close(); live.delete(k); }
+      if (!dropped && ((dropAt && st.phase === 'fight' && st.t > dropAt) || (dropWhen && await dropWhen(A)))) { dropped = true; const k = dropWho ? dropWho() : P.length - 1; await P[k].close(); live.delete(k); }
       if (each) await each(A, P, live);
     }
     await A.waitForTimeout(2500);
@@ -141,6 +144,37 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
     ok(ticksAfter > 5, `Pressworks: the host's run kept ticking after the drop (${ticksAfter} samples advanced)`);
     ok(r.live.size === 2 && r.ends.every(Boolean), `Pressworks: the host and the other guest reach the end screen (${r.victory ? 'win' : 'loss'})`);
     await ctx.close();
+  }
+  // 7. The Hoard: a guest leaves while swallowed, or while the Craw stands with someone else inside.
+  if (HOARD) {
+    for (const mode of ['swallowed', 'craw']) {
+      const { P, ctx } = await party(['bulwark', 'lumen', 'emberwright', 'duskblade'], 'hoard', 9);
+      let who = -1, dropT = -1, finishAt = -1, theme = null;
+      const r = await play(P, {
+        // Guests stand still, so trash is set to 1 hp and Old Coalmouth starts in phase 2 (Swallow).
+        dropWhen: async (A) => {
+          const s = await world(A, `if (!w.bossUp) { for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1); return null; }
+            const b = w.enemies.find((e) => e.alive && e.def.rank === "boss"); if (b && b.hp > b.maxHp * 0.59) b.hp = b.maxHp * 0.59;
+            const k = [1, 2, 3].find((i) => (w.heroPlayer(i).swallowT ?? 0) > 0);
+            const craw = w.enemies.some((e) => e.alive && e.kind === "craw");
+            return k === undefined || !craw ? null : { k, t: w.time };`);
+          if (!s) return false;
+          if (theme === null) theme = await P[1].evaluate(() => window.__ember.audio.music?.theme ?? null);
+          who = mode === 'swallowed' ? s.k : [1, 2, 3].find((i) => i !== s.k); dropT = s.t;
+          return true;
+        },
+        dropWho: () => who,
+        // Twenty seconds after the drop (the swallowed hero is out by then either way), he is finished off.
+        each: async (A) => { if (dropT < 0) return; finishAt = await world(A, 'if (w.time > a + 20) { const b = w.enemies.find((e) => e.alive && e.def.rank === "boss"); if (b) b.hp = 1; return w.time; } return -1;', dropT); },
+      });
+      const inside = await world(P[0], 'return [0, 1, 2, 3].filter((i) => (w.heroPlayer(i).swallowT ?? 0) > 0);').catch(() => ['?']);
+      const label = mode === 'swallowed' ? 'a guest drops while swallowed' : 'a guest drops while the Craw stands with someone else inside';
+      ok(dropT >= 0, `Hoard: ${label} (guest ${who}, t=${dropT.toFixed(1)} s)`);
+      ok(r.live.size === 3 && r.ends.every(Boolean), `Hoard: after that drop the other three reach the end screen (${r.victory ? 'win' : 'loss'})`);
+      ok(inside.length === 0, `Hoard: nobody is left inside at the end ${JSON.stringify(inside)}`);
+      ok(theme === 'hoard', `Hoard: a guest hears the Hoard theme (${theme})`);
+      await ctx.close();
+    }
   }
   ok(!errs.length, `no page errors ${JSON.stringify(errs)}`);
   await b.close(); srv.close();
