@@ -21,7 +21,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, CLASS_ICON, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -508,21 +508,25 @@ export class Hub {
     const have = collectionOf(this.hero());
     const total = BOOK.sets.length * BOOK.sets[0].entries.length + BOOK.mythics.length + BOOK.weaponFx.length;
     const n = [...have].length;
-    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
+    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">${glyph(BOOK_ICON, 16)}</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
   }
 
   /** P4: the collection book, shared by every class: sets, Mythics, weapon effects, and the rewards for finishing them. */
   private collectionLine(): string {
     const have = collectionOf(this.hero());
-    const pip = (on: boolean, label: string): string => `<span class="bk-pip${on ? ' on' : ''}" title="${label}${on ? '' : ' (not found yet)'}">${label}</span>`;
+    const pip = (on: boolean, slot: Slot): string => `<span class="bk-pip${on ? ' on' : ''}" title="${SLOT_LABEL[slot]}${on ? '' : ' (not found yet)'}">${glyph(SLOT_ICON[slot as keyof typeof SLOT_ICON], 12)}${SLOT_LABEL[slot]}</span>`;
     const sets = BOOK.sets.map((st) => {
       const def = SETS[st.id];
-      return `<div class="bk-row"><span class="bk-name">${glyph(SET_ICON[st.id], 14)} <b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span>`
-        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), SLOT_LABEL[e.split(':')[2] as Slot])).join('')}</span></div>`;
+      const n = st.entries.filter((e) => have.has(e)).length;
+      return `<div class="bk-row${n === st.entries.length ? ' full' : ''}" style="--gc:${SET_COLOR}"><span class="bk-name"><span class="gtile${n ? '' : ' dim'}">${glyph(SET_ICON[st.id], 16)}</span><span><b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span></span>`
+        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), e.split(':')[2] as Slot)).join('')}</span></div>`;
     }).join('');
-    const tag = (cls?: string): string => (cls ? ` <span class="muted">${CLASSES[cls as keyof typeof CLASSES].name}</span>` : '');
-    const mythics = MYTHIC_IDS.map((m) => `<div class="bk-item${have.has(`mythic:${m}`) ? ' on' : ''}">${have.has(`mythic:${m}`) ? MYTHICS[m].name : '???'}${tag(MYTHICS[m].cls)}</div>`).join('');
-    const fx = WEAPON_FX_IDS.map((f) => `<div class="bk-item${have.has(`fx:${f}`) ? ' on' : ''}">${have.has(`fx:${f}`) ? WEAPON_FX[f].name : '???'}${tag(WEAPON_FX[f].cls)}</div>`).join('');
+    // Tiles: the glyph in its colour once found; a dim outline (the shape, not the name) until then.
+    const tile = (on: boolean, color: string, d: string, name: string, cls?: string): string =>
+      `<div class="bk-item${on ? ' on' : ''}" style="--gc:${color}"><span class="gtile">${glyph(d, 17)}</span><span class="bk-txt">${on ? name : '???'}`
+      + `<span class="muted">${cls ? CLASSES[cls as keyof typeof CLASSES].name : 'Any class'}</span></span></div>`;
+    const mythics = MYTHIC_IDS.map((m) => tile(have.has(`mythic:${m}`), RARITY.mythic.color, MYTHIC_ICON[m], MYTHICS[m].name, MYTHICS[m].cls)).join('');
+    const fx = WEAPON_FX_IDS.map((f) => tile(have.has(`fx:${f}`), CLASS_ICON[WEAPON_FX[f].cls].color, WEAPON_FX_ICON[f], WEAPON_FX[f].name, WEAPON_FX[f].cls)).join('');
     const paid = new Set(this.hero().collectionPaid ?? []);
     const rewards = COLLECTION_REWARDS.map((r) => {
       const n = rewardProgress(r, have);
