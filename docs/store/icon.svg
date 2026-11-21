@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Horders app icon: the ember sun rising over the forge anvil. Full-bleed square;
+       the art stays inside the central 80% so it survives maskable/rounded crops. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="44%" r="70%">
+      <stop offset="0" stop-color="#5a2414"/>
+      <stop offset=".45" stop-color="#2a120c"/>
+      <stop offset="1" stop-color="#0e0706"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffb35c" stop-opacity=".85"/>
+      <stop offset=".35" stop-color="#ff7a2e" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sun" cx="42%" cy="38%" r="65%">
+      <stop offset="0" stop-color="#fff4d6"/>
+      <stop offset=".35" stop-color="#ffd27a"/>
+      <stop offset=".8" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#e2541f"/>
+    </radialGradient>
+    <linearGradient id="iron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3a36"/>
+      <stop offset=".18" stop-color="#2a201e"/>
+      <stop offset="1" stop-color="#120c0b"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffcf86"/>
+      <stop offset="1" stop-color="#b8592a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="480" r="420" fill="url(#glow)"/>
+  <!-- Sun rays -->
+  <g stroke="#ffc861" stroke-width="34" stroke-linecap="round" fill="none">
+    <path d="M512 160 V232"/>
+    <path d="M512 160 V232" transform="rotate(36 512 470)"/>
+    <path d="M512 160 V232" transform="rotate(-36 512 470)"/>
+    <path d="M512 160 V232" transform="rotate(72 512 470)"/>
+    <path d="M512 160 V232" transform="rotate(-72 512 470)"/>
+  </g>
+  <circle cx="512" cy="470" r="185" fill="url(#sun)"/>
+  <circle cx="512" cy="470" r="185" fill="none" stroke="#fff1c8" stroke-opacity=".5" stroke-width="8"/>
+  <!-- Anvil -->
+  <path d="M150 604 Q260 590 330 584 H770 Q808 584 822 612 L836 648 H712 Q668 648 660 690 L648 735 H706 Q732 735 732 760 V806 H292 V760 Q292 735 318 735 H376 L364 690 Q356 660 318 652 Q230 640 150 604 Z" fill="url(#iron)" stroke="#0a0605" stroke-width="10" stroke-linejoin="round"/>
+  <!-- Hot face of the anvil catching the sun -->
+  <path d="M178 606 Q270 596 334 590 H768 Q798 590 810 610 L816 622 H330 Q250 622 178 606 Z" fill="url(#face)"/>
+  <!-- Sparks -->
+  <g fill="#ffd27a">
+    <circle cx="252" cy="520" r="12"/><circle cx="782" cy="500" r="10"/><circle cx="214" cy="430" r="7"/>
+    <circle cx="830" cy="410" r="8"/><circle cx="300" cy="360" r="6"/><circle cx="740" cy="320" r="6"/>
+  </g>
+  <!-- Base shadow -->
+  <ellipse cx="512" cy="818" rx="270" ry="22" fill="#000" opacity=".45"/>
+</svg>

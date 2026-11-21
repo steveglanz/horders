@@ -6,7 +6,7 @@ import { OMENS } from '../sim/content/omens';
 import { CoopSession, SNAP_SECONDS } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -20,6 +20,8 @@ import { audio } from './audio';
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
 // Telegraph colours come from the display palette (client/settings.ts): standard or colour-blind.
+/** G6 revive green. */
+const REVIVE = 0x9fe8a8;
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
@@ -385,6 +387,14 @@ export class GameScene extends Phaser.Scene {
     if (this.workTimes.length > 240) this.workTimes.shift();
   }
 
+  /** Inputs for bot allies in a local party (heroes 1..n). */
+  private botAllies(w: World): Input[] {
+    const out: Input[] = [];
+    for (let i = 1; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
+    w.use(0);
+    return out;
+  }
+
   /** Average milliseconds of game code (simulation + scene updates) per frame. */
   workMs(): number {
     return this.workTimes.length ? this.workTimes.reduce((a, b) => a + b, 0) / this.workTimes.length : 0;
@@ -408,7 +418,7 @@ export class GameScene extends Phaser.Scene {
         }
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : input);
+        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
         this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
@@ -419,6 +429,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.coop?.role === 'host') this.coop.frame(w, this.time.now);
+    // A local bot party (?botparty): allies take the bot's card.
+    if (!this.coop && w.state === 'draft') {
+      for (let i = 1; i < w.heroes.length; i++) if (w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
+    }
     if ((!this.paused || this.coop) && w.state === 'draft') {
       const key = w.player.level * 100 + w.player.pendingLevels;
       if (this.autopilot && this.autoPick && w.choices.length) this.pick(botChoose(w));
@@ -738,6 +752,16 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} is enraged`, 'Finish it, fast');
           break;
         case 'revive':
+          if (ev.by !== undefined && ev.hero !== undefined) {
+            const q = w.heroData(ev.hero).player;
+            this.ring(q.x, q.y, REVIVE_RADIUS * 2.2, REVIVE, 0.55);
+            this.blast(q.x, q.y, REVIVE_RADIUS, REVIVE);
+            if (!this.lowFx) for (let m = 0; m < 14; m++) this.emit(this.fx, 'spark', undefined, q.x + (Math.random() - 0.5) * 36, q.y + 12, 0.9, { tint: REVIVE, vx: (Math.random() - 0.5) * 40, vy: -90 - Math.random() * 90, drag: 0.96, sx0: 1.8, sx1: 0.3 });
+            if (ev.hero === w.acting) {
+              this.hud.banner('Back on your feet', `${w.heroes[ev.by]?.name ?? 'An ally'} pulled you up`);
+              break;
+            }
+          }
           if (ev.hero !== undefined && ev.hero !== w.acting) {
             this.floatText(w.heroData(ev.hero).player.x, w.heroData(ev.hero).player.y - 40, 'Back up!', '#ffd27a', 18);
             break;
@@ -947,6 +971,53 @@ export class GameScene extends Phaser.Scene {
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
       g.lineStyle(2, down ? 0x6a5a54 : hex(CLASS_ICON[w.heroes[al.hero].cls].color), down ? 0.5 : 0.85).strokeEllipse(al.img.x, al.img.y + 22, 44, 16);
+    }
+    // G6: a downed hero lies in a soft green circle that an ally must stand in. A dashed
+    // ring turns slowly, a "+" bobs over the body until someone arrives, and then a
+    // tether runs from the rescuer while the ring fills, with motes lifting off the body.
+    if (w.heroes.length > 1) {
+      const me = w.player;
+      const spots = [...this.allies.map((al) => ({ k: al.hero, q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y })), { k: w.acting, q: me, x: this.player.x, y: this.player.y }];
+      const o = this.overFx;
+      for (const { k, q, x, y } of spots) {
+        if (q.hp > 0) continue;
+        const t = Math.min(1, (q.reviveT ?? 0) / REVIVE_SECONDS);
+        const pulse = 0.5 + 0.5 * Math.sin(now / 250);
+        const R = REVIVE_RADIUS;
+        g.fillStyle(REVIVE, 0.07 + 0.05 * pulse + 0.12 * t).fillCircle(x, y + 6, R);
+        // Twelve dashes, turning.
+        g.lineStyle(2, REVIVE, 0.45 + 0.2 * pulse);
+        const spin = now / 1400;
+        for (let d = 0; d < 12; d++) {
+          const a0 = spin + (d * Math.PI * 2) / 12;
+          g.beginPath().arc(x, y + 6, R, a0, a0 + 0.3, false).strokePath();
+        }
+        if (t > 0) {
+          // The rescuer: whichever living hero stands in the circle.
+          let rx = 0, ry = 0, found = false;
+          for (let j = 0; j < w.heroes.length && !found; j++) {
+            if (j === k) continue;
+            const a = w.heroData(j).player;
+            if (a.hp > 0 && (a.x - q.x) ** 2 + (a.y - q.y) ** 2 <= R * R) {
+              const img = j === w.acting ? this.player : this.allies.find((al) => al.hero === j)?.img;
+              if (img) { rx = img.x; ry = img.y; found = true; }
+            }
+          }
+          if (found) o.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
+          const a1 = -Math.PI / 2 + t * Math.PI * 2;
+          o.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
+          o.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
+          if (!this.lowFx && Math.random() < 0.35) {
+            this.emit(this.fx, 'spark', undefined, x + (Math.random() - 0.5) * 30, y + 10, 0.7, { tint: REVIVE, vx: (Math.random() - 0.5) * 20, vy: -70 - Math.random() * 50, drag: 0.97, sx0: 1.6, sx1: 0.3 });
+          }
+        } else {
+          // A bobbing cross over the body asks for help.
+          const by = y - 62 + Math.sin(now / 300) * 3;
+          o.fillStyle(0x0c1a10, 0.75).fillCircle(x, by, 11);
+          o.lineStyle(2, REVIVE, 0.9).strokeCircle(x, by, 11);
+          o.fillStyle(REVIVE, 1).fillRect(x - 6, by - 2, 12, 4).fillRect(x - 2, by - 6, 4, 12);
+        }
+      }
     }
     // Hammerdeep: Slag Grip glows at a hero's feet with one pip per stack; Sundered cracks a ring above them.
     if (w.dungeonId === 'hammerdeep') {

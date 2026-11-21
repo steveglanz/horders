@@ -59,8 +59,9 @@ void (async () => {
   await hub.refreshBoss();
 })();
 
-// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out.
-const DPR = params.has('lowres') ? 1 : Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out and
+// ?hires=1 lifts the cap to 3x (store screenshots, tools/storeshots.cjs).
+const DPR = params.has('lowres') ? 1 : Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1));
 document.documentElement.style.setProperty('--dpr', String(DPR));
 
 const game = new Phaser.Game({
@@ -167,6 +168,9 @@ function startRun(bounty = false): void {
   }
   lastBounty = bounty;
   const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;
+  // ?botparty=bulwark,lumen,duskblade: bot allies in a local party, for performance checks (tools/partyperf.cjs).
+  const botParty = params.get('botparty')?.split(',').filter((c): c is keyof typeof CLASSES => c in CLASSES).slice(0, 3);
+  if (!hosting && botParty?.length) Object.assign(opts, { party: botParty.map((cls) => ({ cls })), partySize: 1 + botParty.length });
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
