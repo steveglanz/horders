@@ -375,3 +375,22 @@ The rows are now "good bot: 70% or more" and "novice reference: 40 to 65%". Thre
 
 **Why the Foundry opener stalled.** I traced seed 2 (`tools/stallcheck.ts` cases). The ungeared Emberwright stays 200 units from the hounds, and wears them down to 247 of 603 and lower. The Crawler's blooms land on the hero with the hounds next to it, and each burst heals the hounds back. The Crawler itself stays 350 to 500 units away at full health. That is the fight's own mechanic ("Drag the blue ring away from the hounds before it bursts") beating a bot that doesn't drag. It isn't a bug, and an ungeared hero at tier 8 isn't a real case. Burnout now ends it.
 
+
+## Content QA: the newest content (C7, 21 Nov 2026)
+
+`tools/contentcheck.ts` runs the newest content with good (skill 1) and weak (skill 0.5) bots. It flags any run that hasn't ended by 3 000 s of sim time as a soft-lock. These runs use the skills team's heroes-r2 `hero-t8-0` for every hero, seeds 1 to 12, on main 0a6b715.
+
+| Content | Good bot wins | Weak bot wins | Longest run |
+|---|---|---|---|
+| Coldmarrow T10, Emberwright | 5/12 | 2/12 | 544 s |
+| Coldmarrow T10, Duskblade | 10/12 | 5/12 | 497 s |
+| Coldmarrow T10, Bulwark | 6/12 | 5/12 | 439 s |
+| Coldmarrow T10, Lumen | 5/12 | 5/12 | 528 s |
+| Crucible T8, Bulwark + Lumen + Duskblade + Emberwright | 9/12 | 4/12 | 512 s |
+| Crucible T8, no healer | 0/12 | 0/12 | 332 s |
+
+**Result:** 144 runs, none stuck. The most foes alive at once was 13, so the Burnout add cap of 150 was never close.
+
+**Watch items:**
+- Coldmarrow runs take up to 9 minutes, against the 3 to 6 minute delve target. Its boss fights are already a watch item in coldmarrow.md. The first lever is Nhevra's health.
+- At tier 10 the Coldmarrow is about where its tier 9 table put it. Two class pairs are more than 15 points apart: Duskblade and Emberwright, and Duskblade and Lumen.
