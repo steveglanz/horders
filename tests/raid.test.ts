@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World, SLAG } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute } from '../sim/content/dungeon';
+import { applySnapshot, snapshot } from '../sim/netsync';
 
 type Inner = {
   use(i: number): void;
@@ -116,6 +117,24 @@ describe('the raid: Grandmother Slag in the Crucible (C3)', () => {
     // A Seared Bulwark doesn't.
     w.player.sunderT = 3;
     expect(w.swapCue).toBe(false);
+  });
+
+  it("a guest tank's screen gets the swap cue too (the boss's threat rides in the snapshot)", () => {
+    const o = { seed: 5, dungeon: 'crucible', omens: [], cls: 'slagbinder', stance: 'anvil', worldBoss: 'Grandmother Slag',
+      party: [{ cls: 'bulwark' }, { cls: 'lumen' }, { cls: 'emberwright' }] } as const;
+    const host = new World(o as never);
+    const guest = new World(o as never);
+    const inner = host as unknown as Inner & { threat: { target: string }[] };
+    for (const e of host.enemies) e.alive = false;
+    const b = inner.spawn('grandmotherSlag', 0, -200);
+    inner.bossIndex = b;
+    // The boss is on the host's Anvil, and Ladle Pour Seared it.
+    inner.threat[b] = { amounts: {}, target: host.heroes[0].id, forced: null, forcedT: 0 } as never;
+    host.player.sunderT = SLAG.searTime;
+    applySnapshot(guest, JSON.parse(JSON.stringify(snapshot(host))), 1);
+    expect(guest.cls).toBe('bulwark');
+    expect(guest.bossTarget).toBe(0);
+    expect(guest.swapCue).toBe(true);
   });
 
   it('phase 3 opens two soak vents; Last Ember at the hard enrage wipes the party', () => {
