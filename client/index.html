@@ -727,6 +727,13 @@
   #coach[data-kind="kick"] span { border-color: var(--interrupt); }
   .ch-drag { position: relative; width: 84px; height: 84px; border-radius: 50%; border: 2px dashed rgba(255,200,140,0.5); }
   .ch-drag::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: rgba(255,200,97,0.75); box-shadow: 0 0 14px rgba(255,200,97,0.7); animation: chDrag 1.6s ease-in-out infinite; }
+  /* Phones: the move hint sits bottom-left where the thumb drags, clear of the HEAT bar and ability buttons (QA, iPhone SE). */
+  @media (max-width: 560px), (max-height: 520px) {
+    #coach[data-kind="move"] { left: max(12px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 12px); transform: none; align-items: flex-start; text-align: left; max-width: min(300px, calc(100vw - 172px)); gap: 8px; }
+    #coach[data-kind="move"] span { font-size: 13px; padding: 7px 11px; }
+    #coach[data-kind="move"] .ch-drag { width: 60px; height: 60px; }
+    body.lefty #coach[data-kind="move"] { left: auto; right: max(12px, env(safe-area-inset-right)); align-items: flex-end; text-align: right; }
+  }
   @keyframes chDrag { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(22px, -14px); } 65% { transform: translate(-20px, 12px); } }
   .ab.coach { animation: coachPulse 0.8s ease-in-out infinite alternate; }
   @keyframes coachPulse { from { box-shadow: 0 0 0 0 rgba(255,200,97,0.0); } to { box-shadow: 0 0 0 6px rgba(255,200,97,0.55); } }
