@@ -84,8 +84,9 @@
   #heatFill { height: 100%; width: 0; background: linear-gradient(90deg, #a8351a, var(--ember), #ffd27a); }
   #heatText { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9px; font-weight: 700; text-shadow: 0 1px 2px #000; }
   #abilities { display: flex; gap: 8px; }
-  .ab { position: relative; width: 60px; height: 60px; border-radius: 12px; border: 1px solid rgba(255,170,90,0.5); background: radial-gradient(circle at 50% 35%, rgba(255,140,60,0.35), rgba(30,16,12,0.95)); padding: 0; overflow: hidden; touch-action: none; }
-  .ab svg { width: 30px; height: 30px; margin-top: 4px; }
+  .ab { position: relative; width: 60px; height: 60px; border-radius: 16px; border: 2px solid color-mix(in srgb, var(--ac, var(--ember)) 35%, transparent); background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--ac, var(--ember)) 26%, transparent), rgba(26,15,12,0.94) 75%); color: var(--ac, var(--ember)); padding: 0; overflow: hidden; touch-action: none; }
+  .ab.kick { --ac: var(--interrupt, #8fd8ff); border-color: rgba(143,216,255,0.75); }
+  .ab svg { display: block; margin: 6px auto 0; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ac, var(--ember)) 45%, transparent)); }
   .ab .k { position: absolute; left: 5px; top: 3px; font-size: 10px; font-weight: 800; color: var(--gold); }
   .ab .n { position: absolute; left: 0; right: 0; bottom: 3px; font-size: 9px; color: var(--ink); text-shadow: 0 1px 2px #000; }
   .ab .cd { position: absolute; inset: 0; background: conic-gradient(rgba(0,0,0,0.72) calc(var(--p, 0) * 1turn), transparent 0); display: grid; place-items: center; font-size: 18px; font-weight: 800; text-shadow: 0 1px 3px #000; }
