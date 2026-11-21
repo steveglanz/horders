@@ -636,6 +636,39 @@ Novice reference (LAG=0.3 SKILL=0.5), Emberwright Kiln t1, 160 seeds: Ashguard 8
 
 Default bots, main against this branch, 80 seeds: Emberwright Foundry 6/8 61/61, 56/57; Kiln 6/8 53/53, 38/38; Slagbinder Foundry 6/8 57/58, 58/59; Kiln 6/8 34/35, 32/34; Hammerdeep t8 42/43, with the Slagbinder 67/66; Crucible (of 90) 56/56. All within noise. Clinker Heart sweep (40 seeds, Foundry/Kiln t6): +30% 26/6, +50% 30/13, +80% 34/26, +120% 35/37.
 
+### Kiln pass: Forge, Grace and Wildfire
+The same check at Kiln t6, 80 seeds, found three more branches outside ±10 of 40 of their class default: Forge 2 (default 35), Grace 45 (default 79) and Wildfire 32 (default 53). Clinker was 72, above the Slagbinder default but below Lumen's 79, so design left it alone.
+
+The fix, also in `DEFENCE_BRANCH`, with every number stated on the card:
+- **Twin Coat** (Forge capstone): +40% damage while plated.
+- **Renewal and Gleam Guard** (Grace): +8% damage per rank. A Haven rider was tried first (design's pick), but it levelled off: Haven forced, +100% damage in the Sanctuary won 54 of 80, and +150% won 28 of 40. The Lumen isn't in its Sanctuary often enough. The per-rank cards also cover runs that take Martyr's Halo.
+- **Kindled Ground** (Wildfire): +6% damage per rank.
+
+`BOT_CAP=<capstone>` (balance tools only) makes the bot take that capstone over its twin.
+
+**Forced branches,** 80 seeds:
+
+| | Foundry t6 | Kiln t6 |
+|---|---|---|
+| Forge, before | n/a | 2 |
+| Forge, after | 66 | 22 |
+| Grace (Martyr's Halo), before | n/a | 45 |
+| Grace (Martyr's Halo), after | 75 | 76 |
+| Grace (Haven), after | 75 | 65 |
+| Wildfire, before | n/a | 32 |
+| Wildfire, after | 60 | 40 |
+| Clinker (unchanged) | n/a | 72 |
+
+**Default bots,** main cd4a9de against this branch, 80 seeds:
+
+| | Foundry 6 | Foundry 8 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|
+| Emberwright | 61 / 61 | 57 / 59 | 53 / 55 | 38 / 41 |
+| Lumen | 73 / 73 | 63 / 63 | 79 / 79 | 60 / 60 |
+| Slagbinder | 58 / 69 | 59 / 70 | 35 / 44 | 34 / 48 |
+
+The default Slagbinder bot drafts Twin Coat often, so fixing Forge lifts the class by about 5 to 7 of 40. Parties: Hammerdeep t8 43 / 45, with the Slagbinder 66 / 70; Crucible 56 / 55 of 90. Fill bots (Bulwark plus three bots, Hammerdeep t8): 34 / 30, still under the real party. Replay fingerprints are identical to main.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
