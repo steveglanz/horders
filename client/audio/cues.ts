@@ -29,6 +29,15 @@ export interface CueContext {
   anvilOnMe?: boolean;
 }
 
+/** Each class's ability option (sim ALT_ABILITIES), whichever slot it replaces. */
+const ALT_ABILITY: Partial<Record<ClassId, SoundId>> = {
+  emberwright: 'emberWard',
+  duskblade: 'hamstring',
+  bulwark: 'rallyingCry',
+  lumen: 'lightwell',
+  slagbinder: 'slagPit',
+};
+
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {
   emberwright: ['emberWave', null, 'emberNova', 'zap'],
   lumen: ['lumenBurst', null, 'lumenSanctuary', 'zap'],
@@ -118,6 +127,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'revive': return mine(ev.hero) ? { id: 'revive' } : { id: 'revive', vol: 0.5 };
     case 'potion': return { id: 'revive' };
     case 'ability': {
+      if (ev.alt) return { id: ALT_ABILITY[c.cls] ?? 'zap', jitter: 0.04 };
       const id = ABILITY[c.cls]?.[ev.slot];
       return id ? { id, jitter: 0.04 } : null;
     }

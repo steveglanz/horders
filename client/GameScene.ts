@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD, SLAG_KIT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD, SLAG_KIT, ALT_KIT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -53,6 +53,11 @@ const hex = (css: string) => Number.parseInt(css.slice(1), 16);
 /** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
 const SLAG = 0xff9b4a;
 const SLAG_COOL = 0xbcd6e6;
+// Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Rallying Cry gold, Lightwell light.
+const WARD_FIRE = 0xff7a2e;
+const SLOWED = 0xa58cff;
+const CRY = 0xffd27a;
+const WELL = 0xfff0b0;
 
 /** A pooled sprite effect: moves, spins, fades and scales from (sx0, sy0) to (sx1, sy1). */
 interface Fx {
@@ -644,9 +649,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'ability':
           if (ev.alt) {
-            // Ability option (placeholder look until visuals draws it): a ring and its name.
-            this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: Phaser.Display.Color.HexStringToColor(CLASS_ICON[w.cls].color).color, life: 0.45 });
-            this.floatText(ev.x, ev.y - 36, ALT_ABILITIES[w.cls].def.name, '#ffe9c4', 16);
+            this.altCast(ev.x, ev.y, ev.r);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
@@ -961,7 +964,7 @@ export class GameScene extends Phaser.Scene {
             : '';
           // L1: the first delve coaches each fight instead of the usual tip.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens);
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens, !!coach);
           break;
         }
         case 'fork':
@@ -1225,6 +1228,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.warmSeen = warm;
     this.slagDraw(g, now);
+    this.altDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -2009,7 +2013,8 @@ export class GameScene extends Phaser.Scene {
         o.lineStyle(2, SLAG_COOL, (0.55 + 0.15 * Math.sin(now / 200)) * fade).beginPath().arc(x, y + 6, 32, Math.PI * 1.02, Math.PI * 1.98).strokePath();
         o.lineStyle(1.5, 0xffffff, 0.35 * fade).beginPath().arc(x - 4, y - 2, 22, Math.PI * 1.2, Math.PI * 1.45).strokePath();
       }
-      if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0) {
+      // Ember Ward (plateBy -1) shares the plating pool but has its own look, in altDraw.
+      if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0 && q.plateBy !== -1) {
         const frac = Math.max(0.08, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
         const spin = now / 900;
         // A molten band at the feet, broken into plates, fewer as it is spent.
@@ -2048,6 +2053,165 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
+  /**
+   * An ability option's cast (ALT_ABILITIES). The event carries no class, so like the other casts
+   * it is drawn as this screen's class.
+   */
+  private altCast(x: number, y: number, r: number): void {
+    const w = this.world;
+    const name = ALT_ABILITIES[w.cls].def.name;
+    switch (w.cls) {
+      case 'emberwright': {
+        // Ember Ward: fire closes in around the hero and flames leap up.
+        this.emit(this.fx, 'ring', undefined, x, y + 4, 0.35, { tint: WARD_FIRE, sx0: 1.1, sx1: 0.45 });
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2;
+          this.spark(x + Math.cos(a) * 30, y + 8 + Math.sin(a) * 14, Math.cos(a) * 20, -90 - Math.random() * 60, 0.45, 2);
+        }
+        this.floatText(x, y - 40, name, '#ffb27a', 18);
+        break;
+      }
+      case 'duskblade': {
+        // Hamstring: a cross cut on the foe, blood, and a violet ring out to the slow's reach.
+        this.addShape({ kind: 'line', x: x - 22, y: y - 22, x2: x + 22, y2: y + 22, r: 0, angle: 0, color: 0xe0465a, life: 0.3 });
+        this.addShape({ kind: 'line', x: x + 22, y: y - 22, x2: x - 22, y2: y + 22, r: 0, angle: 0, color: 0xffd0d8, life: 0.25 });
+        this.impact(x, y, 1.4);
+        for (let k = 0; k < 7; k++) {
+          const a = Math.random() * Math.PI * 2;
+          this.emit(this.fx, 'spark', undefined, x, y, 0.4, { tint: 0xe0465a, vx: Math.cos(a) * 120, vy: Math.sin(a) * 120 + 40, drag: 0.9, sx0: 1.6, sx1: 0.5 });
+        }
+        this.ring(x, y, r, SLOWED, 0.55);
+        this.addShape({ kind: 'ring', x, y, x2: 0, y2: 0, r, angle: 0, color: SLOWED, life: 0.5 });
+        this.floatText(x, y - 40, name, '#d0b8ff', 18);
+        break;
+      }
+      case 'bulwark': {
+        // Rallying Cry: three gold waves roll out to the cry's reach.
+        for (let k = 0; k < 3; k++) this.emit(this.fx, 'ring', undefined, x, y, 0.4 + k * 0.15, { tint: CRY, sx0: 0.15, sx1: ((r * 2) / 128) * (0.7 + k * 0.15) });
+        this.addShape({ kind: 'ring', x, y, x2: 0, y2: 0, r, angle: 0, color: CRY, life: 0.55 });
+        this.shakeBy(0.1);
+        this.floatText(x, y - 40, name, '#ffd27a', 20);
+        break;
+      }
+      case 'lumen': {
+        // Lightwell: a shaft of light lands and the well spreads out.
+        this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 22, angle: 0, color: WELL, life: 0.7 });
+        this.ring(x, y, r, WELL, 0.5);
+        this.floatText(x, y - 40, name, '#fff0b0', 18);
+        break;
+      }
+      case 'slagbinder': {
+        // Slag Pit: a glob arcs out and the pit splashes open where it lands.
+        this.slagLob(this.player.x, this.player.y, x, y);
+        this.ring(x, y, r, SLAG, 0.4);
+        this.burst(x, y, 10);
+        for (let k = 0; k < 4; k++) this.steam(x + (Math.random() - 0.5) * r, y + (Math.random() - 0.5) * r * 0.5, 0.6);
+        this.floatText(x, y - 40, name, '#ffb27a', 18);
+        break;
+      }
+    }
+  }
+
+  /** What the ability options leave in the world: wards, slows, the cry, wells and pits. */
+  private altDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    const t = w.time;
+    const heroes = [{ q: w.player, x: this.player.x, y: this.player.y }, ...this.allies.map((al) => ({ q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y }))];
+    for (const { q, x, y } of heroes) {
+      // Lightwell and Slag Pit stay where they were cast, even after the caster goes down.
+      if ((q.wellUntil ?? -1) > t && q.wellX !== undefined && q.wellY !== undefined) {
+        const fade = Math.min(1, ((q.wellUntil ?? 0) - t) / 0.8);
+        const wx = q.wellX, wy = q.wellY, r = ALT_KIT.wellRadius;
+        const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+        g.fillStyle(WELL, (0.1 + 0.04 * pulse) * fade).fillCircle(wx, wy, r);
+        g.fillStyle(0xffffff, 0.08 * fade).fillCircle(wx, wy, r * 0.35);
+        g.lineStyle(2, WELL, 0.7 * fade).strokeCircle(wx, wy, r);
+        // Slow-turning rays in the pool.
+        g.lineStyle(1.5, WELL, 0.3 * fade);
+        for (let k = 0; k < 6; k++) {
+          const a = now / 2400 + (k / 6) * Math.PI * 2;
+          g.lineBetween(wx + Math.cos(a) * r * 0.3, wy + Math.sin(a) * r * 0.3, wx + Math.cos(a) * r * 0.85, wy + Math.sin(a) * r * 0.85);
+        }
+        if (Math.random() < 0.35 * fade) {
+          const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * r * 0.9;
+          this.emit(this.fx, 'spark', undefined, wx + Math.cos(a) * d, wy + Math.sin(a) * d, 0.8, { tint: WELL, vy: -50, drag: 0.98, sx0: 1.3, sx1: 0.3 });
+        }
+      }
+      if ((q.pitUntil ?? -1) > t && q.pitX !== undefined && q.pitY !== undefined) {
+        const fade = Math.min(1, ((q.pitUntil ?? 0) - t) / 0.8);
+        const px = q.pitX, py = q.pitY, r = ALT_KIT.pitRadius;
+        // A dark crust over molten slag, with glowing seams and bubbles breaking.
+        g.fillStyle(0x2a1d18, 0.5 * fade).fillCircle(px, py, r);
+        g.fillStyle(SLAG, (0.16 + 0.06 * Math.sin(now / 180)) * fade).fillCircle(px, py, r * 0.75);
+        g.lineStyle(2.5, SLAG, 0.8 * fade).strokeCircle(px, py, r);
+        g.lineStyle(2, 0xffc27a, 0.55 * fade);
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + 0.4;
+          g.beginPath().moveTo(px + Math.cos(a) * r * 0.2, py + Math.sin(a) * r * 0.2)
+            .lineTo(px + Math.cos(a + 0.25) * r * 0.5, py + Math.sin(a + 0.25) * r * 0.5)
+            .lineTo(px + Math.cos(a) * r * 0.85, py + Math.sin(a) * r * 0.85).strokePath();
+        }
+        for (let k = 0; k < 4; k++) {
+          const ph = (now / 900 + k * 0.27) % 1;
+          const a = k * 1.9 + 0.7, d = r * (0.3 + 0.12 * k);
+          g.lineStyle(1.5, 0xffd9a0, (1 - ph) * 0.8 * fade).strokeCircle(px + Math.cos(a) * d, py + Math.sin(a) * d, 2 + ph * 6);
+        }
+      }
+      if (q.hp <= 0) continue;
+      // Ember Ward: a ring of flame tongues around the hero, thinning as the ward is spent.
+      if (q.plateBy === -1 && (q.plate ?? 0) > 0 && (q.plateUntil ?? -1) > t) {
+        const frac = Math.max(0.15, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
+        const fade = Math.min(1, ((q.plateUntil ?? 0) - t) / 0.4);
+        o.fillStyle(WARD_FIRE, 0.08 * fade).fillEllipse(x, y - 2, 66, 70);
+        o.lineStyle(2, WARD_FIRE, 0.5 * fade).strokeEllipse(x, y - 2, 66, 70);
+        const n = 12;
+        for (let k = 0; k < n; k++) {
+          if (k / n >= frac) break;
+          const a = now / 700 + (k / n) * Math.PI * 2;
+          const fl = 7 + 4 * Math.sin(now / 90 + k * 1.7);
+          const bx = x + Math.cos(a) * 31, by = y - 2 + Math.sin(a) * 33;
+          o.fillStyle(k % 2 ? 0xffb347 : WARD_FIRE, 0.85 * fade).fillTriangle(bx - 4, by + 2, bx + 4, by + 2, bx + Math.cos(a) * 3, by - fl);
+        }
+      }
+      // Rallying Cry: a gold ring at the feet with chevrons rising through it.
+      if ((q.cryUntil ?? -1) > t) {
+        const fade = Math.min(1, ((q.cryUntil ?? 0) - t) / 0.6);
+        g.lineStyle(2.5, CRY, 0.75 * fade).strokeEllipse(x, y + 20, 50, 18);
+        for (let k = 0; k < 2; k++) {
+          const ph = (now / 800 + k * 0.5) % 1;
+          const cy = y + 18 - ph * 22, al = Math.sin(ph * Math.PI) * 0.8 * fade;
+          for (const sx of [-1, 1]) {
+            const cx = x + sx * 30;
+            g.lineStyle(2, CRY, al).beginPath().moveTo(cx - 4, cy + 3).lineTo(cx, cy - 1).lineTo(cx + 4, cy + 3).strokePath();
+          }
+        }
+      }
+    }
+    // Hamstring and Slag Pit: a slowed foe drags a violet shackle ring at its feet.
+    for (const e of w.enemies) {
+      if (!e.alive || (e.slowUntil ?? 0) <= t) continue;
+      const r = e.def.radius;
+      const fade = Math.min(1, ((e.slowUntil ?? 0) - t) / 0.5);
+      const fy = e.y + r * 0.85 + 3;
+      const rr = Math.max(20, r * 1.1);
+      g.fillStyle(SLOWED, 0.12 * fade).fillEllipse(e.x, fy, rr * 2, rr * 0.8);
+      g.lineStyle(2.5, SLOWED, 0.85 * fade);
+      for (let k = 0; k < 5; k++) {
+        const a0 = now / 1500 + (k / 5) * Math.PI * 2;
+        g.beginPath();
+        for (let j = 0; j <= 4; j++) {
+          const a = a0 + 0.8 * (j / 4);
+          const px = e.x + Math.cos(a) * rr, py = fy + Math.sin(a) * rr * 0.4;
+          if (j) g.lineTo(px, py); else g.moveTo(px, py);
+        }
+        g.strokePath();
+      }
+      // Drag marks behind it, so it reads as held back.
+      g.lineStyle(1.5, SLOWED, 0.5 * fade).lineBetween(e.x - rr * 0.5, fy + 3, e.x - rr * 1.2, fy + 3).lineBetween(e.x + rr * 0.5, fy + 3, e.x + rr * 1.2, fy + 3);
+    }
+  }
+
   private warmthDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, n: number, full: boolean, now: number): void {
     const f = n / SET_TUNING.hkMax;
     g.fillStyle(0xff8a2a, 0.06 + 0.1 * f).fillEllipse(x, y, 40 + 16 * f, 15 + 6 * f);
