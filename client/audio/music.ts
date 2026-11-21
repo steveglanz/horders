@@ -12,14 +12,15 @@
  *  - ashvents:   Ysmeret's group dungeon. Two vents breathing in turn, ember plucks, a restless 3-against-2 pulse.
  *  - coldmarrow: Sparse glass bells, wind, a slow heartbeat; the Hearthcoal's crackle is the one warm sound
  *                and thins as the coal dims (see setWarmth).
+ *  - wrackline:  A wrecked, sea-dark harbour: a slow aeolian swell, buoy bells, surf breaking on the pilings.
  *  - raid:       Grandmother Slag. A slow, ceremonial 3/4 march: low brass, anvil and bell. Each phase
  *                builds: phase 2 floods in bubbling slag, phase 3 doubles the tempo.
  * A boss fight raises the intensity: a drum pulse and a bass line join in.
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf';
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -52,11 +53,15 @@ export interface Theme {
 
 export const THEMES: Record<ThemeId, Theme> = {
   hub: { root: -7, scale: [0, 2, 4, 7, 9, 12, 14, 16], progression: [0, 5, -3, 7], bpm: 76, drone: 'triangle', droneLp: 700, pluck: 'harp', density: 0.6, bed: 'hearth', bedVol: 0.3, droneAt: 0 },
+  // Season 2, the Deep Bellows: the same hearth harp, a step lower and in mixolydian (the flat 7th darkens it), over the forge's breathing bellows.
+  hubBellows: { root: -9, scale: [0, 2, 4, 7, 9, 10, 12, 14], progression: [0, -2, 5, 0], bpm: 72, drone: 'triangle', droneLp: 620, pluck: 'harp', density: 0.55, bed: 'forge', bedVol: 0.26, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
   ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
   coldmarrow: { root: -3, scale: [0, 2, 3, 7, 8, 12, 14, 15], progression: [0, -4, -2, -5], bpm: 58, drone: 'triangle', droneLp: 600, pluck: 'glass', density: 0.25, bed: 'frost', bedVol: 0.32, heartbeat: true, coal: true, droneAt: -12 },
   raid: { root: -14, scale: [0, 2, 3, 5, 7, 8, 10, 12], progression: [0, -4, -2, -5], bpm: 72, drone: 'sawtooth', droneLp: 450, pluck: 'brass', density: 0.4, bed: 'slag', bedVol: 0.3, meter: 3, phaseTempo: [1, 1.1, 1.2, 2], floodBed: 2.2 },
+  // The Wrackline: a wrecked, sea-dark harbour. Slow aeolian swell, buoy bells, surf breaking on the pilings.
+  wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'triangle', droneLp: 520, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -167,6 +172,16 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         // A slow molten churn; the glugs are added below.
         lp += (w - lp) * 0.015;
         raw[i] = lp * 0.5 + brown * 1.6;
+        break;
+      }
+      case 'surf': {
+        // Waves: a low wash that rolls in twice around the loop, with a bright hiss as each one breaks.
+        lp += (w - lp) * 0.03;
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        const roll = Math.pow(0.5 - 0.5 * Math.cos(t * Math.PI * 4), 2);
+        const crest = Math.pow(Math.max(0, Math.sin(t * Math.PI * 4 - 0.6)), 6);
+        raw[i] = lp * 0.7 * (0.3 + 0.7 * roll) + hp * 0.12 * crest + brown * 0.8;
         break;
       }
       case 'shimmer': {
@@ -457,6 +472,15 @@ class ThemePlayer {
     this.coalSrc?.stop(end);
     setTimeout(() => this.out.disconnect(), (secs + 0.5) * 1000);
   }
+}
+
+/** The hub's theme for each season (SEASONS order in sim/content/season.ts). A season without a variant keeps the plain hub. */
+export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows'];
+
+/** The hub theme for a season id (seasonOf); the seasons rotate through SEASONS, so this wraps the same way. */
+export function hubThemeFor(seasonId: number, seasons: number): ThemeId {
+  const i = ((seasonId % seasons) + seasons) % seasons;
+  return HUB_BY_SEASON[i] ?? 'hub';
 }
 
 /** Plays one theme at a time and crossfades between them. */
