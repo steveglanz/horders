@@ -59,8 +59,9 @@ void (async () => {
   await hub.refreshBoss();
 })();
 
-// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out.
-const DPR = params.has('lowres') ? 1 : Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+// Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out and
+// ?hires=1 lifts the cap to 3x (store screenshots, tools/storeshots.cjs).
+const DPR = params.has('lowres') ? 1 : Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1));
 document.documentElement.style.setProperty('--dpr', String(DPR));
 
 const game = new Phaser.Game({
