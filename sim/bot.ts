@@ -260,6 +260,36 @@ function nearestShade(w: World): { x: number; y: number } | null {
 const SCATTER_GAP = 2 * 80 + 20;
 
 /** The nearest living ally of the acting hero, or null. */
+/**
+ * The direction to a living ally whose coal is clearly brighter than ours, while the Long Night
+ * winds up (null if none, or already in its light). NOSHELTER=1 turns it off, to measure what it's worth.
+ */
+function longNightShelter(w: World): { dx: number; dy: number } | null {
+  if (w.heroes.length < 2 || w.bossIndex < 0 || process.env.NOSHELTER === '1') return null;
+  const b = w.enemies[w.bossIndex];
+  if (!b.alive || b.castId !== 'longNight') return null;
+  const p = w.player;
+  const left = b.castDur - b.castT;
+  let best: { dx: number; dy: number; coal: number } | null = null;
+  for (let k = 0; k < w.heroes.length; k++) {
+    if (k === w.acting) continue;
+    const q = w.heroData(k).player;
+    if (q.hp <= 0 || (q.coal ?? 0) < (p.coal ?? 0) + 0.15) continue;
+    const dx = q.x - p.x;
+    const dy = q.y - p.y;
+    const d = Math.hypot(dx, dy);
+    const r = (q.coalR ?? COLD.maxR) - 25;
+    // Already inside its light, or too far to get there before the cast lands.
+    if (d <= r || d - r > w.moveSpeed * left) continue;
+    if (!best || (q.coal ?? 0) > best.coal) best = { dx: dx / (d || 1), dy: dy / (d || 1), coal: q.coal ?? 0 };
+  }
+  if (best) return best;
+  // No brighter light to reach: huddle with the nearest ally instead (the Long Night hits a huddle softer).
+  const near = nearestAlly(w);
+  if (near && near.d > COLD.huddleR * 0.7 && near.d - COLD.huddleR * 0.7 <= w.moveSpeed * left) return { dx: near.dx / (near.d || 1), dy: near.dy / (near.d || 1) };
+  return null;
+}
+
 function nearestAlly(w: World): { dx: number; dy: number; d: number } | null {
   const p = w.player;
   let best: { dx: number; dy: number; d: number } | null = null;
@@ -332,6 +362,9 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
+  const glow = longNightShelter(w);
+  if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

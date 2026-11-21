@@ -25,8 +25,25 @@ How it differs from the Glarewell: there you hide in fixed shade. Here you carry
 
 Soft enrage at 200 s: the Long Night comes twice as often. Burnout (#73) still applies.
 
-**Deferred to a later pass:**
-- A co-op check that Long Night pulls a party together.
+
+## Co-op: the Long Night huddle (21 Nov 2026)
+This was the deferred check of whether the Long Night pulls a party together. It didn't, much.
+- **Measure:** `tools/group.ts` now counts, at each Long Night, how many heroes stood in an ally's brighter light (`night` and `nightShared`).
+- **Result:** a full party (Bulwark, Lumen, Duskblade, Emberwright), hero-t8-0, tier 10, seeds 1 to 10. Shared light softened 29 of 103 hits (28%), and only by chance. The bots never moved for it, and the damage is a share of max health that only the light reduces.
+
+**The change:**
+- **Huddle (sim):** the Long Night hits 15% softer for each other living hero within 110 (up to 3), on top of the light (`COLD.huddleR`, `huddleCut`, `huddleMax`). Solo is unchanged: with nobody near, the factor is 1.
+- **Bots:** while the Long Night winds up, a hero whose coal is at least 0.15 dimmer than an ally's runs into that ally's light, if it can get there in time. With no brighter light in reach, it closes on the nearest ally. `NOSHELTER=1` turns this off, for measuring.
+- **Banner:** in co-op it says to huddle up in the brightest light.
+
+| Coldmarrow tier 12, seeds 1 to 20, hero-t8-0 | Bots ignore the Long Night | Bots shelter and huddle |
+|---|---|---|
+| Full party | 3/20 (2/20 before the huddle existed) | 7/20 |
+| Emberwright + Lumen | 1/20 (3/20 before the huddle existed) | 2/20 |
+
+With sheltering on, shared light went from 28% to 39% of hits at tier 10, before the huddle was added. A pair gains little, because two heroes can only take 15% off. Four heroes huddled take 45% off.
+
+**Watch item for engineering (group difficulty):** a full party wins the Coldmarrow at tier 10 10/10, even before the huddle. Solo heroes are at 16 to 25 of 40. A solo-friendly dungeon in co-op may want firmer party scaling at its unlock tier. See group-difficulty.md.
 
 ## Phase 2: Thin Ice (21 Nov 2026)
 At half health (`COLD.phase2`) Nhevra cracks the frozen river. The target frame now reads "Phase 2 of 2" (`BOSS_PHASES` in sim/world.ts). It also fixes the old "Phase 1 of 3" on bosses without phases: Ondrel and Ysmeret now show none.
