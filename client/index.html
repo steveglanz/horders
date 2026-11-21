@@ -971,6 +971,8 @@
   /* Key art: a banner across the top of the season box, edge to edge. It breathes slowly, unless Battery saver or reduced motion. */
   .season .kart-wrap { margin: -14px -16px 10px; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--sa) 30%, transparent); line-height: 0; }
   .season .kart { width: 100%; height: auto; aspect-ratio: 360 / 110; max-height: 150px; display: block; }
+  /* Landscape phones: the key art keeps its figures (anchored bottom, sliced) but gives up sky, so the track shows above the fold. */
+  @media (max-height: 520px) { .season .kart { max-height: 96px; } }
   .kart .kb-breath { animation: kbBreath 5s ease-in-out infinite; transform-origin: 180px 104px; }
   .kart .kb-bellows { animation: kbBellows 5s ease-in-out infinite; }
   .kart .kb-sparks circle { animation: kbSpark 4.8s linear infinite; animation-delay: var(--d); opacity: 0; }

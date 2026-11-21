@@ -381,7 +381,7 @@ function wornTrail(h: HeroProfile): HeroCard['trail'] {
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero) };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */
@@ -515,6 +515,11 @@ const coopEvents = {
     runApplied = false;
     lastBounty = false;
     lastKey = false;
+    // A guest's brewed potion went into this delve with their card, so it is used up here (never by a bounty).
+    if (opts.bounty === undefined && hero.potion && opts.party?.[me - 1]?.potion === hero.potion) {
+      takePotion(hero);
+      save();
+    }
     game.scene.start('game', {
       opts,
       hud,
@@ -527,7 +532,6 @@ const coopEvents = {
         audio.rewards(rewards);
       },
     });
-    void me;
   },
   onEnded: (reason: 'menu' | 'hostLeft' | 'refused') => {
     if (reason === 'menu') {
@@ -633,5 +637,7 @@ hub.render = () => {
   hub.hosting = !!coop && coop.role === 'host' && coop.roster.length > 1;
   hubRender();
   coopButton();
+  // The hero may have changed (gear, a level, a brewed potion): the host starts the next delve with this card.
+  coop?.updateMine(myCard());
 };
 renderCoop();

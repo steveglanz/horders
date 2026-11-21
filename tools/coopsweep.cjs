@@ -1,4 +1,4 @@
-// Usage: npm run build && node tools/coopsweep.cjs [--raid] [screenshot dir]
+// Usage: npm run build && node tools/coopsweep.cjs [--raid] [--pressworks] [screenshot dir]
 // Roadmap G8, the co-op QA sweep. Every hero is a page in one Chromium (same-browser signalling,
 // real WebRTC), at phone size. Only the host plays (autopilot); guests stand still, so runs use
 // ?god=1 and a hero is downed by hand where a check needs it. Exits 1 if any check fails.
@@ -7,12 +7,15 @@
 //  3. A guest drops mid-fight: the host's run carries on to the end.
 //  4. Hammerdeep boss revive: one pick-up per boss fight; a second downed hero stays down.
 //  5. (--raid, ~6 min) Crucible with two Bulwarks: "Swap tanks!" shows on the guest tank after Ladle Pour.
+//  6. (--pressworks, ~5 min) A guest drops while Oskel's Downstroke is up: the run keeps ticking and the
+//     host and the other guest reach the end screen.
 // Quick join has its own script (tools/quickjoincheck.cjs) and role matching is unit tested (tests/lobby.test.ts).
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const RAID = process.argv.includes('--raid');
+const PRESS = process.argv.includes('--pressworks');
 const dir = process.argv.slice(2).find((a) => !a.startsWith('--')) || 'tools/shots';
 const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) process.exitCode = 1; };
 const tab = async (p, t) => { if (await p.evaluate(() => document.body.classList.contains('tabs'))) { await p.click(`#tabbar [data-tab="${t}"]`); await p.waitForTimeout(150); } };
@@ -51,7 +54,7 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
   }
 
   /** Starts the run, plays the host with autopilot, calls `each(host)` every 0.4 s, and waits for the end. */
-  async function play(P, { each, dropAt } = {}) {
+  async function play(P, { each, dropAt, dropWhen } = {}) {
     const [A] = P;
     await A.click('#startBtn');
     for (const g of P.slice(1)) await g.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 20000 });
@@ -62,7 +65,7 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
       await A.waitForTimeout(400);
       const st = await world(A, 'return { state: w.state, phase: w.phase, t: w.time };');
       if (st.state === 'ended') break;
-      if (dropAt && !dropped && st.phase === 'fight' && st.t > dropAt) { dropped = true; const k = P.length - 1; await P[k].close(); live.delete(k); }
+      if (!dropped && ((dropAt && st.phase === 'fight' && st.t > dropAt) || (dropWhen && await dropWhen(A)))) { dropped = true; const k = P.length - 1; await P[k].close(); live.delete(k); }
       if (each) await each(A, P, live);
     }
     await A.waitForTimeout(2500);
@@ -119,6 +122,24 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
     let swap = false;
     await play(P, { each: async (A, P) => { if (!swap) swap = await P[1].evaluate(() => document.getElementById('banner').classList.contains('show') && document.getElementById('bannerTitle').textContent === 'Swap tanks!'); } });
     ok(swap, 'raid: "Swap tanks!" shows on the guest tank (needs the party to reach Grandmother Slag before Burnout; rerun if it wiped in the openers)');
+    await ctx.close();
+  }
+  // 6. The Pressworks: a guest drops mid-Downstroke (the shared soak telegraph, owner -3).
+  if (PRESS) {
+    const { P, ctx } = await party(['bulwark', 'lumen', 'emberwright'], 'pressworks', 10);
+    let dropT = -1, ticksAfter = 0, lastTick = 0;
+    const r = await play(P, {
+      dropWhen: async (A) => {
+        const s = await world(A, 'return w.telegraphs.some((t) => t.alive && t.kind === "soak" && t.owner === -3) ? { t: w.time, tick: w.tick } : null;');
+        if (s) { dropT = s.t; lastTick = s.tick; }
+        return !!s;
+      },
+      // Guests stand still, so tier 10 trash outlasts Burnout before Oskel; trash is set to 1 hp until he's up.
+      each: async (A) => { await world(A, 'if (!w.bossUp) for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1);'); if (dropT >= 0) { const tick = await world(A, 'return w.tick;'); if (tick > lastTick) ticksAfter++; lastTick = tick; } },
+    });
+    ok(dropT >= 0, `Pressworks: a guest dropped while a Downstroke was up (t=${dropT.toFixed(1)} s)`);
+    ok(ticksAfter > 5, `Pressworks: the host's run kept ticking after the drop (${ticksAfter} samples advanced)`);
+    ok(r.live.size === 2 && r.ends.every(Boolean), `Pressworks: the host and the other guest reach the end screen (${r.victory ? 'win' : 'loss'})`);
     await ctx.close();
   }
   ok(!errs.length, `no page errors ${JSON.stringify(errs)}`);

@@ -697,6 +697,7 @@ export class GameScene extends Phaser.Scene {
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
+      listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -1747,8 +1748,8 @@ export class GameScene extends Phaser.Scene {
       const y = al.img.y - 32;
       b.fillStyle(0x000000, 0.6).fillRect(x, y, 44, 5);
       b.fillStyle(0x6fe08a, 1).fillRect(x, y, (44 * Math.max(0, q.hp)) / q.maxHp, 5);
-      // An ally off screen gets an arrow at the screen edge pointing their way.
-      const v = cam.worldView;
+      // An ally off screen, or hidden under the HUD's top panels, gets an arrow at the edge of the clear view.
+      const v = this.clearView();
       const pad = 26 / cam.zoom;
       const inset = 20 / cam.zoom;
       if (al.img.x < v.x + inset || al.img.x > v.right - inset || al.img.y < v.y + inset || al.img.y > v.bottom - inset) {
@@ -1783,9 +1784,10 @@ export class GameScene extends Phaser.Scene {
         this.pressedMark(hx + 32, hy - 30, left / OSKEL.pressed);
       }
     }
-    // The Ashvents: an empty vent off screen gets a gold arrow at the edge, so nobody misses it.
+    // An empty vent or press plate off screen, or hidden under the HUD's top panels (on a phone the boss panel covers
+    // the top quarter of the view), gets a gold arrow at the edge of the clear view, so nobody misses it.
     for (const ev of this.emptyVents) {
-      const v = cam.worldView;
+      const v = this.clearView();
       const inset = 20 / cam.zoom;
       if (ev.x > v.x + inset && ev.x < v.right - inset && ev.y > v.y + inset && ev.y < v.bottom - inset) continue;
       const pad = 30 / cam.zoom;
@@ -1796,7 +1798,8 @@ export class GameScene extends Phaser.Scene {
       const ex = cx + Math.cos(a) * k;
       const ey = cy + Math.sin(a) * k;
       const sz = 16 / cam.zoom;
-      const blink = 0.6 + 0.4 * Math.sin(now / 90);
+      // It pulses but never fades below 0.55, so a still frame (or a glance) always catches it.
+      const blink = 0.775 + 0.225 * Math.sin(now / 90);
       b.fillStyle(0x000000, 0.6).fillCircle(ex, ey, sz * 1.25);
       b.lineStyle(2 / cam.zoom, SOAK, blink).strokeCircle(ex, ey, sz * 1.25);
       b.fillStyle(SOAK, blink).fillTriangle(
@@ -2055,6 +2058,37 @@ export class GameScene extends Phaser.Scene {
     // an oil slick, wet wood) stays visible instead of fading into it.
     for (let i = 0; i < pool; i++) fx.push(this.newFx(tex, 1.35, style === 'motes' || style === 'sparks'));
     this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, style });
+  }
+
+  /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
+   * twice a second: reading the layout every frame would force a reflow. */
+  private hudCover = { px: 0, at: -1 };
+
+  /**
+   * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
+   * panels. Edge arrows test against it and sit on its edge, so a gold circle under the boss panel still gets one.
+   */
+  private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
+    const v = this.cameras.main.worldView;
+    const now = this.time.now;
+    if (now - this.hudCover.at > 500 || this.hudCover.at < 0) {
+      this.hudCover.at = now;
+      let px = 0;
+      for (const id of ['target', 'quests']) {
+        const el = document.getElementById(id);
+        // (The panels are position: fixed, so offsetParent is always null: a zero rect is what says hidden.)
+        if (!el || el.hidden) continue;
+        const r = el.getBoundingClientRect();
+        // Only a panel spanning most of the width counts: a narrow one leaves the view beside it clear.
+        if (r.height > 0 && r.width > window.innerWidth * 0.5) px = Math.max(px, r.bottom);
+      }
+      this.hudCover.px = px;
+    }
+    const ch = this.game.canvas.getBoundingClientRect().height || 1;
+    // Never take more than 40% of the view, so a tall panel can't push arrows down into the fight.
+    const top = v.y + Math.min(0.4, this.hudCover.px / ch) * v.height;
+    const height = v.bottom - top;
+    return { x: v.x, y: top, right: v.right, bottom: v.bottom, width: v.width, height, centerX: v.centerX, centerY: top + height / 2 };
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */

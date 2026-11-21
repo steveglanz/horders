@@ -15,6 +15,8 @@ export interface Cue {
   vol?: number;
   /** Randomize pitch by up to this fraction, so repeats don't sound robotic. */
   jitter?: number;
+  /** Stereo position, -1 (left) to 1 (right). Ordinary sounds only: warnings stay centred. */
+  pan?: number;
 }
 
 /** What the cue needs to know about the run. */
@@ -34,6 +36,8 @@ export interface CueContext {
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
   revive?: { t: number[]; need: number; left: number };
+  /** Where this screen listens from: the hero's x and half the view's width (world units), for panning. */
+  listen?: { x: number; half: number };
   /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
   sets?: SetFlags;
 }
@@ -160,6 +164,17 @@ export function phaseSting(boss: string | undefined, phase: number): SoundId {
   const s = boss ? PHASE_STING[boss] : undefined;
   if (!s) return 'phase';
   return Array.isArray(s) ? s[Math.max(0, Math.min(s.length - 1, phase - 2))] : s;
+}
+
+/** How far a sound at the edge of the view pans (0.5: clearly to one side, never one ear only). */
+export const PAN_MAX = 0.5;
+
+/** Stereo position for an event that has a place, relative to the listening hero (undefined: centred). */
+export function panFor(ev: SimEvent, c: CueContext): number | undefined {
+  const x = (ev as { x?: unknown }).x;
+  if (!c.listen || typeof x !== 'number' || !(c.listen.half > 0)) return undefined;
+  const p = Math.max(-1, Math.min(1, (x - c.listen.x) / c.listen.half)) * PAN_MAX;
+  return Math.abs(p) < 0.02 ? undefined : p;
 }
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
