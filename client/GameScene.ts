@@ -3,6 +3,8 @@
  * into `World.step` at a fixed rate and renders interpolated state.
  */
 import { OMENS } from '../sim/content/omens';
+import { CoopSession, SNAP_SECONDS } from './net/coop';
+import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
@@ -64,6 +66,8 @@ export interface SceneData {
   opts: WorldOptions;
   hud: Hud;
   onEnd: (w: World) => void;
+  /** Co-op: the party session (host steps the World, guest mirrors it). */
+  coop?: CoopSession;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -78,6 +82,15 @@ export class GameScene extends Phaser.Scene {
   private queued: { slot: number; until: number } | null = null;
   /** Test hooks: autopilot plays the run; warp runs extra ticks per frame. */
   autopilot = false;
+  /** Co-op session, or null for solo. */
+  coop: CoopSession | null = null;
+  /** Guest: seconds since the last snapshot, for smoothing between them. */
+  private snapAge = 0;
+  private lastInputAt = 0;
+  /** Guest: the draft (level and picks left) a pick was already sent for. */
+  private sentPick = -1;
+  /** The other heroes in a co-op party. */
+  private allies: { hero: number; img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }[] = [];
   autoPick = true;
   warp = 1;
 
@@ -130,6 +143,12 @@ export class GameScene extends Phaser.Scene {
 
   init(data: SceneData): void {
     this.world = new World(data.opts);
+    this.coop = data.coop ?? null;
+    // A guest draws the run as their own hero.
+    if (this.coop?.role === 'guest') this.world.use(this.coop.me);
+    this.snapAge = 0;
+    this.sentPick = -1;
+    this.allies = [];
     this.hud = data.hud;
     this.onEnd = data.onEnd;
     this.acc = 0;
@@ -186,6 +205,17 @@ export class GameScene extends Phaser.Scene {
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
     this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
+    // Co-op: everyone else in the party, with their name over their head.
+    for (let j = 0; j < w.heroes.length; j++) {
+      if (j === w.acting) continue;
+      const cls = w.heroes[j].cls;
+      this.allies.push({
+        hero: j,
+        shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
+        img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
+        label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#d8f3ff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+      });
+    }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
     for (let i = 0; i < 200; i++) this.fx.push(this.newFx('spark', 8, true));
@@ -258,7 +288,15 @@ export class GameScene extends Phaser.Scene {
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
-    this.world.choose(i);
+    if (this.coop?.role === 'guest') {
+      // The host applies it; hide the cards until the next snapshot shows what's left.
+      if (!this.world.choices[i]) return;
+      this.sentPick = this.world.player.level * 100 + this.world.player.pendingLevels;
+      this.coop.sendPick(i);
+      this.hud.hideDraft();
+      return;
+    }
+    this.world.choose(i, 0);
     if (this.world.state === 'draft') this.hud.showDraft(this.world);
     else this.hud.hideDraft();
   }
@@ -266,6 +304,10 @@ export class GameScene extends Phaser.Scene {
   /** Queue an ability press; it fires on the next tick it is usable (within 0.35s). */
   cast(slot: number): void {
     if (this.paused || this.world.state !== 'running') return;
+    if (this.coop?.role === 'guest') {
+      this.coop.sendCast(slot);
+      return;
+    }
     this.queued = { slot, until: this.time.now + 350 };
   }
 
@@ -304,8 +346,10 @@ export class GameScene extends Phaser.Scene {
     this.frameTimes.push(deltaMs);
     if (this.frameTimes.length > 240) this.frameTimes.shift();
 
-    if (this.hitStop > 0) this.hitStop -= deltaMs / 1000;
-    else if (!this.paused && w.state === 'running') {
+    if (this.coop?.role === 'guest') this.guestFrame(deltaMs);
+    else if (this.hitStop > 0) this.hitStop -= deltaMs / 1000;
+    // Co-op never pauses the shared run: the pause menu just floats over it.
+    else if ((!this.paused || this.coop) && w.state === 'running') {
       this.acc += Math.min(deltaMs / 1000, 0.25) * this.warp;
       while (this.acc >= TICK && w.state === 'running') {
         const input = this.autopilot ? botInput(w) : this.readInput();
@@ -315,7 +359,8 @@ export class GameScene extends Phaser.Scene {
         }
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(input);
+        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : input);
+        this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
           this.hud.flashAbility(slot);
@@ -324,13 +369,34 @@ export class GameScene extends Phaser.Scene {
         this.handleEvents(w.events);
       }
     }
-    if (!this.paused && w.state === 'draft') {
-      if (this.autopilot && this.autoPick) this.pick(botChoose(w));
-      else this.hud.showDraft(w);
-    }
-    const alpha = w.state === 'running' && !this.paused ? this.acc / TICK : 1;
+    if (this.coop?.role === 'host') this.coop.frame(w, this.time.now);
+    if ((!this.paused || this.coop) && w.state === 'draft') {
+      const key = w.player.level * 100 + w.player.pendingLevels;
+      if (this.autopilot && this.autoPick && w.choices.length) this.pick(botChoose(w));
+      else if (this.sentPick !== key) this.hud.showDraft(w);
+    } else if (w.state !== 'draft') this.hud.hideDraft();
+    const alpha = this.coop?.role === 'guest'
+      ? Math.min(1, this.snapAge / SNAP_SECONDS)
+      : w.state === 'running' && (!this.paused || this.coop) ? this.acc / TICK : 1;
     this.render(alpha, deltaMs / 1000);
     this.hud.tick(w, this.fps());
+  }
+
+  /** Co-op guest: draw the newest snapshot and send movement (about 30 times a second). */
+  private guestFrame(deltaMs: number): void {
+    const w = this.world;
+    const c = this.coop!;
+    const s = c.take();
+    if (s) {
+      applySnapshot(w, s, c.me);
+      this.snapAge = 0;
+      this.handleEvents(w.events);
+    } else this.snapAge += deltaMs / 1000;
+    if (w.state === 'running' && this.time.now - this.lastInputAt > 33) {
+      this.lastInputAt = this.time.now;
+      const inp = this.readInput();
+      c.sendInput(inp.x, inp.y);
+    }
   }
 
   fps(): { avg: number; p95ms: number } {
@@ -578,6 +644,20 @@ export class GameScene extends Phaser.Scene {
     else if (p.bastionT > 0) this.player.setTint(0xffd27a).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.player.clearTint();
     this.aura.setPosition(px, py).setScale(1 + Math.sin(this.time.now / 300) * 0.05 + (p.heat / 100) * 0.25);
+    for (const al of this.allies) {
+      const q = w.heroData(al.hero).player;
+      const ax = lerp(q.px, q.x);
+      const ay = lerp(q.py, q.y);
+      const qm = (q.x - q.px) ** 2 + (q.y - q.py) ** 2 > 0.01;
+      const af = qm ? Math.floor(now / 110) % (FRAMES[al.img.texture.key] ?? 1) : 0;
+      if (al.img.frame.name !== String(af)) al.img.setFrame(String(af));
+      const down = q.hp <= 0;
+      al.img.setPosition(ax, ay).setFlipX(Math.cos(q.facing) < 0).setAlpha(down ? 0.45 : 1);
+      if (q.hurtFlash > 0) al.img.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
+      else al.img.clearTint();
+      al.shadow.setPosition(ax, ay + 22).setScale(34 / 32, 12 / 32);
+      al.label.setPosition(ax, ay - 34).setText(down ? `${w.heroes[al.hero].name} (down)` : w.heroes[al.hero].name);
+    }
 
     const view = cam.worldView;
     const margin = 80;
@@ -856,6 +936,13 @@ export class GameScene extends Phaser.Scene {
     // Nameplates and health bars for named enemies and objectives.
     const b = this.bars;
     b.clear();
+    for (const al of this.allies) {
+      const q = w.heroData(al.hero).player;
+      const x = al.img.x - 22;
+      const y = al.img.y - 32;
+      b.fillStyle(0x000000, 0.6).fillRect(x, y, 44, 5);
+      b.fillStyle(0x6fe08a, 1).fillRect(x, y, (44 * Math.max(0, q.hp)) / q.maxHp, 5);
+    }
     let plate = 0;
     for (const e of w.enemies) {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;

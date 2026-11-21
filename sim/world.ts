@@ -328,6 +328,18 @@ export interface HeroOptions {
   name?: string;
 }
 
+/** The per-hero state a co-op snapshot carries (the rest of HeroSlot comes from the start options). */
+export interface HeroSlotData {
+  player: Player;
+  talents: Partial<Record<TalentId, number>>;
+  choices: DraftOption[];
+  revived: boolean;
+  damageDealt: number;
+  shadowDamage: number;
+  runDrops: Item[];
+  runEquipped: string[];
+}
+
 /** Everything that belongs to one hero; World swaps these in with use(). */
 interface HeroSlot {
   id: string;
@@ -349,6 +361,8 @@ interface HeroSlot {
 
 export interface WorldOptions {
   seed: number;
+  /** Co-op: the main hero's name, shown over them to the rest of the party. */
+  heroName?: string;
   /** Co-op: the other heroes in the party, after the main hero (at most 3). */
   party?: HeroOptions[];
   /** Stress test: hundreds of enemies from the start, player cannot die. */
@@ -577,7 +591,7 @@ export class World {
     }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
-    this.heroes.push(this.saveSlot('h0', 'Hero'));
+    this.heroes.push(this.saveSlot('h0', opts.heroName ?? 'Hero'));
     const extra = (opts.party ?? []).slice(0, MAX_PARTY - 1);
     extra.forEach((h, k) => this.heroes.push(this.makeHero(h, k + 1, opts)));
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
@@ -633,6 +647,23 @@ export class World {
       if (all || this.player.hp > 0 || this.heroes.length === 1) fn(i);
     }
     this.use(0);
+  }
+
+  /** Co-op snapshot: hero `i`'s changing state. */
+  heroData(i: number): HeroSlotData {
+    const h = i === this.acting ? this : this.heroes[i];
+    return {
+      player: h.player, talents: h.talents, choices: h.choices, revived: h.revived,
+      damageDealt: h.damageDealt, shadowDamage: h.shadowDamage, runDrops: h.runDrops, runEquipped: h.runEquipped,
+    };
+  }
+
+  /** Co-op guest: overwrite hero `i`'s changing state from a snapshot. */
+  setHeroData(i: number, d: HeroSlotData): void {
+    const h = (i === this.acting ? this : this.heroes[i]) as { -readonly [K in keyof HeroSlotData]: HeroSlotData[K] };
+    if (!h) return;
+    h.player = d.player; h.talents = d.talents; h.choices = d.choices; h.revived = d.revived;
+    h.damageDealt = d.damageDealt; h.shadowDamage = d.shadowDamage; h.runDrops = d.runDrops; h.runEquipped = d.runEquipped;
   }
 
   /** A hero's live fields, whichever hero is swapped in. */

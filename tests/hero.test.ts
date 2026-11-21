@@ -137,3 +137,24 @@ describe('one hero per class', () => {
     }
   });
 });
+
+describe('co-op guest loot', () => {
+  it("gives a guest's drops the guest's own item ids", async () => {
+    const { newHero, rekeyDrops, applyRun } = await import('../sim/hero');
+    const h = newHero();
+    h.nextItemId = 7;
+    h.inventory = [{ id: 'i3', slot: 'ring', rarity: 'common', ilvl: 1, name: 'Plain Band', stats: [] }];
+    const hostDrops = [
+      { id: 'i3', slot: 'weapon' as const, rarity: 'rare' as const, ilvl: 4, name: 'Kilnfired Fangs', stats: [] },
+      { id: 'i4', slot: 'head' as const, rarity: 'fine' as const, ilvl: 4, name: 'Warded Helm', stats: [] },
+    ];
+    const r = rekeyDrops(h, hostDrops, ['i4']);
+    expect(r.drops.map((d) => d.id)).toEqual(['i7', 'i8']);
+    expect(r.equipped).toEqual(['i8']);
+    expect(hostDrops[0].id).toBe('i3'); // the host's copies are untouched
+    applyRun(h, 1, { victory: false, time: 60, kills: 10, level: 2, damageDealt: 100, talents: {} }, false, r.drops, r.equipped);
+    const ids = h.inventory.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(h.equipped.head).toBe('i8');
+  });
+});
