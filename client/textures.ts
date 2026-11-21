@@ -1886,7 +1886,7 @@ function drawSlagCroneRaid(ctx: Ctx, s: number, f: number): void {
  * from its knuckles into pools on the floor, and cinders drifting up. Drawn in the 128-unit space of
  * drawColossus and scaled up, so the two always match.
  */
-function drawColossusRaid(ctx: Ctx, s: number, f: number): void {
+function drawColossusRaid(ctx: Ctx, s: number, f: number, melt = false): void {
   const k = s / 128;
   const c = 64;
   const pulse = [0.7, 0.85, 1, 0.85][f];
@@ -1901,6 +1901,34 @@ function drawColossusRaid(ctx: Ctx, s: number, f: number): void {
   cracks(ctx, [[[c - 31, 62], [c - 8, 62], [c + 14, 62], [c + 31, 62]], [[c - 27, 82], [c - 4, 82], [c + 27, 82]], [[c - 8, 44 + heave], [c - 10, 62]], [[c + 14, 62], [c + 12, 82]], [[c - 14, 82], [c - 13, 100]]], `rgba(255,190,80,${0.85 * pulse})`, 1.8);
   // The eye slit blazes.
   softGlow(ctx, c + 5, 33.5 + heave, 9, `rgba(255,200,90,${0.9 * pulse})`);
+  // Raid 3, "get behind him": a hot back and a cooled front. His back (left, as drawn facing right) carries an open
+  // furnace hatch, bright and soft; his front half wears a heavy plate of cooled slag, dull and hard.
+  softGlow(ctx, c - 22, 72, 18, `rgba(255,170,70,${0.8 * pulse})`);
+  ctx.beginPath(); ctx.rect(c - 30, 64, 14, 16);
+  shade(ctx, '#fff0b0', '#ff7a2a', 64, 80, 1.6);
+  ctx.save(); ctx.strokeStyle = '#3a1a10'; ctx.lineWidth = 1.6;
+  for (const x of [c - 25.5, c - 20.5]) { ctx.beginPath(); ctx.moveTo(x, 64); ctx.lineTo(x, 80); ctx.stroke(); }
+  ctx.restore();
+  // The front plate: a broad slab over the chest and front shoulder.
+  ctx.beginPath();
+  ctx.moveTo(c + 6, 48 + heave);
+  ctx.lineTo(c + 33, 48 + heave);
+  ctx.lineTo(c + 27, 96);
+  ctx.lineTo(c + 8, 98);
+  ctx.quadraticCurveTo(c + 2, 72, c + 6, 48 + heave);
+  ctx.closePath();
+  shade(ctx, melt ? '#7a4a38' : '#8a8a92', melt ? '#2a120c' : '#33323a', 48, 98, 1.8);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,235,245,0.55)'; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(c + 8, 50 + heave); ctx.lineTo(c + 31, 50 + heave); ctx.stroke();
+  ctx.fillStyle = 'rgba(200,205,215,0.7)';
+  for (const [x, y] of [[c + 12, 56], [c + 27, 56], [c + 12, 90], [c + 24, 90]]) { ctx.beginPath(); ctx.arc(x, y + (y < 60 ? heave : 0), 1.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  if (melt) {
+    // Meltdown: the plate splits and glows through, so front and back no longer matter.
+    cracks(ctx, [[[c + 20, 48 + heave], [c + 16, 60], [c + 22, 70], [c + 14, 82], [c + 19, 97]], [[c + 16, 60], [c + 28, 64]], [[c + 22, 70], [c + 9, 74]], [[c + 14, 82], [c + 25, 88]]], `rgba(255,220,120,${pulse})`, 2.2);
+    softGlow(ctx, c + 18, 72, 20, `rgba(255,150,50,${0.55 * pulse})`);
+  }
   // Two vents on the shoulders, each breathing a tongue of flame.
   for (const [x, lean] of [[c - 36, -0.25], [c + 36, 0.25]] as const) {
     const y = 32 + heave;
@@ -2599,7 +2627,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'gate', 80, 1, drawGate);
   sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
   sheet(scene, 'colossus', 128, 4, drawColossus);
-  sheet(scene, 'colossusRaid', 192, 4, drawColossusRaid);
+  sheet(scene, 'colossusRaid', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f));
+  sheet(scene, 'colossusMelt', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f, true));
   sheet(scene, 'regent', 128, 4, drawRegent);
   // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
   sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
