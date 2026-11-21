@@ -498,6 +498,12 @@ export interface DraftOption {
 }
 
 /** Another hero in a co-op party (the main hero comes from WorldOptions itself). */
+/** P6: what a hero wears for the rest of the party to see. Looks only. */
+export interface HeroLooks {
+  title?: string;
+  glow?: string;
+}
+
 export interface HeroOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
@@ -544,6 +550,8 @@ export interface WorldOptions {
   heroName?: string;
   /** Co-op: the other heroes in the party, after the main hero (at most 3). */
   party?: HeroOptions[];
+  /** P6, client only (the sim never reads it): each hero's worn season title and glow, by hero index (0 is the main hero). */
+  looks?: HeroLooks[];
   /** Stress test: hundreds of enemies from the start, player cannot die. */
   stress?: boolean;
   /** Developer option: the player takes no damage. */

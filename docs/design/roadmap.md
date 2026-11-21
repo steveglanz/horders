@@ -67,7 +67,7 @@ Reasons to come back tomorrow and next week.
 | P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | ✅ #117 (Delver's Keys). The leaderboard waits on engineering's migration 0004 |
 | P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | ✅ collections.md (sim, hub sheet, end-screen notes). Visuals: book art later |
 | P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | Cloud saves |
-| P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | |
+| P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | 🔨 Engineering: the worn season title (under the name) and glow (under the feet) now show over each hero in co-op, cleaned on receipt (client/net/coop.ts cleanLooks). Achievements themselves are still to design |
 | P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | ✅ #114 (Rising Draught scales with tier); Forge rate settled in economy.md |
 
 ### Phase 5: Launch polish

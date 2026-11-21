@@ -9,7 +9,8 @@
  */
 import { Party, Member, partyCode } from './party';
 import { Signal, localSignal, supabaseSignal } from './signal';
-import { Input, SimEvent, World, WorldOptions, HeroOptions, TICK } from '../../sim/world';
+import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
+import { GLOWS } from '../../sim/content/season';
 import { Snapshot, snapshot } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
@@ -21,6 +22,28 @@ export interface HeroCard {
   passives: NonNullable<HeroOptions['passives']>;
   /** Slagbinder stance; older clients send none (Bellows). */
   stance?: HeroOptions['stance'];
+  /** P6: the worn season title and glow; older clients send none. */
+  title?: string;
+  glow?: string;
+}
+
+/**
+ * P6: a peer's title and glow, made safe to draw. Titles come from other
+ * players, so keep letters, digits, spaces and simple punctuation (as lobby
+ * names do); a glow must be one the game knows.
+ */
+export function cleanLooks(c: { title?: unknown; glow?: unknown } | undefined): HeroLooks {
+  const out: HeroLooks = {};
+  const t = typeof c?.title === 'string' ? c.title.replace(/[^\p{L}\p{N} '.-]/gu, '').slice(0, 40).trim() : '';
+  if (t) out.title = t;
+  if (typeof c?.glow === 'string' && Object.prototype.hasOwnProperty.call(GLOWS, c.glow)) out.glow = c.glow;
+  return out;
+}
+
+/** A received hero card with its looks cleaned (other fields as sent). */
+function withCleanLooks(h: HeroCard): HeroCard {
+  const { title: _t, glow: _g, ...rest } = h;
+  return { ...rest, ...cleanLooks(h) };
 }
 
 type Msg =
@@ -122,7 +145,8 @@ export class CoopSession {
       const h = this.heroes.get(id)!;
       return { cls: h.cls, stance: h.stance, gear: h.gear, passives: h.passives, name: h.name };
     });
-    const full: WorldOptions = { ...opts, heroName: this.mine.name, party, partySize: 1 + party.length };
+    const looks = [cleanLooks(this.mine), ...this.order.map((id) => cleanLooks(this.heroes.get(id)))];
+    const full: WorldOptions = { ...opts, heroName: this.mine.name, party, partySize: 1 + party.length, looks };
     this.inputs.clear();
     this.casts.clear();
     this.picks = [];
@@ -233,14 +257,14 @@ export class CoopSession {
   private onMessage(from: string, m: Msg): void {
     switch (m.t) {
       case 'hero':
-        this.heroes.set(from, m.hero);
+        this.heroes.set(from, withCleanLooks(m.hero));
         this.shareRoster();
         this.events_.onRoster?.();
         break;
       case 'roster':
         if (this.role !== 'guest') break;
         this.heroes.clear();
-        for (const r of m.members) if (r.id !== this.party.id) this.heroes.set(r.id, r.hero);
+        for (const r of m.members) if (r.id !== this.party.id) this.heroes.set(r.id, withCleanLooks(r.hero));
         this.events_.onRoster?.();
         break;
       case 'start':
