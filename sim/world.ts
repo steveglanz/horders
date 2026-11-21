@@ -158,6 +158,8 @@ export const SLAG_KIT = {
   brittleMult: 1.15, brittleTime: 6,
   bellowsThreat: 2, anvilPlate: 0.75, anvilShell: 2, bellowsInterpose: 1,
   anvilArmor: 0.35, anvilHp: 40,
+  /** Party only: the Anvil's damage cut when it has allies (a party tank also has a healer). */
+  partyAnvilArmor: 0.2,
   everMoltenRefund: 15, heartAt: 0.3, heartShare: 0.25, heartEvery: 30,
   tideRadius: 120, tideDamage: 60, tideStun: 1,
   hailEvery: 4, shatterMult: 1.25,
@@ -849,7 +851,7 @@ export class World {
   /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
   coalFed = 0;
   /** Spilled embers on the floor, with seconds left before he inhales them. */
-  readonly coalEmbers: { x: number; y: number; t: number }[] = [];
+  coalEmbers: { x: number; y: number; t: number }[] = [];
   private rivetT = 0;
   private stampT = 0;
   private stampTarget = 0;
@@ -2118,7 +2120,7 @@ export class World {
     }
     if (this.cls === 'slagbinder') {
       // Anvil stance: the slag plate is worn thick, so every hit lands lighter.
-      if (p.stance === 'anvil') amount *= 1 - SLAG_KIT.anvilArmor;
+      if (p.stance === 'anvil') amount *= 1 - (this.heroes.length > 1 ? SLAG_KIT.partyAnvilArmor : SLAG_KIT.anvilArmor);
       this.addHeat(amount * SLAG_KIT.slagPerDamage + 2 * this.rank('hotBlood'));
       // Whatever strikes a shelled Slagbinder cracks.
       if (src >= 0 && (p.shellUntil ?? -1) > this.time) this.makeBrittle(src);

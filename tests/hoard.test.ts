@@ -3,6 +3,7 @@ import { World, COAL } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
+import { applySnapshot, snapshot } from '../sim/netsync';
 
 type Inner = {
   use(i: number): void;
@@ -160,5 +161,17 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     inner.coalClock(0.01);
     expect(e.castId).toBe('lastMeal');
     expect(e.interruptible).toBe(false);
+  });
+
+  it('online co-op: a guest sees the spilled embers and who is swallowed', () => {
+    const { w, inner, b } = hoard();
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2;
+    inner.spillT = 0;
+    inner.swallowT = 0;
+    inner.coalClock(0.01);
+    const g = hoard().w;
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.coalEmbers).toEqual(w.coalEmbers);
+    expect((g as unknown as Inner).swallowed).toBe(inner.swallowed);
   });
 });
