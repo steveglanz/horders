@@ -175,6 +175,9 @@ export class Hud {
     $('actionbar').hidden = false;
     $('target').hidden = true;
     $('toasts').innerHTML = '';
+    // The last run's banner ("Smolderhusk falls" lasts 3.2 s, the end screen comes 1.7 s after) must not carry into this one.
+    $('banner').classList.remove('show');
+    this.bannerTimer = 0;
     $('perf').hidden = !this.showPerf;
     this.buildBar(w.cls, w);
     this.showOmens(w);

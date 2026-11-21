@@ -10,6 +10,7 @@
  */
 import { World, SimEvent, HeroSlotData } from './world';
 import { ENEMIES } from './content/enemies';
+import { ThreatTable } from './threat';
 
 /** Pools sent as their living entries: [index, ...values in `keys` order]. */
 const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins', 'cracks'] as const;
@@ -30,6 +31,8 @@ export interface Snapshot {
   events: SimEvent[];
   /** Strike owners ride along with strikes (they live in a side array). */
   strikeOwner?: number[];
+  /** The boss's threat table, so a guest's bossTarget, tauntCue and swapCue see who the boss is on. */
+  bossThreat?: ThreatTable;
 }
 
 type Bag = Record<string, unknown>;
@@ -61,7 +64,8 @@ export function snapshot(w: World, events: SimEvent[] = []): Snapshot {
   for (const name of ARRAYS) if (Array.isArray(W[name])) arrays[name] = W[name];
   const heroes = w.heroes.map((_, i) => w.heroData(i));
   const so = W.strikeOwner as Int8Array | undefined;
-  return { tick: w.tick, scalars, pools, arrays, heroes, events, strikeOwner: so ? Array.from(so) : undefined };
+  const bossThreat = w.bossIndex >= 0 ? w.threat[w.bossIndex] : undefined;
+  return { tick: w.tick, scalars, pools, arrays, heroes, events, strikeOwner: so ? Array.from(so) : undefined, bossThreat };
 }
 
 /**
@@ -102,6 +106,7 @@ export function applySnapshot(w: World, s: Snapshot, me: number): void {
   });
   const so = W.strikeOwner as Int8Array | undefined;
   if (so && s.strikeOwner) so.set(s.strikeOwner);
+  if (s.bossThreat && w.bossIndex >= 0 && w.bossIndex < w.threat.length) w.threat[w.bossIndex] = JSON.parse(JSON.stringify(s.bossThreat));
   w.events = s.events;
   w.use(Math.min(me, w.heroes.length - 1));
 }
