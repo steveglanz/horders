@@ -334,7 +334,8 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
     // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
-    else if (w.dungeonId === 'hoard') this.ground.setTint(0x9a8478);
+    // The Hoard's floor is coal-dark brown (visuals' pick: at least 24 Delta-E from every other floor), so the glowing embers and the Craw stand out.
+    else if (w.dungeonId === 'hoard') this.ground.setTint(0x70584e);
     // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
     else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
     // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
@@ -1317,7 +1318,10 @@ export class GameScene extends Phaser.Scene {
       // Hit flash: small foes blink solid white; bosses and rares brighten instead, so a
       // big boss being hit nonstop never turns into a white silhouette.
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
-      if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
+      // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
+      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up.
+      if (e.flash > 0 && e.kind === 'coalmouth') s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'frostWarden' && this.coalWarmth(e.x, e.y, r) > 0) s.setTint(0xffc49a).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1382,6 +1386,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
     this.overFx.clear();
+    if (this.world.dungeonId === 'hoard') this.hoardHeroes(g, now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
@@ -1728,15 +1733,7 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
-      if (e.kind === 'coalmouth') {
-        // Ember Feast: spilled embers glow and gutter as they run out; Gorge shows a filling ring.
-        for (const m of w.coalEmbers) {
-          const f = Math.max(0, Math.min(1, m.t / COALMOUTH.emberLife));
-          g.fillStyle(0xff8a3d, 0.35 + 0.6 * f).fillCircle(m.x, m.y, 8 + 4 * Math.sin(now / 160 + m.x));
-          g.lineStyle(2, 0xffe2a0, 0.5 * f).strokeCircle(m.x, m.y, COALMOUTH.emberPick);
-        }
-        if (e.castId === 'coalGorge') g.lineStyle(5, 0xffb060, 0.7).strokeCircle(e.x, e.y, e.def.radius + 12 + 30 * (1 - e.castT / e.castDur));
-      }
+      if (e.kind === 'coalmouth') this.hoardDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
@@ -2090,6 +2087,87 @@ export class GameScene extends Phaser.Scene {
     // an oil slick, wet wood) stays visible instead of fading into it.
     for (let i = 0; i < pool; i++) fx.push(this.newFx(tex, 1.35, style === 'motes' || style === 'sparks'));
     this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, style });
+  }
+
+  /**
+   * The Hoard (raid 2) art over the telegraph layer:
+   * - Ember Feast: each spilled ember is a glowing coal nugget that flickers harder as it gutters out, inside a
+   *   pickup ring whose arc runs down with its time (he eats it at zero).
+   * - Fed: a furnace glow round his mouth that grows with every ember he has eaten (each one makes him hit harder).
+   * - Gorge: an interruptible cast, so it wears the interrupt blue (the same as an interruptible cast bar): a ring
+   *   closing in on him with the cast, and a pulsing outer ring.
+   * - The Craw: a pulsing "hit this" ring of four brackets round it and an arc running down with the swallowed
+   *   hero's time.
+   * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
+   */
+  private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    for (const m of w.coalEmbers) {
+      const f = Math.max(0, Math.min(1, m.t / COALMOUTH.emberLife));
+      // Steady while fresh, guttering in the last third.
+      const flick = f > 0.35 ? 1 : 0.55 + 0.45 * Math.abs(Math.sin(now / 70 + m.x));
+      const r = 7 + 2 * Math.sin(now / 200 + m.y);
+      g.fillStyle(0xff7a2a, 0.22 * flick).fillCircle(m.x, m.y, r * 2.4);
+      // A six-sided coal nugget with a hot core.
+      const pts: Phaser.Math.Vector2[] = [];
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + m.x * 0.1;
+        const rr = r * (k % 2 ? 0.8 : 1.05);
+        pts.push(new Phaser.Math.Vector2(m.x + Math.cos(a) * rr, m.y + Math.sin(a) * rr * 0.85));
+      }
+      g.fillStyle(0x2a1a14, 0.95).fillPoints(pts, true);
+      g.lineStyle(2, 0xffa040, 0.9 * flick).strokePoints(pts, true);
+      g.fillStyle(0xffe6a0, 0.85 * flick).fillCircle(m.x, m.y, r * 0.42);
+      // The pickup ring, its arc the time left.
+      g.lineStyle(1.5, 0xffe2a0, 0.25).strokeCircle(m.x, m.y, COALMOUTH.emberPick);
+      g.lineStyle(3, 0xffc861, 0.85).beginPath().arc(m.x, m.y, COALMOUTH.emberPick, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
+    }
+    // Fed: his mouth burns brighter for every ember he has eaten (capped at 6).
+    if (w.coalFed > 0) {
+      const fed = Math.min(6, w.coalFed) / 6;
+      const mx = e.x + (this.enemySprites[w.enemies.indexOf(e)]?.flipX ? -1 : 1) * e.def.radius * 0.35;
+      g.fillStyle(0xff8a3d, 0.1 + 0.18 * fed + 0.05 * Math.sin(now / 180)).fillCircle(mx, e.y, e.def.radius * (0.7 + 0.5 * fed));
+    }
+    if (e.castId === 'coalGorge') {
+      const k = Math.min(1, e.castT / e.castDur);
+      const pulse = 0.5 + 0.5 * Math.sin(now / 90);
+      o.lineStyle(3, 0x8fd8ff, 0.45 + 0.35 * pulse).strokeCircle(e.x, e.y, e.def.radius + 46);
+      o.lineStyle(6, 0x8fd8ff, 0.9).strokeCircle(e.x, e.y, e.def.radius + 46 - 34 * k);
+    }
+    // The Craw.
+    const cw = w.enemies.find((q) => q.alive && q.kind === 'craw');
+    let left = 0;
+    for (let k = 0; k < w.heroes.length; k++) left = Math.max(left, w.heroData(k).player.swallowT ?? 0);
+    if (cw) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 110);
+      const R = cw.def.radius + 14 + 4 * pulse;
+      o.lineStyle(4, 0xfff0b0, 0.65 + 0.35 * pulse);
+      for (let q = 0; q < 4; q++) {
+        const a = q * (Math.PI / 2) + Math.PI / 4;
+        o.beginPath().arc(cw.x, cw.y, R, a - 0.35, a + 0.35, false).strokePath();
+      }
+      if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / COALMOUTH.swallowTime) * Math.PI * 2, false).strokePath();
+    }
+  }
+
+  /** The Hoard, every frame (even after he falls, so nobody stays faded): a swallowed hero fades nearly out, since
+   * they are inside him, and a ring in their class colour pulses on his belly. */
+  private hoardHeroes(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    const heroes = [{ k: w.acting, img: this.player as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }, ...this.allies.map((al) => ({ k: al.hero, img: al.img as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }))];
+    for (const { k, img } of heroes) {
+      const q = w.heroData(k).player;
+      const inside = (q.swallowT ?? 0) > 0;
+      const a = inside ? 0.18 : 1;
+      if (img.alpha !== a) img.setAlpha(a);
+      if (!inside) continue;
+      const col = hex(CLASS_ICON[w.heroes[k].cls].color);
+      const beat = 0.5 + 0.5 * Math.sin(now / 140);
+      g.fillStyle(col, 0.18 + 0.12 * beat).fillCircle(img.x, img.y + 6, 20 + 4 * beat);
+      o.lineStyle(3, col, 0.75 + 0.25 * beat).strokeCircle(img.x, img.y + 6, 20 + 4 * beat);
+    }
   }
 
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
