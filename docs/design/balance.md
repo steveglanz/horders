@@ -409,7 +409,7 @@ matrix.sh, heroes-r2, 3 heroes x 40 seeds; the Slagbinder plays the Duskblade's 
 
 Every cell passes. The novice Lumen (+13) is the accepted exception, and the novice Slagbinder sits exactly at +10. Watch the Slagbinder at Kiln 6 and 8, the lowest cells. The full write-up is in the skills team's l7-lock.md.
 
-**After #190** (C5 round 2 deep cards, main dadb0df), same setup. Only the cells that moved:
+**Main dadb0df** (after #190, the C5 round 2 deep cards, and other merges since 7c75cc9), same setup. Only the cells that moved:
 
 | | Before | After |
 |---|---|---|
