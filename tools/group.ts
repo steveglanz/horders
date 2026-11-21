@@ -60,6 +60,16 @@ for (const seed of seeds) {
       }
     });
     for (const ev of w.events) {
+      if (ev.type === 'castDone' && ev.name === 'Long Night') {
+        // Coldmarrow: did standing in someone else's brighter light soften the Long Night?
+        const warm = (w as unknown as { warmthAt(x: number, y: number): number });
+        w.heroes.forEach((_, i) => {
+          const q = w.hero(i).player;
+          if (q.hp <= 0 && before[i] <= 0) return;
+          bump('night');
+          if (warm.warmthAt(q.x, q.y) > (q.coal ?? 0) + 0.05) bump('nightShared');
+        });
+      }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');

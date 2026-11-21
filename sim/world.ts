@@ -3205,7 +3205,16 @@ export class World {
       for (let k = 0; k < this.heroes.length; k++) {
         this.use(k);
         if (this.player.hp <= 0) continue;
-        this.hurtPlayer(this.player.maxHp * COLD.nightMax * (1 - warmth[k]), i, true);
+        // Co-op huddle: each other living hero close by takes a share of the cold off you.
+        const me = this.player;
+        let near = 0;
+        for (let j = 0; j < this.heroes.length; j++) {
+          if (j === k) continue;
+          const o = this.heroPlayer(j);
+          if (o.hp > 0 && dist2(o.x, o.y, me.x, me.y) <= COLD.huddleR * COLD.huddleR) near++;
+        }
+        const huddle = 1 - COLD.huddleCut * Math.min(COLD.huddleMax, near);
+        this.hurtPlayer(this.player.maxHp * COLD.nightMax * (1 - warmth[k]) * huddle, i, true);
         this.events.push({ type: 'slam', x: this.player.x, y: this.player.y, r: 40 });
       }
       this.use(at);
@@ -4986,6 +4995,8 @@ export const COLD = {
   snuffEvery: 11, snuffCast: 2.2, snuffCut: 0.2, firstSnuff: 6,
   tideEvery: 24, tideN: 2, firstTide: 12,
   nightEvery: 30, nightCast: 3, nightMax: 0.6, firstNight: 20,
+  /** Co-op huddle: the Long Night hits `huddleCut` less for each other living hero within `huddleR` (up to `huddleMax`). */
+  huddleR: 110, huddleCut: 0.15, huddleMax: 3,
   /** Soft enrage: the Long Night comes twice as often. */
   enrageAfter: 200,
   /**
