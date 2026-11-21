@@ -63,11 +63,13 @@ function newKey(): string {
   return Math.random().toString(36).slice(2, 12);
 }
 
-function clean(meta: Record<string, unknown>): LobbyAd | null {
+export function cleanAd(meta: Record<string, unknown>): LobbyAd | null {
   const { code, n, max, name } = meta;
   if (typeof code !== 'string' || !/^[A-Z0-9]{5}$/.test(code)) return null;
   if (typeof n !== 'number' || typeof max !== 'number') return null;
-  return { code, n, max, name: typeof name === 'string' ? name.slice(0, 40) : 'A hero' };
+  // Names come from other players and end up in the party panel's HTML: keep letters, digits, spaces and simple punctuation.
+  const safe = typeof name === 'string' ? name.replace(/[^\p{L}\p{N} '.-]/gu, '').slice(0, 40).trim() : '';
+  return { code, n, max, name: safe || 'A hero' };
 }
 
 /** Same-browser lobby over BroadcastChannel, for tests and two-tab play. */
@@ -100,7 +102,7 @@ export function localLobby(): Lobby {
     const m = e.data as { t: string; ad?: Record<string, unknown>; code?: string };
     if (m.t === 'ask') send();
     else if (m.t === 'ad' && m.ad) {
-      const ad = clean(m.ad);
+      const ad = cleanAd(m.ad);
       if (ad) seen.set(ad.code, { ad, at: Date.now() });
     } else if (m.t === 'gone' && m.code) seen.delete(m.code);
     l.onChange?.();
@@ -133,7 +135,7 @@ export function supabaseLobby(projectUrl: string, apiKey: string, timeoutMs = 80
     for (const k of Object.keys(leaves)) state.delete(k);
     for (const k of Object.keys(joins)) {
       const metas = joins[k].metas;
-      const ad = metas.length ? clean(metas[metas.length - 1]) : null;
+      const ad = metas.length ? cleanAd(metas[metas.length - 1]) : null;
       if (ad && k !== key) state.set(k, ad);
     }
     l.onChange?.();
