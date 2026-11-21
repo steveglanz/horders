@@ -132,10 +132,14 @@ export const SET_ICON: Record<SetId, string> = {
   // Wrackrider (stand fast): a mooring bollard on the quay with a rope made fast, over a wave.
   // (An anchor would read better, but Anchored Dawn's talent already uses one.)
   wrackrider: 'M5.5 7q6.5-4.5 13 0Z M8.5 7c1.4 2.6 1.4 6.4 0 9.5 M15.5 7c-1.4 2.6-1.4 6.4 0 9.5 M5 16.5h14 M14.6 11.5c3 0 5.2 1.4 6.6 4 M2.5 21q2.4-2.4 4.8 0t4.8 0 4.8 0 4.6 0',
-  // Deepguard (stay close): two shields side by side (placeholder until visuals draws one).
-  deepguard: 'M3 5.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8C5 16.1 3 13.9 3 10.5Z M12 7.5l4.5-1.5 4.5 1.5v5c0 3.4-2 5.6-4.5 6.8-2.5-1.2-4.5-3.4-4.5-6.8Z',
-  // Ventwalker (split up): two flames pulling apart (placeholder until visuals draws one).
-  ventwalker: 'M6 4c1.8 2.3 3 3.9 3 6a3 3 0 0 1-6 0c0-2.1 1.2-3.7 3-6Z M18 4c1.8 2.3 3 3.9 3 6a3 3 0 0 1-6 0c0-2.1 1.2-3.7 3-6Z M2.5 19h6 M15.5 19h6 M10 19h4',
+  // Deepguard (stay close): a shield inside a broken ring, the reach you have to stay within.
+  // (Two shields side by side read as a pair of items, not as standing together.)
+  deepguard: 'M12 7.5l-3.8 1.4v3c0 2.5 1.6 4.2 3.8 5.1 2.2-.9 3.8-2.6 3.8-5.1v-3Z M7.5 3.6a9.5 9.5 0 0 1 9 0 M20.4 7.5a9.5 9.5 0 0 1 0 9 M16.5 20.4a9.5 9.5 0 0 1-9 0 M3.6 16.5a9.5 9.5 0 0 1 0-9',
+  // Ventwalker (split up): one path forking to two vent circles, one hero to each.
+  ventwalker: 'M12 21.5v-6.5l-5-5 M12 15l5-5 M5.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M18.5 3a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z',
+  // Kinbound (cover each other): two arrows turning round a heal, each hero covering the other in turn.
+  // (Linked rings read as a chain or a link icon.)
+  kinbound: 'M12 3.5a8.5 8.5 0 0 1 7.4 4.3 M17.3 9.6l3.6.4.4-3.6 M12 20.5a8.5 8.5 0 0 1-7.4-4.3 M6.7 14.4l-3.6-.4-.4 3.6 M12 9v6 M9 12h6',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */

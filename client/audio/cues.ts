@@ -7,6 +7,7 @@ import type { SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
+import { SET_TUNING, type SetId } from '../../sim/content/sets';
 
 export interface Cue {
   id: SoundId;
@@ -33,6 +34,49 @@ export interface CueContext {
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
   revive?: { t: number[]; need: number; left: number };
+  /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
+  sets?: SetFlags;
+}
+
+/** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
+export interface SetFlags {
+  /** Wrackrider (2): Planted. */
+  planted: boolean;
+  /** Tidewalker (3): the next hit's surge is ready. */
+  surge: boolean;
+  /** Kilnbreaker (2): sharpened by an interrupt (kbT > 0). */
+  sharp: boolean;
+  /** Hearthkeeper (3): at full Warmth. */
+  warmFull: boolean;
+}
+
+/** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
+export function setFlagsOf(
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number },
+  count: (id: SetId) => number,
+): SetFlags {
+  const up = p.hp > 0;
+  return {
+    planted: up && count('wrackrider') >= 2 && !!p.planted,
+    surge: up && count('tidewalker') >= 3 && !!p.surge,
+    sharp: up && count('kilnbreaker') >= 2 && (p.kbT ?? 0) > 0,
+    warmFull: up && count('hearthkeeper') >= 3 && (p.warmth ?? 0) >= SET_TUNING.hkMax,
+  };
+}
+
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull' };
+
+/**
+ * The set procs have no events of their own (they are states on the hero), so this sounds each one
+ * as it turns on. `was` is last tick's flags, updated in place; a dead hero's flags read as off.
+ */
+export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
+  const out: Cue[] = [];
+  for (const k of Object.keys(SET_SOUND) as (keyof SetFlags)[]) {
+    if (now[k] && !was[k]) out.push({ id: SET_SOUND[k], vol: k === 'planted' ? 0.8 : k === 'surge' ? 0.7 : 1 });
+    was[k] = now[k];
+  }
+  return out;
 }
 
 /** Each class's ability option (sim ALT_ABILITIES), whichever slot it replaces. */
@@ -169,6 +213,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       return { id: ev.rarity === 'mythic' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
     case 'quest': return { id: 'quest' };
+    case 'dodge': return { id: 'dodged' };
     case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
     case 'encounterStart': return null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
@@ -277,6 +322,8 @@ export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
   reviveTick: 0.3,
+  // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
+  planted: 1,
   slag: 0.2,
   crit: 0.06,
   kill: 0.05,

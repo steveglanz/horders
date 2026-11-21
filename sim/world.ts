@@ -420,6 +420,9 @@ export interface Player {
   warmT?: number;
   /** Wrackrider: seconds standing still, and seconds left Planted, and whether the hero is Planted (still long enough, or on a raft in the Wrackline). */
   stillT?: number;
+  /** Kinbound: seconds left Covered (an ally healed you, 2 pieces) and Bonded (you covered an ally, or one covered you, 3 pieces). */
+  coverT?: number;
+  bondT?: number;
   plantT?: number;
   planted?: boolean;
   /** Co-op, while downed: seconds an ally has stood on this hero (G6 in-fight revive). */
@@ -2023,6 +2026,8 @@ export class World {
     if (p.planted && this.setCount('wrackrider') >= 2) amount *= 1 - SET_TUNING.wrCut;
     // Deepguard: stay close. Less damage with an ally near (2), and a wearer of 3 guards the allies near it.
     if (this.heroes.length > 1) amount *= this.deepguardMult();
+    // Kinbound: an ally's heal leaves you Covered.
+    if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -2351,6 +2356,7 @@ export class World {
     if (dist2(p.x, p.y, e.x, e.y) > (GROUP_TOOLS.callOutRange + e.def.radius) ** 2) return false;
     taunt(this.threat[b], this.heroes[this.acting].id);
     this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+    this.kinCover(k, true);
     return true;
   }
 
@@ -2838,7 +2844,10 @@ export class World {
         this.events.push({ type: 'cleanse', x: a.x, y: a.y });
       }
       over += amount - eff;
-      if (eff > 0) this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
+      if (eff > 0) {
+        this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
+        this.kinCover(k);
+      }
     }
     if (this.threat.length && total > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, total);
     if (this.cls === 'lumen' && over > 0) p.brilliance = Math.min(this.maxBrilliance, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
@@ -4225,6 +4234,7 @@ export class World {
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
+    if ((p.bondT ?? 0) > 0) m *= 1 + SET_TUNING.knBond;
     if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
@@ -4240,6 +4250,8 @@ export class World {
     p.moving = moving;
     if ((p.kbT ?? 0) > 0) p.kbT = (p.kbT ?? 0) - dt;
     if ((p.gwT ?? 0) > 0) p.gwT = (p.gwT ?? 0) - dt;
+    if ((p.coverT ?? 0) > 0) p.coverT = (p.coverT ?? 0) - dt;
+    if ((p.bondT ?? 0) > 0) p.bondT = (p.bondT ?? 0) - dt;
     if ((p.warmth ?? 0) > 0) {
       p.warmT = (p.warmT ?? 0) + dt;
       if (p.warmT >= SET_TUNING.hkFade) { p.warmT -= SET_TUNING.hkFade; p.warmth = (p.warmth ?? 0) - 1; }
@@ -4265,6 +4277,19 @@ export class World {
     const healed = this.healPlayer(this.player.maxHp * SET_TUNING.gwHeal);
     if (n >= 3) this.player.gwT = SET_TUNING.gwTime;
     this.events.push({ type: 'dodge', x: this.player.x, y: this.player.y, healed });
+  }
+
+  /**
+   * Kinbound: the acting hero just covered ally `k` (a heal, or with `taunt` a taunt off it).
+   * A healed ally wearing 2 pieces is Covered; a coverer wearing 3 Bonds itself and the ally.
+   */
+  private kinCover(k: number, taunted = false): void {
+    const a = this.heroes[k].player;
+    if (!taunted && (this.heroes[k].loadout.sets?.kinbound ?? 0) >= 2) a.coverT = SET_TUNING.knTime;
+    if (this.setCount('kinbound') >= 3) {
+      a.bondT = SET_TUNING.knTime;
+      this.player.bondT = SET_TUNING.knTime;
+    }
   }
 
   /** Ventwalker: an ally is alive, and none is within range of the acting hero. */

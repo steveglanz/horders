@@ -5,7 +5,7 @@
 //   VOICES=20 DUNGEONS=crucible SEEDS=1,2,3 PARTY=bulwark,lumen,duskblade,slagbinder npx vite-node tools/busycheck.ts
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { cueFor, partyCues, reviveCues, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { cueFor, ebbCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -55,6 +55,8 @@ for (const dungeon of dungeons) {
     const last = new Map<SoundId, number>();
     const wasDown: boolean[] = [];
     const rv = { t: [] as number[], left: Infinity };
+    const ebb = { on: false };
+    const sets = {};
     const perSecond = new Map<number, number>();
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const play = (id: SoundId, t: number, vol = 1) => {
@@ -97,6 +99,9 @@ for (const dungeon of dungeons) {
         if (c) play(c.id, w.time, c.vol);
       }
       for (const c of partyCues(wasDown, w.heroes.map((_, i) => w.heroData(i).player.hp), w.acting)) play(c.id, w.time);
+      const ec = ebbCue(ebb, dungeon === 'wrackline' && w.ebbT > 0);
+      if (ec) play(ec.id, w.time, ec.vol);
+      for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id)))) play(c.id, w.time, c.vol);
       for (const c of reviveCues(rv, w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), w.reviveSeconds, w.revivesLeft)) play(c.id, w.time);
     }
     // Offline mix of the whole run, ordinary sounds and priority sounds on separate tracks.
@@ -146,6 +151,6 @@ for (const dungeon of dungeons) {
   for (const m of margins) worst.set(m.id, [...(worst.get(m.id) ?? []), m.db]);
   const byId = [...worst].map(([id, v]) => [id, v.sort((a, b) => a - b)[Math.floor(v.length / 2)]] as const).sort((a, b) => a[1] - b[1]);
   console.log(`  priority cue over the rest, on a phone: median ${q(0.5)} dB, worst 10% ${q(0.1)} dB (${margins.length} cues)`);
-  console.log(`  quietest (median dB): ${byId.slice(0, 6).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')}`);
+  console.log(`  quietest (median dB): ${byId.slice(0, 6).map(([k, v]) => `${k} ${v.toFixed(1)} (n=${worst.get(k)!.length})`).join(', ')}`);
   console.log(`  priority cues dropped: ${lostPriority.map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}`);
 }

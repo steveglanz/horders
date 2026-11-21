@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, DUCK, ebbCue, partyCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { Cue, CueContext, cueFor, DUCK, ebbCue, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -79,6 +79,7 @@ class AudioEngine {
   private wasDown: boolean[] = [];
   private targeted = { on: false };
   private ebbing = { on: false };
+  private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
   readonly haptics = new Haptics();
 
@@ -302,6 +303,8 @@ class AudioEngine {
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     this.cue(ebbCue(this.ebbing, !!ctx.ebbPull));
+    if (ctx.sets) for (const c of setCues(this.setFlags, ctx.sets)) this.cue(c);
+    else this.setFlags = {};
     if (ctx.hp && ctx.hp.length > 1) {
       for (const c of partyCues(this.wasDown, ctx.hp, ctx.acting, ctx.roles)) {
         this.cue(c);
