@@ -4352,7 +4352,7 @@ export class World {
     }
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
-    // The shadow fight and the raid boss both count triple toward the world boss.
+    // The shadow fight and the raid boss both count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
     if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
