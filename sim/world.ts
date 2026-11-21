@@ -16,6 +16,7 @@ import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
+import { FIRST_DELVE } from './content/firstdelve';
 import { POTION, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
@@ -596,6 +597,8 @@ export interface WorldOptions {
   grit?: number;
   /** True when this tier is the hero's highest unlocked one: beating its boss guarantees an Epic. */
   firstClear?: boolean;
+  /** L1: a brand-new hero's first delve (the Kiln, tier 1, solo): a fixed teaching route and softer foes. */
+  firstDelve?: boolean;
   /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
   bounty?: number;
   /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
@@ -681,6 +684,8 @@ export class World {
   readonly seed: number;
   readonly bounty: number | undefined;
   readonly firstClear: boolean;
+  /** L1: this is the hero's first delve (FIRST_DELVE). */
+  readonly firstDelve: boolean;
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -845,6 +850,11 @@ export class World {
     ({ hp: this.keyHp, dmg: this.keyDmg } = keyScale(this.keyLevel));
     this.firstClear = !!opts.firstClear && opts.bounty === undefined;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
+    this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
+    if (this.firstDelve) {
+      this.keyHp *= FIRST_DELVE.hp;
+      this.keyDmg *= FIRST_DELVE.dmg;
+    }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
@@ -883,7 +893,7 @@ export class World {
     this.cracks = pool(CAP.cracks, () => ({ alive: false, x: 0, y: 0, angle: 0, t: 0 }));
     const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
-    this.route = opts.route ?? rollRoute((n) => this.rng.int(n), this.dungeonId);
+    this.route = opts.route ?? (this.firstDelve ? [...FIRST_DELVE.route] : rollRoute((n) => this.rng.int(n), this.dungeonId));
     if (this.bounty !== undefined) {
       // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
       this.player.level += BOUNTY.headStart;

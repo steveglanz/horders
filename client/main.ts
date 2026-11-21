@@ -182,6 +182,8 @@ function startRun(bounty = false, key = false): void {
     dungeon: hub.dungeon,
     grit: gritFor(hero, hub.dungeon, hub.tier),
     firstClear: hub.tier >= hero.maxTier,
+    // L1: this character's first delve gets the teaching route (the sim checks Kiln, tier 1, solo).
+    firstDelve: !stress && (hero.runs ?? 0) === 0,
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
     // Only offer the shadow fight when the world boss is actually reachable.

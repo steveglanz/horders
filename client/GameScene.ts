@@ -3,6 +3,7 @@
  * into `World.step` at a fixed rate and renders interpolated state.
  */
 import { OMENS } from '../sim/content/omens';
+import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
@@ -953,7 +954,9 @@ export class GameScene extends Phaser.Scene {
               ? ` ${w.omens.length === 1 ? 'Omen' : 'Omens'}: ${w.omens.map((o) => OMENS[o].name).join(', ')} (details in pause).`
               : ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`)
             : '';
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip + omens);
+          // L1: the first delve coaches each fight instead of the usual tip.
+          const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens);
           break;
         }
         case 'fork':
