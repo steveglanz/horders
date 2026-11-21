@@ -374,6 +374,14 @@ export class GameScene extends Phaser.Scene {
     if (this.workTimes.length > 240) this.workTimes.shift();
   }
 
+  /** Inputs for bot allies in a local party (heroes 1..n). */
+  private botAllies(w: World): Input[] {
+    const out: Input[] = [];
+    for (let i = 1; i < w.heroes.length; i++) { w.use(i); out.push(botInput(w)); }
+    w.use(0);
+    return out;
+  }
+
   /** Average milliseconds of game code (simulation + scene updates) per frame. */
   workMs(): number {
     return this.workTimes.length ? this.workTimes.reduce((a, b) => a + b, 0) / this.workTimes.length : 0;
@@ -397,7 +405,7 @@ export class GameScene extends Phaser.Scene {
         }
         const slot = input.cast;
         const cdBefore = slot !== undefined ? w.player.cds[slot] : 0;
-        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : input);
+        w.step(this.coop ? [input, ...this.coop.remoteInputs(w)] : w.heroes.length > 1 ? [input, ...this.botAllies(w)] : input);
         this.coop?.afterStep(w);
         if (slot !== undefined && w.player.cds[slot] > cdBefore) {
           if (!this.autopilot) this.queued = null;
@@ -408,6 +416,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.coop?.role === 'host') this.coop.frame(w, this.time.now);
+    // A local bot party (?botparty): allies take the bot's card.
+    if (!this.coop && w.state === 'draft') {
+      for (let i = 1; i < w.heroes.length; i++) if (w.choicesOf(i).length) { w.use(i); const c = botChoose(w); w.use(0); w.choose(c, i); }
+    }
     if ((!this.paused || this.coop) && w.state === 'draft') {
       const key = w.player.level * 100 + w.player.pendingLevels;
       if (this.autopilot && this.autoPick && w.choices.length) this.pick(botChoose(w));
