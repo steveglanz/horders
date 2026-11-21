@@ -16,6 +16,8 @@ import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
+import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
+import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS } from '../sim/content/weekly';
@@ -82,6 +84,8 @@ export class Hub {
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
+  /** Fill with bots: a solo hero takes bot allies into a group dungeon (sim/content/botfill). */
+  fillBots = false;
   /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
   private kitOpen = readKitOpen();
   /** The open hub tab in tab mode (the Bags tab is the bag overlay). */
@@ -343,6 +347,10 @@ export class Hub {
       }));
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
+    $('tiers').querySelector<HTMLButtonElement>('[data-fill]')?.addEventListener('click', () => {
+      this.fillBots = !this.fillBots;
+      this.render();
+    });
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
       b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
@@ -688,9 +696,21 @@ export class Hub {
       + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';
   }
 
-  /** Classes in the delve: the party's, or just yours. */
+  /** Classes in the delve: the party's, or yours plus any fill bots. */
   private classes(): string[] {
-    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright'];
+    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright', ...this.fillParty()];
+  }
+
+  /** Fill with bots is offered to a hero with no online party, in a group dungeon other than the raid. */
+  canFill(): boolean {
+    return this.partyClasses.length <= 1 && !botFillBlocker(this.dungeon);
+  }
+
+  /** The bot allies' classes for this delve ([] when filling is off or not offered). */
+  fillParty(): ClassId[] {
+    if (!this.fillBots || !this.canFill()) return [];
+    const h = this.hero();
+    return fillClasses([{ cls: h.cls ?? 'emberwright', stance: h.stance }]);
   }
 
   /** Why the picked dungeon can't start with this party, or ''. */
@@ -708,7 +728,16 @@ export class Hub {
     };
     const need = missing.length ? `Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}. ` : '';
     return `<div class="partyroles"><div class="chips"><span class="muted">Party</span>${chip('tank', 'bulwark', 'Tank')}${chip('healer', 'lumen', 'Healer')}</div>`
-      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div></div>`;
+      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div>${this.fillLine()}</div>`;
+  }
+
+  /** The Fill with bots toggle, and what bots change. */
+  private fillLine(): string {
+    if (this.partyClasses.length > 1) return '';
+    const blocked = botFillBlocker(this.dungeon);
+    if (blocked) return `<div class="hint">${blocked}: no bots.</div>`;
+    const tip = `Bots fill the party to ${BOT_FILL.partySize}. They wear copies of your gear at ${Math.round(BOT_FILL.gearScale * 100)}% strength, without Mythics, weapon effects or sets, so a real party does better. A bot-filled win pays like a solo dungeon: no extra group item from the boss.`;
+    return `<button class="prep-chip fillbots${this.fillBots ? ' on' : ''}" data-fill aria-pressed="${this.fillBots}" data-tip="${tip}">${this.fillBots ? '✓ ' : ''}Fill with bots</button>`;
   }
 
   private gritLine(): string {

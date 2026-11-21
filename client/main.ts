@@ -10,6 +10,7 @@ import { loadHero, resetHero, saveHero } from './save';
 import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
 import { DUNGEONS } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
+import { standInGear } from '../sim/content/botfill';
 import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
@@ -234,6 +235,12 @@ function startRun(bounty = false, key = false): void {
   // ?botparty=bulwark,lumen,duskblade: bot allies in a local party, for performance checks (tools/partyperf.cjs).
   const botParty = params.get('botparty')?.split(',').filter((c): c is keyof typeof CLASSES => c in CLASSES).slice(0, 3);
   if (!hosting && botParty?.length) Object.assign(opts, { party: botParty.map((cls) => ({ cls })), partySize: 1 + botParty.length });
+  // Fill with bots (sim/content/botfill): bot allies in stand-in copies of this hero's gear.
+  const fill = !hosting && !botParty?.length && !bounty && !stress && !(coop && coop.roster.length > 1) ? hub.fillParty() : [];
+  if (fill.length) {
+    const gear = standInGear(equippedItems(hero));
+    Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
+  }
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
