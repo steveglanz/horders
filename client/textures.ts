@@ -631,6 +631,168 @@ function drawFrostWarden(ctx: Ctx, _s: number, f: number): void {
   shade(ctx, RIME_HI, RIME, 36, 45, 1.3);
 }
 
+// ------------------------------------------------------------------ the Wrackline
+// A wrecked quay under the Hollow Tide: harbour grey-green, wet driftwood, rope, barnacles and
+// pale surf (#7fd0e0, #bfe9ff). docs/design/wrackline.md.
+const SURF = '#bfe9ff';
+
+/** A few short surf arcs at the waterline, for things that swim or rise out of the water. */
+function surf(ctx: Ctx, cx: number, cy: number, rx: number, phase: number, a = 0.8): void {
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    const r = rx * (0.55 + 0.25 * k) + phase;
+    ctx.strokeStyle = `rgba(191,233,255,${a * (1 - k * 0.28)})`;
+    ctx.lineWidth = 1.4 - k * 0.3;
+    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.28, 0, Math.PI * 0.08, Math.PI * 0.92); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Shoal Lurker: a lean grey-green swimmer, back and fin above the water, circling the rafts. Faces right. */
+function drawShoalLurker(ctx: Ctx, _s: number, f: number): void {
+  const sway = [2.2, 0.8, -2.2, -0.8][f];
+  const bob = [0, -0.6, 0, -0.6][f];
+  // Dark water around it, so it reads as swimming, not walking.
+  ell(ctx, 18, 24, 15, 5); ctx.fillStyle = 'rgba(6,24,32,0.55)'; ctx.fill();
+  // Tail fluke, sweeping.
+  ctx.beginPath(); ctx.moveTo(8, 21 + bob); ctx.lineTo(1, 15 + bob + sway); ctx.lineTo(3, 21 + bob); ctx.lineTo(1, 27 + bob + sway * 0.4); ctx.closePath();
+  shade(ctx, '#6f9488', '#24403a', 15, 27, 1);
+  // Body: a long eel-like back breaking the surface.
+  ctx.beginPath();
+  ctx.moveTo(7, 22 + bob);
+  ctx.quadraticCurveTo(14, 13 + bob + sway * 0.3, 25, 15 + bob);
+  ctx.quadraticCurveTo(33, 16 + bob, 34, 21 + bob);
+  ctx.quadraticCurveTo(24, 25 + bob, 7, 22 + bob);
+  ctx.closePath();
+  shade(ctx, '#86ab9c', '#2c4a43', 13, 25);
+  // Pale belly line along the waterline.
+  ctx.strokeStyle = 'rgba(214,236,228,0.75)'; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(12, 22.6 + bob); ctx.quadraticCurveTo(24, 23.6 + bob, 33, 21 + bob); ctx.stroke();
+  // Ragged dorsal fin.
+  ctx.beginPath(); ctx.moveTo(14, 15.5 + bob); ctx.lineTo(18, 7 + bob + sway * 0.25); ctx.lineTo(20, 10 + bob); ctx.lineTo(23, 8.5 + bob); ctx.lineTo(25, 15 + bob); ctx.closePath();
+  shade(ctx, '#9cc4b4', '#335a50', 7, 16, 1);
+  // Barnacle specks.
+  ctx.fillStyle = 'rgba(232,226,210,0.85)';
+  for (const [x, y] of [[16, 17.5], [21, 16.5], [27, 17.5]]) { ctx.beginPath(); ctx.arc(x, y + bob, 0.8, 0, Math.PI * 2); ctx.fill(); }
+  // Jaw and a pale hungry eye.
+  ctx.strokeStyle = INK; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(34, 20.6 + bob); ctx.lineTo(29, 20 + bob); ctx.stroke();
+  eyes(ctx, [[30.2, 17.6 + bob]], 1.1, SURF);
+  surf(ctx, 18, 24.5, 13, sway * 0.4, 0.75);
+}
+
+/** Barge Hauler: a broad, slow dock-hand in an oilskin coat, a rope coil on one shoulder and an iron hook. Faces right. */
+function drawBargeHauler(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const step = [1.6, 0, -1.6, 0][f];
+  ell(ctx, 28, 51, 16, 3); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  // Boots.
+  ctx.fillStyle = '#1c2422';
+  ell(ctx, 21 - step, 49, 6, 3.6); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.stroke();
+  ell(ctx, 34 + step, 49, 6, 3.6); ctx.fill(); ctx.stroke();
+  // Rope coil slung over the back shoulder.
+  ctx.save(); ctx.lineWidth = 2.4; ctx.strokeStyle = '#8a6e48';
+  for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(13, 27 + bob, 7 - k * 1.2, 9 - k * 1.4, -0.3, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+  // Oilskin coat: a heavy, flared trapezoid.
+  ctx.beginPath();
+  ctx.moveTo(16, 15 + bob); ctx.lineTo(40, 15 + bob); ctx.lineTo(45, 47 + bob * 0.5); ctx.lineTo(11, 47 + bob * 0.5); ctx.closePath();
+  shade(ctx, '#557a72', '#1c2c2a', 15, 47, 1.7);
+  // Wet sheen down the coat.
+  ctx.strokeStyle = 'rgba(191,233,255,0.35)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(19, 18 + bob); ctx.lineTo(16, 44); ctx.stroke();
+  // Toggle buttons.
+  ctx.fillStyle = '#c8b48a';
+  for (const y of [22, 29, 36]) { ctx.fillRect(28, y + bob, 3, 1.6); }
+  // Shoulders and a thick neck under a sou'wester hat.
+  ell(ctx, 28, 15 + bob, 13, 5); shade(ctx, '#5f857c', '#2a3e3a', 10, 20);
+  ell(ctx, 29, 9.5 + bob, 6.5, 5.5); shade(ctx, '#c9a487', '#7a5844', 4, 15);
+  ctx.beginPath(); ctx.moveTo(20, 7.5 + bob); ctx.quadraticCurveTo(29, -1 + bob, 38, 7.5 + bob); ctx.lineTo(40, 9 + bob); ctx.lineTo(18, 9 + bob); ctx.closePath();
+  shade(ctx, '#e0c060', '#8a6a24', 1, 9);
+  eyes(ctx, [[32, 10 + bob]], 0.9, '#fff0c8');
+  // Hook arm reaching forward: forearm, fist and an iron hook.
+  limb(ctx, 39, 20 + bob, 47, 30 + bob - step * 0.3, 5, '#4a6a62');
+  ell(ctx, 48, 31 + bob, 3.4, 3.2); shade(ctx, '#c9a487', '#7a5844', 28, 34, 1.1);
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = INK; ctx.lineWidth = 3.6;
+  ctx.beginPath(); ctx.moveTo(49, 33 + bob); ctx.lineTo(50, 40 + bob); ctx.arc(47.5, 40 + bob, 2.6, 0, Math.PI * 0.95); ctx.stroke();
+  ctx.strokeStyle = '#b6c4c8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(49, 33 + bob); ctx.lineTo(50, 40 + bob); ctx.arc(47.5, 40 + bob, 2.6, 0, Math.PI * 0.95); ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Hessa of the Ebb: tall and anchored on the drain. She rises out of a swirl of water from the waist,
+ * kelp hair streaming back, a crown of shells, and a hooked anchor-staff planted in the drain.
+ */
+function drawHessa(ctx: Ctx, _s: number, f: number): void {
+  const sway = [0, 2, 3, 1][f];
+  const glowK = [0.8, 0.95, 1, 0.9][f];
+  softGlow(ctx, 60, 70, 56, `rgba(127,208,224,${0.32 * glowK})`);
+  // The water she rises from: a churning pool with foam arcs.
+  ell(ctx, 60, 98, 42, 13); ctx.fillStyle = 'rgba(6,26,34,0.8)'; ctx.fill();
+  ctx.save(); ctx.lineCap = 'round';
+  for (let k = 0; k < 4; k++) {
+    const a0 = f * 0.4 + k * (Math.PI / 2);
+    ctx.strokeStyle = `rgba(191,233,255,${0.75 - k * 0.12})`; ctx.lineWidth = 2 - k * 0.3;
+    ctx.beginPath(); ctx.ellipse(60, 98, 22 + k * 5, 7 + k * 1.6, 0, a0, a0 + 1.8); ctx.stroke();
+  }
+  ctx.restore();
+  // Kelp hair streaming back behind her (drawn first, so it sits behind).
+  ctx.save(); ctx.lineCap = 'round';
+  for (let k = 0; k < 6; k++) {
+    const y0 = 20 + k * 3.5;
+    ctx.strokeStyle = k % 2 ? '#2f5a4a' : '#3f7260'; ctx.lineWidth = 4 - k * 0.3;
+    ctx.beginPath(); ctx.moveTo(54, y0); ctx.bezierCurveTo(40, y0 + 8, 30 - sway, y0 + 18, 22 - sway * 1.4, y0 + 34 + k * 2); ctx.stroke();
+  }
+  ctx.restore();
+  // Body: a long gown of sea-foam and grey-green water, narrowing into the pool.
+  ctx.beginPath();
+  ctx.moveTo(50, 30); ctx.quadraticCurveTo(60, 26, 70, 30);
+  ctx.quadraticCurveTo(78, 58, 82, 92);
+  ctx.quadraticCurveTo(60, 102, 38, 92);
+  ctx.quadraticCurveTo(42, 58, 50, 30);
+  ctx.closePath();
+  shade(ctx, '#a8d4d0', '#1e4a52', 28, 96, 1.8);
+  // Flowing folds that turn into water lines near the bottom.
+  ctx.strokeStyle = 'rgba(234,250,255,0.55)'; ctx.lineWidth = 1.2;
+  for (const [x0, x1] of [[54, 46], [60, 60], [66, 74]]) { ctx.beginPath(); ctx.moveTo(x0, 40); ctx.quadraticCurveTo((x0 + x1) / 2 + sway * 0.5, 66, x1, 92); ctx.stroke(); }
+  // Barnacles crusting the hem.
+  ctx.fillStyle = 'rgba(236,230,214,0.9)';
+  for (const [x, y] of [[44, 86], [50, 90], [72, 88], [77, 84], [64, 92]]) { ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.stroke(); }
+  // Arms: one held out to call the tide, one gripping the anchor-staff.
+  limb(ctx, 51, 36, 38, 52, 4.5, '#8cc0bc');
+  limb(ctx, 69, 36, 84, 46, 4.5, '#8cc0bc');
+  softGlow(ctx, 36, 54, 9, `rgba(191,233,255,${0.8 * glowK})`);
+  // The anchor-staff, planted in the drain: a tall shaft with a hooked fluke below and a ring above.
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = INK; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(86, 12); ctx.lineTo(86, 100); ctx.stroke();
+  ctx.strokeStyle = '#7e8e92'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(86, 12); ctx.lineTo(86, 100); ctx.stroke();
+  ctx.strokeStyle = INK; ctx.lineWidth = 4.6;
+  ctx.beginPath(); ctx.arc(86, 9, 4, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(76, 92); ctx.quadraticCurveTo(86, 104, 96, 92); ctx.stroke();
+  ctx.strokeStyle = '#a4b4b8'; ctx.lineWidth = 2.6;
+  ctx.beginPath(); ctx.arc(86, 9, 4, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(76, 92); ctx.quadraticCurveTo(86, 104, 96, 92); ctx.stroke();
+  ctx.restore();
+  ell(ctx, 85, 46, 3.6, 3.2); shade(ctx, '#a8d8d4', '#4a7a78', 43, 49, 1.1);
+  // Head: pale, with a crown of shells and cold surf-white eyes.
+  ell(ctx, 60, 20, 8, 9.5); shade(ctx, '#d2ece8', '#6a9a98', 10, 30, 1.5);
+  for (const [x, y, r] of [[52, 12, 2.6], [56.5, 9, 3], [60, 7.5, 3.4], [63.5, 9, 3], [68, 12, 2.6]]) {
+    ctx.beginPath(); ctx.moveTo(x - r, y + 2); ctx.lineTo(x, y - r); ctx.lineTo(x + r, y + 2); ctx.closePath();
+    shade(ctx, '#f4ead8', '#b49c7a', y - r, y + 2, 0.9);
+  }
+  eyes(ctx, [[56.5, 20], [63.5, 20]], 1.4, SURF);
+  ctx.strokeStyle = 'rgba(20,50,56,0.8)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(57, 26); ctx.quadraticCurveTo(60, 27.5, 63, 26); ctx.stroke();
+  // Water running off her outstretched hand.
+  ctx.strokeStyle = `rgba(127,208,224,${0.8 * glowK})`; ctx.lineWidth = 1.2;
+  for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(35 + k * 2, 56); ctx.lineTo(34 + k * 2, 64 + ((f + k) % 3) * 3); ctx.stroke(); }
+}
+
 /** Hoarfrost Weaver: a thin robed caster holding a spindle that spins threads of ice. Faces right. */
 function drawHoarfrostWeaver(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
@@ -1994,6 +2156,85 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'frostWarden', 56, 4, drawFrostWarden);
   sheet(scene, 'hoarfrostWeaver', 48, 4, drawHoarfrostWeaver);
   sheet(scene, 'nhevra', 120, 4, drawNhevra);
+
+  // The Wrackline (keys match design's EnemyKind ids).
+  sheet(scene, 'shoalLurker', 36, 4, drawShoalLurker);
+  sheet(scene, 'bargeHauler', 56, 4, drawBargeHauler);
+  sheet(scene, 'hessa', 120, 4, drawHessa);
+  // The Wrackline's raft: a round deck of driftwood boards, gaps between them, nails, a wet edge
+  // and a rope lashed round the rim. Drawn once; GameScene scales it to WRACK.raftR.
+  make(scene, 'raft', 256, (ctx, s) => {
+    const c = s / 2, r = s / 2 - 6;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#2a1e14'; ctx.fillRect(0, 0, s, s);
+    const boards = 7, bw = (r * 2) / boards;
+    for (let k = 0; k < boards; k++) {
+      const y = c - r + k * bw;
+      const g = ctx.createLinearGradient(0, y, 0, y + bw);
+      const tone = [0, 10, -8, 6, -4, 12, -10][k];
+      g.addColorStop(0, `rgb(${196 + tone},${166 + tone},${124 + tone})`);
+      g.addColorStop(1, `rgb(${142 + tone},${112 + tone},${78 + tone})`);
+      ctx.fillStyle = g; ctx.fillRect(0, y + 2, s, bw - 4);
+      // Grain: a few long, faint wavy lines per board.
+      ctx.strokeStyle = 'rgba(90,64,40,0.35)'; ctx.lineWidth = 1.2;
+      for (let j = 0; j < 3; j++) {
+        const gy = y + 6 + j * (bw - 12) / 2;
+        ctx.beginPath(); ctx.moveTo(0, gy);
+        for (let x = 0; x <= s; x += 32) ctx.quadraticCurveTo(x + 16, gy + (((k + j + x / 32) % 2) ? 2.5 : -2.5), x + 32, gy);
+        ctx.stroke();
+      }
+      // A knot, and nails at the cross-beams.
+      ctx.fillStyle = 'rgba(80,56,34,0.6)';
+      ctx.beginPath(); ctx.ellipse(40 + ((k * 53) % 170), y + bw / 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(40,36,34,0.9)';
+      for (const x of [c - r * 0.55, c + r * 0.55]) { ctx.beginPath(); ctx.arc(x, y + bw / 2, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    }
+    // Wet edge: the boards darken where the water laps them.
+    const wet = ctx.createRadialGradient(c, c, r * 0.72, c, c, r);
+    wet.addColorStop(0, 'rgba(20,40,44,0)'); wet.addColorStop(1, 'rgba(20,40,44,0.55)');
+    ctx.fillStyle = wet; ctx.fillRect(0, 0, s, s);
+    ctx.restore();
+    // Rope round the rim: a dark core with twisted light strands.
+    ctx.lineWidth = 9; ctx.strokeStyle = '#4a3a24';
+    ctx.beginPath(); ctx.arc(c, c, r - 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#c8aa74'; ctx.lineCap = 'round';
+    for (let k = 0; k < 64; k++) {
+      const a = (k / 64) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, r - 2, a, a + 0.05); ctx.stroke();
+    }
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(12,8,6,0.9)';
+    ctx.beginPath(); ctx.arc(c, c, r + 2.5, 0, Math.PI * 2); ctx.stroke();
+  });
+  // The raft's warning rim: a white ring, tinted and pulsed while the Ebb is coming.
+  make(scene, 'raftRim', 256, (ctx, s) => {
+    const c = s / 2;
+    const g = ctx.createRadialGradient(c, c, c * 0.8, c, c, c);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.55, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+  });
+  // The drain: a dark whirlpool with foam arms spiralling in. GameScene turns it, faster in the Ebb.
+  make(scene, 'drain', 256, (ctx, s) => {
+    const c = s / 2;
+    const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+    g.addColorStop(0, 'rgba(1,6,10,1)'); g.addColorStop(0.35, 'rgba(4,20,28,0.95)'); g.addColorStop(0.8, 'rgba(14,52,62,0.55)'); g.addColorStop(1, 'rgba(14,52,62,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+    ctx.lineCap = 'round';
+    for (let arm = 0; arm < 4; arm++) {
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.strokeStyle = pass ? 'rgba(191,233,255,0.75)' : 'rgba(127,208,224,0.35)';
+        ctx.lineWidth = pass ? 2.2 : 6;
+        ctx.beginPath();
+        for (let t = 0; t <= 1; t += 0.02) {
+          const rr = c * (0.95 - 0.8 * t);
+          const a = arm * (Math.PI / 2) + t * 4.2;
+          const x = c + Math.cos(a) * rr, y = c + Math.sin(a) * rr;
+          if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+  });
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {
