@@ -34,8 +34,8 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
   lumen: ['lumenBurst', null, 'lumenSanctuary', 'zap'],
   bulwark: ['bulwarkSlam', null, 'bulwarkBastion', 'zap'],
   duskblade: [null, null, 'duskExecute', 'zap'],
-  // Slagbinder: borrowed cues until sound makes its own (Plating, Interpose, Cooling Shell, Clinker).
-  slagbinder: ['bulwarkSlam', null, 'bulwarkBastion', 'zap'],
+  // Slagbinder: Molten Plating sounds on its 'plate' event and Interpose on 'dash', so slots 0 and 1 are silent here.
+  slagbinder: [null, null, 'coolingShell', 'clinker'],
 };
 
 /**
@@ -123,11 +123,15 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'blink': return { id: c.cls === 'lumen' ? 'lumenStep' : 'emberBlink' };
     case 'dash':
+      if (c.cls === 'slagbinder') return { id: 'slagLeap' };
       if (ev.dodge) return { id: 'duskStep' };
       return { id: c.cls === 'bulwark' ? 'bulwarkCharge' : 'duskDash' };
     case 'swing': return { id: 'swing', jitter: 0.15, vol: ev.spin ? 1.4 : 1 };
     case 'parry': return { id: 'parry' };
     case 'mote': return { id: 'mote', jitter: 0.2 };
+    case 'lob': return { id: 'slagLob', jitter: 0.15 };
+    case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
+    case 'brittle': return { id: 'brittle', jitter: 0.1 };
     case 'castStart': return { id: CAST_SOUNDS[ev.name]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
@@ -192,6 +196,8 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   kill: 0.05,
   swing: 0.07,
   mote: 0.09,
+  slagLob: 0.09,
+  brittle: 0.12,
   heal: 0.5,
   explode: 0.09,
   castWarn: 0.9,

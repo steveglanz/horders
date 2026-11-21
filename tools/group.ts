@@ -1,8 +1,10 @@
 // Group dungeon check: a party of bots, each hero driving its own input.
 // PARTY=bulwark,lumen,duskblade,emberwright (first is the main hero), DUNGEON=hammerdeep, TIER=n, SEEDS=...
 // HEROES=dir with <cls>/hero-t6-0.json (the skills team's heroes-r2) gives every hero that hero's gear and passives.
-// SKILL=1 bot skill.
+// SKILL=1 bot skill. TUNE=SLAG.searMult=0.4,ENEMIES.grandmotherSlag.hp=22000 overrides tuning numbers for the run.
+import * as WORLD from '../sim/world';
 import { World, WorldOptions } from '../sim/world';
+import { ENEMIES } from '../sim/content/enemies';
 import { botChoose, botInput } from '../sim/bot';
 import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
@@ -18,6 +20,14 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
+// TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
+for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
+  const [path, v] = kv.split('=');
+  const keys = path.split('.');
+  let o: Record<string, unknown> = keys[0] === 'ENEMIES' ? (ENEMIES as unknown as Record<string, unknown>) : ((WORLD as unknown as Record<string, unknown>)[keys[0]] as Record<string, unknown>);
+  for (const k of keys.slice(1, -1)) o = o[k] as Record<string, unknown>;
+  o[keys[keys.length - 1]] = Number(v);
+}
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 
 let wins = 0;

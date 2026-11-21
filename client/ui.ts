@@ -1,5 +1,6 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
+import { coachLine } from '../sim/content/firstdelve';
 import { World, REVIVE_SECONDS, BOSS_PHASES } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
@@ -135,6 +136,8 @@ export class Hud {
 
   private abButtons: HTMLButtonElement[] = [];
   private coach = new Coach();
+  private hpHtml = '';
+  private wasDown = false;
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -190,7 +193,13 @@ export class Hud {
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
     // G6: downed in a party, the health text says how to get back up and how far along it is.
     const rev = p.hp <= 0 && w.heroes.length > 1 ? Math.min(1, (p.reviveT ?? 0) / REVIVE_SECONDS) : -1;
-    $('hpText').textContent = rev < 0 ? `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}` : rev > 0 ? `Reviving ${Math.round(rev * 100)}%` : 'Down · an ally can revive you';
+    // Numbers only, so innerHTML is safe; the max sits in its own span so a narrow phone can drop it.
+    const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
+    // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
+    const down = rev >= 0;
+    if (down && !this.wasDown && this.compact) this.banner("You're down", 'Stay put: an ally standing on you revives you');
+    this.wasDown = down;
+    if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
     $('level').textContent = String(p.level);
@@ -344,7 +353,9 @@ export class Hud {
       const def = ENCOUNTERS[id];
       const done = i < w.encounter;
       const now = i === w.encounter;
-      return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${def.tip}</div>` : ''}</div>`;
+      // L1: the first delve's coach line replaces the fight's tip here too.
+      const tip = (w.firstDelve && coachLine(id, w.abilities[3].name)) || def.tip;
+      return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
     }).join('');
   }
 

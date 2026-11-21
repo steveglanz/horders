@@ -24,8 +24,8 @@ export const CLASS_ICON: Record<ClassId, { color: string; d: string }> = {
   duskblade: { color: '#ff4f7a', d: 'M4 20 20 4 M4 4l16 16 M6 15l3 3 M15 18l3-3' },
   bulwark: { color: '#d6dde4', d: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z' },
   lumen: { color: '#ffc861', d: 'M5 5a7 2.5 0 1 0 14 0a7 2.5 0 1 0-14 0Z M12 11a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z' },
-  // Placeholder until visuals draws it: a ladle pouring a drop.
-  slagbinder: { color: '#ff9b4a', d: 'M3 6h9a4 4 0 0 1-4 4H5 M12 6l8-3 M8 13v2 M8 18a1.6 1.6 0 1 1 0 .1Z' },
+  // Slagbinder: a ladle pouring a drop.
+  slagbinder: { color: '#ff9b4a', d: 'M3 8.5h11a5.5 5.5 0 0 1-11 0Z M14 8.5l7-5 M8.5 17.5c1 1.3 1.5 2.1 1.5 2.9a1.5 1.5 0 0 1-3 0c0-.8.5-1.6 1.5-2.9Z' },
 };
 
 export function glyph(d: string, size = 24): string {
@@ -103,16 +103,16 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
     // Hush: a muted sound wave inside the cut cast ring.
     'M7.5 12.5q1.1-2 2.2 0t2.2 0 2.2 0 2.2 0 ' + CUT,
   ],
-  // Slagbinder placeholders until visuals draws them (Molten Plating, Interpose, Cooling Shell, Clinker).
+  // Slagbinder (Molten Plating, Interpose, Cooling Shell, Clinker).
   slagbinder: [
-    // Molten Plating: a shield shape with a drip.
-    'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 9v5 M12 16.5h.01',
-    // Interpose: an arc leaping to a figure.
-    'M3 18c3-9 9-12 14-8 M17 10l-3-.5 M17 10l-.5 3 M19 14a1.6 1.6 0 1 1 0 .1Z M19 16v5',
-    // Cooling Shell: a dome over a dot.
-    'M3 19a9 9 0 0 1 18 0Z M12 15.5a1.5 1.5 0 1 1 0 .1Z',
-    // Clinker: a lump inside the cut cast ring.
-    'M10 10l3-1 2 2-1 3-3 1-2-2Z ' + CUT,
+    // Molten Plating: a plate with a molten drop held in it.
+    'M12 3 5 6v5.5c0 4 3 7 7 8.5 4-1.5 7-4.5 7-8.5V6Z M9 8.5h6 M12 11c1.1 1.4 1.7 2.3 1.7 3.2a1.7 1.7 0 0 1-3.4 0c0-.9.6-1.8 1.7-3.2Z',
+    // Interpose: a leap arcing in front of an ally.
+    'M2.5 20c1-8 6-12.5 11.5-11.5 M14 8.5l-3.4-.9 M14 8.5l-1.8 3 M18.5 7a2 2 0 1 1 0 4a2 2 0 1 1 0-4Z M18.5 11v6 M16 20l2.5-3 2.5 3',
+    // Cooling Shell: a dome over a hero, cold rising off it.
+    'M3 20a9 9 0 0 1 18 0Z M12 13.5a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6Z M12 5.5V2.5 M6.6 7.4 5 5.8 M17.4 7.4 19 5.8',
+    // Clinker: a slag lump inside the cut cast ring.
+    'M9.5 11l3-1.8 2.6 1.6-.4 3.1-3 1.5-2.6-1.6Z ' + CUT,
   ],
 };
 
@@ -184,10 +184,10 @@ export const MYTHIC_ICON: Record<MythicId, string> = {
   anchoredDawn: 'M12 7v14 M4.5 14c0 4 3.3 7 7.5 7s7.5-3 7.5-7 M2.5 14h4 M17.5 14h4 M8.5 10h7 M12 2.5a2.2 2.2 0 1 1 0 4.4a2.2 2.2 0 1 1 0-4.4Z',
   // Eclipse Glass (more burst, less heal): a sun with the shadow crossing it.
   eclipseGlass: 'M12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11Z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4 M9.5 9.5a3.5 3.5 0 0 1 5 5',
-  // Slagbinder placeholders until visuals draws them. Molten Core: a glowing core in a plate.
-  moltenCore: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 10a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z',
-  // Clinker Crown: a crown of clinker lumps.
-  clinkerCrown: 'M3 18h18 M4 18l-1-9 5 4 4-7 4 7 5-4-1 9',
+  // Molten Core (Slagbinder): a core with a fire burning inside.
+  moltenCore: 'M12 3.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17Z M12 8c1.7 2.1 2.7 3.5 2.7 5.3a2.7 2.7 0 0 1-5.4 0c0-1.8 1-3.2 2.7-5.3Z',
+  // Clinker Crown (Slagbinder): a crown of clinker with a glowing stone.
+  clinkerCrown: 'M3 19.5h18 M4 19.5 3 9l5 4 4-8 4 8 5-4-1 10.5 M12 14.5l1.6 1.2-1.6 1.3-1.6-1.3Z',
 };
 
 /** Class weapon effects, coloured by their class (P4 Collection tiles). The two cast-hitters wear the interrupt cut. */
@@ -208,10 +208,10 @@ export const WEAPON_FX_ICON: Record<WeaponFxId, string> = {
   tenderLight: 'M12 20.5S3.5 15.7 3.5 9.8A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.6c0 5.9-8.5 10.7-8.5 10.7Z M12 10.5v6 M9 13.5h6',
   // Rebuking Light: a sun inside the interrupt cut.
   rebukingLight: CUT + ' M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z',
-  // Slagbinder placeholders. Clinging Slag: a glob with drips.
-  clingingSlag: 'M12 4a6 6 0 1 1 0 12a6 6 0 1 1 0-12Z M9 16v3 M12 16v5 M15 16v3',
-  // Tempered Lob: a glob striking a cracked foe.
-  temperedLob: 'M4 6a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0Z M9 8l5 5 M15 10l2 3-2 2 3 3 M12 14l3 1',
+  // Clinging Slag (Slagbinder): a glob of slag dripping.
+  clingingSlag: 'M5 10.5C5 6.5 8 4 12 4s7 2.5 7 6.5c0 2-.8 3-2 3.3v2.7a1.5 1.5 0 0 1-3 0V14h-1v5a1.5 1.5 0 0 1-3 0v-5h-1v2.5a1.5 1.5 0 0 1-3 0v-2.7c-1.2-.3-2-1.3-2-3.3Z',
+  // Tempered Lob (Slagbinder): a glob lobbed on a high arc.
+  temperedLob: 'M2.5 20c2-8 7-12.5 12-11.5 M18 6.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7Z',
 };
 
 /** The Collection book: an open book. */

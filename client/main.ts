@@ -182,6 +182,8 @@ function startRun(bounty = false, key = false): void {
     dungeon: hub.dungeon,
     grit: gritFor(hero, hub.dungeon, hub.tier),
     firstClear: hub.tier >= hero.maxTier,
+    // L1: this character's first delve gets the teaching route (the sim checks Kiln, tier 1, solo).
+    firstDelve: !stress && (hero.runs ?? 0) === 0,
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
     alt: altOn(hero),
@@ -319,7 +321,7 @@ let coopNote = '';
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives } };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */

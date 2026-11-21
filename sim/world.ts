@@ -16,6 +16,7 @@ import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
+import { FIRST_DELVE } from './content/firstdelve';
 import { POTION, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
@@ -488,6 +489,8 @@ export type SimEvent =
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
   | { type: 'parry'; x: number; y: number }
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
+  /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
+  | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'cleanse'; x: number; y: number }
   | { type: 'plate'; x: number; y: number; hero: number }
@@ -521,6 +524,12 @@ export interface DraftOption {
 }
 
 /** Another hero in a co-op party (the main hero comes from WorldOptions itself). */
+/** P6: what a hero wears for the rest of the party to see. Looks only. */
+export interface HeroLooks {
+  title?: string;
+  glow?: string;
+}
+
 export interface HeroOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
@@ -569,6 +578,8 @@ export interface WorldOptions {
   heroName?: string;
   /** Co-op: the other heroes in the party, after the main hero (at most 3). */
   party?: HeroOptions[];
+  /** P6, client only (the sim never reads it): each hero's worn season title and glow, by hero index (0 is the main hero). */
+  looks?: HeroLooks[];
   /** Stress test: hundreds of enemies from the start, player cannot die. */
   stress?: boolean;
   /** Developer option: the player takes no damage. */
@@ -613,6 +624,8 @@ export interface WorldOptions {
   grit?: number;
   /** True when this tier is the hero's highest unlocked one: beating its boss guarantees an Epic. */
   firstClear?: boolean;
+  /** L1: a brand-new hero's first delve (the Kiln, tier 1, solo): a fixed teaching route and softer foes. */
+  firstDelve?: boolean;
   /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
   bounty?: number;
   /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
@@ -698,6 +711,8 @@ export class World {
   readonly seed: number;
   readonly bounty: number | undefined;
   readonly firstClear: boolean;
+  /** L1: this is the hero's first delve (FIRST_DELVE). */
+  readonly firstDelve: boolean;
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -864,6 +879,11 @@ export class World {
     ({ hp: this.keyHp, dmg: this.keyDmg } = keyScale(this.keyLevel));
     this.firstClear = !!opts.firstClear && opts.bounty === undefined;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
+    this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
+    if (this.firstDelve) {
+      this.keyHp *= FIRST_DELVE.hp;
+      this.keyDmg *= FIRST_DELVE.dmg;
+    }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
@@ -903,7 +923,7 @@ export class World {
     this.cracks = pool(CAP.cracks, () => ({ alive: false, x: 0, y: 0, angle: 0, t: 0 }));
     const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
-    this.route = opts.route ?? rollRoute((n) => this.rng.int(n), this.dungeonId);
+    this.route = opts.route ?? (this.firstDelve ? [...FIRST_DELVE.route] : rollRoute((n) => this.rng.int(n), this.dungeonId));
     if (this.bounty !== undefined) {
       // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
       this.player.level += BOUNTY.headStart;
@@ -1792,7 +1812,27 @@ export class World {
   get tauntCue(): boolean {
     if (this.cls !== 'bulwark') return false;
     const k = this.bossTarget;
-    return k >= 0 && k !== this.acting && this.heroPlayer(k).hp > 0 && (this.canCast(1) || this.canCast(3));
+    if (k < 0 || k === this.acting || this.heroPlayer(k).hp <= 0 || !(this.canCast(1) || this.canCast(3))) return false;
+    // The raid: leave the boss on another tank until Ladle Pour has Seared it.
+    if (this.dungeonDef.raid && this.isTank(k)) return this.swapCue;
+    return true;
+  }
+
+  /** Whether hero k tanks: a Bulwark, or a Slagbinder in the Anvil stance. */
+  isTank(k: number): boolean {
+    return this.heroes[k].cls === 'bulwark' || this.heroPlayer(k).stance === 'anvil';
+  }
+
+  /**
+   * The raid's tank swap cue: Ladle Pour left Seared on the tank the boss is on, and the
+   * acting hero is a fresh tank, so it should taunt the boss now. The HUD and the bots read it.
+   */
+  get swapCue(): boolean {
+    if (!this.dungeonDef.raid || !this.isTank(this.acting) || (this.player.sunderT ?? 0) > 0) return false;
+    const k = this.bossTarget;
+    if (k < 0 || k === this.acting) return false;
+    const t = this.heroPlayer(k);
+    return t.hp > 0 && (t.sunderT ?? 0) > 0;
   }
 
   get tierDamage(): number {
@@ -2616,7 +2656,7 @@ export class World {
     const p = this.player;
     const e = this.enemies[t];
     p.facing = Math.atan2(e.y - p.y, e.x - p.x);
-    this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+    this.events.push({ type: 'lob', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
@@ -3735,8 +3775,11 @@ export class World {
       this.use(this.ladleTarget);
       const p = this.player;
       if (p.hp > 0) {
-        this.hurtPlayer(SLAG.ladle * (1 + SLAG.ladleStackMult * (p.slag ?? 0)) * this.tierDamage, i, true);
+        // Seared: a second pour inside `searTime` hits `searMult` harder, and no heal clears it.
+        const seared = (p.sunderT ?? 0) > 0 ? 1 + SLAG.searMult : 1;
+        this.hurtPlayer(SLAG.ladle * (1 + SLAG.ladleStackMult * (p.slag ?? 0)) * seared * this.tierDamage, i, true);
         p.slag = Math.min(SLAG.slagMax, (p.slag ?? 0) + SLAG.ladleStacks);
+        p.sunderT = SLAG.searTime;
         this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
@@ -4648,6 +4691,10 @@ export class World {
       }
       this.use(at);
     }
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if ((q.sunderT ?? 0) > 0) q.sunderT = Math.max(0, (q.sunderT ?? 0) - dt);
+    }
     if (phase === 2) {
       this.heatT -= dt;
       if (this.heatT <= 0) {
@@ -5552,6 +5599,12 @@ export const SLAG = {
    * and each stack still on the target makes the next pour hit `ladleStackMult` harder.
    */
   ladle: 60, ladleStacks: 2, ladleStackMult: 0.3, ladleEvery: 9, ladleLate: 13, ladleCast: 2, firstLadle: 6,
+  /**
+   * Seared (on `Player.sunderT`, like Hammerdeep's Sundered): a pour on a hero still Seared
+   * hits `searMult` harder. It outlasts the gap between pours (9 s, then 13 s) but not two
+   * gaps, so two tanks trading the boss after each pour never take a Seared pour.
+   */
+  searTime: 15, searMult: 0.4,
   /** Ladle Burn: share of max health per second per stack, up to `slagMax` stacks. */
   burnTick: 0.01, slagMax: 6,
   /** Phase 1: Slaglings pour out of the channels. */

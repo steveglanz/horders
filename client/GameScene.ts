@@ -3,10 +3,11 @@
  * into `World.step` at a fixed rate and renders interpolated state.
  */
 import { OMENS } from '../sim/content/omens';
-import { CoopSession, SNAP_SECONDS } from './net/coop';
+import { coachLine } from '../sim/content/firstdelve';
+import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET, COLD, SLAG_KIT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -49,6 +50,9 @@ applyPalette();
 onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
+/** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
+const SLAG = 0xff9b4a;
+const SLAG_COOL = 0xbcd6e6;
 
 /** A pooled sprite effect: moves, spins, fades and scales from (sx0, sy0) to (sx1, sy1). */
 interface Fx {
@@ -123,10 +127,21 @@ export class GameScene extends Phaser.Scene {
   /** Guest: seconds since the last snapshot, for smoothing between them. */
   private snapAge = 0;
   private lastInputAt = 0;
+  /** The raid: whether the tank swap banner is up for this swap. */
+  private swapShown = false;
   /** Guest: the draft (level and picks left) a pick was already sent for. */
   private sentPick = -1;
   /** The other heroes in a co-op party. */
-  private allies: { hero: number; img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }[] = [];
+  private allies: {
+    hero: number;
+    img: Phaser.GameObjects.Image;
+    shadow: Phaser.GameObjects.Image;
+    label: Phaser.GameObjects.Text;
+    /** P6: their worn season title, under their name. */
+    tag?: Phaser.GameObjects.Text;
+    /** P6: their worn season glow, on the floor under them. */
+    glow?: Phaser.GameObjects.Image;
+  }[] = [];
   autoPick = true;
   warp = 1;
 
@@ -199,6 +214,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data: SceneData): void {
     this.world = new World(data.opts);
+    this.looks = data.opts.looks ?? [];
     this.coop = data.coop ?? null;
     // A guest draws the run as their own hero.
     if (this.coop?.role === 'guest') this.world.use(this.coop.me);
@@ -294,15 +310,21 @@ export class GameScene extends Phaser.Scene {
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
     this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
-    // Co-op: everyone else in the party, with their name over their head.
+    // Co-op: everyone else in the party, with their name over their head and (P6) the title and glow they wear.
+    // Looks come from other players' browsers, so they are cleaned again here.
+    const looks = this.looks;
     for (let j = 0; j < w.heroes.length; j++) {
       if (j === w.acting) continue;
       const cls = w.heroes[j].cls;
+      const look = cleanLooks(looks[j]);
+      const ag = look.glow ? GLOWS[look.glow] : undefined;
       this.allies.push({
         hero: j,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
         label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+        tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
+        glow: ag ? this.add.image(0, 0, 'heroGlow').setTint(hex(ag.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3) : undefined,
       });
     }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
@@ -391,7 +413,10 @@ export class GameScene extends Phaser.Scene {
     for (const t of this.plates) t.setFontSize(12 * k).setResolution(res);
     for (const t of this.gateTexts) t.setFontSize(13 * k).setResolution(res);
     this.soakText?.setFontSize(13 * k).setResolution(res);
-    for (const a of this.allies) a.label.setFontSize(12 * k).setResolution(res);
+    for (const a of this.allies) {
+      a.label.setFontSize(12 * k).setResolution(res);
+      a.tag?.setFontSize(10 * k).setResolution(res);
+    }
     for (const f of this.floats) f.txt.setResolution(res);
   }
 
@@ -400,6 +425,8 @@ export class GameScene extends Phaser.Scene {
   private textSeen = display.text;
   /** Hearthkeeper Warmth last frame, to flare once when it fills. */
   private warmSeen = 0;
+  /** P6: each hero's worn title and glow from the start options (cleaned before drawing). */
+  private looks: { title?: unknown; glow?: unknown }[] = [];
   /** P2: the worn season glow under the hero, if any. */
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
@@ -548,6 +575,10 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
+    // The raid: Ladle Pour Seared the other tank, so this tank takes the boss.
+    const swap = w.swapCue;
+    if (swap && !this.swapShown) this.hud.banner('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
+    this.swapShown = swap;
     audio.events(events, {
       cls: w.cls,
       acting: w.acting,
@@ -619,6 +650,14 @@ export class GameScene extends Phaser.Scene {
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
+          } else if (w.cls === 'slagbinder') {
+            // Cooling Shell: a cold ring out to what it covers. Plating and Interpose have their own events.
+            if (ev.slot === 2) {
+              this.ring(ev.x, ev.y, ev.r + 30, SLAG_COOL, 0.5);
+              this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: SLAG_COOL, life: 0.5 });
+              for (let k = 0; k < 6; k++) this.steam(ev.x + (Math.random() - 0.5) * 40, ev.y + (Math.random() - 0.5) * 20, 0.6 + Math.random() * 0.4);
+              this.floatText(ev.x, ev.y - 36, 'Cooling Shell', '#cfe0ea', 18);
+            }
           } else if (w.cls === 'bulwark' && ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
             this.shake = Math.max(this.shake, 0.12);
@@ -652,6 +691,22 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'mote':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
+          break;
+        case 'lob':
+          this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
+          break;
+        case 'plate':
+          // Molten Plating poured on a hero: a bright ring closing in and a few drips.
+          this.emit(this.fx, 'ring', undefined, ev.x, ev.y + 8, 0.35, { tint: SLAG, sx0: 0.9, sx1: 0.35 });
+          for (let k = 0; k < 6; k++) {
+            const a = (k / 6) * Math.PI * 2;
+            this.emit(this.fx, 'spark', undefined, ev.x + Math.cos(a) * 26, ev.y + Math.sin(a) * 12, 0.4, { tint: SLAG, vx: -Math.cos(a) * 40, vy: 30, drag: 0.92, sx0: 0.5, sx1: 0.15 });
+          }
+          if (ev.hero !== w.acting) this.floatText(ev.x, ev.y - 34, 'Plated', '#ffc08a', 14);
+          break;
+        case 'brittle':
+          this.floatText(ev.x, ev.y - 30, 'Brittle', '#d8d0c6', 13);
+          for (let k = 0; k < 5; k++) this.emit(this.fx, 'spark', undefined, ev.x, ev.y - 6, 0.35, { tint: 0xe8e0d6, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 80, drag: 0.9, sx0: 0.45, sx1: 0.1 });
           break;
         case 'parry':
           this.floatText(ev.x, ev.y - 34, 'Parry!', '#f1e6ff', 18);
@@ -904,7 +959,9 @@ export class GameScene extends Phaser.Scene {
               ? ` ${w.omens.length === 1 ? 'Omen' : 'Omens'}: ${w.omens.map((o) => OMENS[o].name).join(', ')} (details in pause).`
               : ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`)
             : '';
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, def.tip + omens);
+          // L1: the first delve coaches each fight instead of the usual tip.
+          const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens);
           break;
         }
         case 'fork':
@@ -1014,7 +1071,13 @@ export class GameScene extends Phaser.Scene {
       if (q.hurtFlash > 0) al.img.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
       else al.img.clearTint();
       al.shadow.setPosition(ax, ay + 22).setScale(34 / 32, 12 / 32);
-      al.label.setPosition(ax, ay - 34).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
+      // The title sits just over the head and the name above it, so a titled hero reads "name / title".
+      if (al.tag) al.tag.setPosition(ax, ay - 34).setAlpha(down ? 0.5 : 1);
+      if (al.glow) {
+        const gp = Math.sin(now / 520 + al.hero);
+        al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
+      }
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
 
     const view = cam.worldView;
@@ -1161,6 +1224,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.warmSeen = warm;
+    this.slagDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -1915,6 +1979,74 @@ export class GameScene extends Phaser.Scene {
    * glow with ember cracks, and Chill frosts the screen edge. The Long Night darkens the floor,
    * so only the lights are left.
    */
+  /** Slag Lob: a glob on a high arc (a trail of embers), and a splash where it lands. */
+  private slagLob(x1: number, y1: number, x2: number, y2: number): void {
+    const d = Math.hypot(x2 - x1, y2 - y1);
+    const h = Math.min(90, d * 0.3);
+    for (let k = 1; k <= 7; k++) {
+      const t = k / 8;
+      this.emit(this.fx, 'spark', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t - Math.sin(Math.PI * t) * h, 0.12 + t * 0.12, { tint: k === 7 ? 0xffd08a : SLAG, sx0: 0.35 + t * 0.35, sx1: 0.1 });
+    }
+    this.emit(this.fx, 'ring', undefined, x2, y2, 0.25, { tint: SLAG, sx0: 0.15, sx1: (SLAG_KIT.lobSplashR * 2) / 128 });
+    for (let k = 0; k < 4; k++) this.emit(this.fx, 'spark', undefined, x2, y2, 0.3, { tint: SLAG, vx: (Math.random() - 0.5) * 180, vy: -30 - Math.random() * 90, drag: 0.9, sx0: 0.4, sx1: 0.1 });
+  }
+
+  /**
+   * Slagbinder states: molten plate around a plated hero (its arc shrinks as the plating is used up),
+   * a cold dome on a hero in Cooling Shell (and in a party the floor it covers), and cracks on Brittle foes.
+   */
+  private slagDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    const heroes = [{ q: w.player, x: this.player.x, y: this.player.y }, ...this.allies.map((al) => ({ q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y }))];
+    for (const { q, x, y } of heroes) {
+      if (q.hp <= 0) continue;
+      if ((q.shellUntil ?? -1) > w.time) {
+        const left = (q.shellUntil ?? 0) - w.time;
+        const fade = Math.min(1, left / 0.6);
+        if (w.heroes.length > 1) g.lineStyle(2.5, SLAG_COOL, 0.6 * fade).strokeEllipse(x, y + 10, SLAG_KIT.shellRadius * 2, SLAG_KIT.shellRadius * 0.9).fillStyle(SLAG_COOL, 0.07 * fade).fillEllipse(x, y + 10, SLAG_KIT.shellRadius * 2, SLAG_KIT.shellRadius * 0.9);
+        o.fillStyle(SLAG_COOL, 0.1 * fade).fillEllipse(x, y - 4, 64, 66);
+        o.lineStyle(2, SLAG_COOL, (0.55 + 0.15 * Math.sin(now / 200)) * fade).beginPath().arc(x, y + 6, 32, Math.PI * 1.02, Math.PI * 1.98).strokePath();
+        o.lineStyle(1.5, 0xffffff, 0.35 * fade).beginPath().arc(x - 4, y - 2, 22, Math.PI * 1.2, Math.PI * 1.45).strokePath();
+      }
+      if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0) {
+        const frac = Math.max(0.08, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
+        const spin = now / 900;
+        // A molten band at the feet, broken into plates, fewer as it is spent.
+        const n = 8;
+        for (let k = 0; k < n; k++) {
+          if (k / n >= frac) break;
+          const a0 = spin + (k / n) * Math.PI * 2;
+          for (const [lw, col, al] of [[7, 0x2a1d18, 0.85], [4, SLAG, 0.95]] as const) {
+            g.lineStyle(lw, col, al);
+            g.beginPath();
+            for (let s2 = 0; s2 <= 6; s2++) {
+              const a = a0 + ((Math.PI * 2) / n - 0.2) * (s2 / 6);
+              const px = x + Math.cos(a) * 26;
+              const py = y + 18 + Math.sin(a) * 10;
+              if (s2 === 0) g.moveTo(px, py); else g.lineTo(px, py);
+            }
+            g.strokePath();
+          }
+        }
+        g.fillStyle(SLAG, 0.12 + 0.06 * Math.sin(now / 160)).fillEllipse(x, y + 18, 56, 22);
+      }
+    }
+    for (const e of w.enemies) {
+      if (!e.alive || (e.brittleUntil ?? 0) <= w.time) continue;
+      const r = e.def.radius;
+      const cx = e.x;
+      const cy = e.y - r * 0.2;
+      // Pale fracture lines over the body, the way cooled slag cracks.
+      o.lineStyle(3, 0x1a1412, 0.7);
+      o.beginPath().moveTo(cx - r * 0.5, cy - r * 0.55).lineTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx - r * 0.25, cy + r * 0.2).lineTo(cx + r * 0.15, cy + r * 0.55).strokePath();
+      o.beginPath().moveTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx + r * 0.45, cy - r * 0.3).strokePath();
+      o.lineStyle(1.5, 0xf0e8de, 0.95);
+      o.beginPath().moveTo(cx - r * 0.5, cy - r * 0.55).lineTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx - r * 0.25, cy + r * 0.2).lineTo(cx + r * 0.15, cy + r * 0.55).strokePath();
+      o.beginPath().moveTo(cx - r * 0.1, cy - r * 0.15).lineTo(cx + r * 0.45, cy - r * 0.3).strokePath();
+    }
+  }
+
   /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
   private warmthDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, n: number, full: boolean, now: number): void {
     const f = n / SET_TUNING.hkMax;
@@ -1950,29 +2082,83 @@ export class GameScene extends Phaser.Scene {
       const t0 = -pd - Math.sqrt(disc), t1 = -pd + Math.sqrt(disc);
       const x0 = c.x + dx * t0, y0 = c.y + dy * t0, x1 = c.x + dx * t1, y1 = c.y + dy * t1;
       const nx = -dy, ny = dx;
+      const len = t1 - t0;
+      // Broken ice never runs ruler-straight: each crack gets its own fixed jag (seeded by its
+      // angle, so it holds still frame to frame). The jag stays within a few px of the true edge.
+      const n = Math.max(6, Math.round(len / 26));
+      const seed = Math.floor(c.angle * 1000) + Math.floor(c.x);
+      const jag = (i: number, side: number) => {
+        if (i === 0 || i === n) return 0;
+        const h = Math.sin((i + 1) * 12.9898 + seed * 0.731 + side * 78.233) * 43758.5453;
+        return (h - Math.floor(h) - 0.5) * 9;
+      };
+      const along = (i: number, off: number, side: number): [number, number] => {
+        const at = i / n, o = off + jag(i, side);
+        return [x0 + (x1 - x0) * at + nx * o, y0 + (y1 - y0) * at + ny * o];
+      };
+      const edge = (off: number, side: number) => {
+        g.beginPath();
+        for (let i = 0; i <= n; i++) { const [px, py] = along(i, off, side); if (i) g.lineTo(px, py); else g.moveTo(px, py); }
+        g.strokePath();
+      };
+      const hw = COLD.crackHalfW;
       if (c.t < COLD.crackWarn) {
         const f = c.t / COLD.crackWarn;
         const flick = 0.55 + 0.35 * Math.sin(now / 70);
-        g.lineStyle(2 + 2 * f, FROST, flick).lineBetween(x0, y0, x1, y1);
-        // Hairline branches either side, so it reads as ice about to break.
-        g.lineStyle(1.5, FROST, 0.35 + 0.3 * f);
-        for (let k = 1; k < 9; k++) {
-          const at = k / 9;
-          const bx = x0 + (x1 - x0) * at, by = y0 + (y1 - y0) * at;
-          const sd = (k % 2 ? 1 : -1) * COLD.crackHalfW * f;
-          g.lineBetween(bx, by, bx + nx * sd + dx * 10, by + ny * sd + dy * 10);
-        }
-      } else {
-        const hw = COLD.crackHalfW;
-        const left = COLD.crackWarn + COLD.crackOpen - c.t;
-        const a = Math.min(1, left / 1.2);
-        g.fillStyle(0x06121c, 0.82 * a).beginPath()
+        // Where the water will open: a faint cold strip at full width, so you know how far to step.
+        g.fillStyle(FROST, 0.05 + 0.08 * f).beginPath()
           .moveTo(x0 + nx * hw, y0 + ny * hw).lineTo(x1 + nx * hw, y1 + ny * hw)
           .lineTo(x1 - nx * hw, y1 - ny * hw).lineTo(x0 - nx * hw, y0 - ny * hw).closePath().fillPath();
-        const shim = 0.5 + 0.3 * Math.sin(now / 220);
-        g.lineStyle(3, FROST, 0.75 * a).lineBetween(x0 + nx * hw, y0 + ny * hw, x1 + nx * hw, y1 + ny * hw);
-        g.lineBetween(x0 - nx * hw, y0 - ny * hw, x1 - nx * hw, y1 - ny * hw);
-        g.lineStyle(1.5, 0x9fd8ff, shim * a).lineBetween(x0, y0, x1, y1);
+        g.lineStyle(1, FROST, 0.18 + 0.25 * f);
+        edge(hw, 1); edge(-hw, -1);
+        // The fracture itself: a jagged bright line that thickens as the ice gives.
+        g.lineStyle(2 + 2.5 * f, FROST, flick);
+        edge(0, 0);
+        g.lineStyle(1, 0xffffff, 0.5 * flick);
+        edge(0, 0);
+        // Hairline branches either side, reaching out toward the strip's edge as it nears.
+        g.lineStyle(1.5, FROST, 0.35 + 0.35 * f);
+        for (let i = 1; i < n; i++) {
+          const [bx, by] = along(i, 0, 0);
+          const sd = (i % 2 ? 1 : -1) * hw * (0.35 + 0.65 * f) * (0.7 + 0.3 * Math.abs(Math.sin(i * 7.1 + seed)));
+          const mx = bx + nx * sd * 0.5 + dx * 6, my = by + ny * sd * 0.5 + dy * 6;
+          g.beginPath().moveTo(bx, by).lineTo(mx, my).lineTo(bx + nx * sd + dx * 2, by + ny * sd + dy * 2).strokePath();
+        }
+      } else {
+        const left = COLD.crackWarn + COLD.crackOpen - c.t;
+        const a = Math.min(1, left / 1.2);
+        // Open water: a dark band between broken edges.
+        g.fillStyle(0x06121c, 0.84 * a).beginPath();
+        for (let i = 0; i <= n; i++) { const [px, py] = along(i, hw, 1); if (i) g.lineTo(px, py); else g.moveTo(px, py); }
+        for (let i = n; i >= 0; i--) { const [px, py] = along(i, -hw, -1); g.lineTo(px, py); }
+        g.closePath().fillPath();
+        // Deeper water down the middle.
+        g.fillStyle(0x020a12, 0.5 * a).beginPath()
+          .moveTo(x0 + nx * hw * 0.45, y0 + ny * hw * 0.45).lineTo(x1 + nx * hw * 0.45, y1 + ny * hw * 0.45)
+          .lineTo(x1 - nx * hw * 0.45, y1 - ny * hw * 0.45).lineTo(x0 - nx * hw * 0.45, y0 - ny * hw * 0.45).closePath().fillPath();
+        // The current: short glints drifting along the strip.
+        const drift = (now / 1000) * 38;
+        g.lineStyle(1.5, 0x9fd8ff, 0.45 * a);
+        for (let k = 0; k < Math.ceil(len / 70); k++) {
+          const s = ((k * 70 + drift + (k % 2) * 35) % len + len) % len;
+          const o = ((k * 37) % 5 - 2) * hw * 0.22;
+          const gx = x0 + dx * s + nx * o, gy = y0 + dy * s + ny * o;
+          g.lineBetween(gx, gy, gx + dx * 14, gy + dy * 14);
+        }
+        // Bright broken ice edges, with a cold shimmer.
+        const shim = 0.75 + 0.2 * Math.sin(now / 220);
+        g.lineStyle(3, FROST, shim * a);
+        edge(hw, 1); edge(-hw, -1);
+        g.lineStyle(1, 0xffffff, 0.55 * a);
+        edge(hw - 2, 1); edge(-hw + 2, -1);
+        // Small floes broken off the edges, bobbing in the water.
+        g.fillStyle(0xd8eeff, 0.55 * a);
+        for (let i = 2; i < n - 1; i += 3) {
+          const side = i % 2 ? 1 : -1;
+          const bob = Math.sin(now / 400 + i) * 2;
+          const [fx, fy] = along(i, side * (hw - 9) + bob, side);
+          g.fillTriangle(fx - 4, fy - 2, fx + 4, fy - 3, fx + 1, fy + 3);
+        }
       }
     }
     // The frost edge: Chill creeps in from the screen's rim, and the Long Night brings it in too.

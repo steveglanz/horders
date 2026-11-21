@@ -2,8 +2,13 @@
 import { World } from '../sim/world';
 import { OmenId } from '../sim/content/omens';
 import { botChoose, botInput, laggedBot } from '../sim/bot';
+import { FIRST_DELVE } from '../sim/content/firstdelve';
 
-// LAG=seconds gives the bot a reaction time (a novice proxy; see laggedBot).
+// FIRST=1 plays a first delve (L1); FD_HP and FD_DMG override its multipliers.
+if (process.env.FD_HP) FIRST_DELVE.hp = Number(process.env.FD_HP);
+if (process.env.FD_DMG) FIRST_DELVE.dmg = Number(process.env.FD_DMG);
+
+// ROUTE=pack,brute,kilnMother fixes the fights. LAG=seconds gives the bot a reaction time (a novice proxy; see laggedBot).
 const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
 
 const skill = Number(process.env.SKILL ?? 1);
@@ -11,7 +16,7 @@ const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
 let hpLeft = 0;
 for (const seed of seeds) {
-  const w = new World({ potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1' });
+  const w = new World({ potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined });
   const drive = lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);
