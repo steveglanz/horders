@@ -86,6 +86,8 @@ export class Hub {
   partyClasses: string[] = [];
   /** Fill with bots: a solo hero takes bot allies into a group dungeon (sim/content/botfill). */
   fillBots = false;
+  /** Set by main: this player hosts an online party of 2 or more (V7: the host may fill with bots). */
+  hosting = false;
   /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
   private kitOpen = readKitOpen();
   /** The open hub tab in tab mode (the Bags tab is the bag overlay). */
@@ -733,18 +735,23 @@ export class Hub {
 
   /** Classes in the delve: the party's, or yours plus any fill bots. */
   private classes(): string[] {
-    return this.partyClasses.length ? this.partyClasses : [this.hero().cls ?? 'emberwright', ...this.fillParty()];
+    return this.partyClasses.length ? [...this.partyClasses, ...this.fillParty()] : [this.hero().cls ?? 'emberwright', ...this.fillParty()];
   }
 
-  /** Fill with bots is offered to a hero with no online party, in a group dungeon other than the raid. */
+  /**
+   * Fill with bots is offered to a hero with no online party, or to the host of a party with
+   * room left (V7), in a group dungeon other than the raid.
+   */
   canFill(): boolean {
-    return this.partyClasses.length <= 1 && !botFillBlocker(this.dungeon);
+    const n = this.partyClasses.length;
+    return (n <= 1 || (this.hosting && n < BOT_FILL.partySize)) && !botFillBlocker(this.dungeon);
   }
 
   /** The bot allies' classes for this delve ([] when filling is off or not offered). */
   fillParty(): ClassId[] {
     if (!this.fillBots || !this.canFill()) return [];
     const h = this.hero();
+    if (this.partyClasses.length > 1) return fillClasses(this.partyClasses.map((cls, i) => ({ cls, stance: i === 0 ? h.stance : undefined })));
     return fillClasses([{ cls: h.cls ?? 'emberwright', stance: h.stance }]);
   }
 
@@ -768,7 +775,7 @@ export class Hub {
 
   /** The Fill with bots toggle, and what bots change. */
   private fillLine(): string {
-    if (this.partyClasses.length > 1) return '';
+    if (this.partyClasses.length > 1 && (!this.hosting || this.partyClasses.length >= BOT_FILL.partySize)) return '';
     const blocked = botFillBlocker(this.dungeon);
     if (blocked) return `<div class="hint">${blocked}: no bots.</div>`;
     const tip = `Bots fill the party to ${BOT_FILL.partySize}. They wear copies of your gear at ${Math.round(BOT_FILL.gearScale * 100)}% strength, without Mythics, weapon effects or sets, so a real party does better. A bot-filled win pays like a solo dungeon: no extra group item from the boss.`;

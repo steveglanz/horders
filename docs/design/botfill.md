@@ -68,7 +68,7 @@ Bots made the raid as easy as 37 of 40 (93%), above the 70% ceiling, and how eas
 
 ## Open
 - The bots' ally names show as "Lumen (bot)" and so on.
-- Fill bots aren't in online co-op. A party of 2 or 3 real players can't top up with bots, because bots would need the co-op host to run them. If that's wanted, it's an engineering item.
+- Online co-op (V7, 21 Nov 2026): the host of a party of 2 or 3 can Fill with bots up to 4. The bots join after the real guests, wear the host's stand-in gear, and the host runs them; guests see them through the snapshots. The run keeps `fillLootShare(bots)` of its in-run drops: 3 bots 40%, 2 bots 60%, 1 bot 80% (`1 - (1 - lootShare) × bots / 3`). Check: `tools/coopbotscheck.cjs`.
 
 ## With skills' party cards (#241)
 Party cards let bots draft party-only cards too, so I re-measured tier 8 on #241's head (7dcf076), with the same seeds and heroes. The real-party numbers are skills' measurements on #241.
