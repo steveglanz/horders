@@ -450,6 +450,132 @@ function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[34, 20], [41, 21]], 1.6, '#9fd0ff');
 }
 
+/**
+ * Old Coalmouth (raid 2, the Hoard): a bloated heap of coal that is mostly mouth. A lumpy, faceted coal body with
+ * ember seams, four stubby feet, two small ember eyes on top, and a maw splitting his whole front (he faces right)
+ * with jagged coal teeth and a furnace glow deep inside. The jaw works open and shut over the four frames. Drawn
+ * at 128 and scaled to the sheet (192, the size of Grandmother Slag's raid sheet).
+ */
+function drawCoalmouth(ctx: Ctx, s: number, f: number): void {
+  const k = s / 128;
+  const jaw = [0, 4, 9, 4][f];
+  const glow = [0.75, 0.9, 1, 0.9][f];
+  ctx.save();
+  ctx.scale(k, k);
+  softGlow(ctx, 70, 72, 62, `rgba(255,120,40,${0.18 * glow})`);
+  // Stubby feet.
+  ctx.fillStyle = '#16100e';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  for (const x of [26, 44, 70, 88]) { ell(ctx, x, 110, 9, 6); ctx.fill(); ctx.stroke(); }
+  // The body: a lumpy heap of coal chunks round an ellipse.
+  const pts: [number, number][] = [];
+  const bumps = [1, 0.92, 1.06, 0.95, 1.04, 0.9, 1.05, 0.97, 1.02, 0.93, 1.06, 0.96];
+  for (let i = 0; i < 12; i++) {
+    const a = Math.PI * 0.5 + (i / 12) * Math.PI * 2;
+    pts.push([58 + Math.cos(a) * 50 * bumps[i], 66 + Math.sin(a) * 44 * bumps[i]]);
+  }
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+  shade(ctx, '#3c3330', '#0c0909', 22, 110, 2.4);
+  // Facets: lighter edges on the coal chunks, catching the light from above.
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(150,140,140,0.35)';
+  ctx.lineWidth = 1.2;
+  for (const [x1, y1, x2, y2] of [[20, 44, 36, 30], [36, 30, 56, 26], [14, 66, 30, 54], [30, 54, 46, 58], [46, 58, 44, 40], [24, 84, 38, 74], [38, 74, 52, 80], [56, 26, 70, 34]]) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.restore();
+  // Ember seams through the coal, brighter as the jaw opens.
+  cracks(ctx, [[[18, 60], [28, 64], [34, 72], [44, 74]], [[30, 36], [38, 44], [36, 52]], [[22, 90], [34, 92], [42, 100]], [[50, 96], [58, 90], [66, 96]]], `rgba(255,140,50,${0.55 + 0.4 * glow})`, 1.6);
+  // The maw: a huge wedge across his front, open by `jaw`.
+  const top = 46 - jaw * 0.4;
+  const bot = 92 + jaw;
+  ctx.beginPath();
+  ctx.moveTo(56, 70);
+  ctx.quadraticCurveTo(74, top - 2, 112, top + 4);
+  ctx.quadraticCurveTo(122, 70, 112, bot - 4);
+  ctx.quadraticCurveTo(76, bot + 2, 56, 70);
+  ctx.closePath();
+  const mg = ctx.createRadialGradient(80, 70, 2, 84, 70, 34);
+  mg.addColorStop(0, `rgba(255,214,120,${glow})`);
+  mg.addColorStop(0.35, 'rgba(255,110,40,0.95)');
+  mg.addColorStop(0.75, '#4a120a');
+  mg.addColorStop(1, '#120606');
+  ctx.fillStyle = mg;
+  ctx.fill();
+  ctx.lineWidth = 2.6;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  // Jagged coal teeth, top and bottom, edged with ember light.
+  const teeth = (y: number, dir: number, from: number, to: number, n: number): void => {
+    for (let i = 0; i < n; i++) {
+      const x = from + ((to - from) * (i + 0.5)) / n;
+      const yy = y + (dir < 0 ? 0 : 0) + Math.abs(x - 84) * 0.08 * -dir;
+      const h = 7 + ((i * 5) % 4);
+      ctx.beginPath();
+      ctx.moveTo(x - 3.6, yy);
+      ctx.lineTo(x + 0.6, yy + h * dir);
+      ctx.lineTo(x + 3.6, yy);
+      ctx.closePath();
+      ctx.fillStyle = '#2a2422';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255,170,90,0.75)';
+      ctx.stroke();
+    }
+  };
+  teeth(top + 6, 1, 68, 110, 6);
+  teeth(bot - 6, -1, 68, 108, 6);
+  // Small ember eyes on top, set far back above the mouth.
+  eyes(ctx, [[70, 32], [84, 36]], 2.6, '#ffc861');
+  // A heavy brow ridge over them.
+  ctx.beginPath(); ctx.moveTo(62, 28); ctx.quadraticCurveTo(76, 22, 92, 30);
+  ctx.lineWidth = 3; ctx.strokeStyle = '#0c0909'; ctx.stroke();
+  // Smoke and sparks puffing off his back.
+  softGlow(ctx, 34, 20, 10, `rgba(255,170,90,${0.35 * glow})`);
+  ctx.fillStyle = 'rgba(255,200,120,0.85)';
+  for (const [x, y] of [[30, 16 - f], [40, 10 - f * 1.5], [24, 8 - f]]) { ell(ctx, x, y, 1.2, 1.2); ctx.fill(); }
+  ctx.restore();
+}
+
+/**
+ * The Craw (raid 2): a swollen throat-sac bulging off Old Coalmouth's side, its membrane stretched thin over a hot
+ * core, veined and throbbing over the four frames. It lives 8 s, so it is the brightest thing near him: GameScene
+ * adds a "hit this" ring and its countdown.
+ */
+function drawCraw(ctx: Ctx, s: number, f: number): void {
+  const c = s / 2;
+  const p = [0, 1.5, 3, 1.5][f];
+  softGlow(ctx, c, c, 30, `rgba(255,160,60,${0.35 + p * 0.08})`);
+  // A stub of coal where it hangs off him.
+  ctx.beginPath(); ctx.moveTo(c - 10, c - 22); ctx.lineTo(c + 10, c - 22); ctx.lineTo(c + 6, c - 14); ctx.lineTo(c - 6, c - 14); ctx.closePath();
+  shade(ctx, '#3c3330', '#120c0b', c - 22, c - 14, 1.6);
+  // The sac.
+  ell(ctx, c, c + 3, 19 + p, 17 + p * 0.8);
+  const g = ctx.createRadialGradient(c - 3, c, 2, c, c + 3, 20 + p);
+  g.addColorStop(0, '#fff0b0');
+  g.addColorStop(0.35, '#ffb050');
+  g.addColorStop(0.8, '#c2401e');
+  g.addColorStop(1, '#5a1a14');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  // Veins over the membrane.
+  ctx.strokeStyle = 'rgba(90,20,14,0.75)';
+  ctx.lineWidth = 1.2;
+  for (const [x1, y1, x2, y2, x3, y3] of [[c - 12, c - 6, c - 6, c + 2, c - 10, c + 12], [c + 4, c - 12, c + 10, c - 2, c + 14, c + 8], [c - 2, c + 18, c + 2, c + 10, c + 8, c + 14]]) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(x2, y2, x3, y3); ctx.stroke();
+  }
+  // A shine, so it reads as stretched tight.
+  ctx.fillStyle = 'rgba(255,255,230,0.75)';
+  ell(ctx, c - 7, c - 5, 4, 2.4, -0.5); ctx.fill();
+}
+
 /** Smolderhusk, the Kiln Mother: a walking furnace of brick and slag. */
 function drawKiln(ctx: Ctx, s: number, f: number): void {
   const breathe = [0, 1, 2, 1][f];
@@ -2249,6 +2375,9 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'bargeHauler', 56, 4, drawBargeHauler);
   sheet(scene, 'hessa', 120, 4, drawHessa);
   sheet(scene, 'oskel', 120, 4, drawOskel);
+  // Raid 2, the Hoard.
+  sheet(scene, 'coalmouth', 192, 4, drawCoalmouth);
+  sheet(scene, 'craw', 56, 4, drawCraw);
   // The Wrackline's raft: a round deck of driftwood boards, gaps between them, nails, a wet edge
   // and a rope lashed round the rim. Drawn once; GameScene scales it to WRACK.raftR.
   make(scene, 'raft', 256, (ctx, s) => {

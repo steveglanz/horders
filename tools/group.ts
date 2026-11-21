@@ -121,6 +121,8 @@ for (const seed of seeds) {
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');
       if (ev.type === 'revive') bump('revive');
+      // The Hoard: Swallow and Ember Feast.
+      if (ev.type === 'swallowed' || ev.type === 'digested' || ev.type === 'spatOut' || ev.type === 'emberTaken' || ev.type === 'emberEaten') bump(ev.type);
     }
   }
   const s = w.summary();

@@ -526,6 +526,30 @@ function raftHop(w: World, d: number | undefined): number | undefined {
   return d > hop * 0.6 && can(w, 1) ? 1 : undefined;
 }
 
+/**
+ * The ember this hero should run for, or null: the nearest one no living ally is closer to,
+ * within a reach that grows with skill. Tanks stay on the boss.
+ */
+function emberGrab(w: World, skill: number): { dx: number; dy: number } | null {
+  if (!w.coalEmbers.length || w.isTank(w.acting)) return null;
+  const p = w.player;
+  const reach = 160 + 240 * skill;
+  let best: { dx: number; dy: number } | null = null;
+  let bestD = reach;
+  for (const m of w.coalEmbers) {
+    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d >= bestD) continue;
+    let mine = true;
+    for (let k = 0; k < w.heroes.length && mine; k++) {
+      if (k === w.acting || w.isTank(k)) continue;
+      const q = w.heroes[k].player;
+      if (q.hp > 0 && Math.hypot(m.x - q.x, m.y - q.y) < d) mine = false;
+    }
+    if (mine) { bestD = d; best = { dx: (m.x - p.x) / (d || 1), dy: (m.y - p.y) / (d || 1) }; }
+  }
+  return best;
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
@@ -563,6 +587,9 @@ export function botInput(w: World, skill = 1): Input {
     const cast = botCast(w, skill);
     return save.d > REVIVE_RADIUS * 0.5 ? { x: save.dx / save.d, y: save.dy / save.d, cast } : { x: 0, y: 0, cast };
   }
+  // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Coalmouth eats it.
+  const ember = emberGrab(w, skill);
+  if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

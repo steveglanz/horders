@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, DUCK, ebbCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -66,6 +66,10 @@ class AudioEngine {
   private fxBus!: GainNode;
   /** The music, ducked a little less. */
   private musicDuck!: GainNode;
+  /** The Hoard: a low-pass on the whole mix while this screen's hero is swallowed (wide open otherwise). */
+  private belly!: BiquadFilterNode;
+  /** Sounds that play past the belly's muffle (the heartbeat), at the sound-effects volume. */
+  private dry!: GainNode;
   private duckUntil = 0;
   /** Ordinary sounds still playing, oldest first, so a priority cue can take a voice from a full mix. */
   private ordinary: AudioBufferSourceNode[] = [];
@@ -83,6 +87,7 @@ class AudioEngine {
   private ebbing = { on: false };
   private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
+  private bellyState: BellyState = { on: false, next: 0 };
   readonly haptics = new Haptics();
 
   constructor() {
@@ -145,7 +150,12 @@ class AudioEngine {
       const floor = ctx.createBiquadFilter();
       floor.type = 'highpass';
       floor.frequency.value = 40;
-      this.master.connect(floor).connect(comp).connect(ctx.destination);
+      this.belly = ctx.createBiquadFilter();
+      this.belly.type = 'lowpass';
+      this.belly.frequency.value = BELLY.open;
+      this.master.connect(this.belly).connect(floor).connect(comp).connect(ctx.destination);
+      this.dry = ctx.createGain();
+      this.dry.connect(floor);
       this.sfxBus = ctx.createGain();
       this.musicBus = ctx.createGain();
       this.fxBus = ctx.createGain();
@@ -191,6 +201,7 @@ class AudioEngine {
     this.master.gain.setTargetAtTime(s.muted ? 0 : 1, t, 0.03);
     // Squared so the slider feels even to the ear.
     this.sfxBus.gain.setTargetAtTime(s.sfx * s.sfx, t, 0.03);
+    this.dry.gain.setTargetAtTime(s.muted ? 0 : s.sfx * s.sfx, t, 0.03);
     this.musicBus.gain.setTargetAtTime(s.music * s.music * 0.8, t, 0.05);
   }
 
@@ -271,7 +282,7 @@ class AudioEngine {
       sp.pan.value = pan;
       node = node.connect(sp);
     }
-    node.connect(priority ? this.sfxBus : this.fxBus);
+    node.connect(DRY.has(id) ? this.dry : priority ? this.sfxBus : this.fxBus);
     this.voices++;
     if (priority) this.duck(now, src.buffer.duration);
     else this.ordinary.push(src);
@@ -336,6 +347,11 @@ class AudioEngine {
     else this.wasDown.length = 0;
     if (ctx.revive) for (const c of reviveCues(this.reviving, ctx.revive.t, ctx.revive.need, ctx.revive.left)) this.cue(c);
     else this.reviving = { t: [], left: Infinity };
+    // The Hoard: swallowed, the mix closes down to the inside of his belly and a heartbeat runs under it.
+    const left = ctx.swallowLeft ?? 0;
+    const inside = left > 0;
+    if (inside !== this.bellyState.on) this.belly.frequency.setTargetAtTime(inside ? BELLY.shut : BELLY.open, this.ctx.currentTime, inside ? 0.05 : 0.25);
+    for (const c of bellyCues(this.bellyState, left, this.ctx.currentTime)) this.cue(c);
   }
 
   /** Switches the music (null for silence). Crossfades from whatever is playing. */
@@ -343,6 +359,11 @@ class AudioEngine {
     // A place without its own theme yet borrows the Kiln's rather than going silent.
     const id: ThemeId | null = place === null ? null : place in THEMES ? (place as ThemeId) : 'kiln';
     if (id !== this.wantTheme) this.wantIntensity = 0;
+    // A new place (or the end screen) never stays muffled from a swallow.
+    if (this.ctx && this.bellyState.on) {
+      this.bellyState.on = false;
+      this.belly.frequency.setTargetAtTime(BELLY.open, this.ctx.currentTime, 0.1);
+    }
     this.wantTheme = id;
     this.music?.play(id);
   }
