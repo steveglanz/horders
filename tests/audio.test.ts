@@ -295,6 +295,11 @@ describe('season hub themes', () => {
     expect(hubThemeFor(0, SEASONS.length)).toBe('hub');
     expect(hubThemeFor(1, SEASONS.length)).toBe('hubBellows');
     expect(THEMES.hubBellows.bed).toBe('forge');
+    // Season 3, the Cold Hearth: the Coldmarrow's frost and its Hearthcoal crackle.
+    expect(SEASONS[2].name).toBe('the Cold Hearth');
+    expect(hubThemeFor(2, SEASONS.length)).toBe('hubHearth');
+    expect(THEMES.hubHearth.bed).toBe('frost');
+    expect(THEMES.hubHearth.coal).toBe(true);
     // Season 2 starts on week 2974 (docs/design/season.md).
     expect(hubThemeFor(seasonOf(SEASON_START_WEEK + SEASON.weeks), SEASONS.length)).toBe('hubBellows');
   });
