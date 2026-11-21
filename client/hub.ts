@@ -14,9 +14,19 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../s
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
+import { setTip } from './tips';
+import { HELP } from '../sim/content/help';
 import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** "+3% damage per point" at rank 4 reads "+12% damage". */
+function passiveNow(text: string, rank: number): string {
+  const m = /^([+-]?)(\d+(?:\.\d+)?)(%?)\s+(.*?)\s+per point$/.exec(text);
+  if (!m) return text;
+  if (rank === 0) return `${m[1]}${m[2]}${m[3]} ${m[4]} each`;
+  const v = Math.round(Number(m[2]) * rank * 10) / 10;
+  return `${m[1]}${v}${m[3]} ${m[4]}`;
+}
 const KIT_KEY = 'horders.ui.kit';
 function readKitOpen(): boolean {
   try {
@@ -72,14 +82,15 @@ export class Hub {
     const gear = SLOTS.map((slot) => {
       const it = items.find((i) => i.slot === slot);
       return it
-        ? `<div class="slot" style="--rc:${RARITY[it.rarity].color}" title="${RARITY[it.rarity].name}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.set ? `<span class="setmark" style="color:${SET_COLOR}" title="Set piece">${glyph(SET_ICON[it.set], 11)}</span>` : ''}${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
+        ? `<div class="slot" data-slot="${slot}" style="--rc:${RARITY[it.rarity].color}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.set ? `<span class="setmark" style="color:${SET_COLOR}" title="Set piece">${glyph(SET_ICON[it.set], 11)}</span>` : ''}${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
         : `<div class="slot empty"><div class="sl"><span>${SLOT_LABEL[slot]}</span></div><div class="nm">Empty</div></div>`;
     }).join('');
     const passives = (Object.keys(PASSIVES) as PassiveId[]).map((id) => {
       const def = PASSIVES[id];
       const r = h.passives[id] ?? 0;
       const can = pts > 0 && r < def.max;
-      return `<button data-p="${id}" class="${can ? 'can' : ''}" title="${def.text}" ${can ? '' : 'disabled'}>${def.name} ${r}/${def.max}${can ? ' +' : ''}</button>`;
+      return `<button data-p="${id}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
+        + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
     const worn = items.length;
@@ -94,12 +105,25 @@ export class Hub {
         <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
         <div class="gear">${gear}</div>
         <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
+        <div class="tal-help">${HELP.heroTalents} Hold a talent for details.</div>
         <div class="passives">${passives}</div>
       </details>`;
+    const worn2 = setsWorn(h);
+    $('heroCard').querySelectorAll<HTMLElement>('.slot[data-slot]').forEach((el) => {
+      const it = items.find((i) => i.slot === el.dataset.slot);
+      if (it) setTip(el, () => itemHtml(it, '', worn2));
+    });
     const kit = $('heroCard').querySelector<HTMLDetailsElement>('details.kit')!;
     kit.addEventListener('toggle', () => {
       this.kitOpen = kit.open;
       try { localStorage.setItem(KIT_KEY, kit.open ? '1' : '0'); } catch { /* private mode: keep it for this visit */ }
+    });
+    $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => {
+      const id = b.dataset.p as PassiveId;
+      const def = PASSIVES[id];
+      const r = h.passives[id] ?? 0;
+      setTip(b, () => `<b>${def.name}</b> · ${r}/${def.max}<br>${def.tip}<br><span class="tip-m">Now: ${r ? passiveNow(def.text, r) : 'nothing yet'}${r < def.max ? ` · next point: ${passiveNow(def.text, r + 1)}` : ' · maxed'}</span>`
+        + (pts > 0 && r < def.max ? '<br><span class="tip-g">Tap to spend a point.</span>' : pts ? '' : '<br><span class="tip-m">Earn points by levelling this hero.</span>'));
     });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -131,7 +155,7 @@ export class Hub {
       const d = DUNGEONS[id];
       const locked = h.maxTier < d.unlockTier;
       const { label } = partyLabel(id, this.classes());
-      return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}">`
+      return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}" title="${d.name}: ${d.blurb}${locked ? ` Unlocks at tier ${d.unlockTier}.` : ''} ${label}.">`
         + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
         + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
     }).join('');

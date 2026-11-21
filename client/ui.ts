@@ -6,6 +6,8 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph } from './icons';
+import { setTip } from './tips';
+import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -78,6 +80,8 @@ export class Hud {
     $('pauseBtn').addEventListener('click', () => this.handlers?.onPause());
     $('resumeBtn').addEventListener('click', () => this.handlers?.onPause());
     this.setupStick();
+    if (matchMedia('(pointer: coarse)').matches) $('draftHint').textContent = 'Tap a card to pick it. Hold it for details.';
+    $('draftTitle').setAttribute('data-tip', HELP.runTalents);
   }
 
   private barFor: ClassId | null = null;
@@ -96,6 +100,7 @@ export class Hud {
       const b = document.createElement('button');
       b.className = i === INTERRUPT_SLOT ? 'ab kick' : 'ab';
       b.setAttribute('aria-label', `${a.name} (${a.key})`);
+      b.dataset.tipTouch = 'off';
       b.title = `${a.name} (${a.key})${a.cost ? ` · ${a.cost} ${def.resource}` : ''}: ${a.text}`;
       b.innerHTML = `${glyph(icons[i], 30)}<span class="k">${a.key}</span><span class="n">${a.name}</span><span class="cd"></span>`;
       b.addEventListener('pointerdown', (e) => {
@@ -377,6 +382,10 @@ export class Hud {
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
       btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
+      const tip = (def as { tip?: string }).tip ?? def.text;
+      const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
+        : def.branch !== 'general' ? `${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]} unlock its capstone.` : '';
+      setTip(btn, () => `<b>${def.name}</b>${rank ? ` · ${rank}` : ''}<br>${tip}${why ? `<br><span class="tip-m">${why}</span>` : ''}<br><span class="tip-m">${HELP.bothKinds}</span>`);
       cards.appendChild(btn);
     });
     $('draftLevel').textContent = `Level ${w.player.level}${w.player.pendingLevels > 1 ? ` · ${w.player.pendingLevels} picks` : ''}`;
