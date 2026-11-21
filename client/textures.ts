@@ -279,6 +279,42 @@ function drawAshling(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[13.6, 12 + hop], [16.4, 12 + hop]], 1.1, '#ff5a3c');
 }
 
+/** Slagling (the raid): a squat blob of molten slag, its crust cooling dark over a bright core. */
+function drawSlagling(ctx: Ctx, _s: number, f: number): void {
+  const sq = [0, 0.8, 0, -0.6][f];
+  const drip = [0, 1, 2, 1][f];
+  softGlow(ctx, 13, 17, 11, 'rgba(255,120,40,0.55)');
+  // A molten puddle under it.
+  ell(ctx, 13, 22.5, 8 + sq, 2);
+  ctx.fillStyle = 'rgba(255,120,40,0.7)';
+  ctx.fill();
+  // The body: a wide, sagging blob.
+  ctx.beginPath();
+  ctx.moveTo(4.5 - sq, 22);
+  ctx.quadraticCurveTo(3 - sq, 12 + sq, 9, 8.5 + sq);
+  ctx.quadraticCurveTo(13, 5.5 + sq, 17.5, 8.5 + sq);
+  ctx.quadraticCurveTo(23 + sq, 12 + sq, 21.5 + sq, 22);
+  ctx.closePath();
+  shade(ctx, '#5a4a48', '#1e1614', 7, 22, 1.2);
+  // The core showing through the crust.
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(13, 17 + sq * 0.4, 5, 3.6, 0, 0, Math.PI * 2);
+  const core = ctx.createRadialGradient(13, 17, 0, 13, 17, 5);
+  core.addColorStop(0, '#fff2b0');
+  core.addColorStop(0.5, '#ffb347');
+  core.addColorStop(1, '#ff6a1f');
+  ctx.fillStyle = core;
+  ctx.fill();
+  ctx.restore();
+  cracks(ctx, [[[7, 12 + sq], [9.5, 14 + sq], [8.5, 17]], [[18.5, 11 + sq], [17, 13.5 + sq]], [[11, 9 + sq], [13, 11 + sq], [15.5, 9.5 + sq]]], '#ff8a3c', 0.9);
+  // A drip falling off one side.
+  ell(ctx, 21 + sq, 17 + drip * 1.6, 1.1, 1.6 + drip * 0.3);
+  ctx.fillStyle = '#ff9a3c';
+  ctx.fill();
+  eyes(ctx, [[10.5, 12.5 + sq], [15.5, 12.5 + sq]], 1, '#ffe08a');
+}
+
 /** Cinderhound: a lean, smouldering hound in side view. */
 function drawHound(ctx: Ctx, _s: number, f: number): void {
   const a = [0.5, 0.15, -0.5, -0.15][f];
@@ -1843,6 +1879,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'lumen', 48, 4, drawLumen);
   sheet(scene, 'bulwark', 52, 4, drawBulwark);
   sheet(scene, 'ashling', 24, 4, drawAshling);
+  sheet(scene, 'slagling', 26, 4, drawSlagling);
   sheet(scene, 'cinderhound', 36, 4, drawHound);
   sheet(scene, 'husk', 56, 4, drawWarden);
   sheet(scene, 'cinderBrute', 64, 4, drawBrute);

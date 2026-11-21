@@ -300,7 +300,9 @@ export class Hud {
     $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.named >= 0 ? w.namedName(i) : e.def.name;
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? 'Warded' : '';
-    $('tPhase').textContent = (e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '') + extra;
+    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
+    // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
+    $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {
       // The shadow can't die: its bar is the clock, and the number is damage dealt.
       $('tFill').style.width = `${(100 * w.shadowLeft) / 60}%`;
@@ -339,7 +341,9 @@ export class Hud {
   private updateBuffs(w: World): void {
     const p = w.player;
     const out: string[] = [];
-    if (w.telegraphs.some((t) => t.alive && t.kind === 'soak')) out.push('<span class="buff debuff">Kiln Brand: stand in the gold circle!</span>');
+    // Gold soak circles: the Kiln Mother's Brand, or a group boss's vents (owner -2), which need one hero in each.
+    const soak = w.telegraphs.find((t) => t.alive && t.kind === 'soak');
+    if (soak) out.push(`<span class="buff debuff">${soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!'}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Blazing Speed</span>');
     if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Bastion</span>');
