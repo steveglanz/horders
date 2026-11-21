@@ -369,7 +369,8 @@ export class Hub {
     const blocked = this.partyBlocker();
     const start = $('startBtn') as HTMLButtonElement;
     start.disabled = !!blocked;
-    start.textContent = blocked || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
+    // A solo hero in a group dungeon: point at Fill with bots, which sits well above this button on a phone.
+    start.textContent = (blocked && this.canFill() ? 'Needs a party or bots' : blocked) || `Delve · ${DUNGEONS[this.dungeon].name.replace(/^The /, '')} ${this.tier}`;
     this.renderBoss();
     this.renderTabs();
   }

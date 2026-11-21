@@ -256,7 +256,11 @@ export function partyCues(wasDown: boolean[], hp: readonly number[], acting: num
  * make the card tap's own sound.
  */
 export function pickCue(id: TalentId | undefined): Cue | null {
-  return id && TALENTS[id]?.capstone ? { id: 'capstone' } : null;
+  if (!id) return null;
+  if (TALENTS[id]?.capstone) return { id: 'capstone' };
+  // Party cards (Season 2, #241): a card for the party gets its own call-and-answer chime.
+  if (TALENTS[id]?.party) return { id: 'partyCard' };
+  return null;
 }
 
 /** What reviveCues remembers between ticks. */
