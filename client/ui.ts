@@ -1,4 +1,5 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
+import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { World, REVIVE_SECONDS } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
@@ -522,6 +523,8 @@ export class Hud {
       if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
       if (!rewards.items.length) notes.push('No loot this time');
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
+      for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
+      if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`

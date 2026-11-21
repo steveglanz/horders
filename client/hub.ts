@@ -13,6 +13,7 @@ import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
+import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS } from '../sim/content/weekly';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
@@ -289,7 +290,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}</div>`;
+      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.weeklyLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -298,7 +299,7 @@ export class Hub {
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -353,6 +354,13 @@ export class Hub {
       chips.push(`<button class="prep-chip bounty-chip" data-prep="bounty" data-sfx="open"><span class="star" aria-hidden="true">★</span>`
         + `<span>Bounty${paid ? '' : ` <b>+${bountyEmbers(b.tier)}</b>`}</span></button>`);
     }
+    // Weekly quests wait until after the first delve, like the potion.
+    if (h.runs > 0) {
+      const wk = weekState(h.weekly, weekOf(Date.now()), h.maxTier);
+      const n = wk.quests.filter((q) => q.done).length;
+      chips.push(`<button class="prep-chip ${n === wk.quests.length ? 'on' : ''}" data-prep="weekly" data-sfx="open"><span class="star" aria-hidden="true">◆</span>`
+        + `<span>Weekly <b>${n}/${wk.quests.length}</b></span></button>`);
+    }
     // In a party: a chip with the head count that opens the Group tab.
     if (this.partyClasses.length > 1) {
       chips.unshift(`<button class="prep-chip on" data-group data-sfx="open"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M15 14.6c3 .1 5.2 1.9 5.8 5.4"/></svg><span>Party <b>${this.partyClasses.length}/4</b></span></button>`);
@@ -361,14 +369,27 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'omens' | 'potion' | 'bounty', omens: OmenId[]): void {
-    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty' };
+  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly', omens: OmenId[]): void {
+    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests' };
     const body = kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
-      : kind === 'potion' ? this.potionLine() : this.bountyLine();
+      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
     this.bindPrep($('sheetBody'));
+  }
+
+  /** P1: this week's three quests, the same for everyone, and the title for all three. */
+  private weeklyLine(): string {
+    const h = this.hero();
+    if (h.runs === 0) return '';
+    const week = weekOf(Date.now());
+    const wk = weekState(h.weekly, week, h.maxTier);
+    const rows = wk.quests.map((q) => `<div class="kv${q.done ? ' muted' : ''}"><span>${q.done ? '✓ ' : ''}<b>${WEEKLY_QUESTS[q.id].name}</b>: ${weeklyText(q)}</span>`
+      + `<span>${q.done ? 'Done' : `${q.progress.toLocaleString()}/${q.goal.toLocaleString()} · <span class="pay">+${q.embers}</span>`}</span></div>`).join('');
+    const title = weeklyTitle(week);
+    return `<div class="box weekly"><div class="lbl">Weekly quests</div>${rows}`
+      + `<div class="hint">${wk.titled ? `Title earned: <b>${title}</b>.` : `Finish all three for the title <b>${title}</b>.`} New quests every week.</div></div>`;
   }
 
   /** Today's bounty: the same fights and twist for every player. */
