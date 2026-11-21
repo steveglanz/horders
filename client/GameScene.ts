@@ -579,6 +579,9 @@ export class GameScene extends Phaser.Scene {
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
           this.floatText(ev.x, ev.y - 44, ev.healed > 0 ? `Dodged +${Math.round(ev.healed)}` : 'Dodged', '#5fe0c8', 16);
+          // A teal ripple and a few motes rising off the hero.
+          this.ring(ev.x, ev.y, 70, 0x5fe0c8, 0.4);
+          for (let k = 0; k < 6; k++) this.spark(ev.x + (Math.random() - 0.5) * 30, ev.y + 10, (Math.random() - 0.5) * 40, -90 - Math.random() * 60, 0.6, 1.4);
           break;
         case 'potion':
           // Rising Draught: the hero gets back up in a column of gold.

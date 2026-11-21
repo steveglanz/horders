@@ -238,6 +238,19 @@
   .dg[data-d="glarewell"] { --art: radial-gradient(ellipse at 80% 0%, rgba(255,226,150,0.32), transparent 60%), linear-gradient(160deg, rgba(40,34,90,0.6), transparent 70%); }
   .info .st.set { color: #5fe0c8; }
   .info .st.set b { color: #8ff0dc; }
+  /* Verb set block on an item card: glyph, name, verb, worn pips, then the 2- and 3-piece bonuses. */
+  .setb { margin-top: 6px; padding: 7px 9px; border-radius: 10px; border: 1px solid rgba(95,224,200,0.28); background: rgba(95,224,200,0.06); }
+  .setb .sh { display: flex; align-items: center; gap: 6px; }
+  .setb .gtile { width: 22px; height: 22px; border-radius: 7px; }
+  .setb .verb { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(95,224,200,0.75); }
+  .setb .pips { margin-left: auto; display: flex; gap: 3px; }
+  .setb .pips i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid #5fe0c8; }
+  .setb .pips i.on { background: #5fe0c8; box-shadow: 0 0 6px rgba(95,224,200,0.7); }
+  .setb .sb { display: flex; gap: 6px; margin-top: 4px; color: var(--muted); }
+  .setb .sb em { flex: none; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font: 700 10px var(--sans); font-style: normal; border: 1px solid rgba(95,224,200,0.4); color: rgba(95,224,200,0.8); }
+  .setb .sb.on { color: #bff7ea; }
+  .setb .sb.on em { background: #5fe0c8; color: #0b1f1b; border-color: #5fe0c8; }
+  .setmark { display: inline-flex; vertical-align: -1px; margin-right: 4px; }
   .pots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .pot { display: flex; flex-direction: column; gap: 4px; padding: 10px; min-height: 44px; border-radius: var(--radius); border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); text-align: left; }
   .pot b { font: 600 14px var(--serif); }
