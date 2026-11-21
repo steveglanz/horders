@@ -491,6 +491,8 @@ export const SOUNDS = {
   covered: join(whoosh(1200, 3800, 0.22, 0.12), [{ wave: 'tri', f: A5, f2: E6, dur: 0.25, vol: 0.09, a: 0.05, curve: 2 }, { wave: 'sine', f: E5, dur: 0.3, vol: 0.07, a: 0.06, curve: 2 }]),
   /** Kinbound (3): Bonded. Two notes a fifth apart ring together, then a bright glint. */
   bonded: join(chime(D5 * 2, 0, 0.14, 0.4), chime(A5 * 2, 0.06, 0.13, 0.4), [{ wave: 'saw', f: 880, f2: 1320, dur: 0.12, delay: 0.1, vol: 0.05, lp: 4000, curve: 2 }]),
+  /** Relayer: Relayed. A quick handoff, two bright notes passing upward like a baton. */
+  relayed: join(whoosh(2000, 6500, 0.16, 0.12), chime(A5, 0.02, 0.14, 0.3), chime(E6, 0.1, 0.15, 0.4)),
   /** Hearthkeeper: Warmth reaches 5. A low fire swells and two warm notes settle. */
   warmthFull: join(
     [{ wave: 'noise', f: 0, dur: 0.45, vol: 0.18, a: 0.15, lp: 2200, hp: 400, trem: [18, 0.5] }],
