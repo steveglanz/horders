@@ -960,6 +960,8 @@
   .wq-title.earned .crest { color: var(--gold); text-shadow: 0 0 8px rgba(255,200,97,0.6); }
   /* Season colours (client/seasonArt.ts sets --sa accent, --sh light, --sd deep per season; the defaults are the Hollow Tide's violet). */
   .box.season { --sa: #b48cff; --sh: #cdb6ff; --sd: #8a6cff; margin-top: 12px; border-color: color-mix(in srgb, var(--sa) 30%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--sa) 8%, transparent), transparent 55%), var(--card); }
+  /* Phones: in the season sheet the box title repeats the sheet title, and its Lv chip repeats the "Lv N" line below. */
+  @media (max-width: 560px), (max-height: 520px) { #sheet .box.season > .lbl { display: none; } #sheet .box.season > .kart-wrap ~ .wq-bar { margin-top: 12px; } }
   .season .lbl { color: var(--sh); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .season .wq-count { font: 700 12px var(--sans); color: var(--ink); background: color-mix(in srgb, var(--sa) 14%, transparent); border: 1px solid color-mix(in srgb, var(--sa) 35%, transparent); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
   .season .wq-bar i { background: linear-gradient(90deg, var(--sd), var(--sh)); }
