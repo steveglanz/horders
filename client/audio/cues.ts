@@ -58,7 +58,7 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
  * not its display name, so renaming a cast never silences it. A new boss needs no new event type.
  */
 export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
-  // The Hammerdeep: Ondrel, the Anvilward (docs/design/group-dungeons.md).
+  // The Hammerdeep: Ondrel of the Hammerdeep (docs/design/group-dungeons.md).
   anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
   choir: { done: 'choir' }, // Choir of Iron
   hammerSweep: { done: 'sweep' }, // Hammer Sweep

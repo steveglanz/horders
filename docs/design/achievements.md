@@ -22,7 +22,7 @@
 | Keybearer | Beat a level 5 Delver's Key | the Keybearer | 40 |
 | Lockbreaker | Beat a level 10 Delver's Key | Lockbreaker | 100 |
 
-All fifteen together pay 840 embers over a long time. That is about the same as the collection book's 800, so it doesn't move the Forge targets in economy.md.
+All fifteen together pay 840 embers over a long time. That is about the same as the collection book's 880, so it doesn't move the Forge targets in economy.md.
 
 **Names (checked 21 Nov 2026).** Steve's rule is no names from WoW or Azeroth Survivors.
 - **WoW:** each of the 14 titles was checked against Wowpedia's full title list (the Title page's wikitext, through the fandom API) and with web searches. None is a WoW title. Two were renamed anyway:

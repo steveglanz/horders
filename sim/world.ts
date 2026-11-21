@@ -755,7 +755,7 @@ export class World {
   lampBeam: { x1: number; y1: number; x2: number; y2: number } | null = null;
   private lampTickT = 0;
   private glareT = 0;
-  /** Ondrel, the Anvilward (the Hammerdeep's group boss). */
+  /** Ondrel of the Hammerdeep (the Hammerdeep's group boss). */
   private anvilT = 0;
   private anvilTarget = 0;
   /** Hammerdeep: the hero Anvilfall will land on (read by the client to mark them during the wind-up). */
@@ -2021,6 +2021,8 @@ export class World {
     if ((p.warmth ?? 0) >= SET_TUNING.hkMax && this.setCount('hearthkeeper') >= 3) amount *= 1 - SET_TUNING.hkCut;
     // Wrackrider: a Planted hero is hard to knock about.
     if (p.planted && this.setCount('wrackrider') >= 2) amount *= 1 - SET_TUNING.wrCut;
+    // Deepguard: stay close. Less damage with an ally near (2), and a wearer of 3 guards the allies near it.
+    if (this.heroes.length > 1) amount *= this.deepguardMult();
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -4264,6 +4266,26 @@ export class World {
     this.events.push({ type: 'dodge', x: this.player.x, y: this.player.y, healed });
   }
 
+  /** Deepguard (group set): the damage multiplier for the acting hero from its own pieces and from a nearby ally's 3-piece guard. */
+  private deepguardMult(): number {
+    const p = this.player;
+    const r2 = SET_TUNING.dgRange * SET_TUNING.dgRange;
+    const mine = this.setCount('deepguard');
+    let near = false;
+    let guarded = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || dist2(p.x, p.y, q.x, q.y) > r2) continue;
+      near = true;
+      if ((this.heroes[k].loadout.sets?.deepguard ?? 0) >= 3) guarded = true;
+    }
+    let m = 1;
+    if (near && mine >= 2) m *= 1 - SET_TUNING.dgCut;
+    if (guarded) m *= 1 - SET_TUNING.dgAura;
+    return m;
+  }
+
   /** How many pieces of a verb set the acting hero wears. */
   setCount(id: SetId): number {
     return this.loadout.sets?.[id] ?? 0;
@@ -5837,7 +5859,7 @@ export const FOUNDRY = {
 };
 
 /**
- * Ondrel, the Anvilward: a group boss whose mechanics each ask one role for one thing.
+ * Ondrel of the Hammerdeep: a group boss whose mechanics each ask one role for one thing.
  * See docs/design/group-dungeons.md. Damage numbers are before tierDamage.
  */
 /** The Coldmarrow (C1): the Hearthcoal, Chill, its foes and Nhevra. */

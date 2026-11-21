@@ -9,6 +9,8 @@ import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
 import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
+import type { Item } from '../sim/content/items';
+import { SET_SLOTS, SetId } from '../sim/content/sets';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
@@ -20,6 +22,14 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
+// SET=deepguard SETN=2|3 turns every hero's head, hands and trinket (in that order) into pieces of that set.
+const setId = process.env.SET as SetId | undefined;
+const setN = Number(process.env.SETN ?? 3);
+const tagSet = (items: Item[]): Item[] => {
+  if (!setId) return items;
+  let n = 0;
+  return items.map((it) => (SET_SLOTS.includes(it.slot) && n++ < setN ? { ...it, set: setId } : it));
+};
 // REVIVE=0: bots never pick up downed allies (BOT_PARTY.revive, on by default).
 BOT_PARTY.revive = process.env.REVIVE !== '0';
 // TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
@@ -38,10 +48,10 @@ for (const seed of seeds) {
   const mp = profile(main);
   const opts: WorldOptions = {
     seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
-    ...(mp ? { gear: equippedItems(mp), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
+    ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
-      return { cls, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(cls), name: `${cls}${k + 1}`, ...(hp ? { gear: equippedItems(hp), passives: hp.passives } : {}) };
+      return { cls, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(cls), name: `${cls}${k + 1}`, ...(hp ? { gear: tagSet(equippedItems(hp)), passives: hp.passives } : {}) };
     }),
   };
   const w = new World(opts);

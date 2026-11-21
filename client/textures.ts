@@ -525,7 +525,7 @@ function drawKiln(ctx: Ctx, s: number, f: number): void {
 // ---------------------------------------------------------------- the Hammerdeep
 
 /**
- * Ondrel, the Anvilward: a hulking iron warden whose chest is a forge anvil.
+ * Ondrel of the Hammerdeep: a hulking iron warden whose chest is a forge anvil.
  * Cool steel with molten slag in the seams; a great hammer in its right hand
  * (it rises over the four frames), a visor slit with two hot eyes.
  */
