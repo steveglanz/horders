@@ -54,7 +54,7 @@ const phone = process.argv[3] === 'phone';
   await page.waitForTimeout(200);
   await shot('2-hub-bottom');
   await scrollOverlay('title', 0);
-  await page.click('#bagBtn');
+  await page.evaluate(() => document.getElementById('bagBtn').click()); // hidden on phones, where the Bags tab opens it
   await page.waitForTimeout(300);
   await shot('3-bag');
   console.log(errors.length ? errors.join('\n') : 'no errors');

@@ -32,7 +32,7 @@ const phone = process.argv[3] === 'phone';
   await page.goto(url);
   await page.waitForTimeout(1000);
   await (await page.$('#heroCard')).screenshot({ path: path.join(out, `${tag}-sets-gear.png`) });
-  await page.click('#bagBtn');
+  await page.evaluate(() => document.getElementById('bagBtn').click()); // hidden on phones, where the Bags tab opens it
   await page.waitForTimeout(300);
   const items = await page.$$('#bagList .item');
   let k = 0;

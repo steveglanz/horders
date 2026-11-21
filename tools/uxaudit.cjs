@@ -4,7 +4,7 @@
 //   npm run build && node tools/uxaudit.cjs <outDir> [se|13|se-land|13-land ...]
 //
 // Shots per viewport: hub (first screen and the whole scroll), hub with gear/talents open,
-// delve setup, co-op box, bags, in-run HUD, talent draft, pause, boss fight and end screen.
+// delve setup, co-op box, the Hero and Group tabs, settings, bags, in-run HUD, talent draft, pause, boss fight and end screen.
 // Each viewport also writes <tag>-metrics.json: how tall the hub scroll is in screens, and
 // which buttons are under 44px.
 const { chromium } = require('playwright');
@@ -100,11 +100,28 @@ async function run(browser, tag) {
   await shot('06-coop');
   await page.evaluate(() => { document.getElementById('title').scrollTop = 0; });
 
-  await page.click('#bagBtn');
+  // Tabbed hub (phones): the Hero and Group tabs, then back to Delve.
+  if (await page.isVisible('#tabbar')) {
+    for (const [t, n] of [['hero', '06a-tab-hero'], ['group', '06b-tab-group']]) {
+      await page.click(`#tabbar [data-tab=${t}]`);
+      await page.waitForTimeout(200);
+      await shot(n);
+      report[`tab-${t}`] = await metrics(page, 'title');
+    }
+    await page.click('#tabbar [data-tab=delve]');
+    await page.waitForTimeout(200);
+  }
+  await page.click('#setBtn');
+  await page.waitForTimeout(250);
+  await shot('06c-settings');
+  await page.click('#settings .sheet-x');
+
+  // Bags: the Bags tab on phones, the Bags pill on wide screens.
+  await page.evaluate(() => document.getElementById('bagBtn').click());
   await page.waitForTimeout(300);
   await shot('07-bags');
   report.bags = await metrics(page, 'bag');
-  await page.click('#bagClose');
+  await page.evaluate(() => document.getElementById('bagClose').click());
   await page.waitForTimeout(200);
 
   // A run: the HUD mid-fight, then a draft with auto-pick off.
