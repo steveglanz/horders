@@ -112,6 +112,39 @@ export const SOUNDS = {
   lumenSanctuary: join(chime(C5, 0, 0.25, 1.2), chime(E5, 0.08, 0.2, 1.1), chime(G5, 0.16, 0.18, 1.0), chime(C6, 0.24, 0.15, 0.9)),
   lumenStep: [{ wave: 'sine', f: E6, f2: G6, dur: 0.2, vol: 0.14, curve: 3 }, ...whoosh(2000, 6000, 0.18, 0.12)],
 
+  // Slagbinder: molten slag poured, hardening and cracking.
+  /** Slag Lob: a wet molten glob that lands with a splat. */
+  slagLob: [
+    { wave: 'sine', f: 700, f2: 220, dur: 0.12, vol: 0.14, curve: 2 },
+    { wave: 'tri', f: 1400, f2: 500, dur: 0.08, vol: 0.06, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.12, delay: 0.06, vol: 0.18, lp: 2600, lp2: 700, curve: 2.5 },
+  ],
+  /** Molten Plating: slag pours over a hero with a sizzle, then hardens with a dull clink. */
+  slagPlate: join(
+    [{ wave: 'noise', f: 0, dur: 0.45, vol: 0.22, a: 0.05, lp: 5000, lp2: 2500, hp: 1200, trem: [22, 0.4] },
+     { wave: 'saw', f: 180, f2: 120, dur: 0.35, vol: 0.12, a: 0.04, lp: 1400 }],
+    clang(520, 0.22, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.32 })),
+  ),
+  /** Interpose: a heavy leap, landing in front of a friend with a thud. */
+  slagLeap: join(whoosh(500, 3500, 0.22, 0.3), boom(70, 0.35, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
+  /** Cooling Shell: a quenching hiss as the slag sets hard, with crackles and a deep ring. */
+  coolingShell: join(
+    [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.3, a: 0.03, lp: 8000, lp2: 1800, hp: 900, curve: 1.6 }],
+    clang(260, 0.35, 0.9),
+    ...[0.25, 0.4, 0.62].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.25, lp: 7000, hp: 2000, curve: 3 }]),
+  ),
+  /** Clinker: a lump of slag hurled hard, cracking on impact. */
+  clinker: join(whoosh(2500, 900, 0.14, 0.25), [
+    { wave: 'noise', f: 0, dur: 0.1, delay: 0.12, vol: 0.45, lp: 4500, lp2: 900, curve: 2.5 },
+    { wave: 'tri', f: 300, f2: 140, dur: 0.18, delay: 0.12, vol: 0.25, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.04, delay: 0.2, vol: 0.25, lp: 7000, hp: 2500, curve: 3 },
+  ]),
+  /** A foe turns Brittle: hardened slag cracking like glass. */
+  brittle: join(
+    ...[0, 0.05, 0.11].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.3 - k * 0.06, lp: 9000, hp: 2500, curve: 3 }]),
+    [{ wave: 'tri', f: 2600, f2: 2200, dur: 0.2, vol: 0.08, curve: 3 }],
+  ),
+
   // ---- interrupts and enemy casts
   interrupt: join(clang(1480, 0.5, 0.45), [
     { wave: 'square', f: 2000, f2: 600, dur: 0.12, vol: 0.12, lp: 5000 },
