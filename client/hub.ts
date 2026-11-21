@@ -11,7 +11,8 @@ import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/it
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
-import { GLOWS, SEASON, TRAILS, trailLabel, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { GLOWS, SEASON, SEASONS, TRAILS, trailLabel, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { SEASON_ART } from './seasonArt';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -22,7 +23,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, CLASS_ICON, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -314,12 +315,14 @@ export class Hub {
 
     // Delve setup. The Foundry unlocks once tier 4 is unlocked.
     if (h.maxTier < DUNGEONS[this.dungeon].unlockTier) this.dungeon = 'kiln';
+    const sea = this.seasonArt();
     const dungeons = DUNGEON_IDS.map((id) => {
       const d = DUNGEONS[id];
+      const featured = !!sea && sea.dungeon === id;
       const locked = h.maxTier < d.unlockTier;
       const { label } = partyLabel(id, this.classes());
-      return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}" title="${d.name}: ${d.blurb}${locked ? ` Unlocks at tier ${d.unlockTier}.` : ''} ${label}.">`
-        + `${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
+      return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}${featured ? ' insea' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}"${featured ? ` style="${sea!.vars}"` : ''} title="${d.name}: ${d.blurb}${locked ? ` Unlocks at tier ${d.unlockTier}.` : ''} ${label}.${featured ? ` In season: +${SEASON.featured} marks a win.` : ''}">`
+        + `${featured ? `<span class="insea-b"><i aria-hidden="true"></i>In season</span>` : ''}${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
         + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
     }).join('');
     const tiers: string[] = [];
@@ -510,6 +513,17 @@ export class Hub {
       + `${this.keyBoardHtml()}</div>`;
   }
 
+  /** The current season's dungeon and its art colours as CSS vars, once the hero has played (as the season box). */
+  private seasonArt(): { dungeon: string; vars: string; banner?: string } | undefined {
+    const h = this.hero();
+    if (h.runs === 0) return undefined;
+    const id = seasonState(h.season, weekOf(Date.now())).id;
+    const art = SEASON_ART[((id % SEASONS.length) + SEASONS.length) % SEASONS.length];
+    return { dungeon: seasonDef(id).dungeon, vars: art ? `--sa:${art.accent};--sh:${art.hi};--sd:${art.deep}` : '', banner: art?.banner };
+  }
+
+  private bannerN = 0;
+
   /** P2: the season sheet's title, e.g. "Season 1: the Hollow Tide". */
   private seasonTitle(): string {
     const id = seasonState(this.hero().season, weekOf(Date.now())).id;
@@ -531,16 +545,20 @@ export class Hub {
     const today = st.firstWinDay === dayOf(Date.now());
     const rewards = seasonRewards(st.id).map((r) => {
       const got = lvl >= r.level;
-      const what = r.kind === 'glow' ? `<span class="swatch" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
+      const what = r.kind === 'glow' ? `<span class="swatch${glowMarkClass(r.glow.id)}" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
       return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
     }).join('');
     const titles = h.titles ?? [];
     const glows = (h.glows ?? []).map((g) => GLOWS[g]).filter(Boolean);
     const wearT = titles.map((t) => `<button class="wear${h.wear?.title === t ? ' on' : ''}" data-wear="title" data-id="${t}">${t}</button>`).join('');
-    const wearG = glows.map((g) => `<button class="wear${h.wear?.glow === g.id ? ' on' : ''}" data-wear="glow" data-id="${g.id}"><span class="swatch" style="--sw:${g.color}"></span>${g.name}</button>`).join('');
+    const wearG = glows.map((g) => `<button class="wear${h.wear?.glow === g.id ? ' on' : ''}" data-wear="glow" data-id="${g.id}"><span class="swatch${glowMarkClass(g.id)}" style="--sw:${g.color}"></span>${g.name}</button>`).join('');
     const trails = Object.entries(h.trails ?? {}).filter(([id]) => TRAILS[id]);
     const wearR = trails.map(([id, st]) => `<button class="wear${h.wear?.trail === id ? ' on' : ''}" data-wear="trail" data-id="${id}"><span class="swatch trail" style="--sw:${TRAILS[id].color}"></span>${trailLabel(TRAILS[id], st)}</button>`).join('');
-    return `<div class="box season"><div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
+    const sea = this.seasonArt();
+    // The key art's gradient ids are made unique, since the box can be drawn twice (the hub and its sheet).
+    const n = ++this.bannerN;
+    const art = sea?.banner ? `<div class="kart-wrap">${sea.banner.replace(/\b(kbSky|kbHeat|kbSpill)\b/g, (m) => `${m}-${n}`)}</div>` : '';
+    return `<div class="box season"${sea?.vars ? ` style="${sea.vars}"` : ''}>${art}<div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
       + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
       + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
       + `<div class="hint">${today ? 'First win of the day: done. Come back tomorrow for another' : `Your first win today pays <b>+${SEASON.firstWin}</b> marks`}. A win pays ${SEASON.win}, a loss ${SEASON.lossBase} plus ${SEASON.lossPerFight} a fight, each weekly quest ${SEASON.weekly}.</div>`

@@ -2300,6 +2300,33 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // Marked season glows (GLOW_MARK in icons.ts): the same disc with an inner second ring ('double'), and one
+  // with a dark outline outside the rim ('edge'), drawn with normal blending so the dark shows on any floor.
+  make(scene, 'heroGlowDouble', 128, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.18)');
+    g.addColorStop(0.38, 'rgba(255,255,255,0.18)');
+    g.addColorStop(0.48, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.58, 'rgba(255,255,255,0.15)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0.75)');
+    g.addColorStop(0.88, 'rgba(255,255,255,0.4)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+  make(scene, 'heroGlowEdge', 128, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.2)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.28)');
+    g.addColorStop(0.72, 'rgba(255,255,255,0.8)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0.55)');
+    g.addColorStop(0.83, 'rgba(24,10,6,0.9)');
+    g.addColorStop(0.95, 'rgba(24,10,6,0.75)');
+    g.addColorStop(1, 'rgba(24,10,6,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   // Season trail mote: a small white glow, so the trail's tint shows true (the orange spark would darken a blue trail).
   make(scene, 'trailMote', 16, (ctx, s) => glow(ctx, s, '#ffffff', 'rgba(255,255,255,0.55)', 0.4));
 

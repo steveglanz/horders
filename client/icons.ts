@@ -118,6 +118,16 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
 /** Slot 3 (F) is every class's interrupt. */
 export const INTERRUPT_SLOT = 3;
 
+/**
+ * Season glows whose colours sit close to another glow's get a mark of their own, so they part by shape
+ * as well as colour (colourblind players, and a near-white glow on a pale floor): 'double' adds an inner
+ * ring, 'edge' a dark outline. The Deep Bellows' three warm glows: Bellows Orange plain, Kiln Red double,
+ * White Heat edged. The swatches in the hub carry the same marks.
+ */
+export const GLOW_MARK: Record<string, 'double' | 'edge'> = { kilnRed: 'double', whiteHeat: 'edge' };
+/** The swatch class for a glow's mark ('' for none). */
+export const glowMarkClass = (id: string): string => (GLOW_MARK[id] ? ` m-${GLOW_MARK[id]}` : '');
+
 /** Verb sets share one teal so a set piece reads at a glance; the glyph names the dungeon's verb. */
 export const SET_COLOR = '#5fe0c8';
 export const SET_ICON: Record<SetId, string> = {
