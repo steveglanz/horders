@@ -147,12 +147,12 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   phoenixLance: { id: 'phoenixLance', cls: 'emberwright', name: 'Phoenix Lance', branch: 'kindling', maxRank: 1, capstone: true, text: 'A piercing lance every 2.5s.', tip: "Every 2.5s, a lance hits everything in a 520 px line for 75 damage." },
   searingBloom: { id: 'searingBloom', cls: 'emberwright', name: 'Searing Bloom', branch: 'kindling', maxRank: 1, capstone: true, text: 'Your crits burst onto foes around the target and set the target burning.', tip: "Every crit splashes 60% of the hit onto foes within 90 px of the target, and burns the target for 30 damage per second for 3s." },
   // Ashguard: defense and utility
-  cinderSkin: { id: 'cinderSkin', cls: 'emberwright', name: 'Cinder Skin', branch: 'ashguard', maxRank: 3, text: '+25 max health, and heal 25.' },
-  mend: { id: 'mend', cls: 'emberwright', name: 'Mend in Embers', branch: 'ashguard', maxRank: 3, text: 'Regenerate 0.8 health per second.' },
+  cinderSkin: { id: 'cinderSkin', cls: 'emberwright', name: 'Cinder Skin', branch: 'ashguard', maxRank: 3, text: '+25 max health, heal 25, and +6% damage.' },
+  mend: { id: 'mend', cls: 'emberwright', name: 'Mend in Embers', branch: 'ashguard', maxRank: 3, text: 'Regenerate 0.8 health per second, and +6% damage.' },
   magnetism: { id: 'magnetism', cls: 'emberwright', name: 'Ember Pull', branch: 'ashguard', maxRank: 3, text: '+40% pickup range, +6% move speed.' },
   flicker: { id: 'flicker', ability: 1, cls: 'emberwright', name: 'Flicker', branch: 'ashguard', maxRank: 3, text: 'Blink recharges 1.5s faster and shields you briefly.' },
   blazingSpeed: { id: 'blazingSpeed', ability: 1, cls: 'emberwright', name: 'Hot Heels', branch: 'ashguard', maxRank: 2, text: 'Run 30% faster for 2s after Blink. Rank 2: Blink holds a second charge.' },
-  ringOfAsh: { id: 'ringOfAsh', cls: 'emberwright', name: 'Ring of Ash', branch: 'ashguard', maxRank: 1, capstone: true, text: 'Three embers orbit and burn foes.', tip: "Three embers circle you and burn each foe they touch for 16 damage, at most once every 0.4s per foe." },
+  ringOfAsh: { id: 'ringOfAsh', cls: 'emberwright', name: 'Ring of Ash', branch: 'ashguard', maxRank: 1, capstone: true, text: 'Three embers orbit and burn foes.', tip: "Three embers circle you 200 px out and burn each foe they touch for 45 damage, at most once every 0.4s per foe." },
   ashenMantle: { id: 'ashenMantle', ability: 1, cls: 'emberwright', name: 'Ashen Mantle', branch: 'ashguard', maxRank: 1, capstone: true, text: 'For 3s after Blink, you take 40% less damage.' },
   // Fallbacks once the tree runs dry
   stoke: { id: 'stoke', name: 'Stoke the Flame', branch: 'general', maxRank: 99, text: '+10% damage.' },
@@ -276,7 +276,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   closeWarmth: { id: 'closeWarmth', cls: 'emberwright', name: 'Close Warmth', branch: 'ashguard', deep: true, party: true, maxRank: 2, text: 'Allies within 260 px of you heal 0.2 health per second.' },
   longStand: { id: 'longStand', ability: 1, cls: 'slagbinder', name: 'Long Stand', branch: 'crust', deep: true, party: true, maxRank: 2, text: 'Interpose guards your ally 1s longer, in either stance.' },
   wideShell: { id: 'wideShell', ability: 2, cls: 'slagbinder', name: 'Wide Shell', branch: 'forge', deep: true, party: true, maxRank: 2, text: 'Cooling Shell covers allies 50 px farther away, in either stance.' },
-  clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'Falling below 30% health plates you for 25% of your max health, once every 30s.' },
+  clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'Falling below 30% health plates you for 25% of your max health, once every 30s. +50% damage while plated.' },
   slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
 };
 

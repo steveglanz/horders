@@ -894,6 +894,8 @@ const NEW_CAPS: TalentId[] = [
   'ironVigil', 'grudge', 'shieldWake', 'noonfire', 'haven', 'chorus',
 ];
 const MEASURE_NEW = typeof process !== 'undefined' && !!process.env.NEW_CAPS;
+/** BOT_BRANCH=bastion,grace (balance tools only): the bot drafts these branches first until their capstone, to measure branches it rarely commits to. */
+const FORCE_BRANCH = typeof process !== 'undefined' ? (process.env.BOT_BRANCH ?? '').split(',').filter(Boolean) : [];
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
@@ -901,7 +903,9 @@ export function botChoose(w: World): number {
   w.choices.forEach((c, i) => {
     const def = TALENTS[c.id];
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
-    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 + BOT_PRIORITY.indexOf(c.id);
+    // Forced only until the branch's capstone is in; after that the bot drafts as usual.
+    const forced = FORCE_BRANCH.includes(def.branch) && !(Object.keys(TALENTS) as TalentId[]).some((id) => TALENTS[id].branch === def.branch && TALENTS[id].capstone && w.rank(id) > 0) ? 2000 : 0;
+    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced + BOT_PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

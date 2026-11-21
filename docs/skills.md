@@ -386,7 +386,7 @@ Both of the Lumen's original capstones added almost nothing:
 
 The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
 - **High Noon:** every 4 s, the beam fires at your target whenever there is one. It deals 40 plus 1.5 per Brilliance, and spends all your Brilliance as before.
-- **Choir of Dawn:** the wisps circle 170 px out. Ring of Ash keeps its 78 px.
+- **Choir of Dawn:** the wisps circle 170 px out. (Ring of Ash moved to 200 px in the branch coverage fix below.)
 
 **Balance:** matrix.sh with heroes-r2, 3 heroes and 40 seeds each, on main d52313c. Numbers are average wins out of 40.
 
@@ -610,6 +610,31 @@ Design's conditions (21 Nov 2026), all built in:
 **Tools:** ALT=1 turns the option on in tools/balance.ts, tools/group.ts and the matrix's foundry2.ts. In group.ts, ALT=bulwark,lumen turns it on for those classes only.
 
 **Placeholders:** the option glyphs (`ALT_GLYPH` in client/icons.ts) and the cast effect (a ring and the name) are placeholders until visuals draws them. Sound can tell an option apart by `alt: true` on the 'ability' event.
+
+## Branch coverage: defence branches deal damage (21 Nov 2026)
+`BOT_BRANCH=<branch>` (balance tools only, sim/bot.ts) makes the bot draft one branch until its capstone, so every branch can be measured. At Foundry t6, 40 seeds, 13 of 15 branches were within noise of their class default. Two were traps:
+- **Ashguard** (Emberwright): 4 of 40 against the default 31, and 0 of 40 at Kiln t6.
+- **Crust** (Slagbinder): 14 of 40 against 30, and 0 of 40 at Kiln t6.
+
+Both survive but run out of time: the boss enrages at 150 s. The fix (tuning in `DEFENCE_BRANCH`, sim/world.ts), with the card texts stating the numbers:
+- **Ring of Ash:** 45 damage a touch (was 16), 200 px out (was 78).
+- **Cinder Skin, Mend in Embers:** +6% damage per rank.
+- **Clinker Heart:** +50% damage while plated. The health cards are unchanged.
+
+**Balance,** 80 seeds, heroes-r2 (Emberwright) and heroes-fair (Slagbinder), hero-t*-0:
+
+| | Foundry t6 | Kiln t6 |
+|---|---|---|
+| Ashguard forced, before (40 seeds, doubled) | 8 | 0 |
+| Ashguard forced, after | 67 | 47 |
+| Emberwright default | 61 | 53 |
+| Crust forced, before (40 seeds, doubled) | 28 | 0 |
+| Crust forced, after | 61 | 27 |
+| Slagbinder default | 58 | 35 |
+
+Novice reference (LAG=0.3 SKILL=0.5), Emberwright Kiln t1, 160 seeds: Ashguard 82 before, 84 after; default 64.
+
+Default bots, main against this branch, 80 seeds: Emberwright Foundry 6/8 61/61, 56/57; Kiln 6/8 53/53, 38/38; Slagbinder Foundry 6/8 57/58, 58/59; Kiln 6/8 34/35, 32/34; Hammerdeep t8 42/43, with the Slagbinder 67/66; Crucible (of 90) 56/56. All within noise. Clinker Heart sweep (40 seeds, Foundry/Kiln t6): +30% 26/6, +50% 30/13, +80% 34/26, +120% 35/37.
 
 ## Order of work
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, CAPSTONES_2, LUMEN_CAPS } from '../sim/world';
+import { World, CAPSTONES_2, LUMEN_CAPS, DEFENCE_BRANCH } from '../sim/world';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
 import type { ClassId } from '../sim/content/emberwright';
 
@@ -232,12 +232,12 @@ describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
     expect(beams).toBe(2);
   });
 
-  it("Choir of Dawn's wisps circle wider than Ring of Ash", () => {
+  it('Choir of Dawn and Ring of Ash each circle at their own radius', () => {
     const { w, inner } = w2('lumen');
     inner.talents.choirOfDawn = 1;
     for (const o of w.orbiters()) expect(Math.hypot(o.x - w.player.x, o.y - w.player.y)).toBeCloseTo(LUMEN_CAPS.choirR);
     const ash = world('emberwright');
     ash.inner.talents.ringOfAsh = 1;
-    for (const o of ash.w.orbiters()) expect(Math.hypot(o.x - ash.w.player.x, o.y - ash.w.player.y)).toBeCloseTo(78);
+    for (const o of ash.w.orbiters()) expect(Math.hypot(o.x - ash.w.player.x, o.y - ash.w.player.y)).toBeCloseTo(DEFENCE_BRANCH.ringR);
   });
 });

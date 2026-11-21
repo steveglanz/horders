@@ -2,6 +2,7 @@
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools.
 // POTION=risingDraught|stillwater|kindling brews that potion for every run.
 // SET=kilnbreaker|tidewalker|glarewarden|hearthkeeper|wrackrider|deepguard|ventwalker|kinbound SETN=2|3 turns the hero's head, hands and trinket (in that order) into set pieces.
+import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { readFileSync } from 'fs';
@@ -21,6 +22,14 @@ const tagSet = (items: Item[]): Item[] => {
 const heroOpts = hero ? { gear: tagSet(equippedItems(hero)), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
 if (setId && hero) console.log('set pieces worn:', heroOpts.gear?.filter((i) => i.set).length);
 
+// TUNE=DEFENCE_BRANCH.ringDamage=30 overrides an exported tuning number for this run only.
+for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
+  const [path, v] = kv.split('=');
+  const keys = path.split('.');
+  let o = (WORLD as unknown as Record<string, Record<string, unknown>>)[keys[0]] as Record<string, unknown>;
+  for (const k of keys.slice(1, -1)) o = o[k] as Record<string, unknown>;
+  o[keys[keys.length - 1]] = Number(v);
+}
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {

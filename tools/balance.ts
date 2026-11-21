@@ -1,4 +1,5 @@
 // Plays bot runs and reports outcomes plus how often the MMO mechanics fire.
+import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
 import { OmenId } from '../sim/content/omens';
 import { botChoose, botInput, laggedBot } from '../sim/bot';
@@ -11,6 +12,14 @@ if (process.env.FD_DMG) FIRST_DELVE.dmg = Number(process.env.FD_DMG);
 // ROUTE=pack,brute,kilnMother fixes the fights. LAG=seconds gives the bot a reaction time (a novice proxy; see laggedBot).
 const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
 
+// TUNE=DEFENCE_BRANCH.ringDamage=30 overrides an exported tuning number for this run only.
+for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
+  const [path, v] = kv.split('=');
+  const keys = path.split('.');
+  let o = (WORLD as unknown as Record<string, Record<string, unknown>>)[keys[0]] as Record<string, unknown>;
+  for (const k of keys.slice(1, -1)) o = o[k] as Record<string, unknown>;
+  o[keys[keys.length - 1]] = Number(v);
+}
 const skill = Number(process.env.SKILL ?? 1);
 const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
