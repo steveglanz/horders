@@ -11,6 +11,8 @@ export const HELP = {
   /** The level-up cards during a run (TALENTS in sim/content/emberwright.ts; World.rollDraft). */
   runTalents:
     `When you level up in a delve, pick 1 of 3 talent cards. Most cards belong to a branch. ${CAPSTONE_RANKS} ranks in one branch unlock its capstone, a big upgrade. Talent cards reset when the delve ends.`,
+  /** Under talent-card tooltips: damage figures are base numbers. */
+  cardNumbers: 'Damage numbers on talent cards are before your damage bonuses from gear, Might and level.',
   /** One line that tells the two kinds apart, for the first time a player sees either. */
   bothKinds:
     'Hero talents stay with your hero for good. Talent cards in a delve last until the delve ends.',
