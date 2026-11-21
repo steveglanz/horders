@@ -90,12 +90,20 @@ export function render(r: Recipe, rate: number, seed = 1): Float32Array {
     const cutStep = v.lp ? Math.pow((v.lp2 ?? v.lp) / v.lp, 1 / n) : 1;
     let k1 = 1;
     const k2 = v.hp ? Math.exp((-TAU * v.hp) / rate) : 0;
+    // Envelope, vibrato and tremolo change slowly: refresh them every 8 samples
+    // (a quarter of a millisecond), which keeps renders cheap on slow phones.
+    let env = 0;
+    let vibMul = 1;
+    let tremMul = 1;
     for (let i = 0; i < n && start + i < total; i++) {
-      const sec = i / rate;
-      let fNow = freq;
+      if ((i & 7) === 0) {
+        const sec = i / rate;
+        env = (i < a ? i / a : Math.pow(1 - (i - a) / Math.max(1, n - a), curve)) * vol;
+        if (v.vib) vibMul = 1 + Math.sin(sec * TAU * v.vib[0]) * v.vib[1];
+        if (v.trem) tremMul = 1 - v.trem[1] * (0.5 + 0.5 * Math.sin(sec * TAU * v.trem[0]));
+      }
+      phase += (freq * vibMul) / rate;
       freq *= fStep;
-      if (v.vib) fNow *= 1 + Math.sin(sec * TAU * v.vib[0]) * v.vib[1];
-      phase += fNow / rate;
       let s = osc(v.wave, phase, noise);
       if (v.lp) {
         // The filter coefficient only needs refreshing every few samples.
@@ -109,15 +117,20 @@ export function render(r: Recipe, rate: number, seed = 1): Float32Array {
         hpIn = s;
         s = hpOut;
       }
-      const env = i < a ? i / a : Math.pow(1 - (i - a) / Math.max(1, n - a), curve);
-      let amp = env * vol;
-      if (v.trem) amp *= 1 - v.trem[1] * (0.5 + 0.5 * Math.sin(sec * TAU * v.trem[0]));
-      out[start + i] += s * amp;
+      out[start + i] += s * env * tremMul;
     }
   });
   // Gentle saturation keeps stacked layers from clipping harshly.
-  for (let i = 0; i < total; i++) out[i] = Math.tanh(out[i]);
+  for (let i = 0; i < total; i++) out[i] = softClip(out[i]);
   return out;
+}
+
+/** A cheap tanh-like curve: near-linear for quiet samples, never past ±1. */
+function softClip(x: number): number {
+  if (x >= 3) return 1;
+  if (x <= -3) return -1;
+  const x2 = x * x;
+  return (x * (27 + x2)) / (27 + 9 * x2);
 }
 
 /** Equal-tempered pitch: semitones from A4 (440 Hz). */
