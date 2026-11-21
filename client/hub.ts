@@ -481,7 +481,11 @@ export class Hub {
     const row = (r: { rank: number; name: string; cls: string; level: number; seconds: number }, you = false) =>
       `<li${you ? ' class="you"' : ''}><span class="kr">${r.rank}</span><b>${esc(r.name)}</b><span class="kl">+${r.level}</span><span class="kt">${time(r.seconds)}</span></li>`;
     const mine = b.me && !b.top.some((r) => r.rank === b.me!.rank && r.name === b.me!.name) ? row(b.me, true) : '';
-    return `<div class="key-board"><div class="lbl">Leaderboard</div><ol>${b.top.map((r) => row(r, !!b.me && r.rank === b.me.rank && r.name === b.me.name)).join('')}${mine}</ol></div>`;
+    // A board per season (keys.md): the server says which season it ranks; the all-time board before 0005 has none.
+    const title = typeof b.season === 'number' ? `Season ${seasonNumber(b.season)} leaderboard` : 'Leaderboard';
+    const ever = this.hero().keyBest?.[d];
+    const everLine = typeof b.season === 'number' && ever ? `<div class="hint muted">Your best ever: +${ever}</div>` : '';
+    return `<div class="key-board"><div class="lbl">${title}</div><ol>${b.top.map((r) => row(r, !!b.me && r.rank === b.me.rank && r.name === b.me.name)).join('')}${mine}</ol>${everLine}</div>`;
   }
 
   /** P3: the picked dungeon's Delver's Key: its level, what it adds, and the par time. */

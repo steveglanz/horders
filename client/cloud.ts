@@ -196,7 +196,8 @@ export const cloud = {
 };
 
 export interface KeyRow { rank: number; name: string; cls: string; level: number; seconds: number }
-export interface KeyBoard { dungeon: string; top: KeyRow[]; me: KeyRow | null }
+/** `season` (a season id, seasonOf) comes from migration 0005; before it the board is all-time and has none. */
+export interface KeyBoard { dungeon: string; season?: number; top: KeyRow[]; me: KeyRow | null }
 export interface KeySubmit { ok: boolean; reason?: 'too_soon' | 'bad_input'; best?: boolean; level?: number; seconds?: number; clamped?: boolean; rank?: number }
 
 /** Coalesces rapid saves (equip, salvage, talent clicks) into one upload. */
