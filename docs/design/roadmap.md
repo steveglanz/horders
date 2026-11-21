@@ -117,7 +117,7 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 
 **As built (21 Nov 2026).** All numbers live in `GLARE` in `sim/world.ts`.
 - **Arena:** 4 pillars on a ring of 200 around a glowing lens at the centre, rebuilt fresh every fight. Each casts a shadow wedge outward, 300 long and widening, drawn on the floor exactly where `World.shadowed()` says you're safe.
-- **Lensbearer** (elite): casts **Glare**, a 2 s cast bar, then the whole room flashes. In the light it hits for 34 (scaled by tier); in a shadow it misses. It can be Quenched. *Changed from the spec:* a room-wide flash after a cast bar, not a 3 s sweeping beam. It reads better on a phone and uses the cast bar the player already knows.
+- **Lensbearer** (elite): casts **Glare**, a 2.6 s cast bar (was 2 s; the skills team measured that 2.6 s lets every class reach shade on foot from anywhere while all 4 pillars stand), then the whole room flashes. In the light it hits for 34 (scaled by tier); in a shadow it misses. It can be Quenched. *Changed from the spec:* a room-wide flash after a cast bar, not a 3 s sweeping beam. It reads better on a phone and uses the cast bar the player already knows.
 - **Shade** (packs of 2 to 4): takes 30% damage while standing in shadow. Pull them into the light.
 - **Brandkeeper** (elite): a 0.8 s cast puts a **Brand** on you. After 4 s it bursts, radius 110: it hits you for 16, cracks any pillar inside it (no shadow for the rest of that fight), and heals every enemy inside it for 10% of their health. A gold ring on the hero shows the radius and a closing timer. It waits 6 s after a burst before branding again.
 - **Twin Lamps** (named fight): two lanterns with a beam of light between them while both are alive and within 460 of each other. Standing in the beam burns for 30 per second. Kill one to break it.
@@ -138,4 +138,4 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 Specs get written here when each one is next.
 
 ## Backlog notes
-- **Acolyte heals as a real cast (Kiln).** Today acolytes channel into the boss on every tick, so "kill the healer" has no visible tell. Make each heal a short interruptible cast with a cast bar, so a player can either Quench it or kill the acolyte (pillar 4). The skills team's Lumen targeting will switch to "while the cast bar is up" when this lands.
+- **Acolyte heals as a real cast (Kiln).** ✅ Built 21 Nov 2026: acolytes cast **Kindle**, a 1.8 s interruptible heal every 6 s, so "kill the healer" has a visible tell. Quench treats a Kindle as the least urgent cast and only spends half its cooldown on one. See balance.md.

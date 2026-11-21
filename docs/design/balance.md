@@ -200,3 +200,22 @@ Measured with `tools/foundry.ts`, seeds 1 to 24, with the geared reference heroe
 **A bug found while tuning:** the first build ran the Glarewell elites' ability timers twice a tick, so the Brandkeeper branded 16 to 19 times a fight. That's fixed. The boss's clocks (enrage, phases, pillar cracks) now run every tick, even while she casts. The Lens Sweep keeps the cadence that was measured (every 1.7 s, every 1 s enraged), now written down as `GLARE.sweepEvery`. The Foundry's elites and Maelra use the same double-timer pattern. It's left alone because their tuning was measured with it, so it's a known quirk rather than a bug to fix silently.
 
 **Kiln and Foundry unchanged:** `tools/hashcheck.ts` (4 classes, 2 dungeons, 3 seeds) prints the same output on main and on this branch.
+
+## Kiln acolytes: Kindle casts (21 Nov 2026)
+
+Acolytes used to channel 0.8% of their ward's health per second with no tell. Now they cast **Kindle**: a 1.8 s interruptible cast every 6 s that heals 4.8% (the same rate if nobody Quenches). The first cast comes 2.5 s after they appear, with the second acolyte 1.5 s later. Numbers are in `ACOLYTE` in `sim/world.ts`.
+
+The first version made novices lose more. The novice bot Quenched Kindles, and then had no Quench left for the Brute's Ground Pound. Two rules fixed that, and both are good for players too:
+- Quench's auto-target treats a Kindle as the least urgent cast, so it takes a Ground Pound or Cataclysm first if one is up.
+- Quenching a Kindle costs only half of Quench's cooldown.
+
+Novice proxy (`tools/balance.ts`, LAG=0.3 SKILL=0.5, Kiln tier 1):
+
+| Class | Seeds | main | first version | shipped |
+|---|---|---|---|---|
+| Emberwright | 1 to 120 | 69 | 54 | 69 |
+| Duskblade | 1 to 120 | 67 | 54 | 66 |
+| Bulwark | 1 to 40 | 22 | 25 | 27 |
+| Lumen | 1 to 40 | 37 | 37 | 38 |
+
+Geared hero-t4 in the Kiln at tier 4, seeds 1 to 40: 37 wins on main, 38 after.
