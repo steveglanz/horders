@@ -142,7 +142,7 @@ export const SLAG_KIT = {
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
 export const ALT_KIT = {
   emberWardShare: 0.25, emberWardTime: 3, emberWardBurn: 12, emberWardBurnTime: 3,
-  hamstringDamage: 40, hamstringRadius: 120, hamstringTime: 4, slowNormal: 0.5, slowBig: 0.2,
+  hamstringDamage: 55, hamstringBleed: 12, hamstringRadius: 120, hamstringTime: 4, slowNormal: 0.5, slowBig: 0.2,
   cryTime: 5, cryCut: 0.25, cryRadius: 200, cryHeal: 0.15,
   wellTime: 6, wellRadius: 90, wellHeal: 3,
   pitTime: 5, pitRadius: 80, pitDps: 10, pitSlowNormal: 0.4, pitRange: 360,
@@ -482,7 +482,7 @@ export type SimEvent =
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
-  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
+  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number; /** The hero's ability option (ALT_ABILITIES), not the class's own. */ alt?: boolean }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
@@ -2295,20 +2295,25 @@ export class World {
       p.plateAmt = p.plate;
       p.plateUntil = this.time + ALT_KIT.emberWardTime;
       p.plateBy = -1;
-      this.events.push({ type: 'ability', slot: 1, x: p.x, y: p.y, angle: 0, r: 40 });
+      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: 40 });
     } else if (this.cls === 'duskblade') {
       let t = this.bladeTarget(this.swingReach + 40);
       if (t < 0) t = this.nearestEnemies(p.x, p.y, 1, 220)[0] ?? -1;
       if (t < 0) return;
       const e = this.enemies[t];
       this.damageEnemy(t, ALT_KIT.hamstringDamage * this.dmgMult, true);
+      // The cut bleeds like Rending Dash's, on the one foe it strikes.
+      if (e.alive) {
+        e.burnDps = Math.max(e.burnDps, ALT_KIT.hamstringBleed * this.bleedMult * this.dmgMult);
+        e.burnT = Math.max(e.burnT, 4);
+      }
       const r = ALT_KIT.hamstringRadius;
       this.forEachNear(e.x, e.y, r + 40, (i) => {
         const o = this.enemies[i];
         if (i !== t && dist2(e.x, e.y, o.x, o.y) > (r + o.def.radius) ** 2) return;
         this.slow(i, ALT_KIT.slowNormal, ALT_KIT.hamstringTime);
       });
-      this.events.push({ type: 'ability', slot: 0, x: e.x, y: e.y, angle: 0, r });
+      this.events.push({ type: 'ability', alt: true, slot: 0, x: e.x, y: e.y, angle: 0, r });
     } else if (this.cls === 'bulwark') {
       p.cryUntil = this.time + ALT_KIT.cryTime;
       for (let k = 0; k < this.heroes.length; k++) {
@@ -2316,12 +2321,12 @@ export class World {
         const a = this.heroPlayer(k);
         if (a.hp > 0 && dist2(p.x, p.y, a.x, a.y) <= ALT_KIT.cryRadius ** 2) a.cryUntil = this.time + ALT_KIT.cryTime;
       }
-      this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: ALT_KIT.cryRadius });
+      this.events.push({ type: 'ability', alt: true, slot: 2, x: p.x, y: p.y, angle: 0, r: ALT_KIT.cryRadius });
     } else if (this.cls === 'lumen') {
       p.wellUntil = this.time + ALT_KIT.wellTime;
       p.wellX = p.x;
       p.wellY = p.y;
-      this.events.push({ type: 'ability', slot: 1, x: p.x, y: p.y, angle: 0, r: ALT_KIT.wellRadius });
+      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: ALT_KIT.wellRadius });
     } else if (this.cls === 'slagbinder') {
       const t = this.bladeTarget(ALT_KIT.pitRange);
       const ang = Math.hypot(input.x, input.y) > 0.01 ? Math.atan2(input.y, input.x) : p.facing;
@@ -2331,7 +2336,7 @@ export class World {
       p.pitX = x;
       p.pitY = y;
       this.addZone(x, y, ALT_KIT.pitRadius, ALT_KIT.pitDps * this.dmgMult, ALT_KIT.pitTime);
-      this.events.push({ type: 'ability', slot: 1, x, y, angle: 0, r: ALT_KIT.pitRadius });
+      this.events.push({ type: 'ability', alt: true, slot: 1, x, y, angle: 0, r: ALT_KIT.pitRadius });
     }
   }
 

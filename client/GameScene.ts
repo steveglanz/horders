@@ -14,6 +14,7 @@ import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
+import { ALT_ABILITIES } from '../sim/content/classes';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
@@ -611,7 +612,11 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case 'ability':
-          if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
+          if (ev.alt) {
+            // Ability option (placeholder look until visuals draws it): a ring and its name.
+            this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: Phaser.Display.Color.HexStringToColor(CLASS_ICON[w.cls].color).color, life: 0.45 });
+            this.floatText(ev.x, ev.y - 36, ALT_ABILITIES[w.cls].def.name, '#ffe9c4', 16);
+          } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
           } else if (w.cls === 'bulwark' && ev.slot === 0) {

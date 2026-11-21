@@ -33,7 +33,7 @@ describe('ability options', () => {
       const { w } = world(cls);
       expect(w.abilities[a.slot].name).toBe(a.def.name);
       expect(w.isAlt(a.slot)).toBe(true);
-      expect(w.abilities.filter((d, k) => k !== a.slot).map((d) => d.name)).toEqual(CLASSES[cls].abilities.filter((_, k) => k !== a.slot).map((d) => d.name));
+      expect(w.abilities.filter((_, k) => k !== a.slot).map((d) => d.name)).toEqual(CLASSES[cls].abilities.filter((_, k) => k !== a.slot).map((d) => d.name));
       expect(world(cls, [], false).w.abilities[a.slot].name).toBe(a.replaces);
     }
   });
