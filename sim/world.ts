@@ -548,6 +548,8 @@ export class World {
   readonly worldBoss: string;
   shadowDamage = 0;
   shadowStart = -1;
+  /** C3: when the raid boss appeared (-1 until then). Her fight is the "shadow" part of the strike. */
+  raidStart = -1;
   shadowDone = false;
   passives: Partial<Record<PassiveId, number>>;
   /** Gear currently worn (upgrades picked up mid-run replace pieces). */
@@ -600,6 +602,10 @@ export class World {
   get anvilfallTarget(): number {
     return this.anvilTarget;
   }
+  /** The raid: the hero Grandmother Slag's Ladle Pour will land on, for the client's wind-up. */
+  get ladlePourTarget(): number {
+    return this.ladleTarget;
+  }
   private choirT = 0;
   private choirN = 0;
   private gripT = 0;
@@ -608,6 +614,16 @@ export class World {
   private scatterT = 0;
   private bellowT = 0;
   private bellowTarget = 0;
+  // The raid (Grandmother Slag).
+  private ladleT = 0;
+  private ladleTarget = 0;
+  private addsT = 0;
+  private pourT = 0;
+  private heatT = 0;
+  private raidVentT = 0;
+  private marksT = 0;
+  private raidBurnT = 0;
+  private lastEmberCast = false;
   private slagTickT = 0;
   private bossBrandT = 0;
   private crackT = 0;
@@ -1079,7 +1095,8 @@ export class World {
       level: this.player.level,
       damageDealt: Math.round(this.damageDealt),
       shadowDamage: Math.round(this.shadowDamage),
-      shadowTime: this.shadowStart >= 0 ? Math.round(Math.min(SHADOW_TIME, this.time - this.shadowStart)) : 0,
+      shadowTime: this.shadowStart >= 0 ? Math.round(Math.min(SHADOW_TIME, this.time - this.shadowStart))
+        : this.raidStart >= 0 ? Math.round(this.time - this.raidStart) : 0,
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
     };
@@ -1137,6 +1154,7 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -1192,7 +1210,9 @@ export class World {
 
   /** Burnout: the hard limit on any fight (see BURNOUT). */
   private burnoutClock(dt: number): void {
-    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? BURNOUT.boss : BURNOUT.fight);
+    // The raid boss has her own hard enrage (Last Ember), so Burnout only backs it up.
+    const bossLimit = this.dungeonDef.raid ? SLAG.hardEnrage + SLAG.lastEmberCast + BURNOUT.warn : BURNOUT.boss;
+    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight);
     if (!this.burnoutWarned && this.time >= limit - BURNOUT.warn) {
       this.burnoutWarned = true;
       this.events.push({ type: 'burnout', warn: true });
@@ -1310,6 +1330,21 @@ export class World {
           this.snuffT = COLD.firstSnuff;
           this.tideT = COLD.firstTide;
           this.nightT = COLD.firstNight;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'grandmotherSlag') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.bossPhase = 1;
+          this.ladleT = SLAG.firstLadle;
+          this.raidStart = this.time;
+          this.addsT = SLAG.firstAdds;
+          this.pourT = SLAG.pourEvery;
+          this.heatT = SLAG.heatEvery;
+          this.raidVentT = 4;
+          this.marksT = 9;
+          this.raidBurnT = 1;
+          this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
@@ -3047,6 +3082,23 @@ export class World {
         this.events.push({ type: 'slam', x: this.player.x, y: this.player.y, r: 40 });
       }
       this.use(at);
+    } else if (id === 'ladlePour') {
+      // Grandmother Slag's tank hit: worse for every Ladle Burn stack nobody healed off.
+      const at = this.acting;
+      this.use(this.ladleTarget);
+      const p = this.player;
+      if (p.hp > 0) {
+        this.hurtPlayer(SLAG.ladle * (1 + SLAG.ladleStackMult * (p.slag ?? 0)) * this.tierDamage, i, true);
+        p.slag = Math.min(SLAG.slagMax, (p.slag ?? 0) + SLAG.ladleStacks);
+        this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
+        this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
+      }
+      this.use(at);
+    } else if (id === 'lastEmber') {
+      // The hard enrage: nothing stands through it.
+      const at = this.acting;
+      this.eachHero(() => this.hurtPlayer(this.player.maxHp * 10, i, true));
+      this.use(at);
     } else if (id === 'bellowSlam') {
       // Ysmeret's tank hit: lands on the hero picked at wind-up, through dodges and shields.
       const at = this.acting;
@@ -3175,6 +3227,7 @@ export class World {
       return;
     }
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
+    if (e.kind === 'grandmotherSlag') return; // all on slagClock
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -3293,7 +3346,8 @@ export class World {
     }
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.cls === 'bulwark' ? THREAT.tankMult : 1);
-    if (e.kind === 'worldShadow') this.shadowDamage += dmg;
+    // The shadow fight and the raid boss both count triple toward the world boss.
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
@@ -3415,7 +3469,8 @@ export class World {
         }
         this.use(at);
       }
-      if (this.worldBoss && !this.route.includes('worldShadow')) {
+      // The raid's boss is the world boss in person: no shadow fight after her.
+      if (this.worldBoss && !this.dungeonDef.raid && !this.route.includes('worldShadow')) {
         this.route.push('worldShadow');
         // Clear the field so the bonus fight starts clean.
         for (let j = 0; j < this.enemies.length; j++) if (this.enemies[j].alive) this.despawn(j);
@@ -3840,6 +3895,105 @@ export class World {
     } else if (this.scatterT <= 0 && !ventsOpen && this.twinVentT > YSMERET.scatterCast + 0.5) {
       this.scatterT = YSMERET.scatterEvery;
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
+    }
+  }
+
+  // ---------------------------------------------------------------- the raid
+
+  /**
+   * Grandmother Slag's clocks. Phase 1 The Ladle: Ladle Pour on the tank, Slagling adds.
+   * Phase 2 The Pour: molten lanes and a steady party burn. Phase 3 Last Ember: soak vents
+   * and Cinder Marks. Ladle Burn ticks the whole fight. Last Ember ends it at `hardEnrage`.
+   */
+  private slagClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'grandmotherSlag') return;
+    const frac = e.hp / e.maxHp;
+    const phase = frac > SLAG.phase2 ? 1 : frac > SLAG.phase3 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+    }
+    // Ladle Burn: once a second, every hero burns for their stacks.
+    const at = this.acting;
+    this.raidBurnT -= dt;
+    if (this.raidBurnT <= 0) {
+      this.raidBurnT += 1;
+      for (let k = 0; k < this.heroes.length; k++) {
+        this.use(k);
+        const p = this.player;
+        if ((p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * SLAG.burnTick * (p.slag ?? 0), -1, true);
+      }
+      this.use(at);
+    }
+    if (phase === 2) {
+      this.heatT -= dt;
+      if (this.heatT <= 0) {
+        this.heatT += SLAG.heatEvery;
+        this.eachHero(() => this.hurtPlayer(this.player.maxHp * SLAG.heat, i, true));
+        this.use(at);
+      }
+    }
+    if (phase === 1) {
+      this.addsT -= dt;
+      if (this.addsT <= 0) {
+        this.addsT = SLAG.addsEvery;
+        for (let k = 0; k < SLAG.adds; k++) {
+          const a = (k / SLAG.adds) * Math.PI * 2 + this.time;
+          const c = { x: e.x + Math.cos(a) * 260, y: e.y + Math.sin(a) * 260 };
+          this.clampArena(c, 20);
+          this.spawn('slagling', c.x, c.y);
+        }
+      }
+    }
+    if (phase === 3) {
+      this.raidVentT -= dt;
+      this.marksT -= dt;
+    }
+    const ventsOpen = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+    if (phase === 3 && this.raidVentT <= 0 && !ventsOpen) {
+      this.raidVentT = SLAG.ventEvery;
+      const tgt = this.heroPlayer(this.targetOf(i, 0));
+      const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
+      for (const sgn of [1, -1]) {
+        const c = { x: e.x + Math.cos(a) * SLAG.ventDist * sgn, y: e.y + Math.sin(a) * SLAG.ventDist * sgn };
+        this.clampArena(c, SLAG.ventRadius + 10);
+        this.addTelegraph('circle', c.x, c.y, SLAG.ventRadius, 0, 0, SLAG.ventFuse, SLAG.ventBlast, 'soak', -2);
+      }
+      this.events.push({ type: 'castStart', index: i, name: 'Crucible Vents' });
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (!this.lastEmberCast && this.time - e.spawnedAt >= SLAG.hardEnrage) {
+      this.lastEmberCast = true;
+      if (!this.bossEnraged) {
+        this.bossEnraged = true;
+        this.events.push({ type: 'bossEnrage' });
+      }
+      this.startCast(i, 'lastEmber', 'Last Ember', SLAG.lastEmberCast, false);
+      return;
+    }
+    this.ladleT -= dt;
+    this.pourT -= dt;
+    if (this.ladleT <= 0) {
+      this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
+      this.ladleTarget = this.targetOf(i, 0);
+      this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
+    } else if (phase === 2 && this.pourT <= 0) {
+      this.pourT = SLAG.pourEvery;
+      const tgt = this.heroPlayer(this.targetOf(i, 0));
+      const base = Math.atan2(tgt.y - e.y, tgt.x - e.x);
+      this.startCast(i, 'pour', 'The Pour', SLAG.pourCast, false);
+      for (let k = 0; k < SLAG.pourLanes; k++) {
+        // One lane at the target, the rest spread round her, turning each pour.
+        const ang = base + (k * Math.PI * 2) / SLAG.pourLanes;
+        this.addTelegraph('cone', e.x, e.y, SLAG.pourRange, ang, (SLAG.pourArc * Math.PI) / 180, SLAG.pourCast, SLAG.pourDamage, 'hit', i);
+      }
+    } else if (phase === 3 && this.marksT <= 0 && !ventsOpen && this.raidVentT > YSMERET.scatterCast + 0.5) {
+      this.marksT = SLAG.marksEvery;
+      // Cinder Marks work as Ysmeret's Scatter Embers (finishCast 'scatter'): spread out.
+      this.startCast(i, 'scatter', 'Cinder Marks', YSMERET.scatterCast, false);
     }
   }
 
@@ -4641,6 +4795,35 @@ export const COLD = {
 export const COLD_FED_BY: EnemyKind[] = ['rimehound', 'snuffer', 'frostWarden', 'hoarfrostWeaver'];
 
 /** The Ashvents' group boss (G3; docs/design/group-dungeons.md). */
+/**
+ * C3, the raid: Grandmother Slag in the Crucible. Three phases by health, each
+ * built on a verb the party already knows from the group dungeons.
+ * Spec and tuning: docs/design/raid.md.
+ */
+export const SLAG = {
+  /** Phases start at these shares of her health: 2 The Pour, 3 Last Ember. */
+  phase2: 0.66, phase3: 0.33,
+  /**
+   * Ladle Pour: the tank hit, through dodges and shields, on the hero picked at wind-up.
+   * It leaves `ladleStacks` of Ladle Burn (Slag Grip stacks: any ally's heal clears them),
+   * and each stack still on the target makes the next pour hit `ladleStackMult` harder.
+   */
+  ladle: 60, ladleStacks: 2, ladleStackMult: 0.3, ladleEvery: 9, ladleLate: 13, ladleCast: 2, firstLadle: 6,
+  /** Ladle Burn: share of max health per second per stack, up to `slagMax` stacks. */
+  burnTick: 0.01, slagMax: 6,
+  /** Phase 1: Slaglings pour out of the channels. */
+  addsEvery: 18, adds: 5, firstAdds: 10,
+  /** Phase 2, The Pour: molten lanes from her feet (narrow cones), one aimed at a hero. */
+  pourEvery: 6, pourCast: 1.6, pourLanes: 3, pourRange: 620, pourArc: 18, pourDamage: 45,
+  /** Phase 2: the rising slag burns every hero this share of max health every `heatEvery` s. */
+  heat: 0.03, heatEvery: 3,
+  /** Phase 3, Last Ember: Ysmeret's two checks together (soak vents, then Cinder Marks). */
+  ventEvery: 16, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70,
+  marksEvery: 14,
+  /** Hard enrage: this long after she appears, she casts Last Ember, which wipes the party. */
+  hardEnrage: 420, lastEmberCast: 5,
+};
+
 export const YSMERET = {
   /** Twin Vents: two soak circles this far either side of Ysmeret; an empty one blasts every hero. */
   ventEvery: 16, ventEnraged: 8, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70, firstVents: 8,
