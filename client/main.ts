@@ -288,7 +288,8 @@ el('quitBtn').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   if (!el('title').hidden && el('bag').hidden) startRun();
-  else if (!el('end').hidden) startRun();
+  // Enter on the end screen is "Delve again": the same kind of run (a key or bounty run repeats as one).
+  else if (!el('end').hidden) startRun(lastBounty, lastKey);
 });
 
 // Pause automatically when the tab or app goes to the background.
