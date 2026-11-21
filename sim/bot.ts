@@ -147,11 +147,54 @@ export function botGate(w: World): number {
   return Math.max(0, idx('steady'));
 }
 
+/** The nearest point the hero could stand in a standing pillar's shade, or null when every pillar is down. */
+function nearestShade(w: World): { x: number; y: number } | null {
+  const p = w.player;
+  let best: { x: number; y: number } | null = null;
+  let bd = Infinity;
+  for (const c of w.pillars) {
+    if (c.cracked) continue;
+    const d = Math.hypot(c.x, c.y) || 1;
+    const ux = c.x / d;
+    const uy = c.y / d;
+    for (const along of [c.r + 24, 70, 110, 160, 220]) {
+      for (const k of [0, -0.6, 0.6]) {
+        const across = k * (c.r + along * 0.12);
+        const x = c.x + ux * along - uy * across;
+        const y = c.y + uy * along + ux * across;
+        if (Math.hypot(x, y) > (w.arenaR ?? ARENA) - 20 || !w.shadowed(x, y)) continue;
+        const dd = Math.hypot(x - p.x, y - p.y);
+        if (dd < bd) { bd = dd; best = { x, y }; }
+      }
+    }
+  }
+  return best;
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
     const g = w.gates[botGate(w)];
     return { x: g.x - p.x, y: g.y - p.y };
+  }
+  // Glarewell: a Glare beats everything else. Get into a pillar's shade and hold still there.
+  if (w.pillars.length) {
+    let left = Infinity;
+    for (const e of w.enemies) if (e.alive && e.castId === 'glare') left = Math.min(left, e.castDur - e.castT);
+    if (left < Infinity) {
+      const cast = botCast(w, skill);
+      if (w.shadowed(p.x, p.y)) return { x: 0, y: 0, cast };
+      const s = nearestShade(w);
+      if (s) {
+        const dx = s.x - p.x;
+        const dy = s.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        // Too far to walk there in time: use the class's step (Blink, Glimmer Step, Sidestep) toward it.
+        const late = d > w.moveSpeed * left * 0.9 && d > 120;
+        const step = late && cast !== 3 && w.cls !== 'bulwark' && w.canCast(1) ? 1 : cast;
+        return { x: dx / d, y: dy / d, cast: step };
+      }
+    }
   }
   let fx = 0;
   let fy = 0;
