@@ -112,6 +112,19 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
   });
 
+  it('gives the Anvil Slagbinder plated hits and each stance its own pick sound', () => {
+    const anvil = { cls: 'slagbinder' as const, acting: 0, stance: 'anvil' };
+    const bellows = { cls: 'slagbinder' as const, acting: 0, stance: 'bellows' };
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, anvil)?.id).toBe('hurtAnvil');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 30 } as never, anvil)?.id).toBe('hurtBigAnvil');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, bellows)?.id).toBe('hurt');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, { cls: 'bulwark' as const, acting: 0, stance: 'anvil' })?.id).toBe('hurt');
+    expect(cueFor({ type: 'playerHurt', hero: 1, amount: 5 } as never, anvil)).toBeNull();
+    const stub = (sfx: string): Tappable => ({ closest: () => stub(sfx), getAttribute: (n) => (n === 'data-sfx' ? sfx : null) });
+    expect(uiSoundFor(stub('anvilPick'))).toBe('anvilPick');
+    expect(uiSoundFor(stub('bellowsPick'))).toBe('bellowsPick');
+  });
+
   it('hears the Pressworks turn rule: a clamp when Pressed, a release when it wears off', () => {
     const st = { on: false };
     expect(pressedCue(st, false)).toBeNull();
