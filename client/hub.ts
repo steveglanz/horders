@@ -17,6 +17,14 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const KIT_KEY = 'horders.ui.kit';
+function readKitOpen(): boolean {
+  try {
+    const v = localStorage.getItem(KIT_KEY);
+    if (v === '1' || v === '0') return v === '1';
+  } catch { /* storage blocked */ }
+  return typeof matchMedia === 'function' && matchMedia('(min-width: 900px) and (min-height: 600px)').matches;
+}
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
 
 export class Hub {
@@ -29,6 +37,8 @@ export class Hub {
   onBounty: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
+  /** Gear and talents fold into one summary row on phones; open by default on wide screens. */
+  private kitOpen = readKitOpen();
 
   constructor(private hero: () => HeroProfile, private save: () => void) {
     const closeBag = () => {
@@ -66,15 +76,25 @@ export class Hub {
       return `<button data-p="${id}" class="${can ? 'can' : ''}" title="${def.text}" ${can ? '' : 'disabled'}>${def.name} ${r}/${def.max}${can ? ' +' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
+    const worn = items.length;
     $('heroCard').innerHTML = `
-      <div class="who"><span class="gtile" style="--gc:${ci.color};width:52px;height:52px">${glyph(ci.d, 30)}</span>
+      <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
         <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
-      <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
-      <div class="gear">${gear}</div>
-      <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
-      <div class="passives">${passives}</div>`;
+      <details class="kit" ${this.kitOpen ? 'open' : ''}>
+        <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
+          + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
+        <div class="sec-h"><span>Gear</span><span class="gold">Gear score ${gearScore(h)}</span></div>
+        <div class="gear">${gear}</div>
+        <div class="sec-h"><span>Talents</span><span class="${pts ? 'gold' : 'muted'}">${pts ? `${pts} unspent` : `${h.wins} wins / ${h.runs} delves`}</span></div>
+        <div class="passives">${passives}</div>
+      </details>`;
+    const kit = $('heroCard').querySelector<HTMLDetailsElement>('details.kit')!;
+    kit.addEventListener('toggle', () => {
+      this.kitOpen = kit.open;
+      try { localStorage.setItem(KIT_KEY, kit.open ? '1' : '0'); } catch { /* private mode: keep it for this visit */ }
+    });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
         if (spendPoint(h, b.dataset.p as PassiveId)) {
