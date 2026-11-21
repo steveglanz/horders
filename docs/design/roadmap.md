@@ -131,6 +131,20 @@ Every sound item in Phases 6 and 7 is done (#296, #302, #305). These are gaps fo
 | S2 | **The hub is silent:** hub.ts imports no audio. Brewing a potion, Forge upgrade and temper, salvage, equipping, spending a passive point and claiming a world boss reward all make no sound (main.ts plays only matchmaking and party cues) | sound | ⏭ Short, quiet UI cues; the world boss claim gets the biggest one (an Epic reward). Respect the mute setting and keep them under the hub theme |
 | S3 | **A shadow sting per world boss:** every shadow fight uses the one `worldShadow: 'phaseShadow'` cue (cues.ts), whichever boss is live | sound | ⏭ Pair with visuals X1. Four boss stings keyed by `w.worldBoss`: Grandmother Slag, the Cinder Colossus, Old Coalmouth (can reuse the Hoard's chew) and the Furnace Regent |
 
+### Phase 8: the third raid, and making the Hoard hold up online (planned by game design, 21 Nov 2026)
+Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying migration 0007, which waits on Steve's yes. Phase 8 checks raid 2 in real online parties, then brings a third world boss into a fight.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| Y1 | **Raid 3 design: the Cinder Colossus in person,** tier 10, after the Hoard (t9). A new group check that neither the Crucible (tank swap, soaks) nor the Hoard (target switch) tests | design | 🔨 raid3.md. "Cinder Colossus" had no WoW match in the 21 Nov search (raid2.md); the raid's place name gets its own search |
+| Y2 | **Online co-op sync audit:** the Hoard's embers were not sent to guests (`coalEmbers` was missing from netsync ARRAYS; fixed with a test in the Phase 8 PR). Add a test that fails when any array on World is neither synced nor listed as local, so the next dungeon can't miss one | engineering | ⏭ No database change |
+| Y3 | **Hoard QA:** contentcheck at tier 9 (soft-locks), and `coopsweep` with a guest dropping while swallowed and while the Craw stands (the `swallowed` index must not point at a hero who left) | QA | ⏭ Like W5 for the Pressworks |
+| Y4 | **The Hoard on phones:** the swallow countdown chip (#299), the Craw and the ember rings at 360 px wide, and the Swallow banner over the boss panel | mobile | ⏭ Screenshots at 360x740 and 390x844 |
+| Y5 | **Class coverage in the raids:** measure the Hoard at t9 with the Slagbinder (both stances) and with each damage class swapped in, against the 55 to 70% band. The Anvil tank fix (#308, 20% in a party) lands first | skills | ⏭ The same 40-seed table as raid2.md |
+| Y6 | **Raid 3 art:** the Colossus in person (the X1 shadow sprite at raid scale, as slagCroneRaid did for Grandmother Slag), the arena and a hub card | visuals | ⏭ After Y1's brief |
+| Y7 | **Raid 3 sound:** a theme, and cues for its new mechanic | sound | ⏭ After Y1's brief |
+| Y8 | **Apply the waiting migrations** 0006 (bounty board) and 0007 (Old Coalmouth) | engineering | ⏸ Only after Steve says yes |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.

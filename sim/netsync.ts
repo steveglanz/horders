@@ -15,7 +15,7 @@ import { ThreatTable } from './threat';
 /** Pools sent as their living entries: [index, ...values in `keys` order]. */
 const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins', 'cracks'] as const;
 /** Small arrays of plain data sent whole. */
-const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route'] as const;
+const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers'] as const;
 /** Fields a guest keeps for itself. */
 const LOCAL = new Set(['acting', 'stress']);
 /** Previous-position fields: the guest fills them from its last copy, for smooth motion. */
