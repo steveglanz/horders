@@ -6,7 +6,7 @@ import { OMENS } from '../sim/content/omens';
 import { CoopSession, SNAP_SECONDS } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS, YSMERET } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -102,6 +102,8 @@ export class GameScene extends Phaser.Scene {
   private queued: { slot: number; until: number } | null = null;
   /** Test hooks: autopilot plays the run; warp runs extra ticks per frame. */
   autopilot = false;
+  /** Ashvents vents with nobody in them this frame (for the edge arrows). */
+  private emptyVents: { x: number; y: number }[] = [];
   /** Co-op session, or null for solo. */
   coop: CoopSession | null = null;
   /** Guest: seconds since the last snapshot, for smoothing between them. */
@@ -231,6 +233,8 @@ export class GameScene extends Phaser.Scene {
     if (w.dungeonId === 'glarewell') this.ground.setTint(0xa49ccc);
     // The Hammerdeep's floor is cold forge iron, so slag and the red telegraphs read hot against it.
     else if (w.dungeonId === 'hammerdeep') this.ground.setTint(0x9c98a8);
+    // The Ashvents' floor is pale ash, so the gold vents and rose embers stand out on it.
+    else if (w.dungeonId === 'ashvents') this.ground.setTint(0xb8a49a);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -600,17 +604,7 @@ export class GameScene extends Phaser.Scene {
             this.addShape({ kind: 'line', x: w.player.x, y: w.player.y, x2: ev.x, y2: ev.y, r: 0, angle: 0, color: 0x5ab8ff, life: 0.45 });
             this.ring(w.player.x, w.player.y, 90, 0x5ab8ff, 0.4);
             for (let k = 0; k < 5; k++) this.steam(w.player.x + (Math.random() - 0.5) * 40, w.player.y, 0.8);
-          }
-          break;
-        case 'castStart':
-          if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
-          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
-          else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
-          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Bastion now. Everyone else: heal them');
-          else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
-          break;
-        case 'castDone':
-          if (ev.name === 'Anvilfall') {
+          } else if (ev.name === 'Anvilfall') {
             // The anvil lands: a heavy shake and a ring of grit.
             const t = w.heroData(w.anvilfallTarget).player;
             this.ring(t.x, t.y, 110, 0xc8d0e0, 0.45);
@@ -627,7 +621,25 @@ export class GameScene extends Phaser.Scene {
             this.pulseVignette('hurt');
           } else if (ev.name === 'Hammer Sweep') {
             this.shakeBy(0.15);
+          } else if (ev.name === 'Bellow Slam') {
+            // Both flames hit the tank at once: a gold and a rose ring and a hard shake.
+            const t = w.heroData(w.bellowSlamTarget).player;
+            this.ring(t.x, t.y, 90, SOAK, 0.4);
+            this.ring(t.x, t.y, 120, 0xff6b8a, 0.5);
+            this.blast(t.x, t.y, 50, 0xffb070);
+            this.shakeBy(0.35);
+          } else if (ev.name === 'Scatter Embers') {
+            this.shakeBy(0.2);
           }
+          break;
+        case 'castStart':
+          if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
+          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
+          else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Bastion now. Everyone else: heal them');
+          else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
+          else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -1047,7 +1059,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1161,6 +1173,7 @@ export class GameScene extends Phaser.Scene {
       txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;
+    this.emptyVents.length = 0;
     for (const t of w.telegraphs) {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
       if (!t.alive || this.bossFell) continue;
@@ -1184,6 +1197,7 @@ export class GameScene extends Phaser.Scene {
             g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
           }
         }
+        if (t.kind === 'soak' && t.owner === -2 && w.dungeonId === 'ashvents') this.ventMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
           this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
@@ -1258,6 +1272,7 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
+      if (e.kind === 'ysmeret' && e.castId) this.ysmeretCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
@@ -1318,6 +1333,28 @@ export class GameScene extends Phaser.Scene {
           ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
         );
       }
+    }
+    // The Ashvents: an empty vent off screen gets a gold arrow at the edge, so nobody misses it.
+    for (const ev of this.emptyVents) {
+      const v = cam.worldView;
+      const inset = 20 / cam.zoom;
+      if (ev.x > v.x + inset && ev.x < v.right - inset && ev.y > v.y + inset && ev.y < v.bottom - inset) continue;
+      const pad = 30 / cam.zoom;
+      const cx = v.centerX;
+      const cy = v.centerY;
+      const a = Math.atan2(ev.y - cy, ev.x - cx);
+      const k = Math.min((v.width / 2 - pad) / Math.abs(Math.cos(a) || 1e-6), (v.height / 2 - pad) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k;
+      const ey = cy + Math.sin(a) * k;
+      const sz = 16 / cam.zoom;
+      const blink = 0.6 + 0.4 * Math.sin(now / 90);
+      b.fillStyle(0x000000, 0.6).fillCircle(ex, ey, sz * 1.25);
+      b.lineStyle(2 / cam.zoom, SOAK, blink).strokeCircle(ex, ey, sz * 1.25);
+      b.fillStyle(SOAK, blink).fillTriangle(
+        ex + Math.cos(a) * sz, ey + Math.sin(a) * sz,
+        ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
+        ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
+      );
     }
     let plate = 0;
     for (const e of w.enemies) {
@@ -1537,6 +1574,115 @@ export class GameScene extends Phaser.Scene {
         if (q.hp <= 0) continue;
         g.lineStyle(2.5, 0xffd27a, 0.4 + 0.5 * f).strokeCircle(q.x, q.y, 60 - 30 * f);
       }
+    }
+  }
+
+  /**
+   * The Ashvents' Twin Vents: a grate in each gold circle with flame licking up through it.
+   * A vent with a hero in it shows a check and a steady ring; an empty one flashes "!",
+   * so the party can see at a glance which vent still needs someone.
+   */
+  private ventMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    let covered = false;
+    for (let k = 0; k < w.heroes.length && !covered; k++) {
+      const q = w.heroData(k).player;
+      if (q.hp > 0 && (q.x - t.x) ** 2 + (q.y - t.y) ** 2 <= t.r * t.r) covered = true;
+    }
+    // The grate: dark bars over a glowing mouth.
+    const gr = t.r * 0.42;
+    g.fillStyle(0xff8a3d, 0.35 + 0.25 * f).fillCircle(t.x, t.y, gr);
+    g.lineStyle(4, 0x1a0e0a, 0.9);
+    for (let b = -2; b <= 2; b++) {
+      const x = t.x + b * gr * 0.4;
+      const h = Math.sqrt(Math.max(0, gr * gr - (b * gr * 0.4) ** 2));
+      g.lineBetween(x, t.y - h, x, t.y + h);
+    }
+    g.lineStyle(3, 0x1a0e0a, 0.9).strokeCircle(t.x, t.y, gr);
+    // Flame licking up through it, taller as the vent gets ready to blow.
+    if (!this.lowFx && Math.random() < 0.3 + 0.4 * f) {
+      this.emit(this.fx, 'spark', undefined, t.x + (Math.random() - 0.5) * gr * 1.4, t.y, 0.6, { tint: SOAK, vx: (Math.random() - 0.5) * 16, vy: -60 - 120 * f, drag: 0.97, sx0: 1.8, sx1: 0.3 });
+    }
+    // Covered or not.
+    const bx = t.x;
+    const by = t.y - t.r - 16;
+    if (!covered) this.emptyVents.push({ x: t.x, y: t.y });
+    if (covered) {
+      o.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
+      o.fillStyle(0x10200f, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, 0x9fe8a8, 1).strokeCircle(bx, by, 11);
+      o.lineStyle(3, 0x9fe8a8, 1).beginPath().moveTo(bx - 5, by).lineTo(bx - 1, by + 4).lineTo(bx + 6, by - 4).strokePath();
+    } else {
+      const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+      o.lineStyle(3, DANGER, 0.4 + 0.5 * blink);
+      for (let d = 0; d < 16; d++) {
+        const a0 = (d * Math.PI * 2) / 16 - now / 2000;
+        o.beginPath().arc(t.x, t.y, t.r + 8, a0, a0 + 0.22, false).strokePath();
+      }
+      o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
+      o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
+      o.fillStyle(DANGER, 1).fillRect(bx - 1.5, by - 7, 3, 9).fillRect(bx - 1.5, by + 4, 3, 3);
+    }
+  }
+
+  /** Ysmeret's wind-ups: Scatter Embers rings every hero, Bellow Slam draws both flames to the tank. */
+  private ysmeretCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const f = Math.min(1, e.castT / e.castDur);
+    const o = this.overFx;
+    if (e.castId === 'scatter') {
+      // Each living hero carries an ember ring the size of their burst. Two rings that
+      // overlap turn red and are tied together, so a stacked pair can see the problem.
+      const R = YSMERET.scatterRadius;
+      const up: { x: number; y: number }[] = [];
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp > 0) up.push({ x: q.x, y: q.y });
+      }
+      const close = new Set<number>();
+      for (let a = 0; a < up.length; a++) for (let b = a + 1; b < up.length; b++) {
+        if ((up[a].x - up[b].x) ** 2 + (up[a].y - up[b].y) ** 2 <= R * R) {
+          close.add(a); close.add(b);
+          o.lineStyle(3, DANGER, 0.6 + 0.4 * Math.sin(now / 60)).lineBetween(up[a].x, up[a].y, up[b].x, up[b].y);
+        }
+      }
+      const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / 40) : 1;
+      up.forEach((p, k) => {
+        const col = close.has(k) ? DANGER : 0xff8a5c;
+        g.fillStyle(col, 0.08 + 0.12 * f).fillCircle(p.x, p.y, R);
+        g.lineStyle(3, col, 0.85 * flick).strokeCircle(p.x, p.y, R);
+        // The fuse: an arc closing around the ring.
+        g.lineStyle(5, 0xffe0c8, 0.9).beginPath().arc(p.x, p.y, R - 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false).strokePath();
+        // Embers circling the hero.
+        for (let m = 0; m < 3; m++) {
+          const a = now / 300 + (m * Math.PI * 2) / 3;
+          o.fillStyle(0xffc0a0, 0.9).fillCircle(p.x + Math.cos(a) * 26, p.y + Math.sin(a) * 12 - 8, 3);
+        }
+      });
+    } else if (e.castId === 'bellowSlam') {
+      // Both flames stream from Ysmeret to the tank, and a double ring closes on them.
+      const t = w.heroData(w.bellowSlamTarget).player;
+      const dx = t.x - e.x;
+      const dy = t.y - e.y;
+      const L = Math.hypot(dx, dy) || 1;
+      const nx = -dy / L;
+      const ny = dx / L;
+      for (const [side, col] of [[1, SOAK], [-1, 0xff6b8a]] as const) {
+        const bend = 50 * side * (1 - f);
+        const pts: Phaser.Math.Vector2[] = [];
+        for (let k = 0; k <= 12; k++) {
+          const u = k / 12;
+          const off = Math.sin(u * Math.PI) * bend;
+          pts.push(new Phaser.Math.Vector2(e.x + dx * u + nx * off, e.y + dy * u + ny * off));
+        }
+        g.lineStyle(4 + 4 * f, col, 0.35 + 0.5 * f).strokePoints(pts, false);
+      }
+      const r = 70 - 40 * f;
+      const close = 0.6 + 0.4 * Math.sin(now / (f > 0.7 ? 40 : 90));
+      o.lineStyle(3, SOAK, 0.9 * close).strokeCircle(t.x, t.y, r);
+      o.lineStyle(3, 0xff6b8a, 0.9 * close).strokeCircle(t.x, t.y, r + 8);
+      g.fillStyle(0x000000, 0.2 + 0.3 * f).fillEllipse(t.x, t.y + 18, 40 + 30 * f, 14 + 10 * f);
     }
   }
 
