@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
@@ -63,6 +64,7 @@ describe('daily bounty', () => {
     const h = newHero();
     h.maxTier = 4;
     h.grit = { key: 'kiln:4', stacks: 2 };
+    h.achieved = ACHIEVEMENTS.map((a) => a.id); // only the bounty's embers here
     const base = { victory: true, tier: 3, time: 200, kills: 10, level: 5, damageDealt: 5000, talents: {}, dungeon: 'kiln' as const, bounty: 20412 };
     const e0 = h.embers;
     const r1 = applyRun(h, 1, base, false);

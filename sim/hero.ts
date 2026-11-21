@@ -1,4 +1,5 @@
 import { SEASON, SeasonReward, SeasonState, runMarks, seasonLevel, seasonRewards, seasonState } from './content/season';
+import { ACHIEVEMENTS, Achievement, AchievementView, Deeds, addDeeds } from './content/achievements';
 import { COLLECTION_REWARDS, CollectionReward, EntryKey, entriesOf, rewardProgress } from './content/collections';
 import type { DungeonId } from './content/dungeon';
 /**
@@ -92,6 +93,9 @@ export interface HeroProfile {
   season?: SeasonState;
   glows?: string[];
   wear?: { title?: string; glow?: string };
+  /** P6: what the account has done (shared by every class), and the achievements already paid. */
+  deeds?: Deeds;
+  achieved?: string[];
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -253,6 +257,8 @@ export interface RunRewards {
   seasonTo?: number;
   seasonRewards?: SeasonReward[];
   seasonFirstWin?: boolean;
+  /** P6: achievements this run completed (each pays its title and embers once). */
+  achievements?: Achievement[];
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -367,6 +373,8 @@ export function applyRun(
   const heroXp = Math.round(heroXpForRun(s) * xpMult);
   const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
   const known = collectionOf(hero);
+  // P6: a save from before achievements starts from what it records, read before this run counts.
+  const deedsBefore = hero.deeds ?? backfillDeeds(hero);
   hero.inventory.push(...runDrops);
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
@@ -417,7 +425,8 @@ export function applyRun(
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
   const collection = applyCollection(hero, known);
   const season = s.week !== undefined ? applySeason(hero, s, weekly?.weeklyDone?.length ?? 0) : undefined;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key, ...collection, ...season };
+  const achievements = applyAchievements(hero, s, deedsBefore);
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key, ...collection, ...season, ...achievements };
 }
 
 /**
@@ -448,6 +457,43 @@ function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick
     else hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
   }
   return { seasonMarks: marks, seasonFrom: from, seasonTo: to, ...(got.length ? { seasonRewards: got } : {}), ...(firstWin ? { seasonFirstWin: true } : {}) };
+}
+
+/** P6: adds the run to the account's deeds and pays every achievement it completes, once each. */
+function applyAchievements(hero: HeroProfile, s: RunSummary, before: Deeds): Pick<RunRewards, 'achievements'> {
+  hero.deeds = addDeeds(before, s, hero.cls ?? 'emberwright');
+  const done = new Set(hero.achieved ?? []);
+  const got: Achievement[] = [];
+  const view = achievementView(hero);
+  for (const a of ACHIEVEMENTS) {
+    if (done.has(a.id) || a.have(view) < a.need) continue;
+    done.add(a.id);
+    hero.embers += a.embers;
+    hero.titles = [...new Set([...(hero.titles ?? []), a.title])];
+    got.push(a);
+  }
+  hero.achieved = [...done];
+  return got.length ? { achievements: got } : {};
+}
+
+/**
+ * P6: deeds for a save from before achievements, from what it already records: every
+ * class with a win, and the Kiln (a first win is always there, the only tier 1 dungeon).
+ */
+export function backfillDeeds(hero: HeroProfile): Deeds {
+  const classes: ClassId[] = [];
+  if (hero.wins > 0) classes.push(hero.cls ?? 'emberwright');
+  for (const [c, ch] of Object.entries(hero.roster ?? {})) if ((ch?.wins ?? 0) > 0 && !classes.includes(c as ClassId)) classes.push(c as ClassId);
+  return classes.length ? { classes, bosses: { kiln: 1 } } : {};
+}
+
+/** P6: what the achievements read. Key bests from every class count. */
+export function achievementView(hero: HeroProfile): AchievementView {
+  const keyBest: Partial<Record<DungeonId, number>> = { ...(hero.keyBest ?? {}) };
+  for (const c of Object.values(hero.roster ?? {})) {
+    for (const [d, n] of Object.entries(c?.keyBest ?? {})) keyBest[d as DungeonId] = Math.max(keyBest[d as DungeonId] ?? 0, n ?? 0);
+  }
+  return { deeds: hero.deeds ?? {}, keyBest };
 }
 
 /** P2: wear an earned title or glow (undefined takes it off). Returns false if the hero hasn't earned it. */

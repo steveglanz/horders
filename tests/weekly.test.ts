@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { weeklyFor, weekState, weeklyStep, weeklyTitle, WEEKLY, WEEKLY_QUESTS } from '../sim/content/weekly';
 import { applyRun, newHero } from '../sim/hero';
 import type { RunSummary } from '../sim/world';
@@ -32,6 +33,7 @@ describe('weekly quests (P1)', () => {
   it('runs move the quests, a finished quest pays its embers once, and all three give the title', () => {
     const h = newHero();
     h.maxTier = 8;
+    h.achieved = ACHIEVEMENTS.map((a) => a.id); // only the weekly title here
     // Make this week's quests the three that a plain win always moves.
     h.weekly = { week: 2900, titled: false, quests: (['wins', 'kills', 'wall'] as const).map((id) => ({ id, goal: WEEKLY_QUESTS[id].goal, progress: 0, embers: 100, done: false })) };
     const embers = h.embers;
