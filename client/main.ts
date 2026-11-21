@@ -125,12 +125,19 @@ function finishRun(w: World) {
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
   save();
   hub.render();
+  // P3: a beaten key goes on the dungeon's leaderboard (solo key runs only).
+  if (summary.victory && summary.keyLevel && summary.dungeon && !coop) void submitKey(summary.dungeon, summary.keyLevel, summary.time);
   const shadow = summary.shadowDamage ?? 0;
   void strikeBoss(summary.damageDealt - shadow, summary.time - (summary.shadowTime ?? 0), shadow, summary.shadowTime ?? 0);
   return rewards;
 }
 
 /** Sends a finished delve's damage to the shared world boss. */
+async function submitKey(dungeon: string, level: number, seconds: number): Promise<void> {
+  const r = await cloud.submitKey(dungeon, hero.cls ?? 'emberwright', level, seconds, weekOf(Date.now()), myCard().name);
+  if (r?.ok) hub.keyBoardStale(dungeon);
+}
+
 async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number): Promise<void> {
   const out = el('endBoss');
   out.innerHTML = '';
