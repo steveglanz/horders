@@ -53,7 +53,7 @@ More places to go, so the weekly loop has variety.
 | C2 | **Rare spawns and named elites:** one surprise named foe per delve, with its own loot table | design | Small, high payoff |
 | C3 | **Raid (R9):** an 8-minute, 4-hero world boss fight with phases, built on the world boss bar | engineering + design | Needs G4 and G6 |
 | C4 | **New enemy families** for C1, plus art for every placeholder enemy left (Glarewell, Hammerdeep trash) | visuals | ✅ Every enemy has drawn art (checked 21 Nov 2026): Glarewell #31, Hammerdeep #58, Ashvents #72, Coldmarrow #74, the raid #108 |
-| C5 | **Class talents round 2:** a third talent branch per class (capstone choices) | skills | Watch the class spread at tiers 6 and 8 |
+| C5 | **Class talents round 2:** a third talent branch per class (capstone choices) | skills | ✅ Every branch has two capstones (docs/skills.md, "Second capstones" parts 1 and 2), plus two more cards per Bulwark, Lumen and Slagbinder branch (docs/skills.md, "Class talents round 2") |
 | C6 | **Dungeon themes and ambience** for C1 and the raid; a boss phase-change sting for each boss | sound | |
 | C7 | **Content QA:** each new dungeon's soft-lock check (can a run get stuck?), and the bot win-rate table in balance.md | QA + design | |
 

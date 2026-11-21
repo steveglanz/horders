@@ -6,7 +6,7 @@ import { ARENA, COLD, Input, REVIVE_RADIUS, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 
-const PRIORITY: TalentId[] = [
+export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
   'flicker', 'magnetism',
@@ -16,12 +16,15 @@ const PRIORITY: TalentId[] = [
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',
+  'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse',
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
   'renewal', 'lingeringSanctuary', 'blessedGround',
+  'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers',
   // Slagbinder
   'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
   'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
+  'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool',
   'smallHeal', 'stoke',
 ];
 
@@ -802,7 +805,7 @@ export function botChoose(w: World): number {
   w.choices.forEach((c, i) => {
     const def = TALENTS[c.id];
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
-    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 + PRIORITY.indexOf(c.id);
+    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 + BOT_PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

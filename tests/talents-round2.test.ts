@@ -48,15 +48,26 @@ describe('class talents round 2 (C5)', () => {
     for (const id of ROUND2) expect(TALENTS[id].capstone).toBeFalsy();
   });
 
-  it('the draft can offer the new cards', () => {
-    const seen = new Set<string>();
+  it('deep cards stay out of the draft until their branch capstone is taken', () => {
+    const before = new Set<string>();
+    const after = new Set<string>();
     for (const cls of ['bulwark', 'lumen', 'slagbinder'] as ClassId[]) {
+      const caps = (Object.values(TALENTS) as { id: TalentId; cls?: ClassId; capstone?: boolean; branch: string }[])
+        .filter((d) => d.cls === cls && d.capstone);
+      // One capstone from each branch.
+      const taken: Partial<Record<TalentId, number>> = {};
+      const seenBranch = new Set<string>();
+      for (const c of caps) if (!seenBranch.has(c.branch)) { seenBranch.add(c.branch); taken[c.id] = 1; }
       for (let s = 1; s <= 60; s++) {
         const w = new World({ seed: s, cls, tier: 4, omens: [] });
-        for (const o of w.rollDraft()) seen.add(o.id);
+        for (const o of w.rollDraft()) before.add(o.id);
+        (w as unknown as Inner).talents = { ...taken };
+        for (const o of w.rollDraft()) after.add(o.id);
       }
     }
-    expect(ROUND2.filter((id) => !seen.has(id))).toEqual([]);
+    expect(ROUND2.filter((id) => before.has(id))).toEqual([]);
+    expect(ROUND2.filter((id) => !after.has(id))).toEqual([]);
+    for (const id of ROUND2) expect(TALENTS[id].deep).toBe(true);
   });
 
   it('Riveted Plates: the Bulwark takes less from each hit', () => {
@@ -71,14 +82,14 @@ describe('class talents round 2 (C5)', () => {
     inner.talents = { slowPulse: 2 };
     expect(inner.regen).toBe(0);
     w.player.hp = w.player.maxHp * 0.4;
-    expect(inner.regen).toBeCloseTo(3);
+    expect(inner.regen).toBeCloseTo(8);
   });
 
   it('Broad Shoulders: Shield Sweep swings more often', () => {
     const { inner } = world('bulwark');
     const base = inner.sweepCooldown;
     inner.talents = { broadShoulders: 3 };
-    expect(inner.sweepCooldown).toBeCloseTo(base / 1.18);
+    expect(inner.sweepCooldown).toBeCloseTo(base / 1.24);
   });
 
   it('Daybreak Pulse: Radiant Burst recharges sooner', () => {
@@ -103,7 +114,7 @@ describe('class talents round 2 (C5)', () => {
     const plain = inner.healPlayer(20);
     w.player.hp = 10;
     inner.talents = { lampglowCare: 3 };
-    expect(inner.healPlayer(20)).toBeCloseTo(plain * 1.24);
+    expect(inner.healPlayer(20)).toBeCloseTo(plain * 1.3);
   });
 
   it('Steady Halo and Slag Scales cut every hit', () => {
@@ -113,5 +124,13 @@ describe('class talents round 2 (C5)', () => {
 
   it('a card from another class does nothing', () => {
     expect(hitTaken('emberwright', { slagScales: 3, steadyHalo: 2 })).toBeCloseTo(hitTaken('emberwright', {}));
+  });
+});
+
+describe('bot talent priority', () => {
+  it('ranks every class talent, so a new card never jumps the queue', async () => {
+    const { BOT_PRIORITY } = await import('../sim/bot');
+    const missing = (Object.keys(TALENTS) as TalentId[]).filter((id) => !BOT_PRIORITY.includes(id));
+    expect(missing).toEqual([]);
   });
 });

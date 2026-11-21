@@ -194,6 +194,50 @@ What the numbers show:
   - Small damage gains swing the Lumen a lot at tier 8. Noonfire at +40% and Chorus on every 4th mote won 38.3 there, so both were cut back.
   - The old Lumen capstones need a look of their own (watch item for game design).
 
+## Class talents round 2 (roadmap C5, part 3: deep cards)
+
+Two more cards per branch for the Bulwark, Lumen and Slagbinder: 18 in all. They are **deep cards** (`deep: true` in TALENTS). A branch offers them only once its capstone is taken.
+
+| Class | Branch | Card | Ranks | Effect per rank |
+|---|---|---|---|---|
+| Bulwark | Anvil Skin | Riveted Plates | 3 | Armor stops 5% more of each hit |
+| Bulwark | Anvil Skin | Slow Pulse | 2 | Below half health, heal 4 health per second |
+| Bulwark | Retribution | Hard Knocks | 3 | Rim Smash deals 20% more damage |
+| Bulwark | Retribution | Grim Tally | 2 | Hits you take build 25% more Resolve |
+| Bulwark | Vanguard | Broad Shoulders | 3 | Shield Sweep swings 8% more often |
+| Bulwark | Vanguard | Full Weight | 2 | Charge hits 50% harder |
+| Lumen | Dawn | Daybreak Pulse | 2 | Radiant Burst recovers 0.5 s sooner and heals 10% more |
+| Lumen | Dawn | Lantern Heart | 3 | 30 more Brilliance cap, Sunmotes deal 10% more |
+| Lumen | Grace | Lampglow Care | 3 | All your healing is 10% stronger |
+| Lumen | Grace | Steady Halo | 2 | You take 5% less damage |
+| Lumen | Choir | Long Note | 2 | Sunmotes reach 40 farther and deal 10% more |
+| Lumen | Choir | Hallowed Embers | 3 | Sanctuary burns foes 50% harder |
+| Slagbinder | Forge | Deep Coat | 2 | Molten Plating lasts 1 s longer and holds 10% more |
+| Slagbinder | Forge | Wide Spatter | 3 | Plating bursts 15 px wider and 10% harder |
+| Slagbinder | Clinker | Fast Ladle | 3 | Slag Lob throws 10% more often |
+| Slagbinder | Clinker | Dense Glob | 2 | Each Slag Lob gives 3 more Slag |
+| Slagbinder | Crust | Slag Scales | 3 | You take 4% less damage |
+| Slagbinder | Crust | Slow Cool | 2 | Your Cooling Shell cuts 5% more of the damage you take |
+
+**Names.** Each name was web-searched against WoW and Azeroth Survivors before it shipped. Rejected on the search: Shoulder Check (a Hearthstone card), Soft Glow (a WoW quest and spell), Quick Hands (unclear) and Cinder Skin (already an Emberwright talent).
+
+**Why the gate.** A run gets about 5 picks, and each branch already has 13 core ranks. When the new cards joined the pool from the start, they crowded out the core picks. In the first pass the Lumen fell from 30.3 to 16.7 out of 40 at Kiln 8 and the Slagbinder Kiln 6 from 21.3 to 12.3. Hiding the new cards from the draft gave exactly main's numbers, which proved the cause was the offers and not the effects. Raising the cards' numbers alone barely helped (Lumen Kiln 8: 20.7). After the capstone, the core picks have already done their job, so a deep card is a real choice there.
+
+**Balance** (21 Nov 2026, main at 9900c87, average wins out of 40, main / this change). Foundry and Kiln use heroes-fair, Coldmarrow uses the Coldmarrow heroes, 3 heroes and 40 seeds each.
+
+| | Foundry 6 | Foundry 8 | Kiln 6 | Kiln 8 | Coldmarrow 9 | Coldmarrow 10 |
+|---|---|---|---|---|---|---|
+| Bulwark | 36.0 / 35.7 | 21.3 / 19.3 | 39.0 / 37.7 | 27.3 / 28.0 | 35.0 / 35.0 | 29.0 / 29.0 |
+| Lumen | 36.0 / 36.0 | 32.7 / 33.0 | 38.7 / 39.3 | 30.3 / 29.3 | 28.7 / 28.7 | 19.3 / 19.3 |
+| Slagbinder | 30.7 / 32.0 | 21.0 / 21.0 | 21.3 / 21.3 | 12.3 / 11.0 | 16.0 / 16.0 | 8.7 / 8.7 |
+
+- Tier 1 Kiln, 40 seeds, good bot: 40 for all three classes, as on main. Novice: Bulwark 16 (main 21), Lumen 39 (39), Slagbinder 35 (36). The Bulwark gap is noise: on seeds 41 to 160 it's 65/120 against main's 63/120.
+- Crucible tier 8, full party (Bulwark, Lumen, Duskblade, Emberwright), 90 seeds: 60/90 (67%) against main's 53/90 (59%). Under the 70% cap. With the Slagbinder in place of the Duskblade, 30 seeds: 20/30, same as main.
+- Coldmarrow is unchanged because the bot never takes a capstone there before the boss.
+- Replays (tools/hashcheck.ts): the Emberwright and Duskblade are identical to main. The Bulwark and Lumen change wherever a run reaches a capstone.
+
+**Bot.** Every talent must have a place in `BOT_PRIORITY` (sim/bot.ts). A missing card scores -1 and is drafted ahead of everything. The deep cards sit at the end of each class's list. tests/talents-round2.test.ts fails if any talent is missing.
+
 ## High Noon and Choir of Dawn rework (roadmap L7)
 Both of the Lumen's original capstones added almost nothing:
 - **High Noon** fired only when the Lumen held 20 Brilliance or more. Sunmote spends up to 10 Brilliance a shot, so the beam almost never fired: 0 times in 10 Kiln 8 runs with hero-t8-0, and 9 times in 10 runs at tier 6.
