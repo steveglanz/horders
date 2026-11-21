@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, THEMES } from '../client/audio/music';
@@ -7,6 +8,7 @@ import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneShare } from '../tools/mixcheck';
+import { rewardCues } from '../client/audio/rewards';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -83,10 +85,10 @@ describe('audio', () => {
     expect(THEMES.hammerdeep).toBeDefined();
     for (const s of Object.values(CAST_SOUNDS)) for (const id of [s.start, s.done]) if (id) expect(SOUNDS[id]).toBeDefined();
     const c = { cls: 'bulwark' as const, acting: 0 };
-    expect(cueFor({ type: 'castStart', index: 0, name: 'Anvilfall' }, c)?.id).toBe('anvilWarn');
-    expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Anvilfall' }, c)?.id).toBe('anvilfall');
-    expect(cueFor({ type: 'castDone', x: 0, y: 0, name: 'Choir of Iron' }, c)?.id).toBe('choir');
-    expect(cueFor({ type: 'castStart', index: 0, name: 'Molten Cataclysm' }, c)?.id).toBe('castWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'anvilfall', name: 'Anvilfall' }, c)?.id).toBe('anvilWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'anvilfall', name: 'Anvilfall' }, c)?.id).toBe('anvilfall');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'choir', name: 'Choir of Iron' }, c)?.id).toBe('choir');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'cataclysm', name: 'Molten Cataclysm' }, c)?.id).toBe('castWarn');
     expect(cueFor({ type: 'slagGrip', x: 0, y: 0, stacks: 5 }, c)).toMatchObject({ id: 'slag', vol: 1.05 });
     expect(cueFor({ type: 'cleanse', x: 0, y: 0 }, c)?.id).toBe('cleanse');
   });
@@ -127,7 +129,7 @@ describe('audio', () => {
     expect(buzzFor({ type: 'playerHurt', amount: 30, hero: 0 }, c)).toBe(BUZZ.hurtBig);
     expect(buzzFor({ type: 'playerHurt', amount: 5 }, c)).toBe(BUZZ.hurt);
     expect(buzzFor({ type: 'playerHurt', amount: 30, hero: 1 }, c)).toBeNull();
-    expect(buzzFor({ type: 'castStart', index: 0, name: 'Anvilfall' }, c)).toBe(BUZZ.telegraph);
+    expect(buzzFor({ type: 'castStart', index: 0, id: 'anvilfall', name: 'Anvilfall' }, c)).toBe(BUZZ.telegraph);
     expect(buzzFor({ type: 'hit', x: 0, y: 0, amount: 9, crit: false }, c)).toBeNull();
     for (const p of Object.values(BUZZ)) expect(p.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(400);
   });
@@ -175,7 +177,7 @@ describe('audio', () => {
     for (const t of ['ashvents', 'coldmarrow', 'raid'] as const) expect(THEMES[t], t).toBeDefined();
     expect(THEMES.raid.meter).toBe(3);
     expect(THEMES.coldmarrow.coal).toBe(true);
-    for (const name of ['Twin Vents', 'Scatter Embers', 'Bellow Slam', 'Long Night', 'Frost Lace', 'Ladle Pour', 'The Pour', 'Crucible Vents', 'Last Ember']) expect(CAST_SOUNDS[name], name).toBeDefined();
+    for (const id of ['twinVents', 'scatter', 'bellowSlam', 'longNight', 'frostLace', 'ladlePour', 'pour', 'crucibleVents', 'lastEmber']) expect(CAST_SOUNDS[id], id).toBeDefined();
     expect(phaseSting('grandmotherSlag', 2)).toBe('phaseRaid2');
     expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
     expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
@@ -191,5 +193,21 @@ describe('audio', () => {
     expect(cueFor(alt, { cls: 'lumen', acting: 0 })?.id).toBe('lightwell');
     expect(cueFor(alt, { cls: 'slagbinder', acting: 0 })?.id).toBe('slagPit');
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
+  });
+
+  it('chimes for what a run unlocked, after the end sting, at most three times', () => {
+    expect(rewardCues(undefined)).toEqual([]);
+    const base = { heroXp: 0, items: [], levelsGained: 0 } as never;
+    expect(rewardCues(base)).toEqual([]);
+    const ach = { id: 'x', name: 'A', title: 'T', embers: 10 };
+    const cues = rewardCues({ ...(base as object), achievements: [ach, ach], title: 'The Bold', weeklyDone: [{}, {}] } as never);
+    expect(cues.map((c) => c.id)).toEqual(['achievement', 'achievement', 'unlock']);
+    expect(cues[0].at).toBeGreaterThan(1.5);
+    expect(cues[1].at).toBeGreaterThan(cues[0].at);
+  });
+
+  it('keys every boss-cast sound to a cast id the sim really uses', () => {
+    const sim = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    for (const id of Object.keys(CAST_SOUNDS)) expect(sim.includes(`'${id}'`), id).toBe(true);
   });
 });
