@@ -83,6 +83,21 @@ export const CAPSTONES_2 = {
   veinsMult: 1.6,
   /** Killing Rhythm: swing speed per stack, stack cap, and the longest gap that keeps the rhythm. */
   rhythmStep: 0.04, rhythmMax: 10, rhythmGap: 1.2,
+  /** Iron Vigil: Bastion's length. */
+  vigilTime: 10,
+  /**
+   * Grudge: every this-many hits taken, the Bulwark lashes out at every foe within the radius,
+   * for a flat amount plus this share of the damage those hits did, and staggers them.
+   */
+  grudgeEvery: 4, grudgeRadius: 150, grudgeDamage: 30, grudgeShare: 2, grudgeStun: 0.5,
+  /** Shield Wake: the shockwave where Charge lands (radius, damage, stun seconds). */
+  wakeRadius: 120, wakeDamage: 50, wakeStun: 1,
+  /** Noonfire: Sunmote damage multiplier against elites, rares and bosses. */
+  noonfireMult: 1.15,
+  /** Haven: damage taken is cut by this share inside your own Sanctuary. */
+  havenCut: 0.3,
+  /** Chorus: every this-many Sunmotes, the target is struck twice. */
+  chorusEvery: 8,
 };
 
 export const GROUP_TOOLS = {
@@ -287,6 +302,10 @@ export interface Player {
   /** Killing Rhythm: swings in a row, and when the last one landed. */
   rhythmN?: number;
   lastSwingAt?: number;
+  /** Hits taken toward the next Grudge lash (Bulwark), and Sunmotes fired (Chorus). */
+  grudge?: number;
+  grudgeDmg?: number;
+  motesFired?: number;
   x: number;
   y: number;
   px: number;
@@ -1638,6 +1657,26 @@ export class World {
       amount -= soak;
       if (amount <= 0) return;
     }
+    // Haven: the Lumen is sheltered inside its own Sanctuary.
+    if (p.sanctT > 0 && this.rank('haven') > 0 && dist2(p.x, p.y, p.sanctX, p.sanctY) <= this.sanctuaryRadius ** 2) amount *= 1 - CAPSTONES_2.havenCut;
+    // Grudge: every few hits that land, the Bulwark lashes out at everything around it.
+    if (this.rank('grudge') > 0) {
+      p.grudge = (p.grudge ?? 0) + 1;
+      p.grudgeDmg = (p.grudgeDmg ?? 0) + amount;
+      if (p.grudge >= CAPSTONES_2.grudgeEvery) {
+        const dmg = (CAPSTONES_2.grudgeDamage + CAPSTONES_2.grudgeShare * p.grudgeDmg) * this.dmgMult;
+        p.grudge = 0;
+        p.grudgeDmg = 0;
+        const gr = CAPSTONES_2.grudgeRadius;
+        this.forEachNear(p.x, p.y, gr + 40, (i) => {
+          const e = this.enemies[i];
+          if (dist2(p.x, p.y, e.x, e.y) > (gr + e.def.radius) ** 2) return;
+          this.damageEnemy(i, dmg, true);
+          if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, CAPSTONES_2.grudgeStun);
+        });
+        this.events.push({ type: 'explode', x: p.x, y: p.y, r: gr });
+      }
+    }
     // Ashen Mantle: Blink leaves the Emberwright wrapped in ash for a moment.
     if (this.time < (p.mantleUntil ?? -1)) amount *= 1 - CAPSTONES_2.mantleCut;
     // Tidewalker: harder to pin down while moving.
@@ -2175,7 +2214,8 @@ export class World {
     const hit = (i: number, k: number) => {
       const e = this.enemies[i];
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
-      this.damageEnemy(i, dmg * k * (e.castId && this.hasWeaponFx('rebukingLight') ? 1.25 : 1), true);
+      const noonfire = e.def.rank !== 'normal' && this.rank('noonfire') > 0 ? CAPSTONES_2.noonfireMult : 1;
+      this.damageEnemy(i, dmg * k * noonfire * (e.castId && this.hasWeaponFx('rebukingLight') ? 1.25 : 1), true);
       this.addHeat(3);
       // Co-op: the mote's heal goes to whoever is lowest on health nearby, the Lumen included.
       const ally = this.woundedAlly(LUMEN_RANGE);
@@ -2188,6 +2228,11 @@ export class World {
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
     hit(t, 1);
+    // Chorus: every few Sunmotes, the target is struck a second time.
+    if (this.rank('chorus') > 0) {
+      p.motesFired = (p.motesFired ?? 0) + 1;
+      if (p.motesFired % CAPSTONES_2.chorusEvery === 0 && e0.alive) hit(t, 1);
+    }
     const extra = this.rank('prism');
     if (extra > 0) {
       for (const j of this.nearestEnemies(e0.x, e0.y, extra + 1, 260)) if (j !== t && this.enemies[j].alive) hit(j, 0.6);
@@ -2509,12 +2554,23 @@ export class World {
     }
     p.volleyT = Math.min(p.volleyT, 0.05);
     this.addHeat(10);
+    if (this.rank('shieldWake') > 0) {
+      // Shield Wake: the landing sends out a shockwave.
+      const wr = CAPSTONES_2.wakeRadius;
+      this.forEachNear(p.x, p.y, wr + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(p.x, p.y, e.x, e.y) > (wr + e.def.radius) ** 2) return;
+        this.damageEnemy(i, CAPSTONES_2.wakeDamage * this.dmgMult, true);
+        if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, CAPSTONES_2.wakeStun);
+      });
+      this.events.push({ type: 'explode', x: p.x, y: p.y, r: wr });
+    }
     this.events.push({ type: 'dash', x1, y1, x2: p.x, y2: p.y, dodge: false });
   }
 
   private bastion(): void {
     const p = this.player;
-    p.bastionT = 6;
+    p.bastionT = this.rank('ironVigil') > 0 ? CAPSTONES_2.vigilTime : 6;
     p.prevented = 0;
     // Bastion steadies you for 10% of max health; Last Stand adds 12% per rank.
     const amount = this.healPlayer(p.maxHp * (BASTION_HEAL * this.noviceAid + 0.12 * this.rank('lastStand')));

@@ -67,27 +67,33 @@ export type TalentId =
   | 'ward'
   | 'lastStand'
   | 'unbreakable'
+  | 'ironVigil'
   | 'spikedShield'
   | 'vengeance'
   | 'shieldEcho'
   | 'thornwall'
+  | 'grudge'
   | 'wideSweep'
   | 'momentum'
   | 'batteringRam'
   | 'warpath'
+  | 'shieldWake'
   // Lumen
   | 'kindledLight'
   | 'searingRadiance'
   | 'sunflare'
   | 'noon'
+  | 'noonfire'
   | 'aegisOfLight'
   | 'renewal'
   | 'blessedGround'
   | 'martyrsHalo'
+  | 'haven'
   | 'hastedHymn'
   | 'prism'
   | 'lingeringSanctuary'
-  | 'choirOfDawn';
+  | 'choirOfDawn'
+  | 'chorus';
 
 export interface TalentDef {
   id: TalentId;
@@ -165,32 +171,38 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   ward: { id: 'ward', cls: 'bulwark', name: 'Ward', branch: 'bastion', maxRank: 3, text: 'Every 8s, gain a shield worth 8% of your max health.' },
   lastStand: { id: 'lastStand', cls: 'bulwark', name: 'Last Stand', branch: 'bastion', maxRank: 2, text: 'Bastion also heals 12% of your max health.' },
   unbreakable: { id: 'unbreakable', cls: 'bulwark', name: 'Unbreakable', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: when Bastion ends, it bursts for the damage it stopped.', tip: "When Bastion ends, it bursts for twice the damage it stopped (at least 60) on every foe within 170 px." },
+  ironVigil: { id: 'ironVigil', cls: 'bulwark', name: 'Iron Vigil', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: Bastion lasts 10s instead of 6.' },
   // Retribution: thorns and anger
   spikedShield: { id: 'spikedShield', cls: 'bulwark', name: 'Spiked Shield', branch: 'retribution', maxRank: 3, text: 'Enemies that hit you take 8 damage back.' },
   vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Vengeance', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
   shieldEcho: { id: 'shieldEcho', cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Shield Slam strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
   thornwall: { id: 'thornwall', cls: 'bulwark', name: 'Thornwall', branch: 'retribution', maxRank: 1, capstone: true, text: 'CAPSTONE: you always turn back 15% of each hit, and damage you turn back hits every enemy around you.' },
+  grudge: { id: 'grudge', cls: 'bulwark', name: 'Grudge', branch: 'retribution', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th hit you take, you lash out at everything around you with twice the damage those hits did.', tip: "Every 4th hit that lands on you, you strike every foe within 150 px for 30 plus twice the damage those 4 hits did to you, and stagger them for 0.5s." },
   // Vanguard: cleave and charge
   wideSweep: { id: 'wideSweep', cls: 'bulwark', name: 'Wide Sweep', branch: 'vanguard', maxRank: 2, text: 'Shield Sweep swings wider and farther. Rank 2: a full circle.', tip: "Shield Sweep reaches 15 farther per rank. Its arc grows from 150 degrees to 250 at rank 1, then a full circle at rank 2." },
   momentum: { id: 'momentum', cls: 'bulwark', name: 'Momentum', branch: 'vanguard', maxRank: 3, text: '+5% move speed; Charge recharges 2s faster.' },
   batteringRam: { id: 'batteringRam', cls: 'bulwark', name: 'Battering Ram', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.', tip: "Charge also hits everything in its path for 25 per rank and stuns them for 0.5s." },
   warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th Shield Sweep sends out a shockwave for double damage.' },
+  shieldWake: { id: 'shieldWake', cls: 'bulwark', name: 'Shield Wake', branch: 'vanguard', maxRank: 1, capstone: true, text: 'CAPSTONE: Charge lands with a shockwave that hits and stuns everything close.', tip: "Where Charge lands, a shockwave hits every foe within 120 px for 50 damage and stuns it for 1s." },
 
   // Lumen. Dawn: healing turned into damage
   kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
   searingRadiance: { id: 'searingRadiance', cls: 'lumen', name: 'Searing Radiance', branch: 'dawn', maxRank: 3, text: 'Sunmotes deal 15% more damage.' },
   sunflare: { id: 'sunflare', cls: 'lumen', name: 'Sunflare', branch: 'dawn', maxRank: 2, text: 'Radiant Burst reaches 40 farther and hits 50% harder.' },
   noon: { id: 'noon', cls: 'lumen', name: 'High Noon', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4s, stored Brilliance fires a piercing sunbeam.', tip: "Every 4s, if you have 20 Brilliance or more, all of it fires as a 520 px sunbeam: 30 damage plus 1.5 per Brilliance." },
+  noonfire: { id: 'noonfire', cls: 'lumen', name: 'Noonfire', branch: 'dawn', maxRank: 1, capstone: true, text: 'CAPSTONE: Sunmotes deal 15% more to elites, rares and bosses.' },
   // Grace: shields and staying alive
   aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Aegis of Light', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
   renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health and 1 health per second.' },
   blessedGround: { id: 'blessedGround', cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 5 per second per rank for 4s.', tip: "Glimmer Step leaves a pool for 4s that heals you and allies in it 5 per second per rank." },
   martyrsHalo: { id: 'martyrsHalo', cls: 'lumen', name: "Martyr's Halo", branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.' },
+  haven: { id: 'haven', cls: 'lumen', name: 'Haven', branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: you take 30% less damage while standing in your Sanctuary.' },
   // Choir: more light, faster
   hastedHymn: { id: 'hastedHymn', cls: 'lumen', name: 'Hasted Hymn', branch: 'choir', maxRank: 3, text: 'Sunmotes fly 12% more often.' },
   prism: { id: 'prism', cls: 'lumen', name: 'Prism', branch: 'choir', maxRank: 2, text: 'Each Sunmote also strikes one more enemy.' },
   lingeringSanctuary: { id: 'lingeringSanctuary', cls: 'lumen', name: 'Lingering Sanctuary', branch: 'choir', maxRank: 2, text: 'Sanctuary lasts 2s longer and moves with you.' },
   choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle you, burning foes and healing you with each hit.', tip: "Three wisps circle you and burn each foe they touch for 16, at most once every 0.4s per foe. Each hit heals you 1.5." },
+  chorus: { id: 'chorus', cls: 'lumen', name: 'Chorus', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: every 8th Sunmote strikes its target twice.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {

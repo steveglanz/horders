@@ -120,3 +120,100 @@ describe('capstone choices (C5)', () => {
     expect(w.canCast(1)).toBe(true);
   });
 });
+
+type Inner2 = Inner & {
+  shieldSlam(): void;
+  charge(): void;
+  bastion(): void;
+  sanctuary(): void;
+  sunmote(t: number): void;
+};
+
+describe('capstone choices (C5, part 2: Bulwark and Lumen)', () => {
+  const w2 = (cls: ClassId) => {
+    const { w, inner } = world(cls);
+    return { w, inner: inner as Inner2 };
+  };
+
+  it('every branch of the Bulwark and Lumen has two capstones', () => {
+    for (const b of ['bastion', 'retribution', 'vanguard', 'dawn', 'grace', 'choir']) {
+      expect(Object.values(TALENTS).filter((d) => d.branch === b && d.capstone)).toHaveLength(2);
+    }
+  });
+
+  it('Iron Vigil: Bastion lasts 10 s', () => {
+    const { w, inner } = w2('bulwark');
+    inner.talents.ironVigil = 1;
+    inner.bastion();
+    expect(w.player.bastionT).toBe(CAPSTONES_2.vigilTime);
+  });
+
+  it('Grudge: every 4th hit taken lashes out at foes around the Bulwark with that damage', () => {
+    const { w, inner } = w2('bulwark');
+    inner.talents.grudge = 1;
+    w.player.ward = 0;
+    const e = w.enemies[inner.spawn('cinderBrute', w.player.x + 100, w.player.y)];
+    e.hp = 1e6;
+    inner.rebuildHash();
+    const before = e.hp;
+    for (let k = 0; k < CAPSTONES_2.grudgeEvery - 1; k++) inner.hurtPlayer(10);
+    expect(e.hp).toBe(before);
+    inner.hurtPlayer(10);
+    expect(e.hp).toBeLessThan(before);
+    expect(e.stunT).toBeGreaterThanOrEqual(CAPSTONES_2.grudgeStun);
+    expect(w.player.grudge).toBe(0);
+  });
+
+  it('Shield Wake: Charge lands with a shockwave that stuns foes near the landing', () => {
+    const { w, inner } = w2('bulwark');
+    inner.talents.shieldWake = 1;
+    const p = w.player;
+    inner.spawn('cinderBrute', p.x + 300, p.y);
+    const near = w.enemies[inner.spawn('ashling', p.x + 260, p.y + 60)];
+    near.hp = 1e6;
+    inner.rebuildHash();
+    inner.charge();
+    expect(near.stunT).toBeGreaterThanOrEqual(CAPSTONES_2.wakeStun);
+  });
+
+  it('Noonfire: Sunmotes hit big foes 15% harder', () => {
+    const mote = (on: boolean) => {
+      const { w, inner } = w2('lumen');
+      if (on) inner.talents.noonfire = 1;
+      w.player.brilliance = 0;
+      const e = w.enemies[inner.spawn('cinderBrute', w.player.x + 100, w.player.y)];
+      e.hp = 1e6;
+      const before = e.hp;
+      inner.sunmote(w.enemies.indexOf(e));
+      return before - e.hp;
+    };
+    const a = mote(false);
+    const b = mote(true);
+    // Same seed, same crit roll: exactly 40% more.
+    expect(b).toBeCloseTo(a * CAPSTONES_2.noonfireMult);
+  });
+
+  it('Haven: 30% less damage inside your own Sanctuary', () => {
+    const { w, inner } = w2('lumen');
+    inner.talents.haven = 1;
+    inner.sanctuary();
+    const hp0 = w.player.hp;
+    inner.hurtPlayer(50);
+    expect(hp0 - w.player.hp).toBeCloseTo(50 * (1 - CAPSTONES_2.havenCut));
+  });
+
+  it('Chorus: every 8th Sunmote strikes its target twice', () => {
+    const { w, inner } = w2('lumen');
+    inner.talents.chorus = 1;
+    const t = inner.spawn('cinderBrute', w.player.x + 100, w.player.y);
+    w.enemies[t].hp = 1e6;
+    let motes = 0;
+    const n = () => w.events.filter((e) => e.type === 'mote').length;
+    for (let k = 0; k < CAPSTONES_2.chorusEvery; k++) {
+      w.events.length = 0;
+      inner.sunmote(t);
+      motes += n();
+    }
+    expect(motes).toBe(CAPSTONES_2.chorusEvery + 1);
+  });
+});
