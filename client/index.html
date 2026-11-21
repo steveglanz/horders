@@ -808,6 +808,8 @@
   body.tabs .hub[data-tab="hero"] #heroCard { margin-top: 12px; }
   body.tabs .hub[data-tab="hero"] .hub-foot { display: none; }
   body.tabs .hub-foot { bottom: calc(var(--tabh) + env(safe-area-inset-bottom)); padding-bottom: 10px; }
+  /* Portrait phones: the Delve button follows the content instead of being pushed to the tab bar, which left ~250px of nothing above it on tall phones. It still sticks above the tab bar when the content is longer than the screen. */
+  @media (max-width: 560px) and (orientation: portrait) { body.tabs .hub-foot { margin-top: 0; } }
   body.tabs #bagBtn { display: none; }
   body.tabs .hub-delve > [data-pane] > .sec-h.big:first-child, body.tabs .hub-delve .sec-h.big { margin-top: 12px; }
   body.tabs .hub[data-tab="group"] .wboss { margin-top: 4px; }
