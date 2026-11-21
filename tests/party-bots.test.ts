@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { botInput } from '../sim/bot';
+import { BOT_PARTY, botInput } from '../sim/bot';
 
 describe('party bots', () => {
-  it('walk to a downed ally and pick them up', () => {
+  it('walk to a downed ally and pick them up (with BOT_PARTY.revive on)', () => {
+    BOT_PARTY.revive = true;
     const w = new World({ seed: 2, cls: 'emberwright', tier: 4, omens: [], party: [{ cls: 'lumen' }] });
     for (const e of w.enemies) e.alive = false;
     const down = w.heroes[1].player;
@@ -17,6 +18,7 @@ describe('party bots', () => {
       for (const e of w.enemies) e.alive = false;
       up = w.heroes[1].player.hp > 0;
     }
+    BOT_PARTY.revive = false;
     expect(up).toBe(true);
   });
 });

@@ -5,7 +5,7 @@
 import * as WORLD from '../sim/world';
 import { World, WorldOptions } from '../sim/world';
 import { ENEMIES } from '../sim/content/enemies';
-import { botChoose, botInput } from '../sim/bot';
+import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
 import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
@@ -20,6 +20,8 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
+// REVIVE=1: bots pick up downed allies (BOT_PARTY.revive, off by default until the group fights are retuned).
+BOT_PARTY.revive = process.env.REVIVE === '1';
 // TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   const [path, v] = kv.split('=');
