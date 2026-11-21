@@ -14,6 +14,8 @@ import { HeroProfile } from '../sim/hero';
 
 const URL_BASE = 'https://gadnkjsxpnchmvsjgnum.supabase.co';
 const KEY = 'sb_publishable_dNWKvm5ECZJiG90XkAwveA_J_1tdRKB';
+/** For co-op signalling (client/net/signal.ts): the same public project and publishable key. */
+export const SUPABASE = { url: URL_BASE, key: KEY };
 const SESSION_KEY = 'horders.auth.v1';
 const TIMEOUT_MS = 6000;
 

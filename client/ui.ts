@@ -323,11 +323,18 @@ export class Hud {
 
   showDraft(w: World): void {
     // Re-render only when a new set of choices appears.
-    const key = w.player.level * 100 + w.player.pendingLevels;
+    const key = w.player.level * 100 + w.player.pendingLevels + (w.choices.length ? 0 : 50);
     if (!$('draft').hidden && this.draftShownFor === key) return;
     this.draftShownFor = key;
     const cards = $('cards');
     cards.innerHTML = '';
+    if (!w.choices.length) {
+      // Co-op: you've picked; the run resumes when the rest of the party has.
+      cards.innerHTML = '<div class="muted" style="padding:24px;text-align:center">Waiting for the rest of your party to pick their talents.</div>';
+      $('draftTitle').textContent = 'Waiting for your party';
+      $('draft').hidden = false;
+      return;
+    }
     w.choices.forEach((c, i) => {
       const def = TALENTS[c.id as TalentId];
       const color = BRANCH_COLOR[def.branch];
@@ -349,6 +356,7 @@ export class Hud {
   }
 
   hideDraft(): void {
+    if ($('draft').hidden) return;
     $('draft').hidden = true;
     this.draftShownFor = -1;
   }
