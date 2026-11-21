@@ -327,6 +327,24 @@ export const SOUNDS = {
   gate: [{ wave: 'tri', f: 660, dur: 0.06, vol: 0.18 }, { wave: 'tri', f: 990, dur: 0.1, delay: 0.06, vol: 0.18 }],
   soakOk: chime(A5, 0, 0.22, 0.4),
   soakFail: [{ wave: 'square', f: 280, f2: 200, dur: 0.3, vol: 0.14, lp: 1800 }],
+  /**
+   * The Pressworks: you took a Downstroke and are Pressed (OSKEL.pressed s): a clamp bites shut on you.
+   * It waits 0.25 s so the soak chime lands first; standing under the next one now crushes you.
+   */
+  pressed: join(
+    clang(note(-5), 0.5, 0.6).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    // A bright two-note lock in the 500 Hz-2 kHz band: it lands in the middle of a Downstroke's slam.
+    [{ wave: 'noise', f: 0, dur: 0.05, delay: 0.25, vol: 0.45, lp: 5000, hp: 900, curve: 3 },
+     { wave: 'saw', f: 320, f2: 240, dur: 0.4, delay: 0.25, vol: 0.26, lp: 2600, curve: 2 },
+     { wave: 'square', f: note(7), dur: 0.09, delay: 0.27, vol: 0.14, lp: 3500, curve: 2 },
+     { wave: 'square', f: note(3), dur: 0.16, delay: 0.38, vol: 0.14, lp: 3500, curve: 2 }],
+  ),
+  /** Pressed wears off: the clamp lets go with a puff of steam and a lifting note, so you can take the next one. */
+  pressedClear: join(
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.22, a: 0.02, lp: 7000, lp2: 2500, hp: 1500, curve: 1.6 },
+     { wave: 'noise', f: 0, dur: 0.03, vol: 0.25, lp: 6000, hp: 1500, curve: 3 }],
+    chime(E5, 0.12, 0.18, 0.3), chime(A5, 0.2, 0.2, 0.45),
+  ),
 
   // ---- the Hammerdeep (group dungeon): Ondrel of the Hammerdeep
   /** Anvilfall wind-up (2.5 s): a swelling, rising grind the whole party learns to fear. */

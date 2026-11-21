@@ -4,7 +4,7 @@ import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { BELLY, beatGap, bellyCues, DRY, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -110,6 +110,17 @@ describe('audio', () => {
     expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseFeast');
     // The Gorge wind-up has to fit inside its 3 s cast, so the interrupt lands on a sound that is still going.
     expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
+  });
+
+  it('hears the Pressworks turn rule: a clamp when Pressed, a release when it wears off', () => {
+    const st = { on: false };
+    expect(pressedCue(st, false)).toBeNull();
+    expect(pressedCue(st, true)?.id).toBe('pressed');
+    expect(pressedCue(st, true)).toBeNull();
+    expect(pressedCue(st, false)?.id).toBe('pressedClear');
+    expect(pressedCue(st, false)).toBeNull();
+    // The clamp waits for the soak chime that lands on the same tick.
+    expect(Math.min(...SOUNDS.pressed.map((v) => v.delay ?? 0))).toBeGreaterThanOrEqual(0.2);
   });
 
   it('muffles the mix and runs a quickening heartbeat while swallowed', () => {
