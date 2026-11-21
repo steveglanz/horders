@@ -91,12 +91,12 @@ Phases 2 to 5 are built, apart from real-device work. Phase 6 keeps every team b
 | # | Feature | Owner | Notes |
 |---|---|---|---|
 | V1 | **Party quest:** a weekly quest for 2 group wins with another real hero | design | ✅ #266 (weekly-quests.md, "The party quest") |
-| V2 | **Seasons 5 and 6:** new themes, so the rotation doesn't repeat Season 1 from 6 May 2027 (week 2992). Featured dungeons: the Pressworks (group), then the Wrackline (solo) | design | ⏭ Names checked first |
+| V2 | **Seasons 5 and 6:** new themes, so the rotation doesn't repeat Season 1 from 6 May 2027 (week 2992). Featured dungeons: the Pressworks (group), then the Wrackline (solo) | design | ✅ The Falling Press and the Low Ebb (season.md, "Seasons 5 and 6") |
 | V3 | **Pressworks content QA:** the soft-lock check, and a co-op sweep with a guest dropping during a Downstroke | QA | ⏭ tools/contentcheck.ts, tools/coopsweep.cjs |
 | V4 | **Talent branch traps:** the Emberwright's Ashguard and the Slagbinder's Crust can't finish a boss | skills | 🔨 Fix agreed with design: enough damage to finish, still defensive |
 | V5 | **Season 3 key art and colours** | visuals | ⏭ Brief: /mnt/project-files/horders/design/season3-cold-hearth-brief.md |
 | V6 | **Season 3 hub theme**, and a cue for the Relayer buff (`Player.relayT`) | sound | ⏭ |
-| V7 | **Bots in online co-op:** 2 or 3 real heroes top up with bots, under the bot-fill limits | engineering + design | 💡 Needs the host to run bots (botfill.md, Open) |
+| V7 | **Bots in online co-op:** 2 or 3 real heroes top up with bots, under the bot-fill limits | engineering + design | 🔨 Engineering building. Design: drops kept = 1 − 0.6 × bots / 3 (40%, 60%, 80% for 3, 2, 1 bots) |
 | V8 | **Daily bounty leaderboard** by clear time | engineering | 💡 From R7 |
 
 ## R2. The Forge
