@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, DUCK, ebbCue, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { Cue, CueContext, cueFor, DUCK, ebbCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -238,7 +238,7 @@ class AudioEngine {
   }
 
   /** Plays one sound effect now. Quietly does nothing before the unlock or when muted. */
-  play(id: SoundId, vol = 1, jitter = 0): void {
+  play(id: SoundId, vol = 1, jitter = 0, pan = 0): void {
     const ctx = this.ctx;
     if (!ctx || this.settings.muted || this.settings.sfx <= 0 || ctx.state !== 'running') return;
     const now = ctx.currentTime;
@@ -264,6 +264,12 @@ class AudioEngine {
       const g = ctx.createGain();
       g.gain.value = vol;
       node = src.connect(g);
+    }
+    // Ordinary sounds lean toward where they happen; a warning always plays in the middle.
+    if (pan && !priority && typeof ctx.createStereoPanner === 'function') {
+      const sp = ctx.createStereoPanner();
+      sp.pan.value = pan;
+      node = node.connect(sp);
     }
     node.connect(priority ? this.sfxBus : this.fxBus);
     this.voices++;
@@ -292,7 +298,7 @@ class AudioEngine {
   }
 
   cue(c: Cue | null): void {
-    if (c) this.play(c.id, c.vol ?? 1, c.jitter ?? 0);
+    if (c) this.play(c.id, c.vol ?? 1, c.jitter ?? 0, c.pan ?? 0);
   }
 
   /** Plays the sounds for one simulation tick's events. */
@@ -313,7 +319,8 @@ class AudioEngine {
       else if (ev.type === 'phase') this.intensity(ev.phase);
       // The music bows out under the victory or defeat sting; the menu brings the hub theme back.
       else if (ev.type === 'end') this.theme(null);
-      this.cue(cueFor(ev, ctx));
+      const c = cueFor(ev, ctx);
+      if (c) this.cue({ ...c, pan: panFor(ev, ctx) });
     }
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));

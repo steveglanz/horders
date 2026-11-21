@@ -4,7 +4,7 @@ import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -402,5 +402,17 @@ describe('takes for busy sounds', () => {
     }
     expect(nextTake(1, 0, 0.5)).toBe(0);
     expect(variantOf(SOUNDS.hit, 0)).toBe(SOUNDS.hit);
+  });
+});
+
+describe('stereo', () => {
+  const c = { cls: 'emberwright' as const, acting: 0, listen: { x: 100, half: 250 } };
+  it('leans a sound toward where it happens, at most PAN_MAX, and centres one at the hero or with no place', () => {
+    expect(panFor({ type: 'hit', x: 350, y: 0, amount: 1, crit: false }, c)).toBeCloseTo(PAN_MAX);
+    expect(panFor({ type: 'hit', x: -900, y: 0, amount: 1, crit: false }, c)).toBeCloseTo(-PAN_MAX);
+    expect(panFor({ type: 'hit', x: 225, y: 0, amount: 1, crit: false }, c)).toBeCloseTo(PAN_MAX / 2);
+    expect(panFor({ type: 'hit', x: 101, y: 0, amount: 1, crit: false }, c)).toBeUndefined();
+    expect(panFor({ type: 'playerHurt', amount: 5 }, c)).toBeUndefined();
+    expect(panFor({ type: 'hit', x: 350, y: 0, amount: 1, crit: false }, { cls: 'emberwright', acting: 0 })).toBeUndefined();
   });
 });
