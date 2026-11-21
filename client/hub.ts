@@ -844,7 +844,7 @@ export class Hub {
       <div class="top"><span class="lbl">World boss</span><span>${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
       <div class="ttl">${b.name}, ${b.title}</div></div></div>
       <div class="meter danger" title="${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}"><div style="width:${pct}%"></div></div>
-      <div class="kv"><span>${Math.round(pct)}% remaining · ${b.hp.toLocaleString()} health</span><span>You: ${b.my_damage.toLocaleString()} damage</span></div>
+      <div class="kv"><span>${Math.round(pct)}% remaining<span class="wb-hpn"> · ${b.hp.toLocaleString()} health</span></span><span>You: ${b.my_damage.toLocaleString()} damage</span></div>
       ${this.bossOmenLine(b)}
       <p>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.</p>
       ${claims}${this.bossNote ? `<p style="color:var(--gold)">${this.bossNote}</p>` : ''}`;

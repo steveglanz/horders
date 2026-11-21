@@ -458,6 +458,14 @@
   .wboss .lbl { color: var(--danger); }
   .wboss .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .wboss .top span:last-child { font-size: 12px; color: var(--muted); }
+  /* Narrow phones: with the portrait beside it, at 320 "World boss" and the fighter count wrapped to two
+     lines each, and the health line wrapped up to 375. Keep the label on one line and drop the secondary numbers (the
+     meter's tooltip still has the exact health). */
+  @media (max-width: 380px) { .wboss .wb-hpn { display: none; } }
+  @media (max-width: 350px) {
+    .wboss .top .lbl { white-space: nowrap; }
+    .wboss .top span:not(.lbl) { display: none; }
+  }
   .wboss .wb-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
   .wboss .wb-name { flex: 1; min-width: 0; }
   .wboss .wb-name .ttl { margin: 2px 0 0; }
