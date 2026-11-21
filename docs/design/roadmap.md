@@ -63,7 +63,7 @@ Reasons to come back tomorrow and next week.
 | # | Feature | Owner | Notes |
 |---|---|---|---|
 | P1 | **Weekly quests:** 3 goals a week (beat X with Y, interrupt 30 casts), paying embers and a cosmetic | design | ✅ #110 (sim/content/weekly.ts) |
-| P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | ✅ season.md (local track, titles and glows). ✅ Visuals: glows render under the hero in runs (#137). Engineering: P6 shows the worn title in co-op |
+| P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | ✅ season.md (local track, titles and glows). ✅ Each season has a dungeon in season (+60 marks a win): Season 2 (31 Dec) is the Hammerdeep. ✅ Visuals: glows render under the hero in runs (#137). Engineering: P6 shows the worn title in co-op |
 | P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | ✅ #117 (Delver's Keys). The leaderboard waits on engineering's migration 0004 |
 | P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | ✅ collections.md (sim, hub sheet, end-screen notes). ✅ Visuals: book art (#138) |
 | P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | ✅ One character per class (switch on the title screen) and one shared ember purse; old per-class purses are added together on load (economy.md, Shared purse) |
