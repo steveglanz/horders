@@ -61,6 +61,8 @@ export const SEASONS: SeasonDef[] = [
   { name: 'the Deep Bellows', glows: [{ id: 'bellowsOrange', name: 'Bellows Orange', color: '#ff9a3c' }, { id: 'kilnRed', name: 'Kiln Red', color: '#ff5a4a' }, { id: 'whiteHeat', name: 'White Heat', color: '#fff1d6' }], trail: { id: 'bellowsSparks', name: 'Bellows Sparks', color: '#ffb04a' }, dungeon: 'hammerdeep' },
   { name: 'the Cold Hearth', glows: [{ id: 'rimeBlue', name: 'Rime Blue', color: '#8fb8ff' }, { id: 'coalGlow', name: 'Coal Glow', color: '#ffb36b' }, { id: 'frostbite', name: 'Frostbite', color: '#d8f4ff' }], trail: { id: 'rimeDust', name: 'Rime Dust', color: '#e6f6ff' }, dungeon: 'coldmarrow' },
   { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }], trail: { id: 'slagDrips', name: 'Slag Drips', color: '#ffcf6e' }, dungeon: 'glarewell' },
+  { name: 'the Falling Press', glows: [{ id: 'oilGreen', name: 'Oil Green', color: '#7fd46a' }, { id: 'rivetBlue', name: 'Rivet Blue', color: '#4f7dff' }, { id: 'hotStamp', name: 'Hot Stamp', color: '#ff4fd8' }], trail: { id: 'oilSheen', name: 'Oil Sheen', color: '#b8f07a' }, dungeon: 'pressworks' },
+  { name: 'the Low Ebb', glows: [{ id: 'wrackOlive', name: 'Wrack Olive', color: '#b5c24a' }, { id: 'drainBlue', name: 'Drain Blue', color: '#2fa8d8' }, { id: 'ebbIndigo', name: 'Ebb Indigo', color: '#7a5cff' }], trail: { id: 'raftSplinters', name: 'Raft Splinters', color: '#c8915a' }, dungeon: 'wrackline' },
 ];
 
 /** Season 1 starts on the week of 21 Nov 2026: weekOf(Date.UTC(2026, 10, 21)) = 2968. */
