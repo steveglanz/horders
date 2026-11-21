@@ -566,7 +566,7 @@ export class Hub {
     const sea = this.seasonArt();
     // The key art's gradient ids are made unique, since the box can be drawn twice (the hub and its sheet).
     const n = ++this.bannerN;
-    const art = sea?.banner ? `<div class="kart-wrap">${sea.banner.replace(/\b(kbSky|kbHeat|kbSpill)\b/g, (m) => `${m}-${n}`)}</div>` : '';
+    const art = sea?.banner ? `<div class="kart-wrap">${sea.banner.replace(/\b(kb[A-Z]\w*)\b/g, (m) => `${m}-${n}`)}</div>` : '';
     return `<div class="box season"${sea?.vars ? ` style="${sea.vars}"` : ''}>${art}<div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
       + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
       + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
