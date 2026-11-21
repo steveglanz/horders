@@ -8,7 +8,7 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { Coach } from './coach';
@@ -558,7 +558,7 @@ export class Hud {
       for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
-      for (const a of rewards.achievements ?? []) notes.push(`<b>Achievement: ${a.name} +${a.embers} embers, title ${a.title}</b>`);
+      for (const a of rewards.achievements ?? []) notes.push(`<span class="deednote">${medalTile(a.id, true, 26)}<span><b>Achievement: ${a.name}</b> +${a.embers} embers, title <i>${a.title}</i></span></span>`);
       if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {
         const d = rewards.keyTo - rewards.keyFrom;
         // A key pill that reads up, flat or down at a glance.

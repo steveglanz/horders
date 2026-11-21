@@ -215,3 +215,47 @@ export const WEAPON_FX_ICON: Record<WeaponFxId, string> = {
 
 /** The Collection book: an open book. */
 export const BOOK_ICON = 'M12 6.5C10 5 7 4.5 3 5v14c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Z M12 6.5v14';
+
+/** P6: the Achievements button's crest, a medal on its ribbon. */
+export const MEDAL_ICON = 'M8 2.5 10.5 9 M16 2.5 13.5 9 M12 8.5a6 6 0 1 1 0 12a6 6 0 1 1 0-12Z M12 11.8l1.1 2.2 2.4.3-1.8 1.6.5 2.4-2.2-1.2-2.2 1.2.5-2.4-1.8-1.6 2.4-.3Z';
+
+/**
+ * P6: a medal glyph per achievement (ACHIEVEMENTS in sim/content/achievements.ts, by id), in its
+ * dungeon's or deed's colour. A new achievement needs an entry here; unknown ids fall back to the medal.
+ */
+export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
+  // Kiln-Breaker: the kiln's dome with its fire.
+  'boss:kiln': { color: '#ff8a3d', d: 'M4 20.5h16 M6 20.5V12a6 6 0 0 1 12 0v8.5 M12 18.5c-1.6 0-2.6-1-2.6-2.4 0-1.4 1.2-2.3 2.6-3.9 1.4 1.6 2.6 2.5 2.6 3.9 0 1.4-1 2.4-2.6 2.4Z' },
+  // Floodwalker: rising above the flood.
+  'boss:foundry': { color: '#5fc8e8', d: 'M3 16.5c2 0 2-1.5 4.5-1.5S9.5 16.5 12 16.5s2-1.5 4.5-1.5 2.5 1.5 4.5 1.5 M3 20.5c2 0 2-1.5 4.5-1.5s2 1.5 4.5 1.5 2-1.5 4.5-1.5 2.5 1.5 4.5 1.5 M12 12V3.5 M8.5 7 12 3.5 15.5 7' },
+  // Lightproof: the glare above, a ledge of shadow below.
+  'boss:glarewell': { color: '#ffd76a', d: 'M12 5a3.6 3.6 0 1 1 0 7.2A3.6 3.6 0 1 1 12 5Z M12 1.5v.8 M5 8.6h.8 M18.2 8.6h.8 M7 3.6l.6.6 M17 3.6l-.6.6 M3.5 15.5h17 M6.5 19.5h11' },
+  // Winterproof: a snowflake.
+  'boss:coldmarrow': { color: '#bfe4ff', d: 'M12 2.5v19 M3.8 7.3l16.4 9.4 M3.8 16.7 20.2 7.3 M9.5 4 12 6.5 14.5 4 M9.5 20 12 17.5 14.5 20' },
+  // Anvilbreaker: a cracked anvil.
+  'boss:hammerdeep': { color: '#c9b8a6', d: 'M3 6.5h12.5c2.5 0 4.5 1.3 5 3.5h-5c-.6 2-2 3-4.5 3.5l1 3H8l1-3C6 13 4 11 3 6.5Z M6 20h12 M10.5 6.5 9.2 9.2l1.6 1.4-1 2' },
+  // Twice-Burned: the twofold flame.
+  'boss:ashvents': { color: '#ff7a8a', d: 'M8 20.5c-2.2 0-3.6-1.4-3.6-3.4 0-2.1 1.7-3.3 3.6-5.9 1.9 2.6 3.6 3.8 3.6 5.9 0 2-1.4 3.4-3.6 3.4Z M16 15c-2.2 0-3.6-1.4-3.6-3.4 0-2.1 1.7-3.3 3.6-5.9 1.9 2.6 3.6 3.8 3.6 5.9 0 2-1.4 3.4-3.6 3.4Z' },
+  // Slagbane: Grandmother Slag's crucible, still steaming.
+  'boss:crucible': { color: '#ff9b4a', d: 'M3.5 9.5h17 M5 9.5l1.4 8.7a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.8L19 9.5 M9 6.5c0-1.4 1.6-1.6 1.6-3.5 M13.5 6.5c0-1.4 1.6-1.6 1.6-3.5 M9.5 14h5' },
+  // Many Hands: five heroes joined in a ring.
+  classes: { color: '#e8d9a8', d: 'M12 5 18.7 9.8 16.1 17.7H7.9L5.3 9.8Z M12 3.6v.01 M20 9.4v.01 M17 19v.01 M7 19v.01 M4 9.4v.01' },
+  // Quencher: a drop, and the cast it cut.
+  'interrupts:1': { color: '#8fd8ff', d: 'M12 4c2.6 3.6 4.2 5.8 4.2 8a4.2 4.2 0 0 1-8.4 0c0-2.2 1.6-4.4 4.2-8Z M4 20 20 4' },
+  // Spellsnuffer: a rune ring split by a strike.
+  'interrupts:2': { color: '#8fd8ff', d: 'M17.7 5.8A8 8 0 1 0 19.8 14.5 M14 2.5 10.5 11h4l-3.5 9' },
+  // Namebreaker: a named foe's crown, cracked.
+  named: { color: '#d8a8ff', d: 'M4.5 17 3.5 7.5l5 3.8L12 5l3.5 6.3 5-3.8-1 9.5Z M4.5 20.5h15 M12 9.5v2.5l-1.4 1.6 1 1.6' },
+  // Bountysworn: a sealed bounty scroll.
+  bounties: { color: '#ffc861', d: 'M6 4h11a2 2 0 0 1 2 2v12a2.5 2.5 0 0 1-2.5 2.5H7.5A2.5 2.5 0 0 1 5 18V5a1 1 0 0 1 1-1Z M8.5 8.5h7 M8.5 12h5 M15.5 15.5a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6Z' },
+  // Keybearer: a Delver's Key.
+  'keys:1': { color: '#b48cff', d: 'M7.5 6.5a4 4 0 1 1 0 8a4 4 0 1 1 0-8Z M11.5 10.5H21 M18 10.5V14 M21 10.5v2.5' },
+  // Lockbreaker: the lock, sprung open.
+  'keys:2': { color: '#b48cff', d: 'M5 11h14v10H5Z M8 11V7a4 4 0 0 1 7.8-1.3 M12 14.5v3' },
+};
+
+/** A medal tile for an achievement: lit when done, dim until then. */
+export function medalTile(id: string, done: boolean, size = 34): string {
+  const ic = ACHIEVEMENT_ICON[id] ?? { color: '#ffc861', d: MEDAL_ICON };
+  return `<span class="medal${done ? ' won' : ''}" style="--gc:${ic.color};width:${size}px;height:${size}px">${glyph(ic.d, Math.round(size * 0.58))}${done ? '<i class="tick" aria-hidden="true"></i>' : ''}</span>`;
+}
