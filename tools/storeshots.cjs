@@ -25,10 +25,11 @@ const SIZES = {
 
 // The fights, in the order a store page shows them.
 const SCENES = [
-  { name: '2-warpack', opts: { cls: 'emberwright', dungeon: 'kiln', route: ['warpack', 'kilnMother'], tier: 3 }, until: 'busy' },
+  { name: '2-nhevra', opts: { cls: 'bulwark', dungeon: 'coldmarrow', route: ['nhevra'], tier: 10 }, boss: 'nhevra', cast: 'longNight', at: 0.55 },
   { name: '3-ondrel-party', opts: { cls: 'bulwark', dungeon: 'hammerdeep', route: ['ondrel'], tier: 4, heroName: 'Bulwark 4', party: [{ cls: 'lumen', name: 'Lumen 4' }, { cls: 'emberwright', name: 'Emberwright 4' }, { cls: 'duskblade', name: 'Duskblade 4' }] }, boss: 'ondrel', cast: 'anvilfall', at: 0.6 },
   { name: '4-lensmother', opts: { cls: 'duskblade', dungeon: 'glarewell', route: ['lensmother'], tier: 7 }, boss: 'lensmother', cast: 'lensSweep', at: 0.45 },
   { name: '5-maelra', opts: { cls: 'lumen', dungeon: 'foundry', route: ['maelra'], tier: 5 }, boss: 'maelra', cast: null, at: 0 },
+  { name: '6-raid', opts: { cls: 'bulwark', dungeon: 'crucible', route: ['grandmotherSlag'], tier: 8, heroName: 'Bulwark 8', party: [{ cls: 'lumen', name: 'Lumen 8' }, { cls: 'emberwright', name: 'Emberwright 8' }, { cls: 'duskblade', name: 'Duskblade 8' }] }, boss: 'grandmotherSlag', cast: 'ladlePour', at: 0.85 },
 ];
 
 function serve() {
@@ -110,15 +111,17 @@ async function shots(browser, tag) {
     h.passives = { might: 6, fortitude: 4, insight: 2 };
     h.embers = Math.max(h.embers, 340);
   });
-  await page.click('[data-cls="bulwark"]');
-  await page.click('[data-cls="emberwright"]');
+  // Phones keep the class buttons on another hub tab, so click them from the page.
+  await page.evaluate(() => { document.querySelector('[data-cls="bulwark"]').click(); document.querySelector('[data-cls="emberwright"]').click(); });
   // Scroll the hub so the delve cards lead (a new hero's gear card is empty).
   await page.evaluate(() => { const h = document.querySelector('.hub-delve'); if (h && innerWidth < 900) h.scrollIntoView({ block: 'start' }); });
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(out, `${tag}-1-hub.png`) });
-  await page.click('#startBtn');
+  await page.evaluate(() => document.getElementById('startBtn').click());
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 20000 });
-  for (const sc of SCENES) await fight(page, sc, tag, errs);
+  // ONLY=2-nhevra,6-raid remakes just those fights.
+  const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
+  for (const sc of SCENES) if (!only || only.includes(sc.name)) await fight(page, sc, tag, errs);
   console.log(tag, errs.length ? errs.join('\n') : 'no errors');
   await ctx.close(); srv.close();
 }

@@ -86,6 +86,7 @@ window.visualViewport?.addEventListener('resize', fit);
 // Display settings that live outside the scene: render scale, frame cap and button side.
 const applyDisplay = () => {
   document.body.classList.toggle('lefty', display.hand === 'left');
+  document.body.classList.toggle('text-large', display.text === 'large');
   const next = fullDpr();
   if (next !== DPR) {
     DPR = next;
@@ -132,12 +133,13 @@ function finishRun(w: World) {
   return rewards;
 }
 
-/** Sends a finished delve's damage to the shared world boss. */
+/** Records a timed key clear on the Delver's Keys leaderboard (solo runs only). */
 async function submitKey(dungeon: string, level: number, seconds: number): Promise<void> {
   const r = await cloud.submitKey(dungeon, hero.cls ?? 'emberwright', level, seconds, weekOf(Date.now()), myCard().name);
   if (r?.ok) hub.keyBoardStale(dungeon);
 }
 
+/** Sends a finished delve's damage to the shared world boss. */
 async function strikeBoss(damage: number, seconds: number, shadowDamage: number, shadowSeconds: number): Promise<void> {
   const out = el('endBoss');
   out.innerHTML = '';
@@ -238,7 +240,18 @@ el('stressLink').addEventListener('click', (e) => {
   hud.showPerf = true;
   startRun();
 });
+// Reset wipes the hero for good, so it takes a second tap within a few seconds.
+let resetArmed: ReturnType<typeof setTimeout> | null = null;
 el('resetBtn').addEventListener('click', () => {
+  const btn = el('resetBtn');
+  if (!resetArmed) {
+    btn.textContent = 'Tap again to erase your hero';
+    resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = 'Reset hero'; }, 4000);
+    return;
+  }
+  clearTimeout(resetArmed);
+  resetArmed = null;
+  btn.textContent = 'Reset hero';
   hero = resetHero();
   hub.tier = 1;
   save();
@@ -276,7 +289,8 @@ el('quitBtn').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   if (!el('title').hidden && el('bag').hidden) startRun();
-  else if (!el('end').hidden) startRun();
+  // Enter on the end screen is "Delve again": the same kind of run (a key or bounty run repeats as one).
+  else if (!el('end').hidden) startRun(lastBounty, lastKey);
 });
 
 // Pause automatically when the tab or app goes to the background.

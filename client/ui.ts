@@ -530,6 +530,8 @@ export class Hud {
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
+      if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
+      for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
       if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {
         const d = rewards.keyTo - rewards.keyFrom;
         // A key pill that reads up, flat or down at a glance.

@@ -14,7 +14,7 @@ All numbers come from the autopilot (`sim/bot.ts`), which plays worse than a goo
 | Tier 1 win rate, novice reference (`LAG=0.3 SKILL=0.5`) | 40 to 65% | A new player loses some early runs. Plain `SKILL=0.5` without LAG is no longer the novice row, because it barely weakens the bot |
 | Tier climb | Win rate settles near 40 to 50% at the hero's "wall" tier | Always a tier that pushes back |
 | Hero level 20 | About 40 to 60 runs | From the original plan |
-| Forge | About 1 upgrade per run from normal salvage; embers don't pile up | A sink that feels like steady progress, not a power spike |
+| Forge | Worn gear trails the Forge cap by 2 to 4 levels; over 10 days the Forge is worth about 1 tier against hoarding; embers don't pile up (changed 21 Nov 2026 from "about 1 upgrade per run", see economy.md) | A sink that feels like steady progress, not a power spike |
 | New class vs Emberwright | Within ±10 points of tier 1 win rate | Roles differ, power doesn't |
 
 ## Latest numbers (20 Nov 2026, main at 1a0e83c plus this PR)
@@ -281,6 +281,7 @@ Emberwright 29, Bulwark 35 and Lumen 38 of 40 before Kindle; the shipped channel
 | Kilnbreaker, shipped +10%/+15% | 12 vs 19 | 15 vs 15 | 29 vs 30 | 25 vs 19 |
 | Tidewalker (Foundry), shipped 6% / +30% | 31 vs 27 | 31 vs 24 | 21 vs 16 | 28 vs 27 |
 | Glarewarden (Glarewell) | 37 vs 32 | 29 vs 22 | 33 vs 29 | 33 vs 35 |
+| Hearthkeeper (Coldmarrow, tier 10, hero-t8-0, 80 seeds halved) | 33.5 vs 28.5 | 28 vs 27 | 34 vs 30.5 | 29.5 vs 25.5 |
 
 Duskblade with Tidewalker over 80 seeds (1 to 80): 60 with the set, 51 without. Tidewalker was trimmed from 8% / +40% because it read about +10 for the Duskblade in 40.
 

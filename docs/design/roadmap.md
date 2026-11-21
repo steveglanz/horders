@@ -62,13 +62,13 @@ Reasons to come back tomorrow and next week.
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| P1 | **Weekly quests:** 3 goals a week (beat X with Y, interrupt 30 casts), paying embers and a cosmetic | design | quests.ts exists; extend it |
+| P1 | **Weekly quests:** 3 goals a week (beat X with Y, interrupt 30 casts), paying embers and a cosmetic | design | ✅ #110 (sim/content/weekly.ts) |
 | P2 | **Season track:** 30 levels over 6 weeks, earned by playing, with cosmetic rewards only | design + engineering | No pay-to-win |
-| P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | Uses Omens and the bounty leaderboard |
-| P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | |
+| P3 | **Mythic+ style keys:** clear a tier and get a key for +1 with one more Omen; a leaderboard per dungeon | design + engineering | ✅ #117 (Delver's Keys). The leaderboard waits on engineering's migration 0004 |
+| P4 | **Collections:** a set and Mythic book with completion rewards | design + visuals | ✅ collections.md (sim, hub sheet, end-screen notes). Visuals: book art later |
 | P5 | **Hero roster:** a second hero slot, with account-wide embers | engineering | Cloud saves |
 | P6 | **Achievements and titles** shown over your hero in co-op | engineering + visuals | |
-| P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | tools/progression.ts |
+| P7 | **Economy pass:** ember sources and sinks over 20 runs; check Rising Draught isn't bought every run | design | ✅ #114 (Rising Draught scales with tier); Forge rate settled in economy.md |
 
 ### Phase 5: Launch polish
 Make it feel finished on a phone.
@@ -81,7 +81,7 @@ Make it feel finished on a phone.
 | L4 | **Audio mix and settings:** volume sliders, mute-on-blur, and a phone-speaker pass on every theme | sound | |
 | L5 | **Store page assets:** icon, screenshots and a 30 s trailer capture | visuals | |
 | L6 | **Full regression and device QA:** iOS Safari, Android Chrome, desktop; save migration; offline | QA | |
-| L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | |
+| L7 | **Balance lock:** class spread under 10 points at tiers 1, 4, 6 and 8 in every dungeon | design + skills | ✅ #124; tables in /mnt/project-files/horders/skills/balance/l7-lock.md |
 
 ## R2. The Forge
 
@@ -92,7 +92,7 @@ Make it feel finished on a phone.
 - **Temper:** reroll the weakest bonus stat into a different stat, at the item's current level. Fine or better only (Commons have no bonus stats). The roll is seeded from the hero's forge counter, so the server can check it later, like loot.
 - The cap keeps a favourite Epic or Mythic level with fresh drops without running away from them. A first version capped at hero level + 2, and the autopilot stopped forging around run 15 to 20 and ended with 1,585 embers unspent, because tier drops were already above that cap.
 
-**Target.** About one upgrade per run from normal salvage. Checked in balance.md.
+**Target.** At first, about one upgrade per run from normal salvage. Replaced on 21 Nov 2026 by an outcome target (worn gear trails the cap, the Forge is worth about one tier over ten days, embers don't pile up). See economy.md.
 
 ## R1. Route choices between fights
 

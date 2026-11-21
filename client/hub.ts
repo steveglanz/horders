@@ -1,13 +1,15 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  brewBlocker, brewPotion, keyLevelOf, keysOpen,
+  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
-import { Item, RARITY, SLOTS, Slot } from '../sim/content/items';
+import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
+import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
+import { SETS } from '../sim/content/sets';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -213,6 +215,7 @@ export class Hub {
         <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
+      ${h.runs > 0 ? this.collectionButton() : ''}
       <details class="kit" ${this.kitOpen || this.tabs?.matches ? 'open' : ''}>
         <summary><span class="ks">Gear <b>${gearScore(h)}</b></span><span class="ks">${worn}/${SLOTS.length} worn</span>`
           + `<span class="ks ${pts ? 'pts' : ''}">${pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'}` : 'Talents'}</span><i class="chev" aria-hidden="true"></i></summary>
@@ -226,6 +229,7 @@ export class Hub {
         </div></div>
       </details>`;
     const worn2 = setsWorn(h);
+    $('heroCard').querySelector<HTMLButtonElement>('[data-book]')?.addEventListener('click', () => openSheet('Collection', this.collectionLine()));
     $('heroCard').querySelectorAll<HTMLElement>('.slot[data-slot]').forEach((el) => {
       const it = items.find((i) => i.slot === el.dataset.slot);
       if (it) setTip(el, () => itemHtml(it, '', worn2));
@@ -456,6 +460,42 @@ export class Hub {
       + `<div class="key-ladder"><span class="up2">▲▲ +2 inside ${fast} min</span><span class="up1">▲ +1 inside ${par} min</span><span class="dn">▼ −1 on a loss</span></div>`
       + `<div class="row2"><span>Win <span class="pay">+${keyEmbers(level, true)} embers</span></span><button class="sbtn gold" data-key>Use the key</button></div>`
       + `${this.keyBoardHtml()}</div>`;
+  }
+
+  /** P4: the hero card's one-line Collection button, with the book's count. */
+  private collectionButton(): string {
+    const have = collectionOf(this.hero());
+    const total = BOOK.sets.length * BOOK.sets[0].entries.length + BOOK.mythics.length + BOOK.weaponFx.length;
+    const n = [...have].length;
+    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
+  }
+
+  /** P4: the collection book, shared by every class: sets, Mythics, weapon effects, and the rewards for finishing them. */
+  private collectionLine(): string {
+    const have = collectionOf(this.hero());
+    const pip = (on: boolean, label: string): string => `<span class="bk-pip${on ? ' on' : ''}" title="${label}${on ? '' : ' (not found yet)'}">${label}</span>`;
+    const sets = BOOK.sets.map((st) => {
+      const def = SETS[st.id];
+      return `<div class="bk-row"><span class="bk-name">${glyph(SET_ICON[st.id], 14)} <b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span>`
+        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), SLOT_LABEL[e.split(':')[2] as Slot])).join('')}</span></div>`;
+    }).join('');
+    const tag = (cls?: string): string => (cls ? ` <span class="muted">${CLASSES[cls as keyof typeof CLASSES].name}</span>` : '');
+    const mythics = MYTHIC_IDS.map((m) => `<div class="bk-item${have.has(`mythic:${m}`) ? ' on' : ''}">${have.has(`mythic:${m}`) ? MYTHICS[m].name : '???'}${tag(MYTHICS[m].cls)}</div>`).join('');
+    const fx = WEAPON_FX_IDS.map((f) => `<div class="bk-item${have.has(`fx:${f}`) ? ' on' : ''}">${have.has(`fx:${f}`) ? WEAPON_FX[f].name : '???'}${tag(WEAPON_FX[f].cls)}</div>`).join('');
+    const paid = new Set(this.hero().collectionPaid ?? []);
+    const rewards = COLLECTION_REWARDS.map((r) => {
+      const n = rewardProgress(r, have);
+      const done = paid.has(r.id);
+      return `<div class="wq${done ? ' done' : ''}"><span class="pip" aria-hidden="true">${done ? '✓' : '❖'}</span><div class="wq-main">`
+        + `<div class="wq-top"><b>${r.name}</b><span>${done ? 'Done' : `<span class="pay">+${r.embers}</span>`}</span></div>`
+        + (r.title ? `<div class="wq-txt">Title: ${r.title}</div>` : '')
+        + `<div class="wq-bar"><i style="width:${((100 * n) / r.need).toFixed(1)}%"></i></div><div class="wq-n">${n} / ${r.need}</div></div></div>`;
+    }).join('');
+    return `<div class="box book"><div class="lbl">Sets</div>${sets}`
+      + `<div class="lbl">Mythics</div><div class="bk-grid">${mythics}</div>`
+      + `<div class="lbl">Weapon effects</div><div class="bk-grid">${fx}</div>`
+      + `<div class="lbl">Rewards</div>${rewards}`
+      + `<div class="hint">Shared by every class. A find counts once it reaches your bags, even if you salvage it later. Rewards pay embers to the class you're playing.</div></div>`;
   }
 
   /** P1: this week's three quests, the same for everyone, and the title for all three. */

@@ -1,3 +1,4 @@
+import { COLLECTION_REWARDS, CollectionReward, EntryKey, entriesOf, rewardProgress } from './content/collections';
 import type { DungeonId } from './content/dungeon';
 /**
  * The persistent hero: levels, permanent talent points, inventory and gear.
@@ -80,6 +81,9 @@ export interface HeroProfile {
   keyBest?: Partial<Record<DungeonId, number>>;
   /** Slagbinder stance (Anvil tanks, Bellows fills a damage slot); kept per character. Default Bellows. */
   stance?: 'anvil' | 'bellows';
+  /** P4: every collection book entry the account has held (shared by every class), and the rewards already paid. */
+  collection?: EntryKey[];
+  collectionPaid?: string[];
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -227,6 +231,9 @@ export interface RunRewards {
   keyFrom?: number;
   keyTo?: number;
   keyEmbers?: number;
+  /** P4: book entries this run added for the first time, and the collection rewards it completed. */
+  collectionNew?: EntryKey[];
+  collectionRewards?: CollectionReward[];
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -340,6 +347,7 @@ export function applyRun(
   const xpMult = loadoutFor(hero).xpMult;
   const heroXp = Math.round(heroXpForRun(s) * xpMult);
   const loot = rollLoot(seed, s, hero, eliteKilled, runDrops);
+  const known = collectionOf(hero);
   hero.inventory.push(...runDrops);
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
@@ -388,7 +396,38 @@ export function applyRun(
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key };
+  const collection = applyCollection(hero, known);
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly, ...key, ...collection };
+}
+
+/**
+ * P4: the collection book as it stands. The stored list plus anything held
+ * by any class right now, so saves from before collections count what they
+ * still own.
+ */
+export function collectionOf(hero: HeroProfile): Set<EntryKey> {
+  const have = new Set<EntryKey>(hero.collection ?? []);
+  const bags = [hero.inventory, ...Object.values(hero.roster ?? {}).map((c) => c?.inventory ?? [])];
+  for (const bag of bags) for (const it of bag) for (const e of entriesOf(it)) have.add(e);
+  return have;
+}
+
+/** P4: records the book and pays every reward it now completes, once each. `known` is the book before this run. */
+function applyCollection(hero: HeroProfile, known: Set<EntryKey>): Pick<RunRewards, 'collectionNew' | 'collectionRewards'> {
+  const have = collectionOf(hero);
+  hero.collection = [...have].sort();
+  const fresh = hero.collection.filter((e) => !known.has(e));
+  const paid = new Set(hero.collectionPaid ?? []);
+  const done: CollectionReward[] = [];
+  for (const r of COLLECTION_REWARDS) {
+    if (paid.has(r.id) || rewardProgress(r, have) < r.need) continue;
+    paid.add(r.id);
+    hero.embers += r.embers;
+    if (r.title) hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
+    done.push(r);
+  }
+  hero.collectionPaid = [...paid];
+  return { ...(fresh.length ? { collectionNew: fresh } : {}), ...(done.length ? { collectionRewards: done } : {}) };
 }
 
 /** The hero's key level in a dungeon (keys start at 1 once unlocked). */

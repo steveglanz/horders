@@ -30,16 +30,17 @@ regenerated on demand. Previews of the current set are in `docs/art/store/`.
 | `landscape-*.png` | 2796 × 1290 | phone landscape |
 | `desktop-*.png` | 1920 × 1080 | web / desktop listing |
 
-The five shots, in store order:
+The six shots, in store order:
 
 1. **Hub**: the delve cards, difficulty tiers and this week's Omens.
-2. **Warden and Hounds**: a Kiln Depths pack fight.
+2. **Nhevra, the Cold Hearth**: the Coldmarrow boss winding up the Long Night, the floor going dark around the hero's Hearthcoal.
 3. **Ondrel, the Anvilward**: the Hammerdeep group boss with a full party of four,
    mid-Anvilfall, with the party frames and the tank call-out.
 4. **The Lensmother**: the Glarewell boss sweeping her lens.
 5. **Maelra, the Drowned Bellows**: the Drowned Foundry boss over her steam vents.
+6. **Grandmother Slag**: the raid, a party of four, a Ladle Pour tipping over the tank.
 
-Name a target to make only that set: `icons`, `phone`, `landscape`, `desktop`.
+Name a target to make only that set (and `ONLY=2-nhevra,6-raid` to remake only those fights): `icons`, `phone`, `landscape`, `desktop`.
 The game loads with `?hires=1` so the canvas renders at the full 3× of the phone sizes.
 
 ## Trailer capture
