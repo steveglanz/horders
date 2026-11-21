@@ -13,7 +13,7 @@ import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
-import { GLOWS } from '../sim/content/season';
+import { GLOWS, TRAILS } from '../sim/content/season';
 import { CLASS_ICON } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
@@ -122,6 +122,8 @@ export interface SceneData {
   coop?: CoopSession;
   /** P2: the season glow the hero wears (GLOWS id), drawn under them. Looks only. */
   glow?: string;
+  /** Season trail the hero wears (TRAILS id) and its best stage, 1 to 3. Looks only. */
+  trail?: { id: string; stage: number };
 }
 
 export class GameScene extends Phaser.Scene {
@@ -254,6 +256,10 @@ export class GameScene extends Phaser.Scene {
     this.warmSeen = 0;
     this.glowId = data.glow;
     this.heroGlow = undefined;
+    const tr = data.trail ? TRAILS[data.trail.id] : undefined;
+    this.trail = tr && data.trail!.stage >= 1 ? { color: hex(tr.color), stage: Math.min(3, Math.floor(data.trail!.stage)) } : undefined;
+    this.trailFx = [];
+    this.trailAcc = 0;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -323,6 +329,9 @@ export class GameScene extends Phaser.Scene {
     // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
     const glow = this.glowId ? GLOWS[this.glowId] : undefined;
     if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
+    // The season trail's motes sit on the floor with the glow, under the telegraph layer (depth 2),
+    // so a trail never hides an attack. Its own pool, so a busy fight can't steal its motes.
+    if (this.trail) for (let i = 0; i < 40; i++) this.trailFx.push(this.newFx('trailMote', 1.35, true));
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
@@ -449,6 +458,10 @@ export class GameScene extends Phaser.Scene {
   /** P2: the worn season glow under the hero, if any. */
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
+  /** The worn season trail: its colour and stage, its own mote pool and the spawn clock. */
+  private trail?: { color: number; stage: number };
+  private trailFx: Fx[] = [];
+  private trailAcc = 0;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -730,6 +743,7 @@ export class GameScene extends Phaser.Scene {
         case 'dash':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: ev.dodge ? 0x8fc7a8 : 0xb58cff, life: 0.25 });
           if (!ev.dodge) this.burst(ev.x2, ev.y2, 8);
+          this.trailDash(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'mote':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
@@ -757,6 +771,7 @@ export class GameScene extends Phaser.Scene {
         case 'blink':
           this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xffc861, life: 0.3 });
           this.burst(ev.x2, ev.y2, 10);
+          this.trailDash(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'ward': {
           const we = w.enemies[ev.index];
@@ -1091,6 +1106,7 @@ export class GameScene extends Phaser.Scene {
     const squash = p.hurtFlash > 0 ? 0.1 : 0;
     this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
     this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
+    if (this.trail && moving && p.hp > 0) this.trailStep(px, py, dt);
     if (this.heroGlow) {
       const gp = Math.sin(now / 520);
       this.heroGlow.setPosition(px, py + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(p.hp > 0 ? 0.8 + gp * 0.15 : 0.3);
@@ -1708,6 +1724,7 @@ export class GameScene extends Phaser.Scene {
 
     this.stepFx(this.fx, dt);
     this.stepFx(this.smoke, dt);
+    if (this.trail) this.stepFx(this.trailFx, dt);
     for (const t of this.floats) {
       if (t.life <= 0) continue;
       t.life -= dt;
@@ -1794,6 +1811,43 @@ export class GameScene extends Phaser.Scene {
     f.sx1 = o.sx1 ?? f.sx0;
     f.sy1 = o.sy1 ?? f.sx1;
     return f;
+  }
+
+  /**
+   * Season trail motes dropped behind the moving hero: stage 1 about 3 a second fading over 0.4 s,
+   * stage 2 and 3 about 6 a second lasting 0.8 s (docs/design/season.md, "Season trails").
+   * Trimmed effects keep stage 1's rate.
+   */
+  private trailStep(px: number, py: number, dt: number): void {
+    const tr = this.trail!;
+    const rich = tr.stage >= 2;
+    this.trailAcc += dt * (rich && !this.lowFx ? 6 : 3);
+    while (this.trailAcc >= 1) {
+      this.trailAcc -= 1;
+      // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
+      const life = rich ? 0.8 : 0.4;
+      const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
+      const x = px + (Math.random() - 0.5) * 14;
+      const y = py + 14 + (Math.random() - 0.5) * 8;
+      this.emit(this.trailFx, 'trailMote', undefined, x, y, life, { tint: tr.color, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 8, drag: 0.96, sx0: sz, sx1: sz * 0.45 });
+      if (!this.lowFx) this.emit(this.trailFx, 'trailMote', undefined, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 10, life * 0.8, { tint: tr.color, vy: -16 - Math.random() * 10, drag: 0.95, sx0: sz * 0.5, sx1: sz * 0.15 });
+    }
+  }
+
+  /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
+  private trailDash(x1: number, y1: number, x2: number, y2: number): void {
+    const tr = this.trail;
+    const p = this.world.player;
+    // Dash and blink events carry no hero, so only the one that ends on our hero counts.
+    if (!tr || tr.stage < 3 || Math.hypot(x2 - p.x, y2 - p.y) > 4) return;
+    const n = this.lowFx ? 4 : 10;
+    for (let k = 0; k < n; k++) {
+      const t = k / (n - 1);
+      const a = Math.random() * Math.PI * 2;
+      const sp = k >= n - 3 ? 40 + Math.random() * 40 : 8;
+      this.emit(this.trailFx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
+        { tint: tr.color, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - 8, drag: 0.93, sx0: 1.8, sx1: 0.6 });
+    }
   }
 
   private spark(x: number, y: number, vx: number, vy: number, life: number, size = 1.5): void {
