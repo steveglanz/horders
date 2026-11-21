@@ -1,14 +1,25 @@
 // Drowned Foundry check: per-run outcome plus how Maelra's mechanics fired.
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools.
 // POTION=risingDraught|stillwater|kindling brews that potion for every run.
+// SET=kilnbreaker|tidewalker|glarewarden SETN=2|3 turns the hero's head, hands and trinket (in that order) into set pieces.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
+import type { Item } from '../sim/content/items';
+import { SET_SLOTS, SetId } from '../sim/content/sets';
 
 // HERO=path/to/hero.json plays with that hero's gear, passives and level (see SNAP in tools/progression.ts).
 const hero: HeroProfile | null = process.env.HERO ? JSON.parse(readFileSync(process.env.HERO, 'utf8')) : null;
-const heroOpts = hero ? { gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
+const setId = process.env.SET as SetId | undefined;
+const setN = Number(process.env.SETN ?? 3);
+const tagSet = (items: Item[]): Item[] => {
+  if (!setId) return items;
+  let n = 0;
+  return items.map((it) => (SET_SLOTS.includes(it.slot) && n++ < setN ? { ...it, set: setId } : it));
+};
+const heroOpts = hero ? { gear: tagSet(equippedItems(hero)), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
+if (setId && hero) console.log('set pieces worn:', heroOpts.gear?.filter((i) => i.set).length);
 
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
@@ -27,6 +38,7 @@ for (const seed of seeds) {
       if (ev.type === 'glare' && ev.hit) bump('glareHit');
       if (ev.type === 'brandBurst') bump('brandBurst');
       if (ev.type === 'pillarCrack') bump('crack');
+      if (ev.type === 'dodge') bump('dodge');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'phase') bump('phase' + ev.phase);

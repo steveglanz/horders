@@ -8,6 +8,7 @@ import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { POTIONS, PotionId } from './content/potions';
+import type { SetId } from './content/sets';
 import { RunSummary } from './world';
 import {
   Item, MythicId, mythicPool, WeaponFxId, weaponFxFor, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
@@ -139,12 +140,14 @@ export interface Loadout {
   pickupMult: number;
   xpMult: number;
   mythics: MythicId[];
+  /** Set pieces worn, by set. */
+  sets: Partial<Record<SetId, number>>;
   /** Class weapon effects from the equipped weapon. */
   weaponFx: WeaponFxId[];
 }
 
 export const EMPTY_LOADOUT: Loadout = {
-  dmgMult: 1, maxHpBonus: 0, hasteMult: 1, critBonus: 0, speedMult: 1, pickupMult: 1, xpMult: 1, mythics: [], weaponFx: [],
+  dmgMult: 1, maxHpBonus: 0, hasteMult: 1, critBonus: 0, speedMult: 1, pickupMult: 1, xpMult: 1, mythics: [], sets: {}, weaponFx: [],
 };
 
 export function equippedItems(h: HeroProfile): Item[] {
@@ -175,6 +178,7 @@ export function loadoutFrom(passives: Partial<Record<PassiveId, number>>, items:
     pickupMult: 1 + t.reach / 100,
     xpMult: 1 + 0.04 * p('insight') + (items.some((i) => i.mythic === 'gluttonsGem') ? 0.25 : 0),
     mythics: items.map((i) => i.mythic).filter((m): m is MythicId => !!m),
+    sets: items.reduce<Partial<Record<SetId, number>>>((a, i) => (i.set ? { ...a, [i.set]: (a[i.set] ?? 0) + 1 } : a), {}),
     weaponFx: items.map((i) => i.weaponFx).filter((f): f is WeaponFxId => !!f),
   };
 }

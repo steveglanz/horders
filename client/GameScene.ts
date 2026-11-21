@@ -576,6 +576,10 @@ export class GameScene extends Phaser.Scene {
           if (!this.coop) this.stop(0.06);
           this.shakeBy(0.12);
           break;
+        case 'dodge':
+          // Glarewarden: stepped out of a marked attack in time.
+          this.floatText(ev.x, ev.y - 44, ev.healed > 0 ? `Dodged +${Math.round(ev.healed)}` : 'Dodged', '#5fe0c8', 16);
+          break;
         case 'potion':
           // Rising Draught: the hero gets back up in a column of gold.
           this.hud.banner('Rising Draught!', 'Back on your feet at a quarter health');
@@ -1054,16 +1058,11 @@ export class GameScene extends Phaser.Scene {
     for (const e of w.enemies) {
       if (!e.alive) continue;
       if (e.kind === 'acolyte') {
-        // A faint thread to the ward; while Kindle is cast it thickens and
-        // brightens, and a ring fills around the acolyte: that's the tell to Quench.
+        // The Kindle beam to the ward pulses while it heals: kill the acolyte to stop it.
         const ward = e.aux2 >= 0 ? w.enemies[e.aux2] : boss;
         if (ward?.alive) {
-          if (e.castId === 'kindle') {
-            const f = Math.min(1, e.castT / e.castDur);
-            const pulse = 0.6 + Math.sin(now / 60) * 0.25;
-            g.lineStyle(3 + f * 4, 0x7dffb0, pulse).lineBetween(e.x, e.y, ward.x, ward.y);
-            g.lineStyle(4, 0x7dffb0, 0.9).beginPath().arc(e.x, e.y, e.def.radius + 12, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
-          } else g.lineStyle(1.5, 0x7dffb0, 0.2).lineBetween(e.x, e.y, ward.x, ward.y);
+          const pulse = 0.55 + Math.sin(now / 90) * 0.2;
+          g.lineStyle(4, 0x7dffb0, pulse).lineBetween(e.x, e.y, ward.x, ward.y);
         }
       }
       // Mirror Ward: a glassy shell that flickers while it reflects damage.

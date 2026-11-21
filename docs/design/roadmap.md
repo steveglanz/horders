@@ -15,7 +15,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | Visuals: replace the placeholder art; skills: add it to the class matrix; engineering: one Brand per hero in co-op |
-| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
+| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 🔨 sets built (design), weapon effects in PR #38 (skills) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | Visuals: potion icons and a brewing look in the hub |
 
 ## R2. The Forge
@@ -159,8 +159,18 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 
 **Balance:** see [balance.md](balance.md#alchemy-potions-21-nov-2026).
 
-## R4
-Specs get written here when each one is next.
+## R4: verb sets (built 21 Nov 2026)
+Each dungeon drops its own set for the **head, hands and trinket** slots. A set rewards one verb the dungeon already asks of you:
+
+| Dungeon | Set | Verb | 2 pieces | 3 pieces |
+|---|---|---|---|---|
+| Ember Kiln | Kilnbreaker | interrupt | Interrupting a cast gives +10% damage for 8 s | The interrupted foe takes +15% damage for 6 s |
+| Drowned Foundry | Tidewalker | keep moving | 6% less damage taken while moving | After 2 s on the move, the next hit deals +30% |
+| Glarewell | Glarewarden | dodge a marked attack | Stepping out of a telegraph heals 1.5% (at most every 4 s) | ...and gives +10% damage for 4 s |
+
+**Drops:** a boss item in a set slot has a 60% chance to be a piece of that dungeon's set (it gets the set's name prefix). Never in the daily bounty, stress runs or Mythics, so bounty runs stay equal. The roll uses its own seeded generator, so runs without set pieces replay exactly as before.
+**As built:** `sim/content/sets.ts` holds the sets and every number (`SET_TUNING`); the item card shows a teal set line. Class weapon effects are the skills team's half (PR #38).
+**Balance:** see [balance.md](balance.md#verb-sets-r4-21-nov-2026).
 
 ## Backlog notes
-- **Acolyte heals as a real cast (Kiln).** ✅ Built 21 Nov 2026: acolytes cast **Kindle**, a 1.8 s interruptible heal every 6 s, so "kill the healer" has a visible tell. Quench treats a Kindle as the least urgent cast and only spends half its cooldown on one. See balance.md.
+- **Acolyte heals as a real cast (Kiln).** Tried and rolled back 21 Nov 2026. A Kindle cast (Quenchable, then breakable by damage, then a staggerable channel) cost the Duskblade Kiln wins at tier 6 each time. Acolytes channel 0.8% per second again, shown as a pulsing beam; the answer is to kill them. See balance.md.
