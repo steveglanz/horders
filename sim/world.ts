@@ -300,6 +300,19 @@ export interface Crack {
   t: number;
 }
 
+/** The Wrackline: a raft drifting round the arena. Standing on one anchors you against the undertow. */
+export interface Raft {
+  /** Angle on its drift circle (radians) and the drift circle's radius. */
+  a: number;
+  ring: number;
+  /** +1 or -1: which way round it drifts. */
+  dir: number;
+  x: number;
+  y: number;
+  /** Seconds left sunk by Hessa's Sink (0 = afloat). */
+  sunkT: number;
+}
+
 export interface Vein {
   alive: boolean;
   x: number;
@@ -850,6 +863,17 @@ export class World {
   drops: Drop[];
   veins: Vein[];
   cracks: Crack[];
+  /** The Wrackline: the rafts (empty elsewhere), and the undertow's clock and state. */
+  rafts: Raft[] = [];
+  /** Seconds until the next undertow warning starts. */
+  private tideClockT = 0;
+  /** Seconds left of the Ebb's warning (>0 while warning), then of the pull itself. */
+  ebbWarnT = 0;
+  ebbT = 0;
+  /** Hessa: phase 2 (Riptide) from WRACK.phase2, and her clocks. */
+  wrackPhase = 1;
+  private sinkT = 0;
+  private shoalT = 0;
   events: SimEvent[] = [];
   aliveEnemies = 0;
   /** When the current fight started (Burnout counts from here). */
@@ -1376,6 +1400,7 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
@@ -1472,6 +1497,17 @@ export class World {
         q.chillT = 0;
       }
     }
+    if (this.dungeonId === 'wrackline') {
+      // Fresh rafts every fight, spread round their circles; the first pull comes after a breather.
+      this.rafts = [0, 1, 2].map((k) => {
+        const a = (k * 2 * Math.PI) / 3 + 0.5;
+        const ring = WRACK.raftRings[k];
+        return { a, ring, dir: k === 1 ? -1 : 1, x: Math.cos(a) * ring, y: Math.sin(a) * ring, sunkT: 0 };
+      });
+      this.tideClockT = WRACK.firstTide;
+      this.ebbWarnT = 0;
+      this.ebbT = 0;
+    }
     this.burnoutWarned = false;
     this.burnoutTickT = 0;
     this.burnoutOn = false;
@@ -1544,6 +1580,17 @@ export class World {
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'hessa') {
+          // She holds the drain at the centre.
+          e.x = e.px = 0;
+          e.y = e.py = 0;
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.wrackPhase = 1;
+          this.sinkT = WRACK.firstSink;
+          this.shoalT = WRACK.firstShoal;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'nhevra') {
@@ -3627,6 +3674,8 @@ export class World {
       if ((e.slowUntil ?? 0) > this.time) speed *= 1 - (e.slowMult ?? 0);
       // Thin Ice: Nhevra holds her ground while the river is cracked, so her strip stays hers.
       if (e.kind === 'nhevra' && this.cracks.some((c) => c.alive)) speed = 0;
+      // The Wrackline: Shoal Lurkers ride the Ebb toward you.
+      if (e.kind === 'shoalLurker' && this.ebbT > 0) speed *= WRACK.lurkerSurge;
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -3665,6 +3714,8 @@ export class World {
       e.x += mx * dt;
       e.y += my * dt;
       this.clampArena(e, e.def.radius);
+      // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
+      if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
@@ -3801,6 +3852,27 @@ export class World {
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
       }
       this.use(at);
+    } else if (id === 'haul') {
+      // Yanked toward the Hauler, to just in front of it.
+      const at = this.acting;
+      this.use(Math.min(this.heroes.length - 1, Math.max(0, e.aux | 0)));
+      const p = this.player;
+      if (p.hp > 0) {
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const pull = Math.min(WRACK.haul, Math.max(0, d - e.def.radius - PLAYER_RADIUS - 8));
+        p.x += (dx / d) * pull;
+        p.y += (dy / d) * pull;
+        this.hurtPlayer(WRACK.haulDamage * this.tierDamage, i);
+        this.events.push({ type: 'slam', x: p.x, y: p.y, r: 40 });
+      }
+      this.use(at);
+    } else if (id === 'sink') {
+      // Sink: the raft she marked goes under for a while.
+      const r = this.rafts[e.aux | 0];
+      if (r) r.sunkT = WRACK.sinkTime;
+      this.events.push({ type: 'slam', x: r ? r.x : 0, y: r ? r.y : 0, r: WRACK.raftR });
     } else if (id === 'frostLace') {
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
@@ -3960,6 +4032,17 @@ export class World {
       return;
     }
     if (e.kind === 'nhevra') return; // all on coldClock
+    if (e.kind === 'hessa') return; // all on wrackClock
+    if (e.kind === 'bargeHauler') {
+      if (e.abilityT <= 0) {
+        // Haul: a hook line at its target. Quench it, or get yanked toward the Hauler.
+        e.abilityT = WRACK.haulEvery;
+        e.aux = this.acting;
+        this.startCast(i, 'haul', 'Haul', WRACK.haulCast, true);
+        this.addTelegraph('cone', e.x, e.y, WRACK.haulRange, Math.atan2(p.y - e.y, p.x - e.x), (14 * Math.PI) / 180, WRACK.haulCast, 0, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'glassWarden' || e.kind === 'emberTwin' || e.kind === 'sluiceCrawler') {
       this.runFoundryElite(i, dt);
       return;
@@ -4676,6 +4759,119 @@ export class World {
     } else if (this.snuffT <= 0) {
       this.snuffT = COLD.snuffEvery;
       this.startCast(i, 'snuff', 'Snuff', COLD.snuffCast, true);
+    }
+  }
+
+  // ---------------------------------------------------------------- the Wrackline
+
+  /** Push a swimmer back to the edge of any afloat raft it has drifted onto. */
+  private keepOffRafts(e: Enemy): void {
+    for (const r of this.rafts) {
+      if (r.sunkT > 0) continue;
+      const d = Math.hypot(e.x - r.x, e.y - r.y);
+      const min = WRACK.raftR + e.def.radius * 0.5;
+      if (d >= min) continue;
+      // Out along the line from the raft's middle; dead centre, out the far side from the drain.
+      let ux = d > 0.001 ? (e.x - r.x) / d : r.x;
+      let uy = d > 0.001 ? (e.y - r.y) / d : r.y;
+      const ul = Math.hypot(ux, uy) || 1;
+      if (d <= 0.001 && ul === 1 && !r.x && !r.y) ux = 1;
+      e.x = r.x + (ux / ul) * min;
+      e.y = r.y + (uy / ul) * min;
+    }
+  }
+
+  /** Is this spot on a raft that's afloat? */
+  onRaft(x: number, y: number): boolean {
+    for (const r of this.rafts) if (r.sunkT <= 0 && dist2(x, y, r.x, r.y) <= WRACK.raftR * WRACK.raftR) return true;
+    return false;
+  }
+
+  /** Rafts drift; every so often the Ebb warns, then drags everyone not on a raft toward the drain. Hessa's clocks. */
+  private wrackClock(dt: number): void {
+    const boss = this.bossIndex >= 0 && this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa' ? this.enemies[this.bossIndex] : null;
+    const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
+    const drift = WRACK.drift * (this.wrackPhase >= 2 ? WRACK.riptideDrift : 1);
+    for (const r of this.rafts) {
+      r.a += (r.dir * drift * dt) / r.ring;
+      r.x = Math.cos(r.a) * r.ring;
+      r.y = Math.sin(r.a) * r.ring;
+      if (r.sunkT > 0) r.sunkT = Math.max(0, r.sunkT - dt);
+    }
+    if (this.ebbT > 0) {
+      this.ebbT = Math.max(0, this.ebbT - dt);
+      const pull = WRACK.drag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
+        const d = Math.hypot(q.x, q.y) || 1;
+        const step = Math.min(d, pull * dt);
+        q.x -= (q.x / d) * step;
+        q.y -= (q.y / d) * step;
+        const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
+        const at = this.acting;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * share * dt, -1, true);
+        this.use(at);
+      }
+      // The water takes foes too: all but Lurkers and bosses drift in, and the drain hurts them.
+      for (let i = 0; i < this.enemies.length; i++) {
+        const e = this.enemies[i];
+        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
+        const d = Math.hypot(e.x, e.y) || 1;
+        const step = Math.min(d, pull * WRACK.foeDrag * dt);
+        e.x -= (e.x / d) * step;
+        e.y -= (e.y / d) * step;
+        if (d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
+      }
+    } else if (this.ebbWarnT > 0) {
+      this.ebbWarnT = Math.max(0, this.ebbWarnT - dt);
+      if (this.ebbWarnT <= 0) this.ebbT = WRACK.tideOpen;
+    } else {
+      this.tideClockT -= dt;
+      if (this.tideClockT <= 0) {
+        this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery;
+        this.ebbWarnT = WRACK.tideWarn;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: 'The Ebb' });
+      }
+    }
+    if (!boss) return;
+    const i = this.bossIndex;
+    const e = boss;
+    if (late && !this.bossEnraged) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    if (this.wrackPhase < 2 && e.hp <= e.maxHp * WRACK.phase2) {
+      this.wrackPhase = 2;
+      this.bossPhase = 2;
+      this.events.push({ type: 'phase', phase: 2 });
+    }
+    this.sinkT -= dt;
+    this.shoalT -= dt;
+    if (this.shoalT <= 0) {
+      this.shoalT = WRACK.shoalEvery;
+      for (let n = 0; n < WRACK.shoalN; n++) this.spawnAtRing('shoalLurker', 420);
+      this.events.push({ type: 'castStart', index: i, id: 'shoalCall', name: 'Call the Shoal' });
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (this.sinkT <= 0) {
+      // Sink the afloat raft nearest her target, so the hero has to find another.
+      let best = -1;
+      let bd = Infinity;
+      const p = this.player;
+      this.rafts.forEach((r, k) => {
+        if (r.sunkT > 0) return;
+        const d = dist2(r.x, r.y, p.x, p.y);
+        if (d < bd) { bd = d; best = k; }
+      });
+      if (best >= 0) {
+        this.sinkT = WRACK.sinkEvery;
+        e.aux = best;
+        this.startCast(i, 'sink', 'Sink', WRACK.sinkCast, true);
+        const r = this.rafts[best];
+        this.addTelegraph('circle', r.x, r.y, WRACK.raftR, 0, 0, WRACK.sinkCast, 0, 'hit', i);
+      }
     }
   }
 
@@ -5645,8 +5841,32 @@ export const COLD = {
   /** While any crack is open, Nhevra takes this much more damage. */
   thinIceExposed: 0.25,
 };
+/**
+ * The Wrackline (fifth solo dungeon): rafts drift round the arena; the Ebb drags
+ * anyone off a raft toward the drain at the centre, where Hessa waits.
+ * Spec and tuning: docs/design/wrackline.md.
+ */
+export const WRACK = {
+  /** Rafts: radius, the radius of each one's drift circle, and drift speed (world units/s along the circle). */
+  raftR: 78, raftRings: [300, 125, 410], drift: 38,
+  /** The Ebb: every `tideEvery` s in trash fights (`tideBoss` with Hessa up), `tideWarn` s of warning, then `tideOpen` s of pull. */
+  tideEvery: 18, tideBoss: 14, tideLate: 7, firstTide: 8, tideWarn: 3, tideOpen: 4,
+  /** Off a raft in the Ebb: dragged `drag` units/s toward the centre, burned `tideBurn` of max health/s, plus `drainBurn` inside `drainR`. */
+  drag: 75, tideBurn: 0.04, drainR: 90, drainBurn: 0.1,
+  /** Foes drift at `foeDrag` of the pull, and the drain takes `foeDrain` of their max health a second. Shoal Lurkers swim faster in it instead. */
+  foeDrag: 0.8, foeDrain: 0.06, lurkerSurge: 1.3,
+  /** Barge Hauler: Haul (Quenchable) yanks its target up to `haul` units toward it. */
+  haulEvery: 8, haulCast: 1.6, haul: 160, haulRange: 520, haulDamage: 8,
+  /** Hessa: Sink (Quenchable) sinks the raft nearest her target for `sinkTime` s; Call the Shoal brings Lurkers. */
+  sinkEvery: 9, sinkCast: 2.2, sinkTime: 12, firstSink: 7,
+  shoalEvery: 28, shoalN: 2, firstShoal: 14,
+  /** Phase 2, Riptide (from `phase2` of her health): rafts drift faster and the pull is stronger. */
+  phase2: 0.5, riptideDrift: 1.6, riptideDrag: 1.25,
+  /** Soft enrage: the Ebb every `tideLate` s. */
+  enrageAfter: 240,
+};
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
-export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1 };
+export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1, hessa: 2 };
 
 /** Kinds whose kill feeds the Hearthcoal. */
 export const COLD_FED_BY: EnemyKind[] = ['rimehound', 'snuffer', 'frostWarden', 'hoarfrostWeaver'];

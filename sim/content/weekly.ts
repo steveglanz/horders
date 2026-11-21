@@ -5,7 +5,7 @@
  * docs/design/weekly-quests.md.
  */
 import { Rng } from '../rng';
-import { DUNGEONS, DungeonId, SOLO_DUNGEON_IDS } from './dungeon';
+import { DUNGEONS, DungeonId, WEEKLY_DUNGEON_IDS } from './dungeon';
 
 export type WeeklyId = 'wins' | 'interrupts' | 'named' | 'dungeon' | 'kills' | 'bounties' | 'wall';
 
@@ -90,7 +90,7 @@ export function weeklyFor(week: number, maxTier: number): WeeklyQuest[] {
   const pool = [...WEEKLY_IDS];
   const ids: WeeklyId[] = [];
   while (ids.length < WEEKLY.count) ids.push(pool.splice(rng.int(pool.length), 1)[0]);
-  const weekDungeon = SOLO_DUNGEON_IDS[rng.int(SOLO_DUNGEON_IDS.length)];
+  const weekDungeon = WEEKLY_DUNGEON_IDS[rng.int(WEEKLY_DUNGEON_IDS.length)];
   const dungeon = DUNGEONS[weekDungeon].unlockTier <= maxTier ? weekDungeon : 'kiln';
   const embers = weeklyEmbers(maxTier);
   // The bounty opens at tier 2: a brand-new hero gets another quest in its place.

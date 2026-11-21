@@ -56,6 +56,7 @@ More places to go, so the weekly loop has variety.
 | C5 | **Class talents round 2:** a third talent branch per class (capstone choices) | skills | ✅ Every branch has two capstones (docs/skills.md, "Second capstones" parts 1 and 2), plus two deep cards per branch for every class (docs/skills.md, "Class talents round 2") |
 | C6 | **Dungeon themes and ambience** for C1 and the raid; a boss phase-change sting for each boss | sound | |
 | C7 | **Content QA:** each new dungeon's soft-lock check (can a run get stuck?), and the bot win-rate table in balance.md | QA + design | ✅ #106 (tools/contentcheck.ts soft-lock check); bot tables live in balance.md and l7-lock.md |
+| C8 | **Fifth solo dungeon** (tier 13): a moving safe zone | design | ✅ The Wrackline ([wrackline.md](wrackline.md)): rafts drift, and the Ebb drags anyone off one toward the drain. Boss Hessa of the Ebb. Visuals: sprites for the Shoal Lurker, Barge Hauler and Hessa. Sound: a theme and cues |
 
 ### Phase 4: Progression and retention
 Reasons to come back tomorrow and next week.
