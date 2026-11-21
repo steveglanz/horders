@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickParty, shouldMerge, LobbyAd } from '../client/net/lobby';
+import { pickParty, shouldMerge, LobbyAd, cleanAd } from '../client/net/lobby';
 
 const ad = (code: string, n: number, max = 4): LobbyAd => ({ code, n, max, name: 'Hero ' + code });
 
@@ -22,5 +22,10 @@ describe('quick join lobby', () => {
   it('a lone party joins one that already has company, whatever its code', () => {
     expect(shouldMerge(ad('AAAAA', 1), [ad('ZZZZZ', 2)])?.code).toBe('ZZZZZ');
     expect(shouldMerge(ad('AAAAA', 2), [ad('BBBBB', 3)])).toBeNull();
+  });
+  it('strips markup from names other players advertise', () => {
+    expect(cleanAd({ code: 'ABCDE', n: 1, max: 4, name: '<img src=x onerror=alert(1)>Mal' })?.name).toBe('img srcx onerroralert1Mal');
+    expect(cleanAd({ code: 'ABCDE', n: 1, max: 4, name: '<>' })?.name).toBe('A hero');
+    expect(cleanAd({ code: 'abc', n: 1, max: 4, name: 'x' })).toBeNull();
   });
 });
