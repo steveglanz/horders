@@ -319,8 +319,10 @@ export function botGate(w: World): number {
 /**
  * Party bot switches. `revive`: bots pick up downed allies, under the G6 boss rules in
  * REVIVE_RULES (one pick-up per boss fight, 9 s while the boss is up). REVIVE=0 in tools/group.ts turns it off.
+ * `huddle` (off): ranged bots keep within Deepguard reach of an ally with no set worn. A worn Ventwalker
+ * still wins. HUDDLE=1 in tools/group.ts turns it on. Off until game design retunes Hammerdeep for it.
  */
-export const BOT_PARTY = { revive: true };
+export const BOT_PARTY = { revive: true, huddle: false };
 
 /**
  * Co-op: the downed ally this hero should go and pick up, or null. The rescuer is the living hero
@@ -638,8 +640,9 @@ export function botInput(w: World, skill = 1): Input {
     if (near && near.d > 0) {
       const r = SET_TUNING.dgRange;
       let k = 0;
-      if (w.setCount('deepguard') >= 2 && near.d > r * 0.75) k = 0.15;
-      else if (w.setCount('ventwalker') >= 2 && w.cls !== 'lumen' && near.d < r * 1.2) k = -0.15;
+      const vent = w.setCount('ventwalker') >= 2 && w.cls !== 'lumen';
+      if ((w.setCount('deepguard') >= 2 || (BOT_PARTY.huddle && !vent)) && near.d > r * 0.75) k = 0.15;
+      else if (vent && near.d < r * 1.2) k = -0.15;
       fx += (near.dx / near.d) * k * skill;
       fy += (near.dy / near.d) * k * skill;
     }

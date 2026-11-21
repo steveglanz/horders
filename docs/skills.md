@@ -310,6 +310,21 @@ tools/group.ts, heroes-r2, seeds 1 to 80, wins out of 80, main 9195d8f / this ch
 
 **The duo jump is mostly positioning, not the set.** With the Deepguard drift forced on and no set worn, the duo wins 49 of 80 against 24 on main. Its Lumen bot normally stands too far from the Bulwark for Ondrel's fight. On top of that baseline, the set adds 18 of 80 (+9 in 40), above the 2 to 7 range the other sets give. That is game design's call.
 
+## Party bots huddle with no set: a flag, off (21 Nov 2026)
+
+`BOT_PARTY.huddle` in sim/bot.ts gives ranged party bots the Deepguard drift (toward the nearest ally when it is more than 105 away) with no set worn. A worn Ventwalker still wins. It is **off by default**, so play on main does not change. Game design decides whether to turn it on and retune Hammerdeep. Fill bots won't use it either way. `HUDDLE=1` turns it on in tools/group.ts.
+
+tools/group.ts, heroes-r2, seeds 1 to 80, no sets, wins out of 80, off / on:
+
+| | Off (main) | On |
+|---|---|---|
+| Hammerdeep tier 6, Bulwark and Lumen duo | 24 | 49 |
+| Hammerdeep tier 6, full party | 75 | 77 |
+| Hammerdeep tier 8, full party | 43 | 58 |
+| Ashvents tier 8, full party | 50 | 47 |
+
+The off column matches the main numbers in the section above (43, 50 and 24), so the flag changes nothing while it is off. With it on, the Hammerdeep duo doubles and tier 8 gains 15 of 80. The Ashvents loses 3 of 80, which is within noise.
+
 ## High Noon and Choir of Dawn rework (roadmap L7)
 Both of the Lumen's original capstones added almost nothing:
 - **High Noon** fired only when the Lumen held 20 Brilliance or more. Sunmote spends up to 10 Brilliance a shot, so the beam almost never fired: 0 times in 10 Kiln 8 runs with hero-t8-0, and 9 times in 10 runs at tier 6.
