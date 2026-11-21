@@ -8,7 +8,7 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, CLASS_ICON, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { roleOf } from './net/lobby';
@@ -248,6 +248,7 @@ export class Hud {
     this.updateQuests(w);
     this.updateBuffs(w);
     this.stackTop();
+    this.placeBanner();
 
     if (this.showPerf) {
       $('perf').textContent = `${fps.avg.toFixed(0)} fps · p95 ${fps.p95ms.toFixed(1)} ms · ${w.aliveEnemies} enemies`;
@@ -288,6 +289,28 @@ export class Hud {
     // Co-op party frames go under the route line.
     const above = quests.offsetHeight ? quests : target.hidden ? $('buffs') : target;
     party.style.top = key ? `${Math.max(150, Math.round(above.getBoundingClientRect().bottom + 6))}px` : '';
+  }
+
+  private bannerTop = '';
+
+  /**
+   * Landscape phones: the banner sits just under the HUD row, so a boss frame that grows a
+   * phase line and a cast bar ran into the banner's title. Push the banner below the frame.
+   */
+  private placeBanner(): void {
+    const b = $('banner');
+    if (!b.classList.contains('show')) return; // keep its place while it fades out
+    const target = $('target');
+    let top = '';
+    if (this.compact && !this.narrow.matches && !target.hidden) {
+      // 68 px is the stylesheet's own landscape top (HUD row + 60); only ever push it lower.
+      const below = Math.round(target.getBoundingClientRect().bottom + 8);
+      if (below > 68) top = `${below}px`;
+    }
+    if (top === this.bannerTop) return;
+    this.bannerTop = top;
+    b.style.top = top;
+    this.placeDing();
   }
 
   private targetIndex(w: World): number {
@@ -459,7 +482,7 @@ export class Hud {
         progress = `<div class="progress">${BRANCH_NAMES[def.branch]} ${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div><div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="rank">${rank}</div>${progress}`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
@@ -600,7 +623,7 @@ export class Hud {
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
         + `<div class="meter"><div style="width:${pct}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
-        + `<div class="note">${notes.join(' · ')}</div>`;
+        + `<div class="note">${notes.map((t) => `<span class="n">${t}</span>`).join('<span class="sep"> · </span>')}</div>`;
       const equipped = new Set(Object.values(hero.equipped));
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
