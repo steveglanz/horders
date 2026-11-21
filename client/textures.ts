@@ -1041,6 +1041,77 @@ function drawBulwark(ctx: Ctx, _s: number, f: number): void {
   ctx.restore();
 }
 
+/** The Slagbinder: a squat figure in cooling slag plate, orange seams glowing through, a ladle of molten slag held out front. */
+function drawSlagbinder(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -0.8, 0, -0.8][f];
+  const step = [1.5, 0, -1.5, 0][f];
+  const SEAM = '#ff9b4a';
+  ctx.fillStyle = '#26211f';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.2;
+  ell(ctx, 20 - step, 47, 5, 2.8); ctx.fill(); ctx.stroke();
+  ell(ctx, 31 + step, 47, 5, 2.8); ctx.fill(); ctx.stroke();
+  // Back arm resting on a heavy hammer haft.
+  limb(ctx, 16, 28 + bob, 11, 40 + bob, 3.2, '#3a3230');
+  // Body: a broad, rounded slab of cooled slag.
+  ctx.beginPath();
+  ctx.moveTo(13, 24 + bob);
+  ctx.quadraticCurveTo(25, 14 + bob, 37, 23 + bob);
+  ctx.quadraticCurveTo(40, 34, 36, 44);
+  ctx.quadraticCurveTo(25, 47, 15, 44);
+  ctx.quadraticCurveTo(10, 34, 13, 24 + bob);
+  ctx.closePath();
+  shade(ctx, '#5d5450', '#1e1a19', 15, 46, 1.5);
+  // Glowing seams between the plates.
+  cracks(ctx, [
+    [[14, 31 + bob], [20, 33 + bob], [26, 31.5 + bob], [33, 33.5 + bob], [38, 31 + bob]],
+    [[22, 33 + bob], [21, 38], [23, 44]],
+    [[31, 33.5 + bob], [32.5, 39], [31, 44]],
+    [[19, 21 + bob], [21, 26 + bob]],
+  ], SEAM, 1.1);
+  // A glowing core in the chest.
+  softGlow(ctx, 26, 37, 5, 'rgba(255,155,74,0.55)');
+  ctx.save();
+  ctx.fillStyle = '#ffd08a'; ctx.shadowColor = SEAM; ctx.shadowBlur = 4;
+  ell(ctx, 26, 37, 1.6, 1.6); ctx.fill();
+  ctx.restore();
+  // Heavy pauldron.
+  ell(ctx, 16, 23 + bob, 6.5, 5); shade(ctx, '#6e6460', '#2a2422', 18, 28, 1.2);
+  cracks(ctx, [[[12, 23.5 + bob], [15, 22 + bob], [17, 24.5 + bob]]], SEAM, 0.9);
+  // Helm: a rounded slag dome with a burning slit.
+  ctx.beginPath();
+  ctx.moveTo(18, 19 + bob);
+  ctx.quadraticCurveTo(17.5, 6 + bob, 26.5, 6 + bob);
+  ctx.quadraticCurveTo(34.5, 6.5 + bob, 34, 19 + bob);
+  ctx.quadraticCurveTo(26, 21 + bob, 18, 19 + bob);
+  ctx.closePath();
+  shade(ctx, '#6a605b', '#2a2422', 6, 19, 1.3);
+  ctx.save();
+  ctx.fillStyle = '#ffb35c'; ctx.shadowColor = SEAM; ctx.shadowBlur = 4;
+  ctx.fillRect(24.5, 12 + bob, 8, 1.8);
+  ctx.restore();
+  cracks(ctx, [[[22, 8 + bob], [23.5, 11 + bob]]], SEAM, 0.8);
+  // Front arm and the ladle: a long haft, a deep bowl brimming with molten slag, one drip falling.
+  limb(ctx, 33, 26 + bob, 39, 31 + bob, 3, '#4a403c');
+  limb(ctx, 37, 34 + bob, 41.5, 25 + bob, 1.8, '#5a4a3a');
+  // The bowl: a deep iron cup, its rim brimming.
+  ctx.beginPath();
+  ctx.moveTo(37.5, 22 + bob);
+  ctx.quadraticCurveTo(38, 30 + bob, 43.5, 30 + bob);
+  ctx.quadraticCurveTo(49, 30 + bob, 49.5, 22 + bob);
+  ctx.closePath();
+  shade(ctx, '#7a6e68', '#2c2624', 22, 30, 1.2);
+  ctx.save();
+  ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 5;
+  ell(ctx, 43.5, 22.2 + bob, 6, 1.7); ctx.fill();
+  ctx.fillStyle = '#fff0c0';
+  ell(ctx, 42, 21.9 + bob, 2.2, 0.6); ctx.fill();
+  ctx.fillStyle = '#ffb347';
+  const drop = (f % 2) * 2.5;
+  ell(ctx, 49.2, 25 + bob + drop, 0.9, 1.3); ctx.fill();
+  ctx.restore();
+}
+
 /** A route gate: a broken stone arch. The portal inside is a separate tinted glow. */
 function drawGate(ctx: Ctx, s: number): void {
   const c = s / 2;
@@ -1879,7 +1950,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'lumen', 48, 4, drawLumen);
   sheet(scene, 'bulwark', 52, 4, drawBulwark);
   // Placeholder: the Slagbinder borrows the Bulwark's frames until visuals draws its own.
-  sheet(scene, 'slagbinder', 52, 4, drawBulwark);
+  sheet(scene, 'slagbinder', 52, 4, drawSlagbinder);
   sheet(scene, 'ashling', 24, 4, drawAshling);
   sheet(scene, 'slagling', 26, 4, drawSlagling);
   sheet(scene, 'cinderhound', 36, 4, drawHound);
