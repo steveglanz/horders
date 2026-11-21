@@ -486,6 +486,98 @@ function drawKiln(ctx: Ctx, s: number, f: number): void {
   eyes(ctx, [[46, 46 - breathe], [66, 46 - breathe]], 2.4, '#ff3b6b');
 }
 
+// ---------------------------------------------------------------- the Hammerdeep
+
+/**
+ * Ondrel, the Anvilward: a hulking iron warden whose chest is a forge anvil.
+ * Cool steel with molten slag in the seams; a great hammer in its right hand
+ * (it rises over the four frames), a visor slit with two hot eyes.
+ */
+function drawOndrel(ctx: Ctx, s: number, f: number): void {
+  const lift = [0, 3, 6, 3][f];
+  const heat = [0.75, 0.9, 1, 0.9][f];
+  const STEEL_HI = '#9aa3b8';
+  const STEEL_LO = '#262a36';
+  // Legs: thick iron greaves.
+  for (const x of [42, 78]) {
+    ctx.beginPath();
+    ctx.moveTo(x - 11, 92); ctx.lineTo(x + 11, 92); ctx.lineTo(x + 13, 112); ctx.lineTo(x - 13, 112); ctx.closePath();
+    shade(ctx, '#3e3a46', '#121016', 92, 112, 2);
+  }
+  // Left arm hanging, fist of slag.
+  limb(ctx, 30, 52, 18, 84, 13, '#3a3642');
+  softGlow(ctx, 17, 87, 9, `rgba(255,140,60,${0.7 * heat})`);
+  ell(ctx, 17, 87, 7, 6);
+  shade(ctx, '#ffb347', '#a8381a', 81, 93, 2);
+  // The great hammer, held up and back in the right hand.
+  const hx = 96;
+  const hy = 68 - lift;
+  limb(ctx, 88, 52, hx, hy, 12, '#3a3642');
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(-0.35 - lift * 0.02);
+  limb(ctx, 0, 10, 0, -36, 4.5, '#5b3a24');
+  ctx.beginPath();
+  ctx.rect(-15, -50, 30, 17);
+  shade(ctx, STEEL_HI, STEEL_LO, -50, -33, 2.2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-13, -48); ctx.lineTo(13, -48); ctx.stroke();
+  cracks(ctx, [[[-6, -46], [-2, -41], [-6, -36]]], '#ffb347', 1.2);
+  ctx.restore();
+  // Body: a broad iron cuirass narrowing to the hips.
+  ctx.beginPath();
+  ctx.moveTo(26, 46);
+  ctx.quadraticCurveTo(60, 34, 94, 46);
+  ctx.lineTo(86, 94);
+  ctx.quadraticCurveTo(60, 100, 34, 94);
+  ctx.closePath();
+  shade(ctx, '#4a4652', '#141218', 40, 98, 2.4);
+  rimLight(ctx, 36, 70, 'rgba(255,170,110,0.45)', 1.2);
+  // Riveted plate seams with slag glowing through.
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(26, 46); ctx.quadraticCurveTo(60, 34, 94, 46); ctx.lineTo(86, 94); ctx.quadraticCurveTo(60, 100, 34, 94); ctx.closePath();
+  ctx.clip();
+  ctx.strokeStyle = `rgba(255,150,60,${0.85 * heat})`;
+  ctx.lineWidth = 2;
+  for (const y of [78, 88]) { ctx.beginPath(); ctx.moveTo(20, y); ctx.quadraticCurveTo(60, y + 4, 100, y); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(15,10,12,0.7)';
+  for (const [x, y] of [[36, 82], [48, 84], [72, 84], [84, 82]]) { ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  cracks(ctx, [[[32, 66], [38, 72], [34, 80]], [[88, 64], [84, 72], [88, 78]]], `rgba(255,179,71,${heat})`, 1.4);
+  // The anvil chest: flat face, waist and a horn pointing forward (right).
+  ctx.beginPath();
+  ctx.moveTo(36, 52); ctx.lineTo(80, 52);
+  ctx.quadraticCurveTo(96, 53, 104, 58);
+  ctx.quadraticCurveTo(92, 61, 80, 62);
+  ctx.lineTo(74, 62); ctx.lineTo(70, 72); ctx.lineTo(46, 72); ctx.lineTo(42, 62); ctx.lineTo(36, 62);
+  ctx.closePath();
+  shade(ctx, '#b4bccd', '#3a3f4e', 52, 72, 2.2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(38, 53.5); ctx.lineTo(80, 53.5); ctx.stroke();
+  softGlow(ctx, 58, 66, 9, `rgba(255,150,60,${0.55 * heat})`);
+  // Shoulder pauldrons.
+  for (const x of [28, 92]) {
+    ell(ctx, x, 46, 14, 10);
+    shade(ctx, '#5a5562', '#1a181f', 36, 56, 2.2);
+  }
+  // Head: a squat helm sunk between the shoulders, a visor slit with two hot eyes.
+  ctx.beginPath();
+  ctx.moveTo(48, 44); ctx.lineTo(48, 28); ctx.quadraticCurveTo(60, 18, 72, 28); ctx.lineTo(72, 44); ctx.closePath();
+  shade(ctx, '#55505e', '#16141a', 20, 44, 2.2);
+  ctx.fillStyle = '#120a08';
+  ctx.fillRect(51, 33, 18, 4.5);
+  softGlow(ctx, 60, 35, 10, `rgba(255,120,40,${0.7 * heat})`);
+  eyes(ctx, [[55.5, 35.2], [64.5, 35.2]], 1.9, '#ffcf55');
+  // A crest of three iron ridges.
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  for (const dx of [-5, 0, 5]) { ctx.beginPath(); ctx.moveTo(60 + dx, 22 + Math.abs(dx) * 0.3); ctx.lineTo(60 + dx * 1.2, 16 + Math.abs(dx) * 0.4); ctx.stroke(); }
+  void s;
+}
+
 /** Ember Acolyte: a robed channeler holding green fire aloft. */
 function drawAcolyte(ctx: Ctx, _s: number, f: number): void {
   const fl = [0, 1, 0.4, 1.4][f];
@@ -1455,6 +1547,9 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'twinLamp', 44, 4, drawTwinLamp);
   sheet(scene, 'lensmother', 116, 4, drawLensmother);
   sheet(scene, 'pillar', 64, 2, drawPillar);
+
+  // The Hammerdeep.
+  sheet(scene, 'ondrel', 120, 4, drawOndrel);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {

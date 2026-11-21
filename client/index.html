@@ -266,8 +266,17 @@
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }
   .dg:disabled { opacity: 0.55; cursor: default; filter: saturate(0.4); }
   .dg[data-d="hammerdeep"] { --art: radial-gradient(ellipse at 80% 0%, rgba(190,200,220,0.30), transparent 60%), linear-gradient(160deg, rgba(60,56,70,0.65), transparent 70%); }
-  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); }
-  .dg .style.group { color: var(--gold); }
+  .dg .style { margin-top: 6px; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dg .style.group { color: var(--gold); align-self: flex-start; padding: 3px 9px 3px 4px; border-radius: 999px; border: 1px solid rgba(255,200,97,0.45); background: rgba(255,200,97,0.08); }
+  .dg .style .roles { display: inline-flex; gap: 3px; }
+  .dg .style .gtile, .rolechip .gtile { width: 20px; height: 20px; border-radius: 6px; }
+  /* Group dungeons: the roles your party has, as chips. */
+  .partyroles { margin-top: 8px; }
+  .partyroles .chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+  .rolechip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
+  .rolechip.ok { border-color: color-mix(in srgb, var(--gc) 60%, transparent); color: var(--gc); background: color-mix(in srgb, var(--gc) 10%, transparent); }
+  .rolechip.need { border-style: dashed; color: var(--muted); }
+  .rolechip.need .gtile { filter: grayscale(1); opacity: 0.6; }
   /* In the flow (not absolute) so a long name on a narrow card can't run under it. */
   .dg .lock { order: -1; align-self: flex-end; margin: 0 0 auto; padding-bottom: 6px; font-size: 11px; color: var(--gold); }
   /* Tiers have no cap: past what fits, the row scrolls sideways (hub.ts keeps the picked tier in view). */
