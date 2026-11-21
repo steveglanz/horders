@@ -8,7 +8,7 @@ import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { applyRun, brewPotion, equip, equippedItems, gritFor, itemScore, newHero, pointsAvailable, salvage, spendPoint, takePotion, PassiveId } from '../sim/hero';
 import { SLOTS } from '../sim/content/items';
-import { canUpgrade, upgradeItem, upgradeCost } from '../sim/forge';
+import { canUpgrade, maxForgeLevel, upgradeItem, upgradeCost } from '../sim/forge';
 import { bountyFor } from '../sim/content/bounty';
 import { potionCost } from '../sim/content/potions';
 
@@ -69,10 +69,18 @@ function play(seed: number, bounty: ReturnType<typeof bountyFor> | null, day: nu
   while (pointsAvailable(h) > 0 && guard++ < 20) spendPoint(h, order[guard % 4]);
 }
 
+// DETAIL=1 prints one line a day: upgrades that day, and how far worn gear sits below the Forge cap.
+let upgradesBefore = 0;
 for (let d = 0; d < days; d++) {
   const day = DAY0 + d;
   for (let k = 0; k < perDay; k++) play((d * 10 + k + 1 + off * 1000) * 7919, null, day);
   if (h.maxTier >= 2) play(0, bountyFor(day, h.maxTier), day);
+  if (process.env.DETAIL) {
+    const worn = equippedItems(h);
+    const gap = worn.reduce((a, i) => a + (maxForgeLevel(h) - i.ilvl), 0) / Math.max(1, worn.length);
+    console.log(`day ${d + 1}: tier ${h.maxTier}, level ${h.level}, ${upgrades - upgradesBefore} upgrades, cap ${maxForgeLevel(h)}, worn ${worn.length} items avg ${gap.toFixed(1)} below cap, embers ${h.embers}`);
+    upgradesBefore = upgrades;
+  }
 }
 const income = src.salvage + src.bounty + src.weekly;
 console.log(`policy ${policy}, ${days} days × ${perDay} delves + bounty: ${delves} delves, ${wins} wins, best tier ${h.maxTier}, hero level ${h.level}`);
