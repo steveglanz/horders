@@ -130,7 +130,7 @@ export const LUMEN_CAPS = {
   choirR: 170, choirDamage: 16,
 };
 
-const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6 };
+const CAP = { enemies: 900, orbs: 256, gems: 900, zones: 128, telegraphs: 24, strikes: 64, lances: 16, drops: 24, veins: 6, cracks: 4 };
 
 export interface Input {
   /** Desired move direction; any length, normalised inside. */
@@ -250,6 +250,17 @@ export interface Drop {
   x: number;
   y: number;
   item: Item | null;
+}
+
+/** Coldmarrow phase 2: a crack in the frozen river, a straight strip of open water across the arena. */
+export interface Crack {
+  alive: boolean;
+  /** A point on the crack's centre line, and the line's direction. */
+  x: number;
+  y: number;
+  angle: number;
+  /** Seconds since it appeared: it is a warning until COLD.crackWarn, then open water until COLD.crackWarn + COLD.crackOpen. */
+  t: number;
 }
 
 export interface Vein {
@@ -689,6 +700,9 @@ export class World {
   private namedAffix = 0;
   // The Coldmarrow (Nhevra): Snuff, Snuffer Tide, Long Night.
   private snuffT = 0;
+  /** Coldmarrow phase 2 (Thin Ice): 1 until Nhevra drops to COLD.phase2, then 2; and the clock to the next cracks. */
+  coldPhase = 1;
+  private iceT = 0;
   private tideT = 0;
   private nightT = 0;
   private waterT = 0;
@@ -746,6 +760,7 @@ export class World {
   lances: Lance[];
   drops: Drop[];
   veins: Vein[];
+  cracks: Crack[];
   events: SimEvent[] = [];
   aliveEnemies = 0;
   /** When the current fight started (Burnout counts from here). */
@@ -813,6 +828,7 @@ export class World {
     }));
     this.drops = pool(CAP.drops, () => ({ alive: false, x: 0, y: 0, item: null }));
     this.veins = pool(CAP.veins, () => ({ alive: false, x: 0, y: 0, progress: 0 }));
+    this.cracks = pool(CAP.cracks, () => ({ alive: false, x: 0, y: 0, angle: 0, t: 0 }));
     const ids = opts.quests ?? [];
     this.quests = ids.map((id) => ({ id, progress: 0, goal: QUESTS[id].goal, done: false }));
     this.route = opts.route ?? rollRoute((n) => this.rng.int(n), this.dungeonId);
@@ -2996,6 +3012,8 @@ export class World {
 
       let speed = e.castId ? 0 : e.def.speed * (e.named >= 0 && AFFIXES[e.affix] === 'Swift' ? NAMED.swift : 1);
       if (e.def.rank === 'boss' && this.bossEnraged) speed *= 1.6;
+      // Thin Ice: Nhevra holds her ground while the river is cracked, so her strip stays hers.
+      if (e.kind === 'nhevra' && this.cracks.some((c) => c.alive)) speed = 0;
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -3414,6 +3432,8 @@ export class World {
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
     dmg *= this.setDamageMult(e, silent);
+    // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
+    if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2;
       crit = true;
@@ -3919,6 +3939,36 @@ export class World {
     return best;
   }
 
+  /** Thin Ice: parallel cracks either side of Nhevra, at a random angle, so the floor splits into strips. */
+  private crackRiver(x: number, y: number): void {
+    const angle = this.rng.next() * Math.PI;
+    const nx = -Math.sin(angle);
+    const ny = Math.cos(angle);
+    for (let k = 0; k < COLD.crackLanes; k++) {
+      const c = this.cracks.find((q) => !q.alive);
+      if (!c) return;
+      const off = (k - (COLD.crackLanes - 1) / 2) * COLD.crackGap;
+      Object.assign(c, { alive: true, x: x + nx * off, y: y + ny * off, angle, t: 0 });
+    }
+    this.events.push({ type: 'castStart', index: this.bossIndex, name: 'Thin Ice' });
+  }
+
+  /** Is any crack open water right now? */
+  riverOpen(): boolean {
+    return this.cracks.some((c) => c.alive && c.t >= COLD.crackWarn);
+  }
+
+  /** Distance from a point to a crack's centre line. */
+  crackDist(c: Crack, x: number, y: number): number {
+    return Math.abs((x - c.x) * -Math.sin(c.angle) + (y - c.y) * Math.cos(c.angle));
+  }
+
+  /** Is this spot in open water (a crack past its warning)? */
+  inWater(x: number, y: number): boolean {
+    for (const c of this.cracks) if (c.alive && c.t >= COLD.crackWarn && this.crackDist(c, x, y) <= COLD.crackHalfW + PLAYER_RADIUS * 0.5) return true;
+    return false;
+  }
+
   /** Hearthcoals burn down, Chill builds while a coal is out, and Nhevra's clocks. */
   private coldClock(dt: number): void {
     for (let k = 0; k < this.heroes.length; k++) {
@@ -3945,6 +3995,20 @@ export class World {
         this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
         this.use(at);
       }
+      if (this.coldPhase >= 2 && q.hp > 0 && this.inWater(q.x, q.y)) {
+        // Thin Ice: open water soaks the coal, chills fast, and hurts.
+        q.coal = Math.max(0, q.coal - COLD.waterDrain * dt);
+        q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + COLD.waterChill * dt);
+        const at = this.acting;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * COLD.waterBurn * dt, -1, true);
+        this.use(at);
+      }
+    }
+    for (const c of this.cracks) {
+      if (!c.alive) continue;
+      c.t += dt;
+      if (c.t >= COLD.crackWarn + COLD.crackOpen) c.alive = false;
     }
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
@@ -3954,6 +4018,19 @@ export class World {
     if (late && !this.bossEnraged) {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
+    }
+    if (this.coldPhase < 2 && e.hp <= e.maxHp * COLD.phase2) {
+      this.coldPhase = 2;
+      this.bossPhase = 2;
+      this.iceT = COLD.firstCrack;
+      this.events.push({ type: 'phase', phase: 2 });
+    }
+    if (this.coldPhase >= 2) {
+      this.iceT -= dt;
+      if (this.iceT <= 0) {
+        this.iceT = COLD.crackEvery;
+        this.crackRiver(e.x, e.y);
+      }
     }
     this.snuffT -= dt;
     this.tideT -= dt;
@@ -3965,7 +4042,7 @@ export class World {
     }
     if (e.castId || e.stunT > 0) return;
     if (this.nightT <= 0) {
-      this.nightT = late ? COLD.nightEvery / 2 : COLD.nightEvery;
+      this.nightT = (this.coldPhase >= 2 ? COLD.nightEvery2 : COLD.nightEvery) / (late ? 2 : 1);
       this.startCast(i, 'longNight', 'Long Night', COLD.nightCast, false);
     } else if (this.snuffT <= 0) {
       this.snuffT = COLD.snuffEvery;
@@ -4911,7 +4988,22 @@ export const COLD = {
   nightEvery: 30, nightCast: 3, nightMax: 0.6, firstNight: 20,
   /** Soft enrage: the Long Night comes twice as often. */
   enrageAfter: 200,
+  /**
+   * Phase 2, Thin Ice (from `phase2` of her health): every `crackEvery` s the river cracks into
+   * `crackLanes` parallel strips (the first `firstCrack` s after the phase starts) of open water, `crackGap` apart and centred on Nhevra, at a random
+   * angle. `crackWarn` s of warning, then open for `crackOpen` s. Open water: coal drains `waterDrain`/s,
+   * Chill builds `waterChill` stacks/s, and it burns `waterBurn` of max health a second.
+   */
+  phase2: 0.5, crackEvery: 22, firstCrack: 4, crackLanes: 2, crackGap: 260, crackHalfW: 34, crackWarn: 2.5, crackOpen: 9,
+  waterDrain: 0.05, waterChill: 2, waterBurn: 0.06,
+  /** In phase 2 the Long Night comes every `nightEvery2` s instead (Thin Ice takes over as the pressure). */
+  nightEvery2: 40,
+  /** While any crack is open, Nhevra takes this much more damage. */
+  thinIceExposed: 0.25,
 };
+/** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
+export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1 };
+
 /** Kinds whose kill feeds the Hearthcoal. */
 export const COLD_FED_BY: EnemyKind[] = ['rimehound', 'snuffer', 'frostWarden', 'hoarfrostWeaver'];
 

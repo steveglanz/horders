@@ -734,6 +734,7 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
           else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', "It can't be stopped. Get into the brightest light you can");
           else if (ev.name === 'Snuffer Tide') this.hud.banner('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
+          else if (ev.name === 'Thin Ice') this.hud.banner('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
           else if (ev.name === 'Frost Lace' && !this.laceShown) {
             // Once a fight: the Weaver casts it every few seconds, and its cast bar says the rest.
             this.laceShown = true;
@@ -1886,6 +1887,42 @@ export class GameScene extends Phaser.Scene {
     const dim = 1 - 0.6 * night;
     const fr = ((COLD_FLOOR >> 16) & 255) * dim, fg = ((COLD_FLOOR >> 8) & 255) * dim, fb = (COLD_FLOOR & 255) * (1 - 0.45 * night);
     this.ground.setTint((Math.round(fr) << 16) | (Math.round(fg) << 8) | Math.round(fb));
+    // Thin Ice (phase 2): cracks run across the river. A warning is a pale fracture line that
+    // widens; open water is a dark band with bright broken edges.
+    for (const c of w.cracks) {
+      if (!c.alive) continue;
+      const dx = Math.cos(c.angle), dy = Math.sin(c.angle);
+      const pd = c.x * dx + c.y * dy;
+      const disc = pd * pd - (c.x * c.x + c.y * c.y - ARENA * ARENA);
+      if (disc <= 0) continue;
+      const t0 = -pd - Math.sqrt(disc), t1 = -pd + Math.sqrt(disc);
+      const x0 = c.x + dx * t0, y0 = c.y + dy * t0, x1 = c.x + dx * t1, y1 = c.y + dy * t1;
+      const nx = -dy, ny = dx;
+      if (c.t < COLD.crackWarn) {
+        const f = c.t / COLD.crackWarn;
+        const flick = 0.55 + 0.35 * Math.sin(now / 70);
+        g.lineStyle(2 + 2 * f, FROST, flick).lineBetween(x0, y0, x1, y1);
+        // Hairline branches either side, so it reads as ice about to break.
+        g.lineStyle(1.5, FROST, 0.35 + 0.3 * f);
+        for (let k = 1; k < 9; k++) {
+          const at = k / 9;
+          const bx = x0 + (x1 - x0) * at, by = y0 + (y1 - y0) * at;
+          const sd = (k % 2 ? 1 : -1) * COLD.crackHalfW * f;
+          g.lineBetween(bx, by, bx + nx * sd + dx * 10, by + ny * sd + dy * 10);
+        }
+      } else {
+        const hw = COLD.crackHalfW;
+        const left = COLD.crackWarn + COLD.crackOpen - c.t;
+        const a = Math.min(1, left / 1.2);
+        g.fillStyle(0x06121c, 0.82 * a).beginPath()
+          .moveTo(x0 + nx * hw, y0 + ny * hw).lineTo(x1 + nx * hw, y1 + ny * hw)
+          .lineTo(x1 - nx * hw, y1 - ny * hw).lineTo(x0 - nx * hw, y0 - ny * hw).closePath().fillPath();
+        const shim = 0.5 + 0.3 * Math.sin(now / 220);
+        g.lineStyle(3, FROST, 0.75 * a).lineBetween(x0 + nx * hw, y0 + ny * hw, x1 + nx * hw, y1 + ny * hw);
+        g.lineBetween(x0 - nx * hw, y0 - ny * hw, x1 - nx * hw, y1 - ny * hw);
+        g.lineStyle(1.5, 0x9fd8ff, shim * a).lineBetween(x0, y0, x1, y1);
+      }
+    }
     // The frost edge: Chill creeps in from the screen's rim, and the Long Night brings it in too.
     let frostOp = night * 0.55;
     let frozenMe = false;

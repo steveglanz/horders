@@ -1,5 +1,6 @@
 // Screenshots the Coldmarrow visuals: the Hearthcoal light, a Frost Warden cracking in it,
-// Frost Lace, Nhevra's Snuff and Long Night wind-ups, and Chill creeping in once a coal is out.
+// Frost Lace, Nhevra's Snuff and Long Night wind-ups, Chill creeping in once a coal is out,
+// and phase 2's Thin Ice cracks (warning, then open water).
 // One page, no network: the scene restarts straight into each fight and freezes mid-cast.
 // Usage: npm run build && node tools/coldshots.cjs <outDir> [phone]
 const { chromium, devices } = require('playwright');
@@ -19,6 +20,9 @@ const SCENES = [
   // The coal out and Chill at 3 of 5, then frozen.
   { name: '5-chill', opts: { cls: 'emberwright', route: ['rimepack'] }, chill: 3 },
   { name: '6-frozen', opts: { cls: 'emberwright', route: ['rimepack'] }, chill: 5 },
+  // Phase 2, Thin Ice: the crack warning, then open water (Nhevra is dropped to half health to get there).
+  { name: '7-thinice-warn', opts: { cls: 'emberwright', route: ['nhevra'] }, ice: 'warn' },
+  { name: '8-thinice-open', opts: { cls: 'duskblade', route: ['nhevra'] }, ice: 'open' },
 ];
 
 (async () => {
@@ -45,6 +49,11 @@ const SCENES = [
       let ok = false;
       if (sc.until === 'warden') ok = w.phase === 'fight' && w.time > 4 && w.enemies.some((e) => e.alive && e.kind === 'frostWarden' && Math.hypot(e.x - p.x, e.y - p.y) < (p.coalR ?? 0) + e.def.radius - 10);
       else if (sc.chill !== undefined) ok = w.phase === 'fight' && w.time > 5;
+      else if (sc.ice) {
+        const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : null;
+        if (b && b.alive && b.kind === 'nhevra' && w.coldPhase < 2) b.hp = Math.min(b.hp, b.maxHp * 0.49);
+        ok = w.cracks.some((c) => c.alive && (sc.ice === 'warn' ? c.t > 1.4 && c.t < 2.3 : c.t > 4));
+      }
       else ok = w.enemies.some((e) => e.alive && e.kind === sc.kind && e.castId === sc.cast && e.castT / e.castDur > sc.at);
       if (ok) s.warp = 0;
       return ok;
