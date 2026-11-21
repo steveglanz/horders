@@ -47,19 +47,18 @@ const CUT = 'M17.7 6.3A8 8 0 1 1 13.5 4.1 M14.5 2.5l7 7';
  */
 /**
  * Ability-option glyphs (ALT_ABILITIES in sim/content/classes.ts), shown in the swapped slot.
- * Placeholders until visuals draws them.
  */
 export const ALT_GLYPH: Record<ClassId, string> = {
-  // Ember Ward: a flame inside a ring.
-  emberwright: 'M12 7c1.8 2.4 3 4 3 6a3 3 0 0 1-6 0c0-2 1.2-3.6 3-6Z M12 2.5a9.5 9.5 0 1 1 0 19a9.5 9.5 0 1 1 0-19Z',
-  // Hamstring: a blade over a slowed arrow.
-  duskblade: 'M4 20 18 6 M15 4l5 5 M5 12h6 M8 9l3 3-3 3',
-  // Rallying Cry: a horn with sound rings.
-  bulwark: 'M4 10v4l9 4V6Z M16 9a4 4 0 0 1 0 6 M18.5 6.5a7.5 7.5 0 0 1 0 11',
-  // Lightwell: a pool with light rising.
-  lumen: 'M4 17c2.5 2 13.5 2 16 0 M4 17c2.5-2 13.5-2 16 0 M12 13V4 M8.5 12 7 7 M15.5 12 17 7',
-  // Slag Pit: a pit with molten drips.
-  slagbinder: 'M3 15c3 4 15 4 18 0 M3 15c3-2 15-2 18 0 M9 4v5 M12 3v7 M15 4v5',
+  // Ember Ward: a hero wrapped in flame tongues (Quench already owns the drop in a ring).
+  emberwright: 'M12 9.5a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M8.2 20.5c.7-2.4 2-3.6 3.8-3.6s3.1 1.2 3.8 3.6 M5 19C2.2 14.8 3 9 7.6 4.6c-.2 2.2.4 3.7 1.8 4.6 M19 19c2.8-4.2 2-10-2.6-14.4.2 2.2-.4 3.7-1.8 4.6',
+  // Hamstring: a blade cuts through the stride, so the arrow of movement is broken.
+  duskblade: 'M2.5 15.5h5 M14 15.5h4.5 M16.5 12.5l3 3-3 3 M16.5 2.5 10 17.5 M7.6 16.2l5 2.2 M10.1 17.3 9 20.5',
+  // Rallying Cry: a war banner, with the call ringing out from it.
+  bulwark: 'M5 21.5V2.5 M5 3.5h12l-3 4 3 4H5 M17 15.5a3.5 3.5 0 0 1 0 5 M20 13a7 7 0 0 1 0 10',
+  // Lightwell: a pool with a mending cross rising from it.
+  lumen: 'M3.5 17.5c0 2.6 17 2.6 17 0s-17-2.6-17 0Z M12 4v8 M8 8h8 M6 12.5v.01 M18 12.5v.01',
+  // Slag Pit: a molten pit with bubbles breaking.
+  slagbinder: 'M3 16.5c0 2.8 18 2.8 18 0s-18-2.8-18 0Z M8.5 9a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4Z M15 4a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M14 12.5v.01',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {
