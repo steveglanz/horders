@@ -97,8 +97,11 @@ export function installSoundControls(): void {
       });
       box.append(hr);
     }
+    // The pause menu folds settings into a "Settings" section (#pauseSettings); fall back to before Resume.
+    const slot = document.getElementById('pauseSettings');
     const resume = document.getElementById('resumeBtn');
-    if (resume) panel.insertBefore(box, resume);
+    if (slot) slot.appendChild(box);
+    else if (resume) panel.insertBefore(box, resume);
     else panel.appendChild(box);
   }
 

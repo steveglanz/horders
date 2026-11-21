@@ -409,6 +409,7 @@
   .wbcard .top span { color: var(--danger); font-weight: 700; }
   .wbcard:empty, #endXp:empty, #rewards:empty { display: none; }
   #endTalents { display: flex; flex-wrap: wrap; gap: 6px; }
+  #endTalents:empty { display: none; }
   .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
   .end-foot { display: flex; gap: 10px; justify-content: center; }
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
@@ -557,7 +558,14 @@
   @media (max-width: 560px), (max-height: 520px) {
     #pauseBtn, #hud .snd-toggle { flex: none; width: 44px; height: 44px; }
     .row { gap: 8px; }
-    #hud.vsboss #quests { display: none; }
+    #hud.tgt #quests { display: none; }
+    /* Icon-only action buttons: the names live in the pause menu (hold for details). */
+    .ab .n { display: none; }
+    .ab svg { margin-top: 13px; }
+    /* Fight intro: a compact card in the upper band instead of a paragraph over your hero. */
+    #banner { top: 21%; padding: 0 20px; }
+    #bannerTitle { font-size: 22px; }
+    #bannerSub { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     #target .tname { gap: 6px; }
     #tName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #tTitle, #tPhase { flex: none; white-space: nowrap; }
@@ -594,6 +602,18 @@
     .card .name { font-size: 17px; margin: 2px 0 4px; }
     .card .text { font-size: 13px; }
   }
+
+  /* Pause: your abilities, hold (or hover) one for what it does. */
+  .pabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+  .pab { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 64px; padding: 8px 2px 6px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); font-size: 11px; color: var(--muted); }
+  .pab svg { color: var(--ac, var(--ember)); }
+  .pab b { font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .pabs-hint { margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .psettings { margin-top: 12px; text-align: left; }
+  .psettings > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); font-weight: 600; cursor: pointer; }
+  .psettings > summary::-webkit-details-marker { display: none; }
+  .psettings > summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translate(-2px, -2px); transition: transform 0.15s; }
+  .psettings[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
 </style>
 </head>
 <body>
@@ -703,7 +723,8 @@
 <div id="pause" class="overlay" hidden>
   <div class="panel" style="text-align:center; max-width: 360px">
     <h2>Paused</h2>
-    <div class="opts" id="pauseOpts"></div>
+    <div id="pauseAbilities" class="pabs" aria-label="Your abilities"></div>
+    <details class="psettings"><summary>Settings</summary><div id="pauseSettings"><div class="opts" id="pauseOpts"></div></div></details>
     <button class="primary" id="resumeBtn">Resume</button>
     <button class="ghost" id="quitBtn">Quit run</button>
   </div>
