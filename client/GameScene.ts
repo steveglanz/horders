@@ -125,6 +125,8 @@ export class GameScene extends Phaser.Scene {
   /** Guest: seconds since the last snapshot, for smoothing between them. */
   private snapAge = 0;
   private lastInputAt = 0;
+  /** The raid: whether the tank swap banner is up for this swap. */
+  private swapShown = false;
   /** Guest: the draft (level and picks left) a pick was already sent for. */
   private sentPick = -1;
   /** The other heroes in a co-op party. */
@@ -571,6 +573,10 @@ export class GameScene extends Phaser.Scene {
 
   private handleEvents(events: SimEvent[]): void {
     const w = this.world;
+    // The raid: Ladle Pour Seared the other tank, so this tank takes the boss.
+    const swap = w.swapCue;
+    if (swap && !this.swapShown) this.hud.banner('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
+    this.swapShown = swap;
     audio.events(events, {
       cls: w.cls,
       acting: w.acting,
