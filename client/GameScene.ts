@@ -897,6 +897,8 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Downstroke') this.hud.banner('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
+          else if (ev.name === 'Stamp') this.hud.banner('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
           else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");

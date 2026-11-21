@@ -44,7 +44,7 @@ function downstroke(w: World, inner: Inner, x: number, y: number): boolean {
 }
 
 describe('the Pressworks (third group dungeon)', () => {
-  it('is a group dungeon from tier 10, never a bounty or weekly dungeon, and bots may fill it', () => {
+  it('is a group dungeon from tier 10, never a bounty or weekly dungeon, and bots never fill it', () => {
     expect(DUNGEONS.pressworks.style).toBe('group');
     expect(DUNGEONS.pressworks.unlockTier).toBe(10);
     expect(DUNGEONS.pressworks.boss).toBe('oskel');
@@ -52,7 +52,7 @@ describe('the Pressworks (third group dungeon)', () => {
     expect(SOLO_DUNGEON_IDS).not.toContain('pressworks');
     expect(BOUNTY_DUNGEON_IDS).not.toContain('pressworks');
     expect(WEEKLY_DUNGEON_IDS).not.toContain('pressworks');
-    expect(botFillBlocker('pressworks')).toBe('');
+    expect(botFillBlocker('pressworks')).toMatch(/real heroes/);
   });
 
   it('Downstroke: whoever takes it is Pressed, and a Pressed hero under the next one is crushed and does not count', () => {

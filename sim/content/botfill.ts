@@ -31,6 +31,8 @@ export function botFillBlocker(d: DungeonId): string {
   const def = DUNGEONS[d];
   if (def.style !== 'group') return 'Solo dungeon: no bots needed';
   if (def.raid) return 'The raid needs four real heroes';
+  // Taking turns is the whole fight, and bots never miss a turn: a bot fill won as often as a real party.
+  if (d === 'pressworks') return 'Taking turns needs real heroes';
   return '';
 }
 
