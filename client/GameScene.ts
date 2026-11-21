@@ -11,6 +11,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
+import { SET_TUNING } from '../sim/content/sets';
 import { CLASS_ICON } from './icons';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
@@ -213,6 +214,7 @@ export class GameScene extends Phaser.Scene {
     this.ventSprites = [];
     this.pillarSprites = [];
     this.glareFlash = 0;
+    this.warmSeen = 0;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -387,6 +389,8 @@ export class GameScene extends Phaser.Scene {
   /** World text multiplier for small screens (see layout). */
   private textK = 1;
   private textSeen = display.text;
+  /** Hearthkeeper Warmth last frame, to flare once when it fills. */
+  private warmSeen = 0;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -1124,6 +1128,18 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     this.overFx.clear();
     if (this.coalLights.length) this.coldDraw(g, now);
+    // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
+    const hk = w.setCount('hearthkeeper');
+    const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
+    if (warm > 0) this.warmthDraw(g, this.player.x, this.player.y + 22, warm, hk >= 3 && warm >= SET_TUNING.hkMax, now);
+    if (hk >= 3 && warm >= SET_TUNING.hkMax && this.warmSeen < SET_TUNING.hkMax) {
+      this.ring(this.player.x, this.player.y + 10, 70, 0xffb347, 0.45);
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        this.emit(this.fx, 'spark', undefined, this.player.x + Math.cos(a) * 18, this.player.y + 14 + Math.sin(a) * 7, 0.55, { tint: 0xffa040, vx: Math.cos(a) * 50, vy: -50 - Math.random() * 40, drag: 0.93, sx0: 0.5, sx1: 0.1 });
+      }
+    }
+    this.warmSeen = warm;
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
@@ -1878,6 +1894,22 @@ export class GameScene extends Phaser.Scene {
    * glow with ember cracks, and Chill frosts the screen edge. The Long Night darkens the floor,
    * so only the lights are left.
    */
+  /** Hearthkeeper Warmth at the hero's feet: a glow that grows with each stack, and at full (the cut) a ring with five embers circling it. */
+  private warmthDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, n: number, full: boolean, now: number): void {
+    const f = n / SET_TUNING.hkMax;
+    g.fillStyle(0xff8a2a, 0.06 + 0.1 * f).fillEllipse(x, y, 40 + 16 * f, 15 + 6 * f);
+    if (!full) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+    g.lineStyle(2, 0xffb347, 0.55 + 0.3 * pulse).strokeEllipse(x, y, 58, 21);
+    for (let k = 0; k < SET_TUNING.hkMax; k++) {
+      const a = now / 700 + (k / SET_TUNING.hkMax) * Math.PI * 2;
+      const ex = x + Math.cos(a) * 29;
+      const ey = y + Math.sin(a) * 10.5;
+      g.fillStyle(0xff8a2a, 0.35).fillCircle(ex, ey, 4);
+      g.fillStyle(0xffe0a0, 0.95).fillCircle(ex, ey, 1.8);
+    }
+  }
+
   private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;

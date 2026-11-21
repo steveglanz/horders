@@ -6,7 +6,7 @@ import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, Talen
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
-import { SETS } from '../sim/content/sets';
+import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
@@ -357,6 +357,13 @@ export class Hud {
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
     if ((p.gwT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Glarewarden +10%</span>`);
+    // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).
+    if (w.setCount('hearthkeeper') >= 2) {
+      const n = p.warmth ?? 0;
+      const cut = n >= SET_TUNING.hkMax && w.setCount('hearthkeeper') >= 3;
+      const embers = Array.from({ length: SET_TUNING.hkMax }, (_, k) => `<i${k < n ? ' class="on"' : ''}></i>`).join('');
+      out.push(`<span class="buff warmth${n > 0 ? ' lit' : ''}${cut ? ' full' : ''}" style="--bc:#ffab52" title="Warmth ${n} of ${SET_TUNING.hkMax}: +${Math.round(n * SET_TUNING.hkDamage * 100)}% damage${cut ? `, ${Math.round(SET_TUNING.hkCut * 100)}% less damage taken` : ''}">${glyph(SET_ICON.hearthkeeper, 13)}Warmth<span class="em">${embers}</span>${cut ? `<b>-${Math.round(SET_TUNING.hkCut * 100)}%</b>` : ''}</span>`);
+    }
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
