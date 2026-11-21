@@ -2549,10 +2549,24 @@ export class World {
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
     } else if (id === 'glare') {
       // The lens flares: anyone in the light is burned, anyone in a pillar's shadow is safe.
-      const p = this.player;
-      const hit = !this.shadowed(p.x, p.y);
-      if (hit) this.hurtPlayer(GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
-      this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      const dmg = GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage;
+      if (this.heroes.length === 1) {
+        const p = this.player;
+        const hit = !this.shadowed(p.x, p.y);
+        if (hit) this.hurtPlayer(dmg, i);
+        this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      } else {
+        // Co-op: the flare burns every hero standing in the light.
+        const at = this.acting;
+        let hit = false;
+        this.eachHero((h) => {
+          if (this.shadowed(this.player.x, this.player.y)) return;
+          this.hurtPlayer(dmg, i);
+          if (h === at) hit = true;
+        });
+        this.use(at);
+        this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+      }
     } else if (id === 'brand') {
       this.markT = GLARE.brandTime;
     } else if (id === 'twinBrand') {
@@ -2936,9 +2950,30 @@ export class World {
   }
 
   private burstBrand(): void {
-    const p = this.player;
+    if (this.heroes.length > 1) {
+      // Co-op: every living hero carries a Brand. Each burst hits every hero
+      // inside it, so a party that bunches up takes several.
+      const at = this.acting;
+      const centres: { x: number; y: number }[] = [];
+      for (let h = 0; h < this.heroes.length; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp > 0) centres.push({ x: q.x, y: q.y });
+      }
+      for (const c of centres) this.burstBrandAt(c.x, c.y, true);
+      this.use(at);
+      return;
+    }
+    this.burstBrandAt(this.player.x, this.player.y, false);
+  }
+
+  private burstBrandAt(x: number, y: number, party: boolean): void {
+    const p = { x, y };
     const r = GLARE.brandRadius;
-    this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+    if (party) {
+      this.eachHero(() => {
+        if (dist2(this.player.x, this.player.y, x, y) <= (r + PLAYER_RADIUS) ** 2) this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+      });
+    } else this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
     this.pillars.forEach((c, k) => {
       if (!c.cracked && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
         c.cracked = true;

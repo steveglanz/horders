@@ -882,15 +882,18 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(6, 0xfffbe6, fl).lineBetween(b.x1, b.y1, b.x2, b.y2);
     }
     if (w.markT > 0) {
-      // The Brand: a gold ring on the hero the size of the burst, closing in.
-      const p = w.player;
+      // The Brand: a gold ring the size of the burst, closing in. In co-op every living hero carries one.
       const f = Math.min(1, w.markT / GLARE.brandTime);
       const flick = w.markT < 1.2 ? 0.5 + 0.5 * Math.sin(now / 40) : 1;
-      g.fillStyle(0xffc861, 0.08 + 0.1 * (1 - f)).fillCircle(p.x, p.y, GLARE.brandRadius);
-      g.lineStyle(3, 0xffc861, 0.8 * flick).strokeCircle(p.x, p.y, GLARE.brandRadius);
-      g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
-      g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
-      g.strokePath();
+      for (let h = 0; h < w.heroes.length; h++) {
+        const p = h === w.acting ? w.player : w.heroData(h).player;
+        if (w.heroes.length > 1 && p.hp <= 0) continue;
+        g.fillStyle(0xffc861, 0.08 + 0.1 * (1 - f)).fillCircle(p.x, p.y, GLARE.brandRadius);
+        g.lineStyle(3, 0xffc861, 0.8 * flick).strokeCircle(p.x, p.y, GLARE.brandRadius);
+        g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
+        g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
+        g.strokePath();
+      }
     }
     if (this.glareFlash > 0) {
       // Bright enough to sting, faint enough that you can still see the fight.
