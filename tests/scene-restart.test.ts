@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 // create() refills it keeps those dead objects, and the next layout() or draw that touches them
 // throws. Since #101 the stale gate labels did exactly that, and the second delve in a session
 // never started (fixed in #108). This scans the scene source so the next new list can't
-// repeat it. tools/againcheck.cjs drives three delves in a row in a real browser.
+// repeat it. tools/twodelves.cjs (#109) plays back-to-back delves in a real browser.
 const src = readFileSync(resolve(__dirname, '../client/GameScene.ts'), 'utf8');
 
 /** The body of a two-space-indented method, from its signature to its closing brace. */
