@@ -465,6 +465,8 @@ export type SimEvent =
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
   | { type: 'parry'; x: number; y: number }
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
+  /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
+  | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'cleanse'; x: number; y: number }
   | { type: 'plate'; x: number; y: number; hero: number }
@@ -2487,7 +2489,7 @@ export class World {
     const p = this.player;
     const e = this.enemies[t];
     p.facing = Math.atan2(e.y - p.y, e.x - p.x);
-    this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+    this.events.push({ type: 'lob', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
