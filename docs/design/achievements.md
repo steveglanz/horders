@@ -2,7 +2,7 @@
 
 **Problem.** Titles show over a hero in co-op (engineering's P6 work), but only weekly quests, the season track and the collection book give them. Nothing recognises what a player has *done*: beating each boss, the raid, a deep key, every class.
 
-**Design.** Fifteen achievements, shared by every class like titles and the book. Each one pays its title once, plus embers to the class playing. All the numbers are in `sim/content/achievements.ts`.
+**Design.** Sixteen achievements (fifteen at launch, plus Pressbreaker), shared by every class like titles and the book. Each one pays its title once, plus embers to the class playing. All the numbers are in `sim/content/achievements.ts`.
 
 | Achievement | What to do | Title | Embers |
 |---|---|---|---|
@@ -13,6 +13,7 @@
 | Ebbproof | Beat Hessa of the Ebb in the Wrackline | the Ebbproof | 40 |
 | Anvilbreaker | Beat Ondrel in the Hammerdeep | Anvilbreaker | 40 |
 | Twice-Burned | Beat Ysmeret in the Ashvents | Twice-Burned | 40 |
+| Pressbreaker | Beat Oskel in the Pressworks | Pressbreaker | 40 |
 | Slagbane | Beat Grandmother Slag in the Crucible | Slagbane | 100 |
 | Many Hands | Win a delve with every class | the Many-Handed | 100 |
 | Quencher | Interrupt 100 casts | the Quencher | 40 |
@@ -22,7 +23,7 @@
 | Keybearer | Beat a level 5 Delver's Key | the Keybearer | 40 |
 | Lockbreaker | Beat a level 10 Delver's Key | Lockbreaker | 100 |
 
-All fifteen together pay 840 embers over a long time. That is a little under the collection book's 1,040, so it doesn't move the Forge targets in economy.md.
+All sixteen together pay 880 embers (840 before Pressbreaker) over a long time. That is a little under the collection book's 1,120, so it doesn't move the Forge targets in economy.md.
 
 **Names (checked 21 Nov 2026).** Steve's rule is no names from WoW or Azeroth Survivors.
 - **WoW:** each of the 14 titles was checked against Wowpedia's full title list (the Title page's wikitext, through the fandom API) and with web searches. None is a WoW title. Two were renamed anyway:

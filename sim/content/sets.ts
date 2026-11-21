@@ -7,7 +7,7 @@
 import type { DungeonId } from './dungeon';
 import type { Slot } from './items';
 
-export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound';
+export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound' | 'relay';
 
 export interface SetDef {
   id: SetId;
@@ -55,6 +55,10 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'kinbound', name: 'Kinbound', verb: 'Cover each other', dungeon: 'crucible',
     bonus: ['When an ally heals you, you take 6% less damage for 4s. (A group set: it does nothing solo.)', 'When you heal an ally, or taunt the boss off one, you and that ally deal 6% more damage for 4s.'],
   },
+  relay: {
+    id: 'relay', name: 'Relayer', verb: 'Take turns', dungeon: 'pressworks',
+    bonus: ['Standing in a gold circle when it lands gives you 8% more damage for 12s.', 'It also gives the nearest ally 8% more damage for 12s.'],
+  },
 };
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
@@ -80,4 +84,6 @@ export const SET_TUNING = {
   vwDamage: 0.06, vwHeal: 0.05,
   /** Kinbound: the cut after an ally's heal (2), the damage after you cover an ally (3, for you and them), and how long each lasts. */
   knCovered: 0.06, knBond: 0.06, knTime: 4,
+  /** Relay: the damage after you soak a gold circle (2; 3 also gives it to the nearest ally), and how long it lasts. */
+  rlDamage: 0.08, rlTime: 12,
 };
