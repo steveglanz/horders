@@ -9,7 +9,7 @@
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { Cue, CueContext, cueFor, partyCues, THROTTLE } from './cues';
+import { Cue, CueContext, cueFor, partyCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 
 export type { ThemeId } from './music';
@@ -58,6 +58,7 @@ class AudioEngine {
   private wantIntensity = 0;
   private listeners = new Set<() => void>();
   private wasDown: boolean[] = [];
+  private targeted = { on: false };
 
   get unlocked(): boolean {
     return this.ctx !== null;
@@ -226,6 +227,8 @@ class AudioEngine {
       else if (ev.type === 'end') this.theme(null);
       this.cue(cueFor(ev, ctx));
     }
+    // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
+    this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     if (ctx.hp && ctx.hp.length > 1) partyCues(this.wasDown, ctx.hp, ctx.acting).forEach((c) => this.cue(c));
     else this.wasDown.length = 0;
   }
