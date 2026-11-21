@@ -1,6 +1,6 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
-  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen,
+  brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
@@ -10,6 +10,7 @@ import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
+import { GLOWS, SEASON, seasonDef, seasonLevel, seasonNumber, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { itemHtml, setsWorn } from './ui';
 import { GRIT } from '../sim/content/scaling';
 import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../sim/content/dungeon';
@@ -20,7 +21,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { CLASS_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, CLASS_ICON, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -209,10 +210,11 @@ export class Hub {
         + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
+    const glow = h.wear?.glow ? GLOWS[h.wear.glow] : undefined;
     const worn = items.length;
     $('heroCard').innerHTML = `
-      <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
-        <div><b>${CLASSES[cls].name}</b><div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
+      <div class="who"><span class="gtile${glow ? ' glowing' : ''}" style="--gc:${ci.color}${glow ? `;--glow:${glow.color}` : ''}"${glow ? ` title="Wearing ${glow.name}"` : ''}>${glyph(ci.d, 30)}</span>
+        <div><b>${CLASSES[cls].name}</b>${h.wear?.title ? `<div class="worn-title">${h.wear.title}</div>` : ''}<div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>
       ${h.runs > 0 ? this.collectionButton() : ''}
@@ -311,7 +313,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}</div>`;
+      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -320,7 +322,7 @@ export class Hub {
     this.bindPrep($('tiers'));
     $('tiers').querySelector<HTMLButtonElement>('[data-group]')?.addEventListener('click', () => this.go('group'));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -347,6 +349,16 @@ export class Hub {
     const h = this.hero();
     root.querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onBounty(); });
     root.querySelector<HTMLButtonElement>('[data-key]')?.addEventListener('click', () => { $('sheet').hidden = true; this.onKey(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-wear]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const kind = b.dataset.wear as 'title' | 'glow';
+        const id = b.dataset.id || undefined;
+        if (wearCosmetic(h, kind, h.wear?.[kind] === id ? undefined : id)) {
+          this.save();
+          this.render();
+          if (!$('sheet').hidden && $('sheet').dataset.prep === 'season') this.openPrep('season', []);
+        }
+      }));
     root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
       b.addEventListener('click', () => {
         if (brewPotion(h, b.dataset.potion as PotionId)) {
@@ -387,6 +399,12 @@ export class Hub {
       chips.push(`<button class="prep-chip ${n === wk.quests.length ? 'on' : ''}" data-prep="weekly" data-sfx="open"><span class="star" aria-hidden="true">◆</span>`
         + `<span>Weekly <b>${n}/${wk.quests.length}</b></span></button>`);
     }
+    // P2: the season track, after the first delve like the weekly quests.
+    if (h.runs > 0) {
+      const st = seasonState(h.season, weekOf(Date.now()));
+      chips.push(`<button class="prep-chip" data-prep="season" data-sfx="open"><span class="star" aria-hidden="true">✦</span>`
+        + `<span>Season <b>${seasonLevel(st.marks)}</b></span></button>`);
+    }
     // In a party: a chip with the head count that opens the Group tab.
     if (this.partyClasses.length > 1) {
       chips.unshift(`<button class="prep-chip on" data-group data-sfx="open"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M15 14.6c3 .1 5.2 1.9 5.8 5.4"/></svg><span>Party <b>${this.partyClasses.length}/4</b></span></button>`);
@@ -395,11 +413,11 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key', omens: OmenId[]): void {
-    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key" };
+  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
+    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
     const body = kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
-      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
+      : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
     this.bindPrep($('sheetBody'));
@@ -462,26 +480,68 @@ export class Hub {
       + `${this.keyBoardHtml()}</div>`;
   }
 
+  /** P2: the season sheet's title, e.g. "Season 1: the Hollow Tide". */
+  private seasonTitle(): string {
+    const id = seasonState(this.hero().season, weekOf(Date.now())).id;
+    return `Season ${seasonNumber(id)}: ${seasonDef(id).name}`;
+  }
+
+  /** P2: the season track: level, marks, the first win of the day, rewards, and what to wear. */
+  private seasonLine(): string {
+    const h = this.hero();
+    if (h.runs === 0) return '';
+    const week = weekOf(Date.now());
+    const st = seasonState(h.season, week);
+    const def = seasonDef(st.id);
+    const lvl = seasonLevel(st.marks);
+    const maxed = lvl >= SEASON.levels;
+    const into = st.marks - lvl * SEASON.marksPerLevel;
+    const pct = maxed ? 100 : (100 * into) / SEASON.marksPerLevel;
+    const end = seasonWeeks(st.id)[1] * 7 - dayOf(Date.now());
+    const today = st.firstWinDay === dayOf(Date.now());
+    const rewards = seasonRewards(st.id).map((r) => {
+      const got = lvl >= r.level;
+      const what = r.kind === 'glow' ? `<span class="swatch" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : `Title: <b>${r.title}</b>`;
+      return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
+    }).join('');
+    const titles = h.titles ?? [];
+    const glows = (h.glows ?? []).map((g) => GLOWS[g]).filter(Boolean);
+    const wearT = titles.map((t) => `<button class="wear${h.wear?.title === t ? ' on' : ''}" data-wear="title" data-id="${t}">${t}</button>`).join('');
+    const wearG = glows.map((g) => `<button class="wear${h.wear?.glow === g.id ? ' on' : ''}" data-wear="glow" data-id="${g.id}"><span class="swatch" style="--sw:${g.color}"></span>${g.name}</button>`).join('');
+    return `<div class="box season"><div class="lbl">Season ${seasonNumber(st.id)}: ${def.name}<span class="wq-count">Lv ${lvl}</span></div>`
+      + `<div class="wq-bar"><i style="width:${pct.toFixed(1)}%"></i></div>`
+      + `<div class="kv"><span><b>Lv ${lvl}</b> · ${maxed ? 'Track complete' : `${into} / ${SEASON.marksPerLevel} marks to Lv ${lvl + 1}`}</span><span class="muted">Ends in ${end} ${end === 1 ? 'day' : 'days'}</span></div>`
+      + `<div class="hint">${today ? 'First win of the day: done. Come back tomorrow for another' : `Your first win today pays <b>+${SEASON.firstWin}</b> marks`}. A win pays ${SEASON.win}, a loss ${SEASON.lossBase} plus ${SEASON.lossPerFight} a fight, each weekly quest ${SEASON.weekly}.</div>`
+      + `<div class="sec-h"><span>Rewards</span><span class="muted">Looks only</span></div>${rewards}`
+      + (titles.length || glows.length ? `<div class="sec-h"><span>Wear</span><span class="muted">Tap again to take off</span></div>`
+        + (titles.length ? `<div class="wears">${wearT}</div>` : '') + (glows.length ? `<div class="wears">${wearG}</div>` : '') : '')
+      + `</div>`;
+  }
+
   /** P4: the hero card's one-line Collection button, with the book's count. */
   private collectionButton(): string {
     const have = collectionOf(this.hero());
     const total = BOOK.sets.length * BOOK.sets[0].entries.length + BOOK.mythics.length + BOOK.weaponFx.length;
     const n = [...have].length;
-    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
+    return `<button class="bookbtn" data-book data-sfx="open"><span class="crest" aria-hidden="true">${glyph(BOOK_ICON, 16)}</span><span>Collection</span><b>${n}/${total}</b><i class="chev" aria-hidden="true"></i></button>`;
   }
 
   /** P4: the collection book, shared by every class: sets, Mythics, weapon effects, and the rewards for finishing them. */
   private collectionLine(): string {
     const have = collectionOf(this.hero());
-    const pip = (on: boolean, label: string): string => `<span class="bk-pip${on ? ' on' : ''}" title="${label}${on ? '' : ' (not found yet)'}">${label}</span>`;
+    const pip = (on: boolean, slot: Slot): string => `<span class="bk-pip${on ? ' on' : ''}" title="${SLOT_LABEL[slot]}${on ? '' : ' (not found yet)'}">${glyph(SLOT_ICON[slot as keyof typeof SLOT_ICON], 12)}${SLOT_LABEL[slot]}</span>`;
     const sets = BOOK.sets.map((st) => {
       const def = SETS[st.id];
-      return `<div class="bk-row"><span class="bk-name">${glyph(SET_ICON[st.id], 14)} <b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span>`
-        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), SLOT_LABEL[e.split(':')[2] as Slot])).join('')}</span></div>`;
+      const n = st.entries.filter((e) => have.has(e)).length;
+      return `<div class="bk-row${n === st.entries.length ? ' full' : ''}" style="--gc:${SET_COLOR}"><span class="bk-name"><span class="gtile${n ? '' : ' dim'}">${glyph(SET_ICON[st.id], 16)}</span><span><b>${def.name}</b> <span class="muted">${DUNGEONS[def.dungeon].name}</span></span></span>`
+        + `<span class="bk-pips">${st.entries.map((e) => pip(have.has(e), e.split(':')[2] as Slot)).join('')}</span></div>`;
     }).join('');
-    const tag = (cls?: string): string => (cls ? ` <span class="muted">${CLASSES[cls as keyof typeof CLASSES].name}</span>` : '');
-    const mythics = MYTHIC_IDS.map((m) => `<div class="bk-item${have.has(`mythic:${m}`) ? ' on' : ''}">${have.has(`mythic:${m}`) ? MYTHICS[m].name : '???'}${tag(MYTHICS[m].cls)}</div>`).join('');
-    const fx = WEAPON_FX_IDS.map((f) => `<div class="bk-item${have.has(`fx:${f}`) ? ' on' : ''}">${have.has(`fx:${f}`) ? WEAPON_FX[f].name : '???'}${tag(WEAPON_FX[f].cls)}</div>`).join('');
+    // Tiles: the glyph in its colour once found; a dim outline (the shape, not the name) until then.
+    const tile = (on: boolean, color: string, d: string, name: string, cls?: string): string =>
+      `<div class="bk-item${on ? ' on' : ''}" style="--gc:${color}"><span class="gtile">${glyph(d, 17)}</span><span class="bk-txt">${on ? name : '???'}`
+      + `<span class="muted">${cls ? CLASSES[cls as keyof typeof CLASSES].name : 'Any class'}</span></span></div>`;
+    const mythics = MYTHIC_IDS.map((m) => tile(have.has(`mythic:${m}`), RARITY.mythic.color, MYTHIC_ICON[m], MYTHICS[m].name, MYTHICS[m].cls)).join('');
+    const fx = WEAPON_FX_IDS.map((f) => tile(have.has(`fx:${f}`), CLASS_ICON[WEAPON_FX[f].cls].color, WEAPON_FX_ICON[f], WEAPON_FX[f].name, WEAPON_FX[f].cls)).join('');
     const paid = new Set(this.hero().collectionPaid ?? []);
     const rewards = COLLECTION_REWARDS.map((r) => {
       const n = rewardProgress(r, have);
@@ -682,8 +742,38 @@ export class Hub {
       }));
     act('[data-e]', 'e', (id) => equip(h, id));
     act('[data-s]', 's', (id) => salvage(h, id), true);
-    act('[data-u]', 'u', (id) => upgradeItem(h, id));
-    act('[data-tm]', 'tm', (id) => temperItem(h, id));
+    // The Forge: note the stats before the hammer falls, then light what changed on the redrawn card.
+    const forged = (id: string, kind: 'up' | 'temper', fn: () => unknown): unknown => {
+      const it = h.inventory.find((i) => i.id === id);
+      const before = it ? it.stats.map((s) => `${s.stat}:${s.value}`) : [];
+      const r = fn();
+      if (r !== false && it) {
+        const changed = it.stats.map((s, k) => `${s.stat}:${s.value}` !== before[k]);
+        queueMicrotask(() => this.forgeFlourish(id, kind, changed));
+      }
+      return r;
+    };
+    act('[data-u]', 'u', (id) => forged(id, 'up', () => upgradeItem(h, id)));
+    act('[data-tm]', 'tm', (id) => forged(id, 'temper', () => temperItem(h, id)));
+  }
+
+  /** Forge feedback on every card showing the item: a hammer flash and sparks, the item level (Upgrade) and changed stats lit. */
+  private forgeFlourish(id: string, kind: 'up' | 'temper', changed: boolean[]): void {
+    document.querySelectorAll<HTMLElement>(`[data-it="${id}"]`).forEach((card) => {
+      card.classList.remove('forged', 'up', 'temper');
+      void card.offsetWidth;
+      card.classList.add('forged', kind);
+      if (kind === 'up') card.querySelector('.il')?.classList.add('lit');
+      card.querySelectorAll('.sv').forEach((sv, k) => { if (changed[k]) sv.classList.add('lit'); });
+      if (!card.querySelector('.sparks')) {
+        const sp = document.createElement('i');
+        sp.className = 'sparks';
+        sp.setAttribute('aria-hidden', 'true');
+        sp.innerHTML = '<b></b>'.repeat(8);
+        card.appendChild(sp);
+      }
+      setTimeout(() => { card.classList.remove('forged', 'up', 'temper'); card.querySelector('.sparks')?.remove(); }, 1400);
+    });
   }
 
   /** Phones: one item's full card, what you wear in that slot, and its actions, in a sheet. */
@@ -695,7 +785,7 @@ export class Hub {
     const isWorn = wornIds.has(it.id);
     const sets = setsWorn(h);
     const cur = isWorn ? undefined : equippedItems(h).find((i) => i.slot === it.slot);
-    const body = `<div class="item sheet-item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
+    const body = `<div class="item sheet-item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', sets)}</div>`
       + (cur ? `<div class="sec-h"><span>Wearing now</span><span class="muted">Gear score ${itemScore(it) >= itemScore(cur) ? `<b class="up">+${Math.round(itemScore(it) - itemScore(cur))}</b>` : `<b class="down">${Math.round(itemScore(it) - itemScore(cur))}</b>`}</span></div>`
         + `<div class="item sheet-item cur" style="--rc:${RARITY[cur.rarity].color}">${itemHtml(cur, '', sets)}</div>` : '')
       + `<div class="sheet-acts">${this.itemActs(it, isWorn)}</div>`
@@ -748,7 +838,7 @@ export class Hub {
     } else {
       $('bagList').innerHTML = sorted.map((it) => {
         const isWorn = worn.has(it.id);
-        return `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
+        return `<div class="item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
       }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
       this.bindActs($('bagList'), () => this.openBag());
     }

@@ -1,12 +1,12 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
-import { World, REVIVE_SECONDS } from '../sim/world';
+import { World, REVIVE_SECONDS, BOSS_PHASES } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
-import { SETS } from '../sim/content/sets';
+import { SETS, SET_TUNING } from '../sim/content/sets';
 import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
@@ -56,7 +56,8 @@ export function setsWorn(h: HeroProfile): Partial<Record<string, number>> {
 /** `worn`: the hero's set piece counts, so the card can light the bonuses already active. */
 export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, number>>): string {
   const c = RARITY[it.rarity].color;
-  const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
+  // Each stat in its own span so the Forge can light the one it changed.
+  const stats = it.stats.map((s) => `<span class="sv">${STATS[s.stat].format(s.value)}</span>`).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
   const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const set = it.set ? SETS[it.set] : undefined;
@@ -67,7 +68,7 @@ export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, num
       + '</div>'
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
-  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
+  return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · <span class="il">iLvl ${it.ilvl}</span> · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
 }
 
 const RANK_COLOR: Record<string, string> = { boss: '#ff3b6b', rare: '#9fd0ff', elite: '#ffc861', normal: '#c77dff' };
@@ -306,7 +307,8 @@ export class Hud {
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
-    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
+    const phases = BOSS_PHASES[e.kind] ?? 3;
+    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {
@@ -361,6 +363,13 @@ export class Hud {
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
     if ((p.gwT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Glarewarden +10%</span>`);
+    // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).
+    if (w.setCount('hearthkeeper') >= 2) {
+      const n = p.warmth ?? 0;
+      const cut = n >= SET_TUNING.hkMax && w.setCount('hearthkeeper') >= 3;
+      const embers = Array.from({ length: SET_TUNING.hkMax }, (_, k) => `<i${k < n ? ' class="on"' : ''}></i>`).join('');
+      out.push(`<span class="buff warmth${n > 0 ? ' lit' : ''}${cut ? ' full' : ''}" style="--bc:#ffab52" title="Warmth ${n} of ${SET_TUNING.hkMax}: +${Math.round(n * SET_TUNING.hkDamage * 100)}% damage${cut ? `, ${Math.round(SET_TUNING.hkCut * 100)}% less damage taken` : ''}">${glyph(SET_ICON.hearthkeeper, 13)}Warmth<span class="em">${embers}</span>${cut ? `<b>-${Math.round(SET_TUNING.hkCut * 100)}%</b>` : ''}</span>`);
+    }
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
@@ -530,6 +539,8 @@ export class Hud {
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
       if (rewards.title) notes.push(`<b>Title earned: ${rewards.title}</b>`);
+      if (rewards.seasonMarks) notes.push(`<span class="booknote"><span aria-hidden="true">✦</span> Season +${rewards.seasonMarks} marks${rewards.seasonFirstWin ? ' (first win today)' : ''}${(rewards.seasonTo ?? 0) > (rewards.seasonFrom ?? 0) ? ` · <b>Season level ${rewards.seasonTo}</b>` : ''}</span>`);
+      for (const r of rewards.seasonRewards ?? []) notes.push(`<b>Season reward: ${r.kind === 'glow' ? `${r.glow.name} glow` : `title ${r.title}`}</b>`);
       if (rewards.collectionNew?.length) notes.push(`<span class="booknote"><span aria-hidden="true">❖</span> ${rewards.collectionNew.length} new in your Collection</span>`);
       for (const r of rewards.collectionRewards ?? []) notes.push(`<b>Collection: ${r.name} +${r.embers} embers${r.title ? `, title ${r.title}` : ''}</b>`);
       if (rewards.keyFrom !== undefined && rewards.keyTo !== undefined) {

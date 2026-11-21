@@ -1977,6 +1977,18 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // P2 season glow under the hero: a soft disc with a brighter rim, white so it takes the glow's tint.
+  make(scene, 'heroGlow', 128, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.22)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.3)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0.75)');
+    g.addColorStop(0.88, 'rgba(255,255,255,0.4)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // Ember Vein: a gatherable crystal cluster.

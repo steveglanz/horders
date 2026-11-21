@@ -26,8 +26,46 @@ How it differs from the Glarewell: there you hide in fixed shade. Here you carry
 Soft enrage at 200 s: the Long Night comes twice as often. Burnout (#73) still applies.
 
 **Deferred to a later pass:**
-- Phase 2: the frozen river cracks into lanes you can't cross.
 - A co-op check that Long Night pulls a party together.
+
+## Phase 2: Thin Ice (21 Nov 2026)
+At half health (`COLD.phase2`) Nhevra cracks the frozen river. The target frame now reads "Phase 2 of 2" (`BOSS_PHASES` in sim/world.ts). It also fixes the old "Phase 1 of 3" on bosses without phases: Ondrel and Ysmeret now show none.
+
+| Rule | Value |
+|---|---|
+| Cracks | 2 parallel strips of open water across the arena, 260 apart and centred on Nhevra, at a random angle. The first comes 4 s into the phase, then one every 22 s |
+| Warning | 2.5 s of a pale fracture line before the water opens. Open for 9 s |
+| Open water | The coal drains 5% a second, Chill builds 2 stacks a second, and it burns 6% of max health a second. Crossing a 68-wide strip at walking speed costs roughly half a second of that |
+| Her footing | While a crack is up, Nhevra can't move, so her strip stays between the cracks. While the water is open she takes +25% damage (`thinIceExposed`) |
+| Long Night | Every 40 s in phase 2 instead of 30, so Thin Ice takes over as the pressure |
+
+**The verb it adds:** pick your strip. The floor splits into three, and Snuffers and Frost Wardens come at you across it. In co-op, a party split by a crack can't share one coal's light against the Long Night.
+
+**Bots** (sim/bot.ts) keep off a crack, warned or open. During the warning they step toward Nhevra's side, and once the water is open they take the near side. Every class spent about 0.1 to 0.2 s a run in open water (`tools/coldwater.ts`, new).
+
+### Tuning
+heroes-r2 hero-t8-0, seeds 1 to 40. "Before" is the skills team's L7 table, which my no-change runs matched.
+
+| Pass | Tier | Emberwright | Duskblade | Bulwark | Lumen |
+|---|---|---|---|---|---|
+| Before | 9 | 34 | 28 | 36 | 36 |
+| Before | 10 | 26 | 28 | 25 | 26 |
+| First: every 20 s, open 15 s | 9 | 20 | 12 | 32 | 24 |
+| First | 10 | 12 | 5 | 16 | 11 |
+| Every 22 s, open 9 s, +25% damage taken, rooted, bots go to her side | 9 | 32 | 24 | 34 | 25 |
+| The same | 10 | 25 | 14 | 26 | 17 |
+| **Shipped: plus the Long Night every 40 s in phase 2** | 9 | **34** | **27** | **34** | **26** |
+| **Shipped** | 10 | **25** | **16** | **25** | **18** |
+
+- In the first pass the bots died to the Long Night, not to the water. The cracks pushed melee away from Nhevra and away from frost-touched kills, so the coal ran dry before the Long Night landed.
+- Rooting her was worth 13 against 7 for the Duskblade at tier 10 (seeds 41 to 80).
+- The shipped spread is 9 at tier 10 (25 against 16) and 8 at tier 9, inside the L7 ±15. The Coldmarrow isn't gated, but it is the closest check.
+- Tier 10 is the unlock tier, and it now sits near the 40 to 60% wall band.
+- `tools/contentcheck.ts`: 96 runs, none stuck. The longest Coldmarrow run was 483 s.
+
+**Watch items:**
+- The Duskblade at tier 10: 16/40, down from 28. Its losses come from Nhevra's contact hits while it stands on her, plus a low coal at the Long Night. That's for the skills team's melee bot: kill frost-touched adds to keep the coal up.
+- The Lumen at tier 9: 26, down from 36. It's a healer, so its fight is longer and sees more cracks.
 
 ## The Hearthkeeper set (21 Nov 2026)
 Nhevra's head, hands and trinket drops can be Hearthkeeper pieces, the same way the other solo bosses drop their sets (`withSet`, 60% of set-slot drops, never in bounties). The verb is **keep the flame**: keep killing to stay warm. All numbers are in `SET_TUNING` (`hk*`) in `sim/content/sets.ts`.

@@ -12,7 +12,7 @@ import { World, SimEvent, HeroSlotData } from './world';
 import { ENEMIES } from './content/enemies';
 
 /** Pools sent as their living entries: [index, ...values in `keys` order]. */
-const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins'] as const;
+const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes', 'lances', 'drops', 'veins', 'cracks'] as const;
 /** Small arrays of plain data sent whole. */
 const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route'] as const;
 /** Fields a guest keeps for itself. */

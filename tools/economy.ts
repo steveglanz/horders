@@ -11,6 +11,7 @@ import { SLOTS } from '../sim/content/items';
 import { canUpgrade, maxForgeLevel, upgradeItem, upgradeCost } from '../sim/forge';
 import { bountyFor } from '../sim/content/bounty';
 import { potionCost } from '../sim/content/potions';
+import { seasonLevel } from '../sim/content/season';
 
 const days = Number(process.env.DAYS ?? 10);
 const perDay = Number(process.env.RUNS_PER_DAY ?? 3);
@@ -28,7 +29,7 @@ function play(seed: number, bounty: ReturnType<typeof bountyFor> | null, day: nu
   const potion = bounty ? undefined : takePotion(h);
   const opts = {
     cls: h.cls, seed, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId,
-    tier: bounty ? bounty.tier : tier, week: Math.floor(day / 7), potion,
+    tier: bounty ? bounty.tier : tier, week: Math.floor(day / 7), day, potion,
     grit: bounty ? 0 : gritFor(h, 'kiln', tier), firstClear: !bounty && tier >= h.maxTier,
     ...(bounty ? { dungeon: bounty.dungeon, route: [...bounty.route], omens: [bounty.twist], bounty: bounty.day } : {}),
   };
@@ -86,4 +87,5 @@ const income = src.salvage + src.bounty + src.weekly;
 console.log(`policy ${policy}, ${days} days × ${perDay} delves + bounty: ${delves} delves, ${wins} wins, best tier ${h.maxTier}, hero level ${h.level}`);
 console.log(`embers in: ${income} (salvage ${src.salvage}, bounty ${src.bounty}, weekly ${src.weekly}); per delve ${(income / delves).toFixed(1)}`);
 console.log(`embers out: forge ${sink.forge} (${upgrades} upgrades, ${(upgrades / delves).toFixed(2)} per delve), potions ${sink.potion} (${draughts} Rising Draughts of ${delves} delves)`);
+console.log(`season: id ${h.season?.id}, ${h.season?.marks} marks, level ${seasonLevel(h.season?.marks ?? 0)}, glows ${(h.glows ?? []).join(' ')}`);
 console.log(`left over: ${h.embers}; titles ${(h.titles ?? []).join(', ') || 'none'}`);
