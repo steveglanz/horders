@@ -437,7 +437,38 @@ export class Hud {
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
     }
     const html = out.join('');
-    if ($('buffs').innerHTML !== html) $('buffs').innerHTML = html;
+    if (html !== this.buffsHtml) {
+      this.buffsHtml = html;
+      $('buffs').innerHTML = html;
+      this.fitBuffs();
+    }
+  }
+
+  private buffsHtml = '';
+
+  /**
+   * Narrow phones: keep the buff chips to one row. A second row (Shielded, Ward, a set's proc,
+   * a Mythic...) pushed the target frame and party frames down into the banner and the action
+   * bar. The chips that don't fit fold into a "+N" chip; hold it to list them.
+   */
+  private fitBuffs(): void {
+    if (!this.narrow.matches) return;
+    const box = $('buffs');
+    const kids = [...box.children] as HTMLElement[];
+    if (kids.length < 2) return;
+    const row = kids[0].offsetTop;
+    if (kids[kids.length - 1].offsetTop <= row + 2) return;
+    const more = document.createElement('span');
+    more.className = 'buff more';
+    const folded: string[] = [];
+    box.appendChild(more);
+    // Fold from the end (Mythics and set procs come last; the soak warning comes first).
+    for (let i = kids.length - 1; i > 0 && (more.offsetTop > row + 2 || kids[i].offsetTop > row + 2); i--) {
+      folded.unshift(kids[i].textContent ?? '');
+      kids[i].remove();
+      more.textContent = `+${folded.length}`;
+    }
+    more.setAttribute('aria-label', folded.join(', '));
   }
 
   /** Loot toast: what dropped and whether it was worn right away. */
