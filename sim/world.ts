@@ -3123,6 +3123,9 @@ export class World {
     return Math.abs(angleDiff(Math.atan2(e.y - p.y, e.x - p.x), p.guardAng)) <= (75 * Math.PI) / 180;
   }
 
+  /** True while bulwarkMitigate is turning a hit back (see there). */
+  private turningBack = false;
+
   private bulwarkMitigate(raw: number, src: number): number {
     const p = this.player;
     this.addHeat(raw * 0.2 * (1 + 0.25 * this.rank('grimTally')));
@@ -3143,16 +3146,23 @@ export class World {
     // Anvil Skin turns back a quarter of each hit; Thornwall turns back 15% even outside it.
     const reflect = (p.bastionT > 0 ? 0.25 : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0);
     back += raw * reflect * this.dmgMult;
-    if (back > 0) {
-      const t = src >= 0 && this.enemies[src].alive ? src : (this.nearestEnemies(p.x, p.y, 1, 200)[0] ?? -1);
-      if (t >= 0) this.damageEnemy(t, back, false);
-      if (this.rank('thornwall') > 0) {
-        // Thornwall: what is turned back hits everything around the Bulwark.
-        this.forEachNear(p.x, p.y, 140, (i) => {
-          const e = this.enemies[i];
-          if (i === t || dist2(p.x, p.y, e.x, e.y) > (120 + e.def.radius) ** 2) return;
-          this.damageEnemy(i, back, false, true);
-        });
+    // A hit that comes back while the Bulwark is turning one back (a Glass Warden's Mirror Ward)
+    // is taken but not turned back again: otherwise the two bounce it forever and the sim never returns.
+    if (back > 0 && !this.turningBack) {
+      this.turningBack = true;
+      try {
+        const t = src >= 0 && this.enemies[src].alive ? src : (this.nearestEnemies(p.x, p.y, 1, 200)[0] ?? -1);
+        if (t >= 0) this.damageEnemy(t, back, false);
+        if (this.rank('thornwall') > 0) {
+          // Thornwall: what is turned back hits everything around the Bulwark.
+          this.forEachNear(p.x, p.y, 140, (i) => {
+            const e = this.enemies[i];
+            if (i === t || dist2(p.x, p.y, e.x, e.y) > (120 + e.def.radius) ** 2) return;
+            this.damageEnemy(i, back, false, true);
+          });
+        }
+      } finally {
+        this.turningBack = false;
       }
     }
     return amount;
