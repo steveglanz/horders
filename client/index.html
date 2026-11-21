@@ -63,6 +63,18 @@
   #tCast.kick #tCastFill { background: linear-gradient(90deg, #2a6fb0, #8fd8ff); }
   @keyframes pulse { from { box-shadow: 0 0 4px rgba(120,200,255,0.4); } to { box-shadow: 0 0 16px rgba(120,200,255,0.9); } }
 
+  /* Co-op party frames, under your own health bar. */
+  #party { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 0 48px; width: 172px; }
+  .pf { display: flex; align-items: center; gap: 7px; padding: 4px 8px 5px 4px; border-radius: 10px; background: rgba(12,7,6,0.72); border: 1px solid var(--line); border-left: 3px solid var(--gc); }
+  .pf .gtile { width: 24px; height: 24px; border-radius: 7px; flex: none; }
+  .pfb { flex: 1; min-width: 0; }
+  .pfn { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.2; text-shadow: 0 1px 2px #000; }
+  .pfn b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pfn i { display: none; margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.06em; }
+  .pfbar { height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(0,0,0,0.6); overflow: hidden; }
+  .pfbar div { height: 100%; width: 100%; background: linear-gradient(90deg, #3fa86a, #6fe08a); transition: width 0.12s; }
+  .pf.down { opacity: 0.6; filter: grayscale(0.8); }
+  .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }
   .buff { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid var(--bc, var(--line)); color: var(--bc, var(--ink)); white-space: nowrap; }
   .buff.debuff { --bc: var(--gold); animation: pulse 0.5s infinite alternate; }
@@ -262,16 +274,27 @@
   .sbtn:hover { border-color: var(--ember); }
   .sbtn.danger { border-color: rgba(255,59,107,0.5); color: var(--danger); }
   .sbtn.gold { border-color: rgba(255,200,97,0.6); color: var(--gold); }
-  .coop { margin-top: 12px; font-size: 13px; }
-  .coop .ttl { font: 600 17px var(--serif); margin: 4px 0 6px; }
-  .coop .code { font: 600 30px var(--serif); letter-spacing: 6px; color: var(--gold); }
-  .coop .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
-  .coop input { user-select: text; -webkit-user-select: text; touch-action: manipulation; width: 7.5em; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.35); color: inherit; font: 600 16px var(--sans, inherit); letter-spacing: 3px; text-transform: uppercase; }
-  .coop button { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(28,18,16,0.85); color: inherit; }
-  .coop ul { margin: 8px 0 0; padding-left: 18px; }
-  .coop button.quick { border-color: var(--gold); color: var(--gold); font-weight: 600; }
-  .coop label.open { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-  .coop label.open input { width: auto; padding: 0; }
+  /* Co-op lobby: party code, seats, Quick join. */
+  .coop { margin-top: 12px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .coop .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .coop .ttl { font: 600 17px var(--serif); }
+  .coop .cnote { color: var(--gold); font-size: 12px; }
+  .coop .codechip { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 12px; border: 1px dashed rgba(255,200,97,0.45); background: rgba(255,200,97,0.06); }
+  .coop .code { font: 600 28px var(--serif); letter-spacing: 6px; color: var(--gold); user-select: text; -webkit-user-select: text; }
+  .coop .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .coop input { user-select: text; -webkit-user-select: text; touch-action: manipulation; flex: 1; min-width: 0; max-width: 10em; min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.35); color: inherit; font: 600 16px var(--sans, inherit); letter-spacing: 3px; text-transform: uppercase; }
+  .coop button.quick { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--gold); background: linear-gradient(180deg, rgba(255,200,97,0.22), rgba(255,138,61,0.12)); color: var(--gold); font-size: 13px; font-weight: 700; }
+  .coop button:disabled { opacity: 0.5; }
+  .coop .seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .coop .seats ul { display: contents; }
+  .coop .seat { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 8px; border-radius: 12px; background: var(--card-solid, rgba(26,16,14,0.9)); border: 1px solid var(--line); border-left: 3px solid var(--gc); min-width: 0; }
+  .coop .seat .gtile { width: 30px; height: 30px; }
+  .coop .seat b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .coop .seat .you { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .coop .seat.empty { --gc: rgba(255,240,225,0.18); border-style: dashed; border-left-width: 1px; color: var(--muted); background: transparent; }
+  .coop .seat.empty .gtile { color: var(--muted); font-size: 18px; background: rgba(255,240,225,0.05); }
+  .coop label.open { display: flex; gap: 8px; align-items: center; }
+  .coop label.open input { flex: none; width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--gold); }
   .wboss { margin-top: 12px; border-color: rgba(255,59,107,0.35); font-size: 13px; }
   .wboss .lbl { color: var(--danger); }
   .wboss .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -383,6 +406,7 @@
   @media (max-width: 560px) {
     #target { top: 56px; width: calc(100vw - 24px); }
     #quests { left: max(12px, env(safe-area-inset-left)); right: auto; top: 118px; width: 60vw; font-size: 11px; }
+    #party { position: fixed; left: max(12px, env(safe-area-inset-left)); top: 150px; margin: 0; width: 150px; }
     #quests h3 { display: none; }
     #quests .q:not(.now), #quests .qp { display: none; }
     #actionbar { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; align-items: flex-end; }
@@ -416,6 +440,7 @@
     <button id="pauseBtn" aria-label="Pause">II</button>
   </div>
   <div id="buffs"></div>
+  <div id="party" hidden></div>
   <div id="quests"></div>
   <div id="target" hidden>
     <div class="tname"><span id="tName"></span><span id="tTitle"></span><span id="tPhase"></span></div>
