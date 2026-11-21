@@ -8,6 +8,7 @@
  */
 import { Rng } from './rng';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
+import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
 import { CLASSES, ClassDef } from './content/classes';
@@ -528,6 +529,8 @@ export interface WorldOptions {
   firstClear?: boolean;
   /** Day number of a daily bounty run: no forks, and the summary is marked so it doesn't count toward tiers or Grit. */
   bounty?: number;
+  /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
+  keyLevel?: number;
 }
 
 export interface RunSummary {
@@ -549,6 +552,8 @@ export interface RunSummary {
   bounty?: number;
   /** Fights cleared before the run ended (a run that clears none earns no chest). */
   fightsCleared?: number;
+  /** P3: the key level, for a Delver's Key run. */
+  keyLevel?: number;
   /** P1 weekly quests: the week, this hero's interrupts, and named elites the party felled. */
   week?: number;
   interrupts?: number;
@@ -571,6 +576,10 @@ export class World {
   cls: ClassId;
   classDef: ClassDef;
   readonly worldBoss: string;
+  /** P3: key level of a Delver's Key run (0 for a normal delve). */
+  readonly keyLevel: number;
+  private keyHp = 1;
+  private keyDmg = 1;
   /** The week (weekOf in omens.ts) this run was played in, for weekly quests. */
   readonly week: number | undefined;
   shadowDamage = 0;
@@ -754,6 +763,8 @@ export class World {
     // Potions are for your own delves; the daily bounty is the same run for everyone.
     this.potion = opts.bounty === undefined ? opts.potion : undefined;
     this.bounty = opts.bounty;
+    this.keyLevel = opts.keyLevel ?? 0;
+    ({ hp: this.keyHp, dmg: this.keyDmg } = keyScale(this.keyLevel));
     this.firstClear = !!opts.firstClear && opts.bounty === undefined;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
@@ -1130,6 +1141,7 @@ export class World {
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
       week: this.week,
+      ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
     };
@@ -1576,7 +1588,7 @@ export class World {
     const idx = this.enemies.findIndex((e) => !e.alive);
     if (idx < 0) return -1;
     const e = this.enemies[idx];
-    const tierHp = Math.pow(1.22, this.tier - 1) * (this.stress ? 1 : partyHealth(this.partySize));
+    const tierHp = Math.pow(1.22, this.tier - 1) * (this.stress ? 1 : partyHealth(this.partySize) * this.keyHp);
     const depth = this.stress ? 1 : def.rank === 'boss' ? 1 : 1 + 0.12 * this.encounter;
     const scale = (this.stress && def.rank === 'normal' ? 1 + this.time / 220 : depth) * tierHp;
     e.alive = true;
@@ -1654,7 +1666,7 @@ export class World {
   }
 
   get tierDamage(): number {
-    return Math.pow(1.12, this.tier - 1);
+    return Math.pow(1.12, this.tier - 1) * this.keyDmg;
   }
 
   /** `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). */

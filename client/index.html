@@ -404,7 +404,7 @@
   #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
   #stats div { padding: 10px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); }
   #stats b { display: block; font: 600 22px var(--serif); font-variant-numeric: tabular-nums; }
-  #stats span { display: block; margin-top: 2px; font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  #stats span { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   .end-grid { display: grid; gap: 10px 20px; margin-top: 12px; text-align: left; }
   .end-col { display: flex; flex-direction: column; gap: 10px; }
   #endXp .top, #rewards .top, .wbcard .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
@@ -574,10 +574,11 @@
     /* Icon-only action buttons: the names live in the pause menu (hold for details). */
     .ab .n { display: none; }
     .ab svg { margin-top: 13px; }
-    /* Fight intro: a compact card in the upper band instead of a paragraph over your hero. */
-    #banner { top: 21%; width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
+    /* Fight intro: a compact card in the upper band instead of a paragraph over your hero, below the target frame (up to 152px with a cast bar). */
+    #banner { top: max(21%, 164px); width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
     /* With party frames down the left, the intro card drops below your hero instead of covering them. */
-    #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: 56%; }
+    /* Anchored to the action bar's top edge (HEAT + 2 rows of 64px buttons), so a long raid hint never covers HEAT. */
+    #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px); }
     #party { width: 140px; gap: 4px; }
     .pf { padding: 3px 6px 4px 3px; gap: 5px; }
     .pf .gtile { width: 20px; height: 20px; }
@@ -586,11 +587,14 @@
     #bannerSub { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     #target .tname { gap: 6px; }
     #tName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* A long name ("Morrowfang, Hollow Warden") keeps its line; the rank and state drop to a second line only when they don't fit. */
+    #target .tname { flex-wrap: wrap; row-gap: 1px; }
+    #tName { flex: 0 1 auto; max-width: 100%; }
     #tTitle, #tPhase { flex: none; white-space: nowrap; }
     #stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
     #stats div { padding: 8px 2px; }
     #stats b { font-size: 17px; }
-    #stats span { font-size: 10px; letter-spacing: 0.06em; }
+    #stats span { font-size: 11px; letter-spacing: 0.04em; }
     #endTitle { margin-top: 8px; }
     #rewards .item { padding: 8px 10px; }
     .toast { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -617,7 +621,10 @@
     .hp { width: min(21vw, 200px); }
     #tPct { display: none; }
     .toast:nth-child(n+3) { display: none; }
-    #banner, #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: 24%; max-width: min(46vw, 440px); }
+    /* Just under the top row, so the card clears your hero and its nameplate in the middle of a short screen. */
+    #banner, #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: calc(max(8px, env(safe-area-inset-top)) + 60px); bottom: auto; max-width: min(46vw, 440px); padding: 6px 14px 8px; }
+    #bannerTitle { font-size: 20px; }
+    #bannerSub { font-size: 12px; }
     #endTitle { margin-top: 4px; font-size: 36px; }
     .end-grid { grid-template-columns: 1fr 1fr; }
     #draft .panel { padding: 14px 18px; }
@@ -719,6 +726,15 @@
   .po b { font: 600 14px var(--serif); }
   .po i { font-style: normal; font-size: 12px; color: var(--muted); }
 
+  /* 360px and narrower: a boss's name matters more than its rank ("RAID BOSS"), so the rank steps aside instead of cutting the name to "Grandmother ...". */
+  @media (max-width: 360px) {
+    #hud.vsboss #tTitle { display: none; }
+  }
+  /* Touch screens (tablets too): settings toggles and the tier row keep 44px taps. */
+  @media (pointer: coarse) {
+    .seg button { min-height: 44px; }
+    .tierrow { gap: 2px; }
+  }
   /* Left-handed touch layout (Settings > Ability buttons: Left): buttons under the left thumb, toasts move right. */
   @media (pointer: coarse) {
     body.lefty #actionbar { left: max(10px, env(safe-area-inset-left)); right: auto; transform: none; align-items: flex-start; }
@@ -744,7 +760,13 @@
   /* Delve tab: dungeons scroll sideways, prep (Omens, potion, bounty) folds into chips that open sheets. */
   .prep { display: none; }
   body.tabs .prep-full { display: none; }
-  body.tabs .prep { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+  /* A prep sheet's title already names the box ("Weekly quests" twice), so the box label steps aside there. */
+  #sheet[data-prep] .box > .lbl:first-child { display: none; }
+  /* Weekly quest progress ("0/3 · +96") stays on one line; the quest text wraps instead. */
+  .weekly .kv > span:last-child { white-space: nowrap; flex: none; }
+  .weekly .kv { gap: 10px; }
+  /* Chips wrap instead of scrolling sideways: a hidden 5th chip (Key, Weekly) had no hint it was there. */
+  body.tabs .prep { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   body.tabs .prep::-webkit-scrollbar { display: none; }
   .prep-chip { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 0 14px 0 10px; border-radius: 999px; border: 1px solid var(--card-line); background: var(--card-solid); color: var(--ink); font: 600 13px var(--sans); white-space: nowrap; }
   .prep-chip.on { border-color: rgba(255,200,97,0.5); }
@@ -753,6 +775,52 @@
   .prep-chip .star { color: var(--gold); font-size: 16px; }
   .prep-chip svg { flex: none; }
   .sheet .bounty { margin-top: 10px; }
+  /* P1 weekly quests: a teal card (progress over the week), a diamond per quest that fills when done, a bar each, and the title as a crest. */
+  .prep-chip[data-prep="weekly"] .star { color: var(--xp); }
+  /* P3 Delver's Keys: a violet card with a key badge, the run, what each level adds, and how the key moves. */
+  .prep-chip[data-prep="key"] { border-color: rgba(190,140,255,0.45); }
+  .prep-chip[data-prep="key"] .star { color: #c9a2ff; font-size: 18px; }
+  .prep-chip[data-prep="key"] b { color: #d9bcff; }
+  .box.key { margin-top: 12px; border-color: rgba(190,140,255,0.38); background: linear-gradient(160deg, rgba(160,110,255,0.10), transparent 60%), var(--card); }
+  .key .lbl { color: #c9a2ff; display: flex; justify-content: space-between; align-items: center; }
+  .key-best { font: 700 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); background: rgba(190,140,255,0.14); border: 1px solid rgba(190,140,255,0.4); border-radius: 999px; padding: 1px 9px; }
+  .key-head { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+  .key-badge { flex: none; width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; align-content: center; background: radial-gradient(circle at 50% 30%, rgba(200,160,255,0.35), rgba(60,30,90,0.6)); border: 1px solid rgba(200,160,255,0.55); box-shadow: 0 0 16px rgba(170,110,255,0.25), inset 0 1px 0 rgba(255,255,255,0.15); }
+  .key-badge .kg { font-size: 20px; line-height: 1; color: #e6d4ff; }
+  .key-badge b { font: 700 17px var(--serif); color: #fff; line-height: 1.1; }
+  .key-run { min-width: 0; }
+  .key-run .ttl { font: 600 17px var(--serif); margin: 0 0 4px; }
+  .key-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+  .key-sub .gtile { border-radius: 6px; }
+  .key-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .key-stats span { font-size: 12px; color: var(--muted); background: rgba(0,0,0,0.3); border: 1px solid rgba(190,140,255,0.2); border-radius: 8px; padding: 3px 8px; }
+  .key-stats b { color: var(--ink); }
+  .key-ladder { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; font-size: 12px; }
+  .key-ladder .up2 { color: #9fe8a8; } .key-ladder .up1 { color: #cfe8b0; } .key-ladder .dn { color: #ff8aa5; }
+  .key .pay { color: var(--ember); font-weight: 700; }
+  .key .row2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; }
+  .keynote { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(190,140,255,0.45); background: rgba(160,110,255,0.12); color: #e6d4ff; font-weight: 600; }
+  .keynote.up b { color: #9fe8a8; } .keynote.down b { color: #ff8aa5; }
+  .box.weekly { margin-top: 12px; border-color: rgba(79,227,193,0.3); background: linear-gradient(160deg, rgba(79,227,193,0.07), transparent 55%), var(--card); }
+  .weekly .lbl { color: var(--xp); display: flex; justify-content: space-between; align-items: center; }
+  .weekly .wq-count { font: 700 12px var(--sans); color: var(--ink); background: rgba(79,227,193,0.14); border: 1px solid rgba(79,227,193,0.35); border-radius: 999px; padding: 1px 9px; }
+  .wq { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; }
+  .wq .pip { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; transform: rotate(0deg); background: rgba(0,0,0,0.35); border: 1px solid rgba(79,227,193,0.35); color: rgba(79,227,193,0.6); font-size: 12px; }
+  .wq.done .pip { background: var(--xp); border-color: var(--xp); color: #0b1a16; font-weight: 800; }
+  .wq-main { flex: 1; min-width: 0; }
+  .wq-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .wq-top b { color: var(--ink); }
+  .wq-top .pay { color: var(--ember); font-weight: 700; }
+  .wq-txt { font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+  .wq-bar { height: 6px; border-radius: 3px; background: rgba(0,0,0,0.45); margin-top: 6px; overflow: hidden; }
+  .wq-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #2bb59a, var(--xp)); }
+  .wq.done .wq-top, .wq.done .wq-txt { opacity: 0.6; }
+  .wq-n { font-size: 11px; color: var(--muted); margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
+  .wq-title { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed rgba(255,200,97,0.3); font-size: 12px; color: var(--muted); }
+  .wq-title .crest { color: rgba(255,200,97,0.55); font-size: 16px; }
+  .wq-title b { color: var(--gold); }
+  .wq-title.earned { border-style: solid; border-color: rgba(255,200,97,0.55); background: rgba(255,200,97,0.08); color: var(--ink); }
+  .wq-title.earned .crest { color: var(--gold); text-shadow: 0 0 8px rgba(255,200,97,0.6); }
   .sheet .pots { margin-top: 4px; }
   .sheet .omens { margin-top: 10px; }
   body.tabs .dungeons { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
