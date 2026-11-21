@@ -17,7 +17,7 @@ export interface PotionDef {
 }
 
 export const POTIONS: Record<PotionId, PotionDef> = {
-  risingDraught: { id: 'risingDraught', name: 'Rising Draught', blurb: 'The first blow that would fell you leaves you at a quarter of your health instead.', cost: 30, costPerTier: 6 },
+  risingDraught: { id: 'risingDraught', name: 'Rising Draught', blurb: 'The first blow that would fell you leaves you at a quarter of your health instead. Solo dungeons only.', cost: 30, costPerTier: 6 },
   stillwater: { id: 'stillwater', name: 'Stillwater Tonic', blurb: 'Your interrupt recovers 40% faster this delve.', cost: 10 },
   kindling: { id: 'kindling', name: 'Kindling Brew', blurb: 'Start the delve one level up, with a talent pick.', cost: 12 },
 };

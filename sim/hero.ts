@@ -697,6 +697,15 @@ export function brewPotion(hero: HeroProfile, id: PotionId): boolean {
 }
 
 /** Takes the waiting potion for a delve that's starting (it's used up either way). */
+/**
+ * Whether a brewed potion does anything in this dungeon. Rising Draught is solo only: in a group
+ * dungeon or the raid the party picks a fallen hero up, and a Rising Draught on the tank made a
+ * group dungeon nearly unlosable (docs/design/potions.md). It stays brewed for the next solo delve.
+ */
+export function potionWorksIn(id: PotionId, dungeon: DungeonId | undefined): boolean {
+  return id !== 'risingDraught' || DUNGEONS[dungeon ?? 'kiln'].style === 'solo';
+}
+
 export function takePotion(hero: HeroProfile): PotionId | undefined {
   const p = hero.potion;
   hero.potion = undefined;

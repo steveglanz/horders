@@ -7,7 +7,7 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
+import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
 import { DUNGEONS } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
@@ -235,7 +235,8 @@ function startRun(bounty = false, key = false): void {
     bossOmen: hub.bossOmen(),
   };
   // A brewed potion goes into this delve and is used up (the bounty never takes one).
-  if (!bounty && !stress && hero.potion) {
+  // A Rising Draught stays brewed through a group dungeon, where it does nothing (potionWorksIn).
+  if (!bounty && !stress && hero.potion && potionWorksIn(hero.potion, opts.dungeon)) {
     opts.potion = takePotion(hero);
     save();
   }
@@ -516,7 +517,7 @@ const coopEvents = {
     lastBounty = false;
     lastKey = false;
     // A guest's brewed potion went into this delve with their card, so it is used up here (never by a bounty).
-    if (opts.bounty === undefined && hero.potion && opts.party?.[me - 1]?.potion === hero.potion) {
+    if (opts.bounty === undefined && hero.potion && opts.party?.[me - 1]?.potion === hero.potion && potionWorksIn(hero.potion, opts.dungeon)) {
       takePotion(hero);
       save();
     }
