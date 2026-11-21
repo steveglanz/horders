@@ -268,6 +268,8 @@ export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
   // Pressbreaker: Oskel's press plate broken in two, the halves tipping apart over the floor. Brass, the Pressworks' colour.
   // Crawbreaker: Old Coalmouth's Craw split down the middle, its embers spilling out of the gap. Deep ember red, apart from the Crucible's orange.
   'boss:hoard': { color: '#ff5a2a', d: 'M9.5 4C5 8 3 12 3.6 15.8a5.6 5.6 0 0 0 5.4 4.4l-1.3-3.2 1.9-2.4-2-2.8 1.8-2.8Z M14.5 4C19 8 21 12 20.4 15.8a5.6 5.6 0 0 1-5.4 4.4l1.3-3.2-1.9-2.4 2-2.8-1.8-2.8Z M12 13.5v.01 M12 18v.01 M12 22v.01' },
+  // Raid 3, the Smeltery ("get behind him"): his riveted front plate, and an arrow going round it to his back.
+  'boss:smeltery': { color: '#ffb35c', d: 'M2.5 5h8v10l-4 3.5-4-3.5Z M5 8.5v.01 M8 8.5v.01 M5 12.5v.01 M8 12.5v.01 M7 21c6 1 12-2 13.5-8 .5-2 .3-4-.5-5.8 M17.5 9.5l2.6-2.6 2.6 2.4' },
   'boss:pressworks': { color: '#c8c27a', d: 'M9.5 4.5 3 6v6.5l6.5-1.5-1.2-3.4Z M14.5 4.5 21 6v6.5L14.5 11l1.2-3.4Z M3 20.5h18 M12 14v3.5 M8 16l-1.5 1.5 M16 16l1.5 1.5' },
   // The Wrackline (Ebbproof): Hessa's drain, a whirlpool over a wave. Seafoam, so it stays clear of the Foundry's blue.
   'boss:wrackline': { color: '#6fe0b0', d: 'M12 12.5a1.6 1.6 0 1 1 3.2 0a3.8 3.8 0 0 1-7.6 0a6 6 0 0 1 12 0 M3 20.5q2.25-2 4.5 0t4.5 0 4.5 0 4.5 0' },
