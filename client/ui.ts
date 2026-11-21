@@ -359,7 +359,10 @@ export class Hud {
     const el = document.createElement('div');
     el.className = 'toast' + (equipped ? ' up' : '');
     el.style.setProperty('--rc', RARITY[it.rarity].color);
-    el.innerHTML = `<b>${it.name}</b> <span class="sub">${RARITY[it.rarity].name}</span><div class="sub">${equipped ? `Equipped, upgrade +${delta}` : 'Sent to your bags'}</div>`;
+    // Phones show the short form on one line (".ts"); the rarity is in the colour.
+    el.innerHTML = `<b>${it.name}</b> <span class="sub tr">${RARITY[it.rarity].name}</span>`
+      + `<div class="sub tl">${equipped ? `Equipped, upgrade +${delta}` : 'Sent to your bags'}</div>`
+      + `<span class="sub ts">${equipped ? `\u25B2 +${delta}` : 'to bags'}</span>`;
     const box = $('toasts');
     box.prepend(el);
     while (box.children.length > 4) box.lastChild!.remove();
