@@ -371,6 +371,7 @@ mountDisplayOptions(el('hubOpts'));
 (window as unknown as { __ember: unknown }).__ember = {
   scene: () => game.scene.getScene('game') as GameScene | null,
   hero: () => hero,
+  hub: () => hub,
   audio,
 };
 

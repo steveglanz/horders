@@ -1660,6 +1660,179 @@ function drawSlagCrone(ctx: Ctx, s: number, f: number): void {
 }
 
 /**
+ * The Cinder Colossus (a world boss; its shadow fight uses this sheet): a hulking giant of stacked cinder blocks,
+ * all shoulders and fists, with a tiny head and one furnace slit for an eye. Knuckles drag on the ground; the
+ * shoulders heave as it breathes and the core in its chest pulses. 128 units, faces right.
+ */
+function drawColossus(ctx: Ctx, s: number, f: number): void {
+  const heave = [0, -1.5, -3, -1.5][f];
+  const pulse = [0.7, 0.85, 1, 0.85][f];
+  const c = s / 2;
+  softGlow(ctx, c, 70, 56, `rgba(255,120,40,${0.14 * pulse})`);
+  // Stubby pillar legs.
+  for (const x of [c - 20, c + 12]) {
+    ctx.beginPath(); ctx.rect(x, 96, 16, 24);
+    shade(ctx, '#3e3532', '#141010', 96, 120, 1.8);
+  }
+  cracks(ctx, [[[c - 14, 100], [c - 10, 110], [c - 13, 118]], [[c + 18, 102], [c + 21, 114]]], '#ff8a3d', 1.2);
+  // The torso: a wide block, narrower at the waist.
+  ctx.beginPath();
+  ctx.moveTo(c - 34, 44 + heave);
+  ctx.lineTo(c + 34, 44 + heave);
+  ctx.lineTo(c + 24, 100);
+  ctx.lineTo(c - 24, 100);
+  ctx.closePath();
+  shade(ctx, '#544945', '#1a1514', 44, 100, 2.2);
+  // Block seams across the body.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(12,5,6,0.7)'; ctx.lineWidth = 1.4;
+  for (const [x1, y1, x2, y2] of [[c - 31, 62, c + 31, 62], [c - 27, 82, c + 27, 82], [c - 8, 44, c - 10, 62], [c + 14, 62, c + 12, 82], [c - 14, 82, c - 13, 100]]) {
+    ctx.beginPath(); ctx.moveTo(x1, y1 + (y1 < 50 ? heave : 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.restore();
+  // The core: a glowing furnace heart behind a cracked plate.
+  softGlow(ctx, c + 2, 70, 16, `rgba(255,170,70,${0.85 * pulse})`);
+  ell(ctx, c + 2, 70, 7, 7);
+  ctx.save(); ctx.fillStyle = '#ffd890'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 8 * pulse; ctx.fill(); ctx.restore();
+  cracks(ctx, [[[c - 6, 64], [c + 2, 70], [c - 4, 78]], [[c + 10, 64], [c + 2, 70], [c + 12, 76]], [[c - 20, 90], [c - 10, 94], [c + 2, 90]]], '#ff9b4a', 1.4);
+  // Boulder shoulders.
+  for (const [x, r] of [[c - 34, 15], [c + 34, 15]] as const) {
+    ell(ctx, x, 44 + heave, r, r * 0.85);
+    shade(ctx, '#655853', '#221b19', 30 + heave, 58 + heave, 2);
+  }
+  cracks(ctx, [[[c - 42, 40 + heave], [c - 34, 36 + heave], [c - 28, 42 + heave]], [[c + 28, 40 + heave], [c + 36, 37 + heave]]], '#ff8a3d', 1.1);
+  // Arms hanging to knuckles that drag the ground.
+  limb(ctx, c - 40, 54 + heave, c - 46, 92, 11, '#433835');
+  limb(ctx, c + 40, 54 + heave, c + 47, 92, 11, '#4a3f3b');
+  for (const x of [c - 47, c + 48]) {
+    ell(ctx, x, 104, 11, 9);
+    shade(ctx, '#5a4e49', '#1c1716', 95, 113, 1.8);
+  }
+  cracks(ctx, [[[c + 42, 102], [c + 48, 106], [c + 54, 102]]], '#ff8a3d', 1);
+  // A tiny head sunk between the shoulders, with one furnace slit for an eye.
+  ctx.beginPath();
+  ctx.moveTo(c - 10, 42 + heave);
+  ctx.lineTo(c - 8, 26 + heave);
+  ctx.lineTo(c + 10, 25 + heave);
+  ctx.lineTo(c + 13, 42 + heave);
+  ctx.closePath();
+  shade(ctx, '#6a5d57', '#2a2220', 25 + heave, 42 + heave, 1.8);
+  ctx.save();
+  ctx.fillStyle = '#ffc861'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6;
+  ctx.fillRect(c - 1, 32 + heave, 13, 3);
+  ctx.restore();
+}
+
+/**
+ * The Furnace Regent (a world boss; its shadow fight uses this sheet): a tall, regal stove of black iron in a
+ * heavy mantle, a crown of flame on a grated face, the grate in its belly roaring, and a poker for a sceptre.
+ * The crown flickers and the mantle sways. 128 units, faces right.
+ */
+function drawRegent(ctx: Ctx, s: number, f: number): void {
+  const sway = [0, 1.2, 2.4, 1.2][f];
+  const flick = [0, 1, 2, 1][f];
+  const c = s / 2;
+  softGlow(ctx, c, 60, 58, 'rgba(255,140,50,0.14)');
+  // The mantle: a heavy cloak falling wide to the ground behind the body.
+  ctx.beginPath();
+  ctx.moveTo(c - 18, 36);
+  ctx.quadraticCurveTo(c - 44, 70, c - 46 - sway, 122);
+  ctx.quadraticCurveTo(c, 128, c + 40 + sway * 0.5, 122);
+  ctx.quadraticCurveTo(c + 36, 70, c + 18, 36);
+  ctx.closePath();
+  shade(ctx, '#6a2432', '#1e0a10', 36, 124, 2.2);
+  // The mantle's ermine of pale ash at the hem.
+  ctx.save();
+  ctx.strokeStyle = '#cbbcae'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(c - 44 - sway, 119); ctx.quadraticCurveTo(c, 125, c + 38 + sway * 0.5, 119); ctx.stroke();
+  ctx.restore();
+  // The body: a tall iron stove, flared at the base.
+  ctx.beginPath();
+  ctx.moveTo(c - 15, 40);
+  ctx.lineTo(c + 15, 40);
+  ctx.lineTo(c + 20, 112);
+  ctx.lineTo(c - 20, 112);
+  ctx.closePath();
+  shade(ctx, '#4a4446', '#141214', 40, 112, 2);
+  // Rivets and a brass band.
+  ctx.save();
+  ctx.fillStyle = '#c8a050';
+  ctx.fillRect(c - 17, 58, 34, 3);
+  ctx.fillStyle = 'rgba(200,180,150,0.6)';
+  for (const y of [48, 70, 104]) for (const x of [c - 12, c + 12]) { ctx.beginPath(); ctx.arc(x, y, 1.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  // The grate in its belly, roaring.
+  softGlow(ctx, c, 86, 20, 'rgba(255,170,70,0.9)');
+  ctx.beginPath(); ctx.rect(c - 11, 74, 22, 22);
+  shade(ctx, '#ffd890', '#ff6a2a', 74, 96, 1.6);
+  ctx.save();
+  ctx.strokeStyle = '#1a1214'; ctx.lineWidth = 2.2;
+  for (const x of [c - 5.5, c, c + 5.5]) { ctx.beginPath(); ctx.moveTo(x, 74); ctx.lineTo(x, 96); ctx.stroke(); }
+  ctx.restore();
+  // Back arm under the mantle; front arm holds the poker sceptre, its tip glowing.
+  limb(ctx, c - 14, 46, c - 24, 72, 6, '#3a3436');
+  limb(ctx, c + 14, 46, c + 28, 66, 6, '#4a4446');
+  limb(ctx, c + 30, 30, c + 32, 116, 2.6, '#2a2628');
+  softGlow(ctx, c + 30, 26, 9, 'rgba(255,160,60,0.9)');
+  ell(ctx, c + 30, 26, 3, 3);
+  ctx.save(); ctx.fillStyle = '#ffd08a'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6; ctx.fill(); ctx.restore();
+  ell(ctx, c + 29, 66, 4.5, 4); shade(ctx, '#5a5456', '#2a2628', 62, 70, 1.4);
+  // Head and crown drawn a third wider, so the crown reads at game scale.
+  ctx.save();
+  ctx.translate(c, 0);
+  ctx.scale(1.35, 1);
+  ctx.translate(-c, 0);
+  // The head: an iron box with a grated face, a stack collar beneath.
+  ctx.beginPath(); ctx.rect(c - 9, 18, 18, 20);
+  shade(ctx, '#5a5456', '#1e1c1e', 18, 38, 1.8);
+  ctx.save();
+  ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 5;
+  for (const y of [24, 28.5, 33]) ctx.fillRect(c - 4, y, 12, 1.8);
+  ctx.restore();
+  // The crown: five flame tongues on a brass circlet.
+  const tips: [number, number][] = [[c - 8, 4 + flick], [c - 4, 0 - flick], [c, 2 + flick * 0.5], [c + 4, -1 + flick], [c + 8, 4 - flick * 0.5]];
+  ctx.save();
+  ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 10, 17);
+  for (let i = 0; i < tips.length; i++) {
+    const [tx, ty] = tips[i];
+    ctx.quadraticCurveTo(tx - 2.5, 12, tx, ty + 6);
+    ctx.quadraticCurveTo(tx + 2.5, 12, tx + 2, 17);
+  }
+  ctx.closePath();
+  const fg = ctx.createLinearGradient(0, 2, 0, 17);
+  fg.addColorStop(0, '#fff0b0'); fg.addColorStop(0.5, '#ffb347'); fg.addColorStop(1, '#e0601f');
+  ctx.fillStyle = fg; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#c8a050'; ctx.fillRect(c - 10, 15.5, 20, 3);
+  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(c - 10, 15.5, 20, 3);
+  ctx.restore();
+}
+
+/** The sheet that draws a world boss by its server name (its shadow fight and the hub's portrait). Old Ashmaw is
+ * Old Coalmouth's name until migration 0007 runs. */
+export const WORLD_BOSS_SHEET: Record<string, { key: string; size: number }> = {
+  'Grandmother Slag': { key: 'slagCrone', size: 128 },
+  'The Cinder Colossus': { key: 'colossus', size: 128 },
+  'Old Coalmouth': { key: 'coalmouth', size: 192 },
+  'Old Ashmaw': { key: 'coalmouth', size: 192 },
+  'The Furnace Regent': { key: 'regent', size: 128 },
+};
+const WORLD_BOSS_DRAW: Record<string, FrameDraw> = { slagCrone: drawSlagCrone, colossus: drawColossus, coalmouth: drawCoalmouth, regent: drawRegent };
+
+/** Draws frame `f` of a world boss into a plain 2D canvas `px` pixels square, for the hub (no Phaser). */
+export function drawWorldBossPortrait(ctx: Ctx, px: number, name: string, f = 0): boolean {
+  const sh = WORLD_BOSS_SHEET[name];
+  if (!sh) return false;
+  ctx.save();
+  ctx.scale(px / sh.size, px / sh.size);
+  WORLD_BOSS_DRAW[sh.key](ctx, sh.size, f);
+  ctx.restore();
+  return true;
+}
+
+/**
  * Grandmother Slag in person, for the raid (R9): the shadow sprite's crone at 1.5x, with
  * a crown of cooled slag spikes, seams that pulse molten through her skirts, a brimming
  * ladle that spills, and embers falling around her. Drawn in the 128-unit space of
@@ -2378,6 +2551,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'water', 128, drawWater);
   sheet(scene, 'gate', 80, 1, drawGate);
   sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
+  sheet(scene, 'colossus', 128, 4, drawColossus);
+  sheet(scene, 'regent', 128, 4, drawRegent);
   // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
   sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
   sheet(scene, 'portal', 80, 1, drawPortal);
