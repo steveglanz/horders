@@ -127,4 +127,23 @@ describe('the Coldmarrow (C1)', () => {
     expect(w.cracks.some((c) => c.alive)).toBe(false);
     expect(w.riverOpen()).toBe(false);
   });
+
+  it('co-op: the Long Night hits a huddle softer, by each other living hero close by', () => {
+    const hit = (spread: number): number[] => {
+      const w = new World({ seed: 7, dungeon: 'coldmarrow', omens: [], cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'emberwright' }] });
+      const inner = w as unknown as Inner;
+      for (const e of w.enemies) e.alive = false;
+      w.heroes.forEach((_, k) => Object.assign(w.hero(k).player, { x: k * spread, y: 0, coal: 0, coalR: COLD.minR }));
+      const b = inner.spawn('nhevra', 0, -400);
+      inner.bossIndex = b;
+      const before = w.heroes.map((_, k) => w.hero(k).player.hp);
+      inner.startCast(b, 'longNight', 'Long Night', COLD.nightCast, false);
+      inner.finishCast(b);
+      return w.heroes.map((_, k) => before[k] - w.hero(k).player.hp);
+    };
+    const apart = hit(400);
+    const close = hit(40);
+    // Apart, each takes the full share of their max health; together, two others close by take 2 × huddleCut off.
+    apart.forEach((d, k) => expect(close[k]).toBeCloseTo(d * (1 - 2 * COLD.huddleCut), 3));
+  });
 });
