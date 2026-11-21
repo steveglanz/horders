@@ -14,7 +14,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ✅ built: co-op rooms and netcode, the Hammerdeep group dungeon #51, party frames with roles (G4), revives (G6), the raid #100 and its tank swap #150 | engineering + design | Engineering: rooms and netcode; skills: role kits |
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | ✅ Visuals: the gold bounty card in the hub; engineering: the daily leaderboard is V8 (#261, waiting on migration 0006) |
-| R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | ✅ Visuals: Glarewell art (#31); skills: add it to the class matrix; engineering: one Brand per hero in co-op |
+| R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | ✅ Visuals: Glarewell art (#31); skills: add it to the class matrix; ✅ engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | ✅ Visuals: potion icons (#35) and the brewing look (#163) |
 | R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 🔨 built #51 ([group-dungeons.md](group-dungeons.md)); retune after the bot fixes | design | ✅ built #51 ([group-dungeons.md](group-dungeons.md)); retuned with bot revives in #173. The Hammerdeep drops the Deepguard set (verb "stay close"), the Ashvents the Ventwalker set ("split up") |
@@ -104,13 +104,32 @@ Phase 6 is built, apart from the bounty board's migration. Phase 7 brings the ne
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| W1 | **Rename Ashmaw to Coalmouth:** "Ashmaw" is a WoW NPC title (Maxnar the Ashmaw) | design + engineering | 🔨 Design: the Kiln rare's display names. Engineering: a migration that renames the world boss "Old Ashmaw" to "Old Coalmouth", applied only after Steve's yes |
-| W2 | **Raid 2: Old Coalmouth in the Hoard,** tier 9. A new group check: break the Craw to get a swallowed ally out | design | ✅ [raid2.md](raid2.md), W2 PR |
-| W3 | **Raid credit follows the live world boss:** the Crucible and the Hoard each count toward the world boss only when their boss is the live one | engineering | ⏭ Needs a server rule. Until then both count, as the Crucible does today |
-| W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | 🔨 A party-side trim; solo L7 must still pass |
+| W1 | **Rename Ashmaw to Coalmouth:** "Ashmaw" is a WoW NPC title (Maxnar the Ashmaw) | design + engineering | ✅ Design: the Kiln rare's display names (#289). 🔨 Engineering: migration 0007 (#292) renames the world boss "Old Ashmaw" to "Old Coalmouth"; not applied until Steve's yes |
+| W2 | **Raid 2: Old Coalmouth in the Hoard,** tier 9. A new group check: break the Craw to get a swallowed ally out | design | ✅ [raid2.md](raid2.md), #295; banners #298, swallow countdown #299 |
+| W3 | **Raid credit follows the live world boss:** the Crucible and the Hoard each count toward the world boss only when their boss is the live one | engineering | ✅ #293, a client rule (design's call): `DungeonDef.worldBoss` and `raidCountsTriple`; in another week a raid's hits count once. The Hoard sets `worldBoss: 'Old Coalmouth'` (#295) |
+| W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | ✅ #294: a party-only trim (Bellows x0.7 damage with allies, thinner ally shell and plating). Follow-up: the Anvil Slagbinder tank (78 of 80 at Hammerdeep t8) |
 | W5 | **Pressworks content QA** (carried over from V3) | QA | ✅ #278: contentcheck plays the Pressworks at tier 10 (0 stuck in 256 runs); `coopsweep.cjs --pressworks` drops a guest mid-Downstroke and the run reaches the end screen. Re-run on main at 60b2e73 |
-| W6 | **The Hoard's art:** Coalmouth, the Craw, the swallowed state, the embers, a hub card | visuals | 🔨 Brief: /mnt/project-files/horders/design/hoard-visuals-brief.md |
-| W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | ✅ Theme `hoard` (chew bed), Swallow sting, belly muffle and heartbeat, and every Hoard event and cast cued (PR after #295) |
+| W6 | **The Hoard's art:** Coalmouth, the Craw, the swallowed state, the embers, a hub card | visuals | ✅ #297 |
+| W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | ✅ Theme `hoard` (chew bed), Swallow sting, belly muffle and heartbeat, and every Hoard event and cast cued (#296) |
+
+### Visuals batch X (after Phase 7, game design, 21 Nov 2026)
+Every visuals item in Phases 6 and 7 is done. These are gaps found in the code on main at 085c69b, most important first.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| X1 | **A shadow for each world boss:** the shadow fight always draws Grandmother Slag's silhouette, whichever boss is live (GameScene.ts, `e.kind === 'worldShadow' ? 'slagCrone'`). The rotation has four: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent (migration 0007) | visuals | ⏭ Pick the sheet by `w.worldBoss`. Old Coalmouth can reuse the `coalmouth` sheet from #297. The Colossus and the Regent need new silhouettes (**open**: suggested a hulking cinder giant and a crowned furnace). Keep the purple multiply tint, so it still reads as a shadow |
+| X2 | **World boss portrait on the hub card:** `renderBoss` (hub.ts) shows only the name, a meter and text | visuals | ⏭ A small portrait per boss name, reusing the X1 art, and a hit flash when your delve's damage lands. Keep it within the phone card height (mobile rules) |
+| X3 | **The Wrackline's hub card art:** every other dungeon has a `.dg[data-d=...]` art rule in index.html; the Wrackline has none | visuals | ⏭ Suggested: rafts on dark water with a drain spiral, matching Season 6's palette (season5-6-brief.md) |
+| X4 | **Small fixes:** the Hoard's arena rim falls to the Kiln's orange default (the `rim` chain in GameScene.ts has no `hoard`); the Ysmeret "borrows the Kiln Mother's sheet" comment and fallback are stale now that `ysmeret` has a sheet | visuals | ⏭ One small PR |
+
+### Sound batch S (after Phase 7, game design, 21 Nov 2026)
+Every sound item in Phases 6 and 7 is done (#296, #302, #305). These are gaps found in the code on main at 89c7ab3, most important first.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| S1 | **The Hoard's theme never plays:** `hoard` is in THEMES (music.ts, #296), but GameScene still calls `audio.theme(w.dungeonId === 'crucible' \|\| w.dungeonId === 'hoard' ? 'raid' : w.dungeonId)`, so the Hoard gets the Crucible's raid theme | sound | ⏭ Map only the Crucible to `raid`. A one-line fix; check the chew bed by ear |
+| S2 | **The hub is silent:** hub.ts imports no audio. Brewing a potion, Forge upgrade and temper, salvage, equipping, spending a passive point and claiming a world boss reward all make no sound (main.ts plays only matchmaking and party cues) | sound | ⏭ Short, quiet UI cues; the world boss claim gets the biggest one (an Epic reward). Respect the mute setting and keep them under the hub theme |
+| S3 | **A shadow sting per world boss:** every shadow fight uses the one `worldShadow: 'phaseShadow'` cue (cues.ts), whichever boss is live | sound | ⏭ Pair with visuals X1. Four boss stings keyed by `w.worldBoss`: Grandmother Slag, the Cinder Colossus, Old Coalmouth (can reuse the Hoard's chew) and the Furnace Regent |
 
 ## R2. The Forge
 
@@ -225,7 +244,7 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 **Names:** web searches on 21 Nov 2026 for "Glarewell" game, "Lensmother" game boss, and "Brandkeeper" or "Lensbearer" video game enemy turned up no game using them. That's from the result titles only, so it's a search check, not a legal clearance. "Shade" and "Twin Lamps" are common words.
 
 **Not built yet:**
-- **Co-op:** one Brand per hero, so a party has to spread out. That's with engineering's R9 party work. Today there is one Brand, on the lead hero.
+- **Co-op:** one Brand per hero, so a party has to spread out. ✅ Built: every living hero carries a Brand, and each burst hits every hero in its circle (`burstBrand` in sim/world.ts).
 - **Skills check:** every class reaching cover in time (Blink, Sidestep, Charge, Lumen movement). The skills team adds the Glarewell to its class matrix.
 
 ## R8. Alchemy: one potion slot

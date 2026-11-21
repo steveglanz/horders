@@ -374,6 +374,9 @@
   .dg[data-d="crucible"] { --art: radial-gradient(ellipse 30% 22% at 72% 100%, rgba(255,230,150,0.55), rgba(255,120,40,0.35) 45%, transparent 100%), linear-gradient(90deg, transparent 69.5%, rgba(255,140,50,0.32) 71%, rgba(255,225,150,0.6) 72%, rgba(255,140,50,0.32) 73%, transparent 74.5%), radial-gradient(ellipse at 50% 112%, rgba(255,100,30,0.35), transparent 60%), linear-gradient(180deg, rgba(20,12,10,0.85), rgba(48,26,18,0.6) 45%, transparent 80%); }
   /* The Pressworks: oily olive steel with a press head hanging over the card's corner, a hazard-striped die under it and brass light behind. */
   .dg[data-d="pressworks"] { --art: linear-gradient(rgba(16,18,14,0.5), rgba(40,46,36,0.5)) right 10% top 0 / 15% 20% no-repeat, repeating-linear-gradient(135deg, rgba(242,194,48,0.45) 0 5px, rgba(22,18,12,0.45) 5px 10px) right 10% top 20% / 15% 5px no-repeat, radial-gradient(ellipse at 80% 20%, rgba(240,198,106,0.30), transparent 60%), linear-gradient(160deg, rgba(58,64,46,0.72), transparent 72%); }
+  /* X3: the Wrackline. A raft adrift at the top right, its planks and wet edge, over teal water with a drain's
+     swirl pulling toward the bottom right, and a pale line of surf. */
+  .dg[data-d="wrackline"] { --art: repeating-linear-gradient(90deg, rgba(110,72,40,0.85) 0 9px, rgba(60,38,22,0.85) 9px 10px) right 6% top 16% / 22% 13% no-repeat, linear-gradient(rgba(191,233,255,0.5), rgba(191,233,255,0.5)) right 6% top 29% / 22% 2px no-repeat, radial-gradient(circle at 90% 112%, rgba(20,30,70,0.75) 0 8px, transparent 8px 14px, rgba(120,210,240,0.28) 14px 16px, transparent 16px 26px, rgba(120,210,240,0.2) 26px 28px, transparent 28px 40px, rgba(120,210,240,0.12) 40px 42px, transparent 42px), radial-gradient(ellipse 30% 30% at 90% 108%, rgba(30,40,90,0.55), transparent 80%), radial-gradient(ellipse at 80% 20%, rgba(127,208,224,0.26), transparent 60%), linear-gradient(160deg, rgba(22,58,70,0.75), rgba(28,40,80,0.5) 50%, transparent 80%); }
   .dg[data-d="hoard"] { --art: radial-gradient(ellipse 9% 17% at 88% 16%, rgba(8,4,4,0.9) 55%, rgba(255,150,60,0.55) 72%, transparent 84%), radial-gradient(circle at 76% 88%, rgba(255,214,120,0.85) 0 2px, transparent 3px), radial-gradient(circle at 62% 94%, rgba(255,180,80,0.75) 0 1.5px, transparent 2.5px), radial-gradient(circle at 90% 92%, rgba(255,200,100,0.8) 0 2px, transparent 3px), radial-gradient(ellipse 34% 22% at 80% 104%, rgba(255,120,40,0.42), transparent 75%), radial-gradient(ellipse at 88% 10%, rgba(255,140,60,0.18), transparent 50%), linear-gradient(165deg, rgba(34,24,22,0.78), rgba(56,36,28,0.5) 50%, transparent 82%); }
   /* Text size: Large (L3). The fight HUD's words and the menus' small print grow; bars and buttons keep their size. */
   /* Zoom the contents, never a fixed-position box itself: zoom also scales its top/bottom/left offsets, which threw the
@@ -455,6 +458,14 @@
   .wboss .lbl { color: var(--danger); }
   .wboss .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .wboss .top span:last-child { font-size: 12px; color: var(--muted); }
+  .wboss .wb-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .wboss .wb-name { flex: 1; min-width: 0; }
+  .wboss .wb-name .ttl { margin: 2px 0 0; }
+  /* X2: the world boss's portrait, its in-game sheet. A hit flash plays when its health has dropped. */
+  .wboss .wb-art { flex: none; width: 48px; height: 48px; filter: drop-shadow(0 2px 6px rgba(255,90,40,0.35)); }
+  .wboss .wb-art.hit { animation: wbHit 0.7s ease-out 2; }
+  @keyframes wbHit { 0% { filter: drop-shadow(0 0 10px rgba(255,90,60,0.9)) brightness(2.2) saturate(0.4); transform: translateX(-2px) scale(1.08); } 25% { transform: translateX(2px) scale(1.04); } 50% { transform: translateX(-1px); } 100% { filter: drop-shadow(0 2px 6px rgba(255,90,40,0.35)); transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .wboss .wb-art.hit { animation: none; } }
   .wboss .meter { height: 10px; }
   .wboss p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
   .wboss .omen { padding: 8px 0 0; }
@@ -808,6 +819,8 @@
   body.tabs .hub[data-tab="hero"] #heroCard { margin-top: 12px; }
   body.tabs .hub[data-tab="hero"] .hub-foot { display: none; }
   body.tabs .hub-foot { bottom: calc(var(--tabh) + env(safe-area-inset-bottom)); padding-bottom: 10px; }
+  /* Portrait phones: the Delve button follows the content instead of being pushed to the tab bar, which left ~250px of nothing above it on tall phones. It still sticks above the tab bar when the content is longer than the screen. */
+  @media (max-width: 560px) and (orientation: portrait) { body.tabs .hub-foot { margin-top: 0; } }
   body.tabs #bagBtn { display: none; }
   body.tabs .hub-delve > [data-pane] > .sec-h.big:first-child, body.tabs .hub-delve .sec-h.big { margin-top: 12px; }
   body.tabs .hub[data-tab="group"] .wboss { margin-top: 4px; }

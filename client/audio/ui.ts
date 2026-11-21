@@ -3,13 +3,13 @@
  * confirming and backing out each sound different.
  *
  * Other teams can choose a sound for any element with `data-sfx="select"` (or
- * confirm, back, open, click, salvage, forge, temper, brew, none) without touching the audio code.
+ * confirm, back, open, click, salvage, forge, temper, brew, anvilPick, bellowsPick, equip, passive, none) without touching the audio code.
  */
 import type { SoundId } from './sounds';
 
-export type UiSound = Extract<SoundId, 'click' | 'select' | 'confirm' | 'back' | 'open' | 'salvage' | 'forge' | 'temper' | 'brew'>;
+export type UiSound = Extract<SoundId, 'click' | 'select' | 'confirm' | 'back' | 'open' | 'salvage' | 'forge' | 'temper' | 'brew' | 'anvilPick' | 'bellowsPick' | 'equip' | 'passive'>;
 /** salvage, forge, temper and brew are the ember purse's sounds: embers coming in, and spent at the Forge or on a potion. */
-const NAMED: readonly string[] = ['click', 'select', 'confirm', 'back', 'open', 'salvage', 'forge', 'temper', 'brew'];
+const NAMED: readonly string[] = ['click', 'select', 'confirm', 'back', 'open', 'salvage', 'forge', 'temper', 'brew', 'anvilPick', 'bellowsPick', 'equip', 'passive'];
 
 /** The minimum of Element that this needs (so tests can pass a stand-in). */
 export interface Tappable {

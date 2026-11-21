@@ -18,12 +18,13 @@ import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
-import { buildTextures, FRAMES, SPRITE_RES } from './textures';
+import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures';
 import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
 import { pickCue, setFlagsOf } from './audio/cues';
+import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
@@ -102,6 +103,8 @@ const FROST_SETTLE = 0x7fa6e8;
 const EMBER_COOL = 0x9a2e1c;
 /** The dull crust red a slag drop cools to once it lands. */
 const SLAG_CRUST = 0x8a2a2a;
+/** The Hoard's arena rim: deep coal red, apart from the Kiln's orange and the Crucible's molten. */
+const HOARD_RIM = 0xd8382a;
 /** The dark wet wood a splinter darkens to as it settles. */
 const WET_WOOD = 0x5a3a22;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
@@ -120,6 +123,10 @@ interface FloatText {
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
+/** A hero's sprite sheet. The Emberwright's is the original 'player' sheet; an Anvil Slagbinder wears the slab. */
+const heroTex = (cls: string, stance?: string): string => (cls === 'emberwright' ? 'player' : cls === 'slagbinder' && stance === 'anvil' ? 'slagbinderAnvil' : cls);
+/** The live world boss's sheet for its shadow fight; Grandmother Slag's when the name is unknown. */
+const shadowSheet = (name?: string): { key: string; size: number } => (name && WORLD_BOSS_SHEET[name]) || WORLD_BOSS_SHEET['Grandmother Slag'];
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
@@ -321,7 +328,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     if (!this.textures.exists('ground')) buildTextures(this);
     const w = this.world;
-    audio.theme(w.dungeonId === 'crucible' || w.dungeonId === 'hoard' ? 'raid' : w.dungeonId);
+    audio.theme(themeFor(w.dungeonId));
 
     this.ground = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'ground').setOrigin(0.5).setScrollFactor(0).setDepth(-10);
     // The Glarewell's floor is cool slate, so its gold light and indigo shadows read against it.
@@ -372,7 +379,7 @@ export class GameScene extends Phaser.Scene {
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
-    this.player = this.add.image(0, 0, w.cls === 'emberwright' ? 'player' : w.cls, '0').setScale(BASE).setDepth(6);
+    this.player = this.add.image(0, 0, heroTex(w.cls, w.heroData(w.acting).player.stance), '0').setScale(BASE).setDepth(6);
     // Co-op: everyone else in the party, with their name over their head and (P6) the title and glow they wear.
     // Looks come from other players' browsers, so they are cleaned again here.
     const looks = this.looks;
@@ -388,7 +395,7 @@ export class GameScene extends Phaser.Scene {
         name,
         mark: bot ? this.add.image(0, 0, 'botMark').setOrigin(1, 0.5).setDepth(9.5).setTint(hex(CLASS_ICON[cls].color)) : undefined,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
-        img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
+        img: this.add.image(0, 0, heroTex(cls, w.heroData(j).player.stance), '0').setScale(BASE).setDepth(5.9),
         label: this.add.text(0, 0, name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.glowImage(ag) : undefined,
@@ -699,6 +706,9 @@ export class GameScene extends Phaser.Scene {
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
+      pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
+      stance: w.player.stance,
+      worldBoss: w.worldBoss || undefined,
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
@@ -945,6 +955,9 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          // Raid 2: Old Coalmouth.
+          else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
+          else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -1030,9 +1043,8 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'hoard') {
-            // Names and counters from docs/design/raid2.md. Without this the Hoard fell through to the Kiln's banners.
-            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'When he swallows an ally, switch to the Craw at once');
-            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he does');
+            if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
@@ -1282,11 +1294,10 @@ export class GameScene extends Phaser.Scene {
         if (s.visible) { s.setVisible(false); sh.setVisible(false); }
         continue;
       }
-      // The world boss shadow is Grandmother Slag's silhouette;
+      // The world boss shadow is the live boss's silhouette (Grandmother Slag's if the name is unknown);
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      // Ysmeret borrows the Kiln Mother's sheet until its own sprite lands.
-      const tex = e.kind === 'worldShadow' ? 'slagCrone' : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : (e.kind === 'ondrel' || e.kind === 'ysmeret') && !this.textures.exists(e.kind) ? 'kilnMother'
+      const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
+        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
         // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
         : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
@@ -1313,7 +1324,9 @@ export class GameScene extends Phaser.Scene {
         k = 0.3 + 0.7 * t + Math.sin(t * Math.PI) * 0.25;
       }
       const hit = e.flash > 0 ? 0.12 : 0;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? 1.05 : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? 1.05 : 1));
+      // Every shadow shows at the size Grandmother Slag's 128-unit sheet always did, whatever its sheet's size.
+      const shadowScale = e.kind === 'worldShadow' ? (1.05 * 128) / shadowSheet(w.worldBoss).size : 1;
+      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -1512,8 +1525,9 @@ export class GameScene extends Phaser.Scene {
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
+      // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.

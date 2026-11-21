@@ -42,6 +42,12 @@ export interface CueContext {
   sets?: SetFlags;
   /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
   swallowLeft?: number;
+  /** The Pressworks: this screen's hero is Pressed (Player.pressedT > 0) and must sit out the next Downstroke. */
+  pressed?: boolean;
+  /** Slagbinder: this screen's hero's stance ('anvil' tanks behind thick plate, 'bellows' deals damage). */
+  stance?: string;
+  /** The living world boss's name (World.worldBoss), so its shadow gets its own sting. */
+  worldBoss?: string;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -167,6 +173,19 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
+/**
+ * Each world boss's shadow sting, keyed by the server's boss names (supabase/migrations/0007). 'Old Ashmaw' is
+ * the name before migration 0007 renames it, so a live server that hasn't run it still gets Coalmouth's sting.
+ * A name not listed falls back to PHASE_STING.worldShadow.
+ */
+export const SHADOW_STING: Record<string, SoundId> = {
+  'Grandmother Slag': 'shadowSlag',
+  'The Cinder Colossus': 'shadowColossus',
+  'Old Coalmouth': 'shadowCoal',
+  'Old Ashmaw': 'shadowCoal',
+  'The Furnace Regent': 'shadowRegent',
+};
+
 export function phaseSting(boss: string | undefined, phase: number): SoundId {
   const s = boss ? PHASE_STING[boss] : undefined;
   if (!s) return 'phase';
@@ -198,6 +217,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'playerHurt':
       if (!mine(ev.hero)) return null;
+      // An Anvil Slagbinder's hits land on plate (SLAG_KIT.anvilArmor), so they clank.
+      if (c.cls === 'slagbinder' && c.stance === 'anvil') return ev.amount >= 20 ? { id: 'hurtBigAnvil' } : { id: 'hurtAnvil', jitter: 0.1 };
       return ev.amount >= 20 ? { id: 'hurtBig' } : { id: 'hurt', jitter: 0.1 };
     case 'levelUp': return mine(ev.hero) ? { id: 'levelUp' } : { id: 'levelUp', vol: 0.4 };
     case 'eliteSpawn': return { id: 'eliteSpawn' };
@@ -206,7 +227,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'namedSpawn': return { id: 'namedSpawn' };
     case 'namedKill': return { id: 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
-    case 'phase': return { id: phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
+    case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
     case 'slam': return { id: 'slam' };
@@ -331,6 +352,16 @@ export function reviveCues(state: ReviveState, reviveT: readonly number[], need:
   return out;
 }
 
+/**
+ * The Pressworks "take turns" rule: a clamp when this screen's hero becomes Pressed, and a release when
+ * it wears off, so a phone player hears when they may take the next Downstroke. `state.on` is updated in place.
+ */
+export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null {
+  const was = state.on;
+  state.on = pressed;
+  return pressed && !was ? { id: 'pressed' } : !pressed && was ? { id: 'pressedClear' } : null;
+}
+
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
 export function ebbCue(state: { on: boolean }, pulling: boolean): Cue | null {
   const fire = pulling && !state.on;
@@ -352,8 +383,9 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
+  ...Object.values(SHADOW_STING),
 ]);
 
 /**

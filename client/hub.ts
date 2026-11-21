@@ -24,6 +24,7 @@ import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } f
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
+import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
 import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
@@ -80,6 +81,8 @@ export class Hub {
   private claiming = false;
   /** Set by main: starts today's bounty run. */
   onBounty: () => void = () => {};
+  /** A world boss reward was claimed (an Epic): main.ts plays its chime. */
+  onClaimed: () => void = () => {};
   /** Set by main: starts a Delver's Key run in the picked dungeon. */
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
@@ -214,7 +217,7 @@ export class Hub {
       const def = PASSIVES[id];
       const r = h.passives[id] ?? 0;
       const can = pts > 0 && r < def.max;
-      return `<button data-p="${id}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
+      return `<button data-p="${id}" data-sfx="${can ? 'passive' : 'click'}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
         + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
@@ -284,7 +287,7 @@ export class Hub {
         ? `<div class="stance" role="group" aria-label="Stance">${(['anvil', 'bellows'] as const).map((st) => {
           const on = (h.stance ?? 'bellows') === st;
           const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. In a party, you deal 30% less damage.';
-          return `<button data-stance="${st}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
+          return `<button data-stance="${st}" data-sfx="${st}Pick" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
         }).join('')}</div>`
         : '')
       // Ability option: from level 8, swap one action-bar slot for the class's option (kept per character).
@@ -821,6 +824,9 @@ export class Hub {
     this.renderBoss();
   }
 
+  /** The world boss's health when the card last showed it, for the portrait's hit flash. */
+  private bossSeen?: { id: number; hp: number };
+
   renderBoss(): void {
     const el = $('worldBoss');
     const b = this.boss;
@@ -834,13 +840,22 @@ export class Hub {
     const claims = b.unclaimed.map((u) =>
       `<button class="primary" data-claim="${u.boss_id}" data-dmg="${u.damage}" ${this.claiming ? 'disabled' : ''}>Claim reward: ${u.name} fell</button>`).join('');
     el.innerHTML = `
+      <div class="wb-head"><canvas class="wb-art" width="96" height="96" aria-hidden="true"></canvas><div class="wb-name">
       <div class="top"><span class="lbl">World boss</span><span>${b.fighters} ${b.fighters === 1 ? 'hero' : 'heroes'} fighting</span></div>
-      <div class="ttl">${b.name}, ${b.title}</div>
+      <div class="ttl">${b.name}, ${b.title}</div></div></div>
       <div class="meter danger" title="${b.hp.toLocaleString()} / ${b.max_hp.toLocaleString()}"><div style="width:${pct}%"></div></div>
       <div class="kv"><span>${Math.round(pct)}% remaining · ${b.hp.toLocaleString()} health</span><span>You: ${b.my_damage.toLocaleString()} damage</span></div>
       ${this.bossOmenLine(b)}
       <p>Every delve you finish strikes it with the damage you dealt. When it falls, everyone who struck it gets an Epic reward.</p>
       ${claims}${this.bossNote ? `<p style="color:var(--gold)">${this.bossNote}</p>` : ''}`;
+    // X2: the boss's portrait, drawn from its in-game sheet. It flashes when its health has dropped since the
+    // card last showed it (a delve's strike, or everyone else's).
+    const art = el.querySelector<HTMLCanvasElement>('.wb-art');
+    const actx = art?.getContext('2d');
+    if (art && actx && !drawWorldBossPortrait(actx, art.width, b.name)) art.remove();
+    const seen = this.bossSeen;
+    if (art && seen && seen.id === b.id && b.hp < seen.hp) art.classList.add('hit');
+    this.bossSeen = { id: b.id, hp: b.hp };
     $('groupBadge').hidden = !b.unclaimed.length;
     // Tab mode hides the card's explanations (CSS); a long press on the card shows them.
     const om = b.omen && b.omen in OMENS ? OMENS[b.omen as OmenId] : undefined;
@@ -860,6 +875,7 @@ export class Hub {
       const reward = grantBossReward(this.hero(), bossId, r.damage ?? 0);
       this.save();
       this.bossNote = `Reward claimed: ${reward.item.name} and ${reward.embers} embers. Check your bags.`;
+      this.onClaimed();
       this.render();
     } else {
       this.bossNote = r ? 'That reward was already claimed.' : 'Could not reach the server. Try again in a moment.';
@@ -877,7 +893,7 @@ export class Hub {
     const tm = canTemper(h, it);
     const forge = `<button class="sbtn" data-u="${it.id}" data-sfx="forge" ${up.ok ? '' : 'disabled'} title="${up.ok ? 'Raise item level by 1' : up.reason}">Upgrade<span class="cost">${up.cost}</span></button>`
       + (it.stats.length > 1 ? `<button class="sbtn" data-tm="${it.id}" data-sfx="temper" ${tm.ok ? '' : 'disabled'} title="${tm.ok ? 'Reroll the weakest bonus stat' : tm.reason}">Temper<span class="cost">${tm.cost}</span></button>` : '');
-    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
+    return (isWorn ? '' : `<button class="sbtn eq" data-e="${it.id}" data-sfx="equip">Equip</button><button class="sbtn danger" data-s="${it.id}" data-sfx="salvage" title="Break it down for ${RARITY[it.rarity].salvage} embers">Salvage +${RARITY[it.rarity].salvage}</button>`) + forge;
   }
 
   /** Wires item action buttons under root; after() runs once the hero changed. */
