@@ -546,6 +546,13 @@ export class GameScene extends Phaser.Scene {
           this.burst(ev.x, ev.y, 14);
           this.ring(ev.x, ev.y, 90, 0x8fd8ff, 0.4);
           break;
+        case 'potion':
+          // Rising Draught: the hero gets back up in a column of gold.
+          this.hud.banner('Rising Draught!', 'Back on your feet at a quarter health');
+          this.ring(ev.x, ev.y, 120, 0xffc861, 0.6);
+          this.burst(ev.x, ev.y, 24);
+          this.floatText(ev.x, ev.y - 50, 'Risen!', '#ffd36a', 20);
+          break;
         case 'glare':
           // The whole room flashes white-gold; a hit also shakes it.
           this.glareFlash = ev.hit ? 1 : 0.6;

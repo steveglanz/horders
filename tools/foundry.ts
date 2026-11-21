@@ -1,5 +1,6 @@
 // Drowned Foundry check: per-run outcome plus how Maelra's mechanics fired.
 // TIER=n, SEEDS=..., CLS=..., BOT_PATH=... as in the other tools.
+// POTION=risingDraught|stillwater|kindling brews that potion for every run.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import { readFileSync } from 'fs';
@@ -12,7 +13,7 @@ const heroOpts = hero ? { gear: equippedItems(hero), passives: hero.passives, he
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {
-  const w = new World({ ...heroOpts, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
+  const w = new World({ ...heroOpts, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
   const c: Record<string, number> = {};
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0, maxTemper = 0, temperTicks = 0, bossTicks = 0;

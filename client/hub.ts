@@ -1,9 +1,11 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
+  brewBlocker, brewPotion,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, cloud } from './cloud';
+import { POTIONS, POTION_IDS, PotionId } from '../sim/content/potions';
 import { CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { RARITY, SLOTS, Slot } from '../sim/content/items';
 import { itemHtml } from './ui';
@@ -110,13 +112,20 @@ export class Hub {
       + `<div class="sec-h"><span>Difficulty</span><span class="muted">Tier ${this.tier}${omens.length ? ` · ${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}` : ''}</span></div>`
       + `<div class="tierrow">${tiers.join('')}</div>`
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
-      + this.omenLine(omens) + this.gritLine() + this.bountyLine();
+      + this.omenLine(omens) + this.gritLine() + this.potionLine() + this.bountyLine();
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
         this.render();
       }));
     $('tiers').querySelector<HTMLButtonElement>('[data-bounty]')?.addEventListener('click', () => this.onBounty());
+    $('tiers').querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (brewPotion(h, b.dataset.potion as PotionId)) {
+          this.save();
+          this.render();
+        }
+      }));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -142,6 +151,22 @@ export class Hub {
   }
 
   /** Grit after losses in a row on the picked dungeon and tier. */
+  /** Alchemy: brew one potion for the next delve (not used by the daily bounty). */
+  private potionLine(): string {
+    const h = this.hero();
+    const cards = POTION_IDS.map((id) => {
+      const p = POTIONS[id];
+      const on = h.potion === id;
+      const why = brewBlocker(h, id);
+      return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
+        + `<b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${p.cost} embers`}</em></button>`;
+    }).join('');
+    const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
+    return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`
+      + `<div class="pots">${cards}</div>`
+      + '<div class="hint">One potion per delve, used up when you start. Brewing another pours the first away.</div>';
+  }
+
   private gritLine(): string {
     const n = gritFor(this.hero(), this.dungeon, this.tier);
     if (!n) return '';

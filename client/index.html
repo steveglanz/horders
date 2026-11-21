@@ -213,6 +213,14 @@
   .dg { position: relative; min-height: 112px; padding: 14px; border-radius: var(--radius); border: 1px solid var(--card-line); text-align: left; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: var(--art), #1a100d; }
   .dg[data-d="kiln"] { --art: radial-gradient(ellipse at 80% 0%, rgba(255,110,40,0.38), transparent 60%), linear-gradient(160deg, rgba(120,34,18,0.55), transparent 70%); }
   .dg[data-d="foundry"] { --art: radial-gradient(ellipse at 80% 0%, rgba(79,227,193,0.30), transparent 60%), linear-gradient(160deg, rgba(20,70,80,0.6), transparent 70%); }
+  .dg[data-d="glarewell"] { --art: radial-gradient(ellipse at 80% 0%, rgba(255,226,150,0.32), transparent 60%), linear-gradient(160deg, rgba(40,34,90,0.6), transparent 70%); }
+  .pots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pot { display: flex; flex-direction: column; gap: 4px; padding: 10px; min-height: 44px; border-radius: var(--radius); border: 1px solid var(--card-line); background: rgba(0,0,0,0.25); text-align: left; }
+  .pot b { font: 600 14px var(--serif); }
+  .pot span { font-size: 11px; color: var(--muted); line-height: 1.3; }
+  .pot em { font-style: normal; font-size: 12px; color: var(--gold); margin-top: auto; }
+  .pot.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
+  .pot:disabled { opacity: 0.5; cursor: default; }
   .dg b { font: 600 17px var(--serif); }
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
   .dg.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember), 0 8px 26px rgba(255,110,40,0.25); }

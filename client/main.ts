@@ -5,7 +5,7 @@ import { GameScene } from './GameScene';
 import { Hud } from './ui';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops } from '../sim/hero';
+import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion } from '../sim/hero';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
@@ -137,6 +137,11 @@ function startRun(bounty = false): void {
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
   };
+  // A brewed potion goes into this delve and is used up (the bounty never takes one).
+  if (!bounty && !stress && hero.potion) {
+    opts.potion = takePotion(hero);
+    save();
+  }
   if (bounty) {
     // Same fights, spawns and twist for everyone today; only the tier is the hero's own.
     const b = bountyFor(dayOf(Date.now()), hero.maxTier);

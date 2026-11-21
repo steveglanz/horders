@@ -14,6 +14,7 @@ import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
+import { POTION, PotionId } from './content/potions';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
@@ -291,6 +292,7 @@ export type SimEvent =
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number }
+  | { type: 'potion'; id: PotionId; x: number; y: number }
   | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
@@ -399,6 +401,8 @@ export interface WorldOptions {
   worldBoss?: string;
   /** Which dungeon to delve (default the Kiln Depths). */
   dungeon?: DungeonId;
+  /** The potion brewed for this delve, if any (R8 Alchemy). */
+  potion?: PotionId;
   /** Heroes in the party (1 to 4). Scales enemy health and targeted mechanics. */
   partySize?: number;
   /** Grit stacks from losses in a row on this tier (see content/scaling). */
@@ -461,6 +465,9 @@ export class World {
   /** The world boss's Omen when it added one the tier didn't already have. */
   readonly bossOmen: OmenId | undefined;
   readonly dungeonId: DungeonId;
+  /** The potion brewed for this delve; `potionUsed` once Rising Draught has fired. */
+  readonly potion: PotionId | undefined;
+  potionUsed = false;
   readonly bounty: number | undefined;
   readonly firstClear: boolean;
   readonly partySize: number;
@@ -563,6 +570,8 @@ export class World {
     this.nextItemId = opts.nextItemId ?? 1;
     this.itemLevel = Math.max(1, (opts.heroLevel ?? 1) + (this.tier - 1));
     this.dungeonId = opts.dungeon ?? 'kiln';
+    // Potions are for your own delves; the daily bounty is the same run for everyone.
+    this.potion = opts.bounty === undefined ? opts.potion : undefined;
     this.bounty = opts.bounty;
     this.firstClear = !!opts.firstClear && opts.bounty === undefined;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
@@ -604,6 +613,12 @@ export class World {
       // A bounty skips the two openers, so the hero starts with the two levels (and drafts) they would have earned.
       this.player.level += BOUNTY.headStart;
       this.player.pendingLevels += BOUNTY.headStart;
+      this.player.xpToNext = xpFor(this.player.level);
+    }
+    if (this.potion === 'kindling') {
+      // Kindling Brew: one level (and one talent pick) before the first fight.
+      this.player.level += 1;
+      this.player.pendingLevels += 1;
       this.player.xpToNext = xpFor(this.player.level);
     }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
@@ -770,6 +785,12 @@ export class World {
   }
 
   abilityCooldown(slot: number): number {
+    const cd = this.baseCooldown(slot);
+    // Stillwater Tonic: the interrupt comes back faster all delve.
+    return slot === 3 && this.potion === 'stillwater' ? cd * POTION.stillwaterCd : cd;
+  }
+
+  private baseCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
     if (this.cls === 'bulwark') {
       if (slot === 1) return base - 2 * this.rank('momentum');
@@ -1285,6 +1306,14 @@ export class World {
       p.hp = 1;
       p.shieldT = 2;
       this.events.push({ type: 'revive', hero: this.acting });
+      return;
+    }
+    if (amount >= p.hp && this.potion === 'risingDraught' && !this.potionUsed && this.acting === 0) {
+      // Rising Draught: the lead hero gets back up once, at a quarter health with a moment's shield.
+      this.potionUsed = true;
+      p.hp = p.maxHp * POTION.riseHp;
+      p.shieldT = POTION.riseShield;
+      this.events.push({ type: 'potion', id: 'risingDraught', x: p.x, y: p.y });
       return;
     }
     if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5) {
