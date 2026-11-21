@@ -40,9 +40,9 @@ export const LUMEN_ABILITIES: AbilityDef[] = [
 ];
 
 export const SLAGBINDER_ABILITIES: AbilityDef[] = [
-  { name: 'Molten Plating', key: 'Q', cost: 30, cooldown: 6, text: 'Plate yourself in slag: a ward that bursts when it breaks or runs out. In a party, it plates the most hurt hero near you.' },
+  { name: 'Molten Plating', key: 'Q', cost: 30, cooldown: 6, text: 'Plate yourself in slag: a ward that bursts when it breaks or runs out. In a party, it plates the most hurt hero near you, at half thickness on an ally.' },
   { name: 'Interpose', key: 'E', cost: 0, cooldown: 10, text: 'Leap where you are moving and shove small foes aside. In a party, leap to the most hurt ally and take most of their hits for 3s.' },
-  { name: 'Cooling Shell', key: 'R', cost: 60, cooldown: 24, text: 'For 5s take 35% less damage, and whatever hits you turns Brittle. In a party, heroes beside you are shielded too.' },
+  { name: 'Cooling Shell', key: 'R', cost: 60, cooldown: 24, text: 'For 5s take 35% less damage, and whatever hits you turns Brittle. In a party, heroes beside you take 20% less.' },
   { name: 'Clinker', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Hurl a clinker to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it makes the boss Brittle.' },
 ];
 
