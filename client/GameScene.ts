@@ -19,7 +19,8 @@ import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
-import { Hud } from './ui';
+import { BRANCH_COLOR, Hud } from './ui';
+import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
 
@@ -450,6 +451,8 @@ export class GameScene extends Phaser.Scene {
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
+    const chosen = this.world.choices[i] ? TALENTS[this.world.choices[i].id as TalentId] : undefined;
+    if (chosen?.capstone) this.deepUnlock(chosen.branch);
     if (this.coop?.role === 'guest') {
       // The host applies it; hide the cards until the next snapshot shows what's left.
       if (!this.world.choices[i]) return;
@@ -461,6 +464,26 @@ export class GameScene extends Phaser.Scene {
     this.world.choose(i, 0);
     if (this.world.state === 'draft') this.hud.showDraft(this.world);
     else this.hud.hideDraft();
+  }
+
+  /**
+   * C5 round 2: taking a capstone opens its branch's deep cards (if the class has any). The hero
+   * flares in the branch colour and a banner says what just opened.
+   */
+  private deepUnlock(branch: keyof typeof BRANCH_NAMES): void {
+    const cls = this.world.cls;
+    const n = Object.values(TALENTS).filter((d) => d.cls === cls && d.branch === branch && (d as { deep?: boolean }).deep).length;
+    if (!n) return;
+    const p = this.world.player;
+    const c = hex(BRANCH_COLOR[branch]);
+    this.ring(p.x, p.y, 150, c, 1.1);
+    this.time.delayedCall(220, () => this.ring(this.world.player.x, this.world.player.y, 100, c, 0.9));
+    const m = this.lowFx ? 6 : 18;
+    for (let k = 0; k < m; k++) {
+      const a = (k / m) * Math.PI * 2;
+      this.emit(this.fx, 'spark', undefined, p.x + Math.cos(a) * 26, p.y + Math.sin(a) * 12, 1, { tint: c, vx: Math.cos(a) * 30, vy: -110 - Math.random() * 70, drag: 0.96, sx0: 2.4, sx1: 0.4 });
+    }
+    this.hud.banner(`${BRANCH_NAMES[branch]} runs deeper`, `${n} deep card${n > 1 ? 's' : ''} now join${n > 1 ? '' : 's'} your drafts`);
   }
 
   /** Queue an ability press; it fires on the next tick it is usable (within 0.35s). */
