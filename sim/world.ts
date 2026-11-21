@@ -107,6 +107,15 @@ export const CAPSTONES_2 = {
   chorusEvery: 8,
 };
 
+/**
+ * Defence branches (Emberwright Ashguard, Slagbinder Crust): enough damage that a run committed to them
+ * still finishes a boss before it enrages. Ring of Ash reach and damage; Cinder Skin and Mend in Embers
+ * add damage per rank; Clinker Heart hits harder while the Slagbinder is plated.
+ */
+export const DEFENCE_BRANCH = {
+  ringDamage: 45, ringR: 200, skinDmg: 0.06, mendDmg: 0.06, clinkerDmg: 0.5,
+};
+
 /** Party cards (Season 2): deep talent cards offered only with 2 or more heroes. Per rank unless noted. */
 export const PARTY_CARDS = {
   leeRadius: 200, leeCut: 0.04, broadHeal: 0.06, frontMend: 0.04, wideDawn: 0.2, turnedBack: 0.06,
@@ -1162,7 +1171,10 @@ export class World {
     const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
     const kindled = this.time < (p.kindleUntil ?? -1) ? GROUP_TOOLS.kindleMult : 1;
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
+    const clinker = this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0;
+    const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend')) * (1 + clinker);
+    return guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -2497,7 +2509,7 @@ export class World {
           if (e.orbitCd > 0) return;
           if (dist2(ox, oy, e.x, e.y) <= (14 + e.def.radius) ** 2) {
             e.orbitCd = 0.4;
-            this.damageEnemy(i, (choir ? LUMEN_CAPS.choirDamage : 16) * this.dmgMult, true);
+            this.damageEnemy(i, (choir ? LUMEN_CAPS.choirDamage : DEFENCE_BRANCH.ringDamage) * this.dmgMult, true);
             if (choir) this.healPlayer(1.5);
           }
         });
@@ -3618,7 +3630,7 @@ export class World {
 
   /** Orbit radius: Choir of Dawn's wisps circle wider than Ring of Ash, out past the Lumen's standoff. */
   private get orbitR(): number {
-    return this.rank('choirOfDawn') > 0 ? LUMEN_CAPS.choirR : 78;
+    return this.rank('choirOfDawn') > 0 ? LUMEN_CAPS.choirR : DEFENCE_BRANCH.ringR;
   }
 
   /** Orbiter positions for rendering. */
