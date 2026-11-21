@@ -110,7 +110,9 @@ All four are full parties. Trash-fight revives change nothing: "Boss: none at al
 | Hammerdeep 6, full party | 78 | 77 |
 
 **Watch items.**
-- The Ashvents duo of a tank and a healer fell from 72% to 35%, because Ysmeret's extra health weighs most on a party with little damage. There's no duo target, and a duo is short of damage by design, but if real duos struggle, scale Ysmeret's health by party size instead.
+- The Ashvents duo of a tank and a healer fell from 72% to 35%, because Ysmeret's extra health weighs most on a party with little damage. There's no duo target, and a duo is short of damage by design.
+  - **Closed 21 Nov 2026.** Health already scales by party size for every enemy, bosses included: `spawn` in `sim/world.ts` multiplies by `partyHealth(partySize)` (1.775 for two heroes, 3.175 for four, `sim/content/scaling.ts`). So "scale Ysmeret's health by party size" is already done, and it is not a free lever.
+  - The duo now matches the Hammerdeep's: both group dungeons give a Bulwark and Lumen duo 28 of 80 at tier 6 (table above). The rule is the same in both: a tank and healer alone can clear a group dungeon about a third of the time, and adding a damage dealer is the way to win reliably. Re-open this only if real duos are a large share of group runs.
 - Hammerdeep 6 with a full party is far over its old 60 to 75% target (77 of 80), and was before this change. Health is the wrong lever: Ondrel at 7200 brought it to 29 of 40, but the tier 8 party fell to 6 and the duo to 2. Settled below in "Hammerdeep targets, restated".
 - A pair with no tank in the Ashvents still wins 0, inside the "under 25%" target for no tank.
 
