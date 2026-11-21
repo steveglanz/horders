@@ -92,7 +92,9 @@ export interface HeroProfile {
   /** P2: this season's track (shared by every class), the glows earned in any season, and what the hero wears. */
   season?: SeasonState;
   glows?: string[];
-  wear?: { title?: string; glow?: string };
+  /** P2: each season trail earned, by id, at its highest stage (1 to 3). */
+  trails?: Record<string, number>;
+  wear?: { title?: string; glow?: string; trail?: string };
   /** P6: what the account has done (shared by every class), and the achievements already paid. */
   deeds?: Deeds;
   achieved?: string[];
@@ -474,7 +476,12 @@ function applySeason(hero: HeroProfile, s: RunSummary, weeklyDone: number): Pick
   const got = seasonRewards(st.id).filter((r) => r.level > from && r.level <= to);
   for (const r of got) {
     if (r.kind === 'glow') hero.glows = [...new Set([...(hero.glows ?? []), r.glow.id])];
+    else if (r.kind === 'trail') hero.trails = { ...(hero.trails ?? {}), [r.trail.id]: Math.max(hero.trails?.[r.trail.id] ?? 0, r.stage) };
     else hero.titles = [...new Set([...(hero.titles ?? []), r.title])];
+  }
+  // Trails came mid-season: a hero already past a trail level gets it on their next run.
+  for (const r of seasonRewards(st.id)) {
+    if (r.kind === 'trail' && r.level <= to && (hero.trails?.[r.trail.id] ?? 0) < r.stage) hero.trails = { ...(hero.trails ?? {}), [r.trail.id]: r.stage };
   }
   return { seasonMarks: marks, seasonFrom: from, seasonTo: to, ...(got.length ? { seasonRewards: got } : {}), ...(firstWin ? { seasonFirstWin: true } : {}), ...(featured ? { seasonFeatured: true } : {}) };
 }
@@ -516,9 +523,10 @@ export function achievementView(hero: HeroProfile): AchievementView {
   return { deeds: hero.deeds ?? {}, keyBest };
 }
 
-/** P2: wear an earned title or glow (undefined takes it off). Returns false if the hero hasn't earned it. */
-export function wearCosmetic(hero: HeroProfile, kind: 'title' | 'glow', id: string | undefined): boolean {
-  if (id !== undefined && !(kind === 'title' ? hero.titles ?? [] : hero.glows ?? []).includes(id)) return false;
+/** P2: wear an earned title, glow or trail (undefined takes it off). Returns false if the hero hasn't earned it. */
+export function wearCosmetic(hero: HeroProfile, kind: 'title' | 'glow' | 'trail', id: string | undefined): boolean {
+  const earned = kind === 'title' ? hero.titles ?? [] : kind === 'glow' ? hero.glows ?? [] : Object.keys(hero.trails ?? {});
+  if (id !== undefined && !earned.includes(id)) return false;
   hero.wear = { ...(hero.wear ?? {}), [kind]: id };
   if (id === undefined) delete hero.wear[kind];
   return true;

@@ -17,9 +17,18 @@ export interface SeasonState {
 
 export interface Glow { id: string; name: string; color: string }
 
+/**
+ * A mote trail behind the hero while they move. One per season, earned in three
+ * stages (SEASON.trailAt): stage 1 a few motes, 2 a denser, longer trail, 3 adds
+ * a burst of motes on a dash. Looks only.
+ */
+export interface Trail { id: string; name: string; color: string }
+
 export interface SeasonDef {
   name: string;
   glows: [Glow, Glow, Glow];
+  /** The season's trail, earned in three stages. */
+  trail: Trail;
   /** The season's dungeon: a win there (delve, key run or bounty) pays SEASON.featured more marks. */
   dungeon: DungeonId;
 }
@@ -42,14 +51,16 @@ export const SEASON = {
   glowAt: [5, 15, 25],
   titleAt: [10, 20, 30],
   titleWords: ['Delver', 'Veteran', 'Paragon'],
+  /** The season trail's three stages, in three of the five-level gaps between the glows and titles. */
+  trailAt: [8, 18, 28],
 };
 
 /** Season themes, in turn. Every name is Horders' own (its world, bosses and tagline). */
 export const SEASONS: SeasonDef[] = [
-  { name: 'the Hollow Tide', glows: [{ id: 'tideSilver', name: 'Tide Silver', color: '#9fd8ff' }, { id: 'hollowViolet', name: 'Hollow Violet', color: '#b48cff' }, { id: 'undertowTeal', name: 'Undertow Teal', color: '#4fe3c1' }], dungeon: 'foundry' },
-  { name: 'the Deep Bellows', glows: [{ id: 'bellowsOrange', name: 'Bellows Orange', color: '#ff9a3c' }, { id: 'kilnRed', name: 'Kiln Red', color: '#ff5a4a' }, { id: 'whiteHeat', name: 'White Heat', color: '#fff1d6' }], dungeon: 'hammerdeep' },
-  { name: 'the Cold Hearth', glows: [{ id: 'rimeBlue', name: 'Rime Blue', color: '#8fb8ff' }, { id: 'coalGlow', name: 'Coal Glow', color: '#ffb36b' }, { id: 'frostbite', name: 'Frostbite', color: '#d8f4ff' }], dungeon: 'coldmarrow' },
-  { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }], dungeon: 'glarewell' },
+  { name: 'the Hollow Tide', glows: [{ id: 'tideSilver', name: 'Tide Silver', color: '#9fd8ff' }, { id: 'hollowViolet', name: 'Hollow Violet', color: '#b48cff' }, { id: 'undertowTeal', name: 'Undertow Teal', color: '#4fe3c1' }], trail: { id: 'saltMist', name: 'Salt Mist', color: '#bfe9ff' }, dungeon: 'foundry' },
+  { name: 'the Deep Bellows', glows: [{ id: 'bellowsOrange', name: 'Bellows Orange', color: '#ff9a3c' }, { id: 'kilnRed', name: 'Kiln Red', color: '#ff5a4a' }, { id: 'whiteHeat', name: 'White Heat', color: '#fff1d6' }], trail: { id: 'bellowsSparks', name: 'Bellows Sparks', color: '#ffb04a' }, dungeon: 'hammerdeep' },
+  { name: 'the Cold Hearth', glows: [{ id: 'rimeBlue', name: 'Rime Blue', color: '#8fb8ff' }, { id: 'coalGlow', name: 'Coal Glow', color: '#ffb36b' }, { id: 'frostbite', name: 'Frostbite', color: '#d8f4ff' }], trail: { id: 'rimeDust', name: 'Rime Dust', color: '#e6f6ff' }, dungeon: 'coldmarrow' },
+  { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }], trail: { id: 'slagDrips', name: 'Slag Drips', color: '#ffcf6e' }, dungeon: 'glarewell' },
 ];
 
 /** Season 1 starts on the week of 21 Nov 2026: weekOf(Date.UTC(2026, 10, 21)) = 2968. */
@@ -84,7 +95,10 @@ export function seasonState(prev: SeasonState | undefined, week: number): Season
   return prev && prev.id === id ? prev : { id, marks: 0 };
 }
 
-export type SeasonReward = { level: number; kind: 'glow'; glow: Glow } | { level: number; kind: 'title'; title: string };
+export type SeasonReward =
+  | { level: number; kind: 'glow'; glow: Glow }
+  | { level: number; kind: 'title'; title: string }
+  | { level: number; kind: 'trail'; trail: Trail; stage: 1 | 2 | 3 };
 
 /** Every reward on a season's track, in level order. */
 export function seasonRewards(id: number): SeasonReward[] {
@@ -92,11 +106,20 @@ export function seasonRewards(id: number): SeasonReward[] {
   const out: SeasonReward[] = [];
   SEASON.glowAt.forEach((level, k) => out.push({ level, kind: 'glow', glow: def.glows[k] }));
   SEASON.titleAt.forEach((level, k) => out.push({ level, kind: 'title', title: `${SEASON.titleWords[k]} of ${def.name}` }));
+  SEASON.trailAt.forEach((level, k) => out.push({ level, kind: 'trail', trail: def.trail, stage: (k + 1) as 1 | 2 | 3 }));
   return out.sort((a, b) => a.level - b.level);
 }
 
 /** Every glow any season can give, by id (for wearing one from an earlier season). */
 export const GLOWS: Record<string, Glow> = Object.fromEntries(SEASONS.flatMap((s) => s.glows).map((g) => [g.id, g]));
+
+/** Every trail any season can give, by id. */
+export const TRAILS: Record<string, Trail> = Object.fromEntries(SEASONS.map((s) => [s.trail.id, s.trail]));
+
+/** "Bellows Sparks" at stage 1, "Bellows Sparks II" and "III" after. */
+export function trailLabel(t: Trail, stage: number): string {
+  return stage >= 3 ? `${t.name} III` : stage === 2 ? `${t.name} II` : t.name;
+}
 
 /** Marks for one run. `featured`: the run was in the season's own dungeon (only a win pays it). */
 export function runMarks(victory: boolean, fightsCleared: number, weeklyDone: number, firstWin: boolean, featured = false): number {

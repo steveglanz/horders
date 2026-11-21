@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRun, newHero, wearCosmetic } from '../sim/hero';
-import { SEASON, SEASONS, SEASON_START_WEEK, runMarks, seasonDef, seasonLevel, seasonOf, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
+import { SEASON, SEASONS, SEASON_START_WEEK, TRAILS, trailLabel, runMarks, seasonDef, seasonLevel, seasonOf, seasonRewards, seasonState, seasonWeeks } from '../sim/content/season';
 import { DUNGEONS } from '../sim/content/dungeon';
 import type { RunSummary } from '../sim/world';
 import { World } from '../sim/world';
@@ -47,6 +47,38 @@ describe('season track (P2)', () => {
     const c = applyRun(h, 3, run(true, { dungeon: other }), false);
     expect(c.seasonFeatured).toBeUndefined();
     expect(c.seasonMarks).toBe(SEASON.win);
+  });
+
+  it('the season trail comes in three stages, keeps its best stage, and can be worn', () => {
+    const id = seasonOf(W);
+    const rs = seasonRewards(id);
+    const levels = rs.map((r) => r.level);
+    // No two rewards share a level: 9 rewards, 5 8 10 15 18 20 25 28 30.
+    expect(levels).toEqual([5, 8, 10, 15, 18, 20, 25, 28, 30]);
+    const trails = rs.filter((r) => r.kind === 'trail');
+    expect(trails.map((r) => r.level)).toEqual([8, 18, 28]);
+    expect(new Set(SEASONS.map((d) => d.trail.id)).size).toBe(SEASONS.length);
+    const t = seasonDef(id).trail;
+    expect(TRAILS[t.id]).toBe(t);
+    expect(trailLabel(t, 3)).toBe(`${t.name} III`);
+    const h = newHero();
+    h.weekly = { week: W, titled: true, quests: [] };
+    expect(wearCosmetic(h, 'trail', t.id)).toBe(false);
+    h.season = { id, marks: SEASON.marksPerLevel * 8 - 10, firstWinDay: W * 7 + 1 };
+    const r = applyRun(h, 1, run(true), false);
+    expect(r.seasonRewards?.some((x) => x.kind === 'trail' && x.stage === 1)).toBe(true);
+    expect(h.trails).toEqual({ [t.id]: 1 });
+    h.season!.marks = SEASON.marksPerLevel * 28 - 10;
+    applyRun(h, 2, run(true), false);
+    expect(h.trails).toEqual({ [t.id]: 3 });
+    expect(wearCosmetic(h, 'trail', t.id)).toBe(true);
+    expect(h.wear?.trail).toBe(t.id);
+    // A save already past level 18 before trails existed gets stage 2 on its next run.
+    const old = newHero();
+    old.weekly = { week: W, titled: true, quests: [] };
+    old.season = { id, marks: SEASON.marksPerLevel * 19, firstWinDay: W * 7 + 1 };
+    applyRun(old, 1, run(false), false);
+    expect(old.trails).toEqual({ [t.id]: 2 });
   });
 
   it('the first win of a day pays once, and runs without a week earn nothing', () => {
