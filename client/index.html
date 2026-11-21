@@ -524,6 +524,51 @@
     .hub-foot { display: flex; justify-content: flex-end; padding-top: 8px; }
     .hub-foot .primary.big { width: min(360px, 50%); }
   }
+
+  /* In-run HUD on phones: bigger taps, no duplicate route line in the boss fight, no keyboard letters on touch. */
+  #tTitle, #tPct, .ab .k, #heatText { font-size: 11px; }
+  .ab .n { font-size: 10px; padding: 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (pointer: coarse) { .ab .k, .card .key { display: none; } #pauseBtn, #hud .snd-toggle { flex: none; width: 44px; height: 44px; } }
+  @media (max-width: 560px), (max-height: 520px) {
+    #pauseBtn, #hud .snd-toggle { flex: none; width: 44px; height: 44px; }
+    .row { gap: 8px; }
+    #hud.vsboss #quests { display: none; }
+    #target .tname { gap: 6px; }
+    #tName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #tTitle, #tPhase { flex: none; white-space: nowrap; }
+    #stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    #stats div { padding: 8px 2px; }
+    #stats b { font-size: 17px; }
+    #stats span { font-size: 10px; letter-spacing: 0.06em; }
+    #endTitle { margin-top: 8px; }
+    .snd-panel .row input[type=checkbox] { width: 24px; height: 24px; }
+    #pause .snd-panel input[type=range] { min-height: 40px; }
+    #pause .panel button { min-height: 48px; }
+  }
+  /* Landscape phones: the action bar moves under the right thumb, the route shows only the current fight. */
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+    #actionbar { left: auto; right: max(14px, env(safe-area-inset-right)); transform: none; align-items: flex-end; }
+    #heat { width: 200px; }
+    .ab { width: 60px; height: 60px; }
+    #quests { width: 180px; font-size: 11px; }
+    #quests h3, #quests .q:not(.now), #quests .qp { display: none; }
+    /* The boss frame rides in the top row, between your health and the clock, so it no longer covers the boss. */
+    #target { top: max(8px, env(safe-area-inset-top)); width: min(38vw, 340px); padding: 4px 10px 6px; background: rgba(28,18,16,0.78); }
+    #target .tname { font-size: 14px; }
+    #target .bar { height: 8px; margin-top: 3px; }
+    #tCast { height: 15px; margin-top: 3px; }
+    .hp { width: min(21vw, 200px); }
+    #tPct { display: none; }
+    .toast:nth-child(n+3) { display: none; }
+    #endTitle { margin-top: 4px; font-size: 36px; }
+    .end-grid { grid-template-columns: 1fr 1fr; }
+    #draft .panel { padding: 14px 18px; }
+    #draft h2 { font-size: 24px; }
+    #cards { margin-top: 10px; }
+    .card { min-height: 0; padding: 10px 12px; }
+    .card .name { font-size: 17px; margin: 2px 0 4px; }
+    .card .text { font-size: 13px; }
+  }
 </style>
 </head>
 <body>

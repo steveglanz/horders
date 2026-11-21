@@ -493,6 +493,197 @@ function drawKiln(ctx: Ctx, s: number, f: number): void {
  * Cool steel with molten slag in the seams; a great hammer in its right hand
  * (it rises over the four frames), a visor slit with two hot eyes.
  */
+// ------------------------------------------------------------------ The Coldmarrow
+// The deep under the Kiln where the forge fires went out: black stone, blue-white rime.
+// Everything here is cold; only the heroes' coals are warm, so these read blue on black.
+const RIME_HI = '#eaf6ff';
+const RIME = '#9cc8ec';
+const RIME_LO = '#2a3a5a';
+
+/** Rimehound: a pale, low-slung hound with a ridge of frost spikes down its back. Faces right. */
+function drawRimehound(ctx: Ctx, _s: number, f: number): void {
+  const a = [0.5, 0.15, -0.5, -0.15][f];
+  const bob = [0, -0.8, 0, -0.8][f];
+  for (const [x, k] of [[11, a], [14, -a], [22, -a], [25, a]] as [number, number][]) limb(ctx, x, 22 + bob, x + Math.sin(k) * 5, 30, 2, '#5a6a84');
+  // Tail: a stiff frozen plume.
+  ctx.beginPath(); ctx.moveTo(9, 19 + bob); ctx.lineTo(2, 14 + bob - a * 2); ctx.lineTo(5, 20 + bob); ctx.closePath();
+  shade(ctx, RIME_HI, RIME, 13, 21, 1);
+  ell(ctx, 17.5, 20 + bob, 10.5, 5);
+  shade(ctx, '#d6e4f2', '#5a6a84', 15, 25);
+  ell(ctx, 27.5, 16.5 + bob, 5, 4.2);
+  shade(ctx, '#e2eef8', '#66788f', 12, 21);
+  ctx.beginPath(); ctx.moveTo(30, 15 + bob); ctx.lineTo(35, 17.5 + bob); ctx.lineTo(30.5, 19.5 + bob); ctx.closePath();
+  shade(ctx, '#c8d6e6', '#56677e', 15, 20, 1.1);
+  ctx.fillStyle = '#3a4a64';
+  ctx.beginPath(); ctx.moveTo(25, 13.5 + bob); ctx.lineTo(25.5, 8.5 + bob); ctx.lineTo(28, 12.5 + bob); ctx.fill();
+  // Frost spikes along the spine.
+  for (let k = 0; k < 5; k++) {
+    const x = 11 + k * 3.4;
+    const h = 3 + (k % 2) * 1.6;
+    ctx.beginPath(); ctx.moveTo(x - 1.4, 15.6 + bob); ctx.lineTo(x + 0.3, 15.6 + bob - h); ctx.lineTo(x + 1.6, 15.6 + bob); ctx.closePath();
+    shade(ctx, RIME_HI, RIME, 15.6 - h + bob, 16 + bob, 0.8);
+  }
+  eyes(ctx, [[30, 15.5 + bob]], 1.1, '#7fd8ff');
+}
+
+/** Snuffer: a slow hooded wraith of smoke whose open icy mouth drinks light. Faces right. */
+function drawSnuffer(ctx: Ctx, _s: number, f: number): void {
+  const w = [0, 1.2, 0, -1.2][f];
+  // A cold halo that darkens rather than lights.
+  softGlow(ctx, 20, 18, 18, 'rgba(120,170,220,0.28)');
+  ctx.save(); ctx.lineCap = 'round';
+  for (const [y, al, ww] of [[18, 0.5, 5], [24, 0.4, 4], [29, 0.3, 3]] as [number, number, number][]) {
+    ctx.strokeStyle = `rgba(40,48,66,${al})`; ctx.lineWidth = ww;
+    ctx.beginPath(); ctx.moveTo(14, y); ctx.quadraticCurveTo(8, y + w * 2, 2, y - 2 + w); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.beginPath();
+  ctx.moveTo(21, 3);
+  ctx.quadraticCurveTo(33, 6, 32, 19);
+  ctx.quadraticCurveTo(31 + w, 28, 27 - w, 33);
+  ctx.quadraticCurveTo(24, 28, 21, 32 + w);
+  ctx.quadraticCurveTo(18, 28, 14 + w, 33);
+  ctx.quadraticCurveTo(10, 25, 10, 18);
+  ctx.quadraticCurveTo(9, 6, 21, 3);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, 3, 0, 34);
+  g.addColorStop(0, 'rgba(92,102,124,0.97)'); g.addColorStop(0.6, 'rgba(38,44,60,0.95)'); g.addColorStop(1, 'rgba(18,20,30,0.5)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(200,228,255,0.5)'; ctx.stroke();
+  // The hood's dark opening and the mouth: a pale ring that pulls inward.
+  ell(ctx, 24, 15, 6, 7); ctx.fillStyle = '#05070c'; ctx.fill();
+  const m = 2.2 + [0, 0.6, 1.2, 0.6][f];
+  ctx.save();
+  ctx.strokeStyle = RIME_HI; ctx.shadowColor = '#bfe6ff'; ctx.shadowBlur = 5; ctx.lineWidth = 1.3;
+  ell(ctx, 25, 18, m, m * 0.8); ctx.stroke();
+  ctx.restore();
+  eyes(ctx, [[22.5, 12.5], [26.5, 12.5]], 0.9, '#cfeaff');
+}
+
+/** Frost Warden: a blocky guard clad in ice plates over dark stone; the ice cracks orange when warmed. */
+function drawFrostWarden(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const swing = [1.5, 0, -1.5, 0][f];
+  ctx.fillStyle = '#1a2030';
+  ell(ctx, 21 - swing, 46, 5.5, 4); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke();
+  ell(ctx, 33 + swing, 46, 5.5, 4); ctx.fill(); ctx.stroke();
+  // Back arm.
+  ctx.beginPath(); ctx.rect(6, 24 + bob - swing, 9, 16);
+  shade(ctx, '#46546e', '#1a2030', 24, 40);
+  // Torso: a squared block.
+  ctx.beginPath();
+  ctx.moveTo(13, 16 + bob); ctx.lineTo(41, 16 + bob); ctx.lineTo(43, 42 + bob); ctx.lineTo(11, 42 + bob); ctx.closePath();
+  shade(ctx, '#3e4a62', '#141a28', 16, 42, 1.6);
+  // Ice plates over it.
+  for (const [x0, y0, x1, y1] of [[14, 18, 27, 30], [28, 18, 40, 28], [15, 32, 39, 40]]) {
+    ctx.beginPath(); ctx.moveTo(x0, y0 + bob); ctx.lineTo(x1, y0 + bob); ctx.lineTo(x1 - 1, y1 + bob); ctx.lineTo(x0 + 1, y1 + bob); ctx.closePath();
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, 'rgba(234,246,255,0.95)'); g.addColorStop(1, 'rgba(120,170,220,0.75)');
+    ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,30,50,0.9)'; ctx.stroke();
+  }
+  // Fine cracks: the seams that glow orange when it's warmed in a coal's light.
+  cracks(ctx, [[[20, 20 + bob], [22, 25 + bob], [19, 29 + bob]], [[33, 20 + bob], [31, 24 + bob]], [[24, 33 + bob], [28, 36 + bob], [26, 39 + bob]]], 'rgba(90,140,200,0.9)', 0.9);
+  // Head: a helm of ice with a slit.
+  ctx.beginPath(); ctx.rect(20, 5 + bob, 14, 12);
+  shade(ctx, '#e2f0fc', '#6c8cb0', 5, 17, 1.4);
+  ctx.fillStyle = '#0a0e18'; ctx.fillRect(22, 10 + bob, 10, 2.4);
+  eyes(ctx, [[25, 11.2 + bob], [29.5, 11.2 + bob]], 1.1, '#7fd8ff');
+  // Front arm with an ice maul fist.
+  ctx.beginPath(); ctx.rect(40, 22 + bob + swing, 8, 15);
+  shade(ctx, '#4a5874', '#1a2030', 22, 37);
+  ctx.beginPath(); ctx.rect(38, 36 + bob + swing, 12, 9);
+  shade(ctx, RIME_HI, RIME, 36, 45, 1.3);
+}
+
+/** Hoarfrost Weaver: a thin robed caster holding a spindle that spins threads of ice. Faces right. */
+function drawHoarfrostWeaver(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const spin = f * (Math.PI / 4);
+  ctx.fillStyle = '#121828';
+  ell(ctx, 18, 46, 6, 1.8); ctx.fill();
+  // Robe: tall and narrow, frayed at the hem.
+  ctx.beginPath();
+  ctx.moveTo(17, 10 + bob); ctx.quadraticCurveTo(25, 12 + bob, 26, 26);
+  ctx.lineTo(28, 45); ctx.lineTo(24, 42); ctx.lineTo(20, 46); ctx.lineTo(16, 42); ctx.lineTo(11, 45);
+  ctx.lineTo(12, 26); ctx.quadraticCurveTo(12, 12 + bob, 17, 10 + bob);
+  ctx.closePath();
+  shade(ctx, '#4a5a7a', '#141a2a', 10, 46, 1.3);
+  rimLight(ctx, 10, 30, 'rgba(200,230,255,0.6)', 1);
+  // Hood and a cold face.
+  ell(ctx, 18.5, 9 + bob, 5.5, 6);
+  shade(ctx, '#5a6c8e', '#1c2436', 3, 15, 1.2);
+  ell(ctx, 19.8, 10 + bob, 3.2, 3.6); ctx.fillStyle = '#070a12'; ctx.fill();
+  eyes(ctx, [[19.4, 9.6 + bob], [21.6, 9.6 + bob]], 0.8, '#cfeaff');
+  // Arm reaching out with the spindle.
+  limb(ctx, 22, 20 + bob, 30, 22 + bob, 2.6, '#3e4c6a');
+  softGlow(ctx, 33, 22 + bob, 8, 'rgba(160,220,255,0.6)');
+  ctx.save();
+  ctx.translate(33, 22 + bob);
+  ctx.strokeStyle = RIME_HI; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(0, 7); ctx.stroke();
+  // Threads wound round it, turning.
+  ctx.strokeStyle = 'rgba(180,225,255,0.85)'; ctx.lineWidth = 0.9;
+  for (let k = 0; k < 3; k++) { ell(ctx, 0, 0, 3.4, 1.4, spin + (k * Math.PI) / 3); ctx.stroke(); }
+  ctx.restore();
+  // A loose thread trailing to the ground.
+  ctx.save(); ctx.strokeStyle = 'rgba(180,225,255,0.6)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(33, 29 + bob); ctx.quadraticCurveTo(36 + bob, 38, 32, 46); ctx.stroke(); ctx.restore();
+}
+
+/**
+ * Nhevra, the Cold Hearth: the dead forge's heart, a great stone hearth gone white with
+ * frost, with a cold blue flame burning in its mouth and icicles hanging from the lintel.
+ */
+function drawNhevra(ctx: Ctx, _s: number, f: number): void {
+  const flick = [0, -3, -5, -2][f];
+  const glow = [0.75, 0.9, 1, 0.85][f];
+  softGlow(ctx, 60, 64, 56, `rgba(120,190,255,${0.3 * glow})`);
+  // Chimney stacks, frosted.
+  for (const x of [34, 86]) {
+    ctx.beginPath(); ctx.rect(x - 7, 8, 14, 30);
+    shade(ctx, '#d8e8f6', '#3c4c68', 8, 38, 1.8);
+    ctx.fillStyle = 'rgba(234,246,255,0.9)'; ctx.fillRect(x - 8, 6, 16, 4);
+  }
+  // Stone arms braced on the floor either side, frosted knuckles.
+  for (const side of [-1, 1]) {
+    limb(ctx, 60 + side * 40, 60, 60 + side * 50, 96, 11, '#56667e');
+    ell(ctx, 60 + side * 50, 100, 9, 7);
+    shade(ctx, RIME_HI, '#4a5a74', 93, 107, 1.6);
+  }
+  // The hearth body: a stone arch.
+  ctx.beginPath();
+  ctx.moveTo(18, 108); ctx.lineTo(18, 46); ctx.quadraticCurveTo(60, 22, 102, 46); ctx.lineTo(102, 108); ctx.closePath();
+  shade(ctx, '#9aacc4', '#1a2238', 30, 108, 2.4);
+  rimLight(ctx, 30, 70, 'rgba(234,246,255,0.8)', 1.4);
+  // Stone courses under the frost.
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(18, 108); ctx.lineTo(18, 46); ctx.quadraticCurveTo(60, 22, 102, 46); ctx.lineTo(102, 108); ctx.closePath(); ctx.clip();
+  ctx.strokeStyle = 'rgba(30,40,64,0.45)'; ctx.lineWidth = 1.2;
+  for (let y = 52; y < 108; y += 10) { ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(102, y); ctx.stroke(); }
+  for (let y = 52, r = 0; y < 108; y += 10, r++) for (let x = 18 + (r % 2) * 9; x < 102; x += 18) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 10); ctx.stroke(); }
+  ctx.restore();
+  // The mouth: dark, with the cold flame burning inside.
+  ctx.beginPath();
+  ctx.moveTo(36, 104); ctx.lineTo(36, 78); ctx.quadraticCurveTo(60, 60, 84, 78); ctx.lineTo(84, 104); ctx.closePath();
+  ctx.fillStyle = '#04060c'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
+  softGlow(ctx, 60, 90, 26, `rgba(140,210,255,${0.85 * glow})`);
+  flameTongue(ctx, 60, 104, 13, 60 + flick * 0.4, 62 + flick, '#f2fbff', '#7fd0ff', '#2a5aa8');
+  flameTongue(ctx, 50, 104, 7, 46 - flick * 0.3, 78 - flick * 0.5, '#e6f6ff', '#6ab8f0', '#244a90');
+  flameTongue(ctx, 70, 104, 7, 74 + flick * 0.3, 76 + flick * 0.3, '#e6f6ff', '#6ab8f0', '#244a90');
+  // A frowning brow cracked across the arch, with two cold eyes burning in the stone.
+  for (const x of [47, 73]) { ell(ctx, x, 58, 7, 5); ctx.fillStyle = '#05080f'; ctx.fill(); }
+  cracks(ctx, [[[38, 50], [47, 54], [56, 52]], [[82, 50], [73, 54], [64, 52]]], `rgba(140,210,255,${glow})`, 2);
+  eyes(ctx, [[47, 58], [73, 58]], 3.4, '#bfe6ff');
+  // Icicles hanging from the lintel.
+  for (const [x, l] of [[30, 10], [40, 16], [50, 8], [70, 9], [80, 15], [90, 11]]) {
+    ctx.beginPath(); ctx.moveTo(x - 3, 47 - (x > 40 && x < 80 ? 9 : 2)); ctx.lineTo(x, 47 + l - (x > 40 && x < 80 ? 9 : 2)); ctx.lineTo(x + 3, 47 - (x > 40 && x < 80 ? 9 : 2)); ctx.closePath();
+    shade(ctx, RIME_HI, RIME, 40, 60, 0.9);
+  }
+  // Hearthstone base.
+  ctx.beginPath(); ctx.rect(12, 104, 96, 10);
+  shade(ctx, '#9cb2c8', RIME_LO, 104, 114, 2);
+}
+
 /** One tongue of flame from (x, y0) up to a tip at (tx, ty), `w` wide at the base. */
 function flameTongue(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty: number, hi: string, mid: string, lo: string): void {
   ctx.beginPath();
@@ -1637,6 +1828,13 @@ export function buildTextures(scene: Phaser.Scene): void {
 
   // The Ashvents.
   sheet(scene, 'ysmeret', 120, 4, drawYsmeret);
+
+  // The Coldmarrow (drawn ahead of its sim; keys match design's EnemyKind ids).
+  sheet(scene, 'rimehound', 36, 4, drawRimehound);
+  sheet(scene, 'snuffer', 36, 4, drawSnuffer);
+  sheet(scene, 'frostWarden', 56, 4, drawFrostWarden);
+  sheet(scene, 'hoarfrostWeaver', 48, 4, drawHoarfrostWeaver);
+  sheet(scene, 'nhevra', 120, 4, drawNhevra);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {
