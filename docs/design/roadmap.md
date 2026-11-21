@@ -107,7 +107,7 @@ Phase 6 is built, apart from the bounty board's migration. Phase 7 brings the ne
 | W1 | **Rename Ashmaw to Coalmouth:** "Ashmaw" is a WoW NPC title (Maxnar the Ashmaw) | design + engineering | ✅ Design: the Kiln rare's display names (#289). 🔨 Engineering: migration 0007 (#292) renames the world boss "Old Ashmaw" to "Old Coalmouth"; not applied until Steve's yes |
 | W2 | **Raid 2: Old Coalmouth in the Hoard,** tier 9. A new group check: break the Craw to get a swallowed ally out | design | ✅ [raid2.md](raid2.md), #295; banners #298, swallow countdown #299 |
 | W3 | **Raid credit follows the live world boss:** the Crucible and the Hoard each count toward the world boss only when their boss is the live one | engineering | ✅ #293, a client rule (design's call): `DungeonDef.worldBoss` and `raidCountsTriple`; in another week a raid's hits count once. The Hoard sets `worldBoss: 'Old Coalmouth'` (#295) |
-| W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | ✅ #294: a party-only trim (Bellows x0.7 damage with allies, thinner ally shell and plating). Follow-up: the Anvil Slagbinder tank (78 of 80 at Hammerdeep t8) |
+| W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | ✅ #294: a party-only trim (Bellows x0.7 damage with allies, thinner ally shell and plating). Follow-up ✅ #308: the Anvil tank's cut on unblockable hits is 20% in a party (35% alone); the Pressworks stays the hard way to tank with it (27 of 80) |
 | W5 | **Pressworks content QA** (carried over from V3) | QA | ✅ #278: contentcheck plays the Pressworks at tier 10 (0 stuck in 256 runs); `coopsweep.cjs --pressworks` drops a guest mid-Downstroke and the run reaches the end screen. Re-run on main at 60b2e73 |
 | W6 | **The Hoard's art:** Coalmouth, the Craw, the swallowed state, the embers, a hub card | visuals | ✅ #297 |
 | W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | ✅ Theme `hoard` (chew bed), Swallow sting, belly muffle and heartbeat, and every Hoard event and cast cued (#296) |
@@ -117,19 +117,19 @@ Every visuals item in Phases 6 and 7 is done. These are gaps found in the code o
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| X1 | **A shadow for each world boss:** the shadow fight always draws Grandmother Slag's silhouette, whichever boss is live (GameScene.ts, `e.kind === 'worldShadow' ? 'slagCrone'`). The rotation has four: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent (migration 0007) | visuals | ⏭ Pick the sheet by `w.worldBoss`. Old Coalmouth can reuse the `coalmouth` sheet from #297. The Colossus and the Regent need new silhouettes (**open**: suggested a hulking cinder giant and a crowned furnace). Keep the purple multiply tint, so it still reads as a shadow |
-| X2 | **World boss portrait on the hub card:** `renderBoss` (hub.ts) shows only the name, a meter and text | visuals | ⏭ A small portrait per boss name, reusing the X1 art, and a hit flash when your delve's damage lands. Keep it within the phone card height (mobile rules) |
-| X3 | **The Wrackline's hub card art:** every other dungeon has a `.dg[data-d=...]` art rule in index.html; the Wrackline has none | visuals | ⏭ Suggested: rafts on dark water with a drain spiral, matching Season 6's palette (season5-6-brief.md) |
-| X4 | **Small fixes:** the Hoard's arena rim falls to the Kiln's orange default (the `rim` chain in GameScene.ts has no `hoard`); the Ysmeret "borrows the Kiln Mother's sheet" comment and fallback are stale now that `ysmeret` has a sheet | visuals | ⏭ One small PR |
+| X1 | **A shadow for each world boss:** the shadow fight always draws Grandmother Slag's silhouette, whichever boss is live (GameScene.ts, `e.kind === 'worldShadow' ? 'slagCrone'`). The rotation has four: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent (migration 0007) | visuals | ✅ #309 |
+| X2 | **World boss portrait on the hub card:** `renderBoss` (hub.ts) shows only the name, a meter and text | visuals | ✅ #309 |
+| X3 | **The Wrackline's hub card art:** every other dungeon has a `.dg[data-d=...]` art rule in index.html; the Wrackline has none | visuals | ✅ #309 |
+| X4 | **Small fixes:** the Hoard's arena rim falls to the Kiln's orange default (the `rim` chain in GameScene.ts has no `hoard`); the Ysmeret "borrows the Kiln Mother's sheet" comment and fallback are stale now that `ysmeret` has a sheet | visuals | ✅ #309 |
 
 ### Sound batch S (after Phase 7, game design, 21 Nov 2026)
 Every sound item in Phases 6 and 7 is done (#296, #302, #305). These are gaps found in the code on main at 89c7ab3, most important first.
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| S1 | **The Hoard's theme never plays:** `hoard` is in THEMES (music.ts, #296), but GameScene still calls `audio.theme(w.dungeonId === 'crucible' \|\| w.dungeonId === 'hoard' ? 'raid' : w.dungeonId)`, so the Hoard gets the Crucible's raid theme | sound | ⏭ Map only the Crucible to `raid`. A one-line fix; check the chew bed by ear |
-| S2 | **The hub is silent:** hub.ts imports no audio. Brewing a potion, Forge upgrade and temper, salvage, equipping, spending a passive point and claiming a world boss reward all make no sound (main.ts plays only matchmaking and party cues) | sound | ⏭ Short, quiet UI cues; the world boss claim gets the biggest one (an Epic reward). Respect the mute setting and keep them under the hub theme |
-| S3 | **A shadow sting per world boss:** every shadow fight uses the one `worldShadow: 'phaseShadow'` cue (cues.ts), whichever boss is live | sound | ⏭ Pair with visuals X1. Four boss stings keyed by `w.worldBoss`: Grandmother Slag, the Cinder Colossus, Old Coalmouth (can reuse the Hoard's chew) and the Furnace Regent |
+| S1 | **The Hoard's theme never plays:** `hoard` is in THEMES (music.ts, #296), but GameScene still calls `audio.theme(w.dungeonId === 'crucible' \|\| w.dungeonId === 'hoard' ? 'raid' : w.dungeonId)`, so the Hoard gets the Crucible's raid theme | sound | ✅ #307 |
+| S2 | **The hub is silent:** hub.ts imports no audio. Brewing a potion, Forge upgrade and temper, salvage, equipping, spending a passive point and claiming a world boss reward all make no sound (main.ts plays only matchmaking and party cues) | sound | ✅ #307 |
+| S3 | **A shadow sting per world boss:** every shadow fight uses the one `worldShadow: 'phaseShadow'` cue (cues.ts), whichever boss is live | sound | ✅ #307 |
 
 ### Phase 8: the third raid, and making the Hoard hold up online (planned by game design, 21 Nov 2026)
 Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying migration 0007, which waits on Steve's yes. Phase 8 checks raid 2 in real online parties, then brings a third world boss into a fight.
