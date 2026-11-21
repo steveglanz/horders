@@ -472,11 +472,13 @@ export class Hud {
     $('pause').hidden = !p;
   }
 
-  banner(title: string, sub: string): void {
+  /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
+  banner(title: string, sub: string, full = false): void {
     $('bannerTitle').textContent = title;
     $('bannerSub').textContent = sub;
     $('banner').classList.add('show');
-    this.bannerTimer = performance.now() + 3200;
+    $('banner').classList.toggle('full', full);
+    this.bannerTimer = performance.now() + (full ? 5000 : 3200);
     this.placeDing();
   }
 

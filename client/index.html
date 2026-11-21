@@ -627,6 +627,7 @@
     .pf .gtile svg { width: 13px; height: 13px; }
     #bannerTitle { font-size: 22px; }
     #bannerSub { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    #banner.full #bannerSub { -webkit-line-clamp: 4; }
     #target .tname { gap: 6px; }
     #tName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* A long name ("Morrowfang, Hollow Warden") keeps its line; the rank and state drop to a second line only when they don't fit. */
@@ -795,6 +796,10 @@
     #coach[data-kind="move"] span { font-size: 13px; padding: 7px 11px; }
     #coach[data-kind="move"] .ch-drag { width: 60px; height: 60px; }
     body.lefty #coach[data-kind="move"] { left: auto; right: max(12px, env(safe-area-inset-right)); align-items: flex-end; text-align: right; }
+    /* L1 first-time tips sit where the move prompt does: beside the action bar, never over it. */
+    #coach[data-kind="tip"] { left: max(12px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 12px); transform: none; align-items: flex-start; text-align: left; max-width: min(300px, calc(100vw - 172px)); }
+    #coach[data-kind="tip"] span { font-size: 13px; padding: 7px 11px; }
+    body.lefty #coach[data-kind="tip"] { left: auto; right: max(12px, env(safe-area-inset-right)); align-items: flex-end; text-align: right; }
   }
   @keyframes chDrag { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(22px, -14px); } 65% { transform: translate(-20px, 12px); } }
   .ab.coach { animation: coachPulse 0.8s ease-in-out infinite alternate; }

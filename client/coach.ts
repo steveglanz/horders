@@ -4,11 +4,26 @@
  *   2. Cast: once the first ability is affordable, a pulse and "Tap to cast" on it, until it is used.
  *   3. Interrupt: the first time an enemy starts an interruptible cast, a pulse on the interrupt button.
  * Each step also times out, so the coach never nags. Done is stored per browser.
+ * After that, L1's first-time tips: the first red hit circle near the hero and the first gold
+ * soak circle each get one line, once per browser (see docs/design/first-delve.md).
  */
 import type { World } from '../sim/world';
 import { INTERRUPT_SLOT } from './icons';
 
 const KEY = 'horders.coach.v1';
+const TIPS_KEY = 'horders.tips.v1';
+/** L1 first-time tips: shown once each, for this long. */
+const TIPS: Record<string, string> = {
+  red: 'Red on the floor is a hit coming. Step out before it fills.',
+  gold: 'Gold circles want someone inside. Stand in it until it fills, or it blasts you.',
+};
+const TIP_TIME = 5;
+
+function loadTips(): Set<string> {
+  const q = new URLSearchParams(location.search);
+  if (q.has('seed') || q.has('god') || q.has('stress')) return new Set(q.get('tips') === '1' ? [] : Object.keys(TIPS));
+  try { return new Set(JSON.parse(localStorage.getItem(TIPS_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+}
 type Step = 'move' | 'cast' | 'kick' | 'done';
 
 function loadDone(): boolean {
@@ -27,7 +42,8 @@ export class Coach {
 
   /** Call once per HUD tick. `buttons` are the action bar buttons, in slot order. */
   tick(w: World, buttons: HTMLElement[]): void {
-    if (this.step === 'done' || w.stress) return this.hide();
+    if (w.stress) return this.hide();
+    if (this.step === 'done') return this.tickTips(w);
     const p = w.player;
     const now = w.time;
     if (!this.start) { this.start = { x: p.x, y: p.y }; this.stepAt = now; }
@@ -57,6 +73,28 @@ export class Coach {
   }
 
   private kickSince = 0;
+  private seenTips = loadTips();
+  private tip = '';
+  private tipUntil = 0;
+
+  /** L1: one line the first time a red hit circle lands near the hero, or a gold soak circle appears. */
+  private tickTips(w: World): void {
+    if (this.tip && w.time < this.tipUntil) return this.show('tip', TIPS[this.tip]);
+    this.tip = '';
+    const p = w.player;
+    let found = '';
+    for (const t of w.telegraphs) {
+      if (!t.alive) continue;
+      if (t.kind === 'soak' && !this.seenTips.has('gold')) { found = 'gold'; break; }
+      if (t.kind === 'hit' && !this.seenTips.has('red') && Math.hypot(t.x - p.x, t.y - p.y) < t.r + 60) { found = 'red'; break; }
+    }
+    if (!found) return this.hide();
+    this.tip = found;
+    this.tipUntil = w.time + TIP_TIME;
+    this.seenTips.add(found);
+    try { localStorage.setItem(TIPS_KEY, JSON.stringify([...this.seenTips])); } catch { /* storage blocked: shows again next visit */ }
+    this.show('tip', TIPS[found]);
+  }
 
   private next(step: Step, now: number, _w: World): void {
     this.step = step;
