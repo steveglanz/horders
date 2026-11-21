@@ -59,15 +59,15 @@ Soft enrage at 4.5 minutes: vents open every 8 s.
 - Bots that ignore the vents (all to the nearest one): under 15%.
 - Bots that ignore Scatter: under 25%.
 
-**First pass, measured** (tools/group.ts, heroes-r2 hero-t8-0, tier 8, seeds 1-60, with #59's co-op telegraph fix merged in). `NOSPLIT=1` and `NOSPREAD=1` switch off the new bot behaviours to measure what each check is worth.
+**First pass, measured** (tools/group.ts, heroes-r2 hero-t8-0, tier 8, seeds 1-60). The table shows the final numbers on main with #59 and G1 #64. In brackets are the numbers before G1, with #59 merged in locally. `NOSPLIT=1` and `NOSPREAD=1` switch off the new bot behaviours to measure what each check is worth.
 
 | Party | Wins |
 |---|---|
-| Bulwark + Lumen + Duskblade + Emberwright | 36/60 (60%) |
-| Same party, bots ignore the vents | 2/60 |
-| Same party, bots don't spread | 8/60 |
-| No tank (Lumen + 2 Duskblade + Emberwright) | 7/60 |
-| No healer (Bulwark + Duskblade + 2 Emberwright) | 11/60 |
+| Bulwark + Lumen + Duskblade + Emberwright | 38/60 (36) |
+| Same party, bots ignore the vents | 0/60 (2) |
+| Same party, bots don't spread | 7/60 (8) |
+| No tank (Lumen + 2 Duskblade + Emberwright) | 4/60 (7) |
+| No healer (Bulwark + Duskblade + 2 Emberwright) | 14/60 (11) |
 
 Tuning steps: Bellow Slam 90 and Scatter 8%/25% gave 1/6 on a quick check, because the tank died and the boss then slammed the damage dealers. Bellow 70 with Ysmeret at 4800 health gave 22/24 (too easy). Bellow 80, 4800 health and 8%/25% gave 33/40, but not spreading still won 19/40, so Scatter was raised to 10%/35% and Ysmeret's health to 5000. Bellow 90 was the last step.
 

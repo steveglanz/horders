@@ -36,6 +36,14 @@ export const CHOOSE_TIME = 10;
 export const GATE_RADIUS = 46;
 export const RIFT_TIMES = [60, 200, 330];
 const BOSS_ENRAGE_AFTER = 150;
+/**
+ * Burnout (C7 stall fix): no fight can last forever. After `fight` s in a regular
+ * fight, or `boss` s in a boss fight, the fire takes everything: every living hero
+ * loses `ramp` of max health per second, plus `ramp` more each second it goes on,
+ * through shields. `warn` s before, the HUD warns. `addCap`: a fight never holds
+ * more than this many live foes (summons past it fizzle).
+ */
+export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150 };
 export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
@@ -335,6 +343,8 @@ export type SimEvent =
   | { type: 'eliteSpawn' }
   | { type: 'bossSpawn' }
   | { type: 'bossEnrage' }
+  /** C7: a fight has gone on too long (`warn`: 30 s left; otherwise the fire now takes everything). */
+  | { type: 'burnout'; warn: boolean }
   | { type: 'explode'; x: number; y: number; r: number }
   /** Glarewell: a Glare went off; `hit` is whether it caught the hero in the light. */
   | { type: 'glare'; x: number; y: number; hit: boolean }
@@ -631,6 +641,11 @@ export class World {
   veins: Vein[];
   events: SimEvent[] = [];
   aliveEnemies = 0;
+  /** When the current fight started (Burnout counts from here). */
+  private fightStartedAt = 0;
+  private burnoutWarned = false;
+  private burnoutTickT = 0;
+  private burnoutOn = false;
 
   // Spatial hash over enemies, rebuilt every tick.
   private head = new Int32Array(HASH_SIZE);
@@ -1081,6 +1096,7 @@ export class World {
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
+    if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
@@ -1096,9 +1112,39 @@ export class World {
     return this.shadowStart >= 0 ? Math.max(0, SHADOW_TIME - (this.time - this.shadowStart)) : SHADOW_TIME;
   }
 
+  /** Burnout: the hard limit on any fight (see BURNOUT). */
+  private burnoutClock(dt: number): void {
+    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? BURNOUT.boss : BURNOUT.fight);
+    if (!this.burnoutWarned && this.time >= limit - BURNOUT.warn) {
+      this.burnoutWarned = true;
+      this.events.push({ type: 'burnout', warn: true });
+    }
+    if (this.time < limit) return;
+    this.burnoutTickT -= dt;
+    if (this.burnoutTickT > 0) return;
+    // The first tick lands as soon as the limit passes, then one a second.
+    if (!this.burnoutOn) {
+      this.burnoutOn = true;
+      this.events.push({ type: 'burnout', warn: false });
+    }
+    this.burnoutTickT += 1;
+    const share = BURNOUT.ramp * (1 + Math.floor(this.time - limit));
+    const at = this.acting;
+    this.eachHero(() => {
+      const p = this.player;
+      p.hp -= p.maxHp * share;
+      if (p.hp < 0) p.hp = 0;
+    });
+    this.use(at);
+  }
+
   private startEncounter(): void {
     const def = this.encounterDef;
     this.phase = 'fight';
+    this.fightStartedAt = this.time;
+    this.burnoutWarned = false;
+    this.burnoutTickT = 0;
+    this.burnoutOn = false;
     this.player.haloUsed = false;
     this.player.windUsed = false;
     const p = this.player;
@@ -1356,9 +1402,11 @@ export class World {
   }
 
   private spawn(kind: EnemyKind, x: number, y: number): number {
+    const def = ENEMIES[kind];
+    // C7: summons past the cap fizzle, so a stalled fight can't flood the arena.
+    if (!this.stress && this.phase === 'fight' && def.rank === 'normal' && this.aliveEnemies >= BURNOUT.addCap) return -1;
     const idx = this.enemies.findIndex((e) => !e.alive);
     if (idx < 0) return -1;
-    const def = ENEMIES[kind];
     const e = this.enemies[idx];
     const tierHp = Math.pow(1.22, this.tier - 1) * (this.stress ? 1 : partyHealth(this.partySize));
     const depth = this.stress ? 1 : def.rank === 'boss' ? 1 : 1 + 0.12 * this.encounter;
