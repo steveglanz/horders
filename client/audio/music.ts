@@ -19,7 +19,7 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth';
 export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf';
 
 export interface Theme {
@@ -55,6 +55,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   hub: { root: -7, scale: [0, 2, 4, 7, 9, 12, 14, 16], progression: [0, 5, -3, 7], bpm: 76, drone: 'triangle', droneLp: 700, pluck: 'harp', density: 0.6, bed: 'hearth', bedVol: 0.3, droneAt: 0 },
   // Season 2, the Deep Bellows: the same hearth harp, a step lower and in mixolydian (the flat 7th darkens it), over the forge's breathing bellows.
   hubBellows: { root: -9, scale: [0, 2, 4, 7, 9, 10, 12, 14], progression: [0, -2, 5, 0], bpm: 72, drone: 'triangle', droneLp: 620, pluck: 'harp', density: 0.55, bed: 'forge', bedVol: 0.26, droneAt: 0 },
+  // Season 3, the Cold Hearth: the hearth harp gone cold, in dorian over the Coldmarrow's frost wind, with a Hearthcoal crackle as the one warm sound.
+  hubHearth: { root: -3, scale: [0, 2, 3, 7, 9, 12, 14, 15], progression: [0, -4, 3, -2], bpm: 66, drone: 'triangle', droneLp: 650, pluck: 'harp', density: 0.5, bed: 'frost', bedVol: 0.28, coal: true, droneAt: 0 },
   kiln: { root: -12, scale: [0, 1, 3, 5, 7, 8, 12, 13], progression: [0, 1, 0, -2], bpm: 84, drone: 'sawtooth', droneLp: 380, pluck: 'ember', density: 0.4, bed: 'fire', bedVol: 0.4 },
   foundry: { root: -7, scale: [0, 2, 3, 7, 10, 12, 15], progression: [0, -4, 3, -2], bpm: 70, drone: 'sawtooth', droneLp: 300, pluck: 'drip', density: 0.35, bed: 'steam', bedVol: 0.35 },
   ashvents: { root: -8, scale: [0, 1, 4, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 96, drone: 'sawtooth', droneLp: 360, pluck: 'ember', density: 0.35, bed: 'vents', bedVol: 0.38 },
@@ -475,7 +477,7 @@ class ThemePlayer {
 }
 
 /** The hub's theme for each season (SEASONS order in sim/content/season.ts). A season without a variant keeps the plain hub. */
-export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows'];
+export const HUB_BY_SEASON: (ThemeId | undefined)[] = ['hub', 'hubBellows', 'hubHearth'];
 
 /** The hub theme for a season id (seasonOf); the seasons rotate through SEASONS, so this wraps the same way. */
 export function hubThemeFor(seasonId: number, seasons: number): ThemeId {
@@ -521,6 +523,8 @@ export class MusicPlayer {
     this.current?.stop();
     this.current = null;
     if (!id) return this.halt();
+    // A new theme starts with a full coal: the Coldmarrow's last coal must not carry into the hub's.
+    this.warmth = 1;
     const th = THEMES[id];
     this.current = new ThemePlayer(this.ctx, this.dest, id, th, this.bedBuffer(th.bed), th.coal ? this.bedBuffer('hearth') : undefined, this.warmth);
     if (!this.timer) this.timer = setInterval(() => this.current?.schedule(this.ctx.currentTime + 0.25), 60);
