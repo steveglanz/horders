@@ -221,6 +221,14 @@ describe('audio', () => {
     // An in-season win chimes after a season level and before smaller unlocks.
     expect(rewardCues({ ...(base as object), seasonFrom: 3, seasonTo: 4, seasonFeatured: true, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['seasonUp', 'inSeason', 'unlock']);
     expect(rewardCues({ ...(base as object), seasonFeatured: true } as never).map((c) => c.id)).toEqual(['inSeason']);
+    // P3 keys and the daily bounty (both listed on the end screen by client/ui.ts).
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 5 } as never).map((c) => c.id)).toEqual(['keyUp']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 6 } as never).map((c) => c.id)).toEqual(['keyFast']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 3 } as never).map((c) => c.id)).toEqual(['keyDown']);
+    expect(rewardCues({ ...(base as object), keyFrom: 4, keyTo: 4 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 0 } as never).map((c) => c.id)).toEqual([]);
+    expect(rewardCues({ ...(base as object), bountyEmbers: 40, title: 'The Bold' } as never).map((c) => c.id)).toEqual(['bountyPaid', 'unlock']);
+    expect(rewardCues({ ...(base as object), seasonFrom: 1, seasonTo: 2, keyFrom: 2, keyTo: 3, seasonFeatured: true } as never).map((c) => c.id)).toEqual(['seasonUp', 'keyUp', 'inSeason']);
   });
 
   it('keys every boss-cast sound to a cast id the sim really uses', () => {

@@ -233,6 +233,32 @@ export const SOUNDS = {
   ),
   /** A win in the season's own dungeon paid the in-season marks: a puff of sparks and two bright notes. */
   inSeason: join(whoosh(1500, 6000, 0.25, 0.12), chime(G5, 0.05, 0.16, 0.35), chime(D5 * 2, 0.13, 0.17, 0.45)),
+  /** P3: the Delver's Key went up: a key turns in its lock (two clicks), then the lock rings open on a rising pair. */
+  keyUp: join(
+    ...[0, 0.09].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.3, lp: 7000, hp: 2000, curve: 3 }]),
+    clang(note(10), 0.2, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
+    chime(D5 * 2, 0.28, 0.2, 0.6),
+  ),
+  /** A fast clear moved the key two or more: the same turn, and a third, higher note rings out. */
+  keyFast: join(
+    ...[0, 0.09].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.3, lp: 7000, hp: 2000, curve: 3 }]),
+    clang(note(10), 0.2, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
+    chime(D5 * 2, 0.28, 0.2, 0.5), chime(G6, 0.4, 0.22, 0.8),
+  ),
+  /** The key went down: the lock drops shut, a dull clunk under two falling notes. */
+  keyDown: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.28, lp: 3000, hp: 500, curve: 3 }],
+    clang(note(-2), 0.18, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.04 })),
+    chime(E5, 0.12, 0.14, 0.3), chime(C5, 0.26, 0.14, 0.5),
+  ),
+  /** The daily bounty paid out: embers drop into the purse, a quick run of bright pings. */
+  bountyPaid: join(
+    ...[0, 0.07, 0.13, 0.2, 0.26].map((d, k) => [
+      { wave: 'sine' as const, f: [2093, 1760, 2349, 1976, 2637][k], dur: 0.12, delay: d, vol: 0.2, curve: 4 },
+      { wave: 'noise' as const, f: 0, dur: 0.015, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 },
+    ]),
+    chime(E6, 0.32, 0.16, 0.5),
+  ),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
