@@ -1285,6 +1285,8 @@ export class GameScene extends Phaser.Scene {
       txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;
+    // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
+    const lk = this.textK;
     this.emptyVents.length = 0;
     for (const t of w.telegraphs) {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
@@ -1297,8 +1299,8 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
         g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
         g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
-        g.lineStyle(t.kind === 'soak' ? 3 : 2, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
-        g.lineStyle(1.5, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
+        g.lineStyle((t.kind === 'soak' ? 3 : 2) * lk, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
+        g.lineStyle(1.5 * lk, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
         // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
         if (HATCH && t.kind === 'hit') {
           g.lineStyle(2, col, 0.45);
@@ -1321,7 +1323,7 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
         g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
         g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
-        g.lineStyle(2, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+        g.lineStyle(2 * lk, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
         if (HATCH && t.kind === 'hit') {
           // Hatched cones: spokes every few degrees and arcs across them.
           g.lineStyle(2, col, 0.45);
