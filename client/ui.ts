@@ -431,6 +431,9 @@ export class Hud {
   }
 
   hideRun(): void {
+    // Quitting from the pause menu during a talent draft (Esc, or the app going
+    // to the background) used to leave the draft over the hub and block every tap.
+    this.hideDraft();
     $('hud').hidden = true;
     $('actionbar').hidden = true;
     $('target').hidden = true;
