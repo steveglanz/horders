@@ -7,7 +7,7 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen } from '../sim/hero';
+import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
 import { DUNGEONS } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
@@ -46,7 +46,9 @@ hub.render();
 
 // Pull the cloud save (if any) and keep whichever copy has made more progress.
 void (async () => {
-  const remote = await cloud.loadHero();
+  const loaded = await cloud.loadHero();
+  // P5: a cloud save from before the shared purse folds its per-class embers in too.
+  const remote = loaded && loaded.version === 1 && Array.isArray(loaded.inventory) ? shareEmbers(loaded) : loaded;
   if (remote && remote.version === 1 && Array.isArray(remote.inventory)) {
     const best = newerHero(hero, remote);
     if (best === remote && el('title').hidden === false) {
