@@ -70,6 +70,20 @@ const BASTION_HEAL = 0.1;
  * Group tools (roadmap G1). Each class gets one, and each fires only with more than one
  * hero, so solo play is unchanged.
  */
+/** Second capstones (roadmap C5). Each branch's two capstones are offered together; taking one closes the other. */
+export const CAPSTONES_2 = {
+  /** Cinder Tide: Flame Wave all around you, and fire at your feet (radius, damage per second, seconds). */
+  tideZoneR: 70, tideZoneDps: 14, tideZoneTime: 3,
+  /** Searing Bloom: a crit splashes this share of the hit onto foes within this radius, and burns the target. */
+  bloomShare: 0.6, bloomRadius: 90, bloomBurnDps: 30, bloomBurnTime: 3,
+  /** Ashen Mantle: damage taken is cut by this share for this long after Blink. */
+  mantleCut: 0.4, mantleTime: 3,
+  /** Open Veins: bleed damage multiplier. */
+  veinsMult: 1.6,
+  /** Killing Rhythm: swing speed per stack, stack cap, and the longest gap that keeps the rhythm. */
+  rhythmStep: 0.04, rhythmMax: 10, rhythmGap: 1.2,
+};
+
 export const GROUP_TOOLS = {
   /** Emberwright, Kindling: Combustion lifts allies within this radius by this much damage for this long. */
   kindleRadius: 320, kindleMult: 1.1, kindleTime: 6,
@@ -259,6 +273,11 @@ export interface Player {
   sunderT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
   kindleUntil?: number;
+  /** Ashen Mantle: the run time until which this hero takes less damage. */
+  mantleUntil?: number;
+  /** Killing Rhythm: swings in a row, and when the last one landed. */
+  rhythmN?: number;
+  lastSwingAt?: number;
   x: number;
   y: number;
   px: number;
@@ -1501,6 +1520,8 @@ export class World {
       amount -= soak;
       if (amount <= 0) return;
     }
+    // Ashen Mantle: Blink leaves the Emberwright wrapped in ash for a moment.
+    if (this.time < (p.mantleUntil ?? -1)) amount *= 1 - CAPSTONES_2.mantleCut;
     // Tidewalker: harder to pin down while moving.
     if (p.moving && this.setCount('tidewalker') >= 2) amount *= 1 - SET_TUNING.twCut;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
@@ -1559,8 +1580,8 @@ export class World {
     if (p.sanctT > 0 && p.cds[0] > 0 && this.hasMythic('anchoredDawn') && dist2(p.x, p.y, p.sanctX, p.sanctY) <= this.sanctuaryRadius ** 2) {
       p.cds[0] = Math.max(0, p.cds[0] - 0.5 * dt);
     }
-    // Blazing Speed rank 2: a second Blink charge refills on Blink's cooldown.
-    if (this.rank('blazingSpeed') >= 2 && p.blinkCharges < 1) {
+    // Blazing Speed rank 2 (Blink) and Shadow Slip (Sidestep): a second charge refills on the cooldown.
+    if ((this.rank('blazingSpeed') >= 2 || this.rank('shadowSlip') > 0) && p.blinkCharges < 1) {
       p.blinkChargeT -= dt;
       if (p.blinkChargeT <= 0) {
         p.blinkCharges = 1;
@@ -1609,8 +1630,10 @@ export class World {
     const t = this.nearestEnemies(p.x, p.y, 1, 400)[0];
     const ang = t !== undefined ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : p.facing;
     const r = 230;
-    const half = (110 * Math.PI) / 360;
+    const tide = this.rank('cinderTide') > 0;
+    const half = tide ? Math.PI : (110 * Math.PI) / 360;
     const dmg = 50 * this.dmgMult;
+    if (tide) this.addZone(p.x, p.y, CAPSTONES_2.tideZoneR, CAPSTONES_2.tideZoneDps * this.dmgMult, CAPSTONES_2.tideZoneTime);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -1646,6 +1669,7 @@ export class World {
     p.py = p.y;
     p.shieldT = 0.3 + 0.6 * this.rank('flicker');
     if (this.rank('blazingSpeed') > 0) p.hasteT = 2;
+    if (this.rank('ashenMantle') > 0) p.mantleUntil = this.time + CAPSTONES_2.mantleTime;
     this.addZone(x1, y1, 44, 14 * this.dmgMult, 3);
     // Wanderer's Wake: the whole path burns.
     if (this.hasMythic('wanderersWake')) {
@@ -2383,7 +2407,12 @@ export class World {
   // ---------------------------------------------------------------- duskblade
 
   get swingCooldown(): number {
-    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult;
+    const rhythm = this.rank('killingRhythm') > 0 ? 1 + CAPSTONES_2.rhythmStep * (this.player.rhythmN ?? 0) : 1;
+    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm;
+  }
+  /** Open Veins: the Duskblade's bleeds hit harder. */
+  get bleedMult(): number {
+    return this.rank('openVeins') > 0 ? CAPSTONES_2.veinsMult : 1;
   }
   get swingReach(): number {
     return 92 * (1 + 0.15 * this.rank('longReach'));
@@ -2427,6 +2456,11 @@ export class World {
     p.facing = ang;
     p.swings++;
     p.guardId = t;
+    if (this.rank('killingRhythm') > 0) {
+      const inTime = this.time - (p.lastSwingAt ?? -99) <= CAPSTONES_2.rhythmGap;
+      p.rhythmN = inTime ? Math.min(CAPSTONES_2.rhythmMax, (p.rhythmN ?? 0) + 1) : 0;
+      p.lastSwingAt = this.time;
+    }
     const spin = this.rank('bladeStorm') > 0 && p.swings % 4 === 0;
     const r = this.swingReach;
     const half = spin ? Math.PI : ((130 * Math.PI) / 360) * (1 + 0.15 * this.rank('longReach'));
@@ -2454,7 +2488,7 @@ export class World {
       const k = (e.castId && this.hasWeaponFx('castCutter') ? 1.35 : 1) * (i === t ? 1 + 0.025 * worry : 1);
       this.damageEnemy(i, (forceCrit ? dmg * 2 : dmg) * k, !forceCrit);
       if (bleed > 0 && e.alive) {
-        e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult);
+        e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult * this.bleedMult);
         e.burnT = Math.max(e.burnT, 3);
       }
     });
@@ -2496,7 +2530,7 @@ export class World {
       this.damageEnemy(i, dmg, true);
       if (!e.alive) killed = true;
       if (e.alive) {
-        e.burnDps = Math.max(e.burnDps, bleed);
+        e.burnDps = Math.max(e.burnDps, bleed * this.bleedMult);
         e.burnT = Math.max(e.burnT, 4);
       }
     }
@@ -3103,6 +3137,21 @@ export class World {
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
+      // Searing Bloom: the crit bursts onto foes around the target (the splash can't crit, so it can't chain).
+      if (this.rank('searingBloom') > 0) {
+        const splash = dmg * CAPSTONES_2.bloomShare;
+        const br = CAPSTONES_2.bloomRadius;
+        this.forEachNear(e.x, e.y, br + 40, (j) => {
+          if (j === i) return;
+          const o = this.enemies[j];
+          if (dist2(e.x, e.y, o.x, o.y) > (br + o.def.radius) ** 2) return;
+          this.damageEnemy(j, splash, false, true);
+        });
+        this.events.push({ type: 'explode', x: e.x, y: e.y, r: br });
+        // ...and sets the target burning, so it still pays against a lone boss.
+        e.burnDps = Math.max(e.burnDps, CAPSTONES_2.bloomBurnDps * this.dmgMult);
+        e.burnT = Math.max(e.burnT, CAPSTONES_2.bloomBurnTime);
+      }
     }
     if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
     if (e.kind === 'shade' && this.shadowed(e.x, e.y)) dmg *= GLARE.shadeShadowTaken;
@@ -4132,18 +4181,21 @@ export class World {
 
   /**
    * Offer one talent from each branch, so every pick is a build direction.
-   * An unlocked capstone takes its branch's card. A branch with nothing left
+   * An unlocked branch offers all its capstones (taking one closes the rest). A branch with nothing left
    * gives its card to another branch, then to the general fallbacks.
    */
   rollDraft(): DraftOption[] {
     const out: DraftOption[] = [];
     const spare: TalentId[] = [];
+    let capCards = 0;
     const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls);
     for (const b of this.branches) {
       const ids = defs.filter((d) => d.branch === b && !d.capstone && this.rank(d.id) < d.maxRank).map((d) => d.id);
-      const cap = defs.find((d) => d.branch === b && d.capstone);
-      if (cap && this.rank(cap.id) === 0 && this.branchRanks(b) >= CAPSTONE_RANKS) {
-        out.push({ id: cap.id, nextRank: 1 });
+      const caps = defs.filter((d) => d.branch === b && d.capstone);
+      if (caps.length && caps.every((c) => this.rank(c.id) === 0) && this.branchRanks(b) >= CAPSTONE_RANKS) {
+        // The capstone choice: every capstone of the branch, side by side, ahead of the other cards.
+        out.splice(capCards, 0, ...caps.map((c) => ({ id: c.id, nextRank: 1 })));
+        capCards += caps.length;
       } else if (ids.length) {
         const id = ids.splice(this.rng.int(ids.length), 1)[0];
         out.push({ id, nextRank: this.rank(id) + 1 });
@@ -4166,7 +4218,7 @@ export class World {
       return;
     }
     this.talents[id] = this.rank(id) + 1;
-    if (id === 'blazingSpeed' && this.rank(id) === 2) {
+    if ((id === 'blazingSpeed' && this.rank(id) === 2) || id === 'shadowSlip') {
       p.blinkCharges = 1;
       p.blinkChargeT = this.abilityCooldown(1);
     }

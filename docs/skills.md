@@ -144,6 +144,30 @@ In a party, the Lumen heals the group, not just itself. Solo play is unchanged: 
 
 Ally healing goes through `World.healAllies`. Like self-healing, effective healing draws 0.5 threat per point split across the living enemies, and overheal still feeds Brilliance. Downed heroes can't be healed, because they stand back up between fights. Tests are in `tests/coop.test.ts`.
 
+## Second capstones (roadmap C5, part 1: Emberwright and Duskblade)
+
+Each Emberwright and Duskblade branch now has two capstones. When a branch reaches 3 ranks, the draft shows both side by side, ahead of the other card. Taking one closes the other (`World.rollDraft`). Tuning is in `CAPSTONES_2` in `sim/world.ts`, and the tests are in `tests/capstones2.test.ts`.
+
+| Class | Branch | Existing capstone | New capstone |
+|---|---|---|---|
+| Emberwright | Wildfire | Conflagration | **Cinder Tide:** Flame Wave hits all around you and leaves fire at your feet (14/s for 3 s) |
+| Emberwright | Kindling | Phoenix Lance | **Searing Bloom:** crits splash 60% of the hit on foes within 90 px and burn the target for 30/s for 3 s |
+| Emberwright | Ashguard | Ring of Ash | **Ashen Mantle:** 40% less damage taken for 3 s after Blink |
+| Duskblade | Bloodletting | Crimson Tide | **Open Veins:** bleeds deal 60% more |
+| Duskblade | Tempo | Blade Storm | **Killing Rhythm:** each swing within 1.2 s of the last is 4% faster, up to 10 stacks |
+| Duskblade | Guard | Riposte | **Shadow Slip:** Sidestep holds a second charge |
+
+The bot still takes the old capstones by default, so solo fingerprints are identical. With `NEW_CAPS=1` it takes the new ones, for balance runs.
+
+Balance: matrix.sh with heroes-r2, 3 heroes per class, 40 seeds. Numbers are average wins out of 40, old capstones / new.
+
+| | Foundry 6 | Foundry 8 | Glarewell 6 | Glarewell 8 | Kiln 6 | Kiln 8 |
+|---|---|---|---|---|---|---|
+| Duskblade | 36.0 / 35.0 | 28.3 / 29.3 | 31.7 / 33.0 | 30.0 / 31.3 | 31.0 / 29.0 | 20.3 / 23.3 |
+| Emberwright | 33.3 / 31.3 | 31.3 / 30.3 | 37.7 / 35.0 | 30.7 / 26.7 | 27.7 / 27.0 | 17.7 / 22.0 |
+
+The Duskblade numbers are from the first pass; its capstones haven't changed since. The first Searing Bloom (a 40% splash, no burn) was up to 13 wins behind, because it does nothing against a lone boss, so it gained the burn.
+
 ## Group tools (roadmap G1)
 
 Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.
