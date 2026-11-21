@@ -11,23 +11,23 @@ export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
   'flicker', 'magnetism',
-  'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire',
+  'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire', 'longKindle', 'closeWarmth',
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
   'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
-  'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend',
+  'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend', 'turnedBack', 'sharedBreath',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
   'batteringRam', 'lastStand', 'momentum',
-  'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse',
+  'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse', 'leeSide', 'broadBack',
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
   'renewal', 'lingeringSanctuary', 'blessedGround',
-  'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers',
+  'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers', 'frontMend', 'wideDawn',
   // Slagbinder
   'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
   'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
-  'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool',
+  'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool', 'longStand', 'wideShell',
   'smallHeal', 'stoke',
 ];
 
