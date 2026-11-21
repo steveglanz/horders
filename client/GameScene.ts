@@ -4,7 +4,7 @@
  */
 import { OMENS } from '../sim/content/omens';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
@@ -107,6 +107,7 @@ export class GameScene extends Phaser.Scene {
   private enemyFrames: number[] = [];
   private motes: { img: Phaser.GameObjects.Image; ph: number; sp: number }[] = [];
   private ventSprites: Phaser.GameObjects.Image[] = [];
+  private pillarSprites: Phaser.GameObjects.Image[] = [];
   private gateSprites: { arch: Phaser.GameObjects.Image; portal: Phaser.GameObjects.Image }[] = [];
   private steamAt = 0;
   private facing = 1;
@@ -141,6 +142,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyFrames = [];
     this.motes = [];
     this.ventSprites = [];
+    this.pillarSprites = [];
     this.gateSprites = [];
     this.facing = 1;
     this.hitStop = 0;
@@ -199,6 +201,8 @@ export class GameScene extends Phaser.Scene {
     this.vignette = document.getElementById('vignette');
     // Foundry steam vents and fork gates (pooled; most runs never show them).
     for (let k = 0; k < 4; k++) this.ventSprites.push(this.add.image(0, 0, 'vent', '0').setScale(BASE).setVisible(false).setDepth(1.4));
+    // Glarewell pillars stand above the floor and the shadows they cast.
+    for (let k = 0; k < 4; k++) this.pillarSprites.push(this.add.image(0, 0, 'pillar', '0').setScale(BASE).setVisible(false).setDepth(1.5));
     for (let k = 0; k < 2; k++) {
       this.gateSprites.push({
         portal: this.add.image(0, 0, 'portal', '0').setScale(BASE * 1.1).setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(3.9),
@@ -455,18 +459,46 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         case 'castStart':
-          if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
+          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
+          else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
           this.burst(ev.x, ev.y, 14);
           this.ring(ev.x, ev.y, 90, 0x8fd8ff, 0.4);
           break;
+        case 'glare':
+          // The whole room flashes white-gold; a hit also shakes it.
+          this.cameras.main.flash(ev.hit ? 260 : 160, 255, 240, 190, true);
+          if (ev.hit) {
+            this.shake = Math.max(this.shake, 0.3);
+            this.floatText(ev.x, ev.y - 40, 'Glared!', '#ffe08a', 18);
+          } else this.floatText(ev.x, ev.y - 40, 'Hidden', '#a8c8ff', 16);
+          break;
+        case 'brandBurst':
+          this.blast(ev.x, ev.y, ev.r, 0xffc861);
+          this.ring(ev.x, ev.y, ev.r, 0xffc861, 0.45);
+          this.shake = Math.max(this.shake, 0.2);
+          break;
+        case 'pillarCrack': {
+          const c = w.pillars[ev.index];
+          if (c) {
+            this.burst(c.x, c.y, 16);
+            this.ring(c.x, c.y, c.r + 40, 0xd8cfc4, 0.4);
+            this.floatText(c.x, c.y - c.r - 20, 'Pillar cracked!', '#d8cfc4', 16);
+            this.shake = Math.max(this.shake, 0.25);
+          }
+          break;
+        }
         case 'heal':
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (w.dungeonId === 'foundry') {
+          if (w.dungeonId === 'glarewell') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
+          } else if (w.dungeonId === 'foundry') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
@@ -701,7 +733,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -715,6 +747,54 @@ export class GameScene extends Phaser.Scene {
       }
       g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
       g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+    }
+    // The Glarewell: pillars cast shadow wedges away from the centre lens.
+    // The wedges match World.shadowed(), so what you see is where you're safe.
+    this.pillarSprites.forEach((ps, k) => {
+      const c = w.pillars[k];
+      if (!c) { if (ps.visible) ps.setVisible(false); return; }
+      if (!c.cracked) {
+        const d = Math.hypot(c.x, c.y) || 1;
+        const ux = c.x / d;
+        const uy = c.y / d;
+        const L = GLARE.shadowLength;
+        const w0 = c.r;
+        const w1 = c.r + L * GLARE.shadowWiden;
+        g.fillStyle(0x0c0a24, 0.5).beginPath();
+        g.moveTo(c.x - uy * w0, c.y + ux * w0);
+        g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
+        g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
+        g.lineTo(c.x + uy * w0, c.y - ux * w0);
+        g.closePath();
+        g.fillPath();
+      }
+      const fr = c.cracked ? '1' : '0';
+      if (ps.frame.name !== fr) ps.setFrame(fr);
+      ps.setVisible(true).setPosition(c.x, c.y).setScale((c.r * 2.3) / (64 * SPRITE_RES)).setAlpha(c.cracked ? 0.7 : 1);
+    });
+    if (w.pillars.length) {
+      // The centre lens glows; it brightens while a Glare is coming.
+      const glaring = w.enemies.some((o) => o.alive && o.castId === 'glare');
+      const a = glaring ? 0.25 + 0.2 * Math.sin(now / 50) : 0.1;
+      g.fillStyle(0xfff0c0, a).fillCircle(0, 0, 60);
+      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(0, 0, 60);
+    }
+    if (w.lampBeam) {
+      const b = w.lampBeam;
+      const fl = 0.55 + 0.2 * Math.sin(now / 70);
+      g.lineStyle(GLARE.lampWidth * 2, 0xffe9a0, 0.25).lineBetween(b.x1, b.y1, b.x2, b.y2);
+      g.lineStyle(6, 0xfffbe6, fl).lineBetween(b.x1, b.y1, b.x2, b.y2);
+    }
+    if (w.markT > 0) {
+      // The Brand: a gold ring on the hero the size of the burst, closing in.
+      const p = w.player;
+      const f = Math.min(1, w.markT / GLARE.brandTime);
+      const flick = w.markT < 1.2 ? 0.5 + 0.5 * Math.sin(now / 40) : 1;
+      g.fillStyle(0xffc861, 0.08 + 0.1 * (1 - f)).fillCircle(p.x, p.y, GLARE.brandRadius);
+      g.lineStyle(3, 0xffc861, 0.8 * flick).strokeCircle(p.x, p.y, GLARE.brandRadius);
+      g.lineStyle(4, 0xfff0c0, 0.9).beginPath();
+      g.arc(p.x, p.y, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false);
+      g.strokePath();
     }
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {

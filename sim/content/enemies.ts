@@ -20,6 +20,7 @@ export type EnemyKind =
   | 'rift' | 'acolyte'
   | 'cinderBrute' | 'ashmaw' | 'kilnMother'
   | 'glassWarden' | 'emberTwin' | 'sluiceCrawler' | 'maelra'
+  | 'lensbearer' | 'shade' | 'brandkeeper' | 'twinLamp' | 'lensmother'
   | 'worldShadow';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
@@ -34,6 +35,12 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   emberTwin: { id: 'emberTwin', name: 'Ember Twin', hp: 620, speed: 62, damage: 10, radius: 16, xp: 5, rank: 'elite', title: 'Twin' },
   sluiceCrawler: { id: 'sluiceCrawler', name: 'Sluice Crawler', hp: 820, speed: 50, damage: 12, radius: 18, xp: 6, rank: 'elite', title: 'Tidecaller' },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', hp: 6000, speed: 36, damage: 24, radius: 40, xp: 0, rank: 'boss', title: 'Boss' },
+  // The Glarewell: light hurts, shadow hides you, and shadow has things in it.
+  lensbearer: { id: 'lensbearer', name: 'Lensbearer', hp: 1000, speed: 34, damage: 12, radius: 20, xp: 6, rank: 'elite', title: 'Glare' },
+  shade: { id: 'shade', name: 'Shade', hp: 300, speed: 70, damage: 8, radius: 13, xp: 2, rank: 'elite', title: 'Shadowborn' },
+  brandkeeper: { id: 'brandkeeper', name: 'Brandkeeper', hp: 900, speed: 44, damage: 12, radius: 19, xp: 6, rank: 'elite', title: 'Brand' },
+  twinLamp: { id: 'twinLamp', name: 'Twin Lamp', hp: 760, speed: 30, damage: 10, radius: 17, xp: 5, rank: 'elite', title: 'Lamp' },
+  lensmother: { id: 'lensmother', name: 'The Lensmother', hp: 6200, speed: 32, damage: 22, radius: 40, xp: 0, rank: 'boss', title: 'Boss' },
   // A shadow of the shared world boss: it can't be killed, only hurt for 60 seconds.
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },

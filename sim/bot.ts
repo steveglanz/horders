@@ -289,6 +289,50 @@ export function botInput(w: World, skill = 1): Input {
     fx += (tx / td) * 0.06 * skill;
     fy += (ty / td) * 0.06 * skill;
   }
+  // Glarewell: hide from a Glare, burst a Brand in the open, stay out of the lamps' beam.
+  if (w.pillars.length) {
+    const glaring = w.enemies.some((e) => e.alive && e.castId === 'glare');
+    if (glaring && !w.shadowed(p.x, p.y)) {
+      let bx = 0;
+      let by = 0;
+      let bd = Infinity;
+      for (const c of w.pillars) {
+        if (c.cracked) continue;
+        const d = Math.hypot(c.x, c.y) || 1;
+        const sx = (c.x / d) * (d + c.r + 45);
+        const sy = (c.y / d) * (d + c.r + 45);
+        const dd = Math.hypot(sx - p.x, sy - p.y);
+        if (dd < bd) { bd = dd; bx = sx; by = sy; }
+      }
+      if (bd < Infinity) {
+        const td = bd || 1;
+        fx += ((bx - p.x) / td) * 0.9 * skill;
+        fy += ((by - p.y) / td) * 0.9 * skill;
+      }
+    }
+    if (w.markT > 0) {
+      const k = (w.markT < 1.6 ? 0.5 : 0.2) * skill;
+      const away = (x: number, y: number, r: number) => {
+        const dx = p.x - x;
+        const dy = p.y - y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d < r) { fx += (dx / d) * k * (1 - d / r); fy += (dy / d) * k * (1 - d / r); }
+      };
+      for (const c of w.pillars) if (!c.cracked) away(c.x, c.y, 110 + c.r + 50);
+      for (const e of w.enemies) if (e.alive) away(e.x, e.y, 110 + e.def.radius + 40);
+    }
+    const lb = w.lampBeam;
+    if (lb) {
+      const vx = lb.x2 - lb.x1;
+      const vy = lb.y2 - lb.y1;
+      const len2 = vx * vx + vy * vy || 1;
+      const t = Math.max(0, Math.min(1, ((p.x - lb.x1) * vx + (p.y - lb.y1) * vy) / len2));
+      const dx = p.x - (lb.x1 + vx * t);
+      const dy = p.y - (lb.y1 + vy * t);
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 90) { fx += (dx / d) * 0.4 * skill; fy += (dy / d) * 0.4 * skill; }
+    }
+  }
   // Don't get pinned against the arena wall.
   const fromCenter = Math.hypot(p.x, p.y);
   const edge = w.arenaR ?? ARENA;

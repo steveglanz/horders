@@ -283,6 +283,10 @@ export type SimEvent =
   | { type: 'bossSpawn' }
   | { type: 'bossEnrage' }
   | { type: 'explode'; x: number; y: number; r: number }
+  /** Glarewell: a Glare went off; `hit` is whether it caught the hero in the light. */
+  | { type: 'glare'; x: number; y: number; hit: boolean }
+  | { type: 'brandBurst'; x: number; y: number; r: number }
+  | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
@@ -453,6 +457,19 @@ export class World {
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
   temper = 0;
+  /** Glarewell stone pillars around the central lens; each casts a shadow wedge outward. Empty elsewhere. */
+  pillars: { x: number; y: number; r: number; cracked: boolean }[] = [];
+  /** Seconds until the Brand on the hero bursts (0 when there's none). */
+  markT = 0;
+  /** A second Brand queued by the Lensmother's Twin Brand. */
+  private markQueued = 0;
+  /** The Twin Lamps' beam between them, or null. */
+  lampBeam: { x1: number; y1: number; x2: number; y2: number } | null = null;
+  private lampTickT = 0;
+  private glareT = 0;
+  private bossBrandT = 0;
+  private crackT = 0;
+  private crackPending: { index: number; t: number } | null = null;
   private temperT = 0;
   private undertowT = 0;
   private ventT = 0;
@@ -898,6 +915,7 @@ export class World {
       return;
     }
     if (this.phase === 'fight') this.runOmens(dt);
+    if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
@@ -919,6 +937,16 @@ export class World {
     this.player.haloUsed = false;
     this.player.windUsed = false;
     const p = this.player;
+    // Glarewell: fresh pillars every fight (a cracked pillar only stays down for that fight).
+    this.pillars = this.dungeonId === 'glarewell'
+      ? [0, 1, 2, 3].map((k) => {
+        const a = Math.PI / 4 + (k * Math.PI) / 2;
+        return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
+      })
+      : [];
+    this.markT = 0;
+    this.markQueued = 0;
+    this.lampBeam = null;
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
     const n = def.spawns.reduce((a, s) => a + s.n, 0);
@@ -956,6 +984,16 @@ export class World {
           this.startMaelra();
           this.events.push({ type: 'bossSpawn' });
         }
+        if (sp.kind === 'lensmother') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.glareT = 6;
+          this.bossBrandT = 4;
+          this.crackT = GLARE.crackEvery;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
+        if (sp.kind === 'brandkeeper') e.abilityT = 3;
         if (sp.kind === 'cinderBrute') this.eliteSpawned = true;
         if (sp.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
       }
@@ -1037,6 +1075,33 @@ export class World {
       o.x *= max / d;
       o.y *= max / d;
     }
+    for (const c of this.pillars) {
+      if (c.cracked) continue;
+      const dx = o.x - c.x;
+      const dy = o.y - c.y;
+      const dd = Math.hypot(dx, dy);
+      const min = c.r + r;
+      if (dd < min) {
+        const k = dd > 0.001 ? min / dd : 1;
+        o.x = c.x + (dd > 0.001 ? dx * k : min);
+        o.y = c.y + (dd > 0.001 ? dy * k : 0);
+      }
+    }
+  }
+
+  /** Is this point in a standing pillar's shadow (cast outward from the lens at the centre)? */
+  shadowed(x: number, y: number): boolean {
+    for (const c of this.pillars) {
+      if (c.cracked) continue;
+      const d = Math.hypot(c.x, c.y);
+      const ux = c.x / d;
+      const uy = c.y / d;
+      const along = x * ux + y * uy - d;
+      if (along <= 0 || along > GLARE.shadowLength) continue;
+      const across = Math.abs(x * uy - y * ux);
+      if (across <= c.r + along * GLARE.shadowWiden) return true;
+    }
+    return false;
   }
 
   private director(): void {
@@ -2404,6 +2469,17 @@ export class World {
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+    } else if (id === 'glare') {
+      // The lens flares: anyone in the light is burned, anyone in a pillar's shadow is safe.
+      const p = this.player;
+      const hit = !this.shadowed(p.x, p.y);
+      if (hit) this.hurtPlayer(GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
+      this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
+    } else if (id === 'brand') {
+      this.markT = GLARE.brandTime;
+    } else if (id === 'twinBrand') {
+      this.markT = GLARE.brandTime;
+      this.markQueued = 1;
     } else if (id === 'gorge') {
       const amount = e.maxHp * 0.1 * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
@@ -2466,6 +2542,14 @@ export class World {
     }
     if (e.kind === 'maelra') {
       this.runMaelra(i, dt);
+      return;
+    }
+    if (e.kind === 'lensbearer' || e.kind === 'brandkeeper') {
+      this.runGlareElite(i);
+      return;
+    }
+    if (e.kind === 'lensmother') {
+      this.runLensmother(i, dt);
       return;
     }
     if (e.def.rank !== 'boss') return;
@@ -2551,6 +2635,7 @@ export class World {
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
     }
     if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
+    if (e.kind === 'shade' && this.shadowed(e.x, e.y)) dmg *= GLARE.shadeShadowTaken;
     if (e.kind === 'glassWarden' && e.aux2 > 0 && !this.invulnerable) {
       // Mirror Ward: part of the damage comes back at the attacker.
       this.hurtPlayer(dmg * FOUNDRY.mirrorReflect);
@@ -2711,6 +2796,162 @@ export class World {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
     Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
+  }
+
+  // ---------------------------------------------------------------- the Glarewell
+
+  /** Lensbearers raise the lens (Glare); Brandkeepers Brand the hero. */
+  private runGlareElite(i: number): void {
+    // runAbilities has already advanced casts and the ability timer.
+    const e = this.enemies[i];
+    if (e.abilityT > 0) return;
+    if (e.kind === 'lensbearer') {
+      e.abilityT = GLARE.glareEvery;
+      this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, true);
+    } else if (e.kind === 'brandkeeper') {
+      // One Brand at a time, and a breather after each burst.
+      if (this.markT > 0) { e.abilityT = this.markT + GLARE.brandGap; return; }
+      e.abilityT = GLARE.brandEvery;
+      this.startCast(i, 'brand', 'Brand', GLARE.brandCast, false);
+    }
+  }
+
+  /** Brands burst, the Twin Lamps' beam burns, pillars crack. */
+  private runGlarewell(dt: number): void {
+    const p = this.player;
+    this.lensmotherClock(dt);
+    if (this.markT > 0) {
+      this.markT -= dt;
+      if (this.markT <= 0) {
+        this.markT = 0;
+        this.burstBrand();
+        if (this.markQueued > 0) {
+          this.markQueued--;
+          this.markT = GLARE.brandTime;
+        }
+      }
+    }
+    // The Twin Lamps: a beam of light runs between them while both stand.
+    let a = -1;
+    let b = -1;
+    for (let j = 0; j < this.enemies.length; j++) {
+      const o = this.enemies[j];
+      if (!o.alive || o.kind !== 'twinLamp') continue;
+      if (a < 0) a = j;
+      else if (b < 0) b = j;
+    }
+    this.lampBeam = null;
+    if (a >= 0 && b >= 0) {
+      const ea = this.enemies[a];
+      const eb = this.enemies[b];
+      if (dist2(ea.x, ea.y, eb.x, eb.y) <= GLARE.lampMaxDist ** 2) {
+        this.lampBeam = { x1: ea.x, y1: ea.y, x2: eb.x, y2: eb.y };
+        this.lampTickT -= dt;
+        if (this.lampTickT <= 0) {
+          this.lampTickT = 0.5;
+          if (segDist2(p.x, p.y, ea.x, ea.y, eb.x, eb.y) <= (GLARE.lampWidth + PLAYER_RADIUS) ** 2) {
+            this.hurtPlayer(GLARE.lampDps * 0.5 * this.tierDamage, a);
+          }
+        }
+      }
+    }
+  }
+
+  private burstBrand(): void {
+    const p = this.player;
+    const r = GLARE.brandRadius;
+    this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+    this.pillars.forEach((c, k) => {
+      if (!c.cracked && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
+        c.cracked = true;
+        this.events.push({ type: 'pillarCrack', index: k });
+      }
+    });
+    // The burst feeds any enemy caught in it.
+    for (const o of this.enemies) {
+      if (!o.alive || dist2(p.x, p.y, o.x, o.y) > (r + o.def.radius) ** 2) continue;
+      const amount = o.maxHp * GLARE.brandHeal * this.healTakenMult(o);
+      o.hp = Math.min(o.maxHp, o.hp + amount);
+      this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
+    }
+    this.events.push({ type: 'brandBurst', x: p.x, y: p.y, r });
+  }
+
+  /** The Lensmother: Glare (hide), Twin Brand (spread), then she cracks the pillars one by one. */
+  /**
+   * The Lensmother's clocks: enrage, phases and the phase 3 pillar cracks.
+   * They run every tick from runGlarewell, so they keep time while she casts.
+   */
+  private lensmotherClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const e = this.enemies[this.bossIndex];
+    if (!e || !e.alive || e.kind !== 'lensmother') return;
+    if (!this.bossEnraged && this.time - e.spawnedAt > GLARE.enrageAfter) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    const frac = e.hp / e.maxHp;
+    const phase = frac > 0.6 ? 1 : frac > 0.25 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+      // The first crack comes soon after phase 3 starts, so every kill sees it.
+      if (phase === 3) this.crackT = GLARE.firstCrack;
+    }
+    // Phase 3: every so often a pillar shatters (telegraphed on the stone first).
+    if (phase >= 3) {
+      this.crackT -= dt;
+      if (this.crackT <= 0) {
+        this.crackT = GLARE.crackEvery;
+        const left = this.pillars.map((c, k) => (c.cracked ? -1 : k)).filter((k) => k >= 0);
+        if (left.length > 1) {
+          const k = left[this.rng.int(left.length)];
+          const c = this.pillars[k];
+          this.addTelegraph('circle', c.x, c.y, c.r + 40, 0, 0, GLARE.crackDelay, 20, 'hit', -1);
+          this.crackPending = { index: k, t: GLARE.crackDelay };
+        }
+      }
+    }
+    if (this.crackPending) {
+      this.crackPending.t -= dt;
+      if (this.crackPending.t <= 0) {
+        const k = this.crackPending.index;
+        this.crackPending = null;
+        if (!this.pillars[k].cracked) {
+          this.pillars[k].cracked = true;
+          this.events.push({ type: 'pillarCrack', index: k });
+        }
+      }
+    }
+  }
+
+  /**
+   * The Lensmother's casts: Glare (hide), Twin Brand (spread) from phase 2,
+   * and a Lens Sweep cone in between. runAbilities has already advanced any
+   * cast and her ability timer.
+   */
+  private runLensmother(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    this.glareT -= dt;
+    if (this.glareT <= 0) {
+      this.glareT = this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery;
+      this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
+      return;
+    }
+    if (this.bossPhase >= 2 && this.markT <= 0) {
+      this.bossBrandT -= dt;
+      if (this.bossBrandT <= 0) {
+        this.bossBrandT = GLARE.bossBrandEvery;
+        this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
+        return;
+      }
+    }
+    if (e.abilityT > 0) return;
+    e.abilityT = this.bossEnraged ? GLARE.sweepEveryEnraged : GLARE.sweepEvery;
+    const ang = Math.atan2(p.y - e.y, p.x - e.x);
+    this.startCast(i, 'lensSweep', 'Lens Sweep', 1.1, false);
+    this.addTelegraph('cone', e.x, e.y, 300, ang, (60 * Math.PI) / 180, 1.1, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
   }
 
   // ---------------------------------------------------------------- the Drowned Foundry
@@ -3262,6 +3503,43 @@ export const QUENCH_RANGE = 520;
 /** Drowned Foundry tuning. */
 /** First tier whose first clear guarantees an Epic from the boss. */
 export const FIRST_CLEAR_EPIC_TIER = 2;
+
+/** The Glarewell's tuning, kept together so balance changes are data changes. */
+export const GLARE = {
+  pillarRing: 200,
+  pillarRadius: 26,
+  /** How far a pillar's shadow reaches past the stone, and how much it widens per unit. */
+  shadowLength: 300,
+  shadowWiden: 0.12,
+  /** Warning before a Glare goes off: every class reaches shade on foot in this time. */
+  glareWarn: 2,
+  glareDamage: 34,
+  glareEvery: 9,
+  brandCast: 0.8,
+  brandTime: 4,
+  brandRadius: 110,
+  brandDamage: 16,
+  brandHeal: 0.1,
+  brandEvery: 11,
+  /** Seconds after a Brand bursts before a Brandkeeper can Brand again. */
+  brandGap: 6,
+  /** Share of damage a Shade takes while standing in shadow. */
+  shadeShadowTaken: 0.3,
+  lampWidth: 18,
+  lampDps: 30,
+  lampMaxDist: 460,
+  bossGlareEvery: 12,
+  bossBrandEvery: 15,
+  crackEvery: 14,
+  /** Seconds into phase 3 before the first pillar cracks. */
+  firstCrack: 3,
+  crackDelay: 2.5,
+  enrageAfter: 180,
+  /** The Lens Sweep cone between Glares: every so many seconds, and its damage. */
+  sweepEvery: 1.7,
+  sweepEveryEnraged: 1,
+  sweepDamage: 26,
+};
 
 export const FOUNDRY = {
   mirrorCast: 2,
