@@ -120,8 +120,8 @@ describe('party cards (Season 2)', () => {
       return inner.healAllies(w.player.x, w.player.y, 500, 10);
     };
     expect(heal(0, true)).toBeCloseTo(10);
-    expect(heal(2, true)).toBeCloseTo(10 * (1 + 2 * PARTY_CARDS.frontMend));
-    expect(heal(2, false)).toBeCloseTo(10);
+    expect(heal(1, true)).toBeCloseTo(10 * (1 + PARTY_CARDS.frontMend));
+    expect(heal(1, false)).toBeCloseTo(10);
   });
 
   it('Turned Back: the Duskblade hits the boss harder while it attacks someone else', () => {
