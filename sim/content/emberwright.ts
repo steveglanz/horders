@@ -11,8 +11,9 @@ export type Branch =
   | 'bloodletting' | 'tempo' | 'guard'
   | 'bastion' | 'retribution' | 'vanguard'
   | 'dawn' | 'grace' | 'choir'
+  | 'forge' | 'clinker' | 'crust'
   | 'general';
-export type ClassId = 'emberwright' | 'duskblade' | 'bulwark' | 'lumen';
+export type ClassId = 'emberwright' | 'duskblade' | 'bulwark' | 'lumen' | 'slagbinder';
 
 export type TalentId =
   | 'kindledGround'
@@ -93,7 +94,10 @@ export type TalentId =
   | 'prism'
   | 'lingeringSanctuary'
   | 'choirOfDawn'
-  | 'chorus';
+  | 'chorus'
+  | 'thickPour' | 'searingShell' | 'quickset' | 'everMolten' | 'twinPour'
+  | 'heavyLob' | 'shrapnel' | 'brittleMind' | 'shatterpoint' | 'cinderHail'
+  | 'crustedHide' | 'hotBlood' | 'hardened' | 'clinkerHeart' | 'slagTide';
 
 export interface TalentDef {
   id: TalentId;
@@ -203,6 +207,23 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   lingeringSanctuary: { id: 'lingeringSanctuary', cls: 'lumen', name: 'Lingering Sanctuary', branch: 'choir', maxRank: 2, text: 'Sanctuary lasts 2s longer and moves with you.' },
   choirOfDawn: { id: 'choirOfDawn', cls: 'lumen', name: 'Choir of Dawn', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: three wisps circle wide around you, burning foes and healing you with each hit.', tip: "Three wisps circle you 170 px out and burn each foe they touch for 16, at most once every 0.4s per foe. Each hit heals you 1.5." },
   chorus: { id: 'chorus', cls: 'lumen', name: 'Chorus', branch: 'choir', maxRank: 1, capstone: true, text: 'CAPSTONE: every 8th Sunmote strikes its target twice.' },
+
+  // Slagbinder: Forge (plating), Clinker (damage and Brittle), Crust (self-tank).
+  thickPour: { id: 'thickPour', cls: 'slagbinder', name: 'Thick Coat', branch: 'forge', maxRank: 3, text: 'Molten Plating holds 20% more.', tip: 'Molten Plating holds 20% more per rank.' },
+  searingShell: { id: 'searingShell', cls: 'slagbinder', name: 'Searing Shell', branch: 'forge', maxRank: 3, text: 'Plating bursts 30% harder.', tip: 'When plating breaks or runs out, its burst deals 30% more per rank.' },
+  quickset: { id: 'quickset', cls: 'slagbinder', name: 'Quickset', branch: 'forge', maxRank: 2, text: 'Molten Plating recovers 1s sooner.' },
+  everMolten: { id: 'everMolten', cls: 'slagbinder', name: 'Ever-Molten', branch: 'forge', maxRank: 1, capstone: true, text: 'CAPSTONE: plating that runs out unbroken gives back 15 Slag.' },
+  twinPour: { id: 'twinPour', cls: 'slagbinder', name: 'Twin Coat', branch: 'forge', maxRank: 1, capstone: true, text: 'CAPSTONE: Molten Plating coats a second hero. Alone, it is 50% thicker.' },
+  heavyLob: { id: 'heavyLob', cls: 'slagbinder', name: 'Heavy Lob', branch: 'clinker', maxRank: 3, text: 'Slag Lob deals 15% more damage.' },
+  shrapnel: { id: 'shrapnel', cls: 'slagbinder', name: 'Shrapnel', branch: 'clinker', maxRank: 2, text: 'Slag Lob splashes 15 px wider and 30% harder.' },
+  brittleMind: { id: 'brittleMind', cls: 'slagbinder', name: 'Lasting Cracks', branch: 'clinker', maxRank: 2, text: 'Brittle lasts 2s longer.' },
+  shatterpoint: { id: 'shatterpoint', cls: 'slagbinder', name: 'Shatterpoint', branch: 'clinker', maxRank: 1, capstone: true, text: 'CAPSTONE: Slag Lob hits Brittle foes 25% harder, and every 4th Lob makes its target Brittle.' },
+  cinderHail: { id: 'cinderHail', cls: 'slagbinder', name: 'Cinder Hail', branch: 'clinker', maxRank: 1, capstone: true, text: 'CAPSTONE: every 4th Slag Lob throws three globs.' },
+  crustedHide: { id: 'crustedHide', cls: 'slagbinder', name: 'Crusted Hide', branch: 'crust', maxRank: 3, text: '+15 max health.' },
+  hotBlood: { id: 'hotBlood', cls: 'slagbinder', name: 'Hot Blood', branch: 'crust', maxRank: 2, text: 'Each hit you take gives 2 more Slag.' },
+  hardened: { id: 'hardened', cls: 'slagbinder', name: 'Hardened', branch: 'crust', maxRank: 2, text: 'Cooling Shell lasts 1s longer.' },
+  clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: falling below 30% health plates you for 25% of your max health, once every 30s.' },
+  slagTide: { id: 'slagTide', cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {
@@ -218,6 +239,9 @@ export const BRANCH_NAMES: Record<Branch, string> = {
   dawn: 'Dawn',
   grace: 'Grace',
   choir: 'Choir',
+  forge: 'Forge',
+  clinker: 'Clinker',
+  crust: 'Crust',
   general: 'General',
 };
 

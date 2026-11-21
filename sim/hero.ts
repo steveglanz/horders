@@ -78,10 +78,12 @@ export interface HeroProfile {
   /** P3: Delver's Key level per solo dungeon, and the best key level beaten in each (for leaderboards). */
   keys?: Partial<Record<DungeonId, number>>;
   keyBest?: Partial<Record<DungeonId, number>>;
+  /** Slagbinder stance (Anvil tanks, Bellows fills a damage slot); kept per character. Default Bellows. */
+  stance?: 'anvil' | 'bellows';
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {

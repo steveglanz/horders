@@ -68,11 +68,12 @@ export const SLOT_NAMES: Record<Slot, string[]> = {
 };
 
 /** Weapon names by the class that found them (four each, so a roll picks the same index for every class). */
-export const WEAPON_NAMES: Record<'emberwright' | 'duskblade' | 'bulwark' | 'lumen', string[]> = {
+export const WEAPON_NAMES: Record<ClassId, string[]> = {
   emberwright: ['Focus', 'Rod', 'Brand', 'Scepter'],
   duskblade: ['Fangs', 'Twinblades', 'Edges', 'Kris'],
   bulwark: ['Aegis', 'Greatshield', 'Mace', 'Warhammer'],
   lumen: ['Lantern', 'Censer', 'Sunstaff', 'Beacon'],
+  slagbinder: ['Slagmaul', 'Clinkerhammer', 'Mould', 'Tongs'],
 };
 
 export const RARITY_PREFIX: Record<Rarity, string[]> = {
@@ -86,7 +87,8 @@ export const RARITY_PREFIX: Record<Rarity, string[]> = {
 export type MythicId =
   | 'phoenixFeather' | 'giantsBane' | 'gluttonsGem' | 'splittingCinders'
   | 'wanderersWake' | 'bankedHeart' | 'mirrorstep' | 'redLedger'
-  | 'tetheredShield' | 'ringwallVow' | 'anchoredDawn' | 'eclipseGlass';
+  | 'tetheredShield' | 'ringwallVow' | 'anchoredDawn' | 'eclipseGlass'
+  | 'moltenCore' | 'clinkerCrown';
 
 /**
  * Mythic effects. The first four suit any class. The rest are class Mythics
@@ -106,6 +108,8 @@ export const MYTHICS: Record<MythicId, { name: string; text: string; cls?: Class
   ringwallVow: { cls: 'bulwark', name: 'Ringwall Vow', text: 'Shield Block guards every side for 20%, and Shield Slam pulls the horde in instead of shoving it.' },
   anchoredDawn: { cls: 'lumen', name: 'Anchored Dawn', text: 'Sanctuary lasts 50% longer but stays put, and Radiant Burst recovers 50% faster while you stand in it.' },
   eclipseGlass: { cls: 'lumen', name: 'Eclipse Glass', text: 'Radiant Burst reaches 10% further and deals 40% more damage, but heals half as much.' },
+  moltenCore: { cls: 'slagbinder', name: 'Molten Core', text: 'When Molten Plating coats an ally, you get half of it too, and plating bursts reach 50% further.' },
+  clinkerCrown: { cls: 'slagbinder', name: 'Clinker Crown', text: 'Clinker strikes a second foe, and Brittle lasts twice as long, but Cooling Shell recovers 4s slower.' },
 };
 
 /** The Mythic effects a `cls` hero can roll: the shared four plus their own class's. */
@@ -129,7 +133,8 @@ export interface Item {
 
 export type WeaponFxId =
   | 'piercingCinders' | 'bankedFlame' | 'castCutter' | 'worryingEdge'
-  | 'rallyingSweep' | 'wardingSweep' | 'tenderLight' | 'rebukingLight';
+  | 'rallyingSweep' | 'wardingSweep' | 'tenderLight' | 'rebukingLight'
+  | 'clingingSlag' | 'temperedLob';
 
 /**
  * Class weapon effects (roadmap R4). Each class has two, and each one changes its basic
@@ -144,6 +149,8 @@ export const WEAPON_FX: Record<WeaponFxId, { cls: ClassId; name: string; text: s
   wardingSweep: { cls: 'bulwark', name: 'Warding Sweep', text: 'A Shield Sweep that hits a big foe shields you for 1.5% of your max health.' },
   tenderLight: { cls: 'lumen', name: 'Tender Light', text: "A Sunmote's heal is doubled on a hero below half health." },
   rebukingLight: { cls: 'lumen', name: 'Rebuking Light', text: 'Sunmotes hit a foe that is casting 25% harder.' },
+  clingingSlag: { cls: 'slagbinder', name: 'Clinging Slag', text: 'Slag Lob leaves its target burning for 6 a second for 2s.' },
+  temperedLob: { cls: 'slagbinder', name: 'Tempered Lob', text: 'A Slag Lob that hits a Brittle foe builds 3 more Slag.' },
 };
 
 /** The weapon effect an Epic or Mythic weapon with this id rolls for `cls`. Taken from the id, so no roll changes. */

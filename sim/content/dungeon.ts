@@ -126,9 +126,10 @@ export const SOLO_DUNGEON_IDS = (Object.keys(DUNGEONS) as DungeonId[]).filter((i
  */
 export const BOUNTY_DUNGEON_IDS: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
 
-/** Party roles, from the classes' roles. */
+/** Party roles, from the classes' roles. A Slagbinder's comes from its stance: Anvil tanks, Bellows deals damage. */
 export type PartyRole = 'tank' | 'healer' | 'damage';
-export function roleOf(cls: string): PartyRole {
+export function roleOf(cls: string, stance?: string): PartyRole {
+  if (cls === 'slagbinder') return stance === 'anvil' ? 'tank' : 'damage';
   return cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'damage';
 }
 
@@ -141,7 +142,7 @@ export function partyBlocker(d: DungeonId, partySize: number): string {
 /** The delve-setup label: who the dungeon is built for, and what this party lacks. */
 export function partyLabel(d: DungeonId, classes: string[]): { label: string; missing: PartyRole[] } {
   if (DUNGEONS[d].style === 'solo') return { label: 'Solo friendly · any party', missing: [] };
-  const roles = classes.map(roleOf);
+  const roles = classes.map((c) => roleOf(c));
   const missing = (['tank', 'healer'] as PartyRole[]).filter((r) => !roles.includes(r));
   return { label: 'Group · tank + healer recommended', missing };
 }

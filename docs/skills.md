@@ -217,7 +217,7 @@ The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
 The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is within design's ±15 of the Emberwright. A first version, with a 60 base and 200 px, won 34.3 at Kiln 8, 15.3 ahead of the Emberwright, so both numbers were trimmed.
 
 ## Fifth class: the Slagbinder (spec, draft for design review)
-**Role: Warden, an off-tank and support hybrid.** The Bulwark holds the boss, and the Lumen heals after the damage lands. The Slagbinder stops damage before it lands, on whoever is about to take it. It wears molten slag as armour and pours it onto allies as plating. Solo, it plates itself and fights at mid range. In a party, it picks up loose adds, takes a hit for a friend, and makes the boss Brittle for everyone.
+**Role: Off-tank, an off-tank and support hybrid.** The Bulwark holds the boss, and the Lumen heals after the damage lands. The Slagbinder stops damage before it lands, on whoever is about to take it. It wears molten slag as armour and pours it onto allies as plating. Solo, it plates itself and fights at mid range. In a party, it picks up loose adds, takes a hit for a friend, and makes the boss Brittle for everyone.
 
 **Name check (21 Nov 2026):** a web search for "Slagbinder" found no game, class or product of that name, only unrelated Dutch hardware listings. Slag already belongs to Horders' own world (Grandmother Slag, Slag Grip).
 
@@ -242,24 +242,41 @@ The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is wi
 
 Brittle is the class's party signature. It doesn't stack, so one Slagbinder in a party is the point.
 
+**What Interpose moves (design review):** only direct hits from an enemy, such as contact, swings, slams with a source and projectiles. It never moves:
+- soak telegraphs or the soak head count,
+- percent-of-max-health ticks (the Crucible's heat, the Coldmarrow's cold, Ladle Burn, Slag Grip),
+- telegraph hits with no source.
+
+In code, it redirects only when the hit has a source enemy and is not unblockable.
+
+**Weapon effects and Mythics, for parity with the other classes:**
+- Weapon effects:
+  - **Clinging Slag:** Lob leaves a 2 s burn.
+  - **Tempered Lob:** Lob on a Brittle foe builds 3 more Slag.
+- Mythics:
+  - **Molten Core:** plating an ally plates you for half, and bursts reach 50% further.
+  - **Clinker Crown:** Clinker strikes a second foe and Brittle lasts twice as long, but Cooling Shell recovers 4 s slower.
+
+**The stance persists per character**, saved with the hero like the class, and is sent to co-op peers.
+
 ### Stance: one role per run
 The player picks a stance in the hub before the run, and it is locked for the run. That way one hero never fills both the tank and the healer slot of a group dungeon (design, 21 Nov 2026).
 
 | Stance | Role for Quick join and group gates | Threat | Change |
 |---|---|---|---|
 | **Anvil** | Tank | ×4, like the Bulwark | Cooling Shell lasts +2 s. Clinker on the boss also taunts it, the way Shield Toss does. Plating is 25% weaker. |
-| **Pour** (default) | Damage slot (Warden) | ×2 | Plating as listed above. Interpose lasts +1 s. |
+| **Bellows** (default) | Damage slot | ×2 | Plating as listed above. Interpose lasts +1 s. (Not "Pour": that clashes with Grandmother Slag's pour lanes and Ladle Pour.) |
 
 Solo, the stance only changes the numbers in its row. To support this, `roleOf` in sim/content/dungeon.ts takes the hero's stance as well as the class, and threat reads the multiplier from it rather than from `cls === 'bulwark'`. The Bulwark-only checks for call-outs and Smother stay Bulwark-only.
 
 ### Talents (three branches, like the other classes)
 - **Forge (plating):**
-  - Thick Pour: plating +20% per rank.
+  - Thick Coat: plating +20% per rank.
   - Searing Shell: plating bursts +30% per rank.
   - Quickset: Molten Plating cooldown −1 s per rank.
   - Capstones:
     - **Ever-Molten:** plating that runs out without breaking refunds 15 Slag.
-    - **Twin Pour:** plating also coats a second hero.
+    - **Twin Coat:** plating also coats a second hero.
 - **Clinker (damage and Brittle):**
   - Heavy Lob: Lob +15% per rank.
   - Shrapnel: splash radius +15 px per rank.
@@ -294,7 +311,7 @@ Each branch gets 3 card talents and two capstones from the start, so this class 
   - Cues for Lob, plating applied and plating burst, Interpose leap, Cooling Shell, Clinker, and Brittle applied.
 - **Engineering:**
   - The new ClassId in the hub, the class picker, save files and Quick join role badges.
-  - Its role comes from the stance: Anvil counts as tank, Pour as a damage slot. The hub's party role chips (client/hub.ts) need a stance toggle for the Slagbinder.
+  - Its role comes from the stance: Anvil counts as tank, Bellows as a damage slot. The hub's party role chips (client/hub.ts) need a stance toggle for the Slagbinder.
 
 ### Balance targets
 - The same as L7:

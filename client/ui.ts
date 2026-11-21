@@ -33,6 +33,10 @@ const BRANCH_COLOR: Record<Branch, string> = {
   dawn: '#ffd98a',
   grace: '#7fe0c4',
   choir: '#c7a6ff',
+  // Slagbinder
+  forge: '#ff9b4a',
+  clinker: '#c98f6a',
+  crust: '#8a8f99',
 };
 
 export interface RunHandlers {

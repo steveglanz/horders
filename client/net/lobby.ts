@@ -28,8 +28,9 @@ export interface LobbyAd {
 export type LobbyRole = 'tank' | 'healer' | 'dps';
 const ROLES: readonly LobbyRole[] = ['tank', 'healer', 'dps'];
 
-/** A class's lobby role, from its CLASSES role text ('Tank', 'Healer', anything else is damage). */
-export function roleOf(classRole: string): LobbyRole {
+/** A class's lobby role, from its CLASSES role text ('Tank', 'Healer', anything else is damage). An Anvil Slagbinder tanks. */
+export function roleOf(classRole: string, stance?: string): LobbyRole {
+  if (stance === 'anvil') return 'tank';
   const r = classRole.toLowerCase();
   return r === 'tank' ? 'tank' : r === 'healer' ? 'healer' : 'dps';
 }

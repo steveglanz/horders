@@ -124,6 +124,23 @@ const SMOTHER_COST = 10;
 /** Lumen: Sunmote reach and the most Brilliance (stored overheal) it can hold. */
 const LUMEN_RANGE = 500;
 const LUMEN_MAX_BRILLIANCE = 200;
+/** The Slagbinder, the fifth class: an off-tank and support hybrid (docs/skills.md). */
+export const SLAG_KIT = {
+  lobEvery: 0.7, lobRange: 360, lobDamage: 18, lobSplash: 14, lobSplashR: 50, lobSlag: 4,
+  slagPerDamage: 0.5,
+  plateShare: 0.15, plateTime: 6, plateBurst: 40, plateBurstR: 90, plateRange: 300,
+  interposeLeap: 150, interposeRange: 450, interposeTime: 3, interposeShare: 0.6, interposeCut: 0.3,
+  shellTime: 5, shellCut: 0.35, shellRadius: 160,
+  brittleMult: 1.15, brittleTime: 6,
+  bellowsThreat: 2, anvilPlate: 0.75, anvilShell: 2, bellowsInterpose: 1,
+  everMoltenRefund: 15, heartAt: 0.3, heartShare: 0.25, heartEvery: 30,
+  tideRadius: 120, tideDamage: 60, tideStun: 1,
+  hailEvery: 4, shatterMult: 1.25,
+};
+
+/** Slagbinder stance, picked before the run and kept all run: Anvil tanks, Bellows fills a damage slot. */
+export type Stance = 'anvil' | 'bellows';
+
 /** High Noon and Choir of Dawn, reworked in L7 because both added almost nothing (see docs/skills.md). */
 export const LUMEN_CAPS = {
   noonEvery: 4, noonBase: 40, noonPer: 1.5,
@@ -168,6 +185,8 @@ export interface Enemy {
   stunT: number;
   /** Kilnbreaker 3-piece: takes extra damage after being interrupted. */
   exposedT?: number;
+  /** Slagbinder: the run time until which this foe is Brittle (takes more damage from everyone). */
+  brittleUntil?: number;
   /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
@@ -314,6 +333,16 @@ export interface Player {
   grudge?: number;
   grudgeDmg?: number;
   motesFired?: number;
+  /** Slagbinder: its stance, plating on this hero (until when, how much, who poured it), Interpose cover, Cooling Shell, Lobs thrown, Clinker Heart. */
+  stance?: Stance;
+  plateUntil?: number;
+  plateAmt?: number;
+  plateBy?: number;
+  interposeUntil?: number;
+  interposeBy?: number;
+  shellUntil?: number;
+  lobs?: number;
+  heartReadyAt?: number;
   x: number;
   y: number;
   px: number;
@@ -421,6 +450,8 @@ export type SimEvent =
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'cleanse'; x: number; y: number }
+  | { type: 'plate'; x: number; y: number; hero: number }
+  | { type: 'brittle'; x: number; y: number }
   | { type: 'slagGrip'; x: number; y: number; stacks: number }
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'dodge'; x: number; y: number; healed: number }
@@ -452,6 +483,8 @@ export interface DraftOption {
 /** Another hero in a co-op party (the main hero comes from WorldOptions itself). */
 export interface HeroOptions {
   cls?: ClassId;
+  /** Slagbinder stance for this run (default Bellows). */
+  stance?: Stance;
   gear?: Item[];
   passives?: Partial<Record<PassiveId, number>>;
   name?: string;
@@ -514,6 +547,8 @@ export interface WorldOptions {
   tier?: number;
   /** Which class the hero plays this run. */
   cls?: ClassId;
+  /** Slagbinder stance for this run (default Bellows). */
+  stance?: Stance;
   /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
   week?: number;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
@@ -789,6 +824,7 @@ export class World {
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
+    if (this.cls === 'slagbinder') this.player.stance = opts.stance ?? 'bellows';
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
       x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, touchCd: 0, orbitCd: 0,
@@ -846,6 +882,7 @@ export class World {
     const hp = Math.round((classDef.baseHp + loadout.maxHpBonus) * gritMult(this.grit));
     const a = (index / MAX_PARTY) * Math.PI * 2;
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
+    player.stance = cls === 'slagbinder' ? h.stance ?? 'bellows' : undefined;
     player.px = player.x;
     player.py = player.y;
     if (opts.bounty === undefined) { player.level = 1; player.pendingLevels = 0; player.xpToNext = xpFor(1); }
@@ -943,6 +980,13 @@ export class World {
     return n;
   }
 
+  /** Threat from this hero's damage: the Bulwark and an Anvil Slagbinder tank; a Bellows Slagbinder peels adds. */
+  get threatMult(): number {
+    if (this.cls === 'bulwark') return THREAT.tankMult;
+    if (this.cls === 'slagbinder') return this.player.stance === 'anvil' ? THREAT.tankMult : SLAG_KIT.bellowsThreat;
+    return 1;
+  }
+
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
     const p = this.player;
@@ -991,6 +1035,11 @@ export class World {
 
   private baseCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
+    if (this.cls === 'slagbinder') {
+      if (slot === 0) return base - this.rank('quickset');
+      if (slot === 2) return base + (this.hasMythic('clinkerCrown') ? 4 : 0);
+      return base;
+    }
     if (this.cls === 'bulwark') {
       if (slot === 1) return base - 2 * this.rank('momentum');
       return base;
@@ -1605,6 +1654,7 @@ export class World {
     e.maxHp = e.hp = def.hp * scale;
     e.touchCd = 0;
     e.orbitCd = 0;
+    e.brittleUntil = 0;
     e.burnDps = 0;
     e.burnT = 0;
     e.woundT = 0;
@@ -1678,6 +1728,26 @@ export class World {
   private hurtPlayer(amount: number, src = -1, unblockable = false): void {
     if (this.invulnerable || (this.player.shieldT > 0 && !unblockable)) return;
     const p = this.player;
+    // Interpose: a Slagbinder beside this hero takes most of each direct hit, at less damage.
+    // Only hits from a foe that can be blocked: never soaks, percent ticks, Ladle Burn or Slag Grip.
+    if (src >= 0 && !unblockable && (p.interposeUntil ?? -1) > this.time) {
+      const k = p.interposeBy ?? -1;
+      if (k >= 0 && k !== this.acting && k < this.heroes.length && this.heroPlayer(k).hp > 0) {
+        const moved = amount * SLAG_KIT.interposeShare;
+        amount -= moved;
+        const back = this.acting;
+        this.use(k);
+        this.hurtPlayer(moved * (1 - SLAG_KIT.interposeCut), src);
+        this.use(back);
+      }
+    }
+    // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
+    if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut;
+    if (this.cls === 'slagbinder') {
+      this.addHeat(amount * SLAG_KIT.slagPerDamage + 2 * this.rank('hotBlood'));
+      // Whatever strikes a shelled Slagbinder cracks.
+      if (src >= 0 && (p.shellUntil ?? -1) > this.time) this.makeBrittle(src);
+    }
     if (this.cls === 'bulwark') {
       amount = this.bulwarkMitigate(amount, src);
       if (amount <= 0) return;
@@ -1742,7 +1812,12 @@ export class World {
     p.hurtFlash = 0.15;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
     // Second Wind: once per fight, a melee hero knocked low catches its breath.
-    if ((this.cls === 'duskblade' || this.cls === 'bulwark') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
+    // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
+    if (this.cls === 'slagbinder' && this.rank('clinkerHeart') > 0 && p.hp > 0 && p.hp < p.maxHp * SLAG_KIT.heartAt && this.time >= (p.heartReadyAt ?? 0)) {
+      p.heartReadyAt = this.time + SLAG_KIT.heartEvery;
+      this.plate(this.acting, p.maxHp * SLAG_KIT.heartShare);
+    }
+    if ((this.cls === 'duskblade' || this.cls === 'bulwark' || this.cls === 'slagbinder') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
       p.windUsed = true;
       const healed = this.healPlayer(p.maxHp * SECOND_WIND * this.noviceAid);
       if (healed > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount: healed });
@@ -1776,7 +1851,7 @@ export class World {
         p.blinkChargeT = this.abilityCooldown(1);
       }
     }
-    this.addHeat((this.cls === 'duskblade' ? 3 : this.cls === 'bulwark' ? 1 : this.cls === 'lumen' ? 4 : 2) * dt);
+    this.addHeat((this.cls === 'duskblade' ? 3 : this.cls === 'bulwark' || this.cls === 'slagbinder' ? 1 : this.cls === 'lumen' ? 4 : 2) * dt);
     const slot = input.cast;
     if (slot === undefined || slot < 0 || slot >= this.abilities.length || !this.canCast(slot)) return;
     p.heat -= this.abilityCost(slot);
@@ -1790,6 +1865,13 @@ export class World {
       if (slot === 0) this.radiantBurst();
       else if (slot === 1) this.glimmerStep(input);
       else if (slot === 2) this.sanctuary();
+      else this.quench();
+      return;
+    }
+    if (this.cls === 'slagbinder') {
+      if (slot === 0) this.moltenPlating();
+      else if (slot === 1) this.interpose(input);
+      else if (slot === 2) this.coolingShell();
       else this.quench();
       return;
     }
@@ -1951,6 +2033,7 @@ export class World {
       if (kb >= 2) p.kbT = SET_TUNING.kbTime;
       if (kb >= 3) e.exposedT = SET_TUNING.kbExposedTime;
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+      if (this.cls === 'slagbinder' && this.hasMythic('clinkerCrown')) this.crownBounce(t);
       if (this.cls === 'bulwark' && this.hasMythic('tetheredShield')) {
         // Tethered Shield: the shield bounces on to two more casters, and Charge can follow it.
         p.tossId = t;
@@ -1970,6 +2053,7 @@ export class World {
     // Co-op group tools on the interrupt slot, when there's nothing to interrupt.
     if (this.heroes.length > 1 && this.cls === 'lumen' && this.purify()) return;
     if (this.heroes.length > 1 && this.cls === 'bulwark' && this.callOut()) return;
+    if (this.heroes.length > 1 && this.cls === 'slagbinder' && this.clinkerBoss()) return;
     // Nothing to interrupt: half the cooldown back (and a small bolt for casters).
     p.cds[3] = this.abilityCooldown(3) / 2;
     if (this.cls === 'duskblade') return;
@@ -2037,6 +2121,10 @@ export class World {
       this.updateShield(dt);
       return;
     }
+    if (this.cls === 'slagbinder') {
+      this.updateSlag(dt);
+      return;
+    }
     if (this.cls === 'lumen') {
       this.updateLight(dt);
       return;
@@ -2095,6 +2183,256 @@ export class World {
         });
       }
     }
+  }
+
+  // ---------------------------------------------------------------- slagbinder
+
+  /** How long Brittle lasts from this hero. */
+  private get brittleTime(): number {
+    return (SLAG_KIT.brittleTime + 2 * this.rank('brittleMind')) * (this.hasMythic('clinkerCrown') ? 2 : 1);
+  }
+
+  private makeBrittle(i: number): void {
+    const e = this.enemies[i];
+    if (!e || !e.alive) return;
+    const fresh = (e.brittleUntil ?? 0) <= this.time;
+    e.brittleUntil = Math.max(e.brittleUntil ?? 0, this.time + this.brittleTime);
+    if (fresh) this.events.push({ type: 'brittle', x: e.x, y: e.y });
+  }
+
+  /** Whether a Slagbinder's Cooling Shell covers this hero (its own, or in a party one close by). */
+  private shellCovers(q: Player): boolean {
+    for (let k = 0; k < this.heroes.length; k++) {
+      const h = this.heroPlayer(k);
+      if ((h.shellUntil ?? -1) <= this.time || h.hp <= 0) continue;
+      if (h === q || dist2(h.x, h.y, q.x, q.y) <= SLAG_KIT.shellRadius ** 2) return true;
+    }
+    return false;
+  }
+
+  /** Lays plating worth `amount` on hero k, poured by the acting Slagbinder. */
+  private plate(k: number, amount: number): void {
+    const q = this.heroPlayer(k);
+    if (q.hp <= 0) return;
+    // A fresh coat replaces the old one, so it never stacks past one plating.
+    if ((q.plateUntil ?? -1) > this.time) q.ward = Math.max(0, q.ward - (q.plateAmt ?? 0));
+    q.ward += amount;
+    q.plateAmt = amount;
+    q.plateUntil = this.time + SLAG_KIT.plateTime;
+    q.plateBy = this.acting;
+    this.events.push({ type: 'plate', x: q.x, y: q.y, hero: k });
+  }
+
+  /** Plating that broke or ran out bursts around its wearer. */
+  private updatePlates(): void {
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.plateUntil === undefined || q.plateBy !== this.acting) continue;
+      const broken = q.ward <= 0.01;
+      const done = this.time >= q.plateUntil;
+      if (!broken && !done) continue;
+      if (!broken) {
+        q.ward = Math.max(0, q.ward - (q.plateAmt ?? 0));
+        if (this.rank('everMolten') > 0) this.addHeat(SLAG_KIT.everMoltenRefund);
+      }
+      q.plateUntil = undefined;
+      q.plateAmt = 0;
+      const r = SLAG_KIT.plateBurstR * (this.hasMythic('moltenCore') ? 1.5 : 1);
+      const dmg = SLAG_KIT.plateBurst * (1 + 0.3 * this.rank('searingShell')) * this.dmgMult;
+      this.forEachNear(q.x, q.y, r + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(q.x, q.y, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, dmg, true);
+      });
+      this.events.push({ type: 'explode', x: q.x, y: q.y, r });
+    }
+  }
+
+  private get plateAmount(): number {
+    const p = this.player;
+    return p.maxHp * SLAG_KIT.plateShare * (1 + 0.2 * this.rank('thickPour')) * (p.stance === 'anvil' ? SLAG_KIT.anvilPlate : 1);
+  }
+
+  /** The most hurt living ally (not the acting hero) within r, or -1. */
+  private hurtAlly(r: number, skip = -1): number {
+    const p = this.player;
+    let best = -1;
+    let bestShare = 2;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting || k === skip) continue;
+      const a = this.heroPlayer(k);
+      if (a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > r * r) continue;
+      const share = a.hp / a.maxHp;
+      if (share < bestShare) { bestShare = share; best = k; }
+    }
+    return best;
+  }
+
+  /** Molten Plating: on yourself solo; in a party, on the most hurt hero in reach (you included). */
+  private moltenPlating(): void {
+    const p = this.player;
+    const amt = this.plateAmount;
+    const twin = this.rank('twinPour') > 0;
+    if (this.heroes.length === 1) {
+      this.plate(this.acting, amt * (twin ? 1.5 : 1));
+      return;
+    }
+    const wounded = this.woundedAlly(SLAG_KIT.plateRange);
+    const first = wounded >= 0 ? wounded : this.acting;
+    this.plate(first, amt);
+    if (first !== this.acting && this.hasMythic('moltenCore')) this.plate(this.acting, amt * 0.5);
+    if (twin) {
+      // The second coat goes to whoever is next most hurt, you included.
+      let second = -1;
+      let share = 2;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (k === first || q.hp <= 0 || dist2(p.x, p.y, q.x, q.y) > SLAG_KIT.plateRange ** 2) continue;
+        if (q.hp / q.maxHp < share) { share = q.hp / q.maxHp; second = k; }
+      }
+      if (second >= 0 && !(second === this.acting && first !== this.acting && this.hasMythic('moltenCore'))) this.plate(second, amt);
+    }
+  }
+
+  /** Interpose: leap to the most hurt ally and cover them; solo (or no one to cover), a short leap. */
+  private interpose(input: Input): void {
+    const p = this.player;
+    const x1 = p.x;
+    const y1 = p.y;
+    const ally = this.heroes.length > 1 ? this.hurtAlly(SLAG_KIT.interposeRange) : -1;
+    if (ally >= 0) {
+      const a = this.heroPlayer(ally);
+      const dx = a.x - p.x;
+      const dy = a.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const go = Math.max(0, d - 40);
+      p.x += (dx / d) * go;
+      p.y += (dy / d) * go;
+      a.interposeUntil = this.time + SLAG_KIT.interposeTime + (p.stance === 'anvil' ? 0 : SLAG_KIT.bellowsInterpose);
+      a.interposeBy = this.acting;
+    } else {
+      let ang: number;
+      if (Math.hypot(input.x, input.y) > 0.01) ang = Math.atan2(input.y, input.x);
+      else {
+        const n = this.nearestEnemies(p.x, p.y, 1, 300)[0];
+        ang = n !== undefined ? Math.atan2(p.y - this.enemies[n].y, p.x - this.enemies[n].x) : p.facing + Math.PI;
+      }
+      p.x += Math.cos(ang) * SLAG_KIT.interposeLeap;
+      p.y += Math.sin(ang) * SLAG_KIT.interposeLeap;
+    }
+    this.clampArena(p, PLAYER_RADIUS);
+    p.px = p.x;
+    p.py = p.y;
+    p.shieldT = Math.max(p.shieldT, 0.4);
+    // Landing: small foes are shoved aside; Slag Tide turns it into a stunning wave.
+    const tide = this.rank('slagTide') > 0;
+    const r = tide ? SLAG_KIT.tideRadius : 90;
+    this.forEachNear(p.x, p.y, r + 40, (i) => {
+      const e = this.enemies[i];
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > r + e.def.radius) return;
+      if (e.def.rank === 'normal' && !e.def.stationary) {
+        e.x += (dx / d) * 60;
+        e.y += (dy / d) * 60;
+      }
+      if (tide) {
+        this.damageEnemy(i, SLAG_KIT.tideDamage * this.dmgMult, true);
+        if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, SLAG_KIT.tideStun);
+      }
+    });
+    this.events.push({ type: 'dash', x1, y1, x2: p.x, y2: p.y, dodge: true });
+  }
+
+  /** Cooling Shell: the Slagbinder hardens; in a party it covers heroes close by. */
+  private coolingShell(): void {
+    const p = this.player;
+    p.shellUntil = this.time + SLAG_KIT.shellTime + this.rank('hardened') + (p.stance === 'anvil' ? SLAG_KIT.anvilShell : 0);
+    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: this.heroes.length > 1 ? SLAG_KIT.shellRadius : 50 });
+  }
+
+  /** Co-op Clinker with nothing to interrupt: the boss goes Brittle, and an Anvil takes it back. */
+  private clinkerBoss(): boolean {
+    const b = this.bossIndex;
+    if (b < 0 || !this.enemies[b].alive) return false;
+    const e = this.enemies[b];
+    const p = this.player;
+    if (dist2(p.x, p.y, e.x, e.y) > (this.classDef.interruptRange + e.def.radius) ** 2) return false;
+    this.makeBrittle(b);
+    if (p.stance === 'anvil' && this.threat[b]) taunt(this.threat[b], this.heroes[this.acting].id);
+    this.damageEnemy(b, 30 * this.dmgMult, true);
+    if (this.hasMythic('clinkerCrown')) this.crownBounce(b);
+    this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+    return true;
+  }
+
+  /** Clinker Crown: the clinker bounces on to the nearest other foe and cracks it. */
+  private crownBounce(from: number): void {
+    const e = this.enemies[from];
+    const n = this.nearestEnemies(e.x, e.y, 2, 300).find((j) => j !== from);
+    if (n === undefined) return;
+    this.damageEnemy(n, 30 * this.dmgMult, true);
+    this.makeBrittle(n);
+  }
+
+  /** Slag Lob, the basic attack: a glob on the nearest foe that splashes around it. Also ticks plating. */
+  private updateSlag(dt: number): void {
+    const p = this.player;
+    this.updatePlates();
+    p.volleyT -= dt;
+    if (p.volleyT > 0) return;
+    let t = this.bladeTarget(SLAG_KIT.lobRange);
+    if (t < 0) {
+      p.volleyT = 0;
+      return;
+    }
+    if (this.bossIndex >= 0) {
+      const boss = this.enemies[this.bossIndex];
+      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (SLAG_KIT.lobRange + boss.def.radius) ** 2) t = this.bossIndex;
+      // As with Sunmote: an acolyte healing a wounded boss is struck first.
+      if (boss.alive && boss.hp < boss.maxHp) {
+        let best = (SLAG_KIT.lobRange + 40) ** 2;
+        for (let i = 0; i < this.enemies.length; i++) {
+          const e = this.enemies[i];
+          if (!e.alive || e.kind !== 'acolyte' || e.aux2 !== this.bossIndex) continue;
+          const d2 = dist2(p.x, p.y, e.x, e.y);
+          if (d2 < best) { best = d2; t = i; }
+        }
+      }
+    }
+    p.volleyT += SLAG_KIT.lobEvery / this.loadout.hasteMult;
+    if (p.volleyT < 0) p.volleyT = 0;
+    p.lobs = (p.lobs ?? 0) + 1;
+    const hail = this.rank('cinderHail') > 0 && p.lobs % SLAG_KIT.hailEvery === 0;
+    this.lob(t);
+    if (this.rank('shatterpoint') > 0 && p.lobs % SLAG_KIT.hailEvery === 0) this.makeBrittle(t);
+    if (hail) {
+      const e = this.enemies[t];
+      for (const j of this.nearestEnemies(e.x, e.y, 3, 220)) if (j !== t && this.enemies[j].alive) this.lob(j);
+      if (this.enemies[t].alive) this.lob(t);
+    }
+  }
+
+  private lob(t: number): void {
+    const p = this.player;
+    const e = this.enemies[t];
+    p.facing = Math.atan2(e.y - p.y, e.x - p.x);
+    this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+    const brittle = (e.brittleUntil ?? 0) > this.time;
+    const mult = (1 + 0.15 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
+    this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
+    this.addHeat(SLAG_KIT.lobSlag + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
+    if (e.alive && this.hasWeaponFx('clingingSlag')) {
+      e.burnDps = Math.max(e.burnDps, 6 * this.dmgMult);
+      e.burnT = Math.max(e.burnT, 2);
+    }
+    const r = SLAG_KIT.lobSplashR + 15 * this.rank('shrapnel');
+    const splash = SLAG_KIT.lobSplash * (1 + 0.3 * this.rank('shrapnel')) * mult * this.dmgMult;
+    this.forEachNear(e.x, e.y, r + 40, (j) => {
+      if (j === t) return;
+      const o = this.enemies[j];
+      if (dist2(e.x, e.y, o.x, o.y) <= (r + o.def.radius) ** 2) this.damageEnemy(j, splash, false, true);
+    });
   }
 
   // ---------------------------------------------------------------- lumen
@@ -3400,6 +3738,8 @@ export class World {
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
+    // Brittle (Slagbinder): cracked slag on the foe, so every hero hits it harder.
+    if ((e.brittleUntil ?? 0) > this.time) dmg *= SLAG_KIT.brittleMult;
     dmg *= this.setDamageMult(e, silent);
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2;
@@ -3441,7 +3781,7 @@ export class World {
       this.events.push({ type: 'ward', index: i, amount: e.ward });
     }
     this.damageDealt += dmg;
-    if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.cls === 'bulwark' ? THREAT.tankMult : 1);
+    if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
     // The shadow fight and the raid boss both count triple toward the world boss.
     if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag') this.shadowDamage += dmg;
     const thirst = this.rank('thirst');
@@ -4672,6 +5012,10 @@ export class World {
     if ((id === 'blazingSpeed' && this.rank(id) === 2) || id === 'shadowSlip') {
       p.blinkCharges = 1;
       p.blinkChargeT = this.abilityCooldown(1);
+    }
+    if (id === 'crustedHide') {
+      p.maxHp += 15;
+      p.hp = Math.min(p.maxHp, p.hp + 15);
     }
     if (id === 'renewal') {
       p.maxHp += 20;

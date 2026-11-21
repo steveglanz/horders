@@ -23,6 +23,8 @@ export const CLASS_ICON: Record<ClassId, { color: string; d: string }> = {
   duskblade: { color: '#ff4f7a', d: 'M4 20 20 4 M4 4l16 16 M6 15l3 3 M15 18l3-3' },
   bulwark: { color: '#d6dde4', d: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z' },
   lumen: { color: '#ffc861', d: 'M5 5a7 2.5 0 1 0 14 0a7 2.5 0 1 0-14 0Z M12 11a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z' },
+  // Placeholder until visuals draws it: a ladle pouring a drop.
+  slagbinder: { color: '#ff9b4a', d: 'M3 6h9a4 4 0 0 1-4 4H5 M12 6l8-3 M8 13v2 M8 18a1.6 1.6 0 1 1 0 .1Z' },
 };
 
 export function glyph(d: string, size = 24): string {
@@ -82,6 +84,17 @@ export const ABILITY_GLYPH: Record<ClassId, string[]> = {
     'M3 19a9 9 0 0 1 18 0Z M12 6V3 M6 9 4 7 M18 9l2-2',
     // Hush: a muted sound wave inside the cut cast ring.
     'M7.5 12.5q1.1-2 2.2 0t2.2 0 2.2 0 2.2 0 ' + CUT,
+  ],
+  // Slagbinder placeholders until visuals draws them (Molten Plating, Interpose, Cooling Shell, Clinker).
+  slagbinder: [
+    // Molten Plating: a shield shape with a drip.
+    'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 9v5 M12 16.5h.01',
+    // Interpose: an arc leaping to a figure.
+    'M3 18c3-9 9-12 14-8 M17 10l-3-.5 M17 10l-.5 3 M19 14a1.6 1.6 0 1 1 0 .1Z M19 16v5',
+    // Cooling Shell: a dome over a dot.
+    'M3 19a9 9 0 0 1 18 0Z M12 15.5a1.5 1.5 0 1 1 0 .1Z',
+    // Clinker: a lump inside the cut cast ring.
+    'M10 10l3-1 2 2-1 3-3 1-2-2Z ' + CUT,
   ],
 };
 

@@ -249,7 +249,10 @@
   #tip .info .st { color: var(--muted); font-size: 12px; }
   @keyframes tipIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   [data-tip] { -webkit-touch-callout: none; }
-  .classes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .classes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .classes .stance { grid-column: 1 / -1; display: flex; gap: 6px; }
+  .classes .stance button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--card-line); background: var(--card); color: var(--muted); font-size: 13px; }
+  .classes .stance button.on { border-color: #ff9b4a; color: var(--text); background: color-mix(in srgb, #ff9b4a 12%, transparent); }
   .cls { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 104px; padding: 12px 6px 10px; border-radius: 14px; border: 1px solid var(--card-line); background: var(--card); text-align: center; color: var(--muted); transition: transform 0.1s, border-color 0.15s; }
   .cls .gtile { color: var(--gc); }
   .cls b { font: 600 15px var(--serif); color: var(--text); }
@@ -481,9 +484,9 @@
     .hub-top { grid-template-columns: auto 1fr auto; }
     #title h1 { font-size: 30px; letter-spacing: 0.08em; }
     .logo .tag { font-size: 11px; }
-    .classes { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .classes { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
     .cls { min-height: 92px; padding: 10px 2px 8px; }
-    .cls b { font-size: 13px; }
+    .cls b { font-size: 11px; overflow-wrap: anywhere; }
     .gear { gap: 5px; }
     .slot { padding: 6px 7px; font-size: 11px; }
     #stats { grid-template-columns: repeat(2, 1fr); }

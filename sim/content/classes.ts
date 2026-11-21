@@ -39,6 +39,13 @@ export const LUMEN_ABILITIES: AbilityDef[] = [
   { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: "Silence an enemy cast and stun the caster. In a party, with nothing to silence, it clears an ally's Slag Grip." },
 ];
 
+export const SLAGBINDER_ABILITIES: AbilityDef[] = [
+  { name: 'Molten Plating', key: 'Q', cost: 30, cooldown: 6, text: 'Plate yourself in slag: a ward that bursts when it breaks or runs out. In a party, it plates the most hurt hero near you.' },
+  { name: 'Interpose', key: 'E', cost: 0, cooldown: 10, text: 'Leap where you are moving and shove small foes aside. In a party, leap to the most hurt ally and take most of their hits for 3s.' },
+  { name: 'Cooling Shell', key: 'R', cost: 60, cooldown: 24, text: 'For 5s take 35% less damage, and whatever hits you turns Brittle. In a party, heroes beside you are shielded too.' },
+  { name: 'Clinker', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Hurl a clinker to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it makes the boss Brittle.' },
+];
+
 export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
@@ -55,6 +62,10 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   lumen: {
     id: 'lumen', name: 'Lumen', role: 'Healer', blurb: 'Light that mends. Overhealing turns into damage.',
     resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, abilities: LUMEN_ABILITIES,
+  },
+  slagbinder: {
+    id: 'slagbinder', name: 'Slagbinder', role: 'Off-tank', blurb: 'Molten plate for you and your friends. Brittle foes break.',
+    resource: 'Slag', baseHp: 150, speed: 134, interruptRange: 380, abilities: SLAGBINDER_ABILITIES,
   },
 };
 
