@@ -6,10 +6,16 @@
 
 export type ShakeSetting = 'full' | 'reduced' | 'off';
 export type PaletteSetting = 'standard' | 'colorblind';
+/** Which side of the screen the ability buttons sit on (touch screens). */
+export type HandSetting = 'right' | 'left';
+/** Auto drops effects when frames dip; Saver also caps at 30 fps and renders at 1x for battery. */
+export type GraphicsSetting = 'auto' | 'saver' | 'full';
 
 export interface DisplaySettings {
   shake: ShakeSetting;
   palette: PaletteSetting;
+  hand: HandSetting;
+  graphics: GraphicsSetting;
 }
 
 const KEY = 'horders.display.v1';
@@ -20,7 +26,7 @@ function osReducedMotion(): boolean {
 }
 
 function load(): DisplaySettings {
-  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard' };
+  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto' };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;
@@ -28,6 +34,8 @@ function load(): DisplaySettings {
     return {
       shake: v.shake === 'full' || v.shake === 'reduced' || v.shake === 'off' ? v.shake : base.shake,
       palette: v.palette === 'colorblind' ? 'colorblind' : 'standard',
+      hand: v.hand === 'left' ? 'left' : 'right',
+      graphics: v.graphics === 'saver' || v.graphics === 'full' ? v.graphics : 'auto',
     };
   } catch {
     return base;
@@ -97,8 +105,17 @@ function segmented<T extends string>(label: string, value: () => T, options: [T,
 export function mountDisplayOptions(box: HTMLElement): void {
   const shake = segmented<ShakeSetting>('Screen shake', () => display.shake, [['full', 'Full'], ['reduced', 'Reduced'], ['off', 'Off']], (v) => { display.shake = v; });
   const pal = segmented<PaletteSetting>('Danger colours', () => display.palette, [['standard', 'Standard'], ['colorblind', 'Colour-blind']], (v) => { display.palette = v; });
-  box.append(shake.el, pal.el);
-  const sync = () => { shake.sync(); pal.sync(); };
+  const gfx = segmented<GraphicsSetting>('Graphics', () => display.graphics, [['auto', 'Auto'], ['saver', 'Battery saver'], ['full', 'Full']], (v) => { display.graphics = v; });
+  gfx.el.setAttribute('data-tip', 'Auto trims effects when the frame rate dips. Battery saver always does, caps at 30 fps and renders at 1x. Full never trims.');
+  const rows = [shake, pal, gfx];
+  // Only touch screens have on-screen ability buttons to move.
+  if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
+    const hand = segmented<HandSetting>('Ability buttons', () => display.hand, [['right', 'Right'], ['left', 'Left']], (v) => { display.hand = v; });
+    hand.el.setAttribute('data-tip', 'Put the ability buttons under your left thumb and steer with your right.');
+    rows.push(hand);
+  }
+  box.append(...rows.map((r) => r.el));
+  const sync = () => { for (const r of rows) r.sync(); };
   listeners.push(sync);
   sync();
 }

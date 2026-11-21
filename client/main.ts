@@ -12,7 +12,7 @@ import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
-import { mountDisplayOptions } from './settings';
+import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -63,7 +63,9 @@ void (async () => {
 
 // Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out and
 // ?hires=1 lifts the cap to 3x (store screenshots, tools/storeshots.cjs).
-const DPR = params.has('lowres') ? 1 : Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1));
+// The Battery saver graphics setting also renders at 1x.
+const fullDpr = () => (params.has('lowres') || display.graphics === 'saver' ? 1 : Math.min(params.has('hires') ? 3 : 2, Math.max(1, window.devicePixelRatio || 1)));
+let DPR = fullDpr();
 document.documentElement.style.setProperty('--dpr', String(DPR));
 
 const game = new Phaser.Game({
@@ -72,13 +74,28 @@ const game = new Phaser.Game({
   backgroundColor: '#120b0a',
   scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   render: { antialias: true, powerPreference: 'high-performance' },
-  fps: { target: 60 },
+  fps: { target: 60, limit: display.graphics === 'saver' ? 30 : 0 },
   banner: false,
 });
 // NONE scale mode: follow the window ourselves so the backing store stays at device resolution.
 const fit = () => game.scale.resize(Math.round(window.innerWidth * DPR), Math.round(window.innerHeight * DPR));
 window.addEventListener('resize', fit);
 window.visualViewport?.addEventListener('resize', fit);
+// Display settings that live outside the scene: render scale, frame cap and button side.
+const applyDisplay = () => {
+  document.body.classList.toggle('lefty', display.hand === 'left');
+  const next = fullDpr();
+  if (next !== DPR) {
+    DPR = next;
+    document.documentElement.style.setProperty('--dpr', String(DPR));
+    game.scale.setZoom(1 / DPR);
+    fit();
+  }
+  const limit = display.graphics === 'saver' ? 30 : 0;
+  if (game.loop.fpsLimit !== limit) game.loop.setFPSLimit(limit);
+};
+applyDisplay();
+onDisplayChange(applyDisplay);
 
 function seed(): number {
   const s = params.get('seed');

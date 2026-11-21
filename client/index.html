@@ -715,6 +715,11 @@
   .po b { font: 600 14px var(--serif); }
   .po i { font-style: normal; font-size: 12px; color: var(--muted); }
 
+  /* Left-handed touch layout (Settings > Ability buttons: Left): buttons under the left thumb, toasts move right. */
+  @media (pointer: coarse) {
+    body.lefty #actionbar { left: max(10px, env(safe-area-inset-left)); right: auto; transform: none; align-items: flex-start; }
+    body.lefty #toasts { left: auto; right: max(12px, env(safe-area-inset-right)); align-items: flex-end; }
+  }
   /* First-delve coach (client/coach.ts). */
   #coach { position: fixed; z-index: 13; left: 50%; bottom: 20%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: min(300px, calc(100vw - 32px)); pointer-events: none; text-align: center; animation: tipIn 0.2s ease-out; }
   #coach span { padding: 8px 14px; border-radius: 12px; background: rgba(20,12,10,0.9); border: 1px solid var(--gold); color: var(--ink); font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
