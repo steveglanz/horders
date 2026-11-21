@@ -6,7 +6,7 @@
 create table public.key_bests (
   user_id    uuid not null references auth.users (id) on delete cascade,
   dungeon    text not null check (dungeon ~ '^[a-z]{2,24}$'),
-  cls        text not null check (cls in ('emberwright', 'duskblade', 'bulwark', 'lumen')),
+  cls        text not null check (cls in ('emberwright', 'duskblade', 'bulwark', 'lumen', 'slagbinder')),
   name       text not null default 'A hero',
   level      int  not null check (level between 1 and 99),
   seconds    int  not null check (seconds between 60 and 3600),
@@ -35,7 +35,7 @@ begin
   if uid is null then
     raise exception 'sign in first' using errcode = '28000';
   end if;
-  if p_dungeon !~ '^[a-z]{2,24}$' or p_cls not in ('emberwright', 'duskblade', 'bulwark', 'lumen') then
+  if p_dungeon !~ '^[a-z]{2,24}$' or p_cls not in ('emberwright', 'duskblade', 'bulwark', 'lumen', 'slagbinder') then
     return json_build_object('ok', false, 'reason', 'bad_input');
   end if;
   -- A delve can't be cleared in under a minute, and a key run that took over an hour isn't a record.
