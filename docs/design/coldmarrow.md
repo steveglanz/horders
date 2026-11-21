@@ -16,7 +16,7 @@ Each hero carries a **Hearthcoal**. The fields are `Player.coal` (0 to 1), `coal
 
 How it differs from the Glarewell: there you hide in fixed shade. Here you carry your own safety and keep it alive.
 
-## Boss: Nhevra, the Cold Hearth (5 600 → 4 400 health in tuning)
+## Boss: Nhevra, the Cold Hearth (5 600 → 4 400 → 3 400 health in tuning)
 | Mechanic | What it does | The answer |
 |---|---|---|
 | **Snuff** | Every 11 s, a 2.2 s cast that can be Quenched. If it lands, every coal dims by 20%. | Quench it |
@@ -70,3 +70,18 @@ Tier 9 plays the role here that tier 7 with hero-t6 plays for the Glarewell: the
 - The bots never seek out kills to feed the coal, so a human who does should do better.
 
 `tools/hashcheck.ts` is identical to main. The solo path only changes inside the Coldmarrow.
+
+## Retune: shorter boss fights (21 Nov 2026, later)
+On main aeed845, which includes the skills team's second capstones (#86 and #107), Nhevra's fights still ran 135 to 171 s, against the 45 to 120 s target. Her health is now 3 400, down from 4 400. These runs use tools/foundry.ts with heroes-r2 hero-t8-0 and 40 seeds.
+
+| Class | Tier 9 before | Tier 9 after | Tier 10 before | Tier 10 after |
+|---|---|---|---|---|
+| Emberwright | 30/40, boss 137 s | 34/40, boss 108 s | 24/40, boss 152 s | 26/40, boss 124 s |
+| Duskblade | 26/40, 135 s | 28/40, 108 s | 24/40, 171 s | 28/40, 140 s |
+| Bulwark | 34/40, 144 s | 36/40, 113 s | 22/40, 156 s | 25/40, 132 s |
+| Lumen | 19/40, 143 s | 28/40, 121 s | 12/40, 140 s | 15/40, 123 s |
+
+**What it did:**
+- Tier 9 boss fights are now inside the target, and tier 10 fights are close.
+- At tier 9, the Lumen's gap to the best class closed from 15 wins to 8.
+- At tier 10, the Lumen is still 13 wins behind the Duskblade. That gap is on the skills team's L7 list.
