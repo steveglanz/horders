@@ -9,10 +9,10 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R2 | The Forge: embers upgrade and temper gear | ✅ PR #2 | design | ✅ Visuals: Forge panel in the Claude Design port (a17b1f8); Upgrade and Temper strike the item card (#139) |
 | R1 | Route choices between fights | 🔨 built | design | ✅ Visuals: gate arch and portal sprites (76e9380, `gate`/`portal` in client/textures.ts) |
 | R3 | Tier modifiers ("Omens") | 🔨 built | design | ✅ Visuals: an icon per Omen (OMEN_ICON, client/icons.ts); Warded shows a shield bar over the foe and "Warded" in the target frame |
-| R5 | World boss you actually fight | 🔨 PR #3 (engineering) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
+| R5 | World boss you actually fight | ✅ built: the shadow fight #3; server rules in supabase/migrations 0001 to 0003 (strikes, shadow strikes, the weekly Omen) | design + engineering | Engineering: per-boss rules on the server; visuals: boss art |
 | R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | ✅ Visuals: Glass Warden, Ember Twins, Sluice Crawler, Maelra, steam vents and the water (6673909) |
 | R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
-| R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
+| R9 | Co-op delves with tank, healer and damage roles, then raids | ✅ built: co-op rooms and netcode, the Hammerdeep group dungeon #51, party frames with roles (G4), revives (G6), the raid #100 and its tank swap #150 | engineering + design | Engineering: rooms and netcode; skills: role kits |
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | ✅ Visuals: the gold bounty card in the hub; engineering later: a daily leaderboard by clear time |
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | ✅ Visuals: Glarewell art (#31); skills: add it to the class matrix; engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
@@ -77,7 +77,7 @@ Make it feel finished on a phone.
 | # | Feature | Owner | Notes |
 |---|---|---|---|
 | L1 | **First 10 minutes:** a tutorial delve (one fight per verb), and tooltips the first time each mechanic shows up | design + engineering | ✅ First delve built ([first-delve.md](first-delve.md)): teaching route, softer foes, coach lines; novice first-run wins 50-65% → 90%+. First-time tips for red and gold circles (client/coach.ts) |
-| L2 | **Performance:** 60 fps on a mid phone with 4 heroes; asset sizes; a load time under 3 s | engineering | 🔨 Load: under 3 s on slow 4G (2.7 to 2.9 s, tools/partyperf.cjs) with a trimmed Phaser build. Frame rate on a real mid phone still needs a device |
+| L2 | **Performance:** 60 fps on a mid phone with 4 heroes; asset sizes; a load time under 3 s | engineering | 🔨 Load: about 3 s on slow 4G (2.80 to 3.05 s on 21 Nov after the Wrackline content, tools/partyperf.cjs) with a trimmed Phaser build that also drops Phaser's unused sound system. New content keeps adding bytes, so this needs watching. Frame rate on a real mid phone still needs a device |
 | L3 | **Accessibility:** colour-blind telegraph palettes, a reduced-shake option, text size | visuals + engineering | ✅ #61 (shake setting, colour-blind palette with hatching), #126 (text size) |
 | L4 | **Audio mix and settings:** volume sliders, mute-on-blur, and a phone-speaker pass on every theme | sound | |
 | L5 | **Store page assets:** icon, screenshots and a 30 s trailer capture | visuals | ✅ #68 (docs/store/), screenshots refreshed in #132 |

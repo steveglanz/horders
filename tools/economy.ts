@@ -71,9 +71,14 @@ function play(seed: number, bounty: ReturnType<typeof bountyFor> | null, day: nu
 }
 
 // DETAIL=1 prints one line a day: upgrades that day, and how far worn gear sits below the Forge cap.
+// WINDFALL=320 WINDFALL_DAY=5 adds that many embers at the start of that day (1-based), to test a one-off payout
+// such as finishing collection sets the Kiln-only bot never drops.
+const windfall = Number(process.env.WINDFALL ?? 0);
+const windfallDay = Number(process.env.WINDFALL_DAY ?? 5);
 let upgradesBefore = 0;
 for (let d = 0; d < days; d++) {
   const day = DAY0 + d;
+  if (windfall && d + 1 === windfallDay) h.embers += windfall;
   for (let k = 0; k < perDay; k++) play((d * 10 + k + 1 + off * 1000) * 7919, null, day);
   if (h.maxTier >= 2) play(0, bountyFor(day, h.maxTier), day);
   if (process.env.DETAIL) {

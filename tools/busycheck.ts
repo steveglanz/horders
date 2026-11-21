@@ -51,6 +51,9 @@ for (const dungeon of dungeons) {
   for (const seed of seeds) {
     const [main, ...rest] = classes;
     const w = new World({ seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main, party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}` })) });
+    // SET=kinbound SETN=3: every hero wears that many pieces of a verb set, to hear its proc cues.
+    if (process.env.SET) for (const h of w.heroes) h.loadout.sets = { ...h.loadout.sets, [process.env.SET]: Number(process.env.SETN ?? 3) };
+    w.use(0);
     const ends: { t: number; id: SoundId }[] = [];
     const last = new Map<SoundId, number>();
     const wasDown: boolean[] = [];
@@ -143,7 +146,7 @@ for (const dungeon of dungeons) {
   const lostPriority = [...dropped].filter(([id]) => PRIORITY.has(id as SoundId));
   console.log(`\n${dungeon}: ${seeds.length} runs, ${(seconds / seeds.length).toFixed(0)} s each, ${VOICES} voices`);
   console.log(`  played ${total} (${(total / seconds).toFixed(1)}/s, busiest second ${busiest}), peak voices ${peak}, dropped ${lost} (${((100 * lost) / Math.max(1, total + lost)).toFixed(1)}%)`);
-  console.log(`  top: ${[...played].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+  console.log(`  top: ${[...played].sort((a, b) => b[1] - a[1]).slice(0, Number(process.env.TOP ?? 6)).map(([k, n]) => `${k} ${n}`).join(', ')}`);
   console.log(`  dropped: ${[...dropped].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}`);
   margins.sort((a, b) => a.db - b.db);
   const q = (f: number) => margins[Math.floor(f * (margins.length - 1))]?.db.toFixed(1);

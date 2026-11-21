@@ -81,6 +81,22 @@ The watch item said the Forge runs at about 3 upgrades a delve against a target 
 - Day 1's burst of cheap upgrades means many taps in the Forge panel. An "upgrade the lowest worn item" button (visuals and engineering) would fit the bot's pattern.
 - If a later change raises ember income (a season track, for example), check the gap to the cap again. If it drops under 2 levels, the Forge is turning into a power spike.
 
+## The new sets' book rewards (21 Nov 2026)
+Four sets were added on 21 Nov: Wrackrider, Deepguard, Ventwalker and Kinbound. The collection book's set rewards went from 720 to 1,040 embers in all. The watch item above asks whether new income pulls worn gear under 2 levels below the cap.
+
+**Method.** `tools/economy.ts` only delves the Kiln, so it never drops the new sets. A new `WINDFALL=N WINDFALL_DAY=d` adds N embers at the start of day d. Runs: Emberwright, `forge` policy, 10 days, seed offsets 0 to 7, on main 871734b. Average gap below the cap over the 8 runs:
+
+| Windfall on day 5 | Day 5 | Day 6 | Day 10 | Best tier | Embers left on day 10 |
+|---|---|---|---|---|---|
+| None | 2.6 | 2.8 | 2.7 | 12.1 | 4 to 36 |
+| 80 (one set finished) | 2.8 | 2.6 | 2.8 | 12.5 | 1 to 40 |
+| 320 (all four new sets on one day) | 2.1 | 1.9 | 2.9 | 12.4 | 0 to 36 |
+
+**Result: no change.**
+- One set's 80 embers changes nothing measurable.
+- Even the worst case only brings gear to about 1.9 levels under the cap for a day, and by day 10 it is back to normal. That case is finishing all four new sets on one day, which takes group and raid wins, so it won't happen in practice.
+- Embers still don't pile up, and best tier stays within noise. The Forge cap is what bounds a windfall: worn gear can't pass it, so extra embers just run out sooner.
+
 ## Shared purse (P5, 21 Nov 2026)
 Embers are one purse for the whole account, not one per class. Every source keeps paying as before (delves, bounties, weekly quests, collections, achievements, the world boss), and all of it lands in the shared purse.
 - **Old saves:** on load, every class's purse is added to the shared one, so nobody loses embers (`shareEmbers` in sim/hero.ts, run on the local save and on the cloud save). It's safe to run again.
