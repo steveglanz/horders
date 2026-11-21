@@ -220,4 +220,12 @@ describe('co-op healing from the Lumen', () => {
     const w = new World({ seed: 4, cls: 'lumen' });
     expect(w.healAllies(0, 0, 1000, 50)).toBe(0);
   });
+  it('tags personal events with the hero they belong to', () => {
+    const w = new World({ seed: 8, party: party(2) });
+    const hurt = w as unknown as { use(i: number): void; hurtPlayer(a: number, src?: number): void; events: { type: string; hero?: number }[] };
+    hurt.use(1);
+    hurt.hurtPlayer(5, -1);
+    hurt.use(0);
+    expect(w.events.filter((e) => e.type === 'playerHurt').map((e) => e.hero)).toEqual([1]);
+  });
 });
