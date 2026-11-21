@@ -755,7 +755,7 @@ export class World {
   lampBeam: { x1: number; y1: number; x2: number; y2: number } | null = null;
   private lampTickT = 0;
   private glareT = 0;
-  /** Ondrel, the Anvilward (the Hammerdeep's group boss). */
+  /** Ondrel of the Hammerdeep (the Hammerdeep's group boss). */
   private anvilT = 0;
   private anvilTarget = 0;
   /** Hammerdeep: the hero Anvilfall will land on (read by the client to mark them during the wind-up). */
@@ -2021,6 +2021,8 @@ export class World {
     if ((p.warmth ?? 0) >= SET_TUNING.hkMax && this.setCount('hearthkeeper') >= 3) amount *= 1 - SET_TUNING.hkCut;
     // Wrackrider: a Planted hero is hard to knock about.
     if (p.planted && this.setCount('wrackrider') >= 2) amount *= 1 - SET_TUNING.wrCut;
+    // Deepguard: stay close. Less damage with an ally near (2), and a wearer of 3 guards the allies near it.
+    if (this.heroes.length > 1) amount *= this.deepguardMult();
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -4223,6 +4225,7 @@ export class World {
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
     if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
+    if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
       p.moveT = 0;
@@ -4262,6 +4265,41 @@ export class World {
     const healed = this.healPlayer(this.player.maxHp * SET_TUNING.gwHeal);
     if (n >= 3) this.player.gwT = SET_TUNING.gwTime;
     this.events.push({ type: 'dodge', x: this.player.x, y: this.player.y, healed });
+  }
+
+  /** Ventwalker: an ally is alive, and none is within range of the acting hero. */
+  private splitFromAllies(): boolean {
+    const p = this.player;
+    const r2 = SET_TUNING.dgRange * SET_TUNING.dgRange;
+    let alive = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0) continue;
+      if (dist2(p.x, p.y, q.x, q.y) <= r2) return false;
+      alive = true;
+    }
+    return alive;
+  }
+
+  /** Deepguard (group set): the damage multiplier for the acting hero from its own pieces and from a nearby ally's 3-piece guard. */
+  private deepguardMult(): number {
+    const p = this.player;
+    const r2 = SET_TUNING.dgRange * SET_TUNING.dgRange;
+    const mine = this.setCount('deepguard');
+    let near = false;
+    let guarded = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || dist2(p.x, p.y, q.x, q.y) > r2) continue;
+      near = true;
+      if ((this.heroes[k].loadout.sets?.deepguard ?? 0) >= 3) guarded = true;
+    }
+    let m = 1;
+    if (near && mine >= 2) m *= 1 - SET_TUNING.dgCut;
+    if (guarded) m *= 1 - SET_TUNING.dgAura;
+    return m;
   }
 
   /** How many pieces of a verb set the acting hero wears. */
@@ -4824,12 +4862,14 @@ export class World {
     if (this.ebbT > 0) {
       this.ebbT = Math.max(0, this.ebbT - dt);
       const pull = WRACK.drag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
+      const foePull = WRACK.foeDrag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
         const d = Math.hypot(q.x, q.y) || 1;
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
-        const step = this.anchored(q) ? 0 : Math.min(d, pull * dt);
+        // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
+        const step = this.anchored(q) ? 0 : Math.min(d, pull * CLASSES[this.heroes[k].cls].speed * dt);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
         const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
@@ -4843,7 +4883,7 @@ export class World {
         const e = this.enemies[i];
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
-        const step = Math.min(d, pull * WRACK.foeDrag * dt);
+        const step = Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step;
         e.y -= (e.y / d) * step;
         if (d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
@@ -5249,7 +5289,8 @@ export class World {
     }
     if (this.hasOmen('sharedPain') && e.def.rank !== 'normal') {
       for (const o of this.enemies) {
-        if (!o.alive || o === e || o.def.rank === 'normal') continue;
+        // Bosses are exempt: a boss's own adds would otherwise refill her (Hessa's Shoal Lurkers are elites).
+        if (!o.alive || o === e || o.def.rank === 'normal' || o.def.rank === 'boss') continue;
         const amount = Math.min(o.maxHp - o.hp, o.maxHp * OMEN_TUNING.sharedPainHeal * this.healTakenMult(o));
         if (amount <= 0) continue;
         o.hp += amount;
@@ -5268,6 +5309,8 @@ export class World {
       if (t.kind === 'soak') {
         const ok = dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        // Ventwalker (3): standing in the gold circle heals.
+        if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
         if (!ok) {
           this.hurtPlayer(t.dmg * this.tierDamage);
           for (let k = 0; k < 6; k++) {
@@ -5319,6 +5362,13 @@ export class World {
         let ok = false;
         for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        // Ventwalker (3): every wearer standing in the gold circle heals.
+        if (ok) {
+          this.eachHero(() => {
+            const q = this.player;
+            if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
+          });
+        }
         if (!ok) {
           this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage));
           for (let k = 0; k < 6; k++) {
@@ -5834,7 +5884,7 @@ export const FOUNDRY = {
 };
 
 /**
- * Ondrel, the Anvilward: a group boss whose mechanics each ask one role for one thing.
+ * Ondrel of the Hammerdeep: a group boss whose mechanics each ask one role for one thing.
  * See docs/design/group-dungeons.md. Damage numbers are before tierDamage.
  */
 /** The Coldmarrow (C1): the Hearthcoal, Chill, its foes and Nhevra. */
@@ -5880,10 +5930,10 @@ export const WRACK = {
   raftR: 78, raftRings: [300, 125, 410], drift: 38,
   /** The Ebb: every `tideEvery` s in trash fights (`tideBoss` with Hessa up), `tideWarn` s of warning, then `tideOpen` s of pull. */
   tideEvery: 18, tideBoss: 14, tideLate: 7, firstTide: 8, tideWarn: 3, tideOpen: 4,
-  /** Off a raft in the Ebb: dragged `drag` units/s toward the centre, burned `tideBurn` of max health/s, plus `drainBurn` inside `drainR`. */
-  drag: 75, tideBurn: 0.04, drainR: 90, drainBurn: 0.1,
-  /** Foes drift at `foeDrag` of the pull, and the drain takes `foeDrain` of their max health a second. Shoal Lurkers swim faster in it instead. */
-  foeDrag: 0.8, foeDrain: 0.06, lurkerSurge: 1.3,
+  /** Off a raft in the Ebb: dragged toward the centre at `drag` of your class speed (the Bulwark 64 u/s, the Duskblade 76), burned `tideBurn` of max health/s, plus `drainBurn` inside `drainR`. */
+  drag: 0.5, tideBurn: 0.04, drainR: 90, drainBurn: 0.1,
+  /** Foes drift at `foeDrag` units a second (75 × 0.8 before the pull became a share of hero speed), and the drain takes `foeDrain` of their max health a second. Shoal Lurkers swim faster in it instead. */
+  foeDrag: 60, foeDrain: 0.06, lurkerSurge: 1.3,
   /** Barge Hauler: Haul (Quenchable) yanks its target up to `haul` units toward it. */
   haulEvery: 8, haulCast: 1.6, haul: 160, haulRange: 520, haulDamage: 8,
   /** Hessa: Sink (Quenchable) sinks the raft nearest her target for `sinkTime` s; Call the Shoal brings Lurkers. */

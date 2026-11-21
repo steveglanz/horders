@@ -7,12 +7,12 @@ The roadmap's C1 note offered "a moving safe zone". Here it is.
 
 - **Rafts:** three rafts (radius 78) drift round the arena on their own circles, at radii 125, 300 and 410. The middle one turns the other way. They drift at 38 units a second, about a quarter of a hero's speed, so you can always walk with them. Fresh rafts start every fight.
 - **The Ebb:** every 18 s in trash fights (14 s with Hessa up), a 3 s warning. Pale streaks run in from the rim, the banner says "The Ebb!" and the rafts' rims light up. Then the water pulls for 4 s. A hero **off** a raft is:
-  - dragged toward the centre at 75 units a second, slower than every class (128 to 152), so you can still walk out;
+  - dragged toward the centre at half your class's speed (the Bulwark 64 units a second, the Duskblade 76), so every class walks out at the same pace;
   - burned for 4% of max health a second;
   - burned 10% more inside the drain (radius 90).
 
   On a raft you're anchored and take nothing.
-- **The water takes foes too.** Every foe except Lurkers and bosses drifts in at 80% of the pull, and the drain takes 6% of its max health a second. So a fight is often: get on a raft, and let the Ebb drag the Hollow Wardens into the drain.
+- **The water takes foes too.** Every foe except Lurkers and bosses drifts in at 60 units a second, and the drain takes 6% of its max health a second. So a fight is often: get on a raft, and let the Ebb drag the Hollow Wardens into the drain.
 
 How it differs:
 - **The Foundry:** Maelra's Undertow is one cast that pulls you to her, and you Quench it. The Ebb is the whole floor, on a clock, and the answer is a place to stand.
@@ -68,7 +68,31 @@ Measured with the script at `/mnt/project-files/horders/design/wrackline/wr.ts` 
 
 **Watch items:**
 - The Lumen and Slagbinder win nearly every run at tier 10. The Ebb is attrition, and both have sustain. If real players find it soft, push on Sink and the Ebb's burn, not on Hessa's health: health stretches the fight, and that hurts the Bulwark most.
-- The Bulwark is the lowest class here, as the Slagbinder is in the Coldmarrow.
+- The Bulwark is the lowest class here, as the Slagbinder is in the Coldmarrow. It got two fixes (below).
+
+## Raising the Bulwark (21 Nov 2026)
+**Why it lost:** all of its losses were to Hessa, and nearly all of them in phase 2. They came from wearing down over a long fight (its boss fights are the longest, about 200 s, and some ran into Burnout), and it was off a raft for 10% of each Ebb against 1 to 6% for the others. It is the slowest class (128). With a fixed 75 u/s pull it netted only 53 u/s walking out, while the Duskblade netted 77.
+
+**Fix 1 (skills, #214):** Anvil Skin anchors the Bulwark, so the Ebb and a Haul can't move it, though the water still burns. The bots also use their dash to reach a far raft.
+
+**Fix 2 (this change):** the Ebb now pulls at **half the hero's class speed**, not a flat 75. So every class nets the same against the water: 64 u/s for the Bulwark and 76 for the Duskblade. Foes still drift at 60 u/s, the same as before (75 × 0.8).
+
+Measured with `tools/foundry.ts` at tier 10, hero-t8-0 for each class (the Slagbinder in the Duskblade's gear), seeds 1 to 80, all on main 2555b0c (with #214). Wins out of 80:
+
+| | Emberwright | Duskblade | Bulwark | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| Main with #214 | 64 | 62 | 43 | 73 | 79 |
+| The pull at half class speed | 58 | 58 | **48** | 71 | 78 |
+| The Coldmarrow, same tier and heroes | 53 | 34 | 54 | 38 | 16 |
+
+That takes the Bulwark from 54% to 60% and narrows the gap, because the faster classes now face a stronger pull. Ideas I measured and dropped:
+- **A 3.5 s Ebb warning** (from 3), 80 seeds with #214: the Bulwark 48, but the Duskblade fell to 46.
+- **Sink lasting 8 s** (from 12), 80 seeds with #214: the Bulwark fell to 37.
+- **Shoal Lurker damage 5** (from 6), **Hessa at 3000 health**, **a weaker Riptide pull or slower Riptide rafts**, 40 seeds on main before #214: +0 to +2 for the Bulwark, with the others rising as much or more.
+
+**Checks:** `tools/contentcheck.ts` with `ONLY=wrackline`: 160 runs, none stuck. The longest was 677 s, a weak-bot Bulwark that ran into Burnout. `tools/hashcheck.ts` is identical to main 4411246, so other dungeons are unchanged.
+
+The Wrackline is still much easier than the Coldmarrow for everyone but the Bulwark. Bringing the Lumen and Slagbinder down is the next change.
 - In co-op, rafts are shared, and only the nearest raft to Hessa's target sinks. It is untested with a party.
 
 ## What else this changed

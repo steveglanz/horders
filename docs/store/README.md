@@ -36,7 +36,7 @@ The seven shots, in store order:
 
 1. **Hub**: the delve cards, difficulty tiers and this week's Omens.
 2. **Nhevra, the Cold Hearth**: the Coldmarrow boss winding up the Long Night, the floor going dark around the hero's Hearthcoal.
-3. **Ondrel, the Anvilward**: the Hammerdeep group boss with a full party of four,
+3. **Ondrel of the Hammerdeep**: the Hammerdeep group boss with a full party of four,
    mid-Anvilfall, with the party frames and the tank call-out.
 4. **The Lensmother**: the Glarewell boss sweeping her lens.
 5. **Maelra, the Drowned Bellows**: the Drowned Foundry boss over her steam vents.

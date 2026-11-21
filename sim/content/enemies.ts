@@ -54,7 +54,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   frostWarden: { id: 'frostWarden', name: 'Frost Warden', hp: 700, speed: 30, damage: 16, radius: 24, xp: 8, rank: 'elite', title: 'Warm it to crack it' },
   hoarfrostWeaver: { id: 'hoarfrostWeaver', name: 'Hoarfrost Weaver', hp: 700, speed: 36, damage: 8, radius: 18, xp: 6, rank: 'elite', title: 'Frost Lace' },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', hp: 3400, speed: 30, damage: 20, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
-  ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
+  ondrel: { id: 'ondrel', name: 'Ondrel of the Hammerdeep', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
   // The raid (C3): the world boss in person, and her adds.
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', hp: 22000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   slagling: { id: 'slagling', name: 'Slagling', hp: 120, speed: 70, damage: 6, radius: 11, xp: 1, rank: 'normal' },

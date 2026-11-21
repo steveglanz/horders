@@ -258,6 +258,9 @@ export class GameScene extends Phaser.Scene {
     this.heroGlow = undefined;
     this.ownTrail = data.trail;
     this.trails = [];
+    this.raftImgs = [];
+    this.drainImg = undefined;
+    this.plantK = 0;
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -462,6 +465,11 @@ export class GameScene extends Phaser.Scene {
   private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number }[] = [];
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
+  /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
+  /** Wrackrider Planted cue: 0 to 1 as the stakes drive in (eased in plantedDraw). */
+  private plantK = 0;
+  private raftImgs: { deck: Phaser.GameObjects.Image; rim: Phaser.GameObjects.Image }[] = [];
+  private drainImg?: Phaser.GameObjects.Image;
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -1289,6 +1297,7 @@ export class GameScene extends Phaser.Scene {
     this.overFx.clear();
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
+    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1301,6 +1310,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.warmSeen = warm;
+    // Wrackrider: while Planted (2 pieces), four teal stakes stand driven in round the hero's feet.
+    if (w.setCount('wrackrider') >= 2) this.plantedDraw(g, this.player.x, this.player.y + 22, !!w.player.planted && w.player.hp > 0, dt);
     this.slagDraw(g, now);
     this.altDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
@@ -2426,45 +2437,93 @@ export class GameScene extends Phaser.Scene {
    * pale lines rush inward from the rim; while it pulls, the floor darkens and streaks run
    * to the drain. A sunk raft is a dim ring of ripples until it bobs back up.
    */
+  /**
+   * Wrackrider's Planted (the set's 2-piece bonus): four short stakes driven in round the hero's feet
+   * on a faint teal ring, in the set colour. They drive in over 0.15 s with a small ring, and pull out
+   * over 0.25 s when the hero moves off.
+   */
+  private plantedDraw(g: Phaser.GameObjects.Graphics, x: number, y: number, on: boolean, dt: number): void {
+    const was = this.plantK;
+    this.plantK = on ? Math.min(1, was + dt / 0.15) : Math.max(0, was - dt / 0.25);
+    if (on && was === 0) this.emit(this.fx, 'ring', undefined, x, y, 0.3, { tint: 0x5fe0c8, sx0: 0.45, sx1: 0.2 });
+    const k = this.plantK;
+    if (k <= 0) return;
+    g.lineStyle(1.5, 0x5fe0c8, 0.4 * k).strokeEllipse(x, y, 54, 20);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      const sx = x + Math.cos(a) * 27, sy = y + Math.sin(a) * 10;
+      // Drawn from the cap down: a stake rises 8 px out of the ground, shorter as it drives in.
+      const h = 8 * (1.6 - 0.6 * k);
+      g.lineStyle(4, 0x0c1a18, 0.7 * k).lineBetween(sx, sy, sx, sy - h);
+      g.lineStyle(2.4, 0x5fe0c8, 0.9 * k).lineBetween(sx, sy, sx, sy - h);
+      g.fillStyle(0xd8fff6, 0.9 * k).fillRect(sx - 2, sy - h - 1.5, 4, 2);
+    }
+  }
+
   private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const pulling = w.ebbT > 0;
     const warn = w.ebbWarnT > 0;
-    // The drain: a dark well with a slow swirl, angrier while the water pulls.
-    g.fillStyle(0x061820, pulling ? 0.75 : 0.5).fillCircle(0, 0, WRACK.drainR);
-    for (let k = 0; k < 3; k++) {
-      const a = now / (pulling ? 260 : 900) + (k * 2 * Math.PI) / 3;
-      g.lineStyle(3, 0x7fd0e0, pulling ? 0.7 : 0.35).beginPath().arc(0, 0, WRACK.drainR * (0.45 + 0.18 * k), a, a + 1.6).strokePath();
-    }
-    if (warn || pulling) {
-      // Streaks running from the rim toward the drain.
-      const n = this.lowFx ? 10 : 18;
-      for (let k = 0; k < n; k++) {
-        const a = (k / n) * Math.PI * 2 + 0.2;
-        const t = ((now / (pulling ? 500 : 900) + k * 0.37) % 1);
-        const r0 = ARENA - t * (ARENA - WRACK.drainR);
-        const r1 = Math.max(WRACK.drainR, r0 - (pulling ? 70 : 40));
-        g.lineStyle(pulling ? 3 : 2, 0xbfe9ff, pulling ? 0.55 : 0.35 + 0.3 * Math.sin(now / 90)).lineBetween(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * r1, Math.sin(a) * r1);
+    // The drain: a dark whirlpool on the floor that turns, faster while the water pulls.
+    // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
+    // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
+    if (!this.drainImg) this.drainImg = this.add.image(0, 0, 'drain').setDepth(0.8);
+    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(-(now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
+    if (pulling && !this.lowFx) {
+      // Foam spun off the drain's rim.
+      for (let k = 0; k < 3; k++) {
+        const a = -(now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
+        g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(0, 0, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
       }
     }
-    for (const r of w.rafts) {
+    if (warn || pulling) {
+      // The Ebb: foam streaks rushing from the rim toward the drain, each a bright head with a fading
+      // tail. Faint and slow through the 3 s warning, then fast and bold through the pull.
+      const n = this.lowFx ? 10 : 18;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + 0.2 + Math.sin(k * 7.3) * 0.08;
+        const t = (now / (pulling ? 500 : 900) + k * 0.37) % 1;
+        const r0 = ARENA - t * (ARENA - WRACK.drainR);
+        const len = pulling ? 80 : 44;
+        const r1 = Math.min(ARENA, r0 + len);
+        const cx = Math.cos(a), cy = Math.sin(a);
+        const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
+        g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(cx * r0, cy * r0, cx * r1, cy * r1);
+        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + len * 0.4), cy * (r0 + len * 0.4));
+        g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
+      }
+    }
+    // The raft texture's deck is 248 of its 256 px across.
+    const scale = (WRACK.raftR * 2) / 248;
+    w.rafts.forEach((r, i) => {
+      let im = this.raftImgs[i];
+      if (!im) {
+        im = { deck: this.add.image(0, 0, 'raft').setDepth(0.9), rim: this.add.image(0, 0, 'raftRim').setDepth(0.95).setBlendMode(Phaser.BlendModes.ADD).setVisible(false) };
+        this.raftImgs.push(im);
+      }
       if (r.sunkT > 0) {
-        // Under water: rings of ripples where it went down.
+        im.deck.setVisible(false); im.rim.setVisible(false);
+        // Under water: rings of ripples where it went down, and a few loose boards bobbing on them.
         const t = (now / 700) % 1;
         g.lineStyle(2, 0x7fd0e0, 0.45 * (1 - t)).strokeCircle(r.x, r.y, WRACK.raftR * (0.4 + 0.6 * t));
         g.lineStyle(1, 0x7fd0e0, 0.25).strokeCircle(r.x, r.y, WRACK.raftR);
-        continue;
+        for (let k = 0; k < 3; k++) {
+          const a = k * 2.1 + now / 2400, d = WRACK.raftR * (0.3 + 0.2 * k);
+          const bx = r.x + Math.cos(a) * d, by = r.y + Math.sin(a) * d * 0.8 + Math.sin(now / 300 + k) * 2;
+          g.fillStyle(0x8a6c48, 0.75).fillRect(bx - 9, by - 2.5, 18, 5);
+        }
+        return;
       }
-      // Afloat: a pale deck of planks, with a bright rim while the water pulls (safe here).
-      g.fillStyle(0xb79a72, 0.55).fillCircle(r.x, r.y, WRACK.raftR);
-      g.lineStyle(2, 0x5a4630, 0.6);
-      for (let k = -2; k <= 2; k++) {
-        const off = k * 26;
-        const half = Math.sqrt(Math.max(0, WRACK.raftR * WRACK.raftR - off * off));
-        g.lineBetween(r.x - half, r.y + off, r.x + half, r.y + off);
-      }
-      g.lineStyle(warn || pulling ? 4 : 2, warn || pulling ? 0xe8fbff : 0x8a7050, warn || pulling ? 0.9 : 0.7).strokeCircle(r.x, r.y, WRACK.raftR);
-    }
+      // A slight bob and roll, so a raft reads as afloat even while it drifts slowly.
+      const bob = 1 + Math.sin(now / 650 + i * 2) * 0.012;
+      im.deck.setVisible(true).setPosition(r.x, r.y).setScale(scale * bob).setRotation(Math.sin(now / 1900 + i) * 0.04);
+      // The Ebb is coming: the rim lights near-white and pulses, so the safe ground is unmistakable.
+      if (warn || pulling) {
+        const p = pulling ? 0.85 : 0.55 + 0.4 * (0.5 + 0.5 * Math.sin(now / 120));
+        im.rim.setVisible(true).setPosition(r.x, r.y).setScale(scale * 1.08).setTint(0xe8fbff).setAlpha(p);
+      } else im.rim.setVisible(false);
+    });
+    for (let i = w.rafts.length; i < this.raftImgs.length; i++) { this.raftImgs[i].deck.setVisible(false); this.raftImgs[i].rim.setVisible(false); }
   }
 
  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {

@@ -12,22 +12,22 @@ Once a hero's gear is good, a set piece or Mythic that isn't an upgrade gets sal
 | Mythics | 4 shared + 2 per class = 12 | Mythic drops from tier 3. The class ones only drop for that class |
 | Weapon effects | 2 per class = 8 | Epic and Mythic weapons |
 
-The book has 35 entries in all. It is **shared by every class**, like titles: a find counts for the account, not for one character. An entry counts when the item reaches your bags at the end of a run, so salvaging it later doesn't remove it. Saves from before collections count whatever any class still holds.
+The book has 41 entries in all. It is **shared by every class**, like titles: a find counts for the account, not for one character. An entry counts when the item reaches your bags at the end of a run, so salvaging it later doesn't remove it. Saves from before collections count whatever any class still holds.
 
 ## Rewards (paid once, to the class being played)
 | Reward | Needs | Embers | Title |
 |---|---|---|---|
-| Each set | All 3 pieces of it | 80 | the Kilnbreaker, the Tidewalker, the Glarewarden, the Hearthkeeper, the Wrackrider |
+| Each set | All 3 pieces of it | 80 | the Kilnbreaker, the Tidewalker, the Glarewarden, the Hearthkeeper, the Wrackrider, the Deepguard, the Ventwalker |
 | Half the Mythics | 6 of 12 | 80 | |
 | Every Mythic | 12 of 12 | 200 | the Mythbound |
 | Every weapon effect | 8 of 8 | 120 | Weaponsworn |
 
-- **Total:** 800 embers over the whole book (720 before the Wrackrider set). At about 85 to 90 embers a delve (economy.md), that is about 8 delves of income spread over weeks of play, so it doesn't change the Forge outcome targets.
+- **Total:** 960 embers over the whole book (720 before the Wrackrider, Deepguard and Ventwalker sets). At about 85 to 90 embers a delve (economy.md), that is about 8 delves of income spread over weeks of play, so it doesn't change the Forge outcome targets.
 - **Names:** the set titles reuse our own set names. Web searches for "Mythbound" and "Weaponsworn" (21 Nov 2026) found no game, title or achievement with those names.
 - **No power:** the rewards are embers and titles, so the book doesn't change win rates or the hashcheck.
 
 ## UI
-- **Hero card:** a Collection button with the count (8/35). It's hidden until the first delve, like the weekly quests.
+- **Hero card:** a Collection button with the count (8/41). It's hidden until the first delve, like the weekly quests.
 - **The sheet:**
   - Set slot pips.
   - Mythic and weapon effect tiles. Unfound tiles show ??? plus the class that can find them.

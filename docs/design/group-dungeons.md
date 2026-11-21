@@ -18,7 +18,7 @@ Roles are *recommended*, not enforced. A party without a tank or healer can try,
 ## The Hammerdeep (group dungeon)
 Unlocks at tier 4 like the Foundry, so a new co-op group gets there quickly. Trash reuses existing enemy kinds (no new art needed to start), and the boss is new.
 
-**Boss: Ondrel, the Anvilward.** Each mechanic asks one role for one thing:
+**Boss: Ondrel of the Hammerdeep.** Each mechanic asks one role for one thing:
 
 | Mechanic | What it does | Who answers it |
 |---|---|---|
@@ -31,7 +31,29 @@ A soft enrage at 4 minutes (Choir every 5 s) keeps a party with no damage dealer
 
 **Threat:** uses the existing rules (`sim/threat.ts`). The Bulwark's ×4 threat holds Ondrel. Charge taunts for a swap, and the Duskblade's Sidestep dumps threat.
 
-**Reward:** a boss chest one rarity step better than the same tier in a solo dungeon, plus a 4th verb set later (Anvilward set, verb: "hold the line"). That way groups have a reason to queue.
+**Reward:** a boss chest one rarity step better than the same tier in a solo dungeon, plus the **Deepguard** verb set (verb: "stay close", below). That way groups have a reason to queue.
+
+## The Deepguard set (21 Nov 2026)
+This is the Hammerdeep's verb set, the first one from a group dungeon. Ondrel's head, hands and trinket drops can be Deepguard pieces, the same way the solo bosses drop their sets (`withSet`, 60% of set-slot drops, never in bounties). Group loot already gives every hero their own boss item. The verb is **stay close**: the Hammerdeep asks the party to stand together behind the tank. All the numbers are in `SET_TUNING` (`dg*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** while an ally stands within 140 of you, you take 4% less damage.
+- **3 pieces:** allies within 140 of you take 3% less damage. Two wearers near the same hero don't stack it.
+- **Solo it does nothing,** and the 2-piece text says so. It is a reason to keep grouping, not a solo upgrade.
+
+**Measured** with tools/group.ts (new `SET=` and `SETN=`, which make every hero's head, hands and trinket set pieces), heroes-r2, seeds 1 to 80, on main 5afb9cb plus this change. Wins out of 80:
+
+| | No set | Every hero 2 pieces | Every hero 3 pieces |
+|---|---|---|---|
+| Tier 8, full party (Bulwark, Lumen, Duskblade, Emberwright, hero-t8-0) | 43 | | 51 |
+| Tier 6, Bulwark and Lumen duo (hero-t6-0) | 24 | 34 | 37 |
+
+The other sets give that duo nothing: with 3 Kilnbreaker pieces each it won 18, and with 3 Hearthkeeper pieces 23. So Deepguard is the set for groups, as intended.
+
+- **Tier 8 full party:** +4 wins in 40 when everyone wears all 3 pieces, inside the solo sets' 2 to 7.
+- **Tier 6 duo:** +6.5 in 40, at the top of that range. The duo is the most sensitive case, because every hit counts in a fight short of healing.
+- **First pass:** a 6% cut and a 5% aura gave that duo 40 of 80 (+8 in 40), which is too much. The cut is now 4% and the aura 3%.
+
+**Ondrel's title is renamed** from "Ondrel, the Anvilward" to **"Ondrel of the Hammerdeep"**. The doc had also planned an "Anvilward set". A search found WoW's NPC Prospector Anvilward (wow.gamepedia.com/Prospector_Anvilward), and under Steve's rule coined words that match WoW names get renamed. The set's first verb, "hold the line", is a WoW quest and spell (wowhead.com quests 24469 and 14347, spell 325601), so it changed too. "Stand together" (spell 299254) and "Shoulder to shoulder" (a quest) were dropped for the same reason. "Deepguard" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web.
 
 ## The Ashvents (G3, second group dungeon)
 Roadmap G3: a group boss for tier 7+ with a **split** check (the party must stand in two places at once) and a **spread** check (no stacking). Ondrel tests the tank and the healer; Ysmeret tests where everyone stands.
@@ -74,6 +96,23 @@ Tuning steps: Bellow Slam 90 and Scatter 8%/25% gave 1/6 on a quick check, becau
 **Reward:** the same as the Hammerdeep (G5: every hero gets a boss item plus a second Rare or better).
 
 **Names:** web searches on 21 Nov 2026 for "Ashvents" game dungeon and "Ysmeret" game found no game using either (result titles only, so it's a search check, not a legal clearance).
+
+## The Ventwalker set (21 Nov 2026)
+This is the Ashvents' verb set. Ysmeret's head, hands and trinket drops can be Ventwalker pieces (`withSet`, 60% of set-slot drops, never in bounties). The verb is **split up**, the opposite of the Hammerdeep's Deepguard ("stay close"): Ysmeret's Twin Vents need the party in two places at once, and her Embers punish stacking. All the numbers are in `SET_TUNING` (`vw*`) in `sim/content/sets.ts`.
+
+- **2 pieces:** while an ally is alive in the fight and none stands within 140 of you, you deal 6% more damage. Solo it does nothing, and the item text says so.
+- **3 pieces:** standing in a gold circle when it lands (a vent, the raid's vents, or the Kiln Mother's Brand) heals you 5% of your health. This piece works solo too, in the Kiln.
+
+**Measured** with tools/group.ts (`DUNGEON=ashvents SET=ventwalker SETN=3`), heroes-r2, seeds 1 to 80, on main f18add5 plus this change. Wins out of 80:
+
+| | No set | Every hero 3 pieces |
+|---|---|---|
+| Tier 8, full party (hero-t8-0) | 50 | 60 |
+| Tier 6, Bulwark and Lumen duo (hero-t6-0) | 31 | 39 |
+
+That is +5 and +4 wins in 40, inside the 2 to 7 range the other sets give. Solo in the Kiln (tier 7, hero-t8-0, 40 seeds, `tools/foundry.ts`), the 3 pieces add 1 to 3 wins in 40 through the Brand: the Emberwright 27 to 30, the Duskblade 25 to 27, the Bulwark 37 to 38 and the Lumen 39 to 40.
+
+**Name:** "Ventwalker" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web (21 Nov 2026). "Split up" is a plain phrase used as the verb label only.
 
 ## In-fight revives (G6): the boss rules
 
@@ -151,4 +190,4 @@ The Hammerdeep's targets were set at tier 6, when it was the only group dungeon.
 - Tests: Anvilfall targets the threat leader, Slag Grip clears on an ally heal and not on a self-heal, a solo hero can't start the Hammerdeep, and the label shows.
 
 ## Names
-A web search on 21 Nov 2026 for "Hammerdeep" game and "Anvilward" game boss found no game using either name (result titles only, so it's a search check, not a legal clearance).
+A web search on 21 Nov 2026 for "Hammerdeep" game and "Anvilward" game boss found no game using either name. A later check found WoW's NPC Prospector Anvilward, so Ondrel's title became "Ondrel of the Hammerdeep" (see the Deepguard set) (result titles only, so it's a search check, not a legal clearance).
