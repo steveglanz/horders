@@ -144,6 +144,26 @@ In a party, the Lumen heals the group, not just itself. Solo play is unchanged: 
 
 Ally healing goes through `World.healAllies`. Like self-healing, effective healing draws 0.5 threat per point split across the living enemies, and overheal still feeds Brilliance. Downed heroes can't be healed, because they stand back up between fights. Tests are in `tests/coop.test.ts`.
 
+## Group tools (roadmap G1)
+
+Each class has one tool for party play. All of them are skipped with only one hero, so solo play is unchanged: `tools/hashcheck.ts` fingerprints are identical. Tuning is in `GROUP_TOOLS` in `sim/world.ts`, and the tests are in `tests/grouptools.test.ts`.
+- **Bulwark, Called Out:** Shield Toss with nothing to interrupt taunts the boss back when it's on another hero (within 420 px). `World.tauntCue` is true while the boss is on someone else and Charge or Shield Toss is ready, for the HUD to show. The bot uses Shield Toss, or Charge when Charge would hit the boss.
+- **Lumen, Purify:** Hush with nothing to silence clears Slag Grip from the ally in range (500) with the most stacks, at full cooldown. It doesn't heal and doesn't clear Sundered, which is answered by Bastion or a taunt swap. `World.purifyTarget()` names the ally.
+- **Emberwright, Kindling:** Combustion lifts the damage of allies within 320 px by 10% for 6 s (`Player.kindleUntil`).
+- **Duskblade:** Sidestep already halves its threat in co-op. The bot now Sidesteps when it pulls the boss off a living Bulwark.
+
+Measured with `tools/group.ts`, heroes-r2 hero-t6-0, 60 seeds, against Ondrel after #55. Numbers are wins out of 60.
+
+| Party | Main | With the tools |
+|---|---|---|
+| Full party (Bulwark, Lumen, Duskblade, Emberwright), tier 6 | 40 | 44 |
+| No healer, tier 6 | 6 | 5 |
+| No tank, tier 6 | 1 | 1 |
+| Bulwark and Lumen pair, tier 6 | 15 | 15 |
+| Full party, tier 8 | 11 | 8 |
+
+A first Purify that also healed for 8% of max health took the full party to 57 and the pair to 47, so it was cut to a cleanse. Clearing Sundered as well made it 59 and 54.
+
 ## Class weapon effects (roadmap R4)
 
 An Epic or Mythic weapon found by a class carries one of that class's two weapon effects. The effect is picked from the item id, so no other roll changes. Each effect changes the class's basic attack. That keeps them separate from talents, which change abilities and stats, and from Mythics, which change abilities. Data is in `WEAPON_FX` (`sim/content/items.ts`), and the item tooltip shows the effect.

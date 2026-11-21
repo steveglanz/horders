@@ -53,6 +53,22 @@ const SIDESTEP_HEAL = 0.03;
 const SECOND_WIND = 0.2;
 /** Share of max health Bastion heals before Last Stand. */
 const BASTION_HEAL = 0.1;
+/**
+ * Group tools (roadmap G1). Each class gets one, and each fires only with more than one
+ * hero, so solo play is unchanged.
+ */
+export const GROUP_TOOLS = {
+  /** Emberwright, Kindling: Combustion lifts allies within this radius by this much damage for this long. */
+  kindleRadius: 320, kindleMult: 1.1, kindleTime: 6,
+  /**
+   * Lumen, Purify: Hush with nothing to silence clears Slag Grip from an ally within this range.
+   * It doesn't heal and doesn't clear Sundered: an 8% heal on top took a 4-hero party from 40 to 57
+   * wins in 60 and a Bulwark + Lumen pair from 15 to 47, and clearing Sundered undoes the tank swap.
+   */
+  purifyRange: 500,
+  /** Bulwark, Called Out: Shield Toss with nothing to interrupt taunts the boss within this range. */
+  callOutRange: 420,
+};
 /** Health each Sunmote hit gives the Lumen. */
 const SUNMOTE_HEAL = 1;
 /** Shield Sweep damage multiplier against elites and bosses. */
@@ -224,6 +240,8 @@ export interface Player {
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   sunderT?: number;
+  /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
+  kindleUntil?: number;
   x: number;
   y: number;
   px: number;
@@ -794,7 +812,8 @@ export class World {
     // Vengeance: the Bulwark hits harder the more hurt it is.
     const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
-    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit);
+    const kindled = this.time < (p.kindleUntil ?? -1) ? GROUP_TOOLS.kindleMult : 1;
+    return (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
@@ -1341,6 +1360,23 @@ export class World {
     return !!b && b.alive && b.castId === 'anvilfall' && this.acting === this.anvilTarget;
   }
 
+  /** Co-op: the hero the boss is attacking, or -1 (solo, no boss, or nobody yet). */
+  get bossTarget(): number {
+    if (this.heroes.length === 1 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return -1;
+    const id = this.threat[this.bossIndex]?.target;
+    return id ? this.heroes.findIndex((h) => h.id === id) : -1;
+  }
+
+  /**
+   * Co-op: the Bulwark's taunt cue. The boss is on another living hero, and Charge or
+   * Shield Toss can take it back. The HUD and the bot both read it.
+   */
+  get tauntCue(): boolean {
+    if (this.cls !== 'bulwark') return false;
+    const k = this.bossTarget;
+    return k >= 0 && k !== this.acting && this.heroPlayer(k).hp > 0 && (this.canCast(1) || this.canCast(3));
+  }
+
   get tierDamage(): number {
     return Math.pow(1.12, this.tier - 1);
   }
@@ -1538,6 +1574,16 @@ export class World {
     const y = t >= 0 ? this.enemies[t].y : p.y;
     const r = banked ? 190 : 150;
     let kills = 0;
+    // Co-op Kindling: the blast lifts nearby allies' damage for a few seconds.
+    if (this.heroes.length > 1) {
+      for (let k = 0; k < this.heroes.length; k++) {
+        if (k === this.acting) continue;
+        const ally = this.heroes[k].player;
+        if (ally.hp > 0 && dist2(p.x, p.y, ally.x, ally.y) <= GROUP_TOOLS.kindleRadius ** 2) {
+          ally.kindleUntil = this.time + GROUP_TOOLS.kindleTime;
+        }
+      }
+    }
     const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
@@ -1601,6 +1647,9 @@ export class World {
       }
       return;
     }
+    // Co-op group tools on the interrupt slot, when there's nothing to interrupt.
+    if (this.heroes.length > 1 && this.cls === 'lumen' && this.purify()) return;
+    if (this.heroes.length > 1 && this.cls === 'bulwark' && this.callOut()) return;
     // Nothing to interrupt: half the cooldown back (and a small bolt for casters).
     p.cds[3] = this.abilityCooldown(3) / 2;
     if (this.cls === 'duskblade') return;
@@ -1610,6 +1659,50 @@ export class World {
       this.damageEnemy(n, 30 * this.dmgMult, true);
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 30 });
     }
+  }
+
+  /** The ally a Lumen's Purify would cleanse: the one in range with the most Slag Grip stacks. -1 if none. */
+  purifyTarget(): number {
+    if (this.heroes.length === 1 || this.cls !== 'lumen') return -1;
+    const p = this.player;
+    let best = -1;
+    let bestScore = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const a = this.heroPlayer(k);
+      if (a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > GROUP_TOOLS.purifyRange ** 2) continue;
+      const score = a.slag ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        best = k;
+      }
+    }
+    return best;
+  }
+
+  /** Lumen, Purify: clears Slag Grip from one ally. False if nobody needs it. */
+  private purify(): boolean {
+    const k = this.purifyTarget();
+    if (k < 0) return false;
+    const a = this.heroPlayer(k);
+    a.slag = 0;
+    this.events.push({ type: 'cleanse', x: a.x, y: a.y });
+    this.events.push({ type: 'ability', slot: 3, x: a.x, y: a.y, angle: 0, r: 40 });
+    return true;
+  }
+
+  /** Bulwark, Called Out: Shield Toss taunts the boss when it's on someone else. False if not. */
+  private callOut(): boolean {
+    const b = this.bossIndex;
+    if (b < 0 || !this.enemies[b].alive || !this.threat[b]) return false;
+    const k = this.bossTarget;
+    if (k < 0 || k === this.acting) return false;
+    const e = this.enemies[b];
+    const p = this.player;
+    if (dist2(p.x, p.y, e.x, e.y) > (GROUP_TOOLS.callOutRange + e.def.radius) ** 2) return false;
+    taunt(this.threat[b], this.heroes[this.acting].id);
+    this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
+    return true;
   }
 
   // ---------------------------------------------------------------- weapons

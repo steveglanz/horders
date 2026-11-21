@@ -358,8 +358,9 @@ export class MusicPlayer {
     const th = THEMES[id];
     let bed = this.beds.get(th.bed);
     if (!bed) {
-      const data = bedSamples(th.bed, this.ctx.sampleRate);
-      bed = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
+      // 24 kHz is plenty for a texture bed and halves the work on slow phones.
+      const data = bedSamples(th.bed, 24000);
+      bed = this.ctx.createBuffer(1, data.length, 24000);
       bed.getChannelData(0).set(data);
       this.beds.set(th.bed, bed);
     }

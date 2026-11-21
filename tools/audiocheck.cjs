@@ -62,6 +62,8 @@ fs.mkdirSync(out, { recursive: true });
   await record('6-sfx-tour', 9000, `
     const ids = ['hit','crit','emberWave','emberNova','duskDash','duskExecute','bulwarkSlam','bulwarkBastion','lumenBurst','lumenSanctuary','interrupt','castWarn','levelUp','dropEpic','dropMythic','chest','bossSpawn','victory'];
     a.theme(null); ids.forEach((id, k) => setTimeout(() => a.play(id), k * 480));`);
+  await record('10-phase-stings', 11000, `a.theme(null);
+    ['targeted','phaseKiln','phaseMaelra','phaseLens','phaseOndrel','phaseShadow'].forEach((id, k) => setTimeout(() => a.play(id), k * 1800));`);
   // Mute should silence everything.
   const muted = await page.evaluate(() => { const a = window.__ember.audio; a.set({ muted: true }); return { muted: a.settings.muted, stored: localStorage.getItem('horders.audio') }; });
   console.log('mute:', JSON.stringify(muted));

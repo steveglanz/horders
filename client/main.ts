@@ -11,6 +11,7 @@ import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
+import { mountDisplayOptions } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -240,6 +241,9 @@ document.addEventListener('visibilitychange', () => {
   const scene = game.scene.getScene('game') as GameScene | null;
   if (document.hidden && scene && game.scene.isActive('game')) scene.togglePause(true);
 });
+
+mountDisplayOptions(el('pauseOpts'));
+mountDisplayOptions(el('hubOpts'));
 
 // Hook for automated checks.
 (window as unknown as { __ember: unknown }).__ember = {
