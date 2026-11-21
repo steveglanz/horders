@@ -493,6 +493,90 @@ function drawKiln(ctx: Ctx, s: number, f: number): void {
  * Cool steel with molten slag in the seams; a great hammer in its right hand
  * (it rises over the four frames), a visor slit with two hot eyes.
  */
+/** One tongue of flame from (x, y0) up to a tip at (tx, ty), `w` wide at the base. */
+function flameTongue(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty: number, hi: string, mid: string, lo: string): void {
+  ctx.beginPath();
+  ctx.moveTo(x - w, y0);
+  ctx.bezierCurveTo(x - w * 1.25, y0 - (y0 - ty) * 0.45, tx - w * 0.35, ty + (y0 - ty) * 0.3, tx, ty);
+  ctx.bezierCurveTo(tx + w * 0.35, ty + (y0 - ty) * 0.3, x + w * 1.25, y0 - (y0 - ty) * 0.45, x + w, y0);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, ty, 0, y0);
+  g.addColorStop(0, hi);
+  g.addColorStop(0.45, mid);
+  g.addColorStop(1, lo);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+}
+
+/**
+ * Ysmeret, the Twofold Flame (the Ashvents' group boss): a fire spirit rising out of a
+ * basalt hearth, two flames wound into one. The gold flame on the left and the rose flame
+ * on the right share a split obsidian mask, and each reaches an arm down toward its vent.
+ */
+function drawYsmeret(ctx: Ctx, _s: number, f: number): void {
+  const sway = [0, 2.5, 0, -2.5][f];
+  const lick = [0, -4, -7, -3][f];
+  const heat = [0.8, 0.95, 1, 0.9][f];
+  const GOLD = ['#fff3c4', '#ffc861', '#d9641c'] as const;
+  const ROSE = ['#ffe0ea', '#ff6b8a', '#8a1f3c'] as const;
+  softGlow(ctx, 60, 64, 54, `rgba(255,140,70,${0.35 * heat})`);
+  // Arms: a wisp of each flame curling down and out toward its vent.
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const [side, col] of [[-1, GOLD], [1, ROSE]] as const) {
+    ctx.strokeStyle = INK; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(60 + side * 14, 64); ctx.quadraticCurveTo(60 + side * 44, 58 + sway * side, 60 + side * 50, 84); ctx.stroke();
+    ctx.strokeStyle = col[1]; ctx.lineWidth = 6.5; ctx.stroke();
+    ctx.strokeStyle = col[0]; ctx.lineWidth = 2; ctx.stroke();
+    softGlow(ctx, 60 + side * 50, 86, 9, side < 0 ? 'rgba(255,200,97,0.9)' : 'rgba(255,107,138,0.9)', heat);
+  }
+  ctx.restore();
+  // The two flames, each leaning across the other.
+  // Side tongues first, so the main flames overlap them.
+  flameTongue(ctx, 40, 96, 9, 28 - sway, 44 + lick * 0.5, GOLD[0], GOLD[1], GOLD[2]);
+  flameTongue(ctx, 46, 96, 8, 40 + sway * 0.6, 30 - lick * 0.4, GOLD[0], GOLD[1], GOLD[2]);
+  flameTongue(ctx, 80, 96, 9, 92 + sway, 42 - lick * 0.3, ROSE[0], ROSE[1], ROSE[2]);
+  flameTongue(ctx, 74, 96, 8, 80 - sway * 0.6, 28 + lick * 0.5, ROSE[0], ROSE[1], ROSE[2]);
+  flameTongue(ctx, 50, 98, 15, 66 + sway, 6 + lick, GOLD[0], GOLD[1], GOLD[2]);
+  flameTongue(ctx, 70, 98, 15, 54 - sway, 10 + lick * 0.6, ROSE[0], ROSE[1], ROSE[2]);
+  // Hot cores where they cross.
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  flameTongue(ctx, 60, 96, 8, 60 + sway * 0.5, 40 + lick * 0.5, 'rgba(255,255,240,0.9)', 'rgba(255,220,150,0.6)', 'rgba(255,140,60,0)');
+  ctx.restore();
+  // The split mask: obsidian, gold eyes on one side, rose on the other.
+  ell(ctx, 60, 54, 15, 17);
+  shade(ctx, '#3a2a2e', '#0e0809', 37, 71, 1.8);
+  ctx.save();
+  ell(ctx, 60, 54, 15, 17); ctx.clip();
+  ctx.strokeStyle = `rgba(255,200,140,${0.8 * heat})`; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(60, 37); ctx.lineTo(58, 46); ctx.lineTo(62, 54); ctx.lineTo(59, 63); ctx.lineTo(61, 72); ctx.stroke();
+  ctx.restore();
+  eyes(ctx, [[53, 52]], 2.6, '#ffc861');
+  eyes(ctx, [[67, 52]], 2.6, '#ff6b8a');
+  // The basalt hearth it rises from, with two glowing vent mouths.
+  ell(ctx, 60, 100, 34, 11);
+  shade(ctx, '#3c3236', '#141012', 89, 111, 2);
+  ell(ctx, 60, 97, 26, 6);
+  const mouth = ctx.createRadialGradient(60, 97, 2, 60, 97, 26);
+  mouth.addColorStop(0, `rgba(255,236,170,${heat})`);
+  mouth.addColorStop(0.5, `rgba(255,140,50,${0.9 * heat})`);
+  mouth.addColorStop(1, 'rgba(120,30,20,0.9)');
+  ctx.fillStyle = mouth;
+  ctx.fill();
+  cracks(ctx, [[[30, 102], [36, 106], [34, 110]], [[88, 102], [84, 107], [88, 110]]], `rgba(255,179,71,${heat})`, 1.2);
+  // Sparks.
+  ctx.save();
+  for (const [x, y, r] of [[34, 30], [86, 26], [44, 12], [80, 44]].map(([x, y], k) => [x + ((k + f) % 2) * 2, y - f * 2, 1.4 + (k % 2)] as const)) {
+    softGlow(ctx, x, y, r * 3, 'rgba(255,200,120,0.8)');
+    ctx.fillStyle = '#fff1c8'; ell(ctx, x, y, r, r); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawOndrel(ctx: Ctx, s: number, f: number): void {
   const lift = [0, 3, 6, 3][f];
   const heat = [0.75, 0.9, 1, 0.9][f];
@@ -1550,6 +1634,9 @@ export function buildTextures(scene: Phaser.Scene): void {
 
   // The Hammerdeep.
   sheet(scene, 'ondrel', 120, 4, drawOndrel);
+
+  // The Ashvents.
+  sheet(scene, 'ysmeret', 120, 4, drawYsmeret);
 
   // Hollow Rift: a violet tear with a swirling eye.
   sheet(scene, 'rift', 56, 1, (ctx, s) => {

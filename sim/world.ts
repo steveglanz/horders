@@ -551,6 +551,11 @@ export class World {
   private anvilT = 0;
   private anvilTarget = 0;
   /** Hammerdeep: the hero Anvilfall will land on (read by the client to mark them during the wind-up). */
+  /** Ysmeret's Bellow Slam target (the hero it is winding up on), for the client's wind-up. */
+  get bellowSlamTarget(): number {
+    return this.bellowTarget;
+  }
+
   get anvilfallTarget(): number {
     return this.anvilTarget;
   }
