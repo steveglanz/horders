@@ -10,6 +10,7 @@ import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE } f
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
+import { CLASS_ICON } from './icons';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
@@ -240,7 +241,7 @@ export class GameScene extends Phaser.Scene {
         hero: j,
         shadow: this.add.image(0, 0, 'shadow').setDepth(2.5),
         img: this.add.image(0, 0, cls === 'emberwright' ? 'player' : cls, '0').setScale(BASE).setDepth(5.9),
-        label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#d8f3ff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
+        label: this.add.text(0, 0, w.heroes[j].name, { fontFamily: 'Georgia, serif', fontSize: '12px', fontStyle: 'bold', color: CLASS_ICON[cls].color, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5),
       });
     }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
@@ -750,7 +751,7 @@ export class GameScene extends Phaser.Scene {
       if (q.hurtFlash > 0) al.img.setTint(0xff6060).setTintMode(Phaser.TintModes.FILL);
       else al.img.clearTint();
       al.shadow.setPosition(ax, ay + 22).setScale(34 / 32, 12 / 32);
-      al.label.setPosition(ax, ay - 34).setText(down ? `${w.heroes[al.hero].name} (down)` : w.heroes[al.hero].name);
+      al.label.setPosition(ax, ay - 34).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
 
     const view = cam.worldView;
@@ -877,6 +878,11 @@ export class GameScene extends Phaser.Scene {
     // Telegraphs, lances, beams and health bars are redrawn each frame.
     const g = this.gfx;
     g.clear();
+    // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
+    for (const al of this.allies) {
+      const down = w.heroData(al.hero).player.hp <= 0;
+      g.lineStyle(2, down ? 0x6a5a54 : hex(CLASS_ICON[w.heroes[al.hero].cls].color), down ? 0.5 : 0.85).strokeEllipse(al.img.x, al.img.y + 22, 44, 16);
+    }
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
@@ -1115,6 +1121,28 @@ export class GameScene extends Phaser.Scene {
       const y = al.img.y - 32;
       b.fillStyle(0x000000, 0.6).fillRect(x, y, 44, 5);
       b.fillStyle(0x6fe08a, 1).fillRect(x, y, (44 * Math.max(0, q.hp)) / q.maxHp, 5);
+      // An ally off screen gets an arrow at the screen edge pointing their way.
+      const v = cam.worldView;
+      const pad = 26 / cam.zoom;
+      const inset = 20 / cam.zoom;
+      if (al.img.x < v.x + inset || al.img.x > v.right - inset || al.img.y < v.y + inset || al.img.y > v.bottom - inset) {
+        const cx = v.centerX;
+        const cy = v.centerY;
+        const a = Math.atan2(al.img.y - cy, al.img.x - cx);
+        const hw = v.width / 2 - pad;
+        const hh = v.height / 2 - pad;
+        const k = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+        const ex = cx + Math.cos(a) * k;
+        const ey = cy + Math.sin(a) * k;
+        const sz = 12 / cam.zoom;
+        const col = q.hp <= 0 ? 0x9a8a84 : hex(CLASS_ICON[w.heroes[al.hero].cls].color);
+        b.fillStyle(0x000000, 0.55).fillCircle(ex, ey, sz * 1.2);
+        b.fillStyle(col, 1).fillTriangle(
+          ex + Math.cos(a) * sz, ey + Math.sin(a) * sz,
+          ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
+          ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
+        );
+      }
     }
     let plate = 0;
     for (const e of w.enemies) {

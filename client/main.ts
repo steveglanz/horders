@@ -10,6 +10,7 @@ import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
+import { CLASS_ICON, glyph } from './icons';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 
@@ -390,16 +391,21 @@ const coopEvents = {
   },
 };
 
+/** Hero names arrive from other players over the network, so never trust them as HTML. */
+function esc(t: string): string {
+  return t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 function renderCoop(): void {
   const box = el('coop');
   hub.render();
   if (!coop) {
-    box.innerHTML = `<div class="ttl">Play together</div>
-      <div class="muted">Up to four heroes in one delve. Each of you keeps your own loot.</div>
-      ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
-      <div class="row2"><button id="quickBtn" class="quick">Quick join</button><button id="hostBtn">Host a party</button></div>
-      <div class="row2">
-      <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Party code"><button id="joinBtn">Join</button></div>`;
+    box.innerHTML = `<div class="top"><b class="ttl">Play together</b><span class="muted">Up to ${MAX_PARTY} heroes</span></div>
+      <div class="muted">One delve, shared fights. Each of you keeps your own loot.</div>
+      ${coopNote ? `<div class="cnote">${coopNote}</div>` : ''}
+      <div class="row2"><button id="quickBtn" class="quick">${glyph('M13 2 4 14h7l-1 8 9-12h-7Z', 16)}Quick join</button><button id="hostBtn" class="sbtn">Host a party</button></div>
+      <div class="row2 joinrow">
+      <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Party code"><button id="joinBtn" class="sbtn">Join</button></div>`;
     (el('quickBtn') as HTMLButtonElement).disabled = seeking;
     el('quickBtn').addEventListener('click', () => void quickJoin());
     el('hostBtn').addEventListener('click', () => {
@@ -421,18 +427,26 @@ function renderCoop(): void {
     });
     return;
   }
-  const people = coop.roster.map((r) => `<li>${r.hero.name}${r.you ? ' (you)' : ''}</li>`).join('');
-  const linked = coop.roster.length > 1;
+  // Seats: one per hero (an <li>, which the co-op checks count), then the open seats.
+  const roster = coop.roster;
+  const seat = (r: (typeof roster)[number]): string => {
+    const ic = CLASS_ICON[r.hero.cls] ?? CLASS_ICON.emberwright;
+    return `<li class="seat" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 20)}</span><b>${esc(r.hero.name)}</b>${r.you ? '<span class="you">(you)</span>' : ''}</li>`;
+  };
+  const open = Array.from({ length: Math.max(0, MAX_PARTY - roster.length) }, () => '<div class="seat empty"><span class="gtile">+</span><span>Open seat</span></div>').join('');
+  const seats = `<div class="seats"><ul>${roster.map(seat).join('')}</ul>${open}</div>`;
+  const linked = roster.length > 1;
   box.innerHTML = coop.role === 'host'
-    ? `<div class="ttl">Your party</div><div class="muted">Share this code with friends:</div><div class="code" id="partyCode">${coop.code}</div>
-       <ul>${people}</ul><div class="muted">${linked ? 'Press Delve together when everyone is in.' : 'Waiting for someone to join.'}</div>
+    ? `<div class="top"><b class="ttl">Your party</b><span class="muted">${roster.length} of ${MAX_PARTY}</span></div>
+       <div class="codechip"><span class="muted">Party code</span><b class="code" id="partyCode">${coop.code}</b></div>
+       ${seats}<div class="muted">${linked ? 'Press Delve together when everyone is in.' : 'Share the code, or open the party to anyone.'}</div>
        <label class="open"><input type="checkbox" id="openBox"${coopOpen ? ' checked' : ''}> Open to anyone (Quick join)</label>
-       ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
-       <div class="row2"><button id="leaveBtn">Leave party</button></div>`
-    : `<div class="ttl">Party ${coop.code}</div><ul>${people}</ul>
-       <div class="muted">${linked ? 'The host starts the delve.' : 'Connecting to the host...'}</div>
-       ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
-       <div class="row2"><button id="leaveBtn">Leave party</button></div>`;
+       ${coopNote ? `<div class="cnote">${coopNote}</div>` : ''}
+       <div class="row2"><button id="leaveBtn" class="sbtn danger">Leave party</button></div>`
+    : `<div class="top"><b class="ttl">Party ${coop.code}</b><span class="muted">${roster.length} of ${MAX_PARTY}</span></div>
+       ${seats}<div class="muted">${linked ? 'The host starts the delve.' : 'Connecting to the host...'}</div>
+       ${coopNote ? `<div class="cnote">${coopNote}</div>` : ''}
+       <div class="row2"><button id="leaveBtn" class="sbtn danger">Leave party</button></div>`;
   el('leaveBtn').addEventListener('click', () => leaveParty());
   el('openBox')?.addEventListener('change', (e) => {
     coopOpen = (e.target as HTMLInputElement).checked;

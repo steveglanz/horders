@@ -109,6 +109,7 @@ export class Hud {
     $('toasts').innerHTML = '';
     $('perf').hidden = !this.showPerf;
     this.buildBar(w.cls);
+    this.buildParty(w);
     $('heat').dataset.cls = w.cls;
     this.draftShownFor = -1;
     this.questKey = '';
@@ -122,6 +123,7 @@ export class Hud {
     const p = w.player;
     $('hpFill').style.width = `${(100 * Math.max(0, p.hp)) / p.maxHp}%`;
     $('hpText').textContent = `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`;
+    this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
     $('level').textContent = String(p.level);
     $('timer').textContent = fmt(w.time);
@@ -334,6 +336,40 @@ export class Hud {
     $('banner').classList.add('show');
     this.bannerTimer = performance.now() + 3200;
     this.placeDing();
+  }
+
+  /** Co-op party frames: one row per ally, with class glyph, name and health. */
+  private partyRows: { hero: number; el: HTMLElement; fill: HTMLElement; down: boolean }[] = [];
+
+  private buildParty(w: World): void {
+    const box = $('party');
+    this.partyRows = [];
+    const rows: string[] = [];
+    for (let j = 0; j < w.heroes.length; j++) {
+      if (j === w.acting) continue;
+      const h = w.heroes[j];
+      const ic = CLASS_ICON[h.cls];
+      rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b><i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+    }
+    box.innerHTML = rows.join('');
+    box.hidden = rows.length === 0;
+    box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
+      const hero = Number(el.dataset.h);
+      el.querySelector('b')!.textContent = w.heroes[hero].name;
+      this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, down: false });
+    });
+  }
+
+  private tickParty(w: World): void {
+    for (const r of this.partyRows) {
+      const q = w.heroData(r.hero).player;
+      r.fill.style.width = `${(100 * Math.max(0, q.hp)) / q.maxHp}%`;
+      const down = q.hp <= 0;
+      if (down !== r.down) {
+        r.down = down;
+        r.el.classList.toggle('down', down);
+      }
+    }
   }
 
   hideRun(): void {
