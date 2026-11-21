@@ -412,6 +412,12 @@ export class Hud {
     const soak = w.telegraphs.find((t) => t.alive && t.kind === 'soak');
     // The Pressworks' Downstroke (owner -3) wants one hero who isn't Pressed under the plate; a Pressed hero stays out.
     const press = soak?.owner === -3 ? ((p.pressedT ?? 0) > 0 ? 'Downstroke: you are Pressed, stay out!' : 'Downstroke: one un-Pressed hero under it!') : '';
+    // The Hoard: a swallowed hero can't act; everyone else has to break the Craw in time.
+    const gulp = w.dungeonId === 'hoard' ? w.heroes.findIndex((h) => (h.player.swallowT ?? 0) > 0) : -1;
+    if (gulp >= 0) {
+      const left = Math.ceil(w.heroes[gulp].player.swallowT ?? 0);
+      out.push(`<span class="buff debuff">${w.heroes[gulp].player === p ? `Swallowed ${left}s: allies break the Craw` : `Break the Craw! ${w.heroes[gulp].name} inside ${left}s`}</span>`);
+    }
     if (soak) out.push(`<span class="buff debuff">${press || (soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!')}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
