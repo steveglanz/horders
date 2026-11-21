@@ -982,6 +982,14 @@
   .key-board li.you { color: var(--gold); }
   .key-board .kr, .key-board .kt { opacity: 0.75; }
   .key-board .kl { font-weight: 600; }
+  /* Five classes don't fit one row under 375px: "Emberwright" got an ellipsis at 320 and 360.
+     Three over two instead, each card wide enough for its name. */
+  @media (max-width: 374px) {
+    .classes { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .classes > .cls { grid-column: span 2; }
+    .classes > .cls:nth-child(4), .classes > .cls:nth-child(5) { grid-column: span 3; }
+    .cls b { font-size: 11.5px; }
+  }
 </style>
 </head>
 <body>
