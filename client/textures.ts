@@ -421,7 +421,7 @@ function drawBrute(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[34, 17 + bob], [38.5, 17 + bob]], 1.4, '#ffe16b');
 }
 
-/** Ashmaw the Glutton: a bloated, frost-ash beast that is mostly mouth. */
+/** Coalmouth the Glutton (id ashmaw): a bloated, frost-ash beast that is mostly mouth. */
 function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
   const j = [0, 1, 0, -1][f];
   ctx.fillStyle = '#1b1c26';
