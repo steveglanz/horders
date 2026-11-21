@@ -657,8 +657,10 @@ export class GameScene extends Phaser.Scene {
           if (!ev.dodge) this.burst(ev.x2, ev.y2, 8);
           break;
         case 'mote':
-          if (w.cls === 'slagbinder') this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
-          else this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
+          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xfff2b0, life: 0.12 });
+          break;
+        case 'lob':
+          this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'plate':
           // Molten Plating poured on a hero: a bright ring closing in and a few drips.
@@ -772,7 +774,7 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
-          else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', "It can't be stopped. Get into the brightest light you can");
+          else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
           else if (ev.name === 'Snuffer Tide') this.hud.banner('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
           else if (ev.name === 'Thin Ice') this.hud.banner('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
           else if (ev.name === 'Frost Lace' && !this.laceShown) {

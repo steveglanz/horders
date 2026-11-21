@@ -1949,7 +1949,6 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'duskblade', 48, 4, drawDuskblade);
   sheet(scene, 'lumen', 48, 4, drawLumen);
   sheet(scene, 'bulwark', 52, 4, drawBulwark);
-  // Placeholder: the Slagbinder borrows the Bulwark's frames until visuals draws its own.
   sheet(scene, 'slagbinder', 52, 4, drawSlagbinder);
   sheet(scene, 'ashling', 24, 4, drawAshling);
   sheet(scene, 'slagling', 26, 4, drawSlagling);

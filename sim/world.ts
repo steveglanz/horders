@@ -465,6 +465,8 @@ export type SimEvent =
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
   | { type: 'parry'; x: number; y: number }
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
+  /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
+  | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'cleanse'; x: number; y: number }
   | { type: 'plate'; x: number; y: number; hero: number }
@@ -2459,7 +2461,7 @@ export class World {
     const p = this.player;
     const e = this.enemies[t];
     p.facing = Math.atan2(e.y - p.y, e.x - p.x);
-    this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
+    this.events.push({ type: 'lob', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
@@ -3556,7 +3558,16 @@ export class World {
       for (let k = 0; k < this.heroes.length; k++) {
         this.use(k);
         if (this.player.hp <= 0) continue;
-        this.hurtPlayer(this.player.maxHp * COLD.nightMax * (1 - warmth[k]), i, true);
+        // Co-op huddle: each other living hero close by takes a share of the cold off you.
+        const me = this.player;
+        let near = 0;
+        for (let j = 0; j < this.heroes.length; j++) {
+          if (j === k) continue;
+          const o = this.heroPlayer(j);
+          if (o.hp > 0 && dist2(o.x, o.y, me.x, me.y) <= COLD.huddleR * COLD.huddleR) near++;
+        }
+        const huddle = 1 - COLD.huddleCut * Math.min(COLD.huddleMax, near);
+        this.hurtPlayer(this.player.maxHp * COLD.nightMax * (1 - warmth[k]) * huddle, i, true);
         this.events.push({ type: 'slam', x: this.player.x, y: this.player.y, r: 40 });
       }
       this.use(at);
@@ -5343,6 +5354,8 @@ export const COLD = {
   snuffEvery: 11, snuffCast: 2.2, snuffCut: 0.2, firstSnuff: 6,
   tideEvery: 24, tideN: 2, firstTide: 12,
   nightEvery: 30, nightCast: 3, nightMax: 0.6, firstNight: 20,
+  /** Co-op huddle: the Long Night hits `huddleCut` less for each other living hero within `huddleR` (up to `huddleMax`). */
+  huddleR: 110, huddleCut: 0.15, huddleMax: 3,
   /** Soft enrage: the Long Night comes twice as often. */
   enrageAfter: 200,
   /**

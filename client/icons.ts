@@ -24,7 +24,7 @@ export const CLASS_ICON: Record<ClassId, { color: string; d: string }> = {
   duskblade: { color: '#ff4f7a', d: 'M4 20 20 4 M4 4l16 16 M6 15l3 3 M15 18l3-3' },
   bulwark: { color: '#d6dde4', d: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z' },
   lumen: { color: '#ffc861', d: 'M5 5a7 2.5 0 1 0 14 0a7 2.5 0 1 0-14 0Z M12 11a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9Z' },
-  // Placeholder until visuals draws it: a ladle pouring a drop.
+  // Slagbinder: a ladle pouring a drop.
   slagbinder: { color: '#ff9b4a', d: 'M3 8.5h11a5.5 5.5 0 0 1-11 0Z M14 8.5l7-5 M8.5 17.5c1 1.3 1.5 2.1 1.5 2.9a1.5 1.5 0 0 1-3 0c0-.8.5-1.6 1.5-2.9Z' },
 };
 
