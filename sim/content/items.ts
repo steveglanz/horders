@@ -1,5 +1,6 @@
 /** Gear: slots, rarity tiers, stats and mythic effects. All data. */
 import type { ClassId } from './emberwright';
+import type { SetId } from './sets';
 
 export type Slot = 'weapon' | 'head' | 'chest' | 'hands' | 'ring' | 'trinket';
 export const SLOTS: Slot[] = ['weapon', 'head', 'chest', 'hands', 'ring', 'trinket'];
@@ -120,4 +121,6 @@ export interface Item {
   name: string;
   stats: { stat: Stat; value: number }[];
   mythic?: MythicId;
+  /** A verb set piece (R4), dropped by that set's dungeon boss. */
+  set?: SetId;
 }

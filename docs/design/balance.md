@@ -203,6 +203,8 @@ Measured with `tools/foundry.ts`, seeds 1 to 24, with the geared reference heroe
 
 ## Kiln acolytes: Kindle casts (21 Nov 2026)
 
+> **Rolled back the same day.** See [Kindle rolled back](#kindle-rolled-back-21-nov-2026) below.
+
 Acolytes used to channel 0.8% of their ward's health per second with no tell. Now they cast **Kindle**: a 1.8 s interruptible cast every 6 s that heals 4.8% (the same rate if nobody Quenches). The first cast comes 2.5 s after they appear, with the second acolyte 1.5 s later. Numbers are in `ACOLYTE` in `sim/world.ts`.
 
 The first version made novices lose more. The novice bot Quenched Kindles, and then had no Quench left for the Brute's Ground Pound. Two rules fixed that, and both are good for players too:
@@ -251,3 +253,35 @@ Novice proxy (LAG=0.3 SKILL=0.5), Kiln tier 1, seeds 1 to 60, wins out of 60:
 Geared Emberwright (`heroes-r2` hero-t6-0), Glarewell tier 7, seeds 1 to 40: none 32, Rising Draught (measured at 20%) 38, Kindling Brew 36, Stillwater Tonic (at 30% faster) 29.
 
 **Reading:** Rising Draught is the strongest by far, worth 12 to 17 novice wins in 60, so it costs the most. A 40% version measured 51 of 60 for the Emberwright, which made losing nearly impossible, so it was cut to 25%. Stillwater and Kindling are modest, and seed noise is large (Kindling reads −5 for one class and +13 for the other), so treat them as small helps rather than precise numbers. Watch whether players buy Rising Draught every run once embers pile up. If they do, raise its cost or make it once a day.
+
+## Kindle rolled back (21 Nov 2026)
+
+With the skills team's geared heroes (`heroes-r2` hero-t6-0, Kiln tier 6), the Kindle cast from #29 cost the Duskblade wins. Wins out of the seeds shown:
+
+| Version | Duskblade, seeds 1 to 40 | Duskblade, seeds 41 to 120 |
+|---|---|---|
+| Before Kindle (channel, commit a332967) | 33 | 55 |
+| Kindle cast, Quenchable (#29) | 28 | not run |
+| Kindle cast that 20% of the acolyte's health in damage breaks | 25 | 52 |
+| Continuous channel plus a break stun | 28 | 58 |
+| Channel that heavy hits stagger | 20 (26 if it keeps circling) | not run |
+| Channel, no stagger (shipped) | 33 | not run |
+
+Emberwright 29, Bulwark 35 and Lumen 38 of 40 before Kindle; the shipped channel gives the same Emberwright and Duskblade results as before Kindle (29 and 33), as expected since the code path is the same.
+
+**Reading:** every version that lets you stop the heal early made the Duskblade lose more, even though it lowered the boss's healing. A frozen acolyte pinning a melee hero on its touch damage explains part of it, but not all. The same pattern shows up with damage buffs (below): a faster Kiln Mother kill doesn't mean more Duskblade wins. That's worth a look by whoever owns the Kiln Mother's phases. The heal is now a steady 0.8% per second again, drawn as a pulsing beam, and the counter is to kill the acolyte.
+
+## Verb sets (R4, 21 Nov 2026)
+
+`SET=<id> SETN=2|3` in `tools/foundry.ts` turns the hero's head, hands and trinket into set pieces. Geared `heroes-r2` hero-t6-0, each set in its own dungeon at tier 7, wins out of 40 (seeds 1 to 40) with the full set against none:
+
+| Set (dungeon) | Emberwright | Duskblade | Bulwark | Lumen |
+|---|---|---|---|---|
+| Kilnbreaker (Kiln), first tuning +6%/+10% | 17 vs 19 | 12 vs 15 | 31 vs 30 | 20 vs 19 |
+| Kilnbreaker, shipped +10%/+15% | 12 vs 19 | 15 vs 15 | 29 vs 30 | 25 vs 19 |
+| Tidewalker (Foundry), shipped 6% / +30% | 31 vs 27 | 31 vs 24 | 21 vs 16 | 28 vs 27 |
+| Glarewarden (Glarewell) | 37 vs 32 | 29 vs 22 | 33 vs 29 | 33 vs 35 |
+
+Duskblade with Tidewalker over 80 seeds (1 to 80): 60 with the set, 51 without. Tidewalker was trimmed from 8% / +40% because it read about +10 for the Duskblade in 40.
+
+**Reading, with a noise warning:** at these tiers a 40-seed run moves by ±5 wins from any change in timing, so single cells aren't reliable (Kilnbreaker's Emberwright cell fell from 17 to 12 when the buff went *up*). Overall, Tidewalker and Glarewarden help by about 2 to 7 wins in 40, and Kilnbreaker's effect is inside the noise. Kilnbreaker only pays off when you land interrupts, and the bots interrupt less than a good player. Revisit with real player data before tuning it further.

@@ -15,6 +15,7 @@ import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
 import { POTION, PotionId } from './content/potions';
+import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
@@ -100,6 +101,9 @@ export interface Enemy {
   castDur: number;
   interruptible: boolean;
   stunT: number;
+  /** Kilnbreaker 3-piece: takes extra damage after being interrupted. */
+  exposedT?: number;
+  /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
   aux2: number;
@@ -162,6 +166,8 @@ export interface Telegraph {
   kind: 'hit' | 'soak' | 'bloom';
   /** Enemy whose cast created it; interrupting that enemy removes it. */
   owner: number;
+  /** The hero was inside when it appeared (so leaving it before it lands is a dodge). */
+  wasIn?: boolean;
 }
 
 export interface Drop {
@@ -222,6 +228,13 @@ export interface Player {
   xp: number;
   xpToNext: number;
   pendingLevels: number;
+  /** Set timers (R4): Kilnbreaker damage, time on the move and a charged Tidewalker hit, Glarewarden damage. */
+  kbT?: number;
+  moveT?: number;
+  moving?: boolean;
+  surge?: boolean;
+  gwT?: number;
+  gwReadyAt?: number;
   volleyT: number;
   rainT: number;
   lanceT: number;
@@ -301,6 +314,7 @@ export type SimEvent =
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'castStart'; index: number; name: string }
   | { type: 'interrupt'; x: number; y: number; name: string }
+  | { type: 'dodge'; x: number; y: number; healed: number }
   | { type: 'castDone'; x: number; y: number; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
   | { type: 'ward'; index: number; amount: number }
@@ -468,6 +482,8 @@ export class World {
   /** The potion brewed for this delve; `potionUsed` once Rising Draught has fired. */
   readonly potion: PotionId | undefined;
   potionUsed = false;
+  /** The run's seed, for side streams that mustn't disturb the main rolls. */
+  readonly seed: number;
   readonly bounty: number | undefined;
   readonly firstClear: boolean;
   readonly partySize: number;
@@ -558,6 +574,7 @@ export class World {
 
   constructor(opts: WorldOptions) {
     this.rng = new Rng(opts.seed);
+    this.seed = opts.seed;
     this.stress = !!opts.stress;
     this.invulnerable = !!opts.invulnerable || this.stress;
     this.tier = Math.max(1, Math.floor(opts.tier ?? 1));
@@ -1014,7 +1031,6 @@ export class World {
         if (sp.kind === 'acolyte') {
           e.aux = a;
           e.aux2 = lead;
-          e.abilityT = ACOLYTE.first + j * ACOLYTE.stagger;
         } else if (lead < 0) lead = i;
         if (sp.kind === 'worldShadow') {
           this.bossIndex = i;
@@ -1274,6 +1290,7 @@ export class World {
       p.y += input.y * k * this.moveSpeed * dt;
       p.facing = Math.atan2(input.y, input.x);
     }
+    this.updateSets(len > 0.01, dt);
     this.clampArena(p, PLAYER_RADIUS);
     p.hp = Math.min(p.maxHp, p.hp + this.regen * dt);
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
@@ -1298,6 +1315,8 @@ export class World {
       amount -= soak;
       if (amount <= 0) return;
     }
+    // Tidewalker: harder to pin down while moving.
+    if (p.moving && this.setCount('tidewalker') >= 2) amount *= 1 - SET_TUNING.twCut;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -1504,8 +1523,7 @@ export class World {
       const d = dist2(p.x, p.y, e.x, e.y);
       const reach = this.classDef.interruptRange + e.def.radius;
       if (d > reach * reach) continue;
-      // Heals are the least urgent cast: Quench saves itself for a hit if one is up.
-      const w = (e.castId === 'kindle' ? 2.5 : weight[e.def.rank]) * 1e7 + d;
+      const w = weight[e.def.rank] * 1e7 + d;
       if (w < bestW) { bestW = w; best = i; }
     }
     return best;
@@ -1516,12 +1534,13 @@ export class World {
     const t = this.interruptTarget();
     if (t >= 0) {
       const e = this.enemies[t];
-      const healing = e.castId === 'kindle';
       this.events.push({ type: 'interrupt', x: e.x, y: e.y, name: e.castName });
       this.cancelCast(t);
       e.stunT = 2;
-      // Stopping a heal is a small job: half the cooldown comes back.
-      if (healing) p.cds[3] = this.abilityCooldown(3) * ACOLYTE.quenchCost;
+      // Kilnbreaker: an interrupt sharpens you (2 pieces) and exposes the foe (3).
+      const kb = this.setCount('kilnbreaker');
+      if (kb >= 2) p.kbT = SET_TUNING.kbTime;
+      if (kb >= 3) e.exposedT = SET_TUNING.kbExposedTime;
       this.events.push({ type: 'ability', slot: 3, x: e.x, y: e.y, angle: 0, r: 40 });
       if (this.cls === 'bulwark' && this.hasMythic('tetheredShield')) {
         // Tethered Shield: the shield bounces on to two more casters, and Charge can follow it.
@@ -2427,6 +2446,7 @@ export class World {
       if (e.flash > 0) e.flash -= dt;
 
       if (e.woundT > 0) e.woundT -= dt;
+      if ((e.exposedT ?? 0) > 0) e.exposedT = (e.exposedT ?? 0) - dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
         this.damageEnemy(i, e.burnDps * dt, false, true);
@@ -2526,25 +2546,12 @@ export class World {
     if (ward >= 0) {
       const b = this.enemies[ward];
       if (b.alive && b.def.rank !== 'normal') {
-        // Acolytes circle their ward and cast Kindle on it: a short heal with a
-        // cast bar, so the player can see it coming and Quench it, or kill the
-        // acolyte first. A Quenched acolyte stops circling while it's stunned.
-        if (e.stunT > 0) e.stunT -= dt;
-        else {
-          e.aux += 0.35 * dt;
-          e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
-          e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
-          if (e.castId) {
-            e.castT += dt;
-            if (e.castT >= e.castDur) this.finishCast(i);
-          } else {
-            e.abilityT -= dt;
-            if (e.abilityT <= 0) {
-              e.abilityT = ACOLYTE.every;
-              this.startCast(i, 'kindle', 'Kindle', ACOLYTE.cast, true);
-            }
-          }
-        }
+        // Acolytes circle their ward and channel Kindle into it, a steady heal.
+        // The answer is to kill them (see the ACOLYTE note on why it isn't a cast).
+        e.aux += 0.35 * dt;
+        e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
+        e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
+        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE.heal * dt * this.healTakenMult(b));
       }
     }
     const p = this.player;
@@ -2579,15 +2586,7 @@ export class World {
     e.castId = '';
     e.castName = '';
     for (const t of this.telegraphs) if (t.alive && t.owner === i) t.owner = -1; // let it land
-    if (id === 'kindle') {
-      // One heal on the acolyte's ward, the same health per second as the old channel.
-      const b = this.enemies[e.aux2];
-      if (b && b.alive) {
-        const amount = b.maxHp * ACOLYTE.heal * this.healTakenMult(b);
-        b.hp = Math.min(b.maxHp, b.hp + amount);
-        this.events.push({ type: 'heal', x: b.x, y: b.y, amount });
-      }
-    } else if (id === 'cataclysm') {
+    if (id === 'cataclysm') {
       const p = this.player;
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
@@ -2725,7 +2724,6 @@ export class World {
           if (k >= 0) {
             this.enemies[k].aux = a;
             this.enemies[k].aux2 = i;
-            this.enemies[k].abilityT = ACOLYTE.first + (side > 0 ? ACOLYTE.stagger : 0);
           }
         }
         this.brandT = 3;
@@ -2777,6 +2775,7 @@ export class World {
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
+    dmg *= this.setDamageMult(e, silent);
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2;
       crit = true;
@@ -2819,6 +2818,48 @@ export class World {
     if (e.hp <= 0) this.killEnemy(i);
   }
 
+  /** Verb set damage bonuses (R4). `silent` hits (damage over time) don't spend a Tidewalker charge. */
+  private setDamageMult(e: Enemy, silent: boolean): number {
+    const p = this.player;
+    let m = 1;
+    if ((p.kbT ?? 0) > 0) m *= 1 + SET_TUNING.kbDamage;
+    if ((e.exposedT ?? 0) > 0) m *= 1 + SET_TUNING.kbExposed;
+    if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
+    if (p.surge && !silent) {
+      p.surge = false;
+      p.moveT = 0;
+      m *= 1 + SET_TUNING.twSurge;
+    }
+    return m;
+  }
+
+  /** Ticks the verb set timers for the acting hero. */
+  private updateSets(moving: boolean, dt: number): void {
+    const p = this.player;
+    p.moving = moving;
+    if ((p.kbT ?? 0) > 0) p.kbT = (p.kbT ?? 0) - dt;
+    if ((p.gwT ?? 0) > 0) p.gwT = (p.gwT ?? 0) - dt;
+    if (this.setCount('tidewalker') >= 3) {
+      p.moveT = moving ? (p.moveT ?? 0) + dt : 0;
+      if ((p.moveT ?? 0) >= SET_TUNING.twCharge) p.surge = true;
+    }
+  }
+
+  /** Glarewarden: the hero stepped out of a marked attack before it landed. */
+  private dodged(): void {
+    const n = this.setCount('glarewarden');
+    if (n < 2 || this.time < (this.player.gwReadyAt ?? 0)) return;
+    this.player.gwReadyAt = this.time + SET_TUNING.gwEvery;
+    const healed = this.healPlayer(this.player.maxHp * SET_TUNING.gwHeal);
+    if (n >= 3) this.player.gwT = SET_TUNING.gwTime;
+    this.events.push({ type: 'dodge', x: this.player.x, y: this.player.y, healed });
+  }
+
+  /** How many pieces of a verb set the acting hero wears. */
+  setCount(id: SetId): number {
+    return this.loadout.sets?.[id] ?? 0;
+  }
+
   hasMythic(id: Loadout['mythics'][number]): boolean {
     return this.loadout.mythics.includes(id);
   }
@@ -2857,7 +2898,7 @@ export class World {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
       // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss drops Rare or better.
-      this.pickUp(this.makeItem(this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare'));
+      this.pickUp(this.withSet(this.makeItem(this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare')));
       if (this.worldBoss && !this.route.includes('worldShadow')) {
         this.route.push('worldShadow');
         // Clear the field so the bonus fight starts clean.
@@ -2944,7 +2985,20 @@ export class World {
   ): void {
     const t = this.telegraphs.find((q) => !q.alive);
     if (!t) return;
-    Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner });
+    Object.assign(t, { alive: true, shape, x, y, r, angle, arc, t: 0, dur, dmg, kind, owner, wasIn: false });
+    t.wasIn = kind === 'hit' && this.insideTelegraph(t);
+  }
+
+  /** Is the acting hero inside this telegraph's area right now? */
+  private insideTelegraph(t: Telegraph): boolean {
+    const p = this.player;
+    const dd = dist2(p.x, p.y, t.x, t.y);
+    if (t.shape === 'circle') return dd <= (t.r + PLAYER_RADIUS * 0.5) ** 2;
+    if (dd > t.r * t.r) return false;
+    let d = Math.atan2(p.y - t.y, p.x - t.x) - t.angle;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return Math.abs(d) <= t.arc / 2;
   }
 
   // ---------------------------------------------------------------- the Glarewell
@@ -3329,15 +3383,8 @@ export class World {
           this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
         });
       }
-      let inside = false;
-      const dd = dist2(p.x, p.y, t.x, t.y);
-      if (t.shape === 'circle') inside = dd <= (t.r + PLAYER_RADIUS * 0.5) ** 2;
-      else if (dd <= t.r * t.r) {
-        let d = Math.atan2(p.y - t.y, p.x - t.x) - t.angle;
-        while (d > Math.PI) d -= Math.PI * 2;
-        while (d < -Math.PI) d += Math.PI * 2;
-        inside = Math.abs(d) <= t.arc / 2;
-      }
+      const inside = this.insideTelegraph(t);
+      if (!inside && t.wasIn && t.kind === 'hit') this.dodged();
       // A smothered bloom lands on the shield: the Bulwark takes half.
       if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1));
     }
@@ -3347,6 +3394,20 @@ export class World {
 
   private makeItem(min: Rarity): Item {
     return rollDrop(this.rng, `i${this.nextItemId++}`, this.itemLevel, this.luck, min, this.cls, this.tier);
+  }
+
+  /**
+   * Verb sets (R4): a boss's item that lands in a set slot is often a piece of
+   * this dungeon's set. It rolls on its own stream so the run's main rolls are
+   * the same with or without sets. Bounties and world boss shadows never drop sets.
+   */
+  private withSet(item: Item): Item {
+    if (this.bounty !== undefined || this.stress || !SET_SLOTS.includes(item.slot) || item.rarity === 'mythic') return item;
+    const r = new Rng((this.seed ^ 0x5e75) + this.nextItemId);
+    if (!r.chance(SET_TUNING.dropChance)) return item;
+    const set = setForDungeon(this.dungeonId);
+    const noun = item.name.split(' ').slice(1).join(' ');
+    return { ...item, set, name: `${SETS[set].name} ${noun}` };
   }
 
   private dropLoot(x: number, y: number, min: Rarity): void {
@@ -3742,14 +3803,13 @@ export const FOUNDRY = {
 
 const ACOLYTE_RING = 190;
 /**
- * Acolytes cast Kindle on their ward every `every` seconds: a `cast`-second
- * interruptible cast that heals `heal` of the ward's health. The first comes
- * `first` seconds after they appear, staggered by `stagger` per acolyte.
- * 0.048 every 6 s keeps the old channel's 0.8% per second when nobody Quenches.
- * Quenching a Kindle costs only `quenchCost` of Quench's cooldown, and Quench
- * prefers any damaging cast over a Kindle.
+ * Acolytes channel Kindle into their ward: `heal` of its health per second,
+ * until they die. Three interactive versions were tried and dropped, because
+ * each cost the Duskblade Kiln wins at tier 6 (see docs/design/balance.md):
+ * a Quenchable Kindle cast, a cast that heavy hits break, and a channel that
+ * heavy hits stagger.
  */
-export const ACOLYTE = { every: 6, cast: 1.8, heal: 0.048, first: 2.5, stagger: 1.5, quenchCost: 0.5 };
+export const ACOLYTE = { heal: 0.008 };
 
 function angleDiff(a: number, b: number): number {
   let d = a - b;
