@@ -10,6 +10,7 @@ import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, RE
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
+import { AFFIXES } from '../sim/content/named';
 import { CLASS_ICON } from './icons';
 import { display, onDisplayChange, palette, shakeScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
@@ -26,6 +27,8 @@ const REVIVE = 0x9fe8a8;
 const FROST = 0xbfe4ff;
 const COAL = 0xff8a3d;
 const COLD_FLOOR = 0x7e98c4;
+/** C2 named elites: the Rare blue, from the loot colours. */
+const NAMED = 0x5aa9ff;
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
@@ -796,11 +799,27 @@ export class GameScene extends Phaser.Scene {
         case 'bossSpawn':
           this.shake = 0.6;
           break;
-        case 'namedSpawn':
+        case 'namedSpawn': {
           this.hud.banner(ev.name, `A named foe (${ev.affix}). It carries its own loot.`);
+          // It steps out of the pack: a blue flare, rings and a little shake.
+          const ne = w.enemies[ev.index];
+          if (ne) {
+            this.ring(ne.x, ne.y, ne.def.radius + 60, NAMED, 0.5);
+            this.ring(ne.x, ne.y, ne.def.radius + 110, 0xe8f4ff, 0.7);
+            this.blast(ne.x, ne.y, ne.def.radius + 20, NAMED);
+            this.shakeBy(0.15);
+          }
           break;
+        }
         case 'namedKill':
           this.hud.ding(`${ev.name.split(',')[0]} falls!`);
+          // A crown of blue and gold sparks where it fell.
+          this.ring(ev.x, ev.y, 120, NAMED, 0.5);
+          this.blast(ev.x, ev.y, 60, 0xffd27a);
+          if (!this.lowFx) for (let m = 0; m < 18; m++) {
+            const a = (m / 18) * Math.PI * 2;
+            this.emit(this.fx, 'spark', undefined, ev.x, ev.y - 10, 0.8, { tint: m % 3 ? NAMED : 0xffd27a, vx: Math.cos(a) * 160, vy: Math.sin(a) * 110 - 60, drag: 0.93, sx0: 1.8, sx1: 0.3 });
+          }
           break;
         case 'encounterStart': {
           this.bossFell = false;
@@ -1436,7 +1455,8 @@ export class GameScene extends Phaser.Scene {
       const bw = e.def.rank === 'rare' ? 70 : 56;
       const top = e.y - e.def.radius - 14;
       b.fillStyle(0x000000, 0.6).fillRect(e.x - bw / 2, top, bw, 6);
-      b.fillStyle(hex(NAME_COLOR[e.def.rank]), 1).fillRect(e.x - bw / 2, top, (bw * Math.max(0, e.hp)) / e.maxHp, 6);
+      b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(e.x - bw / 2, top, (bw * Math.max(0, e.hp)) / e.maxHp, 6);
+      if (e.named >= 0) this.namedMark(g, b, e, top, now);
       if (e.castId) {
         b.fillStyle(0x000000, 0.7).fillRect(e.x - bw / 2, top + 8, bw, 5);
         b.fillStyle(e.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(e.x - bw / 2, top + 8, (bw * e.castT) / e.castDur, 5);
@@ -1656,6 +1676,51 @@ export class GameScene extends Phaser.Scene {
    * A vent with a hero in it shows a check and a steady ring; an empty one flashes "!",
    * so the party can see at a glance which vent still needs someone.
    */
+  /**
+   * C2 named elite: a turning blue rune ring under it, a small crown over its name, and its
+   * affix shown on the body. Swift trails speed streaks, Vengeful smoulders red faster as it
+   * nears death (it bursts where it falls), and Warded already wears the ward bubble.
+   */
+  private namedMark(g: Phaser.GameObjects.Graphics, b: Phaser.GameObjects.Graphics, e: World['enemies'][number], top: number, now: number): void {
+    const r = e.def.radius;
+    const rr = r + 14;
+    const rot = now / 1400;
+    g.fillStyle(NAMED, 0.08).fillCircle(e.x, e.y + r * 0.3, rr);
+    g.lineStyle(2.5, NAMED, 0.8);
+    for (let k = 0; k < 3; k++) {
+      const a0 = rot + (k / 3) * Math.PI * 2;
+      g.beginPath().arc(e.x, e.y + r * 0.3, rr, a0 + 0.25, a0 + (Math.PI * 2) / 3 - 0.25, false).strokePath();
+      const dx = e.x + Math.cos(a0) * rr, dy = e.y + r * 0.3 + Math.sin(a0) * rr;
+      g.fillStyle(0xe8f4ff, 0.95).fillTriangle(dx, dy - 5, dx + 4, dy, dx - 4, dy).fillTriangle(dx, dy + 5, dx + 4, dy, dx - 4, dy);
+    }
+    // The crown: three points and a band, floating over the name plate.
+    const cx = e.x, cy = top - 26 + Math.sin(now / 300) * 1.5;
+    b.fillStyle(0x000000, 0.7).fillRect(cx - 10, cy - 1, 20, 7);
+    b.fillTriangle(cx - 10, cy, cx - 6, cy - 10, cx - 2, cy).fillTriangle(cx - 4, cy, cx, cy - 13, cx + 4, cy).fillTriangle(cx + 2, cy, cx + 6, cy - 10, cx + 10, cy);
+    b.fillStyle(0x9fd0ff, 1).fillRect(cx - 8, cy, 16, 4);
+    b.fillTriangle(cx - 8, cy, cx - 6, cy - 7, cx - 3, cy).fillTriangle(cx - 3, cy, cx, cy - 10, cx + 3, cy).fillTriangle(cx + 3, cy, cx + 6, cy - 7, cx + 8, cy);
+    b.fillStyle(0xffd27a, 1).fillCircle(cx, cy + 2, 1.6);
+    const affix = AFFIXES[e.affix];
+    if (affix === 'Swift') {
+      const vx = e.x - e.px, vy = e.y - e.py;
+      const v = Math.hypot(vx, vy);
+      if (v > 0.1) {
+        const ux = vx / v, uy = vy / v;
+        g.lineStyle(2, 0xe8f4ff, 0.55);
+        for (let k = -1; k <= 1; k++) {
+          const ox = e.x - ux * r * 0.8 - uy * k * r * 0.45, oy = e.y - uy * r * 0.8 + ux * k * r * 0.45;
+          const len = r * (0.9 + 0.4 * ((Math.sin(now / 60 + k * 2) + 1) / 2));
+          g.lineBetween(ox, oy, ox - ux * len, oy - uy * len);
+        }
+      }
+    } else if (affix === 'Vengeful') {
+      const hpF = Math.max(0, e.hp) / e.maxHp;
+      const pulse = 0.5 + 0.5 * Math.sin(now / (70 + 260 * hpF));
+      g.lineStyle(3, DANGER, 0.3 + 0.5 * pulse * (1.2 - hpF)).strokeCircle(e.x, e.y, r + 5);
+      if (!this.lowFx && Math.random() < 0.08 + 0.2 * (1 - hpF)) this.spark(e.x + (Math.random() - 0.5) * r, e.y - r * 0.3, (Math.random() - 0.5) * 30, -60, 0.5, 1.2);
+    }
+  }
+
   /** The warmest living Hearthcoal whose light reaches this spot (World.warmthAt, read on the client). */
   private coalWarmth(x: number, y: number, r0 = 0): number {
     const w = this.world;
