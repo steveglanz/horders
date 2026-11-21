@@ -13,7 +13,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R6 | Second dungeon: the Drowned Foundry | 🔨 built | design | ✅ Visuals: Glass Warden, Ember Twins, Sluice Crawler, Maelra, steam vents and the water (6673909) |
 | R10 | Group difficulty: party health scaling, Grit, co-op threat rules | 🔨 built | design | Skills: Charge taunt, Sidestep threat dump (agreed) |
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ✅ built: co-op rooms and netcode, the Hammerdeep group dungeon #51, party frames with roles (G4), revives (G6), the raid #100 and its tank swap #150 | engineering + design | Engineering: rooms and netcode; skills: role kits |
-| R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | ✅ Visuals: the gold bounty card in the hub; engineering later: a daily leaderboard by clear time |
+| R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | ✅ Visuals: the gold bounty card in the hub; engineering: the daily leaderboard is V8 (#261, waiting on migration 0006) |
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | ✅ Visuals: Glarewell art (#31); skills: add it to the class matrix; engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | ✅ Visuals: potion icons (#35) and the brewing look (#163) |
@@ -97,7 +97,7 @@ Phases 2 to 5 are built, apart from real-device work. Phase 6 keeps every team b
 | V5 | **Season 3 key art and colours** | visuals | ✅ #252 (SEASON_ART[2], glow marks, Rime Dust frost trail). Next: Season 4 art, then 5 and 6 (/mnt/project-files/horders/design/season5-6-brief.md) |
 | V6 | **Season 3 hub theme**, and a cue for the Relayer buff (`Player.relayT`) | sound | ✅ hubHearth (Season 3), the Relayed cue #265, and hub themes for Seasons 4 to 6 #272 |
 | V7 | **Bots in online co-op:** 2 or 3 real heroes top up with bots, under the bot-fill limits | engineering + design | ✅ #270. Drops kept: 40%, 60% or 80% for 3, 2 or 1 bots; each real player added pays more (botfill.md) |
-| V8 | **Daily bounty leaderboard** by clear time | engineering | 💡 From R7 |
+| V8 | **Daily bounty leaderboard** by clear time | engineering | 🔨 Built (#261): "Today's fastest" in the bounty sheet, server rules in supabase/migrations/0006_bounty_board.sql. Shows nothing until Steve OKs applying 0006 |
 
 ## R2. The Forge
 
