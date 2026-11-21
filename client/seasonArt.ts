@@ -105,7 +105,52 @@ const COLD_HEARTH = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio
 </g>
 </svg>`;
 
+/**
+ * The Slag Moon (docs/design/season.md; no brief, palette from SEASONS[3]). Grandmother Slag's molten moon hangs over the
+ * Glarewell, the sunken observatory, dripping slag, and its glare pours across the floor. One hero has ducked into a
+ * pillar's shadow (the Glarewell's Glare: hide behind a pillar) while the observatory's great lens points up at the moon
+ * through the open slit of its dome. Slag Gold moon with Pour Crimson cracks and Moon Ash maria. The moon's halo
+ * pulses slowly and the drips fall, both stopping for Battery saver and for reduced motion (index.html).
+ */
+const SLAG_MOON = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbDusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0510"/><stop offset="1" stop-color="#26111c"/></linearGradient>
+<radialGradient id="kbMoon" cx="0.42" cy="0.38" r="0.62"><stop offset="0" stop-color="#fff0c2"/><stop offset="0.45" stop-color="#ffc861"/><stop offset="0.85" stop-color="#e8743a"/><stop offset="1" stop-color="#ff6a8a"/></radialGradient>
+<radialGradient id="kbHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffc861" stop-opacity="0.5"/><stop offset="0.5" stop-color="#ff8a5a" stop-opacity="0.16"/><stop offset="1" stop-color="#ff6a8a" stop-opacity="0"/></radialGradient>
+<linearGradient id="kbGlare" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc861" stop-opacity="0.34"/><stop offset="1" stop-color="#ffc861" stop-opacity="0.1"/></linearGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbDusk)"/>
+<g fill="#c9c2b8"><circle cx="30" cy="20" r="0.7"/><circle cx="74" cy="12" r="0.9"/><circle cx="120" cy="26" r="0.6"/><circle cx="168" cy="10" r="0.8"/><circle cx="206" cy="30" r="0.6"/><circle cx="330" cy="16" r="0.8"/><circle cx="346" cy="44" r="0.6"/><circle cx="12" cy="46" r="0.6"/></g>
+<circle class="sm-moon" cx="270" cy="60" r="50" fill="url(#kbHalo)"/>
+<path d="M258 68 L118 104 H244 L288 76 Z" fill="url(#kbGlare)"/>
+<g transform="translate(270 60) scale(0.88) translate(-268 -40)">
+<circle cx="268" cy="40" r="25" fill="url(#kbMoon)"/>
+<path d="M254 30a6 5 0 1 0 12 0a6 5 0 1 0-12 0Z M272 46a4.5 3.5 0 1 0 9 0a4.5 3.5 0 1 0-9 0Z M262 52a3 2.4 0 1 0 6 0a3 2.4 0 1 0-6 0Z" fill="#c9c2b8" fill-opacity="0.55"/>
+<path d="M246 44q6 2 8 8 M280 26q4 6 10 7 M266 22l2 7 5 3" fill="none" stroke="#ff6a8a" stroke-opacity="0.75" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M258 62.5q1 5 0 7a1.6 1.6 0 0 0 3 0q-1-3 0-7 M270 64.8q.8 7 0 10a1.8 1.8 0 0 0 3.4 0q-1-4 0-10.4 M281 61q.6 4 0 6a1.4 1.4 0 0 0 2.6 0q-.6-2.4 0-6.6" fill="#ffc861" stroke="#ff8a5a" stroke-width="0.6"/>
+<g class="sm-drips" fill="#ffcf6e"><circle cx="259.5" cy="74" r="1.4" style="--d:0s"/><circle cx="271.7" cy="79" r="1.6" style="--d:1.3s"/><circle cx="282.3" cy="71" r="1.2" style="--d:2.4s"/></g>
+</g>
+<path d="M18 104V70a52 44 0 0 1 104 0v34Z" fill="#120a14" stroke="#4a3048" stroke-width="1.5"/>
+<path d="M64 26.5 80 26.5 76 104H68Z" fill="#2c1626"/><path d="M64 26.5 68 104 M80 26.5 76 104" stroke="#ffc861" stroke-opacity="0.35" stroke-width="1"/>
+<path d="M36 46q8 10 8 58 M104 46q-8 10-8 58" fill="none" stroke="#2a1a2a" stroke-width="1.5"/>
+<path d="M66 72l42-30 5 6-40 31Z" fill="#1c1220" stroke="#c9c2b8" stroke-opacity="0.6" stroke-width="1.2" stroke-linejoin="round"/>
+<ellipse cx="111" cy="45" rx="3.6" ry="5" transform="rotate(-36 111 45)" fill="#fff0c2" stroke="#ffc861" stroke-width="1"/>
+<path d="M68 78l-6 26 M74 76l4 28" stroke="#2a1a2a" stroke-width="2"/>
+<rect y="103" width="360" height="7" fill="#120810"/>
+<path d="M0 103.5h360" stroke="#ffc861" stroke-opacity="0.22" stroke-width="1"/>
+<path d="M118 104 L244 104" stroke="#ffcf6e" stroke-opacity="0.6" stroke-width="1.4"/>
+<path d="M196 104V62h12v42Z" fill="#160c16" stroke="#ffc861" stroke-opacity="0.55" stroke-width="1"/>
+<path d="M193 62h18v-4h-18Z M193 104h18v-3h-18Z" fill="#1e1220" stroke="#c9c2b8" stroke-opacity="0.5" stroke-width="0.8"/>
+<path d="M196 104 H138 L196 79Z" fill="#05030a" fill-opacity="0.85"/>
+<g fill="#07040a" stroke="#ffc861" stroke-opacity="0.5" stroke-width="1.1" stroke-linejoin="round">
+<path d="M170 104l3-18q2-9 8-10l6 1 4 6-3 3-4-2 2 6 2 14Z"/>
+<circle cx="182" cy="69" r="5.6"/>
+</g>
+<path d="M190 82l6-6" stroke="#07040a" stroke-width="3" stroke-linecap="round"/>
+</svg>`;
+
 export const SEASON_ART: Record<number, SeasonArt> = {
   1: { accent: '#ff9a3c', hi: '#ffc98a', deep: '#d9442c', banner: DEEP_BELLOWS },
   2: { accent: '#8fb8ff', hi: '#d8f4ff', deep: '#3f62b0', banner: COLD_HEARTH },
+  3: { accent: '#ffc861', hi: '#ffe6a8', deep: '#a8522a', banner: SLAG_MOON },
 };

@@ -96,6 +96,10 @@ const FROST_TRAILS = new Set(['rimeDust']);
 const FROST_SETTLE = 0x7fa6e8;
 /** The dim forge red an ember cools to. */
 const EMBER_COOL = 0x9a2e1c;
+/** Season trails drawn as molten drops that fall off the heels and cool as they land (the Slag Moon's Slag Drips). */
+const DRIP_TRAILS = new Set(['slagDrips']);
+/** The dull crust red a slag drop cools to once it lands. */
+const SLAG_CRUST = 0x8a2a2a;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
 function mixRgb(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * t)) << sh;
@@ -492,7 +496,7 @@ export class GameScene extends Phaser.Scene {
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
   /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
-  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean; frost: boolean }[] = [];
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number; sparks: boolean; frost: boolean; drip: boolean }[] = [];
   /** Our own worn trail from the start data, made into a pool in create(). */
   private ownTrail?: { id: string; stage: number };
   /** The Wrackline: a deck image and a warning rim per raft, and the drain's whirlpool (made on first use). */
@@ -1947,6 +1951,7 @@ export class GameScene extends Phaser.Scene {
       tr.acc -= 1;
       if (tr.sparks) { this.trailEmbers(tr, px, py, rich); continue; }
       if (tr.frost) { this.trailFrost(tr, px, py, rich); continue; }
+      if (tr.drip) { this.trailDrip(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -1987,6 +1992,22 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A drip trail (the Slag Moon): molten drops shaken off the hero's heels. Each falls a short way, stretched like a
+   * drop, then squashes flat where it lands and cools from the trail's gold to a dull crust red as it fades. Unlike
+   * the Deep Bellows' embers they fall instead of rising, and they pool instead of drifting. They blend normally (addTrail),
+ * so the cooled crust stays visible on a dark floor instead of fading out.
+   */
+  private trailDrip(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1.2 : 0.7;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.8 : 1.1) + Math.random() * 0.2;
+      this.emit(tr.fx, 'trailMote', undefined, px + (Math.random() - 0.5) * 30, py + 8 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: tr.color, tint1: SLAG_CRUST, vx: (Math.random() - 0.5) * 6, vy: 46 + Math.random() * 14, drag: 0.9, sx0: sz * 0.8, sy0: sz * 1.8, sx1: sz * 1.5, sy1: sz * 0.55 });
+    }
+  }
+
   /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
    * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
    * can't steal its motes. */
@@ -1995,8 +2016,10 @@ export class GameScene extends Phaser.Scene {
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
     const frost = FROST_TRAILS.has(def.id);
-    for (let i = 0; i < pool; i++) fx.push(this.newFx(frost ? 'frostFlake' : 'trailMote', 1.35, !frost));
-    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id), frost });
+    const drip = DRIP_TRAILS.has(def.id);
+    // Frost and slag blend normally, so a settled crystal's rime blue and a cooled drop's crust red show on the floor.
+    for (let i = 0; i < pool; i++) fx.push(this.newFx(frost ? 'frostFlake' : 'trailMote', 1.35, !frost && !drip));
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0, sparks: SPARK_TRAILS.has(def.id), frost, drip });
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
@@ -2013,6 +2036,12 @@ export class GameScene extends Phaser.Scene {
         // Embers: the landing ones fly up and out like a struck forge, then cool.
         this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.35,
           { tint: tr.color, tint1: EMBER_COOL, vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 30, drag: 0.95, sx0: 1.3, sy0: 1.9, sx1: 0.45, sy1: 0.65 });
+        continue;
+      }
+      if (tr.drip) {
+        // Slag: the landing drops splash out low and flat, then cool where they land.
+        this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.55 + t * 0.4,
+          { tint: tr.color, tint1: SLAG_CRUST, vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp * 0.25 + 20, drag: 0.9, sx0: 1, sy0: 1.6, sx1: 1.6, sy1: 0.6 });
         continue;
       }
       if (tr.frost) {
