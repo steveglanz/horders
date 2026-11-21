@@ -54,6 +54,25 @@ describe('omens', () => {
     expect(w.telegraphs.some((t) => t.alive && t.r === OMEN_TUNING.volatileRadius)).toBe(true);
   });
 
+  it('shared pain heals the other elites when an elite dies, but never the boss', () => {
+    const w = new World({ seed: 5, route: ['brute', 'brute', 'brute', 'brute', 'kilnMother'], omens: ['sharedPain'] });
+    play(w, (x) => x.phase === 'fight' && x.enemies.filter((e) => e.alive && e.def.rank !== 'normal').length >= 3);
+    const elites = w.enemies.map((e, i) => [e, i] as const).filter(([e]) => e.alive && e.def.rank !== 'normal');
+    expect(elites.length).toBeGreaterThanOrEqual(3);
+    const [[dead, di], [other]] = elites;
+    // Make one of the survivors the boss for this check, hurt both, then kill the first elite.
+    const boss = { ...other.def, rank: 'boss' as const };
+    const elite = elites[2]?.[0];
+    other.def = boss;
+    other.hp = other.maxHp * 0.5;
+    if (elite) elite.hp = elite.maxHp * 0.5;
+    (w as unknown as { killEnemy(i: number): void }).killEnemy(di);
+    expect(dead.alive).toBe(false);
+    expect(other.hp).toBeCloseTo(other.maxHp * 0.5, 5);
+    expect(elite).toBeDefined();
+    expect(elite!.hp).toBeGreaterThan(elite!.maxHp * 0.5);
+  });
+
   it('runs stay deterministic with omens', () => {
     const run = () => { const w = new World({ seed: 21, tier: 10, week: 3 }); play(w, () => false, 120); return [w.time, w.kills, Math.round(w.player.hp)]; };
     expect(run()).toEqual(run());

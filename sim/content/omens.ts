@@ -18,7 +18,7 @@ export interface OmenDef {
 
 export const OMENS: Record<OmenId, OmenDef> = {
   kindledDead: { id: 'kindledDead', name: 'Kindled Dead', text: 'Elites burst into a fire circle where they die.', tip: 'Step away after a kill.' },
-  sharedPain: { id: 'sharedPain', name: 'Shared Pain', text: 'When an enemy dies, the others in the fight heal 15%.', tip: 'Wear packs down together.' },
+  sharedPain: { id: 'sharedPain', name: 'Shared Pain', text: 'When an elite dies, the other elites in the fight heal 15%. Bosses never do.', tip: 'Wear packs down together.' },
   quickened: { id: 'quickened', name: 'Quickened', text: 'Enemy casts are 30% faster.', tip: 'Quench sooner.' },
   warded: { id: 'warded', name: 'Warded', text: 'Enemies gain a shield worth 20% of their health the first time they drop below half.', tip: 'Save a big hit for the shield.' },
   volatileGround: { id: 'volatileGround', name: 'Volatile Ground', text: 'Every 15 seconds the ground erupts under you.', tip: 'Keep moving.' },
