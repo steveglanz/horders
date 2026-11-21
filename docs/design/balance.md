@@ -281,6 +281,7 @@ Emberwright 29, Bulwark 35 and Lumen 38 of 40 before Kindle; the shipped channel
 | Kilnbreaker, shipped +10%/+15% | 12 vs 19 | 15 vs 15 | 29 vs 30 | 25 vs 19 |
 | Tidewalker (Foundry), shipped 6% / +30% | 31 vs 27 | 31 vs 24 | 21 vs 16 | 28 vs 27 |
 | Glarewarden (Glarewell) | 37 vs 32 | 29 vs 22 | 33 vs 29 | 33 vs 35 |
+| Hearthkeeper (Coldmarrow, tier 10, hero-t8-0, 80 seeds halved) | 33.5 vs 28.5 | 28 vs 27 | 34 vs 30.5 | 29.5 vs 25.5 |
 
 Duskblade with Tidewalker over 80 seeds (1 to 80): 60 with the set, 51 without. Tidewalker was trimmed from 8% / +40% because it read about +10 for the Duskblade in 40.
 

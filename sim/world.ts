@@ -331,6 +331,9 @@ export interface Player {
   surge?: boolean;
   gwT?: number;
   gwReadyAt?: number;
+  /** Hearthkeeper: Warmth stacks from kills, and seconds since the last kill (a stack fades every SET_TUNING.hkFade). */
+  warmth?: number;
+  warmT?: number;
   /** Co-op, while downed: seconds an ally has stood on this hero (G6 in-fight revive). */
   reviveT?: number;
   volleyT: number;
@@ -1712,6 +1715,8 @@ export class World {
     if (this.time < (p.mantleUntil ?? -1)) amount *= 1 - CAPSTONES_2.mantleCut;
     // Tidewalker: harder to pin down while moving.
     if (p.moving && this.setCount('tidewalker') >= 2) amount *= 1 - SET_TUNING.twCut;
+    // Hearthkeeper: a hero kept warm by a chain of kills shrugs off part of each hit.
+    if ((p.warmth ?? 0) >= SET_TUNING.hkMax && this.setCount('hearthkeeper') >= 3) amount *= 1 - SET_TUNING.hkCut;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
@@ -3467,6 +3472,7 @@ export class World {
     if ((p.kbT ?? 0) > 0) m *= 1 + SET_TUNING.kbDamage;
     if ((e.exposedT ?? 0) > 0) m *= 1 + SET_TUNING.kbExposed;
     if ((p.gwT ?? 0) > 0) m *= 1 + SET_TUNING.gwDamage;
+    if ((p.warmth ?? 0) > 0) m *= 1 + SET_TUNING.hkDamage * (p.warmth ?? 0);
     if (p.surge && !silent) {
       p.surge = false;
       p.moveT = 0;
@@ -3481,6 +3487,10 @@ export class World {
     p.moving = moving;
     if ((p.kbT ?? 0) > 0) p.kbT = (p.kbT ?? 0) - dt;
     if ((p.gwT ?? 0) > 0) p.gwT = (p.gwT ?? 0) - dt;
+    if ((p.warmth ?? 0) > 0) {
+      p.warmT = (p.warmT ?? 0) + dt;
+      if (p.warmT >= SET_TUNING.hkFade) { p.warmT -= SET_TUNING.hkFade; p.warmth = (p.warmth ?? 0) - 1; }
+    }
     if (this.setCount('tidewalker') >= 3) {
       p.moveT = moving ? (p.moveT ?? 0) + dt : 0;
       if ((p.moveT ?? 0) >= SET_TUNING.twCharge) p.surge = true;
@@ -3519,7 +3529,13 @@ export class World {
     this.events.push({ type: 'kill', x: e.x, y: e.y, kind: e.kind });
     if (this.dungeonId === 'coldmarrow' && COLD_FED_BY.includes(e.kind) && this.player.coal !== undefined) {
       // A frost-touched kill feeds the killer's Hearthcoal.
-      this.player.coal = Math.min(1, this.player.coal + (e.kind === 'snuffer' ? COLD.snufferFeed : COLD.feed));
+      const feed = (e.kind === 'snuffer' ? COLD.snufferFeed : COLD.feed) * (this.setCount('hearthkeeper') >= 2 ? 1 + SET_TUNING.hkFeed : 1);
+      this.player.coal = Math.min(1, this.player.coal + feed);
+    }
+    if (this.setCount('hearthkeeper') >= 2) {
+      // Hearthkeeper: every kill stokes a Warmth.
+      this.player.warmth = Math.min(SET_TUNING.hkMax, (this.player.warmth ?? 0) + 1);
+      this.player.warmT = 0;
     }
     this.omensOnKill(e);
     // Pyroclasm: a foe that dies burning passes its fire to its neighbours.
