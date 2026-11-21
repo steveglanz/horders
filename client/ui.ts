@@ -508,7 +508,11 @@ export class Hud {
       const chip = role === 'dps' ? '' : `<em class="pfr ${role}">${role === 'tank' ? 'Tank' : 'Healer'}</em>`;
       rows.push(`<div class="pf" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
+    // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
+    if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
     box.innerHTML = rows.join('');
+    this.revChip = box.querySelector<HTMLElement>('.pfrev');
+    this.revState = '';
     box.hidden = rows.length === 0;
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
@@ -517,7 +521,23 @@ export class Hud {
     });
   }
 
+  private revChip: HTMLElement | null = null;
+  private revState = '';
+
   private tickParty(w: World): void {
+    if (this.revChip) {
+      const left = w.revivesLeft;
+      const st = !w.bossUp ? '' : left > 0 ? `${left}` : 'used';
+      if (st !== this.revState) {
+        const was = this.revState;
+        this.revState = st;
+        this.revChip.hidden = st === '';
+        this.revChip.classList.toggle('used', st === 'used');
+        this.revChip.querySelector('.rvt')!.textContent = st === 'used' ? 'Boss revive used' : `Boss: ${left} revive`;
+        // The moment the pick-up is spent, the chip flashes once.
+        if (st === 'used' && was !== '') { this.revChip.classList.remove('spent'); void this.revChip.offsetWidth; this.revChip.classList.add('spent'); }
+      }
+    }
     for (const r of this.partyRows) {
       const q = w.heroData(r.hero).player;
       const down = q.hp <= 0;
