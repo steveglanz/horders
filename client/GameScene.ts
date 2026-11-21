@@ -955,6 +955,9 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
           else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          // Raid 3: the Cinder Colossus.
+          else if (ev.name === 'Wheel') this.hud.banner('Wheel!', 'He is turning on someone. Get out of his front');
+          else if (ev.name === 'Pour Out') this.hud.banner('Pour Out!', "It can't be stopped. Finish him now");
           // Raid 2: Old Coalmouth.
           else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
           else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
@@ -1042,6 +1045,9 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'smeltery') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
+            else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');

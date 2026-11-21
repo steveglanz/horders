@@ -550,6 +550,42 @@ function emberGrab(w: World, skill: number): { dx: number; dy: number } | null {
   return best;
 }
 
+/**
+ * Where a non-tank should step to stand behind the Cinder Colossus (raid 3), or null when it
+ * is already there, is the tank, or his plate has cracked (Meltdown). Stays out of his front
+ * cone on the way round by circling at a safe radius.
+ */
+function colossusFlank(w: World): { dx: number; dy: number } | null {
+  // NOFLANK=1 (measuring only): nobody goes round, as if the party ignored the plate.
+  if (process.env.NOFLANK === '1') return null;
+  if (w.dungeonId !== 'smeltery' || w.bossIndex < 0 || w.bossPhase >= 3 || w.isTank(w.acting)) return null;
+  const e = w.enemies[w.bossIndex];
+  if (!e?.alive || e.kind !== 'colossus') return null;
+  const p = w.player;
+  // In a Slag Sweep: let the usual step-out handle it.
+  for (const t of w.telegraphs) {
+    if (!t.alive || t.shape !== 'cone' || t.owner !== w.bossIndex) continue;
+    const d0 = Math.hypot(p.x - t.x, p.y - t.y);
+    const off0 = Math.abs(((Math.atan2(p.y - t.y, p.x - t.x) - t.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    if (d0 < t.r + 30 && off0 < t.arc / 2 + 0.3) return null;
+  }
+  const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  const r = e.def.radius + (melee ? w.swingReach * 0.6 : 170);
+  const back = w.colFacing + Math.PI;
+  const at = Math.atan2(p.y - e.y, p.x - e.x);
+  const off = Math.abs(((at - back + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+  const d = Math.hypot(p.x - e.x, p.y - e.y);
+  if (off < Math.PI / 4 && Math.abs(d - r) < 60) return null;
+  // Circle round: aim a quarter turn closer to his back each step, at a radius clear of the sweep.
+  const ring = Math.max(r, d < r ? r : Math.min(d, r + 120));
+  const sgn = ((at - back + Math.PI * 3) % (Math.PI * 2)) - Math.PI > 0 ? -1 : 1;
+  const next = off < Math.PI / 4 ? back : at + sgn * Math.min(off, Math.PI / 4);
+  const tx = e.x + Math.cos(next) * ring;
+  const ty = e.y + Math.sin(next) * ring;
+  const dd = Math.hypot(tx - p.x, ty - p.y) || 1;
+  return { dx: (tx - p.x) / dd, dy: (ty - p.y) / dd };
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
@@ -590,6 +626,9 @@ export function botInput(w: World, skill = 1): Input {
   // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Coalmouth eats it.
   const ember = emberGrab(w, skill);
   if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };
+  // The Smeltery: a non-tank works the Colossus's open back while his plate holds.
+  const flank = colossusFlank(w);
+  if (flank) return { x: flank.dx, y: flank.dy, cast: botCast(w, skill) };
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

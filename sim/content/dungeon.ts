@@ -13,7 +13,7 @@ export type EncounterId =
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
   | 'grandmotherSlag'
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
-  | 'oskel' | 'coalmouth';
+  | 'oskel' | 'coalmouth' | 'colossus';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -60,6 +60,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardenShoal: { id: 'wardenShoal', name: 'Warden in the Shoals', tip: 'Let the water take the Warden: the drain wears it down while you wait on a raft.', spawns: [{ kind: 'husk', n: 2 }, { kind: 'shoalLurker', n: 3 }] },
   twoHaulers: { id: 'twoHaulers', name: 'Two Haulers', tip: 'They take turns to Haul. Save a Quench for each.', spawns: [{ kind: 'bargeHauler', n: 2 }] },
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  colossus: { id: 'colossus', name: 'The Cinder Colossus', tip: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he Wheels, he turns on whoever hurt him most.', spawns: [{ kind: 'colossus', n: 1 }] },
   coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'coalmouth', n: 1 }] },
   oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
@@ -68,7 +69,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard' | 'smeltery';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -148,6 +149,12 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
     blurb: 'The second raid. Four heroes face Old Coalmouth in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'Old Coalmouth',
+  },
+  smeltery: {
+    id: 'smeltery', name: 'The Smeltery', boss: 'colossus', unlockTier: 10,
+    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    blurb: 'The third raid. Four heroes face the Cinder Colossus. His front is plated, so the tank holds it and the rest work his back. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'The Cinder Colossus',
   },
 };
 

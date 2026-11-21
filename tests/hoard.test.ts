@@ -3,6 +3,7 @@ import { World, COAL } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
+import { applySnapshot, snapshot } from '../sim/netsync';
 
 type Inner = {
   use(i: number): void;
@@ -113,6 +114,23 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     expect(w.events).toContainEqual({ type: 'digested', hero: k });
   });
 
+  it('a hero still inside when he falls comes out with the win, so nobody ends the run swallowed', () => {
+    const { w, inner, b } = hoard();
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+    inner.swallowT = 0;
+    inner.coalClock(0.01);
+    const k = inner.swallowed;
+    expect(k).toBeGreaterThan(0);
+    inner.damageEnemy(b, 1e9, false);
+    const idle = w.heroes.map(() => ({ x: 0, y: 0 }));
+    for (let n = 0; n < 600 && w.state !== 'ended'; n++) w.step(idle);
+    expect(w.state).toBe('ended');
+    expect(w.summary().victory).toBe(true);
+    expect(w.heroes[k].player.swallowT ?? 0).toBe(0);
+    expect(w.heroes[k].player.hp).toBeGreaterThan(0);
+    expect(inner.swallowed).toBe(-1);
+  });
+
   it('Ember Feast: an ember a hero grabs is gone; one left too long feeds him, and every one fed makes him hit harder', () => {
     const { w, inner, b } = hoard();
     const e = w.enemies[b];
@@ -143,5 +161,17 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     inner.coalClock(0.01);
     expect(e.castId).toBe('lastMeal');
     expect(e.interruptible).toBe(false);
+  });
+
+  it('online co-op: a guest sees the spilled embers and who is swallowed', () => {
+    const { w, inner, b } = hoard();
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2;
+    inner.spillT = 0;
+    inner.swallowT = 0;
+    inner.coalClock(0.01);
+    const g = hoard().w;
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.coalEmbers).toEqual(w.coalEmbers);
+    expect((g as unknown as Inner).swallowed).toBe(inner.swallowed);
   });
 });

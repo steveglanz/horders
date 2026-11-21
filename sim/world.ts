@@ -535,6 +535,8 @@ export type SimEvent =
   | { type: 'swallowed'; hero: number }
   | { type: 'digested'; hero: number }
   | { type: 'spatOut'; hero: number }
+  | { type: 'wheel'; hero: number }
+  | { type: 'meltPulse'; n: number }
   | { type: 'explode'; x: number; y: number; r: number }
   /** Glarewell: a Glare went off; `hit` is whether it caught the hero in the light. */
   | { type: 'glare'; x: number; y: number; hit: boolean }
@@ -844,6 +846,13 @@ export class World {
   private downT = 0;
   /** Raid 2 (the Hoard): Old Coalmouth's clocks, the swallowed hero, the Craw and the spilled embers. */
   private gorgeT = 0;
+  private sweepT = 0;
+  private wheelT = 0;
+  private meltT = 0;
+  private meltPulses = 0;
+  /** Raid 3: the Cinder Colossus's facing (radians), and each hero's recent damage to him (Wheel). */
+  colFacing = 0;
+  colDmg: number[] = [];
   private swallowT = 0;
   private spillT = 0;
   private swallowed = -1;
@@ -851,7 +860,7 @@ export class World {
   /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
   coalFed = 0;
   /** Spilled embers on the floor, with seconds left before he inhales them. */
-  readonly coalEmbers: { x: number; y: number; t: number }[] = [];
+  coalEmbers: { x: number; y: number; t: number }[] = [];
   private rivetT = 0;
   private stampT = 0;
   private stampTarget = 0;
@@ -1521,6 +1530,7 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hoard') this.coalClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -1732,6 +1742,21 @@ export class World {
           this.raidVentT = 4;
           this.marksT = 9;
           this.raidBurnT = 1;
+          this.lastEmberCast = false;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'colossus') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.bossPhase = 1;
+          this.raidStart = this.time;
+          this.sweepT = COLO.firstSweep;
+          this.wheelT = COLO.firstWheel;
+          this.meltT = COLO.meltEvery;
+          this.meltPulses = 0;
+          this.colDmg = this.heroes.map(() => 0);
+          const t = this.heroPlayer(this.targetOf(i, 0));
+          this.colFacing = Math.atan2(t.y - e.y, t.x - e.x);
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -4123,6 +4148,26 @@ export class World {
       const amount = e.maxHp * COAL.gorgeHeal * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+    } else if (id === 'wheel') {
+      // Raid 3: he turns on the non-tank who hurt him most in the last few seconds, and sweeps.
+      let pick = -1;
+      let most = -1;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0 || this.isTank(k)) continue;
+        if ((this.colDmg[k] ?? 0) > most) { most = this.colDmg[k] ?? 0; pick = k; }
+      }
+      if (pick >= 0) {
+        const q = this.heroPlayer(pick);
+        this.colFacing = Math.atan2(q.y - e.y, q.x - e.x);
+        this.events.push({ type: 'wheel', hero: pick });
+      }
+      this.slagSweep(i);
+    } else if (id === 'pourOut') {
+      // Raid 3's hard enrage: the Smeltery floods.
+      const at = this.acting;
+      this.eachHero(() => this.hurtPlayer(this.player.maxHp * 10, i, true));
+      this.use(at);
     } else if (id === 'lastMeal') {
       // Raid 2's hard enrage: he swallows everyone.
       const at = this.acting;
@@ -4284,7 +4329,7 @@ export class World {
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
-    if (e.kind === 'coalmouth' || e.kind === 'craw') return; // all on coalClock
+    if (e.kind === 'coalmouth' || e.kind === 'craw' || e.kind === 'colossus') return; // all on their raid clocks
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -4371,6 +4416,8 @@ export class World {
     dmg *= this.setDamageMult(e, silent);
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
+    // The Cinder Colossus: plated in front, open behind, until Meltdown cracks the plate.
+    if (e.kind === 'colossus' && this.bossPhase < 3) dmg *= this.colossusSide(e, this.player.x, this.player.y);
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
@@ -4413,7 +4460,9 @@ export class World {
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
     // The shadow fight and the raid bosses all count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
-    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth') this.shadowDamage += dmg;
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth' || e.kind === 'colossus') this.shadowDamage += dmg;
+    // Wheel turns on whoever hurt him most lately.
+    if (e.kind === 'colossus') this.colDmg[this.acting] = (this.colDmg[this.acting] ?? 0) + dmg;
     const thirst = this.rank('thirst');
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
@@ -5435,6 +5484,79 @@ export class World {
   }
 
   /**
+   * The Cinder Colossus's clocks (raid 3, the Smeltery). He turns toward the hero he is
+   * fighting at `turnRate`; his front is plated (`colossusSide`). Slag Sweep: a cone in front.
+   * Phase 2 Wheel: he turns on the non-tank who hurt him most and sweeps there. Phase 3
+   * Meltdown: the plate cracks and a growing party-wide burn pulses. Pour Out at `hardEnrage`.
+   */
+  private colossusClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'colossus') return;
+    const frac = e.hp / e.maxHp;
+    const phase = frac > COLO.phase2 ? 1 : frac > COLO.phase3 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+    }
+    const keep = Math.exp(-dt / COLO.wheelWindow);
+    for (let k = 0; k < this.colDmg.length; k++) this.colDmg[k] *= keep;
+    if (phase === 3) {
+      this.meltT -= dt;
+      if (this.meltT <= 0) {
+        this.meltT += COLO.meltEvery;
+        this.meltPulses++;
+        const share = COLO.meltDamage * (1 + COLO.meltGrow * (this.meltPulses - 1));
+        const at = this.acting;
+        this.eachHero(() => this.hurtPlayer(this.player.maxHp * share, i, true));
+        this.use(at);
+        this.events.push({ type: 'meltPulse', n: this.meltPulses });
+      }
+    }
+    // He turns toward the hero he is fighting, but slowly, and not while he casts.
+    if (!e.castId) {
+      const t = this.heroPlayer(this.targetOf(i, 0));
+      const want = Math.atan2(t.y - e.y, t.x - e.x);
+      const diff = angleDiff(want, this.colFacing);
+      const step = COLO.turnRate * dt;
+      this.colFacing = angleDiff(this.colFacing + Math.max(-step, Math.min(step, diff)), 0);
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (!this.lastEmberCast && this.time - e.spawnedAt >= COLO.hardEnrage) {
+      this.lastEmberCast = true;
+      if (!this.bossEnraged) {
+        this.bossEnraged = true;
+        this.events.push({ type: 'bossEnrage' });
+      }
+      this.startCast(i, 'pourOut', 'Pour Out', COLO.pourOutCast, false);
+      return;
+    }
+    this.sweepT -= dt;
+    if (phase === 2) this.wheelT -= dt;
+    if (phase === 2 && this.wheelT <= 0) {
+      this.wheelT = COLO.wheelEvery;
+      this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
+    } else if (phase < 3 && this.sweepT <= 0) {
+      this.sweepT = COLO.sweepEvery;
+      this.slagSweep(i);
+    }
+  }
+
+  /** Slag Sweep: a telegraphed cone straight out of his front. */
+  private slagSweep(i: number): void {
+    const e = this.enemies[i];
+    this.startCast(i, 'slagSweep', 'Slag Sweep', COLO.sweepCast, false);
+    this.addTelegraph('cone', e.x, e.y, COLO.sweepRange, this.colFacing, (COLO.sweepArc * Math.PI) / 180, COLO.sweepCast, COLO.sweepDamage, 'hit', i);
+  }
+
+  /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
+  colossusSide(e: Enemy, x: number, y: number): number {
+    const off = Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing));
+    return off <= COLO.frontArc ? COLO.frontMult : off >= COLO.backArc ? COLO.backMult : 1;
+  }
+
+  /**
    * Old Coalmouth's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
    * Swallow: a hero goes inside and the Craw appears; break it to free them. Phase 3 Ember
    * Feast: spilled embers he eats unless the heroes grab them first. Last Meal at `hardEnrage`.
@@ -6254,6 +6376,8 @@ export class World {
     }
     // The run ends on a win, or when the whole party is down.
     if ((this.victory && !this.shadowPending) || down === this.heroes.length) {
+      // The Hoard: a hero still inside when Old Coalmouth falls comes out with the win (coalClock never runs again).
+      if (this.victory) this.releaseSwallowed(false);
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });
     }
@@ -6495,6 +6619,19 @@ export const SLAG = {
   marksEvery: 14,
   /** Hard enrage: this long after she appears, she casts Last Ember, which wipes the party. */
   hardEnrage: 420, lastEmberCast: 5,
+};
+
+/** Raid 3's tuning: the Cinder Colossus in the Smeltery (docs/design/raid3.md). */
+export const COLO = {
+  phase2: 0.6, phase3: 0.3,
+  /** Front and back: within `frontArc` of his facing is plated, past `backArc` is his open back. */
+  frontMult: 0.5, backMult: 1.5, frontArc: Math.PI / 2, backArc: (2 * Math.PI) / 3,
+  /** How fast he turns toward his target, radians a second. */
+  turnRate: 1.6,
+  sweepEvery: 10, firstSweep: 5, sweepCast: 1.5, sweepRange: 200, sweepArc: 90, sweepDamage: 40,
+  wheelEvery: 16, firstWheel: 3, wheelCast: 2, wheelWindow: 8,
+  meltEvery: 3, meltDamage: 0.03, meltGrow: 0.05,
+  hardEnrage: 480, pourOutCast: 5,
 };
 
 export const COAL = {

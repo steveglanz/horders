@@ -26,7 +26,8 @@ export interface Member {
 export interface PartyEvents {
   /** A peer's channels are both open (host: a guest joined; guest: linked to host). */
   onJoin?: (m: Member) => void;
-  onLeave?: (id: string) => void;
+  /** `left` is true when the peer said goodbye (closed the party on purpose), false when the link failed. */
+  onLeave?: (id: string, left: boolean) => void;
   onMessage?: (from: string, ch: Channel, data: unknown) => void;
   /** Guest only: the host refused (party full). */
   onRefused?: (reason: string) => void;
@@ -40,6 +41,9 @@ interface Link {
   open: boolean;
   pendingIce: RTCIceCandidateInit[];
 }
+
+/** Sent on the reliable channel just before closing, so the peer knows the close was on purpose. */
+const BYE = '{"__bye":1}';
 
 export function partyCode(rand: () => number = Math.random): string {
   let s = '';
@@ -94,14 +98,15 @@ export class Party {
     if (this.closed) return;
     this.closed = true;
     this.signal.send({ t: 'bye', from: this.id });
-    for (const l of this.links.values()) l.pc.close();
+    // The channel's close can arrive before the signalled bye, so say it in-band too (ordered, ahead of the close).
+    for (const l of this.links.values()) { if (l.rel?.readyState === 'open') l.rel.send(BYE); l.pc.close(); }
     this.links.clear();
     this.signal.close();
   }
 
   private async onSignal(m: SignalMsg): Promise<void> {
     if (this.closed || m.from === this.id || (m.to && m.to !== this.id)) return;
-    if (m.t === 'bye') return this.drop(m.from);
+    if (m.t === 'bye') return this.drop(m.from, true);
     if (this.role === 'host') {
       if (m.t === 'hello') return this.acceptGuest(m);
     } else {
@@ -130,7 +135,10 @@ export class Party {
 
   private wire(l: Link, dc: RTCDataChannel): void {
     if (dc.label === 'rel') l.rel = dc; else l.fast = dc;
-    dc.onmessage = (e) => this.events.onMessage?.(l.member.id, dc.label as Channel, JSON.parse(String(e.data)));
+    dc.onmessage = (e) => {
+      if (e.data === BYE) { this.drop(l.member.id, true); return; }
+      this.events.onMessage?.(l.member.id, dc.label as Channel, JSON.parse(String(e.data)));
+    };
     dc.onopen = () => {
       if (!l.open && l.rel?.readyState === 'open' && l.fast?.readyState === 'open') {
         l.open = true;
@@ -160,12 +168,12 @@ export class Party {
     this.signal.send({ t: 'answer', from: this.id, to: m.from, sdp: l.pc.localDescription!.toJSON() });
   }
 
-  private drop(id: string): void {
+  private drop(id: string, left = false): void {
     const l = this.links.get(id);
     if (!l) return;
     this.links.delete(id);
     l.pc.close();
-    if (l.open) this.events.onLeave?.(id);
+    if (l.open) this.events.onLeave?.(id, left);
     if (id === this.hostId) this.hostId = null;
   }
 }
