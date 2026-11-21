@@ -519,6 +519,8 @@ export interface WorldOptions {
   cls?: ClassId;
   /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
   week?: number;
+  /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
+  day?: number;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
   omens?: OmenId[];
   /** The living world boss's Omen: added to every delve on top of the tier's Omens, for extra luck. */
@@ -564,6 +566,8 @@ export interface RunSummary {
   keyLevel?: number;
   /** P1 weekly quests: the week, this hero's interrupts, and named elites the party felled. */
   week?: number;
+  /** P2: the day the run was played (first win of the day). */
+  day?: number;
   interrupts?: number;
   namedKills?: number;
 }
@@ -590,6 +594,8 @@ export class World {
   private keyDmg = 1;
   /** The week (weekOf in omens.ts) this run was played in, for weekly quests. */
   readonly week: number | undefined;
+  /** The day (dayOf in bounty.ts) this run was played in, for the season track's first win of the day. */
+  readonly day: number | undefined;
   shadowDamage = 0;
   shadowStart = -1;
   /** C3: when the raid boss appeared (-1 until then). Her fight is the "shadow" part of the strike. */
@@ -762,6 +768,7 @@ export class World {
     this.classDef = CLASSES[this.cls];
     this.worldBoss = opts.worldBoss ?? '';
     this.week = opts.week;
+    this.day = opts.day;
     this.passives = { ...(opts.passives ?? {}) };
     this.gear = [...(opts.gear ?? [])];
     this.loadout = loadoutFrom(this.passives, this.gear);
@@ -1149,6 +1156,7 @@ export class World {
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
       week: this.week,
+      ...(this.day !== undefined ? { day: this.day } : {}),
       ...(this.keyLevel ? { keyLevel: this.keyLevel } : {}),
       interrupts: this.player.interrupts ?? 0,
       namedKills: this.namedKills,
