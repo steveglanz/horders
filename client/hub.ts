@@ -210,9 +210,10 @@ export class Hub {
         + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
     }).join('');
     const ci = CLASS_ICON[cls];
+    const glow = h.wear?.glow ? GLOWS[h.wear.glow] : undefined;
     const worn = items.length;
     $('heroCard').innerHTML = `
-      <div class="who"><span class="gtile" style="--gc:${ci.color}">${glyph(ci.d, 30)}</span>
+      <div class="who"><span class="gtile${glow ? ' glowing' : ''}" style="--gc:${ci.color}${glow ? `;--glow:${glow.color}` : ''}"${glow ? ` title="Wearing ${glow.name}"` : ''}>${glyph(ci.d, 30)}</span>
         <div><b>${CLASSES[cls].name}</b>${h.wear?.title ? `<div class="worn-title">${h.wear.title}</div>` : ''}<div class="sub"><span class="lv">Lv ${h.level}</span><span>${CLASSES[cls].role}</span></div></div></div>
       <div class="meter" title="Hero experience"><div style="width:${xpPct}%"></div></div>
       <div class="kv"><span>${atCap ? 'Max level' : `${h.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span><span class="xp">${atCap ? '' : `${(need - h.xp).toLocaleString()} to Lv ${h.level + 1}`}</span></div>

@@ -230,6 +230,9 @@
   .hub-grid > * { min-width: 0; }
   .hero .who { display: flex; align-items: center; gap: 12px; }
   .hero .who .gtile { width: 52px; height: 52px; border-radius: 14px; }
+  /* The worn season glow, as in a run: a soft disc of its colour under the class tile. */
+  .hero .who .gtile.glowing { position: relative; box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 55%, transparent), 0 0 14px color-mix(in srgb, var(--glow) 40%, transparent); }
+  .hero .who .gtile.glowing::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: -7px; height: 10px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 80%, transparent), transparent); pointer-events: none; }
   .hero .who b { display: block; font: 600 20px var(--serif); }
   .hero .who .sub { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 13px; color: var(--muted); }
   .hero .meter { margin-top: 12px; }
