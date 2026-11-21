@@ -954,6 +954,8 @@
   .wq.done .wq-top, .wq.done .wq-txt { opacity: 0.6; }
   .wq-n { font-size: 11px; color: var(--muted); margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
   .lbl.wq-party { margin-top: 14px; }
+  /* Phones: the count sits beside its bar, not on a line of its own (a line saved per quest). */
+  @media (max-width: 560px), (max-height: 520px) { .wq-main { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: center; } .wq-main > .wq-top, .wq-main > .wq-txt { grid-column: 1 / -1; } .wq-main > .wq-bar { grid-column: 1; } .wq-main > .wq-n { margin-top: 6px; line-height: 1; } }
   .wq-title { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed rgba(255,200,97,0.3); font-size: 12px; color: var(--muted); }
   .wq-title .crest { color: rgba(255,200,97,0.55); font-size: 16px; }
   .wq-title b { color: var(--gold); }
