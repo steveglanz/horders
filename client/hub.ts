@@ -22,7 +22,7 @@ import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/key
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, CLASS_ICON, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, CLASS_ICON, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -380,10 +380,17 @@ export class Hub {
       }));
     root.querySelectorAll<HTMLButtonElement>('[data-potion]').forEach((b) =>
       b.addEventListener('click', () => {
-        if (brewPotion(h, b.dataset.potion as PotionId)) {
+        const id = b.dataset.potion as PotionId;
+        if (brewPotion(h, id)) {
           this.save();
           this.render();
           if (!$('sheet').hidden && $('sheet').dataset.prep === 'potion') this.openPrep('potion', []);
+          // R8: the fresh brew pours in: the flask flares and bubbles burst up out of it.
+          document.querySelectorAll<HTMLElement>(`[data-potion="${id}"]`).forEach((el) => {
+            el.classList.remove('poured');
+            void el.offsetWidth;
+            el.classList.add('poured');
+          });
         }
       }));
   }
@@ -540,7 +547,7 @@ export class Hub {
   /** P6: the hero card's one-line Achievements button, with how many are done. */
   private deedsButton(): string {
     const n = (this.hero().achieved ?? []).length;
-    return `<button class="bookbtn" data-deeds data-sfx="open"><span class="crest" aria-hidden="true">❖</span><span>Achievements</span><b>${n}/${ACHIEVEMENTS.length}</b><i class="chev" aria-hidden="true"></i></button>`;
+    return `<button class="bookbtn" data-deeds data-sfx="open"><span class="crest" aria-hidden="true">${glyph(MEDAL_ICON, 16)}</span><span>Achievements</span><b>${n}/${ACHIEVEMENTS.length}</b><i class="chev" aria-hidden="true"></i></button>`;
   }
 
   /** P6: every achievement with its progress, title and embers; shared by every class. */
@@ -551,13 +558,14 @@ export class Hub {
     const rows = ACHIEVEMENTS.map((a) => {
       const ok = done.has(a.id);
       const n = Math.min(a.need, a.have(view));
-      return `<div class="wq${ok ? ' done' : ''}"><span class="pip" aria-hidden="true">${ok ? '✓' : '❖'}</span><div class="wq-main">`
-        + `<div class="wq-top"><b>${a.name}</b><span>${ok ? 'Done' : `<span class="pay">+${a.embers}</span>`}</span></div>`
-        + `<div class="wq-txt">${a.text} Title: <b>${a.title}</b></div>`
-        + (a.need > 1 ? `<div class="wq-bar"><i style="width:${((100 * (ok ? a.need : n)) / a.need).toFixed(1)}%"></i></div><div class="wq-n">${(ok ? a.need : n).toLocaleString()} / ${a.need.toLocaleString()}</div>` : '')
+      return `<div class="wq deed${ok ? ' done' : ''}">${medalTile(a.id, ok)}<div class="wq-main">`
+        + `<div class="wq-top"><b>${a.name}</b><span>${ok ? '<span class="got">Earned</span>' : `<span class="pay">+${a.embers}</span>`}</span></div>`
+        + `<div class="wq-txt">${a.text}</div><div class="dtitle">Title <b>${a.title}</b></div>`
+        + (a.need > 1 && !ok ? `<div class="wq-bar"><i style="width:${((100 * n) / a.need).toFixed(1)}%"></i></div><div class="wq-n">${n.toLocaleString()} / ${a.need.toLocaleString()}</div>` : '')
         + `</div></div>`;
     }).join('');
-    return `<div class="box weekly"><div class="lbl">Deeds <span class="wq-count">${done.size}/${ACHIEVEMENTS.length}</span></div>${rows}`
+    return `<div class="box weekly deeds"><div class="lbl">Deeds <span class="wq-count">${done.size}/${ACHIEVEMENTS.length}</span></div>`
+      + `<div class="deed-strip" aria-hidden="true">${ACHIEVEMENTS.map((a) => medalTile(a.id, done.has(a.id), 22)).join('')}</div>${rows}`
       + `<div class="hint">Shared by every class. Each pays its title once, plus embers to the class you're playing. Wear titles from the Season sheet.</div></div>`;
   }
 
@@ -647,7 +655,7 @@ export class Hub {
       const on = h.potion === id;
       const why = brewBlocker(h, id);
       return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
-        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
+        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}${on ? '<i class="bub" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>' : ''}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${potionCost(id, h.maxTier)} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`

@@ -359,7 +359,7 @@ export class GameScene extends Phaser.Scene {
     const plateStyle = { fontFamily: 'Georgia, serif', fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
     for (let i = 0; i < 10; i++) this.plates.push(this.add.text(0, 0, '', plateStyle).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
-    this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5).setVisible(false).setDepth(9.5);
+    this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
       this.floats.push({ txt, life: 0, age: 0, vx: 0 });
@@ -652,21 +652,21 @@ export class GameScene extends Phaser.Scene {
             this.altCast(ev.x, ev.y, ev.r);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
-            if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
+            if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffe9a8', 18);
           } else if (w.cls === 'slagbinder') {
             // Cooling Shell: a cold ring out to what it covers. Plating and Interpose have their own events.
             if (ev.slot === 2) {
               this.ring(ev.x, ev.y, ev.r + 30, SLAG_COOL, 0.5);
               this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: SLAG_COOL, life: 0.5 });
               for (let k = 0; k < 6; k++) this.steam(ev.x + (Math.random() - 0.5) * 40, ev.y + (Math.random() - 0.5) * 20, 0.6 + Math.random() * 0.4);
-              this.floatText(ev.x, ev.y - 36, 'Cooling Shell', '#cfe0ea', 18);
+              this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#cfe0ea', 18);
             }
           } else if (w.cls === 'bulwark' && ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
             this.shake = Math.max(this.shake, 0.12);
           } else if (w.cls === 'bulwark' && ev.slot === 2) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: 0xffd27a, life: 0.5 });
-            this.floatText(ev.x, ev.y - 36, 'Bastion', '#ffd27a', 18);
+            this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffd27a', 18);
           } else if (ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xff8a3d, life: 0.3 });
             // Flames licking out along the wave front.
@@ -1082,6 +1082,7 @@ export class GameScene extends Phaser.Scene {
       }
       al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
+    this.unstackLabels();
 
     const view = cam.worldView;
     const margin = 80;
@@ -1457,7 +1458,8 @@ export class GameScene extends Phaser.Scene {
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
-          this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
+          // Under the circle's rim, so it never sits on the names of the heroes standing in it.
+          this.soakText.setVisible(true).setPosition(t.x, t.y + t.r + 4).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
         }
       } else {
         const a0 = t.angle - t.arc / 2;
@@ -1483,7 +1485,8 @@ export class GameScene extends Phaser.Scene {
     const lp = w.player;
     if (lp.sanctT > 0) {
       g.fillStyle(0xffe9a8, 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
-      g.lineStyle(2, 0xffd27a, 0.6).strokeCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
+      g.lineStyle(2, 0xffd27a, 0.6);
+      this.dashedCircle(g, lp.sanctX, lp.sanctY, w.sanctuaryRadius, now);
     }
     if (lp.poolT > 0) g.fillStyle(0xb8ffd0, 0.12).fillCircle(lp.poolX, lp.poolY, 70);
     for (const l of w.lances) {
@@ -2113,6 +2116,45 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A dashed, slowly turning rim. Friendly ground effects (Sanctuary, Lightwell, Slag Pit) use it,
+   * and telegraphs keep their solid rim, so a hero can tell "good to stand in" from "a mechanic"
+   * by shape as well as colour (L3: the colours alone can merge for colour-blind players).
+   */
+  /**
+   * Ally names lift apart when heroes bunch up (a soak, the tank spot), so two names never print
+   * over each other on a phone. Lower names keep their place; a name that would overlap one
+   * already placed moves up just clear of it.
+   */
+  private unstackLabels(): void {
+    if (this.allies.length < 2) return;
+    const order = [...this.allies].sort((a, b) => b.label.y - a.label.y);
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
+    for (const al of order) {
+      const lb = al.label;
+      const w2 = lb.displayWidth / 2;
+      let bottom = lb.y;
+      const h = lb.displayHeight;
+      for (let pass = 0; pass < 4; pass++) {
+        const hit = placed.find((q) => lb.x - w2 < q.r && lb.x + w2 > q.l && bottom - h < q.b && bottom > q.t);
+        if (!hit) break;
+        bottom = hit.t - 1;
+      }
+      lb.y = bottom; // only the name moves; a title stays over its hero's head
+      placed.push({ l: lb.x - w2, r: lb.x + w2, t: bottom - h, b: bottom });
+    }
+  }
+
+  private dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, now: number): void {
+    const n = Math.max(12, Math.round(r / (this.lowFx ? 14 : 7)));
+    const step = (Math.PI * 2) / n;
+    const turn = now / 4000;
+    for (let k = 0; k < n; k++) {
+      const a = turn + k * step;
+      g.beginPath().arc(x, y, r, a, a + step * 0.55).strokePath();
+    }
+  }
+
   /** What the ability options leave in the world: wards, slows, the cry, wells and pits. */
   private altDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
@@ -2127,14 +2169,15 @@ export class GameScene extends Phaser.Scene {
         const pulse = 0.5 + 0.5 * Math.sin(now / 300);
         g.fillStyle(WELL, (0.1 + 0.04 * pulse) * fade).fillCircle(wx, wy, r);
         g.fillStyle(0xffffff, 0.08 * fade).fillCircle(wx, wy, r * 0.35);
-        g.lineStyle(2, WELL, 0.7 * fade).strokeCircle(wx, wy, r);
-        // Slow-turning rays in the pool.
+        g.lineStyle(2.5, WELL, 0.75 * fade);
+        this.dashedCircle(g, wx, wy, r, now);
+        // Slow-turning rays in the pool (skipped when effects are trimmed).
         g.lineStyle(1.5, WELL, 0.3 * fade);
-        for (let k = 0; k < 6; k++) {
+        if (!this.lowFx) for (let k = 0; k < 6; k++) {
           const a = now / 2400 + (k / 6) * Math.PI * 2;
           g.lineBetween(wx + Math.cos(a) * r * 0.3, wy + Math.sin(a) * r * 0.3, wx + Math.cos(a) * r * 0.85, wy + Math.sin(a) * r * 0.85);
         }
-        if (Math.random() < 0.35 * fade) {
+        if (!this.lowFx && Math.random() < 0.35 * fade) {
           const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * r * 0.9;
           this.emit(this.fx, 'spark', undefined, wx + Math.cos(a) * d, wy + Math.sin(a) * d, 0.8, { tint: WELL, vy: -50, drag: 0.98, sx0: 1.3, sx1: 0.3 });
         }
@@ -2145,7 +2188,8 @@ export class GameScene extends Phaser.Scene {
         // A dark crust over molten slag, with glowing seams and bubbles breaking.
         g.fillStyle(0x2a1d18, 0.5 * fade).fillCircle(px, py, r);
         g.fillStyle(SLAG, (0.16 + 0.06 * Math.sin(now / 180)) * fade).fillCircle(px, py, r * 0.75);
-        g.lineStyle(2.5, SLAG, 0.8 * fade).strokeCircle(px, py, r);
+        g.lineStyle(2.5, SLAG, 0.8 * fade);
+        this.dashedCircle(g, px, py, r, now);
         g.lineStyle(2, 0xffc27a, 0.55 * fade);
         for (let k = 0; k < 5; k++) {
           const a = (k / 5) * Math.PI * 2 + 0.4;
@@ -2153,7 +2197,7 @@ export class GameScene extends Phaser.Scene {
             .lineTo(px + Math.cos(a + 0.25) * r * 0.5, py + Math.sin(a + 0.25) * r * 0.5)
             .lineTo(px + Math.cos(a) * r * 0.85, py + Math.sin(a) * r * 0.85).strokePath();
         }
-        for (let k = 0; k < 4; k++) {
+        if (!this.lowFx) for (let k = 0; k < 4; k++) {
           const ph = (now / 900 + k * 0.27) % 1;
           const a = k * 1.9 + 0.7, d = r * (0.3 + 0.12 * k);
           g.lineStyle(1.5, 0xffd9a0, (1 - ph) * 0.8 * fade).strokeCircle(px + Math.cos(a) * d, py + Math.sin(a) * d, 2 + ph * 6);
@@ -2196,6 +2240,11 @@ export class GameScene extends Phaser.Scene {
       const fade = Math.min(1, ((e.slowUntil ?? 0) - t) / 0.5);
       const fy = e.y + r * 0.85 + 3;
       const rr = Math.max(20, r * 1.1);
+      if (this.lowFx) {
+        // Trimmed effects: one ring per slowed foe, since a slowed pack can be dozens of foes.
+        g.lineStyle(2.5, SLOWED, 0.8 * fade).strokeEllipse(e.x, fy, rr * 2, rr * 0.8);
+        continue;
+      }
       g.fillStyle(SLOWED, 0.12 * fade).fillEllipse(e.x, fy, rr * 2, rr * 0.8);
       g.lineStyle(2.5, SLOWED, 0.85 * fade);
       for (let k = 0; k < 5; k++) {
@@ -2304,7 +2353,7 @@ export class GameScene extends Phaser.Scene {
         // The current: short glints drifting along the strip.
         const drift = (now / 1000) * 38;
         g.lineStyle(1.5, 0x9fd8ff, 0.45 * a);
-        for (let k = 0; k < Math.ceil(len / 70); k++) {
+        if (!this.lowFx) for (let k = 0; k < Math.ceil(len / 70); k++) {
           const s = ((k * 70 + drift + (k % 2) * 35) % len + len) % len;
           const o = ((k * 37) % 5 - 2) * hw * 0.22;
           const gx = x0 + dx * s + nx * o, gy = y0 + dy * s + ny * o;
@@ -2318,7 +2367,7 @@ export class GameScene extends Phaser.Scene {
         edge(hw - 2, 1); edge(-hw + 2, -1);
         // Small floes broken off the edges, bobbing in the water.
         g.fillStyle(0xd8eeff, 0.55 * a);
-        for (let i = 2; i < n - 1; i += 3) {
+        if (!this.lowFx) for (let i = 2; i < n - 1; i += 3) {
           const side = i % 2 ? 1 : -1;
           const bob = Math.sin(now / 400 + i) * 2;
           const [fx, fy] = along(i, side * (hw - 9) + bob, side);

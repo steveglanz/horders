@@ -235,7 +235,7 @@ The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is wi
 ### Action bar
 | Key | Ability | Cost | Cooldown | Solo | Party |
 |---|---|---|---|---|---|
-| Q | **Molten Plating** | 30 | 6 s | Plates you with a ward of 15% max health for 6 s. When it breaks or runs out, it bursts for 40 within 90 px. | Plates the most hurt hero within 300 px instead, the Slagbinder included. |
+| Q | **Molten Plating** | 30 | 6 s | Plates you with a ward of 15% max health for 6 s. When it breaks or runs out, it bursts for 40 within 90 px. Your own plating that runs out unspent heals you for what's left. | Plates the most hurt hero within 300 px instead, the Slagbinder included. |
 | E | **Interpose** | 0 | 10 s | Leap 150 px the way you're moving, immune for 0.4 s, and knock small foes back on landing. | Leap to the most hurt ally. For 3 s you take 60% of the damage aimed at them, at 30% less. |
 | R | **Cooling Shell** | 60 | 24 s | For 5 s you take 35% less damage, and anything that hits you is Brittle for 6 s (takes 15% more damage). | The 35% applies to every hero within 160 px. |
 | F | **Clinker** (interrupt) | 0 | 10 s | Hurl a clinker within 380 px: it interrupts a cast and stuns the caster for 1.5 s. | With nothing to interrupt, it makes the boss Brittle for 6 s. |
