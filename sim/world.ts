@@ -294,6 +294,8 @@ export interface Player {
   chillT?: number;
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
+  /** P1 weekly quests: casts this hero interrupted this run. */
+  interrupts?: number;
   sunderT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
   kindleUntil?: number;
@@ -547,6 +549,10 @@ export interface RunSummary {
   bounty?: number;
   /** Fights cleared before the run ended (a run that clears none earns no chest). */
   fightsCleared?: number;
+  /** P1 weekly quests: the week, this hero's interrupts, and named elites the party felled. */
+  week?: number;
+  interrupts?: number;
+  namedKills?: number;
 }
 
 function pool<T>(n: number, make: () => T): T[] {
@@ -565,6 +571,8 @@ export class World {
   cls: ClassId;
   classDef: ClassDef;
   readonly worldBoss: string;
+  /** The week (weekOf in omens.ts) this run was played in, for weekly quests. */
+  readonly week: number | undefined;
   shadowDamage = 0;
   shadowStart = -1;
   /** C3: when the raid boss appeared (-1 until then). Her fight is the "shadow" part of the strike. */
@@ -652,6 +660,8 @@ export class World {
   private twinVentT = 0;
   /** C2: the fight (encounter index) that hides this delve's named elite; -2 until rolled, -1 for none. */
   private namedAt = -2;
+  /** Named elites felled this run (the whole party's). */
+  namedKills = 0;
   private namedTitle = 0;
   private namedAffix = 0;
   // The Coldmarrow (Nhevra): Snuff, Snuffer Tide, Long Night.
@@ -734,6 +744,7 @@ export class World {
     this.cls = opts.cls && CLASSES[opts.cls] ? opts.cls : 'emberwright';
     this.classDef = CLASSES[this.cls];
     this.worldBoss = opts.worldBoss ?? '';
+    this.week = opts.week;
     this.passives = { ...(opts.passives ?? {}) };
     this.gear = [...(opts.gear ?? [])];
     this.loadout = loadoutFrom(this.passives, this.gear);
@@ -1118,6 +1129,9 @@ export class World {
         : this.raidStart >= 0 ? Math.round(this.time - this.raidStart) : 0,
       talents: { ...this.talents },
       questsDone: this.quests.filter((q) => q.done).length,
+      week: this.week,
+      interrupts: this.player.interrupts ?? 0,
+      namedKills: this.namedKills,
     };
   }
 
@@ -1912,6 +1926,7 @@ export class World {
     if (t >= 0) {
       const e = this.enemies[t];
       this.events.push({ type: 'interrupt', x: e.x, y: e.y, name: e.castName });
+      p.interrupts = (p.interrupts ?? 0) + 1;
       this.cancelCast(t);
       e.stunT = 2;
       // Kilnbreaker: an interrupt sharpens you (2 pieces) and exposes the foe (3).
@@ -1928,6 +1943,7 @@ export class World {
           if (n < 0) break;
           const o = this.enemies[n];
           this.events.push({ type: 'interrupt', x: o.x, y: o.y, name: o.castName });
+          p.interrupts = (p.interrupts ?? 0) + 1;
           this.cancelCast(n);
           o.stunT = 2;
         }
@@ -3544,6 +3560,7 @@ export class World {
       const r = new Rng((this.seed ^ 0x6c6f6f74) + this.kills);
       this.dropLoot(e.x, e.y, r.chance(NAMED.epicChance) ? 'epic' : 'rare');
       if (AFFIXES[e.affix] === 'Vengeful') this.addTelegraph('circle', e.x, e.y, NAMED.burstR, 0, 0, NAMED.burstDelay, NAMED.burstDmg);
+      this.namedKills++;
       this.events.push({ type: 'namedKill', x: e.x, y: e.y, name: this.namedName(i) });
     }
     if (e.kind === 'ashmaw') {

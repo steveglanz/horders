@@ -3,6 +3,7 @@
  * Everything here is pure functions over plain data so it can run on the
  * server later (loot must be rolled server-side once cloud saves exist).
  */
+import { WeeklyQuest, WeeklyRun, WeeklyState, weekState, weeklyStep, weeklyTitle } from './content/weekly';
 import { Rng } from './rng';
 import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
@@ -68,6 +69,10 @@ export interface HeroProfile {
   roster?: Partial<Record<ClassId, Character>>;
   /** A potion brewed and waiting for the next delve (R8 Alchemy). */
   potion?: PotionId;
+  /** P1: this week's quests (shared by every class, like the daily bounty). */
+  weekly?: WeeklyState;
+  /** Titles earned (P1 weekly quests give one for finishing all three). */
+  titles?: string[];
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -207,6 +212,10 @@ export interface RunRewards {
   levelsGained: number;
   /** Embers paid by the daily bounty (0 if not a bounty, a loss, or already paid today). */
   bountyEmbers?: number;
+  /** P1: weekly quests this run finished, the embers they paid, and the title for finishing the week. */
+  weeklyDone?: WeeklyQuest[];
+  weeklyEmbers?: number;
+  title?: string;
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */
@@ -324,6 +333,7 @@ export function applyRun(
   for (const id of runEquipped) equip(hero, id);
   hero.nextItemId += runDrops.length;
   hero.runs++;
+  const maxTierBefore = hero.maxTier;
   let bountyEmbersPaid = 0;
   if (s.bounty !== undefined) {
     // A bounty is a side run: it never moves the tier ladder or Grit, and pays once a day.
@@ -347,6 +357,7 @@ export function applyRun(
       if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;
     }
   }
+  const weekly = s.week !== undefined ? applyWeekly(hero, s, maxTierBefore) : undefined;
   hero.bestTime = Math.max(hero.bestTime, s.time);
   hero.pity = loot.pity;
   hero.nextItemId += loot.items.length;
@@ -361,7 +372,37 @@ export function applyRun(
   if (hero.level >= heroMaxLevel()) hero.xp = Math.min(hero.xp, heroXpToNext(hero.level));
   // Auto-equip into empty slots so new players see gear working right away.
   for (const it of loot.items) if (!hero.equipped[it.slot]) hero.equipped[it.slot] = it.id;
-  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid };
+  return { heroXp, items: [...runDrops, ...loot.items], levelsGained: levels, bountyEmbers: bountyEmbersPaid, ...weekly };
+}
+
+/** P1: moves this week's quests, pays the ones that finish, and gives the week's title for all three. */
+function applyWeekly(hero: HeroProfile, s: RunSummary, maxTier: number): Pick<RunRewards, 'weeklyDone' | 'weeklyEmbers' | 'title'> {
+  const week = s.week ?? 0;
+  const st = weekState(hero.weekly, week, maxTier);
+  hero.weekly = st;
+  const run: WeeklyRun = {
+    victory: s.victory, dungeon: s.dungeon ?? 'kiln', tier: s.tier ?? 1, maxTier, kills: s.kills,
+    interrupts: s.interrupts ?? 0, namedKills: s.namedKills ?? 0, bounty: s.bounty !== undefined,
+  };
+  const done: WeeklyQuest[] = [];
+  let embers = 0;
+  for (const q of st.quests) {
+    if (q.done) continue;
+    q.progress = Math.min(q.goal, q.progress + weeklyStep(q, run));
+    if (q.progress >= q.goal) {
+      q.done = true;
+      embers += q.embers;
+      done.push({ ...q });
+    }
+  }
+  hero.embers += embers;
+  let title: string | undefined;
+  if (!st.titled && st.quests.every((q) => q.done)) {
+    st.titled = true;
+    title = weeklyTitle(week);
+    hero.titles = [...new Set([...(hero.titles ?? []), title])];
+  }
+  return done.length || title ? { weeklyDone: done, weeklyEmbers: embers, ...(title ? { title } : {}) } : {};
 }
 
 function gritKey(dungeon: string, tier: number): string {
