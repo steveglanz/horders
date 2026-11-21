@@ -22,7 +22,7 @@ const setText = (el: HTMLElement, s: string) => { if (el.textContent !== s) el.t
 const setHtml = (el: HTMLElement, s: string) => { if (el.innerHTML !== s) el.innerHTML = s; };
 
 /** Every branch needs a colour (draft card border and title, end-screen chips): typed so a new branch can't be missed. */
-const BRANCH_COLOR: Record<Branch, string> = {
+export const BRANCH_COLOR: Record<Branch, string> = {
   wildfire: '#ff7a2f',
   kindling: '#ffc861',
   ashguard: '#9db7d8',
@@ -477,15 +477,17 @@ export class Hud {
       const def = TALENTS[c.id as TalentId];
       const color = BRANCH_COLOR[def.branch];
       const btn = document.createElement('button');
-      btn.className = 'card' + (def.capstone ? ' capstone' : '');
+      const deep = !!(def as { deep?: boolean }).deep;
+      btn.className = 'card' + (def.capstone ? ' capstone' : '') + (deep ? ' deep' : '');
       btn.style.setProperty('--branch', color);
       let progress = '';
-      if (def.branch !== 'general' && !def.capstone) {
+      // A deep card comes after the capstone, so it has no capstone progress to show.
+      if (def.branch !== 'general' && !def.capstone && !deep) {
         const have = Math.min(CAPSTONE_RANKS, w.branchRanks(def.branch) + 1);
         progress = `<div class="progress"><span class="pb">${BRANCH_NAMES[def.branch]} </span>${have}/${CAPSTONE_RANKS} toward capstone</div>`;
       }
       const rank = def.maxRank < 99 ? `Rank ${c.nextRank} of ${def.maxRank}` : '';
-      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
+      btn.innerHTML = `<div class="key">${i + 1}</div>${talentTile(def.branch, color, !!def.capstone, 34, deep)}<div class="branch">${BRANCH_NAMES[def.branch]}${def.capstone ? '<span class="cap">Capstone</span>' : deep ? '<span class="deeptag">Deep</span>' : ''}</div><div class="name">${def.name}</div><div class="text">${def.text}</div><div class="meta"><div class="rank">${rank}</div>${progress}</div>`;
       btn.addEventListener('click', () => this.handlers?.onPick(i));
       const tip = (def as { tip?: string }).tip ?? def.text;
       const why = def.capstone ? `Capstone: needs ${CAPSTONE_RANKS} ranks in ${BRANCH_NAMES[def.branch]}.`
