@@ -37,4 +37,9 @@ Novice reference, Kiln tier 1, 40 seeds, a fresh hero with no gear (`FIRST=1` in
 
 Screenshots: `node tools/firstshots.cjs <outDir> [phone]` after a build.
 
-**Later:** a one-time tip the first time a mechanic appears in any dungeon, such as the first soak circle or the first Glare. That needs a per-hero "seen" list in the save.
+## First-time tips
+After the first-delve coach (`client/coach.ts`: move, cast, interrupt) is done, two one-line tips each show once per browser (`horders.tips.v1`), for 5 s:
+- **The first red hit circle that reaches the hero:** "Red on the floor is a hit coming. Step out before it fills."
+- **The first gold soak circle:** "Gold circles want someone inside. Stand in it until it fills, or it blasts you."
+
+Named mechanics such as Glare, Brand, Anvilfall and the Long Night already get their own cast banners, so they need no tip. On phones the tip sits where the move prompt does, beside the action bar. Test runs (`?seed=`) skip the tips unless `tips=1` is set. Screenshots: `node tools/tipshots.cjs <outDir> [phone]`.
