@@ -121,10 +121,13 @@ export const INTERRUPT_SLOT = 3;
 /**
  * Season glows whose colours sit close to another glow's get a mark of their own, so they part by shape
  * as well as colour (colourblind players, and a near-white glow on a pale floor): 'double' adds an inner
- * ring, 'edge' a dark outline. The Deep Bellows' three warm glows: Bellows Orange plain, Kiln Red double,
- * White Heat edged. The swatches in the hub carry the same marks.
+ * ring, 'edge' a dark outline, 'facet' six crystal points on the ring, 'crack' a ring broken by dark seams.
+ * The Deep Bellows' three warm glows: Bellows Orange plain, Kiln Red double, White Heat edged. The Cold Hearth's:
+ * Rime Blue faceted (apart from the Hollow Tide's Tide Silver), Coal Glow cracked (apart from Bellows Orange) and
+ * Frostbite edged (a near-white, like White Heat). The swatches in the hub carry the same marks.
  */
-export const GLOW_MARK: Record<string, 'double' | 'edge'> = { kilnRed: 'double', whiteHeat: 'edge' };
+export const GLOW_MARK: Record<string, GlowMark> = { kilnRed: 'double', whiteHeat: 'edge', rimeBlue: 'facet', coalGlow: 'crack', frostbite: 'edge' };
+export type GlowMark = 'double' | 'edge' | 'facet' | 'crack';
 /** The swatch class for a glow's mark ('' for none). */
 export const glowMarkClass = (id: string): string => (GLOW_MARK[id] ? ` m-${GLOW_MARK[id]}` : '');
 
