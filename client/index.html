@@ -715,6 +715,14 @@
     .card .tglyph svg { width: 17px; height: 17px; }
     .card .name, .card .text { padding-right: 36px; }
   }
+  /* Narrow phones: the talent glyph sits beside the branch and name only, so the text gets the
+     card's full width and the third card is back in view on a 320 x 568 screen. */
+  @media (max-width: 560px) {
+    .card .tglyph { top: 12px; right: 12px; width: 32px !important; height: 32px !important; }
+    .card .tglyph svg { width: 19px; height: 19px; }
+    .card .name { padding-right: 40px; }
+    .card .text { padding-right: 0; }
+  }
 
   /* ---- Phone hub: four tabs (Delve, Hero, Bags, Group), one Delve button, sheets. docs/design/mobile-ux.md ---- */
   :root { --tabh: 58px; }
