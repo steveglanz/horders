@@ -1171,7 +1171,9 @@ export class GameScene extends Phaser.Scene {
       if (al.tag) al.tag.setPosition(ax, ay - 34).setAlpha(down ? 0.5 : 1);
       if (al.glow) {
         const gp = Math.sin(now / 520 + al.hero);
-        al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
+        // An ally's glow sits just outside their class ring (44 x 16), so the ring, which is how a healer finds
+        // the tank in a crowd, always shows; a touch dimmer than your own so a full party doesn't crowd a phone.
+        al.glow.setPosition(ax, ay + 22).setScale((78 + gp * 3) / 128, (29 + gp * 1) / 128).setAlpha(down ? 0.25 : 0.62 + gp * 0.12);
       }
       al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
       setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
