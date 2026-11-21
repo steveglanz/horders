@@ -371,6 +371,8 @@ export interface Player {
   /** P1 weekly quests: casts this hero interrupted this run. */
   interrupts?: number;
   sunderT?: number;
+  /** The Pressworks: seconds left Pressed after taking a Downstroke (a Pressed hero can't take the next one). */
+  pressedT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
   kindleUntil?: number;
   /** Ashen Mantle: the run time until which this hero takes less damage. */
@@ -778,6 +780,11 @@ export class World {
     return this.bellowTarget;
   }
 
+  /** The Pressworks: the hero Oskel's Stamp is winding up on, for the client's wind-up. */
+  get stampOn(): number {
+    return this.stampTarget;
+  }
+
   get anvilfallTarget(): number {
     return this.anvilTarget;
   }
@@ -795,6 +802,11 @@ export class World {
   private scatterT = 0;
   private bellowT = 0;
   private bellowTarget = 0;
+  // The Pressworks (Oskel): Downstroke, Rivets, Stamp.
+  private downT = 0;
+  private rivetT = 0;
+  private stampT = 0;
+  private stampTarget = 0;
   // The raid (Grandmother Slag).
   private ladleT = 0;
   private ladleTarget = 0;
@@ -1435,6 +1447,7 @@ export class World {
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
@@ -1659,6 +1672,14 @@ export class World {
           this.twinVentT = YSMERET.firstVents;
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'oskel') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.downT = OSKEL.firstDown;
+          this.rivetT = OSKEL.firstRivets;
+          this.stampT = OSKEL.firstStamp;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -1912,13 +1933,14 @@ export class World {
     if (b.castId === 'anvilfall') return this.anvilTarget;
     if (b.castId === 'bellowSlam') return this.bellowTarget;
     if (b.castId === 'ladlePour') return this.ladleTarget;
+    if (b.castId === 'stamp') return this.stampTarget;
     return -1;
   }
 
   /** Whether this boss fight has a tank-buster worth saving a cooldown for. */
   get busterFight(): boolean {
     const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
-    return !!b && b.alive && (b.kind === 'ondrel' || b.kind === 'ysmeret' || b.kind === 'grandmotherSlag');
+    return !!b && b.alive && (b.kind === 'ondrel' || b.kind === 'ysmeret' || b.kind === 'grandmotherSlag' || b.kind === 'oskel');
   }
 
   get anvilOnMe(): boolean {
@@ -4000,6 +4022,16 @@ export class World {
       const at = this.acting;
       this.eachHero(() => this.hurtPlayer(this.player.maxHp * 10, i, true));
       this.use(at);
+    } else if (id === 'stamp') {
+      // Oskel's tank hit: lands on the hero picked at wind-up, through dodges and shields.
+      const at = this.acting;
+      this.use(this.stampTarget);
+      const p = this.player;
+      if (p.hp > 0) {
+        this.hurtPlayer(OSKEL.stamp * this.tierDamage, i, true);
+        this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+      }
+      this.use(at);
     } else if (id === 'bellowSlam') {
       // Ysmeret's tank hit: lands on the hero picked at wind-up, through dodges and shields.
       const at = this.acting;
@@ -4139,6 +4171,7 @@ export class World {
       return;
     }
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
+    if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
@@ -5076,6 +5109,79 @@ export class World {
     }
   }
 
+  /**
+   * Oskel's clocks. Downstroke: one gold circle someone must stand under; everyone under it
+   * is Pressed for OSKEL.pressed s, and a Pressed hero under the next one is crushed and
+   * doesn't count, so the party takes turns. Rivets: a ring under every hero. Stamp: the tank hit.
+   */
+  private oskelClock(dt: number): void {
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if ((q.pressedT ?? 0) > 0) q.pressedT = Math.max(0, (q.pressedT ?? 0) - dt);
+    }
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'oskel') return;
+    const late = this.time - e.spawnedAt > OSKEL.enrageAfter;
+    if (late && !this.bossEnraged) {
+      this.bossEnraged = true;
+      this.events.push({ type: 'bossEnrage' });
+    }
+    this.downT -= dt;
+    this.rivetT -= dt;
+    this.stampT -= dt;
+    const downOpen = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+    if (this.downT <= 0 && !downOpen) {
+      this.downT = late ? OSKEL.downEnraged : OSKEL.downEvery;
+      // Off to one side of Oskel, away from the tank, so the press is a walk, not a step.
+      const tgt = this.heroPlayer(this.targetOf(i, 0));
+      const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI * (0.5 + 0.5 * ((this.tick >> 4) % 2));
+      const c = { x: e.x + Math.cos(a) * OSKEL.downDist, y: e.y + Math.sin(a) * OSKEL.downDist };
+      this.clampArena(c, OSKEL.downRadius + 10);
+      // owner -3: the Downstroke (Pressed heroes don't count).
+      this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
+      this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
+    }
+    if (this.rivetT <= 0) {
+      this.rivetT = OSKEL.rivetEvery;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp > 0) this.addTelegraph('circle', q.x, q.y, OSKEL.rivetRadius, 0, 0, OSKEL.rivetFuse, OSKEL.rivet, 'hit', -1);
+      }
+      this.events.push({ type: 'castStart', index: i, id: 'rivets', name: 'Rivets' });
+    }
+    if (e.castId || e.stunT > 0) return;
+    if (this.stampT <= 0) {
+      this.stampT = OSKEL.stampEvery;
+      this.stampTarget = this.targetOf(i, 0);
+      this.startCast(i, 'stamp', 'Stamp', OSKEL.stampCast, false);
+    }
+  }
+
+  /**
+   * A Downstroke lands: who is under it, who counts, and the crush on any Pressed hero.
+   * Returns whether it was taken (at least one hero who wasn't Pressed stood under it).
+   */
+  private resolveDownstroke(t: Telegraph): boolean {
+    const at = this.acting;
+    let ok = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || dist2(q.x, q.y, t.x, t.y) > (t.r + PLAYER_RADIUS) ** 2) continue;
+      if ((q.pressedT ?? 0) > 0) {
+        this.use(k);
+        this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true);
+        this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+      } else {
+        ok = true;
+        q.pressedT = OSKEL.pressed;
+      }
+    }
+    this.use(at);
+    return ok;
+  }
+
   // ---------------------------------------------------------------- the raid
 
   /**
@@ -5393,7 +5499,7 @@ export class World {
       if (t.t < t.dur) continue;
       t.alive = false;
       if (t.kind === 'soak') {
-        const ok = dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
+        const ok = t.owner === -3 ? this.resolveDownstroke(t) : dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
         // Ventwalker (3): standing in the gold circle heals.
         if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
@@ -5446,7 +5552,8 @@ export class World {
       t.alive = false;
       if (t.kind === 'soak') {
         let ok = false;
-        for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
+        if (t.owner === -3) ok = this.resolveDownstroke(t);
+        else for (let i = 0; i < n && !ok; i++) { const q = this.heroPlayer(i); ok = q.hp > 0 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2; }
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {
@@ -6031,7 +6138,7 @@ export const WRACK = {
   enrageAfter: 240,
 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
-export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1, hessa: 2 };
+export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1, hessa: 2, oskel: 1 };
 
 /** Kinds whose kill feeds the Hearthcoal. */
 export const COLD_FED_BY: EnemyKind[] = ['rimehound', 'snuffer', 'frostWarden', 'hoarfrostWeaver'];
@@ -6080,6 +6187,23 @@ export const YSMERET = {
   /** Bellow Slam: the tank hit, through dodges and shields. Lighter than Anvilfall: the tank also runs to vents. */
   bellow: 90, bellowEvery: 9, bellowCast: 1.5, firstBellow: 5,
   /** Soft enrage: vents open twice as often. */
+  enrageAfter: 270,
+};
+
+export const OSKEL = {
+  /**
+   * Downstroke: one soak circle `downDist` from Oskel. Everyone under it who wasn't Pressed
+   * becomes Pressed for `pressed` s; a Pressed hero under it takes `crush` of max health and
+   * doesn't count. `pressed` is longer than `downEvery`, so nobody takes two in a row.
+   * A missed one hits every hero for `downMiss` (and spawns adds, like any missed soak).
+   */
+  downEvery: 13, downEnraged: 8, downFuse: 4, downDist: 200, downRadius: 60, downMiss: 70, firstDown: 7,
+  pressed: 20, crush: 0.5,
+  /** Rivets: a ring under every hero; step out. */
+  rivetEvery: 9, rivetFuse: 1.6, rivetRadius: 60, rivet: 30, firstRivets: 4,
+  /** Stamp: the tank hit, through dodges and shields. */
+  stamp: 75, stampEvery: 10, stampCast: 2, firstStamp: 5,
+  /** Soft enrage: Downstrokes come faster than Pressed wears off for a duo. */
   enrageAfter: 270,
 };
 

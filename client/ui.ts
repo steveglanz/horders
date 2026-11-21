@@ -418,6 +418,8 @@ export class Hud {
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
+    // The Pressworks: Pressed means stay out of the next Downstroke.
+    if ((p.pressedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:#ff6a5a" title="You took the last Downstroke: stay out of the next one">Pressed ${Math.ceil(p.pressedT ?? 0)}s</span>`);
     // Verb sets: show the timed bonuses while they run.
     if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
     if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);

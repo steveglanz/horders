@@ -12,7 +12,8 @@ export type EncounterId =
   | 'worldShadow' | 'anvilguard' | 'ondrel' | 'ysmeret'
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
   | 'grandmotherSlag'
-  | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa';
+  | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
+  | 'oskel';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -59,13 +60,14 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardenShoal: { id: 'wardenShoal', name: 'Warden in the Shoals', tip: 'Let the water take the Warden: the drain wears it down while you wait on a raft.', spawns: [{ kind: 'husk', n: 2 }, { kind: 'shoalLurker', n: 3 }] },
   twoHaulers: { id: 'twoHaulers', name: 'Two Haulers', tip: 'They take turns to Haul. Save a Quench for each.', spawns: [{ kind: 'bargeHauler', n: 2 }] },
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 
-export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline';
+export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks';
 
 export interface DungeonDef {
   id: DungeonId;
@@ -123,6 +125,11 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     id: 'ashvents', name: 'The Ashvents', boss: 'ysmeret', unlockTier: 7,
     openers: ['glass', 'crawlers', 'warpack'], named: ['anvilguard', 'tidepair'], hard: ['acolytes', 'bellwarden'],
     blurb: 'A group dungeon. Split up to cover both of Ysmeret\'s vents, and never stand together when the Embers mark you.', style: 'group', minParty: 2,
+  },
+  pressworks: {
+    id: 'pressworks', name: 'The Pressworks', boss: 'oskel', unlockTier: 10,
+    openers: ['warpack', 'glass', 'wardens'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
+    blurb: 'A group dungeon. Oskel\'s Downstroke needs a hero under it every time, and nobody can take two in a row: take turns.', style: 'group', minParty: 2,
   },
   crucible: {
     id: 'crucible', name: 'The Crucible', boss: 'grandmotherSlag', unlockTier: 8,
