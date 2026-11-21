@@ -5,8 +5,8 @@ import { CLASSES } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS } from '../sim/content/sets';
-import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, glyph } from './icons';
-import { HeroProfile, RunRewards, heroMaxLevel, heroXpToNext } from '../sim/hero';
+import { ABILITY_GLYPH, CLASS_ICON, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph } from './icons';
+import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -36,14 +36,25 @@ export interface RunHandlers {
   onCast: (slot: number) => void;
 }
 
-export function itemHtml(it: Item, extra = ''): string {
+/** How many pieces of each verb set a hero wears. */
+export function setsWorn(h: HeroProfile): Partial<Record<string, number>> {
+  const n: Partial<Record<string, number>> = {};
+  for (const it of equippedItems(h)) if (it.set) n[it.set] = (n[it.set] ?? 0) + 1;
+  return n;
+}
+
+/** `worn`: the hero's set piece counts, so the card can light the bonuses already active. */
+export function itemHtml(it: Item, extra = '', worn?: Partial<Record<string, number>>): string {
   const c = RARITY[it.rarity].color;
   const stats = it.stats.map((s) => STATS[s.stat].format(s.value)).join(' · ');
   const myth = it.mythic ? `<div class="st" style="color:${c}">${MYTHICS[it.mythic].name}: ${MYTHICS[it.mythic].text}</div>` : '';
   const fx = it.weaponFx ? `<div class="st" style="color:${c}">${WEAPON_FX[it.weaponFx].name}: ${WEAPON_FX[it.weaponFx].text}</div>` : '';
   const set = it.set ? SETS[it.set] : undefined;
+  const have = set && worn ? worn[set.id] ?? 0 : 0;
   const setHtml = set
-    ? `<div class="st set"><b>${set.name} set</b> (${set.verb}) · 2: ${set.bonus[0]} · 3: ${set.bonus[1]}</div>`
+    ? `<div class="st set setb" style="--gc:${SET_COLOR}"><div class="sh"><span class="gtile">${glyph(SET_ICON[set.id], 14)}</span><b>${set.name} set</b><span class="verb">${set.verb}</span>${worn ? `<span class="pips" title="${have} of 3 worn">${[0, 1, 2].map((k) => `<i${k < have ? ' class="on"' : ''}></i>`).join('')}</span>` : ''}</div>`
+      + set.bonus.map((b, k) => `<div class="sb${worn && have >= k + 2 ? ' on' : ''}"><em>${k + 2}</em>${b}</div>`).join('')
+      + '</div>'
     : '';
   const slot = it.slot[0].toUpperCase() + it.slot.slice(1);
   return `<div class="info" style="--rc:${c}"><span class="nm">${it.name}</span>${extra}<div class="st">${slot} · iLvl ${it.ilvl} · ${RARITY[it.rarity].name}</div><div class="st">${stats}</div>${fx}${myth}${setHtml}</div>`;
@@ -291,6 +302,10 @@ export class Hud {
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
+    // Verb sets: show the timed bonuses while they run.
+    if ((p.kbT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kilnbreaker +10%</span>`);
+    if (p.surge) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Tidewalker surge</span>`);
+    if ((p.gwT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Glarewarden +10%</span>`);
     for (const m of w.loadout.mythics) {
       if (m === 'phoenixFeather' && w.revived) continue;
       out.push(`<span class="buff" style="--bc:#ff9a3d">${MYTHICS[m].name}</span>`);
@@ -446,7 +461,7 @@ export class Hud {
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
       loot = `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
-        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '')}</div>`).join('');
+        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', setsWorn(hero))}</div>`).join('');
     }
     $('endXp').innerHTML = xp;
     $('rewards').innerHTML = loot;
