@@ -11,6 +11,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { CLASS_ICON } from './icons';
+import { display, onDisplayChange, palette, shakeScale } from './settings';
 import { buildTextures, FRAMES, SPRITE_RES } from './textures';
 import { Hud } from './ui';
 import { botChoose, botInput } from '../sim/bot';
@@ -18,8 +19,20 @@ import { audio } from './audio';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
-const DANGER = 0xff3b6b; // the one colour used for enemy attacks
-const SOAK = 0xffc861; // gold: stand in it
+// Telegraph colours come from the display palette (client/settings.ts): standard or colour-blind.
+let DANGER = 0xff3b6b; // the one colour used for enemy attacks
+let SOAK = 0xffc861; // gold: stand in it
+let BLOOM = 0x5fe0c8;
+let HATCH = false;
+function applyPalette(): void {
+  const p = palette();
+  DANGER = p.danger;
+  SOAK = p.soak;
+  BLOOM = p.bloom;
+  HATCH = p.hatch;
+}
+applyPalette();
+onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
 
@@ -47,8 +60,6 @@ interface FloatText {
 
 /** Characters draw a little larger than their hitboxes so they read on phones. */
 const BASE = 1.15 / SPRITE_RES;
-/** Players who ask the OS for less motion get a gentler shake and no camera lean. */
-const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Bosses and rares: big sprites that idle-animate and get a softer hit flash. */
 const idleRank = (e: { def: { rank: string } }): boolean => e.def.rank === 'boss' || e.def.rank === 'rare';
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
@@ -759,11 +770,12 @@ export class GameScene extends Phaser.Scene {
     let sy = 0;
     if (this.punch > 0) {
       this.punch = Math.max(0, this.punch - dt * 0.12);
-      cam.setZoom(this.baseZoom * (1 + (REDUCED_MOTION ? 0 : this.punch)));
+      // The camera lean is part of the shake: only at Full.
+      cam.setZoom(this.baseZoom * (1 + (display.shake === 'full' ? this.punch : 0)));
     } else if (cam.zoom !== this.baseZoom) cam.setZoom(this.baseZoom);
     if (this.shake > 0) {
       this.shake -= dt;
-      const m = Math.min(1, this.shake) * (REDUCED_MOTION ? 3 : 10);
+      const m = Math.min(1, this.shake) * 10 * shakeScale();
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
@@ -1082,7 +1094,7 @@ export class GameScene extends Phaser.Scene {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
       if (!t.alive || this.bossFell) continue;
       const f = Math.min(1, t.t / t.dur);
-      const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? 0x5fe0c8 : DANGER;
+      const col = t.kind === 'soak' ? SOAK : t.kind === 'bloom' ? BLOOM : DANGER;
       // The edge glows and flickers faster as the strike gets close.
       const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
@@ -1091,6 +1103,16 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
         g.lineStyle(t.kind === 'soak' ? 3 : 2, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
         g.lineStyle(1.5, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
+        // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
+        if (HATCH && t.kind === 'hit') {
+          g.lineStyle(2, col, 0.45);
+          for (let d = -t.r + 14; d < t.r; d += 16) {
+            // Diagonal chords across the circle.
+            const h = Math.sqrt(t.r * t.r - d * d);
+            const c = Math.SQRT1_2;
+            g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+          }
+        }
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
           this.soakText.setVisible(true).setPosition(t.x, t.y).setText(`Stand here ${Math.max(0, t.dur - t.t).toFixed(1)}`);
@@ -1102,6 +1124,15 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
         g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
         g.lineStyle(2, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+        if (HATCH && t.kind === 'hit') {
+          // Hatched cones: spokes every few degrees and arcs across them.
+          g.lineStyle(2, col, 0.45);
+          const n = Math.max(3, Math.round(t.arc / 0.14));
+          for (let k = 1; k < n; k++) {
+            const a = a0 + (t.arc * k) / n;
+            g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+          }
+        }
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
