@@ -1595,7 +1595,7 @@ export class World {
 
   /** After a clear: offer a fork if this point in the route has one, else count down to the next fight. */
   private openFork(): void {
-    const offer = this.stress || this.bounty !== undefined ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q), this.dungeonId);
+    const offer = this.stress || this.bounty !== undefined || this.firstDelve ? null : rollFork(this.route, this.encounter, (n) => this.rng.int(n), (q) => this.rng.chance(q), this.dungeonId);
     if (!offer) {
       this.phase = 'intro';
       this.phaseT = INTRO_TIME;
