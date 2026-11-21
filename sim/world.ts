@@ -3960,7 +3960,7 @@ export const FOUNDRY = {
  */
 export const ONDREL = {
   /** Anvilfall: the tank-buster on the threat target, through dodges and shields. */
-  anvil: 120, anvilEvery: 12, anvilCast: 2.5, firstAnvil: 6,
+  anvil: 160, anvilEvery: 12, anvilCast: 2.5, firstAnvil: 6,
   /**
    * Sundered: the next Anvilfall within this long hits harder. Shorter than
    * `anvilEvery`, so it only bites once the boss enrages (Anvilfall every

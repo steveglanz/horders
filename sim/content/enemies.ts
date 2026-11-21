@@ -44,6 +44,6 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // A shadow of the shared world boss: it can't be killed, only hurt for 60 seconds.
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   // The Hammerdeep's group boss: role checks rather than dodge checks.
-  ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', hp: 4400, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
+  ondrel: { id: 'ondrel', name: 'Ondrel, the Anvilward', hp: 4800, speed: 34, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
 };
