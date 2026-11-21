@@ -277,8 +277,8 @@ export interface Player {
 export type SimEvent =
   | { type: 'hit'; x: number; y: number; amount: number; crit: boolean }
   | { type: 'kill'; x: number; y: number; kind: EnemyKind }
-  | { type: 'playerHurt'; amount: number }
-  | { type: 'levelUp'; level: number }
+  | { type: 'playerHurt'; amount: number; hero?: number }
+  | { type: 'levelUp'; level: number; hero?: number }
   | { type: 'eliteSpawn' }
   | { type: 'bossSpawn' }
   | { type: 'bossEnrage' }
@@ -290,7 +290,7 @@ export type SimEvent =
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
-  | { type: 'revive' }
+  | { type: 'revive'; hero?: number }
   | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
@@ -311,7 +311,7 @@ export type SimEvent =
   | { type: 'gather'; x: number; y: number }
   | { type: 'soak'; ok: boolean; x: number; y: number }
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
-  | { type: 'loot'; item: Item; equipped: boolean; delta: number }
+  | { type: 'loot'; item: Item; equipped: boolean; delta: number; hero?: number }
   | { type: 'quest'; index: number }
   | { type: 'encounterStart'; index: number; id: EncounterId }
   | { type: 'encounterClear'; index: number; id: EncounterId }
@@ -1045,7 +1045,7 @@ export class World {
     // Every clear is a level: a talent draft, some healing, and a loot bag.
     p.level++;
     p.pendingLevels++;
-    this.events.push({ type: 'levelUp', level: p.level });
+    this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
     if (def.id === 'shrine') {
       p.hp = p.maxHp;
@@ -1283,7 +1283,7 @@ export class World {
       p.haloUsed = true;
       p.hp = 1;
       p.shieldT = 2;
-      this.events.push({ type: 'revive' });
+      this.events.push({ type: 'revive', hero: this.acting });
       return;
     }
     if (this.rank('riposte') > 0 && p.parryT <= 0 && amount >= 5) {
@@ -1296,7 +1296,7 @@ export class World {
     }
     p.hp -= amount;
     p.hurtFlash = 0.15;
-    this.events.push({ type: 'playerHurt', amount });
+    this.events.push({ type: 'playerHurt', amount, hero: this.acting });
     // Second Wind: once per fight, a melee hero knocked low catches its breath.
     if ((this.cls === 'duskblade' || this.cls === 'bulwark') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
       p.windUsed = true;
@@ -3284,7 +3284,7 @@ export class World {
       this.player.maxHp += gain;
       this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.max(0, gain));
     }
-    this.events.push({ type: 'loot', item, equipped, delta });
+    this.events.push({ type: 'loot', item, equipped, delta, hero: this.acting });
   }
 
   private updateDrops(): void {
@@ -3387,7 +3387,7 @@ export class World {
       p.level++;
       p.xpToNext = xpFor(p.level);
       p.pendingLevels++;
-      this.events.push({ type: 'levelUp', level: p.level });
+      this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
     }
   }
 
@@ -3482,7 +3482,7 @@ export class World {
       if (this.player.hp <= 0 && !this.revived && this.hasMythic('phoenixFeather')) {
         this.revived = true;
         this.player.hp = this.player.maxHp / 2;
-        this.events.push({ type: 'revive' });
+        this.events.push({ type: 'revive', hero: this.acting });
         return;
       }
       if ((this.victory && !this.shadowPending) || this.player.hp <= 0) {
@@ -3496,7 +3496,7 @@ export class World {
       if (this.player.hp <= 0 && !this.revived && this.hasMythic('phoenixFeather')) {
         this.revived = true;
         this.player.hp = this.player.maxHp / 2;
-        this.events.push({ type: 'revive' });
+        this.events.push({ type: 'revive', hero: this.acting });
       }
     }, true);
     let down = 0;

@@ -457,14 +457,19 @@ export class GameScene extends Phaser.Scene {
           this.shake = Math.max(this.shake, 0.18);
           break;
         case 'playerHurt':
+          // Co-op: shake and flash only for hits on your own hero.
+          if (ev.hero !== undefined && ev.hero !== w.acting) break;
           this.shake = Math.max(this.shake, ev.amount >= 20 ? 0.3 : 0.08);
           this.pulseVignette(ev.amount >= 20 ? 'hurt big' : 'hurt');
           break;
-        case 'levelUp':
-          this.burst(w.player.x, w.player.y, 16);
-          this.ring(w.player.x, w.player.y, 110, 0xffd27a, 0.6);
-          this.addShape({ kind: 'pillar', x: w.player.x, y: w.player.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
+        case 'levelUp': {
+          // Co-op: the pillar of light rises on whoever levelled.
+          const lp = ev.hero !== undefined && ev.hero !== w.acting ? w.heroData(ev.hero).player : w.player;
+          this.burst(lp.x, lp.y, 16);
+          this.ring(lp.x, lp.y, 110, 0xffd27a, 0.6);
+          this.addShape({ kind: 'pillar', x: lp.x, y: lp.y, x2: 0, y2: 0, r: 26, angle: 0, color: 0xffd27a, life: 0.9 });
           break;
+        }
         case 'ability':
           if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
@@ -595,6 +600,7 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 24, '+30 Heat', '#ffb347', 15);
           break;
         case 'loot':
+          if (ev.hero !== undefined && ev.hero !== w.acting) break;
           this.hud.toast(ev.item, ev.equipped, ev.delta);
           break;
         case 'quest': {
@@ -626,6 +632,10 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} is enraged`, 'Finish it, fast');
           break;
         case 'revive':
+          if (ev.hero !== undefined && ev.hero !== w.acting) {
+            this.floatText(w.heroData(ev.hero).player.x, w.heroData(ev.hero).player.y - 40, 'Back up!', '#ffd27a', 18);
+            break;
+          }
           if (w.cls === 'lumen' && w.player.haloUsed && w.player.hp <= 1) this.hud.banner("Martyr's Halo", 'The killing blow is turned aside');
           else this.hud.banner('Phoenix Feather', 'You rise from the ashes');
           break;
