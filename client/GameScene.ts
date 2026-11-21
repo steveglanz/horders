@@ -29,6 +29,8 @@ const COAL = 0xff8a3d;
 const COLD_FLOOR = 0x7e98c4;
 /** C2 named elites: the Rare blue, from the loot colours. */
 const NAMED = 0x5aa9ff;
+/** The Crucible (raid): molten slag. */
+const MOLTEN = 0xff6a1f;
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
@@ -212,6 +214,9 @@ export class GameScene extends Phaser.Scene {
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.gateSprites = [];
+    // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
+    // with the last scene, and layout() resizing them crashed the next delve's create().
+    this.gateTexts = [];
     this.facing = 1;
     this.hitStop = 0;
     this.punch = 0;
@@ -248,6 +253,8 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'ashvents') this.ground.setTint(0xb8a49a);
     // The Coldmarrow's floor is frozen slate, so each Hearthcoal's warm light pools on it.
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
+    // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
+    else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -669,6 +676,24 @@ export class GameScene extends Phaser.Scene {
             this.shakeBy(0.35);
           } else if (ev.name === 'Scatter Embers') {
             this.shakeBy(0.2);
+          } else if (ev.name === 'Ladle Pour') {
+            // The ladle empties onto the tank: a molten splash, droplets and a hard shake.
+            const t = w.heroData(w.ladlePourTarget).player;
+            this.ring(t.x, t.y, 100, MOLTEN, 0.45);
+            this.blast(t.x, t.y, 60, 0xffb347);
+            if (!this.lowFx) for (let m = 0; m < 14; m++) {
+              const a = Math.random() * Math.PI * 2;
+              const sp = 80 + Math.random() * 120;
+              this.emit(this.fx, 'spark', undefined, t.x, t.y - 6, 0.7, { tint: m % 2 ? MOLTEN : 0xffd27a, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 80, drag: 0.92, sx0: 2, sx1: 0.4 });
+            }
+            this.shakeBy(0.35);
+          } else if (ev.name === 'The Pour') {
+            this.shakeBy(0.15);
+          } else if (ev.name === 'Last Ember') {
+            this.ring(ev.x, ev.y, 700, 0xffd27a, 0.8);
+            this.blast(ev.x, ev.y, 220, MOLTEN);
+            this.shakeBy(0.8);
+            this.pulseVignette('hurt big');
           } else if (ev.name === 'Snuff') {
             // Every coal gutters: a puff of dark smoke and a closing ring on each hero.
             for (let k = 0; k < w.heroes.length; k++) {
@@ -726,7 +751,7 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'cleanse':
           // Hammerdeep: an ally's heal broke Slag Grip.
-          this.floatText(ev.x, ev.y - 44, 'Slag Grip cleared', '#9fffc8', 15);
+          this.floatText(ev.x, ev.y - 44, `${w.dungeonId === 'crucible' ? 'Ladle Burn' : 'Slag Grip'} cleared`, '#9fffc8', 15);
           break;
         case 'slagGrip':
           this.floatText(ev.x, ev.y - 44, `${w.dungeonId === 'crucible' ? 'Ladle Burn' : 'Slag Grip'} ×${ev.stacks}`, '#ff9a4a', 15);
@@ -775,6 +800,9 @@ export class GameScene extends Phaser.Scene {
           if (w.dungeonId === 'glarewell') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
+          } else if (w.dungeonId === 'crucible') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
+            else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
@@ -1142,7 +1170,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     // Hammerdeep: Slag Grip glows at a hero's feet with one pip per stack; Sundered cracks a ring above them.
-    if (w.dungeonId === 'hammerdeep') {
+    // The Crucible's Ladle Burn is the same stacks (Player.slag), shown the same way.
+    if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {
       for (let k = 0; k < w.heroes.length; k++) {
         const q = w.heroData(k).player;
         const img = k === w.acting ? this.player : this.allies.find((al) => al.hero === k)?.img;
@@ -1169,7 +1198,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1183,6 +1212,8 @@ export class GameScene extends Phaser.Scene {
       }
       g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
       g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      // The Crucible: the arena is a crucible's rim, molten slag slowly breathing just beyond it.
+      if (w.dungeonId === 'crucible') g.lineStyle(40, MOLTEN, 0.12 + 0.06 * Math.sin(now / 700)).strokeCircle(0, 0, R + 30);
     }
     // The Glarewell: the floor is lit pale gold, and pillars cast shadow wedges
     // away from the centre lens. The wedges match World.shadowed(), so what you
@@ -1307,7 +1338,7 @@ export class GameScene extends Phaser.Scene {
             g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
           }
         }
-        if (t.kind === 'soak' && t.owner === -2 && w.dungeonId === 'ashvents') this.ventMark(g, t, f, now);
+        if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'hoarfrostWeaver') this.laceMark(g, t, f, now);
         if (t.kind === 'soak' && !soakShown) {
           soakShown = true;
@@ -1329,6 +1360,7 @@ export class GameScene extends Phaser.Scene {
             g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
           }
         }
+        if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'grandmotherSlag') this.pourLane(g, t, f, now);
       }
     }
     if (!soakShown && this.soakText.visible) this.soakText.setVisible(false);
@@ -1385,6 +1417,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
+      if (e.kind === 'grandmotherSlag' && e.castId) this.slagCast(g, e, now);
       if (e.castId === 'cataclysm') {
         const f = e.castT / e.castDur;
         g.lineStyle(4, DANGER, 0.5 + f * 0.5).strokeCircle(e.x, e.y, 60 + f * 500);
@@ -1696,6 +1729,81 @@ export class GameScene extends Phaser.Scene {
    * A vent with a hero in it shows a check and a steady ring; an empty one flashes "!",
    * so the party can see at a glance which vent still needs someone.
    */
+  /**
+   * The Pour: molten slag runs out along each lane while it winds up, bright blobs flowing
+   * from her feet to the lane's tip, so the lanes read as molten and not just red.
+   */
+  private pourLane(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
+    const c = Math.cos(t.angle), sn = Math.sin(t.angle);
+    const reach = t.r * Math.min(1, 0.25 + f);
+    g.lineStyle(6, MOLTEN, 0.35 + 0.3 * f).lineBetween(t.x, t.y, t.x + c * reach, t.y + sn * reach);
+    g.lineStyle(2, 0xffe08a, 0.5 + 0.4 * f).lineBetween(t.x, t.y, t.x + c * reach, t.y + sn * reach);
+    for (let j = 0; j < 7; j++) {
+      const d = ((now / 500 + j / 7) % 1) * reach;
+      const wob = Math.sin(now / 90 + j * 2) * 4;
+      g.fillStyle(j % 2 ? 0xffb347 : 0xffe08a, 0.8).fillCircle(t.x + c * d - sn * wob, t.y + sn * d + c * wob, 4 + 2 * f);
+    }
+  }
+
+  /**
+   * Grandmother Slag's wind-ups. Ladle Pour: a ladle tips over the tank, a target ring tightens
+   * at their feet (thicker for each Ladle Burn stack, since each one makes it hit harder), and
+   * the slag starts to run as it lands. Last Ember: a molten ring swells out from her.
+   */
+  private slagCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const f = e.castT / e.castDur;
+    if (e.castId === 'ladlePour') {
+      const q = w.heroData(w.ladlePourTarget).player;
+      if (q.hp <= 0) return;
+      const al = w.ladlePourTarget === w.acting ? undefined : this.allies.find((a) => a.hero === w.ladlePourTarget);
+      const x = al ? al.img.x : w.ladlePourTarget === w.acting ? this.player.x : q.x;
+      const y = al ? al.img.y : w.ladlePourTarget === w.acting ? this.player.y : q.y;
+      const stacks = q.slag ?? 0;
+      const pulse = 0.6 + 0.4 * Math.sin(now / 70);
+      // The target ring at their feet, closing in.
+      const rr = 30 + (1 - f) * 50;
+      g.fillStyle(MOLTEN, 0.12 + 0.12 * f).fillCircle(x, y + 10, rr);
+      g.lineStyle(3 + stacks, MOLTEN, 0.6 + 0.35 * pulse).strokeCircle(x, y + 10, rr);
+      // A dotted line back to her.
+      const dx = x - e.x, dy = y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      g.lineStyle(2, MOLTEN, 0.4);
+      for (let s = 0; s < d; s += 22) {
+        const u0 = s / d, u1 = Math.min(1, (s + 10) / d);
+        g.lineBetween(e.x + dx * u0, e.y + dy * u0, e.x + dx * u1, e.y + dy * u1);
+      }
+      // The ladle over their head, tipping as the cast fills.
+      const hx = x - 10, hy = y - 92;
+      const tip = -0.15 - f * 1.0;
+      const o = this.overFx;
+      const ux = Math.cos(tip), uy = Math.sin(tip);
+      const bx = hx + ux * 22, by = hy + uy * 22;
+      o.fillStyle(MOLTEN, 0.18 + 0.12 * pulse).fillCircle(bx + 12, by + 6, 30);
+      o.lineStyle(9, 0x140c08, 1).lineBetween(hx - ux * 34, hy - uy * 34, bx, by);
+      o.lineStyle(5, 0x9a8a80, 1).lineBetween(hx - ux * 34, hy - uy * 34, bx, by);
+      o.fillStyle(0x140c08, 1).fillCircle(bx + 12, by + 6, 18);
+      o.fillStyle(0x6a5a52, 1).fillCircle(bx + 12, by + 6, 15);
+      o.fillStyle(0xffb347, 1).fillCircle(bx + 12, by + 2, 11);
+      o.fillStyle(0xfff0b0, 0.9).fillCircle(bx + 10, by, 5);
+      if (f > 0.7) {
+        // It starts to pour onto them.
+        const k = (f - 0.7) / 0.3;
+        const sx = bx + 26, sy = by + 4;
+        const ey = sy + (y - 6 - sy) * k;
+        o.lineStyle(9, MOLTEN, 0.5).lineBetween(sx, sy, x, ey);
+        o.lineStyle(5, 0xffb347, 1).lineBetween(sx, sy, x, ey);
+        o.lineStyle(2, 0xfff0b0, 1).lineBetween(sx, sy, x, ey);
+      }
+    } else if (e.castId === 'lastEmber') {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 60);
+      const rr = e.def.radius + 20 + f * 560;
+      g.fillStyle(MOLTEN, 0.06 + 0.1 * f).fillCircle(e.x, e.y, rr);
+      g.lineStyle(6, 0xffd27a, 0.5 + 0.4 * pulse).strokeCircle(e.x, e.y, rr);
+      g.lineStyle(18, MOLTEN, 0.15).strokeCircle(e.x, e.y, rr + 8);
+    }
+  }
+
   /**
    * C2 named elite: a turning blue rune ring under it, a small crown over its name, and its
    * affix shown on the body. Swift trails speed streaks, Vengeful smoulders red faster as it
