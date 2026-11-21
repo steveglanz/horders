@@ -45,6 +45,15 @@ const horn = (f: number, dur: number, vol = 0.45): Recipe => [
 ];
 
 const join = (...parts: Recipe[]): Recipe => parts.flat();
+
+/** A world boss's shadow arrives: a dark, swelling chord, then a deep landing. Each boss's shadow adds its own mark. */
+const phaseShadow = (): Recipe => [
+  { wave: 'saw', f: note(-17), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+  { wave: 'saw', f: note(-16), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
+  { wave: 'saw', f: note(-11), dur: 1.4, vol: 0.12, a: 0.9, curve: 0.8, lp: 1200 },
+  { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
+  ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
+];
 const B5 = () => note(14);
 
 export const SOUNDS = {
@@ -75,6 +84,17 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.22, vol: 0.45, lp: 2200, lp2: 300 },
     { wave: 'square', f: 260, f2: 120, dur: 0.2, vol: 0.18, lp: 1500 },
   ],
+  /** Slagbinder in the Anvil stance (SLAG_KIT.anvilArmor): a hit lands on thick slag plate, a dull clank instead of a body blow. */
+  hurtAnvil: join(clang(330, 0.34, 0.25), [
+    { wave: 'noise', f: 0, dur: 0.06, vol: 0.38, lp: 2600, hp: 500, curve: 3 },
+    { wave: 'sine', f: 150, f2: 70, dur: 0.12, vol: 0.3 },
+  ]),
+  /** A big hit on the Anvil: the plate rings and the weight goes through it. */
+  hurtBigAnvil: join(clang(220, 0.34, 0.45), [
+    { wave: 'sine', f: 120, f2: 45, dur: 0.3, vol: 0.26 },
+    { wave: 'noise', f: 0, dur: 0.18, vol: 0.38, lp: 2400, lp2: 400, curve: 2 },
+    { wave: 'saw', f: 240, f2: 130, dur: 0.18, vol: 0.12, lp: 1600 },
+  ]),
   heal: [
     { wave: 'sine', f: A5, f2: E6, dur: 0.3, vol: 0.12, a: 0.05, curve: 2 },
     { wave: 'sine', f: E5, dur: 0.3, vol: 0.08, a: 0.06 },
@@ -259,6 +279,21 @@ export const SOUNDS = {
     ]),
     chime(E6, 0.32, 0.16, 0.5),
   ),
+  /** A passive point spent in the hub: a spark catches and climbs two notes. */
+  passive: join([{ wave: 'noise', f: 0, dur: 0.05, vol: 0.08, lp: 9000, hp: 3000, curve: 3 }], chime(A5, 0.02, 0.1, 0.18), chime(E6, 0.08, 0.1, 0.3)),
+  /**
+   * A world boss reward claimed (an Epic item and embers): the hub's biggest moment, a low horn under a
+   * rising five-note run and a shimmer. Still well under the victory fanfare, so it sits under the hub theme.
+   */
+  bossClaim: join(
+    horn(note(-9), 1.0, 0.16),
+    chime(C5, 0, 0.14, 0.4), chime(E5, 0.08, 0.14, 0.4), chime(G5, 0.16, 0.15, 0.4), chime(C6, 0.24, 0.16, 0.5), chime(E6, 0.32, 0.18, 1.0),
+    [{ wave: 'noise', f: 0, dur: 0.8, delay: 0.3, vol: 0.05, a: 0.2, lp: 11000, hp: 6000 }],
+  ),
+  /** Picking the Anvil stance in the hub: one heavy strike on the anvil. */
+  anvilPick: join(clang(260, 0.2, 0.5), boom(70, 0.25, 0.18)),
+  /** Picking the Bellows stance in the hub: the bellows breathe once and the coals brighten. */
+  bellowsPick: join(whoosh(300, 3200, 0.4, 0.3), chime(E5 * 2, 0.25, 0.12, 0.3)),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
@@ -327,6 +362,24 @@ export const SOUNDS = {
   gate: [{ wave: 'tri', f: 660, dur: 0.06, vol: 0.18 }, { wave: 'tri', f: 990, dur: 0.1, delay: 0.06, vol: 0.18 }],
   soakOk: chime(A5, 0, 0.22, 0.4),
   soakFail: [{ wave: 'square', f: 280, f2: 200, dur: 0.3, vol: 0.14, lp: 1800 }],
+  /**
+   * The Pressworks: you took a Downstroke and are Pressed (OSKEL.pressed s): a clamp bites shut on you.
+   * It waits 0.25 s so the soak chime lands first; standing under the next one now crushes you.
+   */
+  pressed: join(
+    clang(note(-5), 0.5, 0.6).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    // A bright two-note lock in the 500 Hz-2 kHz band: it lands in the middle of a Downstroke's slam.
+    [{ wave: 'noise', f: 0, dur: 0.05, delay: 0.25, vol: 0.45, lp: 5000, hp: 900, curve: 3 },
+     { wave: 'saw', f: 320, f2: 240, dur: 0.4, delay: 0.25, vol: 0.26, lp: 2600, curve: 2 },
+     { wave: 'square', f: note(7), dur: 0.09, delay: 0.27, vol: 0.14, lp: 3500, curve: 2 },
+     { wave: 'square', f: note(3), dur: 0.16, delay: 0.38, vol: 0.14, lp: 3500, curve: 2 }],
+  ),
+  /** Pressed wears off: the clamp lets go with a puff of steam and a lifting note, so you can take the next one. */
+  pressedClear: join(
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.22, a: 0.02, lp: 7000, lp2: 2500, hp: 1500, curve: 1.6 },
+     { wave: 'noise', f: 0, dur: 0.03, vol: 0.25, lp: 6000, hp: 1500, curve: 3 }],
+    chime(E5, 0.12, 0.18, 0.3), chime(A5, 0.2, 0.2, 0.45),
+  ),
 
   // ---- the Hammerdeep (group dungeon): Ondrel of the Hammerdeep
   /** Anvilfall wind-up (2.5 s): a swelling, rising grind the whole party learns to fear. */
@@ -378,13 +431,35 @@ export const SOUNDS = {
     whoosh(2000, 10000, 0.9, 0.18), boom(38, 0.9, 0.45).map((v) => ({ ...v, delay: 0.5 })),
   ),
   phaseOndrel: join(clang(196, 0.5, 0.7), clang(147, 0.55, 0.9).map((v) => ({ ...v, delay: 0.32 })), boom(42, 0.9, 0.55).map((v) => ({ ...v, delay: 0.32 }))),
-  phaseShadow: [
-    { wave: 'saw', f: note(-17), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
-    { wave: 'saw', f: note(-16), dur: 1.4, vol: 0.14, a: 0.9, curve: 0.8, lp: 900 },
-    { wave: 'saw', f: note(-11), dur: 1.4, vol: 0.12, a: 0.9, curve: 0.8, lp: 1200 },
-    { wave: 'noise', f: 0, dur: 1.4, vol: 0.25, a: 1.1, curve: 0.6, lp: 400, lp2: 3000 },
-    ...boom(40, 0.8, 0.5).map((v) => ({ ...v, delay: 1.2 })),
-  ],
+  phaseShadow: phaseShadow(),
+
+  // World boss shadows: the shared phaseShadow swell (a dark chord and a deep landing) with each boss's own mark on it.
+  /** Shadow of Grandmother Slag: the raid's molten glugs and a brass call under the swell. */
+  shadowSlag: join(
+    phaseShadow(),
+    ...[0.2, 0.45, 0.7].map((d, k) => [{ wave: 'sine' as const, f: 140 + k * 40, f2: 420 + k * 80, dur: 0.12, delay: d, vol: 0.22, curve: 2 }]),
+    horn(note(-14), 0.9, 0.24).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.9 })),
+  ),
+  /** Shadow of the Cinder Colossus: two giant footfalls of hot stone, cinders raining off each. */
+  shadowColossus: join(
+    phaseShadow(),
+    ...[0.15, 0.7].map((d) => boom(55, 0.5, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    ...[0.2, 0.28, 0.75, 0.84].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.2, lp: 7000, hp: 2000, curve: 3 }]),
+  ),
+  /** Shadow of Old Coalmouth: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
+  shadowCoal: join(
+    phaseShadow(),
+    ...[0.15, 0.22, 0.31, 0.55, 0.63].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.3, lp: 2800, hp: 500, curve: 3 }]),
+    [{ wave: 'sine', f: 300, f2: 60, dur: 0.6, delay: 0.75, vol: 0.4, curve: 1.6 },
+     { wave: 'saw', f: 220, f2: 95, dur: 0.5, delay: 0.75, vol: 0.18, lp: 2000, lp2: 600, curve: 1.6 }],
+  ),
+  /** Shadow of the Furnace Regent: a stately call over the furnace's roar, a crown of a bright ring on top. */
+  shadowRegent: join(
+    phaseShadow(),
+    whoosh(300, 4500, 1.0, 0.22),
+    horn(note(-9), 0.5, 0.22), horn(note(-2), 0.8, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 })),
+    clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 })),
+  ),
 
   // ---- the Ashvents: Ysmeret, the Twofold Flame
   /** Twin Vents opening: two hot breaths, one each side, and a gold rising call to split up. */
@@ -768,6 +843,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   reviveStart: 0.5,
   rivetsWarn: 1.4,
   scatterWarn: 2.0,
+  shadowCoal: 0.6,
+  shadowSlag: 1.5,
   shoalCall: 4.5,
   sinkWarn: 5.7,
   snufferTide: 2.2,

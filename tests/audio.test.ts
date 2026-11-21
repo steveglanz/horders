@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
-import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
+import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
+import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { BELLY, beatGap, bellyCues, DRY, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -90,6 +91,46 @@ describe('audio', () => {
     }
   });
 
+  it('plays every dungeon its own theme (the Crucible plays the raid), and GameScene asks themeFor', () => {
+    for (const id of DUNGEON_IDS) expect(themeFor(id) in THEMES, id).toBe(true);
+    expect(themeFor('hoard')).toBe('hoard');
+    expect(themeFor('crucible')).toBe('raid');
+    // #296's Hoard theme was lost once in a merge: GameScene must go through themeFor, not its own mapping.
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toContain('audio.theme(themeFor(w.dungeonId))');
+  });
+
+  it('gives each world boss shadow its own sting, keyed by the server names', () => {
+    const c = { cls: 'bulwark' as const, acting: 0, boss: 'worldShadow' as const };
+    const sql = readFileSync(new URL('../supabase/migrations/0007_rename_old_ashmaw.sql', import.meta.url), 'utf8');
+    const names = /names\s+text\[\]\s*:=\s*array\[([^\]]+)\]/.exec(sql)![1].split(',').map((n) => n.trim().replace(/^'|'$/g, ''));
+    expect(names.length).toBe(4);
+    const stings = new Set<string>();
+    for (const n of names) {
+      const id = cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: n })?.id;
+      expect(id, n).toBe(SHADOW_STING[n]);
+      expect(PRIORITY.has(id as SoundId), n).toBe(true);
+      stings.add(id!);
+    }
+    expect(stings.size).toBe(4);
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: 'Old Ashmaw' })?.id).toBe('shadowCoal');
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: 'Someone New' })?.id).toBe('phaseShadow');
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseShadow');
+    // A real boss fight in a world boss's dungeon keeps its own sting.
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, boss: 'coalmouth', worldBoss: 'Old Coalmouth' })?.id).toBe('phaseSwallow');
+  });
+
+  it('gives the hub its equip, passive point and world boss claim sounds', () => {
+    const stub = (sfx: string): Tappable => ({ closest: () => stub(sfx), getAttribute: (n) => (n === 'data-sfx' ? sfx : null) });
+    expect(uiSoundFor(stub('equip'))).toBe('equip');
+    expect(uiSoundFor(stub('passive'))).toBe('passive');
+    const hub = readFileSync(new URL('../client/hub.ts', import.meta.url), 'utf8');
+    expect(hub).toContain('data-sfx="equip"');
+    expect(hub).toContain("data-sfx=\"${can ? 'passive' : 'click'}\"");
+    expect(hub).toContain('this.onClaimed();');
+    expect(readFileSync(new URL('../client/main.ts', import.meta.url), 'utf8')).toContain("hub.onClaimed = () => audio.play('bossClaim');");
+  });
+
   it('gives the Hoard its own theme and every Old Coalmouth moment a sound', () => {
     expect(THEMES.hoard.bed).toBe('chew');
     expect(THEMES.hoard).not.toEqual(THEMES.raid);
@@ -110,6 +151,30 @@ describe('audio', () => {
     expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseFeast');
     // The Gorge wind-up has to fit inside its 3 s cast, so the interrupt lands on a sound that is still going.
     expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
+  });
+
+  it('gives the Anvil Slagbinder plated hits and each stance its own pick sound', () => {
+    const anvil = { cls: 'slagbinder' as const, acting: 0, stance: 'anvil' };
+    const bellows = { cls: 'slagbinder' as const, acting: 0, stance: 'bellows' };
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, anvil)?.id).toBe('hurtAnvil');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 30 } as never, anvil)?.id).toBe('hurtBigAnvil');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, bellows)?.id).toBe('hurt');
+    expect(cueFor({ type: 'playerHurt', hero: 0, amount: 5 } as never, { cls: 'bulwark' as const, acting: 0, stance: 'anvil' })?.id).toBe('hurt');
+    expect(cueFor({ type: 'playerHurt', hero: 1, amount: 5 } as never, anvil)).toBeNull();
+    const stub = (sfx: string): Tappable => ({ closest: () => stub(sfx), getAttribute: (n) => (n === 'data-sfx' ? sfx : null) });
+    expect(uiSoundFor(stub('anvilPick'))).toBe('anvilPick');
+    expect(uiSoundFor(stub('bellowsPick'))).toBe('bellowsPick');
+  });
+
+  it('hears the Pressworks turn rule: a clamp when Pressed, a release when it wears off', () => {
+    const st = { on: false };
+    expect(pressedCue(st, false)).toBeNull();
+    expect(pressedCue(st, true)?.id).toBe('pressed');
+    expect(pressedCue(st, true)).toBeNull();
+    expect(pressedCue(st, false)?.id).toBe('pressedClear');
+    expect(pressedCue(st, false)).toBeNull();
+    // The clamp waits for the soak chime that lands on the same tick.
+    expect(Math.min(...SOUNDS.pressed.map((v) => v.delay ?? 0))).toBeGreaterThanOrEqual(0.2);
   });
 
   it('muffles the mix and runs a quickening heartbeat while swallowed', () => {

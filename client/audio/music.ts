@@ -80,6 +80,14 @@ export const THEMES: Record<ThemeId, Theme> = {
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
 
+/**
+ * Which theme a dungeon plays. Every dungeon with its own entry in THEMES plays it; the Crucible plays
+ * the 'raid' theme. Kept here (pure, tested) so a merge can't quietly put a dungeon back on another's music.
+ */
+export function themeFor(dungeon: string): ThemeId | string {
+  return dungeon === 'crucible' ? 'raid' : dungeon;
+}
+
 // ---------------------------------------------------------------- beds (pure)
 
 /**
