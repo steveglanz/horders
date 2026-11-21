@@ -1766,6 +1766,9 @@ export class GameScene extends Phaser.Scene {
       );
     }
     let plate = 0;
+    // A pack of the same elite (four Shoal Lurkers round a raft) shows its name once, over the topmost one: the
+    // same name printed over each stacks into an unreadable block on a phone. Every one keeps its own health bar.
+    const names: { x: number; y: number; text: string; color: string }[] = [];
     for (const e of w.enemies) {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
       if (!onScreen(e.x, e.y)) continue;
@@ -1785,9 +1788,16 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
-      const t = this.plates[plate++];
       // C2: a named elite shows its title in the rare colour.
-      if (t) setColorIf(t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name), NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
+      names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+    }
+    names.sort((a, c) => a.y - c.y);
+    const shown: typeof names = [];
+    for (const n of names) {
+      if (shown.some((q) => q.text === n.text && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
+      shown.push(n);
+      const t = this.plates[plate++];
+      if (t) setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
