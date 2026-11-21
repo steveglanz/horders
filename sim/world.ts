@@ -491,14 +491,15 @@ export type SimEvent =
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
   | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
-  | { type: 'castStart'; index: number; name: string }
+  /** id is the cast's stable key (sound keys on it; the name is display text and may be renamed). */
+  | { type: 'castStart'; index: number; id: string; name: string }
   | { type: 'cleanse'; x: number; y: number }
   | { type: 'plate'; x: number; y: number; hero: number }
   | { type: 'brittle'; x: number; y: number }
   | { type: 'slagGrip'; x: number; y: number; stacks: number }
   | { type: 'interrupt'; x: number; y: number; name: string }
   | { type: 'dodge'; x: number; y: number; healed: number }
-  | { type: 'castDone'; x: number; y: number; name: string }
+  | { type: 'castDone'; x: number; y: number; id: string; name: string }
   | { type: 'heal'; x: number; y: number; amount: number }
   | { type: 'ward'; index: number; amount: number }
   | { type: 'fork'; gates: Gate[] }
@@ -3685,7 +3686,7 @@ export class World {
     e.castT = 0;
     e.castDur = this.hasOmen('quickened') ? dur * OMEN_TUNING.quickenedCast : dur;
     e.interruptible = interruptible;
-    this.events.push({ type: 'castStart', index: i, name });
+    this.events.push({ type: 'castStart', index: i, id, name });
   }
 
   private cancelCast(i: number): void {
@@ -3849,7 +3850,7 @@ export class World {
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
     }
-    this.events.push({ type: 'castDone', x: e.x, y: e.y, name });
+    this.events.push({ type: 'castDone', x: e.x, y: e.y, id, name });
   }
 
   private runAbilities(i: number, dt: number): void {
@@ -4531,7 +4532,7 @@ export class World {
       const off = (k - (COLD.crackLanes - 1) / 2) * COLD.crackGap;
       Object.assign(c, { alive: true, x: x + nx * off, y: y + ny * off, angle, t: 0 });
     }
-    this.events.push({ type: 'castStart', index: this.bossIndex, name: 'Thin Ice' });
+    this.events.push({ type: 'castStart', index: this.bossIndex, id: 'thinIce', name: 'Thin Ice' });
   }
 
   /** Is any crack open water right now? */
@@ -4619,7 +4620,7 @@ export class World {
     if (this.tideT <= 0) {
       this.tideT = COLD.tideEvery;
       for (let n = 0; n < COLD.tideN; n++) this.spawnAtRing('snuffer', 420);
-      this.events.push({ type: 'castStart', index: i, name: 'Snuffer Tide' });
+      this.events.push({ type: 'castStart', index: i, id: 'snufferTide', name: 'Snuffer Tide' });
     }
     if (e.castId || e.stunT > 0) return;
     if (this.nightT <= 0) {
@@ -4664,7 +4665,7 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, name: 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: 'Twin Vents' });
     }
     if (e.castId || e.stunT > 0) return;
     if (this.bellowT <= 0) {
@@ -4745,7 +4746,7 @@ export class World {
         this.clampArena(c, SLAG.ventRadius + 10);
         this.addTelegraph('circle', c.x, c.y, SLAG.ventRadius, 0, 0, SLAG.ventFuse, SLAG.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, name: 'Crucible Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'crucibleVents', name: 'Crucible Vents' });
     }
     if (e.castId || e.stunT > 0) return;
     if (!this.lastEmberCast && this.time - e.spawnedAt >= SLAG.hardEnrage) {

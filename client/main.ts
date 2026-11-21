@@ -225,6 +225,7 @@ function startRun(bounty = false, key = false): void {
     onEnd: (w: World) => {
       const rewards = finishRun(w);
       hud.showEnd(w, rewards, hero);
+      audio.rewards(rewards);
     },
   });
 }
@@ -463,6 +464,7 @@ const coopEvents = {
       onEnd: (w: World) => {
         const rewards = finishRun(w);
         hud.showEnd(w, rewards, hero);
+        audio.rewards(rewards);
       },
     });
     void me;

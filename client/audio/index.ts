@@ -6,6 +6,8 @@
  * requests are remembered and start on the unlock). Settings live in
  * localStorage. The game keeps running fine if WebAudio is missing.
  */
+import type { RunRewards } from '../../sim/hero';
+import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
@@ -282,6 +284,11 @@ class AudioEngine {
   intensity(level: number): void {
     this.wantIntensity = level;
     this.music?.setIntensity(level);
+  }
+
+  /** Chimes for what a finished run unlocked (achievements, titles, rewards), after the victory or defeat sting. */
+  rewards(r: RunRewards | undefined): void {
+    for (const c of rewardCues(r)) setTimeout(() => this.play(c.id), c.at * 1000);
   }
 
   /** The Coldmarrow's Hearthcoal, 1 (full) to 0 (out): its crackle in the music thins as it dims. */

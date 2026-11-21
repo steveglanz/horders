@@ -210,6 +210,14 @@ export const SOUNDS = {
     chime(C5, 0, 0.3, 0.6), chime(E5, 0.08, 0.3, 0.6), chime(G5, 0.16, 0.3, 0.6), chime(C6, 0.24, 0.35, 1.0),
     [{ wave: 'noise', f: 0, dur: 0.8, vol: 0.08, a: 0.3, lp: 9000, hp: 5000 }],
   ),
+  /** An achievement unlocked at the end of a run: a bright four-note rise over a warm horn, with a sparkle. */
+  achievement: join(
+    horn(note(-21), 1.2, 0.22),
+    chime(G5, 0, 0.26, 0.5), chime(C6, 0.1, 0.26, 0.5), chime(E6, 0.2, 0.26, 0.6), chime(G6, 0.3, 0.3, 1.2),
+    [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.3, vol: 0.08, a: 0.2, lp: 11000, hp: 6000 }],
+  ),
+  /** A title or reward unlocked: a smaller three-note chime. */
+  unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
   victory: join(
     horn(note(-9), 0.5, 0.25), chime(C5, 0, 0.25, 0.4), chime(E5, 0.15, 0.25, 0.4), chime(G5, 0.3, 0.28, 0.4),
