@@ -4,7 +4,7 @@ import {
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, salvage, spendPoint, gritFor,
 } from '../sim/hero';
-import { BossStatus, KeyBoard, cloud } from './cloud';
+import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
@@ -469,6 +469,37 @@ export class Hub {
   /** P3 leaderboards by dungeon: undefined = not asked yet, null = unreachable (or the table isn't there yet). */
   private keyBoards = new Map<string, KeyBoard | null | 'loading'>();
 
+  /** R7: today's bounty board by `day:tier`: undefined = not asked yet, null = unreachable (or before migration 0006). */
+  private bountyBoards = new Map<string, BountyBoard | null | 'loading'>();
+
+  /** A bounty time was submitted: fetch the boards again on the next render. */
+  bountyBoardStale(): void {
+    this.bountyBoards.clear();
+    this.render();
+  }
+
+  /** Today's five fastest clears at this hero's bounty tier, and your rank; nothing while loading or offline. */
+  private bountyBoardHtml(day: number, tier: number): string {
+    const k = `${day}:${tier}`;
+    const b = this.bountyBoards.get(k);
+    if (b === undefined) {
+      this.bountyBoards.set(k, 'loading');
+      void cloud.topBounty(tier, 5).then((r) => {
+        this.bountyBoards.set(k, r && Array.isArray(r.top) ? r : null);
+        this.render();
+      });
+      return '';
+    }
+    if (!b || b === 'loading' || !b.top.length) return '';
+    const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    const time = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const isMe = (r: { rank: number; name: string }) => !!b.me && r.rank === b.me.rank && r.name === b.me.name;
+    const row = (r: { rank: number; name: string; seconds: number }, you = false) =>
+      `<li${you ? ' class="you"' : ''}><span class="kr">${r.rank}</span><b>${esc(r.name)}</b><span class="kl"></span><span class="kt">${time(r.seconds)}</span></li>`;
+    const mine = b.me && !b.top.some(isMe) ? row(b.me, true) : '';
+    return `<div class="key-board"><div class="lbl">Today's fastest, tier ${tier}</div><ol>${b.top.map((r) => row(r, isMe(r))).join('')}${mine}</ol></div>`;
+  }
+
   /** A key was submitted: fetch that dungeon's board again on the next render. */
   keyBoardStale(dungeon: string): void {
     this.keyBoards.delete(dungeon);
@@ -677,7 +708,7 @@ export class Hub {
       + `<div class="ttl">${DUNGEONS[b.dungeon].name}, tier ${b.tier} · 3 fights</div>`
       + `<div class="tw" title="${twist.tip}">${omenTile(b.twist, 30)}<div>Twist: <b>${twist.name}</b>. ${twist.text}</div></div>`
       + `<div class="row2">${paid ? '<span class="muted">Paid today. Replay it for practice.</span>' : `<span>First win today <span class="pay">+${bountyEmbers(b.tier)} embers</span></span>`}`
-      + `<button class="sbtn gold" data-bounty>${paid ? 'Replay bounty' : 'Take the bounty'}</button></div></div>`;
+      + `<button class="sbtn gold" data-bounty>${paid ? 'Replay bounty' : 'Take the bounty'}</button></div>${this.bountyBoardHtml(day, b.tier)}</div>`;
   }
 
   /** Grit after losses in a row on the picked dungeon and tier. */
