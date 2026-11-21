@@ -2074,29 +2074,83 @@ export class GameScene extends Phaser.Scene {
       const t0 = -pd - Math.sqrt(disc), t1 = -pd + Math.sqrt(disc);
       const x0 = c.x + dx * t0, y0 = c.y + dy * t0, x1 = c.x + dx * t1, y1 = c.y + dy * t1;
       const nx = -dy, ny = dx;
+      const len = t1 - t0;
+      // Broken ice never runs ruler-straight: each crack gets its own fixed jag (seeded by its
+      // angle, so it holds still frame to frame). The jag stays within a few px of the true edge.
+      const n = Math.max(6, Math.round(len / 26));
+      const seed = Math.floor(c.angle * 1000) + Math.floor(c.x);
+      const jag = (i: number, side: number) => {
+        if (i === 0 || i === n) return 0;
+        const h = Math.sin((i + 1) * 12.9898 + seed * 0.731 + side * 78.233) * 43758.5453;
+        return (h - Math.floor(h) - 0.5) * 9;
+      };
+      const along = (i: number, off: number, side: number): [number, number] => {
+        const at = i / n, o = off + jag(i, side);
+        return [x0 + (x1 - x0) * at + nx * o, y0 + (y1 - y0) * at + ny * o];
+      };
+      const edge = (off: number, side: number) => {
+        g.beginPath();
+        for (let i = 0; i <= n; i++) { const [px, py] = along(i, off, side); if (i) g.lineTo(px, py); else g.moveTo(px, py); }
+        g.strokePath();
+      };
+      const hw = COLD.crackHalfW;
       if (c.t < COLD.crackWarn) {
         const f = c.t / COLD.crackWarn;
         const flick = 0.55 + 0.35 * Math.sin(now / 70);
-        g.lineStyle(2 + 2 * f, FROST, flick).lineBetween(x0, y0, x1, y1);
-        // Hairline branches either side, so it reads as ice about to break.
-        g.lineStyle(1.5, FROST, 0.35 + 0.3 * f);
-        for (let k = 1; k < 9; k++) {
-          const at = k / 9;
-          const bx = x0 + (x1 - x0) * at, by = y0 + (y1 - y0) * at;
-          const sd = (k % 2 ? 1 : -1) * COLD.crackHalfW * f;
-          g.lineBetween(bx, by, bx + nx * sd + dx * 10, by + ny * sd + dy * 10);
-        }
-      } else {
-        const hw = COLD.crackHalfW;
-        const left = COLD.crackWarn + COLD.crackOpen - c.t;
-        const a = Math.min(1, left / 1.2);
-        g.fillStyle(0x06121c, 0.82 * a).beginPath()
+        // Where the water will open: a faint cold strip at full width, so you know how far to step.
+        g.fillStyle(FROST, 0.05 + 0.08 * f).beginPath()
           .moveTo(x0 + nx * hw, y0 + ny * hw).lineTo(x1 + nx * hw, y1 + ny * hw)
           .lineTo(x1 - nx * hw, y1 - ny * hw).lineTo(x0 - nx * hw, y0 - ny * hw).closePath().fillPath();
-        const shim = 0.5 + 0.3 * Math.sin(now / 220);
-        g.lineStyle(3, FROST, 0.75 * a).lineBetween(x0 + nx * hw, y0 + ny * hw, x1 + nx * hw, y1 + ny * hw);
-        g.lineBetween(x0 - nx * hw, y0 - ny * hw, x1 - nx * hw, y1 - ny * hw);
-        g.lineStyle(1.5, 0x9fd8ff, shim * a).lineBetween(x0, y0, x1, y1);
+        g.lineStyle(1, FROST, 0.18 + 0.25 * f);
+        edge(hw, 1); edge(-hw, -1);
+        // The fracture itself: a jagged bright line that thickens as the ice gives.
+        g.lineStyle(2 + 2.5 * f, FROST, flick);
+        edge(0, 0);
+        g.lineStyle(1, 0xffffff, 0.5 * flick);
+        edge(0, 0);
+        // Hairline branches either side, reaching out toward the strip's edge as it nears.
+        g.lineStyle(1.5, FROST, 0.35 + 0.35 * f);
+        for (let i = 1; i < n; i++) {
+          const [bx, by] = along(i, 0, 0);
+          const sd = (i % 2 ? 1 : -1) * hw * (0.35 + 0.65 * f) * (0.7 + 0.3 * Math.abs(Math.sin(i * 7.1 + seed)));
+          const mx = bx + nx * sd * 0.5 + dx * 6, my = by + ny * sd * 0.5 + dy * 6;
+          g.beginPath().moveTo(bx, by).lineTo(mx, my).lineTo(bx + nx * sd + dx * 2, by + ny * sd + dy * 2).strokePath();
+        }
+      } else {
+        const left = COLD.crackWarn + COLD.crackOpen - c.t;
+        const a = Math.min(1, left / 1.2);
+        // Open water: a dark band between broken edges.
+        g.fillStyle(0x06121c, 0.84 * a).beginPath();
+        for (let i = 0; i <= n; i++) { const [px, py] = along(i, hw, 1); if (i) g.lineTo(px, py); else g.moveTo(px, py); }
+        for (let i = n; i >= 0; i--) { const [px, py] = along(i, -hw, -1); g.lineTo(px, py); }
+        g.closePath().fillPath();
+        // Deeper water down the middle.
+        g.fillStyle(0x020a12, 0.5 * a).beginPath()
+          .moveTo(x0 + nx * hw * 0.45, y0 + ny * hw * 0.45).lineTo(x1 + nx * hw * 0.45, y1 + ny * hw * 0.45)
+          .lineTo(x1 - nx * hw * 0.45, y1 - ny * hw * 0.45).lineTo(x0 - nx * hw * 0.45, y0 - ny * hw * 0.45).closePath().fillPath();
+        // The current: short glints drifting along the strip.
+        const drift = (now / 1000) * 38;
+        g.lineStyle(1.5, 0x9fd8ff, 0.45 * a);
+        for (let k = 0; k < Math.ceil(len / 70); k++) {
+          const s = ((k * 70 + drift + (k % 2) * 35) % len + len) % len;
+          const o = ((k * 37) % 5 - 2) * hw * 0.22;
+          const gx = x0 + dx * s + nx * o, gy = y0 + dy * s + ny * o;
+          g.lineBetween(gx, gy, gx + dx * 14, gy + dy * 14);
+        }
+        // Bright broken ice edges, with a cold shimmer.
+        const shim = 0.75 + 0.2 * Math.sin(now / 220);
+        g.lineStyle(3, FROST, shim * a);
+        edge(hw, 1); edge(-hw, -1);
+        g.lineStyle(1, 0xffffff, 0.55 * a);
+        edge(hw - 2, 1); edge(-hw + 2, -1);
+        // Small floes broken off the edges, bobbing in the water.
+        g.fillStyle(0xd8eeff, 0.55 * a);
+        for (let i = 2; i < n - 1; i += 3) {
+          const side = i % 2 ? 1 : -1;
+          const bob = Math.sin(now / 400 + i) * 2;
+          const [fx, fy] = along(i, side * (hw - 9) + bob, side);
+          g.fillTriangle(fx - 4, fy - 2, fx + 4, fy - 3, fx + 1, fy + 3);
+        }
       }
     }
     // The frost edge: Chill creeps in from the screen's rim, and the Long Night brings it in too.
