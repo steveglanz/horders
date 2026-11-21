@@ -300,7 +300,8 @@ export class Hud {
     const shadow = e.kind === 'worldShadow';
     $('tName').textContent = shadow && w.worldBoss ? `Shadow of ${w.worldBoss}` : e.named >= 0 ? w.namedName(i) : e.def.name;
     $('tTitle').textContent = e.named >= 0 ? `Named · ${AFFIXES[e.affix]}` : e.def.title ?? (e.def.stationary ? 'Objective' : '');
-    const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? 'Warded' : '';
+    const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
+    // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
     const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : `Phase ${w.bossPhase} of 3`) : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
