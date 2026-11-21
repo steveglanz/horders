@@ -16,7 +16,7 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | Visuals: replace the placeholder art; skills: add it to the class matrix; engineering: one Brand per hero in co-op |
 | R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 💡 | design + skills | Skills: effects that hook into each class kit |
-| R8 | Alchemy: one potion slot (run-start buff or a revive) | 💡 | design | Visuals: potion icons |
+| R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | Visuals: potion icons and a brewing look in the hub |
 
 ## R2. The Forge
 
@@ -134,7 +134,32 @@ Placeholder art (needs the visuals team): the four new enemies use the generic c
 - **Co-op:** one Brand per hero, so a party has to spread out. That's with engineering's R9 party work. Today there is one Brand, on the lead hero.
 - **Skills check:** every class reaching cover in time (Blink, Sidestep, Charge, Lumen movement). The skills team adds the Glarewell to its class matrix.
 
-## R4, R8
+## R8. Alchemy: one potion slot
+
+**Why:** consumables before a hard fight are an MMO staple (difference 2, "an MMO inside the run"), and embers need a second use beside the Forge. A potion is a small, deliberate choice made before you delve.
+
+**Rules (built 21 Nov 2026).** Code: `sim/content/potions.ts`, `brewPotion` in `sim/hero.ts`, `WorldOptions.potion`.
+- In the hub, under the difficulty, you brew **one** potion for embers. It waits for your next delve and is used up when that delve starts, win or lose. Brewing a different one pours the first away with no refund.
+- Each class keeps its own potion, like its embers and bags.
+- No new button: every potion works on its own, which keeps the phone action bar at four.
+- The **daily bounty ignores potions** (and doesn't use yours up), because everyone plays the same delve that day.
+- In co-op only the lead hero's potion counts for now. Per-hero potions come with engineering's party saves.
+
+**The potions (one verb each, never a raw stat):**
+
+| Potion | Cost | Effect |
+|---|---|---|
+| Rising Draught | 30 embers | The first blow that would fell you leaves you at 25% health with a 2 s shield. Once per delve. |
+| Stillwater Tonic | 10 embers | Your interrupt (Quench and its class versions) recovers 40% faster. |
+| Kindling Brew | 12 embers | Start the delve at level 2, with a talent pick before the first fight. |
+
+**Cost:** a delve's salvage is worth roughly 10 to 25 embers (Common 1, Fine 3, Rare 8, Epic 20), and the daily bounty's first win pays 30 + 6 × tier. So Rising Draught costs about two delves of salvage, or half a bounty, that would otherwise go to the Forge. That's the trade.
+
+**Names:** a web search on 21 Nov 2026 for the three names with "game potion" turned up no game using them (result titles only, so it's a search check, not a legal clearance).
+
+**Balance:** see [balance.md](balance.md#alchemy-potions-21-nov-2026).
+
+## R4
 Specs get written here when each one is next.
 
 ## Backlog notes

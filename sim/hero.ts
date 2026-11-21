@@ -7,6 +7,7 @@ import { Rng } from './rng';
 import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
+import { POTIONS, PotionId } from './content/potions';
 import { RunSummary } from './world';
 import {
   Item, MythicId, mythicPool, RARITIES, RARITY, RARITY_PREFIX, Rarity, SLOTS, SLOT_MAIN, SLOT_NAMES, STATS, Slot, Stat, WEAPON_NAMES,
@@ -54,10 +55,12 @@ export interface HeroProfile {
    * before this field have none: their progress belongs to the selected class.
    */
   roster?: Partial<Record<ClassId, Character>>;
+  /** A potion brewed and waiting for the next delve (R8 Alchemy). */
+  potion?: PotionId;
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit'] as const;
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {
@@ -407,4 +410,29 @@ export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
   if (ta.levels !== tb.levels) return ta.levels > tb.levels ? a : b;
   if (ta.xp !== tb.xp) return ta.xp > tb.xp ? a : b;
   return a.nextItemId >= b.nextItemId ? a : b;
+}
+
+/** Why a potion can't be brewed right now, or null if it can. */
+export function brewBlocker(hero: HeroProfile, id: PotionId): string | null {
+  if (hero.potion === id) return 'Already brewed for your next delve';
+  if (hero.embers < POTIONS[id].cost) return `Needs ${POTIONS[id].cost} embers`;
+  return null;
+}
+
+/**
+ * Brews a potion for the next delve. Only one waits at a time: brewing a
+ * different one pours the old one away (no refund), so the choice matters.
+ */
+export function brewPotion(hero: HeroProfile, id: PotionId): boolean {
+  if (brewBlocker(hero, id)) return false;
+  hero.embers -= POTIONS[id].cost;
+  hero.potion = id;
+  return true;
+}
+
+/** Takes the waiting potion for a delve that's starting (it's used up either way). */
+export function takePotion(hero: HeroProfile): PotionId | undefined {
+  const p = hero.potion;
+  hero.potion = undefined;
+  return p;
 }

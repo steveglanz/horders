@@ -234,3 +234,20 @@ Re-measured on main: `tools/foundry.ts`, tier 7, three hero-t6 heroes per class 
 | Duskblade | 26.3 | 28.3 |
 
 **Reading:** the class spread in the Glarewell is 6.7 points, inside our 10-point bar. At tier 7 it plays a little easier than the Foundry at the same tier, which suits the dungeon you've just unlocked. No retune for now. The Bulwark gets Glared most (23% before the 2.6 s warning) because it has no movement skill, so keep an eye on it in playtests. The Foundry's own tier 7 spread is 7 points (Lumen 21.3, Duskblade 28.3). That belongs to the skills team's matrix, not to this change.
+
+## Alchemy: potions (21 Nov 2026)
+
+`POTION=<id>` in `tools/balance.ts` and `tools/foundry.ts` brews that potion for every run. With no potion, `tools/hashcheck.ts` prints the same output as main.
+
+Novice proxy (LAG=0.3 SKILL=0.5), Kiln tier 1, seeds 1 to 60, wins out of 60:
+
+| Potion | Emberwright | Duskblade |
+|---|---|---|
+| none | 35 | 32 |
+| Rising Draught (25%) | 47 | 49 |
+| Stillwater Tonic (40% faster) | 43 | 39 |
+| Kindling Brew | 30 | 45 |
+
+Geared Emberwright (`heroes-r2` hero-t6-0), Glarewell tier 7, seeds 1 to 40: none 32, Rising Draught (measured at 20%) 38, Kindling Brew 36, Stillwater Tonic (at 30% faster) 29.
+
+**Reading:** Rising Draught is the strongest by far, worth 12 to 17 novice wins in 60, so it costs the most. A 40% version measured 51 of 60 for the Emberwright, which made losing nearly impossible, so it was cut to 25%. Stillwater and Kindling are modest, and seed noise is large (Kindling reads −5 for one class and +13 for the other), so treat them as small helps rather than precise numbers. Watch whether players buy Rising Draught every run once embers pile up. If they do, raise its cost or make it once a day.
