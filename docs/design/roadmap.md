@@ -15,8 +15,9 @@ Status key: ✅ done, 🔨 in progress, ⏭ next, 💡 later.
 | R9 | Co-op delves with tank, healer and damage roles, then raids | ⏭ after current PRs | engineering + design | Engineering: rooms and netcode; skills: role kits |
 | R7 | Daily bounty: a 3-fight delve, one twist, the same seed for everyone that day | 🔨 built | design | Visuals: a bounty badge in the hub; engineering later: a daily leaderboard by clear time |
 | R11 | Third themed dungeon: the Glarewell, light and shadow, from tier 7 | ✅ built (sim, bot, placeholder art) | design | Visuals: replace the placeholder art; skills: add it to the class matrix; engineering: one Brand per hero in co-op |
-| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | 🔨 sets built (design), weapon effects in PR #38 (skills) | design + skills | Skills: effects that hook into each class kit |
+| R4 | Build-changing loot: verb sets of 2 to 3 pieces, class weapon effects | ✅ built (sets #42, weapon effects #38) | design + skills | Skills: effects that hook into each class kit |
 | R8 | Alchemy: one potion slot (run-start buff or a revive) | ✅ built | design | Visuals: potion icons and a brewing look in the hub |
+| R12 | Group dungeons: the Hammerdeep needs a tank and a healer; the others are labelled solo friendly | 📝 spec ([group-dungeons.md](group-dungeons.md)) | design | Skills: role kits vs Anvilfall, Slag Grip; engineering: roles in Quick join; visuals: Ondrel sprite, role badges |
 
 ## R2. The Forge
 
