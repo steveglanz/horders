@@ -9,13 +9,13 @@
 | Kiln-Breaker | Beat the Kiln Mother | Kiln-Breaker | 40 |
 | Floodwalker | Beat Maelra in the Drowned Foundry | Floodwalker | 40 |
 | Lightproof | Beat the Lensmother in the Glarewell | the Lightproof | 40 |
-| Frostborn | Beat Nhevra in the Coldmarrow | Frostborn | 40 |
+| Winterproof | Beat Nhevra in the Coldmarrow | the Winterproof | 40 |
 | Anvilbreaker | Beat Ondrel in the Hammerdeep | Anvilbreaker | 40 |
 | Twice-Burned | Beat Ysmeret in the Ashvents | Twice-Burned | 40 |
 | Slagbane | Beat Grandmother Slag in the Crucible | Slagbane | 100 |
 | Many Hands | Win a delve with every class | the Many-Handed | 100 |
 | Quencher | Interrupt 100 casts | the Quencher | 40 |
-| Castbreaker | Interrupt 1,000 casts | Castbreaker | 100 |
+| Spellsnuffer | Interrupt 1,000 casts | Spellsnuffer | 100 |
 | Namebreaker | Fell 25 named foes | Namebreaker | 40 |
 | Bountysworn | Win 10 daily bounties | Bountysworn | 40 |
 | Keybearer | Beat a level 5 Delver's Key | the Keybearer | 40 |
@@ -23,7 +23,14 @@
 
 All fourteen together pay 800 embers over a long time. That is about the same as the collection book's 720, so it doesn't move the Forge targets in economy.md.
 
-**Names.** The titles are plain compound words picked for Horders. I left out titles I could recall from other games, but I didn't search for them.
+**Names (checked 21 Nov 2026).** Steve's rule is no names from WoW or Azeroth Survivors.
+- **WoW:** each of the 14 titles was checked against Wowpedia's full title list (the Title page's wikitext, through the fandom API) and with web searches. None is a WoW title. Two were renamed anyway:
+  - "Frostborn" became "the Winterproof", because the Frostborn are WoW's frost dwarves (warcraft.wiki.gg/wiki/The_Frostborn).
+  - "Castbreaker" became "Spellsnuffer", because Castbreaker is the name of a WoW addon on CurseForge.
+  - "the Rekindler" was considered and dropped, because Rekindle is a WoW spell.
+- **Azeroth Survivors:** wowsurvivors.com shows no achievements or titles, and searches found none.
+- Close WoW titles that don't match: the Stormbreaker, the Flamebreaker, Ironbane, Gnomebane and the Lightbringer.
+- warcraft.wiki.gg blocks automated fetches, so Wowpedia was the list used.
 
 **How it works.**
 - `hero.deeds` sums every run in `applyRun`:
