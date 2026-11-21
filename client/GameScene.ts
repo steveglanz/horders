@@ -256,10 +256,8 @@ export class GameScene extends Phaser.Scene {
     this.warmSeen = 0;
     this.glowId = data.glow;
     this.heroGlow = undefined;
-    const tr = data.trail ? TRAILS[data.trail.id] : undefined;
-    this.trail = tr && data.trail!.stage >= 1 ? { color: hex(tr.color), stage: Math.min(3, Math.floor(data.trail!.stage)) } : undefined;
-    this.trailFx = [];
-    this.trailAcc = 0;
+    this.ownTrail = data.trail;
+    this.trails = [];
     this.gateSprites = [];
     // The gate labels are rebuilt in create(), like the gate sprites: the old ones were destroyed
     // with the last scene, and layout() resizing them crashed the next delve's create().
@@ -329,9 +327,7 @@ export class GameScene extends Phaser.Scene {
     // The worn season glow sits on the floor under the telegraph layer, so it never hides an attack.
     const glow = this.glowId ? GLOWS[this.glowId] : undefined;
     if (glow) this.heroGlow = this.add.image(0, 0, 'heroGlow').setTint(hex(glow.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3);
-    // The season trail's motes sit on the floor with the glow, under the telegraph layer (depth 2),
-    // so a trail never hides an attack. Its own pool, so a busy fight can't steal its motes.
-    if (this.trail) for (let i = 0; i < 40; i++) this.trailFx.push(this.newFx('trailMote', 1.35, true));
+    this.addTrail(w.acting, this.ownTrail, 40);
     this.aura = this.add.image(0, 0, 'aura').setBlendMode(Phaser.BlendModes.ADD).setDepth(5);
     const auraTint: Record<string, number> = { duskblade: 0x9a6cff, lumen: 0xfff0c0, bulwark: 0x9ab8ff };
     if (auraTint[w.cls]) this.aura.setTint(auraTint[w.cls]);
@@ -352,6 +348,8 @@ export class GameScene extends Phaser.Scene {
         tag: look.title ? this.add.text(0, 0, look.title, { fontFamily: 'Georgia, serif', fontSize: '10px', fontStyle: 'italic', color: '#e8d9a8', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(9.5) : undefined,
         glow: ag ? this.add.image(0, 0, 'heroGlow').setTint(hex(ag.color)).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.3) : undefined,
       });
+      // An ally's trail: a smaller pool, since it is somebody else's flourish.
+      this.addTrail(j, look.trail, 24);
     }
     w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
@@ -458,10 +456,10 @@ export class GameScene extends Phaser.Scene {
   /** P2: the worn season glow under the hero, if any. */
   private glowId?: string;
   private heroGlow?: Phaser.GameObjects.Image;
-  /** The worn season trail: its colour and stage, its own mote pool and the spawn clock. */
-  private trail?: { color: number; stage: number };
-  private trailFx: Fx[] = [];
-  private trailAcc = 0;
+  /** Worn season trails, ours and each ally's: colour, stage, the hero, its own mote pool and spawn clock. */
+  private trails: { hero: number; color: number; stage: number; fx: Fx[]; acc: number }[] = [];
+  /** Our own worn trail from the start data, made into a pool in create(). */
+  private ownTrail?: { id: string; stage: number };
 
   private pick(i: number): void {
     if (this.world.state !== 'draft') return;
@@ -1106,7 +1104,13 @@ export class GameScene extends Phaser.Scene {
     const squash = p.hurtFlash > 0 ? 0.1 : 0;
     this.player.setPosition(px, py).setFlipX(this.facing < 0).setScale(BASE * (1 + squash), BASE * (1 + breath - squash));
     this.playerShadow.setPosition(px, py + 22).setScale(34 / 32, 12 / 32);
-    if (this.trail && moving && p.hp > 0) this.trailStep(px, py, dt);
+    // Season trails: ours and each ally's drop motes while that hero moves.
+    for (const tr of this.trails) {
+      const q = w.heroData(tr.hero).player;
+      if (q.hp <= 0) continue;
+      if (tr.hero === w.acting) { if (moving) this.trailStep(tr, px, py, dt); }
+      else if ((q.x - q.px) ** 2 + (q.y - q.py) ** 2 > 0.01) this.trailStep(tr, lerp(q.px, q.x), lerp(q.py, q.y), dt);
+    }
     if (this.heroGlow) {
       const gp = Math.sin(now / 520);
       this.heroGlow.setPosition(px, py + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(p.hp > 0 ? 0.8 + gp * 0.15 : 0.3);
@@ -1724,7 +1728,7 @@ export class GameScene extends Phaser.Scene {
 
     this.stepFx(this.fx, dt);
     this.stepFx(this.smoke, dt);
-    if (this.trail) this.stepFx(this.trailFx, dt);
+    for (const tr of this.trails) this.stepFx(tr.fx, dt);
     for (const t of this.floats) {
       if (t.life <= 0) continue;
       t.life -= dt;
@@ -1818,34 +1822,43 @@ export class GameScene extends Phaser.Scene {
    * stage 2 and 3 about 6 a second lasting 0.8 s (docs/design/season.md, "Season trails").
    * Trimmed effects keep stage 1's rate.
    */
-  private trailStep(px: number, py: number, dt: number): void {
-    const tr = this.trail!;
+  private trailStep(tr: GameScene['trails'][number], px: number, py: number, dt: number): void {
     const rich = tr.stage >= 2;
-    this.trailAcc += dt * (rich && !this.lowFx ? 6 : 3);
-    while (this.trailAcc >= 1) {
-      this.trailAcc -= 1;
+    tr.acc += dt * (rich && !this.lowFx ? 6 : 3);
+    while (tr.acc >= 1) {
+      tr.acc -= 1;
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
       const x = px + (Math.random() - 0.5) * 14;
       const y = py + 14 + (Math.random() - 0.5) * 8;
-      this.emit(this.trailFx, 'trailMote', undefined, x, y, life, { tint: tr.color, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 8, drag: 0.96, sx0: sz, sx1: sz * 0.45 });
-      if (!this.lowFx) this.emit(this.trailFx, 'trailMote', undefined, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 10, life * 0.8, { tint: tr.color, vy: -16 - Math.random() * 10, drag: 0.95, sx0: sz * 0.5, sx1: sz * 0.15 });
+      this.emit(tr.fx, 'trailMote', undefined, x, y, life, { tint: tr.color, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 8, drag: 0.96, sx0: sz, sx1: sz * 0.45 });
+      if (!this.lowFx) this.emit(tr.fx, 'trailMote', undefined, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 10, life * 0.8, { tint: tr.color, vy: -16 - Math.random() * 10, drag: 0.95, sx0: sz * 0.5, sx1: sz * 0.15 });
     }
+  }
+
+  /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
+   * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
+   * can't steal its motes. */
+  private addTrail(hero: number, worn: { id: string; stage: number } | undefined, pool: number): void {
+    const def = worn ? TRAILS[worn.id] : undefined;
+    if (!def || !(worn!.stage >= 1)) return;
+    const fx: Fx[] = [];
+    for (let i = 0; i < pool; i++) fx.push(this.newFx('trailMote', 1.35, true));
+    this.trails.push({ hero, color: hex(def.color), stage: Math.min(3, Math.floor(worn!.stage)), fx, acc: 0 });
   }
 
   /** Stage 3 trail: a dash or blink leaves a line of motes along its path, then a puff where it lands. */
   private trailDash(x1: number, y1: number, x2: number, y2: number): void {
-    const tr = this.trail;
-    const p = this.world.player;
-    // Dash and blink events carry no hero, so only the one that ends on our hero counts.
-    if (!tr || tr.stage < 3 || Math.hypot(x2 - p.x, y2 - p.y) > 4) return;
+    // Dash and blink events carry no hero, so the trail is the one whose hero the dash ends on.
+    const tr = this.trails.find((t) => { const q = this.world.heroData(t.hero).player; return Math.hypot(x2 - q.x, y2 - q.y) <= 4; });
+    if (!tr || tr.stage < 3) return;
     const n = this.lowFx ? 4 : 10;
     for (let k = 0; k < n; k++) {
       const t = k / (n - 1);
       const a = Math.random() * Math.PI * 2;
       const sp = k >= n - 3 ? 40 + Math.random() * 40 : 8;
-      this.emit(this.trailFx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
+      this.emit(tr.fx, 'trailMote', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 14, 0.5 + t * 0.3,
         { tint: tr.color, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - 8, drag: 0.93, sx0: 1.8, sx1: 0.6 });
     }
   }
