@@ -9,9 +9,30 @@ A hero with no online party can pick a group dungeon (the Hammerdeep or the Ashv
 1. **Bots are weaker than real players.** Each bot wears stand-in gear: copies of the player's own equipped items at **80% of their stats** (`BOT_FILL.gearScale`). The copies have no Mythic, no class weapon effect and no set tag. So a bot is never better geared than you, and it never gets Deepguard or Ventwalker bonuses.
 2. **No bots in the raid or the Pressworks.** In the Pressworks, taking turns is the whole fight and bots never miss a turn, so a bot fill won as often as a real party (group-dungeons.md, the Pressworks).
    **The raid:** The Crucible needs four real heroes (`botFillBlocker`). The raid's hits count triple toward the world boss, and the raid is the social goal at the top of the game.
-3. **A bot-filled win pays like a solo dungeon.** Every hero in a group dungeon normally gets a second Rare-or-better boss item. A bot-filled party doesn't (`WorldOptions.fillBots`). Everything else is unchanged: the normal boss item (and the first-clear Epic), set drops, XP, the tier ladder and season marks. The hero still has a reason to play, but a real party pays better.
+3. **A bot-filled run pays less per minute than the best solo dungeon** (see Loot per minute). It also gets no extra group item from the boss.
+   **Per run:** Every hero in a group dungeon normally gets a second Rare-or-better boss item. A bot-filled party doesn't (`WorldOptions.fillBots`). Everything else is unchanged: the normal boss item (and the first-clear Epic), set drops, XP, the tier ladder and season marks. The hero still has a reason to play, but a real party pays better.
 
 Bot skill was tried as the knob first and rejected, because it barely changes anything. With a Bulwark player at tier 8, bots at skill 1, 0.7 and 0.5 won 18, 19 and 19 of 40 in the Hammerdeep, and 36, 35 and 32 of 40 in the Crucible.
+
+## Loot per minute (21 Nov 2026, after QA's farming check)
+QA found that bot fills were the fastest loot farm, even though each run paid like a solo one. A bot fill clears a group dungeon in about 4.2 to 4.8 minutes, against 5.1 to 7.1 for a solo dungeon, and drops as many or more items. Per minute, that beat every solo dungeon by 1.3 to 2.7 times. The win-rate tables didn't show it.
+
+**Fix:** a bot-filled run keeps only **40% of its in-run drops** (`BOT_FILL.lootShare`). That covers clear bags, elite and named drops, and quest items. Boss items and the end chest aren't thinned. The thinning uses its own dice (`fillKeeps` in `sim/world.ts`), so the fight plays out the same.
+
+**Measured** with the new `tools/lootrate.ts`: tools/heroes hero files, no Omens, seeds 1 to 20. Items per minute / Rare or better per minute:
+
+| Tier 6 (hero-t6) | Best solo (the Kiln) | Hammerdeep + bots, before | Hammerdeep + bots, now | Ashvents + bots, before | Ashvents + bots, now |
+|---|---|---|---|---|---|
+| Bulwark | 1.74 / 0.82 | 2.46 / 0.98 | 1.20 / 0.55 | 1.90 / 0.89 | 1.09 / 0.54 |
+| Emberwright | 1.36 / 0.62 | 2.22 / 1.03 | 1.11 / 0.47 | 1.88 / 0.96 | 0.97 / 0.49 |
+| Lumen | 1.36 / 0.64 | 2.28 / 0.93 | 1.10 / 0.53 | 2.04 / 1.13 | 1.02 / 0.53 |
+
+| Tier 8 (hero-t8), now | Best solo (the Kiln) | Hammerdeep + bots | Ashvents + bots |
+|---|---|---|---|
+| Bulwark | 1.71 / 0.74 | 0.99 / 0.40 | 0.84 / 0.40 |
+| Lumen | 1.32 / 0.65 | 0.95 / 0.44 | 0.63 / 0.35 |
+
+Every bot-fill cell is now below the best solo dungeon in both items and Rare or better per minute: at most 82% of it in items (Lumen, Hammerdeep tier 6) and at most 86% in Rare or better (Bulwark, Hammerdeep tier 6). The other solo dungeons (the Foundry and the Glarewell) pay 0.89 to 1.16 items a minute, so a bot fill now sits about level with them. That's the intent: bots let a solo hero play the group dungeons without beating the best solo farm. A real party still gets its full drops and the extra group boss item.
 
 ## Measured
 I used `tools/botfill.ts`: one player hero with its own heroes-r2 file, plus the bots `fillClasses` picks, in stand-in gear, all at skill 1. The "real party" column is `tools/group.ts`: Bulwark, Lumen, Duskblade and Emberwright, each in its own heroes-r2 file. Seeds 1 to 80, main 9c9d11b. Wins out of 80:

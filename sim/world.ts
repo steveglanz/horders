@@ -7,6 +7,7 @@
  * no Date/Math.random/performance calls in here.
  */
 import { Rng } from './rng';
+import { BOT_FILL } from './content/botfill';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
@@ -751,6 +752,8 @@ export class World {
   readonly firstClear: boolean;
   /** Fill with bots: how many party heroes are bots (0 for a real party). */
   readonly fillBots: number;
+  /** Fill with bots: its own dice for thinning the loot, so the fight itself plays out the same. */
+  private fillRng: Rng | null = null;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
   readonly partySize: number;
@@ -5633,7 +5636,18 @@ export class World {
     return { ...item, set, name: `${SETS[set].name} ${noun}` };
   }
 
+  /**
+   * Fill with bots: bot fills clear faster than solo runs, so only BOT_FILL.lootShare of the
+   * in-run drops (clear bags, elite and named drops, quest items) survive. Boss items don't thin.
+   */
+  private fillKeeps(): boolean {
+    if (!this.fillBots) return true;
+    this.fillRng ??= new Rng((this.seed ^ 0x66696c6c) >>> 0);
+    return this.fillRng.chance(BOT_FILL.lootShare);
+  }
+
   private dropLoot(x: number, y: number, min: Rarity): void {
+    if (!this.fillKeeps()) return;
     const item = this.makeItem(min);
     const d = this.drops.find((q) => !q.alive);
     if (!d) {
@@ -5737,7 +5751,7 @@ export class World {
     if (q.progress < q.goal) return;
     q.done = true;
     this.gainXp(this.player.xpToNext * 0.6);
-    this.pickUp(this.makeItem('fine'));
+    if (this.fillKeeps()) this.pickUp(this.makeItem('fine'));
     this.events.push({ type: 'quest', index: k });
   }
 

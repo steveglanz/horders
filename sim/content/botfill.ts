@@ -12,6 +12,11 @@ export const BOT_FILL = {
   gearScale: 0.8,
   /** Bots fill the party up to this many heroes. */
   partySize: 4,
+  /**
+   * The share of in-run drops a bot-filled run keeps. Bot fills clear faster than any solo
+   * run, so without this they paid the most loot per minute (docs/design/botfill.md).
+   */
+  lootShare: 0.4,
 };
 
 /**
