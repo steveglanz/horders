@@ -468,7 +468,9 @@ export const SOUNDS = {
   ladleWarn: [
     { wave: 'sine', f: 180, f2: 90, dur: 1.0, vol: 0.15, a: 0.3, vib: [9, 0.05] },
     { wave: 'tri', f: 540, f2: 270, dur: 1.0, vol: 0.15, a: 0.3, vib: [9, 0.05] },
-    { wave: 'noise', f: 0, dur: 1.0, vol: 0.3, a: 0.5, lp: 900, lp2: 2800, trem: [9, 0.6] },
+    { wave: 'noise', f: 0, dur: 1.0, vol: 0.3, a: 0.5, lp: 900, lp2: 4000, trem: [9, 0.6] },
+    // The ladle's iron creaks as it tips: a rising, bright edge that carries over a raid's hits on a phone.
+    { wave: 'saw', f: 620, f2: 1050, dur: 0.95, vol: 0.14, a: 0.25, lp: 3800, vib: [9, 0.04] },
   ],
   /** Ladle Pour lands: a heavy molten glug and splash. */
   ladle: join(boom(50, 0.8, 0.6), [
