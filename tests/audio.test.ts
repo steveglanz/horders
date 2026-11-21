@@ -179,6 +179,8 @@ describe('audio', () => {
     expect(phaseSting('grandmotherSlag', 3)).toBe('phaseRaid3');
     expect(phaseSting('ysmeret', 2)).toBe('phaseYsmeret');
     expect(phaseSting('nobodyYet', 2)).toBe('phase');
+    expect(cueFor({ type: 'burnout', warn: true }, { cls: 'lumen', acting: 0 })?.id).toBe('burnoutWarn');
+    expect(cueFor({ type: 'burnout', warn: false }, { cls: 'lumen', acting: 0 })?.id).toBe('burnout');
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
   });
 });
