@@ -136,7 +136,7 @@ Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying mig
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| Y1 | **Raid 3 design: the Cinder Colossus in person,** tier 10, after the Hoard (t9). A new group check that neither the Crucible (tank swap, soaks) nor the Hoard (target switch) tests | design | 🔨 [raid3.md](raid3.md): the Smeltery; "get behind him" (front plate, Wheel, Meltdown). "Cinder Colossus" had no WoW match in the 21 Nov search (raid2.md); the raid's place name gets its own search |
+| Y1 | **Raid 3 design: the Cinder Colossus in person,** tier 10, after the Hoard (t9). A new group check that neither the Crucible (tank swap, soaks) nor the Hoard (target switch) tests | design | ✅ [raid3.md](raid3.md), Y1 PR: the Smeltery, 26 of 40 at t10; "get behind him" (front plate, Wheel, Meltdown). "Cinder Colossus" had no WoW match in the 21 Nov search (raid2.md); the raid's place name gets its own search |
 | Y2 | **Online co-op sync audit:** the Hoard's embers were not sent to guests (`coalEmbers` was missing from netsync ARRAYS; fixed with a test in the Phase 8 PR). Add a test that fails when any array on World is neither synced nor listed as local, so the next dungeon can't miss one | engineering | ⏭ No database change |
 | Y3 | **Hoard QA:** contentcheck at tier 9 (soft-locks), and `coopsweep` with a guest dropping while swallowed and while the Craw stands (the `swallowed` index must not point at a hero who left) | QA | ⏭ Like W5 for the Pressworks |
 | Y4 | **The Hoard on phones:** the swallow countdown chip (#299), the Craw and the ember rings at 360 px wide, and the Swallow banner over the boss panel | mobile | ⏭ Screenshots at 360x740 and 390x844 |
