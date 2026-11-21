@@ -652,21 +652,21 @@ export class GameScene extends Phaser.Scene {
             this.altCast(ev.x, ev.y, ev.r);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
-            if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, 'Sanctuary', '#ffe9a8', 18);
+            if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffe9a8', 18);
           } else if (w.cls === 'slagbinder') {
             // Cooling Shell: a cold ring out to what it covers. Plating and Interpose have their own events.
             if (ev.slot === 2) {
               this.ring(ev.x, ev.y, ev.r + 30, SLAG_COOL, 0.5);
               this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: SLAG_COOL, life: 0.5 });
               for (let k = 0; k < 6; k++) this.steam(ev.x + (Math.random() - 0.5) * 40, ev.y + (Math.random() - 0.5) * 20, 0.6 + Math.random() * 0.4);
-              this.floatText(ev.x, ev.y - 36, 'Cooling Shell', '#cfe0ea', 18);
+              this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#cfe0ea', 18);
             }
           } else if (w.cls === 'bulwark' && ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xdfe7f2, life: 0.25 });
             this.shake = Math.max(this.shake, 0.12);
           } else if (w.cls === 'bulwark' && ev.slot === 2) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: 0xffd27a, life: 0.5 });
-            this.floatText(ev.x, ev.y - 36, 'Bastion', '#ffd27a', 18);
+            this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffd27a', 18);
           } else if (ev.slot === 0) {
             this.addShape({ kind: 'cone', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: ev.angle, color: 0xff8a3d, life: 0.3 });
             // Flames licking out along the wave front.
@@ -1482,7 +1482,8 @@ export class GameScene extends Phaser.Scene {
     const lp = w.player;
     if (lp.sanctT > 0) {
       g.fillStyle(0xffe9a8, 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
-      g.lineStyle(2, 0xffd27a, 0.6).strokeCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
+      g.lineStyle(2, 0xffd27a, 0.6);
+      this.dashedCircle(g, lp.sanctX, lp.sanctY, w.sanctuaryRadius, now);
     }
     if (lp.poolT > 0) g.fillStyle(0xb8ffd0, 0.12).fillCircle(lp.poolX, lp.poolY, 70);
     for (const l of w.lances) {
@@ -2112,6 +2113,21 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A dashed, slowly turning rim. Friendly ground effects (Sanctuary, Lightwell, Slag Pit) use it,
+   * and telegraphs keep their solid rim, so a hero can tell "good to stand in" from "a mechanic"
+   * by shape as well as colour (L3: the colours alone can merge for colour-blind players).
+   */
+  private dashedCircle(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, now: number): void {
+    const n = Math.max(12, Math.round(r / 7));
+    const step = (Math.PI * 2) / n;
+    const turn = now / 4000;
+    for (let k = 0; k < n; k++) {
+      const a = turn + k * step;
+      g.beginPath().arc(x, y, r, a, a + step * 0.55).strokePath();
+    }
+  }
+
   /** What the ability options leave in the world: wards, slows, the cry, wells and pits. */
   private altDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
@@ -2126,7 +2142,8 @@ export class GameScene extends Phaser.Scene {
         const pulse = 0.5 + 0.5 * Math.sin(now / 300);
         g.fillStyle(WELL, (0.1 + 0.04 * pulse) * fade).fillCircle(wx, wy, r);
         g.fillStyle(0xffffff, 0.08 * fade).fillCircle(wx, wy, r * 0.35);
-        g.lineStyle(2, WELL, 0.7 * fade).strokeCircle(wx, wy, r);
+        g.lineStyle(2.5, WELL, 0.75 * fade);
+        this.dashedCircle(g, wx, wy, r, now);
         // Slow-turning rays in the pool.
         g.lineStyle(1.5, WELL, 0.3 * fade);
         for (let k = 0; k < 6; k++) {
@@ -2144,7 +2161,8 @@ export class GameScene extends Phaser.Scene {
         // A dark crust over molten slag, with glowing seams and bubbles breaking.
         g.fillStyle(0x2a1d18, 0.5 * fade).fillCircle(px, py, r);
         g.fillStyle(SLAG, (0.16 + 0.06 * Math.sin(now / 180)) * fade).fillCircle(px, py, r * 0.75);
-        g.lineStyle(2.5, SLAG, 0.8 * fade).strokeCircle(px, py, r);
+        g.lineStyle(2.5, SLAG, 0.8 * fade);
+        this.dashedCircle(g, px, py, r, now);
         g.lineStyle(2, 0xffc27a, 0.55 * fade);
         for (let k = 0; k < 5; k++) {
           const a = (k / 5) * Math.PI * 2 + 0.4;
