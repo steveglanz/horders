@@ -75,6 +75,45 @@ Tuning steps: Bellow Slam 90 and Scatter 8%/25% gave 1/6 on a quick check, becau
 
 **Names:** web searches on 21 Nov 2026 for "Ashvents" game dungeon and "Ysmeret" game found no game using either (result titles only, so it's a search check, not a legal clearance).
 
+## In-fight revives (G6): the boss rules
+
+**The rule.** Standing on a downed ally picks them up at 30% health (`REVIVE_RADIUS`, `REVIVE_HEALTH`). Outside a boss fight it takes 3 s, with no limit. While a boss is up, it takes 9 s, and the party gets one pick-up for the whole boss fight (`REVIVE_RULES` in sim/world.ts, read through `World.reviveSeconds` and `World.revivesLeft`). Once it's used, the downed hero's bar says "no revives left this boss", and the revive circle goes away.
+
+**Why.** Revives in a boss fight are where they decide the outcome. Free ones turn every group fight into a win: with skills' rescuing bots (#159) and no limit, every full-party cell measured 39 or 40 of 40. MMO raids handle this the same general way, with a slow, limited rescue in combat and free ones between pulls. The 9 s pick-up costs the rescuer real damage and real danger, and one per fight keeps a wipe a wipe.
+
+**How it was chosen** (tools/group.ts, heroes-r2 at the matching tier, 40 seeds, wins out of 40):
+
+| Rule | Crucible 8 | Ashvents 8 | Hammerdeep 8 | Hammerdeep 6 |
+|---|---|---|---|---|
+| Bots never revive (main) | 26 | 34 | 26 | 38 |
+| Unlimited, 3 s | 39 | 40 | 40 | 40 |
+| Boss: none at all | 26 | 34 | 26 | 38 |
+| Boss: 1 pick-up, 6 s | 29 | 37 | 36 | 39 |
+| Boss: 2 pick-ups, 6 s | 30 | 37 | 36 | 39 |
+| Boss: 1 pick-up, 9 s | 26 | 35 | 26 | 38 |
+| Boss: 1 pick-up, 12 s | 26 | 32 | 23 | 37 |
+
+All four are full parties. Trash-fight revives change nothing: "Boss: none at all" matches main exactly, and a 5 s trash pick-up measured the same as 3 s. One pick-up and two measured the same, so the rule is one. At 9 s the full parties land where they were before bots revived, so the bot party is now a fair stand-in for players who do.
+
+**Ysmeret, 5000 to 6200 health.** The Ashvents full party was already over its 55 to 70% target on main (67 of 80, 84%) after #159's Bastion fix. With 6200 it wins 54 of 80 (68%). 6600 gave 44 of 80 (55%), the bottom of the band.
+
+**Final numbers, 80 seeds** (main, then this change):
+
+| Cell | Main | Now |
+|---|---|---|
+| Crucible 8, full party | 46 | 49 (61%, under the raid's 70% ceiling) |
+| Ashvents 8, full party | 67 | 54 (68%) |
+| Ashvents 6, Bulwark and Lumen | 58 | 28 (35%) |
+| Ashvents 6, Emberwright and Lumen | 0 | 0 |
+| Hammerdeep 8, full party | 54 | 53 |
+| Hammerdeep 6, Bulwark and Lumen | 29 | 28 |
+| Hammerdeep 6, full party | 78 | 77 |
+
+**Watch items.**
+- The Ashvents duo of a tank and a healer fell from 72% to 35%, because Ysmeret's extra health weighs most on a party with little damage. There's no duo target, and a duo is short of damage by design, but if real duos struggle, scale Ysmeret's health by party size instead.
+- Hammerdeep 6 with a full party is far over its 60 to 75% target (77 of 80), and was before this change. Health is the wrong lever: Ondrel at 7200 brought it to 29 of 40, but the tier 8 party fell to 6 and the duo to 2. It needs a fight change that scales with tier.
+- A pair with no tank in the Ashvents still wins 0, inside the "under 25%" target for no tank.
+
 ## Delve setup and Quick join (engineering)
 - `DungeonDef.style: 'solo' | 'group'`. The delve card shows the label, and in a party it shows the roles present: **Tank ✓ Healer ✗ Damage ✓✓**. Classes map to roles from `CLASSES[].role`.
 - Ask for engineering: add `roles` to `LobbyAd`, and let `pickParty` prefer a party that lacks your role (a Lumen seeker goes to a party with no healer first). The party card shows "Needs: Healer".

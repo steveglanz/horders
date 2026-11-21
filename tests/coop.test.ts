@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, WorldOptions, REVIVE_HEALTH, REVIVE_RADIUS, TICK, VEIN_TIME } from '../sim/world';
+import { World, WorldOptions, REVIVE_HEALTH, REVIVE_RADIUS, REVIVE_RULES, TICK, VEIN_TIME } from '../sim/world';
 import { botInput } from '../sim/bot';
 
 const party = (n: number): WorldOptions['party'] =>
@@ -104,6 +104,42 @@ describe('co-op party', () => {
     expect(down.hp).toBeCloseTo(down.maxHp * REVIVE_HEALTH, 5);
     expect(events).toContain('revive');
     expect(w.events.find((e) => e.type === 'revive')).toMatchObject({ hero: 1, by: 0 });
+  });
+
+  it('while a boss is up, a pick-up is slower and the party gets bossCap of them', () => {
+    const w = new World({ seed: 8, party: party(3) });
+    run(w, () => w.phase === 'fight' && w.enemies.length > 0);
+    // Stand in a boss: any living enemy, made unkillable.
+    w.bossSpawned = true;
+    w.bossIndex = 0;
+    const boss = w.enemies[0];
+    boss.hp = boss.maxHp = 1e9;
+    expect(w.bossUp).toBe(true);
+    expect(w.reviveSeconds).toBe(REVIVE_RULES.bossSeconds);
+    expect(w.revivesLeft).toBe(REVIVE_RULES.bossCap);
+    const [a, b, c] = [0, 1, 2].map((i) => w.hero(i).player);
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+    const on = (q: typeof b) => () => { a.hp = a.maxHp = 1e6; a.x = q.x + 10; a.y = q.y; boss.hp = 1e9; };
+    b.hp = 0;
+    c.hp = 0;
+    c.x = b.x + REVIVE_RADIUS * 4; c.y = b.y;
+    const onB = on(b);
+    for (let t = 0; t < Math.round((REVIVE_RULES.seconds + 0.2) / TICK); t++) { onB(); w.step(still); }
+    expect(b.hp).toBe(0); // the trash-fight 3 s is not enough with a boss up
+    for (let t = 0; t < Math.round(REVIVE_RULES.bossSeconds / TICK) && b.hp === 0; t++) { onB(); w.step(still); }
+    expect(b.hp).toBeGreaterThan(0);
+    expect(w.revivesLeft).toBe(REVIVE_RULES.bossCap - 1);
+    if (REVIVE_RULES.bossCap === 1) {
+      const onC = on(c);
+      for (let t = 0; t < Math.round((REVIVE_RULES.bossSeconds + 1) / TICK); t++) { onC(); w.step(still); }
+      expect(c.hp).toBe(0); // the cap is used up
+      expect(c.reviveT ?? 0).toBe(0);
+    }
+    // The boss falls: back to trash rules, with no cap.
+    w.enemies[0].hp = 0;
+    expect(w.bossUp).toBe(false);
+    expect(w.reviveSeconds).toBe(REVIVE_RULES.seconds);
+    expect(w.revivesLeft).toBe(Infinity);
   });
 
   it('stepping off a downed hero resets the revive, and the downed cannot revive each other', () => {
