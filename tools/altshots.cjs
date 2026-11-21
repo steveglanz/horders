@@ -2,11 +2,13 @@
 // action bar, its cast, and what it leaves behind (Ember Ward, Hamstring's slow, Rallying Cry,
 // Lightwell, Slag Pit). The bot casts options at its own pace, so the tool sets each option's
 // state directly and plays the cast effect on top. No network.
-// Usage: npm run build && node tools/altshots.cjs <outDir> [phone]
+// Usage: npm run build && node tools/altshots.cjs <outDir> [phone] [saver]
+// 'saver' sets Graphics to Battery saver, which trims the effects' extra detail.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const phone = process.argv.includes('phone');
+const saver = process.argv.includes('saver');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -21,9 +23,10 @@ const SCENES = [
 
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  const tag = phone ? 'phone' : 'desk';
+  const tag = (phone ? 'phone' : 'desk') + (saver ? '-saver' : '');
   const ctx = await b.newContext(phone ? { ...devices['iPhone 13'] } : { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
   await ctx.route('https://*.supabase.co/**', (r) => r.abort());
+  if (saver) await ctx.addInitScript(() => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'saver' })));
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
