@@ -36,8 +36,8 @@ A soft enrage at 4 minutes (Choir every 5 s) keeps a party with no damage dealer
 ## The Deepguard set (21 Nov 2026)
 This is the Hammerdeep's verb set, the first one from a group dungeon. Ondrel's head, hands and trinket drops can be Deepguard pieces, the same way the solo bosses drop their sets (`withSet`, 60% of set-slot drops, never in bounties). Group loot already gives every hero their own boss item. The verb is **stay close**: the Hammerdeep asks the party to stand together behind the tank. All the numbers are in `SET_TUNING` (`dg*`) in `sim/content/sets.ts`.
 
-- **2 pieces:** while an ally stands within 140 of you, you take 4% less damage.
-- **3 pieces:** allies within 140 of you take 3% less damage. Two wearers near the same hero don't stack it.
+- **2 pieces:** while an ally stands within 140 of you, you take 3% less damage.
+- **3 pieces:** allies within 140 of you take 2.5% less damage. Two wearers near the same hero don't stack it.
 - **Solo it does nothing,** and the 2-piece text says so. It is a reason to keep grouping, not a solo upgrade.
 
 **Measured** with tools/group.ts (new `SET=` and `SETN=`, which make every hero's head, hands and trinket set pieces), heroes-r2, seeds 1 to 80, on main 5afb9cb plus this change. Wins out of 80:
@@ -52,6 +52,19 @@ The other sets give that duo nothing: with 3 Kilnbreaker pieces each it won 18, 
 - **Tier 8 full party:** +4 wins in 40 when everyone wears all 3 pieces, inside the solo sets' 2 to 7.
 - **Tier 6 duo:** +6.5 in 40, at the top of that range. The duo is the most sensitive case, because every hit counts in a fight short of healing.
 - **First pass:** a 6% cut and a 5% aura gave that duo 40 of 80 (+8 in 40), which is too much. The cut is now 4% and the aura 3%.
+
+**Retune after the bots learned the verb (21 Nov 2026, main cfca513 with skills' #231).** Until #231, party bots never moved to stay close, so the numbers above measured the set without its verb. Now a ranged bot wearing 2+ Deepguard pieces drifts to within 105 of an ally. Most of the duo's gain is that positioning, not the set. To separate the two, I ran the set with its cut and aura set to 0 ("verb only"). Seeds 1 to 40 for the duo, 1 to 80 for the party, all heroes wearing 3 pieces:
+
+| | No set | Verb only (0%, 0%) | Old: 4%, 3% | New: 3%, 2.5% |
+|---|---|---|---|---|
+| Tier 6 Bulwark and Lumen duo (hero-t6-0), of 40 | 12 | 24 | 33 | 30 |
+| Tier 8 full party (hero-t8-0), of 80 | 43 | 56 | 55 | 61 |
+
+- **Duo:** the set's own effect was +9 in 40 over the verb alone, above the 2 to 7 range. At 3% and 2.5% it is +6.
+- **Full party:** the set's own effect is within noise at both settings (-1 and +5 of 80). That is +2.5 in 40 at most.
+- **Also tried on the duo:** 3%/2% gave 28, 2%/2% gave 27, 2%/3% gave 28, 3%/3% gave 32 and 3.5%/2% gave 30.
+- **The no-set positioning is unchanged.** Without a set, the Lumen bot stands too far from the tank. Skills measured that forcing the drift with no set lifts the duo from 24 to 49 of 80. The Hammerdeep's tuning was measured with today's bots, so changing that is a separate roadmap item.
+- **The in-game text was stale.** The bonus text still quoted the first pass (6% and 5%). It now says 3% and 2.5%. The Wrackrider text also still quoted its first pass ("After 1s", "+10%"). It now says 0.5 s, the 1 s linger and +8%, matching wrackline.md. A test in tests/sets.test.ts now checks that those four sets' texts quote SET_TUNING.
 
 **Ondrel's title is renamed** from "Ondrel, the Anvilward" to **"Ondrel of the Hammerdeep"**. The doc had also planned an "Anvilward set". A search found WoW's NPC Prospector Anvilward (wow.gamepedia.com/Prospector_Anvilward), and under Steve's rule coined words that match WoW names get renamed. The set's first verb, "hold the line", is a WoW quest and spell (wowhead.com quests 24469 and 14347, spell 325601), so it changed too. "Stand together" (spell 299254) and "Shoulder to shoulder" (a quest) were dropped for the same reason. "Deepguard" has no match on wowhead.com, warcraft.wiki.gg, wowpedia or the open web.
 
