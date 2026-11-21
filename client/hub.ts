@@ -554,7 +554,7 @@ export class Hub {
     const today = st.firstWinDay === dayOf(Date.now());
     const rewards = seasonRewards(st.id).map((r) => {
       const got = lvl >= r.level;
-      const what = r.kind === 'glow' ? `<span class="swatch${glowMarkClass(r.glow.id)}" style="--sw:${r.glow.color}"></span>${r.glow.name} glow` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
+      const what = r.kind === 'glow' ? `<span class="swatch${glowMarkClass(r.glow.id)}" style="--sw:${r.glow.color}"></span>${r.glow.name}${/glow$/i.test(r.glow.name) ? '' : ' glow'}` : r.kind === 'trail' ? `<span class="swatch trail" style="--sw:${r.trail.color}"></span>${trailLabel(r.trail, r.stage)} trail` : `Title: <b>${r.title}</b>`;
       return `<div class="sr${got ? ' got' : ''}"><span class="sr-lv">${r.level}</span><span class="sr-what">${what}</span><span class="sr-st">${got ? '✓' : ''}</span></div>`;
     }).join('');
     const titles = h.titles ?? [];
