@@ -30,13 +30,14 @@ function scriptLast(): Plugin {
 /**
  * L2: Phaser's source checks build flags with `if (typeof WEBGL_RENDERER)`,
  * which its own webpack build replaces whole (webpack/config.js DefinePlugin).
- * Do the same here, for Phaser's files only: both renderers and sound on, the
+ * Do the same here, for Phaser's files only: both renderers on; sound off, since
+ * all game sound is synthesized in client/audio and never uses Phaser's; the
  * optional plugins and the WebGL debug layer off.
  */
 const PHASER_FLAGS: Record<string, string> = {
   WEBGL_RENDERER: 'true',
   CANVAS_RENDERER: 'true',
-  FEATURE_SOUND: 'true',
+  FEATURE_SOUND: 'false',
   PLUGIN_CAMERA3D: 'false',
   PLUGIN_FBINSTANT: 'false',
   WEBGL_DEBUG: 'false',
