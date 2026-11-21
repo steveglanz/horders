@@ -242,6 +242,16 @@ The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is wi
 
 Brittle is the class's party signature. It doesn't stack, so one Slagbinder in a party is the point.
 
+### Stance: one role per run
+The player picks a stance in the hub before the run, and it is locked for the run. That way one hero never fills both the tank and the healer slot of a group dungeon (design, 21 Nov 2026).
+
+| Stance | Role for Quick join and group gates | Threat | Change |
+|---|---|---|---|
+| **Anvil** | Tank | ×4, like the Bulwark | Cooling Shell lasts +2 s. Clinker on the boss also taunts it, the way Shield Toss does. Plating is 25% weaker. |
+| **Pour** (default) | Damage slot (Warden) | ×2 | Plating as listed above. Interpose lasts +1 s. |
+
+Solo, the stance only changes the numbers in its row. To support this, `roleOf` in sim/content/dungeon.ts takes the hero's stance as well as the class, and threat reads the multiplier from it rather than from `cls === 'bulwark'`. The Bulwark-only checks for call-outs and Smother stay Bulwark-only.
+
 ### Talents (three branches, like the other classes)
 - **Forge (plating):**
   - Thick Pour: plating +20% per rank.
@@ -284,7 +294,7 @@ Each branch gets 3 card talents and two capstones from the start, so this class 
   - Cues for Lob, plating applied and plating burst, Interpose leap, Cooling Shell, Clinker, and Brittle applied.
 - **Engineering:**
   - The new ClassId in the hub, the class picker, save files and Quick join role badges.
-  - The role is "Warden": it fills a damage slot in Quick join and counts as neither tank nor healer for the Hammerdeep's tank and healer rule.
+  - Its role comes from the stance: Anvil counts as tank, Pour as a damage slot. The hub's party role chips (client/hub.ts) need a stance toggle for the Slagbinder.
 
 ### Balance targets
 - The same as L7:
