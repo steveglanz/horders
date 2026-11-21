@@ -6,7 +6,7 @@ import { OMENS } from '../sim/content/omens';
 import { CoopSession, SNAP_SECONDS } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, REVIVE_SECONDS } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -902,6 +902,21 @@ export class GameScene extends Phaser.Scene {
     for (const al of this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
       g.lineStyle(2, down ? 0x6a5a54 : hex(CLASS_ICON[w.heroes[al.hero].cls].color), down ? 0.5 : 0.85).strokeEllipse(al.img.x, al.img.y + 22, 44, 16);
+    }
+    // G6: a downed hero shows the circle an ally must stand in, filling as they hold it.
+    if (w.heroes.length > 1) {
+      const me = w.player;
+      const spots = [...this.allies.map((al) => ({ q: w.heroData(al.hero).player, x: al.img.x, y: al.img.y })), { q: me, x: this.player.x, y: this.player.y }];
+      for (const { q, x, y } of spots) {
+        if (q.hp > 0) continue;
+        g.lineStyle(2, 0x9fe8a8, 0.35 + 0.15 * Math.sin(now / 250)).strokeCircle(x, y, REVIVE_RADIUS);
+        const t = Math.min(1, (q.reviveT ?? 0) / REVIVE_SECONDS);
+        if (t > 0) {
+          g.lineStyle(5, 0x9fe8a8, 0.95).beginPath();
+          g.arc(x, y, REVIVE_RADIUS, -Math.PI / 2, -Math.PI / 2 + t * Math.PI * 2, false);
+          g.strokePath();
+        }
+      }
     }
     if (!w.stress) {
       // The arena: darkness beyond the edge, an ember rim on it.

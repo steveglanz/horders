@@ -40,6 +40,11 @@ export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
 const PLAYER_RADIUS = 12;
+/** G6: an ally standing within this distance of a downed hero picks them up... */
+export const REVIVE_RADIUS = 40;
+/** ...after this many seconds, at this share of their health. Leaving the circle resets the count. */
+export const REVIVE_SECONDS = 3;
+export const REVIVE_HEALTH = 0.3;
 /** Share of every hit the Bulwark's armor stops. */
 const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
@@ -241,6 +246,8 @@ export interface Player {
   surge?: boolean;
   gwT?: number;
   gwReadyAt?: number;
+  /** Co-op, while downed: seconds an ally has stood on this hero (G6 in-fight revive). */
+  reviveT?: number;
   volleyT: number;
   rainT: number;
   lanceT: number;
@@ -314,7 +321,7 @@ export type SimEvent =
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
   | { type: 'chest'; x: number; y: number }
-  | { type: 'revive'; hero?: number }
+  | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
   | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
@@ -903,7 +910,34 @@ export class World {
     this.eachHero(() => this.updateDrops());
     this.eachHero(() => this.updateVeins(dt));
     this.eachHero(() => this.updateGems(dt));
+    this.updateRevives(dt);
     this.checkEnd();
+  }
+
+  /** G6: a downed hero gets back up after a living ally stands on them for REVIVE_SECONDS. */
+  private updateRevives(dt: number): void {
+    for (let i = 0; i < this.heroes.length; i++) {
+      const d = this.heroPlayer(i);
+      if (d.hp > 0) {
+        d.reviveT = 0;
+        continue;
+      }
+      let by = -1;
+      for (let j = 0; j < this.heroes.length && by < 0; j++) {
+        const a = this.heroPlayer(j);
+        if (j !== i && a.hp > 0 && dist2(a.x, a.y, d.x, d.y) <= REVIVE_RADIUS * REVIVE_RADIUS) by = j;
+      }
+      if (by < 0) {
+        d.reviveT = 0;
+        continue;
+      }
+      d.reviveT = (d.reviveT ?? 0) + dt;
+      if (d.reviveT >= REVIVE_SECONDS - 1e-9) {
+        d.reviveT = 0;
+        d.hp = d.maxHp * REVIVE_HEALTH;
+        this.events.push({ type: 'revive', hero: i, by });
+      }
+    }
   }
 
   /** Apply a draft choice while the sim is paused for a level-up. */

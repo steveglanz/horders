@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, WorldOptions } from '../sim/world';
+import { World, WorldOptions, REVIVE_HEALTH, REVIVE_RADIUS, TICK } from '../sim/world';
 import { botInput } from '../sim/bot';
 
 const party = (n: number): WorldOptions['party'] =>
@@ -85,6 +85,44 @@ describe('co-op party', () => {
     (w as unknown as { afterClear: (d: unknown) => void }).afterClear(undefined);
     expect(w.hero(1).player.hp).toBeGreaterThan(0);
     expect(w.hero(1).player.hp).toBeLessThan(w.hero(1).player.maxHp);
+  });
+
+  it('an ally standing on a downed hero for 3 s picks them up mid-fight', () => {
+    const w = new World({ seed: 8, party: party(2) });
+    run(w, () => w.phase === 'fight');
+    const down = w.hero(1).player, ally = w.hero(0).player;
+    down.hp = 0;
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    const hold = () => { ally.hp = ally.maxHp = 1e6; ally.x = down.x + REVIVE_RADIUS - 5; ally.y = down.y; };
+    hold();
+    w.step(still);
+    expect(down.hp).toBe(0);
+    let events: string[] = [];
+    for (let t = 0; t < Math.round(2.8 / TICK); t++) { hold(); w.step(still); }
+    expect(down.hp).toBe(0); // not yet at 2.8 s
+    for (let t = 0; t < Math.round(0.3 / TICK) && down.hp === 0; t++) { hold(); w.step(still); events = w.events.map((e) => e.type); }
+    expect(down.hp).toBeCloseTo(down.maxHp * REVIVE_HEALTH, 5);
+    expect(events).toContain('revive');
+    expect(w.events.find((e) => e.type === 'revive')).toMatchObject({ hero: 1, by: 0 });
+  });
+
+  it('stepping off a downed hero resets the revive, and the downed cannot revive each other', () => {
+    const w = new World({ seed: 8, party: party(3) });
+    run(w, () => w.phase === 'fight');
+    const [a, b, c] = [0, 1, 2].map((i) => w.hero(i).player);
+    b.hp = 0;
+    c.hp = 0;
+    c.x = b.x; c.y = b.y; // a downed hero on top of another does nothing
+    const still = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+    const near = () => { a.hp = a.maxHp = 1e6; a.x = b.x + 10; a.y = b.y; };
+    const far = () => { a.hp = a.maxHp = 1e6; a.x = b.x + REVIVE_RADIUS * 3; a.y = b.y; };
+    for (let t = 0; t < Math.round(2 / TICK); t++) { near(); w.step(still); }
+    for (let t = 0; t < 2; t++) { far(); w.step(still); }
+    for (let t = 0; t < Math.round(2 / TICK); t++) { near(); w.step(still); }
+    expect(b.hp).toBe(0); // 2 s + 2 s with a gap is not 3 s in a row
+    for (let t = 0; t < Math.round(1.2 / TICK); t++) { near(); w.step(still); }
+    expect(b.hp).toBeGreaterThan(0);
+    expect(c.hp).toBeGreaterThan(0); // c lies on the same spot, so the same ally picks both up
   });
 
   it('each hero picks their own cards, and the run waits for everyone', () => {
