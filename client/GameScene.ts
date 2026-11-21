@@ -510,7 +510,9 @@ export class GameScene extends Phaser.Scene {
    */
   private deepUnlock(branch: keyof typeof BRANCH_NAMES): void {
     const cls = this.world.cls;
-    const n = Object.values(TALENTS).filter((d) => d.cls === cls && d.branch === branch && (d as { deep?: boolean }).deep).length;
+    // Party cards are deep cards that only a party is offered, so a solo hero isn't told about them.
+    const solo = this.world.heroes.length < 2;
+    const n = Object.values(TALENTS).filter((d) => d.cls === cls && d.branch === branch && (d as { deep?: boolean }).deep && !(solo && (d as { party?: boolean }).party)).length;
     if (!n) return;
     const p = this.world.player;
     const c = hex(BRANCH_COLOR[branch]);

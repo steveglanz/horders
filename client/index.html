@@ -192,6 +192,12 @@
   .card .name, .card .text { padding-right: 44px; }
   /* Deep cards (C5 round 2): unlocked by a capstone, so they wear its branch a little darker and richer. */
   .card.deep { background: linear-gradient(180deg, color-mix(in srgb, var(--branch) 18%, transparent), rgba(0,0,0,0.42) 70%), repeating-linear-gradient(135deg, color-mix(in srgb, var(--branch) 7%, transparent) 0 2px, transparent 2px 9px); border-bottom: 2px solid color-mix(in srgb, var(--branch) 55%, transparent); }
+  /* Party cards: a deep card for parties only, marked with a two-hero badge and a warm "Party" tag. */
+  .card .tglyph .pbadge { position: absolute; right: -6px; bottom: -6px; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: #1a0f0b; color: #ffc861; box-shadow: 0 0 0 1.5px #ffc861; }
+  .card .tglyph .pbadge svg { width: 11px !important; height: 11px !important; }
+  /* The branch name stays on one line; a tag that won't fit beside it drops below. */
+  .card .branch { flex-wrap: wrap; row-gap: 3px; } .card .branch .bn { white-space: nowrap; }
+  .card .deeptag.party { color: #ffc861; border-color: rgba(255,200,97,0.6); letter-spacing: 0.06em; }
   .card .deeptag { color: var(--branch); border: 1px solid color-mix(in srgb, var(--branch) 60%, transparent); border-radius: 6px; padding: 0 5px; font-size: 10px; letter-spacing: 0.12em; }
   .card .tglyph.deep { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gc) 70%, transparent), 0 0 0 3px rgba(0,0,0,0.5), 0 0 0 4.5px color-mix(in srgb, var(--gc) 45%, transparent); }
   .card .tglyph.cap { border-radius: 50%; box-shadow: 0 0 0 2px var(--gc), 0 0 14px color-mix(in srgb, var(--gc) 55%, transparent); }
