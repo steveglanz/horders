@@ -2993,7 +2993,23 @@ export class World {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
       // From tier 2, an Epic is guaranteed the first time you beat a tier; otherwise the boss drops Rare or better.
-      this.pickUp(this.withSet(this.makeItem(this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare')));
+      // Every hero in the party gets their own boss item (not only whoever landed the
+      // killing blow). Group dungeons add a second Rare-or-better item each.
+      const min: Rarity = this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare';
+      const group = this.dungeonDef.style === 'group';
+      const give = () => {
+        this.pickUp(this.withSet(this.makeItem(min)));
+        if (group) this.pickUp(this.makeItem('rare'));
+      };
+      if (this.heroes.length === 1) give();
+      else {
+        const at = this.acting;
+        for (let k = 0; k < this.heroes.length; k++) {
+          this.use(k);
+          give();
+        }
+        this.use(at);
+      }
       if (this.worldBoss && !this.route.includes('worldShadow')) {
         this.route.push('worldShadow');
         // Clear the field so the bonus fight starts clean.
