@@ -6,7 +6,7 @@ import {
 } from '../sim/hero';
 import { BossStatus, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
-import { CLASSES, CLASS_IDS } from '../sim/content/classes';
+import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
 import { SETS } from '../sim/content/sets';
@@ -277,7 +277,24 @@ export class Hub {
           const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer.';
           return `<button data-stance="${st}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
         }).join('')}</div>`
-        : '');
+        : '')
+      // Ability option: from level 8, swap one action-bar slot for the class's option (kept per character).
+      + (() => {
+        const opt = ALT_ABILITIES[cls];
+        const own = CLASSES[cls].abilities[opt.slot];
+        if (h.level < ALT_UNLOCK_LEVEL) return `<div class="stance" role="group" aria-label="Ability option"><button disabled title="At level ${ALT_UNLOCK_LEVEL}, you can swap ${own.name} for ${opt.def.name}.">${opt.def.name} · Lv ${ALT_UNLOCK_LEVEL}</button></div>`;
+        return `<div class="stance" role="group" aria-label="Ability option">${[false, true].map((on) => {
+          const d = on ? opt.def : own;
+          const sel = !!h.alt === on;
+          return `<button data-alt="${on ? 1 : 0}" class="${sel ? 'on' : ''}" aria-pressed="${sel}" title="${d.name}: ${d.text}">${d.name}</button>`;
+        }).join('')}</div>`;
+      })();
+    $('classes').querySelectorAll<HTMLButtonElement>('[data-alt]').forEach((b) =>
+      b.addEventListener('click', () => {
+        h.alt = b.dataset.alt === '1';
+        this.save();
+        this.render();
+      }));
     $('classes').querySelectorAll<HTMLButtonElement>('[data-stance]').forEach((b) =>
       b.addEventListener('click', () => {
         h.stance = b.dataset.stance as 'anvil' | 'bellows';

@@ -10,6 +10,8 @@ import type { ClassId } from '../sim/content/emberwright';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
+/** ALT=1 turns the ability option on for every hero; ALT=bulwark,lumen for those classes only. */
+const altFor = (cls: ClassId): boolean => process.env.ALT === '1' || (process.env.ALT ?? '').split(',').includes(cls);
 const file = process.env.HERO_FILE ?? 'hero-t6-0.json';
 const profile = (cls: ClassId): HeroProfile | null => {
   const f = dir ? `${dir}/${cls}/${file}` : '';
@@ -23,11 +25,11 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main, stance: process.env.STANCE as 'anvil' | undefined,
+    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: equippedItems(mp), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
-      return { cls, stance: process.env.STANCE as 'anvil' | undefined, name: `${cls}${k + 1}`, ...(hp ? { gear: equippedItems(hp), passives: hp.passives } : {}) };
+      return { cls, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(cls), name: `${cls}${k + 1}`, ...(hp ? { gear: equippedItems(hp), passives: hp.passives } : {}) };
     }),
   };
   const w = new World(opts);

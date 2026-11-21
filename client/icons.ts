@@ -45,6 +45,23 @@ const CUT = 'M17.7 6.3A8 8 0 1 1 13.5 4.1 M14.5 2.5l7 7';
  * Action-bar glyphs per class, in slot order Q, E, R, F (the order of CLASSES[cls].abilities).
  * Names follow the skills team's map, /mnt/project-files/horders/skills/ability-icons.md.
  */
+/**
+ * Ability-option glyphs (ALT_ABILITIES in sim/content/classes.ts), shown in the swapped slot.
+ * Placeholders until visuals draws them.
+ */
+export const ALT_GLYPH: Record<ClassId, string> = {
+  // Ember Ward: a flame inside a ring.
+  emberwright: 'M12 7c1.8 2.4 3 4 3 6a3 3 0 0 1-6 0c0-2 1.2-3.6 3-6Z M12 2.5a9.5 9.5 0 1 1 0 19a9.5 9.5 0 1 1 0-19Z',
+  // Hamstring: a blade over a slowed arrow.
+  duskblade: 'M4 20 18 6 M15 4l5 5 M5 12h6 M8 9l3 3-3 3',
+  // Rallying Cry: a horn with sound rings.
+  bulwark: 'M4 10v4l9 4V6Z M16 9a4 4 0 0 1 0 6 M18.5 6.5a7.5 7.5 0 0 1 0 11',
+  // Lightwell: a pool with light rising.
+  lumen: 'M4 17c2.5 2 13.5 2 16 0 M4 17c2.5-2 13.5-2 16 0 M12 13V4 M8.5 12 7 7 M15.5 12 17 7',
+  // Slag Pit: a pit with molten drips.
+  slagbinder: 'M3 15c3 4 15 4 18 0 M3 15c3-2 15-2 18 0 M9 4v5 M12 3v7 M15 4v5',
+};
+
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {
   emberwright: [
     // Flame Wave: a cone of fire fanning out from one point.

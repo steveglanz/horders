@@ -111,6 +111,8 @@ export interface TalentDef {
   text: string;
   /** Long-press tooltip with the numbers, for cards whose text has none. Falls back to `text`. */
   tip?: string;
+  /** The action-bar slot this talent improves. A hero who swapped that slot's ability (ALT_ABILITIES) never drafts it. */
+  ability?: number;
 }
 
 /** Ranks in one branch that unlock its capstone. A run has about four drafts. */
@@ -137,10 +139,10 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   cinderSkin: { id: 'cinderSkin', cls: 'emberwright', name: 'Cinder Skin', branch: 'ashguard', maxRank: 3, text: '+25 max health, and heal 25.' },
   mend: { id: 'mend', cls: 'emberwright', name: 'Mend in Embers', branch: 'ashguard', maxRank: 3, text: 'Regenerate 0.8 health per second.' },
   magnetism: { id: 'magnetism', cls: 'emberwright', name: 'Ember Pull', branch: 'ashguard', maxRank: 3, text: '+40% pickup range, +6% move speed.' },
-  flicker: { id: 'flicker', cls: 'emberwright', name: 'Flicker', branch: 'ashguard', maxRank: 3, text: 'Blink recharges 1.5s faster and shields you briefly.' },
-  blazingSpeed: { id: 'blazingSpeed', cls: 'emberwright', name: 'Blazing Speed', branch: 'ashguard', maxRank: 2, text: 'Run 30% faster for 2s after Blink. Rank 2: Blink holds a second charge.' },
+  flicker: { id: 'flicker', ability: 1, cls: 'emberwright', name: 'Flicker', branch: 'ashguard', maxRank: 3, text: 'Blink recharges 1.5s faster and shields you briefly.' },
+  blazingSpeed: { id: 'blazingSpeed', ability: 1, cls: 'emberwright', name: 'Blazing Speed', branch: 'ashguard', maxRank: 2, text: 'Run 30% faster for 2s after Blink. Rank 2: Blink holds a second charge.' },
   ringOfAsh: { id: 'ringOfAsh', cls: 'emberwright', name: 'Ring of Ash', branch: 'ashguard', maxRank: 1, capstone: true, text: 'CAPSTONE: three embers orbit and burn foes.', tip: "Three embers circle you and burn each foe they touch for 16 damage, at most once every 0.4s per foe." },
-  ashenMantle: { id: 'ashenMantle', cls: 'emberwright', name: 'Ashen Mantle', branch: 'ashguard', maxRank: 1, capstone: true, text: 'CAPSTONE: for 3s after Blink, you take 40% less damage.' },
+  ashenMantle: { id: 'ashenMantle', ability: 1, cls: 'emberwright', name: 'Ashen Mantle', branch: 'ashguard', maxRank: 1, capstone: true, text: 'CAPSTONE: for 3s after Blink, you take 40% less damage.' },
   // Fallbacks once the tree runs dry
   stoke: { id: 'stoke', name: 'Stoke the Flame', branch: 'general', maxRank: 99, text: '+10% damage.' },
   smallHeal: { id: 'smallHeal', name: 'Warm Hearth', branch: 'general', maxRank: 99, text: 'Heal 40 health.' },
@@ -148,7 +150,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Duskblade. Bloodletting: bleeds and sustain
   serratedEdge: { id: 'serratedEdge', cls: 'duskblade', name: 'Serrated Edge', branch: 'bloodletting', maxRank: 3, text: 'Swings make enemies bleed.', tip: "Swings make foes bleed for 3s: 5 damage per second per rank." },
   hemorrhage: { id: 'hemorrhage', cls: 'duskblade', name: 'Hemorrhage', branch: 'bloodletting', maxRank: 3, text: 'Bleeding enemies take 10% more damage from you.' },
-  deepCuts: { id: 'deepCuts', cls: 'duskblade', name: 'Deep Cuts', branch: 'bloodletting', maxRank: 3, text: 'Rending Dash bleeds harder and recharges 1s faster.', tip: "Rending Dash bleeds for 12 per second for 4s, +50% per rank, and recharges 1s faster per rank." },
+  deepCuts: { id: 'deepCuts', ability: 0, cls: 'duskblade', name: 'Deep Cuts', branch: 'bloodletting', maxRank: 3, text: 'Rending Dash bleeds harder and recharges 1s faster.', tip: "Rending Dash bleeds for 12 per second for 4s, +50% per rank, and recharges 1s faster per rank." },
   thirst: { id: 'thirst', cls: 'duskblade', name: 'Thirst', branch: 'bloodletting', maxRank: 3, text: 'Heal for 2% of the damage you deal.' },
   exsanguinate: { id: 'exsanguinate', cls: 'duskblade', name: 'Exsanguinate', branch: 'bloodletting', maxRank: 2, text: 'Execution also tears open the target\'s bleed, dealing 3s of it at once (6s at rank 2).' },
   crimsonTide: { id: 'crimsonTide', cls: 'duskblade', name: 'Crimson Tide', branch: 'bloodletting', maxRank: 1, capstone: true, text: 'CAPSTONE: bleeding foes burst when they die, spreading the bleed.', tip: "A foe that dies bleeding bursts, and every foe within 120 px bleeds for 4s." },
@@ -158,7 +160,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   longReach: { id: 'longReach', cls: 'duskblade', name: 'Long Reach', branch: 'tempo', maxRank: 3, text: 'Swings reach 15% farther and wider.' },
   precision: { id: 'precision', cls: 'duskblade', name: 'Precision', branch: 'tempo', maxRank: 3, text: '+12% chance to crit for double damage.' },
   momentumFlow: { id: 'momentumFlow', cls: 'duskblade', name: 'Flow', branch: 'tempo', maxRank: 3, text: 'Hits build 30% more Momentum; Execution recharges 3s faster.' },
-  flurryStep: { id: 'flurryStep', cls: 'duskblade', name: 'Flurry Step', branch: 'tempo', maxRank: 2, text: 'Rending Dash comes back at once if it kills. Rank 2: it costs 10 less Momentum.' },
+  flurryStep: { id: 'flurryStep', ability: 0, cls: 'duskblade', name: 'Flurry Step', branch: 'tempo', maxRank: 2, text: 'Rending Dash comes back at once if it kills. Rank 2: it costs 10 less Momentum.' },
   bladeStorm: { id: 'bladeStorm', cls: 'duskblade', name: 'Blade Storm', branch: 'tempo', maxRank: 1, capstone: true, text: 'CAPSTONE: every fourth swing is a full spin for double damage.' },
   killingRhythm: { id: 'killingRhythm', cls: 'duskblade', name: 'Killing Rhythm', branch: 'tempo', maxRank: 1, capstone: true, text: 'CAPSTONE: each swing soon after the last is 4% faster, up to 10 times. A pause resets it.' },
   // Guard: survival
@@ -173,9 +175,9 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Bulwark. Bastion: soak and shields
   holdTheLine: { id: 'holdTheLine', cls: 'bulwark', name: 'Hold the Line', branch: 'bastion', maxRank: 3, text: '+30 max health and 4% less damage taken.' },
   ward: { id: 'ward', cls: 'bulwark', name: 'Ward', branch: 'bastion', maxRank: 3, text: 'Every 8s, gain a shield worth 8% of your max health.' },
-  lastStand: { id: 'lastStand', cls: 'bulwark', name: 'Last Stand', branch: 'bastion', maxRank: 2, text: 'Bastion also heals 12% of your max health.' },
-  unbreakable: { id: 'unbreakable', cls: 'bulwark', name: 'Unbreakable', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: when Bastion ends, it bursts for the damage it stopped.', tip: "When Bastion ends, it bursts for twice the damage it stopped (at least 60) on every foe within 170 px." },
-  ironVigil: { id: 'ironVigil', cls: 'bulwark', name: 'Iron Vigil', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: Bastion lasts 10s instead of 6.' },
+  lastStand: { id: 'lastStand', ability: 2, cls: 'bulwark', name: 'Last Stand', branch: 'bastion', maxRank: 2, text: 'Bastion also heals 12% of your max health.' },
+  unbreakable: { id: 'unbreakable', ability: 2, cls: 'bulwark', name: 'Unbreakable', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: when Bastion ends, it bursts for the damage it stopped.', tip: "When Bastion ends, it bursts for twice the damage it stopped (at least 60) on every foe within 170 px." },
+  ironVigil: { id: 'ironVigil', ability: 2, cls: 'bulwark', name: 'Iron Vigil', branch: 'bastion', maxRank: 1, capstone: true, text: 'CAPSTONE: Bastion lasts 10s instead of 6.' },
   // Retribution: thorns and anger
   spikedShield: { id: 'spikedShield', cls: 'bulwark', name: 'Spiked Shield', branch: 'retribution', maxRank: 3, text: 'Enemies that hit you take 8 damage back.' },
   vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Vengeance', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
@@ -198,7 +200,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Grace: shields and staying alive
   aegisOfLight: { id: 'aegisOfLight', cls: 'lumen', name: 'Aegis of Light', branch: 'grace', maxRank: 3, text: 'Radiant Burst also shields you for 8% of your max health.' },
   renewal: { id: 'renewal', cls: 'lumen', name: 'Renewal', branch: 'grace', maxRank: 3, text: '+20 max health and 1 health per second.' },
-  blessedGround: { id: 'blessedGround', cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 5 per second per rank for 4s.', tip: "Glimmer Step leaves a pool for 4s that heals you and allies in it 5 per second per rank." },
+  blessedGround: { id: 'blessedGround', ability: 1, cls: 'lumen', name: 'Blessed Ground', branch: 'grace', maxRank: 2, text: 'Glimmer Step leaves a pool that heals 5 per second per rank for 4s.', tip: "Glimmer Step leaves a pool for 4s that heals you and allies in it 5 per second per rank." },
   martyrsHalo: { id: 'martyrsHalo', cls: 'lumen', name: "Martyr's Halo", branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.' },
   haven: { id: 'haven', cls: 'lumen', name: 'Haven', branch: 'grace', maxRank: 1, capstone: true, text: 'CAPSTONE: you take 30% less damage while standing in your Sanctuary.' },
   // Choir: more light, faster
@@ -223,7 +225,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   hotBlood: { id: 'hotBlood', cls: 'slagbinder', name: 'Hot Blood', branch: 'crust', maxRank: 2, text: 'Each hit you take gives 2 more Slag.' },
   hardened: { id: 'hardened', cls: 'slagbinder', name: 'Hardened', branch: 'crust', maxRank: 2, text: 'Cooling Shell lasts 1s longer.' },
   clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: falling below 30% health plates you for 25% of your max health, once every 30s.' },
-  slagTide: { id: 'slagTide', cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
+  slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'CAPSTONE: Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {
