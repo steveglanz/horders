@@ -332,6 +332,18 @@ export interface HeroOptions {
   name?: string;
 }
 
+/** The per-hero state a co-op snapshot carries (the rest of HeroSlot comes from the start options). */
+export interface HeroSlotData {
+  player: Player;
+  talents: Partial<Record<TalentId, number>>;
+  choices: DraftOption[];
+  revived: boolean;
+  damageDealt: number;
+  shadowDamage: number;
+  runDrops: Item[];
+  runEquipped: string[];
+}
+
 /** Everything that belongs to one hero; World swaps these in with use(). */
 interface HeroSlot {
   id: string;
@@ -353,6 +365,8 @@ interface HeroSlot {
 
 export interface WorldOptions {
   seed: number;
+  /** Co-op: the main hero's name, shown over them to the rest of the party. */
+  heroName?: string;
   /** Co-op: the other heroes in the party, after the main hero (at most 3). */
   party?: HeroOptions[];
   /** Stress test: hundreds of enemies from the start, player cannot die. */
@@ -594,7 +608,7 @@ export class World {
     }
     this.strikes = pool(CAP.strikes, () => ({ alive: false, x: 0, y: 0, r: 0, t: 0, dmg: 0 }));
     this.lances = pool(CAP.lances, () => ({ alive: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0 }));
-    this.heroes.push(this.saveSlot('h0', 'Hero'));
+    this.heroes.push(this.saveSlot('h0', opts.heroName ?? 'Hero'));
     const extra = (opts.party ?? []).slice(0, MAX_PARTY - 1);
     extra.forEach((h, k) => this.heroes.push(this.makeHero(h, k + 1, opts)));
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
@@ -650,6 +664,23 @@ export class World {
       if (all || this.player.hp > 0 || this.heroes.length === 1) fn(i);
     }
     this.use(0);
+  }
+
+  /** Co-op snapshot: hero `i`'s changing state. */
+  heroData(i: number): HeroSlotData {
+    const h = i === this.acting ? this : this.heroes[i];
+    return {
+      player: h.player, talents: h.talents, choices: h.choices, revived: h.revived,
+      damageDealt: h.damageDealt, shadowDamage: h.shadowDamage, runDrops: h.runDrops, runEquipped: h.runEquipped,
+    };
+  }
+
+  /** Co-op guest: overwrite hero `i`'s changing state from a snapshot. */
+  setHeroData(i: number, d: HeroSlotData): void {
+    const h = (i === this.acting ? this : this.heroes[i]) as { -readonly [K in keyof HeroSlotData]: HeroSlotData[K] };
+    if (!h) return;
+    h.player = d.player; h.talents = d.talents; h.choices = d.choices; h.revived = d.revived;
+    h.damageDealt = d.damageDealt; h.shadowDamage = d.shadowDamage; h.runDrops = d.runDrops; h.runEquipped = d.runEquipped;
   }
 
   /** A hero's live fields, whichever hero is swapped in. */
@@ -1576,6 +1607,47 @@ export class World {
     return eff;
   }
 
+  /**
+   * Co-op: heals every other living hero within `r` of (x, y). Effective healing draws
+   * threat for the healer, like self-healing; the Lumen banks overheal as Brilliance.
+   * `only` limits it to one hero. Solo it does nothing.
+   */
+  healAllies(x: number, y: number, r: number, amount: number, only = -1): number {
+    if (this.heroes.length === 1) return 0;
+    const p = this.player;
+    let total = 0;
+    let over = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting || (only >= 0 && k !== only)) continue;
+      const a = this.heroes[k].player;
+      if (a.hp <= 0 || dist2(x, y, a.x, a.y) > r * r) continue;
+      const eff = Math.max(0, Math.min(a.maxHp - a.hp, amount));
+      a.hp += eff;
+      total += eff;
+      over += amount - eff;
+      if (eff > 0) this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
+    }
+    if (this.threat.length && total > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, total);
+    if (this.cls === 'lumen' && over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
+    return total;
+  }
+
+  /** Co-op: the living hero within `r` with the lowest share of health, or -1 when that's the acting hero. */
+  private woundedAlly(r: number): number {
+    if (this.heroes.length === 1) return -1;
+    const p = this.player;
+    let best = -1;
+    let bestShare = p.hp / p.maxHp;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const a = this.heroes[k].player;
+      if (a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > r * r) continue;
+      const share = a.hp / a.maxHp;
+      if (share < bestShare) { bestShare = share; best = k; }
+    }
+    return best;
+  }
+
   get moteCooldown(): number {
     return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
   }
@@ -1600,6 +1672,7 @@ export class World {
         p.sanctTick += 0.5;
         const r = this.sanctuaryRadius;
         if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
+        this.healAllies(p.sanctX, p.sanctY, r, 2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
           if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
@@ -1609,6 +1682,7 @@ export class World {
     if (p.poolT > 0) {
       p.poolT -= dt;
       if (dist2(p.x, p.y, p.poolX, p.poolY) <= 70 * 70) this.healPlayer(5 * this.rank('blessedGround') * dt);
+      this.healAllies(p.poolX, p.poolY, 70, 5 * this.rank('blessedGround') * dt);
     }
     if (this.rank('noon') > 0) {
       p.noonT -= dt;
@@ -1660,7 +1734,10 @@ export class World {
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
       this.damageEnemy(i, dmg * k, true);
       this.addHeat(3);
-      this.healPlayer(SUNMOTE_HEAL);
+      // Co-op: the mote's heal goes to whoever is lowest on health nearby, the Lumen included.
+      const ally = this.woundedAlly(LUMEN_RANGE);
+      if (ally >= 0) this.healAllies(this.heroes[ally].player.x, this.heroes[ally].player.y, 1, SUNMOTE_HEAL, ally);
+      else this.healPlayer(SUNMOTE_HEAL);
     };
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
@@ -1692,6 +1769,7 @@ export class World {
     const p = this.player;
     const eclipse = this.hasMythic('eclipseGlass');
     this.healPlayer(eclipse ? 7.5 : 15);
+    this.healAllies(p.x, p.y, this.burstRadius, eclipse ? 7.5 : 15);
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;

@@ -274,6 +274,20 @@ export function rollLoot(
  * `runDrops` are items picked up during the run (ids from `runItemIds`);
  * `runEquipped` are the ids the run auto-equipped as upgrades.
  */
+/**
+ * Co-op guest: a run's drops carry the host's item ids. Gives them this hero's
+ * next ids (the numbering applyRun expects) and maps what was equipped.
+ */
+export function rekeyDrops(hero: HeroProfile, drops: Item[], equipped: string[]): { drops: Item[]; equipped: string[] } {
+  const map = new Map<string, string>();
+  const out = drops.map((it, k) => {
+    const id = `i${hero.nextItemId + k}`;
+    map.set(it.id, id);
+    return { ...it, id };
+  });
+  return { drops: out, equipped: equipped.map((id) => map.get(id)).filter((id): id is string => !!id) };
+}
+
 export function applyRun(
   hero: HeroProfile, seed: number, s: RunSummary, eliteKilled: boolean,
   runDrops: Item[] = [], runEquipped: string[] = [],

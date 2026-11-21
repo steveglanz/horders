@@ -5,8 +5,10 @@ import { GameScene } from './GameScene';
 import { Hud } from './ui';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero, gritFor } from '../sim/hero';
-import { cloud, queueCloudSave } from './cloud';
+import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops } from '../sim/hero';
+import { CLASSES } from '../sim/content/classes';
+import { CoopSession, HeroCard } from './net/coop';
+import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 
 const el = (id: string) => document.getElementById(id)!;
@@ -73,8 +75,16 @@ let lastBounty = false;
 function finishRun(w: World) {
   if (runApplied || w.stress) return undefined;
   runApplied = true;
-  const summary = w.summary();
-  const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, w.runDrops, w.runEquipped);
+  let summary = w.summary();
+  let drops = w.runDrops;
+  let equipped = w.runEquipped;
+  if (coop?.role === 'guest') {
+    // Drops carry the host's item ids: give them ours. And a delve the host
+    // chose above your own ladder unlocks at most your next tier.
+    ({ drops, equipped } = rekeyDrops(hero, drops, equipped));
+    summary = { ...summary, tier: Math.min(summary.tier ?? 1, hero.maxTier) };
+  }
+  const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
   save();
   hub.render();
   const shadow = summary.shadowDamage ?? 0;
@@ -103,6 +113,8 @@ async function strikeBoss(damage: number, seconds: number, shadowDamage: number,
 }
 
 function startRun(bounty = false): void {
+  // In someone else's party, the host starts the delves.
+  if (coop?.role === 'guest') return;
   if (game.scene.getScene('game')) game.scene.stop('game');
   runSeed = seed();
   hub.bossNote = "";
@@ -132,9 +144,11 @@ function startRun(bounty = false): void {
     Object.assign(opts, { seed: b.seed, tier: b.tier, dungeon: b.dungeon, route: [...b.route], omens: [b.twist], bounty: b.day, grit: 0 });
   }
   lastBounty = bounty;
+  const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;
   game.scene.start('game', {
-    opts,
+    opts: hosting ? coop!.startRun(opts) : opts,
     hud,
+    coop: hosting ? coop! : undefined,
     onEnd: (w: World) => {
       const rewards = finishRun(w);
       hud.showEnd(w, rewards, hero);
@@ -170,6 +184,7 @@ hub.onBounty = () => {
   startRun(true);
 };
 el('menuBtn').addEventListener('click', () => {
+  if (coop?.role === 'host') coop.endRun();
   game.scene.stop('game');
   el('end').hidden = true;
   hud.hideRun();
@@ -177,6 +192,7 @@ el('menuBtn').addEventListener('click', () => {
   el('title').hidden = false;
 });
 el('quitBtn').addEventListener('click', () => {
+  if (coop?.role === 'host') coop.endRun();
   // Leaving early still keeps the loot and experience earned so far.
   const scene = game.scene.getScene('game') as GameScene | null;
   if (scene?.world) finishRun(scene.world);
@@ -202,3 +218,121 @@ document.addEventListener('visibilitychange', () => {
   scene: () => game.scene.getScene('game') as GameScene | null,
   hero: () => hero,
 };
+
+// ------------------------------------------------------------------ co-op
+
+let coop: CoopSession | null = null;
+let coopNote = '';
+
+function myCard(): HeroCard {
+  const cls = hero.cls ?? 'emberwright';
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives } };
+}
+
+function leaveParty(note = ''): void {
+  coop?.close();
+  coop = null;
+  coopNote = note;
+  renderCoop();
+}
+
+function backToMenu(): void {
+  game.scene.stop('game');
+  el('end').hidden = true;
+  el('pause').hidden = true;
+  el('draft').hidden = true;
+  hud.hideRun();
+  hub.render();
+  el('title').hidden = false;
+}
+
+const coopEvents = {
+  onRoster: () => renderCoop(),
+  onStart: (opts: WorldOptions, me: number) => {
+    if (game.scene.getScene('game')) game.scene.stop('game');
+    el('end').hidden = true;
+    el('title').hidden = true;
+    runSeed = opts.seed;
+    runApplied = false;
+    lastBounty = false;
+    game.scene.start('game', {
+      opts,
+      hud,
+      coop: coop!,
+      onEnd: (w: World) => {
+        const rewards = finishRun(w);
+        hud.showEnd(w, rewards, hero);
+      },
+    });
+    void me;
+  },
+  onEnded: (reason: 'menu' | 'hostLeft' | 'refused') => {
+    if (reason === 'menu') {
+      if (!el('end').hidden || game.scene.isActive('game')) {
+        const scene = game.scene.getScene('game') as GameScene | null;
+        if (scene?.world && scene.world.state !== 'ended') finishRun(scene.world);
+        backToMenu();
+      }
+      return;
+    }
+    const scene = game.scene.getScene('game') as GameScene | null;
+    if (scene?.world && game.scene.isActive('game') && scene.world.state !== 'ended') {
+      finishRun(scene.world);
+      backToMenu();
+    }
+    leaveParty(reason === 'refused' ? 'That party is full (4 heroes at most).' : 'The host left the party.');
+  },
+};
+
+function renderCoop(): void {
+  const box = el('coop');
+  hub.render();
+  if (!coop) {
+    box.innerHTML = `<div class="ttl">Play together</div>
+      <div class="muted">Up to four heroes in one delve. Each of you keeps your own loot.</div>
+      ${coopNote ? `<div style="margin-top:6px">${coopNote}</div>` : ''}
+      <div class="row2"><button id="hostBtn">Host a party</button>
+      <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" aria-label="Party code"><button id="joinBtn">Join</button></div>`;
+    el('hostBtn').addEventListener('click', () => {
+      coop = CoopSession.host(myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
+      coopNote = '';
+      renderCoop();
+    });
+    const join = () => {
+      const code = (el('joinCode') as HTMLInputElement).value.trim().toUpperCase();
+      if (code.length !== 5) return;
+      coop = CoopSession.join(code, myCard(), SUPABASE.url, SUPABASE.key, coopEvents);
+      coopNote = '';
+      renderCoop();
+    };
+    el('joinBtn').addEventListener('click', join);
+    el('joinCode').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if ((e as KeyboardEvent).key === 'Enter') join();
+    });
+    return;
+  }
+  const people = coop.roster.map((r) => `<li>${r.hero.name}${r.you ? ' (you)' : ''}</li>`).join('');
+  const linked = coop.roster.length > 1;
+  box.innerHTML = coop.role === 'host'
+    ? `<div class="ttl">Your party</div><div class="muted">Share this code with friends:</div><div class="code" id="partyCode">${coop.code}</div>
+       <ul>${people}</ul><div class="muted">${linked ? 'Press Delve together when everyone is in.' : 'Waiting for someone to join.'}</div>
+       <div class="row2"><button id="leaveBtn">Leave party</button></div>`
+    : `<div class="ttl">Party ${coop.code}</div><ul>${people}</ul>
+       <div class="muted">${linked ? 'The host starts the delve.' : 'Connecting to the host...'}</div>
+       <div class="row2"><button id="leaveBtn">Leave party</button></div>`;
+  el('leaveBtn').addEventListener('click', () => leaveParty());
+}
+/** The Delve button follows the party: guests wait, a host with company delves together. */
+function coopButton(): void {
+  const b = el('startBtn') as HTMLButtonElement;
+  b.disabled = coop?.role === 'guest';
+  if (coop?.role === 'guest') b.textContent = 'Waiting for the host';
+  else if (coop?.role === 'host' && coop.roster.length > 1) b.textContent = b.textContent!.replace(/^Delve/, 'Delve together');
+}
+const hubRender = hub.render.bind(hub);
+hub.render = () => {
+  hubRender();
+  coopButton();
+};
+renderCoop();

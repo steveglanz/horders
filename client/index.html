@@ -239,6 +239,13 @@
   .sbtn:hover { border-color: var(--ember); }
   .sbtn.danger { border-color: rgba(255,59,107,0.5); color: var(--danger); }
   .sbtn.gold { border-color: rgba(255,200,97,0.6); color: var(--gold); }
+  .coop { margin-top: 12px; font-size: 13px; }
+  .coop .ttl { font: 600 17px var(--serif); margin: 4px 0 6px; }
+  .coop .code { font: 600 30px var(--serif); letter-spacing: 6px; color: var(--gold); }
+  .coop .row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .coop input { user-select: text; -webkit-user-select: text; touch-action: manipulation; width: 7.5em; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.35); color: inherit; font: 600 16px var(--sans, inherit); letter-spacing: 3px; text-transform: uppercase; }
+  .coop button { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(28,18,16,0.85); color: inherit; }
+  .coop ul { margin: 8px 0 0; padding-left: 18px; }
   .wboss { margin-top: 12px; border-color: rgba(255,59,107,0.35); font-size: 13px; }
   .wboss .lbl { color: var(--danger); }
   .wboss .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -392,6 +399,7 @@
         <div class="sec-h big"><span>Choose a delve</span><span class="muted">Your gear and levels carry over</span></div>
         <div class="tiers" id="tiers"></div>
         <div id="worldBoss" class="box wboss"></div>
+        <div id="coop" class="box coop"></div>
       </section>
     </div>
     <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
