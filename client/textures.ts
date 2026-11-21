@@ -1417,7 +1417,9 @@ function drawBulwark(ctx: Ctx, _s: number, f: number): void {
 }
 
 /** The Slagbinder: a squat figure in cooling slag plate, orange seams glowing through, a ladle of molten slag held out front. */
-function drawSlagbinder(ctx: Ctx, _s: number, f: number): void {
+/** The Slagbinder. `anvil` is the Anvil stance (the tank): the same figure with an anvil-shaped slab of cooled slag
+ * strapped to the back arm as a shield, and a second pauldron, so a party can tell its tank from a Bellows at a glance. */
+function drawSlagbinder(ctx: Ctx, _s: number, f: number, anvil = false): void {
   const bob = [0, -0.8, 0, -0.8][f];
   const step = [1.5, 0, -1.5, 0][f];
   const SEAM = '#ff9b4a';
@@ -1466,6 +1468,36 @@ function drawSlagbinder(ctx: Ctx, _s: number, f: number): void {
   ctx.fillRect(24.5, 12 + bob, 8, 1.8);
   ctx.restore();
   cracks(ctx, [[[22, 8 + bob], [23.5, 11 + bob]]], SEAM, 0.8);
+  if (anvil) {
+    // A second pauldron on the front shoulder.
+    ell(ctx, 34, 23.5 + bob, 5.2, 4.2); shade(ctx, '#6e6460', '#2a2422', 19, 28, 1.2);
+    cracks(ctx, [[[31.5, 23.5 + bob], [34, 22.5 + bob], [36.5, 24 + bob]]], SEAM, 0.8);
+    // The anvil slab on the back arm, big enough to read at game scale: a flat striking face, a short horn to
+    // the back, and a narrow waist over a wide foot.
+    ctx.save();
+    ctx.translate(12, 36 + bob);
+    ctx.scale(1.25, 1.25);
+    ctx.beginPath();
+    ctx.moveTo(-10.5, -3.5);
+    ctx.quadraticCurveTo(-7.5, -4, -5.5, -5.5);
+    ctx.lineTo(8.5, -5.5);
+    ctx.lineTo(8.5, -0.5);
+    ctx.lineTo(5, 1.5);
+    ctx.lineTo(5, 4.5);
+    ctx.lineTo(9, 7.5);
+    ctx.lineTo(-6.5, 7.5);
+    ctx.lineTo(-2.5, 4.5);
+    ctx.lineTo(-2.5, 1.5);
+    ctx.lineTo(-5.5, -0.5);
+    ctx.quadraticCurveTo(-8, -1.5, -10.5, -3.5);
+    ctx.closePath();
+    shade(ctx, '#58504c', '#16120f', -6, 8, 1.3);
+    // The striking face catches the light; a seam glows through the waist.
+    ctx.fillStyle = 'rgba(235,225,215,0.8)';
+    ctx.fillRect(-5, -5, 13, 1.3);
+    cracks(ctx, [[[-1.5, 3], [1, 4.5], [3.5, 3]]], SEAM, 0.8);
+    ctx.restore();
+  }
   // Front arm and the ladle: a long haft, a deep bowl brimming with molten slag, one drip falling.
   limb(ctx, 33, 26 + bob, 39, 31 + bob, 3, '#4a403c');
   limb(ctx, 37, 34 + bob, 41.5, 25 + bob, 1.8, '#5a4a3a');
@@ -2325,6 +2357,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'lumen', 48, 4, drawLumen);
   sheet(scene, 'bulwark', 52, 4, drawBulwark);
   sheet(scene, 'slagbinder', 52, 4, drawSlagbinder);
+  sheet(scene, 'slagbinderAnvil', 52, 4, (ctx, sz, f) => drawSlagbinder(ctx, sz, f, true));
   sheet(scene, 'ashling', 24, 4, drawAshling);
   sheet(scene, 'slagling', 26, 4, drawSlagling);
   sheet(scene, 'cinderhound', 36, 4, drawHound);
