@@ -10,7 +10,7 @@
   4. The Brute and its Acolytes: kill the healers first.
   5. The Kiln Mother: all three verbs at once.
 
-  Forks still appear, so the shrine can still help.
+  There are no forks. A named gate used to replace a lesson fight; phone QA found Ashmaw taking the wardens' place.
 - **Softer foes:** foe health ×0.85 and damage ×0.7, through the same multipliers a Delver's Key uses.
 - **Coach lines:** each fight's banner and the route tracker show a coach line in place of the usual tip. The line names the hero's own interrupt (Quench, Kick, Shield Toss, Hush or Clinker) and calls it "the blue button", because the interrupt button and an interruptible cast bar are both blue.
 
@@ -33,6 +33,7 @@ Novice reference, Kiln tier 1, 40 seeds, a fresh hero with no gear (`FIRST=1` in
 | Slagbinder | 33 | 39 | 40 |
 
 - **The route alone doesn't change the odds;** the softer foes do. The target is about 90% for every class, so that a first run teaches rather than ends.
+- **Without forks** (shipped), the same 40 seeds give 36, 39, 38, 40 and 40.
 - **A 3-fight route was tried and dropped:** the pack, the Brute, then the Kiln Mother. The hero reaches her two levels short, and the novice Emberwright and Duskblade won only 2 of 40.
 
 Screenshots: `node tools/firstshots.cjs <outDir> [phone]` after a build.

@@ -13,6 +13,17 @@ describe('L1: the first delve', () => {
     expect(inner(w).keyDmg).toBeCloseTo(FIRST_DELVE.dmg);
   });
 
+  it('offers no forks, so a named gate never replaces a lesson', () => {
+    const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
+    const x = w as unknown as { encounter: number; openFork(): void };
+    for (let k = 1; k <= 3; k++) {
+      x.encounter = k;
+      x.openFork();
+      expect(w.phase).toBe('intro');
+    }
+    expect(w.route).toEqual(FIRST_DELVE.route);
+  });
+
   it('does nothing anywhere else: another tier, dungeon, a bounty or a party', () => {
     const cases = [
       { tier: 2 },
