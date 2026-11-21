@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -302,6 +302,8 @@ export class GameScene extends Phaser.Scene {
     else if (w.dungeonId === 'coldmarrow') this.ground.setTint(COLD_FLOOR);
     // The Crucible's floor is cooled slag, a little redder, so the molten lanes and the gold vents both read.
     else if (w.dungeonId === 'crucible') this.ground.setTint(0xb88a7c);
+    // The Wrackline's floor is grey-green harbour water (visuals' pick: at least 21 Delta-E from every other floor), so the pale rafts and the drain read on it.
+    else if (w.dungeonId === 'wrackline') this.ground.setTint(0x6e8a80);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -872,6 +874,10 @@ export class GameScene extends Phaser.Scene {
             this.laceShown = true;
             this.hud.banner('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
           }
+          // The Wrackline.
+          else if (ev.name === 'The Ebb') this.hud.banner('The Ebb!', 'The water is about to pull. Get on a raft');
+          else if (ev.name === 'Sink') this.hud.banner('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
+          else if (ev.name === 'Call the Shoal') this.hud.banner('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
           // The raid: Grandmother Slag.
           else if (ev.name === 'Ladle Pour') this.hud.banner('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
           else if (ev.name === 'The Pour') this.hud.banner('The Pour!', 'Molten lanes: step out of the red');
@@ -944,6 +950,10 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'foundry') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
+          } else if (w.dungeonId === 'wrackline') {
+            this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+          } else if (w.dungeonId === 'coldmarrow') {
+            // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
@@ -1272,6 +1282,7 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     this.overFx.clear();
     if (this.coalLights.length) this.coldDraw(g, now);
+    if (w.rafts.length) this.wrackDraw(g, now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1389,7 +1400,7 @@ export class GameScene extends Phaser.Scene {
       // The arena: darkness beyond the edge, an ember rim on it.
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -2395,7 +2406,53 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+   /**
+   * The Wrackline: the drain at the centre, the rafts, and the Ebb. During the warning,
+   * pale lines rush inward from the rim; while it pulls, the floor darkens and streaks run
+   * to the drain. A sunk raft is a dim ring of ripples until it bobs back up.
+   */
+  private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const pulling = w.ebbT > 0;
+    const warn = w.ebbWarnT > 0;
+    // The drain: a dark well with a slow swirl, angrier while the water pulls.
+    g.fillStyle(0x061820, pulling ? 0.75 : 0.5).fillCircle(0, 0, WRACK.drainR);
+    for (let k = 0; k < 3; k++) {
+      const a = now / (pulling ? 260 : 900) + (k * 2 * Math.PI) / 3;
+      g.lineStyle(3, 0x7fd0e0, pulling ? 0.7 : 0.35).beginPath().arc(0, 0, WRACK.drainR * (0.45 + 0.18 * k), a, a + 1.6).strokePath();
+    }
+    if (warn || pulling) {
+      // Streaks running from the rim toward the drain.
+      const n = this.lowFx ? 10 : 18;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + 0.2;
+        const t = ((now / (pulling ? 500 : 900) + k * 0.37) % 1);
+        const r0 = ARENA - t * (ARENA - WRACK.drainR);
+        const r1 = Math.max(WRACK.drainR, r0 - (pulling ? 70 : 40));
+        g.lineStyle(pulling ? 3 : 2, 0xbfe9ff, pulling ? 0.55 : 0.35 + 0.3 * Math.sin(now / 90)).lineBetween(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * r1, Math.sin(a) * r1);
+      }
+    }
+    for (const r of w.rafts) {
+      if (r.sunkT > 0) {
+        // Under water: rings of ripples where it went down.
+        const t = (now / 700) % 1;
+        g.lineStyle(2, 0x7fd0e0, 0.45 * (1 - t)).strokeCircle(r.x, r.y, WRACK.raftR * (0.4 + 0.6 * t));
+        g.lineStyle(1, 0x7fd0e0, 0.25).strokeCircle(r.x, r.y, WRACK.raftR);
+        continue;
+      }
+      // Afloat: a pale deck of planks, with a bright rim while the water pulls (safe here).
+      g.fillStyle(0xb79a72, 0.55).fillCircle(r.x, r.y, WRACK.raftR);
+      g.lineStyle(2, 0x5a4630, 0.6);
+      for (let k = -2; k <= 2; k++) {
+        const off = k * 26;
+        const half = Math.sqrt(Math.max(0, WRACK.raftR * WRACK.raftR - off * off));
+        g.lineBetween(r.x - half, r.y + off, r.x + half, r.y + off);
+      }
+      g.lineStyle(warn || pulling ? 4 : 2, warn || pulling ? 0xe8fbff : 0x8a7050, warn || pulling ? 0.9 : 0.7).strokeCircle(r.x, r.y, WRACK.raftR);
+    }
+  }
+
+ private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     const night = boss?.alive && boss.castId === 'longNight' ? boss.castT / boss.castDur : 0;

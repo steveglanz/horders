@@ -26,10 +26,13 @@ const main = (cls: ClassId) => {
 
 const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 const CLASSES: ClassId[] = ['emberwright', 'duskblade', 'bulwark', 'lumen'];
+// ONLY=wrackline runs just the cases whose label starts with it.
+const only = process.env.ONLY;
 type Case = { label: string; opts: WorldOptions; skill: number };
 const cases: Case[] = [];
 for (const seed of seeds) for (const skill of [1, 0.5]) {
   for (const cls of CLASSES) cases.push({ label: `coldmarrow ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'coldmarrow', tier: 10, omens: [] } });
+  for (const cls of CLASSES) cases.push({ label: `wrackline ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'wrackline', tier: 10, omens: [] } });
   cases.push({ label: 'crucible party', skill, opts: { seed, ...main('bulwark'), dungeon: 'crucible', tier: 8, omens: [], worldBoss: 'Grandmother Slag',
     party: (['lumen', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
   cases.push({ label: 'crucible no healer', skill, opts: { seed, ...main('bulwark'), dungeon: 'crucible', tier: 8, omens: [],
@@ -37,7 +40,7 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
 }
 let stuck = 0, longest = 0, mostAlive = 0;
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
-for (const c of cases) {
+for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   const w = new World(c.opts);
   let maxAlive = 0;
   while (w.state !== 'ended' && w.time < 3000) {

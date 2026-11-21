@@ -23,7 +23,8 @@ export type EnemyKind =
   | 'lensbearer' | 'shade' | 'brandkeeper' | 'twinLamp' | 'lensmother'
   | 'worldShadow' | 'ondrel' | 'ysmeret'
   | 'rimehound' | 'snuffer' | 'frostWarden' | 'hoarfrostWeaver' | 'nhevra'
-  | 'grandmotherSlag' | 'slagling';
+  | 'grandmotherSlag' | 'slagling'
+  | 'shoalLurker' | 'bargeHauler' | 'hessa';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
@@ -57,5 +58,9 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // The raid (C3): the world boss in person, and her adds.
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', hp: 22000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   slagling: { id: 'slagling', name: 'Slagling', hp: 120, speed: 70, damage: 6, radius: 11, xp: 1, rank: 'normal' },
+  // The Wrackline (fifth solo dungeon): the Ebb drags everything to the drain, except what swims in it.
+  shoalLurker: { id: 'shoalLurker', name: 'Shoal Lurker', hp: 280, speed: 84, damage: 6, radius: 14, xp: 2, rank: 'elite', title: "Can't board rafts" },
+  bargeHauler: { id: 'bargeHauler', name: 'Barge Hauler', hp: 950, speed: 34, damage: 15, radius: 22, xp: 8, rank: 'elite', title: 'Haul' },
+  hessa: { id: 'hessa', name: 'Hessa of the Ebb', hp: 3400, speed: 0, damage: 9, radius: 44, xp: 0, rank: 'boss', title: 'Boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
 };
