@@ -17,6 +17,9 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
+const setText = (el: HTMLElement, s: string) => { if (el.textContent !== s) el.textContent = s; };
+const setHtml = (el: HTMLElement, s: string) => { if (el.innerHTML !== s) el.innerHTML = s; };
 
 /** Every branch needs a colour (draft card border and title, end-screen chips): typed so a new branch can't be missed. */
 const BRANCH_COLOR: Record<Branch, string> = {
@@ -223,11 +226,11 @@ export class Hud {
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
-    $('next').textContent = next;
+    setText($('next'), next);
 
     // Heat and action bar.
     $('heatFill').style.width = `${(100 * p.heat) / MAX_HEAT}%`;
-    $('heatText').innerHTML = `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`;
+    setHtml($('heatText'), `<span>${w.classDef.resource}</span><b>${Math.floor(p.heat)}</b>`);
     const kick = w.interruptTarget() >= 0;
     this.abButtons.forEach((b, i) => {
       // A stored Blink charge (Blazing Speed) makes the button ready while the cooldown runs.
@@ -237,7 +240,7 @@ export class Hud {
       const frac = cd > 0 ? cd / total : gcd;
       const cdEl = b.querySelector('.cd') as HTMLElement;
       cdEl.style.setProperty('--p', String(Math.min(1, frac)));
-      cdEl.textContent = cd > 0.05 ? (cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1)) : '';
+      setText(cdEl, cd > 0.05 ? (cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1)) : '');
       b.classList.toggle('nores', p.heat < w.abilityCost(i));
       b.classList.toggle('hot', i === 3 && kick && cd <= 0);
     });

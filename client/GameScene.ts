@@ -50,6 +50,14 @@ applyPalette();
 onDisplayChange(applyPalette);
 const NAME_COLOR: Record<string, string> = { boss: '#ff8aa5', rare: '#9fd0ff', elite: '#ffc861', normal: '#d6a8ff' };
 const hex = (css: string) => Number.parseInt(css.slice(1), 16);
+/**
+ * L2: Phaser's Text.setColor redraws the text and re-uploads its texture even
+ * when the colour is unchanged (TextStyle.setColor always calls update), unlike
+ * setText. Labels updated every frame go through this instead.
+ */
+function setColorIf<T extends Phaser.GameObjects.Text>(t: T, color: string): T {
+  return t.style.color === color ? t : (t.setColor(color) as T);
+}
 /** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
 const SLAG = 0xff9b4a;
 const SLAG_COOL = 0xbcd6e6;
@@ -1084,7 +1092,8 @@ export class GameScene extends Phaser.Scene {
         const gp = Math.sin(now / 520 + al.hero);
         al.glow.setPosition(ax, ay + 22).setScale((60 + gp * 3) / 128, (22 + gp * 1) / 128).setAlpha(down ? 0.3 : 0.8 + gp * 0.15);
       }
-      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name).setColor(down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
+      al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${w.heroes[al.hero].name} · down` : w.heroes[al.hero].name);
+      setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
     }
     this.unstackLabels();
 
@@ -1450,7 +1459,7 @@ export class GameScene extends Phaser.Scene {
       }
       const name = ENCOUNTERS[gate.encounter].name;
       const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
-      txt.setVisible(true).setText(label).setColor('#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
+      setColorIf(txt.setVisible(true).setText(label), '#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
     let soakShown = false;
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
@@ -1666,7 +1675,7 @@ export class GameScene extends Phaser.Scene {
       }
       const t = this.plates[plate++];
       // C2: a named elite shows its title in the rare colour.
-      if (t) t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name).setColor(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
+      if (t) setColorIf(t.setVisible(true).setPosition(e.x, top - 2).setText(e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name), NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]);
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
 
