@@ -1511,6 +1511,47 @@ export class World {
     return eff;
   }
 
+  /**
+   * Co-op: heals every other living hero within `r` of (x, y). Effective healing draws
+   * threat for the healer, like self-healing; the Lumen banks overheal as Brilliance.
+   * `only` limits it to one hero. Solo it does nothing.
+   */
+  healAllies(x: number, y: number, r: number, amount: number, only = -1): number {
+    if (this.heroes.length === 1) return 0;
+    const p = this.player;
+    let total = 0;
+    let over = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting || (only >= 0 && k !== only)) continue;
+      const a = this.heroes[k].player;
+      if (a.hp <= 0 || dist2(x, y, a.x, a.y) > r * r) continue;
+      const eff = Math.max(0, Math.min(a.maxHp - a.hp, amount));
+      a.hp += eff;
+      total += eff;
+      over += amount - eff;
+      if (eff > 0) this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
+    }
+    if (this.threat.length && total > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, total);
+    if (this.cls === 'lumen' && over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
+    return total;
+  }
+
+  /** Co-op: the living hero within `r` with the lowest share of health, or -1 when that's the acting hero. */
+  private woundedAlly(r: number): number {
+    if (this.heroes.length === 1) return -1;
+    const p = this.player;
+    let best = -1;
+    let bestShare = p.hp / p.maxHp;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const a = this.heroes[k].player;
+      if (a.hp <= 0 || dist2(p.x, p.y, a.x, a.y) > r * r) continue;
+      const share = a.hp / a.maxHp;
+      if (share < bestShare) { bestShare = share; best = k; }
+    }
+    return best;
+  }
+
   get moteCooldown(): number {
     return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
   }
@@ -1535,6 +1576,7 @@ export class World {
         p.sanctTick += 0.5;
         const r = this.sanctuaryRadius;
         if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
+        this.healAllies(p.sanctX, p.sanctY, r, 2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
           if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
@@ -1544,6 +1586,7 @@ export class World {
     if (p.poolT > 0) {
       p.poolT -= dt;
       if (dist2(p.x, p.y, p.poolX, p.poolY) <= 70 * 70) this.healPlayer(5 * this.rank('blessedGround') * dt);
+      this.healAllies(p.poolX, p.poolY, 70, 5 * this.rank('blessedGround') * dt);
     }
     if (this.rank('noon') > 0) {
       p.noonT -= dt;
@@ -1595,7 +1638,10 @@ export class World {
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
       this.damageEnemy(i, dmg * k, true);
       this.addHeat(3);
-      this.healPlayer(SUNMOTE_HEAL);
+      // Co-op: the mote's heal goes to whoever is lowest on health nearby, the Lumen included.
+      const ally = this.woundedAlly(LUMEN_RANGE);
+      if (ally >= 0) this.healAllies(this.heroes[ally].player.x, this.heroes[ally].player.y, 1, SUNMOTE_HEAL, ally);
+      else this.healPlayer(SUNMOTE_HEAL);
     };
     const e0 = this.enemies[t];
     p.facing = Math.atan2(e0.y - p.y, e0.x - p.x);
@@ -1627,6 +1673,7 @@ export class World {
     const p = this.player;
     const eclipse = this.hasMythic('eclipseGlass');
     this.healPlayer(eclipse ? 7.5 : 15);
+    this.healAllies(p.x, p.y, this.burstRadius, eclipse ? 7.5 : 15);
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;

@@ -134,6 +134,16 @@ Branches:
 - **Grace** (shields and staying alive): *Aegis of Light* (3) Radiant Burst shields you for 8% of max health; *Renewal* (3) +20 max health and 1 health per second; *Blessed Ground* (2, ability) Glimmer Step leaves a pool that heals 5 per second per rank for 4s; capstone **Martyr's Halo**: once per fight, a killing blow leaves you at 1 health and untouchable for 2s.
 - **Choir** (more light, faster): *Hasted Hymn* (3) Sunmotes 12% more often; *Prism* (2) each Sunmote also strikes one more enemy for 60%; *Lingering Sanctuary* (2, ability) Sanctuary lasts 2s longer and moves with you; capstone **Choir of Dawn**: three wisps circle you, burning foes and healing you 1.5 with each hit.
 
+## Co-op healing (roadmap R9, healer role)
+
+In a party, the Lumen heals the group, not just itself. Solo play is unchanged: everything below is skipped when there's only one hero, and `tools/hashcheck.ts` fingerprints are identical.
+- **Radiant Burst** heals every living ally inside its radius for the same amount it heals the Lumen.
+- **Sanctuary** pulses heal allies standing in it (2 per 0.5 s).
+- **Blessed Ground** pools heal allies standing in them.
+- **Sunmote**'s small heal goes to whoever in range (500) has the lowest share of health, the Lumen included.
+
+Ally healing goes through `World.healAllies`. Like self-healing, effective healing draws 0.5 threat per point split across the living enemies, and overheal still feeds Brilliance. Downed heroes can't be healed, because they stand back up between fights. Tests are in `tests/coop.test.ts`.
+
 ## Class Mythics (roadmap R4)
 
 Each class has two Mythics of its own, on top of the shared four. A Mythic should change how the class plays, not just add numbers. The bar: at tier 6 each one stays within 3 wins of its class baseline. A Mythic drops only for its own class (`mythicPool` in `sim/content/items.ts`). Names were checked against existing games on 20 Nov 2026.
