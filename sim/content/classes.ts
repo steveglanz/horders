@@ -70,3 +70,16 @@ export const CLASSES: Record<ClassId, ClassDef> = {
 };
 
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
+
+/**
+ * Ability options (one per class, unlocked at hero level 8): a sidegrade for one action-bar slot,
+ * picked in the hub and locked for the run. Never the interrupt (slot 3). See docs/skills.md.
+ */
+export const ALT_UNLOCK_LEVEL = 8;
+export const ALT_ABILITIES: Record<ClassId, { slot: number; replaces: string; def: AbilityDef }> = {
+  emberwright: { slot: 1, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
+  duskblade: { slot: 0, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },
+  bulwark: { slot: 2, replaces: 'Bastion', def: { name: 'Rallying Cry', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
+  lumen: { slot: 1, replaces: 'Glimmer Step', def: { name: 'Lightwell', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
+  slagbinder: { slot: 1, replaces: 'Interpose', def: { name: 'Slag Pit', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+};

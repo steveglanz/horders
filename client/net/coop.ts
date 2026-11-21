@@ -22,6 +22,8 @@ export interface HeroCard {
   passives: NonNullable<HeroOptions['passives']>;
   /** Slagbinder stance; older clients send none (Bellows). */
   stance?: HeroOptions['stance'];
+  /** Ability option; older clients send none (the class's own ability). */
+  alt?: boolean;
   /** P6: the worn season title and glow; older clients send none. */
   title?: string;
   glow?: string;
@@ -143,7 +145,7 @@ export class CoopSession {
     this.order = this.party.members.map((m) => m.id).filter((id) => this.heroes.has(id));
     const party: HeroOptions[] = this.order.map((id) => {
       const h = this.heroes.get(id)!;
-      return { cls: h.cls, stance: h.stance, gear: h.gear, passives: h.passives, name: h.name };
+      return { cls: h.cls, stance: h.stance, alt: h.alt, gear: h.gear, passives: h.passives, name: h.name };
     });
     const looks = [cleanLooks(this.mine), ...this.order.map((id) => cleanLooks(this.heroes.get(id)))];
     const full: WorldOptions = { ...opts, heroName: this.mine.name, party, partySize: 1 + party.length, looks };

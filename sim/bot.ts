@@ -4,6 +4,7 @@
  */
 import { ARENA, COLD, Input, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
+import { ALT_ABILITIES } from './content/classes';
 
 const PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -28,28 +29,28 @@ const PRIORITY: TalentId[] = [
 function bladeCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
-  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   // Co-op: pulled the boss off a living Bulwark, so Sidestep to dump threat back to it.
-  if (w.canCast(1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && (h.cls === 'bulwark' || h.player.stance === 'anvil') && h.player.hp > 0)) return 1;
+  if (can(w, 1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && (h.cls === 'bulwark' || h.player.stance === 'anvil') && h.player.hp > 0)) return 1;
   // Step out of a telegraph we are standing in.
-  if (attentive && w.canCast(1)) {
+  if (attentive && can(w, 1)) {
     for (const t of w.telegraphs) {
       if (!t.alive || t.kind === 'soak' || t.t > t.dur - 0.5) continue;
       if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2 && t.shape === 'circle') return 1;
     }
   }
   const t = w.bladeTarget(w.swingReach + 60);
-  if (t >= 0 && w.canCast(2)) {
+  if (t >= 0 && can(w, 2)) {
     const e = w.enemies[t];
     if (e.def.rank !== 'normal' || e.hp < e.maxHp * 0.35) return 2;
   }
   const far = w.bladeTarget(340);
-  if (far >= 0 && w.canCast(0)) {
+  if (far >= 0 && can(w, 0)) {
     const e = w.enemies[far];
     const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
     if (d > 110 || (e.def.rank === 'normal' && d < 60)) return 0;
   }
-  if (w.canCast(1) && p.hp < p.maxHp * 0.35) return 1;
+  if (can(w, 1) && p.hp < p.maxHp * 0.35) return 1;
   return undefined;
 }
 
@@ -57,7 +58,7 @@ function bladeCast(w: World, skill: number): number | undefined {
 function shieldCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
-  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   let near = 0;
   let bigClose = false;
   for (const e of w.enemies) {
@@ -77,18 +78,18 @@ function shieldCast(w: World, skill: number): number | undefined {
   // to this hero, and don't spend it on anything else in that fight.
   const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
   const ondrel = !!boss && boss.alive && boss.kind === 'ondrel';
-  if (ondrel && w.canCast(2) && w.anvilOnMe) return 2;
+  if (ondrel && can(w, 2) && w.anvilOnMe) return 2;
   // Co-op taunt cue: the boss is on someone else, so take it back.
   if (w.tauntCue) {
     const b = w.enemies[w.bossIndex];
     const d = Math.hypot(b.x - p.x, b.y - p.y) - b.def.radius;
-    if (w.canCast(3) && d < 420) return 3;
-    if (w.canCast(1) && w.chargeTarget() === w.bossIndex) return 1;
+    if (can(w, 3) && d < 420) return 3;
+    if (can(w, 1) && w.chargeTarget() === w.bossIndex) return 1;
   }
-  if (!ondrel && w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
-  if (w.canCast(0) && (near >= 3 || bigClose)) return 0;
+  if (!ondrel && can(w, 2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
+  if (can(w, 0) && (near >= 3 || bigClose)) return 0;
   const c = w.chargeTarget();
-  if (c >= 0 && w.canCast(1)) {
+  if (c >= 0 && can(w, 1)) {
     const e = w.enemies[c];
     const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
     if (d > 140 && (e.def.rank !== 'normal' || near === 0)) return 1;
@@ -124,7 +125,7 @@ function lumenWard(w: World): number {
 function lightCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
-  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   let near = 0;
   let touching = 0;
   let bigNear = false;
@@ -137,18 +138,18 @@ function lightCast(w: World, skill: number): number | undefined {
   }
   const hurt = 1 - p.hp / p.maxHp;
   // Co-op Purify: Hush clears an ally's Slag Grip when nothing needs silencing.
-  if (w.canCast(3) && w.interruptTarget() < 0 && w.purifyTarget() >= 0) return 3;
+  if (can(w, 3) && w.interruptTarget() < 0 && w.purifyTarget() >= 0) return 3;
   // Co-op: Radiant Burst and Sanctuary reach the ward when it's close enough.
   const ward = lumenWard(w);
   if (ward >= 0) {
     const a = w.hero(ward).player;
     const d = Math.hypot(a.x - p.x, a.y - p.y);
-    if (d < w.burstRadius && w.canCast(0)) return 0;
-    if (d < w.burstRadius && a.hp < a.maxHp * 0.5 && w.canCast(2)) return 2;
+    if (d < w.burstRadius && can(w, 0)) return 0;
+    if (d < w.burstRadius && a.hp < a.maxHp * 0.5 && can(w, 2)) return 2;
   }
-  if (w.canCast(2) && (bigNear || hurt > 0.4)) return 2;
-  if (w.canCast(0) && (near >= 4 || hurt > 0.25 || (bigNear && near >= 1))) return 0;
-  if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
+  if (can(w, 2) && (bigNear || hurt > 0.4)) return 2;
+  if (can(w, 0) && (near >= 4 || hurt > 0.25 || (bigNear && near >= 1))) return 0;
+  if (can(w, 1) && hurt > 0.5 && touching >= 2) return 1;
   return undefined;
 }
 
@@ -167,7 +168,7 @@ function anvilWaits(w: World): boolean {
 function slagCast(w: World, skill: number): number | undefined {
   const p = w.player;
   const attentive = (w.tick % 20) / 20 < skill;
-  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   let touching = 0;
   let bigNear = false;
   for (const e of w.enemies) {
@@ -179,9 +180,9 @@ function slagCast(w: World, skill: number): number | undefined {
   const hurt = 1 - p.hp / p.maxHp;
   // Co-op: Clinker the boss for Brittle (an Anvil also takes it back) when nothing needs interrupting.
   // In the raid an Anvil holds it while the other tank is fresh, and Clinkers to swap once Ladle Pour Seared it.
-  if (w.heroes.length > 1 && w.canCast(3) && w.interruptTarget() < 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && !anvilWaits(w)) return 3;
+  if (w.heroes.length > 1 && can(w, 3) && w.interruptTarget() < 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && !anvilWaits(w)) return 3;
   // Co-op: an ally below half health with the boss or a telegraph on them gets covered.
-  if (w.heroes.length > 1 && w.canCast(1)) {
+  if (w.heroes.length > 1 && can(w, 1)) {
     for (let k = 0; k < w.heroes.length; k++) {
       if (k === w.acting) continue;
       const a = w.hero(k).player;
@@ -191,14 +192,78 @@ function slagCast(w: World, skill: number): number | undefined {
   // A big boss blow winding up on me (Anvilfall, Ladle Pour): harden first.
   const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : null;
   const bigOnMe = w.anvilOnMe || (!!boss && boss.alive && boss.castId === 'ladlePour' && w.ladlePourTarget === w.acting);
-  if (w.canCast(2) && (bigOnMe || hurt > 0.45 || touching >= 3 || (bigNear && hurt > 0.25))) return 2;
-  if (w.canCast(0) && (p.plateUntil ?? -1) <= w.time && (hurt > 0.1 || bigNear || touching >= 1 || w.heroes.length > 1)) return 0;
-  if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
+  if (can(w, 2) && (bigOnMe || hurt > 0.45 || touching >= 3 || (bigNear && hurt > 0.25))) return 2;
+  if (can(w, 0) && (p.plateUntil ?? -1) <= w.time && (hurt > 0.1 || bigNear || touching >= 1 || w.heroes.length > 1)) return 0;
+  if (can(w, 1) && hurt > 0.5 && touching >= 2) return 1;
   return undefined;
 }
 
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
+  if (!w.player.alt) return classCast(w, skill);
+  // An ability option: interrupts first, then the option, then the class's other choices.
+  const c = classCast(w, skill);
+  if (c === 3) return c;
+  return altCast(w) ?? c;
+}
+
+/** Whether the bot may press `slot` as the class's own ability (not swapped for an option). */
+function can(w: World, slot: number): boolean {
+  return w.canCast(slot) && !w.isAlt(slot);
+}
+
+/** When to press the hero's ability option (ALT_ABILITIES), or undefined. */
+function altCast(w: World): number | undefined {
+  const a = ALT_ABILITIES[w.cls];
+  if (!w.canCast(a.slot)) return undefined;
+  const p = w.player;
+  const hurt = 1 - p.hp / p.maxHp;
+  let touching = 0;
+  let near = 0;
+  let bigNear = false;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+    if (d2 < 90 * 90) touching++;
+    if (d2 < 200 * 200 && e.def.rank === 'normal') near++;
+    if (e.def.rank !== 'normal' && d2 < 260 * 260) bigNear = true;
+  }
+  const party = w.heroes.length > 1;
+  const allyLow = (r: number, share: number) =>
+    w.heroes.some((_, k) => {
+      if (k === w.acting) return false;
+      const q = w.hero(k).player;
+      return q.hp > 0 && q.hp < q.maxHp * share && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < r * r;
+    });
+  if (w.cls === 'emberwright') {
+    // Ember Ward: before the press reaches you, or when a big foe is close.
+    if ((p.plateUntil ?? -1) > w.time) return undefined;
+    return touching >= 2 || bigNear || hurt > 0.3 ? a.slot : undefined;
+  }
+  if (w.cls === 'duskblade') {
+    // Hamstring: open on whatever is in reach; it's cheap and keeps foes off you.
+    const t = w.bladeTarget(w.swingReach + 40);
+    return t >= 0 && (w.enemies[t].def.rank !== 'normal' || near >= 3 || touching >= 1) ? a.slot : undefined;
+  }
+  if (w.cls === 'bulwark') {
+    // Rallying Cry: in a party, for a boss blow on the tank or a hurt ally nearby; solo, as a mend.
+    if (party) return w.anvilOnMe || allyLow(200, 0.6) || (bigNear && hurt > 0.3) ? a.slot : undefined;
+    return hurt > 0.4 ? a.slot : undefined;
+  }
+  if (w.cls === 'lumen') {
+    // Lightwell: drop it where you stand when you or an ally beside you is hurt.
+    return hurt > 0.2 || (party && allyLow(90, 0.8)) ? a.slot : undefined;
+  }
+  if (w.cls === 'slagbinder') {
+    // Slag Pit: on a big foe or a crowd in range.
+    const t = w.bladeTarget(360);
+    return t >= 0 && (w.enemies[t].def.rank !== 'normal' || near >= 4) ? a.slot : undefined;
+  }
+  return undefined;
+}
+
+/** The class's own action choices. */
+function classCast(w: World, skill: number): number | undefined {
   if (w.cls === 'slagbinder') return slagCast(w, skill);
   if (w.cls === 'duskblade') return bladeCast(w, skill);
   if (w.cls === 'bulwark') return shieldCast(w, skill);
@@ -206,7 +271,7 @@ export function botCast(w: World, skill = 1): number | undefined {
   const p = w.player;
   // A lower-skill bot misses some interrupts.
   const attentive = (w.tick % 20) / 20 < skill;
-  if (attentive && w.canCast(3) && w.interruptTarget() >= 0) return 3;
+  if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   let near = 0;
   let touching = 0;
   let bigNear = false;
@@ -222,9 +287,9 @@ export function botCast(w: World, skill = 1): number | undefined {
       if (d2 < 60 * 60) touching++;
     }
   }
-  if (w.canCast(2) && (bigInReach || near >= 14)) return 2;
-  if (w.canCast(0) && (near >= 5 || bigNear)) return 0;
-  if (w.canCast(1) && p.hp < p.maxHp * 0.4 && touching >= 3) return 1;
+  if (can(w, 2) && (bigInReach || near >= 14)) return 2;
+  if (can(w, 0) && (near >= 5 || bigNear)) return 0;
+  if (can(w, 1) && p.hp < p.maxHp * 0.4 && touching >= 3) return 1;
   return undefined;
 }
 
@@ -369,7 +434,7 @@ export function botInput(w: World, skill = 1): Input {
         const d = Math.hypot(dx, dy) || 1;
         // Too far to walk there in time: use the class's step (Blink, Glimmer Step, Sidestep) toward it.
         const late = d > w.moveSpeed * left * 0.9 && d > 120;
-        const step = late && cast !== 3 && w.cls !== 'bulwark' && w.canCast(1) ? 1 : cast;
+        const step = late && cast !== 3 && w.cls !== 'bulwark' && w.canCast(1) && !w.isAlt(1) ? 1 : cast;
         return { x: dx / d, y: dy / d, cast: step };
       }
     }

@@ -11,7 +11,7 @@ import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
-import { CLASSES, ClassDef } from './content/classes';
+import { ALT_ABILITIES, CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
@@ -140,6 +140,15 @@ export const SLAG_KIT = {
   hailEvery: 4, shatterMult: 1.25,
 };
 
+/** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
+export const ALT_KIT = {
+  emberWardShare: 0.25, emberWardTime: 3, emberWardBurn: 12, emberWardBurnTime: 3,
+  hamstringDamage: 55, hamstringBleed: 12, hamstringRadius: 120, hamstringTime: 4, slowNormal: 0.5, slowBig: 0.2,
+  cryTime: 5, cryCut: 0.25, cryRadius: 200, cryHeal: 0.15,
+  wellTime: 6, wellRadius: 90, wellHeal: 3,
+  pitTime: 5, pitRadius: 80, pitDps: 10, pitSlowNormal: 0.4, pitRange: 360,
+};
+
 /** Slagbinder stance, picked before the run and kept all run: Anvil tanks, Bellows fills a damage slot. */
 export type Stance = 'anvil' | 'bellows';
 
@@ -189,6 +198,9 @@ export interface Enemy {
   exposedT?: number;
   /** Slagbinder: the run time until which this foe is Brittle (takes more damage from everyone). */
   brittleUntil?: number;
+  /** Hamstring and Slag Pit: the run time until which this foe is slowed, and its speed factor. */
+  slowUntil?: number;
+  slowMult?: number;
   /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
@@ -348,6 +360,17 @@ export interface Player {
   motesFired?: number;
   /** Slagbinder: its stance, plating on this hero (until when, how much, who poured it), Interpose cover, Cooling Shell, Lobs thrown, Clinker Heart. */
   stance?: Stance;
+  /** Ability option: this hero swapped one slot for its class's ALT_ABILITIES entry. */
+  alt?: boolean;
+  /** Rallying Cry, Lightwell and Slag Pit timers and positions. */
+  cryUntil?: number;
+  wellUntil?: number;
+  wellX?: number;
+  wellY?: number;
+  wellT?: number;
+  pitUntil?: number;
+  pitX?: number;
+  pitY?: number;
   plateUntil?: number;
   /** Plating left (its own pool, apart from ward: it stops blows, never unblockable ticks), and how much was poured. */
   plate?: number;
@@ -460,7 +483,7 @@ export type SimEvent =
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
-  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number }
+  | { type: 'ability'; slot: number; x: number; y: number; angle: number; r: number; /** The hero's ability option (ALT_ABILITIES), not the class's own. */ alt?: boolean }
   | { type: 'blink'; x1: number; y1: number; x2: number; y2: number }
   | { type: 'dash'; x1: number; y1: number; x2: number; y2: number; dodge: boolean }
   | { type: 'swing'; x: number; y: number; angle: number; r: number; arc: number; spin: boolean }
@@ -511,6 +534,8 @@ export interface HeroOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
   stance?: Stance;
+  /** Ability option for this run (ALT_ABILITIES). */
+  alt?: boolean;
   gear?: Item[];
   passives?: Partial<Record<PassiveId, number>>;
   name?: string;
@@ -577,6 +602,8 @@ export interface WorldOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
   stance?: Stance;
+  /** Ability option for this run (ALT_ABILITIES): swaps one action-bar slot. */
+  alt?: boolean;
   /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
@@ -722,6 +749,8 @@ export class World {
   }
   private choirT = 0;
   private choirN = 0;
+  /** Set while a dungeon verb that wards must not soak (Glare) lands. */
+  private verbHit = false;
   private gripT = 0;
   // The Ashvents (Ysmeret): Twin Vents, Scatter Embers, Bellow Slam.
   private ventT = 0;
@@ -872,6 +901,7 @@ export class World {
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
+    if (opts.alt) this.player.alt = true;
     if (this.cls === 'slagbinder') {
       this.player.stance = opts.stance ?? 'bellows';
       if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
@@ -935,6 +965,7 @@ export class World {
     const a = (index / MAX_PARTY) * Math.PI * 2;
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
     player.stance = cls === 'slagbinder' ? h.stance ?? 'bellows' : undefined;
+    player.alt = h.alt ? true : undefined;
     if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
     player.px = player.x;
     player.py = player.y;
@@ -1070,11 +1101,19 @@ export class World {
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal');
   }
   get abilities(): AbilityDef[] {
-    return this.classDef.abilities;
+    if (!this.player.alt) return this.classDef.abilities;
+    const a = ALT_ABILITIES[this.cls];
+    return this.classDef.abilities.map((d, k) => (k === a.slot ? a.def : d));
+  }
+
+  /** Whether `slot` holds this hero's ability option instead of the class's own ability. */
+  isAlt(slot: number): boolean {
+    return !!this.player.alt && ALT_ABILITIES[this.cls].slot === slot;
   }
 
   /** Resource cost of an action-bar slot after talents. */
   abilityCost(slot: number): number {
+    if (this.isAlt(slot)) return ALT_ABILITIES[this.cls].def.cost;
     if (this.cls === 'emberwright' && slot === 0) return ABILITIES[0].cost - 6 * this.rank('rollingInferno');
     if (this.cls === 'duskblade' && slot === 0 && this.rank('flurryStep') >= 2) return this.abilities[0].cost - 10;
     return this.abilities[slot]?.cost ?? 0;
@@ -1088,6 +1127,7 @@ export class World {
 
   private baseCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
+    if (this.isAlt(slot)) return base;
     if (this.cls === 'slagbinder') {
       if (slot === 0) return base - this.rank('quickset');
       if (slot === 2) return base + (this.hasMythic('clinkerCrown') ? 4 : 0);
@@ -1709,6 +1749,7 @@ export class World {
     e.touchCd = 0;
     e.orbitCd = 0;
     e.brittleUntil = 0;
+    e.slowUntil = 0;
     e.burnDps = 0;
     e.burnT = 0;
     e.woundT = 0;
@@ -1817,8 +1858,16 @@ export class World {
     }
     // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
     if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut;
-    // Molten Plating stops blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip).
-    if (!unblockable && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
+    // Rallying Cry: in a party, heroes near the Bulwark take less.
+    if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
+    // Ember Ward: whatever strikes the ward catches fire.
+    if (src >= 0 && p.plateBy === -1 && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time && this.enemies[src]?.alive) {
+      const e = this.enemies[src];
+      e.burnDps = Math.max(e.burnDps, ALT_KIT.emberWardBurn * this.dmgMult);
+      e.burnT = Math.max(e.burnT, ALT_KIT.emberWardBurnTime);
+    }
+    // Molten Plating and Ember Ward stop blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip) or Glare.
+    if (!unblockable && !this.verbHit && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
       const soak = Math.min(p.plate ?? 0, amount);
       p.plate = (p.plate ?? 0) - soak;
       amount -= soak;
@@ -1940,12 +1989,16 @@ export class World {
     const slot = input.cast;
     if (slot === undefined || slot < 0 || slot >= this.abilities.length || !this.canCast(slot)) return;
     p.heat -= this.abilityCost(slot);
-    if (slot === 1 && p.cds[1] > 0) {
+    if (slot === 1 && p.cds[1] > 0 && !this.isAlt(1)) {
       // Spend the stored charge; the main cooldown keeps running.
       p.blinkCharges--;
       p.blinkChargeT = this.abilityCooldown(1);
     } else p.cds[slot] = this.abilityCooldown(slot);
     if (!this.abilities[slot].offGcd) p.gcd = GCD;
+    if (this.isAlt(slot)) {
+      this.castAlt(input);
+      return;
+    }
     if (this.cls === 'lumen') {
       if (slot === 0) this.radiantBurst();
       else if (slot === 1) this.glimmerStep(input);
@@ -2198,6 +2251,7 @@ export class World {
 
   private updateWeapons(dt: number): void {
     const p = this.player;
+    this.updateAlt(dt);
     if (this.cls === 'duskblade') {
       this.updateBlades(dt);
       return;
@@ -2267,6 +2321,109 @@ export class World {
           }
         });
       }
+    }
+  }
+
+  // ---------------------------------------------------------------- ability options
+
+  /** Casts this hero's ability option (ALT_ABILITIES), whichever class it is. */
+  private castAlt(input: Input): void {
+    const p = this.player;
+    if (this.cls === 'emberwright') {
+      // Ember Ward: a fire ward that stops blows; plateBy -1 marks it as not a Slagbinder's plating.
+      p.plate = p.maxHp * ALT_KIT.emberWardShare;
+      p.plateAmt = p.plate;
+      p.plateUntil = this.time + ALT_KIT.emberWardTime;
+      p.plateBy = -1;
+      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: 40 });
+    } else if (this.cls === 'duskblade') {
+      let t = this.bladeTarget(this.swingReach + 40);
+      if (t < 0) t = this.nearestEnemies(p.x, p.y, 1, 220)[0] ?? -1;
+      if (t < 0) return;
+      const e = this.enemies[t];
+      this.damageEnemy(t, ALT_KIT.hamstringDamage * this.dmgMult, true);
+      // The cut bleeds like Rending Dash's, on the one foe it strikes.
+      if (e.alive) {
+        e.burnDps = Math.max(e.burnDps, ALT_KIT.hamstringBleed * this.bleedMult * this.dmgMult);
+        e.burnT = Math.max(e.burnT, 4);
+      }
+      const r = ALT_KIT.hamstringRadius;
+      this.forEachNear(e.x, e.y, r + 40, (i) => {
+        const o = this.enemies[i];
+        if (i !== t && dist2(e.x, e.y, o.x, o.y) > (r + o.def.radius) ** 2) return;
+        this.slow(i, ALT_KIT.slowNormal, ALT_KIT.hamstringTime);
+      });
+      this.events.push({ type: 'ability', alt: true, slot: 0, x: e.x, y: e.y, angle: 0, r });
+    } else if (this.cls === 'bulwark') {
+      p.cryUntil = this.time + ALT_KIT.cryTime;
+      for (let k = 0; k < this.heroes.length; k++) {
+        if (k === this.acting) continue;
+        const a = this.heroPlayer(k);
+        if (a.hp > 0 && dist2(p.x, p.y, a.x, a.y) <= ALT_KIT.cryRadius ** 2) a.cryUntil = this.time + ALT_KIT.cryTime;
+      }
+      this.events.push({ type: 'ability', alt: true, slot: 2, x: p.x, y: p.y, angle: 0, r: ALT_KIT.cryRadius });
+    } else if (this.cls === 'lumen') {
+      p.wellUntil = this.time + ALT_KIT.wellTime;
+      p.wellX = p.x;
+      p.wellY = p.y;
+      this.events.push({ type: 'ability', alt: true, slot: 1, x: p.x, y: p.y, angle: 0, r: ALT_KIT.wellRadius });
+    } else if (this.cls === 'slagbinder') {
+      const t = this.bladeTarget(ALT_KIT.pitRange);
+      const ang = Math.hypot(input.x, input.y) > 0.01 ? Math.atan2(input.y, input.x) : p.facing;
+      const x = t >= 0 ? this.enemies[t].x : p.x + Math.cos(ang) * 120;
+      const y = t >= 0 ? this.enemies[t].y : p.y + Math.sin(ang) * 120;
+      p.pitUntil = this.time + ALT_KIT.pitTime;
+      p.pitX = x;
+      p.pitY = y;
+      this.addZone(x, y, ALT_KIT.pitRadius, ALT_KIT.pitDps * this.dmgMult, ALT_KIT.pitTime);
+      this.events.push({ type: 'ability', alt: true, slot: 1, x, y, angle: 0, r: ALT_KIT.pitRadius });
+    }
+  }
+
+  /** Slows foe i: `mult` for normal foes, at most ALT_KIT.slowBig for bosses, elites and named foes. */
+  private slow(i: number, mult: number, time: number): void {
+    const e = this.enemies[i];
+    if (!e.alive || e.def.stationary) return;
+    const m = e.def.rank === 'normal' && e.named < 0 ? mult : Math.min(mult, ALT_KIT.slowBig);
+    e.slowMult = Math.max((e.slowUntil ?? 0) > this.time ? e.slowMult ?? 0 : 0, m);
+    e.slowUntil = Math.max(e.slowUntil ?? 0, this.time + time);
+  }
+
+  /** Per-tick upkeep of the ability options: Rallying Cry's solo mend, Lightwell, Slag Pit's slow. */
+  private updateAlt(dt: number): void {
+    const p = this.player;
+    if (!p.alt) return;
+    // Ember Ward runs out (Slagbinder plating is cleared in updatePlates).
+    if (p.plateBy === -1 && p.plateUntil !== undefined && (this.time >= p.plateUntil || (p.plate ?? 0) <= 0.01)) {
+      p.plateUntil = undefined;
+      p.plate = 0;
+      p.plateAmt = 0;
+      p.plateBy = undefined;
+    }
+    if (this.cls === 'bulwark' && this.heroes.length === 1 && (p.cryUntil ?? -1) > this.time) {
+      this.healPlayer((p.maxHp * ALT_KIT.cryHeal * dt) / ALT_KIT.cryTime);
+    }
+    if (this.cls === 'lumen' && (p.wellUntil ?? -1) > this.time) {
+      // Pulses twice a second, so heal events stay readable.
+      p.wellT = (p.wellT ?? 0) + dt;
+      if (p.wellT < 0.5) return;
+      dt = p.wellT;
+      p.wellT = 0;
+      const x = p.wellX ?? p.x;
+      const y = p.wellY ?? p.y;
+      const r = ALT_KIT.wellRadius;
+      if (dist2(p.x, p.y, x, y) <= r * r) this.healPlayer(ALT_KIT.wellHeal * dt);
+      // Never clears Slag Grip or Ladle Burn (design: that stays Purify's and real heals' job).
+      this.healAllies(x, y, r, ALT_KIT.wellHeal * dt, -1, false);
+    }
+    if (this.cls === 'slagbinder' && (p.pitUntil ?? -1) > this.time) {
+      const x = p.pitX ?? p.x;
+      const y = p.pitY ?? p.y;
+      const r = ALT_KIT.pitRadius;
+      this.forEachNear(x, y, r + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(x, y, e.x, e.y) <= (r + e.def.radius) ** 2) this.slow(i, ALT_KIT.pitSlowNormal, 0.3);
+      });
     }
   }
 
@@ -2543,7 +2700,7 @@ export class World {
    * threat for the healer, like self-healing; the Lumen banks overheal as Brilliance.
    * `only` limits it to one hero. Solo it does nothing.
    */
-  healAllies(x: number, y: number, r: number, amount: number, only = -1): number {
+  healAllies(x: number, y: number, r: number, amount: number, only = -1, cleanse = true): number {
     if (this.heroes.length === 1) return 0;
     const p = this.player;
     let total = 0;
@@ -2556,7 +2713,7 @@ export class World {
       a.hp += eff;
       total += eff;
       // Slag Grip: only another hero's heal can loosen it.
-      if (amount > 0 && (a.slag ?? 0) > 0) {
+      if (cleanse && amount > 0 && (a.slag ?? 0) > 0) {
         a.slag = 0;
         this.events.push({ type: 'cleanse', x: a.x, y: a.y });
       }
@@ -3403,6 +3560,7 @@ export class World {
 
       let speed = e.castId ? 0 : e.def.speed * (e.named >= 0 && AFFIXES[e.affix] === 'Swift' ? NAMED.swift : 1);
       if (e.def.rank === 'boss' && this.bossEnraged) speed *= 1.6;
+      if ((e.slowUntil ?? 0) > this.time) speed *= 1 - (e.slowMult ?? 0);
       // Thin Ice: Nhevra holds her ground while the river is cracked, so her strip stays hers.
       if (e.kind === 'nhevra' && this.cracks.some((c) => c.alive)) speed = 0;
       const dx = p.x - e.x;
@@ -3551,7 +3709,9 @@ export class World {
       if (this.heroes.length === 1) {
         const p = this.player;
         const hit = !this.shadowed(p.x, p.y);
+        this.verbHit = true;
         if (hit) this.hurtPlayer(dmg, i);
+        this.verbHit = false;
         this.events.push({ type: 'glare', x: e.x, y: e.y, hit });
       } else {
         // Co-op: the flare burns every hero standing in the light.
@@ -5149,7 +5309,9 @@ export class World {
     const out: DraftOption[] = [];
     const spare: TalentId[] = [];
     let capCards = 0;
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls);
+    // A hero with an ability option never drafts talents for the ability it replaced.
+    const swapped = this.player.alt ? ALT_ABILITIES[this.cls].slot : -1;
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped));
     for (const b of this.branches) {
       const ids = defs.filter((d) => d.branch === b && !d.capstone && this.rank(d.id) < d.maxRank).map((d) => d.id);
       const caps = defs.filter((d) => d.branch === b && d.capstone);

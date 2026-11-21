@@ -403,6 +403,30 @@ Each class has two Mythics of its own, on top of the shared four. A Mythic shoul
 
 Tests are in `tests/mythics.test.ts`.
 
+## Ability options (one swap per class)
+From hero level 8 (`ALT_UNLOCK_LEVEL`), each class can swap one action-bar slot for a sidegrade. The interrupt (F) is never swapped. The pick is made in the hub under the class picker, locked for the run, and saved per character (`alt` in CHARACTER_KEYS and the co-op HeroCard). Definitions are in `ALT_ABILITIES` in sim/content/classes.ts, and tuning is in `ALT_KIT` in sim/world.ts.
+
+| Class | Slot | Replaces | Option | Cost / cooldown | What it does |
+|---|---|---|---|---|---|
+| Emberwright | E | Blink | Ember Ward | 0 heat / 10 s | A ward of 25% max health for 3 s that stops blows. Foes that strike it burn (12 a second for 3 s). |
+| Duskblade | Q | Rending Dash | Hamstring | 25 / 5 s | 55 damage and a 4 s bleed (12 a second) on the foe in reach, and a 4 s slow on it and foes within 120 px. |
+| Bulwark | R | Bastion | Rallying Cry | 50 / 20 s | In a party, heroes within 200 px take 25% less for 5 s. Alone, you mend 15% of max health over 5 s. |
+| Lumen | E | Glimmer Step | Lightwell | 0 / 12 s | A 90 px well for 6 s that heals anyone in it 3 a second, in two pulses a second. |
+| Slagbinder | E | Interpose | Slag Pit | 0 / 10 s | An 80 px pit at your target for 5 s: it burns (10 a second) and slows foes in it by 40%. |
+
+Design's conditions (21 Nov 2026), all built in:
+- **Ember Ward** never stops Glare, the Long Night, Ladle Pour or percent ticks. It shares the plate pool, which only stops blockable hits, and Glare sets a `verbHit` flag so wards skip it.
+- **Lightwell** never clears Slag Grip or Ladle Burn: it heals through `healAllies(…, cleanse = false)`.
+- **Hamstring and Slag Pit** slow bosses, elites, rares and named foes by 20% at most. Only normal foes get the full slow.
+- **Rallying Cry** must keep the Crucible full party at or under about 70% (21/30).
+- **Drafts:** a talent tagged with `ability` (the slot it upgrades) is never drafted when that slot is swapped.
+
+**Bot:** `altCast` in sim/bot.ts presses the option, and the class's own logic can't press the swapped slot. Interrupts still come first.
+
+**Tools:** ALT=1 turns the option on in tools/balance.ts, tools/group.ts and the matrix's foundry2.ts. In group.ts, ALT=bulwark,lumen turns it on for those classes only.
+
+**Placeholders:** the option glyphs (`ALT_GLYPH` in client/icons.ts) and the cast effect (a ring and the name) are placeholders until visuals draws them. Sound can tell an option apart by `alt: true` on the 'ability' event.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).

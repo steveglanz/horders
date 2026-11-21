@@ -12,6 +12,7 @@ import { Rng } from './rng';
 import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
+import { ALT_UNLOCK_LEVEL } from './content/classes';
 import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
@@ -82,6 +83,8 @@ export interface HeroProfile {
   keyBest?: Partial<Record<DungeonId, number>>;
   /** Slagbinder stance (Anvil tanks, Bellows fills a damage slot); kept per character. Default Bellows. */
   stance?: 'anvil' | 'bellows';
+  /** Ability option (ALT_ABILITIES) picked for this character; it applies from level 8 (ALT_UNLOCK_LEVEL). */
+  alt?: boolean;
   /** P4: every collection book entry the account has held (shared by every class), and the rewards already paid. */
   collection?: EntryKey[];
   collectionPaid?: string[];
@@ -92,7 +95,12 @@ export interface HeroProfile {
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
-export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance'] as const;
+/** Whether this character's ability option is on for the next run (picked, and level 8 or higher). */
+export function altOn(h: Pick<HeroProfile, 'alt' | 'level'>): boolean {
+  return !!h.alt && h.level >= ALT_UNLOCK_LEVEL;
+}
+
+export const CHARACTER_KEYS = ['level', 'xp', 'passives', 'embers', 'inventory', 'equipped', 'pity', 'runs', 'wins', 'bestTime', 'maxTier', 'grit', 'potion', 'keys', 'keyBest', 'stance', 'alt'] as const;
 export type Character = Pick<HeroProfile, (typeof CHARACTER_KEYS)[number]>;
 
 function freshCharacter(): Character {

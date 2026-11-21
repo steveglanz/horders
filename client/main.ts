@@ -7,7 +7,7 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
-import { applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen } from '../sim/hero';
+import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, keyLevelOf, keysOpen } from '../sim/hero';
 import { DUNGEONS } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { CoopSession, HeroCard } from './net/coop';
@@ -186,6 +186,7 @@ function startRun(bounty = false, key = false): void {
     firstDelve: !stress && (hero.runs ?? 0) === 0,
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
+    alt: altOn(hero),
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
@@ -320,7 +321,7 @@ let coopNote = '';
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow };
 }
 
 /** Party size at the last roster update, for the join and leave chimes. */
