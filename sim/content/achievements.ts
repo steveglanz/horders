@@ -52,6 +52,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   boss('boss:foundry', 'foundry', 'Floodwalker', 'Maelra in the Drowned Foundry', 'Floodwalker'),
   boss('boss:glarewell', 'glarewell', 'Lightproof', 'the Lensmother in the Glarewell', 'the Lightproof'),
   boss('boss:coldmarrow', 'coldmarrow', 'Winterproof', 'Nhevra in the Coldmarrow', 'the Winterproof'),
+  boss('boss:wrackline', 'wrackline', 'Ebbproof', 'Hessa of the Ebb in the Wrackline', 'the Ebbproof'),
   boss('boss:hammerdeep', 'hammerdeep', 'Anvilbreaker', 'Ondrel in the Hammerdeep', 'Anvilbreaker'),
   boss('boss:ashvents', 'ashvents', 'Twice-Burned', 'Ysmeret in the Ashvents', 'Twice-Burned'),
   boss('boss:crucible', 'crucible', 'Slagbane', 'Grandmother Slag in the Crucible', 'Slagbane', T.big),
