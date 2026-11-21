@@ -1880,6 +1880,53 @@ function drawSlagCroneRaid(ctx: Ctx, s: number, f: number): void {
   ctx.restore();
 }
 
+/**
+ * The Cinder Colossus in person, for raid 3 (Y6): the shadow sprite's giant at 1.5x, with molten slag running in
+ * every seam between its blocks, two vents on its shoulders breathing flame, a blazing eye slit, slag dripping
+ * from its knuckles into pools on the floor, and cinders drifting up. Drawn in the 128-unit space of
+ * drawColossus and scaled up, so the two always match.
+ */
+function drawColossusRaid(ctx: Ctx, s: number, f: number): void {
+  const k = s / 128;
+  const c = 64;
+  const pulse = [0.7, 0.85, 1, 0.85][f];
+  const heave = [0, -1.5, -3, -1.5][f];
+  ctx.save();
+  // A touch smaller than the full frame and lowered, so the shoulder flames fit.
+  ctx.scale(k * 0.92, k * 0.92);
+  ctx.translate(5, 10);
+  softGlow(ctx, c, 76, 62, `rgba(255,110,40,${0.24 * pulse})`);
+  drawColossus(ctx, 128, f);
+  // Molten slag in the seams between the blocks, brighter than the shadow's.
+  cracks(ctx, [[[c - 31, 62], [c - 8, 62], [c + 14, 62], [c + 31, 62]], [[c - 27, 82], [c - 4, 82], [c + 27, 82]], [[c - 8, 44 + heave], [c - 10, 62]], [[c + 14, 62], [c + 12, 82]], [[c - 14, 82], [c - 13, 100]]], `rgba(255,190,80,${0.85 * pulse})`, 1.8);
+  // The eye slit blazes.
+  softGlow(ctx, c + 5, 33.5 + heave, 9, `rgba(255,200,90,${0.9 * pulse})`);
+  // Two vents on the shoulders, each breathing a tongue of flame.
+  for (const [x, lean] of [[c - 36, -0.25], [c + 36, 0.25]] as const) {
+    const y = 32 + heave;
+    ctx.beginPath(); ctx.rect(x - 4, y - 4, 8, 6);
+    shade(ctx, '#4a3f3b', '#1a1514', y - 4, y + 2, 1.2);
+    const h = 10 + 3 * pulse + (f % 2) * 2;
+    flameTongue(ctx, x, y - 4, 3.6, x + Math.sin(lean) * h, y - 4 - h, '#fff0b0', '#ffb347', '#e0601f');
+  }
+  // Slag drips from the knuckles into pools on the floor.
+  for (const x of [c - 47, c + 48]) {
+    ctx.save();
+    ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 5;
+    ell(ctx, x + 2, 114 + ((f * 2) % 6), 1.6, 2.4); ctx.fill();
+    ctx.restore();
+    ell(ctx, x + 2, 121, 9, 2.6);
+    ctx.fillStyle = `rgba(255,140,50,${0.7 * pulse})`; ctx.fill();
+  }
+  // Cinders drifting up.
+  for (const [x, y] of [[c - 52, 50], [c - 24, 20], [c + 50, 24], [c + 10, 6], [c + 56, 80]]) {
+    const yy = y - f * 3;
+    softGlow(ctx, x, yy, 4, 'rgba(255,190,100,0.85)');
+    ctx.fillStyle = '#ffe2a0'; ell(ctx, x, yy, 1, 1); ctx.fill();
+  }
+  ctx.restore();
+}
+
 // ------------------------------------------------------------------ the Drowned Foundry
 
 /** Glass Warden: a golem of cracked furnace glass around a banked ember. */
@@ -2552,6 +2599,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'gate', 80, 1, drawGate);
   sheet(scene, 'slagCrone', 128, 4, drawSlagCrone);
   sheet(scene, 'colossus', 128, 4, drawColossus);
+  sheet(scene, 'colossusRaid', 192, 4, drawColossusRaid);
   sheet(scene, 'regent', 128, 4, drawRegent);
   // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
   sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
