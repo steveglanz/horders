@@ -168,4 +168,8 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   ward: 0.3,
   zap: 0.1,
   click: 0.03,
+  select: 0.03,
+  back: 0.05,
+  open: 0.05,
+  confirm: 0.1,
 };
