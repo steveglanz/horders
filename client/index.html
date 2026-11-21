@@ -701,6 +701,76 @@
   .po span { display: flex; flex-direction: column; min-width: 0; }
   .po b { font: 600 14px var(--serif); }
   .po i { font-style: normal; font-size: 12px; color: var(--muted); }
+
+  /* Delve tab: dungeons scroll sideways, prep (Omens, potion, bounty) folds into chips that open sheets. */
+  .prep { display: none; }
+  body.tabs .prep-full { display: none; }
+  body.tabs .prep { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+  body.tabs .prep::-webkit-scrollbar { display: none; }
+  .prep-chip { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 0 14px 0 10px; border-radius: 999px; border: 1px solid var(--card-line); background: var(--card-solid); color: var(--ink); font: 600 13px var(--sans); white-space: nowrap; }
+  .prep-chip.on { border-color: rgba(255,200,97,0.5); }
+  .prep-chip b { color: var(--gold); }
+  .prep-chip .gtile { border-radius: 8px; }
+  .prep-chip .star { color: var(--gold); font-size: 16px; }
+  .prep-chip svg { flex: none; }
+  .sheet .bounty { margin-top: 10px; }
+  .sheet .pots { margin-top: 4px; }
+  .sheet .omens { margin-top: 10px; }
+  body.tabs .dungeons { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
+  body.tabs .dungeons::-webkit-scrollbar { display: none; }
+  body.tabs .dg { flex: 0 0 min(72%, 300px); scroll-snap-align: start; min-height: 128px; }
+  body.tabs .dg:disabled { flex-basis: min(46%, 180px); min-height: 128px; }
+  body.tabs .tierrow button { min-height: 44px; }
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+    body.tabs .dg { flex-basis: min(42%, 300px); min-height: 104px; }
+    body.tabs .dg:disabled { flex-basis: min(26%, 180px); min-height: 104px; }
+    body.tabs .dungeons { margin: 0; padding: 0 0 2px; }
+    body.tabs #heroStrip { min-height: 44px; padding: 4px 10px; }
+    body.tabs #heroStrip .gtile { width: 32px; height: 32px; }
+    body.tabs .hub-delve .sec-h.big { display: none; }
+    body.tabs .hub-delve [data-pane="delve"] .dungeons { margin-top: 10px; }
+    body.tabs .dg, body.tabs .dg:disabled { min-height: 92px; }
+    body.tabs .hub-delve .sec-h { margin-top: 8px; }
+    body.tabs .hub[data-tab="delve"] { padding-bottom: 12px; }
+    body.tabs .prep { max-width: calc(100% - min(360px, 50%) - 12px); }
+    body.tabs .hub-foot { background: none; pointer-events: none; margin-top: -58px; }
+    body.tabs .hub-foot button { pointer-events: auto; }
+    .sheet-panel { max-height: 92vh; }
+  }
+
+  /* Bags on phones: icon tiles; tapping one opens its card, a comparison and its actions in a sheet. */
+  #bagList .igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+  #bagList.grid { display: block; }
+  #bagList.grid > .sec-h:first-child { margin-top: 4px; }
+  .itile { position: relative; aspect-ratio: 1; min-height: 56px; margin: 0; padding: 0; display: grid; place-items: center; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--rc) 70%, transparent); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--rc) 22%, transparent), rgba(0,0,0,0.35) 75%); color: var(--rc); }
+  .itile .il { position: absolute; right: 5px; bottom: 3px; font: 700 11px var(--sans); color: var(--ink); text-shadow: 0 1px 2px #000; }
+  .itile .is { position: absolute; left: 5px; bottom: 2px; line-height: 0; }
+  .itile .ie { position: absolute; left: 5px; top: 4px; font: 700 9px var(--sans); color: #6fe39a; letter-spacing: 0.04em; }
+  .itile .inew { position: absolute; right: 5px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  body.tabs .bag-help { display: none; }
+  .sheet-item { margin-top: 10px; }
+  .sheet-item.cur { opacity: 0.85; margin-top: 0; }
+  .sheet .sec-h b.up { color: #6fe39a; }
+  .sheet .sec-h b.down { color: var(--danger); }
+  .sheet-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .sheet-acts .sbtn { flex: 1 1 40%; min-height: 48px; font-size: 14px; }
+  .sheet-acts .cost { color: var(--ember); font-weight: 700; margin-left: 4px; }
+  .sheet-acts .sbtn.eq { flex-basis: 100%; background: var(--btn); color: #2a0f05; border: 0; font-weight: 700; }
+
+  /* Group tab and sheets: 44pt taps, Quick join as the one big button. */
+  .sheet .sbtn { min-height: 44px; }
+  body.tabs .coop .sbtn, body.tabs .coop input, body.tabs .coop .quick { min-height: 44px; }
+  body.tabs .coop .row2 .quick { flex: 1 1 100%; justify-content: center; font-size: 15px; }
+
+  /* Short landscape phones (iPhone SE turned): the hero strip lives on the Hero tab only, so the delve setup fits beside the Delve button. */
+  @media (orientation: landscape) and (max-height: 420px) and (min-width: 600px) {
+    body.tabs #heroStrip { display: none; }
+    body.tabs .hub-delve [data-pane="delve"] .dungeons { margin-top: 6px; }
+    body.tabs .dg, body.tabs .dg:disabled { min-height: 84px; padding: 10px 12px; }
+    body.tabs .tierrow { max-width: calc(100% - min(360px, 50%) - 12px); }
+  }
+  /* Group tab: the world boss card keeps its numbers; the explanations move to a long press. */
+  body.tabs .wboss > p:not([style]) { display: none; }
 </style>
 </head>
 <body>
@@ -845,6 +915,13 @@
     <div class="opts" id="hubOpts"></div>
     <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
 <div class="small muted foot-note">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button></div>
+  </div>
+</div>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-labelledby="sheetTitle">
+    <div class="sheet-head"><b id="sheetTitle"></b><button class="round sheet-x" aria-label="Close" data-sfx="back">&times;</button></div>
+    <div id="sheetBody"></div>
   </div>
 </div>
 
