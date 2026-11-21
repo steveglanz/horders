@@ -1,7 +1,8 @@
 /**
  * End-of-run unlock sounds. The run's victory or defeat sting plays first, then a
  * chime for each thing the run unlocked, in the order the end screen lists them:
- * an achievement gets the big one, a new season-track level its own sting, and a
+ * an achievement gets the big one, a new season-track level its own sting, an
+ * in-season win (the season's own dungeon) a spark chime, and a
  * title or a season, collection or weekly reward a smaller one. Achievements come
  * first, so a cap of three never drops one. Pure, so it can be tested.
  */
@@ -26,6 +27,8 @@ export function rewardCues(r: RunRewards | undefined): TimedCue[] {
     ...(r.achievements ?? []).map(() => 'achievement' as const),
     // A season-track level: its own rising sting.
     ...((r.seasonTo ?? 0) > (r.seasonFrom ?? 0) ? ['seasonUp' as const] : []),
+    // A win in the season's dungeon (SeasonDef.dungeon, e.g. the Hammerdeep in the Deep Bellows) paid extra marks.
+    ...(r.seasonFeatured ? ['inSeason' as const] : []),
     ...(r.title ? ['unlock' as const] : []),
     ...(r.seasonRewards ?? []).map(() => 'unlock' as const),
     ...(r.collectionRewards ?? []).map(() => 'unlock' as const),
