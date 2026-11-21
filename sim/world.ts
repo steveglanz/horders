@@ -1094,7 +1094,7 @@ export class World {
     return 1 + this.rank('extraOrb');
   }
   get critChance(): number {
-    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + this.loadout.critBonus;
+    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + this.loadout.critBonus;
   }
   get pickupRadius(): number {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
@@ -1154,7 +1154,7 @@ export class World {
     if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
     if (this.cls === 'emberwright' && slot === 1) return (base - 1.5 * this.rank('flicker')) * (this.hasMythic('wanderersWake') ? 0.5 : 1);
     if (slot === 1) return base - 1.5 * this.rank('flicker');
-    if (slot === 2) return base - 3 * this.rank('heatSink') - 2 * this.rank('fastFuse');
+    if (slot === 2) return base - 3 * this.rank('heatSink') - 3 * this.rank('fastFuse');
     return base;
   }
 
@@ -2172,7 +2172,7 @@ export class World {
         }
       }
     }
-    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink'));
+    const dmg = 240 * this.dmgMult * (1 + 0.2 * this.rank('heatSink') + 0.2 * this.rank('fastFuse'));
     this.forEachNear(x, y, r + 50, (i) => {
       const e = this.enemies[i];
       if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
@@ -4064,7 +4064,7 @@ export class World {
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
-      dmg *= 2 + 0.15 * this.rank('brightWick');
+      dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);

@@ -133,7 +133,7 @@ describe('class talents round 2 (C5)', () => {
     const { inner } = world('emberwright');
     const base = inner.baseCooldown(2);
     inner.talents = { fastFuse: 2 };
-    expect(inner.baseCooldown(2)).toBeCloseTo(base - 4);
+    expect(inner.baseCooldown(2)).toBeCloseTo(base - 6);
   });
 
   it('Light Grip and Slow Drip: faster swings, harder bleeds', () => {
