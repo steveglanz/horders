@@ -138,6 +138,7 @@ export class Hud {
   private coach = new Coach();
   private hpHtml = '';
   private wasDown = false;
+  private wasNoRevive = false;
 
   /** The pause menu names this delve's Omens; hold or hover one for what it does. */
   private showOmens(w: World): void {
@@ -202,8 +203,11 @@ export class Hud {
     const hpHtml = rev < 0 ? `<span>${Math.ceil(Math.max(0, p.hp))}<span class="hpmax"> / ${p.maxHp}</span></span>` : rev > 0 ? `<span><span class="hplong">Reviving </span>${Math.round(rev * 100)}%</span>` : noRevive ? '<span>Down<span class="hplong"> · no revives left this boss</span></span>' : '<span>Down<span class="hplong"> · an ally can revive you</span></span>';
     // Phones show just "Down" / "45%" in the bar, so the how-to goes in a banner the moment you fall.
     const down = rev >= 0;
-    if (down && !this.wasDown && this.compact) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
+    // Phones hide the long health text, so the banner says it, and says it again if the party
+    // spends its last boss pick-up while you're already down ("Stay put" would be stale).
+    if (this.compact && down && (!this.wasDown || (noRevive && !this.wasNoRevive))) this.banner("You're down", noRevive ? 'No revives left this boss: cheer them on' : 'Stay put: an ally standing on you revives you');
     this.wasDown = down;
+    this.wasNoRevive = noRevive;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
