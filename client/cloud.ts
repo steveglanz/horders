@@ -181,7 +181,23 @@ export const cloud = {
   claim(bossId: number): Promise<{ ok: boolean; damage?: number; name?: string } | null> {
     return rpc('claim_world_boss_reward', { p_boss_id: bossId });
   },
+
+  /** Delver's Keys: report a beaten key (supabase/migrations/0004). Null when offline or before the migration. */
+  submitKey(dungeon: string, cls: string, level: number, seconds: number, week: number, name: string): Promise<KeySubmit | null> {
+    return rpc<KeySubmit>('submit_key', {
+      p_dungeon: dungeon, p_cls: cls, p_level: Math.round(level), p_seconds: Math.round(seconds), p_week: Math.round(week), p_name: name,
+    });
+  },
+
+  /** The top keys for a dungeon, and your own row once you have one. */
+  topKeys(dungeon: string, limit = 10): Promise<KeyBoard | null> {
+    return rpc<KeyBoard>('top_keys', { p_dungeon: dungeon, p_limit: limit }, !!session);
+  },
 };
+
+export interface KeyRow { rank: number; name: string; cls: string; level: number; seconds: number }
+export interface KeyBoard { dungeon: string; top: KeyRow[]; me: KeyRow | null }
+export interface KeySubmit { ok: boolean; reason?: 'too_soon' | 'bad_input'; best?: boolean; level?: number; seconds?: number; clamped?: boolean; rank?: number }
 
 /** Coalesces rapid saves (equip, salvage, talent clicks) into one upload. */
 let pending: ReturnType<typeof setTimeout> | null = null;
