@@ -68,7 +68,12 @@ function shieldCast(w: World, skill: number): number | undefined {
     if (!t.alive || t.kind === 'soak') continue;
     if ((t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 10) ** 2) underTelegraph = true;
   }
-  if (w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
+  // Ondrel: Bastion is for Anvilfall. Raise it on the wind-up when the hit is coming
+  // to this hero, and don't spend it on anything else in that fight.
+  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+  const ondrel = !!boss && boss.alive && boss.kind === 'ondrel';
+  if (ondrel && w.canCast(2) && w.anvilOnMe) return 2;
+  if (!ondrel && w.canCast(2) && (p.hp < p.maxHp * 0.55 || (attentive && underTelegraph && p.hp < p.maxHp * 0.85))) return 2;
   if (w.canCast(0) && (near >= 3 || bigClose)) return 0;
   const c = w.chargeTarget();
   if (c >= 0 && w.canCast(1)) {
@@ -77,6 +82,30 @@ function shieldCast(w: World, skill: number): number | undefined {
     if (d > 140 && (e.def.rank !== 'normal' || near === 0)) return 1;
   }
   return undefined;
+}
+
+/** How far to the side of its ward a co-op Lumen stands: inside Radiant Burst, outside a frontal cone. */
+const LUMEN_STANDOFF = 110;
+
+/**
+ * Co-op: the ally a Lumen should stay beside: the one with the lowest share of health,
+ * when someone is below 85% (Slag Grip stacks count as missing health). -1 solo or when all are well.
+ */
+function lumenWard(w: World): number {
+  if (w.cls !== 'lumen' || w.heroes.length < 2) return -1;
+  let best = -1;
+  let bestShare = 0.85;
+  for (let k = 0; k < w.heroes.length; k++) {
+    if (k === w.acting) continue;
+    const a = w.hero(k).player;
+    if (a.hp <= 0) continue;
+    const share = a.hp / a.maxHp - 0.05 * (a.slag ?? 0);
+    if (share < bestShare) {
+      bestShare = share;
+      best = k;
+    }
+  }
+  return best;
 }
 
 /** Lumen action choices: hush casts, Sanctuary for big fights, Radiant Burst to heal and clear space. */
@@ -95,6 +124,14 @@ function lightCast(w: World, skill: number): number | undefined {
     if (d2 < 60 * 60) touching++;
   }
   const hurt = 1 - p.hp / p.maxHp;
+  // Co-op: Radiant Burst and Sanctuary reach the ward when it's close enough.
+  const ward = lumenWard(w);
+  if (ward >= 0) {
+    const a = w.hero(ward).player;
+    const d = Math.hypot(a.x - p.x, a.y - p.y);
+    if (d < w.burstRadius && w.canCast(0)) return 0;
+    if (d < w.burstRadius && a.hp < a.maxHp * 0.5 && w.canCast(2)) return 2;
+  }
   if (w.canCast(2) && (bigNear || hurt > 0.4)) return 2;
   if (w.canCast(0) && (near >= 4 || hurt > 0.25 || (bigNear && near >= 1))) return 0;
   if (w.canCast(1) && hurt > 0.5 && touching >= 2) return 1;
@@ -234,6 +271,28 @@ export function botInput(w: World, skill = 1): Input {
     const wgt = (e.def.rank === 'normal' ? 1 : 6) / Math.max(d2, 100);
     fx += dx * wgt;
     fy += dy * wgt;
+  }
+  // Co-op Lumen: keep the hero who most needs healing inside Radiant Burst and Sanctuary
+  // reach, standing off to the side of the boss's line so its cones miss.
+  const ward = lumenWard(w);
+  if (ward >= 0) {
+    const a = w.hero(ward).player;
+    let ox = 0;
+    let oy = 0;
+    if (w.bossIndex >= 0 && w.enemies[w.bossIndex].alive) {
+      const b = w.enemies[w.bossIndex];
+      const bd = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const side = Math.sign((p.x - a.x) * -(a.y - b.y) + (p.y - a.y) * (a.x - b.x)) || 1;
+      ox = (-(a.y - b.y) / bd) * side * LUMEN_STANDOFF;
+      oy = ((a.x - b.x) / bd) * side * LUMEN_STANDOFF;
+    }
+    const dx = a.x + ox - p.x;
+    const dy = a.y + oy - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d > 30) {
+      fx += (dx / d) * 0.08 * skill;
+      fy += (dy / d) * 0.08 * skill;
+    }
   }
   let soaking = false;
   // A Bulwark with Resolve to spare stands in blooms and smothers them.

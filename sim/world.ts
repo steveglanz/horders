@@ -1331,6 +1331,12 @@ export class World {
     if (this.stress) p.hp = p.maxHp;
   }
 
+  /** Whether the acting hero is the one Ondrel is winding up Anvilfall on (for the bots). */
+  get anvilOnMe(): boolean {
+    const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    return !!b && b.alive && b.castId === 'anvilfall' && this.acting === this.anvilTarget;
+  }
+
   get tierDamage(): number {
     return Math.pow(1.12, this.tier - 1);
   }
