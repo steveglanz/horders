@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, COLD, Input, World } from './world';
+import { ARENA, COLD, Input, REVIVE_RADIUS, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 
@@ -76,9 +76,10 @@ function shieldCast(w: World, skill: number): number | undefined {
   }
   // Ondrel: Bastion is for Anvilfall. Raise it on the wind-up when the hit is coming
   // to this hero, and don't spend it on anything else in that fight.
-  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
-  const ondrel = !!boss && boss.alive && boss.kind === 'ondrel';
-  if (ondrel && can(w, 2) && w.anvilOnMe) return 2;
+  // Tank-busters (Anvilfall, Bellow Slam, Ladle Pour): Bastion is for them. Raise it on the
+  // wind-up when the hit is coming to this hero, and don't spend it on anything else in that fight.
+  const ondrel = w.busterFight;
+  if (ondrel && can(w, 2) && w.busterTarget === w.acting) return 2;
   // Co-op taunt cue: the boss is on someone else, so take it back.
   if (w.tauntCue) {
     const b = w.enemies[w.bossIndex];
@@ -309,6 +310,44 @@ export function botGate(w: World): number {
   return Math.max(0, idx('steady'));
 }
 
+/**
+ * Party bot switches. `revive`: bots pick up downed allies. Off until design retunes the
+ * group fights for it (with it on, the Crucible bot party wins 29/30); tools/group.ts sets it with REVIVE=1.
+ */
+export const BOT_PARTY = { revive: false };
+
+/**
+ * Co-op: the downed ally this hero should go and pick up, or null. The rescuer is the living hero
+ * closest to the first downed ally, leaving out the one the boss is on (unless nobody else is up).
+ * Nobody rescues into a telegraph that is about to land on the body.
+ */
+function rescue(w: World): { dx: number; dy: number; d: number } | null {
+  if (!BOT_PARTY.revive || w.heroes.length < 2) return null;
+  const n = w.heroes.length;
+  for (let k = 0; k < n; k++) {
+    const down = w.hero(k).player;
+    if (down.hp > 0) continue;
+    if (w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && t.t > t.dur - 0.8 && (t.x - down.x) ** 2 + (t.y - down.y) ** 2 < (t.r + 20) ** 2)) continue;
+    const up: number[] = [];
+    for (let j = 0; j < n; j++) if (w.hero(j).player.hp > 0) up.push(j);
+    if (!up.length) return null;
+    const pool = up.length > 1 ? up.filter((j) => j !== w.bossTarget) : up;
+    let best = -1;
+    let bestD = Infinity;
+    for (const j of pool) {
+      const q = w.hero(j).player;
+      const d = Math.hypot(q.x - down.x, q.y - down.y);
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    if (best !== w.acting) continue;
+    const p = w.player;
+    const dx = down.x - p.x;
+    const dy = down.y - p.y;
+    return { dx, dy, d: Math.hypot(dx, dy) || 1 };
+  }
+  return null;
+}
+
 /** The nearest point the hero could stand in a standing pillar's shade, or null when every pillar is down. */
 function nearestShade(w: World): { x: number; y: number } | null {
   const p = w.player;
@@ -442,6 +481,12 @@ export function botInput(w: World, skill = 1): Input {
   // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
   const glow = longNightShelter(w);
   if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
+  // Co-op: pick a downed ally back up (one rescuer per downed hero, not the one the boss is on).
+  const save = rescue(w);
+  if (save) {
+    const cast = botCast(w, skill);
+    return save.d > REVIVE_RADIUS * 0.5 ? { x: save.dx / save.d, y: save.dy / save.d, cast } : { x: 0, y: 0, cast };
+  }
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

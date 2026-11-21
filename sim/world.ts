@@ -1793,6 +1793,22 @@ export class World {
   }
 
   /** Whether the acting hero is the one Ondrel is winding up Anvilfall on (for the bots). */
+  /** The hero a boss tank-buster (Anvilfall, Bellow Slam, Ladle Pour) is winding up on, or -1. For the bots. */
+  get busterTarget(): number {
+    const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    if (!b || !b.alive) return -1;
+    if (b.castId === 'anvilfall') return this.anvilTarget;
+    if (b.castId === 'bellowSlam') return this.bellowTarget;
+    if (b.castId === 'ladlePour') return this.ladleTarget;
+    return -1;
+  }
+
+  /** Whether this boss fight has a tank-buster worth saving a cooldown for. */
+  get busterFight(): boolean {
+    const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    return !!b && b.alive && (b.kind === 'ondrel' || b.kind === 'ysmeret' || b.kind === 'grandmotherSlag');
+  }
+
   get anvilOnMe(): boolean {
     const b = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
     return !!b && b.alive && b.castId === 'anvilfall' && this.acting === this.anvilTarget;
