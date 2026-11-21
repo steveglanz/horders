@@ -773,8 +773,10 @@ export class Hub {
       return `<span class="rolechip ${ok ? 'ok' : 'need'}" style="--gc:${CLASS_ICON[cls].color}">${roleTile(cls, 14)}${name} ${ok ? '✓' : '✗'}</span>`;
     };
     const need = missing.length ? `Needs: ${missing.map((r) => (r === 'tank' ? 'Tank' : 'Healer')).join(' and ')}. ` : '';
+    // A full party has nobody left to invite.
+    const hint = need + (this.classes().length >= BOT_FILL.partySize ? '' : 'Invite friends with Party, or open it to Quick join.');
     return `<div class="partyroles"><div class="chips"><span class="muted">Party</span>${chip('tank', 'bulwark', 'Tank')}${chip('healer', 'lumen', 'Healer')}</div>`
-      + `<div class="hint">${need}Invite friends with Party, or open it to Quick join.</div>${this.fillLine()}</div>`;
+      + `${hint ? `<div class="hint">${hint.trim()}</div>` : ''}${this.fillLine()}</div>`;
   }
 
   /** The Fill with bots toggle, and what bots change. */
