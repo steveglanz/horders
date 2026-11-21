@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
-import { bedSamples, chordAt, sectionAt, THEMES } from '../client/audio/music';
+import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, THEMES } from '../client/audio/music';
+import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
 import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
@@ -281,5 +282,22 @@ describe('audio', () => {
     expect(ebbCue(st, true)?.id).toBe('ebbPull');
     expect(ebbCue(st, true)).toBeNull();
     expect(ebbCue(st, false)).toBeNull();
+  });
+});
+
+describe('season hub themes', () => {
+  it('season 1 keeps the plain hub and season 2, the Deep Bellows, plays over the forge bellows', () => {
+    expect(SEASONS[1].name).toBe('the Deep Bellows');
+    expect(hubThemeFor(0, SEASONS.length)).toBe('hub');
+    expect(hubThemeFor(1, SEASONS.length)).toBe('hubBellows');
+    expect(THEMES.hubBellows.bed).toBe('forge');
+    // Season 2 starts on week 2974 (docs/design/season.md).
+    expect(hubThemeFor(seasonOf(SEASON_START_WEEK + SEASON.weeks), SEASONS.length)).toBe('hubBellows');
+  });
+  it('wraps with the season rotation and falls back to the plain hub', () => {
+    expect(HUB_BY_SEASON.length).toBeLessThanOrEqual(SEASONS.length);
+    expect(hubThemeFor(SEASONS.length + 1, SEASONS.length)).toBe('hubBellows');
+    expect(hubThemeFor(-1, SEASONS.length)).toBe(HUB_BY_SEASON[SEASONS.length - 1] ?? 'hub');
+    for (let i = 0; i < SEASONS.length; i++) expect(THEMES[hubThemeFor(i, SEASONS.length)]).toBeDefined();
   });
 });
