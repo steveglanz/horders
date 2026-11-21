@@ -27,6 +27,8 @@ export interface CueContext {
   boss?: EnemyKind;
   /** The Hammerdeep: Anvilfall is winding up on this screen's hero (World.anvilOnMe). */
   anvilOnMe?: boolean;
+  /** The Wrackline: the Ebb is pulling right now (World.ebbT > 0). Its start sounds the drag. */
+  ebbPull?: boolean;
   /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
@@ -74,6 +76,11 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   pour: { start: 'pourWarn', done: 'ladle' }, // The Pour
   crucibleVents: { start: 'soakCall' }, // Crucible Vents
   lastEmber: { start: 'lastEmberWarn', done: 'lastEmber' }, // Last Ember
+  // The Wrackline: Hessa of the Ebb.
+  ebb: { start: 'ebbWarn' }, // The Ebb (the pull itself sounds from CueContext.ebbPull)
+  sink: { start: 'sinkWarn', done: 'sink' }, // Sink
+  haul: { start: 'haulWarn', done: 'haul' }, // Haul (the Barge Hauler)
+  shoalCall: { start: 'shoalCall' }, // Call the Shoal
 };
 
 /** Each boss's own phase-change sting. */
@@ -89,6 +96,7 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   nhevra: 'phaseIce',
   // The raid has its own sting per phase: [phase 2 The Pour, phase 3 Last Ember].
   grandmotherSlag: ['phaseRaid2', 'phaseRaid3'],
+  hessa: 'phaseHessa',
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
@@ -231,6 +239,13 @@ export function reviveCues(state: ReviveState, reviveT: readonly number[], need:
   return out;
 }
 
+/** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
+export function ebbCue(state: { on: boolean }, pulling: boolean): Cue | null {
+  const fire = pulling && !state.on;
+  state.on = pulling;
+  return fire ? { id: 'ebbPull' } : null;
+}
+
 /** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
 export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
   const fire = onMe && !state.on;
@@ -245,7 +260,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
 ]);
 

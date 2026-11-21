@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, sectionAt, THEMES } from '../client/audio/music';
-import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
+import { CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, PRIORITY, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -265,5 +265,21 @@ describe('audio', () => {
     expect(pickCue('rivetedPlates')).toBeNull(); // a deep card
     expect(pickCue('stoke')).toBeNull();
     expect(pickCue(undefined)).toBeNull();
+  });
+
+  it('gives the Wrackline its theme, Hessa\'s casts their sounds, and the Ebb a drag when the pull starts', () => {
+    expect(THEMES.wrackline.bed).toBe('surf');
+    const c = { cls: 'lumen' as const, acting: 0 };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'ebb', name: 'The Ebb' }, c)?.id).toBe('ebbWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'sink', name: 'Sink' }, c)?.id).toBe('sinkWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'sink', name: 'Sink' }, c)?.id).toBe('sink');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'haul', name: 'Haul' }, c)?.id).toBe('haulWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'shoalCall', name: 'Call the Shoal' }, c)?.id).toBe('shoalCall');
+    expect(phaseSting('hessa', 2)).toBe('phaseHessa');
+    const st = { on: false };
+    expect(ebbCue(st, false)).toBeNull();
+    expect(ebbCue(st, true)?.id).toBe('ebbPull');
+    expect(ebbCue(st, true)).toBeNull();
+    expect(ebbCue(st, false)).toBeNull();
   });
 });
