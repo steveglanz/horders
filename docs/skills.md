@@ -298,7 +298,7 @@ The Deepguard ("stay close") and Ventwalker ("split up") sets reward where you s
 
 Melee bots stay on their target, and Scatter Embers' spreading still wins over both. Solo play and parties without these sets are unchanged: the no-set party cells below match main exactly, and tools/hashcheck.ts is identical.
 
-tools/group.ts, heroes-r2, seeds 1 to 80, wins out of 80, main 2555b0c / this change:
+tools/group.ts, heroes-r2, seeds 1 to 80, wins out of 80, main 9195d8f / this change:
 
 | | Main | This change |
 |---|---|---|
