@@ -748,6 +748,10 @@ export class GameScene extends Phaser.Scene {
         case 'encounterClear':
           this.hud.ding(ev.index + 1 >= w.route.length ? 'Victory!' : 'Cleared!');
           break;
+        case 'burnout':
+          if (ev.warn) this.hud.banner('The fire is closing in', '30 seconds to finish this fight');
+          else this.hud.banner('Burnout', 'The fire takes everything');
+          break;
         case 'bossEnrage':
           this.hud.banner(`${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} is enraged`, 'Finish it, fast');
           break;
