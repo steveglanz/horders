@@ -14,7 +14,7 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId } from '../sim/content/dungeon';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
-import { CLASS_ICON, glyph, omenTile } from './icons';
+import { CLASS_ICON, POTION_ICON, glyph, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOT_LABEL: Record<Slot, string> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', ring: 'Ring', trinket: 'Trinket' };
@@ -159,7 +159,7 @@ export class Hub {
       const on = h.potion === id;
       const why = brewBlocker(h, id);
       return `<button data-potion="${id}" class="pot ${on ? 'on' : ''}" ${why && !on ? 'disabled' : ''} aria-pressed="${on}" title="${why ?? ''}">`
-        + `<b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${p.cost} embers`}</em></button>`;
+        + `<span class="gtile" style="--gc:${POTION_ICON[id].color};width:40px;height:40px">${glyph(POTION_ICON[id].d, 26)}</span><b>${p.name}</b><span>${p.blurb}</span><em>${on ? 'Brewed' : `${p.cost} embers`}</em></button>`;
     }).join('');
     const brewed = h.potion ? `${POTIONS[h.potion].name} ready` : 'none brewed';
     return `<div class="sec-h"><span>Potion</span><span class="muted">${brewed} · ${h.embers} embers</span></div>`

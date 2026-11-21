@@ -152,7 +152,7 @@
 
   .small { font-size: 12px; }
   /* ---- Menus: ported from the Horders UI design system (Claude Design export, screens 01-03 and 06). ---- */
-  :root { --text: var(--ink); --interrupt: #8fd8ff; --radius: 16px; --btn: linear-gradient(180deg, #ffb35c, #e8642a); --card: rgba(255,240,225,0.035); --card-line: rgba(255,170,90,0.18); }
+  :root { --text: var(--ink); --interrupt: #8fd8ff; --radius: 16px; --btn: linear-gradient(180deg, #ffb35c, #e8642a); --card: rgba(255,240,225,0.035); --card-solid: rgba(26,16,14,0.9); --card-line: rgba(255,170,90,0.18); }
   .overlay.screen { display: block; place-items: initial; padding: 0; background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255,110,40,0.13), transparent 70%), rgb(14,8,7); }
   .hub, .endwrap, .bagwrap { width: min(100%, 1180px); margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
   .sec-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 16px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
@@ -175,6 +175,14 @@
   .primary.big { width: 100%; margin: 0; padding: 16px 28px; font: 700 21px var(--serif); letter-spacing: 0.02em; }
   .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
 
+  /* Title backdrop: the buried forge's great furnace arch, with embers rising. */
+  #title { isolation: isolate; }
+  .backdrop { position: absolute; left: 0; right: 0; top: 0; height: min(46vh, 380px); opacity: 0.85; z-index: -1; overflow: hidden; pointer-events: none; }
+  .backdrop svg { width: 100%; height: 100%; display: block; }
+  .backdrop i { position: absolute; left: var(--x); bottom: 12%; width: 4px; height: 4px; border-radius: 50%; background: #ffc861; box-shadow: 0 0 8px 2px rgba(255,138,61,0.8); opacity: 0; animation: bdEmber var(--d) linear var(--t) infinite; }
+  @keyframes bdEmber { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--dx, 0px), -60vh); opacity: 0; } }
+  .hub { position: relative; }
+  #title .box, #title .cls, #title .pot, #title .tierrow { background-color: var(--card-solid); backdrop-filter: blur(2px); }
   /* Title & hub. */
   .hub-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
   .hub-top .pill:last-child { justify-self: end; }
@@ -219,7 +227,9 @@
   .pot b { font: 600 14px var(--serif); }
   .pot span { font-size: 11px; color: var(--muted); line-height: 1.3; }
   .pot em { font-style: normal; font-size: 12px; color: var(--gold); margin-top: auto; }
+  .pot .gtile { color: var(--gc); border-radius: 12px; margin-bottom: 2px; line-height: 0; }
   .pot.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
+  .pot.on .gtile { box-shadow: 0 0 14px color-mix(in srgb, var(--gc) 45%, transparent); }
   .pot:disabled { opacity: 0.5; cursor: default; }
   .dg b { font: 600 17px var(--serif); }
   .dg span { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
@@ -318,7 +328,31 @@
   .bag-foot { text-align: center; }
   .bag-foot .primary { margin: 0; min-width: 200px; }
 
+
+  /* In-run HUD and talent draft: design system screens 04 and 05. */
+  .lvl { border-color: var(--gold); color: var(--gold); font-family: var(--serif); font-size: 18px; box-shadow: 0 0 12px rgba(255,200,97,0.25); }
+  #target { background: var(--panel); border-radius: 14px; padding: 8px 12px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+  #target .tname { font-size: 16px; font-weight: 600; }
+  #tTitle { color: var(--gold); font-weight: 700; font-size: 10px; letter-spacing: 0.14em; }
+  #target .bar { height: 10px; margin-top: 6px; }
+  #tCast { height: 18px; border-radius: 6px; }
+  #heat { height: 6px; margin-top: 16px; overflow: visible; border: 0; background: rgba(0,0,0,0.55); border-radius: 3px; }
+  #heatFill { border-radius: 3px; }
+  #heatText { inset: auto 0 9px 0; display: flex; justify-content: space-between; place-items: initial; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ember); }
+  #heatText b { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  #quests .q.now { display: inline-block; padding: 5px 10px; border-radius: 10px; background: rgba(28,18,16,0.85); border: 1px solid var(--line); }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--xp); }
+  #draft h2 { font-size: clamp(26px, 6vw, 34px); margin-top: 4px; text-shadow: none; }
+  #draft .panel { background: radial-gradient(ellipse at top, rgba(79,227,193,0.08), transparent 55%), var(--panel); }
+  .card { border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, var(--branch) 10%, transparent), rgba(0,0,0,0.3) 60%); border-top-width: 3px; }
+  .card .branch { font-weight: 700; letter-spacing: 0.14em; display: flex; justify-content: space-between; gap: 6px; padding-right: 18px; }
+  .card .cap { color: var(--gold); }
+  .card .name { font-weight: 600; font-size: 20px; }
+  .card .text { color: var(--muted); }
+  .card .text, .card .rank { line-height: 1.4; }
   @media (min-width: 900px) {
+    .backdrop .sigil { display: none; }
+    .backdrop { height: 300px; }
     .hub-grid { grid-template-columns: minmax(340px, 420px) 1fr; }
     .hub-foot { display: flex; justify-content: flex-end; }
     .hub-foot .primary.big { width: 360px; }
@@ -391,6 +425,42 @@
 <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
 
 <div id="title" class="overlay screen">
+  <div class="backdrop" aria-hidden="true">
+    <svg viewBox="0 0 1200 420" preserveAspectRatio="xMidYMin slice">
+      <defs>
+        <radialGradient id="bdGlow" cx="50%" cy="78%" r="45%"><stop offset="0" stop-color="#ffb35c" stop-opacity=".95"/><stop offset=".35" stop-color="#ff6a2b" stop-opacity=".55"/><stop offset="1" stop-color="#3a0e06" stop-opacity="0"/></radialGradient>
+        <linearGradient id="bdStone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1915"/><stop offset="1" stop-color="#120b0a"/></linearGradient>
+        <linearGradient id="bdRim" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff8a3d" stop-opacity=".7"/><stop offset=".5" stop-color="#ff8a3d" stop-opacity="0"/></linearGradient>
+        <linearGradient id="bdFade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#0e0807" stop-opacity="0"/><stop offset="1" stop-color="#0e0807"/></linearGradient>
+      </defs>
+      <rect width="1200" height="420" fill="#140c0a"/>
+      <ellipse cx="600" cy="330" rx="560" ry="230" fill="url(#bdGlow)"/>
+      <!-- Far vaults -->
+      <path d="M0 40 Q150 10 300 40 Q450 10 600 40 Q750 10 900 40 Q1050 10 1200 40 V0 H0Z" fill="#0d0706"/>
+      <g fill="#1c110e" opacity=".9">
+        <path d="M80 420 V170 Q80 90 170 90 Q260 90 260 170 V420 H230 V180 Q230 125 170 125 Q110 125 110 180 V420Z"/>
+        <path d="M940 420 V170 Q940 90 1030 90 Q1120 90 1120 170 V420 H1090 V180 Q1090 125 1030 125 Q970 125 970 180 V420Z"/>
+      </g>
+      <!-- Great furnace arch -->
+      <path d="M360 420 V230 Q360 80 600 80 Q840 80 840 230 V420 H770 V240 Q770 140 600 140 Q430 140 430 240 V420Z" fill="url(#bdStone)"/>
+      <path d="M430 420 V240 Q430 140 600 140 Q770 140 770 240 V420" fill="none" stroke="url(#bdRim)" stroke-width="6"/>
+      <!-- Voussoir blocks -->
+      <g stroke="#0a0505" stroke-width="3" opacity=".7">
+        <path d="M600 80 V140 M520 92 L540 148 M680 92 L660 148 M455 125 L490 168 M745 125 L710 168 M395 180 L438 205 M805 180 L762 205"/>
+      </g>
+      <!-- Keystone sigil: the ember sun -->
+      <g class="sigil" transform="translate(600 108)" stroke="#ffc861" stroke-width="3" fill="none" stroke-linecap="round" opacity=".85">
+        <circle r="11"/><path d="M0 -20 V-16 M14 -14 L11 -11 M-14 -14 L-11 -11 M20 0 H16 M-20 0 H-16"/>
+      </g>
+      <!-- Hanging chains -->
+      <g stroke="#2e1d18" stroke-width="4" stroke-dasharray="8 5"><path d="M300 0 V150"/><path d="M900 0 V120"/></g>
+      <!-- Floor and anvil silhouette -->
+      <path d="M0 400 Q600 360 1200 400 V420 H0Z" fill="#0e0807"/>
+      <path d="M540 392 H660 L648 376 H700 Q700 360 680 356 H520 Q500 360 500 376 H552Z" fill="#0b0605"/>
+      <rect width="1200" height="420" fill="url(#bdFade)"/>
+    </svg>
+    <i style="--x:46%;--dx:-20px;--d:7s;--t:0s"></i><i style="--x:52%;--dx:14px;--d:9s;--t:2s"></i><i style="--x:57%;--dx:30px;--d:8s;--t:4s"></i><i style="--x:41%;--dx:-36px;--d:10s;--t:1s"></i><i style="--x:61%;--dx:22px;--d:11s;--t:3s"></i><i style="--x:49%;--dx:-8px;--d:12s;--t:6s"></i>
+  </div>
   <div class="hub">
     <header class="hub-top">
       <div class="pill ember" title="Embers: salvage gear for them, spend them at the Forge"><i class="coin"></i><span id="emberCount">0</span></div>
@@ -418,8 +488,9 @@
 
 <div id="draft" class="overlay" hidden>
   <div class="panel">
-    <h2 id="draftTitle">Level up!</h2>
-    <div class="muted">Choose a talent (tap, or press 1, 2 or 3)</div>
+    <div class="eyebrow" id="draftLevel">Level up</div>
+    <h2 id="draftTitle">Choose a talent</h2>
+    <div class="muted small">Tap a card, or press 1, 2 or 3</div>
     <div id="cards"></div>
   </div>
 </div>
