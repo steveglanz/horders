@@ -1099,7 +1099,8 @@ export class World {
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill;
   }
   get regen(): number {
-    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal');
+    const low = this.player.hp < this.player.maxHp * 0.5 ? 1.5 * this.rank('slowPulse') : 0;
+    return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal') + low;
   }
   get abilities(): AbilityDef[] {
     if (!this.player.alt) return this.classDef.abilities;
@@ -1144,6 +1145,7 @@ export class World {
       if (slot === 2) return base - 3 * this.rank('momentumFlow');
       return base;
     }
+    if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
     if (this.cls === 'emberwright' && slot === 1) return (base - 1.5 * this.rank('flicker')) * (this.hasMythic('wanderersWake') ? 0.5 : 1);
     if (slot === 1) return base - 1.5 * this.rank('flicker');
     if (slot === 2) return base - 3 * this.rank('heatSink');
@@ -1874,7 +1876,10 @@ export class World {
       }
     }
     // Cooling Shell: a Slagbinder's shell covers it, and in a party every hero close by.
-    if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut;
+    if (this.shellCovers(p)) amount *= 1 - SLAG_KIT.shellCut - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
+    // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
+    if (this.cls === 'lumen') amount *= 1 - 0.04 * this.rank('steadyHalo');
+    if (this.cls === 'slagbinder') amount *= 1 - 0.03 * this.rank('slagScales');
     // Rallying Cry: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Ember Ward: whatever strikes the ward catches fire.
@@ -2476,7 +2481,7 @@ export class World {
     // A fresh coat replaces the old one, so it never stacks past one plating.
     q.plate = amount;
     q.plateAmt = amount;
-    q.plateUntil = this.time + SLAG_KIT.plateTime;
+    q.plateUntil = this.time + SLAG_KIT.plateTime + this.rank('deepCoat');
     q.plateBy = this.acting;
     this.events.push({ type: 'plate', x: q.x, y: q.y, hero: k });
   }
@@ -2495,7 +2500,7 @@ export class World {
       q.plateUntil = undefined;
       q.plate = 0;
       q.plateAmt = 0;
-      const r = SLAG_KIT.plateBurstR * (this.hasMythic('moltenCore') ? 1.5 : 1);
+      const r = (SLAG_KIT.plateBurstR + 15 * this.rank('wideSpatter')) * (this.hasMythic('moltenCore') ? 1.5 : 1);
       const dmg = SLAG_KIT.plateBurst * (1 + 0.3 * this.rank('searingShell')) * this.dmgMult;
       this.forEachNear(q.x, q.y, r + 40, (i) => {
         const e = this.enemies[i];
@@ -2658,7 +2663,7 @@ export class World {
         }
       }
     }
-    p.volleyT += SLAG_KIT.lobEvery / this.loadout.hasteMult;
+    p.volleyT += SLAG_KIT.lobEvery / this.loadout.hasteMult / (1 + 0.08 * this.rank('fastLadle'));
     if (p.volleyT < 0) p.volleyT = 0;
     p.lobs = (p.lobs ?? 0) + 1;
     const hail = this.rank('cinderHail') > 0 && p.lobs % SLAG_KIT.hailEvery === 0;
@@ -2679,7 +2684,7 @@ export class World {
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
     this.damageEnemy(t, SLAG_KIT.lobDamage * mult * this.dmgMult, true);
-    this.addHeat(SLAG_KIT.lobSlag + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
+    this.addHeat(SLAG_KIT.lobSlag + 2 * this.rank('denseGlob') + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
     if (e.alive && this.hasWeaponFx('clingingSlag')) {
       e.burnDps = Math.max(e.burnDps, 6 * this.dmgMult);
       e.burnT = Math.max(e.burnT, 2);
@@ -2701,15 +2706,25 @@ export class World {
     return e.woundT > 0 ? 0.5 : 1;
   }
 
+  /** Lumen: Lantern Heart raises the Brilliance cap. */
+  get maxBrilliance(): number {
+    return LUMEN_MAX_BRILLIANCE + 30 * this.rank('lanternHeart');
+  }
+  /** Lumen: Long Note stretches the reach of Sunmotes and the Sunbeam. */
+  get lumenRange(): number {
+    return LUMEN_RANGE + 40 * this.rank('longNote');
+  }
+
   healPlayer(amount: number): number {
     const p = this.player;
+    if (this.cls === 'lumen') amount *= 1 + 0.08 * this.rank('lampglowCare');
     const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
     p.hp += eff;
     // Co-op: effective healing draws threat, split across the living enemies.
     if (this.threat.length && eff > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, eff);
     if (this.cls === 'lumen') {
       const over = amount - eff;
-      if (over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
+      if (over > 0) p.brilliance = Math.min(this.maxBrilliance, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
     }
     return eff;
   }
@@ -2722,6 +2737,7 @@ export class World {
   healAllies(x: number, y: number, r: number, amount: number, only = -1, cleanse = true): number {
     if (this.heroes.length === 1) return 0;
     const p = this.player;
+    if (this.cls === 'lumen') amount *= 1 + 0.08 * this.rank('lampglowCare');
     let total = 0;
     let over = 0;
     for (let k = 0; k < this.heroes.length; k++) {
@@ -2740,7 +2756,7 @@ export class World {
       if (eff > 0) this.events.push({ type: 'heal', x: a.x, y: a.y, amount: eff });
     }
     if (this.threat.length && total > 0) healThreat(this.threat.filter((_, i) => this.enemies[i].alive), this.heroes[this.acting].id, total);
-    if (this.cls === 'lumen' && over > 0) p.brilliance = Math.min(LUMEN_MAX_BRILLIANCE, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
+    if (this.cls === 'lumen' && over > 0) p.brilliance = Math.min(this.maxBrilliance, p.brilliance + over * (1 + 0.3 * this.rank('kindledLight')));
     return total;
   }
 
@@ -2787,7 +2803,7 @@ export class World {
         this.healAllies(p.sanctX, p.sanctY, r, 2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
-          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * this.dmgMult, false, true);
+          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * (1 + 0.3 * this.rank('hallowedEmbers')) * this.dmgMult, false, true);
         });
       }
     }
@@ -2800,13 +2816,13 @@ export class World {
       p.noonT -= dt;
       if (p.noonT <= 0) {
         p.noonT = LUMEN_CAPS.noonEvery;
-        if (this.bladeTarget(LUMEN_RANGE) >= 0) this.sunbeam();
+        if (this.bladeTarget(this.lumenRange) >= 0) this.sunbeam();
       }
     }
     this.updateOrbit(dt);
     p.volleyT -= dt;
     if (p.volleyT > 0) return;
-    let t = this.bladeTarget(LUMEN_RANGE);
+    let t = this.bladeTarget(this.lumenRange);
     if (t < 0) {
       p.volleyT = 0;
       return;
@@ -2814,14 +2830,14 @@ export class World {
     // Bosses pull focus, as they do for the Emberwright's orbs.
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
-      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < LUMEN_RANGE * LUMEN_RANGE) t = this.bossIndex;
+      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
     // acolytes on its own: light seeks out an acolyte that is healing a wounded boss first.
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.hp < boss.maxHp) {
-        let best = LUMEN_RANGE * LUMEN_RANGE;
+        let best = this.lumenRange * this.lumenRange;
         for (let i = 0; i < this.enemies.length; i++) {
           const e = this.enemies[i];
           if (!e.alive || e.kind !== 'acolyte' || e.aux2 !== this.bossIndex) continue;
@@ -2848,7 +2864,7 @@ export class World {
       this.damageEnemy(i, dmg * k * noonfire * (e.castId && this.hasWeaponFx('rebukingLight') ? 1.25 : 1), true);
       this.addHeat(3);
       // Co-op: the mote's heal goes to whoever is lowest on health nearby, the Lumen included.
-      const ally = this.woundedAlly(LUMEN_RANGE);
+      const ally = this.woundedAlly(this.lumenRange);
       const who = ally >= 0 ? this.heroes[ally].player : p;
       // Tender Light: double on a hero below half health.
       const heal = SUNMOTE_HEAL * (who.hp < who.maxHp * 0.5 && this.hasWeaponFx('tenderLight') ? 2 : 1);
@@ -2872,7 +2888,7 @@ export class World {
   /** High Noon: all stored Brilliance at once, as a piercing beam. */
   private sunbeam(): void {
     const p = this.player;
-    const t = this.bladeTarget(LUMEN_RANGE);
+    const t = this.bladeTarget(this.lumenRange);
     const ang = t >= 0 ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : p.facing;
     const x2 = p.x + Math.cos(ang) * 520;
     const y2 = p.y + Math.sin(ang) * 520;
@@ -2942,7 +2958,7 @@ export class World {
   // ---------------------------------------------------------------- bulwark
 
   get sweepCooldown(): number {
-    return 0.8 / this.loadout.hasteMult;
+    return 0.8 / this.loadout.hasteMult / (1 + 0.06 * this.rank('broadShoulders'));
   }
   get sweepReach(): number {
     return 95 + 15 * this.rank('wideSweep');
@@ -2954,7 +2970,7 @@ export class World {
   }
   get damageTakenMult(): number {
     const p = this.player;
-    const armor = 1 - (BULWARK_ARMOR + 0.04 * this.rank('holdTheLine'));
+    const armor = 1 - (BULWARK_ARMOR + 0.04 * this.rank('holdTheLine') + 0.03 * this.rank('rivetedPlates'));
     return armor * (p.bastionT > 0 ? 0.4 : 1);
   }
 
@@ -2977,7 +2993,7 @@ export class World {
 
   private bulwarkMitigate(raw: number, src: number): number {
     const p = this.player;
-    this.addHeat(raw * 0.2);
+    this.addHeat(raw * 0.2 * (1 + 0.25 * this.rank('grimTally')));
     let amount = raw * this.damageTakenMult;
     // Shield Block: the foe the shield faces lands only part of its hits.
     if (this.hasMythic('ringwallVow')) {
@@ -3097,7 +3113,7 @@ export class World {
     const p = this.player;
     const r = 150;
     const half = (100 * Math.PI) / 360;
-    const dmg = 60 * scale * this.dmgMult;
+    const dmg = 60 * scale * (1 + 0.15 * this.rank('hardKnocks')) * this.dmgMult;
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -3179,7 +3195,7 @@ export class World {
       if (!isTarget && (ram === 0 || segDist2(e.x, e.y, x1, y1, p.x, p.y) > (36 + e.def.radius) ** 2)) continue;
       // Co-op: Charge taunts what it hits onto the Bulwark.
       if (this.threat.length) taunt(this.threat[i], this.heroes[this.acting].id);
-      this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * this.dmgMult, true);
+      this.damageEnemy(i, (isTarget ? 35 : 25 * ram) * (1 + 0.4 * this.rank('fullWeight')) * this.dmgMult, true);
       if (e.alive && !e.def.stationary) e.stunT = Math.max(e.stunT, isTarget ? 0.8 : 0.5);
     }
     p.volleyT = Math.min(p.volleyT, 0.05);
