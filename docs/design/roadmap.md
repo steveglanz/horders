@@ -194,7 +194,7 @@ Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs t
 | V4 | **A daily twist before tier 3**, the same for everyone that day | design | ✅ Today's Heat (variety.md, "V4 status") |
 | V5 | **Layout and silhouette art** (with visuals' look overhaul): the four layouts, the Ember Spitter, the Ashbuck, the Hollow Rift and Ashlings, the Kiln Draw tell | visuals | ⏭ Placeholders: the Spitter uses the acolyte sheet and the Ashbuck the hound's |
 | V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
-| V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ⏭ |
+| V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ✅ Kiln: 0 repeats in 1000 runs (was 398), tools/variety.ts (variety.md, "V7 status") |
 | V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ⏭ |
 ## R2. The Forge
 
