@@ -462,3 +462,43 @@ The raid brief's cooling islands, deferred in C3, are now Grandmother Slag's sec
 Two-tank parties were already over the 70% ceiling on main (raid.md). This change leaves them where they were. Standing on the islands is the check: without it the party wins 5 of 33.
 
 **Run variety** (tools/variety.ts, tier 8): the Crucible has only 12 routes, and with the two versions 24 run shapes. A raid's fight pools are short. Widening them is a W3 follow-up.
+
+## Phase 12 W3, part 2 (built 22 Nov 2026): Old Vorhulm's Banked Coals
+The seed picks `bossVariant` for Old Vorhulm (its own salt, no run-rng draws):
+- `spill`: phase 3 is Ember Feast, as before. Embers scatter, and the party grabs them before he does.
+- `bank`: phase 3 is **Banked Coals**. On Ember Spill's 10 s timer, three gold circles (radius 50) settle 170 or 260 from him, turning by the golden angle, and land after 4 s. A hero standing in one smothers it. He eats an empty one, exactly as he eats an ember: he heals 2% and hits 5% harder for the rest of the fight. There's no blast and there are no adds, so the price of a miss is a stronger boss, the Hoard's own rule. Tuning is in `BANK`. The circles are soak telegraphs with owner -4.
+- Ember Feast asks everyone to run and grab. Banked Coals asks three heroes to split up and hold a spot while he keeps swallowing, so a Swallow at the wrong time costs a coal.
+- The banner says "Phase 3: Banked Coals". The cast id is `bankedCoals`. A smothered coal sends `emberTaken` and an eaten one `emberEaten`, so the existing ember sounds play.
+- **Name:** "Banked Coals" and "Banked Embers" had no WoW match in a web search on 22 Nov 2026.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, tier 9, full party (Bulwark, Lumen, Duskblade, Emberwright), main → this change, seeds 1 to 160:
+
+| | main | This change |
+|---|---|---|
+| All seeds | 112 (70%, at the ceiling) | 99 (62%, in the 55 to 70% band) |
+| Ember Feast seeds (77) | 49 | 49 |
+| Banked Coals seeds (83) | 63 | 50 |
+
+On seeds 1 to 80, he ate 290 embers or coals in the new runs against 185 on main, and the bots smothered most coals. Banked Coals is the harder version (60% against Ember Feast's 64%), and both are inside the band. The Hoard had been at the 70% ceiling, so this also brings it back under.
+
+**Run variety:** like the Crucible, the Hoard has 12 routes and now 24 run shapes. Widening raid fight pools is still a follow-up.
+
+## Phase 12 W3, part 3 (built 22 Nov 2026): the Cinder Colossus's Plate Shift
+The seed picks `bossVariant` for the Cinder Colossus (its own salt, no run-rng draws):
+- `wheel`: phase 2 is the Wheel, as before. He turns on the non-tank who hurt him most in the last 8 s and Slag Sweeps there.
+- `shift`: phase 2 is **Plate Shift**, on the Wheel's timer and 2 s cast. His body keeps facing the tank, but his plate slides round to face the non-tank who hurt him most, and it stays there until the next shift (`World.colPlate`, the plate's turn from his facing). No sweep comes with it. His open back moves with the plate, so the damage dealers who were behind him are now hitting plate (half damage) and have to walk round to find his back again. It is often where the tank stands.
+- The Wheel asks the tank to take him back. Plate Shift asks the damage dealers to keep reading where his back is.
+- `colossusSide` and `behindColossus` (the Platewalker set) both use the plate's angle, and so do the bots' flanking (`colossusFlank`) and the floor arcs that show his front and back. The banner says "Phase 2: Plate Shift". The cast id is `plateShift`, and it reuses the `wheel` event for the hero it turned to, so "it's on you" cues still play.
+- **Name:** "Plate Shift" had no WoW spell or zone match in a web search on 22 Nov 2026.
+
+Also in this PR: the `soak` event now carries the telegraph's `owner`, and GameScene skips the missed-soak blast and the "Brand missed!" text for Banked Coals (owner -4). Sound found this.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, tier 10, full party (Bulwark, Lumen, Duskblade, Emberwright), main → this change, seeds 1 to 160:
+
+| | main | This change |
+|---|---|---|
+| All seeds | 111 (69%) | 109 (68%, in the 55 to 70% band) |
+| Wheel seeds (73) | 48 | 48 |
+| Plate Shift seeds (87) | 63 | 61 |
+
+The two versions are about as hard. The bots find his back again, as players will have to.

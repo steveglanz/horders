@@ -3628,6 +3628,131 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Crucible's arena edge: a great iron ladle tipped on its trunnion stand, pouring a thread of slag into a glowing
+  // puddle, and a squat slag pot brimming with molten slag under a cracked crust. coalLight is the warm pool they throw.
+  make(scene, 'crucibleLadle', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 60, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The puddle under the pour.
+    softGlow(ctx, cx + 30, by - 4, 30, 'rgba(255,120,40,0.55)');
+    ell(ctx, cx + 30, by - 4, 22, 6); const pg = ctx.createRadialGradient(cx + 30, by - 4, 1, cx + 30, by - 4, 22); pg.addColorStop(0, '#fff0b0'); pg.addColorStop(0.5, '#ff8a2a'); pg.addColorStop(1, '#7a1e08');
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // The stand: two iron legs and a cross beam.
+    ctx.lineCap = 'round';
+    for (const [x0, x1] of [[-44, -30], [-4, -14]]) { ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(cx + x0, by); ctx.lineTo(cx + x1, by - 70); ctx.stroke(); ctx.strokeStyle = '#4a4040'; ctx.lineWidth = 5; ctx.stroke(); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(cx - 40, by - 30); ctx.lineTo(cx - 8, by - 30); ctx.stroke(); ctx.strokeStyle = '#3a3232'; ctx.lineWidth = 4; ctx.stroke();
+    // The ladle bowl, tipped toward the puddle.
+    ctx.save(); ctx.translate(cx - 18, by - 74); ctx.rotate(0.42);
+    ctx.beginPath(); ctx.moveTo(-34, -14); ctx.lineTo(34, -14); ctx.lineTo(28, 22); ctx.quadraticCurveTo(0, 34, -28, 22); ctx.closePath();
+    const bg = ctx.createLinearGradient(-34, 0, 34, 0); bg.addColorStop(0, '#5a4a44'); bg.addColorStop(0.5, '#3a302e'); bg.addColorStop(1, '#1e1818');
+    ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Bands and rivets.
+    ctx.strokeStyle = '#1a1414'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-31, 4); ctx.lineTo(31, 4); ctx.stroke();
+    ctx.fillStyle = '#8a7a70'; for (const x of [-22, -8, 8, 22]) { ctx.beginPath(); ctx.arc(x, 4, 2, 0, Math.PI * 2); ctx.fill(); }
+    // The molten top and the lip it runs over.
+    ell(ctx, 0, -14, 34, 8); const mg = ctx.createRadialGradient(4, -14, 2, 0, -14, 34); mg.addColorStop(0, '#fff2b0'); mg.addColorStop(0.45, '#ff8a2a'); mg.addColorStop(1, '#8a2408');
+    ctx.save(); ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 14; ctx.fillStyle = mg; ctx.fill(); ctx.restore(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Trunnion pin.
+    ctx.beginPath(); ctx.arc(-34, 4, 6, 0, Math.PI * 2); ctx.fillStyle = '#4a4040'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.restore();
+    // The pour: a thread of slag from the lip to the puddle.
+    ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 10;
+    ctx.strokeStyle = '#ff9a3a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(cx + 16, by - 84); ctx.quadraticCurveTo(cx + 30, by - 70, cx + 30, by - 6); ctx.stroke();
+    ctx.strokeStyle = '#fff0b0'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.restore();
+  });
+
+  make(scene, 'crucibleSlagPot', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The pot: a squat iron bowl on a ring foot.
+    ctx.beginPath(); ctx.moveTo(cx - 30, 46); ctx.lineTo(cx + 30, 46); ctx.quadraticCurveTo(cx + 30, 82, cx + 14, 86); ctx.lineTo(cx - 14, 86); ctx.quadraticCurveTo(cx - 30, 82, cx - 30, 46); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 30, 0, cx + 30, 0); g.addColorStop(0, '#5a4a44'); g.addColorStop(0.45, '#3a302e'); g.addColorStop(1, '#1c1616');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Lugs either side.
+    for (const dx of [-34, 34]) { ell(ctx, cx + dx, 54, 5, 7); ctx.fillStyle = '#3a3030'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke(); }
+    // Slag brimming at the top, a cooled crust cracked open over the glow, and a drip down the side.
+    softGlow(ctx, cx, 46, 30, 'rgba(255,120,40,0.5)');
+    ell(ctx, cx, 46, 30, 8); const mg = ctx.createRadialGradient(cx, 46, 2, cx, 46, 30); mg.addColorStop(0, '#ffe08a'); mg.addColorStop(0.5, '#ff7a22'); mg.addColorStop(1, '#6a1806');
+    ctx.fillStyle = mg; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(46,34,32,0.85)';
+    for (const [x, y, rx, ry] of [[-14, -2, 9, 4], [6, 2, 11, 4], [18, -3, 6, 3], [-4, -5, 6, 2.5]]) { ell(ctx, cx + x, 46 + y, rx, ry); ctx.fill(); }
+    ctx.restore();
+    ell(ctx, cx, 46, 30, 8); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 6; ctx.strokeStyle = '#ff8a2a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(cx + 20, 51); ctx.quadraticCurveTo(cx + 24, 60, cx + 22, 68); ctx.stroke(); ctx.restore();
+  });
+
+  // Phase 12 W3: a cooling island in Grandmother Slag's Brimming: a raft of dark cooled slag, its crust plates split by
+  // faintly glowing cracks, the edge still soft and hot. Drawn at 192 px for an 80 px island (a little edge overhang).
+  make(scene, 'brimIsland', 192, (ctx, s) => {
+    const c = s / 2, r = 84;
+    let seed = 29; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // The soft hot edge, then the lumpy crust outline.
+    softGlow(ctx, c, c, r + 10, 'rgba(255,110,40,0.55)');
+    ctx.beginPath();
+    for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 2; const rr = r - 4 + Math.sin(a * 5 + 1) * 3 + Math.sin(a * 9) * 2; ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath();
+    const g = ctx.createRadialGradient(c - 18, c - 22, 6, c, c, r);
+    g.addColorStop(0, '#4a403c'); g.addColorStop(0.6, '#2e2624'); g.addColorStop(1, '#1a1210');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    // Crust plates, lighter on top.
+    for (let i = 0; i < 14; i++) {
+      const a = rnd() * Math.PI * 2, d = rnd() * (r - 18), px = c + Math.cos(a) * d, py = c + Math.sin(a) * d;
+      ell(ctx, px, py, 10 + rnd() * 14, 7 + rnd() * 9, rnd() * Math.PI);
+      ctx.fillStyle = `rgba(${80 + Math.floor(rnd() * 30)},${66 + Math.floor(rnd() * 20)},${60 + Math.floor(rnd() * 16)},0.55)`; ctx.fill();
+    }
+    // Glowing cracks from the middle out to the edge.
+    ctx.strokeStyle = '#ff7a2a'; ctx.shadowColor = '#ff5a12'; ctx.shadowBlur = 6; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = 0; i < 6; i++) {
+      let a = (i / 6) * Math.PI * 2 + rnd() * 0.6, d = 10 + rnd() * 14;
+      ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * d, c + Math.sin(a) * d);
+      while (d < r) { d += 12 + rnd() * 10; a += (rnd() - 0.5) * 0.5; ctx.lineTo(c + Math.cos(a) * d, c + Math.sin(a) * d); }
+      ctx.globalAlpha = 0.55 + rnd() * 0.3; ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // Hot rim where the slag still laps the crust.
+    ctx.strokeStyle = 'rgba(255,150,60,0.75)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(c, c, r - 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath();
+    for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 2; const rr = r - 4 + Math.sin(a * 5 + 1) * 3 + Math.sin(a * 9) * 2; ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.stroke();
+  });
+
+  // Phase 12 W3: Old Vorhulm's Banked Coals, a heap of coals glowing between the lumps (`coalBed`), and the same heap
+  // smothered to grey ash (`coalAsh`), shown under a soak circle and left behind when a hero smothers it.
+  for (const [key, hot] of [['coalBed', true], ['coalAsh', false]] as [string, boolean][]) {
+    make(scene, key, 128, (ctx, s) => {
+      const c = s / 2;
+      let seed = 41; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      if (hot) softGlow(ctx, c, c, 60, 'rgba(255,120,40,0.6)');
+      ell(ctx, c, c + 4, 50, 40); ctx.fillStyle = hot ? '#7a2408' : '#3a3634'; ctx.fill();
+      if (hot) { const g = ctx.createRadialGradient(c, c, 4, c, c, 46); g.addColorStop(0, '#ffe08a'); g.addColorStop(0.5, '#ff8a2a'); g.addColorStop(1, 'rgba(160,40,8,0)'); ell(ctx, c, c + 2, 44, 34); ctx.fillStyle = g; ctx.fill(); }
+      // The lumps, back to front, each a rough polygon with a lit top.
+      const lumps: [number, number, number][] = [];
+      for (let i = 0; i < 16; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * 36; lumps.push([c + Math.cos(a) * d, c + Math.sin(a) * d * 0.78, 8 + rnd() * 6]); }
+      lumps.sort((p, q) => p[1] - q[1]);
+      for (const [x, y, r] of lumps) {
+        ctx.beginPath();
+        const n = 6 + Math.floor(rnd() * 3), a0 = rnd() * 6;
+        for (let k = 0; k < n; k++) { const a = a0 + (k / n) * Math.PI * 2, rr = r * (0.75 + rnd() * 0.35); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8); }
+        ctx.closePath();
+        const lg = ctx.createLinearGradient(x, y - r, x, y + r);
+        if (hot) { lg.addColorStop(0, '#4a3430'); lg.addColorStop(1, '#1a0e0c'); } else { lg.addColorStop(0, '#8a8480'); lg.addColorStop(1, '#4a4644'); }
+        ctx.fillStyle = lg; ctx.fill();
+        ctx.strokeStyle = hot ? 'rgba(255,140,50,0.9)' : 'rgba(30,26,24,0.9)'; ctx.lineWidth = hot ? 2 : 1.5; ctx.stroke();
+      }
+      // A few lumps burning through, or white ash flecks once smothered.
+      for (let i = 0; i < 7; i++) {
+        const [x, y] = lumps[Math.floor(rnd() * lumps.length)];
+        ctx.fillStyle = hot ? 'rgba(255,200,90,0.85)' : 'rgba(220,214,206,0.6)';
+        ctx.beginPath(); ctx.arc(x + (rnd() - 0.5) * 6, y + (rnd() - 0.5) * 4, hot ? 2.5 : 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  }
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);

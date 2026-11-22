@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
 import { EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -183,6 +183,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
   ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
+  crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -277,6 +278,16 @@ export class GameScene extends Phaser.Scene {
   private surfGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 12 W2: the Wandering Vents' trail and chevrons, under the main graphics (1.9) like the other floor tells. */
   private wanderGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W3: the Brimming's molten floor wash and island seams (1.88), the island crusts (1.9), and when each island rose. */
+  private brimGfx: Phaser.GameObjects.Graphics | null = null;
+  private brimImgs: Phaser.GameObjects.Image[] = [];
+  private brimBorn = new WeakMap<object, number>();
+  private brimStart = 0;
+  /** Phase 12 W3: Old Vorhulm's Banked Coals: their glow (1.89), the coal heaps (1.9), how smothered each looks, and the ash a smothered one leaves. */
+  private bankGfx: Phaser.GameObjects.Graphics | null = null;
+  private bankImgs: { hot: Phaser.GameObjects.Image; ash: Phaser.GameObjects.Image }[] = [];
+  private bankCool = new WeakMap<object, number>();
+  private bankAsh: { img: Phaser.GameObjects.Image; at: number }[] = [];
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
@@ -364,6 +375,12 @@ export class GameScene extends Phaser.Scene {
     this.darkGfx = null;
     this.surfGfx = null;
     this.wanderGfx = null;
+    this.brimGfx = null;
+    this.brimImgs = [];
+    this.brimStart = 0;
+    this.bankGfx = null;
+    this.bankImgs = [];
+    this.bankAsh = [];
     this.dieGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
@@ -1093,6 +1110,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
+          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankEaten(ev.x, ev.y);
           break;
         // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
         case 'wheel': {
@@ -1133,6 +1151,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
+          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankSmothered(ev.x, ev.y);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -1188,13 +1207,15 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
+            if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else if (w.bossVariant === 'bank') this.hud.banner('Phase 3: Banked Coals', 'Hot coals settle round him. Stand on each one as it lands, or he eats it');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
@@ -1202,6 +1223,8 @@ export class GameScene extends Phaser.Scene {
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
+          // A Banked Coal (owner -4) has its own ember effects, and a missed one blasts nobody.
+          if (ev.owner === -4) break;
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
           if (!ev.ok) this.floatText(ev.x, ev.y, 'Brand missed!', '#ff8aa5', 16);
           break;
@@ -1625,13 +1648,6 @@ export class GameScene extends Phaser.Scene {
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
-    // Phase 12 W3: the Brimming's cooling islands (placeholder until visuals): dark cooled slag with a glowing rim, dimming as they sink.
-    for (const isl of w.islands) {
-      const sink = isl.t < BRIM.warn ? isl.t / BRIM.warn : 1;
-      const flick = isl.t < BRIM.warn ? 0.6 + 0.4 * Math.sin(now / 90) : 1;
-      g.fillStyle(0x3a3430, 0.85 * sink + 0.1).fillCircle(isl.x, isl.y, BRIM.radius);
-      g.lineStyle(3, 0xffa040, 0.8 * flick).strokeCircle(isl.x, isl.y, BRIM.radius);
-    }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1837,6 +1853,8 @@ export class GameScene extends Phaser.Scene {
     this.layoutDraw(g, now);
     this.edgeDraw(now);
     this.wanderDraw(now);
+    this.brimDraw(now);
+    this.bankDraw(now);
     this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
@@ -2807,7 +2825,8 @@ export class GameScene extends Phaser.Scene {
     const o = this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
-    const fa = w.colFacing;
+    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift).
+    const fa = w.colFacing + w.colPlate;
     if (w.bossPhase < 3) {
       // His plated front: a steel band round the front half, with a chevron where he faces.
       g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
@@ -3749,6 +3768,125 @@ export class GameScene extends Phaser.Scene {
    * the path it came from, and gold chevrons slide ahead of it along the path it will take, so the soakers can walk
    * with it. Drawn under the main graphics (1.9): the circles, class rings and other telegraphs stay on top.
    */
+  /**
+   * Phase 12 W3: Grandmother Slag's Brimming. The pit fills: a molten wash over the floor with slow bright flow, and the
+   * cooling islands as crusts of dark slag. An island rises over half a second; in its last BRIM.warn s it settles,
+   * its cracks flare and it flickers as the slag takes it, with a shrinking arc for the time it has left.
+   */
+  private brimDraw(now: number): void {
+    const w = this.world;
+    const isl = w.islands;
+    if (!isl.length) {
+      if (this.brimGfx) { this.brimGfx.clear(); for (const im of this.brimImgs) im.setVisible(false); }
+      this.brimStart = 0;
+      return;
+    }
+    if (!this.brimGfx) this.brimGfx = this.add.graphics().setDepth(1.88);
+    if (!this.brimStart) this.brimStart = now;
+    const g = this.brimGfx.clear();
+    const R = ARENA;
+    const fill = Math.min(1, (now - this.brimStart) / 1500);
+    // The molten wash: a dark-red pool, brighter where it flows, breathing.
+    g.fillStyle(0x7a1e06, 0.5 * fill).fillCircle(0, 0, R);
+    g.fillStyle(MOLTEN, (0.16 + 0.05 * Math.sin(now / 600)) * fill).fillCircle(0, 0, R);
+    for (let k = 0; k < 9; k++) {
+      const a = k * 2.4 + now / (9000 + k * 700), d = R * (0.25 + 0.6 * ((k * 0.37) % 1));
+      const x = Math.cos(a) * d, y = Math.sin(a) * d;
+      g.fillStyle(0xffa040, (0.10 + 0.06 * Math.sin(now / 500 + k)) * fill).fillEllipse(x, y, 150 + 30 * Math.sin(now / 800 + k), 70);
+    }
+    // Bright veins slowly crawling round the pool.
+    g.lineStyle(3, 0xffd27a, 0.28 * fill);
+    for (let k = 0; k < 5; k++) {
+      const r0 = R * (0.3 + k * 0.13), a0 = k * 1.3 + now / (7000 - k * 600);
+      g.beginPath();
+      for (let j = 0; j <= 10; j++) { const a = a0 + j * 0.09, rr = r0 + Math.sin(j * 1.7 + now / 900 + k) * 9; const px = Math.cos(a) * rr, py = Math.sin(a) * rr; if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.strokePath();
+    }
+    const rad = BRIM.radius;
+    isl.forEach((s, k) => {
+      let born = this.brimBorn.get(s);
+      if (born === undefined) { born = now; this.brimBorn.set(s, born); }
+      const rise = Math.min(1, (now - born) / 500);
+      const sinking = s.t < BRIM.warn;
+      const u = sinking ? Math.max(0, s.t / BRIM.warn) : 1; // 1 = solid, 0 = gone
+      const flick = sinking ? 0.75 + 0.25 * Math.sin(now / 70 + k) : 1;
+      // The seam where the slag laps the crust: a hot halo, brighter as it sinks.
+      g.lineStyle(16, 0xffb040, (0.22 + (1 - u) * 0.35) * rise * flick).strokeCircle(s.x, s.y, rad + 6);
+      // The time it has left, in its last BRIM.warn s.
+      if (sinking) g.lineStyle(3, 0xfff0c0, 0.85).beginPath().arc(s.x, s.y, rad + 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * u).strokePath();
+      let im = this.brimImgs[k];
+      if (!im) im = this.brimImgs[k] = this.add.image(0, 0, 'brimIsland').setDepth(1.9);
+      const sc = ((rad * 2 + 12) / 192) * (0.75 + 0.25 * rise) * (0.88 + 0.12 * u);
+      // Sinking, the crust takes the slag's colour and goes under.
+      const f = 1 - u, tint = (255 << 16) | (Math.round(255 - f * 117) << 8) | Math.round(255 - f * 175);
+      im.setVisible(true).setPosition(s.x, s.y).setScale(sc).setAlpha(rise * (0.3 + 0.7 * u) * flick).setTint(tint);
+    });
+    for (let k = isl.length; k < this.brimImgs.length; k++) this.brimImgs[k].setVisible(false);
+  }
+
+  /**
+   * Phase 12 W3: Old Vorhulm's Banked Coals (his phase 3, `bank` version): a heap of glowing coals inside each gold soak
+   * circle, settling in and burning brighter as the fuse runs. While a hero stands in one it cools toward grey ash, so a
+   * smothered coal reads differently from an empty one. The gold ring and fuse stay on the main graphics as for any soak.
+   */
+  private bankDraw(now: number): void {
+    const w = this.world;
+    const coals = w.dungeonId === 'hoard' && w.bossVariant === 'bank' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
+    // The ash a smothered coal leaves, fading over 2.5 s.
+    this.bankAsh = this.bankAsh.filter((a) => {
+      const u = (now - a.at) / 2500;
+      if (u >= 1) { a.img.destroy(); return false; }
+      a.img.setAlpha(0.9 * (1 - u * u));
+      return true;
+    });
+    if (!coals.length) {
+      if (this.bankGfx) { this.bankGfx.clear(); for (const im of this.bankImgs) { im.hot.setVisible(false); im.ash.setVisible(false); } }
+      return;
+    }
+    if (!this.bankGfx) this.bankGfx = this.add.graphics().setDepth(1.89);
+    const g = this.bankGfx.clear();
+    coals.forEach((t, k) => {
+      const f = Math.min(1, t.t / t.dur);
+      let covered = false;
+      for (let i = 0; i < w.heroes.length && !covered; i++) {
+        const q = w.heroData(i).player;
+        if (q.hp > 0 && (q.x - t.x) ** 2 + (q.y - t.y) ** 2 <= t.r * t.r) covered = true;
+      }
+      // How smothered it looks eases toward 1 while covered and back while empty.
+      const cool = Math.max(0, Math.min(1, (this.bankCool.get(t) ?? 0) + (covered ? 0.05 : -0.05)));
+      this.bankCool.set(t, cool);
+      const settle = Math.min(1, t.t / 0.35);
+      const heat = (1 - cool) * (0.6 + 0.4 * f) * (0.85 + 0.15 * Math.sin(now / 110 + k * 2));
+      g.fillStyle(MOLTEN, 0.3 * heat * settle).fillCircle(t.x, t.y, t.r * 1.15);
+      g.fillStyle(0xffd27a, 0.18 * heat * settle).fillCircle(t.x, t.y, t.r * 0.6);
+      let im = this.bankImgs[k];
+      if (!im) im = this.bankImgs[k] = { hot: this.add.image(0, 0, 'coalBed').setDepth(1.9), ash: this.add.image(0, 0, 'coalAsh').setDepth(1.9) };
+      const sc = ((t.r * 1.9) / 128) * (0.8 + 0.2 * settle);
+      im.hot.setVisible(true).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * (1 - cool * 0.85));
+      im.ash.setVisible(cool > 0).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * cool);
+      // Embers lifting off a live heap.
+      if (!this.lowFx && Math.random() < 0.15 * heat) this.spark(t.x + (Math.random() - 0.5) * t.r, t.y + (Math.random() - 0.5) * t.r * 0.6, (Math.random() - 0.5) * 20, -50 - 50 * f, 0.7, 1.4);
+    });
+    for (let k = coals.length; k < this.bankImgs.length; k++) { this.bankImgs[k].hot.setVisible(false); this.bankImgs[k].ash.setVisible(false); }
+  }
+
+  /** A Banked Coal smothered as it lands: grey ash left behind, and a puff of smoke. */
+  private bankSmothered(x: number, y: number): void {
+    const img = this.add.image(x, y, 'coalAsh').setDepth(1.9).setScale((BANK.radius * 1.9) / 128).setAlpha(0.9);
+    this.bankAsh.push({ img, at: this.time.now });
+    this.ring(x, y, BANK.radius, 0xb8b0a8, 0.35);
+  }
+
+  /** An empty Banked Coal he eats: it flares, and its embers stream to him. */
+  private bankEaten(x: number, y: number): void {
+    const w = this.world;
+    const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    this.ring(x, y, BANK.radius * 1.3, MOLTEN, 0.5);
+    if (!e) return;
+    const dx = e.x - x, dy = e.y - y, d = Math.max(1, Math.hypot(dx, dy));
+    for (let k = 0; k < 10; k++) this.spark(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 20, (dx / d) * (180 + Math.random() * 120), (dy / d) * (180 + Math.random() * 120), 0.6 + Math.random() * 0.3, 1.8);
+  }
+
   private wanderDraw(now: number): void {
     const w = this.world;
     const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;

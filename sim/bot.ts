@@ -674,7 +674,7 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
   }
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
   const r = e.def.radius + (melee ? w.swingReach * 0.6 : 170);
-  const back = w.colFacing + Math.PI;
+  const back = w.colFacing + w.colPlate + Math.PI;
   const at = Math.atan2(p.y - e.y, p.x - e.x);
   const off = Math.abs(((at - back + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
   const d = Math.hypot(p.x - e.x, p.y - e.y);
