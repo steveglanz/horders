@@ -15,7 +15,7 @@ const OPTS = { seed: 9, cls: 'bulwark', dungeon: 'flue', route: ['regent'], tier
 const SCENES = [
   { name: '1-regent', until: 'regent' },
   { name: '2-decree', until: 'decree' },
-  { name: '3-spent', hp: 0.5, until: 'spent' },
+  { name: '3-spent', until: 'spent' },
   { name: '4-abdicate', hp: 0.2, until: 'abdicate' },
 ];
 (async () => {
@@ -59,6 +59,8 @@ const SCENES = [
       else if (sc.until === 'decree') ok = w.regentDecree.some((d) => d.passes === 0 && d.held > 0.5);
       else if (sc.until === 'spent') ok = w.regentDecree.some((d) => d.passes > 0) && w.heroes.some((_, k) => (w.heroData(k).player.spentT ?? 0) > 2);
       else ok = w.bossPhase >= 3 && w.time > 7 && Math.hypot(e.x - w.player.x, e.y - w.player.y) < 260;
+      // Bots pass on a Decree a second after it lands, so slow down once one is out, to catch the moment after a pass.
+      if (sc.until === 'spent' && w.regentDecree.length && s.warp > 1) s.warp = 1;
       // Bots pass a Decree the moment they can, so its last 3 s (red, pulsing ring) are set by hand for the shot.
       if (ok && sc.until === 'spent') w.regentDecree.forEach((d) => { d.t = 2.2; });
       return ok && !(s.warp = 0);
