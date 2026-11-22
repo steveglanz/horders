@@ -809,3 +809,31 @@ describe('Phase 12 W3: Grandmother Slag\'s Brimming', () => {
     expect(SLAG.marksSelf).toBe(0.1);
   });
 });
+
+describe('Phase 12 W3 follow-up: wider raid fight pools', () => {
+  const raids = (Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]).filter((id) => DUNGEONS[id].raid);
+  it('every raid has at least 24 routes, and every fight in it is a real encounter', () => {
+    expect(raids.sort()).toEqual(['crucible', 'flue', 'hoard', 'smeltery']);
+    for (const id of raids) {
+      const d = DUNGEONS[id];
+      expect(d.openers.length * (d.openers.length - 1) * d.named.length).toBeGreaterThanOrEqual(24);
+      for (const f of [...d.openers, ...d.named]) expect(ENCOUNTERS[f]).toBeDefined();
+    }
+  });
+
+  it('a raid route is two different openers, a named fight and the boss', () => {
+    for (const id of raids) {
+      let s = 7;
+      const pick = (m: number): number => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return (s >>> 8) % m; };
+      const many = new Set<string>();
+      for (let k = 0; k < 2000; k++) {
+        const r = rollRoute(pick, id);
+        expect(r[0]).not.toBe(r[1]);
+        expect(r[3]).toBe(DUNGEONS[id].boss);
+        many.add(r.join(','));
+      }
+      const d = DUNGEONS[id];
+      expect(many.size).toBe(d.openers.length * (d.openers.length - 1) * d.named.length);
+    }
+  });
+});

@@ -72,3 +72,5 @@ Every party at 19000, seeds 1 to 40 (18500 in brackets): base 24 (29), two Duskb
 Placeholder art: until visuals' `colossusRaid` lands, he uses the X1 shadow sheet `colossus`. Sound's theme `smeltery` is already on main (#315).
 
 **Phase 12 W3 (22 Nov 2026):** the Cinder Colossus has a second version, **Plate Shift**: in phase 2 his plate slides round to face whoever hurt him most, so his open back moves (variety.md, Phase 12 W3 part 3).
+
+**Wider fight pool (Phase 12 W3 part 5, 22 Nov 2026).** The Smeltery gained Hollow Wardens as a fourth opener, and the Colossus went from 19000 to 19500 health to stay in the band: 206 of 320 (64%), against 219 on main (variety.md).

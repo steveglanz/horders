@@ -92,3 +92,5 @@ The Regent's head, hands and trinket drops can be Handover pieces, as for the ot
 | 46 (21, 25) | 39 (20, 19) | 48 (21, 27) |
 
 Tagged pieces cost the control 7 wins, because a bot won't swap out a piece of an active set for a better drop (`breaksSet`). Against that control the full set adds +9 of 80, about +4.5 per 40. That's inside the 2 to 7 per 40 of the earlier sets, so it ships as it is. Skills found in the Hoard that the tag control is the fair comparison (A4).
+
+**Wider fight pool and the walk-in (Phase 12 W3 part 5, 22 Nov 2026).** The Flue gained Hollow Wardens as a fourth opener, and bots walk in before a Summons (#457). The Regent went from 15000 to 15500 health: 206 of 320 (64%) at tier 11 (variety.md).
