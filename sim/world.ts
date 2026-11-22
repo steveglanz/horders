@@ -4565,6 +4565,7 @@ export class World {
     if ((p.freedT ?? 0) > 0) m *= 1 + SET_TUNING.csFreed;
     if (e.kind === 'craw' && this.setCount('crawsplitter') >= 2) m *= 1 + SET_TUNING.csCraw;
     if (e.kind === 'colossus' && this.setCount('platewalker') >= 3 && this.behindColossus(e, p.x, p.y)) m *= 1 + SET_TUNING.pwDamage;
+    if ((p.spentT ?? 0) > 0 && this.setCount('handover') >= 3) m *= 1 + SET_TUNING.hoDamage;
     if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
@@ -5663,14 +5664,16 @@ export class World {
         this.events.push({ type: 'decreeBurst', hero: d.hero });
         continue;
       }
-      // The seal burns its holder, and anyone standing close.
+      // The seal burns its holder, and anyone standing close (Handover 2: less on the holder's seal).
+      this.use(d.hero);
+      const burn = this.setCount('handover') >= 2 ? 1 - SET_TUNING.hoCut : 1;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0) continue;
         const near = k !== d.hero && dist2(q.x, q.y, h.x, h.y) <= REGENT.scorchRadius * REGENT.scorchRadius;
         if (k !== d.hero && !near) continue;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * (k === d.hero ? REGENT.decreeTick : REGENT.scorchTick) * dt, boss, true);
+        this.hurtPlayer(this.player.maxHp * (k === d.hero ? REGENT.decreeTick : REGENT.scorchTick) * burn * dt, boss, true);
       }
       if (d.held < REGENT.settle) continue;
       // Pass it on: touch an ally who can take it.

@@ -58,4 +58,19 @@ Before the Edict change, health barely moved it: on 120 seeds, 15500 won 63 and 
 
 Every standard party at 16250, seeds 1 to 40: base 21, two Duskblades 26, two Emberwrights 14, Bellows Slagbinder with an Emberwright 11, Bellows Slagbinder with a Duskblade 14, Anvil Slagbinder tank 15, and the base party at bot skill 0.7 19. So the base party and two Duskblades are in the band, and every party with less blade damage is under it (28 to 38%). A longer enrage (540 s) with more health (17250) did not flatten this: base 16, two Duskblades 15, two Emberwrights 8, Bellows with an Emberwright 4. That's a class-side follow-up for skills (B6), like Z5 for the older raids.
 
-Tier 11 with t8 gear was in reach once the rules changed, so `unlockTier` stays 11. The verb set **Handover** ("Pass it on") is not in this PR. It comes next, and a search on 22 Nov 2026 found no WoW match for "Handover".
+Tier 11 with t8 gear was in reach once the rules changed, so `unlockTier` stays 11. The verb set **Handover** came in the follow-up PR (below).
+
+## Handover, the Flue's verb set ("pass it on")
+The Regent's head, hands and trinket drops can be Handover pieces, as for the other raids (`withSet`, 60% of set-slot drops). All the numbers are in `SET_TUNING` (`ho*`, sim/content/sets.ts).
+- **2 pieces:** a Decree you hold burns you, and anyone near you, 30% less (`hoCut`). The burst is not cut.
+- **3 pieces:** while you are Spent after passing a Decree, you deal 8% more damage (`hoDamage`). The HUD shows a "Handover +8%" chip. It needs no new field: it reads `Player.spentT`.
+- **Name:** "Handover" is a plain word. A search on 22 Nov 2026 found no WoW spell, item or achievement by that name.
+- **Icon:** `SET_ICON.handover` in client/icons.ts is a placeholder from design for visuals to redraw.
+
+**Measured** with tools/group.ts (`DUNGEON=flue SET=handover SETN=3`), base party in heroes-r2 hero-t8-0, tier 11, seeds 1 to 80, on main 60aa9fd plus this change. Wins of 80:
+
+| No set | Control (`SET=platewalker`, a set that does nothing in the Flue) | Every hero with 3 Handover pieces |
+|---|---|---|
+| 46 (21, 25) | 39 (20, 19) | 48 (21, 27) |
+
+Tagged pieces cost the control 7 wins, because a bot won't swap out a piece of an active set for a better drop (`breaksSet`). Against that control the full set adds +9 of 80, about +4.5 per 40. That's inside the 2 to 7 per 40 of the earlier sets, so it ships as it is. Skills found in the Hoard that the tag control is the fair comparison (A4).
