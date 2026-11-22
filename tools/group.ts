@@ -18,8 +18,14 @@ const dir = process.env.HEROES;
 /** ALT=1 turns the ability option on for every hero; ALT=bulwark,lumen for those classes only. */
 const altFor = (cls: ClassId): boolean => process.env.ALT === '1' || (process.env.ALT ?? '').split(',').includes(cls);
 const file = process.env.HERO_FILE ?? 'hero-t6-0.json';
+const warned = new Set<ClassId>();
 const profile = (cls: ClassId): HeroProfile | null => {
   const f = dir ? `${dir}/${cls}/${file}` : '';
+  if (f && !existsSync(f) && !warned.has(cls)) {
+    // A missing file means that hero fights with no gear, no passives and the default level.
+    warned.add(cls);
+    console.warn(`WARNING: no hero file ${f}; the ${cls} runs with no gear`);
+  }
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
