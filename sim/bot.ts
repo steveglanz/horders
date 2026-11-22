@@ -10,23 +10,23 @@ import { SET_TUNING } from './content/sets';
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
-  'flicker', 'magnetism',
+  'flicker', 'magnetism', 'ventFed',
   'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire', 'longKindle', 'closeWarmth',
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
-  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
+  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble', 'readTheLane',
   'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend', 'turnedBack', 'sharedBreath',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
-  'batteringRam', 'lastStand', 'momentum',
+  'batteringRam', 'lastStand', 'momentum', 'backToStone',
   'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse', 'leeSide', 'broadBack',
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
-  'renewal', 'lingeringSanctuary', 'blessedGround',
+  'renewal', 'lingeringSanctuary', 'blessedGround', 'reachingLight',
   'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers', 'frontMend', 'wideDawn',
   // Slagbinder
   'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
-  'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
+  'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened', 'slagWade',
   'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool', 'longStand', 'wideShell',
   'smallHeal', 'stoke',
 ];
@@ -38,6 +38,8 @@ function bladeCast(w: World, skill: number): number | undefined {
   if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   // Co-op: pulled the boss off a living Bulwark, so Sidestep to dump threat back to it.
   if (can(w, 1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && (h.cls === 'bulwark' || h.player.stance === 'anvil') && h.player.hp > 0)) return 1;
+  // Read the Lane: step out of a lob or a charge lane (cones too) while it can still pay.
+  if (attentive && can(w, 1) && w.rank('readTheLane') > 0 && w.inLaneTelegraph()) return 1;
   // Step out of a telegraph we are standing in.
   if (attentive && can(w, 1)) {
     for (const t of w.telegraphs) {
@@ -781,6 +783,8 @@ export function botInput(w: World, skill = 1): Input {
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
   }
+  // Site cards have no movement rules: pulling a Bulwark to a stone (Back to Stone) cost 23 of 80
+  // Coldmarrow runs that took it, and a Slagbinder staying in lava (Slag Wade) 10 of 45 Kiln runs.
   // The Coldmarrow: a ranged hero brings a Frost Warden inside its coal's light to crack it.
   if (!melee && p.coalR !== undefined) {
     let wi = -1;
@@ -1098,6 +1102,8 @@ const MEASURE_NEW = typeof process !== 'undefined' && !!process.env.NEW_CAPS;
 const FORCE_BRANCH = typeof process !== 'undefined' ? (process.env.BOT_BRANCH ?? '').split(',').filter(Boolean) : [];
 /** BOT_CAP=haven (balance tools only): the bot takes these capstones over their twin, to measure the one it would skip. */
 const FORCE_CAP = typeof process !== 'undefined' ? (process.env.BOT_CAP ?? '').split(',').filter(Boolean) : [];
+/** BOT_SITE=1 (balance tools only): the bot takes a site card whenever one is offered, unless a capstone is. */
+const FORCE_SITE = typeof process !== 'undefined' && process.env.BOT_SITE === '1';
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
@@ -1107,7 +1113,7 @@ export function botChoose(w: World): number {
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
     // Forced only until the branch's capstone is in; after that the bot drafts as usual.
     const forced = FORCE_BRANCH.includes(def.branch) && !(Object.keys(TALENTS) as TalentId[]).some((id) => TALENTS[id].branch === def.branch && TALENTS[id].capstone && w.rank(id) > 0) ? 2000 : 0;
-    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) + BOT_PRIORITY.indexOf(c.id);
+    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) - (FORCE_SITE && def.where ? 900 : 0) + BOT_PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

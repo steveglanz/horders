@@ -788,7 +788,8 @@ export class GameScene extends Phaser.Scene {
       acting: w.acting,
       hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
-      anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+      // Ironload marked on you plays the same "it's on you" sting as Anvilfall.
+      anvilOnMe: w.dungeonId === 'hammerdeep' && (w.anvilOnMe || (w.loadHero === w.acting && w.loadT > 0)),
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       outsurge: w.dungeonId === 'wrackline' && w.outsurge,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,

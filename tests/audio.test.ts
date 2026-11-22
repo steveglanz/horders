@@ -12,7 +12,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
+import { IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -488,6 +488,22 @@ describe('audio', () => {
     expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'glarewell')?.id).toBe('lensFlare');
     expect(cueFor({ type: 'layout', id: 'vents' } as never, glare)?.id).toBe('layoutLens');
     expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, { ...glare, dungeon: undefined as never })?.id).toBe('kilnVentWarn');
+  });
+
+  it('gives the Hammerdeep its own forge vents and Ondrel\'s Ironload its own weight (Phase 12 W2)', () => {
+    const deep = { cls: 'bulwark' as const, acting: 0, dungeon: 'hammerdeep' };
+    expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, deep)?.id).toBe('forgeVentWarn');
+    expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'hammerdeep')?.id).toBe('forgeFlare');
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, deep)?.id).toBe('layoutForge');
+    // The forge set is its own, not the Kiln's borrowed one.
+    expect(VENT_SOUNDS.hammerdeep).not.toEqual(VENT_SOUNDS.kiln);
+    expect(CAST_SOUNDS.ironload).toEqual({ start: 'ironloadWarn', done: 'ironloadMark' });
+    expect(PRIORITY.has('ironloadWarn')).toBe(true);
+    // The weight lands as an IRONLOAD.radius slam; other slams keep the plain slam, and so does r 110 elsewhere.
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: IRONLOAD.radius } as never, deep)?.id).toBe('ironload');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: 160 } as never, deep)?.id).toBe('slam');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: IRONLOAD.radius } as never, { ...deep, dungeon: 'foundry' })?.id).toBe('slam');
+    for (const id of ['ironloadWarn', 'ironloadMark', 'ironload', 'forgeVentWarn', 'forgeFlare', 'layoutForge'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {
