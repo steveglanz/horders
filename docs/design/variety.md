@@ -502,3 +502,50 @@ Also in this PR: the `soak` event now carries the telegraph's `owner`, and GameS
 | Plate Shift seeds (87) | 63 | 61 |
 
 The two versions are about as hard. The bots find his back again, as players will have to.
+
+## Phase 12 W3, part 4 (built 22 Nov 2026): the Furnace Regent's Summons, and fixes from the class pass
+The seed picks `bossVariant` for the Furnace Regent (its own salt, no run-rng draws):
+- `ash`: phase 2 (Edict) is as before: two Decrees, and Ash Fall under every hero every 12 s.
+- `court`: each Ash Fall comes with a **Summons**. After 2.5 s, every hero farther than 130 from him takes 70 (scaled by tier). So the party must step out of its own ash circle, then come in close to him, while two Decrees burn and must not touch the wrong hero. Tuning is in `SUMMONS`. `World.summonsT` counts down while one is pending (a scalar, so guests get it). The cast id is `summons` (castStart, then castDone and a `slam` of radius 130 when it lands).
+- Ash Fall pulls the party apart and the Summons pulls it together, so the two Decrees become a problem of who stands next to whom.
+- The client draws a placeholder gold ring round him while a Summons is pending, and the phase 2 banner and the boss intro (`COURT_TIP`) say what to do.
+- **Name:** the first name, "Audience", was already the name of his phase 1 (raid4.md), so it became "Summons", a single plain word.
+- **Bots:** a bot walks in only once it isn't standing in a circle. Without that rule the bots walked in through their ash and the court version won 0 of 38. With it, 30 of 38.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, Flue tier 11, full party, seeds 1 to 160:
+
+| | main | This change |
+|---|---|---|
+| All seeds | 107 (67%) | 101 (63%, in the 55 to 70% band) |
+| Ash seeds (79) | 55 | 55 |
+| Court seeds (81) | 52 | 46 |
+
+Court seeds 1 to 80 (38), by role: no healer (Bulwark, two Emberwrights, Duskblade) 9 → 2, and no tank (two Duskblades, Lumen, Emberwright) 24 → 6. The second number is from the court version. The Summons rewards a party that can stand together, so a party missing a role falls further than on main.
+
+Tuning on the way (court seeds, of 38): radius 160 and warn 3 s won 30, and radius 120 won 32, so radius alone was noisy. Radius 130 with warn 2.5 s won 23.
+
+**Grandmother Slag's Brimming: the Churn.** Skills' class pass (W7) found an Anvil Slagbinder tank winning 4 of 32 Brimming seeds. In the Pour version, the 1.6 s Pour cast every 6 s is the tank's breather. The Brimming had none, so she hit the tank without a pause. Now, on the Pour's timer and cast time, she **Churns** the pit (cast id `churn`): a cast with no lanes. Same seeds (the 33 Brimming seeds of 1 to 80), with the version forced (both on the same seeds):
+
+| Party | Pour | Brimming, with the Churn |
+|---|---|---|
+| Base | 23 | 22 |
+| Anvil Slagbinder tank | 22 | 21 |
+| Base, novice bots (skill 0.5) | 20 | 17 |
+
+QA's novice gap (Brimming 25% against Pour 100%, on different seeds) was mostly the seeds: on the same seeds the gap is 3 of 33. Novice losses are the tank dying to Ladle Pour, often from low health at the start of phase 2. Longer islands, a lower burn, or cooling Ladle Burn on an island didn't change it by more than 3. (A measuring note: an earlier Anvil row of 4 of 47 came from a run script that dropped STANCE=anvil.)
+
+**Old Vorhulm's Banked Coals: closer coals.** Skills found Bellows with an Emberwright at 14 of 39 on Banked Coals against 26 of 40 on Ember Feast: a damage race, with the coals taking hitting time away. The coals now land 120 or 170 from him (they were 170 or 260). Seeds 1 to 40, version forced:
+
+| Party | Ember Feast | Banked Coals before | Banked Coals now |
+|---|---|---|---|
+| Bellows Slagbinder with an Emberwright | 23 | 18 | 23 |
+| Base | 27 | 25 | 26 |
+| Bellows Slagbinder with a Duskblade | 28 | | 25 |
+| Two Duskblades | | | 28 |
+| Anvil tank | 36 | | 37 |
+
+Two coals instead of three helped the Emberwright row as much (26) but made the base party too strong (33 of 40).
+
+**The Cinder Colossus's Plate Shift: left as it is.** Skills found an Anvil tank at 25 of 51 on Plate Shift. Seeds 1 to 40, version forced: base 25 (Wheel) and 26 (Plate Shift), Anvil tank 29 and 21. Every Anvil loss wipes with him at 1 to 8%, and skills' position trace shows the Anvil and Bulwark parties standing the same way, so it is damage. Fight knobs move the base party more than the Anvil: 3% less health in this version only gave base 32 and Anvil 23, and 5% gave 33 and 23. A plate shift every 22 s gave 23 and 24. So Plate Shift stays as it is, and the Anvil gap is noted for skills.
+
+**Follow-up found on the way:** Ash Fall passes `REGENT.ashDamage * tierDamage` into `addTelegraph`, which scales it by tier again when it lands (the same double scaling as Hammer Sweep before #411). The Regent's tuning was measured with it, so fixing it means re-tuning the Flue. It's left for a separate PR.
