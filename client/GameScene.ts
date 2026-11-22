@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, OUTSURGE } from '../sim/world';
-import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1284,7 +1284,8 @@ export class GameScene extends Phaser.Scene {
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
-            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP : def.tip;
+            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
+            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -2432,6 +2433,14 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
+    // Phase 12 W2, Ondrel's Ironload (placeholder until visuals): an iron ring on the marked hero that fills
+    // as it comes down. Everyone standing inside shares the weight.
+    if (w.loadHero >= 0 && w.loadT > 0) {
+      const m = w.heroData(w.loadHero).player;
+      const u = 1 - w.loadT / IRONLOAD.time;
+      g.fillStyle(0x8a96a8, 0.12 + 0.2 * u).fillCircle(m.x, m.y, IRONLOAD.radius * u);
+      g.lineStyle(3, 0xc8d2e0, 0.6 + 0.3 * Math.sin(now / 120)).strokeCircle(m.x, m.y, IRONLOAD.radius);
+    }
     // V8 Emberdrift (Nhevra): live embers on the ice, walk over one to refill your coal. Each glows and breathes, sends up
     // a spark now and then, and shows its pick-up reach as a faint ring. For a moment after they fall (emberDrift) each
     // drops in from above on a fiery streak.
