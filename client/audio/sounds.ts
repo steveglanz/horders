@@ -740,17 +740,6 @@ export const SOUNDS = {
      { wave: 'sine', f: 300, f2: 160, dur: 0.12, vol: 0.18, curve: 2 },
      { wave: 'noise', f: 0, dur: 0.45, delay: 0.08, vol: 0.16, a: 0.08, lp: 7000, lp2: 2500, hp: 1500, curve: 1.6 }],
   ),
-  /** A Hollow Rift opens and Ashlings spill out: a hollow tearing swell over a dark interval. */
-  hollowRiftOpen: join(
-    [{ wave: 'saw', f: note(-11), f2: note(-10), dur: 0.8, vol: 0.12, a: 0.3, lp: 1400, curve: 1.2, vib: [6, 0.01] },
-     { wave: 'saw', f: note(-5), dur: 0.8, vol: 0.1, a: 0.3, lp: 1800, curve: 1.2 },
-     { wave: 'noise', f: 0, dur: 0.7, vol: 0.18, a: 0.35, lp: 900, lp2: 4500, hp: 400, curve: 1.2 }],
-  ),
-  /** The Rift breaks: glassy shards over a short boom, the reward for closing it. */
-  hollowRiftBreak: join(
-    boom(60, 0.4, 0.4),
-    ...[0, 0.04, 0.09, 0.15].map((d, k) => chime([E6, G6, C6 * 2, E6 * 1.5][k], d, 0.16, 0.3)),
-  ),
   /** A Charger lines up: a rising scrape and snort, the dodge warning. */
   chargeWindup: join(
     [{ wave: 'saw', f: 160, f2: 420, dur: 0.55, vol: 0.16, a: 0.2, lp: 1800, lp2: 3200, curve: 1.2 },
