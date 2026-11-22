@@ -468,6 +468,19 @@ describe('audio', () => {
     expect(inLavaNow({ lava: [strip], player: { x: 0, y: 0, hp: 0 } })).toBe(false);
   });
 
+  it('steams the Drowned Foundry\'s vents instead of fire (V8)', () => {
+    const kiln = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' };
+    const foundry = { ...kiln, dungeon: 'foundry' };
+    const vent = { type: 'ventFlare', x: 0, y: 0 } as never;
+    expect(cueFor(vent, kiln)?.id).toBe('kilnVentWarn');
+    expect(cueFor(vent, foundry)?.id).toBe('steamVentWarn');
+    expect(landCueFor(vent, 'kiln')?.id).toBe('lavaFlare');
+    expect(landCueFor(vent, 'foundry')).toMatchObject({ id: 'steamBurst', after: LAYOUT.ventCast });
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, foundry)?.id).toBe('layoutSteam');
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, foundry)?.id).toBe('layoutPillars');
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, kiln)?.id).toBe('layoutVents');
+  });
+
   it('stings Today\'s Heat once, with the first Kiln fight, unless its floor already sounds (V4/V6)', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     const first = { type: 'encounterStart', index: 0, id: 'pack' } as never;
