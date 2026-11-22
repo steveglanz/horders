@@ -180,7 +180,7 @@ The last of the four world bosses without an in-person fight. Brief: [raid4.md](
 | B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
 | B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
 | B5 | **Raid 4 QA:** contentcheck at t11, coopsweep with a guest dropping while holding a Decree | QA | ⏭ After B1 |
-| B6 | **Raid 4 class coverage:** the steep damage race left the parties with less blade damage at 11 to 15 of 40 | skills, design | ✅ Design retuned the Flue to test survival as well (burst 50%, Ash Fall 70, hp 15000): base 80 of 120, every other party 26 to 28 of 40 except the Bellows Slagbinder beside an Emberwright at 18 (raid4.md). That row stays with skills |
+| B6 | **Raid 4 class coverage:** the steep damage race left the parties with less blade damage at 11 to 15 of 40 | skills, design | ✅ Design retuned the Flue to test survival as well (burst 50%, Ash Fall 70, hp 15000): base 80 of 120, every other party 26 to 28 of 40 except the Bellows Slagbinder beside an Emberwright at 18 (raid4.md). ✅ Skills #391: a Flue-only Bellows party cut (0.85, 0.7 elsewhere); Bellows with an Emberwright 39 to 48 of 80, with a Duskblade 50 to 56 |
 
 
 ### Phase 11: variety, so runs feel different (planned by game design, 22 Nov 2026)
