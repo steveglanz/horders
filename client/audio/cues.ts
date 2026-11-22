@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -23,6 +23,9 @@ export interface Cue {
 
 /** What the cue needs to know about the run. */
 export interface CueContext {
+  /** The Brimming's cooling islands (empty outside it), and the one under this screen's hero (-1 for none). */
+  islands?: readonly { t: number }[];
+  myIsland?: number;
   cls: ClassId;
   /** The hero this screen plays (co-op: events for others are quieter or silent). */
   acting: number;
@@ -163,6 +166,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   ironload: { start: 'ironloadWarn', done: 'ironloadMark' }, // Ironload
   // Oskel's Die Cut version: half the floor is stamped after a 2.4 s fuse; it lands as a slam of r DIECUT_R.
   dieCut: { start: 'dieCutWarn' }, // Die Cut
+  // Grandmother Slag's Brimming version: phase 2's pit fills and cooling islands rise in place of the Pour.
+  brimming: { start: 'brimWarn' }, // The Brimming
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
@@ -516,6 +521,36 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
   const was = state.on;
   state.on = pressed;
   return pressed && !was ? { id: 'pressed' } : !pressed && was ? { id: 'pressedClear' } : null;
+}
+
+/**
+ * The Brimming (the Crucible, Grandmother Slag's `brim` version): each cooling island hisses as it starts to sink
+ * (its last BRIM.warn s), loudest for the one this screen's hero stands on, and knocks softly when a new one rises
+ * in its place (the sim replaces a sunk island in its slot, so its time jumps back up). `mine` is the index of the
+ * island under this screen's hero, or -1.
+ */
+export function islandCues(state: { t: number[] }, islands: readonly { t: number }[], mine: number): Cue[] {
+  const out: Cue[] = [];
+  if (!islands.length) {
+    state.t = [];
+    return out;
+  }
+  islands.forEach((s, k) => {
+    const was = state.t[k];
+    if (was !== undefined) {
+      if (s.t > was + 1) out.push({ id: 'islandRise', vol: 0.6 });
+      else if (was > BRIM.warn && s.t <= BRIM.warn) out.push({ id: 'islandSink', vol: k === mine ? 1.1 : 0.55 });
+    }
+  });
+  state.t = islands.map((s) => s.t);
+  return out;
+}
+
+/** World.onIsland's slack past BRIM.radius: PLAYER_RADIUS (12, not exported) * 0.5. tests/audio.test.ts checks the sim. */
+export const ISLAND_SLACK = 6;
+/** Which of the Brimming's islands this screen's hero stands on (-1 for none), by the sim's own World.onIsland rule. */
+export function myIsland(w: { islands: readonly { x: number; y: number; t: number }[]; player: { x: number; y: number } }): number {
+  return w.islands.findIndex((s) => s.t > 0 && (w.player.x - s.x) ** 2 + (w.player.y - s.y) ** 2 <= (BRIM.radius + ISLAND_SLACK) ** 2);
 }
 
 /**
