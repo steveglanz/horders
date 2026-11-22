@@ -1081,6 +1081,19 @@ export const SOUNDS = {
   /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
   heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
+  /** Phase 14 X1/X7: Today's Heat in the other solo dungeons. The same rising C-E-G figure, so it reads as the Heat,
+   *  over each dungeon's own texture (HEAT_STING in cues.ts). The Foundry: a steam hiss settles under it. */
+  heatFoundry: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.1, a: 0.08, lp: 9000, lp2: 3500, hp: 1800, curve: 1.6 }]),
+  /** The Glarewell: the figure catches the light, a glass shimmer an octave up. */
+  heatGlarewell: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    ...[0.24, 0.31, 0.38].map((d, k) => [{ wave: 'sine' as const, f: [C6, E6, G6][k] * 2, dur: 0.35, delay: d, vol: 0.05, curve: 3, vib: [7, 0.004] as [number, number] }])),
+  /** The Coldmarrow: the figure in the cold, with ice tinkling after it. */
+  heatColdmarrow: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    ...[0.36, 0.42, 0.5].map((d, k) => [{ wave: 'tri' as const, f: [3600, 4300, 3900][k], dur: 0.06, delay: d, vol: 0.05, curve: 4 }])),
+  /** The Wrackline: the figure over a slow wash of water. */
+  heatWrackline: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.8, vol: 0.12, a: 0.3, lp: 1400, lp2: 3200, hp: 400, curve: 1.2, trem: [3, 0.5] as [number, number] }]),
 
   /** End screen: a loot card dealt onto the list, a soft quick flick (it sits under the victory fanfare). */
   lootDeal: [
