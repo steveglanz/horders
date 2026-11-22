@@ -10,7 +10,7 @@ import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
-import { rewardCues } from '../client/audio/rewards';
+import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
 import { LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
@@ -575,6 +575,26 @@ describe('audio', () => {
       expect(looks.filter((r) => r.kind === 'trail').length, `season ${id + 1}`).toBe(SEASON.trailAt.length);
       for (const r of looks) expect(rewardCues({ ...base, seasonRewards: [r] } as never).map((c) => c.id), `season ${id + 1} ${r.kind}`).toEqual(['unlock']);
     }
+  });
+
+  it('flicks each loot card as the end screen deals it in, and sparkles Epic and Mythic shines', () => {
+    // The timings must match the CSS animation (client/index.html lootIn and lootShine).
+    const html = readFileSync(new URL('../client/index.html', import.meta.url), 'utf8');
+    const lootIn = html.match(/animation: lootIn[^;]*;\s*animation-delay: calc\(([\d.]+)s \+ min\(var\(--k, 0\), (\d+)\) \* ([\d.]+)s\)/)!;
+    const shine = html.match(/animation: lootShine[^;]*;\s*animation-delay: calc\(([\d.]+)s \+ min\(var\(--k, 0\), (\d+)\) \* ([\d.]+)s\)/)!;
+    expect(lootIn, 'lootIn delay').not.toBeNull();
+    expect(shine, 'lootShine delay').not.toBeNull();
+    expect([+lootIn[1], +lootIn[2], +lootIn[3]]).toEqual([LOOT_DEAL.first, LOOT_DEAL.cap, LOOT_DEAL.gap]);
+    expect(+shine[1]).toBeCloseTo(LOOT_DEAL.first + LOOT_DEAL.shine, 6);
+    const item = (rarity: string) => ({ rarity }) as never;
+    const r = { items: [item('common'), item('epic'), item('rare')] } as never;
+    expect(lootCues(r).map((c) => [c.id, +c.at.toFixed(2)])).toEqual([['lootDeal', 0.45], ['lootDeal', 0.56], ['lootShine', 0.86], ['lootDeal', 0.67]]);
+    expect(lootCues(r, true)).toEqual([]);
+    // A big haul: cards past the cap land together, so one flick and one shine for the lot.
+    const big = lootCues({ items: Array.from({ length: 14 }, () => item('mythic')) } as never);
+    expect(big.filter((c) => c.id === 'lootDeal')).toHaveLength(LOOT_DEAL.cap + 1);
+    expect(big.filter((c) => c.id === 'lootShine')).toHaveLength(LOOT_DEAL.cap + 1);
+    expect(Math.max(...big.map((c) => c.at))).toBeLessThan(1.8);
   });
 
   it('chimes for what a run unlocked, after the end sting, at most three times', () => {
