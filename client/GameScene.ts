@@ -23,7 +23,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { colossusCue, pickCue, setFlagsOf } from './audio/cues';
+import { behindColossusNow, colossusCue, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -720,7 +720,7 @@ export class GameScene extends Phaser.Scene {
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
       colossus: colossusCue(w),
-      sets: setFlagsOf(w.player, (id) => w.setCount(id)),
+      sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,

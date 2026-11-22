@@ -5,7 +5,7 @@
 //   VOICES=20 DUNGEONS=crucible SEEDS=1,2,3 PARTY=bulwark,lumen,duskblade,slagbinder npx vite-node tools/busycheck.ts
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -115,7 +115,7 @@ for (const dungeon of dungeons) {
       const pc = pressedCue(press, dungeon === 'pressworks' && (w.player.pressedT ?? 0) > 0);
       if (pc) play(pc.id, w.time, pc.vol);
       for (const c of bellyCues(belly, dungeon === 'hoard' ? w.player.swallowT ?? 0 : 0, w.time)) play(c.id, w.time, c.vol);
-      for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id)))) play(c.id, w.time, c.vol);
+      for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)))) play(c.id, w.time, c.vol);
       for (const c of reviveCues(rv, w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), w.reviveSeconds, w.revivesLeft)) play(c.id, w.time);
     }
     // Offline mix of the whole run, ordinary sounds and priority sounds on separate tracks.
