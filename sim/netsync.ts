@@ -18,7 +18,7 @@ export const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes
  * Small arrays of plain data sent whole. A new array on World must go here, in POOLS, or in
  * NOT_SENT (tests/netsync-coverage.test.ts fails otherwise): the Hoard's embers once missed it.
  */
-export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg'] as const;
+export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree'] as const;
 /** Arrays a snapshot carries in fields of their own (Snapshot.heroes, strikeOwner, bossThreat, events). */
 export const SENT_APART = ['heroes', 'strikeOwner', 'threat', 'events'] as const;
 /** Arrays on World that a guest never needs, and why. */

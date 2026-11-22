@@ -175,11 +175,12 @@ The last of the four world bosses without an in-person fight. Brief: [raid4.md](
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| B1 | **Raid 4: the Flue,** the Furnace Regent at tier 11 (Decree, Edict, Abdication, Last Word), achievement and verb set, bots, tests, 80+ seed tuning | design | 🔨 |
+| B1 | **Raid 4: the Flue,** the Furnace Regent at tier 11 (Decree, Edict, Abdication, Last Word), achievement and verb set, bots, tests, 80+ seed tuning | design | ✅ B1 PR: hp 16250, base party 72 of 120 (60%), `NOPASS=1` 2 of 40. A tank can take a passed Decree, Spent is 6 s, and in Edict a Decree fades after one pass (raid4.md Status). The Handover set follows in its own PR |
 | B2 | **Raid 4 art:** the Regent at raid scale from the `regent` shadow sheet, the Decree seal and its 8 s ring, the Spent mark, floor, hub card, set icon | visuals | ⏭ Can start from the brief now; ids land with B1 |
 | B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
 | B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
 | B5 | **Raid 4 QA:** contentcheck at t11, coopsweep with a guest dropping while holding a Decree | QA | ⏭ After B1 |
+| B6 | **Raid 4 class coverage:** at 16250 the parties with less blade damage are under the band (of 40: two Emberwrights 14, Bellows with an Emberwright 11, Bellows with a Duskblade 14, Anvil 15). Find why (Decree passing distance for ranged heroes? damage race?) and lift them toward 22 to 28 of 40, base party unchanged | skills | ⏭ After B1 |
 
 ## R2. The Forge
 
