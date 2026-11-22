@@ -397,7 +397,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
     case 'ventFlare': return { id: ventSounds(c.dungeon).warn };
     case 'layout': {
-      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' && c.dungeon === 'coldmarrow' ? 'layoutIce' : LAYOUT_STING[ev.id];
+      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' ? PILLAR_STING[c.dungeon ?? ''] ?? 'layoutPillars' : LAYOUT_STING[ev.id];
       return id ? { id } : null;
     }
     case 'gather': return { id: 'gather' };
@@ -422,6 +422,13 @@ export const FLOOR_HEATS: ReadonlySet<string> = new Set(['stoneFloor', 'ventFloo
 /** Each Kiln arena layout's sting as the fight starts. The plain 'open' room needs none. */
 export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>['id'], SoundId>> = {
   pillars: 'layoutPillars', channel: 'layoutChannel', vents: 'layoutVents',
+};
+
+/** A stones layout's sting, where the dungeon has its own stones (client/GameScene.ts); others keep layoutPillars. */
+export const PILLAR_STING: Record<string, SoundId> = {
+  coldmarrow: 'layoutIce',
+  // Phase 13 E2/E3, matched to GameScene's RAID_STONE: slag, coal and bone, copper ingots, old brick, pumice.
+  crucible: 'stoneSlag', hoard: 'stoneBone', smeltery: 'stoneIngot', flue: 'stoneBrick', ashvents: 'stonePumice',
 };
 
 /** Each dungeon's vents sound like what visuals drew: fire in the Kiln, steam in the Foundry, glass lenses in the Glarewell. */

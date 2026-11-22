@@ -46,6 +46,8 @@ const SCENES = [
       const e = w.enemies.find((o) => o.alive && o.kind === 'vorhulm');
       if (sc.hp) e.hp = e.maxHp * sc.hp;
       if (sc.fed) w.coalFed = sc.fed;
+      // Ember Feast is the 'spill' version's phase 3 (W3 added Banked Coals as 'bank'); pin it so the shot is the spill.
+      if (sc.until === 'embers') w.bossVariant = 'spill';
     }, sc);
     // The predicate freezes the scene itself the moment it holds (a frame can run 0.25 s x warp of sim).
     await page.waitForFunction((sc) => {
@@ -53,7 +55,11 @@ const SCENES = [
       let ok;
       if (sc.until === 'gorge') ok = w.enemies.some((e) => e.alive && e.kind === 'vorhulm' && e.castId === 'coalGorge');
       else if (sc.until === 'craw') ok = w.enemies.some((e) => e.alive && e.kind === 'craw') && w.time > 1;
-      else ok = w.coalEmbers.length >= 4 && w.coalEmbers.some((m) => m.t < 4);
+      else {
+        ok = w.coalEmbers.length >= 4 && w.coalEmbers.some((m) => m.t < 4);
+        // Frame the spilled embers: the player steps to their middle so the camera centres there.
+        if (ok) { const p = w.player; p.x = p.px = w.coalEmbers.reduce((a, m) => a + m.x, 0) / w.coalEmbers.length; p.y = p.py = w.coalEmbers.reduce((a, m) => a + m.y, 0) / w.coalEmbers.length; }
+      }
       return ok && !(s.warp = 0);
     }, sc, { timeout: 100000, polling: 'raf' }).catch(() => errs.push('timeout ' + sc.name));
     await page.waitForTimeout(300);

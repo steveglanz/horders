@@ -2183,8 +2183,11 @@ export class GameScene extends Phaser.Scene {
     const byRoot = new Map<number, World['enemies']>();
     bars.forEach((e, i) => { const r = find(i); const pk = byRoot.get(r); if (pk) pk.push(e); else byRoot.set(r, [e]); });
     const packs = [...byRoot.values()];
+    // Where enemy bars and names sit this frame, so an ally's name over one can step back (below).
+    const foeBoxes: { l: number; r: number; t: number; b: number }[] = [];
     const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
       const bw = e.def.rank === 'rare' ? 70 : 56;
+      foeBoxes.push({ l: x - bw / 2, r: x + bw / 2, t: top - 3, b: top + (cast ? 13 : 6) });
       b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
       b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
       if (cast) {
@@ -2219,9 +2222,23 @@ export class GameScene extends Phaser.Scene {
       if (shown.some((q) => q.text.replace(/ \u00d7\d+$/, '') === base && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
       shown.push(n);
       const t = this.plates[plate++];
-      if (t) setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
+      if (t) {
+        setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
+        foeBoxes.push({ l: n.x - t.displayWidth / 2, r: n.x + t.displayWidth / 2, t: n.y - 2 - t.displayHeight, b: n.y - 2 });
+      }
     }
     for (; plate < this.plates.length; plate++) if (this.plates[plate].visible) this.plates[plate].setVisible(false);
+    // An ally's name over an enemy's bar or name (the tank's, nearly always, since it stands in melee) hid the enemy's
+    // health. The foe's plate matters more mid-fight and the class ring still says who the ally is, so the name fades
+    // back while it overlaps. A downed ally's name ("· down") always stays solid.
+    for (const al of this.allies) {
+      const lb = al.label;
+      if (!lb.visible) continue;
+      const hw = lb.displayWidth / 2, lt = lb.y - lb.displayHeight;
+      const over = w.heroData(al.hero).player.hp > 0 && foeBoxes.some((q) => lb.x - hw < q.r && lb.x + hw > q.l && lt < q.b && lb.y > q.t);
+      const a = over ? 0.3 : 1;
+      if (lb.alpha !== a) lb.setAlpha(a);
+    }
 
     this.stepFx(this.fx, dt);
     this.stepFx(this.smoke, dt);
