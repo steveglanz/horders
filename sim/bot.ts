@@ -920,7 +920,13 @@ export function botInput(w: World, skill = 1): Input {
     const d = Math.hypot(dx, dy) || 1;
     if (d < t.r + 30) {
       const k = melee ? 0.6 : 0.2;
-      if (t.shape === 'cone') {
+      if (t.shape === 'cone' && t.arc >= Math.PI * 0.9) {
+        // Only from inside it (or right on its edge): outside, stay put.
+        if ((dx * Math.cos(t.angle) + dy * Math.sin(t.angle)) / d < -0.1) continue;
+        // A half-floor cut (Die Cut): walk straight back across its edge, everyone at full pace.
+        fx -= Math.cos(t.angle) * 0.8 * skill;
+        fy -= Math.sin(t.angle) * 0.8 * skill;
+      } else if (t.shape === 'cone') {
         // A long cone can't be outrun: step sideways out of it instead.
         const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
         fx += -Math.sin(t.angle) * side * k * skill;

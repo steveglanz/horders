@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { World, OSKEL } from '../sim/world';
+import { World, OSKEL, OSKEL_VARIANTS, DIECUT } from '../sim/world';
 import { BOUNTY_DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS, WEEKLY_DUNGEON_IDS, partyBlocker } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
-import { downstrokeTaker } from '../sim/bot';
+import { botInput, downstrokeTaker } from '../sim/bot';
 
 type Inner = {
   use(i: number): void;
@@ -14,6 +14,10 @@ type Inner = {
   oskelClock(dt: number): void;
   stampTarget: number;
   bossIndex: number;
+  rivetT: number;
+  downT: number;
+  stampT: number;
+  rollOskelVariant(): string;
 };
 
 /** A Bulwark + Lumen pair in the Pressworks, with Oskel spawned away from them and no other foes. */
@@ -114,5 +118,58 @@ describe('the Pressworks (third group dungeon)', () => {
     expect(downstrokeTaker(w, t)).toBe(0);
     w.hero(0).player.pressedT = 5;
     expect(downstrokeTaker(w, t)).toBe(-1);
+  });
+});
+
+describe('Phase 12 W2: the Pressworks and Oskel\'s Die Cut', () => {
+  it('draws from 6 openers and 3 named fights, with no Ashbuck fights', () => {
+    const d = DUNGEONS.pressworks;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named]) expect(id).not.toMatch(/ashbuck|Charge/i);
+  });
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark' }) as unknown as Inner;
+      const b = new World({ seed, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark' }) as unknown as Inner;
+      expect(a.rollOskelVariant()).toBe(b.rollOskelVariant());
+      seen.add(a.rollOskelVariant());
+    }
+    expect([...seen].sort()).toEqual([...OSKEL_VARIANTS].sort());
+  });
+
+  it('Die Cut takes the Rivets\' place: half the floor through Oskel, away from an open plate, and it hurts', () => {
+    const { w, inner, b } = pair();
+    w.bossVariant = 'cut';
+    inner.downT = 99; inner.stampT = 99; inner.rivetT = 0;
+    const e = w.enemies[b];
+    // An open plate to Oskel's right: the cut goes left.
+    inner.addTelegraph('circle', e.x + 200, e.y, OSKEL.downRadius, 0, 0, 4, OSKEL.downMiss, 'soak', -3);
+    place(w, inner, 0, e.x - 150, e.y); // in the cut
+    place(w, inner, 1, e.x + 150, e.y); // on the plate's side
+    inner.oskelClock(1 / 30);
+    const cuts = w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.arc === Math.PI);
+    expect(cuts).toHaveLength(1);
+    expect(Math.cos(cuts[0].angle)).toBeCloseTo(-1, 5);
+    // No rivet rings when the cut is up.
+    expect(w.telegraphs.filter((t) => t.alive && t.shape === 'circle' && t.kind === 'hit')).toHaveLength(0);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'dieCut')).toBe(true);
+    cuts[0].t = cuts[0].dur - 0.001;
+    const hp0 = w.hero(0).player.hp, hp1 = w.hero(1).player.hp;
+    inner.updatePartyTelegraphs(0.02);
+    expect(w.hero(0).player.hp).toBeLessThan(hp0);
+    expect(w.hero(1).player.hp).toBe(hp1);
+    expect(DIECUT.fuse).toBeGreaterThan(OSKEL.rivetFuse);
+  });
+
+  it('a bot inside the cut walks back across its edge', () => {
+    const { w, inner, b } = pair();
+    const e = w.enemies[b];
+    inner.addTelegraph('cone', e.x, e.y, 1120, 0, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1);
+    place(w, inner, 0, e.x + 120, e.y + 200);
+    const ins = botInput(w);
+    expect(ins.x).toBeLessThan(0);
   });
 });
