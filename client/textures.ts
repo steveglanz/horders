@@ -3165,8 +3165,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice') => {
-    const wet = look === 'wet', ice = look === 'ice';
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron') => {
+    const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron';
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3179,7 +3179,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3190,7 +3190,7 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
     if (ice) {
       // Frozen: hairline cracks in the ice, a frost rim round the top, icicles down the lit side and a sparkle.
@@ -3209,6 +3209,20 @@ export function buildTextures(scene: Phaser.Scene): void {
       const sx = cx - 26, sy = by - h - 20;
       ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
       ctx.restore();
+      return;
+    }
+    if (iron) {
+      // The Hammerdeep: a dressed granite block bound with an iron hoop, rivets on the hoop, chisel marks on top.
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(cx, by - 13, r + 1, ry + 1, 0, 0.12, Math.PI - 0.12); ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, by - 13, r + 1, ry + 1, 0, 0.12, Math.PI - 0.12); ctx.strokeStyle = '#3a3c46'; ctx.lineWidth = 6; ctx.stroke();
+      ctx.fillStyle = '#c8d0e0';
+      for (let i = 1; i < 8; i++) { const a = (i / 8) * Math.PI; ell(ctx, cx + Math.cos(a) * (r + 1), by - 13 + Math.sin(a) * (ry + 1), 2.2, 2.2); ctx.fill(); }
+      ctx.strokeStyle = 'rgba(30,30,40,0.5)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (const [x0, y0] of [[-30, -10], [-8, -18], [14, -6], [32, -14]]) { ctx.beginPath(); ctx.moveTo(cx + x0, by - h + y0); ctx.lineTo(cx + x0 + 9, by - h + y0 - 4); ctx.stroke(); }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(230,236,255,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
       return;
     }
     if (wet) {
@@ -3238,6 +3252,32 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'foundryStone', 200, (ctx) => stone(ctx, 'wet'));
   // V8: the Coldmarrow's stones, pale blue ice with frost, cracks and icicles.
   make(scene, 'iceStone', 200, (ctx) => stone(ctx, 'ice'));
+  // Phase 12 W2: the Hammerdeep's stones, dressed granite bound with a riveted iron hoop.
+  make(scene, 'deepStone', 200, (ctx) => stone(ctx, 'iron'));
+  // Phase 12 W2: a Hammerdeep vent, a forge hearth set in the floor: a riveted steel ring round a grate over white-hot
+  // coals. Like the Kiln's, it rests dim and GameScene brightens it while its flare circle is up.
+  make(scene, 'forgeVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,190,120,0.3)');
+    for (let i = 0; i < 10; i++) {
+      const a0 = (i / 10) * Math.PI * 2, a1 = ((i + 0.9) / 10) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#4c505e' : '#3a3c48'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.fillStyle = '#c8d0e0';
+    for (let i = 0; i < 10; i++) { const a = ((i + 0.45) / 10) * Math.PI * 2; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.4, 2.4); ctx.fill(); }
+    const cg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    cg.addColorStop(0, '#fffbe8'); cg.addColorStop(0.35, '#ffd27a'); cg.addColorStop(0.7, '#ff7a2a'); cg.addColorStop(1, '#4a1206');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = cg; ctx.fill();
+    // A crossed grate.
+    ctx.strokeStyle = '#16161c'; ctx.lineWidth = 4.5; ctx.lineCap = 'butt';
+    for (const d of [-20, 0, 20]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(c - half, c + d); ctx.lineTo(c + half, c + d); ctx.stroke();
+    }
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
 
   // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
   // while its flare circle is up. 26 px across at half scale, the same as the placeholder.
@@ -3330,6 +3370,199 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.beginPath(); ctx.moveTo(c - 10, c - 3); ctx.lineTo(c - 2, c + 1); ctx.lineTo(c + 4, c - 6); ctx.moveTo(c - 2, c + 1); ctx.lineTo(c + 2, c + 9); ctx.lineTo(c + 10, c + 5); ctx.stroke();
     ctx.restore();
     ell(ctx, c - 5, c - 7, 4, 2.4); ctx.fillStyle = 'rgba(255,226,160,0.55)'; ctx.fill();
+  });
+
+  // The Kiln's edge props, drawn at 2x and shown at half scale, standing just outside the arena rim.
+  // A brick kiln furnace: a domed brick body with a short chimney and a glowing arched mouth.
+  make(scene, 'kilnFurnace', 160, (ctx) => {
+    const cx = 80, by = 136;
+    ell(ctx, cx + 8, by + 4, 58, 14); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Chimney behind the dome.
+    ctx.fillStyle = '#4a2a22'; ctx.fillRect(cx + 14, 18, 22, 60); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx + 14, 18, 22, 60);
+    ctx.fillStyle = '#2a1612'; ctx.fillRect(cx + 10, 12, 30, 9); ctx.strokeRect(cx + 10, 12, 30, 9);
+    // The dome.
+    ctx.beginPath(); ctx.moveTo(cx - 56, by); ctx.lineTo(cx - 56, by - 34); ctx.bezierCurveTo(cx - 56, by - 100, cx + 56, by - 100, cx + 56, by - 34); ctx.lineTo(cx + 56, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 56, 0, cx + 56, 0);
+    g.addColorStop(0, '#7a3e2c'); g.addColorStop(0.6, '#5a2c20'); g.addColorStop(1, '#3a1c16');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Brick courses.
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = 'rgba(20,8,6,0.55)'; ctx.lineWidth = 2;
+    for (let y = by - 12, row = 0; y > by - 100; y -= 13, row++) {
+      ctx.beginPath(); ctx.moveTo(cx - 60, y); ctx.lineTo(cx + 60, y); ctx.stroke();
+      for (let x = cx - 60 + (row % 2) * 12; x < cx + 60; x += 24) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 13); ctx.stroke(); }
+    }
+    ctx.restore();
+    // The mouth: an arch of fire.
+    ctx.beginPath(); ctx.moveTo(cx - 24, by); ctx.lineTo(cx - 24, by - 22); ctx.arc(cx, by - 22, 24, Math.PI, 0); ctx.lineTo(cx + 24, by); ctx.closePath();
+    const m = ctx.createRadialGradient(cx, by - 10, 3, cx, by - 14, 34);
+    m.addColorStop(0, '#fff2b0'); m.addColorStop(0.4, '#ffa040'); m.addColorStop(1, '#a8300c');
+    ctx.save(); ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 16; ctx.fillStyle = m; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    flameLick(ctx, cx - 8, by - 2, 7, cx - 10, by - 30);
+    flameLick(ctx, cx + 8, by - 2, 6, cx + 9, by - 26);
+    // Arch bricks round the mouth.
+    ctx.strokeStyle = '#2a1410'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, by - 22, 28, Math.PI, 0); ctx.stroke();
+  });
+
+  // A brazier: an iron bowl of coals on three legs, flames licking up.
+  make(scene, 'kilnBrazier', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 24, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    ctx.strokeStyle = '#1c1210'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (const dx of [-16, 0, 16]) { ctx.beginPath(); ctx.moveTo(cx + dx * 0.6, 60); ctx.lineTo(cx + dx, 88); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(cx - 26, 48); ctx.quadraticCurveTo(cx, 76, cx + 26, 48); ctx.closePath();
+    ctx.fillStyle = '#3a3036'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ell(ctx, cx, 48, 26, 7); const cg = ctx.createRadialGradient(cx, 48, 2, cx, 48, 26); cg.addColorStop(0, '#ffd27a'); cg.addColorStop(0.5, '#ff6a1e'); cg.addColorStop(1, '#5a1406');
+    ctx.fillStyle = cg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    flameLick(ctx, cx - 10, 48, 7, cx - 13, 16);
+    flameLick(ctx, cx + 9, 48, 6, cx + 11, 20);
+    flameLick(ctx, cx, 47, 9, cx + 1, 6);
+  });
+
+  // The Drowned Foundry's arena edge: a riveted brass boiler with a glowing sea-glass gauge, and a standpipe with a
+  // valve wheel that vents steam. They stand outside the rim; coolLight is the teal pool they throw onto the floor.
+  make(scene, 'foundryBoiler', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 56, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Flue pipe behind the tank.
+    ctx.fillStyle = '#5a4428'; ctx.fillRect(cx - 34, 14, 18, 56); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 34, 14, 18, 56);
+    ctx.fillStyle = '#3a2c1a'; ctx.fillRect(cx - 38, 10, 26, 8); ctx.strokeRect(cx - 38, 10, 26, 8);
+    // The tank: an upright cylinder with a domed top.
+    ctx.beginPath(); ctx.moveTo(cx - 50, by); ctx.lineTo(cx - 50, by - 70); ctx.bezierCurveTo(cx - 50, by - 104, cx + 50, by - 104, cx + 50, by - 70); ctx.lineTo(cx + 50, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 50, 0, cx + 50, 0);
+    g.addColorStop(0, '#6e5228'); g.addColorStop(0.3, '#c99a4c'); g.addColorStop(0.55, '#8a6a34'); g.addColorStop(1, '#3e2e18');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Banding and rivets.
+    ctx.save(); ctx.clip();
+    for (const y of [by - 14, by - 46, by - 76]) {
+      ctx.fillStyle = 'rgba(30,20,10,0.55)'; ctx.fillRect(cx - 52, y - 3, 104, 6);
+      ctx.fillStyle = '#e2c27a';
+      for (let x = cx - 44; x <= cx + 44; x += 11) { ell(ctx, x, y, 1.8, 1.8); ctx.fill(); }
+    }
+    // Green verdigris stains running down from the seams.
+    ctx.fillStyle = 'rgba(70,170,140,0.35)';
+    for (const x of [cx - 30, cx + 6, cx + 30]) { ctx.beginPath(); ctx.moveTo(x - 3, by - 76); ctx.quadraticCurveTo(x, by - 40, x + 2, by - 20); ctx.lineTo(x + 5, by - 76); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // The gauge: a round sea-glass window glowing teal.
+    ell(ctx, cx, by - 40, 19, 19); ctx.fillStyle = '#2a2014'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    const wg = ctx.createRadialGradient(cx - 4, by - 44, 2, cx, by - 40, 15);
+    wg.addColorStop(0, '#e4fff6'); wg.addColorStop(0.45, '#4fe3c1'); wg.addColorStop(1, '#0e4a48');
+    ctx.save(); ctx.shadowColor = '#4fe3c1'; ctx.shadowBlur = 14; ell(ctx, cx, by - 40, 14, 14); ctx.fillStyle = wg; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = '#1a2a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx, by - 40); ctx.lineTo(cx + 8, by - 48); ctx.stroke();
+    // Feet.
+    ctx.fillStyle = '#2a2014'; ctx.fillRect(cx - 46, by - 4, 16, 8); ctx.fillRect(cx + 30, by - 4, 16, 8);
+  });
+
+  make(scene, 'foundryValve', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 22, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The standpipe, flanged at the foot and the top.
+    const pg = ctx.createLinearGradient(cx - 9, 0, cx + 9, 0);
+    pg.addColorStop(0, '#5a4428'); pg.addColorStop(0.4, '#c99a4c'); pg.addColorStop(1, '#3e2e18');
+    ctx.fillStyle = pg; ctx.fillRect(cx - 9, 22, 18, 64); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 9, 22, 18, 64);
+    ctx.fillStyle = '#8a6a34';
+    for (const y of [18, 80]) { ctx.fillRect(cx - 14, y, 28, 8); ctx.strokeRect(cx - 14, y, 28, 8); }
+    // The nozzle, open to the side.
+    ctx.fillRect(cx + 9, 26, 14, 9); ctx.strokeRect(cx + 9, 26, 14, 9);
+    // Valve wheel: a red iron ring with four spokes.
+    ctx.strokeStyle = INK; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(cx, 52, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#b8402c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, 52, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; ctx.beginPath(); ctx.moveTo(cx, 52); ctx.lineTo(cx + Math.cos(a) * 15, 52 + Math.sin(a) * 15); ctx.stroke(); }
+    ell(ctx, cx, 52, 4, 4); ctx.fillStyle = '#2a1a14'; ctx.fill();
+  });
+
+  make(scene, 'coolLight', 256, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(170,255,232,0.55)');
+    g.addColorStop(0.2, 'rgba(79,227,193,0.38)');
+    g.addColorStop(0.6, 'rgba(50,170,180,0.2)');
+    g.addColorStop(0.94, 'rgba(40,140,170,0.1)');
+    g.addColorStop(1, 'rgba(40,140,170,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
+  // The Hammerdeep's arena edge: a great anvil on a dressed stone block with a sledge leaning on it, and an iron
+  // miner's lantern on a post burning a pale cold flame. paleLight is the steel-white pool they throw onto the floor.
+  make(scene, 'deepAnvil', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 58, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Stone block.
+    const sg = ctx.createLinearGradient(0, by - 50, 0, by);
+    sg.addColorStop(0, '#5a5866'); sg.addColorStop(1, '#2e2c36');
+    ctx.fillStyle = sg; ctx.fillRect(cx - 40, by - 50, 80, 50); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.strokeRect(cx - 40, by - 50, 80, 50);
+    ctx.strokeStyle = 'rgba(14,10,16,0.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 40, by - 25); ctx.lineTo(cx + 40, by - 25); ctx.moveTo(cx - 6, by - 50); ctx.lineTo(cx - 6, by - 25); ctx.moveTo(cx + 18, by - 25); ctx.lineTo(cx + 18, by); ctx.stroke();
+    // The anvil: waist, body and horn.
+    ctx.beginPath();
+    ctx.moveTo(cx - 20, by - 50); ctx.lineTo(cx - 14, by - 64); ctx.lineTo(cx + 14, by - 64); ctx.lineTo(cx + 20, by - 50); ctx.closePath();
+    ctx.fillStyle = '#2a2a32'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 36, by - 64); ctx.lineTo(cx + 34, by - 64); ctx.lineTo(cx + 34, by - 82); ctx.lineTo(cx - 30, by - 82);
+    ctx.quadraticCurveTo(cx - 58, by - 82, cx - 66, by - 76); ctx.quadraticCurveTo(cx - 52, by - 70, cx - 36, by - 64); ctx.closePath();
+    const ag = ctx.createLinearGradient(0, by - 82, 0, by - 64);
+    ag.addColorStop(0, '#8e94a6'); ag.addColorStop(0.35, '#4c505e'); ag.addColorStop(1, '#2a2c34');
+    ctx.fillStyle = ag; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Bright worn face.
+    ctx.strokeStyle = 'rgba(220,228,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 28, by - 81); ctx.lineTo(cx + 32, by - 81); ctx.stroke();
+    // A sledge leaning on the block.
+    ctx.strokeStyle = INK; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx + 52, by - 2); ctx.lineTo(cx + 38, by - 72); ctx.stroke();
+    ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 52, by - 2); ctx.lineTo(cx + 38, by - 72); ctx.stroke();
+    ctx.save(); ctx.translate(cx + 37, by - 76); ctx.rotate(-0.2);
+    ctx.fillStyle = '#3c3e48'; ctx.fillRect(-14, -9, 28, 18); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(-14, -9, 28, 18);
+    ctx.restore();
+  });
+
+  make(scene, 'deepLantern', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 18, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Post and arm.
+    ctx.fillStyle = '#3a2e26'; ctx.fillRect(cx - 4, 16, 8, 72); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(cx - 4, 16, 8, 72);
+    // Lantern cage hanging from the top.
+    softGlow(ctx, cx, 40, 26, 'rgba(200,220,255,0.35)');
+    ctx.fillStyle = '#d8e6ff'; ctx.beginPath(); ctx.moveTo(cx - 10, 30); ctx.lineTo(cx + 10, 30); ctx.lineTo(cx + 8, 52); ctx.lineTo(cx - 8, 52); ctx.closePath();
+    ctx.save(); ctx.shadowColor = '#bcd4ff'; ctx.shadowBlur = 12; ctx.fill(); ctx.restore();
+    const fg = ctx.createRadialGradient(cx, 44, 1, cx, 42, 9); fg.addColorStop(0, '#ffffff'); fg.addColorStop(1, 'rgba(150,190,255,0)');
+    ell(ctx, cx, 43, 6, 8); ctx.fillStyle = fg; ctx.fill();
+    ctx.strokeStyle = '#1c1c22'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - 10, 30); ctx.lineTo(cx + 10, 30); ctx.lineTo(cx + 8, 52); ctx.lineTo(cx - 8, 52); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 30); ctx.lineTo(cx, 52); ctx.stroke();
+    ctx.fillStyle = '#2a2a32'; ctx.fillRect(cx - 12, 24, 24, 7); ctx.strokeRect(cx - 12, 24, 24, 7); ctx.fillRect(cx - 10, 52, 20, 5);
+  });
+
+  make(scene, 'paleLight', 256, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(225,235,255,0.5)');
+    g.addColorStop(0.2, 'rgba(180,200,240,0.32)');
+    g.addColorStop(0.6, 'rgba(130,150,210,0.17)');
+    g.addColorStop(0.94, 'rgba(110,130,200,0.08)');
+    g.addColorStop(1, 'rgba(110,130,200,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
+  // Phase 12 W2, Ondrel's Ironload: the iron weight that hangs over the marked hero and comes down on them. A squat
+  // tapered block with a ring handle, rivets and a bright worn edge; GameScene lowers it as the Ironload counts down.
+  make(scene, 'ironWeight', 128, (ctx) => {
+    const cx = 64;
+    // Ring handle.
+    ctx.strokeStyle = INK; ctx.lineWidth = 11; ctx.beginPath(); ctx.arc(cx, 30, 16, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    ctx.strokeStyle = '#4c505e'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, 30, 16, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    // The block: wider at the foot.
+    ctx.beginPath(); ctx.moveTo(cx - 30, 30); ctx.lineTo(cx + 30, 30); ctx.lineTo(cx + 44, 108); ctx.lineTo(cx - 44, 108); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 44, 0, cx + 44, 0);
+    g.addColorStop(0, '#2a2c34'); g.addColorStop(0.3, '#7a8092'); g.addColorStop(0.55, '#4c505e'); g.addColorStop(1, '#1e2028');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.stroke();
+    // Bands and rivets.
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(14,12,18,0.55)'; ctx.fillRect(cx - 50, 46, 100, 7); ctx.fillRect(cx - 50, 90, 100, 7);
+    ctx.fillStyle = '#c8d0e0';
+    for (const [y, half] of [[49.5, 32], [93.5, 40]] as const) for (let x = cx - half + 6; x <= cx + half - 6; x += 13) { ell(ctx, x, y, 2, 2); ctx.fill(); }
+    ctx.restore();
+    // Bright worn top edge.
+    ctx.strokeStyle = 'rgba(225,232,255,0.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx - 27, 33); ctx.lineTo(cx + 27, 33); ctx.stroke();
   });
 
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.

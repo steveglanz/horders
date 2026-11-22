@@ -10,9 +10,9 @@ import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
-import { rewardCues } from '../client/audio/rewards';
+import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
+import { IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -490,6 +490,22 @@ describe('audio', () => {
     expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, { ...glare, dungeon: undefined as never })?.id).toBe('kilnVentWarn');
   });
 
+  it('gives the Hammerdeep its own forge vents and Ondrel\'s Ironload its own weight (Phase 12 W2)', () => {
+    const deep = { cls: 'bulwark' as const, acting: 0, dungeon: 'hammerdeep' };
+    expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, deep)?.id).toBe('forgeVentWarn');
+    expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'hammerdeep')?.id).toBe('forgeFlare');
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, deep)?.id).toBe('layoutForge');
+    // The forge set is its own, not the Kiln's borrowed one.
+    expect(VENT_SOUNDS.hammerdeep).not.toEqual(VENT_SOUNDS.kiln);
+    expect(CAST_SOUNDS.ironload).toEqual({ start: 'ironloadWarn', done: 'ironloadMark' });
+    expect(PRIORITY.has('ironloadWarn')).toBe(true);
+    // The weight lands as an IRONLOAD.radius slam; other slams keep the plain slam, and so does r 110 elsewhere.
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: IRONLOAD.radius } as never, deep)?.id).toBe('ironload');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: 160 } as never, deep)?.id).toBe('slam');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: IRONLOAD.radius } as never, { ...deep, dungeon: 'foundry' })?.id).toBe('slam');
+    for (const id of ['ironloadWarn', 'ironloadMark', 'ironload', 'forgeVentWarn', 'forgeFlare', 'layoutForge'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {
     expect(CAST_SOUNDS.glintfall).toEqual({ start: 'glintWarn', done: 'glintfall' });
     expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);
@@ -505,6 +521,16 @@ describe('audio', () => {
     expect(cueFor({ type: 'emberDrift', n: 3 } as never, c)?.id).toBe('emberDriftFall');
     expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 1 } as never, c)?.id).toBe('emberPickUp');
     expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 0 } as never, c)).toMatchObject({ id: 'emberTaken', vol: 0.5 });
+  });
+
+  it('gives Hessa\'s Outsurge its own wind-up and backwash, apart from the inward Ebb (W1)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0 };
+    const ebb = { type: 'castStart', index: 0, id: 'ebb', name: 'The Ebb' } as never;
+    expect(cueFor(ebb, c)?.id).toBe('ebbWarn');
+    expect(cueFor(ebb, { ...c, outsurge: true })?.id).toBe('outsurgeWarn');
+    expect(ebbCue({ on: false }, true)?.id).toBe('ebbPull');
+    expect(ebbCue({ on: false }, true, true)?.id).toBe('outsurgePull');
+    expect(PRIORITY.has('outsurgeWarn') && PRIORITY.has('outsurgePull')).toBe(true);
   });
 
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
@@ -575,6 +601,26 @@ describe('audio', () => {
       expect(looks.filter((r) => r.kind === 'trail').length, `season ${id + 1}`).toBe(SEASON.trailAt.length);
       for (const r of looks) expect(rewardCues({ ...base, seasonRewards: [r] } as never).map((c) => c.id), `season ${id + 1} ${r.kind}`).toEqual(['unlock']);
     }
+  });
+
+  it('flicks each loot card as the end screen deals it in, and sparkles Epic and Mythic shines', () => {
+    // The timings must match the CSS animation (client/index.html lootIn and lootShine).
+    const html = readFileSync(new URL('../client/index.html', import.meta.url), 'utf8');
+    const lootIn = html.match(/animation: lootIn[^;]*;\s*animation-delay: calc\(([\d.]+)s \+ min\(var\(--k, 0\), (\d+)\) \* ([\d.]+)s\)/)!;
+    const shine = html.match(/animation: lootShine[^;]*;\s*animation-delay: calc\(([\d.]+)s \+ min\(var\(--k, 0\), (\d+)\) \* ([\d.]+)s\)/)!;
+    expect(lootIn, 'lootIn delay').not.toBeNull();
+    expect(shine, 'lootShine delay').not.toBeNull();
+    expect([+lootIn[1], +lootIn[2], +lootIn[3]]).toEqual([LOOT_DEAL.first, LOOT_DEAL.cap, LOOT_DEAL.gap]);
+    expect(+shine[1]).toBeCloseTo(LOOT_DEAL.first + LOOT_DEAL.shine, 6);
+    const item = (rarity: string) => ({ rarity }) as never;
+    const r = { items: [item('common'), item('epic'), item('rare')] } as never;
+    expect(lootCues(r).map((c) => [c.id, +c.at.toFixed(2)])).toEqual([['lootDeal', 0.45], ['lootDeal', 0.56], ['lootShine', 0.86], ['lootDeal', 0.67]]);
+    expect(lootCues(r, true)).toEqual([]);
+    // A big haul: cards past the cap land together, so one flick and one shine for the lot.
+    const big = lootCues({ items: Array.from({ length: 14 }, () => item('mythic')) } as never);
+    expect(big.filter((c) => c.id === 'lootDeal')).toHaveLength(LOOT_DEAL.cap + 1);
+    expect(big.filter((c) => c.id === 'lootShine')).toHaveLength(LOOT_DEAL.cap + 1);
+    expect(Math.max(...big.map((c) => c.at))).toBeLessThan(1.8);
   });
 
   it('chimes for what a run unlocked, after the end sting, at most three times', () => {

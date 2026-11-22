@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, COLD, Input, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -833,6 +833,27 @@ export function botInput(w: World, skill = 1): Input {
     if (near && near.d < SCATTER_GAP) {
       fx += (-near.dx / (near.d || 1)) * 0.7 * skill;
       fy += (-near.dy / (near.d || 1)) * 0.7 * skill;
+    }
+  }
+  // Phase 12 W2, Ondrel's Ironload: everyone gathers on the marked hero, who walks to the others.
+  if (w.loadHero >= 0 && w.heroes.length > 1 && process.env.NOSTACK !== '1') {
+    const m = w.heroData(w.loadHero).player;
+    if (w.loadHero !== w.acting) {
+      const dx = m.x - p.x, dy = m.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > IRONLOAD.radius * 0.5) { fx += (dx / d) * 0.7 * skill; fy += (dy / d) * 0.7 * skill; }
+    } else {
+      let cx = 0, cy = 0, n = 0;
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (k === w.acting || q.hp <= 0) continue;
+        cx += q.x; cy += q.y; n++;
+      }
+      if (n) {
+        const dx = cx / n - p.x, dy = cy / n - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d > 40) { fx += (dx / d) * 0.4 * skill; fy += (dy / d) * 0.4 * skill; }
+      }
     }
   }
   // Verb sets in a party: a ranged hero plays its set's verb. Deepguard: stay within reach of an ally.

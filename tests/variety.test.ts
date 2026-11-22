@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -538,5 +538,123 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.bossVariant).toBe('drift');
     expect(g.driftEmbers).toEqual(w.driftEmbers);
+  });
+});
+
+describe('Phase 12 W1: Hessa\'s Outsurge', () => {
+  type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; rollHessaVariant(): string;
+    bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; rafts: unknown[] };
+  function hessa(variant: 'riptide' | 'outsurge', phase = 2): { w: World; q: H } {
+    const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as H;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('hessa', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.wrackPhase = phase;
+    w.bossVariant = variant;
+    w.enemies[b].abilityT = 99;
+    q.rafts = [];
+    q.ebbT = 1;
+    w.player.x = 300; w.player.y = 0;
+    return { w, q };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' }) as unknown as H;
+      const b = new World({ seed, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' }) as unknown as H;
+      expect(a.rollHessaVariant()).toBe(b.rollHessaVariant());
+      seen.add(a.rollHessaVariant());
+    }
+    expect([...seen].sort()).toEqual([...HESSA_VARIANTS].sort());
+  });
+
+  it('in phase 2 the Outsurge pushes out to the rim and burns there; Riptide still pulls in', () => {
+    const rip = hessa('riptide');
+    rip.q.wrackClock(0.5);
+    expect(rip.w.player.x).toBeLessThan(300);
+    const out = hessa('outsurge');
+    expect(out.w.outsurge).toBe(true);
+    out.q.wrackClock(0.5);
+    expect(out.w.player.x).toBeGreaterThan(300);
+    const rim = hessa('outsurge');
+    rim.w.player.x = rim.w.arenaR - 30;
+    const hp = rim.w.player.hp;
+    rim.q.wrackClock(0.5);
+    expect(rim.w.player.x).toBeLessThanOrEqual(rim.w.arenaR);
+    // tideBurn plus the rim's burn, against tideBurn alone in open water away from the rim
+    const lost = hp - rim.w.player.hp;
+    const mid = hessa('outsurge');
+    const hp2 = mid.w.player.hp;
+    mid.q.wrackClock(0.5);
+    expect(lost).toBeGreaterThan((hp2 - mid.w.player.hp) * 1.5);
+    expect(OUTSURGE.rimBurn).toBeGreaterThan(0);
+  });
+
+  it('phase 1 pulls in for both versions', () => {
+    const { w, q } = hessa('outsurge', 1);
+    expect(w.outsurge).toBe(false);
+    q.wrackClock(0.5);
+    expect(w.player.x).toBeLessThan(300);
+  });
+});
+
+describe('Phase 12 W2: the Hammerdeep and Ondrel\'s Ironload', () => {
+  type O = { rollOndrelVariant(): string; ondrelClock(dt: number): void; finishCast(i: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; choirT: number; anvilT: number };
+  const party = [{ cls: 'bulwark' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function ondrel(): { w: World; q: O; b: number } {
+    const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as O;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ondrel', 0, -200);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'load';
+    q.anvilT = 99;
+    return { w, q, b };
+  }
+
+  it('draws from 6 openers and 3 named fights, and rolls stones or vents but never lava', () => {
+    const d = DUNGEONS.hammerdeep;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+    expect(LAYOUTS.hammerdeep).not.toContain('channel');
+  });
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark' }) as unknown as O;
+      const b = new World({ seed, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark' }) as unknown as O;
+      expect(a.rollOndrelVariant()).toBe(b.rollOndrelVariant());
+      seen.add(a.rollOndrelVariant());
+    }
+    expect([...seen].sort()).toEqual([...ONDREL_VARIANTS].sort());
+  });
+
+  it('Ironload marks a hero and lands split among everyone standing with them', () => {
+    const { w, q, b } = ondrel();
+    const e = w.enemies[b];
+    e.castId = 'ironload';
+    q.finishCast(b);
+    expect(w.loadHero).toBeGreaterThanOrEqual(0);
+    expect(w.loadT).toBe(IRONLOAD.time);
+    const m = w.loadHero;
+    // Two heroes with the mark, two far away.
+    const others = [0, 1, 2, 3].filter((k) => k !== m);
+    w.heroData(m).player.x = 300; w.heroData(m).player.y = 300;
+    w.heroData(others[0]).player.x = 320; w.heroData(others[0]).player.y = 300;
+    w.heroData(others[1]).player.x = -400; w.heroData(others[1]).player.y = 0;
+    w.heroData(others[2]).player.x = -400; w.heroData(others[2]).player.y = 100;
+    const hp = [0, 1, 2, 3].map((k) => w.heroData(k).player.hp);
+    q.choirT = 99;
+    q.ondrelClock(IRONLOAD.time + 0.01);
+    expect(w.loadHero).toBe(-1);
+    const lost = [0, 1, 2, 3].map((k) => hp[k] - w.heroData(k).player.hp);
+    expect(lost[m]).toBeGreaterThan(0);
+    expect(lost[others[0]]).toBeGreaterThan(0);
+    expect(lost[others[1]]).toBe(0);
+    expect(lost[others[2]]).toBe(0);
   });
 });

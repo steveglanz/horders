@@ -834,7 +834,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | '' = '';
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -890,6 +890,9 @@ export class World {
   }
   private choirT = 0;
   private choirN = 0;
+  /** Phase 12 W2: Ondrel's Ironload. The marked hero (-1: none), and how long until it lands. */
+  loadHero = -1;
+  loadT = 0;
   /** Set while a dungeon verb that wards must not soak (Glare) lands. */
   private verbHit = false;
   private gripT = 0;
@@ -1708,10 +1711,14 @@ export class World {
     }
     if (this.dungeonId === 'wrackline') {
       // Fresh rafts every fight, spread round their circles; the first pull comes after a breather.
+      // Phase 12 W1: every fight but Hessa's rolls its currents from the seed (which way each raft drifts,
+      // and where they start), so the quay plays differently from fight to fight.
+      const cur = this.rollCurrents(def.id);
       this.rafts = [0, 1, 2].map((k) => {
-        const a = (k * 2 * Math.PI) / 3 + 0.5;
+        const a = (k * 2 * Math.PI) / 3 + 0.5 + cur.turn;
         const ring = WRACK.raftRings[k];
-        return { a, ring, dir: k === 1 ? -1 : 1, x: Math.cos(a) * ring, y: Math.sin(a) * ring, sunkT: 0 };
+        const dir = CURRENTS[cur.pattern][k];
+        return { a, ring, dir, x: Math.cos(a) * ring, y: Math.sin(a) * ring, sunkT: 0 };
       });
       this.tideClockT = WRACK.firstTide;
       this.ebbWarnT = 0;
@@ -1791,6 +1798,9 @@ export class World {
           this.anvilT = ONDREL.firstAnvil;
           this.choirT = ONDREL.firstChoir;
           this.choirN = 0;
+          this.loadHero = -1;
+          this.loadT = 0;
+          this.bossVariant = this.rollOndrelVariant();
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
@@ -1803,6 +1813,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.wrackPhase = 1;
+          this.bossVariant = this.rollHessaVariant();
           this.sinkT = WRACK.firstSink;
           this.shoalT = WRACK.firstShoal;
           this.events.push({ type: 'bossSpawn' });
@@ -1981,6 +1992,27 @@ export class World {
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
   }
 
+  /** Phase 12 W2: Ondrel's version this run, hashed from the seed (no run-rng draws). */
+  private rollOndrelVariant(): OndrelVariant {
+    if (this.stress) return 'choir';
+    let h = Math.imul(this.seed ^ 0x510e527f, 0x9b05688c) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x1f83d9ab) >>> 0;
+    return ONDREL_VARIANTS[(h >>> 4) % ONDREL_VARIANTS.length];
+  }
+
+  /** Phase 12 W1: Hessa's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollHessaVariant(): HessaVariant {
+    if (this.stress) return 'riptide';
+    let h = Math.imul(this.seed ^ 0x3c6ef372, 0x1b56c4e9) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0;
+    return HESSA_VARIANTS[(h >>> 4) % HESSA_VARIANTS.length];
+  }
+
+  /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
+  get outsurge(): boolean {
+    return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+  }
+
   /** V8: Nhevra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
   private rollNhevraVariant(): NhevraVariant {
     if (this.stress) return 'ice';
@@ -2030,7 +2062,8 @@ export class World {
    * swap a fight; that small miss is accepted). The fight under way counts only before it starts.
    */
   situationAhead(s: Situation): boolean {
-    if (SITE_CARDS.off) return false;
+    // Solo dungeons only for now: group tables (the Hammerdeep's stones and vents since W2) are measured without them.
+    if (SITE_CARDS.off || this.dungeonDef.style !== 'solo') return false;
     const from = this.phase === 'fight' ? this.encounter + 1 : this.encounter;
     for (let k = from; k < this.route.length; k++) {
       const id = this.route[k];
@@ -2067,6 +2100,14 @@ export class World {
   inLava(p: Player = this.player): boolean {
     for (const c of this.lava) if (segDist2(p.x, p.y, c.x1, c.y1, c.x2, c.y2) <= (c.w / 2) ** 2) return true;
     return false;
+  }
+
+  /** Phase 12 W1: the Wrackline's currents for this fight, hashed from the seed and the fight's place (no run-rng draws). Hessa's fight keeps the first pattern. */
+  private rollCurrents(id: EncounterId): { pattern: number; turn: number } {
+    if (this.dungeonId !== 'wrackline' || this.stress || id === this.dungeonDef.boss) return { pattern: 0, turn: 0 };
+    let h = (Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) + Math.imul(this.encounter + 1, 0x85ebca77)) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae3d) >>> 0;
+    return { pattern: h % CURRENTS.length, turn: ((h >>> 8) % 360) * (Math.PI / 180) };
   }
 
   private rollLayout(id: EncounterId): void {
@@ -4560,6 +4601,16 @@ export class World {
         this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
       }
       this.use(at);
+    } else if (id === 'ironload') {
+      // Mark a hero other than the one holding Ondrel; it lands in `time` s, split among everyone with them.
+      const tank = this.targetOf(i, 0);
+      const pick: number[] = [];
+      for (let k = 0; k < this.heroes.length; k++) if (k !== tank && this.heroPlayer(k).hp > 0) pick.push(k);
+      if (!pick.length) for (let k = 0; k < this.heroes.length; k++) if (this.heroPlayer(k).hp > 0) pick.push(k);
+      if (pick.length) {
+        this.loadHero = pick[this.rng.int(pick.length)];
+        this.loadT = IRONLOAD.time;
+      }
     } else if (id === 'choir') {
       // Every hero takes a share of their health, a bit more each time: the healer's job.
       const at = this.acting;
@@ -5386,7 +5437,7 @@ export class World {
     e.abilityT = ONDREL.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
-    this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage * this.tierDamage, 'hit', i);
+    this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage, 'hit', i); // scaled by tier as it lands
   }
 
   // ---------------------------------------------------------------- the Coldmarrow
@@ -5575,7 +5626,10 @@ export class World {
   private wrackClock(dt: number): void {
     const boss = this.bossIndex >= 0 && this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa' ? this.enemies[this.bossIndex] : null;
     const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
-    const drift = WRACK.drift * (this.wrackPhase >= 2 ? WRACK.riptideDrift : 1);
+    // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
+    const out = this.outsurge;
+    const riptide = this.wrackPhase >= 2 && !out;
+    const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
       r.x = Math.cos(r.a) * r.ring;
@@ -5584,18 +5638,20 @@ export class World {
     }
     if (this.ebbT > 0) {
       this.ebbT = Math.max(0, this.ebbT - dt);
-      const pull = WRACK.drag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
-      const foePull = WRACK.foeDrag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
+      const pull = WRACK.drag * (riptide ? WRACK.riptideDrag : 1);
+      const foePull = WRACK.foeDrag * (riptide ? WRACK.riptideDrag : 1);
+      const rim = this.arenaR - OUTSURGE.rimR;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
         const d = Math.hypot(q.x, q.y) || 1;
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
-        const step = this.anchored(q) ? 0 : Math.min(d, pull * CLASSES[this.heroes[k].cls].speed * dt);
+        const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
+        const step = this.anchored(q) ? 0 : Math.min(room, pull * CLASSES[this.heroes[k].cls].speed * dt) * (out ? -1 : 1);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
-        const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
+        const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
         this.hurtPlayer(this.player.maxHp * share * dt, -1, true);
@@ -5606,10 +5662,10 @@ export class World {
         const e = this.enemies[i];
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
-        const step = Math.min(d, foePull * dt);
+        const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step;
         e.y -= (e.y / d) * step;
-        if (d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
+        if (out ? d >= rim : d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
       }
     } else if (this.ebbWarnT > 0) {
       this.ebbWarnT = Math.max(0, this.ebbWarnT - dt);
@@ -5619,7 +5675,7 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery;
         this.ebbWarnT = WRACK.tideWarn;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: 'The Ebb' });
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -6319,7 +6375,29 @@ export class World {
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
-        this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+        if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+      }
+    }
+    // Ironload: when it lands, its weight is shared by every hero standing with the marked one.
+    if (this.loadHero >= 0) {
+      this.loadT -= dt;
+      const m = this.heroPlayer(this.loadHero);
+      if (!m || m.hp <= 0) { this.loadHero = -1; this.loadT = 0; }
+      else if (this.loadT <= 0) {
+        const at = this.acting;
+        const near: number[] = [];
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp > 0 && dist2(q.x, q.y, m.x, m.y) <= IRONLOAD.radius ** 2) near.push(k);
+        }
+        const share = (IRONLOAD.share + IRONLOAD.grow * this.choirN) / Math.max(1, near.length);
+        this.choirN++;
+        for (const k of near) { this.use(k); this.hurtPlayer(this.player.maxHp * share, i, true); }
+        this.use(at);
+        this.events.push({ type: 'slam', x: m.x, y: m.y, r: IRONLOAD.radius });
+        this.loadHero = -1;
+        this.loadT = 0;
       }
     }
     // Slag Grip burns once a second; Sundered fades.
@@ -7106,6 +7184,8 @@ export type LayoutId = 'open' | 'pillars' | 'channel' | 'vents';
 /** The layouts each dungeon's fights roll from (open is listed twice in the Kiln, so it stays the most common). */
 export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
+  // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
+  hammerdeep: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
@@ -7269,6 +7349,22 @@ export const WRACK = {
   /** Soft enrage: the Ebb every `tideLate` s. */
   enrageAfter: 240,
 };
+/** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
+export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
+export type OndrelVariant = 'choir' | 'load';
+export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
+/**
+ * Ironload, on the Choir's timer: marks a hero (not the one Ondrel is on) for `time` s. It lands for
+ * `share` (+`grow` each time) of max health, split evenly among the living heroes within `radius` of the mark.
+ * Four together take about what one Choir costs each; alone it is half a hero's health.
+ */
+export const IRONLOAD = { time: 5, radius: 110, share: 0.5, grow: 0.08 };
+/** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
+export type HessaVariant = 'riptide' | 'outsurge';
+export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];
+/** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
+export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
 export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1, hessa: 2, oskel: 1 };
 
@@ -7394,8 +7490,11 @@ export const ONDREL = {
    * `anvilEnraged` s): then the tank needs a cooldown or a taunt swap.
    */
   sunderTime: 8, sunderMult: 1.5, anvilEnraged: 7,
-  /** Hammer Sweep: a frontal cone at the target between Anvilfalls. */
-  sweepEvery: 5, sweepCast: 1.1, sweepRange: 230, sweepArc: 70, sweepDamage: 14,
+  /**
+   * Hammer Sweep: a frontal cone at the target between Anvilfalls. Telegraphs scale by tier as they land. Before Phase 12 the 14 here was scaled twice
+   * (once when made), so 25 keeps tier 6 where it was (14 x 1.12^5 = 24.7).
+   */
+  sweepEvery: 5, sweepCast: 1.1, sweepRange: 230, sweepArc: 70, sweepDamage: 25,
   /** Choir of Iron: every hero loses this share of max health, growing each time. */
   choir: 0.12, choirGrow: 0.02, choirEvery: 10, choirCast: 1.5, firstChoir: 9,
   /** Slag Grip: a melee hit that stacks a burn (share of max health per second per stack). */

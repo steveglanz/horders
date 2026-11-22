@@ -7,7 +7,7 @@
  * localStorage. The game keeps running fine if WebAudio is missing.
  */
 import type { RunRewards } from '../../sim/hero';
-import { rewardCues } from './rewards';
+import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
@@ -350,7 +350,7 @@ class AudioEngine {
     if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
-    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull));
+    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge));
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     if (ctx.sets) for (const c of setCues(this.setFlags, ctx.sets)) this.cue(c);
@@ -394,6 +394,9 @@ class AudioEngine {
   /** Chimes for what a finished run unlocked (achievements, titles, rewards), after the victory or defeat sting. */
   rewards(r: RunRewards | undefined): void {
     for (const c of rewardCues(r)) setTimeout(() => this.play(c.id), c.at * 1000);
+    // The loot cards' flicks follow the end screen's deal-in animation, which reduced motion turns off.
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const c of lootCues(r, reduced)) setTimeout(() => this.play(c.id, c.id === 'lootDeal' ? 0.8 : 1, 0.05), c.at * 1000);
   }
 
   /** The Coldmarrow's Hearthcoal, 1 (full) to 0 (out): its crackle in the music thins as it dims. */

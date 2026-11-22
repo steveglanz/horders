@@ -115,7 +115,7 @@ The plan called this the "Kindling", but Kindling is already a potion, so it is 
 All four keep tier 1 in band (novice 45 to 51%, good bot 75 to 79%). A forced pillars or vents day also skips the lava channel, which is why those days run easier at tier 2.
 
 ## Found on the way (for V7)
-- **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix.
+- **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix. Fixed in Phase 12 W2: see "Phase 12 W2, part 2".
 - **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons. Done: see "The lava channel and the L7 check" at the end.
 
 ## V7 status (measured 22 Nov 2026): the Kiln
@@ -279,3 +279,89 @@ At 160 seeds, the good-bot Duskblade and Bulwark win 159 or 160 of 160 both befo
 I also tried a tier 1 spawn cut: one Spitter in Brute and Spitters, one Ashbuck in Warden and Ashbucks. It made no difference beyond noise, so I dropped it.
 
 The bot change only affects channel fights, which only the Kiln has. The hashcheck's Kiln rows move.
+
+## Phase 12 W1 (built 22 Nov 2026): the Wrackline
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2). The new fights mix the Kiln's new foes into the water:
+  - `quaySpitters`: 2 Ember Spitters and 2 Shoal Lurkers.
+  - `quayCharge`: 2 Ashbucks and a Lurker.
+  - `shoalRift`: a Hollow Rift and 2 Lurkers. The Ebb drags its Ashlings to the drain.
+  - Named fight `haulerSpitters`: a Barge Hauler and 2 Spitters.
+- **Currents:** every fight but Hessa's rolls which way each raft drifts (`CURRENTS`, 4 patterns, the first is the original) and where the rafts start, from a hash of the seed and the fight's place. There are no stone, lava or vent layouts here, since the rafts already shape the floor.
+- **Hessa's second version.** As she rises, the seed picks `bossVariant`:
+  - `riptide`: as before, phase 2 speeds the rafts and the pull.
+  - `outsurge`: from phase 2 **the Outsurge** turns the Ebb around. Off a raft, the water throws you out to the rim instead of into the drain. The last 90 px of the rim burns 10% of max health a second, like the drain does. Foes are thrown out too, and the rim hurts them.
+  - Tuning is in `OUTSURGE`. The cast is still `castStart` with id `ebb`, named "The Outsurge". `World.outsurge` says when it is live, and the banner says so (`OUTSURGE_TIP`).
+- **Client:** the Ebb's foam streaks run outward during the Outsurge (placeholder until visuals).
+- **Names:** "Outsurge" is an invented word, and a web search on 22 Nov 2026 found no WoW match. The Rift fight was first called "The Drowned Rift" but became "The Rift in the Wrack", because WoW has a Drowned City and a Drowned Lair.
+
+**Run variety** (tools/variety.ts, tier 10, now counting Hessa's version and the currents): 1 run in 1000 repeats an earlier run in its block of 20, against 409 before. Routes went from 18 to 150, and there are 923 run shapes.
+
+**Win rates** (tools/foundry.ts, `DUNGEON=wrackline HERO=tools/heroes/hero-t8.json`, seeds 1 to 160, main 5a5f6c9 → this change):
+
+| Class | Tier 10 | Tier 13 |
+|---|---|---|
+| Emberwright | 145 → 149 | 33 → 25 |
+| Duskblade | 151 → 154 | |
+| Bulwark | 154 → 156 | 20 → 23 |
+| Lumen | 160 → 160 | |
+| Slagbinder | 160 → 160 | |
+
+Hessa's boss record by version (tier 10, wins out of the runs that reached her):
+- Emberwright: riptide 77 of 77, outsurge 69 of 69.
+- Duskblade: riptide 75 of 78, outsurge 77 of 77.
+- Bulwark: riptide 78 of 81, outsurge 76 of 79.
+
+The two versions are about as hard for bots, which ride a raft through every Ebb either way. For a human, the Outsurge changes where the danger is.
+
+The tier 13 moves are within the noise at 160 seeds (about ±5). The hashcheck has no Wrackline rows and is identical to main.
+
+## Phase 12 W2, part 1 (built 22 Nov 2026): the Hammerdeep and Ondrel's Ironload
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2).
+  - New openers: `glassSpitters`, `riftfall` and the Kiln's `spitters`.
+  - New named fight: `spitterBrute`.
+- **Ashbucks are left out of group play.** The first set had `crawlerCharge` and `ashbuckWarden`. An Ashbuck's charge lane runs through a party standing together, and the full party at tier 8 fell from 96 to 71 of 160 with the new fights alone (layouts alone: 94).
+- **Layouts:** `LAYOUTS.hammerdeep` is open, open, pillars or vents. There is no lava in group dungeons, since a party can't all cross it at once. The vents borrow the Kiln's fire sounds (`VENT_SOUNDS.hammerdeep`) until sound gives them their own. Ondrel's fight stays open.
+- **Ondrel's second version.** The seed picks `bossVariant`:
+  - `choir`: Choir of Iron, as before.
+  - `load`: **Ironload** on the same timer. It marks a hero other than the one Ondrel is on (`World.loadHero`). After 5 s it lands for 50% of max health, plus 8% more each time. The damage is split evenly among the living heroes within 110 px of the mark.
+  - Four heroes together take about what one Choir costs each. Alone, the marked hero takes half its health.
+  - The Choir is a healer check. Ironload is a party positioning check, the opposite of the Ashvents' Scatter Embers, which want you spread out.
+  - Tuning is in `IRONLOAD`. The banner says so (`IRONLOAD_TIP`), and the client draws a placeholder iron ring that fills as it comes down.
+- **Bots:** while a hero is marked, everyone walks to it, and the marked hero walks to the others. `NOSTACK=1` turns this off for measuring.
+- **Name:** "Ironload" is an invented word, and a web search on 22 Nov 2026 found no WoW match. "Ironbrand" was dropped as too close to WoW's "Ironband", and "Shared Weight" as too close to WoW's "Shared Burden".
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, full party Bulwark, Lumen, Duskblade and Emberwright, main → this change:
+
+| Check | main | This change |
+|---|---|---|
+| Tier 4, seeds 1 to 80 | 80 | 80 |
+| Tier 6, seeds 1 to 80 | 78 | 78 |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright) | 5 | 3 |
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights) | 10 | 19 (24%, under the 25% bar) |
+| Tier 8, seeds 1 to 160 | 96 (60%) | 94 (59%, in the 55 to 70% band) |
+
+At tier 8, Ondrel's record by version is choir 52 of 88 and load 42 of 72, so the two are about as hard.
+
+**Run variety** (tools/variety.ts, tier 6, now counting Ondrel's version): 2 of 1000 runs repeat an earlier run in their block of 20, against 409 before. Routes went from 18 to 150, and there are 928 run shapes.
+
+The hashcheck has no Hammerdeep rows and is identical to main. Ondrel's double-scaled Hammer Sweep is still open; it is the next W2 PR, with its own re-measure.
+
+## Phase 12 W2, part 2 (22 Nov 2026): Ondrel's Hammer Sweep counts the tier once
+Hammer Sweep made its telegraph with `ONDREL.sweepDamage * tierDamage`, and telegraphs multiply by `tierDamage` again when they land. So it hit 14 × 1.12^(2(tier − 1)). Now the sweep is made unscaled, like every other telegraph. `sweepDamage` goes from 14 to 25, which keeps tier 6 where it was (14 × 1.12^5 = 24.7).
+
+The landed hit, before → after:
+
+| Tier | Before | After |
+|---|---|---|
+| 4 | 28 | 35 |
+| 6 | 43 | 44 |
+| 8 | 68 | 55 |
+| 10 | 107 | 78 |
+
+Mythic key levels scale `tierDamage` too, so the sweep no longer squares the key multiplier either.
+
+**Measured** (tools/group.ts, heroes-r2, full party, main 64541ba → this change):
+- Tier 8, hero-t8-0, seeds 1 to 160: 94 → 95.
+- Tier 10, hero-t8-0, seeds 1 to 80: 7 → 8.
+
+Bots step out of the cone, so the fix barely moves them. It matters for players, who will be hit by the sweep sometimes. Tiers 4 and 6 are 80 and 78 of 80 on main, and the tier 6 sweep is unchanged. The hashcheck has no Hammerdeep rows.

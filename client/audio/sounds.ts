@@ -392,6 +392,19 @@ export const SOUNDS = {
     { wave: 'tri', f: A5, dur: 0.22, delay: 2.1, vol: 0.35, curve: 1 },
   ],
   anvilfall: join(clang(196, 0.6, 1.2), boom(40, 1.1, 0.8)),
+  /** Ironload winds up (Ondrel's second version): chains rattle and an iron weight is hauled up overhead. */
+  ironloadWarn: join(
+    ...[0, 0.18, 0.34, 0.48, 0.6].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.06, delay: d, vol: 0.16 + k * 0.02, lp: 7000, hp: 1800, curve: 3 },
+      { wave: 'sine' as const, f: 1250 + k * 60, dur: 0.08, delay: d, vol: 0.05, curve: 3 }]),
+    [{ wave: 'saw', f: 70, f2: 140, dur: 1.4, vol: 0.18, a: 0.9, lp: 900, lp2: 2000, curve: 0.8 },
+      // The weight creaks up overhead, and the chains keep rattling under it: both sit in the phone band so a busy fight can't bury the wind-up.
+      { wave: 'square', f: 220, f2: 440, dur: 1.3, vol: 0.07, a: 0.6, lp: 2400, curve: 0.8 },
+      { wave: 'noise', f: 0, dur: 1.2, vol: 0.06, a: 0.4, lp: 6000, hp: 1600, curve: 1 }],
+  ),
+  /** Ironload is marked on a hero: one heavy chain clank as the weight swings into place (5 s to stack up under it). */
+  ironloadMark: join(clang(147, 0.4, 0.8), [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.2, lp: 6000, hp: 1500, curve: 3 }]),
+  /** Ironload lands: a crushing iron weight on everyone under it. Deeper and longer than a slam. */
+  ironload: join(clang(110, 0.55, 1.1), boom(35, 1.0, 0.85), [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.4, lp: 5000, hp: 800, curve: 3 }]),
   /** Choir of Iron: the party-wide pulse, a dissonant iron chord that thumps everyone. */
   choir: join(
     [note(-17), note(-11), note(-10)].flatMap((f) => [
@@ -534,6 +547,21 @@ export const SOUNDS = {
     // A churning surface hiss on the same tremolo: phone speakers lose the rumble, so this carries the pull (busycheck had it 2.5 dB over a party).
     { wave: 'noise', f: 0, dur: 2.1, vol: 0.26, a: 0.12, lp: 5000, lp2: 2500, hp: 900, trem: [5, 0.7] },
     { wave: 'saw', f: 300, f2: 240, dur: 2.1, vol: 0.11, a: 0.2, lp: 2400, trem: [5, 0.5] },
+  ],
+  /** The Outsurge winds up (Hessa's second version, phase 2): the water draws in under you, then rears to rush outward, a falling swell with a bright crest. */
+  outsurgeWarn: [
+    { wave: 'noise', f: 0, dur: 2.8, vol: 0.32, a: 2.2, curve: 0.5, lp: 4500, lp2: 700, hp: 250 },
+    { wave: 'tri', f: 110, f2: 240, dur: 2.8, vol: 0.13, a: 1.0, curve: 0.8, vib: [3, 0.03] },
+    { wave: 'sine', f: 1500, f2: 700, dur: 2.6, vol: 0.08, a: 1.8, curve: 0.6 },
+    { wave: 'noise', f: 0, dur: 0.3, delay: 2.4, vol: 0.2, lp: 9000, hp: 2500, curve: 2 },
+  ],
+  /** The Outsurge throws you out: a backwash that surges and breaks on the burning rim, not the Ebb's churning drag. */
+  outsurgePull: [
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.3, a: 0.05, lp: 700, lp2: 3500, hp: 300, curve: 1.2 },
+    { wave: 'saw', f: 120, f2: 200, dur: 2.0, vol: 0.12, a: 0.1, lp: 1600, curve: 1.2, vib: [2, 0.04] },
+    { wave: 'noise', f: 0, dur: 2.1, vol: 0.22, a: 0.1, lp: 7000, lp2: 3000, hp: 1500, trem: [2.5, 0.6] },
+    // The rim burns: a hiss that crackles in as the water hits it.
+    { wave: 'noise', f: 0, dur: 1.2, delay: 0.8, vol: 0.14, a: 0.3, lp: 10000, hp: 4000, curve: 1.4, trem: [16, 0.5] },
   ],
   /** Sink winds up (2.2 s): a raft's planks groan and bubbles rise under it. */
   sinkWarn: join(
@@ -836,6 +864,16 @@ export const SOUNDS = {
      { wave: 'sine', f: 330, f2: 440, dur: 0.4, vol: 0.12, a: 0.06, curve: 1.6 }],
     chime(E5 * 2, 0.08, 0.16, 0.5), chime(A5 * 2, 0.16, 0.14, 0.6),
   ),
+  /** The Hammerdeep's vents are forge vents: a bellows draw with a metal whine as the warning circle goes up. */
+  forgeVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.22, a: 0.9, lp: 800, lp2: 5000, hp: 350, curve: 0.8, trem: [4, 0.4] },
+     { wave: 'saw', f: 220, f2: 330, dur: 1.1, vol: 0.07, a: 0.8, lp: 2600, curve: 0.8, vib: [6, 0.01] }],
+  ),
+  /** The forge vent bursts: a roar of fire off an anvil ring. */
+  forgeFlare: join(clang(392, 0.25, 0.5), whoosh(1500, 6000, 0.45, 0.25), boom(60, 0.3, 0.25)),
+  /** The Hammerdeep's vents layout: two hammer strikes and a bellows breath. */
+  layoutForge: join(clang(523, 0.24, 0.35), clang(392, 0.24, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.2 })),
+    [{ wave: 'noise', f: 0, dur: 0.45, delay: 0.4, vol: 0.14, a: 0.2, lp: 4000, hp: 500, curve: 1.4 }]),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -861,6 +899,17 @@ export const SOUNDS = {
   /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
   heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
+
+  /** End screen: a loot card dealt onto the list, a soft quick flick (it sits under the victory fanfare). */
+  lootDeal: [
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.09, lp: 7000, hp: 1800, curve: 3 },
+    { wave: 'tri', f: 1400, f2: 1900, dur: 0.04, vol: 0.04, curve: 3 },
+  ],
+  /** End screen: the shine across an Epic or Mythic card, a bright rising sparkle. */
+  lootShine: join(
+    [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.15, lp: 12000, hp: 5000, curve: 1.6 }],
+    ...[0, 0.08, 0.16].map((d, k) => chime([E6, G6, B5() * 2][k], d, 0.07, 0.3)),
+  ),
 
   // ---- the ember purse (shared by every class): embers in, embers spent
   /** Salvage: the item crumbles to cinders and embers clink into the purse. */
@@ -1121,6 +1170,11 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Glintfall's wind-up is a cast start (measured -28.6 dB).
   glintWarn: 3.0,
   ebbPull: 1.9,
+  // Hessa's Outsurge (Phase 12 W1): -26.9 and -29.2 dB alone; raised again to about 6.5 dB over the Wrackline mix (busycheck SEEDS=4,5).
+  outsurgeWarn: 4.0,
+  outsurgePull: 5.0,
+  // Ondrel's Ironload wind-up (Phase 12 W2) is a cast start: -33.5 dB alone and 1.0 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=13); now creaks and rattles in the phone band too.
+  ironloadWarn: 10.5,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

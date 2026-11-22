@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT } from '../sim/world';
-import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -177,6 +177,13 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
   return 0;
 }
 
+/** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
+const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
+  kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
+  foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
+  hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
+};
+
 export class GameScene extends Phaser.Scene {
   world!: World;
   hud!: Hud;
@@ -258,6 +265,17 @@ export class GameScene extends Phaser.Scene {
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
   private steamGfx: Phaser.GameObjects.Graphics | null = null;
+  /**
+   * The darkness beyond the arena edge, on its own layer (1.95) under the edge props (1.97) and the main graphics (2).
+   * It used to be the first stroke of the main graphics with the props drawn just after it at 2.05; in that order,
+   * WebGL (Chromium/SwiftShader, Phaser 4.2.1) dropped pieces of the boss sprite drawn later in the frame (#404/#405
+   * shots of Maelra and Ondrel). With darkness and props both before the main graphics, 48 checked frames were whole.
+   */
+  private darkGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The Wrackline's water marks (raft wakes, Hessa's Outsurge surf), over the rafts (0.9) and under the main graphics. */
+  private surfGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
+  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
   /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
@@ -269,6 +287,9 @@ export class GameScene extends Phaser.Scene {
   private glintGfx: Phaser.GameObjects.Graphics | null = null;
   /** V8: Nhevra's Emberdrift embers, pooled, and when the last set fell (for the drop-in). */
   private driftImgs: Phaser.GameObjects.Image[] = [];
+  /** Phase 12 W2: Ondrel's Ironload weight over the marked hero, and where it last hung (for the landing sparks). */
+  private loadImg: Phaser.GameObjects.Image | null = null;
+  private loadShown: { x: number; y: number } | null = null;
   private driftFallAt = -1e9;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
@@ -335,11 +356,16 @@ export class GameScene extends Phaser.Scene {
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
+    this.darkGfx = null;
+    this.surfGfx = null;
+    this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
     this.tideBeat = 0;
     this.glintGfx = null;
     this.driftImgs = [];
+    this.loadImg = null;
+    this.loadShown = null;
     this.driftFallAt = -1e9;
     this.pillarSprites = [];
     this.glareFlash = 0;
@@ -762,8 +788,10 @@ export class GameScene extends Phaser.Scene {
       acting: w.acting,
       hp: w.heroes.length > 1 ? w.heroes.map((_, i) => w.heroData(i).player.hp) : undefined,
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
-      anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
+      // Ironload marked on you plays the same "it's on you" sting as Anvilfall.
+      anvilOnMe: w.dungeonId === 'hammerdeep' && (w.anvilOnMe || (w.loadHero === w.acting && w.loadT > 0)),
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
+      outsurge: w.dungeonId === 'wrackline' && w.outsurge,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
@@ -1261,7 +1289,9 @@ export class GameScene extends Phaser.Scene {
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
-            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP : def.tip;
+            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
+            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
+            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -1582,7 +1612,7 @@ export class GameScene extends Phaser.Scene {
     if (this.world.dungeonId === 'flue') this.flueMarks(now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
-    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
+    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1704,7 +1734,8 @@ export class GameScene extends Phaser.Scene {
       // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
       const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : w.dungeonId === 'flue' ? FLUE_RIM : 0xff8a3d;
-      g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
+      if (!this.darkGfx) this.darkGfx = this.add.graphics().setDepth(1.95);
+      this.darkGfx.clear().lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
         g.lineStyle(ARENA - R, 0x0b2f44, 0.8).strokeCircle(0, 0, (ARENA + R) / 2);
@@ -1785,6 +1816,7 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     this.layoutDraw(g, now);
+    this.edgeDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
     this.glintDraw(now);
@@ -2407,6 +2439,33 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
+    // Phase 12 W2, Ondrel's Ironload: an iron weight hangs over the marked hero and comes down as it counts down. The
+    // ground under them is the gold stand-in-it circle (SOAK): everyone inside shares the weight. A gold sweep round its
+    // edge is the timer, and the weight's shadow darkens as it nears. The weight stays above the hero's name and bar,
+    // so it never covers a class ring, and drops out of sight on the landing (the sim's slam).
+    if (w.loadHero >= 0 && w.loadT > 0) {
+      const m = w.heroData(w.loadHero).player;
+      const hs = w.loadHero === w.acting ? this.player : this.allies.find((al) => al.hero === w.loadHero)?.img;
+      const mx = hs?.x ?? m.x, my = hs?.y ?? m.y;
+      const u = Math.min(1, 1 - w.loadT / IRONLOAD.time);
+      const R = IRONLOAD.radius;
+      const pulse = 0.5 + 0.5 * Math.sin(now / (u > 0.75 ? 70 : 140));
+      g.fillStyle(SOAK, 0.1 + 0.08 * u).fillCircle(mx, my, R);
+      g.lineStyle(2.5, SOAK, 0.55 + 0.3 * pulse).strokeCircle(mx, my, R);
+      g.lineStyle(6, SOAK, 0.9).beginPath().arc(mx, my, R, -Math.PI / 2, -Math.PI / 2 + u * Math.PI * 2, false).strokePath();
+      g.fillStyle(0x000000, 0.12 + 0.3 * u).fillEllipse(mx, my + 4, 30 + 30 * u, (30 + 30 * u) * 0.4);
+      if (!this.loadImg) this.loadImg = this.add.image(0, 0, 'ironWeight').setOrigin(0.5, 1).setDepth(6.5);
+      const lift = 230 - 135 * u * u;
+      this.loadImg.setVisible(true).setPosition(mx, my - lift).setScale(0.5 + 0.12 * u).setRotation(Math.sin(now / 260) * 0.05 * (1 - u));
+      // A dashed drop line from the weight to just over the hero's name, so which hero it is never in doubt.
+      for (let y = my - lift + 4; y < my - 62; y += 10) g.lineStyle(2, 0xc8d2e0, 0.5).lineBetween(mx, y, mx, Math.min(y + 5, my - 62));
+      this.loadShown = { x: mx, y: my - lift };
+    } else if (this.loadImg?.visible) {
+      // Landed (or the mark ended): the weight drops the last stretch and is gone.
+      this.loadImg.setVisible(false);
+      if (this.loadShown && !this.lowFx) for (let k = 0; k < 6; k++) this.emit(this.fx, 'spark', undefined, this.loadShown.x + (Math.random() - 0.5) * 30, this.loadShown.y, 0.5, { tint: 0xc8d0e0, vx: (Math.random() - 0.5) * 120, vy: 40 + Math.random() * 60, drag: 0.95, sx0: 1.2, sx1: 0.3 });
+      this.loadShown = null;
+    }
     // V8 Emberdrift (Nhevra): live embers on the ice, walk over one to refill your coal. Each glows and breathes, sends up
     // a spark now and then, and shows its pick-up reach as a faint ring. For a moment after they fall (emberDrift) each
     // drops in from above on a fiery streak.
@@ -2436,7 +2495,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2459,7 +2518,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
@@ -2566,6 +2625,47 @@ export class GameScene extends Phaser.Scene {
         g.lineBetween(x, y, x - ux * 10 - px * 7, y - uy * 10 - py * 7);
       }
     }
+  }
+
+  /**
+   * Arena edge environments, by dungeon (EDGE_SETS). Props stand just outside the rim, alternating big and small,
+   * each throwing a light pool that spills onto the floor inside. Props sit outside the play area (above the dark
+   * beyond the rim, depth 1.97) and the light sits under everything that matters (depth 1.2), so neither ever hides a
+   * danger area or a class ring. The pools flicker; the small props give off a spark or a steam puff now and then
+   * (not on trimmed effects).
+   * - The Kiln: brick furnaces and braziers, warm light, embers.
+   * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
+   * - The Hammerdeep: great anvils and miners' lanterns, a steady steel-white light.
+   */
+  private edgeDraw(now: number): void {
+    const w = this.world;
+    const set = EDGE_SETS[w.dungeonId];
+    if (!set || w.stress) return;
+    if (!this.edgeProps.length) {
+      const R = ARENA;
+      for (let k = 0; k < 12; k++) {
+        const big = k % 2 === 0;
+        const a = (k / 12) * Math.PI * 2 + 0.26;
+        // Far enough out that even a prop below the arena (drawn upward) stays outside the rim.
+        const r = R + (big ? 92 : 62);
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(1.97);
+        const lr = R - 10;
+        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
+        this.edgeProps.push({ img, light, x, y, fire: !big });
+      }
+    }
+    this.edgeProps.forEach((p, k) => {
+      const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / set.flicker + k * 1.7) + 0.5 * Math.sin(now / (set.flicker * 0.44) + k * 4.1);
+      p.light.setAlpha(0.55 + 0.07 * fl);
+      if (!p.fire || this.lowFx) return;
+      if (set.puff === 'spark' && Math.random() < 0.03) {
+        this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
+      } else if (set.puff === 'steam' && Math.random() < 0.012) {
+        // From the valve's side nozzle (texture 96 px, origin 0.5/0.85, scale 0.6: nozzle at about +12, -39).
+        this.steam(p.x + 12, p.y - 39, 0.55);
+      }
+    });
   }
 
   /**
@@ -3566,16 +3666,21 @@ export class GameScene extends Phaser.Scene {
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2 + 0.2 + Math.sin(k * 7.3) * 0.08;
         const t = (now / (pulling ? 500 : 900) + k * 0.37) % 1;
-        const r0 = ARENA - t * (ARENA - WRACK.drainR);
+        // Phase 12 W1: Hessa's Outsurge runs the other way, from the drain out to the rim (placeholder until visuals).
+        const outward = w.outsurge;
+        const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
         const len = pulling ? 80 : 44;
-        const r1 = Math.min(ARENA, r0 + len);
+        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
         const cx = Math.cos(a), cy = Math.sin(a);
         const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
         g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(cx * r0, cy * r0, cx * r1, cy * r1);
-        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + len * 0.4), cy * (r0 + len * 0.4));
+        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + (outward ? -1 : 1) * len * 0.4), cy * (r0 + (outward ? -1 : 1) * len * 0.4));
         g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
       }
     }
+    if (!this.surfGfx) this.surfGfx = this.add.graphics().setDepth(1.35);
+    const sg = this.surfGfx.clear();
+    if (w.outsurge && (warn || pulling)) this.outsurgeDraw(sg, now, pulling);
     // The raft texture's deck is 248 of its 256 px across.
     const scale = (WRACK.raftR * 2) / 248;
     w.rafts.forEach((r, i) => {
@@ -3597,6 +3702,8 @@ export class GameScene extends Phaser.Scene {
         }
         return;
       }
+      // Phase 12 W1: which way each raft drifts changes from fight to fight, so it trails a wake.
+      this.raftWake(sg, r, now, w.wrackPhase >= 2 && !w.outsurge);
       // A slight bob and roll, so a raft reads as afloat even while it drifts slowly.
       const bob = 1 + Math.sin(now / 650 + i * 2) * 0.012;
       im.deck.setVisible(true).setPosition(r.x, r.y).setScale(scale * bob).setRotation(Math.sin(now / 1900 + i) * 0.04);
@@ -3609,6 +3716,70 @@ export class GameScene extends Phaser.Scene {
     for (let i = w.rafts.length; i < this.raftImgs.length; i++) { this.raftImgs[i].deck.setVisible(false); this.raftImgs[i].rim.setVisible(false); }
   }
 
+/**
+   * Phase 12 W1, Hessa's Outsurge: while the Ebb runs outward, the outer OUTSURGE.rimR of the arena is breaking surf
+   * that burns. A band of churned water with foam crests rolling out to the rim; its inner edge, where the burn starts,
+   * is a dashed danger line through the warning and a solid one through the pull. Drawn under the main graphics, so a
+   * class ring or a telegraph in the surf still shows on top.
+   */
+  private outsurgeDraw(sg: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
+    const R = this.world.arenaR ?? ARENA;
+    const band = OUTSURGE.rimR;
+    const r0 = R - band;
+    const pulse = pulling ? 1 : 0.55 + 0.35 * Math.sin(now / 120);
+    sg.lineStyle(band, 0x0e5060, (pulling ? 0.5 : 0.22) * (0.8 + 0.2 * pulse)).strokeCircle(0, 0, r0 + band / 2);
+    // Foam crests: broken arcs rolling outward across the band, brightest mid-way, fading as they reach the rim.
+    const crests = this.lowFx ? 2 : 3;
+    for (let j = 0; j < crests; j++) {
+      const t = (now / (pulling ? 650 : 1300) + j / crests) % 1;
+      const rr = r0 + t * band;
+      const al = (pulling ? 0.75 : 0.4) * Math.sin(t * Math.PI);
+      const segs = 28;
+      for (let k = 0; k < segs; k++) {
+        const a = (k / segs) * Math.PI * 2 + j * 0.7 + Math.sin(k * 3.7 + j) * 0.05;
+        sg.lineStyle(pulling ? 3 : 2, 0xe6fbff, al).beginPath().arc(0, 0, rr, a, a + ((Math.PI * 2) / segs) * 0.62).strokePath();
+      }
+    }
+    // The burn line.
+    if (pulling) sg.lineStyle(3, DANGER, 0.85).strokeCircle(0, 0, r0);
+    else {
+      const dashes = 48;
+      for (let k = 0; k < dashes; k++) {
+        const a = (k / dashes) * Math.PI * 2 + now / 4000;
+        sg.lineStyle(2.5, DANGER, 0.45 + 0.4 * pulse).beginPath().arc(0, 0, r0, a, a + ((Math.PI * 2) / dashes) * 0.55).strokePath();
+      }
+    }
+  }
+
+  /**
+   * Phase 12 W1: a raft's wake, two foam lines spreading behind it and bubbles slipping back along them, so the way a
+   * raft drifts reads at a glance. Longer in Riptide, when the rafts drift faster.
+   */
+  private raftWake(sg: Phaser.GameObjects.Graphics, r: { a: number; dir: number; x: number; y: number }, now: number, fast: boolean): void {
+    const R = WRACK.raftR;
+    // Travel direction: along the ring, the way the raft turns.
+    const tx = -Math.sin(r.a) * r.dir, ty = Math.cos(r.a) * r.dir;
+    const nx = Math.cos(r.a), ny = Math.sin(r.a);
+    const L = R * (fast ? 1.1 : 0.75);
+    // White water churned up against the raft's stern.
+    const back = Math.atan2(-ty, -tx);
+    sg.lineStyle(7, 0x7fd0e0, 0.22).beginPath().arc(r.x, r.y, R + 4, back - 0.85, back + 0.85).strokePath();
+    sg.lineStyle(2.5, 0xeafaff, 0.6).beginPath().arc(r.x, r.y, R + 3, back - 0.7, back + 0.7).strokePath();
+    for (const side of [-1, 1]) {
+      // From the raft's rear quarter, out and back.
+      const sx = r.x - tx * R * 0.72 + nx * side * R * 0.69, sy = r.y - ty * R * 0.72 + ny * side * R * 0.69;
+      const ex = sx - tx * L + nx * side * L * 0.4, ey = sy - ty * L + ny * side * L * 0.4;
+      sg.lineStyle(7, 0x7fd0e0, 0.2).lineBetween(sx, sy, ex, ey);
+      sg.lineStyle(2.5, 0xd8f6ff, 0.55).lineBetween(sx, sy, ex, ey);
+      if (this.lowFx) continue;
+      for (let k = 0; k < 3; k++) {
+        const t = (now / (fast ? 500 : 900) + k / 3 + (side > 0 ? 0.17 : 0)) % 1;
+        sg.fillStyle(0xeafaff, 0.6 * (1 - t)).fillCircle(sx + (ex - sx) * t, sy + (ey - sy) * t, 2.4 - t);
+      }
+    }
+  }
+
+ 
  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;

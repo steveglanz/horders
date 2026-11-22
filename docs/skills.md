@@ -853,6 +853,8 @@ Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) 
 
 **Offered only while the situation is still ahead** (`TalentDef.where`, `World.situationAhead`). The draft checks the fights still to come in this run's route: each fight's layout (`World.layoutAt`, the same hash `rollLayout` uses, with Today's Heat), and the foes in each remaining slot. The boss arena is always open, so a layout card is never offered with only the boss left. A fork that later swaps a fight is an accepted small miss. `SITE_CARDS.off=1` (TUNE, measuring only) turns them off, which matches main exactly (tools/hashcheck.ts identical).
 
+**Solo dungeons only** for now (`style: 'solo'`): since Phase 12 W2 the Hammerdeep has stones and vents too, but group tables are measured without these cards. Since W1 the Wrackline has Spitters and Ashbucks, so Read the Lane and Reaching Light can be offered there.
+
 **Bots:** the cards are in BOT_PRIORITY after each class's plain cards. Two movement rules were tried and dropped. Pulling a Bulwark with Back to Stone toward the nearest stone cost 23 of the 80 Coldmarrow runs that took the card. A Slagbinder with Slag Wade staying in lava above half health cost 10 of 45 Kiln runs. #402's lava crossing is untouched. `BOT_SITE=1` (tools only) makes the bot take a site card whenever one is offered, unless a capstone is.
 
 **Measured** (heroes-r2, 3 heroes x 80 seeds, `BOT_SITE=1` against `SITE_CARDS.off=1`). Columns: wins per 40 over all runs, then wins on the seeds where the card was taken, against the same seeds with the cards off:
