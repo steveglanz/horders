@@ -103,6 +103,8 @@ export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the
 export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
+/** Phase 12 W2: Ysmeret's intro when this run's Twin Vents wander. */
+export const WANDER_TIP = 'Two of you stand in her vents, and they drift round her as they fuse: walk with them. Never stand together when the Embers mark you.';
 /** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
 export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
@@ -172,7 +174,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   ashvents: {
     id: 'ashvents', name: 'The Ashvents', boss: 'ysmeret', unlockTier: 7,
-    openers: ['glass', 'crawlers', 'warpack'], named: ['anvilguard', 'tidepair'], hard: ['acolytes', 'bellwarden'],
+    openers: ['glass', 'crawlers', 'warpack', 'riftfall', 'glassSpitters', 'spitters'], named: ['anvilguard', 'tidepair', 'spitterBrute'], hard: ['acolytes', 'bellwarden'],
     blurb: 'A group dungeon. Split up to cover both of Ysmeret\'s vents, and never stand together when the Embers mark you.', style: 'group', minParty: 2,
   },
   pressworks: {

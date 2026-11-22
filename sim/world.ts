@@ -834,7 +834,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | '' = '';
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -1891,6 +1891,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.twinVentT = YSMERET.firstVents;
+          this.bossVariant = this.rollYsmeretVariant();
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
           this.events.push({ type: 'bossSpawn' });
@@ -1990,6 +1991,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** Phase 12 W2: Ysmeret's version this run, hashed from the seed (no run-rng draws). */
+  private rollYsmeretVariant(): YsmeretVariant {
+    if (this.stress) return 'still';
+    let h = Math.imul(this.seed ^ 0x9b05688c, 0x5be0cd19) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return YSMERET_VARIANTS[(h >>> 4) % YSMERET_VARIANTS.length];
   }
 
   /** Phase 12 W2: Ondrel's version this run, hashed from the seed (no run-rng draws). */
@@ -5756,7 +5765,17 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+    } else if (ventsOpen && this.bossVariant === 'wander') {
+      // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
+      const turn = (WANDER.speed / YSMERET.ventDist) * dt;
+      for (const t of this.telegraphs) {
+        if (!t.alive || t.kind !== 'soak' || t.owner !== -2) continue;
+        const dx = t.x - e.x, dy = t.y - e.y;
+        const c = { x: e.x + dx * Math.cos(turn) - dy * Math.sin(turn), y: e.y + dx * Math.sin(turn) + dy * Math.cos(turn) };
+        this.clampArena(c, YSMERET.ventRadius + 10);
+        t.x = c.x; t.y = c.y;
+      }
     }
     if (e.castId || e.stunT > 0) return;
     if (this.bellowT <= 0) {
@@ -7351,6 +7370,11 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W2: Ysmeret's two versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. */
+export type YsmeretVariant = 'still' | 'wander';
+export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
+/** Wandering Vents: each circle moves `speed` px/s around Ysmeret (heroes run 128 to 152), about 70 degrees over a 4 s fuse. */
+export const WANDER = { speed: 70 };
 /** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
 export type OndrelVariant = 'choir' | 'load';
 export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
