@@ -6,7 +6,7 @@
 // With `coldmarrow`, it shoots the Coldmarrow's pillars: stones of frosted ice.
 // With `hammerdeep`, it shoots the Hammerdeep's pillars and vents (W2): iron-bound granite and forge hearths.
 // With `pressworks`, it shoots the Pressworks' pillars and vents (W2): oiled steel bolsters and press exhausts.
-// With `raid=crucible|hoard|smeltery|flue`, it shoots that raid's pillars and vents in a trash fight (Phase 13 E3), trying
+// With `raid=crucible|hoard|smeltery|flue|ashvents`, it shoots that dungeon's pillars and vents in a trash fight (Phase 13 E3/E2), trying
 // seeds until the first fight rolls each layout.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');

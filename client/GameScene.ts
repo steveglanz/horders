@@ -40,9 +40,9 @@ const COLD_FLOOR = 0x7e98c4;
 const NAMED = 0x5aa9ff;
 /** The Crucible (raid): molten slag. */
 const MOLTEN = 0xff6a1f;
-/** Phase 13 E3: each raid's own stones and vents for its trash-fight layouts (the boss fight is always open). */
-const RAID_STONE: Record<string, string> = { crucible: 'slagStone', hoard: 'boneStone', smeltery: 'ingotStone', flue: 'brickStone' };
-const RAID_VENT: Record<string, string> = { crucible: 'slagVent', hoard: 'emberVent', smeltery: 'tuyereVent', flue: 'ashVent' };
+/** Phase 13 E3 (raids) and E2 (the Ashvents): each one's own stones and vents for its trash-fight layouts (the boss fight is always open). */
+const RAID_STONE: Record<string, string> = { ashvents: 'pumiceStone', crucible: 'slagStone', hoard: 'boneStone', smeltery: 'ingotStone', flue: 'brickStone' };
+const RAID_VENT: Record<string, string> = { ashvents: 'fumaroleVent', crucible: 'slagVent', hoard: 'emberVent', smeltery: 'tuyereVent', flue: 'ashVent' };
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
