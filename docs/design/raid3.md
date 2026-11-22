@@ -70,3 +70,5 @@ Every party at 19000, seeds 1 to 40 (18500 in brackets): base 24 (29), two Duskb
 **Design call: keep it as raid identity.** Every party with an Emberwright is at 66 to 74%, in or at the top of the band. Raid-only Emberwright sustain or a softer Meltdown for far heroes would lift those parties, so the base party would go over 70% to fix two outliers. The Colossus's open back already rewards melee, and Platewalker leans the same way, so a two-melee party beating Meltdown more easily fits the fight. Revisit it with real player data.
 
 Placeholder art: until visuals' `colossusRaid` lands, he uses the X1 shadow sheet `colossus`. Sound's theme `smeltery` is already on main (#315).
+
+**Phase 12 W3 (22 Nov 2026):** the Cinder Colossus has a second version, **Plate Shift**: in phase 2 his plate slides round to face whoever hurt him most, so his open back moves (variety.md, Phase 12 W3 part 3).
