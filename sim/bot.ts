@@ -10,23 +10,23 @@ import { SET_TUNING } from './content/sets';
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
   'pyroclasm', 'kindledGround', 'emberRain', 'cinderSkin', 'blazingSpeed', 'rollingInferno', 'searingFocus', 'mend',
-  'flicker', 'magnetism',
+  'flicker', 'magnetism', 'ventFed',
   'brightWick', 'deepSmoulder', 'emberCarpet', 'fastFuse', 'sootCloak', 'bankedFire', 'longKindle', 'closeWarmth',
   // Duskblade
   'crimsonTide', 'bladeStorm', 'riposte', 'openVeins', 'killingRhythm', 'shadowSlip', 'exsanguinate', 'flurryStep', 'serratedEdge', 'quickBlades', 'thirst', 'hemorrhage', 'longReach', 'thickHide',
-  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble',
+  'momentumFlow', 'precision', 'deepCuts', 'counterstep', 'secondWind', 'evasion', 'nimble', 'readTheLane',
   'slowDrip', 'lightGrip', 'keenLunge', 'hungrySteel', 'lowStance', 'quietMend', 'turnedBack', 'sharedBreath',
   // Bulwark
   'warpath', 'thornwall', 'unbreakable', 'shieldWake', 'grudge', 'ironVigil', 'wideSweep', 'spikedShield', 'shieldEcho', 'ward', 'vengeance', 'holdTheLine',
-  'batteringRam', 'lastStand', 'momentum',
+  'batteringRam', 'lastStand', 'momentum', 'backToStone',
   'hardKnocks', 'grimTally', 'rivetedPlates', 'broadShoulders', 'fullWeight', 'slowPulse', 'leeSide', 'broadBack',
   // Lumen
   'noon', 'choirOfDawn', 'martyrsHalo', 'noonfire', 'chorus', 'haven', 'searingRadiance', 'hastedHymn', 'prism', 'kindledLight', 'sunflare', 'aegisOfLight',
-  'renewal', 'lingeringSanctuary', 'blessedGround',
+  'renewal', 'lingeringSanctuary', 'blessedGround', 'reachingLight',
   'lampglowCare', 'daybreakPulse', 'steadyHalo', 'longNote', 'lanternHeart', 'hallowedEmbers', 'frontMend', 'wideDawn',
   // Slagbinder
   'twinPour', 'shatterpoint', 'clinkerHeart', 'cinderHail', 'everMolten', 'slagTide', 'heavyLob', 'thickPour', 'searingShell', 'shrapnel',
-  'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened',
+  'crustedHide', 'quickset', 'hotBlood', 'brittleMind', 'hardened', 'slagWade',
   'fastLadle', 'slagScales', 'denseGlob', 'deepCoat', 'wideSpatter', 'slowCool', 'longStand', 'wideShell',
   'smallHeal', 'stoke',
 ];
@@ -38,6 +38,8 @@ function bladeCast(w: World, skill: number): number | undefined {
   if (attentive && can(w, 3) && w.interruptTarget() >= 0) return 3;
   // Co-op: pulled the boss off a living Bulwark, so Sidestep to dump threat back to it.
   if (can(w, 1) && w.bossTarget === w.acting && w.heroes.some((h, k) => k !== w.acting && (h.cls === 'bulwark' || h.player.stance === 'anvil') && h.player.hp > 0)) return 1;
+  // Read the Lane: step out of a lob or a charge lane (cones too) while it can still pay.
+  if (attentive && can(w, 1) && w.rank('readTheLane') > 0 && w.inLaneTelegraph()) return 1;
   // Step out of a telegraph we are standing in.
   if (attentive && can(w, 1)) {
     for (const t of w.telegraphs) {
@@ -764,7 +766,10 @@ export function botInput(w: World, skill = 1): Input {
     fy += dy * wgt;
   }
   // V2: stay out of a lava channel; cross it straight across, never along it.
+  // Slag Wade: above half health a Slagbinder stays in the lava; below it, it leaves the shortest way.
+  const wade = w.rank('slagWade') > 0;
   for (const c of w.lava) {
+    if (wade && p.hp > p.maxHp * 0.5) continue;
     const ux = c.x2 - c.x1;
     const uy = c.y2 - c.y1;
     const L2 = ux * ux + uy * uy || 1;
@@ -777,9 +782,40 @@ export function botInput(w: World, skill = 1): Input {
     // hard against the near bank crosses (a quick burn) rather than standing pinned there.
     const across = (fx * ox + fy * oy) / d;
     const pressed = across < -0.25 * Math.hypot(fx, fy) && Math.hypot(fx, fy) > 0.02;
-    const side = pressed ? -1 : 1;
+    const side = pressed && !(wade && w.inLava()) ? -1 : 1;
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
+  }
+  // Site cards: a Bulwark with Back to Stone fights from beside the nearest stone or pillar,
+  // and a healthy Slagbinder with Slag Wade drifts into a lava channel close by.
+  if (w.rank('backToStone') > 0 && !w.nearStone()) {
+    let bx = 0;
+    let by = 0;
+    let bd = 150;
+    for (const c of [...w.stones, ...w.pillars.filter((q) => !q.cracked)]) {
+      const d = Math.hypot(c.x - p.x, c.y - p.y) - c.r;
+      if (d < bd) { bd = d; bx = c.x - p.x; by = c.y - p.y; }
+    }
+    if (bd < 150) {
+      const L = Math.hypot(bx, by) || 1;
+      fx += (bx / L) * 0.2 * skill;
+      fy += (by / L) * 0.2 * skill;
+    }
+  }
+  if (wade && p.hp > p.maxHp * 0.6 && !w.inLava()) {
+    for (const c of w.lava) {
+      const ux = c.x2 - c.x1;
+      const uy = c.y2 - c.y1;
+      const L2 = ux * ux + uy * uy || 1;
+      const t = Math.max(0, Math.min(1, ((p.x - c.x1) * ux + (p.y - c.y1) * uy) / L2));
+      const ox = c.x1 + ux * t - p.x;
+      const oy = c.y1 + uy * t - p.y;
+      const d = Math.hypot(ox, oy) || 1;
+      if (d < 150) {
+        fx += (ox / d) * 0.2 * skill;
+        fy += (oy / d) * 0.2 * skill;
+      }
+    }
   }
   // The Coldmarrow: a ranged hero brings a Frost Warden inside its coal's light to crack it.
   if (!melee && p.coalR !== undefined) {

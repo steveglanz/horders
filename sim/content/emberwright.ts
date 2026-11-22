@@ -104,7 +104,11 @@ export type TalentId =
   | 'deepCoat' | 'wideSpatter' | 'fastLadle' | 'denseGlob' | 'slagScales' | 'slowCool'
   | 'deepSmoulder' | 'emberCarpet' | 'brightWick' | 'fastFuse' | 'sootCloak' | 'bankedFire'
   | 'slowDrip' | 'hungrySteel' | 'lightGrip' | 'keenLunge' | 'lowStance' | 'quietMend'
-  | 'leeSide' | 'broadBack' | 'frontMend' | 'wideDawn' | 'turnedBack' | 'sharedBreath' | 'longKindle' | 'closeWarmth' | 'longStand' | 'wideShell';
+  | 'leeSide' | 'broadBack' | 'frontMend' | 'wideDawn' | 'turnedBack' | 'sharedBreath' | 'longKindle' | 'closeWarmth' | 'longStand' | 'wideShell'
+  | 'ventFed' | 'readTheLane' | 'backToStone' | 'reachingLight' | 'slagWade';
+
+/** What a site card needs ahead in the run: a layout (vents, pillars, lava) or a foe (Spitters, or a lob or charge lane). */
+export type Situation = 'vents' | 'pillars' | 'lava' | 'spitter' | 'lane';
 
 export interface TalentDef {
   id: TalentId;
@@ -124,6 +128,8 @@ export interface TalentDef {
   tip?: string;
   /** The action-bar slot this talent improves. A hero who swapped that slot's ability (ALT_ABILITIES) never drafts it. */
   ability?: number;
+  /** A site card (Phase 11 variety): offered only while its layout or foe is still ahead in this run's route. */
+  where?: Situation;
 }
 
 /** Ranks in one branch that unlock its capstone. A run has about four drafts. */
@@ -278,6 +284,12 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   wideShell: { id: 'wideShell', ability: 2, cls: 'slagbinder', name: 'Wide Shell', branch: 'forge', deep: true, party: true, maxRank: 2, text: 'Cooling Shell covers allies 50 px farther away, in either stance.' },
   clinkerHeart: { id: 'clinkerHeart', cls: 'slagbinder', name: 'Clinker Heart', branch: 'crust', maxRank: 1, capstone: true, text: 'Falling below 30% health plates you for 25% of your max health, once every 30s. +50% damage while plated.' },
   slagTide: { id: 'slagTide', ability: 1, cls: 'slagbinder', name: 'Slag Tide', branch: 'crust', maxRank: 1, capstone: true, text: 'Interpose lands with a wave: 60 damage and a 1s stun within 120 px.' },
+  // Site cards (Phase 11 variety): each pays off only in its situation, and is offered only while that situation is still ahead in the run.
+  ventFed: { id: 'ventFed', cls: 'emberwright', name: 'Vent-Fed', branch: 'kindling', maxRank: 2, where: 'vents', text: 'A vent flaring near you gives Heat and doubles your next volley.', tip: 'When a vent flares within 220 px of you, and you are outside its circle, gain 15 Heat per rank, and your next Cinder Volley deals double damage.' },
+  readTheLane: { id: 'readTheLane', ability: 1, cls: 'duskblade', name: 'Read the Lane', branch: 'guard', maxRank: 2, where: 'lane', text: 'Sidestep out of a lob or charge lane: Sidestep comes back sooner, and your next 2 swings hit harder.', tip: 'Sidestep while standing in an Ember Lob circle or an Ashbuck charge lane that has not landed: Sidestep comes back 2s sooner per rank, and your next 2 swings deal 20% more per rank.' },
+  backToStone: { id: 'backToStone', cls: 'bulwark', name: 'Back to Stone', branch: 'bastion', maxRank: 2, where: 'pillars', text: 'Beside a stone or pillar, take less damage and Rim Smash stuns longer.', tip: 'While within 50 px of a stone or pillar, take 7% less damage per rank (4% in the Glarewell), and Rim Smash stuns 0.3s longer per rank.' },
+  reachingLight: { id: 'reachingLight', cls: 'lumen', name: 'Reaching Light', branch: 'grace', maxRank: 2, where: 'spitter', text: 'Radiant Burst reaches Ember Spitters farther away, and Hush on a Spitter recharges faster.', tip: 'Radiant Burst also burns Ember Spitters out to 200 px plus 60 per rank. Hushing a Spitter gives 1.5s per rank of Hush back.' },
+  slagWade: { id: 'slagWade', cls: 'slagbinder', name: 'Slag Wade', branch: 'forge', maxRank: 2, where: 'lava', text: 'Lava burns you less, and while you stand in it your hits are stronger and make foes Brittle.', tip: 'Lava burns you 30% less per rank. While you stand in it, your hits deal 5% more per rank and make the foe Brittle.' },
 };
 
 export const BRANCH_NAMES: Record<Branch, string> = {

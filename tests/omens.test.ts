@@ -56,9 +56,11 @@ describe('omens', () => {
 
   it('shared pain heals the other elites when an elite dies, but never the boss', () => {
     const w = new World({ seed: 5, route: ['brute', 'brute', 'brute', 'brute', 'kilnMother'], omens: ['sharedPain'] });
-    play(w, (x) => x.phase === 'fight' && x.enemies.filter((e) => e.alive && e.def.rank !== 'normal').length >= 3);
-    const elites = w.enemies.map((e, i) => [e, i] as const).filter(([e]) => e.alive && e.def.rank !== 'normal');
-    expect(elites.length).toBeGreaterThanOrEqual(3);
+    // Any three foes alive in a fight, made elites here, so the check doesn't hang on how a seed's run goes.
+    play(w, (x) => x.phase === 'fight' && x.enemies.filter((e) => e.alive).length >= 3);
+    const elites = w.enemies.map((e, i) => [e, i] as const).filter(([e]) => e.alive).slice(0, 3);
+    expect(elites.length).toBe(3);
+    for (const [e] of elites) e.def = { ...e.def, rank: 'elite' as const };
     const [[dead, di], [other]] = elites;
     // Make one of the survivors the boss for this check, hurt both, then kill the first elite.
     const boss = { ...other.def, rank: 'boss' as const };
