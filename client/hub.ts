@@ -814,7 +814,8 @@ export class Hub {
 
   /** V4: today's Heat, on the Kiln below the first Omen tier. */
   private heatLine(): string {
-    if (!heatApplies(this.dungeon, this.tier)) return '';
+    // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
+    if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return '';
     const h = HEATS[heatFor(dayOf(Date.now()))];
     return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
   }

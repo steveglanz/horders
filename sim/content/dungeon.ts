@@ -15,7 +15,9 @@ export type EncounterId =
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
   | 'oskel' | 'vorhulm' | 'colossus' | 'regent'
   | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
-  | 'glassSpitters' | 'crawlerCharge';
+  | 'glassSpitters' | 'crawlerCharge'
+  | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
+  | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -40,6 +42,15 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
   glassSpitters: { id: 'glassSpitters', name: 'Warden and Spitters', tip: 'Quench Mirror Ward, then run the Spitters down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   crawlerCharge: { id: 'crawlerCharge', name: 'Crawler and Ashbuck', tip: 'Drag the blue ring away from the Ashbuck, and step aside from its lane.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'ashbuck', n: 1 }, { kind: 'cinderhound', n: 1 }] },
+  // V8: the Glarewell's new fights.
+  shadeSpitters: { id: 'shadeSpitters', name: 'Shades and Spitters', tip: 'Pull the Shades into the light, and keep moving through the lobs.', spawns: [{ kind: 'shade', n: 2 }, { kind: 'emberSpitter', n: 2 }] },
+  shadeCharge: { id: 'shadeCharge', name: 'The Ashbuck in the Dark', tip: 'The Ashbuck charges out of the shadows. Step aside from its lane, then pull the Shades into the light.', spawns: [{ kind: 'ashbuck', n: 1 }, { kind: 'shade', n: 3 }] },
+  lensCharge: { id: 'lensCharge', name: 'Lens and Ashbucks', tip: 'Hide from the Glare without stepping into an Ashbuck\'s lane.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'ashbuck', n: 2 }] },
+  // V8: the Coldmarrow's new fights, from its own cold foes (the fire foes don't live down here).
+  snufferPack: { id: 'snufferPack', name: 'The Snuffer and the Pack', tip: 'Kill the Snuffer before it reaches you, while the hounds feed your coal.', spawns: [{ kind: 'snuffer', n: 1 }, { kind: 'rimehound', n: 3 }] },
+  wardenPack: { id: 'wardenPack', name: 'Warden and Rime Pack', tip: 'Kill the hounds to feed your coal, then crack the Warden inside its light.', spawns: [{ kind: 'frostWarden', n: 1 }, { kind: 'rimehound', n: 3 }] },
+  weaverSnuffers: { id: 'weaverSnuffers', name: 'Weaver and Snuffers', tip: 'Step out of the Lace, but don\'t let the Snuffers touch you while you do.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'snuffer', n: 2 }] },
+  twoWeavers: { id: 'twoWeavers', name: 'The Two Weavers', tip: 'Two Weavers take turns with Frost Lace. Save a Quench for each.', spawns: [{ kind: 'hoarfrostWeaver', n: 2 }, { kind: 'rimehound', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -80,6 +91,10 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
+/** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
+export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the cold eats your coal fast, but embers fall: walk over them to keep your coal bright for the Long Night.';
+/** V8: the Lensmother's intro when this run's version brings Glintfall from phase 2. */
+export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
@@ -127,12 +142,12 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
-    openers: ['shades', 'lensbearer', 'brandkeeper'], named: ['lamps', 'brandShades'], hard: ['lensShades', 'lamps'],
+    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
     blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
   },
   coldmarrow: {
     id: 'coldmarrow', name: 'The Coldmarrow', boss: 'nhevra', unlockTier: 10,
-    openers: ['rimepack', 'snuffers', 'frostwardens'], named: ['weaver', 'frostwardens'], hard: ['weaverWardens', 'snuffers'],
+    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
     blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
   },
   wrackline: {

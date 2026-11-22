@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
@@ -102,9 +102,9 @@ describe('V2 variety: arena layouts', () => {
     const first = new World({ seed: 4, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
     (first as unknown as L).rollLayout('pack');
     expect(first.layout).toBe('open');
-    const glare = new World({ seed: 4, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
-    (glare as unknown as L).rollLayout('shades');
-    expect(glare.layout).toBe('open');
+    const wrack = new World({ seed: 4, dungeon: 'wrackline', tier: 13, omens: [], cls: 'emberwright' });
+    (wrack as unknown as L).rollLayout('lurkers');
+    expect(wrack.layout).toBe('open');
   });
 
   it('stones block, lava burns only inside its width, and vents flare one at a time', () => {
@@ -371,5 +371,156 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.bossVariant).toBe('tide');
     expect(g.tideAngle).toBe(1.25);
+  });
+});
+
+describe('V8 variety: the Glarewell', () => {
+  type L = { rollLayout(id: string): void; encounter: number };
+  it('draws from 6 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
+    const d = DUNGEONS.glarewell;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+      const q = w as unknown as L;
+      q.encounter = 1;
+      q.rollLayout('shades');
+      seen.add(w.layout);
+      q.rollLayout('lensmother');
+      expect(w.layout).toBe('open');
+    }
+    expect([...seen].sort()).toEqual(['open', 'vents']);
+  });
+});
+
+describe('V8 variety: the Lensmother\'s Glintfall', () => {
+  type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void; rollLensVariant(): string;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; bossBrandT: number; glareT: number; markT: number };
+  function lens(variant: 'brand' | 'glint'): { w: World; q: G; b: number } {
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant;
+    q.bossPhase = 2; q.markT = 0; q.bossBrandT = 0; q.glareT = 99;
+    w.enemies[b].abilityT = 99;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' }) as unknown as G;
+      const c = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' }) as unknown as G;
+      expect(a.rollLensVariant()).toBe(c.rollLensVariant());
+      seen.add(a.rollLensVariant());
+    }
+    expect([...seen].sort()).toEqual([...LENS_VARIANTS].sort());
+  });
+
+  it('the brand version still casts Twin Brand; the glint version drops light on every standing pillar', () => {
+    const brand = lens('brand');
+    brand.q.runLensmother(brand.b, 0.01);
+    expect(brand.w.enemies[brand.b].castId).toBe('twinBrand');
+    const { w, q, b } = lens('glint');
+    w.pillars = [0, 1, 2, 3].map((k) => ({ x: 200 * Math.cos(k), y: 200 * Math.sin(k), r: 26, cracked: k === 0 }));
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).toBe('glintfall');
+    const ts = w.telegraphs.filter((t) => t.alive && t.owner === b);
+    expect(ts).toHaveLength(3);
+    for (const t of ts) {
+      expect(t.r).toBe(GLINTFALL.radius);
+      expect(w.pillars.some((p) => p.x === t.x && p.y === t.y && !p.cracked)).toBe(true);
+    }
+  });
+
+  it('online co-op: a guest sees the same version', () => {
+    const { w } = lens('glint');
+    const g = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.bossVariant).toBe('glint');
+  });
+});
+
+describe('V8 variety: the Coldmarrow', () => {
+  type L = { rollLayout(id: string): void; encounter: number };
+  it('draws from 6 openers and 3 named fights, and rolls only pillars; Nhevra stays open', () => {
+    const d = DUNGEONS.coldmarrow;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = new World({ seed, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+      const q = w as unknown as L;
+      q.encounter = 1;
+      q.rollLayout('rimepack');
+      seen.add(w.layout);
+      q.rollLayout('nhevra');
+      expect(w.layout).toBe('open');
+    }
+    expect([...seen].sort()).toEqual(['open', 'pillars']);
+  });
+});
+
+describe('V8 variety: Nhevra\'s Emberdrift', () => {
+  type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void; rollNhevraVariant(): string;
+    bossIndex: number; bossSpawned: boolean; coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
+  function nhevra(variant: 'ice' | 'drift'): { w: World; q: N; b: number } {
+    const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as N;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('nhevra', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.4;
+    q.coldPhase = 2; q.driftT = 0; q.iceT = 0; q.snuffT = 99; q.tideT = 99; q.nightT = 99;
+    w.player.x = 500; w.player.y = 500; w.player.coal = 0.5;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' }) as unknown as N;
+      const c = new World({ seed, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' }) as unknown as N;
+      expect(a.rollNhevraVariant()).toBe(c.rollNhevraVariant());
+      seen.add(a.rollNhevraVariant());
+    }
+    expect([...seen].sort()).toEqual([...NHEVRA_VARIANTS].sort());
+  });
+
+  it('the ice version cracks the river; the drift version drops embers instead, drains coal faster, and an ember refills it', () => {
+    const ice = nhevra('ice');
+    ice.q.coldClock(0.01);
+    expect(ice.w.cracks.some((c) => c.alive)).toBe(true);
+    expect(ice.w.driftEmbers).toHaveLength(0);
+    const { w, q } = nhevra('drift');
+    q.coldClock(0.01);
+    expect(w.cracks.some((c) => c.alive)).toBe(false);
+    expect(w.driftEmbers).toHaveLength(EMBERDRIFT.n);
+    expect(w.events.some((e) => e.type === 'emberDrift')).toBe(true);
+    const before = w.player.coal!;
+    q.coldClock(1);
+    expect(before - w.player.coal!).toBeCloseTo(0.01 * EMBERDRIFT.drainMult, 5);
+    const m = w.driftEmbers[0];
+    w.player.x = m.x; w.player.y = m.y;
+    const c0 = w.player.coal!;
+    q.coldClock(0.01);
+    expect(w.player.coal!).toBeGreaterThan(c0 + EMBERDRIFT.refill - 0.01);
+    expect(w.driftEmbers).toHaveLength(EMBERDRIFT.n - 1);
+    expect(w.events.some((e) => e.type === 'emberPick')).toBe(true);
+  });
+
+  it('online co-op: a guest sees the same version and embers', () => {
+    const { w, q } = nhevra('drift');
+    q.coldClock(0.01);
+    const g = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.bossVariant).toBe('drift');
+    expect(g.driftEmbers).toEqual(w.driftEmbers);
   });
 });

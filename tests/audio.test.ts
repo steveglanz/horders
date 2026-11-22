@@ -5,14 +5,14 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { FLOOR_HEATS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { LAYOUT, VARIETY, World } from '../sim/world';
+import { LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -479,6 +479,37 @@ describe('audio', () => {
     expect(cueFor({ type: 'layout', id: 'vents' } as never, foundry)?.id).toBe('layoutSteam');
     expect(cueFor({ type: 'layout', id: 'pillars' } as never, foundry)?.id).toBe('layoutPillars');
     expect(cueFor({ type: 'layout', id: 'vents' } as never, kiln)?.id).toBe('layoutVents');
+  });
+
+  it('gives every dungeon whose layouts roll vents its own vent sounds (V8)', () => {
+    for (const [d, pool] of Object.entries(LAYOUTS)) if (pool?.includes('vents')) expect(VENT_SOUNDS[d], d).toBeDefined();
+    const glare = { cls: 'emberwright' as const, acting: 0, dungeon: 'glarewell' };
+    expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, glare)?.id).toBe('lensVentWarn');
+    expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'glarewell')?.id).toBe('lensFlare');
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, glare)?.id).toBe('layoutLens');
+    expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, { ...glare, dungeon: undefined as never })?.id).toBe('kilnVentWarn');
+  });
+
+  it('sounds Glintfall once, however many pillars it hits (V8)', () => {
+    expect(CAST_SOUNDS.glintfall).toEqual({ start: 'glintWarn', done: 'glintfall' });
+    expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);
+    expect(THROTTLE.slam).toBeGreaterThan(1 / 60);
+    expect(THROTTLE.slam).toBeLessThan(0.2);
+    // The Coldmarrow's ice pillars (#384) clink; elsewhere pillars stay stone.
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'coldmarrow' })?.id).toBe('layoutIce');
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' })?.id).toBe('layoutPillars');
+  });
+
+  it('sounds Nhevra\'s Emberdrift: embers falling, and your own coal brightening (V8)', () => {
+    const c = { cls: 'emberwright' as const, acting: 1 };
+    expect(cueFor({ type: 'emberDrift', n: 3 } as never, c)?.id).toBe('emberDriftFall');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 1 } as never, c)?.id).toBe('emberPickUp');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 0 } as never, c)).toMatchObject({ id: 'emberTaken', vol: 0.5 });
+  });
+
+  it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
+    expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
+    expect(PRIORITY.has('tideTurn')).toBe(true);
   });
 
   it('stings Today\'s Heat once, with the first Kiln fight, unless its floor already sounds (V4/V6)', () => {

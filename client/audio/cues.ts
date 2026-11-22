@@ -163,6 +163,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
+  glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
@@ -360,9 +362,13 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
     case 'spitLob': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
-    case 'ventFlare': return { id: c.dungeon === 'foundry' ? 'steamVentWarn' : 'kilnVentWarn' };
+    case 'tideTurn': return { id: 'tideTurn' };
+    case 'emberDrift': return { id: 'emberDriftFall' };
+    // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
+    case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
+    case 'ventFlare': return { id: ventSounds(c.dungeon).warn };
     case 'layout': {
-      const id = c.dungeon === 'foundry' && ev.id === 'vents' ? 'layoutSteam' : LAYOUT_STING[ev.id];
+      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' && c.dungeon === 'coldmarrow' ? 'layoutIce' : LAYOUT_STING[ev.id];
       return id ? { id } : null;
     }
     case 'gather': return { id: 'gather' };
@@ -389,10 +395,18 @@ export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>[
   pillars: 'layoutPillars', channel: 'layoutChannel', vents: 'layoutVents',
 };
 
+/** Each dungeon's vents sound like what visuals drew: fire in the Kiln, steam in the Foundry, glass lenses in the Glarewell. */
+export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: SoundId }> = {
+  kiln: { warn: 'kilnVentWarn', land: 'lavaFlare', sting: 'layoutVents' },
+  foundry: { warn: 'steamVentWarn', land: 'steamBurst', sting: 'layoutSteam' },
+  glarewell: { warn: 'lensVentWarn', land: 'lensFlare', sting: 'layoutLens' },
+};
+export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
+
 /** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
 export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
   if (ev.type === 'spitLob') return { id: 'spitLand', after: VARIETY.lobLand, jitter: 0.04 };
-  if (ev.type === 'ventFlare') return { id: dungeon === 'foundry' ? 'steamBurst' : 'lavaFlare', after: LAYOUT.ventCast, jitter: 0.04 };
+  if (ev.type === 'ventFlare') return { id: ventSounds(dungeon).land, after: LAYOUT.ventCast, jitter: 0.04 };
   return null;
 }
 
@@ -516,7 +530,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
@@ -533,6 +547,8 @@ export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  // Several slams can land on one tick (Glintfall hits up to four pillars at once): one boom, not a stack.
+  slam: 0.06,
   // The Hoard: six embers spill at once and a party can sweep them up together.
   emberTaken: 0.1,
   emberEaten: 0.15,

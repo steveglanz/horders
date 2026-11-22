@@ -2,18 +2,28 @@
 // kiln vents, one of them flaring. Each scene restarts on a seed whose first fight rolls that layout.
 // Usage: npm run build && node tools/layoutshots.cjs <outDir> [phone|p360] [foundry]
 // With `foundry`, it shoots the Drowned Foundry's pillars and vents (V8): wet slate stones and steaming vents.
+// With `glarewell`, it shoots the Glarewell's vents: cracked skylight lenses that flare with light.
+// With `coldmarrow`, it shoots the Coldmarrow's pillars: stones of frosted ice.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const p360 = process.argv.includes('p360');
 const phone = process.argv.includes('phone') || p360;
 const foundry = process.argv.includes('foundry');
+const glarewell = process.argv.includes('glarewell');
+const coldmarrow = process.argv.includes('coldmarrow');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const OPTS = { cls: 'bulwark', dungeon: 'kiln', route: ['warpack'], tier: 2, invulnerable: true, heroName: 'Bulwark 9', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'emberwright', name: 'Emberwright 9' }, { cls: 'duskblade', name: 'Duskblade 9' }] };
 if (foundry) Object.assign(OPTS, { dungeon: 'foundry', route: ['glass'], tier: 5 });
-const SCENES = foundry ? [
+if (glarewell) Object.assign(OPTS, { dungeon: 'glarewell', route: ['shades'], tier: 8 });
+if (coldmarrow) Object.assign(OPTS, { dungeon: 'coldmarrow', route: ['rimepack'], tier: 11 });
+const SCENES = coldmarrow ? [
+  { name: 'coldmarrow-1-pillars', seed: 2, until: 'pillars' },
+] : glarewell ? [
+  { name: 'glarewell-3-vents', seed: 2, until: 'vents' },
+] : foundry ? [
   { name: 'foundry-1-pillars', seed: 2, until: 'pillars' },
   { name: 'foundry-3-vents', seed: 3, until: 'vents' },
 ] : [

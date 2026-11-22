@@ -195,7 +195,7 @@ Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs t
 | V5 | **Layout and silhouette art** (with visuals' look overhaul): the four layouts, the Ember Spitter, the Ashbuck, the Hollow Rift and Ashlings, the Kiln Draw tell | visuals | ⏭ Placeholders: the Spitter uses the acolyte sheet and the Ashbuck the hound's |
 | V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
 | V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ✅ Kiln: 0 repeats in 1000 runs (was 398), tools/variety.ts (variety.md, "V7 status") |
-| V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ✅ Foundry: fights, layouts and Maelra's Sluicetide; repeats 398 → 2 in 1000 (variety.md, "V8 status"). Glarewell and Coldmarrow next |
+| V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ✅ Foundry: fights, layouts and Maelra's Sluicetide; repeats 398 → 2 in 1000 (variety.md, "V8 status"). Glarewell: fights, vents and the Lensmother's Glintfall, repeats 409 → 2. Coldmarrow: fights, ice pillars and Nhevra's Emberdrift, repeats 306 → 2 |
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.

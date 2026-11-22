@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW } from '../sim/world';
-import { ENCOUNTERS, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT } from '../sim/world';
+import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -258,6 +258,18 @@ export class GameScene extends Phaser.Scene {
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
   private steamGfx: Phaser.GameObjects.Graphics | null = null;
+  /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
+  private tideGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
+  private tideShown = 0;
+  private tideOn = false;
+  /** A turn's beat: 1 on tideTurn, fading to 0. */
+  private tideBeat = 0;
+  /** V8: the Lensmother's Glintfall shards, above the pillars (1.5) and under the main graphics (2), so never over a ring. */
+  private glintGfx: Phaser.GameObjects.Graphics | null = null;
+  /** V8: Nhevra's Emberdrift embers, pooled, and when the last set fell (for the drop-in). */
+  private driftImgs: Phaser.GameObjects.Image[] = [];
+  private driftFallAt = -1e9;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -323,6 +335,12 @@ export class GameScene extends Phaser.Scene {
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
+    this.tideGfx = null;
+    this.tideOn = false;
+    this.tideBeat = 0;
+    this.glintGfx = null;
+    this.driftImgs = [];
+    this.driftFallAt = -1e9;
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1055,7 +1073,7 @@ export class GameScene extends Phaser.Scene {
         }
         // The Flue: a Decree lands with a flare, a pass flashes on its new holder, and a burst rolls out over everyone.
         case 'ventFlare':
-          this.ring(ev.x, ev.y, LAYOUT.ventRadius, this.world.dungeonId === 'foundry' ? 0xdff6f0 : 0xffb060, 0.35);
+          this.ring(ev.x, ev.y, LAYOUT.ventRadius, this.world.dungeonId === 'foundry' ? 0xdff6f0 : this.world.dungeonId === 'glarewell' ? 0xfff0c0 : 0xffb060, 0.35);
           break;
         case 'decree': {
           const q = this.heroXY(ev.hero);
@@ -1179,6 +1197,20 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'emberDrift':
+          // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
+          this.driftFallAt = this.time.now;
+          this.time.delayedCall(550, () => { for (const m of this.world.driftEmbers) this.ring(m.x, m.y, 46, 0xffb060, 0.4); });
+          break;
+        case 'emberPick':
+          this.burst(ev.x, ev.y, 10);
+          this.ring(ev.x, ev.y, 40, 0xffd27a, 0.35);
+          break;
+        case 'tideTurn':
+          // V8: Maelra's Sluicetide changes course (visuals draw the current).
+          this.hud.ding('The tide turns');
+          this.tideBeat = 1;
+          break;
         case 'bossSpawn':
           this.shake = 0.6;
           break;
@@ -1226,7 +1258,9 @@ export class GameScene extends Phaser.Scene {
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
-          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP : def.tip;
+          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
+            : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
+            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -1747,6 +1781,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.layoutDraw(g, now);
     this.kilnDrawTell(g, now);
+    this.tideDraw(now);
+    this.glintDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -2366,13 +2402,36 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
+    // V8 Emberdrift (Nhevra): live embers on the ice, walk over one to refill your coal. Each glows and breathes, sends up
+    // a spark now and then, and shows its pick-up reach as a faint ring. For a moment after they fall (emberDrift) each
+    // drops in from above on a fiery streak.
+    const fallU = Math.min(1, (now - this.driftFallAt) / 550);
+    w.driftEmbers.forEach((m, k) => {
+      let img = this.driftImgs[k];
+      if (!img) img = this.driftImgs[k] = this.add.image(0, 0, 'driftEmber').setDepth(1.6);
+      const drop = (1 - fallU) * (1 - fallU) * 220;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 200 + k * 2.1);
+      img.setVisible(true).setPosition(m.x, m.y - drop).setScale(0.8 + 0.08 * pulse);
+      g.fillStyle(0xff9a4a, 0.22 + 0.12 * pulse).fillCircle(m.x, m.y, 24);
+      g.lineStyle(1.5, 0xffb060, 0.35).strokeCircle(m.x, m.y, EMBERDRIFT.pickR);
+      if (drop > 1) {
+        g.lineStyle(6, 0xff8a3a, 0.35).lineBetween(m.x, m.y - drop - 70, m.x, m.y - drop);
+        g.lineStyle(2.5, 0xffe2a0, 0.8).lineBetween(m.x, m.y - drop - 40, m.x, m.y - drop);
+      } else {
+        const u = ((now / 1100) + k * 0.37) % 1;
+        g.fillStyle(0xffd27a, 0.8 * (1 - u)).fillCircle(m.x + Math.sin(now / 300 + k) * 5 * u, m.y - 10 - 34 * u, 2.2);
+      }
+    });
+    for (let k = w.driftEmbers.length; k < this.driftImgs.length; k++) this.driftImgs[k].setVisible(false);
     // V8: the Drowned Foundry rolls the same layouts; there the stones are wet slate and the vents steam.
     const wet = w.dungeonId === 'foundry';
-    if (wet && !this.steamGfx) this.steamGfx = this.add.graphics().setDepth(1.45);
+    // V5 in the Glarewell: its vents are cracked skylight lenses that flare with light.
+    const glass = w.dungeonId === 'glarewell';
+    if ((wet || glass) && !this.steamGfx) this.steamGfx = this.add.graphics().setDepth(1.45);
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2395,7 +2454,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
@@ -2407,10 +2466,101 @@ export class GameScene extends Phaser.Scene {
           const px = v.x + Math.sin(p * 2.1 + now / 400) * 10 * u, py = v.y - 70 * u;
           this.steamGfx!.fillStyle(0xdff6f0, 0.32 * (1 - u)).fillCircle(px, py, 12 + 26 * u);
         }
+      } else if (hot && glass) {
+        // Light: a pale gold glow on the lens and slow-turning rays spilling out of it, on the under layer.
+        const sg = this.steamGfx!;
+        sg.fillStyle(0xfff0c0, 0.16 + 0.1 * f).fillCircle(v.x, v.y, 46);
+        const n = this.lowFx ? 5 : 9;
+        for (let r = 0; r < n; r++) {
+          const a = (r / n) * Math.PI * 2 + now / 2400, wdt = 0.09;
+          const r1 = 58 + 10 * f;
+          sg.fillStyle(0xfff4d6, 0.14 + 0.08 * f).fillTriangle(
+            v.x + Math.cos(a - wdt) * 14, v.y + Math.sin(a - wdt) * 14,
+            v.x + Math.cos(a + wdt) * 14, v.y + Math.sin(a + wdt) * 14,
+            v.x + Math.cos(a) * r1, v.y + Math.sin(a) * r1);
+        }
       } else if (hot) g.fillStyle(0xff8a3a, 0.18 + 0.12 * f).fillCircle(v.x, v.y, 40);
-      g.lineStyle(1.5, wet ? 0x9fe8da : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
+      g.lineStyle(1.5, wet ? 0x9fe8da : glass ? 0xffe6a0 : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
+  }
+
+  /**
+   * V8 (variety): the tell for the Lensmother's Glintfall. While she casts it (castId 'glintfall'), shards of light gather
+   * in a turning crown high over every standing pillar and brighten; in the last fifth of the cast they drop onto the
+   * pillar, landing as the 80-radius hit circles do.
+   */
+  private glintDraw(now: number): void {
+    const w = this.world;
+    const m = w.enemies.find((e) => e.alive && e.kind === 'lensmother' && e.castId === 'glintfall');
+    if (!m) { this.glintGfx?.clear(); return; }
+    if (!this.glintGfx) this.glintGfx = this.add.graphics().setDepth(1.55);
+    const g = this.glintGfx;
+    g.clear();
+    const f = Math.min(1, m.castT / Math.max(0.01, m.castDur));
+    const n = this.lowFx ? 4 : 7;
+    const fall = Math.max(0, (f - 0.8) / 0.2);
+    for (const q of w.pillars) {
+      if (q.cracked) continue;
+      const hy = q.y - q.r - 90;
+      const y0 = hy + (q.y - hy) * fall * fall;
+      const gather = Math.min(1, f / 0.8);
+      const spread = 46 * (1 - gather) + 10;
+      g.fillStyle(0xfff4d6, 0.12 + 0.22 * gather).fillCircle(q.x, y0, 16 + 10 * gather);
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + now / 500;
+        const sx = q.x + Math.cos(a) * spread, sy = y0 + Math.sin(a) * spread * 0.5;
+        // A long, thin diamond pointing down, so each shard reads as falling glass.
+        const hl = 13 + 7 * gather + 18 * fall, hw = 4;
+        g.fillStyle(0xfffbea, 0.5 + 0.4 * gather);
+        g.fillTriangle(sx - hw, sy, sx + hw, sy, sx, sy - hl * 0.6);
+        g.fillTriangle(sx - hw, sy, sx + hw, sy, sx, sy + hl);
+      }
+    }
+  }
+
+  /**
+   * V8 (variety): Maelra's Sluicetide. From her phase 2 (60% health) on a tide run, the whole arena flows: a lattice of
+   * pale water streaks drifts along World.tideAngle, faster than the heroes are pushed so the way reads at a glance,
+   * with a faint teal wash over the floor. On each turn (tideTurn) the streaks flare brighter and swing round to the
+   * new way. It sits on its own layer under the main graphics, so it never covers a class ring or a danger area.
+   */
+  private tideDraw(now: number): void {
+    const w = this.world;
+    const m = w.bossVariant === 'tide' ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
+    if (!m || m.hp > m.maxHp * 0.6) { this.tideGfx?.clear(); this.tideOn = false; return; }
+    if (!this.tideGfx) this.tideGfx = this.add.graphics().setDepth(1.3);
+    const g = this.tideGfx;
+    g.clear();
+    const dt = Math.min(0.1, this.game.loop.delta / 1000);
+    if (!this.tideOn) { this.tideOn = true; this.tideShown = w.tideAngle; }
+    const d = Math.atan2(Math.sin(w.tideAngle - this.tideShown), Math.cos(w.tideAngle - this.tideShown));
+    this.tideShown += d * Math.min(1, dt * 5);
+    this.tideBeat = Math.max(0, this.tideBeat - dt * 1.2);
+    const ux = Math.cos(this.tideShown), uy = Math.sin(this.tideShown), px = -uy, py = ux;
+    const R = w.arenaR;
+    g.fillStyle(0x2fa596, 0.06 + 0.06 * this.tideBeat).fillCircle(0, 0, R);
+    // The lattice in flow space (a along the current, b across it), clipped to what the camera sees and to the arena.
+    const view = this.cameras.main.worldView;
+    const cx = view.centerX, cy = view.centerY, half = Math.hypot(view.width, view.height) / 2 + 60;
+    const S = this.lowFx ? 110 : 70, L = 150, len = 38;
+    const ca = cx * ux + cy * uy, cb = cx * px + cy * py;
+    const shift = ((now / 1000) * 120) % L;
+    const alpha = 0.2 + 0.3 * this.tideBeat;
+    g.lineStyle(3, 0xbff6ea, alpha);
+    for (let j = Math.floor((cb - half) / S); j <= Math.ceil((cb + half) / S); j++) {
+      const b = j * S;
+      const off = (((j * 2654435761) >>> 0) % 1000) / 1000 * L;
+      for (let i = Math.floor((ca - half) / L) - 1; i <= Math.ceil((ca + half) / L); i++) {
+        const a = i * L + off + shift;
+        const x = a * ux + b * px, y = a * uy + b * py;
+        if (x * x + y * y > (R - 12) * (R - 12)) continue;
+        g.lineBetween(x - ux * len, y - uy * len, x, y);
+        // A small head, so each streak is also an arrow.
+        g.lineBetween(x, y, x - ux * 10 + px * 7, y - uy * 10 + py * 7);
+        g.lineBetween(x, y, x - ux * 10 - px * 7, y - uy * 10 - py * 7);
+      }
+    }
   }
 
   /**
