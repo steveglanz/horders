@@ -862,6 +862,17 @@ export const SOUNDS = {
   heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
 
+  /** End screen: a loot card dealt onto the list, a soft quick flick (it sits under the victory fanfare). */
+  lootDeal: [
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.09, lp: 7000, hp: 1800, curve: 3 },
+    { wave: 'tri', f: 1400, f2: 1900, dur: 0.04, vol: 0.04, curve: 3 },
+  ],
+  /** End screen: the shine across an Epic or Mythic card, a bright rising sparkle. */
+  lootShine: join(
+    [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.15, lp: 12000, hp: 5000, curve: 1.6 }],
+    ...[0, 0.08, 0.16].map((d, k) => chime([E6, G6, B5() * 2][k], d, 0.07, 0.3)),
+  ),
+
   // ---- the ember purse (shared by every class): embers in, embers spent
   /** Salvage: the item crumbles to cinders and embers clink into the purse. */
   salvage: join(

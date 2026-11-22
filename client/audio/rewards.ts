@@ -47,3 +47,24 @@ export function rewardCues(r: RunRewards | undefined): TimedCue[] {
   ];
   return ids.slice(0, MAX).map((id, k) => ({ id, at: FIRST + k * GAP }));
 }
+
+/**
+ * The end screen deals the run's loot in one card at a time (client/index.html lootIn: 0.45 s, then 0.11 s
+ * apart, the ninth and later together), and Epics and Mythics get a shine 0.3 s after their card lands
+ * (lootShine). Each card gets a soft flick, and each shine a sparkle, timed to the animation.
+ * Reduced motion turns the animation off, so the cards make no sound either.
+ */
+export const LOOT_DEAL = { first: 0.45, gap: 0.11, cap: 8, shine: 0.3 };
+
+export function lootCues(r: RunRewards | undefined, reducedMotion = false): TimedCue[] {
+  if (!r || reducedMotion) return [];
+  const out: TimedCue[] = [];
+  r.items.forEach((it, k) => {
+    const at = LOOT_DEAL.first + Math.min(k, LOOT_DEAL.cap) * LOOT_DEAL.gap;
+    // Cards past the cap land together: one flick for the lot.
+    if (k <= LOOT_DEAL.cap) out.push({ id: 'lootDeal', at });
+    if (it.rarity === 'epic' || it.rarity === 'mythic') out.push({ id: 'lootShine', at: at + LOOT_DEAL.shine });
+  });
+  // Several shines landing together after the cap would stack: keep one per moment.
+  return out.filter((c, i) => out.findIndex((o) => o.id === c.id && Math.abs(o.at - c.at) < 1e-6) === i);
+}
