@@ -436,6 +436,7 @@ export class Hud {
     if ((p.coverT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Covered</span>`);
     if ((p.bondT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kinbound +6%</span>`);
     if ((p.relayT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Relayer +${Math.round(SET_TUNING.rlDamage * 100)}%</span>`);
+    if ((p.freedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Crawsplitter +${Math.round(SET_TUNING.csFreed * 100)}%</span>`);
     if (p.planted && w.setCount('wrackrider') >= 2) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Planted</span>`);
     // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).
     if (w.setCount('hearthkeeper') >= 2) {
