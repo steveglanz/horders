@@ -105,6 +105,8 @@ export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Gli
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
 /** Phase 12 W2: Ysmeret's intro when this run's Twin Vents wander. */
 export const WANDER_TIP = 'Two of you stand in her vents, and they drift round her as they fuse: walk with them. Never stand together when the Embers mark you.';
+/** Phase 12 W2: Oskel's intro when this run's version brings Die Cut instead of Rivets. */
+export const DIECUT_TIP = 'Take turns under his Downstroke. His Die Cut stamps half the floor: get to the other side, toward the plate.';
 /** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
 export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
@@ -179,7 +181,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   pressworks: {
     id: 'pressworks', name: 'The Pressworks', boss: 'oskel', unlockTier: 10,
-    openers: ['warpack', 'glass', 'wardens'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
+    openers: ['warpack', 'glass', 'wardens', 'riftfall', 'glassSpitters', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: ['acolytes', 'anvilguard'],
     blurb: 'A group dungeon. Oskel\'s Downstroke needs a hero under it every time, and nobody can take two in a row: take turns.', style: 'group', minParty: 2,
   },
   crucible: {

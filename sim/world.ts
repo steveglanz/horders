@@ -834,7 +834,9 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | '' = '';
+  /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
+  cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -1902,6 +1904,8 @@ export class World {
           this.downT = OSKEL.firstDown;
           this.rivetT = OSKEL.firstRivets;
           this.stampT = OSKEL.firstStamp;
+          this.bossVariant = this.rollOskelVariant();
+          this.cutCount = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -1991,6 +1995,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** Phase 12 W2: Oskel's version this run, hashed from the seed (no run-rng draws). */
+  private rollOskelVariant(): OskelVariant {
+    if (this.stress) return 'rivets';
+    let h = Math.imul(this.seed ^ 0x3c6ef372, 0x1f83d9ab) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return OSKEL_VARIANTS[(h >>> 4) % OSKEL_VARIANTS.length];
   }
 
   /** Phase 12 W2: Ysmeret's version this run, hashed from the seed (no run-rng draws). */
@@ -5771,8 +5783,9 @@ export class World {
       const turn = (WANDER.speed / YSMERET.ventDist) * dt;
       for (const t of this.telegraphs) {
         if (!t.alive || t.kind !== 'soak' || t.owner !== -2) continue;
-        const dx = t.x - e.x, dy = t.y - e.y;
-        const c = { x: e.x + dx * Math.cos(turn) - dy * Math.sin(turn), y: e.y + dx * Math.sin(turn) + dy * Math.cos(turn) };
+        // Always at ventDist from her (not the clamped distance), so a circle pulled in at the rim swings back out.
+        const a = Math.atan2(t.y - e.y, t.x - e.x) + turn;
+        const c = { x: e.x + Math.cos(a) * YSMERET.ventDist, y: e.y + Math.sin(a) * YSMERET.ventDist };
         this.clampArena(c, YSMERET.ventRadius + 10);
         t.x = c.x; t.y = c.y;
       }
@@ -5822,7 +5835,16 @@ export class World {
       this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
       this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
     }
-    if (this.rivetT <= 0) {
+    if (this.rivetT <= 0 && this.bossVariant === 'cut') {
+      // Die Cut: half the floor, split through Oskel. Away from an open plate, so its taker is safe;
+      // otherwise the side turns a quarter each time.
+      this.rivetT = DIECUT.every;
+      const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      const a = plate ? Math.atan2(plate.y - e.y, plate.x - e.x) + Math.PI : (this.cutCount * Math.PI) / 2 + ((this.seed & 3) * Math.PI) / 2;
+      this.cutCount++;
+      this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
+      this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
+    } else if (this.rivetT <= 0) {
       this.rivetT = OSKEL.rivetEvery;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
@@ -7205,6 +7227,7 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
   // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
   hammerdeep: ['open', 'open', 'pillars', 'vents'],
+  pressworks: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
@@ -7370,6 +7393,11 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W2: Oskel's two versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. */
+export type OskelVariant = 'rivets' | 'cut';
+export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
+/** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
+export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
 /** Phase 12 W2: Ysmeret's two versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. */
 export type YsmeretVariant = 'still' | 'wander';
 export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
