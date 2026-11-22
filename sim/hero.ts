@@ -629,6 +629,36 @@ export function salvage(hero: HeroProfile, itemId: string): number {
   return gain;
 }
 
+/**
+ * Salvage all: the spare items it breaks down, and what it keeps. It never takes what you wear, a set piece, an
+ * Epic or Mythic, a weapon with a class effect, or an upgrade on what you wear in that slot (or an item for a slot you
+ * have empty), so one tap can't throw away anything worth a second look.
+ */
+export function salvageAllPlan(hero: HeroProfile): { items: Item[]; embers: number; kept: number } {
+  const worn = new Set(Object.values(hero.equipped));
+  const wornScore = new Map<string, number>();
+  for (const it of equippedItems(hero)) wornScore.set(it.slot, itemScore(it));
+  const items: Item[] = [];
+  let kept = 0;
+  for (const it of hero.inventory) {
+    if (worn.has(it.id)) continue;
+    const cur = wornScore.get(it.slot);
+    const keep = !!it.set || it.rarity === 'epic' || it.rarity === 'mythic' || !!it.mythic || !!it.weaponFx
+      || cur === undefined || itemScore(it) > cur;
+    if (keep) kept++;
+    else items.push(it);
+  }
+  return { items, embers: items.reduce((a, it) => a + RARITY[it.rarity].salvage, 0), kept };
+}
+
+/** Breaks down everything salvageAllPlan picks. Returns the items broken down and the embers gained. */
+export function salvageAll(hero: HeroProfile): { count: number; embers: number } {
+  const plan = salvageAllPlan(hero);
+  let embers = 0;
+  for (const it of plan.items) embers += salvage(hero, it.id);
+  return { count: plan.items.length, embers };
+}
+
 export function spendPoint(hero: HeroProfile, id: PassiveId): boolean {
   if (pointsAvailable(hero) <= 0) return false;
   const r = hero.passives[id] ?? 0;
