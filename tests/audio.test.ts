@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -661,6 +661,23 @@ describe('audio', () => {
     // The Coldmarrow's ice pillars (#384) clink; elsewhere pillars stay stone.
     expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'coldmarrow' })?.id).toBe('layoutIce');
     expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' })?.id).toBe('layoutPillars');
+  });
+
+  it('gives every dungeon with its own drawn stones its own stones sting, under 1 s and level with layoutPillars (Phase 13)', () => {
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    const raidStone = scene.match(/const RAID_STONE[^=]*= \{([^}]*)\}/);
+    expect(raidStone).not.toBeNull();
+    const drawn = [...raidStone![1].matchAll(/(\w+):/g)].map((m) => m[1]);
+    expect(drawn.length).toBeGreaterThanOrEqual(5);
+    const stings = Object.values(PILLAR_STING);
+    expect(new Set(stings).size).toBe(stings.length);
+    const base = phoneDb(render(SOUNDS.layoutPillars, 22050), 22050);
+    for (const d of drawn) {
+      const id = cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: d })?.id;
+      expect(id, d).toBe(PILLAR_STING[d]);
+      expect(recipeLength(SOUNDS[id!]), d).toBeLessThan(1);
+      expect(Math.abs(phoneDb(render(SOUNDS[id!], 22050), 22050) - base), d).toBeLessThan(1.5);
+    }
   });
 
   it('sounds Nhevra\'s Emberdrift: embers falling, and your own coal brightening (V8)', () => {
