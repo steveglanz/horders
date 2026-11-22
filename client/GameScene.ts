@@ -258,6 +258,8 @@ export class GameScene extends Phaser.Scene {
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
   private steamGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The Kiln's edge props (furnaces and braziers just outside the rim) and their light pools; made on first need. */
+  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
   /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
@@ -335,6 +337,7 @@ export class GameScene extends Phaser.Scene {
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
+    this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
     this.tideBeat = 0;
@@ -1785,6 +1788,7 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     this.layoutDraw(g, now);
+    this.edgeDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
     this.glintDraw(now);
@@ -2566,6 +2570,38 @@ export class GameScene extends Phaser.Scene {
         g.lineBetween(x, y, x - ux * 10 - px * 7, y - uy * 10 - py * 7);
       }
     }
+  }
+
+  /**
+   * The Kiln's arena edge: brick furnaces and braziers stand just outside the rim, each throwing a warm light pool that
+   * spills onto the floor inside. Props sit outside the play area (above the dark beyond the rim, depth 2.05) and the
+   * light sits under everything that matters (depth 1.2), so neither ever hides a danger area or a class ring.
+   * The pools flicker; braziers send up an ember now and then (not on trimmed effects).
+   */
+  private edgeDraw(now: number): void {
+    const w = this.world;
+    if (w.dungeonId !== 'kiln' || w.stress) return;
+    if (!this.edgeProps.length) {
+      const R = ARENA;
+      for (let k = 0; k < 12; k++) {
+        const furnace = k % 2 === 0;
+        const a = (k / 12) * Math.PI * 2 + 0.26;
+        // Far enough out that even a prop below the arena (drawn upward) stays outside the rim.
+        const r = R + (furnace ? 92 : 62);
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        const img = this.add.image(x, y, furnace ? 'kilnFurnace' : 'kilnBrazier').setOrigin(0.5, 0.85).setScale(furnace ? 0.55 : 0.6).setDepth(2.05);
+        const lr = R - 10;
+        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, 'coalLight').setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(furnace ? 1.15 : 0.85);
+        this.edgeProps.push({ img, light, x, y, fire: !furnace });
+      }
+    }
+    this.edgeProps.forEach((p, k) => {
+      const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / 130 + k * 1.7) + 0.5 * Math.sin(now / 57 + k * 4.1);
+      p.light.setAlpha(0.55 + 0.07 * fl);
+      if (p.fire && !this.lowFx && Math.random() < 0.03) {
+        this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
+      }
+    });
   }
 
   /**

@@ -3332,6 +3332,54 @@ export function buildTextures(scene: Phaser.Scene): void {
     ell(ctx, c - 5, c - 7, 4, 2.4); ctx.fillStyle = 'rgba(255,226,160,0.55)'; ctx.fill();
   });
 
+  // The Kiln's edge props, drawn at 2x and shown at half scale, standing just outside the arena rim.
+  // A brick kiln furnace: a domed brick body with a short chimney and a glowing arched mouth.
+  make(scene, 'kilnFurnace', 160, (ctx) => {
+    const cx = 80, by = 136;
+    ell(ctx, cx + 8, by + 4, 58, 14); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Chimney behind the dome.
+    ctx.fillStyle = '#4a2a22'; ctx.fillRect(cx + 14, 18, 22, 60); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx + 14, 18, 22, 60);
+    ctx.fillStyle = '#2a1612'; ctx.fillRect(cx + 10, 12, 30, 9); ctx.strokeRect(cx + 10, 12, 30, 9);
+    // The dome.
+    ctx.beginPath(); ctx.moveTo(cx - 56, by); ctx.lineTo(cx - 56, by - 34); ctx.bezierCurveTo(cx - 56, by - 100, cx + 56, by - 100, cx + 56, by - 34); ctx.lineTo(cx + 56, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 56, 0, cx + 56, 0);
+    g.addColorStop(0, '#7a3e2c'); g.addColorStop(0.6, '#5a2c20'); g.addColorStop(1, '#3a1c16');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Brick courses.
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = 'rgba(20,8,6,0.55)'; ctx.lineWidth = 2;
+    for (let y = by - 12, row = 0; y > by - 100; y -= 13, row++) {
+      ctx.beginPath(); ctx.moveTo(cx - 60, y); ctx.lineTo(cx + 60, y); ctx.stroke();
+      for (let x = cx - 60 + (row % 2) * 12; x < cx + 60; x += 24) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 13); ctx.stroke(); }
+    }
+    ctx.restore();
+    // The mouth: an arch of fire.
+    ctx.beginPath(); ctx.moveTo(cx - 24, by); ctx.lineTo(cx - 24, by - 22); ctx.arc(cx, by - 22, 24, Math.PI, 0); ctx.lineTo(cx + 24, by); ctx.closePath();
+    const m = ctx.createRadialGradient(cx, by - 10, 3, cx, by - 14, 34);
+    m.addColorStop(0, '#fff2b0'); m.addColorStop(0.4, '#ffa040'); m.addColorStop(1, '#a8300c');
+    ctx.save(); ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 16; ctx.fillStyle = m; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    flameLick(ctx, cx - 8, by - 2, 7, cx - 10, by - 30);
+    flameLick(ctx, cx + 8, by - 2, 6, cx + 9, by - 26);
+    // Arch bricks round the mouth.
+    ctx.strokeStyle = '#2a1410'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, by - 22, 28, Math.PI, 0); ctx.stroke();
+  });
+
+  // A brazier: an iron bowl of coals on three legs, flames licking up.
+  make(scene, 'kilnBrazier', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 24, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    ctx.strokeStyle = '#1c1210'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (const dx of [-16, 0, 16]) { ctx.beginPath(); ctx.moveTo(cx + dx * 0.6, 60); ctx.lineTo(cx + dx, 88); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(cx - 26, 48); ctx.quadraticCurveTo(cx, 76, cx + 26, 48); ctx.closePath();
+    ctx.fillStyle = '#3a3036'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ell(ctx, cx, 48, 26, 7); const cg = ctx.createRadialGradient(cx, 48, 2, cx, 48, 26); cg.addColorStop(0, '#ffd27a'); cg.addColorStop(0.5, '#ff6a1e'); cg.addColorStop(1, '#5a1406');
+    ctx.fillStyle = cg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    flameLick(ctx, cx - 10, 48, 7, cx - 13, 16);
+    flameLick(ctx, cx + 9, 48, 6, cx + 11, 20);
+    flameLick(ctx, cx, 47, 9, cx + 1, 6);
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
