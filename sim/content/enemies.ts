@@ -55,7 +55,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   // The Hammerdeep's group boss: role checks rather than dodge checks.
   oskel: { id: 'oskel', name: 'Oskel of the Pressworks', hp: 6400, speed: 32, damage: 16, radius: 44, xp: 0, rank: 'boss', title: 'Group boss' },
-  ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', hp: 6200, speed: 36, damage: 15, radius: 42, xp: 0, rank: 'boss', title: 'Group boss' },
+  ysmeret: { id: 'ysmeret', name: 'Ysmeret, the Twofold Flame', hp: 5800, speed: 36, damage: 15, radius: 42, xp: 0, rank: 'boss', title: 'Group boss' },
   // The Coldmarrow (C1): frost-touched foes. Killing one feeds your Hearthcoal.
   rimehound: { id: 'rimehound', name: 'Rimehound', hp: 260, speed: 92, damage: 9, radius: 14, xp: 2, rank: 'elite', title: 'Frost-touched' },
   snuffer: { id: 'snuffer', name: 'Snuffer', hp: 200, speed: 40, damage: 4, radius: 15, xp: 3, rank: 'elite', title: 'Dims your coal' },

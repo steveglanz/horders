@@ -7389,6 +7389,8 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
   hammerdeep: ['open', 'open', 'pillars', 'vents'],
   pressworks: ['open', 'open', 'pillars', 'vents'],
+  // Phase 13 E2: the Ashvents' layouts, held back in W2.
+  ashvents: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
