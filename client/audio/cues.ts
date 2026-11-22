@@ -202,6 +202,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
+  plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
   pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
   // The Flue (raid 4): the Furnace Regent. The Decrees sound from their own events (decree, decreePassed, decreeBurst).
   lastWord: { start: 'lastWordWarn', done: 'lastWord' }, // Last Word
@@ -531,6 +533,8 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
  * blasts no one, so the generic soakFail would lie; the ember cue already says it. This drops those soak events.
  */
 export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
+  // The soak event names its telegraph's owner now (#432): -4 is a Banked Coal. The same-spot match stays for older events.
+  evs = evs.filter((ev) => ev.type !== 'soak' || ev.owner !== -4);
   const at = new Set<string>();
   for (const ev of evs) if (ev.type === 'emberTaken' || ev.type === 'emberEaten') at.add(`${ev.x},${ev.y}`);
   if (!at.size) return evs as E[];
