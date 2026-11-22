@@ -3165,7 +3165,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, wet: boolean) => {
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice') => {
+    const wet = look === 'wet', ice = look === 'ice';
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3178,7 +3179,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3189,8 +3190,27 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    if (ice) {
+      // Frozen: hairline cracks in the ice, a frost rim round the top, icicles down the lit side and a sparkle.
+      ctx.save();
+      ctx.strokeStyle = 'rgba(60,96,130,0.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 30, by - h - 12); ctx.lineTo(cx - 6, by - h - 4); ctx.lineTo(cx + 4, by - h - 16); ctx.moveTo(cx - 6, by - h - 4); ctx.lineTo(cx + 22, by - h + 6); ctx.stroke();
+      ctx.beginPath();
+      for (let i = 0; i <= sides; i++) { const a = (i / sides) * Math.PI * 2 + 0.2; ctx.lineTo(cx + Math.cos(a) * (r - 5), by - h + Math.sin(a) * (ry - 4)); }
+      ctx.closePath(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = 'rgba(225,245,255,0.9)';
+      for (const dx of [-44, -28, 26, 44]) {
+        const ty = by - 4 + Math.abs(dx) * 0.12;
+        ctx.beginPath(); ctx.moveTo(cx + dx - 4, ty - 8); ctx.lineTo(cx + dx + 4, ty - 8); ctx.lineTo(cx + dx, ty + 8 + (dx % 3)); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2;
+      const sx = cx - 26, sy = by - h - 20;
+      ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
+      ctx.restore();
+      return;
+    }
     if (wet) {
       // Drowned: a waterline band round the side, a teal puddle with a glint on top, and a few drips.
       ctx.save();
@@ -3213,9 +3233,11 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.strokeStyle = 'rgba(255,230,200,0.25)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
   };
-  make(scene, 'kilnStone', 200, (ctx) => stone(ctx, false));
+  make(scene, 'kilnStone', 200, (ctx) => stone(ctx, 'kiln'));
   // V8: the same stump in the Drowned Foundry, slate and wet, with a waterline instead of an ember seam.
-  make(scene, 'foundryStone', 200, (ctx) => stone(ctx, true));
+  make(scene, 'foundryStone', 200, (ctx) => stone(ctx, 'wet'));
+  // V8: the Coldmarrow's stones, pale blue ice with frost, cracks and icicles.
+  make(scene, 'iceStone', 200, (ctx) => stone(ctx, 'ice'));
 
   // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
   // while its flare circle is up. 26 px across at half scale, the same as the placeholder.

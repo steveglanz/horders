@@ -2395,7 +2395,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
