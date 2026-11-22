@@ -19,7 +19,7 @@ The theme brief is at `/mnt/project-files/horders/design/briefs-c1-c3.md`. All t
 
 Burnout backs her up at 455 s (her hard enrage, plus the cast, plus Burnout's 30 s warning), instead of the usual 360 s boss limit.
 
-**Not built yet.** The sinking cooling islands from the brief are deferred; the Pour uses moving lanes instead. The tank swap is built (below).
+**The sinking cooling islands** from the brief are now her second version, the Brimming (Phase 12 W3, variety.md). The tank swap is built (below).
 
 ## The tank swap: Seared (21 Nov 2026)
 **The rule.** Ladle Pour leaves **Seared** on its target for 15 s (`SLAG.searTime`). A pour that lands on a hero who is still Seared hits 40% harder (`SLAG.searMult`). This is on top of the Ladle Burn stacks. No heal and no Purify clears Seared.

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, BRIM, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -493,6 +493,34 @@ export function downstrokeTaker(w: World, t: World['telegraphs'][number]): numbe
   return best;
 }
 
+/**
+ * The Brimming: the way onto the nearest cooling island with more than BRIM.warn s left, or toward its middle
+ * when near its edge. Null when well on a safe island, or when there are no islands.
+ */
+export function islandStep(w: World): { dx: number; dy: number } | null {
+  if (!w.islands.length || process.env.NOISLAND === '1') return null;
+  const p = w.player;
+  // Melee heroes weigh how close the island is to her too, so they can still reach her from it.
+  const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  const boss = w.bossIndex >= 0 && w.enemies[w.bossIndex].alive ? w.enemies[w.bossIndex] : null;
+  let ward = w.cls === 'lumen' ? lumenWard(w) : -1;
+  if (w.cls === 'lumen' && ward < 0) for (let k = 0; k < w.heroes.length; k++) if (k !== w.acting && w.isTank(k) && w.heroData(k).player.hp > 0) { ward = k; break; }
+  let best: { x: number; y: number } | null = null;
+  let bs = Infinity;
+  for (const s of w.islands) {
+    if (s.t <= BRIM.warn) continue;
+    const d = Math.hypot(s.x - p.x, s.y - p.y);
+    // A Lumen picks the island nearest the hero it keeps alive, so its heals still reach.
+    const wd = ward >= 0 ? w.heroData(ward).player : null;
+    const score = d + (melee && boss ? Math.hypot(s.x - boss.x, s.y - boss.y) : wd ? Math.hypot(s.x - wd.x, s.y - wd.y) : 0);
+    if (score < bs) { bs = score; best = s; }
+  }
+  if (!best) return null;
+  const bd = Math.hypot(best.x - p.x, best.y - p.y) || 1;
+  if (bd < BRIM.radius * 0.6) return null;
+  return { dx: (best.x - p.x) / bd, dy: (best.y - p.y) / bd };
+}
+
 /** The Wrackline: while the Ebb warns or pulls, the way to the nearest afloat raft (null when already well on one, or no Ebb). */
 function ebbRaft(w: World): { dx: number; dy: number; d?: number } | null {
   if (!w.rafts.length || (w.ebbWarnT <= 0 && w.ebbT <= 0)) return null;
@@ -689,6 +717,9 @@ export function botInput(w: World, skill = 1): Input {
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
+  // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
+  const isle = islandStep(w);
+  if (isle) return { x: isle.dx, y: isle.dy, cast: botCast(w, skill) };
   // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
   const glow = longNightShelter(w);
   if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
