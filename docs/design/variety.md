@@ -203,3 +203,12 @@ The two versions are about as hard. A Bulwark's fight runs longer with the tide 
   - On glint seeds the boss record is 32 → 33 of 33 (good bot) and 33 of 33 both times (`SKILL=0.5`). The average fight stays 127 to 133 s.
   - The geared bot steps out of the circles, so Glintfall costs it nothing. It is a movement check for humans more than a damage check. Watch it in playtests.
 - **Run variety** (tier 7, now counting her version): 2 repeats in 1000 runs (was 409 before V8), with 853 run shapes.
+
+## V8 status, part 5 (built 22 Nov 2026): the Coldmarrow's fights and layout
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2), all from the Coldmarrow's own cold foes, since the fire foes don't fit a place where the fires went out.
+  - New openers: `snufferPack` (a Snuffer and 3 Rime hounds), `wardenPack` (a Frost Warden and 3 Rime hounds) and `weaverSnuffers` (a Hoarfrost Weaver and 2 Snuffers).
+  - New named fight: `twoWeavers` (2 Weavers and 2 Rime hounds).
+- **Layouts:** `LAYOUTS.coldmarrow` is open, open or pillars (ice pillars). There are no vents or lava, and Nhevra's fight stays open.
+- **Run variety** (tools/variety.ts, tier 10): repeats within blocks of 20 fell from 306 of 1000 to 6. Routes went from 24 to 179, with 766 run shapes.
+- **Win rates** (tools/foundry.ts, `DUNGEON=coldmarrow TIER=10 HERO=tools/heroes/hero-t8.json`, seeds 1 to 40, before → after): good bot 36 → 38, `SKILL=0.5` 29 → 32. The new fights run a little easier than the old pool. The hashcheck has no Coldmarrow rows, so it is unchanged.
+- **Next:** a second version of Nhevra.
