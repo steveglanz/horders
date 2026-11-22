@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -159,6 +159,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Hammerdeep: Ondrel of the Hammerdeep (docs/design/group-dungeons.md).
   anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
   choir: { done: 'choir' }, // Choir of Iron
+  // Ondrel's Ironload version: chains haul the weight up, then it is marked on a hero; it lands 5 s later as an r-110 slam.
+  ironload: { start: 'ironloadWarn', done: 'ironloadMark' }, // Ironload
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
@@ -306,7 +308,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
-    case 'slam': return { id: 'slam' };
+    // Ironload lands as a slam the size of IRONLOAD.radius in the Hammerdeep: its own crushing weight.
+    case 'slam': return c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius ? { id: 'ironload' } : { id: 'slam' };
     case 'glare': return { id: ev.hit ? 'glareHit' : 'glare' };
     case 'brandBurst': return { id: 'brand' };
     case 'pillarCrack': return { id: 'crack' };
@@ -404,7 +407,7 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   foundry: { warn: 'steamVentWarn', land: 'steamBurst', sting: 'layoutSteam' },
   glarewell: { warn: 'lensVentWarn', land: 'lensFlare', sting: 'layoutLens' },
   // Phase 12 W2: the Hammerdeep's forge vents borrow the Kiln's fire until sound gives them their own.
-  hammerdeep: { warn: 'kilnVentWarn', land: 'lavaFlare', sting: 'layoutVents' },
+  hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
 };
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
