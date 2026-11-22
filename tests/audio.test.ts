@@ -483,6 +483,12 @@ describe('audio', () => {
 
   it('gives every dungeon whose layouts roll vents its own vent sounds (V8)', () => {
     for (const [d, pool] of Object.entries(LAYOUTS)) if (pool?.includes('vents')) expect(VENT_SOUNDS[d], d).toBeDefined();
+    // Each dungeon's vents are its own: no two share a warn, burst or sting, and each warn ends inside the fuse.
+    for (const part of ['warn', 'land', 'sting'] as const) {
+      const ids = Object.values(VENT_SOUNDS).map((v) => v[part]);
+      expect(new Set(ids).size, part).toBe(ids.length);
+    }
+    for (const [d, v] of Object.entries(VENT_SOUNDS)) expect(recipeLength(SOUNDS[v.warn]), d).toBeLessThanOrEqual(LAYOUT.ventCast);
     const glare = { cls: 'emberwright' as const, acting: 0, dungeon: 'glarewell' };
     expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, glare)?.id).toBe('lensVentWarn');
     expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'glarewell')?.id).toBe('lensFlare');
