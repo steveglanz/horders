@@ -11,7 +11,7 @@ import { fillLootShare } from './content/botfill';
 import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
-import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId } from './content/emberwright';
+import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
 import { ALT_ABILITIES, CLASSES, ClassDef } from './content/classes';
 import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { Item, Rarity } from './content/items';
@@ -484,6 +484,10 @@ export interface Player {
   swings: number;
   parryT: number;
   nextCrit: boolean;
+  /** Vent-Fed: the next Cinder Volley deals double damage. */
+  ventVolley?: boolean;
+  /** Read the Lane: swings left with the bonus. */
+  laneN?: number;
   /** Seconds left on the Hot Heels run boost. */
   hasteT: number;
   /** Stored extra Blink charges (Hot Heels rank 2) and the timer refilling one. */
@@ -2042,6 +2046,71 @@ export class World {
     return MAELRA_VARIANTS[(h >>> 4) % MAELRA_VARIANTS.length];
   }
 
+  /** The layout hash for the fight at route position `k` (no run-rng draws). */
+  private layoutHash(k: number): number | undefined {
+    if (!LAYOUTS[this.dungeonId] || this.firstDelve || this.stress) return undefined;
+    const h = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) + Math.imul(k + 1, 0xc2b2ae35)) >>> 0;
+    return Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
+  }
+
+  private layoutRolls(id: EncounterId): boolean {
+    return id !== this.dungeonDef.boss && id !== 'shrine' && id !== 'worldShadow';
+  }
+
+  /** The layout the fight `id` at route position `k` gets (rollLayout uses this too). */
+  layoutAt(k: number, id: EncounterId): LayoutId {
+    const h = this.layoutHash(k);
+    if (h === undefined || !this.layoutRolls(id)) return 'open';
+    const pool = LAYOUTS[this.dungeonId]!;
+    const forced = this.heat === 'stoneFloor' ? 'pillars' : this.heat === 'ventFloor' ? 'vents' : undefined;
+    return forced ?? pool[h % pool.length];
+  }
+
+  /**
+   * Site cards: whether `s` is still ahead in this run, as the route stands (a fork can still
+   * swap a fight; that small miss is accepted). The fight under way counts only before it starts.
+   */
+  situationAhead(s: Situation): boolean {
+    // Solo dungeons only for now: group tables (the Hammerdeep's stones and vents since W2) are measured without them.
+    if (SITE_CARDS.off || this.dungeonDef.style !== 'solo') return false;
+    const from = this.phase === 'fight' ? this.encounter + 1 : this.encounter;
+    for (let k = from; k < this.route.length; k++) {
+      const id = this.route[k];
+      const def = ENCOUNTERS[id];
+      if (!def) continue;
+      if (s === 'vents' && this.layoutAt(k, id) === 'vents') return true;
+      if (s === 'lava' && this.layoutAt(k, id) === 'channel') return true;
+      if (s === 'pillars' && (this.layoutAt(k, id) === 'pillars' || this.dungeonId === 'glarewell')) return true;
+      if (s === 'spitter' && def.spawns.some((x) => x.kind === 'emberSpitter')) return true;
+      if (s === 'lane' && def.spawns.some((x) => x.kind === 'emberSpitter' || x.kind === 'ashbuck')) return true;
+    }
+    return false;
+  }
+
+  /** Read the Lane: the hero stands in an Ember Lob circle or an Ashbuck charge lane that hasn't landed. */
+  inLaneTelegraph(): boolean {
+    for (const t of this.telegraphs) {
+      if (!t.alive || t.kind !== 'hit' || t.owner < 0) continue;
+      const k = this.enemies[t.owner]?.kind;
+      if ((k === 'emberSpitter' || k === 'ashbuck') && this.insideFor(t, this.player)) return true;
+    }
+    return false;
+  }
+
+  /** Back to Stone: the hero is within reach of a layout stone or a standing Glarewell pillar. */
+  nearStone(p: Player = this.player): boolean {
+    const r = SITE_CARDS.stoneRange + PLAYER_RADIUS;
+    for (const c of this.stones) if (Math.hypot(p.x - c.x, p.y - c.y) - c.r <= r) return true;
+    for (const c of this.pillars) if (!c.cracked && Math.hypot(p.x - c.x, p.y - c.y) - c.r <= r) return true;
+    return false;
+  }
+
+  /** Slag Wade: the hero stands in a lava channel. */
+  inLava(p: Player = this.player): boolean {
+    for (const c of this.lava) if (segDist2(p.x, p.y, c.x1, c.y1, c.x2, c.y2) <= (c.w / 2) ** 2) return true;
+    return false;
+  }
+
   /** Phase 12 W1: the Wrackline's currents for this fight, hashed from the seed and the fight's place (no run-rng draws). Hessa's fight keeps the first pattern. */
   private rollCurrents(id: EncounterId): { pattern: number; turn: number } {
     if (this.dungeonId !== 'wrackline' || this.stress || id === this.dungeonDef.boss) return { pattern: 0, turn: 0 };
@@ -2055,12 +2124,9 @@ export class World {
     this.lava = [];
     this.flareVents = [];
     this.layout = 'open';
-    const pool = LAYOUTS[this.dungeonId];
-    if (!pool || this.firstDelve || this.stress || id === this.dungeonDef.boss || id === 'shrine' || id === 'worldShadow') return;
-    let h = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) + Math.imul(this.encounter + 1, 0xc2b2ae35)) >>> 0;
-    h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
-    const forced = this.heat === 'stoneFloor' ? 'pillars' : this.heat === 'ventFloor' ? 'vents' : undefined;
-    this.layout = forced ?? pool[h % pool.length];
+    const h = this.layoutHash(this.encounter);
+    if (h === undefined || !this.layoutRolls(id)) return;
+    this.layout = this.layoutAt(this.encounter, id);
     const turn = ((h >>> 8) % 360) * (Math.PI / 180);
     if (this.layout === 'pillars') {
       for (let k = 0; k < LAYOUT.stoneCount; k++) {
@@ -2089,7 +2155,7 @@ export class World {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || segDist2(q.x, q.y, c.x1, c.y1, c.x2, c.y2) > (c.w / 2) ** 2) continue;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * dt, -1, true);
+        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * (1 - SITE_CARDS.wadeBurn * this.rank('slagWade')) * dt, -1, true);
       }
     }
     this.use(at);
@@ -2101,6 +2167,19 @@ export class World {
         this.flareK++;
         this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, LAYOUT.ventCast, LAYOUT.ventDamage, 'hit', -1); // scaled by tier as it lands
         this.events.push({ type: 'ventFlare', x: v.x, y: v.y });
+        // Vent-Fed: an Emberwright close to the flare, but outside its circle, feeds on it.
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0) continue;
+          this.use(k);
+          const n = this.rank('ventFed');
+          const d = Math.hypot(q.x - v.x, q.y - v.y);
+          if (n > 0 && d <= SITE_CARDS.ventRange && d > LAYOUT.ventRadius + PLAYER_RADIUS) {
+            this.addHeat(SITE_CARDS.ventHeat * n);
+            q.ventVolley = true;
+          }
+        }
+        this.use(at);
       }
     }
   }
@@ -2700,6 +2779,8 @@ export class World {
       p.interrupts = (p.interrupts ?? 0) + 1;
       this.cancelCast(t);
       e.stunT = 2;
+      // Reaching Light: Hushing a Spitter gives some of Hush back.
+      if (e.kind === 'emberSpitter' && this.rank('reachingLight') > 0) p.cds[3] = Math.max(0, p.cds[3] - SITE_CARDS.hushRefund * this.rank('reachingLight'));
       // Kilnbreaker: an interrupt sharpens you (2 pieces) and exposes the foe (3).
       const kb = this.setCount('kilnbreaker');
       if (kb >= 2) p.kbT = SET_TUNING.kbTime;
@@ -3457,6 +3538,17 @@ export class World {
       }
       this.damageEnemy(i, dmg, true);
     });
+    // Reaching Light: the burn also reaches Ember Spitters keeping their distance.
+    const reach = this.rank('reachingLight');
+    if (reach > 0) {
+      const far = SITE_CARDS.reachBase + SITE_CARDS.reachPerRank * reach;
+      for (let i = 0; i < this.enemies.length; i++) {
+        const e = this.enemies[i];
+        if (!e.alive || e.kind !== 'emberSpitter') continue;
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d > r + e.def.radius && d <= far + e.def.radius) this.damageEnemy(i, dmg, true);
+      }
+    }
     this.events.push({ type: 'ability', slot: 0, x: p.x, y: p.y, angle: 0, r });
   }
 
@@ -3505,7 +3597,9 @@ export class World {
   get damageTakenMult(): number {
     const p = this.player;
     const armor = 1 - (BULWARK_ARMOR + 0.04 * this.rank('holdTheLine') + 0.05 * this.rank('rivetedPlates'));
-    return armor * (p.bastionT > 0 ? 0.4 : 1);
+    const stone = this.rank('backToStone');
+    const guard = stone > 0 && this.nearStone(p) ? 1 - (this.dungeonId === 'glarewell' ? SITE_CARDS.glareStoneDr : SITE_CARDS.stoneDr) * stone : 1;
+    return armor * (p.bastionT > 0 ? 0.4 : 1) * guard;
   }
 
   /** Armor, Anvil Skin, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
@@ -3667,7 +3761,8 @@ export class World {
       if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
       this.damageEnemy(i, dmg, true);
       if (stun && e.alive && !e.def.stationary) {
-        e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? 1.2 : 0.3);
+        const stoneStun = this.rank('backToStone') > 0 && this.nearStone() ? SITE_CARDS.stoneStun * this.rank('backToStone') : 0;
+        e.stunT = Math.max(e.stunT, (e.def.rank === 'normal' ? 1.2 : 0.3) + stoneStun);
         // Rim Smash shoves even big foes off the Bulwark (bosses a little less), so it can steer them.
         let push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
         // Ringwall Vow: the slam drags the horde in to the Bulwark instead, stopping at the shield.
@@ -3831,7 +3926,9 @@ export class World {
     const spin = this.rank('bladeStorm') > 0 && p.swings % 4 === 0;
     const r = this.swingReach;
     const half = spin ? Math.PI : ((130 * Math.PI) / 360) * (1 + 0.15 * this.rank('longReach'));
-    const dmg = 24 * this.dmgMult * (spin ? 2 : 1);
+    const laneK = (p.laneN ?? 0) > 0 ? 1 + SITE_CARDS.laneDmg * this.rank('readTheLane') : 1;
+    if ((p.laneN ?? 0) > 0) p.laneN = (p.laneN ?? 0) - 1;
+    const dmg = 24 * this.dmgMult * (spin ? 2 : 1) * laneK;
     const forceCrit = p.nextCrit;
     p.nextCrit = false;
     let hits = 0;
@@ -3912,6 +4009,12 @@ export class World {
 
   private sidestep(input: Input): void {
     const p = this.player;
+    // Read the Lane: stepping out of a lob or a charge lane before it lands.
+    const lane = this.rank('readTheLane');
+    if (lane > 0 && this.inLaneTelegraph()) {
+      p.cds[1] = Math.max(0, p.cds[1] - SITE_CARDS.laneRefund * lane);
+      p.laneN = SITE_CARDS.laneSwings;
+    }
     let ang: number;
     if (Math.hypot(input.x, input.y) > 0.01) ang = Math.atan2(input.y, input.x);
     else {
@@ -4037,7 +4140,9 @@ export class World {
       orb.lastHit = -1;
       // Banked Flame: every 5th orb is a big one.
       if (this.hasWeaponFx('bankedFlame') && ++p.orbsFired % 5 === 0) orb.dmg *= 2.5;
+      if (p.ventVolley) orb.dmg *= 2;
     }
+    p.ventVolley = false;
   }
 
   private fireLance(): void {
@@ -4757,6 +4862,11 @@ export class World {
     // Brittle (Slagbinder): cracked slag on the foe, so every hero hits it harder.
     if ((e.brittleUntil ?? 0) > this.time) dmg *= this.cls === 'slagbinder' ? SLAG_KIT.brittleMult : SLAG_KIT.allyBrittle;
     dmg *= this.setDamageMult(e, silent);
+    // Slag Wade: a Slagbinder standing in lava hits harder and leaves the foe Brittle (its own hits, not burn ticks).
+    if (!this.burnTick && this.rank('slagWade') > 0 && this.inLava()) {
+      dmg *= 1 + SITE_CARDS.wadeDmg * this.rank('slagWade');
+      this.makeBrittle(i);
+    }
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     // The Cinder Colossus: plated in front, open behind, until Meltdown cracks the plate.
@@ -6880,7 +6990,7 @@ export class World {
     let capCards = 0;
     // A hero with an ability option never drafts talents for the ability it replaced.
     const swapped = this.player.alt ? ALT_ABILITIES[this.cls].slot : -1;
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped) && (!d.party || this.heroes.length > 1));
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
     for (const b of this.branches) {
       const caps = defs.filter((d) => d.branch === b && d.capstone);
       const capped = caps.some((c) => this.rank(c.id) > 0);
@@ -7134,6 +7244,31 @@ export const LAYOUT = {
 };
 
 /** V1 (variety, docs/design/variety.md): the Kiln's new foes. */
+/** Site cards (Phase 11 variety talents). Per-rank numbers unless noted. */
+export const SITE_CARDS = {
+  /** Measuring only (TUNE=SITE_CARDS.off=1): never offer site cards, as before this pass. */
+  off: 0,
+  /** Vent-Fed: flare reach (px), Heat per rank; the next volley deals double. */
+  ventRange: 260,
+  ventHeat: 25,
+  /** Read the Lane: Sidestep seconds back per rank, swings that get the bonus, bonus per rank. */
+  laneRefund: 3,
+  laneSwings: 3,
+  laneDmg: 0.35,
+  /** Back to Stone: reach past the stone's edge (px), damage cut per rank (lower in the Glarewell, whose pillars stand in every fight), Rim Smash stun per rank. */
+  stoneRange: 50,
+  stoneDr: 0.07,
+  glareStoneDr: 0.04,
+  stoneStun: 0.3,
+  /** Reaching Light: Spitter reach = base + per rank (px); Hush seconds back per rank on a Spitter. */
+  reachBase: 240,
+  reachPerRank: 80,
+  hushRefund: 2.5,
+  /** Slag Wade: lava burn cut per rank (rank 2 is lava-proof), damage per rank while in lava. */
+  wadeBurn: 0.5,
+  wadeDmg: 0.1,
+};
+
 export const VARIETY = {
   /** Ember Spitter: backs off inside `spitterNear`, circles out to `spitterFar`; Ember Lob every `lobEvery` s within `lobRange`, a `lobRadius` circle that lands after `lobLand` s. */
   spitterNear: 190, spitterFar: 290, lobRange: 440, lobEvery: 3.2, lobCast: 0.7, lobLand: 1.6, lobRadius: 70, lobDamage: 18,
