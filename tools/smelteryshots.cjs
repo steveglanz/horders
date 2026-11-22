@@ -1,11 +1,12 @@
 // Screenshots raid 3 (the Smeltery, the Cinder Colossus) with a party of four: his plated front and hot back in
 // phase 1, a Slag Sweep cone, a Wheel wind-up (phase 2) and Meltdown (phase 3) with its closing pulse ring. His
 // health is set by hand to reach each phase; the sim is frozen at the moment. Also the hub card.
-// Usage: npm run build && node tools/smelteryshots.cjs <outDir> [phone]
+// Usage: npm run build && node tools/smelteryshots.cjs <outDir> [phone|p360]  (p360: the 360 px wide phone of the Y9 readability pass)
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
-const phone = process.argv.includes('phone');
+const p360 = process.argv.includes('p360');
+const phone = process.argv.includes('phone') || p360;
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -18,8 +19,8 @@ const SCENES = [
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  const tag = phone ? 'phone' : 'desk';
-  const ctx = await b.newContext(phone ? { ...devices['iPhone 13'] } : { viewport: { width: 1280, height: 720 } });
+  const tag = p360 ? 'p360' : phone ? 'phone' : 'desk';
+  const ctx = await b.newContext(p360 ? { viewport: { width: 360, height: 740 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : phone ? { ...devices['iPhone 13'] } : { viewport: { width: 1280, height: 720 } });
   await ctx.route('https://*.supabase.co/**', (r) => r.abort());
   await ctx.addInitScript(() => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'full' })));
   const page = await ctx.newPage();
