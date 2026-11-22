@@ -201,8 +201,8 @@ Phase 11 gave the four early solo dungeons new fights, layouts and a second boss
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| W1 | **The Wrackline:** 4 new fights (3 openers, 1 named) from the Kiln's new foes in the water; raft currents rolled per fight; Hessa's second version, the **Outsurge** (from phase 2 the Ebb throws you out to a burning rim) | design | 🔨 this PR |
-| W2 | **Group dungeons** (the Hammerdeep, the Ashvents, the Pressworks): their own new fights, pillars or vents layouts (no lava in group play), and a second version of Ondrel, Ysmeret and Oskel. Fix Ondrel's double-scaled Hammer Sweep and re-measure the Hammerdeep with it | design, skills | Measured with tools/group.ts |
+| W1 | **The Wrackline:** 4 new fights (3 openers, 1 named) from the Kiln's new foes in the water; raft currents rolled per fight; Hessa's second version, the **Outsurge** (from phase 2 the Ebb throws you out to a burning rim) | design | ✅ #406 |
+| W2 | **Group dungeons** (the Hammerdeep, the Ashvents, the Pressworks): their own new fights, pillars or vents layouts (no lava in group play), and a second version of Ondrel, Ysmeret and Oskel. Fix Ondrel's double-scaled Hammer Sweep and re-measure the Hammerdeep with it | design, skills | 🔨 Hammerdeep fights, layouts and Ondrel's **Ironload** (variety.md, "Phase 12 W2, part 1"); Hammer Sweep, the Ashvents and the Pressworks next |
 | W3 | **Raids:** a second version of Grandmother Slag, Old Vorhulm, the Cinder Colossus and the Furnace Regent | design | Raid tables per raid*.md |
 | W4 | **Art** for the Outsurge (water running outward), the currents, and W2 and W3 tells | visuals | Placeholders first |
 | W5 | **Sound** for the Outsurge and the W2 and W3 casts | sound | A new event needs a cueFor case (#393) |
