@@ -87,6 +87,8 @@ export class Hub {
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
   partyClasses: string[] = [];
+  /** The online party's Slagbinder stances, in partyClasses order (undefined for other classes). */
+  partyStances: (string | undefined)[] = [];
   /** Fill with bots: a solo hero takes bot allies into a group dungeon (sim/content/botfill). */
   fillBots = false;
   /** Set by main: this player hosts an online party of 2 or more (V7: the host may fill with bots). */
@@ -329,7 +331,7 @@ export class Hub {
       const d = DUNGEONS[id];
       const featured = !!sea && sea.dungeon === id;
       const locked = h.maxTier < d.unlockTier;
-      const { label } = partyLabel(id, this.classes());
+      const { label } = partyLabel(id, this.members());
       return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}${featured ? ' insea' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}"${featured ? ` style="${sea!.vars}"` : ''} title="${d.name}: ${d.blurb}${locked ? ` Unlocks at tier ${d.unlockTier}.` : ''} ${label}.${featured ? ` In season: +${SEASON.featured} marks a win.` : ''}">`
         + `${featured ? `<span class="insea-b"><i aria-hidden="true"></i>In season</span>` : ''}${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
         + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
@@ -739,7 +741,16 @@ export class Hub {
 
   /** Classes in the delve: the party's, or yours plus any fill bots. */
   private classes(): string[] {
-    return this.partyClasses.length ? [...this.partyClasses, ...this.fillParty()] : [this.hero().cls ?? 'emberwright', ...this.fillParty()];
+    return this.members().map((m) => m.cls);
+  }
+
+  /** The party as it would start, with Slagbinder stances (an Anvil tanks), bots included. */
+  private members(): { cls: string; stance?: string }[] {
+    const h = this.hero();
+    const real = this.partyClasses.length
+      ? this.partyClasses.map((cls, i) => ({ cls, stance: this.partyStances[i] }))
+      : [{ cls: h.cls ?? 'emberwright', stance: h.stance }];
+    return [...real, ...this.fillParty().map((cls) => ({ cls }))];
   }
 
   /**
@@ -755,7 +766,7 @@ export class Hub {
   fillParty(): ClassId[] {
     if (!this.fillBots || !this.canFill()) return [];
     const h = this.hero();
-    if (this.partyClasses.length > 1) return fillClasses(this.partyClasses.map((cls, i) => ({ cls, stance: i === 0 ? h.stance : undefined })));
+    if (this.partyClasses.length > 1) return fillClasses(this.partyClasses.map((cls, i) => ({ cls, stance: i === 0 ? h.stance : this.partyStances[i] })));
     return fillClasses([{ cls: h.cls ?? 'emberwright', stance: h.stance }]);
   }
 
@@ -767,7 +778,7 @@ export class Hub {
   /** Group dungeons: which roles the party has, and what it still needs. */
   private partyLine(): string {
     if (DUNGEONS[this.dungeon].style !== 'group') return '';
-    const { missing } = partyLabel(this.dungeon, this.classes());
+    const { missing } = partyLabel(this.dungeon, this.members());
     const chip = (role: 'tank' | 'healer', cls: 'bulwark' | 'lumen', name: string): string => {
       const ok = !missing.includes(role);
       return `<span class="rolechip ${ok ? 'ok' : 'need'}" style="--gc:${CLASS_ICON[cls].color}">${roleTile(cls, 14)}${name} ${ok ? '✓' : '✗'}</span>`;

@@ -709,6 +709,7 @@ const hubRender = hub.render.bind(hub);
 hub.render = () => {
   // Group dungeons need the party's classes for their labels and the party-size check.
   hub.partyClasses = coop && coop.roster.length > 1 ? coop.roster.map((r) => r.hero.cls) : [];
+  hub.partyStances = coop && coop.roster.length > 1 ? coop.roster.map((r) => r.hero.stance) : [];
   hub.hosting = !!coop && coop.role === 'host' && coop.roster.length > 1;
   hubRender();
   coopButton();

@@ -33,6 +33,9 @@ describe('group dungeons', () => {
     expect(g.label).toMatch(/tank \+ healer/);
     expect(g.missing).toEqual(['tank']);
     expect(partyLabel('hammerdeep', ['bulwark', 'lumen']).missing).toEqual([]);
+    // A Slagbinder's stance decides its slot: Anvil tanks, Bellows deals damage.
+    expect(partyLabel('hammerdeep', [{ cls: 'slagbinder', stance: 'anvil' }, { cls: 'lumen' }]).missing).toEqual([]);
+    expect(partyLabel('hammerdeep', [{ cls: 'slagbinder', stance: 'bellows' }, { cls: 'lumen' }]).missing).toEqual(['tank']);
   });
 
   it('the daily bounty still draws only from the solo dungeons, in the old order', () => {

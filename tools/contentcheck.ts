@@ -66,6 +66,19 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
     const k = swallowedHero(w);
     return k >= 0 && crawUp(w) ? [1, 2, 3].find((i) => i !== k)! : -1;
   });
+  // The Smeltery (raid 3, tier 10, four heroes): get behind the Cinder Colossus; Wheel turns on whoever hurt him most.
+  const smelt = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>
+    cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: 'smeltery', tier: 10, omens: [], worldBoss: 'The Cinder Colossus', party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+  smelt('smeltery four', 'bulwark', ['lumen', 'duskblade', 'emberwright']);
+  smelt('smeltery no healer', 'bulwark', ['emberwright', 'duskblade', 'emberwright']);
+  smelt('smeltery no tank', 'emberwright', ['lumen', 'duskblade', 'emberwright']);
+  // A guest leaves while Wheel is being cast: the non-tank who hurt him most (the one he is about to turn on).
+  smelt('smeltery drop mid-Wheel', 'bulwark', ['lumen', 'duskblade', 'emberwright'], (w) => {
+    if (!w.enemies.some((e) => e.alive && e.kind === 'colossus' && e.castId === 'wheel')) return -1;
+    let pick = -1, most = -1;
+    for (let k = 1; k < w.heroes.length; k++) if (!w.isTank(k) && (w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
+    return pick;
+  });
 }
 let stuck = 0, longest = 0, mostAlive = 0;
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
