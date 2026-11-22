@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, islandCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -329,7 +329,8 @@ class AudioEngine {
       this.targeted.on = !!ctx.anvilOnMe;
       return;
     }
-    for (const ev of evs) {
+    // Banked Coals' soak events are told by their ember cues instead (withoutBankedSoaks).
+    for (const ev of withoutBankedSoaks(evs)) {
       if (ev.type === 'bossSpawn') this.intensity(1);
       else if (ev.type === 'encounterClear') this.intensity(0);
       // Boss phases push the music further (the raid's march floods at 2 and doubles at 3).
