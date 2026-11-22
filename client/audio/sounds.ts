@@ -895,33 +895,38 @@ export type SoundId = keyof typeof SOUNDS;
  * PHONE_FLOOR_DB so a new warning can't fall below the pack.
  */
 export const PHONE_FLOOR_DB = -26.5;
+// Polish pass (22 Nov 2026): busycheck with the skills team's t8 heroes (HEROES=heroes-r2 HERO_FILE=hero-t8-0.json) found
+// ten warnings under 6 dB over the mix in the Crucible, Hammerdeep, Coldmarrow and Wrackline; each is lifted to about 6.5 dB.
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   ebbPull: 1.9,
   haulWarn: 8.9,
-  ladleWarn: 1.0,
+  ladleWarn: 3.4,
   lastEmberWarn: 2.5,
   namedSpawn: 2.1,
   phase: 2.2,
-  phaseIce: 3.9,
+  phaseIce: 5.9,
   phaseMaelra: 0.7,
   phaseOndrel: 1.2,
-  phaseRaid2: 2.0,
-  phaseRaid3: 1.5,
+  phaseRaid2: 9.0,
+  phaseRaid3: 3.3,
   phaseShadow: 1.8,
   phaseYsmeret: 1.7,
   // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
   revivesSpent: 4,
-  reviveStart: 0.5,
+  reviveStart: 2.1,
   rivetsWarn: 1.4,
-  scatterWarn: 2.0,
+  scatterWarn: 6.0,
   shadowCoal: 0.6,
   shadowSlag: 1.5,
   shoalCall: 4.5,
   sinkWarn: 5.7,
-  snufferTide: 2.2,
+  snufferTide: 4.0,
   stampWarn: 1.6,
   wheelWarn: 2.8,
   phaseWheel: 2.3,
+  allyDown: 4.8,
+  anvilWarn: 1.2,
+  enrage: 1.9,
 };
 for (const [id, db] of Object.entries(PHONE_LIFT) as [SoundId, number][]) {
   const g = Math.pow(10, db / 20);
