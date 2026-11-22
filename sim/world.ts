@@ -605,7 +605,7 @@ export type SimEvent =
   /** V1: a Hollow Rift spat out `n` Ashlings. */
   | { type: 'riftSpawn'; index: number; n: number }
   | { type: 'gather'; x: number; y: number }
-  | { type: 'soak'; ok: boolean; x: number; y: number }
+  | { type: 'soak'; ok: boolean; x: number; y: number; /** The telegraph's owner: -4 is a Banked Coal (a miss feeds Vorhulm, no blast). */ owner?: number }
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
   | { type: 'loot'; item: Item; equipped: boolean; delta: number; hero?: number }
   | { type: 'quest'; index: number }
@@ -834,7 +834,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
   private islandN = 0;
@@ -918,6 +918,8 @@ export class World {
   private meltPulses = 0;
   /** Raid 3: the Cinder Colossus's facing (radians), and each hero's recent damage to him (Wheel). */
   colFacing = 0;
+  /** Phase 12 W3 (Plate Shift): how far his plate's middle is turned from his facing, radians. 0 in the Wheel version. */
+  colPlate = 0;
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
   colDmg: number[] = [];
@@ -1878,6 +1880,8 @@ export class World {
           this.colDmg = this.heroes.map(() => 0);
           const t = this.heroPlayer(this.targetOf(i, 0));
           this.colFacing = Math.atan2(t.y - e.y, t.x - e.x);
+          this.colPlate = 0;
+          this.bossVariant = this.rollColossusVariant();
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2013,6 +2017,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
     return SLAG_VARIANTS[(h >>> 4) % SLAG_VARIANTS.length];
+  }
+
+  /** Phase 12 W3: the Cinder Colossus's version this run, hashed from the seed (no run-rng draws). */
+  private rollColossusVariant(): ColossusVariant {
+    if (this.stress) return 'wheel';
+    let h = Math.imul(this.seed ^ 0x9b05688c ^ 0x1f83d9ab, 0xc2b2ae35) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return COLOSSUS_VARIANTS[(h >>> 4) % COLOSSUS_VARIANTS.length];
   }
 
   /** Old Vorhulm eats an ember (or a Banked Coal) at (x, y): he heals and hits harder for the rest of the fight. */
@@ -4601,6 +4613,20 @@ export class World {
       const amount = e.maxHp * COAL.gorgeHeal * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+    } else if (id === 'plateShift') {
+      // Phase 12 W3: his plate slides round to face the non-tank who hurt him most; he keeps facing his target.
+      let pick = -1;
+      let most = -1;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0 || this.isTank(k)) continue;
+        if ((this.colDmg[k] ?? 0) > most) { most = this.colDmg[k] ?? 0; pick = k; }
+      }
+      if (pick >= 0) {
+        const q = this.heroPlayer(pick);
+        this.colPlate = angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing);
+        this.events.push({ type: 'wheel', hero: pick });
+      }
     } else if (id === 'wheel') {
       // Raid 3: he turns on the non-tank who hurt him most in the last few seconds, and sweeps.
       let pick = -1;
@@ -6278,7 +6304,8 @@ export class World {
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
-      this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
+      if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
       this.slagSweep(i);
@@ -6295,11 +6322,11 @@ export class World {
   /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
   /** True when (x, y) is in the Colossus's back arc, the same arc that takes COLO.backMult. Meltdown doesn't change where his back is. */
   behindColossus(e: Enemy, x: number, y: number): boolean {
-    return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing)) >= COLO.backArc;
+    return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing + this.colPlate)) >= COLO.backArc;
   }
 
   colossusSide(e: Enemy, x: number, y: number): number {
-    const off = Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing));
+    const off = Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing + this.colPlate));
     return off <= COLO.frontArc ? COLO.frontMult : off >= COLO.backArc ? COLO.backMult : 1;
   }
 
@@ -6737,7 +6764,7 @@ export class World {
         const took = this.soakers(t);
         const ok = took.length > 0;
         this.relaySoak(took);
-        this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): standing in the gold circle heals.
         if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
         if (!ok) {
@@ -6791,7 +6818,7 @@ export class World {
         const took = this.soakers(t);
         const ok = took.length > 0;
         this.relaySoak(took);
-        this.events.push({ type: 'soak', ok, x: t.x, y: t.y });
+        this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {
           this.eachHero(() => {
@@ -7482,6 +7509,13 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/**
+ * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
+ * `shift`: Plate Shift, on the Wheel's timer and cast: his plate slides round to face that hero instead, and stays
+ * there (World.colPlate) while he keeps facing the tank, so his open back moves and the damage dealers have to find it again.
+ */
+export type ColossusVariant = 'wheel' | 'shift';
+export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift'];
 /** Phase 12 W3: Old Vorhulm's two versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. */
 export type VorhulmVariant = 'spill' | 'bank';
 export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];

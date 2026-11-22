@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
-import { World, BOSS_PHASES } from '../sim/world';
+import { World, BOSS_PHASES, BRIM } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -467,6 +467,14 @@ export class Hud {
     if ((p.bondT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kinbound +6%</span>`);
     if ((p.relayT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Relayer +${Math.round(SET_TUNING.rlDamage * 100)}%</span>`);
     if ((p.freedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Crawsplitter +${Math.round(SET_TUNING.csFreed * 100)}%</span>`);
+    // The Brimming (Grandmother Slag's phase 2): are you safe on an island, and for how long, or burning in the pit?
+    if (w.islands.some((s) => s.t > 0) && p.hp > 0) {
+      const d2 = (s: { x: number; y: number }) => (s.x - p.x) ** 2 + (s.y - p.y) ** 2;
+      const on = w.onIsland(p.x, p.y) ? w.islands.filter((s) => s.t > 0).sort((a, b) => d2(a) - d2(b))[0] : undefined;
+      out.unshift(on
+        ? `<span class="buff${on.t <= BRIM.warn ? ' debuff' : ''}">Island sinks in ${Math.ceil(on.t)}s</span>`
+        : '<span class="buff debuff">Off the islands: the pit burns</span>');
+    }
     if ((p.spentT ?? 0) > 0 && w.setCount('handover') >= 3) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Handover +${Math.round(SET_TUNING.hoDamage * 100)}%</span>`);
     if (p.planted && w.setCount('wrackrider') >= 2) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Planted</span>`);
     // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).

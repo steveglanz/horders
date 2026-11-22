@@ -178,11 +178,20 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
 }
 
 /** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
-const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
+/** `light: null` places the props without floor pools, for a dungeon where light is a mechanic (the Coldmarrow). */
+const EDGE_SETS: Record<string, { big: string; small: string; light: string | null; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
   ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
+  wrackline: { big: 'wrackWreck', small: 'wrackPost', light: 'coalLight', flicker: 400, puff: 'none' },
+  pressworks: { big: 'pressFrame', small: 'pressStack', light: 'paleLight', flicker: 900, puff: 'none' },
+  hoard: { big: 'hoardPile', small: 'hoardBones', light: 'paleLight', flicker: 1100, puff: 'none' },
+  smeltery: { big: 'smeltCart', small: 'smeltIngots', light: 'paleLight', flicker: 900, puff: 'spark' },
+  flue: { big: 'flueChimney', small: 'flueBanner', light: 'paleLight', flicker: 800, puff: 'spark' },
+  glarewell: { big: 'glareLens', small: 'glareShards', light: null, flicker: 1000, puff: 'none' },
+  coldmarrow: { big: 'coldArch', small: 'coldBrazier', light: null, flicker: 1000, puff: 'none' },
+  crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -282,6 +291,9 @@ export class GameScene extends Phaser.Scene {
   private brimImgs: Phaser.GameObjects.Image[] = [];
   private brimBorn = new WeakMap<object, number>();
   private brimStart = 0;
+  /** Phase 12 W3 (Plate Shift): the Colossus's plate turn as drawn, easing to World.colPlate, and when it was last eased. */
+  private plateShown: number | null = null;
+  private plateAt = 0;
   /** Phase 12 W3: Old Vorhulm's Banked Coals: their glow (1.89), the coal heaps (1.9), how smothered each looks, and the ash a smothered one leaves. */
   private bankGfx: Phaser.GameObjects.Graphics | null = null;
   private bankImgs: { hot: Phaser.GameObjects.Image; ash: Phaser.GameObjects.Image }[] = [];
@@ -290,7 +302,7 @@ export class GameScene extends Phaser.Scene {
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
-  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
+  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image | null; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
   /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
@@ -377,6 +389,7 @@ export class GameScene extends Phaser.Scene {
     this.brimGfx = null;
     this.brimImgs = [];
     this.brimStart = 0;
+    this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
     this.bankAsh = [];
@@ -1206,7 +1219,8 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
+            if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
@@ -1221,6 +1235,8 @@ export class GameScene extends Phaser.Scene {
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
+          // A Banked Coal (owner -4) has its own ember effects, and a missed one blasts nobody.
+          if (ev.owner === -4) break;
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
           if (!ev.ok) this.floatText(ev.x, ev.y, 'Brand missed!', '#ff8aa5', 16);
           break;
@@ -2689,13 +2705,13 @@ export class GameScene extends Phaser.Scene {
         const x = Math.cos(a) * r, y = Math.sin(a) * r;
         const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(1.97);
         const lr = R - 10;
-        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
+        const light = set.light ? this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85) : null;
         this.edgeProps.push({ img, light, x, y, fire: !big });
       }
     }
     this.edgeProps.forEach((p, k) => {
       const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / set.flicker + k * 1.7) + 0.5 * Math.sin(now / (set.flicker * 0.44) + k * 4.1);
-      p.light.setAlpha(0.55 + 0.07 * fl);
+      p.light?.setAlpha(0.55 + 0.07 * fl);
       if (!p.fire || this.lowFx) return;
       if (set.puff === 'spark' && Math.random() < 0.03) {
         this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
@@ -2823,14 +2839,45 @@ export class GameScene extends Phaser.Scene {
     const o = this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
-    const fa = w.colFacing;
+    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift). The drawn plate slides to the sim's
+    // over about a third of a second, so the band visibly sweeps round when the cast lands.
+    const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+    if (this.plateShown === null) this.plateShown = w.colPlate;
+    this.plateShown = wrap(this.plateShown + wrap(w.colPlate - this.plateShown) * (1 - Math.exp(-Math.max(0, now - this.plateAt) / 110)));
+    this.plateAt = now;
+    const shifting = e.castId === 'plateShift' ? Math.min(1, e.castT / e.castDur) : 0;
+    // While Plate Shift is cast, the band rattles in place.
+    const fa = w.colFacing + this.plateShown + (shifting ? Math.sin(now / 28) * 0.05 * shifting : 0);
     if (w.bossPhase < 3) {
-      // His plated front: a steel band round the front half, with a chevron where he faces.
-      g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      // His plated front: a steel band round the front half, with a chevron where it points.
+      g.lineStyle(7, shifting ? 0xffe0a8 : 0xc8d0e0, 0.5 + 0.3 * shifting).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
       g.lineStyle(2, 0xeef2ff, 0.75).beginPath().arc(e.x, e.y, R + 5, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
-      const cx = e.x + Math.cos(fa) * (R + 10);
-      const cy = e.y + Math.sin(fa) * (R + 10);
-      g.fillStyle(0xeef2ff, 0.7).fillTriangle(cx + Math.cos(fa) * 9, cy + Math.sin(fa) * 9, cx + Math.cos(fa + 2.4) * 7, cy + Math.sin(fa + 2.4) * 7, cx + Math.cos(fa - 2.4) * 7, cy + Math.sin(fa - 2.4) * 7);
+      const chev = (a: number, r: number, size: number, col: number, alpha: number) => {
+        const cx = e.x + Math.cos(a) * r;
+        const cy = e.y + Math.sin(a) * r;
+        g.fillStyle(col, alpha).fillTriangle(cx + Math.cos(a) * size, cy + Math.sin(a) * size, cx + Math.cos(a + 2.4) * size * 0.78, cy + Math.sin(a + 2.4) * size * 0.78, cx + Math.cos(a - 2.4) * size * 0.78, cy + Math.sin(a - 2.4) * size * 0.78);
+      };
+      chev(fa, R + 10, 9, 0xeef2ff, 0.7);
+      // Plate Shift's cast: sparks scrape off the band's ends, and a ghost band grows where it will slide to
+      // (the same pick as the sim: the living non-tank who has hurt him most).
+      if (shifting) {
+        if (!this.lowFx && Math.random() < 0.5) {
+          const end = fa + (Math.random() < 0.5 ? -1 : 1) * COLO.frontArc;
+          this.spark(e.x + Math.cos(end) * R, e.y + Math.sin(end) * R, (Math.random() - 0.5) * 120, -40 - Math.random() * 80, 0.4, 1.3);
+        }
+        let pick = -1;
+        let most = -1;
+        for (let k = 0; k < w.heroes.length; k++) {
+          const q = w.heroData(k).player;
+          if (q.hp <= 0 || w.isTank(k)) continue;
+          if ((w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
+        }
+        if (pick >= 0) {
+          const q = w.heroData(pick).player;
+          const ta = Math.atan2(q.y - e.y, q.x - e.x);
+          g.lineStyle(6, 0xeef2ff, 0.25 + 0.55 * shifting).beginPath().arc(e.x, e.y, R + 14, ta - COLO.frontArc * shifting, ta + COLO.frontArc * shifting, false).strokePath();
+        }
+      }
       // His open back: a hot slice that breathes.
       const back = fa + Math.PI;
       const half = Math.PI - COLO.backArc;

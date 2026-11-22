@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COLO } from '../sim/world';
+import { World, COLO, COLOSSUS_VARIANTS } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -15,6 +15,8 @@ type Inner = {
   sweepT: number;
   wheelT: number;
   meltT: number;
+  colDmg: number[];
+  rollColossusVariant(): string;
 };
 
 /** A Bulwark and three Emberwrights in the Smeltery, the Colossus facing +x, no other foes. */
@@ -127,5 +129,40 @@ describe('raid 3: the Cinder Colossus in the Smeltery (Y1)', () => {
     const g = smeltery().w;
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.colFacing).toBe(1.25);
+  });
+});
+
+describe('Phase 12 W3: the Cinder Colossus\'s Plate Shift', () => {
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'smeltery', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      const b = new World({ seed, dungeon: 'smeltery', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      expect(a.rollColossusVariant()).toBe(b.rollColossusVariant());
+      seen.add(a.rollColossusVariant());
+    }
+    expect([...seen].sort()).toEqual([...COLOSSUS_VARIANTS].sort());
+  });
+
+  it('turns his plate, not his body, to the hero who hurt him most, so his open back moves', () => {
+    const { w, inner, b } = smeltery();
+    w.bossVariant = 'shift';
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.5;
+    // Hero 2 stands behind him (-x) and has dealt the most.
+    inner.colDmg = [0, 10, 500, 10];
+    const behind = { x: w.heroes[2].player.x, y: w.heroes[2].player.y };
+    expect(w.colossusSide(e, behind.x, behind.y)).toBe(COLO.backMult);
+    inner.wheelT = 0;
+    inner.colossusClock(1 / 30);
+    expect(e.castId).toBe('plateShift');
+    inner.finishCast(b);
+    // He still faces the tank (+x), and no Slag Sweep went out.
+    expect(w.colFacing).toBe(0);
+    expect(w.telegraphs.filter((t) => t.alive && t.shape === 'cone')).toHaveLength(0);
+    // His plate now faces hero 2: they hit plate, and the tank's side is now his back.
+    expect(w.colossusSide(e, behind.x, behind.y)).toBe(COLO.frontMult);
+    expect(w.colossusSide(e, 120, 0)).toBe(COLO.backMult);
+    expect(w.behindColossus(e, 120, 0)).toBe(true);
   });
 });
