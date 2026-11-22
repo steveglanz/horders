@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW } from '../sim/world';
 import { ENCOUNTERS, KILN_DRAW_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -1738,6 +1738,7 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     this.layoutDraw(g, now);
+    this.kilnDrawTell(g, now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -2391,6 +2392,52 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1.5, 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
+  }
+
+  /**
+   * V5 (variety): the tell for the Kiln Mother's Kiln Draw (V3). While she casts it (castId 'kilnDraw'):
+   * - embers stream in toward her from all round, faster as the cast fills, so the pull reads as a pull;
+   * - chevrons on a ring point inward at her;
+   * - her furnace mouth swells with light until the 150-radius burst lands.
+   * The burst itself is the sim's ordinary red circle telegraph; this only adds the inward motion.
+   */
+  private kilnDrawTell(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const i = w.enemies.findIndex((e) => e.alive && e.kind === 'kilnMother' && e.castId === 'kilnDraw');
+    if (i < 0) return;
+    const e = w.enemies[i];
+    const sp = this.enemySprites[i];
+    const cx = sp?.x ?? e.x, cy = sp?.y ?? e.y;
+    const fill = Math.min(1, e.castT / Math.max(0.01, e.castDur));
+    // Streaming embers: each on its own spoke, moving in from R to the mouth and starting over.
+    const R = 360;
+    const n = this.lowFx ? 18 : 40;
+    const speed = 0.55 + 0.9 * fill;
+    for (let k = 0; k < n; k++) {
+      const a = k * 2.39996 + 0.3;
+      const p = (now / 1000 * speed + k * 0.618) % 1;
+      const r = R * (1 - p) + 30;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      const tail = 18 + 30 * p;
+      const al = Math.min(1, p * 3) * (0.5 + 0.5 * fill);
+      g.lineStyle(3, 0xff8a3a, 0.35 * al).lineBetween(x, y, x + Math.cos(a) * tail, y + Math.sin(a) * tail);
+      g.lineStyle(1.6, 0xffd27a, 0.9 * al).lineBetween(x, y, x + Math.cos(a) * tail * 0.5, y + Math.sin(a) * tail * 0.5);
+    }
+    // Chevrons pointing in, on a ring just outside the burst.
+    const ringR = KILN_DRAW.radius + 60 - 30 * ((now / 600) % 1);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + now / 4000;
+      const tx = cx + Math.cos(a) * ringR, ty = cy + Math.sin(a) * ringR;
+      const bx = Math.cos(a) * 12, by = Math.sin(a) * 12, px = -Math.sin(a) * 10, py = Math.cos(a) * 10;
+      g.lineStyle(4, 0xffb060, 0.55 + 0.3 * fill);
+      g.beginPath(); g.moveTo(tx + bx + px, ty + by + py); g.lineTo(tx, ty); g.lineTo(tx + bx - px, ty + by - py); g.strokePath();
+    }
+    // The furnace mouth swelling with light (the mouth sits 14 of 112 px below the sprite's centre).
+    const my = cy + 14 * ((sp?.displayHeight ?? 112) / 112);
+    const o = this.overFx;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+    o.fillStyle(0xff8a3a, 0.18 + 0.25 * fill).fillCircle(cx, my, 26 + 30 * fill);
+    o.fillStyle(0xffe6a0, 0.25 + 0.35 * fill * pulse).fillCircle(cx, my, 12 + 14 * fill);
   }
 
   /** Where hero `k` is drawn: your own sprite, an ally's, or the sim's position. */
