@@ -4,7 +4,7 @@ import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/cont
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { applySnapshot, snapshot } from '../sim/netsync';
-import { decreePass, botInput } from '../sim/bot';
+import { decreePass, botInput, BOT_SUMMONS_LEAD } from '../sim/bot';
 
 type Inner = {
   use(i: number): void;
@@ -253,6 +253,29 @@ describe('Phase 12 W3: the Furnace Regent\'s Summons', () => {
     const out = botInput(w, 1);
     expect(out.x).toBeGreaterThan(0); // out of the circle first, away from him
     inner.use(0);
+  });
+
+  it('bots: walk in to the throne before the Summons is due, and only in court phase 2', () => {
+    const { w, inner } = flue();
+    w.bossVariant = 'court';
+    w.bossPhase = 2;
+    inner.summonsT = 0;
+    inner.ashT = BOT_SUMMONS_LEAD - 0.5;
+    expect(w.summonsDue()).toBeCloseTo(BOT_SUMMONS_LEAD - 0.5, 5);
+    inner.use(3);
+    w.player.x = 400; w.player.y = 0;
+    const go = botInput(w, 1);
+    expect(go.x).toBeLessThan(-0.9); // straight at the Regent at 0,0
+    inner.use(0);
+    // Phase 1, the Ash version, or a Summons already called: nothing is due.
+    w.bossPhase = 1;
+    expect(w.summonsDue()).toBe(Infinity);
+    w.bossPhase = 2;
+    w.bossVariant = 'ash';
+    expect(w.summonsDue()).toBe(Infinity);
+    w.bossVariant = 'court';
+    inner.summonsT = 1;
+    expect(w.summonsDue()).toBe(Infinity);
   });
 
   it('online co-op: a guest sees the Summons coming', () => {

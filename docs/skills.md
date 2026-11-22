@@ -839,6 +839,22 @@ After design's retune of the Flue (base 80 of 120), one party stayed under the b
 
 A raid-wide 0.85 would push the Hoard's Bellows-with-Duskblade party (already 81%) further over, so the lighter cut is the Flue's only: `SLAG_KIT.fluePartyDmg` 0.85. The Bellows tip in the hub says so. Test: tests/party-cards.test.ts.
 
+### The Regent's Summons: bots walk in before the call (W7, 22 Nov 2026)
+In his court version the Regent calls a Summons with every Ash Fall in phase 2: after 2.5 s, every hero more than 130 px from him is struck. A ranged hero standing 300 px out spends about 1.5 s of that warning leaving its own Ash circle, so it can't reach him in time. The Anvil Slagbinder tanks from about 336 px and took 61 of 297 Summons itself, and Lumen was struck on 38% of calls in that party (11% in base).
+
+A player learns the cadence after one Summons, so bots now walk in to the throne `BOT_SUMMONS_LEAD` (2 s) before it is due (`World.summonsDue()`). `NOCOURT=1` turns this off along with the existing walk-in. Measured at Flue t11, heroes-r2 hero-t8-0, seeds 1-160 split by version:
+
+| Party | Court before | Court after | Ash (unchanged) |
+|---|---|---|---|
+| base | 46/80 | 55/80 | 55/75 |
+| two Duskblades | 51/80 | 58/80 | 52/78 |
+| two Emberwrights | 31/74 | 59/74 | 53/73 |
+| Bellows + Emberwright | 35/71 | 41/71 | 50/68 |
+| Bellows + Duskblade | 59/80 | 54/80 | 53/74 |
+| Anvil tank | 21/76 | 47/76 | 50/72 |
+
+An Anvil-only rule (hold the Regent close in phase 2) moved the Anvil row only from 21 to 24/76, because the healer and the caster were still struck. Design re-tunes the Summons itself afterward, aiming base near 62%.
+
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 
 Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.
