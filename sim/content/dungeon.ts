@@ -185,9 +185,10 @@ export function partyBlocker(d: DungeonId, partySize: number): string {
 }
 
 /** The delve-setup label: who the dungeon is built for, and what this party lacks. */
-export function partyLabel(d: DungeonId, classes: string[]): { label: string; missing: PartyRole[] } {
+export function partyLabel(d: DungeonId, party: (string | { cls: string; stance?: string })[]): { label: string; missing: PartyRole[] } {
   if (DUNGEONS[d].style === 'solo') return { label: 'Solo friendly · any party', missing: [] };
-  const roles = classes.map((c) => roleOf(c));
+  // A Slagbinder's role comes from its stance, so an Anvil Slagbinder fills the tank slot.
+  const roles = party.map((m) => (typeof m === 'string' ? roleOf(m) : roleOf(m.cls, m.stance)));
   const missing = (['tank', 'healer'] as PartyRole[]).filter((r) => !roles.includes(r));
   return { label: 'Group · tank + healer recommended', missing };
 }
