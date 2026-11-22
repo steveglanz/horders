@@ -790,6 +790,23 @@ His back takes x1.5 until Meltdown, so x1 in phase 3 should cost a third: the Em
 
 What's left at the Smeltery: two Duskblades 39 and the Anvil party 39 are over the band, and Bellows for the Duskblade (21) is under it. The base party moves from 28 to 32 with the fix, so COLO needs a re-centre after it (design).
 
+### Meltdown: the Lumen heals the tank first
+
+With the ring fix and the Colossus at 19000 health (design's re-centre), parties without a Duskblade still lost Meltdown on the tank. In phase 3 the Bulwark recovered only 0.12 of its health and died in 11 of 20 runs in the Bellows-for-Duskblade party, against 0.50 recovered and no deaths with two Duskblades (17750 health, 20 seeds). The Lumen bot follows the lowest hero, and in Meltdown the pulses keep everyone low, so it stayed on the back ring.
+
+Now, at the Smeltery in phase 3, a Lumen goes to the tank whenever the tank is under `MELT_TANK_FIRST` (0.6) of its health, and to the lowest hero otherwise. Smeltery t10, heroes-r2, 40 seeds, Colossus at 19000:
+
+| Party | Before | After |
+|---|---|---|
+| Base | 24 | 25 |
+| Two Duskblades | 33 | 33 |
+| Two Emberwrights | 27 | 29 |
+| Bellows Slagbinder for the Duskblade | 17 | 25 |
+| Bellows Slagbinder for the Emberwright | 32 | 32 |
+| Anvil Slagbinder tank | 35 | 29 |
+
+Before is design's table on #342. The rule only runs at the Smeltery, so every other dungeon and the solo fingerprints are unchanged. Test: `tests/smeltery-bot.test.ts`. Still over 70%: two Duskblades (33) and Bellows beside a Duskblade (32).
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
