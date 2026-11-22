@@ -15,7 +15,8 @@ export type EncounterId =
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
   | 'oskel' | 'vorhulm' | 'colossus' | 'regent'
   | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
-  | 'glassSpitters' | 'crawlerCharge';
+  | 'glassSpitters' | 'crawlerCharge'
+  | 'shadeSpitters' | 'shadeCharge' | 'lensCharge';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -40,6 +41,10 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
   glassSpitters: { id: 'glassSpitters', name: 'Warden and Spitters', tip: 'Quench Mirror Ward, then run the Spitters down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   crawlerCharge: { id: 'crawlerCharge', name: 'Crawler and Ashbuck', tip: 'Drag the blue ring away from the Ashbuck, and step aside from its lane.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'ashbuck', n: 1 }, { kind: 'cinderhound', n: 1 }] },
+  // V8: the Glarewell's new fights.
+  shadeSpitters: { id: 'shadeSpitters', name: 'Shades and Spitters', tip: 'Pull the Shades into the light, and keep moving through the lobs.', spawns: [{ kind: 'shade', n: 2 }, { kind: 'emberSpitter', n: 2 }] },
+  shadeCharge: { id: 'shadeCharge', name: 'The Ashbuck in the Dark', tip: 'The Ashbuck charges out of the shadows. Step aside from its lane, then pull the Shades into the light.', spawns: [{ kind: 'ashbuck', n: 1 }, { kind: 'shade', n: 3 }] },
+  lensCharge: { id: 'lensCharge', name: 'Lens and Ashbucks', tip: 'Hide from the Glare without stepping into an Ashbuck\'s lane.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -127,7 +132,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
-    openers: ['shades', 'lensbearer', 'brandkeeper'], named: ['lamps', 'brandShades'], hard: ['lensShades', 'lamps'],
+    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
     blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
   },
   coldmarrow: {

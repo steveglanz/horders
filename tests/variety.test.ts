@@ -102,9 +102,9 @@ describe('V2 variety: arena layouts', () => {
     const first = new World({ seed: 4, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
     (first as unknown as L).rollLayout('pack');
     expect(first.layout).toBe('open');
-    const glare = new World({ seed: 4, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
-    (glare as unknown as L).rollLayout('shades');
-    expect(glare.layout).toBe('open');
+    const cold = new World({ seed: 4, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    (cold as unknown as L).rollLayout('rimepack');
+    expect(cold.layout).toBe('open');
   });
 
   it('stones block, lava burns only inside its width, and vents flare one at a time', () => {
@@ -371,5 +371,26 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.bossVariant).toBe('tide');
     expect(g.tideAngle).toBe(1.25);
+  });
+});
+
+describe('V8 variety: the Glarewell', () => {
+  type L = { rollLayout(id: string): void; encounter: number };
+  it('draws from 6 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
+    const d = DUNGEONS.glarewell;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+      const q = w as unknown as L;
+      q.encounter = 1;
+      q.rollLayout('shades');
+      seen.add(w.layout);
+      q.rollLayout('lensmother');
+      expect(w.layout).toBe('open');
+    }
+    expect([...seen].sort()).toEqual(['open', 'vents']);
   });
 });
