@@ -11,6 +11,9 @@ import type { SoundId } from './sounds';
 /** How many takes each busy sound gets (others play their one recipe). */
 export const VARIANTS: Partial<Record<SoundId, number>> = {
   hit: 4, crit: 3, swing: 4, kill: 3, mote: 3, slagLob: 3, heal: 3,
+  // The busiest class ability sounds on the screen hero (tools/busycheck.ts, Crucible, t8 heroes, 2 runs of about 450 s):
+  // Bulwark's slam 557, Emberwright's wave 451, Lumen's burst 388 plays; next were Duskblade's execute 197 and dash 196.
+  bulwarkSlam: 3, emberWave: 3, lumenBurst: 3,
 };
 
 // Per-take offsets: [pitch, sweep end, length, filter], each within ±8%.
