@@ -757,6 +757,31 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.2, lp: 1200, lp2: 4500, hp: 350, curve: 1.4 }],
     ...[0.1, 0.22, 0.31, 0.45].map((d, k) => [{ wave: 'sine' as const, f: 380 + k * 80, f2: 800 + k * 90, dur: 0.05, delay: d, vol: 0.1, curve: 2 }]),
   ),
+  /** A Rift spits out Ashlings (every 3 s): a small hollow pop, kept quiet so it never crowds the fight. */
+  riftSpit: [
+    { wave: 'sine', f: 520, f2: 260, dur: 0.12, vol: 0.12, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.08, vol: 0.12, lp: 3000, hp: 600, curve: 3 },
+  ],
+  /** A Kiln vent's warning circle goes up: a rising rumble-hiss that lands as lavaFlare 1.2 s later. */
+  kilnVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 700, lp2: 4000, hp: 350, curve: 0.8 },
+     { wave: 'saw', f: 140, f2: 280, dur: 1.1, vol: 0.1, a: 0.8, lp: 1400, curve: 0.8 }],
+  ),
+  /** Standing in lava: a short hot sizzle, repeated while a hero is inside. */
+  lavaSizzle: [
+    { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
+    { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
+  ],
+  /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
+  layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
+  layoutChannel: join(
+    [{ wave: 'noise', f: 0, dur: 0.8, vol: 0.2, a: 0.2, lp: 1000, lp2: 3500, hp: 350, curve: 1.2 }],
+    chime(A5, 0.1, 0.14, 0.5), chime(E5, 0.3, 0.12, 0.6),
+  ),
+  layoutVents: join(
+    ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.16, delay: d, vol: 0.22, lp: 5000, lp2: 1500, hp: 500, curve: 2 }]),
+    chime(D5 * 2, 0.5, 0.12, 0.5),
+  ),
   /** Kiln Draw: the Kiln Mother's long inhale pulling heroes in (about 2.2 s). */
   kilnDraw: join(
     [{ wave: 'noise', f: 0, dur: 2.2, vol: 0.28, a: 1.6, lp: 600, lp2: 5000, hp: 350, curve: 0.8 },
