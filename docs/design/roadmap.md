@@ -170,6 +170,17 @@ Every dungeon drops a verb set (R4) except the two newest raids: `setForDungeon(
 | A3 | **Set cues:** Crawsplitter's "+8% after a break" chip (`freedT`) gets a SET_SOUND cue like Relayer's `relayed`; Platewalker has no timed buff, so a cue only if it reads well | sound | ✅ #337: `freed` (breaker and freed hero, after the Craw's break) and a soft `behindPlate` on stepping behind him, throttled to 3 s (a bot re-enters about every 7 s) |
 | A4 | **Sets in the raid tables:** measure each raid with a party wearing its 3-piece set against the 55 to 70% band; if a set pushes the base party over 70%, tell design the numbers | skills | ⏭ After #324 and Z5 |
 
+### Phase 10: the Furnace Regent in person (planned by game design, 22 Nov 2026)
+The last of the four world bosses without an in-person fight. Brief: [raid4.md](raid4.md). A new group check, "pass it on": the Regent's Decree must be handed between heroes before it bursts.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| B1 | **Raid 4: the Flue,** the Furnace Regent at tier 11 (Decree, Edict, Abdication, Last Word), achievement and verb set, bots, tests, 80+ seed tuning | design | 🔨 |
+| B2 | **Raid 4 art:** the Regent at raid scale from the `regent` shadow sheet, the Decree seal and its 8 s ring, the Spent mark, floor, hub card, set icon | visuals | ⏭ Can start from the brief now; ids land with B1 |
+| B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
+| B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
+| B5 | **Raid 4 QA:** contentcheck at t11, coopsweep with a guest dropping while holding a Decree | QA | ⏭ After B1 |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
