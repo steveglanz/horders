@@ -875,6 +875,8 @@ Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) 
 | Reaching Light | Foundry 6 | 35.7 / 35.5 | 40 vs 39 of 42 |
 | Reaching Light | Glarewell 8 | 39.7 / 39.7 | 9 vs 9 of 9 |
 | Slag Wade | Kiln 6 | 29.5 / 29.0 (no bot rule) | 27 vs 30 of 45 |
+| Read the Lane | Wrackline 10 (hero-t8, after W1) | 25.5 / 25.3 | 21 vs 20 of 30 |
+| Reaching Light | Wrackline 10 (hero-t8, after W1) | 36.2 / 36.3 | 24 vs 25 of 25 |
 
 Every cell is within seed noise of zero: bots don't seek out a situation, and a taken card replaces another pick. That is the intended shape: the cards don't win every draft, and they pay a player who plays to the room. Design asked for Back to Stone in the Glarewell (pillars in every fight) to be checked on its own: +2 wins in the 115 runs that took it, well under +4 per 40, so it keeps its 4% Glarewell value. The first numbers (Heat 15, 2 swings at +20%, reach 200 + 60, burn -30% and +5%) measured the same, so the stronger ones shipped.
 

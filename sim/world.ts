@@ -7509,7 +7509,8 @@ export const YSMERET = {
   /** Twin Vents: two soak circles this far either side of Ysmeret; an empty one blasts every hero. */
   ventEvery: 16, ventEnraged: 8, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70, firstVents: 8,
   /** Scatter Embers: each hero's burst costs them `scatterSelf` of max health and each other hero inside `scatterOther`. */
-  scatterEvery: 14, scatterCast: 2.5, scatterRadius: 80, scatterSelf: 0.1, scatterOther: 0.35, firstScatter: 4,
+  /** Phase 12 healer check: scatterSelf 0.1 -> 0.12, so a party with no healer wins under 25% at tier 6 (was 39%). */
+  scatterEvery: 14, scatterCast: 2.5, scatterRadius: 80, scatterSelf: 0.12, scatterOther: 0.35, firstScatter: 4,
   /** Bellow Slam: the tank hit, through dodges and shields. Lighter than Anvilfall: the tank also runs to vents. */
   bellow: 90, bellowEvery: 9, bellowCast: 1.5, firstBellow: 5,
   /** Soft enrage: vents open twice as often. */
