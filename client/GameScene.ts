@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH, COLO } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH, COLO, REGENT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -106,6 +106,9 @@ const EMBER_COOL = 0x9a2e1c;
 const SLAG_CRUST = 0x8a2a2a;
 /** The Hoard's arena rim: deep coal red, apart from the Kiln's orange and the Crucible's molten. */
 const HOARD_RIM = 0xd8382a;
+/** The Flue (raid 4): a sooty plum floor and a crimson-rose rim, the Regent's colours. */
+const FLUE_FLOOR = 0xb878a8;
+const FLUE_RIM = 0xe0607a;
 /** The dark wet wood a splinter darkens to as it settles. */
 const WET_WOOD = 0x5a3a22;
 /** The hot gold an ember crumb starts at before it cools to the trail's red (the Long Hunger's Hoard Gilt, warmed). */
@@ -236,6 +239,9 @@ export class GameScene extends Phaser.Scene {
   private gfx!: Phaser.GameObjects.Graphics;
   /** Wind-ups that must read over the sprites (Ondrel's falling anvil). */
   private overFx!: Phaser.GameObjects.Graphics;
+  /** Raid 4 (the Flue): a burning seal over each Decree holder, and a cold one over each Spent hero. */
+  private decreeImgs: Phaser.GameObjects.Image[] = [];
+  private spentImgs: Phaser.GameObjects.Image[] = [];
   private bars!: Phaser.GameObjects.Graphics;
   private fx: Fx[] = [];
   /** Ash puffs and dying bodies: normal blending, drawn at body depth. */
@@ -369,6 +375,9 @@ export class GameScene extends Phaser.Scene {
     // The Smeltery's floor is sooty blue-grey cast iron (at least 20 Delta-E from every other floor), so his hot back,
     // the Sweep cone and the Meltdown pulses read warm against it.
     else if (w.dungeonId === 'smeltery') this.ground.setTint(0x606878);
+    // The Flue's floor is sooty plum brick (at least 22 Delta-E from every other floor, the untinted ones too), dark
+    // like the inside of a chimney, so the burning Decree seals and their Scorch rings read hot against it.
+    else if (w.dungeonId === 'flue') this.ground.setTint(FLUE_FLOOR);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -445,6 +454,12 @@ export class GameScene extends Phaser.Scene {
     for (let k = 0; k < 2; k++) this.gateTexts.push(this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', align: 'center' }).setOrigin(0.5, 1).setVisible(false).setDepth(9.5));
     this.soakText = this.add.text(0, 0, 'Stand here', { ...plateStyle, fontSize: '13px', color: '#ffe08a' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
     this.reviveText = this.add.text(0, 0, '', { ...plateStyle, fontSize: '13px', color: '#c8ffd0' }).setOrigin(0.5, 0).setVisible(false).setDepth(9.5);
+    this.decreeImgs = [];
+    this.spentImgs = [];
+    if (w.dungeonId === 'flue') {
+      for (let i = 0; i < 4; i++) this.decreeImgs.push(this.add.image(0, 0, 'decreeSeal').setVisible(false).setDepth(9.4));
+      for (let i = 0; i < 4; i++) this.spentImgs.push(this.add.image(0, 0, 'spentMark').setVisible(false).setDepth(9.4));
+    }
     for (let i = 0; i < 28; i++) {
       const txt = this.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold', color: '#ffe08a', stroke: '#2a0d06', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(10);
       this.floats.push({ txt, life: 0, age: 0, vx: 0 });
@@ -1020,6 +1035,26 @@ export class GameScene extends Phaser.Scene {
           this.shakeBy(0.05);
           break;
         }
+        // The Flue: a Decree lands with a flare, a pass flashes on its new holder, and a burst rolls out over everyone.
+        case 'decree': {
+          const q = this.heroXY(ev.hero);
+          this.ring(q.x, q.y, 70, 0xff6a3d, 0.4);
+          break;
+        }
+        case 'decreePassed': {
+          const a = this.heroXY(ev.from);
+          const q = this.heroXY(ev.hero);
+          this.ring(a.x, a.y, 40, 0xb8b0a8, 0.35);
+          if (!ev.done) this.ring(q.x, q.y, 60, 0xffb347, 0.4);
+          break;
+        }
+        case 'decreeBurst': {
+          const q = this.heroXY(ev.hero);
+          this.ring(q.x, q.y, 320, 0xff4a2a, 0.7);
+          this.ring(q.x, q.y, 160, 0xffd27a, 0.45);
+          this.shakeBy(0.12);
+          break;
+        }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
           break;
@@ -1354,6 +1389,8 @@ export class GameScene extends Phaser.Scene {
         // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
         // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
         : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
+        // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
+        : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
         : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
@@ -1392,8 +1429,8 @@ export class GameScene extends Phaser.Scene {
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
       // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
       // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
-      // Colossus is the same dark cinder, so he gets it too.
-      if (e.flash > 0 && (e.kind === 'coalmouth' || e.kind === 'colossus')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron.
+      if (e.flash > 0 && (e.kind === 'coalmouth' || e.kind === 'colossus' || e.kind === 'regent')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1466,6 +1503,7 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     this.overFx.clear();
     if (this.world.dungeonId === 'hoard') this.hoardHeroes(g, now);
+    if (this.world.dungeonId === 'flue') this.flueMarks(now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
@@ -1589,7 +1627,7 @@ export class GameScene extends Phaser.Scene {
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : w.dungeonId === 'flue' ? FLUE_RIM : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -2280,6 +2318,63 @@ export class GameScene extends Phaser.Scene {
    *   hero's time.
    * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
    */
+  /** Where hero `k` is drawn: your own sprite, an ally's, or the sim's position. */
+  private heroXY(k: number): { x: number; y: number } {
+    const w = this.world;
+    if (k === w.acting) return { x: this.player.x, y: this.player.y };
+    const al = this.allies.find((a) => a.hero === k);
+    if (al) return { x: al.img.x, y: al.img.y };
+    const q = w.heroData(k).player;
+    return { x: q.x, y: q.y };
+  }
+
+  /**
+   * The Flue (raid 4, "pass it on"), every frame:
+   * - Each Decree holder wears a burning seal over their head, inside a ring that runs down with its 8 s (gold, then
+   *   red and pulsing in the last 3 s), and stands in a Scorch ring (REGENT.scorchRadius) that burns anyone close.
+   * - A hero who just passed one wears the seal gone cold and cracked (Spent), with a grey arc running down with
+   *   the time left, so the holder can see at a glance who can't take it back.
+   * The seals sit above the name, so they never cover a class ring.
+   */
+  private flueMarks(now: number): void {
+    const w = this.world;
+    const g = this.gfx;
+    const o = this.overFx;
+    const k = this.textK;
+    const lift = 66;
+    let di = 0;
+    for (const d of w.regentDecree) {
+      const q = this.heroXY(d.hero);
+      const late = d.t < 3;
+      const pulse = 0.5 + 0.5 * Math.sin(now / (late ? 90 : 220));
+      // Scorch: a hot dashed ring on the floor round the holder.
+      g.fillStyle(0xff5a2a, 0.07 + 0.05 * pulse).fillCircle(q.x, q.y, REGENT.scorchRadius);
+      g.lineStyle(3, 0xff7a3a, 0.55 + 0.3 * pulse);
+      this.dashedCircle(g, q.x, q.y, REGENT.scorchRadius, now);
+      const img = this.decreeImgs[di++];
+      const sy = q.y - lift * k;
+      if (img) img.setVisible(true).setPosition(q.x, sy).setScale(0.62 * k * (late ? 1 + 0.08 * pulse : 1));
+      // The countdown ring round the seal.
+      const R = 19 * k;
+      const f = Math.max(0, Math.min(1, d.t / REGENT.decreeTime));
+      o.lineStyle(4 * k, 0x000000, 0.55).strokeCircle(q.x, sy, R);
+      o.lineStyle(3 * k, late ? 0xff3a2a : 0xffc861, late ? 0.7 + 0.3 * pulse : 0.95).beginPath().arc(q.x, sy, R, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
+    }
+    for (; di < this.decreeImgs.length; di++) if (this.decreeImgs[di].visible) this.decreeImgs[di].setVisible(false);
+    let si = 0;
+    for (let h = 0; h < w.heroes.length; h++) {
+      const st = w.heroData(h).player.spentT ?? 0;
+      if (st <= 0 || w.regentDecree.some((d) => d.hero === h)) continue;
+      const img = this.spentImgs[si++];
+      if (!img) break;
+      const q = this.heroXY(h);
+      const sy = q.y - lift * k;
+      img.setVisible(true).setPosition(q.x, sy).setScale(0.75 * k).setAlpha(0.9);
+      o.lineStyle(2.5 * k, 0xc8c0b8, 0.8).beginPath().arc(q.x, sy, 15 * k, -Math.PI / 2, -Math.PI / 2 + Math.min(1, st / REGENT.spentTime) * Math.PI * 2, false).strokePath();
+    }
+    for (; si < this.spentImgs.length; si++) if (this.spentImgs[si].visible) this.spentImgs[si].setVisible(false);
+  }
+
   /** World time of the last Meltdown pulse, for the countdown ring to the next. */
   private meltAt = -1;
 
