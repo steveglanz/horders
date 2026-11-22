@@ -102,9 +102,9 @@ describe('V2 variety: arena layouts', () => {
     const first = new World({ seed: 4, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
     (first as unknown as L).rollLayout('pack');
     expect(first.layout).toBe('open');
-    const foundry = new World({ seed: 4, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
-    (foundry as unknown as L).rollLayout('twins');
-    expect(foundry.layout).toBe('open');
+    const glare = new World({ seed: 4, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    (glare as unknown as L).rollLayout('shades');
+    expect(glare.layout).toBe('open');
   });
 
   it('stones block, lava burns only inside its width, and vents flare one at a time', () => {
@@ -281,5 +281,29 @@ describe('V4 variety: the Day\'s Heat', () => {
     const g = new World({ ...opts });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.heat).toBe('ventFloor');
+  });
+});
+
+describe('V8 variety: the Drowned Foundry', () => {
+  type L = { rollLayout(id: string): void; encounter: number };
+  it('draws from 6 openers and 3 named fights, all defined', () => {
+    const d = DUNGEONS.foundry;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+  });
+
+  it('rolls stones or steam vents but never lava, and Maelra\'s fight stays open', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const w = new World({ seed, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+      const q = w as unknown as L;
+      q.encounter = 1;
+      q.rollLayout('twins');
+      seen.add(w.layout);
+      q.rollLayout('maelra');
+      expect(w.layout).toBe('open');
+    }
+    expect([...seen].sort()).toEqual(['open', 'pillars', 'vents']);
   });
 });

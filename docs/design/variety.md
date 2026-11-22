@@ -140,3 +140,19 @@ The target was no two runs alike in 20, and the Kiln now meets it in all 50 bloc
 **Still open:**
 - The lava channel: see "Found on the way".
 - Ondrel's double-scaled Hammer Sweep: re-measure the Hammerdeep with a fix, together with the group team.
+
+## V8 status, part 1 (built 22 Nov 2026): the Drowned Foundry's fights and layouts
+- **Fights:** the Foundry now draws from 6 openers (was 3) and 3 named fights (was 2). New: `glassSpitters` (a Glass Warden and 2 Ember Spitters), `crawlerCharge` (a Sluice Crawler, an Ashbuck and a hound), plus the Kiln's `riftfall` opener and `spitterBrute` named fight.
+- **Layouts:** `LAYOUTS.foundry` = open, open, pillars, vents. There is no lava channel, since the Foundry is drowned and the channel was the layout bots handled worst. Maelra's fight stays open (it has its own steam vents).
+- **Run variety** (tools/variety.ts, tier 4, 50 blocks of 20): repeats fell from 398 of 1000 to 4, with 149 routes (was 18) and 853 run shapes.
+
+**Measured** with tools/foundry.ts and the geared reference heroes, seeds 1 to 60, before → after:
+
+| Check | Before | After |
+|---|---|---|
+| Tier 4, hero-t4, good bot | 58 | 59 |
+| Tier 4, hero-t4, `SKILL=0.5` | 57 | 54 |
+| Tier 4, hero-t4 as a Bulwark, `SKILL=0.5` | 56 | 59 |
+| Tier 6, hero-t6, good bot | 54 | 50 |
+
+Hashcheck: only the Foundry rows move. Maelra's second version is part 2.
