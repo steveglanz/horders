@@ -287,6 +287,9 @@ export class GameScene extends Phaser.Scene {
   private glintGfx: Phaser.GameObjects.Graphics | null = null;
   /** V8: Nhevra's Emberdrift embers, pooled, and when the last set fell (for the drop-in). */
   private driftImgs: Phaser.GameObjects.Image[] = [];
+  /** Phase 12 W2: Ondrel's Ironload weight over the marked hero, and where it last hung (for the landing sparks). */
+  private loadImg: Phaser.GameObjects.Image | null = null;
+  private loadShown: { x: number; y: number } | null = null;
   private driftFallAt = -1e9;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
@@ -361,6 +364,8 @@ export class GameScene extends Phaser.Scene {
     this.tideBeat = 0;
     this.glintGfx = null;
     this.driftImgs = [];
+    this.loadImg = null;
+    this.loadShown = null;
     this.driftFallAt = -1e9;
     this.pillarSprites = [];
     this.glareFlash = 0;
@@ -2433,13 +2438,32 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
-    // Phase 12 W2, Ondrel's Ironload (placeholder until visuals): an iron ring on the marked hero that fills
-    // as it comes down. Everyone standing inside shares the weight.
+    // Phase 12 W2, Ondrel's Ironload: an iron weight hangs over the marked hero and comes down as it counts down. The
+    // ground under them is the gold stand-in-it circle (SOAK): everyone inside shares the weight. A gold sweep round its
+    // edge is the timer, and the weight's shadow darkens as it nears. The weight stays above the hero's name and bar,
+    // so it never covers a class ring, and drops out of sight on the landing (the sim's slam).
     if (w.loadHero >= 0 && w.loadT > 0) {
       const m = w.heroData(w.loadHero).player;
-      const u = 1 - w.loadT / IRONLOAD.time;
-      g.fillStyle(0x8a96a8, 0.12 + 0.2 * u).fillCircle(m.x, m.y, IRONLOAD.radius * u);
-      g.lineStyle(3, 0xc8d2e0, 0.6 + 0.3 * Math.sin(now / 120)).strokeCircle(m.x, m.y, IRONLOAD.radius);
+      const hs = w.loadHero === w.acting ? this.player : this.allies.find((al) => al.hero === w.loadHero)?.img;
+      const mx = hs?.x ?? m.x, my = hs?.y ?? m.y;
+      const u = Math.min(1, 1 - w.loadT / IRONLOAD.time);
+      const R = IRONLOAD.radius;
+      const pulse = 0.5 + 0.5 * Math.sin(now / (u > 0.75 ? 70 : 140));
+      g.fillStyle(SOAK, 0.1 + 0.08 * u).fillCircle(mx, my, R);
+      g.lineStyle(2.5, SOAK, 0.55 + 0.3 * pulse).strokeCircle(mx, my, R);
+      g.lineStyle(6, SOAK, 0.9).beginPath().arc(mx, my, R, -Math.PI / 2, -Math.PI / 2 + u * Math.PI * 2, false).strokePath();
+      g.fillStyle(0x000000, 0.12 + 0.3 * u).fillEllipse(mx, my + 4, 30 + 30 * u, (30 + 30 * u) * 0.4);
+      if (!this.loadImg) this.loadImg = this.add.image(0, 0, 'ironWeight').setOrigin(0.5, 1).setDepth(6.5);
+      const lift = 230 - 135 * u * u;
+      this.loadImg.setVisible(true).setPosition(mx, my - lift).setScale(0.5 + 0.12 * u).setRotation(Math.sin(now / 260) * 0.05 * (1 - u));
+      // A dashed drop line from the weight to just over the hero's name, so which hero it is never in doubt.
+      for (let y = my - lift + 4; y < my - 62; y += 10) g.lineStyle(2, 0xc8d2e0, 0.5).lineBetween(mx, y, mx, Math.min(y + 5, my - 62));
+      this.loadShown = { x: mx, y: my - lift };
+    } else if (this.loadImg?.visible) {
+      // Landed (or the mark ended): the weight drops the last stretch and is gone.
+      this.loadImg.setVisible(false);
+      if (this.loadShown && !this.lowFx) for (let k = 0; k < 6; k++) this.emit(this.fx, 'spark', undefined, this.loadShown.x + (Math.random() - 0.5) * 30, this.loadShown.y, 0.5, { tint: 0xc8d0e0, vx: (Math.random() - 0.5) * 120, vy: 40 + Math.random() * 60, drag: 0.95, sx0: 1.2, sx1: 0.3 });
+      this.loadShown = null;
     }
     // V8 Emberdrift (Nhevra): live embers on the ice, walk over one to refill your coal. Each glows and breathes, sends up
     // a spark now and then, and shows its pick-up reach as a faint ring. For a moment after they fall (emberDrift) each
@@ -2470,7 +2494,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2493,7 +2517,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
