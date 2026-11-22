@@ -434,3 +434,31 @@ After part 3, a party with no healer won 39% of tier 6 Ashvents runs (main befor
 | Tier 4, full party, seeds 1 to 40 | 40 | | 40 | | |
 
 The knob moves both cells together. 0.11 keeps tier 8 in its 55 to 70% band but leaves no healer at 29%. 0.12 meets the role bar, and tier 8 lands at 53%, 2 points under its band and inside the ±4% noise of 160 seeds. The role bar is the rule that keeps the group dungeon a group check, so 0.12 ships. If players find tier 8 too hard, the next knob is one that hits a full party less than a party with no healer, not this one.
+
+## Phase 12 W3, part 1 (built 22 Nov 2026): Grandmother Slag's Brimming
+The raid brief's cooling islands, deferred in C3, are now Grandmother Slag's second version. The seed picks `bossVariant` (its own salt, no run-rng draws):
+- `pour`: phase 2 is the Pour, as before. Molten lanes every 6 s, and every hero loses 3% of max health every 3 s.
+- `brim`: phase 2 is **the Brimming**. There are no lanes. Three cooling islands rise (radius 80), 170 or 260 from her in turn. Each lasts 12 s, dims for its last 3 s, then sinks, and a new one rises elsewhere. They start staggered, so one sinks every 4 s. The rising slag burns a hero off an island 6% of max health every 3 s and a hero on one nothing. Phases 1 and 3 are unchanged. Tuning is in `BRIM`, and the islands are `World.islands`, synced to guests.
+- The Pour asks the party to dodge. The Brimming asks it to keep moving together from island to island while the tank holds her and the healer stays in reach.
+- The banner says "Phase 2: The Brimming". The cast id is `brimming` (castStart when phase 2 starts). The client draws placeholder islands (dark discs with a glowing rim that flicker as they sink).
+- **Name:** "The Brimming" and "Brimming Pit" had no WoW match in web searches on 22 Nov 2026. Names that start with "Slag" were avoided, since WoW has many (Slag Pit, Slagworks, Slag Forge).
+
+**Bots** (`islandStep` in sim/bot.ts) walk to an island with more than 3 s left and stay near its middle. Melee heroes weigh the island's distance from her too. A Lumen weighs its distance from the hero it heals (the tank when nobody is low).
+
+**Tuning on the way.** The first pass put the near islands 110 from her. That won 5 of the 33 Brimming seeds (seeds 1 to 80), against 23 on main. A trace of seed 2 showed why. The party stood on the near island 50 to 80 from her, inside her touch range (radius 56), and her touch drained the tank while the Lumen sat at full health. A lower burn (3%) and the bot changes barely helped. Bigger islands (110) gave 13. Moving the near islands out to 170 gave 20.
+
+**Found on the way: #424 also changed the Crucible.** Cinder Marks (her phase 3) used Ysmeret's `scatterSelf`, so the Ashvents' healer check raised them from 10% to 12% too. They now have their own `SLAG.marksSelf` (0.1), which restores them. The measurements below compare against main before #424.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, tier 8, main 8910e46 → this change (wins):
+
+| Check | main | This change |
+|---|---|---|
+| One tank (Bulwark, Lumen, Duskblade, Emberwright), seeds 1 to 160 | 94 (59%) | 91 (57%, in the 55 to 70% band) |
+| By version: Pour seeds (74) | 43 | 43 |
+| By version: Brimming seeds (86) | 51 | 48 |
+| Two tanks (Bulwark, Lumen, Bulwark, Emberwright), seeds 1 to 80 | 66 | 66 |
+| Brimming seeds 1 to 80 (33), bots ignore the islands (NOISLAND=1) | | 5 (with islands: 21) |
+
+Two-tank parties were already over the 70% ceiling on main (raid.md). This change leaves them where they were. Standing on the islands is the check: without it the party wins 5 of 33.
+
+**Run variety** (tools/variety.ts, tier 8): the Crucible has only 12 routes, and with the two versions 24 run shapes. A raid's fight pools are short. Widening them is a W3 follow-up.

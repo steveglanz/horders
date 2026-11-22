@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -726,5 +726,84 @@ describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
     t.x = e.x + 40; t.y = e.y;
     q.ysmeretClock(1 / 30);
     expect(Math.hypot(t.x - e.x, t.y - e.y)).toBeCloseTo(YSMERET.ventDist, 3);
+  });
+});
+
+describe('Phase 12 W3: Grandmother Slag\'s Brimming', () => {
+  type G = { rollSlagVariant(): string; slagClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; heatT: number; pourT: number; ladleT: number; use(k: number): void };
+  const party = [{ cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function slag(variant: string): { w: World; q: G; b: number } {
+    const w = new World({ seed: 3, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('grandmotherSlag', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+    q.ladleT = 99;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark' }) as unknown as G;
+      const b = new World({ seed, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark' }) as unknown as G;
+      expect(a.rollSlagVariant()).toBe(b.rollSlagVariant());
+      seen.add(a.rollSlagVariant());
+    }
+    expect([...seen].sort()).toEqual([...SLAG_VARIANTS].sort());
+  });
+
+  it('the Pour version raises no islands; the Brimming raises them, and casts no lanes', () => {
+    const pour = slag('pour');
+    pour.q.slagClock(1 / 30);
+    expect(pour.w.islands).toHaveLength(0);
+    const { w, q } = slag('brim');
+    q.slagClock(1 / 30);
+    expect(w.islands).toHaveLength(BRIM.count);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'brimming')).toBe(true);
+    q.pourT = 0;
+    for (let k = 0; k < 10; k++) q.slagClock(1 / 30);
+    expect(w.telegraphs.filter((t) => t.alive && t.shape === 'cone')).toHaveLength(0);
+  });
+
+  it('islands sink in turn and new ones rise elsewhere', () => {
+    const { w, q } = slag('brim');
+    q.slagClock(1 / 30);
+    const first = w.islands.map((s) => ({ x: s.x, y: s.y }));
+    for (let k = 0; k < 30 * (BRIM.life / BRIM.count + 0.5); k++) q.slagClock(1 / 30);
+    expect(w.islands).toHaveLength(BRIM.count);
+    const moved = w.islands.filter((s, k) => s.x !== first[k].x || s.y !== first[k].y);
+    expect(moved).toHaveLength(1);
+  });
+
+  it('the rising slag burns a hero off an island harder, and one on an island not at all', () => {
+    const { w, q } = slag('brim');
+    q.slagClock(1 / 30);
+    const isl = w.islands[w.islands.length - 1];
+    w.heroData(0).player.x = isl.x; w.heroData(0).player.y = isl.y;
+    w.heroData(1).player.x = -500; w.heroData(1).player.y = 500;
+    w.heroData(1).player.y = w.islands.some((s) => Math.hypot(s.x + 500, s.y - 500) < BRIM.radius + 20) ? -500 : 500;
+    const hp0 = w.heroData(0).player.hp, hp1 = w.heroData(1).player.hp;
+    q.heatT = 0;
+    q.slagClock(1 / 30);
+    expect(w.heroData(0).player.hp).toBe(hp0);
+    expect(hp1 - w.heroData(1).player.hp).toBeGreaterThan(w.heroData(1).player.maxHp * SLAG.heat);
+  });
+
+  it('Cinder Marks keep their own 10% self-burn, apart from Ysmeret\'s Scatter Embers', () => {
+    const { w, q, b } = slag('pour');
+    const f = q as unknown as { finishCast(i: number): void };
+    const spots = [[-400, -400], [400, -400], [-400, 400], [400, 400]];
+    spots.forEach(([x, y], k) => { w.heroData(k).player.x = x; w.heroData(k).player.y = y; });
+    const hp = [0, 1, 2, 3].map((k) => w.heroData(k).player.hp);
+    w.enemies[b].castId = 'scatter';
+    f.finishCast(b);
+    const lost = hp[2] - w.heroData(2).player.hp;
+    expect(lost).toBeGreaterThan(0);
+    expect(lost / w.heroData(2).player.maxHp).toBeLessThan(YSMERET.scatterSelf);
+    expect(SLAG.marksSelf).toBe(0.1);
   });
 });

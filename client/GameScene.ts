@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
 import { EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -24,7 +24,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, pickCue, setFlagsOf } from './audio/cues';
+import { behindColossusNow, colossusCue, inLavaNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -802,6 +802,8 @@ export class GameScene extends Phaser.Scene {
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
+      islands: w.islands,
+      myIsland: w.islands.length ? myIsland(w) : -1,
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
       colossus: colossusCue(w),
@@ -1177,7 +1179,8 @@ export class GameScene extends Phaser.Scene {
             if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
+            if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
             else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
@@ -1622,6 +1625,13 @@ export class GameScene extends Phaser.Scene {
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
+    // Phase 12 W3: the Brimming's cooling islands (placeholder until visuals): dark cooled slag with a glowing rim, dimming as they sink.
+    for (const isl of w.islands) {
+      const sink = isl.t < BRIM.warn ? isl.t / BRIM.warn : 1;
+      const flick = isl.t < BRIM.warn ? 0.6 + 0.4 * Math.sin(now / 90) : 1;
+      g.fillStyle(0x3a3430, 0.85 * sink + 0.1).fillCircle(isl.x, isl.y, BRIM.radius);
+      g.lineStyle(3, 0xffa040, 0.8 * flick).strokeCircle(isl.x, isl.y, BRIM.radius);
+    }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
