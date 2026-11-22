@@ -365,7 +365,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'tideTurn': return { id: 'tideTurn' };
     case 'ventFlare': return { id: ventSounds(c.dungeon).warn };
     case 'layout': {
-      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : LAYOUT_STING[ev.id];
+      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' && c.dungeon === 'coldmarrow' ? 'layoutIce' : LAYOUT_STING[ev.id];
       return id ? { id } : null;
     }
     case 'gather': return { id: 'gather' };

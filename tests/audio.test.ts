@@ -495,6 +495,9 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);
     expect(THROTTLE.slam).toBeGreaterThan(1 / 60);
     expect(THROTTLE.slam).toBeLessThan(0.2);
+    // The Coldmarrow's ice pillars (#384) clink; elsewhere pillars stay stone.
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'coldmarrow' })?.id).toBe('layoutIce');
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' })?.id).toBe('layoutPillars');
   });
 
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {

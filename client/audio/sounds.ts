@@ -820,6 +820,11 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.07, vol: 0.32, lp: 12000, hp: 2500, curve: 3 }],
     ...[0.02, 0.06, 0.11, 0.17, 0.24, 0.32].map((d, k) => chime([E6 * 2, B5() * 2, G6, E6 * 1.5, C6 * 2, E6][k], d, 0.12, 0.3)),
   ),
+  /** The Coldmarrow's pillars layout: frosted ice stones, a cold glassy clink pair instead of struck stone. */
+  layoutIce: join(
+    chime(B5() * 2, 0, 0.16, 0.6), chime(E6, 0.16, 0.14, 0.7),
+    [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.05, lp: 12000, hp: 5000, curve: 1.6 }],
+  ),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
