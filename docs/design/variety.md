@@ -115,7 +115,7 @@ The plan called this the "Kindling", but Kindling is already a potion, so it is 
 All four keep tier 1 in band (novice 45 to 51%, good bot 75 to 79%). A forced pillars or vents day also skips the lava channel, which is why those days run easier at tier 2.
 
 ## Found on the way (for V7)
-- **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix.
+- **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix. Fixed in Phase 12 W2: see "Phase 12 W2, part 2".
 - **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons. Done: see "The lava channel and the L7 check" at the end.
 
 ## V7 status (measured 22 Nov 2026): the Kiln
@@ -345,3 +345,23 @@ At tier 8, Ondrel's record by version is choir 52 of 88 and load 42 of 72, so th
 **Run variety** (tools/variety.ts, tier 6, now counting Ondrel's version): 2 of 1000 runs repeat an earlier run in their block of 20, against 409 before. Routes went from 18 to 150, and there are 928 run shapes.
 
 The hashcheck has no Hammerdeep rows and is identical to main. Ondrel's double-scaled Hammer Sweep is still open; it is the next W2 PR, with its own re-measure.
+
+## Phase 12 W2, part 2 (22 Nov 2026): Ondrel's Hammer Sweep counts the tier once
+Hammer Sweep made its telegraph with `ONDREL.sweepDamage * tierDamage`, and telegraphs multiply by `tierDamage` again when they land. So it hit 14 × 1.12^(2(tier − 1)). Now the sweep is made unscaled, like every other telegraph. `sweepDamage` goes from 14 to 25, which keeps tier 6 where it was (14 × 1.12^5 = 24.7).
+
+The landed hit, before → after:
+
+| Tier | Before | After |
+|---|---|---|
+| 4 | 28 | 35 |
+| 6 | 43 | 44 |
+| 8 | 68 | 55 |
+| 10 | 107 | 78 |
+
+Mythic key levels scale `tierDamage` too, so the sweep no longer squares the key multiplier either.
+
+**Measured** (tools/group.ts, heroes-r2, full party, main 64541ba → this change):
+- Tier 8, hero-t8-0, seeds 1 to 160: 94 → 95.
+- Tier 10, hero-t8-0, seeds 1 to 80: 7 → 8.
+
+Bots step out of the cone, so the fix barely moves them. It matters for players, who will be hit by the sweep sometimes. Tiers 4 and 6 are 80 and 78 of 80 on main, and the tier 6 sweep is unchanged. The hashcheck has no Hammerdeep rows.
