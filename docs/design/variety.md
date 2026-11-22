@@ -462,3 +462,23 @@ The raid brief's cooling islands, deferred in C3, are now Grandmother Slag's sec
 Two-tank parties were already over the 70% ceiling on main (raid.md). This change leaves them where they were. Standing on the islands is the check: without it the party wins 5 of 33.
 
 **Run variety** (tools/variety.ts, tier 8): the Crucible has only 12 routes, and with the two versions 24 run shapes. A raid's fight pools are short. Widening them is a W3 follow-up.
+
+## Phase 12 W3, part 2 (built 22 Nov 2026): Old Vorhulm's Banked Coals
+The seed picks `bossVariant` for Old Vorhulm (its own salt, no run-rng draws):
+- `spill`: phase 3 is Ember Feast, as before. Embers scatter, and the party grabs them before he does.
+- `bank`: phase 3 is **Banked Coals**. On Ember Spill's 10 s timer, three gold circles (radius 50) settle 170 or 260 from him, turning by the golden angle, and land after 4 s. A hero standing in one smothers it. He eats an empty one, exactly as he eats an ember: he heals 2% and hits 5% harder for the rest of the fight. There's no blast and there are no adds, so the price of a miss is a stronger boss, the Hoard's own rule. Tuning is in `BANK`. The circles are soak telegraphs with owner -4.
+- Ember Feast asks everyone to run and grab. Banked Coals asks three heroes to split up and hold a spot while he keeps swallowing, so a Swallow at the wrong time costs a coal.
+- The banner says "Phase 3: Banked Coals". The cast id is `bankedCoals`. A smothered coal sends `emberTaken` and an eaten one `emberEaten`, so the existing ember sounds play.
+- **Name:** "Banked Coals" and "Banked Embers" had no WoW match in a web search on 22 Nov 2026.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, tier 9, full party (Bulwark, Lumen, Duskblade, Emberwright), main → this change, seeds 1 to 160:
+
+| | main | This change |
+|---|---|---|
+| All seeds | 112 (70%, at the ceiling) | 99 (62%, in the 55 to 70% band) |
+| Ember Feast seeds (77) | 49 | 49 |
+| Banked Coals seeds (83) | 63 | 50 |
+
+On seeds 1 to 80, he ate 290 embers or coals in the new runs against 185 on main, and the bots smothered most coals. Banked Coals is the harder version (60% against Ember Feast's 64%), and both are inside the band. The Hoard had been at the 70% ceiling, so this also brings it back under.
+
+**Run variety:** like the Crucible, the Hoard has 12 routes and now 24 run shapes. Widening raid fight pools is still a follow-up.

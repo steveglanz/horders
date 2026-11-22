@@ -64,3 +64,5 @@ At 18000 a run sees about 6 to 8 Swallows, 2 to 3 of them Digested, and most Gor
 The Bulwark-tank parties sit at 23 to 32. The Anvil tank party (36) is the one outlier left, on skills (Z5).
 
 Placeholder art: Old Vorhulm borrows the Vorhulm rare's sheet and the Craw the rift's, until visuals (W6) draws them. Embers and the Gorge ring are drawn in GameScene. The raid theme plays (sound, W7).
+
+**Phase 12 W3 (22 Nov 2026):** Old Vorhulm has a second version, **Banked Coals**, which replaces Ember Feast's embers in phase 3 with gold circles to stand on as they land (variety.md, Phase 12 W3 part 2).
