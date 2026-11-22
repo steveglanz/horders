@@ -61,7 +61,7 @@ export const SETS: Record<SetId, SetDef> = {
   },
   crawsplitter: {
     id: 'crawsplitter', name: 'Crawsplitter', verb: 'Break them free', dungeon: 'hoard',
-    bonus: ['Your hits on the Craw deal 25% more damage.', 'When you break the Craw, you and the hero it frees deal 8% more damage for 10s.'],
+    bonus: ['Your hits on the Craw deal 5% more damage.', 'When you break the Craw, you and the hero it frees deal 8% more damage for 10s.'],
   },
   platewalker: {
     id: 'platewalker', name: 'Platewalker', verb: 'Get behind him', dungeon: 'smeltery',
@@ -99,7 +99,7 @@ export const SET_TUNING = {
   /** Relay: the damage after you soak a gold circle (2; 3 also gives it to the nearest ally), and how long it lasts. */
   rlDamage: 0.08, rlTime: 12,
   /** Crawsplitter: extra damage to the Craw (2), and the damage for the breaker and the freed hero after a break (3), and how long. */
-  csCraw: 0.25, csFreed: 0.08, csTime: 10,
+  csCraw: 0.05, csFreed: 0.08, csTime: 10,
   /** Platewalker: the cut while behind the Colossus (2) and the damage while behind him (3). Behind is the same back arc as COLO.backArc. */
   pwCut: 0.06, pwDamage: 0.06,
   /** Handover: the cut to a held Decree's burn on its holder and those near (2), and the damage while Spent (3). */
