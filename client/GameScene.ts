@@ -1891,34 +1891,75 @@ export class GameScene extends Phaser.Scene {
     }
     let plate = 0;
     // A pack of the same elite (four Shoal Lurkers round a raft) shows its name once, over the topmost one: the
-    // same name printed over each stacks into an unreadable block on a phone. Every one keeps its own health bar.
+    // same name printed over each stacks into an unreadable block on a phone.
     const names: { x: number; y: number; text: string; color: string }[] = [];
+    const bars: World['enemies'] = [];
     for (const e of w.enemies) {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
       if (!onScreen(e.x, e.y)) continue;
-      const bw = e.def.rank === 'rare' ? 70 : 56;
-      const top = e.y - e.def.radius - 14;
-      b.fillStyle(0x000000, 0.6).fillRect(e.x - bw / 2, top, bw, 6);
-      b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(e.x - bw / 2, top, (bw * Math.max(0, e.hp)) / e.maxHp, 6);
-      if (e.named >= 0) this.namedMark(g, b, e, top, now);
-      if (e.castId) {
-        b.fillStyle(0x000000, 0.7).fillRect(e.x - bw / 2, top + 8, bw, 5);
-        b.fillStyle(e.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(e.x - bw / 2, top + 8, (bw * e.castT) / e.castDur, 5);
-      }
-      // Warded: a pale shield segment over the health bar, and a bubble on the body.
+      // Warded: a bubble on the body (the shield segment goes on the bar below).
       if (e.ward > 0) {
-        const wf = Math.min(1, e.ward / e.maxHp);
-        b.fillStyle(0xe8f4ff, 0.95).fillRect(e.x - bw / 2, top - 3, bw * Math.min(1, wf * 5), 3);
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
-      // C2: a named elite shows its title in the rare colour.
-      names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+      bars.push(e);
+    }
+    // Y9: a pile of the same unnamed elite (Nhevra's Snuffers crowding in) shares one bar, so a dozen bars don't
+    // stack into a block. A pack of PACK_MIN or more draws one bar over its topmost member, with the pack's summed health, a count and the summed ward. Smaller
+    // groups, named elites and any elite mid-cast keep their own bars, so an interrupt target is always marked.
+    const PACK_DX = 70;
+    const PACK_DY = 50;
+    const PACK_MIN = 3;
+    bars.sort((a, c) => (a.y - a.def.radius) - (c.y - c.def.radius));
+    // Packs merge transitively: two of a kind whose bars would crowd (within PACK_DX by PACK_DY) share a pack.
+    const solo = (m: World['enemies'][number]) => m.named >= 0 || !!m.castId;
+    const root = bars.map((_, i) => i);
+    const find = (i: number): number => (root[i] === i ? i : (root[i] = find(root[i])));
+    for (let i = 0; i < bars.length; i++) {
+      if (solo(bars[i])) continue;
+      for (let j = i + 1; j < bars.length; j++) {
+        const p = bars[i], q = bars[j];
+        if (solo(q) || q.def !== p.def || Math.abs(q.x - p.x) >= PACK_DX || Math.abs(q.y - p.y) >= PACK_DY) continue;
+        root[find(j)] = find(i);
+      }
+    }
+    const byRoot = new Map<number, World['enemies']>();
+    bars.forEach((e, i) => { const r = find(i); const pk = byRoot.get(r); if (pk) pk.push(e); else byRoot.set(r, [e]); });
+    const packs = [...byRoot.values()];
+    const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
+      const bw = e.def.rank === 'rare' ? 70 : 56;
+      b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
+      b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
+      if (cast) {
+        b.fillStyle(0x000000, 0.7).fillRect(x - bw / 2, top + 8, bw, 5);
+        b.fillStyle(cast.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(x - bw / 2, top + 8, (bw * cast.castT) / cast.castDur, 5);
+      }
+      if (ward > 0) b.fillStyle(0xe8f4ff, 0.95).fillRect(x - bw / 2, top - 3, bw * Math.min(1, (ward / maxHp) * 5), 3);
+    };
+    for (const pk of packs) {
+      if (pk.length < PACK_MIN) {
+        for (const e of pk) {
+          const top = e.y - e.def.radius - 14;
+          drawBar(e, e.hp, e.maxHp, e.ward, e.castId ? e : undefined, e.x, top);
+          if (e.named >= 0) this.namedMark(g, b, e, top, now);
+          // C2: a named elite shows its title in the rare colour.
+          names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+        }
+        continue;
+      }
+      const e = pk[0];
+      let hp = 0, maxHp = 0, ward = 0, x = 0;
+      for (const m of pk) { hp += Math.max(0, m.hp); maxHp += m.maxHp; ward += m.ward; x += m.x; }
+      x /= pk.length;
+      const top = e.y - e.def.radius - 14;
+      drawBar(e, hp, maxHp, ward, undefined, x, top);
+      names.push({ x, y: top, text: `${e.def.name} \u00d7${pk.length}`, color: NAME_COLOR[e.def.rank] });
     }
     names.sort((a, c) => a.y - c.y);
     const shown: typeof names = [];
     for (const n of names) {
-      if (shown.some((q) => q.text === n.text && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
+      const base = n.text.replace(/ \u00d7\d+$/, '');
+      if (shown.some((q) => q.text.replace(/ \u00d7\d+$/, '') === base && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
       shown.push(n);
       const t = this.plates[plate++];
       if (t) setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
@@ -2286,6 +2327,25 @@ export class GameScene extends Phaser.Scene {
         o.beginPath().arc(cw.x, cw.y, R, a - 0.35, a + 0.35, false).strokePath();
       }
       if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / COALMOUTH.swallowTime) * Math.PI * 2, false).strokePath();
+      // Y9: on a phone the party frames sit over the left of the arena, and he often stands under them with the Craw
+      // hidden. Then a pulsing pointer sits just right of the frames, aimed at it, so the "break this" target never
+      // vanishes behind the HUD.
+      const pb = this.partyBox();
+      if (pb && cw.x + R > pb.l && cw.x - R < pb.r && cw.y + R > pb.t && cw.y - R < pb.b) {
+        const cam = this.cameras.main;
+        const sz = 16 / cam.zoom;
+        const ex = pb.r + sz * 1.6;
+        const ey = Math.min(pb.b - sz, Math.max(pb.t + sz, cw.y));
+        const a = Math.atan2(cw.y - ey, cw.x - ex);
+        const blink = 0.775 + 0.225 * Math.sin(now / 90);
+        o.fillStyle(0x000000, 0.6).fillCircle(ex, ey, sz * 1.25);
+        o.lineStyle(2 / cam.zoom, 0xfff0b0, blink).strokeCircle(ex, ey, sz * 1.25);
+        o.fillStyle(0xfff0b0, blink).fillTriangle(
+          ex + Math.cos(a) * sz, ey + Math.sin(a) * sz,
+          ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
+          ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
+        );
+      }
     }
   }
 
@@ -2311,7 +2371,20 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; banner?: DOMRect } = { px: 0, at: -1 };
+  private hudCover: { px: number; at: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1 };
+
+  /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
+  private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
+    this.clearView();
+    const pr = this.hudCover.party;
+    const full = this.cameras.main.worldView;
+    const c = this.game.canvas.getBoundingClientRect();
+    if (!pr || !c.width || !c.height) return undefined;
+    return {
+      l: full.x + ((pr.left - c.left) / c.width) * full.width, r: full.x + ((pr.right - c.left) / c.width) * full.width,
+      t: full.y + ((pr.top - c.top) / c.height) * full.height, b: full.y + ((pr.bottom - c.top) / c.height) * full.height,
+    };
+  }
 
   /**
    * Allies' names (with their title and bot mark) that sit under the HUD's top panels or behind the cast banner are
@@ -2362,6 +2435,9 @@ export class GameScene extends Phaser.Scene {
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden ? pe.getBoundingClientRect() : undefined;
+      this.hudCover.party = pr && pr.width > 0 && pr.height > 0 ? pr : undefined;
     }
     const ch = this.game.canvas.getBoundingClientRect().height || 1;
     // Never take more than 40% of the view, so a tall panel can't push arrows down into the fight.
