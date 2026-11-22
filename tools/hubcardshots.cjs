@@ -1,7 +1,7 @@
 // Screenshots hub cards that live behind prep chips: the weekly quests sheet (one quest
 // done, one part way, one fresh, then all three done with the title), on desktop and phone.
 // Usage: npm run build && node tools/hubcardshots.cjs <outDir> [raids]
-// (raids: the three raids at 320 px instead: each raid card picked by a solo tier 10 hero, then the hub scrolled to
+// (raids: the four raids at 320 px instead: each raid card picked by a solo tier 11 hero, then the hub scrolled to
 // its end with the party line's lock lines (four heroes, no bots) and the Delve button; reports horizontal scroll)
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -9,7 +9,7 @@ const out = process.argv[2] || 'tools/shots';
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const RAIDS = ['crucible', 'hoard', 'smeltery'];
+const RAIDS = ['crucible', 'hoard', 'smeltery', 'flue'];
 async function raids(b) {
   const ctx = await b.newContext({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await ctx.route('https://*.supabase.co/**', (r) => r.abort());
@@ -19,7 +19,7 @@ async function raids(b) {
   await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=2&god=1`);
   await page.waitForTimeout(700);
   await page.evaluate(() => {
-    const h = window.__ember.hero(); h.runs = Math.max(h.runs, 12); h.maxTier = 10;
+    const h = window.__ember.hero(); h.runs = Math.max(h.runs, 12); h.maxTier = 11;
     document.querySelector('[data-cls="bulwark"]').click(); document.querySelector('[data-cls="emberwright"]').click();
     document.querySelector('[data-tab="delve"]')?.click();
   });

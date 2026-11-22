@@ -65,6 +65,12 @@ function setColorIf<T extends Phaser.GameObjects.Text>(t: T, color: string): T {
 }
 /** Slagbinder colours: molten slag, and the cold of Cooling Shell. */
 const SLAG = 0xff9b4a;
+/** Shorter fight tips for phones, where even the 4-line banner cuts these off (checked at 320 and 568 wide). */
+const PHONE_TIP: Record<string, string> = {
+  [ENCOUNTERS.regent.tip]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. It never lands on the tank, but the tank can take one.',
+  [COURT_TIP]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. On a Summons, get inside his gold ring.',
+  [PLATE_SHIFT_TIP]: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, find his open back again.',
+};
 const SLAG_COOL = 0xbcd6e6;
 // Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
 const WARD_FIRE = 0xff7a2e;
@@ -1321,18 +1327,14 @@ export class GameScene extends Phaser.Scene {
           this.bossFell = false;
           const def = ENCOUNTERS[ev.id];
           // The first fight also names the run's Omens, so the player knows the twist.
-          // Phones keep the intro short: the Omens get one line, with details in the pause menu.
           const omens = ev.index === 0 && w.omens.length
-            ? (this.hud.compact
-              ? ` ${w.omens.length === 1 ? 'Omen' : 'Omens'}: ${w.omens.map((o) => OMENS[o].name).join(', ')} (details in pause).`
-              : ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`)
+            ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`
             : '';
-          // L1: the first delve coaches each fight instead of the usual tip. Coach lines, and on phones a first
-          // fight that also names its Omens, get the full-length banner so nothing is cut off.
+          // L1: the first delve coaches each fight instead of the usual tip. Coach lines get the full-length banner.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
           // V4: the first fight also names the Day's Heat.
-          // Phones name it only: the hub's Heat chip has the details, and the floor line already says what stones or vents do.
-          const heat = ev.index === 0 && w.heat ? (this.hud.compact ? ` Today's Heat: ${HEATS[w.heat].name}.` : ` Today's Heat, ${HEATS[w.heat].name}: ${HEATS[w.heat].text}`) : '';
+          const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
+          const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
@@ -1347,7 +1349,16 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
+          const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
+          if (this.hud.compact && !coach && (omens || heat)) {
+            // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
+            // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
+            // The Omens banner names them only (details in pause); a Heat on its own has room for its line.
+            const next = omens
+              ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
+              : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, next);
+          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach);
           break;
         }
         case 'fork':
