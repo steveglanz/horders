@@ -753,9 +753,11 @@
     #stats span { font-size: 11px; letter-spacing: 0.04em; }
     #endTitle { margin-top: 8px; }
     #rewards .item { padding: 8px 10px; }
-    .toast { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* One line: a long name ("Furnace-Sworn Greatshield") gives way, the "▲ +124" or "to bags" always shows. */
+    .toast { display: flex; align-items: baseline; white-space: nowrap; overflow: hidden; }
+    .toast b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .toast .tr, .toast .tl { display: none; }
-    .toast .ts { display: inline; margin-left: 4px; font-weight: 700; }
+    .toast .ts { display: inline; flex: none; margin-left: auto; padding-left: 6px; font-weight: 700; }
     #rewards .item .info > .st ~ .st { display: none; }
     #rewards .top span::after { content: " · hold for stats"; }
     .snd-panel .row input[type=checkbox] { width: 24px; height: 24px; }
@@ -777,6 +779,8 @@
     .hp { width: min(21vw, 200px); }
     #tPct { display: none; }
     .toast:nth-child(n+3) { display: none; }
+    /* Co-op: the party frames fill the left side, so loot toasts drop to the bottom corner instead of covering them. */
+    #hud:has(#party:not([hidden])) #toasts { bottom: max(14px, env(safe-area-inset-bottom)); }
     /* Just under the top row, so the card clears your hero and its nameplate in the middle of a short screen. */
     #banner, #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { top: calc(max(8px, env(safe-area-inset-top)) + 60px); bottom: auto; max-width: min(46vw, 440px); padding: 6px 14px 8px; }
     #bannerTitle { font-size: 20px; }
