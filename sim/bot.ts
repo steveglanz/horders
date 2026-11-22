@@ -106,15 +106,26 @@ function shieldCast(w: World, skill: number): number | undefined {
 
 /** How far to the side of its ward a co-op Lumen stands: inside Radiant Burst, outside a frontal cone. */
 const LUMEN_STANDOFF = 110;
+/** The Smeltery's Meltdown: below this share of health, the tank comes first for the Lumen. */
+export const MELT_TANK_FIRST = 0.6;
 
 /**
  * Co-op: the ally a Lumen should stay beside: the one with the lowest share of health,
  * when someone is below 85% (Slag Grip stacks count as missing health). -1 solo or when all are well.
  */
-function lumenWard(w: World): number {
+export function lumenWard(w: World): number {
   if (w.cls !== 'lumen' || w.heroes.length < 2) return -1;
   let best = -1;
   let bestShare = 0.85;
+  // The Smeltery's Meltdown: the pulses hit everyone, and a Lumen chasing the lowest hero to the
+  // back ring leaves the tank unhealed. Once the tank is under `MELT_TANK_FIRST`, go to the tank.
+  if (w.dungeonId === 'smeltery' && w.bossPhase >= 3) {
+    for (let k = 0; k < w.heroes.length; k++) {
+      if (k === w.acting || !w.isTank(k)) continue;
+      const a = w.hero(k).player;
+      if (a.hp > 0 && a.hp / a.maxHp < MELT_TANK_FIRST) return k;
+    }
+  }
   for (let k = 0; k < w.heroes.length; k++) {
     if (k === w.acting) continue;
     const a = w.hero(k).player;
