@@ -1065,7 +1065,7 @@ export class GameScene extends Phaser.Scene {
         }
         // The Flue: a Decree lands with a flare, a pass flashes on its new holder, and a burst rolls out over everyone.
         case 'ventFlare':
-          this.ring(ev.x, ev.y, LAYOUT.ventRadius, this.world.dungeonId === 'foundry' ? 0xdff6f0 : 0xffb060, 0.35);
+          this.ring(ev.x, ev.y, LAYOUT.ventRadius, this.world.dungeonId === 'foundry' ? 0xdff6f0 : this.world.dungeonId === 'glarewell' ? 0xfff0c0 : 0xffb060, 0.35);
           break;
         case 'decree': {
           const q = this.heroXY(ev.hero);
@@ -2384,7 +2384,9 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     // V8: the Drowned Foundry rolls the same layouts; there the stones are wet slate and the vents steam.
     const wet = w.dungeonId === 'foundry';
-    if (wet && !this.steamGfx) this.steamGfx = this.add.graphics().setDepth(1.45);
+    // V5 in the Glarewell: its vents are cracked skylight lenses that flare with light.
+    const glass = w.dungeonId === 'glarewell';
+    if ((wet || glass) && !this.steamGfx) this.steamGfx = this.add.graphics().setDepth(1.45);
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
@@ -2411,7 +2413,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
@@ -2423,8 +2425,21 @@ export class GameScene extends Phaser.Scene {
           const px = v.x + Math.sin(p * 2.1 + now / 400) * 10 * u, py = v.y - 70 * u;
           this.steamGfx!.fillStyle(0xdff6f0, 0.32 * (1 - u)).fillCircle(px, py, 12 + 26 * u);
         }
+      } else if (hot && glass) {
+        // Light: a pale gold glow on the lens and slow-turning rays spilling out of it, on the under layer.
+        const sg = this.steamGfx!;
+        sg.fillStyle(0xfff0c0, 0.16 + 0.1 * f).fillCircle(v.x, v.y, 46);
+        const n = this.lowFx ? 5 : 9;
+        for (let r = 0; r < n; r++) {
+          const a = (r / n) * Math.PI * 2 + now / 2400, wdt = 0.09;
+          const r1 = 58 + 10 * f;
+          sg.fillStyle(0xfff4d6, 0.14 + 0.08 * f).fillTriangle(
+            v.x + Math.cos(a - wdt) * 14, v.y + Math.sin(a - wdt) * 14,
+            v.x + Math.cos(a + wdt) * 14, v.y + Math.sin(a + wdt) * 14,
+            v.x + Math.cos(a) * r1, v.y + Math.sin(a) * r1);
+        }
       } else if (hot) g.fillStyle(0xff8a3a, 0.18 + 0.12 * f).fillCircle(v.x, v.y, 40);
-      g.lineStyle(1.5, wet ? 0x9fe8da : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
+      g.lineStyle(1.5, wet ? 0x9fe8da : glass ? 0xffe6a0 : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
   }
