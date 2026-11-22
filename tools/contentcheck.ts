@@ -2,7 +2,7 @@
 // and reports any run that hasn't ended by 3000 s of sim time (a soft-lock), plus the
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
-import { HEAT_IDS } from '../sim/content/heat';
+import { HEAT_IDS, HEAT_POOLS } from '../sim/content/heat';
 import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId } from '../sim/world';
 import { NAMED, AFFIXES } from '../sim/content/named';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -141,6 +141,9 @@ for (const seed of x8Seeds) for (const skill of [1, 0.5]) {
     for (const d of X8_SOLO) cases.push({ label: `named ${affix} ${d.dungeon}`, skill, setup, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: d.dungeon, tier: d.tier, omens: [] } });
     cases.push({ label: `named ${affix} hammerdeep trio`, skill, setup, opts: { seed, ...main('bulwark'), dungeon: 'hammerdeep', tier: 6, omens: [], party: (['lumen', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
   }
+  // Phase 14 X1: every solo dungeon under each of its Heats (the Kiln's are the kiln heat cases above).
+  for (const d of X8_SOLO) if (d.dungeon !== 'kiln') for (const heat of HEAT_POOLS[d.dungeon] ?? [])
+    cases.push({ label: `heat ${heat} ${d.dungeon}`, skill, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: d.dungeon, tier: d.tier, omens: [], heat } });
   for (const d of X8_SOLO) for (const ev of ARENA_EVENT_POOLS[d.dungeon] ?? []) for (const cls of CLASSES)
     cases.push({ label: `arena ${ev} ${d.dungeon} ${cls}`, skill, setup: () => { resetForces(); ARENA_EVENTS.force = ev as ArenaEventId; }, opts: { seed, ...main(cls), dungeon: d.dungeon, tier: d.tier, omens: [] } });
 }
