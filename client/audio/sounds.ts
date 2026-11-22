@@ -1033,6 +1033,29 @@ export const SOUNDS = {
   layoutAsh: join([{ wave: 'noise', f: 0, dur: 0.6, vol: 0.18, a: 0.06, lp: 3000, lp2: 900, hp: 400, curve: 1.6 }],
     ...[0.5, 0.58, 0.7].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.16, lp: 8000, hp: 2500, curve: 3 }]),
     chime(note(8), 0.45, 0.1, 0.5)),
+  /** Phase 13 E2/E3: a stones layout sounds like the stones visuals drew for it (client/GameScene.ts RAID_STONE). */
+  /** The Crucible's slag blocks: a crust settles with a thump, glassy cracks tick, and a little hiss. */
+  stoneSlag: join(clang(175, 0.2, 0.4),
+    ...[0.12, 0.2, 0.31].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14 - k * 0.02, lp: 9000, hp: 3000, curve: 3 }]),
+    [{ wave: 'noise', f: 0, dur: 0.45, delay: 0.3, vol: 0.1, a: 0.1, lp: 7000, hp: 2500, curve: 1.6 }]),
+  /** The Hoard's coal-and-bone lumps: a dull coal thud, hollow bone knocks, and one coin left on top. */
+  stoneBone: join(
+    [{ wave: 'tri', f: 160, f2: 110, dur: 0.22, vol: 0.2, curve: 2.5 }, { wave: 'noise', f: 0, dur: 0.12, vol: 0.16, lp: 1800, hp: 300, curve: 2.5 }],
+    ...[0.16, 0.27, 0.34].map((d, k) => [{ wave: 'tri' as const, f: [920, 760, 1040][k], f2: [820, 700, 950][k], dur: 0.07, delay: d, vol: 0.14, curve: 3.5 }]),
+    chime(3100, 0.48, 0.08, 0.25)),
+  /** The Smeltery's ingot plinths: copper bars set down crosswise, two warm clanks and a ring. */
+  stoneIngot: join(clang(294, 0.2, 0.35), clang(262, 0.18, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.14 })),
+    chime(note(10), 0.3, 0.08, 0.5)),
+  /** The Flue's brick stumps: two dull brick knocks, mortar crumbling, then a faint draught. */
+  stoneBrick: join(
+    ...[0, 0.15].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.07, delay: d, vol: 0.24, lp: 1600, hp: 450, curve: 3 }, { wave: 'tri' as const, f: 330, f2: 260, dur: 0.08, delay: d, vol: 0.12, curve: 3 }]),
+    ...[0.27, 0.32, 0.39, 0.44, 0.52].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.08, lp: 6000, hp: 1500, curve: 3 }]),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.35, vol: 0.08, a: 0.2, lp: 1400, hp: 400, curve: 1.2 }]),
+  /** The Ashvents' pumice blocks: two soft crunching thuds, ash sifting off, and the obsidian streak's glassy tick. */
+  stonePumice: join(
+    ...[0, 0.14].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.1, delay: d, vol: 0.22, lp: 3200, hp: 500, curve: 2.5 }]),
+    [{ wave: 'noise', f: 0, dur: 0.55, delay: 0.2, vol: 0.07, a: 0.15, lp: 10000, hp: 4000, curve: 1.6 }],
+    chime(note(15), 0.42, 0.07, 0.3)),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1368,6 +1391,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   layoutSlag: 5.0,
   layoutSmelt: 3.0,
   layoutAsh: 1.0,
+  // Phase 13 stones stings, level with layoutPillars (about -30.5 dB on a phone).
+  stoneSlag: 6.9, stoneBone: 4.2, stoneIngot: 3.0, stoneBrick: 8.6, stonePumice: 4.6,
   plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,

@@ -217,7 +217,7 @@ Steve, 22 Nov: "the environments need better designs". Phases 11 and 12 gave the
 | E1 | **Raid trash layouts:** stones or vents in a raid's openers and named fight, never in the boss fight (each boss has its own floor rules: islands, coals, his back, the throne) | design | ✅ #462: all four raids open, open, pillars, vents (variety.md, Phase 13 E1); all in the band on 320 seeds |
 | E2 | **The Ashvents' layouts** (held back from W2 because they cost 11/80 with the new fights) and its full-party band (53% at tier 8, just under 55%) | design | ✅ Layouts plus Ysmeret 5800 health: 61% full party, no healer 13% (variety.md, Phase 13 E2) |
 | E3 | **Art** for raid-floor stones and vents (the Crucible's, the Hoard's, the Smeltery's and the Flue's own look) and the Ashvents' | visuals | ⏭ After E1/E2 ids |
-| E4 | **Sound** for raid-floor vents | sound | ⏭ A new event needs a cueFor case |
+| E4 | **Sound** for raid-floor vents | sound | ✅ Each raid's own vent warn, burst and sting #463, the Ashvents' #466; each raid's and the Ashvents' own stones sting (PILLAR_STING), matched to the E2/E3 art. Busy-fight margins unchanged (busycheck, heroes-r2 t8) |
 | E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ⏭ |
 | E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ✅ No class change needed: stones block movement only, every class is held up under 1% of its moving time on pillars, trash fights are no longer or deadlier (skills.md, "Raid trash floors") |
 
