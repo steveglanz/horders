@@ -167,7 +167,7 @@ Every dungeon drops a verb set (R4) except the two newest raids: `setForDungeon(
 |---|---|---|---|
 | A1 | **Crawsplitter** (the Hoard, "break them free") and **Platewalker** (the Smeltery, "get behind him"): sets, `SET_TUNING` cs*/pw*, the Crawsplitter buff chip, tests | design | ✅ Phase 9 PR. Behind means the Colossus's back arc (COLO.backArc), the same arc that takes ×1.5. Both names had no WoW match in a search on 22 Nov 2026 |
 | A2 | **Set icons:** SET_ICON.crawsplitter and .platewalker are placeholders from design (client/icons.ts); draw them in the set style | visuals | ⏭ |
-| A3 | **Set cues:** Crawsplitter's "+8% after a break" chip (`freedT`) gets a SET_SOUND cue like Relayer's `relayed`; Platewalker has no timed buff, so a cue only if it reads well | sound | ⏭ |
+| A3 | **Set cues:** Crawsplitter's "+8% after a break" chip (`freedT`) gets a SET_SOUND cue like Relayer's `relayed`; Platewalker has no timed buff, so a cue only if it reads well | sound | ✅ #337: `freed` (breaker and freed hero, after the Craw's break) and a soft `behindPlate` on stepping behind him, throttled to 3 s (a bot re-enters about every 7 s) |
 | A4 | **Sets in the raid tables:** measure each raid with a party wearing its 3-piece set against the 55 to 70% band; if a set pushes the base party over 70%, tell design the numbers | skills | ⏭ After #324 and Z5 |
 
 ## R2. The Forge
