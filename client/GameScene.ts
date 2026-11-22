@@ -1664,6 +1664,7 @@ export class GameScene extends Phaser.Scene {
     if (this.world.dungeonId === 'flue') this.flueMarks(now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
+    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Phase 12 W3: the Regent's Summons (placeholder until visuals): a gold ring round him that closes in while it warns.
     if (w.summonsT > 0 && w.bossIndex >= 0) {
       const b = w.enemies[w.bossIndex];
@@ -1672,7 +1673,6 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(4, 0xffd27a, 0.6 + 0.4 * k).strokeCircle(b.x, b.y, SUMMONS.radius);
       g.lineStyle(2, 0xffd27a, 0.5 * (1 - k)).strokeCircle(b.x, b.y, SUMMONS.radius + 120 * (1 - k));
     }
-    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
