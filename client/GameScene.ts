@@ -12,7 +12,7 @@ import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, D
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
-import { AFFIXES } from '../sim/content/named';
+import { AFFIXES, AFFIX_TIP } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
 import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
@@ -1050,7 +1050,7 @@ export class GameScene extends Phaser.Scene {
             for (let k = 0; k < w.heroes.length; k++) {
               const q = w.heroData(k).player;
               if (q.hp <= 0) continue;
-              this.ring(q.x, q.y, (q.coalR ?? COLD.maxR) * 0.9, 0x6a86b8, 0.45);
+              this.ring(q.x, q.y, (q.coalR ?? w.coalMaxR) * 0.9, 0x6a86b8, 0.45);
               for (let n = 0; n < 8; n++) {
                 const a = (n / 8) * Math.PI * 2;
                 this.emit(this.fx, 'spark', undefined, q.x + Math.cos(a) * 20, q.y + Math.sin(a) * 12, 0.7, { tint: 0x8fb0e8, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30 - 40, drag: 0.92, sx0: 1.6, sx1: 3 });
@@ -1305,7 +1305,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           break;
         case 'namedSpawn': {
-          this.hud.banner(ev.name, `A named foe (${ev.affix}). It carries its own loot.`);
+          this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
           // It steps out of the pack: a blue flare, rings and a little shake.
           const ne = w.enemies[ev.index];
           if (ne) {
@@ -1833,7 +1833,7 @@ export class GameScene extends Phaser.Scene {
         const d = Math.hypot(c.x, c.y) || 1;
         const ux = c.x / d;
         const uy = c.y / d;
-        const L = GLARE.shadowLength;
+        const L = w.shadowLen;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
@@ -3434,7 +3434,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = 0; k < w.heroes.length; k++) {
       const q = w.heroData(k).player;
       if (q.hp <= 0 || !q.coal) continue;
-      const r = (q.coalR ?? COLD.maxR) + r0;
+      const r = (q.coalR ?? w.coalMaxR) + r0;
       if ((q.x - x) ** 2 + (q.y - y) ** 2 <= r * r) best = Math.max(best, q.coal);
     }
     return best;
@@ -4262,7 +4262,7 @@ export class GameScene extends Phaser.Scene {
       const al = k === w.acting ? undefined : this.allies.find((a) => a.hero === k);
       const x = al ? al.img.x : this.player.x;
       const y = al ? al.img.y : this.player.y;
-      const r = q.coalR ?? COLD.maxR;
+      const r = q.coalR ?? w.coalMaxR;
       if (q.coal > 0) {
         const flick = 1 + 0.025 * Math.sin(now / 90 + k * 2) + 0.015 * Math.sin(now / 37 + k);
         // Brighter while the coal is full, and brighter still against the Long Night.
@@ -4403,7 +4403,7 @@ export class GameScene extends Phaser.Scene {
           g.strokePath();
         }
         if (q.coal) {
-          const after = COLD.minR + (COLD.maxR - COLD.minR) * Math.max(0, q.coal - COLD.snuffCut);
+          const after = COLD.minR + (w.coalMaxR - COLD.minR) * Math.max(0, q.coal - COLD.snuffCut);
           g.lineStyle(2, 0x6a86b8, 0.4 + 0.5 * f).strokeCircle(q.x, q.y, after);
         }
       }

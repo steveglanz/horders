@@ -418,7 +418,7 @@ function longNightShelter(w: World): { dx: number; dy: number } | null {
     const dx = q.x - p.x;
     const dy = q.y - p.y;
     const d = Math.hypot(dx, dy);
-    const r = (q.coalR ?? COLD.maxR) - 25;
+    const r = (q.coalR ?? w.coalMaxR) - 25;
     // Already inside its light, or too far to get there before the cast lands.
     if (d <= r || d - r > w.moveSpeed * left) continue;
     if (!best || (q.coal ?? 0) > best.coal) best = { dx: dx / (d || 1), dy: dy / (d || 1), coal: q.coal ?? 0 };

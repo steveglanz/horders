@@ -430,7 +430,7 @@ export class Hub {
   private prepChips(omens: OmenId[]): string {
     const h = this.hero();
     const chips: string[] = [];
-    // V4: today's Heat (the Kiln at tiers 1 and 2) gets a chip too; on phones the full line is folded away.
+    // V4: today's Heat (every solo dungeon since Phase 14 X1) gets a chip too; on phones the full line is folded away.
     const heat = this.heatToday();
     if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}"><span class="star" aria-hidden="true">✺</span><span>${heat.name}</span></button>`);
     if (omens.length) {
@@ -831,10 +831,10 @@ export class Hub {
   private heatToday(): (typeof HEATS)[keyof typeof HEATS] | null {
     // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
     if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return null;
-    return HEATS[heatFor(dayOf(Date.now()))];
+    return HEATS[heatFor(dayOf(Date.now()), this.dungeon)];
   }
 
-  /** V4: today's Heat, on the Kiln below the first Omen tier. */
+  /** V4: today's Heat in the picked solo dungeon (Phase 14 X1: every solo dungeon, every tier). */
   private heatLine(): string {
     const h = this.heatToday();
     if (!h) return '';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World, TICK } from '../sim/world';
-import { NAMED, NAMED_TITLES, AFFIXES } from '../sim/content/named';
+import { NAMED, NAMED_TITLES, AFFIXES, AFFIX_TIP } from '../sim/content/named';
 
 type Inner = {
   spawn(kind: string, x: number, y: number): number;
@@ -79,6 +79,46 @@ describe('named elites (C2)', () => {
     const before = w.telegraphs.filter((t) => t.alive).length;
     inner.killEnemy(i);
     expect(w.telegraphs.filter((t) => t.alive).length).toBe(before + 1);
+  });
+
+  it('Phase 14 X2 Brood: its pack comes out of it when it falls', () => {
+    const { w, inner, i } = named('Brood');
+    const hounds = () => w.enemies.filter((e) => e.alive && e.kind === 'cinderhound').length;
+    const before = hounds();
+    inner.killEnemy(i);
+    expect(hounds()).toBe(before + NAMED.broodN);
+  });
+
+  it('Phase 14 X2 Smoldering: leaves a fire circle where it stands every few seconds', () => {
+    const { w, i } = named('Smoldering');
+    let made = 0;
+    let last = w.telegraphs.filter((t) => t.alive).length;
+    for (let n = 0; n < Math.round((NAMED.smolderEvery * 2 + 0.5) / TICK); n++) {
+      w.step({ x: 0, y: 0 });
+      const now = w.telegraphs.filter((t) => t.alive && t.r === NAMED.smolderR).length;
+      if (now > last) made += now - last;
+      last = now;
+      if (!w.enemies[i].alive) break;
+    }
+    expect(made).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Phase 14 X2: the newer affixes come on about 40% of named foes, the C2 rolls stay put', () => {
+    const n = [0, 0, 0, 0, 0];
+    for (let seed = 1; seed <= 400; seed++) n[inFight(seed).inner.namedAffix]++;
+    expect((n[3] + n[4]) / 400).toBeGreaterThan(NAMED.newAffixChance - 0.1);
+    expect((n[3] + n[4]) / 400).toBeLessThan(NAMED.newAffixChance + 0.1);
+    for (const k of n) expect(k).toBeGreaterThan(40);
+    for (const a of AFFIXES) expect(AFFIX_TIP[a].length).toBeGreaterThan(5);
+  });
+
+  it('Phase 14 X4: namedPlan says ahead of time where the named foe is and what affix it has', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const ahead = new World({ seed, omens: [] }).namedPlan();
+      const { inner } = inFight(seed);
+      if (inner.namedAt < 0) expect(ahead).toBeNull();
+      else expect(ahead).toEqual({ at: inner.namedAt, affix: AFFIXES[inner.namedAffix] });
+    }
   });
 
   it('an ordinary foe is not named', () => {
