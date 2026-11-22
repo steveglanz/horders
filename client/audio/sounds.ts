@@ -1045,6 +1045,9 @@ export const PHONE_FLOOR_DB = -26.5;
 // Polish pass (22 Nov 2026): busycheck with the skills team's t8 heroes (HEROES=heroes-r2 HERO_FILE=hero-t8-0.json) found
 // ten warnings under 6 dB over the mix in the Crucible, Hammerdeep, Coldmarrow and Wrackline; each is lifted to about 6.5 dB.
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
+  // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
+  spitLob: 4.5,
+  chargeWindup: 4.0,
   ebbPull: 1.9,
   haulWarn: 8.9,
   ladleWarn: 3.4,
