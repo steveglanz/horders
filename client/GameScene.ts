@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT } from '../sim/world';
 import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -267,6 +267,9 @@ export class GameScene extends Phaser.Scene {
   private tideBeat = 0;
   /** V8: the Lensmother's Glintfall shards, above the pillars (1.5) and under the main graphics (2), so never over a ring. */
   private glintGfx: Phaser.GameObjects.Graphics | null = null;
+  /** V8: Nhevra's Emberdrift embers, pooled, and when the last set fell (for the drop-in). */
+  private driftImgs: Phaser.GameObjects.Image[] = [];
+  private driftFallAt = -1e9;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -336,6 +339,8 @@ export class GameScene extends Phaser.Scene {
     this.tideOn = false;
     this.tideBeat = 0;
     this.glintGfx = null;
+    this.driftImgs = [];
+    this.driftFallAt = -1e9;
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1192,6 +1197,15 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'emberDrift':
+          // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
+          this.driftFallAt = this.time.now;
+          this.time.delayedCall(550, () => { for (const m of this.world.driftEmbers) this.ring(m.x, m.y, 46, 0xffb060, 0.4); });
+          break;
+        case 'emberPick':
+          this.burst(ev.x, ev.y, 10);
+          this.ring(ev.x, ev.y, 40, 0xffd27a, 0.35);
+          break;
         case 'tideTurn':
           // V8: Maelra's Sluicetide changes course (visuals draw the current).
           this.hud.ding('The tide turns');
@@ -2388,12 +2402,27 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
-    // V8 Emberdrift (Nhevra): placeholder embers on the floor until visuals draw them; walk over one to refill your coal.
-    for (const m of w.driftEmbers) {
-      const r = 8 + 2 * Math.sin(now / 180 + m.x);
-      g.fillStyle(0xff8a3a, 0.25).fillCircle(m.x, m.y, r * 2.6);
-      g.fillStyle(0xffd27a, 0.9).fillCircle(m.x, m.y, r);
-    }
+    // V8 Emberdrift (Nhevra): live embers on the ice, walk over one to refill your coal. Each glows and breathes, sends up
+    // a spark now and then, and shows its pick-up reach as a faint ring. For a moment after they fall (emberDrift) each
+    // drops in from above on a fiery streak.
+    const fallU = Math.min(1, (now - this.driftFallAt) / 550);
+    w.driftEmbers.forEach((m, k) => {
+      let img = this.driftImgs[k];
+      if (!img) img = this.driftImgs[k] = this.add.image(0, 0, 'driftEmber').setDepth(1.6);
+      const drop = (1 - fallU) * (1 - fallU) * 220;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 200 + k * 2.1);
+      img.setVisible(true).setPosition(m.x, m.y - drop).setScale(0.8 + 0.08 * pulse);
+      g.fillStyle(0xff9a4a, 0.22 + 0.12 * pulse).fillCircle(m.x, m.y, 24);
+      g.lineStyle(1.5, 0xffb060, 0.35).strokeCircle(m.x, m.y, EMBERDRIFT.pickR);
+      if (drop > 1) {
+        g.lineStyle(6, 0xff8a3a, 0.35).lineBetween(m.x, m.y - drop - 70, m.x, m.y - drop);
+        g.lineStyle(2.5, 0xffe2a0, 0.8).lineBetween(m.x, m.y - drop - 40, m.x, m.y - drop);
+      } else {
+        const u = ((now / 1100) + k * 0.37) % 1;
+        g.fillStyle(0xffd27a, 0.8 * (1 - u)).fillCircle(m.x + Math.sin(now / 300 + k) * 5 * u, m.y - 10 - 34 * u, 2.2);
+      }
+    });
+    for (let k = w.driftEmbers.length; k < this.driftImgs.length; k++) this.driftImgs[k].setVisible(false);
     // V8: the Drowned Foundry rolls the same layouts; there the stones are wet slate and the vents steam.
     const wet = w.dungeonId === 'foundry';
     // V5 in the Glarewell: its vents are cracked skylight lenses that flare with light.
