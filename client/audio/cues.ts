@@ -433,6 +433,8 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
   // Phase 12 W2: the Pressworks' steam-press vents.
   pressworks: { warn: 'pressVentWarn', land: 'pressBurst', sting: 'layoutPress' },
+  // Phase 13 E2: Ysmeret's ash-and-ember vents in the Ashvents' trash fights.
+  ashvents: { warn: 'ashVentWarn', land: 'ashBurst', sting: 'layoutAsh' },
   // Phase 13 E4: the raids' trash-fight vents: slag, ember breath, a tuyere's blast and the flue's draught.
   crucible: { warn: 'slagVentWarn', land: 'slagBurst', sting: 'layoutSlag' },
   hoard: { warn: 'hoardVentWarn', land: 'hoardBurst', sting: 'layoutHoard' },
