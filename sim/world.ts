@@ -5327,7 +5327,7 @@ export class World {
     e.abilityT = ONDREL.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
-    this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage * this.tierDamage, 'hit', i);
+    this.addTelegraph('cone', e.x, e.y, ONDREL.sweepRange, ang, (ONDREL.sweepArc * Math.PI) / 180, ONDREL.sweepCast, ONDREL.sweepDamage, 'hit', i); // scaled by tier as it lands
   }
 
   // ---------------------------------------------------------------- the Coldmarrow
@@ -7355,8 +7355,11 @@ export const ONDREL = {
    * `anvilEnraged` s): then the tank needs a cooldown or a taunt swap.
    */
   sunderTime: 8, sunderMult: 1.5, anvilEnraged: 7,
-  /** Hammer Sweep: a frontal cone at the target between Anvilfalls. */
-  sweepEvery: 5, sweepCast: 1.1, sweepRange: 230, sweepArc: 70, sweepDamage: 14,
+  /**
+   * Hammer Sweep: a frontal cone at the target between Anvilfalls. Telegraphs scale by tier as they land. Before Phase 12 the 14 here was scaled twice
+   * (once when made), so 25 keeps tier 6 where it was (14 x 1.12^5 = 24.7).
+   */
+  sweepEvery: 5, sweepCast: 1.1, sweepRange: 230, sweepArc: 70, sweepDamage: 25,
   /** Choir of Iron: every hero loses this share of max health, growing each time. */
   choir: 0.12, choirGrow: 0.02, choirEvery: 10, choirCast: 1.5, firstChoir: 9,
   /** Slag Grip: a melee hit that stacks a burn (share of max health per second per stack). */
