@@ -1295,6 +1295,23 @@
     #hud.tgt .stat b { font-size: 16px; }
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { margin-left: 212px; margin-right: 14px; max-width: none; }
   }
+  /* Motion polish (phones first): every tap target gives under the finger, a new hub tab eases in, the bag
+     slides up, and a piece you equip settles into its slot. Uses the scale property, so it never fights an
+     element's own transform. */
+  :is(.sbtn, .prep-chip, .itile, .round, button.pill, #tabbar button, .tal, .bookbtn, .dg, .sheet-x, .stance button, .linkbtn, #classes button) { transition: scale 0.09s ease-out; }
+  :is(.sbtn, .prep-chip, .itile, .round, button.pill, #tabbar button, .tal, .bookbtn, .sheet-x, .stance button, .linkbtn, #classes button):active:not(:disabled) { scale: 0.94; }
+  .dg:active:not(:disabled) { scale: 0.98; }
+  .ab { transition: scale 0.07s ease-out; }
+  .ab:active { scale: 0.92; }
+  body.tabs #title.tabswap [data-pane] { animation: tabIn 0.22s ease-out; }
+  @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  body.tabs #bag:not([hidden]) .bagwrap { animation: tabIn 0.22s ease-out; }
+  .slotin { animation: slotIn 0.8s ease-out; }
+  @keyframes slotIn { 0% { scale: 1.12; box-shadow: 0 0 0 0 color-mix(in srgb, var(--rc, var(--ember)) 85%, transparent), 0 0 18px color-mix(in srgb, var(--rc, var(--ember)) 70%, transparent); } 35% { scale: 0.97; } 60% { scale: 1.02; } 100% { scale: 1; box-shadow: 0 0 0 12px transparent; } }
+  .gs-host { position: relative; }
+  .gs-up { position: absolute; right: calc(100% + 8px); top: 0; font-style: normal; font-weight: 800; letter-spacing: 0; color: var(--xp, #8fe39b); text-shadow: 0 0 8px rgba(120,230,140,0.7); pointer-events: none; animation: purseUp 1.2s ease-out forwards; }
+  .gs-up.down { color: var(--danger); text-shadow: 0 0 8px rgba(255,59,107,0.6); }
+  @media (prefers-reduced-motion: reduce) { :is(.sbtn, .prep-chip, .itile, .round, button.pill, #tabbar button, .tal, .bookbtn, .dg, .sheet-x, .stance button, .linkbtn, #classes button, .ab):active { scale: none; } .slotin, body.tabs #title.tabswap [data-pane], body.tabs #bag .bagwrap { animation: none; } .gs-up { display: none; } }
 </style>
 </head>
 <body>
