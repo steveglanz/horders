@@ -93,10 +93,11 @@ interface Fx {
  * How each season trail is drawn (TRAILS ids); any other trail is soft motes. 'sparks': rising, cooling embers (the
  * Deep Bellows). 'frost': falling crystals that settle (the Cold Hearth). 'drip': molten drops that fall and cool (the
  * Slag Moon). 'oil': iridescent oil drops that spread into a green slick (the Falling Press). 'chips': wood splinters
- * that tumble off the heels (the Low Ebb).
+ * that tumble off the heels (the Low Ebb). 'crumbs': hot coal crumbs that drop and cool (the Long Hunger). 'shards':
+ * steel plate shards that flash crack cyan as they break off and fall (the Cracked Plate).
  */
-type TrailStyle = 'motes' | 'sparks' | 'frost' | 'drip' | 'oil' | 'chips';
-const TRAIL_STYLE: Record<string, TrailStyle> = { bellowsSparks: 'sparks', rimeDust: 'frost', slagDrips: 'drip', oilSheen: 'oil', raftSplinters: 'chips' };
+type TrailStyle = 'motes' | 'sparks' | 'frost' | 'drip' | 'oil' | 'chips' | 'crumbs' | 'shards';
+const TRAIL_STYLE: Record<string, TrailStyle> = { bellowsSparks: 'sparks', rimeDust: 'frost', slagDrips: 'drip', oilSheen: 'oil', raftSplinters: 'chips', emberCrumbs: 'crumbs', plateShards: 'shards' };
 /** The deeper rime blue a settled crystal turns, so a near-white trail still shows on the Coldmarrow's frost. */
 const FROST_SETTLE = 0x7fa6e8;
 /** The dim forge red an ember cools to. */
@@ -107,6 +108,10 @@ const SLAG_CRUST = 0x8a2a2a;
 const HOARD_RIM = 0xd8382a;
 /** The dark wet wood a splinter darkens to as it settles. */
 const WET_WOOD = 0x5a3a22;
+/** The hot gold an ember crumb starts at before it cools to the trail's red (the Long Hunger's Hoard Gilt, warmed). */
+const CRUMB_HOT = 0xffc46a;
+/** The crack cyan a plate shard flashes as it breaks off, before it settles to the trail's plate blue. */
+const SHARD_FLASH = 0x26e9ff;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
 function mixRgb(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * t)) << sh;
@@ -2037,6 +2042,8 @@ export class GameScene extends Phaser.Scene {
       if (tr.style === 'drip') { this.trailDrip(tr, px, py, rich); continue; }
       if (tr.style === 'oil') { this.trailOil(tr, px, py, rich); continue; }
       if (tr.style === 'chips') { this.trailChips(tr, px, py, rich); continue; }
+      if (tr.style === 'crumbs') { this.trailCrumbs(tr, px, py, rich); continue; }
+      if (tr.style === 'shards') { this.trailShards(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -2121,6 +2128,36 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A crumb trail (the Long Hunger): small coal crumbs dropped off the heels, as if spilled from the Hoard. Each drops a
+   * short way and lands, cooling from hot gold to the trail's ember red and crumbling a little smaller as it fades.
+   * Unlike the Slag Moon's drips they are lumps, not stretched drops, and they don't splash flat.
+   */
+  private trailCrumbs(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1 : 0.6;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.65 : 0.9) + Math.random() * 0.2;
+      this.emit(tr.fx, 'coalCrumb', undefined, px + (Math.random() - 0.5) * 30, py + 10 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: CRUMB_HOT, tint1: tr.color, rot: Math.random() * Math.PI, vx: (Math.random() - 0.5) * 18, vy: 26 + Math.random() * 10, drag: 0.88, sx0: sz, sx1: sz * 0.7 });
+    }
+  }
+
+  /**
+   * A shard trail (the Cracked Plate): angular steel shards that break off the hero's heels with a flash of crack cyan,
+   * then fall, turning slowly, and settle to the trail's plate blue. Plate blue is the darkest trail yet, so each
+   * shard starts bright cyan and only darkens as it settles, keeping the fresh end of the trail readable on a dark floor.
+   */
+  private trailShards(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1 : 0.6;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.75 : 1) + Math.random() * 0.2;
+      this.emit(tr.fx, 'plateShard', undefined, px + (Math.random() - 0.5) * 32, py + 12 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: SHARD_FLASH, tint1: tr.color, rot: Math.random() * Math.PI * 2, vx: (Math.random() - 0.5) * 20, vy: 30 + Math.random() * 10, drag: 0.9, spin: (Math.random() - 0.5) * 4, sx0: sz, sx1: sz * 0.9 });
+    }
+  }
+
   /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
    * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
    * can't steal its motes. */
@@ -2129,7 +2166,7 @@ export class GameScene extends Phaser.Scene {
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
     const style = TRAIL_STYLE[def.id] ?? 'motes';
-    const tex = style === 'frost' ? 'frostFlake' : style === 'oil' ? 'oilDrop' : style === 'chips' ? 'woodChip' : 'trailMote';
+    const tex = style === 'frost' ? 'frostFlake' : style === 'oil' ? 'oilDrop' : style === 'chips' ? 'woodChip' : style === 'crumbs' ? 'coalCrumb' : style === 'shards' ? 'plateShard' : 'trailMote';
     // Motes and sparks glow (additive). The others blend normally, so what settles on the floor (rime blue, slag crust,
     // an oil slick, wet wood) stays visible instead of fading into it.
     for (let i = 0; i < pool; i++) fx.push(this.newFx(tex, 1.35, style === 'motes' || style === 'sparks'));
@@ -2353,6 +2390,18 @@ export class GameScene extends Phaser.Scene {
         // Splinters: the landing ones burst out spinning, like a plank giving way.
         this.emit(tr.fx, 'woodChip', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.5 + t * 0.35,
           { tint: tr.color, tint1: WET_WOOD, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, drag: 0.92, spin: (Math.random() - 0.5) * 16, sx0: 1, sx1: 0.85 });
+        continue;
+      }
+      if (tr.style === 'crumbs') {
+        // Crumbs: the landing ones scatter out low like a spilled handful, then cool.
+        this.emit(tr.fx, 'coalCrumb', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.55 + t * 0.4,
+          { tint: CRUMB_HOT, tint1: tr.color, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp * 0.3 + 18, drag: 0.9, sx0: 0.95, sx1: 0.7 });
+        continue;
+      }
+      if (tr.style === 'shards') {
+        // Shards: the landing ones burst out like a plate cracking apart, then fall and settle.
+        this.emit(tr.fx, 'plateShard', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.6 + t * 0.4,
+          { tint: SHARD_FLASH, tint1: tr.color, rot: Math.random() * Math.PI * 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 + 24, drag: 0.92, spin: (Math.random() - 0.5) * 10, sx0: 1.1, sx1: 0.9 });
         continue;
       }
       if (tr.style === 'sparks') {

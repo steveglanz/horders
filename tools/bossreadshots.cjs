@@ -1,14 +1,17 @@
 // Readability pass (Y9): the first bosses players meet, at a 360 px wide phone. For each boss, one shot in the
 // open fight and one while a telegraph is on the floor, solo Emberwright, frozen between hits with the banner
-// hidden. Usage: npm run build && node tools/bossreadshots.cjs <outDir> [tag]
+// hidden. Usage: npm run build && node tools/bossreadshots.cjs <outDir> [tag] [later]
+// (later: Ondrel, Ysmeret, Nhevra, Hessa and Oskel instead of the first three)
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
-const tag = process.argv[3] || 'p360';
+const tag = process.argv[3] && process.argv[3] !== 'later' ? process.argv[3] : 'p360';
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const BOSSES = [['kiln', 'kilnMother', 3], ['foundry', 'maelra', 5], ['glarewell', 'lensmother', 7]];
+const FIRST = [['kiln', 'kilnMother', 3], ['foundry', 'maelra', 5], ['glarewell', 'lensmother', 7]];
+const LATER = [['hammerdeep', 'ondrel', 4], ['ashvents', 'ysmeret', 7], ['coldmarrow', 'nhevra', 10], ['wrackline', 'hessa', 13], ['pressworks', 'oskel', 10]];
+const BOSSES = process.argv.includes('later') ? LATER : FIRST;
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await b.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
