@@ -590,3 +590,16 @@ Each raid's openers and named fight now roll a layout, as the group dungeons do:
 | Flue t11 | 206 (64%) | 191 (60%) |
 
 Every raid stays in the band. The Flue loses about 5 points, and parties wiped before the boss in 7 runs (4 before). That's the cost of vents at tier 11, and I've kept it.
+
+## Phase 13 E2 (built 22 Nov 2026): the Ashvents' layouts and band
+The Ashvents now roll open, open, pillars or vents for their trash, like the other group dungeons (`LAYOUTS.ashvents`). In W2 the layouts were held back because, together with the new fights, they cost 11 of 80. Measured on their own now, they cost nothing. The dungeon was also just under its band (53% at tier 8), so Ysmeret has 5800 health (she had 6200). Her vents get sound's own set (#466).
+
+Tier 8, heroes-r2 hero-t8-0, seeds 1 to 320:
+
+| | Wins |
+|---|---|
+| Full party, main | 170 (53%) |
+| Full party, with layouts | 169 (53%) |
+| Full party, with layouts and 5800 health | **195 (61%)** |
+| No healer (Bulwark, two Emberwrights, Duskblade), 5800 | 42 (13%, under the 25% bar) |
+| No tank (two Duskblades, Lumen, Emberwright), 5800 | 6 (2%) |

@@ -674,12 +674,12 @@ describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
   }
   const vents = (w: World) => w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2).map((t) => ({ x: t.x, y: t.y }));
 
-  it('draws from 6 openers and 3 named fights, and keeps its layouts unchanged', () => {
+  it('draws from 6 openers and 3 named fights (its layouts came later, in Phase 13 E2)', () => {
     const d = DUNGEONS.ashvents;
     expect(d.openers).toHaveLength(6);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
-    expect(LAYOUTS.ashvents).toBeUndefined();
+    expect(LAYOUTS.ashvents).toEqual(['open', 'open', 'pillars', 'vents']);
   });
 
   it('rolls from the seed alone, and both versions show up', () => {
@@ -838,9 +838,9 @@ describe('Phase 12 W3 follow-up: wider raid fight pools', () => {
   });
 });
 
-describe('Phase 13 E1: raid trash layouts', () => {
-  it('every raid rolls stones or vents for its trash, never lava, and never for the boss fight', () => {
-    for (const id of ['crucible', 'hoard', 'smeltery', 'flue'] as const) {
+describe('Phase 13 E1 and E2: raid and Ashvents trash layouts', () => {
+  it('every raid (and the Ashvents) rolls stones or vents for its trash, never lava, and never for the boss fight', () => {
+    for (const id of ['crucible', 'hoard', 'smeltery', 'flue', 'ashvents'] as const) {
       expect(LAYOUTS[id]).toBeDefined();
       expect(LAYOUTS[id]).not.toContain('channel');
       const seen = new Set<string>();
