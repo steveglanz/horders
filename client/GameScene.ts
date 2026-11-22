@@ -177,6 +177,12 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
   return 0;
 }
 
+/** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
+const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' }> = {
+  kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
+  foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
+};
+
 export class GameScene extends Phaser.Scene {
   world!: World;
   hud!: Hud;
@@ -2573,33 +2579,41 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * The Kiln's arena edge: brick furnaces and braziers stand just outside the rim, each throwing a warm light pool that
-   * spills onto the floor inside. Props sit outside the play area (above the dark beyond the rim, depth 2.05) and the
-   * light sits under everything that matters (depth 1.2), so neither ever hides a danger area or a class ring.
-   * The pools flicker; braziers send up an ember now and then (not on trimmed effects).
+   * Arena edge environments, by dungeon (EDGE_SETS). Props stand just outside the rim, alternating big and small,
+   * each throwing a light pool that spills onto the floor inside. Props sit outside the play area (above the dark
+   * beyond the rim, depth 2.05) and the light sits under everything that matters (depth 1.2), so neither ever hides a
+   * danger area or a class ring. The pools flicker; the small props give off a spark or a steam puff now and then
+   * (not on trimmed effects).
+   * - The Kiln: brick furnaces and braziers, warm light, embers.
+   * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
    */
   private edgeDraw(now: number): void {
     const w = this.world;
-    if (w.dungeonId !== 'kiln' || w.stress) return;
+    const set = EDGE_SETS[w.dungeonId];
+    if (!set || w.stress) return;
     if (!this.edgeProps.length) {
       const R = ARENA;
       for (let k = 0; k < 12; k++) {
-        const furnace = k % 2 === 0;
+        const big = k % 2 === 0;
         const a = (k / 12) * Math.PI * 2 + 0.26;
         // Far enough out that even a prop below the arena (drawn upward) stays outside the rim.
-        const r = R + (furnace ? 92 : 62);
+        const r = R + (big ? 92 : 62);
         const x = Math.cos(a) * r, y = Math.sin(a) * r;
-        const img = this.add.image(x, y, furnace ? 'kilnFurnace' : 'kilnBrazier').setOrigin(0.5, 0.85).setScale(furnace ? 0.55 : 0.6).setDepth(2.05);
+        const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(2.05);
         const lr = R - 10;
-        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, 'coalLight').setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(furnace ? 1.15 : 0.85);
-        this.edgeProps.push({ img, light, x, y, fire: !furnace });
+        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
+        this.edgeProps.push({ img, light, x, y, fire: !big });
       }
     }
     this.edgeProps.forEach((p, k) => {
-      const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / 130 + k * 1.7) + 0.5 * Math.sin(now / 57 + k * 4.1);
+      const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / set.flicker + k * 1.7) + 0.5 * Math.sin(now / (set.flicker * 0.44) + k * 4.1);
       p.light.setAlpha(0.55 + 0.07 * fl);
-      if (p.fire && !this.lowFx && Math.random() < 0.03) {
+      if (!p.fire || this.lowFx) return;
+      if (set.puff === 'spark' && Math.random() < 0.03) {
         this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
+      } else if (set.puff === 'steam' && Math.random() < 0.012) {
+        // From the valve's side nozzle (texture 96 px, origin 0.5/0.85, scale 0.6: nozzle at about +12, -39).
+        this.steam(p.x + 12, p.y - 39, 0.55);
       }
     });
   }

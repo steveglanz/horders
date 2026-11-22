@@ -3380,6 +3380,70 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx, 47, 9, cx + 1, 6);
   });
 
+  // The Drowned Foundry's arena edge: a riveted brass boiler with a glowing sea-glass gauge, and a standpipe with a
+  // valve wheel that vents steam. They stand outside the rim; coolLight is the teal pool they throw onto the floor.
+  make(scene, 'foundryBoiler', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 56, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Flue pipe behind the tank.
+    ctx.fillStyle = '#5a4428'; ctx.fillRect(cx - 34, 14, 18, 56); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 34, 14, 18, 56);
+    ctx.fillStyle = '#3a2c1a'; ctx.fillRect(cx - 38, 10, 26, 8); ctx.strokeRect(cx - 38, 10, 26, 8);
+    // The tank: an upright cylinder with a domed top.
+    ctx.beginPath(); ctx.moveTo(cx - 50, by); ctx.lineTo(cx - 50, by - 70); ctx.bezierCurveTo(cx - 50, by - 104, cx + 50, by - 104, cx + 50, by - 70); ctx.lineTo(cx + 50, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 50, 0, cx + 50, 0);
+    g.addColorStop(0, '#6e5228'); g.addColorStop(0.3, '#c99a4c'); g.addColorStop(0.55, '#8a6a34'); g.addColorStop(1, '#3e2e18');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Banding and rivets.
+    ctx.save(); ctx.clip();
+    for (const y of [by - 14, by - 46, by - 76]) {
+      ctx.fillStyle = 'rgba(30,20,10,0.55)'; ctx.fillRect(cx - 52, y - 3, 104, 6);
+      ctx.fillStyle = '#e2c27a';
+      for (let x = cx - 44; x <= cx + 44; x += 11) { ell(ctx, x, y, 1.8, 1.8); ctx.fill(); }
+    }
+    // Green verdigris stains running down from the seams.
+    ctx.fillStyle = 'rgba(70,170,140,0.35)';
+    for (const x of [cx - 30, cx + 6, cx + 30]) { ctx.beginPath(); ctx.moveTo(x - 3, by - 76); ctx.quadraticCurveTo(x, by - 40, x + 2, by - 20); ctx.lineTo(x + 5, by - 76); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // The gauge: a round sea-glass window glowing teal.
+    ell(ctx, cx, by - 40, 19, 19); ctx.fillStyle = '#2a2014'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    const wg = ctx.createRadialGradient(cx - 4, by - 44, 2, cx, by - 40, 15);
+    wg.addColorStop(0, '#e4fff6'); wg.addColorStop(0.45, '#4fe3c1'); wg.addColorStop(1, '#0e4a48');
+    ctx.save(); ctx.shadowColor = '#4fe3c1'; ctx.shadowBlur = 14; ell(ctx, cx, by - 40, 14, 14); ctx.fillStyle = wg; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = '#1a2a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx, by - 40); ctx.lineTo(cx + 8, by - 48); ctx.stroke();
+    // Feet.
+    ctx.fillStyle = '#2a2014'; ctx.fillRect(cx - 46, by - 4, 16, 8); ctx.fillRect(cx + 30, by - 4, 16, 8);
+  });
+
+  make(scene, 'foundryValve', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 22, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The standpipe, flanged at the foot and the top.
+    const pg = ctx.createLinearGradient(cx - 9, 0, cx + 9, 0);
+    pg.addColorStop(0, '#5a4428'); pg.addColorStop(0.4, '#c99a4c'); pg.addColorStop(1, '#3e2e18');
+    ctx.fillStyle = pg; ctx.fillRect(cx - 9, 22, 18, 64); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 9, 22, 18, 64);
+    ctx.fillStyle = '#8a6a34';
+    for (const y of [18, 80]) { ctx.fillRect(cx - 14, y, 28, 8); ctx.strokeRect(cx - 14, y, 28, 8); }
+    // The nozzle, open to the side.
+    ctx.fillRect(cx + 9, 26, 14, 9); ctx.strokeRect(cx + 9, 26, 14, 9);
+    // Valve wheel: a red iron ring with four spokes.
+    ctx.strokeStyle = INK; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(cx, 52, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#b8402c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, 52, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; ctx.beginPath(); ctx.moveTo(cx, 52); ctx.lineTo(cx + Math.cos(a) * 15, 52 + Math.sin(a) * 15); ctx.stroke(); }
+    ell(ctx, cx, 52, 4, 4); ctx.fillStyle = '#2a1a14'; ctx.fill();
+  });
+
+  make(scene, 'coolLight', 256, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(170,255,232,0.55)');
+    g.addColorStop(0.2, 'rgba(79,227,193,0.38)');
+    g.addColorStop(0.6, 'rgba(50,170,180,0.2)');
+    g.addColorStop(0.94, 'rgba(40,140,170,0.1)');
+    g.addColorStop(1, 'rgba(40,140,170,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
