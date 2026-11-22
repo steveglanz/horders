@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT } from '../sim/world';
-import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1270,7 +1270,8 @@ export class GameScene extends Phaser.Scene {
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
-            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP : def.tip;
+            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
+            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -3616,13 +3617,15 @@ export class GameScene extends Phaser.Scene {
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2 + 0.2 + Math.sin(k * 7.3) * 0.08;
         const t = (now / (pulling ? 500 : 900) + k * 0.37) % 1;
-        const r0 = ARENA - t * (ARENA - WRACK.drainR);
+        // Phase 12 W1: Hessa's Outsurge runs the other way, from the drain out to the rim (placeholder until visuals).
+        const outward = w.outsurge;
+        const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
         const len = pulling ? 80 : 44;
-        const r1 = Math.min(ARENA, r0 + len);
+        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
         const cx = Math.cos(a), cy = Math.sin(a);
         const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
         g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(cx * r0, cy * r0, cx * r1, cy * r1);
-        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + len * 0.4), cy * (r0 + len * 0.4));
+        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + (outward ? -1 : 1) * len * 0.4), cy * (r0 + (outward ? -1 : 1) * len * 0.4));
         g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
       }
     }

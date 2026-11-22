@@ -279,3 +279,38 @@ At 160 seeds, the good-bot Duskblade and Bulwark win 159 or 160 of 160 both befo
 I also tried a tier 1 spawn cut: one Spitter in Brute and Spitters, one Ashbuck in Warden and Ashbucks. It made no difference beyond noise, so I dropped it.
 
 The bot change only affects channel fights, which only the Kiln has. The hashcheck's Kiln rows move.
+
+## Phase 12 W1 (built 22 Nov 2026): the Wrackline
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2). The new fights mix the Kiln's new foes into the water:
+  - `quaySpitters`: 2 Ember Spitters and 2 Shoal Lurkers.
+  - `quayCharge`: 2 Ashbucks and a Lurker.
+  - `shoalRift`: a Hollow Rift and 2 Lurkers. The Ebb drags its Ashlings to the drain.
+  - Named fight `haulerSpitters`: a Barge Hauler and 2 Spitters.
+- **Currents:** every fight but Hessa's rolls which way each raft drifts (`CURRENTS`, 4 patterns, the first is the original) and where the rafts start, from a hash of the seed and the fight's place. There are no stone, lava or vent layouts here, since the rafts already shape the floor.
+- **Hessa's second version.** As she rises, the seed picks `bossVariant`:
+  - `riptide`: as before, phase 2 speeds the rafts and the pull.
+  - `outsurge`: from phase 2 **the Outsurge** turns the Ebb around. Off a raft, the water throws you out to the rim instead of into the drain. The last 90 px of the rim burns 10% of max health a second, like the drain does. Foes are thrown out too, and the rim hurts them.
+  - Tuning is in `OUTSURGE`. The cast is still `castStart` with id `ebb`, named "The Outsurge". `World.outsurge` says when it is live, and the banner says so (`OUTSURGE_TIP`).
+- **Client:** the Ebb's foam streaks run outward during the Outsurge (placeholder until visuals).
+- **Names:** "Outsurge" is an invented word, and a web search on 22 Nov 2026 found no WoW match. The Rift fight was first called "The Drowned Rift" but became "The Rift in the Wrack", because WoW has a Drowned City and a Drowned Lair.
+
+**Run variety** (tools/variety.ts, tier 10, now counting Hessa's version and the currents): 1 run in 1000 repeats an earlier run in its block of 20, against 409 before. Routes went from 18 to 150, and there are 923 run shapes.
+
+**Win rates** (tools/foundry.ts, `DUNGEON=wrackline HERO=tools/heroes/hero-t8.json`, seeds 1 to 160, main 5a5f6c9 → this change):
+
+| Class | Tier 10 | Tier 13 |
+|---|---|---|
+| Emberwright | 145 → 149 | 33 → 25 |
+| Duskblade | 151 → 154 | |
+| Bulwark | 154 → 156 | 20 → 23 |
+| Lumen | 160 → 160 | |
+| Slagbinder | 160 → 160 | |
+
+Hessa's boss record by version (tier 10, wins out of the runs that reached her):
+- Emberwright: riptide 77 of 77, outsurge 69 of 69.
+- Duskblade: riptide 75 of 78, outsurge 77 of 77.
+- Bulwark: riptide 78 of 81, outsurge 76 of 79.
+
+The two versions are about as hard for bots, which ride a raft through every Ebb either way. For a human, the Outsurge changes where the danger is.
+
+The tier 13 moves are within the noise at 160 seeds (about ±5). The hashcheck has no Wrackline rows and is identical to main.

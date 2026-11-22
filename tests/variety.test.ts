@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -538,5 +538,63 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.bossVariant).toBe('drift');
     expect(g.driftEmbers).toEqual(w.driftEmbers);
+  });
+});
+
+describe('Phase 12 W1: Hessa\'s Outsurge', () => {
+  type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; rollHessaVariant(): string;
+    bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; rafts: unknown[] };
+  function hessa(variant: 'riptide' | 'outsurge', phase = 2): { w: World; q: H } {
+    const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as H;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('hessa', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.wrackPhase = phase;
+    w.bossVariant = variant;
+    w.enemies[b].abilityT = 99;
+    q.rafts = [];
+    q.ebbT = 1;
+    w.player.x = 300; w.player.y = 0;
+    return { w, q };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' }) as unknown as H;
+      const b = new World({ seed, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' }) as unknown as H;
+      expect(a.rollHessaVariant()).toBe(b.rollHessaVariant());
+      seen.add(a.rollHessaVariant());
+    }
+    expect([...seen].sort()).toEqual([...HESSA_VARIANTS].sort());
+  });
+
+  it('in phase 2 the Outsurge pushes out to the rim and burns there; Riptide still pulls in', () => {
+    const rip = hessa('riptide');
+    rip.q.wrackClock(0.5);
+    expect(rip.w.player.x).toBeLessThan(300);
+    const out = hessa('outsurge');
+    expect(out.w.outsurge).toBe(true);
+    out.q.wrackClock(0.5);
+    expect(out.w.player.x).toBeGreaterThan(300);
+    const rim = hessa('outsurge');
+    rim.w.player.x = rim.w.arenaR - 30;
+    const hp = rim.w.player.hp;
+    rim.q.wrackClock(0.5);
+    expect(rim.w.player.x).toBeLessThanOrEqual(rim.w.arenaR);
+    // tideBurn plus the rim's burn, against tideBurn alone in open water away from the rim
+    const lost = hp - rim.w.player.hp;
+    const mid = hessa('outsurge');
+    const hp2 = mid.w.player.hp;
+    mid.q.wrackClock(0.5);
+    expect(lost).toBeGreaterThan((hp2 - mid.w.player.hp) * 1.5);
+    expect(OUTSURGE.rimBurn).toBeGreaterThan(0);
+  });
+
+  it('phase 1 pulls in for both versions', () => {
+    const { w, q } = hessa('outsurge', 1);
+    expect(w.outsurge).toBe(false);
+    q.wrackClock(0.5);
+    expect(w.player.x).toBeLessThan(300);
   });
 });
