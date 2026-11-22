@@ -3628,6 +3628,48 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Coldmarrow's arena edge: a great rib bone arching out of the ice, frosted and hung with icicles, and a brazier
+  // frozen over, its coals long dead under a cap of ice. No floor light: light is a mechanic in the Coldmarrow.
+  make(scene, 'coldArch', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 4, by + 4, 62, 11); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    // Snow drift at the foot.
+    ell(ctx, cx - 40, by - 2, 26, 8); ctx.fillStyle = '#c8dcec'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    ell(ctx, cx + 42, by - 2, 22, 7); ctx.fill(); ctx.stroke();
+    // The rib: a thick bone curving from one drift over to the other.
+    ctx.lineCap = 'round';
+    const rib = () => { ctx.beginPath(); ctx.moveTo(cx - 42, by - 4); ctx.bezierCurveTo(cx - 52, by - 120, cx + 34, by - 132, cx + 42, by - 4); };
+    rib(); ctx.strokeStyle = INK; ctx.lineWidth = 17; ctx.stroke();
+    rib(); ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 11; ctx.stroke();
+    rib(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 3; ctx.stroke();
+    // Frost crusted along the top of the curve.
+    ctx.strokeStyle = 'rgba(190,230,255,0.9)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx - 34, by - 82); ctx.bezierCurveTo(cx - 24, by - 108, cx + 10, by - 112, cx + 26, by - 80); ctx.stroke();
+    // Icicles hanging from the arch.
+    ctx.fillStyle = '#e8f6ff'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+    for (const [x, y, h] of [[-26, -92, 16], [-14, -100, 22], [-2, -103, 14], [10, -100, 20], [20, -92, 12]]) {
+      ctx.beginPath(); ctx.moveTo(cx + x - 3, by + y); ctx.lineTo(cx + x + 3, by + y); ctx.lineTo(cx + x, by + y + h); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  });
+
+  make(scene, 'coldBrazier', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 24, 6); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    ctx.strokeStyle = '#1c1a20'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (const dx of [-16, 0, 16]) { ctx.beginPath(); ctx.moveTo(cx + dx * 0.6, 62); ctx.lineTo(cx + dx, 88); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(cx - 26, 50); ctx.quadraticCurveTo(cx, 78, cx + 26, 50); ctx.closePath();
+    ctx.fillStyle = '#3a3c48'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // The ice cap over dead coals.
+    ell(ctx, cx, 50, 26, 7); ctx.fillStyle = '#2a2a30'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 26, 50); ctx.quadraticCurveTo(cx - 10, 30, cx + 4, 34); ctx.quadraticCurveTo(cx + 20, 32, cx + 26, 50); ctx.closePath();
+    const ig = ctx.createLinearGradient(0, 30, 0, 52); ig.addColorStop(0, 'rgba(235,248,255,0.95)'); ig.addColorStop(1, 'rgba(150,200,235,0.85)');
+    ctx.fillStyle = ig; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // Icicles off the bowl's rim and frost on its side.
+    ctx.fillStyle = '#e8f6ff'; ctx.lineWidth = 1.5;
+    for (const [x, h] of [[-20, 10], [-8, 14], [6, 9], [18, 12]]) { ctx.beginPath(); ctx.moveTo(cx + x - 2.5, 54); ctx.lineTo(cx + x + 2.5, 54); ctx.lineTo(cx + x, 54 + h); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(190,230,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 18, 60); ctx.quadraticCurveTo(cx, 70, cx + 18, 60); ctx.stroke();
+  });
+
   // The Flue's arena edge: a soot-black brick flue with the Regent's brass crown on its breast and a grate glowing at
   // its foot, and a tattered crimson banner of office on an iron stand. paleLight is the cold pool under them: a warm one
   // would look like the Scorch round a Decree's holder.
