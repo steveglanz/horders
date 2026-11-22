@@ -17,6 +17,7 @@ const ROUTES = {
   pressworks: { route: ['oskel'], tier: 10 },
   smeltery: { route: ['colossus'], tier: 10 },
   coldmarrow: { route: ['nhevra'], tier: 11 },
+  glarewell: { route: ['lensmother'], tier: 8 },
   flue: { route: ['regent'], tier: 11 },
 };
 const dungeon = process.argv.slice(3).find((a) => ROUTES[a]);

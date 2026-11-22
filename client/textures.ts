@@ -3628,6 +3628,41 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Glarewell's arena edge: a great cracked lens in a brass mount, tilted toward the sky, and a cairn of mirror
+  // shards. No floor light: in the Glarewell light is the mechanic (the Lensmother's beams and the Glintfall).
+  make(scene, 'glareLens', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 48, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The yoke: a brass fork on a squat stone base.
+    ctx.beginPath(); ctx.moveTo(cx - 30, by); ctx.lineTo(cx - 22, by - 22); ctx.lineTo(cx + 22, by - 22); ctx.lineTo(cx + 30, by); ctx.closePath();
+    ctx.fillStyle = '#5a5050'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.lineCap = 'round';
+    for (const dx of [-36, 36]) { ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(cx + dx * 0.5, by - 22); ctx.lineTo(cx + dx, by - 76); ctx.stroke(); ctx.strokeStyle = '#c8a050'; ctx.lineWidth = 5; ctx.stroke(); }
+    // The lens, tilted: a brass ring round glass, with a crack across it.
+    ctx.save(); ctx.translate(cx, by - 78); ctx.rotate(-0.25);
+    ell(ctx, 0, 0, 40, 30); const lg = ctx.createRadialGradient(-10, -8, 2, 0, 0, 40); lg.addColorStop(0, '#fffbe8'); lg.addColorStop(0.5, '#d8e8f0'); lg.addColorStop(1, '#8aa8c0');
+    ctx.fillStyle = lg; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke(); ctx.strokeStyle = '#d8b060'; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(60,70,90,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-30, -12); ctx.lineTo(-8, 0); ctx.lineTo(-2, 14); ctx.moveTo(-8, 0); ctx.lineTo(14, -6); ctx.lineTo(30, 4); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ell(ctx, -14, -12, 10, 4, -0.4); ctx.fill();
+    ctx.restore();
+    // Pivot bolts.
+    ctx.fillStyle = '#8a7040'; for (const dx of [-36, 36]) { ctx.beginPath(); ctx.arc(cx + dx, by - 76, 4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke(); }
+  });
+
+  make(scene, 'glareShards', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 26, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const shard = (x: number, y: number, w: number, h: number, lean: number, c: string) => {
+      ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.lineTo(x + w / 2, y); ctx.lineTo(x + lean + w * 0.15, y - h); ctx.lineTo(x + lean - w * 0.2, y - h * 0.85); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - w * 0.2, y - 4); ctx.lineTo(x + lean - w * 0.1, y - h * 0.8); ctx.stroke();
+    };
+    shard(cx - 14, 86, 16, 40, -6, '#a8c0d4'); shard(cx + 12, 86, 18, 52, 6, '#c8dae8'); shard(cx, 86, 14, 62, -2, '#e0ecf4'); shard(cx + 24, 86, 10, 26, 8, '#98b0c4');
+    // Stones at the foot.
+    for (const [x, r] of [[-22, 6], [-6, 5], [20, 6], [30, 4]]) { ell(ctx, cx + x, 86, r, r * 0.6); ctx.fillStyle = '#5a5452'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke(); }
+  });
+
   // The Coldmarrow's arena edge: a great rib bone arching out of the ice, frosted and hung with icicles, and a brazier
   // frozen over, its coals long dead under a cap of ice. No floor light: light is a mechanic in the Coldmarrow.
   make(scene, 'coldArch', 160, (ctx) => {
