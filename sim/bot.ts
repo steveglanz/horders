@@ -562,6 +562,52 @@ function emberGrab(w: World, skill: number): { dx: number; dy: number } | null {
 }
 
 /**
+ * The Flue (raid 4): where to step for a Decree, or null. A holder walks to the nearest ally who
+ * can take it; the nearest such ally walks to meet it. NOPASS=1 turns this off for measuring.
+ */
+export function decreePass(w: World): { dx: number; dy: number } | null {
+  // NOPASS=1 (measuring only): nobody passes a Decree, as if the party ignored it.
+  if (process.env.NOPASS === '1') return null;
+  if (w.dungeonId !== 'flue' || w.regentDecree.length === 0) return null;
+  const me = w.acting;
+  const p = w.player;
+  const mine = w.regentDecree.find((d) => d.hero === me);
+  // The holder walks to the nearest ally who can take it (a tank can take one by hand).
+  if (mine) {
+    let best = -1;
+    let bd = Infinity;
+    for (let k = 0; k < w.heroes.length; k++) {
+      if (k === me || !w.canHoldDecree(k, true)) continue;
+      const q = w.hero(k).player;
+      const d = Math.hypot(q.x - p.x, q.y - p.y);
+      if (d < bd) { bd = d; best = k; }
+    }
+    if (best < 0) return null;
+    const q = w.hero(best).player;
+    return bd > 20 ? { dx: (q.x - p.x) / bd, dy: (q.y - p.y) / bd } : { dx: 0, dy: 0 };
+  }
+  // A non-tank who can take one meets the nearest holder halfway (a tank holds the boss and waits).
+  if (w.canHoldDecree(me)) {
+    let bd = Infinity;
+    let hx = 0;
+    let hy = 0;
+    for (const d of w.regentDecree) {
+      const h = w.hero(d.hero).player;
+      const dd = Math.hypot(h.x - p.x, h.y - p.y);
+      if (dd < bd) { bd = dd; hx = h.x; hy = h.y; }
+    }
+    // Only the nearest able ally to that holder goes.
+    for (let k = 0; k < w.heroes.length; k++) {
+      if (k === me || !w.canHoldDecree(k)) continue;
+      const q = w.hero(k).player;
+      if (Math.hypot(hx - q.x, hy - q.y) < bd) return null;
+    }
+    if (bd > 20 && bd < 600) return { dx: (hx - p.x) / bd, dy: (hy - p.y) / bd };
+  }
+  return null;
+}
+
+/**
  * Where a non-tank should step to stand behind the Cinder Colossus (raid 3), or null when it
  * is already there or is the tank. Stays out of his front cone on the way round by circling at
  * a safe radius. Once Meltdown cracks his plate the blades and the Lumen fight as usual, but a
@@ -640,6 +686,9 @@ export function botInput(w: World, skill = 1): Input {
   // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Coalmouth eats it.
   const ember = emberGrab(w, skill);
   if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };
+  // The Flue: pass a Decree on (the holder walks to an ally who can take it; that ally meets it).
+  const decree = decreePass(w);
+  if (decree) return { x: decree.dx, y: decree.dy, cast: botCast(w, skill) };
   // The Smeltery: a non-tank works the Colossus's open back while his plate holds.
   const flank = colossusFlank(w);
   if (flank) return { x: flank.dx, y: flank.dy, cast: botCast(w, skill) };
