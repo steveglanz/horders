@@ -417,6 +417,10 @@ describe('audio', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     expect(CAST_SOUNDS.emberLob.start).toBe('spitLob');
     expect(CAST_SOUNDS.charge.start).toBe('chargeWindup');
+    // Kiln Draw (KILN_DRAW.cast 2.2 s): the inhale fills the cast and the ring's roar plays the moment it lands.
+    expect(CAST_SOUNDS.kilnDraw).toEqual({ start: 'kilnDraw', done: 'ringClose' });
+    expect(recipeLength(SOUNDS.kilnDraw)).toBeLessThanOrEqual(2.3);
+    expect(SOUNDS.ringClose.every((v) => (v.delay ?? 0) < 0.05)).toBe(true);
     expect(cueFor({ type: 'charge', index: 0 } as never, c)?.id).toBe('chargeDash');
     expect(cueFor({ type: 'riftSpawn', index: 0, n: 2 } as never, c)?.id).toBe('riftSpit');
     expect(THROTTLE.riftSpit).toBeGreaterThan(0);
