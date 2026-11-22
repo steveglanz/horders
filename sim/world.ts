@@ -170,6 +170,8 @@ export const SLAG_KIT = {
   allyBrittle: 1.15,
   /** Party only: a Bellows Slagbinder's damage when it has allies. */
   partyDmg: 0.7,
+  /** The Flue (raid 4) is a damage race, where the Bellows' Brittle and sustain count for less: a lighter party cut there. */
+  fluePartyDmg: 0.85,
 };
 
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
@@ -1294,7 +1296,7 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    const party = this.cls === 'slagbinder' && p.stance !== 'anvil' && this.heroes.length > 1 ? SLAG_KIT.partyDmg : 1;
+    const party = this.cls === 'slagbinder' && p.stance !== 'anvil' && this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : 1;
     return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
