@@ -818,6 +818,17 @@ export const SOUNDS = {
   ],
   /** A new island rises: a stone knock and a short steam breath as it breaks the surface. */
   islandRise: join(clang(262, 0.14, 0.3), [{ wave: 'noise', f: 0, dur: 0.3, delay: 0.05, vol: 0.1, a: 0.05, lp: 6000, hp: 1500, curve: 1.6 }]),
+  /** The Furnace Regent's Summons (court version, 2.5 s to come before the throne): a herald's two-note brass call,
+   *  rising, with a staff struck on stone under it. */
+  summonsWarn: join(horn(note(-5), 0.6, 0.4), horn(note(0), 0.9, 0.42).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+    clang(147, 0.2, 0.4), clang(147, 0.2, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 }))),
+  /** The Summons lands: judgement on all who did not come, a gavel-like boom with a court bell. */
+  summonsFall: join(boom(50, 0.6, 0.6), clang(233, 0.3, 0.9), chime(note(3), 0.05, 0.12, 0.8)),
+  /** The Brimming's Churn (harmless; on the Pour's timer): she stirs the pit, a slow deep bubbling. Ordinary, not a warning. */
+  churn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.12, a: 0.3, lp: 1400, hp: 400, curve: 1.2, trem: [4, 0.4] }],
+    ...[0.1, 0.35, 0.55, 0.8].map((d, k) => [{ wave: 'sine' as const, f: 300 + k * 50, f2: 600 + k * 60, dur: 0.08, delay: d, vol: 0.1, curve: 2 }]),
+  ),
   lavaSizzle: [
     { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
     { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
@@ -915,6 +926,60 @@ export const SOUNDS = {
   /** The Pressworks' vents layout: a piston stroke down and back, and a valve letting go. */
   layoutPress: join(clang(294, 0.22, 0.35), clang(294, 0.2, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.28 })),
     [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.5, vol: 0.14, a: 0.05, lp: 7000, hp: 1200, curve: 1.6 }]),
+  // ---- arena-edge ambience (EDGE_SOUNDS in cues.ts): quiet one-shots from the props round each rim, between boss fights ----
+  /** The Kiln's brick furnace draws: a low roar swelling and falling. */
+  edgeFurnace: [{ wave: 'noise', f: 0, dur: 1.6, vol: 0.2, a: 0.6, lp: 700, lp2: 2200, hp: 350, curve: 1.2, trem: [6, 0.3] }],
+  /** A brazier crackles. */
+  edgeBrazier: join(...[0, 0.11, 0.19, 0.34, 0.41].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.18, lp: 7000, hp: 1800, curve: 3 }])),
+  /** The Foundry's boiler knocks twice and bubbles. */
+  edgeBoiler: join(clang(220, 0.16, 0.3), clang(208, 0.12, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    ...[0.5, 0.62, 0.7].map((d, k) => [{ wave: 'sine' as const, f: 420 + k * 60, f2: 700 + k * 70, dur: 0.05, delay: d, vol: 0.08, curve: 2 }])),
+  /** A valve lets off a thin hiss. */
+  edgeValve: [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.12, a: 0.15, lp: 9000, lp2: 5000, hp: 2500, curve: 1.4 }],
+  /** The Hammerdeep: a far anvil rings once. */
+  edgeAnvil: clang(392, 0.16, 1.2),
+  /** A miner's lantern creaks on its hook. */
+  edgeLantern: [{ wave: 'saw', f: 620, f2: 480, dur: 0.35, vol: 0.08, a: 0.05, lp: 2400, curve: 1.4, vib: [18, 0.03] },
+    { wave: 'saw', f: 560, f2: 700, dur: 0.3, delay: 0.45, vol: 0.065, a: 0.05, lp: 2400, curve: 1.4, vib: [18, 0.03] }],
+  /** The Ashvents: a fumarole huffs out. */
+  edgeFumarole: [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.15, a: 0.08, lp: 3500, lp2: 900, hp: 400, curve: 1.6 }],
+  /** An ember cairn spits a spark. */
+  edgeCairn: join([{ wave: 'noise', f: 0, dur: 0.04, vol: 0.18, lp: 8000, hp: 2500, curve: 3 }], [{ wave: 'sine', f: 1800, f2: 2600, dur: 0.12, delay: 0.03, vol: 0.05, curve: 2 }]),
+  /** The Wrackline: a wrecked hull creaks as the water moves it. */
+  edgeHull: [{ wave: 'saw', f: 180, f2: 140, dur: 1.2, vol: 0.08, a: 0.3, lp: 1400, curve: 1.2, vib: [9, 0.04] },
+    { wave: 'noise', f: 0, dur: 1.2, vol: 0.06, a: 0.4, lp: 2500, hp: 600, curve: 1.2 }],
+  /** A mooring-post lantern's chain clinks. */
+  edgePost: join(...[0, 0.16].map((d, k) => [{ wave: 'sine' as const, f: 2100 - k * 140, dur: 0.18, delay: d, vol: 0.06, curve: 3 }])),
+  /** The Pressworks: a far press stamps, then breathes out steam. */
+  edgePress: join(boom(60, 0.35, 0.22), [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.25, vol: 0.1, a: 0.05, lp: 7000, hp: 1500, curve: 1.6 }]),
+  /** A plate on the stack settles with a clink. */
+  edgePlate: clang(660, 0.1, 0.5),
+  /** The Hoard: a coin heap shifts and slides. */
+  edgeCoins: join(...[0, 0.07, 0.12, 0.2, 0.26, 0.37].map((d, k) => [{ wave: 'sine' as const, f: 3000 + ((k * 7) % 5) * 260, dur: 0.07, delay: d, vol: 0.07, curve: 4 }])),
+  /** An old challenger's bones settle. */
+  edgeBones: join(...[0, 0.09, 0.22].map((d, k) => [{ wave: 'tri' as const, f: 900 - k * 120, dur: 0.05, delay: d, vol: 0.12, lp: 3000, curve: 3 }])),
+  /** The Smeltery: an ore cart rolls a little on its rails. */
+  edgeCart: [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.16, a: 0.25, lp: 1800, hp: 400, curve: 1.2, trem: [14, 0.5] }],
+  /** A cooling ingot ticks. */
+  edgeIngot: join(...[0, 0.5].map((d) => [{ wave: 'sine' as const, f: 2600, dur: 0.06, delay: d, vol: 0.12, curve: 4 }])),
+  /** The Flue: wind draws up a brick flue, a hollow moan. */
+  edgeFlue: [{ wave: 'noise', f: 0, dur: 1.8, vol: 0.14, a: 0.7, lp: 900, lp2: 1500, hp: 500, curve: 1.1 },
+    { wave: 'sine', f: 330, f2: 349, dur: 1.6, vol: 0.04, a: 0.6, curve: 1.2 }],
+  /** A banner of office flaps. */
+  edgeBanner: join(...[0, 0.12, 0.22].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.07, delay: d, vol: 0.12, lp: 3500, hp: 700, curve: 2 }])),
+  /** The Glarewell: a cracked lens hums. */
+  edgeLens: [{ wave: 'sine', f: 1320, dur: 1.4, vol: 0.04, a: 0.5, curve: 1.2, trem: [3, 0.4] },
+    { wave: 'sine', f: 1980, dur: 1.4, vol: 0.02, a: 0.6, curve: 1.2 }],
+  /** Mirror shards tinkle. */
+  edgeShards: join(chime(C6 * 2, 0, 0.04, 0.3), chime(G6, 0.09, 0.04, 0.3), chime(E6 * 2, 0.17, 0.035, 0.3)),
+  /** The Coldmarrow: a frosted rib arch creaks with cold. */
+  edgeRib: [{ wave: 'saw', f: 400, f2: 320, dur: 0.8, vol: 0.08, a: 0.1, lp: 2200, curve: 1.3, vib: [24, 0.05] }],
+  /** Frost cracks on a frozen brazier. */
+  edgeFrost: join(...[0, 0.05, 0.13].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.2, lp: 9000, hp: 3500, curve: 3 }])),
+  /** The Crucible: a far ladle pours, a heavy liquid rush. */
+  edgeLadle: [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.14, a: 0.3, lp: 1600, lp2: 2600, hp: 350, curve: 1.2, trem: [8, 0.25] }],
+  /** A brimming slag pot blurps. */
+  edgeSlagPot: join(...[0, 0.18].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 90, f2: 520 + k * 120, dur: 0.09, delay: d, vol: 0.12, curve: 2 }])),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1085,6 +1150,15 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 0.5, delay: 0.12, vol: 0.2, lp: 7000, hp: 2200, trem: [24, 0.5], curve: 1.5 }],
   ),
   /** Wheel wind-up (2 s): the giant turns on his heel, stone grinding on stone with a slow ratchet. */
+  /** Plate Shift (the Cinder Colossus's second version, 2 s cast): his front plate grinds round his body, a rising
+   *  steel-on-steel slide with a rough grind through it, set apart from the Wheel's low turning rumble. */
+  plateShiftWarn: [
+    { wave: 'saw', f: 260, f2: 520, dur: 1.8, vol: 0.12, a: 0.2, lp: 2600, lp2: 4200, curve: 0.9, vib: [7, 0.015] },
+    { wave: 'noise', f: 0, dur: 1.8, vol: 0.22, a: 0.2, lp: 6000, hp: 1600, curve: 0.9, trem: [23, 0.6] },
+    { wave: 'square', f: 130, f2: 175, dur: 1.8, vol: 0.06, a: 0.3, lp: 1200, curve: 0.9 },
+  ],
+  /** Plate Shift lands: the plate locks into its new place with a heavy clunk. */
+  plateLock: join(clang(175, 0.35, 0.6), [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.25, lp: 6000, hp: 1200, curve: 3 }]),
   wheelWarn: join(
     [{ wave: 'saw', f: 70, f2: 105, dur: 1.9, vol: 0.26, a: 0.2, lp: 900, lp2: 1800, trem: [11, 0.5], curve: 0.8 },
      { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
@@ -1229,6 +1303,10 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   brimWarn: 4.0,
   // Old Vorhulm's Banked Coals (Phase 12 W3): 5.4 dB over the Hoard mix (heroes-r2 t8, SEEDS=1,2,7, n=32).
   bankWarn: 1.5,
+  // The Colossus's Plate Shift (Phase 12 W3) is a cast start: -28.7 dB alone.
+  // The Regent's Summons call (Phase 12 W3) is a cast start: -27.1 dB alone.
+  summonsWarn: 3.5, // and 5.2 dB over the Flue mix at +2.0 (heroes-r2 t8, SEEDS=1-6, n=46)
+  plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

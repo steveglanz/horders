@@ -202,6 +202,10 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
+  plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
+  // The Furnace Regent's court version: come before the throne in 2.5 s, or be struck (it lands with a slam r SUMMONS.radius).
+  summons: { start: 'summonsWarn', done: 'summonsFall' }, // Summons
   pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
   // The Flue (raid 4): the Furnace Regent. The Decrees sound from their own events (decree, decreePassed, decreeBurst).
   lastWord: { start: 'lastWordWarn', done: 'lastWord' }, // Last Word
@@ -349,6 +353,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castStart':
       // Ysmeret's Wandering Vents reuse the twinVents cast; only its name says the circles will move.
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
+      // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
+      if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
       return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
@@ -362,6 +368,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone':
       if (ev.id === 'wheel') return null;
+      if (ev.id === 'churn') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
     case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
@@ -531,10 +538,50 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
  * blasts no one, so the generic soakFail would lie; the ember cue already says it. This drops those soak events.
  */
 export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
+  // The soak event names its telegraph's owner now (#432): -4 is a Banked Coal. The same-spot match stays for older events.
+  evs = evs.filter((ev) => ev.type !== 'soak' || ev.owner !== -4);
   const at = new Set<string>();
   for (const ev of evs) if (ev.type === 'emberTaken' || ev.type === 'emberEaten') at.add(`${ev.x},${ev.y}`);
   if (!at.size) return evs as E[];
   return evs.filter((ev) => ev.type !== 'soak' || !at.has(`${ev.x},${ev.y}`));
+}
+
+/**
+ * Arena-edge ambience: the props round each rim (GameScene's EDGE_SETS) give off a quiet sound now and then, from the
+ * side, between boss fights. Two per dungeon, matched to its big and small prop.
+ */
+export const EDGE_SOUNDS: Record<string, readonly [SoundId, SoundId]> = {
+  kiln: ['edgeFurnace', 'edgeBrazier'],
+  foundry: ['edgeBoiler', 'edgeValve'],
+  hammerdeep: ['edgeAnvil', 'edgeLantern'],
+  ashvents: ['edgeFumarole', 'edgeCairn'],
+  wrackline: ['edgeHull', 'edgePost'],
+  pressworks: ['edgePress', 'edgePlate'],
+  hoard: ['edgeCoins', 'edgeBones'],
+  smeltery: ['edgeCart', 'edgeIngot'],
+  flue: ['edgeFlue', 'edgeBanner'],
+  glarewell: ['edgeLens', 'edgeShards'],
+  coldmarrow: ['edgeRib', 'edgeFrost'],
+  crucible: ['edgeLadle', 'edgeSlagPot'],
+};
+/** How often an edge prop sounds (s of game time, picked between min and max), how loud, and how far to the side. */
+export const EDGE = { min: 7, max: 15, vol: 0.45, pan: 0.7 };
+
+/**
+ * The next edge-prop sound, if one is due. `t` is game time; a boss on the field (or no dungeon) keeps it quiet and
+ * pushes the next one back. `rnd` returns [0, 1) (Math.random in the engine; a seeded one in tests).
+ */
+export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number): Cue | null {
+  const set = dungeon ? EDGE_SOUNDS[dungeon] : undefined;
+  if (!set || t === undefined) return null;
+  const gap = () => EDGE.min + rnd() * (EDGE.max - EDGE.min);
+  // A new run restarts the clock.
+  if (!(state.next > 0) || state.next - t > EDGE.max) state.next = t + gap();
+  if (t < state.next) return null;
+  state.next = t + gap();
+  if (boss) return null;
+  const side = rnd() < 0.5 ? -1 : 1;
+  return { id: set[rnd() < 0.5 ? 0 : 1], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
 }
 
 /**

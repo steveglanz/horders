@@ -5,14 +5,14 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { BRIM, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -566,6 +566,9 @@ describe('audio', () => {
     expect(withoutBankedSoaks(missed).map((e) => e.type)).toEqual(['heal', 'emberEaten']);
     const smothered = [{ type: 'soak', ok: true, x: 5, y: 5 }, { type: 'emberTaken', x: 5, y: 5 }] as SimEvent[];
     expect(withoutBankedSoaks(smothered).map((e) => e.type)).toEqual(['emberTaken']);
+    // The owner field says it outright (#432), with or without the ember event.
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -4 }] as SimEvent[])).toEqual([]);
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -2 }] as SimEvent[]).length).toBe(1);
     // Any other soak (no ember at its spot) keeps its cue.
     const other = [{ type: 'soak', ok: false, x: 1, y: 1 }, { type: 'emberTaken', x: 50, y: 50 }] as SimEvent[];
     expect(withoutBankedSoaks(other).map((e) => e.type)).toEqual(['soak', 'emberTaken']);
@@ -573,6 +576,63 @@ describe('audio', () => {
     const src = readFileSync('sim/world.ts', 'utf8');
     expect(src).toContain("if (ok) this.events.push({ type: 'emberTaken', x: t.x, y: t.y });");
     expect(src).toContain('else this.feedVorhulm(t.x, t.y);');
+  });
+
+  it('sets the Colossus\'s Plate Shift apart from the Wheel (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.plateShift).toEqual({ start: 'plateShiftWarn', done: 'plateLock' });
+    expect(PRIORITY.has('plateShiftWarn')).toBe(true);
+    expect(CAST_SOUNDS.plateShift.start).not.toBe(CAST_SOUNDS.wheel.start);
+    // The wind-up ends inside the 2 s cast (COLO.wheelCast).
+    expect(recipeLength(SOUNDS.plateShiftWarn)).toBeLessThanOrEqual(COLO.wheelCast);
+    expect(recipeLength(SOUNDS.plateLock)).toBeLessThan(3);
+    const smelt = { cls: 'duskblade' as const, acting: 1, dungeon: 'smeltery' };
+    expect(cueFor({ type: 'castDone', index: 0, id: 'plateShift' } as never, smelt)?.id).toBe('plateLock');
+    expect(cueFor({ type: 'wheel', hero: 1 } as never, smelt)?.id).toBe('wheelOnMe');
+  });
+
+  it('gives every arena-edge prop set two quiet sounds, from the side, between boss fights', () => {
+    // Every dungeon GameScene dresses with edge props (EDGE_SETS) has sounds.
+    const scene = readFileSync('client/GameScene.ts', 'utf8');
+    const block = scene.slice(scene.indexOf('const EDGE_SETS'), scene.indexOf('};', scene.indexOf('const EDGE_SETS')));
+    const sets = [...block.matchAll(/^\s+([a-z]+): \{ big:/gm)].map((m) => m[1]);
+    expect(sets.length).toBeGreaterThanOrEqual(12);
+    for (const d of sets) expect(EDGE_SOUNDS[d], d).toBeDefined();
+    for (const [a, b] of Object.values(EDGE_SOUNDS)) for (const id of [a, b]) {
+      expect(recipeLength(SOUNDS[id]), id).toBeLessThanOrEqual(2);
+      expect(PRIORITY.has(id), id).toBe(false);
+    }
+    // Deterministic rnd: it waits between EDGE.min and EDGE.max, plays to one side, and stays quiet in a boss fight.
+    let r = 0;
+    const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    const st = { next: 0 };
+    expect(edgeCue(st, 'kiln', 1, false, rnd)).toBeNull();
+    expect(st.next - 1).toBeGreaterThanOrEqual(EDGE.min);
+    expect(st.next - 1).toBeLessThanOrEqual(EDGE.max);
+    const c = edgeCue(st, 'kiln', st.next, false, rnd);
+    expect(EDGE_SOUNDS.kiln).toContain(c?.id);
+    expect(Math.abs(c?.pan ?? 0)).toBeGreaterThan(0.3);
+    expect(c?.vol).toBe(EDGE.vol);
+    expect(edgeCue(st, 'kiln', st.next, true, rnd)).toBeNull();
+    expect(edgeCue({ next: 0 }, undefined, 5, false, rnd)).toBeNull();
+    // A new run (the clock went back) reschedules instead of firing at once.
+    const back = { next: 500 };
+    expect(edgeCue(back, 'kiln', 2, false, rnd)).toBeNull();
+    expect(back.next).toBeLessThan(2 + EDGE.max + 0.001);
+  });
+
+  it('sounds the Regent\'s Summons as a must-hear call, and the Brimming\'s Churn as a quiet stir (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.summons).toEqual({ start: 'summonsWarn', done: 'summonsFall' });
+    expect(PRIORITY.has('summonsWarn')).toBe(true);
+    // The call ends well inside the 2.5 s to come before the throne.
+    expect(recipeLength(SOUNDS.summonsWarn)).toBeLessThanOrEqual(1.8);
+    const flue = { cls: 'bulwark' as const, acting: 0, dungeon: 'flue' };
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'summons', name: 'Summons' } as never, flue)?.id).toBe('summonsFall');
+    const crucible = { ...flue, dungeon: 'crucible' };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'churn', name: 'Churn' } as never, crucible)?.id).toBe('churn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'churn', name: 'Churn' } as never, crucible)).toBeNull();
+    expect(PRIORITY.has('churn')).toBe(false);
+    expect(CAST_SOUNDS.churn).toBeUndefined();
+    for (const id of ['summonsFall', 'churn'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {

@@ -65,4 +65,4 @@ The Bulwark-tank parties sit at 23 to 32. The Anvil tank party (36) is the one o
 
 Placeholder art: Old Vorhulm borrows the Vorhulm rare's sheet and the Craw the rift's, until visuals (W6) draws them. Embers and the Gorge ring are drawn in GameScene. The raid theme plays (sound, W7).
 
-**Phase 12 W3 (22 Nov 2026):** Old Vorhulm has a second version, **Banked Coals**, which replaces Ember Feast's embers in phase 3 with gold circles to stand on as they land (variety.md, Phase 12 W3 part 2).
+**Phase 12 W3 (22 Nov 2026):** Old Vorhulm has a second version, **Banked Coals**, which replaces Ember Feast's embers in phase 3 with gold circles to stand on as they land (variety.md, Phase 12 W3 part 2). Part 4 moved the coals in to 120 or 170 from him, for the Bellows Slagbinder parties' damage race.

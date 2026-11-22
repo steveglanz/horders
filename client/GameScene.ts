@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
-import { EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -178,11 +178,19 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
 }
 
 /** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
-const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
+/** `light: null` places the props without floor pools, for a dungeon where light is a mechanic (the Coldmarrow). */
+const EDGE_SETS: Record<string, { big: string; small: string; light: string | null; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
   ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
+  wrackline: { big: 'wrackWreck', small: 'wrackPost', light: 'coalLight', flicker: 400, puff: 'none' },
+  pressworks: { big: 'pressFrame', small: 'pressStack', light: 'paleLight', flicker: 900, puff: 'none' },
+  hoard: { big: 'hoardPile', small: 'hoardBones', light: 'paleLight', flicker: 1100, puff: 'none' },
+  smeltery: { big: 'smeltCart', small: 'smeltIngots', light: 'paleLight', flicker: 900, puff: 'spark' },
+  flue: { big: 'flueChimney', small: 'flueBanner', light: 'paleLight', flicker: 800, puff: 'spark' },
+  glarewell: { big: 'glareLens', small: 'glareShards', light: null, flicker: 1000, puff: 'none' },
+  coldmarrow: { big: 'coldArch', small: 'coldBrazier', light: null, flicker: 1000, puff: 'none' },
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
@@ -283,6 +291,11 @@ export class GameScene extends Phaser.Scene {
   private brimImgs: Phaser.GameObjects.Image[] = [];
   private brimBorn = new WeakMap<object, number>();
   private brimStart = 0;
+  /** Phase 12 W3: the Regent's Summons tell (depth 1.9). */
+  private summonsGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W3 (Plate Shift): the Colossus's plate turn as drawn, easing to World.colPlate, and when it was last eased. */
+  private plateShown: number | null = null;
+  private plateAt = 0;
   /** Phase 12 W3: Old Vorhulm's Banked Coals: their glow (1.89), the coal heaps (1.9), how smothered each looks, and the ash a smothered one leaves. */
   private bankGfx: Phaser.GameObjects.Graphics | null = null;
   private bankImgs: { hot: Phaser.GameObjects.Image; ash: Phaser.GameObjects.Image }[] = [];
@@ -291,7 +304,7 @@ export class GameScene extends Phaser.Scene {
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
-  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
+  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image | null; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
   /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
@@ -378,6 +391,8 @@ export class GameScene extends Phaser.Scene {
     this.brimGfx = null;
     this.brimImgs = [];
     this.brimStart = 0;
+    this.summonsGfx = null;
+    this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
     this.bankAsh = [];
@@ -1049,7 +1064,7 @@ export class GameScene extends Phaser.Scene {
           if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
           else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
           else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
-          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
+          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
           else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
           else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
           else if (ev.name === 'Downstroke') this.hud.banner('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
@@ -1211,7 +1226,8 @@ export class GameScene extends Phaser.Scene {
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
+            if (ev.phase === 2 && w.bossVariant === 'court') this.hud.banner('Phase 2: Edict', this.hud.compact ? 'Two Decrees at once. On a Summons, get inside his gold ring' : 'Two Decrees at once. When he calls a Summons, come inside the gold ring, but keep clear of a Decree');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
@@ -1326,7 +1342,11 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
             : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
             : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
-            : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP : def.tip;
+            : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
+            : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
+            : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
+            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
+            : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -1566,8 +1586,9 @@ export class GameScene extends Phaser.Scene {
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
       // Old Vorhulm's coal is darker still and a raid hits him nearly every frame, so even the soft screen
       // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
-      // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron.
-      if (e.flash > 0 && (e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron. Grandmother
+      // Slag's raid pot is dark iron too: the soft flash turned her flat beige a third of the fight (tools/slagflashshots.cjs).
+      if (e.flash > 0 && (e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent' || e.kind === 'grandmotherSlag')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1648,6 +1669,7 @@ export class GameScene extends Phaser.Scene {
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
+    this.summonsDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -2691,13 +2713,13 @@ export class GameScene extends Phaser.Scene {
         const x = Math.cos(a) * r, y = Math.sin(a) * r;
         const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(1.97);
         const lr = R - 10;
-        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
+        const light = set.light ? this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85) : null;
         this.edgeProps.push({ img, light, x, y, fire: !big });
       }
     }
     this.edgeProps.forEach((p, k) => {
       const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / set.flicker + k * 1.7) + 0.5 * Math.sin(now / (set.flicker * 0.44) + k * 4.1);
-      p.light.setAlpha(0.55 + 0.07 * fl);
+      p.light?.setAlpha(0.55 + 0.07 * fl);
       if (!p.fire || this.lowFx) return;
       if (set.puff === 'spark' && Math.random() < 0.03) {
         this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
@@ -2825,15 +2847,45 @@ export class GameScene extends Phaser.Scene {
     const o = this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
-    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift).
-    const fa = w.colFacing + w.colPlate;
+    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift). The drawn plate slides to the sim's
+    // over about a third of a second, so the band visibly sweeps round when the cast lands.
+    const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+    if (this.plateShown === null) this.plateShown = w.colPlate;
+    this.plateShown = wrap(this.plateShown + wrap(w.colPlate - this.plateShown) * (1 - Math.exp(-Math.max(0, now - this.plateAt) / 110)));
+    this.plateAt = now;
+    const shifting = e.castId === 'plateShift' ? Math.min(1, e.castT / e.castDur) : 0;
+    // While Plate Shift is cast, the band rattles in place.
+    const fa = w.colFacing + this.plateShown + (shifting ? Math.sin(now / 28) * 0.05 * shifting : 0);
     if (w.bossPhase < 3) {
-      // His plated front: a steel band round the front half, with a chevron where he faces.
-      g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      // His plated front: a steel band round the front half, with a chevron where it points.
+      g.lineStyle(7, shifting ? 0xffe0a8 : 0xc8d0e0, 0.5 + 0.3 * shifting).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
       g.lineStyle(2, 0xeef2ff, 0.75).beginPath().arc(e.x, e.y, R + 5, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
-      const cx = e.x + Math.cos(fa) * (R + 10);
-      const cy = e.y + Math.sin(fa) * (R + 10);
-      g.fillStyle(0xeef2ff, 0.7).fillTriangle(cx + Math.cos(fa) * 9, cy + Math.sin(fa) * 9, cx + Math.cos(fa + 2.4) * 7, cy + Math.sin(fa + 2.4) * 7, cx + Math.cos(fa - 2.4) * 7, cy + Math.sin(fa - 2.4) * 7);
+      const chev = (a: number, r: number, size: number, col: number, alpha: number) => {
+        const cx = e.x + Math.cos(a) * r;
+        const cy = e.y + Math.sin(a) * r;
+        g.fillStyle(col, alpha).fillTriangle(cx + Math.cos(a) * size, cy + Math.sin(a) * size, cx + Math.cos(a + 2.4) * size * 0.78, cy + Math.sin(a + 2.4) * size * 0.78, cx + Math.cos(a - 2.4) * size * 0.78, cy + Math.sin(a - 2.4) * size * 0.78);
+      };
+      chev(fa, R + 10, 9, 0xeef2ff, 0.7);
+      // Plate Shift's cast: sparks scrape off the band's ends, and a ghost band grows where it will slide to
+      // (the same pick as the sim: the living non-tank who has hurt him most).
+      if (shifting) {
+        if (!this.lowFx && Math.random() < 0.5) {
+          const end = fa + (Math.random() < 0.5 ? -1 : 1) * COLO.frontArc;
+          this.spark(e.x + Math.cos(end) * R, e.y + Math.sin(end) * R, (Math.random() - 0.5) * 120, -40 - Math.random() * 80, 0.4, 1.3);
+        }
+        let pick = -1;
+        let most = -1;
+        for (let k = 0; k < w.heroes.length; k++) {
+          const q = w.heroData(k).player;
+          if (q.hp <= 0 || w.isTank(k)) continue;
+          if ((w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
+        }
+        if (pick >= 0) {
+          const q = w.heroData(pick).player;
+          const ta = Math.atan2(q.y - e.y, q.x - e.x);
+          g.lineStyle(6, 0xeef2ff, 0.25 + 0.55 * shifting).beginPath().arc(e.x, e.y, R + 14, ta - COLO.frontArc * shifting, ta + COLO.frontArc * shifting, false).strokePath();
+        }
+      }
       // His open back: a hot slice that breathes.
       const back = fa + Math.PI;
       const half = Math.PI - COLO.backArc;
@@ -3885,6 +3937,56 @@ export class GameScene extends Phaser.Scene {
     if (!e) return;
     const dx = e.x - x, dy = e.y - y, d = Math.max(1, Math.hypot(dx, dy));
     for (let k = 0; k < 10; k++) this.spark(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 20, (dx / d) * (180 + Math.random() * 120), (dy / d) * (180 + Math.random() * 120), 0.6 + Math.random() * 0.3, 1.8);
+  }
+
+  /**
+   * Phase 12 W3: the Furnace Regent's Summons (court version, phase 2). Unlike every other ring, it says "come close":
+   * - inside SUMMONS.radius round him, a gold (SOAK, "stand in it") court circle with a timer sweep;
+   * - gold chevrons outside the rim crawling in toward him;
+   * - just outside the rim, a narrow DANGER band that strengthens as it is about to land;
+   * - for each living hero still outside, a gold arrow a little way from their feet pointing at him.
+   * The Ash Fall circles that come with it stay on the main graphics above this.
+   */
+  private summonsDraw(now: number): void {
+    const w = this.world;
+    const e = w.summonsT > 0 && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (!e || !e.alive) { this.summonsGfx?.clear(); return; }
+    if (!this.summonsGfx) this.summonsGfx = this.add.graphics().setDepth(1.9);
+    const g = this.summonsGfx.clear();
+    const R = SUMMONS.radius;
+    const k = Math.max(0, Math.min(1, 1 - w.summonsT / SUMMONS.warn));
+    const pulse = 0.5 + 0.5 * Math.sin(now / 140);
+    // Just outside: a narrow danger band fading outward from the rim (kept narrow so the Ash Fall circles, also DANGER, stay readable).
+    for (let n = 0; n < 6; n++) g.lineStyle(12, DANGER, (0.34 - n * 0.055) * (0.5 + 0.5 * k)).strokeCircle(e.x, e.y, R + 8 + n * 12);
+    // Inside: the court circle.
+    g.fillStyle(SOAK, 0.1 + 0.08 * k).fillCircle(e.x, e.y, R);
+    g.lineStyle(5, SOAK, 0.75 + 0.25 * pulse).strokeCircle(e.x, e.y, R);
+    g.lineStyle(3, 0xfff2c8, 0.9).beginPath().arc(e.x, e.y, R - 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - k), false).strokePath();
+    // Chevrons crawling in from outside the rim.
+    for (let q = 0; q < 10; q++) {
+      const a = (q / 10) * Math.PI * 2 + 0.15;
+      for (let j = 0; j < 2; j++) {
+        const u = ((now / 900 + j * 0.5) % 1);
+        const r = R + 70 - 60 * u;
+        const x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r;
+        const ia = a + Math.PI;
+        const al = 0.85 * Math.sin(u * Math.PI);
+        g.lineStyle(4, SOAK, al).beginPath()
+          .moveTo(x + Math.cos(ia + 2.4) * 10, y + Math.sin(ia + 2.4) * 10).lineTo(x + Math.cos(ia) * 6, y + Math.sin(ia) * 6).lineTo(x + Math.cos(ia - 2.4) * 10, y + Math.sin(ia - 2.4) * 10).strokePath();
+      }
+    }
+    // An arrow toward him beside each hero still outside.
+    for (let i = 0; i < w.heroes.length; i++) {
+      const q = w.heroData(i).player;
+      if (q.hp <= 0) continue;
+      const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
+      if (d <= R) continue;
+      const ux = dx / d, uy = dy / d;
+      const bx = q.x + ux * 44, by = q.y + 10 + uy * 44;
+      const ia = Math.atan2(uy, ux);
+      g.fillStyle(SOAK, 0.6 + 0.35 * pulse).fillTriangle(bx + Math.cos(ia) * 14, by + Math.sin(ia) * 14, bx + Math.cos(ia + 2.5) * 10, by + Math.sin(ia + 2.5) * 10, bx + Math.cos(ia - 2.5) * 10, by + Math.sin(ia - 2.5) * 10);
+      g.lineStyle(2, 0x1a1010, 0.8).strokeTriangle(bx + Math.cos(ia) * 14, by + Math.sin(ia) * 14, bx + Math.cos(ia + 2.5) * 10, by + Math.sin(ia + 2.5) * 10, bx + Math.cos(ia - 2.5) * 10, by + Math.sin(ia - 2.5) * 10);
+    }
   }
 
   private wanderDraw(now: number): void {

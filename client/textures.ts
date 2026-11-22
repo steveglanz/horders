@@ -3628,6 +3628,325 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Glarewell's arena edge: a great cracked lens in a brass mount, tilted toward the sky, and a cairn of mirror
+  // shards. No floor light: in the Glarewell light is the mechanic (the Lensmother's beams and the Glintfall).
+  make(scene, 'glareLens', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 48, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The yoke: a brass fork on a squat stone base.
+    ctx.beginPath(); ctx.moveTo(cx - 30, by); ctx.lineTo(cx - 22, by - 22); ctx.lineTo(cx + 22, by - 22); ctx.lineTo(cx + 30, by); ctx.closePath();
+    ctx.fillStyle = '#5a5050'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.lineCap = 'round';
+    for (const dx of [-36, 36]) { ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(cx + dx * 0.5, by - 22); ctx.lineTo(cx + dx, by - 76); ctx.stroke(); ctx.strokeStyle = '#c8a050'; ctx.lineWidth = 5; ctx.stroke(); }
+    // The lens, tilted: a brass ring round glass, with a crack across it.
+    ctx.save(); ctx.translate(cx, by - 78); ctx.rotate(-0.25);
+    ell(ctx, 0, 0, 40, 30); const lg = ctx.createRadialGradient(-10, -8, 2, 0, 0, 40); lg.addColorStop(0, '#fffbe8'); lg.addColorStop(0.5, '#d8e8f0'); lg.addColorStop(1, '#8aa8c0');
+    ctx.fillStyle = lg; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke(); ctx.strokeStyle = '#d8b060'; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(60,70,90,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-30, -12); ctx.lineTo(-8, 0); ctx.lineTo(-2, 14); ctx.moveTo(-8, 0); ctx.lineTo(14, -6); ctx.lineTo(30, 4); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ell(ctx, -14, -12, 10, 4, -0.4); ctx.fill();
+    ctx.restore();
+    // Pivot bolts.
+    ctx.fillStyle = '#8a7040'; for (const dx of [-36, 36]) { ctx.beginPath(); ctx.arc(cx + dx, by - 76, 4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke(); }
+  });
+
+  make(scene, 'glareShards', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 26, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const shard = (x: number, y: number, w: number, h: number, lean: number, c: string) => {
+      ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.lineTo(x + w / 2, y); ctx.lineTo(x + lean + w * 0.15, y - h); ctx.lineTo(x + lean - w * 0.2, y - h * 0.85); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - w * 0.2, y - 4); ctx.lineTo(x + lean - w * 0.1, y - h * 0.8); ctx.stroke();
+    };
+    shard(cx - 14, 86, 16, 40, -6, '#a8c0d4'); shard(cx + 12, 86, 18, 52, 6, '#c8dae8'); shard(cx, 86, 14, 62, -2, '#e0ecf4'); shard(cx + 24, 86, 10, 26, 8, '#98b0c4');
+    // Stones at the foot.
+    for (const [x, r] of [[-22, 6], [-6, 5], [20, 6], [30, 4]]) { ell(ctx, cx + x, 86, r, r * 0.6); ctx.fillStyle = '#5a5452'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke(); }
+  });
+
+  // The Coldmarrow's arena edge: a great rib bone arching out of the ice, frosted and hung with icicles, and a brazier
+  // frozen over, its coals long dead under a cap of ice. No floor light: light is a mechanic in the Coldmarrow.
+  make(scene, 'coldArch', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 4, by + 4, 62, 11); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    // Snow drift at the foot.
+    ell(ctx, cx - 40, by - 2, 26, 8); ctx.fillStyle = '#c8dcec'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    ell(ctx, cx + 42, by - 2, 22, 7); ctx.fill(); ctx.stroke();
+    // The rib: a thick bone curving from one drift over to the other.
+    ctx.lineCap = 'round';
+    const rib = () => { ctx.beginPath(); ctx.moveTo(cx - 42, by - 4); ctx.bezierCurveTo(cx - 52, by - 120, cx + 34, by - 132, cx + 42, by - 4); };
+    rib(); ctx.strokeStyle = INK; ctx.lineWidth = 17; ctx.stroke();
+    rib(); ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 11; ctx.stroke();
+    rib(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 3; ctx.stroke();
+    // Frost crusted along the top of the curve.
+    ctx.strokeStyle = 'rgba(190,230,255,0.9)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx - 34, by - 82); ctx.bezierCurveTo(cx - 24, by - 108, cx + 10, by - 112, cx + 26, by - 80); ctx.stroke();
+    // Icicles hanging from the arch.
+    ctx.fillStyle = '#e8f6ff'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+    for (const [x, y, h] of [[-26, -92, 16], [-14, -100, 22], [-2, -103, 14], [10, -100, 20], [20, -92, 12]]) {
+      ctx.beginPath(); ctx.moveTo(cx + x - 3, by + y); ctx.lineTo(cx + x + 3, by + y); ctx.lineTo(cx + x, by + y + h); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  });
+
+  make(scene, 'coldBrazier', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 24, 6); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    ctx.strokeStyle = '#1c1a20'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (const dx of [-16, 0, 16]) { ctx.beginPath(); ctx.moveTo(cx + dx * 0.6, 62); ctx.lineTo(cx + dx, 88); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(cx - 26, 50); ctx.quadraticCurveTo(cx, 78, cx + 26, 50); ctx.closePath();
+    ctx.fillStyle = '#3a3c48'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // The ice cap over dead coals.
+    ell(ctx, cx, 50, 26, 7); ctx.fillStyle = '#2a2a30'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 26, 50); ctx.quadraticCurveTo(cx - 10, 30, cx + 4, 34); ctx.quadraticCurveTo(cx + 20, 32, cx + 26, 50); ctx.closePath();
+    const ig = ctx.createLinearGradient(0, 30, 0, 52); ig.addColorStop(0, 'rgba(235,248,255,0.95)'); ig.addColorStop(1, 'rgba(150,200,235,0.85)');
+    ctx.fillStyle = ig; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // Icicles off the bowl's rim and frost on its side.
+    ctx.fillStyle = '#e8f6ff'; ctx.lineWidth = 1.5;
+    for (const [x, h] of [[-20, 10], [-8, 14], [6, 9], [18, 12]]) { ctx.beginPath(); ctx.moveTo(cx + x - 2.5, 54); ctx.lineTo(cx + x + 2.5, 54); ctx.lineTo(cx + x, 54 + h); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(190,230,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 18, 60); ctx.quadraticCurveTo(cx, 70, cx + 18, 60); ctx.stroke();
+  });
+
+  // The Flue's arena edge: a soot-black brick flue with the Regent's brass crown on its breast and a grate glowing at
+  // its foot, and a tattered crimson banner of office on an iron stand. paleLight is the cold pool under them: a warm one
+  // would look like the Scorch round a Decree's holder.
+  make(scene, 'flueChimney', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 46, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The stack, tapering, with a cap.
+    ctx.beginPath(); ctx.moveTo(cx - 34, by); ctx.lineTo(cx - 22, by - 128); ctx.lineTo(cx + 22, by - 128); ctx.lineTo(cx + 34, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 34, 0, cx + 34, 0); g.addColorStop(0, '#4a3438'); g.addColorStop(0.5, '#2e2024'); g.addColorStop(1, '#1a1214');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Brick courses.
+    ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(10,6,8,0.55)'; ctx.lineWidth = 1.5;
+    for (let y = by - 8, r = 0; y > by - 128; y -= 9, r++) { ctx.beginPath(); ctx.moveTo(cx - 40, y); ctx.lineTo(cx + 40, y); ctx.stroke(); for (let x = cx - 40 + (r % 2) * 7; x < cx + 40; x += 14) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 9); ctx.stroke(); } }
+    ctx.restore();
+    ctx.fillStyle = '#3a2a2e'; ctx.fillRect(cx - 28, by - 136, 56, 10); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 28, by - 136, 56, 10);
+    // The crown crest.
+    ctx.beginPath(); ctx.moveTo(cx - 14, by - 70); ctx.lineTo(cx - 14, by - 84); ctx.lineTo(cx - 7, by - 77); ctx.lineTo(cx, by - 88); ctx.lineTo(cx + 7, by - 77); ctx.lineTo(cx + 14, by - 84); ctx.lineTo(cx + 14, by - 70); ctx.closePath();
+    ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#e0607a'; ctx.beginPath(); ctx.arc(cx, by - 75, 2.5, 0, Math.PI * 2); ctx.fill();
+    // The grate at the foot.
+    softGlow(ctx, cx, by - 16, 26, 'rgba(255,110,60,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx - 16, by - 2); ctx.lineTo(cx - 16, by - 22); ctx.quadraticCurveTo(cx, by - 34, cx + 16, by - 22); ctx.lineTo(cx + 16, by - 2); ctx.closePath();
+    const gg = ctx.createRadialGradient(cx, by - 10, 2, cx, by - 12, 20); gg.addColorStop(0, '#ffe08a'); gg.addColorStop(0.5, '#ff6a2a'); gg.addColorStop(1, '#5a1408');
+    ctx.fillStyle = gg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = '#1a1214'; ctx.lineWidth = 3; for (const dx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(cx + dx, by - 2); ctx.lineTo(cx + dx, by - 26 + Math.abs(dx) * 0.5); ctx.stroke(); }
+    // Soot smudges up the stack.
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ell(ctx, cx - 4, by - 118, 14, 6); ctx.fill();
+  });
+
+  make(scene, 'flueBanner', 96, (ctx) => {
+    const cx = 40;
+    ell(ctx, cx + 6, 88, 20, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Iron stand with a crossbar.
+    ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, 88); ctx.lineTo(cx, 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 12, 88); ctx.lineTo(cx + 12, 88); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 14); ctx.lineTo(cx + 38, 14); ctx.stroke();
+    ctx.fillStyle = '#d8a848'; ctx.beginPath(); ctx.arc(cx, 8, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+    // The banner, tattered at the foot.
+    ctx.beginPath(); ctx.moveTo(cx + 4, 16); ctx.lineTo(cx + 36, 16); ctx.lineTo(cx + 36, 62); ctx.lineTo(cx + 30, 56); ctx.lineTo(cx + 26, 66); ctx.lineTo(cx + 20, 58); ctx.lineTo(cx + 14, 68); ctx.lineTo(cx + 8, 58); ctx.lineTo(cx + 4, 62); ctx.closePath();
+    const bg = ctx.createLinearGradient(cx + 4, 0, cx + 36, 0); bg.addColorStop(0, '#a83048'); bg.addColorStop(1, '#5a1424');
+    ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // The crown on it.
+    ctx.beginPath(); ctx.moveTo(cx + 12, 40); ctx.lineTo(cx + 12, 30); ctx.lineTo(cx + 16, 35); ctx.lineTo(cx + 20, 27); ctx.lineTo(cx + 24, 35); ctx.lineTo(cx + 28, 30); ctx.lineTo(cx + 28, 40); ctx.closePath();
+    ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+
+  // The Smeltery's arena edge: an ore cart on a stub of rail, heaped with ore still glowing from the roast, and a stack
+  // of fresh ingots cooling from orange at the bottom to dull iron on top. Their floor pools are the cold paleLight: a
+  // warm pool next to him would blur the hot slice that marks his open back.
+  make(scene, 'smeltCart', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 60, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Rails and sleepers.
+    ctx.fillStyle = '#3a2c20'; for (const x of [-52, -26, 0, 26, 52]) { ctx.fillRect(cx + x - 5, by - 6, 10, 8); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 5; for (const y of [by - 4, by + 2]) { ctx.beginPath(); ctx.moveTo(cx - 64, y); ctx.lineTo(cx + 64, y); ctx.stroke(); }
+    ctx.strokeStyle = '#8a8a90'; ctx.lineWidth = 2; for (const y of [by - 5, by + 1]) { ctx.beginPath(); ctx.moveTo(cx - 64, y); ctx.lineTo(cx + 64, y); ctx.stroke(); }
+    // The heap of glowing ore, behind the tub's lip.
+    softGlow(ctx, cx, by - 66, 46, 'rgba(255,120,40,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx - 40, by - 54); ctx.quadraticCurveTo(cx - 20, by - 86, cx + 2, by - 82); ctx.quadraticCurveTo(cx + 26, by - 84, cx + 40, by - 54); ctx.closePath();
+    ctx.fillStyle = '#3a2a24'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.save(); ctx.clip();
+    let seed = 61; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 22; i++) {
+      const x = cx - 38 + rnd() * 76, y = by - 84 + rnd() * 30, r = 4 + rnd() * 5;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = rnd() < 0.45 ? '#ff8a2a' : '#4a3630'; ctx.fill(); ctx.strokeStyle = 'rgba(20,10,6,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    ctx.restore();
+    // The tub: a riveted iron trough, wider at the top.
+    ctx.beginPath(); ctx.moveTo(cx - 46, by - 58); ctx.lineTo(cx + 46, by - 58); ctx.lineTo(cx + 38, by - 18); ctx.lineTo(cx - 38, by - 18); ctx.closePath();
+    const tg = ctx.createLinearGradient(cx - 46, 0, cx + 46, 0); tg.addColorStop(0, '#6a5a50'); tg.addColorStop(0.5, '#463a34'); tg.addColorStop(1, '#241c1a');
+    ctx.fillStyle = tg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    ctx.fillStyle = '#9a8a7a'; for (const x of [-36, -18, 0, 18, 36]) { ctx.beginPath(); ctx.arc(cx + x * 0.92, by - 52, 2, 0, Math.PI * 2); ctx.fill(); }
+    // Wheels on the rail.
+    for (const x of [-26, 26]) { ctx.beginPath(); ctx.arc(cx + x, by - 12, 10, 0, Math.PI * 2); ctx.fillStyle = '#2e2828'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke(); ctx.beginPath(); ctx.arc(cx + x, by - 12, 3, 0, Math.PI * 2); ctx.fillStyle = '#8a8a90'; ctx.fill(); }
+  });
+
+  make(scene, 'smeltIngots', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    softGlow(ctx, cx, 76, 30, 'rgba(255,110,40,0.45)');
+    // Ingots in crossed layers: bottom still orange, top cooled.
+    const bar = (x: number, y: number, w: number, hot: number) => {
+      ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.lineTo(x + w / 2, y); ctx.lineTo(x + w / 2 - 4, y - 9); ctx.lineTo(x - w / 2 + 4, y - 9); ctx.closePath();
+      const c = hot > 0.6 ? ['#ffb050', '#c8461a'] : hot > 0.3 ? ['#b8643a', '#6a3220'] : ['#7a7a82', '#3e3e46'];
+      const g = ctx.createLinearGradient(0, y - 9, 0, y); g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
+      ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    };
+    bar(cx - 14, 86, 26, 1); bar(cx + 14, 86, 26, 1);
+    bar(cx, 76, 40, 0.5);
+    bar(cx - 12, 66, 22, 0.1); bar(cx + 12, 66, 22, 0.1);
+    bar(cx, 56, 30, 0);
+  });
+
+  // The Hoard's arena edge: a heap of tarnished coins and cups with a sword driven into it, and the bones of someone who
+  // came for it, a dented shield across their ribs. paleLight is the cold shaft of light falling on them: a warm pool
+  // would read as one of Old Vorhulm's gold circles.
+  make(scene, 'hoardPile', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 6, by + 4, 62, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    let seed = 53; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // The sword, driven in behind the heap.
+    ctx.save(); ctx.translate(cx + 18, by - 50); ctx.rotate(0.22);
+    ctx.fillStyle = '#b8bcc8'; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.lineTo(3, -64); ctx.lineTo(0, -70); ctx.lineTo(-3, -64); ctx.closePath(); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#6a5030'; ctx.fillRect(-14, -70, 28, 6); ctx.strokeRect(-14, -70, 28, 6);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-3, -88, 6, 18); ctx.strokeRect(-3, -88, 6, 18);
+    ctx.restore();
+    // The mound.
+    ctx.beginPath(); ctx.moveTo(cx - 62, by); ctx.quadraticCurveTo(cx - 30, by - 70, cx + 4, by - 66); ctx.quadraticCurveTo(cx + 40, by - 62, cx + 62, by); ctx.closePath();
+    const g = ctx.createLinearGradient(0, by - 70, 0, by); g.addColorStop(0, '#c89a40'); g.addColorStop(0.6, '#8a6424'); g.addColorStop(1, '#4a3414');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Coins, each a small ellipse, darker low down.
+    ctx.save(); ctx.clip();
+    for (let i = 0; i < 70; i++) {
+      const x = cx - 58 + rnd() * 116, y = by - rnd() * 68;
+      ell(ctx, x, y, 4, 2); ctx.fillStyle = y < by - 40 ? '#f0cc70' : '#b08838'; ctx.fill(); ctx.strokeStyle = 'rgba(40,24,8,0.6)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.restore();
+    // A cup tipped on the slope and a few glints.
+    ctx.beginPath(); ctx.moveTo(cx - 30, by - 40); ctx.lineTo(cx - 16, by - 46); ctx.lineTo(cx - 14, by - 34); ctx.lineTo(cx - 26, by - 30); ctx.closePath(); ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff6d0';
+    for (const [x, y] of [[-8, -58], [24, -40], [-40, -22], [8, -30]]) { ctx.beginPath(); ctx.moveTo(cx + x, by + y - 4); ctx.lineTo(cx + x + 1.2, by + y); ctx.lineTo(cx + x, by + y + 4); ctx.lineTo(cx + x - 1.2, by + y); ctx.closePath(); ctx.fill(); }
+  });
+
+  make(scene, 'hoardBones', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 86, 30, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Ribs.
+    ctx.strokeStyle = INK; ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const x = cx - 14 + k * 8;
+      ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(x, 80); ctx.quadraticCurveTo(x - 8, 66, x + 2, 58); ctx.stroke();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#d8d0bc'; ctx.stroke();
+    }
+    ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(cx - 18, 80); ctx.lineTo(cx + 18, 80); ctx.stroke(); ctx.lineWidth = 3; ctx.strokeStyle = '#d8d0bc'; ctx.stroke();
+    // The skull, rolled to one side.
+    ell(ctx, cx - 26, 76, 9, 8); ctx.fillStyle = '#e0d8c4'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#2a2018'; ctx.beginPath(); ctx.arc(cx - 29, 75, 2, 0, Math.PI * 2); ctx.arc(cx - 23, 75, 2, 0, Math.PI * 2); ctx.fill();
+    // The dented round shield across them.
+    ell(ctx, cx + 14, 66, 16, 14, -0.3); const sg = ctx.createLinearGradient(cx, 52, cx + 28, 80); sg.addColorStop(0, '#7a8a9a'); sg.addColorStop(1, '#3a4450');
+    ctx.fillStyle = sg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ell(ctx, cx + 14, 66, 4, 4); ctx.fillStyle = '#a8b0b8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#2a3038'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx + 4, 58); ctx.lineTo(cx + 10, 64); ctx.lineTo(cx + 8, 70); ctx.stroke();
+  });
+
+  // The Pressworks' arena edge: an idle stamping press (two steel columns, a crown and a raised ram over a die block),
+  // and a stack of stamped plates under a caged work lamp. paleLight is the cold pool the lamps throw: a warm one would
+  // read as a gold soak circle, which here means "stand in it".
+  make(scene, 'pressFrame', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 58, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const steel = (x: number, y: number, w: number, h: number, c0: string, c1: string) => {
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, c0); g.addColorStop(1, c1);
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+    };
+    // Bed and die block.
+    steel(cx - 54, by - 18, 108, 18, '#5a5a60', '#2e2e34');
+    steel(cx - 28, by - 32, 56, 14, '#6a6458', '#3a362e');
+    // Columns.
+    steel(cx - 50, by - 118, 14, 100, '#7a7a84', '#3a3a42');
+    steel(cx + 36, by - 118, 14, 100, '#7a7a84', '#3a3a42');
+    // Crown with a gold-rimmed flywheel.
+    steel(cx - 56, by - 132, 112, 20, '#6a6a72', '#2a2a30');
+    ctx.beginPath(); ctx.arc(cx + 40, by - 132, 16, 0, Math.PI * 2); ctx.fillStyle = '#3a3a40'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#f0c66a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx + 40, by - 132, 12, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx + 40, by - 132); ctx.lineTo(cx + 40 + Math.cos(a) * 12, by - 132 + Math.sin(a) * 12); ctx.stroke(); }
+    // The ram, raised, on its screw.
+    ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(cx, by - 112); ctx.lineTo(cx, by - 92); ctx.stroke();
+    ctx.strokeStyle = '#8a8a90'; ctx.lineWidth = 3; ctx.stroke();
+    steel(cx - 30, by - 92, 60, 22, '#8a8a92', '#44444c');
+    // Hazard stripes on the ram's face.
+    ctx.save(); ctx.beginPath(); ctx.rect(cx - 30, by - 76, 60, 6); ctx.clip();
+    for (let x = -34; x < 34; x += 8) { ctx.fillStyle = '#f0c66a'; ctx.beginPath(); ctx.moveTo(cx + x, by - 70); ctx.lineTo(cx + x + 4, by - 70); ctx.lineTo(cx + x + 10, by - 76); ctx.lineTo(cx + x + 6, by - 76); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // Oil streak down a column.
+    ctx.strokeStyle = 'rgba(20,16,10,0.6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 44, by - 110); ctx.lineTo(cx - 45, by - 60); ctx.stroke();
+  });
+
+  make(scene, 'pressStack', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Stamped plates, each a little askew.
+    for (let k = 0; k < 6; k++) {
+      const y = 84 - k * 6, dx = (k % 2 ? 2 : -2) + (k === 4 ? 3 : 0);
+      ctx.beginPath(); ctx.moveTo(cx - 26 + dx, y); ctx.lineTo(cx + 26 + dx, y); ctx.lineTo(cx + 22 + dx, y - 5); ctx.lineTo(cx - 22 + dx, y - 5); ctx.closePath();
+      ctx.fillStyle = k % 2 ? '#6a6a72' : '#7e7e88'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // The stamp on the top plate.
+    ell(ctx, cx + 2, 52, 8, 2.5); ctx.strokeStyle = '#f0c66a'; ctx.lineWidth = 1.5; ctx.stroke();
+    // A pole with a caged lamp.
+    ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 30, 86); ctx.lineTo(cx + 30, 18); ctx.lineTo(cx + 20, 18); ctx.stroke();
+    softGlow(ctx, cx + 20, 28, 18, 'rgba(225,235,255,0.6)');
+    ctx.beginPath(); ctx.arc(cx + 20, 27, 6, 0, Math.PI * 2); ctx.fillStyle = '#f4f8ff'; ctx.fill();
+    ctx.strokeStyle = '#2a2a30'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx + 20, 27, 7, 0, Math.PI * 2); ctx.stroke();
+    for (const dx of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(cx + 20 + dx, 20); ctx.lineTo(cx + 20 + dx, 34); ctx.stroke(); }
+  });
+
+  // The Wrackline's arena edge: the broken ribs of a wrecked hull hung with weed, and a tarred mooring post with a
+  // lantern swinging from a hook. Their lamps throw warm coalLight pools: a teal pool here would read as the Ebb's water.
+  make(scene, 'wrackWreck', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 6, by + 4, 62, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The keel, half sunk.
+    ctx.beginPath(); ctx.moveTo(cx - 62, by - 2); ctx.quadraticCurveTo(cx, by + 8, cx + 60, by - 6); ctx.lineTo(cx + 58, by - 16); ctx.quadraticCurveTo(cx, by - 4, cx - 60, by - 12); ctx.closePath();
+    ctx.fillStyle = '#4a3a2c'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Ribs curving up, some snapped.
+    ctx.lineCap = 'round';
+    const ribs: [number, number, number][] = [[-46, 64, -0.35], [-26, 92, -0.2], [-6, 104, -0.05], [14, 70, 0.1], [34, 96, 0.25], [52, 52, 0.4]];
+    for (const [x, h, lean] of ribs) {
+      const x0 = cx + x, y0 = by - 8, x1 = x0 + lean * h + 14, y1 = y0 - h;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0 - 10, y0 - h * 0.6, x1, y1);
+      ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke();
+      ctx.strokeStyle = '#6a5440'; ctx.lineWidth = 5; ctx.stroke();
+      // Weed hanging off the tops.
+      ctx.strokeStyle = 'rgba(70,130,100,0.85)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(x1, y1 + 2); ctx.quadraticCurveTo(x1 + 4, y1 + 14, x1 - 1, y1 + 24); ctx.stroke();
+    }
+    // A plank strake still nailed across the ribs.
+    ctx.beginPath(); ctx.moveTo(cx - 50, by - 40); ctx.quadraticCurveTo(cx - 10, by - 52, cx + 30, by - 44); ctx.lineTo(cx + 30, by - 36); ctx.quadraticCurveTo(cx - 10, by - 44, cx - 50, by - 32); ctx.closePath();
+    ctx.fillStyle = '#5a4634'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // Wet sheen pooling at the foot.
+    ell(ctx, cx - 10, by + 2, 40, 5); ctx.fillStyle = 'rgba(127,208,224,0.25)'; ctx.fill();
+  });
+
+  make(scene, 'wrackPost', 96, (ctx) => {
+    const cx = 44;
+    ell(ctx, cx + 6, 88, 20, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The post: tarred timber with rope turns.
+    ctx.fillStyle = '#3a2e26'; ctx.fillRect(cx - 7, 18, 14, 70); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 7, 18, 14, 70);
+    ctx.strokeStyle = '#b8a07a'; ctx.lineWidth = 2;
+    for (const y of [60, 65, 70]) { ctx.beginPath(); ctx.moveTo(cx - 7, y); ctx.lineTo(cx + 7, y + 2); ctx.stroke(); }
+    // Barnacles near the foot.
+    ctx.fillStyle = '#c8c0b0'; for (const [x, y] of [[-4, 80], [3, 83], [-1, 76], [5, 78]]) { ctx.beginPath(); ctx.arc(cx + x, y, 1.6, 0, Math.PI * 2); ctx.fill(); }
+    // The hook arm and the lantern.
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx + 6, 24); ctx.lineTo(cx + 26, 24); ctx.lineTo(cx + 26, 32); ctx.stroke();
+    softGlow(ctx, cx + 26, 44, 20, 'rgba(255,200,120,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx + 20, 34); ctx.lineTo(cx + 32, 34); ctx.lineTo(cx + 30, 52); ctx.lineTo(cx + 22, 52); ctx.closePath();
+    const lg = ctx.createLinearGradient(0, 34, 0, 52); lg.addColorStop(0, '#fff2c8'); lg.addColorStop(1, '#ffa040');
+    ctx.fillStyle = lg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#2a2420'; ctx.fillRect(cx + 19, 31, 14, 4); ctx.fillRect(cx + 21, 52, 10, 3);
+  });
+
   // The Crucible's arena edge: a great iron ladle tipped on its trunnion stand, pouring a thread of slag into a glowing
   // puddle, and a squat slag pot brimming with molten slag under a cracked crust. coalLight is the warm pool they throw.
   make(scene, 'crucibleLadle', 160, (ctx) => {
