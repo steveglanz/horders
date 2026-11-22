@@ -756,6 +756,28 @@ Measured on the Hoard t9 with tools/group.ts, heroes-r2 hero-t8-0 (the Slagbinde
 
 The class spread is gone: every party now wins 34 to 38. That puts the Hoard over its band. COAL was tuned around a Craw that only blades could break, so design retunes it (design, Y5).
 
+## The Smeltery: class coverage (22 Nov 2026)
+
+Does every class and stance work the Cinder Colossus's open back? Measured at t10, 40 seeds, heroes-fair hero-t8-0, tallying each hero's damage on him by side (front x0.5, side x1, back x1.5) until Meltdown cracks the plate.
+
+- Every non-tank hits his back: 93 to 98% of each hero's damage, for the Lumen, the Duskblade, the Emberwright and the Slagbinder (Bellows), in every party below, and with the Kindling, Wildfire, Bloodletting and Tempo branches forced. With `NOFLANK=1` it drops to 12 to 32% and the party wins 0 of 40.
+- **Bug fixed:** a burn or bleed ticks while the boss's target (the tank) is swapped in, so every tick was judged from the tank's spot in front of him, at half. Now each tick is judged from the hero who lit it (`Enemy.burnBy`). Only the Colossus reads it, so solo fingerprints and every other dungeon are unchanged. Test: `tests/smeltery-dots.test.ts`.
+
+| Party (t10, of 40) | Before | After the fix |
+|---|---|---|
+| Base (Bulwark, Lumen, Duskblade, Emberwright) | 26 | 28 |
+| Two Duskblades | 37 | 39 |
+| Two Emberwrights | 25 | 25 |
+| Bellows Slagbinder for the Duskblade | 18 | 19 |
+| Bellows Slagbinder for the Emberwright | 33 | not re-run |
+| Anvil Slagbinder tank | 22 | 22 |
+| Base, Emberwright forced to Kindling | 26 | 30 |
+| Base, Emberwright forced to Wildfire | 26 | 24 |
+| Base, Duskblade forced to Bloodletting | 27 | 29 |
+| Base, Duskblade forced to Tempo | 25 | not re-run |
+
+Losses are Meltdown wipes with the boss at 0 to 9%. Parties with two Duskblades and no Emberwright (two Duskblades, Bellows for the Emberwright) are over the 70% raid line; parties without a Duskblade are under 55%. That is a party-mix balance question for design, not a plate bug.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).

@@ -213,6 +213,8 @@ export interface Enemy {
   orbitCd: number;
   burnDps: number;
   burnT: number;
+  /** The hero who last lit the burn or bleed (the Colossus judges its ticks from where they stand). */
+  burnBy?: number;
   /** Duskblade Open Wounds: while above 0, this foe takes half healing. */
   woundT: number;
   flash: number;
@@ -852,6 +854,8 @@ export class World {
   private meltPulses = 0;
   /** Raid 3: the Cinder Colossus's facing (radians), and each hero's recent damage to him (Wheel). */
   colFacing = 0;
+  /** True while a burn or bleed tick lands (see `burnBy`). */
+  private burnTick = false;
   colDmg: number[] = [];
   private swallowT = 0;
   private spillT = 0;
@@ -2146,6 +2150,7 @@ export class World {
       const e = this.enemies[src];
       e.burnDps = Math.max(e.burnDps, ALT_KIT.emberWardBurn * this.dmgMult);
       e.burnT = Math.max(e.burnT, ALT_KIT.emberWardBurnTime);
+      e.burnBy = this.acting;
     }
     // Molten Plating and Ember Ward stop blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip) or Glare.
     if (!unblockable && !this.verbHit && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
@@ -2419,6 +2424,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, 20 * this.dmgMult);
         e.burnT = 4;
+        e.burnBy = this.acting;
       } else kills++;
     });
     if (banked) this.addHeat(15 * kills);
@@ -2644,6 +2650,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, ALT_KIT.hamstringBleed * this.bleedMult * this.dmgMult);
         e.burnT = Math.max(e.burnT, 4);
+        e.burnBy = this.acting;
       }
       const r = ALT_KIT.hamstringRadius;
       this.forEachNear(e.x, e.y, r + 40, (i) => {
@@ -2967,6 +2974,7 @@ export class World {
     if (e.alive && this.hasWeaponFx('clingingSlag')) {
       e.burnDps = Math.max(e.burnDps, 6 * this.dmgMult);
       e.burnT = Math.max(e.burnT, 2);
+      e.burnBy = this.acting;
     }
     const r = SLAG_KIT.lobSplashR + 15 * this.rank('shrapnel');
     const splash = SLAG_KIT.lobSplash * (1 + 0.3 * this.rank('shrapnel')) * mult * this.dmgMult;
@@ -3610,6 +3618,7 @@ export class World {
       if (bleed > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult * this.bleedMult);
         e.burnT = Math.max(e.burnT, 3);
+        e.burnBy = this.acting;
       }
     });
     this.addHeat(Math.min(15, 5 * hits) * (1 + 0.3 * this.rank('momentumFlow')));
@@ -3652,6 +3661,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, bleed * this.bleedMult);
         e.burnT = Math.max(e.burnT, 4);
+        e.burnBy = this.acting;
       }
     }
     // Flurry Step: a kill brings the dash straight back.
@@ -3858,6 +3868,7 @@ export class World {
       if (burn > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 6 * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
         e.burnT = 3;
+        e.burnBy = this.acting;
       }
       if (ground > 0) this.addZone(hx, hy, 26 + 8 * ground, 5 * ground * this.dmgMult, 2);
       if (boom) {
@@ -3892,7 +3903,9 @@ export class World {
       if ((e.exposedT ?? 0) > 0) e.exposedT = (e.exposedT ?? 0) - dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
+        this.burnTick = true;
         this.damageEnemy(i, e.burnDps * dt, false, true);
+        this.burnTick = false;
         if (!e.alive) continue;
       }
 
@@ -4431,7 +4444,11 @@ export class World {
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     // The Cinder Colossus: plated in front, open behind, until Meltdown cracks the plate.
-    if (e.kind === 'colossus' && this.bossPhase < 3) dmg *= this.colossusSide(e, this.player.x, this.player.y);
+    if (e.kind === 'colossus' && this.bossPhase < 3) {
+      // A burn or bleed ticks while the boss's target is swapped in, so judge it from whoever lit it.
+      const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
+      dmg *= this.colossusSide(e, by.x, by.y);
+    }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
@@ -4451,6 +4468,7 @@ export class World {
         // ...and sets the target burning, so it still pays against a lone boss.
         e.burnDps = Math.max(e.burnDps, CAPSTONES_2.bloomBurnDps * this.dmgMult);
         e.burnT = Math.max(e.burnT, CAPSTONES_2.bloomBurnTime);
+        e.burnBy = this.acting;
       }
     }
     if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
@@ -4636,6 +4654,7 @@ export class World {
         if (j === i || dist2(e.x, e.y, n.x, n.y) > 80 * 80) return;
         n.burnDps = Math.max(n.burnDps, dps);
         n.burnT = Math.max(n.burnT, 3);
+        n.burnBy = this.acting;
       });
     }
     if (e.kind === 'emberTwin') this.twinFell();
@@ -4648,6 +4667,7 @@ export class World {
         if (dist2(e.x, e.y, o.x, o.y) > 120 * 120) return;
         o.burnDps = Math.max(o.burnDps, bleed);
         o.burnT = Math.max(o.burnT, 4);
+        o.burnBy = this.acting;
       });
       this.events.push({ type: 'explode', x: e.x, y: e.y, r: 120 });
     }
