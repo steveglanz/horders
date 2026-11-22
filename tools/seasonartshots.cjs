@@ -1,6 +1,6 @@
 // The hub during Season 2 (the Deep Bellows): the clock is set to Mon 4 Jan 2027, the hero has played and is
 // at season level 18 with two glows and the trail. Shoots the season box (desktop), the dungeon list with its
-// "In season" mark, and the phone's season sheet. Usage: npm run build && node tools/seasonartshots.cjs <outDir> [saver] [s1|s3|s4|s5|s6|s7|s8]  (s1: the Hollow Tide, s3: the Cold Hearth on Mon 15 Feb 2027, s4: the Slag Moon on Mon 29 Mar 2027, s5: the Falling Press on Mon 10 May 2027, s6: the Low Ebb on Mon 21 Jun 2027, s7: the Long Hunger on Mon 2 Aug 2027, s8: the Cracked Plate on Mon 13 Sep 2027, instead)
+// "In season" mark, and the phone's season sheet (iPhone 13, and `se-*` on a 320 px phone). Usage: npm run build && node tools/seasonartshots.cjs <outDir> [saver] [s1|s3|s4|s5|s6|s7|s8]  (s1: the Hollow Tide, s3: the Cold Hearth on Mon 15 Feb 2027, s4: the Slag Moon on Mon 29 Mar 2027, s5: the Falling Press on Mon 10 May 2027, s6: the Low Ebb on Mon 21 Jun 2027, s7: the Long Hunger on Mon 2 Aug 2027, s8: the Cracked Plate on Mon 13 Sep 2027, instead)
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2]; fs.mkdirSync(out, { recursive: true });
@@ -18,7 +18,7 @@ const LOOK = s1 ? { id: 0, glows: ['tideSilver', 'hollowViolet'], trails: { salt
   : { id: 1, glows: ['bellowsOrange', 'kilnRed', 'whiteHeat'], trails: { bellowsSparks: 2 }, wear: 'kilnRed', dungeon: 'hammerdeep', sfx: '' };
 (async () => {
   const b = await chromium.launch();
-  for (const [tag, opt] of [['desk', { viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 }], ['phone', { ...devices['iPhone 13'] }]]) {
+  for (const [tag, opt] of [['desk', { viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 }], ['phone', { ...devices['iPhone 13'] }], ['se', { viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }]]) {
     const ctx = await b.newContext(opt);
     await ctx.route('https://*.supabase.co/**', (r) => r.abort());
     await ctx.addInitScript(([now, saver]) => { const real = Date.now; const t0 = real(); Date.now = () => now + (real() - t0); if (saver) localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'saver' })); }, [NOW, saver]);
@@ -44,10 +44,10 @@ const LOOK = s1 ? { id: 0, glows: ['tideSilver', 'hollowViolet'], trails: { salt
       await page.waitForTimeout(200);
       const card = page.locator(`.dg[data-d="${LOOK.dungeon}"]`);
       await card.scrollIntoViewIfNeeded(); await page.waitForTimeout(300);
-      await card.screenshot({ path: path.join(out, `phone-dungeons${sfx}.png`) });
+      await card.screenshot({ path: path.join(out, `${tag}-dungeons${sfx}.png`) });
       await page.evaluate(() => document.querySelector('[data-prep="season"]')?.click());
       await page.waitForTimeout(500);
-      await page.screenshot({ path: path.join(out, `phone-season${sfx}.png`) });
+      await page.screenshot({ path: path.join(out, `${tag}-season${sfx}.png`) });
     }
     const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     console.log(tag, errs.length ? errs : 'no errors', 'hscroll', wide);
