@@ -507,6 +507,16 @@ describe('audio', () => {
     expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 0 } as never, c)).toMatchObject({ id: 'emberTaken', vol: 0.5 });
   });
 
+  it('gives Hessa\'s Outsurge its own wind-up and backwash, apart from the inward Ebb (W1)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0 };
+    const ebb = { type: 'castStart', index: 0, id: 'ebb', name: 'The Ebb' } as never;
+    expect(cueFor(ebb, c)?.id).toBe('ebbWarn');
+    expect(cueFor(ebb, { ...c, outsurge: true })?.id).toBe('outsurgeWarn');
+    expect(ebbCue({ on: false }, true)?.id).toBe('ebbPull');
+    expect(ebbCue({ on: false }, true, true)?.id).toBe('outsurgePull');
+    expect(PRIORITY.has('outsurgeWarn') && PRIORITY.has('outsurgePull')).toBe(true);
+  });
+
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
     expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
     expect(PRIORITY.has('tideTurn')).toBe(true);

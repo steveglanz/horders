@@ -196,6 +196,18 @@ Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs t
 | V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
 | V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ✅ Kiln: 0 repeats in 1000 runs (was 398), tools/variety.ts (variety.md, "V7 status") |
 | V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ✅ Foundry: fights, layouts and Maelra's Sluicetide; repeats 398 → 2 in 1000 (variety.md, "V8 status"). Glarewell: fights, vents and the Lensmother's Glintfall, repeats 409 → 2. Coldmarrow: fights, ice pillars and Nhevra's Emberdrift, repeats 306 → 2 |
+### Phase 12: variety past the first four dungeons (planned by game design, 22 Nov 2026)
+Phase 11 gave the four early solo dungeons new fights, layouts and a second boss version. Phase 12 does the same for the content players reach later: the Wrackline, the group dungeons and the raids. As before, every roll is hashed from the seed, so replays, co-op sync and the hashcheck still work. Status: [variety.md](variety.md), "Phase 12".
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| W1 | **The Wrackline:** 4 new fights (3 openers, 1 named) from the Kiln's new foes in the water; raft currents rolled per fight; Hessa's second version, the **Outsurge** (from phase 2 the Ebb throws you out to a burning rim) | design | 🔨 this PR |
+| W2 | **Group dungeons** (the Hammerdeep, the Ashvents, the Pressworks): their own new fights, pillars or vents layouts (no lava in group play), and a second version of Ondrel, Ysmeret and Oskel. Fix Ondrel's double-scaled Hammer Sweep and re-measure the Hammerdeep with it | design, skills | Measured with tools/group.ts |
+| W3 | **Raids:** a second version of Grandmother Slag, Old Vorhulm, the Cinder Colossus and the Furnace Regent | design | Raid tables per raid*.md |
+| W4 | **Art** for the Outsurge (water running outward), the currents, and W2 and W3 tells | visuals | Placeholders first |
+| W5 | **Sound** for the Outsurge and the W2 and W3 casts | sound | A new event needs a cueFor case (#393) |
+| W6 | **Talents for the variety foes and layouts** (situational cards, offered only where the situation is still ahead in the run) | skills | Brief: /mnt/project-files/horders/skills/variety-talents-brief.md |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.

@@ -34,6 +34,8 @@ export interface CueContext {
   anvilOnMe?: boolean;
   /** The Wrackline: the Ebb is pulling right now (World.ebbT > 0). Its start sounds the drag. */
   ebbPull?: boolean;
+  /** The Wrackline: Hessa's Outsurge version is live (World.outsurge), so the Ebb runs outward and sounds different. */
+  outsurge?: boolean;
   /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
@@ -327,7 +329,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'lob': return { id: 'slagLob', jitter: 0.15 };
     case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
-    case 'castStart': return { id: CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
+    // Hessa's Outsurge keeps the Ebb's cast id, so its own wind-up keys on World.outsurge.
+    case 'castStart': return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
@@ -510,10 +513,10 @@ export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
 }
 
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
-export function ebbCue(state: { on: boolean }, pulling: boolean): Cue | null {
+export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false): Cue | null {
   const fire = pulling && !state.on;
   state.on = pulling;
-  return fire ? { id: 'ebbPull' } : null;
+  return fire ? { id: outsurge ? 'outsurgePull' : 'ebbPull' } : null;
 }
 
 /** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
@@ -530,7 +533,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

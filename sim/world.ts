@@ -830,7 +830,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | '' = '';
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -1704,10 +1704,14 @@ export class World {
     }
     if (this.dungeonId === 'wrackline') {
       // Fresh rafts every fight, spread round their circles; the first pull comes after a breather.
+      // Phase 12 W1: every fight but Hessa's rolls its currents from the seed (which way each raft drifts,
+      // and where they start), so the quay plays differently from fight to fight.
+      const cur = this.rollCurrents(def.id);
       this.rafts = [0, 1, 2].map((k) => {
-        const a = (k * 2 * Math.PI) / 3 + 0.5;
+        const a = (k * 2 * Math.PI) / 3 + 0.5 + cur.turn;
         const ring = WRACK.raftRings[k];
-        return { a, ring, dir: k === 1 ? -1 : 1, x: Math.cos(a) * ring, y: Math.sin(a) * ring, sunkT: 0 };
+        const dir = CURRENTS[cur.pattern][k];
+        return { a, ring, dir, x: Math.cos(a) * ring, y: Math.sin(a) * ring, sunkT: 0 };
       });
       this.tideClockT = WRACK.firstTide;
       this.ebbWarnT = 0;
@@ -1799,6 +1803,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.wrackPhase = 1;
+          this.bossVariant = this.rollHessaVariant();
           this.sinkT = WRACK.firstSink;
           this.shoalT = WRACK.firstShoal;
           this.events.push({ type: 'bossSpawn' });
@@ -1977,6 +1982,19 @@ export class World {
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
   }
 
+  /** Phase 12 W1: Hessa's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollHessaVariant(): HessaVariant {
+    if (this.stress) return 'riptide';
+    let h = Math.imul(this.seed ^ 0x3c6ef372, 0x1b56c4e9) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0;
+    return HESSA_VARIANTS[(h >>> 4) % HESSA_VARIANTS.length];
+  }
+
+  /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
+  get outsurge(): boolean {
+    return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+  }
+
   /** V8: Nhevra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
   private rollNhevraVariant(): NhevraVariant {
     if (this.stress) return 'ice';
@@ -1999,6 +2017,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
     return MAELRA_VARIANTS[(h >>> 4) % MAELRA_VARIANTS.length];
+  }
+
+  /** Phase 12 W1: the Wrackline's currents for this fight, hashed from the seed and the fight's place (no run-rng draws). Hessa's fight keeps the first pattern. */
+  private rollCurrents(id: EncounterId): { pattern: number; turn: number } {
+    if (this.dungeonId !== 'wrackline' || this.stress || id === this.dungeonDef.boss) return { pattern: 0, turn: 0 };
+    let h = (Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) + Math.imul(this.encounter + 1, 0x85ebca77)) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae3d) >>> 0;
+    return { pattern: h % CURRENTS.length, turn: ((h >>> 8) % 360) * (Math.PI / 180) };
   }
 
   private rollLayout(id: EncounterId): void {
@@ -5466,7 +5492,10 @@ export class World {
   private wrackClock(dt: number): void {
     const boss = this.bossIndex >= 0 && this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa' ? this.enemies[this.bossIndex] : null;
     const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
-    const drift = WRACK.drift * (this.wrackPhase >= 2 ? WRACK.riptideDrift : 1);
+    // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
+    const out = this.outsurge;
+    const riptide = this.wrackPhase >= 2 && !out;
+    const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
       r.x = Math.cos(r.a) * r.ring;
@@ -5475,18 +5504,20 @@ export class World {
     }
     if (this.ebbT > 0) {
       this.ebbT = Math.max(0, this.ebbT - dt);
-      const pull = WRACK.drag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
-      const foePull = WRACK.foeDrag * (this.wrackPhase >= 2 ? WRACK.riptideDrag : 1);
+      const pull = WRACK.drag * (riptide ? WRACK.riptideDrag : 1);
+      const foePull = WRACK.foeDrag * (riptide ? WRACK.riptideDrag : 1);
+      const rim = this.arenaR - OUTSURGE.rimR;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
         const d = Math.hypot(q.x, q.y) || 1;
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
-        const step = this.anchored(q) ? 0 : Math.min(d, pull * CLASSES[this.heroes[k].cls].speed * dt);
+        const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
+        const step = this.anchored(q) ? 0 : Math.min(room, pull * CLASSES[this.heroes[k].cls].speed * dt) * (out ? -1 : 1);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
-        const share = WRACK.tideBurn + (d <= WRACK.drainR ? WRACK.drainBurn : 0);
+        const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
         this.hurtPlayer(this.player.maxHp * share * dt, -1, true);
@@ -5497,10 +5528,10 @@ export class World {
         const e = this.enemies[i];
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
-        const step = Math.min(d, foePull * dt);
+        const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step;
         e.y -= (e.y / d) * step;
-        if (d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
+        if (out ? d >= rim : d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
       }
     } else if (this.ebbWarnT > 0) {
       this.ebbWarnT = Math.max(0, this.ebbWarnT - dt);
@@ -5510,7 +5541,7 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery;
         this.ebbWarnT = WRACK.tideWarn;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: 'The Ebb' });
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -7135,6 +7166,13 @@ export const WRACK = {
   /** Soft enrage: the Ebb every `tideLate` s. */
   enrageAfter: 240,
 };
+/** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
+export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
+export type HessaVariant = 'riptide' | 'outsurge';
+export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];
+/** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
+export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
 export const BOSS_PHASES: Partial<Record<EnemyKind, number>> = { nhevra: 2, ondrel: 1, ysmeret: 1, hessa: 2, oskel: 1 };
 
