@@ -177,6 +177,9 @@ function lightCast(w: World, skill: number): number | undefined {
  * The raid: an Anvil Slagbinder's Clinker taunts, so it waits while the boss is on another
  * fresh tank. The swap cue says when to take it.
  */
+/** Seconds before the Regent's Summons is due that a bot starts walking in to the throne. */
+export const BOT_SUMMONS_LEAD = 2;
+
 function anvilWaits(w: World): boolean {
   if (!w.dungeonDef.raid || w.player.stance !== 'anvil') return false;
   if (w.swapCue) return false;
@@ -724,6 +727,14 @@ export function botInput(w: World, skill = 1): Input {
     const b = w.enemies[w.bossIndex];
     const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
     if (d > SUMMONS.radius * 0.75) return { x: (b.x - p.x) / d, y: (b.y - p.y) / d, cast: botCast(w, skill) };
+  }
+  // The call comes with every Ash Fall, so walk in to the throne before it is due: a ranged hero
+  // 300 px out loses 1.5 s of its 2.5 s warning to its own Ash circle and can't reach him in time.
+  // Measured on the court seeds of 1-160 at Flue t11: Anvil tank 21/76 -> 47/76, two Emberwrights 31/74 -> 59/74.
+  if (!inCircle && w.summonsDue() < BOT_SUMMONS_LEAD && process.env.NOCOURT !== '1') {
+    const b = w.enemies[w.bossIndex];
+    const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+    if (d > SUMMONS.radius * 0.9) return { x: (b.x - p.x) / d, y: (b.y - p.y) / d, cast: botCast(w, skill) };
   }
   // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
   const isle = islandStep(w);

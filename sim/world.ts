@@ -922,6 +922,14 @@ export class World {
   colPlate = 0;
   /** Phase 12 W3 (the Regent's Summons): seconds until the Summons lands, 0 when none is called. */
   summonsT = 0;
+  /**
+   * Seconds until the Regent next calls a Summons (it comes with each Ash Fall in phase 2 of his
+   * court version), or Infinity when none is coming. Bots read it to walk in before the call.
+   */
+  summonsDue(): number {
+    if (this.bossVariant !== 'court' || this.bossPhase !== 2 || this.summonsT > 0 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return Infinity;
+    return this.ashT;
+  }
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
   colDmg: number[] = [];

@@ -89,6 +89,8 @@ export class Hud {
   private lastTick = 0;
   private draftShownFor = -1;
   private bannerTimer = 0;
+  private bannerNext: { title: string; sub: string } | undefined;
+  private bannerNextAt = 0;
   showPerf = false;
 
   constructor() {
@@ -184,6 +186,8 @@ export class Hud {
     // The last run's banner ("Smolderhusk falls" lasts 3.2 s, the end screen comes 1.7 s after) must not carry into this one.
     $('banner').classList.remove('show');
     this.bannerTimer = 0;
+    this.bannerNext = undefined;
+    this.bannerNextAt = 0;
     $('perf').hidden = !this.showPerf;
     this.buildBar(w.cls, w);
     this.showOmens(w);
@@ -261,6 +265,13 @@ export class Hud {
     if (this.bannerTimer && now > this.bannerTimer) {
       $('banner').classList.remove('show');
       this.bannerTimer = 0;
+      // Let the old banner fade out before the follow-up comes in.
+      if (this.bannerNext) this.bannerNextAt = now + 450;
+    }
+    if (this.bannerNextAt && now > this.bannerNextAt && this.bannerNext) {
+      const next = this.bannerNext;
+      this.bannerNextAt = 0;
+      this.banner(next.title, next.sub);
     }
   }
 
@@ -615,11 +626,21 @@ export class Hud {
   }
 
   /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
-  banner(title: string, sub: string, full = false): void {
+  banner(title: string, sub: string, full = false, next?: { title: string; sub: string }): void {
     $('bannerTitle').textContent = title;
-    $('bannerSub').textContent = sub;
+    const subEl = $('bannerSub');
+    subEl.textContent = sub;
     $('banner').classList.add('show');
     $('banner').classList.toggle('full', full);
+    // Phones clamp the sub-line to 2 lines. A longer one (a fight tip plus its floor line, say) gets the
+    // 4-line banner and the longer time instead of being cut off mid-sentence.
+    if (!full && subEl.scrollHeight > subEl.clientHeight + 1) {
+      full = true;
+      $('banner').classList.add('full');
+    }
+    // A follow-up shows once this banner times out, unless another banner takes its place first.
+    this.bannerNext = next;
+    this.bannerNextAt = 0;
     this.bannerTimer = performance.now() + (full ? 5000 : 3200);
     this.placeDing();
   }
