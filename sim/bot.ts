@@ -629,6 +629,12 @@ export function botInput(w: World, skill = 1): Input {
   // The Smeltery: a non-tank works the Colossus's open back while his plate holds.
   const flank = colossusFlank(w);
   if (flank) return { x: flank.dx, y: flank.dy, cast: botCast(w, skill) };
+  // The Hoard: while an ally is swallowed, a hero out of reach of the Craw closes on it (the boss follows its tank there).
+  if (w.craw >= 0 && !((p.swallowT ?? 0) > 0)) {
+    const c = w.enemies[w.craw];
+    const d = Math.hypot(c.x - p.x, c.y - p.y) || 1;
+    if (d > 280) return { x: (c.x - p.x) / d, y: (c.y - p.y) / d, cast: botCast(w, skill) };
+  }
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

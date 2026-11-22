@@ -45,4 +45,18 @@ Built in the W2 PR (21 Nov 2026). Tuning lives in `COAL` (sim/world.ts) and `ENE
 
 At 18000 a run sees about 6 to 8 Swallows, 2 to 3 of them Digested, and most Gorges interrupted. The bots grab most embers, so Ember Feast mostly punishes a party that loses track.
 
+**Retune after the Craw fix (Y5, #324, 22 Nov 2026).** Once every class could break the Craw (crawIn), the parties won 34 to 38 of 40 at 18000, over the band. Raising his health alone split the parties, because losses then come from the hard enrage and the Burnout ramp, which punish the lower-damage parties. With 22000 health the base party won 26 of 40, but the Bellows Slagbinder in place of the Duskblade won 2 and the Anvil tank party won 5. More ember damage, harder blows, a shorter Swallow, more frequent Swallows and a 540 s enrage all split the parties the same way. A faster drain inside him (`swallowTick` 0.04 to 0.06 of max health a second) is the one lever that keeps them close, because it makes the Craw the check rather than raw damage. Chosen: **swallowTick 0.06**, health unchanged at 18000.
+
+| Party (swallowTick 0.06, t9, seeds 1 to 40) | Wins of 40 |
+|---|---|
+| Base: Bulwark, Lumen, Duskblade, Emberwright | 26 (65%); seeds 41 to 80: 24 |
+| Base, bot skill 0.7 | 25 |
+| Two Duskblades | 24 |
+| Two Emberwrights | 28 |
+| Anvil Slagbinder as the tank | 22 |
+| Bellows Slagbinder for the Duskblade | 19 (48%, under the band) |
+| Bellows Slagbinder for the Emberwright | 36 (90%, over the band) |
+
+The two Bellows parties are a class-side gap, not a COAL one: the Smeltery shows the same pattern (skills' Y5 table in docs/skills.md, 19 without a Duskblade, 33 with one). Skills take it on the Slagbinder.
+
 Placeholder art: Old Coalmouth borrows the Coalmouth rare's sheet and the Craw the rift's, until visuals (W6) draws them. Embers and the Gorge ring are drawn in GameScene. The raid theme plays (sound, W7).
