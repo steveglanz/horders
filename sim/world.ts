@@ -6678,7 +6678,7 @@ export const COAL = {
    * losing `swallowTick` of max health a second. Break the Craw at his side to get them out;
    * otherwise they are Digested (downed). `crawDist` is how far from his middle the Craw sits.
    */
-  swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.04, crawDist: 90, spitShield: 1.5,
+  swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.06, crawDist: 90, spitShield: 1.5,
   /** Ember Feast (phase 3): `spillN` embers scatter `spillMin`..`spillMax` from him; he inhales any left after `emberLife` s. */
   spillEvery: 10, firstSpill: 3, spillN: 6, spillMin: 140, spillMax: 320, emberLife: 7, emberPick: 34,
   /** Each ember he eats heals him this share and makes his blows this much harder for the rest of the fight. */
