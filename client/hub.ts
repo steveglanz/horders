@@ -27,7 +27,7 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -432,7 +432,7 @@ export class Hub {
     const chips: string[] = [];
     // V4: today's Heat (every solo dungeon since Phase 14 X1) gets a chip too; on phones the full line is folded away.
     const heat = this.heatToday();
-    if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}"><span class="star" aria-hidden="true">✺</span><span>${heat.name}</span></button>`);
+    if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}">${heatTile(heat.id, 22)}<span>${heat.name}</span></button>`);
     if (omens.length) {
       chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
     }
@@ -838,7 +838,7 @@ export class Hub {
   private heatLine(): string {
     const h = this.heatToday();
     if (!h) return '';
-    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
+    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen">${heatTile(h.id)}<div><b>${h.name}</b><div>${h.text}</div></div></div>`;
   }
 
   /** This week's Omens for the picked tier, or a hint about when they start. */

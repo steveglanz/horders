@@ -3,6 +3,7 @@
  * a 24-unit grid, one stroke path, 2.4 stroke, round caps, coloured by currentColor.
  */
 import type { OmenId } from '../sim/content/omens';
+import type { HeatId } from '../sim/content/heat';
 import type { PotionId } from '../sim/content/potions';
 import type { Branch, ClassId } from '../sim/content/emberwright';
 import type { SetId } from '../sim/content/sets';
@@ -35,6 +36,32 @@ export function glyph(d: string, size = 24): string {
 /** A tinted tile holding an Omen glyph. */
 export function omenTile(id: OmenId, size = 36): string {
   const o = OMEN_ICON[id];
+  return `<span class="gtile" style="--gc:${o.color};width:${size}px;height:${size}px">${glyph(o.d, Math.round(size * 0.62))}</span>`;
+}
+
+/** Phase 14 X6: one glyph per Heat, for the hub's Heat chip (tinted like the Omen tiles). */
+export const HEAT_ICON: Record<HeatId, { color: string; d: string }> = {
+  // Stone Floor: a cut stone with a crack.
+  stoneFloor: { color: '#c8b8a8', d: 'M8 5h8l4 7-4 7H8l-4-7Z M9 11l2 1.5 3-2.5' },
+  // Vent Floor: a vent mouth with a plume.
+  ventFloor: { color: '#ff8a3d', d: 'M4 20h16 M7 20l1.5-5h7l1.5 5 M12 12c-1.5-1.5 1.5-3 0-4.5s1.5-3 0-4.5' },
+  // Quick Study: an open book.
+  quickStudy: { color: '#8fd8ff', d: 'M3 6c3-1 6-1 9 1 3-2 6-2 9-1v12c-3-1-6-1-9 1-3-2-6-2-9-1Z M12 7v12' },
+  // Rich Haul: a stack of coins.
+  richHaul: { color: '#ffc861', d: 'M5 7a7 3 0 1 0 14 0a7 3 0 1 0-14 0Z M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7 M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5' },
+  // Thick Steam: three plumes.
+  thickSteam: { color: '#d6dde4', d: 'M7 20c-2-2.5 2-4.5 0-8s2-4.5 0-8 M12 20c-2-2.5 2-4.5 0-8s2-4.5 0-8 M17 20c-2-2.5 2-4.5 0-8s2-4.5 0-8' },
+  // High Sun: a sun with rays.
+  highSun: { color: '#ffe08a', d: 'M12 8a4 4 0 1 1 0 8a4 4 0 1 1 0-8Z M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9 7 7 M17 17l2.1 2.1 M4.9 19.1 7 17 M17 7l2.1-2.1' },
+  // Bright Coal: a lump of coal under arcs of light.
+  brightCoal: { color: '#ff6a1f', d: 'M6.5 17 9 11.5h6l2.5 5.5-5.5 4Z M4.5 9.5a8.5 8.5 0 0 1 15 0 M8 6.5a5 5 0 0 1 8 0' },
+  // Slack Water: still water, one slow wave.
+  slackWater: { color: '#6fd0c8', d: 'M3 9c3-2 6 2 9 0s6-2 9 0 M3 14.5h18 M6.5 19h11' },
+};
+
+/** A tinted tile holding a Heat glyph. */
+export function heatTile(id: HeatId, size = 36): string {
+  const o = HEAT_ICON[id];
   return `<span class="gtile" style="--gc:${o.color};width:${size}px;height:${size}px">${glyph(o.d, Math.round(size * 0.62))}</span>`;
 }
 
