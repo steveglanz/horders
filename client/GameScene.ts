@@ -178,7 +178,8 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
 }
 
 /** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
-const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
+/** `light: null` places the props without floor pools, for a dungeon where light is a mechanic (the Coldmarrow). */
+const EDGE_SETS: Record<string, { big: string; small: string; light: string | null; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
@@ -188,6 +189,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   hoard: { big: 'hoardPile', small: 'hoardBones', light: 'paleLight', flicker: 1100, puff: 'none' },
   smeltery: { big: 'smeltCart', small: 'smeltIngots', light: 'paleLight', flicker: 900, puff: 'spark' },
   flue: { big: 'flueChimney', small: 'flueBanner', light: 'paleLight', flicker: 800, puff: 'spark' },
+  coldmarrow: { big: 'coldArch', small: 'coldBrazier', light: null, flicker: 1000, puff: 'none' },
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
@@ -299,7 +301,7 @@ export class GameScene extends Phaser.Scene {
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
-  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
+  private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image | null; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
   /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
@@ -2700,13 +2702,13 @@ export class GameScene extends Phaser.Scene {
         const x = Math.cos(a) * r, y = Math.sin(a) * r;
         const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(1.97);
         const lr = R - 10;
-        const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
+        const light = set.light ? this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85) : null;
         this.edgeProps.push({ img, light, x, y, fire: !big });
       }
     }
     this.edgeProps.forEach((p, k) => {
       const fl = this.lowFx ? 0 : 0.5 * Math.sin(now / set.flicker + k * 1.7) + 0.5 * Math.sin(now / (set.flicker * 0.44) + k * 4.1);
-      p.light.setAlpha(0.55 + 0.07 * fl);
+      p.light?.setAlpha(0.55 + 0.07 * fl);
       if (!p.fire || this.lowFx) return;
       if (set.puff === 'spark' && Math.random() < 0.03) {
         this.emit(this.fx, 'spark', undefined, p.x + (Math.random() - 0.5) * 10, p.y - 36, 0.9, { tint: 0xffb060, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 30, drag: 0.98, sx0: 1.2, sx1: 0.2 });
