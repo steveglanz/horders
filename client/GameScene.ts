@@ -3942,7 +3942,7 @@ export class GameScene extends Phaser.Scene {
    * Phase 12 W3: the Furnace Regent's Summons (court version, phase 2). Unlike every other ring, it says "come close":
    * - inside SUMMONS.radius round him, a gold (SOAK, "stand in it") court circle with a timer sweep;
    * - gold chevrons outside the rim crawling in toward him;
-   * - outside, a DANGER wash that darkens as it is about to land;
+   * - just outside the rim, a narrow DANGER band that strengthens as it is about to land;
    * - for each living hero still outside, a gold arrow a little way from their feet pointing at him.
    * The Ash Fall circles that come with it stay on the main graphics above this.
    */
@@ -3955,8 +3955,8 @@ export class GameScene extends Phaser.Scene {
     const R = SUMMONS.radius;
     const k = Math.max(0, Math.min(1, 1 - w.summonsT / SUMMONS.warn));
     const pulse = 0.5 + 0.5 * Math.sin(now / 140);
-    // Outside: the danger wash, a wide band from the rim outward.
-    g.lineStyle(1400, DANGER, 0.05 + 0.13 * k).strokeCircle(e.x, e.y, R + 700);
+    // Just outside: a narrow danger band fading outward from the rim (kept narrow so the Ash Fall circles, also DANGER, stay readable).
+    for (let n = 0; n < 6; n++) g.lineStyle(12, DANGER, (0.34 - n * 0.055) * (0.5 + 0.5 * k)).strokeCircle(e.x, e.y, R + 8 + n * 12);
     // Inside: the court circle.
     g.fillStyle(SOAK, 0.1 + 0.08 * k).fillCircle(e.x, e.y, R);
     g.lineStyle(5, SOAK, 0.75 + 0.25 * pulse).strokeCircle(e.x, e.y, R);
