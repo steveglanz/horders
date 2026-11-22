@@ -149,10 +149,13 @@ export class Hub {
       this.openBag();
       return;
     }
+    const changed = tab !== this.tab || !$('bag').hidden;
     this.tab = tab;
     if (!$('bag').hidden) $('bag').hidden = true;
     $('title').scrollTop = 0;
     this.render();
+    // The new pane eases in instead of popping (phones only; see .tabswap in index.html).
+    if (changed) { const t = $('title'); t.classList.remove('tabswap'); void t.offsetWidth; t.classList.add('tabswap'); }
   }
 
   private syncTabbar(): void {
@@ -272,9 +275,17 @@ export class Hub {
     });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
-        if (spendPoint(h, b.dataset.p as PassiveId)) {
+        const id = b.dataset.p as PassiveId;
+        if (spendPoint(h, id)) {
           this.save();
           this.render();
+          // The talent you raised flares, and its rank number ticks up.
+          const t = $('heroCard').querySelector<HTMLElement>(`[data-p="${id}"]`);
+          if (t) {
+            t.classList.add('ranked');
+            t.querySelector('em')?.classList.add('tick');
+            setTimeout(() => { t.classList.remove('ranked'); t.querySelector('em')?.classList.remove('tick'); }, 900);
+          }
         }
       }));
 
@@ -936,7 +947,15 @@ export class Hub {
         this.save();
         after(id, gone);
       }));
-    act('[data-e]', 'e', (id) => equip(h, id));
+    // Equip: the new piece settles into its slot, and a gear score change floats off the header.
+    root.querySelectorAll<HTMLButtonElement>('[data-e]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.e!;
+      const before = gearScore(h);
+      equip(h, id);
+      this.save();
+      after(id, false);
+      this.equipFlourish(id, gearScore(h) - before);
+    }));
     act('[data-s]', 's', (id) => salvage(h, id), true);
     // The Forge: note the stats before the hammer falls, then light what changed on the redrawn card.
     const forged = (id: string, kind: 'up' | 'temper', fn: () => unknown): unknown => {
@@ -970,6 +989,24 @@ export class Hub {
       }
       setTimeout(() => { card.classList.remove('forged', 'up', 'temper'); card.querySelector('.sparks')?.remove(); }, 1400);
     });
+  }
+
+  /** Equip feedback on every tile and card showing the item, plus a gear score change on the bag's Equipped header. */
+  private equipFlourish(id: string, delta: number): void {
+    document.querySelectorAll<HTMLElement>(`[data-i="${id}"], [data-it="${id}"]`).forEach((el) => {
+      el.classList.remove('slotin'); void el.offsetWidth; el.classList.add('slotin');
+      setTimeout(() => el.classList.remove('slotin'), 900);
+    });
+    if (!delta) return;
+    const gs = $('bagList').querySelector<HTMLElement>('.sec-h .gold');
+    if (!gs) return;
+    gs.classList.add('gs-host');
+    const up = document.createElement('i');
+    up.className = `gs-up${delta < 0 ? ' down' : ''}`;
+    up.setAttribute('aria-hidden', 'true');
+    up.textContent = `${delta > 0 ? '+' : ''}${delta}`;
+    gs.appendChild(up);
+    setTimeout(() => up.remove(), 1300);
   }
 
   /** Phones: one item's full card, what you wear in that slot, and its actions, in a sheet. */

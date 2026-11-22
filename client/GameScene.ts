@@ -1544,7 +1544,11 @@ export class GameScene extends Phaser.Scene {
       const bag = this.dropSprites[i];
       const beam = this.beamSprites[i];
       if (!d.alive || !d.item) {
-        if (bag.visible) { bag.setVisible(false); beam.setVisible(false); }
+        if (bag.visible) {
+          // Picked up: the bag flies into the nearest hero and shrinks, so you see where it went.
+          if (!d.alive && this.time.now - (this.dropBorn[i] ?? -1e9) > 400) this.lootFly(bag.x, bag.y, bag.tintTopLeft);
+          bag.setVisible(false); beam.setVisible(false);
+        }
         continue;
       }
       const c = hex(RARITY[d.item.rarity].color);
@@ -2983,12 +2987,31 @@ export class GameScene extends Phaser.Scene {
     this.emit(this.fx, 'hitstar', undefined, x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, 0.14, { rot: Math.random() * Math.PI, sx0: size * 0.6, sx1: size * 1.1 });
   }
 
-  /** Death: the body flashes, flattens and fades into a puff of ash. */
+  /**
+   * Death: the body flashes, is knocked back away from your hero, flattens and fades into a puff of ash, and a few
+   * embers spray out the far side, so a kill lands with some weight instead of just vanishing.
+   */
   private death(kind: string, x: number, y: number): void {
     const big = kind === 'kilnMother' || kind === 'cinderBrute' || kind === 'ashmaw' || kind === 'husk';
+    const p = this.world.player;
+    const d = Math.hypot(x - p.x, y - p.y) || 1;
+    const ux = (x - p.x) / d, uy = (y - p.y) / d;
+    const kick = big ? 40 : 110;
     if (this.textures.exists(kind)) {
-      const f = this.emit(this.smoke, kind, '0', x, y, big ? 0.45 : 0.22, { flip: x > this.world.player.x, sx0: BASE * 1.1, sy0: BASE * 0.95, sx1: BASE * 1.35, sy1: BASE * 0.15 });
+      const f = this.emit(this.smoke, kind, '0', x, y, big ? 0.45 : 0.3, {
+        flip: x > p.x, vx: ux * kick, vy: uy * kick - 30, drag: 0.88, spin: (x > p.x ? 1 : -1) * (big ? 0.4 : 2.2),
+        sx0: BASE * 1.1, sy0: BASE * 0.95, sx1: BASE * 1.35, sy1: BASE * 0.15,
+      });
       f?.img.setTint(0xffd7a0).setTintMode(Phaser.TintModes.FILL);
+    }
+    // Embers out the far side, in a cone away from the hero (none on trimmed effects: kills come dozens a second).
+    if (!this.lowFx) {
+      const base = Math.atan2(uy, ux);
+      for (let k = 0; k < (big ? 8 : 4); k++) {
+        const a = base + (Math.random() - 0.5) * 1.3;
+        const sp = 120 + Math.random() * 110;
+        this.emit(this.fx, 'spark', undefined, x, y - 6, 0.35 + Math.random() * 0.2, { tint: k % 2 ? 0xffb060 : 0xffe2a0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, drag: 0.9, sx0: 1.4, sx1: 0.3 });
+      }
     }
     // Trimmed effects: a small foe leaves only its fading silhouette, a big one two puffs.
     const n = this.lowFx ? (big ? 2 : 0) : big ? 5 : 1;
@@ -4099,6 +4122,20 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  /** A picked-up bag flies into the nearest hero, shrinking, with a small flash in its rarity colour when it arrives. */
+  private lootFly(x: number, y: number, tint: number): void {
+    const w = this.world;
+    let to = this.heroXY(w.acting), best = Infinity;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = this.heroXY(k), dd = (q.x - x) ** 2 + (q.y - y) ** 2;
+      if (dd < best) { best = dd; to = q; }
+    }
+    const life = 0.22;
+    const f = this.emit(this.fx, 'loot', undefined, x, y, life, { vx: (to.x - x) / life, vy: (to.y - 14 - y) / life, sx0: 1, sx1: 0.35 });
+    f?.img.setTint(tint).setTintMode(Phaser.TintModes.MULTIPLY);
+    this.time.delayedCall(life * 1000, () => this.ring(to.x, to.y - 10, 26, tint, 0.25));
   }
 
   /** Loot hits the floor: the bag pops in, and the better the rarity the louder the arrival. */
