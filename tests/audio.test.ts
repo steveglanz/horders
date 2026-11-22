@@ -614,6 +614,9 @@ describe('takes for busy sounds', () => {
       }
     }
   });
+  it('gives the busiest class abilities their own takes', () => {
+    for (const id of ['bulwarkSlam', 'emberWave', 'lumenBurst'] as const) expect(VARIANTS[id], id).toBeGreaterThanOrEqual(3);
+  });
   it('never plays the same take twice running', () => {
     for (let last = -1; last < 4; last++) for (const r of [0, 0.3, 0.6, 0.999]) {
       const k = nextTake(4, last, r);
