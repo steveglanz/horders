@@ -837,3 +837,22 @@ describe('Phase 12 W3 follow-up: wider raid fight pools', () => {
     }
   });
 });
+
+describe('Phase 13 E1: raid trash layouts', () => {
+  it('every raid rolls stones or vents for its trash, never lava, and never for the boss fight', () => {
+    for (const id of ['crucible', 'hoard', 'smeltery', 'flue'] as const) {
+      expect(LAYOUTS[id]).toBeDefined();
+      expect(LAYOUTS[id]).not.toContain('channel');
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 60; seed++) {
+        const w = new World({ seed, dungeon: id, omens: [], cls: 'bulwark' });
+        w.route.forEach((f, k) => {
+          const l = w.layoutAt(k, f);
+          if (f === DUNGEONS[id].boss) expect(l).toBe('open');
+          else seen.add(l);
+        });
+      }
+      expect([...seen].sort()).toEqual(['open', 'pillars', 'vents']);
+    }
+  });
+});

@@ -433,6 +433,11 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
   // Phase 12 W2: the Pressworks' steam-press vents.
   pressworks: { warn: 'pressVentWarn', land: 'pressBurst', sting: 'layoutPress' },
+  // Phase 13 E1: raid trash vents borrow existing sets until sound gives each raid its own (E4).
+  crucible: { warn: 'kilnVentWarn', land: 'lavaFlare', sting: 'layoutVents' },
+  hoard: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
+  smeltery: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
+  flue: { warn: 'kilnVentWarn', land: 'lavaFlare', sting: 'layoutVents' },
 };
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
