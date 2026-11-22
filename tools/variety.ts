@@ -11,13 +11,13 @@ const dungeon = (process.env.DUNGEON ?? 'kiln') as 'kiln';
 const tier = Number(process.env.TIER ?? 1);
 const runs = Number(process.env.RUNS ?? 20);
 const windows = Number(process.env.WINDOWS ?? 50);
-type Inner = { rollLayout(id: string): void; rollKilnVariant(): string; rollMaelraVariant(): string; rollLensVariant(): string; rollNhevraVariant(): string; rollHessaVariant(): string; rollOndrelVariant(): string; rollYsmeretVariant(): string; rollOskelVariant(): string; rollSlagVariant(): string; rollVorhulmVariant(): string; rollCurrents(id: string): { pattern: number; turn: number }; encounter: number };
+type Inner = { rollLayout(id: string): void; rollKilnVariant(): string; rollMaelraVariant(): string; rollLensVariant(): string; rollNhevraVariant(): string; rollHessaVariant(): string; rollOndrelVariant(): string; rollYsmeretVariant(): string; rollOskelVariant(): string; rollSlagVariant(): string; rollVorhulmVariant(): string; rollColossusVariant(): string; rollCurrents(id: string): { pattern: number; turn: number }; encounter: number };
 
 function shape(seed: number): { route: string; layouts: string; variant: string } {
   const w = new World({ seed, dungeon, tier, omens: [], cls: 'emberwright' });
   const q = w as unknown as Inner;
   const layouts = w.route.map((id, k) => { q.encounter = k; q.rollLayout(id); return dungeon === 'wrackline' ? `${w.layout}/${q.rollCurrents(id).pattern}` : w.layout; });
-  return { route: w.route.join(','), layouts: layouts.join(','), variant: dungeon === 'kiln' ? q.rollKilnVariant() : dungeon === 'foundry' ? q.rollMaelraVariant() : dungeon === 'glarewell' ? q.rollLensVariant() : dungeon === 'coldmarrow' ? q.rollNhevraVariant() : dungeon === 'wrackline' ? q.rollHessaVariant() : dungeon === 'hammerdeep' ? q.rollOndrelVariant() : dungeon === 'ashvents' ? q.rollYsmeretVariant() : dungeon === 'pressworks' ? q.rollOskelVariant() : dungeon === 'crucible' ? q.rollSlagVariant() : dungeon === 'hoard' ? q.rollVorhulmVariant() : '-' };
+  return { route: w.route.join(','), layouts: layouts.join(','), variant: dungeon === 'kiln' ? q.rollKilnVariant() : dungeon === 'foundry' ? q.rollMaelraVariant() : dungeon === 'glarewell' ? q.rollLensVariant() : dungeon === 'coldmarrow' ? q.rollNhevraVariant() : dungeon === 'wrackline' ? q.rollHessaVariant() : dungeon === 'hammerdeep' ? q.rollOndrelVariant() : dungeon === 'ashvents' ? q.rollYsmeretVariant() : dungeon === 'pressworks' ? q.rollOskelVariant() : dungeon === 'crucible' ? q.rollSlagVariant() : dungeon === 'hoard' ? q.rollVorhulmVariant() : dungeon === 'smeltery' ? q.rollColossusVariant() : '-' };
 }
 
 let alike = 0, routeAlike = 0, fullBlocks = 0;

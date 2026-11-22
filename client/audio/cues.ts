@@ -168,6 +168,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   dieCut: { start: 'dieCutWarn' }, // Die Cut
   // Grandmother Slag's Brimming version: phase 2's pit fills and cooling islands rise in place of the Pour.
   brimming: { start: 'brimWarn' }, // The Brimming
+  // Old Vorhulm's Banked Coals version (phase 3, in place of Ember Spill): three coals to smother before he eats them.
+  bankedCoals: { start: 'bankWarn' }, // Banked Coals
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
@@ -200,6 +202,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
+  plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
   pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
   // The Flue (raid 4): the Furnace Regent. The Decrees sound from their own events (decree, decreePassed, decreeBurst).
   lastWord: { start: 'lastWordWarn', done: 'lastWord' }, // Last Word
@@ -521,6 +525,20 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
   const was = state.on;
   state.on = pressed;
   return pressed && !was ? { id: 'pressed' } : !pressed && was ? { id: 'pressedClear' } : null;
+}
+
+/**
+ * Old Vorhulm's Banked Coals (the Hoard, `bank` version): each coal lands as a `soak` event, and in the same tick the sim
+ * says what happened to it with an emberTaken (smothered) or emberEaten (he ate it) at the same spot. A missed coal
+ * blasts no one, so the generic soakFail would lie; the ember cue already says it. This drops those soak events.
+ */
+export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
+  // The soak event names its telegraph's owner now (#432): -4 is a Banked Coal. The same-spot match stays for older events.
+  evs = evs.filter((ev) => ev.type !== 'soak' || ev.owner !== -4);
+  const at = new Set<string>();
+  for (const ev of evs) if (ev.type === 'emberTaken' || ev.type === 'emberEaten') at.add(`${ev.x},${ev.y}`);
+  if (!at.size) return evs as E[];
+  return evs.filter((ev) => ev.type !== 'soak' || !at.has(`${ev.x},${ev.y}`));
 }
 
 /**

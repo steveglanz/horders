@@ -1032,6 +1032,13 @@ export const SOUNDS = {
     chime(note(3), 0.25, 0.12, 0.4),
   ),
   /** A hero takes a spilled ember: a bright pick-up tick. */
+  /** Banked Coals (Old Vorhulm's second version, phase 3): three coals banked to a glow round the room, a low ember
+   *  crackle with three rising glows (one per coal), so the party splits up to smother them before he eats them. */
+  bankWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.16, a: 0.5, lp: 4000, hp: 900, curve: 0.9, trem: [11, 0.6] }],
+    chime(G5, 0.15, 0.18, 0.5), chime(B5(), 0.45, 0.18, 0.5), chime(E6, 0.75, 0.2, 0.7),
+    [{ wave: 'saw', f: 90, f2: 130, dur: 1.2, vol: 0.12, a: 0.6, lp: 900, curve: 0.9 }],
+  ),
   emberTaken: join(
     [{ wave: 'noise', f: 0, dur: 0.02, vol: 0.2, lp: 9000, hp: 3000, curve: 3 }],
     chime(E6, 0, 0.16, 0.18), chime(A5 * 2, 0.05, 0.14, 0.22),
@@ -1078,6 +1085,15 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 0.5, delay: 0.12, vol: 0.2, lp: 7000, hp: 2200, trem: [24, 0.5], curve: 1.5 }],
   ),
   /** Wheel wind-up (2 s): the giant turns on his heel, stone grinding on stone with a slow ratchet. */
+  /** Plate Shift (the Cinder Colossus's second version, 2 s cast): his front plate grinds round his body, a rising
+   *  steel-on-steel slide with a rough grind through it, set apart from the Wheel's low turning rumble. */
+  plateShiftWarn: [
+    { wave: 'saw', f: 260, f2: 520, dur: 1.8, vol: 0.12, a: 0.2, lp: 2600, lp2: 4200, curve: 0.9, vib: [7, 0.015] },
+    { wave: 'noise', f: 0, dur: 1.8, vol: 0.22, a: 0.2, lp: 6000, hp: 1600, curve: 0.9, trem: [23, 0.6] },
+    { wave: 'square', f: 130, f2: 175, dur: 1.8, vol: 0.06, a: 0.3, lp: 1200, curve: 0.9 },
+  ],
+  /** Plate Shift lands: the plate locks into its new place with a heavy clunk. */
+  plateLock: join(clang(175, 0.35, 0.6), [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.25, lp: 6000, hp: 1200, curve: 3 }]),
   wheelWarn: join(
     [{ wave: 'saw', f: 70, f2: 105, dur: 1.9, vol: 0.26, a: 0.2, lp: 900, lp2: 1800, trem: [11, 0.5], curve: 0.8 },
      { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
@@ -1220,6 +1236,10 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   dieCutWarn: 2.0,
   // Grandmother Slag's Brimming (Phase 12 W3) opens with a cast start: -29.7 dB alone, mostly a low churn.
   brimWarn: 4.0,
+  // Old Vorhulm's Banked Coals (Phase 12 W3): 5.4 dB over the Hoard mix (heroes-r2 t8, SEEDS=1,2,7, n=32).
+  bankWarn: 1.5,
+  // The Colossus's Plate Shift (Phase 12 W3) is a cast start: -28.7 dB alone.
+  plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

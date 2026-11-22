@@ -7,7 +7,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -124,7 +124,7 @@ for (const dungeon of dungeons) {
       wearSet();
       w.step(inputs);
       const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge };
-      for (const ev of w.events) {
+      for (const ev of withoutBankedSoaks(w.events)) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
       }

@@ -5,14 +5,14 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { BRIM, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
+import { BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -556,6 +556,38 @@ describe('audio', () => {
     expect(myIsland(w)).toBe(1);
     expect(myIsland({ ...w, player: { x: 300 + BRIM.radius + 7, y: 0 } })).toBe(-1);
     for (const id of ['brimWarn', 'islandSink', 'islandRise'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
+  it('lets the ember cues tell a Banked Coal, not the missed-soak sound (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.bankedCoals).toEqual({ start: 'bankWarn' });
+    expect(PRIORITY.has('bankWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.bankWarn)).toBeLessThan(3);
+    const missed = [{ type: 'soak', ok: false, x: 10, y: 20 }, { type: 'heal', x: 0, y: 0, amount: 5 }, { type: 'emberEaten', x: 10, y: 20, fed: 1 }] as SimEvent[];
+    expect(withoutBankedSoaks(missed).map((e) => e.type)).toEqual(['heal', 'emberEaten']);
+    const smothered = [{ type: 'soak', ok: true, x: 5, y: 5 }, { type: 'emberTaken', x: 5, y: 5 }] as SimEvent[];
+    expect(withoutBankedSoaks(smothered).map((e) => e.type)).toEqual(['emberTaken']);
+    // The owner field says it outright (#432), with or without the ember event.
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -4 }] as SimEvent[])).toEqual([]);
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -2 }] as SimEvent[]).length).toBe(1);
+    // Any other soak (no ember at its spot) keeps its cue.
+    const other = [{ type: 'soak', ok: false, x: 1, y: 1 }, { type: 'emberTaken', x: 50, y: 50 }] as SimEvent[];
+    expect(withoutBankedSoaks(other).map((e) => e.type)).toEqual(['soak', 'emberTaken']);
+    // The sim must still answer each Banked Coal with an ember event at the coal's own spot.
+    const src = readFileSync('sim/world.ts', 'utf8');
+    expect(src).toContain("if (ok) this.events.push({ type: 'emberTaken', x: t.x, y: t.y });");
+    expect(src).toContain('else this.feedVorhulm(t.x, t.y);');
+  });
+
+  it('sets the Colossus\'s Plate Shift apart from the Wheel (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.plateShift).toEqual({ start: 'plateShiftWarn', done: 'plateLock' });
+    expect(PRIORITY.has('plateShiftWarn')).toBe(true);
+    expect(CAST_SOUNDS.plateShift.start).not.toBe(CAST_SOUNDS.wheel.start);
+    // The wind-up ends inside the 2 s cast (COLO.wheelCast).
+    expect(recipeLength(SOUNDS.plateShiftWarn)).toBeLessThanOrEqual(COLO.wheelCast);
+    expect(recipeLength(SOUNDS.plateLock)).toBeLessThan(3);
+    const smelt = { cls: 'duskblade' as const, acting: 1, dungeon: 'smeltery' };
+    expect(cueFor({ type: 'castDone', index: 0, id: 'plateShift' } as never, smelt)?.id).toBe('plateLock');
+    expect(cueFor({ type: 'wheel', hero: 1 } as never, smelt)?.id).toBe('wheelOnMe');
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {

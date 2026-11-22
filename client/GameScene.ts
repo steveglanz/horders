@@ -1207,7 +1207,8 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'wrackline') {
             this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
+            if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
@@ -1222,6 +1223,8 @@ export class GameScene extends Phaser.Scene {
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
+          // A Banked Coal (owner -4) has its own ember effects, and a missed one blasts nobody.
+          if (ev.owner === -4) break;
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
           if (!ev.ok) this.floatText(ev.x, ev.y, 'Brand missed!', '#ff8aa5', 16);
           break;
@@ -2822,7 +2825,8 @@ export class GameScene extends Phaser.Scene {
     const o = this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
-    const fa = w.colFacing;
+    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift).
+    const fa = w.colFacing + w.colPlate;
     if (w.bossPhase < 3) {
       // His plated front: a steel band round the front half, with a chevron where he faces.
       g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
