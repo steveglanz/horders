@@ -71,12 +71,18 @@ export interface SetFlags {
   bonded: boolean;
   /** Relayer: Relayed, +damage after a gold circle (on the soaker, and with 3 pieces the nearest ally too). */
   relayed: boolean;
+  /** Crawsplitter (3): Freed, +damage after the Craw breaks (on the breaker, and on the freed hero, who may wear none of it). */
+  freed: boolean;
+  /** Platewalker (2): behind the Cinder Colossus (World.behindColossus), where the set's bonuses apply. */
+  behind: boolean;
 }
 
 /** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
 export function setFlagsOf(
-  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number },
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number; freedT?: number },
   count: (id: SetId) => number,
+  /** The Smeltery: this hero stands in the Colossus's back arc (World.behindColossus). */
+  behind = false,
 ): SetFlags {
   const up = p.hp > 0;
   return {
@@ -87,10 +93,12 @@ export function setFlagsOf(
     covered: up && (p.coverT ?? 0) > 0,
     bonded: up && (p.bondT ?? 0) > 0,
     relayed: up && (p.relayT ?? 0) > 0,
+    freed: up && (p.freedT ?? 0) > 0,
+    behind: up && count('platewalker') >= 2 && behind,
   };
 }
 
-const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed' };
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed', freed: 'freed', behind: 'behindPlate' };
 
 /**
  * The set procs have no events of their own (they are states on the hero), so this sounds each one
@@ -99,7 +107,7 @@ const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 
 export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
   const out: Cue[] = [];
   for (const k of Object.keys(SET_SOUND) as (keyof SetFlags)[]) {
-    if (now[k] && !was[k]) out.push({ id: SET_SOUND[k], vol: k === 'planted' ? 0.8 : k === 'surge' ? 0.7 : 1 });
+    if (now[k] && !was[k]) out.push({ id: SET_SOUND[k], vol: k === 'planted' ? 0.8 : k === 'surge' || k === 'behind' ? 0.7 : 1 });
     was[k] = now[k];
   }
   return out;
@@ -196,6 +204,12 @@ export const SHADOW_STING: Record<string, SoundId> = {
   'Old Ashmaw': 'shadowCoal',
   'The Furnace Regent': 'shadowRegent',
 };
+
+/** Platewalker: whether this screen's hero stands behind the living Cinder Colossus now (any phase: Meltdown doesn't move his back). */
+export function behindColossusNow<E extends { kind: string; alive: boolean }>(w: { bossIndex: number; enemies: readonly E[]; player: { x: number; y: number }; behindColossus(e: E, x: number, y: number): boolean }): boolean {
+  const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+  return !!e && e.alive && e.kind === 'colossus' && w.behindColossus(e, w.player.x, w.player.y);
+}
 
 /** The bits of World that colossusCue reads. */
 interface ColossusView<E extends { kind: string; x: number; y: number; alive: boolean }> {
@@ -452,6 +466,8 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   covered: 2,
   bonded: 2,
   relayed: 2,
+  // Platewalker: a Sweep or Wheel knocks a hero out of his back about every 7 s (bots, tools/busycheck.ts); one cue in 3 s is enough.
+  behindPlate: 3,
   slag: 0.2,
   crit: 0.06,
   kill: 0.05,
