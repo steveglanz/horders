@@ -3,7 +3,8 @@
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
 import { HEAT_IDS } from '../sim/content/heat';
-import { World, WorldOptions, LayoutId } from '../sim/world';
+import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId } from '../sim/world';
+import { NAMED, AFFIXES } from '../sim/content/named';
 import type { DungeonId } from '../sim/content/dungeon';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -34,7 +35,7 @@ const only = process.env.ONLY;
  * `dropWhen`: once it returns a hero index (not -1), that hero stops playing (no input, first card in
  * drafts) for the rest of the run, like a guest who left: their hero stays in the world, idle.
  */
-type Case = { label: string; opts: WorldOptions; skill: number; dropWhen?: (w: World) => number };
+type Case = { label: string; opts: WorldOptions; skill: number; dropWhen?: (w: World) => number; setup?: () => void };
 const downstrokeUp = (w: World) => w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -3);
 const crawUp = (w: World) => w.enemies.some((e) => e.alive && e.kind === 'craw');
 /** The Hoard: the hero inside Old Vorhulm right now, or -1. */
@@ -127,11 +128,32 @@ for (const [r, want, picked] of RAID_LAYOUT_CASES) for (const seed of picked) fo
   // A guest leaves once the stones or vents are down: their idle hero stays on the floor for the rest of the run.
   raid(`${r.dungeon} ${want} drop in the layout fight`, 'bulwark', ['lumen', 'duskblade', 'emberwright'], (w) => (w.phase === 'fight' && w.layout === want ? 3 : -1));
 }
+// Phase 14 X8: every marked-foe trait and every arena event, forced (NAMED.forceAffix/forceNamed, ARENA_EVENTS.force),
+// so each one is played every run. X8_SEEDS seeds (default 4) at skill 1 and 0.5.
+const x8Seeds = (process.env.X8_SEEDS ?? '1,2,3,4').split(',').map(Number);
+const resetForces = () => { NAMED.forceAffix = -1; NAMED.forceNamed = 0; ARENA_EVENTS.force = ''; };
+const X8_SOLO: { dungeon: DungeonId; tier: number }[] = [
+  { dungeon: 'kiln', tier: 2 }, { dungeon: 'foundry', tier: 4 }, { dungeon: 'glarewell', tier: 7 }, { dungeon: 'coldmarrow', tier: 10 }, { dungeon: 'wrackline', tier: 13 },
+];
+for (const seed of x8Seeds) for (const skill of [1, 0.5]) {
+  for (const [ai, affix] of AFFIXES.entries()) {
+    const setup = () => { resetForces(); NAMED.forceAffix = ai; NAMED.forceNamed = 1; };
+    for (const d of X8_SOLO) cases.push({ label: `named ${affix} ${d.dungeon}`, skill, setup, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: d.dungeon, tier: d.tier, omens: [] } });
+    cases.push({ label: `named ${affix} hammerdeep trio`, skill, setup, opts: { seed, ...main('bulwark'), dungeon: 'hammerdeep', tier: 6, omens: [], party: (['lumen', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
+  }
+  for (const d of X8_SOLO) for (const ev of ARENA_EVENT_POOLS[d.dungeon] ?? []) for (const cls of CLASSES)
+    cases.push({ label: `arena ${ev} ${d.dungeon} ${cls}`, skill, setup: () => { resetForces(); ARENA_EVENTS.force = ev as ArenaEventId; }, opts: { seed, ...main(cls), dungeon: d.dungeon, tier: d.tier, omens: [] } });
+}
 let stuck = 0, longest = 0, mostAlive = 0;
 const layoutFights: Record<string, number> = {};
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
+const seenEvents: Record<string, number> = {};
+let trapped = 0;
 for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
+  resetForces();
+  c.setup?.();
   const w = new World(c.opts);
+  const inStone = w.heroes.map(() => 0);
   let maxAlive = 0;
   let gone = -1;
   let lastEnc = -1;
@@ -148,6 +170,17 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
     if (c.dropWhen && gone < 0) gone = c.dropWhen(w);
     const inputs = w.heroes.map((_, i) => { if (i === gone) return { x: 0, y: 0 }; w.use(i); const inp = botInput(w, c.skill); w.use(0); return inp; });
     w.step(inputs.length === 1 ? inputs[0] : inputs);
+    for (const e of w.events) {
+      if (e.type === 'arenaEvent' && e.stage === 'land') seenEvents[`arena ${e.id}`] = (seenEvents[`arena ${e.id}`] ?? 0) + 1;
+      if (e.type === 'namedSpawn') seenEvents[`named ${e.affix}`] = (seenEvents[`named ${e.affix}`] ?? 0) + 1;
+    }
+    // A hero standing inside a stone (a Cave-in landing on them) for 3 s or more is trapped.
+    w.heroes.forEach((_, i) => {
+      const p = w.heroPlayer(i);
+      const inside = p.hp > 0 && w.stones.some((c) => Math.hypot(p.x - c.x, p.y - c.y) < c.r);
+      inStone[i] = inside ? inStone[i] + TICK : 0;
+      if (inStone[i] >= 3 && inStone[i] < 3 + TICK) { trapped++; console.log(`TRAPPED ${c.label} skill ${c.skill} seed ${c.opts.seed}: hero ${i} inside a stone for 3 s at encounter ${w.encounter}`); }
+    });
     maxAlive = Math.max(maxAlive, w.aliveEnemies);
   }
   const key = `${c.label} skill ${c.skill}`;
@@ -164,5 +197,7 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   mostAlive = Math.max(mostAlive, maxAlive);
 }
 for (const [k, t] of Object.entries(tally)) console.log(`${k}: ${t.wins}/${t.runs} wins, longest ${t.longest.toFixed(0)} s`);
+resetForces();
 console.log(`layout fights played ${JSON.stringify(layoutFights)}`);
+console.log(`forced traits and events seen ${JSON.stringify(seenEvents)}; heroes trapped in a stone ${trapped}`);
 console.log(`runs ${cases.filter((k) => !only || k.label.startsWith(only)).length}, stuck ${stuck}, longest ${longest.toFixed(0)} s, most foes alive ${mostAlive}`);
