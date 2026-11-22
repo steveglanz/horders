@@ -473,6 +473,8 @@ export class GameScene extends Phaser.Scene {
       onStick: (x, y) => { this.stickVec.x = x; this.stickVec.y = y; },
       onCast: (slot) => this.cast(slot),
     });
+    // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
+    this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
   }
 
