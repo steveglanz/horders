@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, OUTSURGE } from '../sim/world';
 import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -272,6 +272,8 @@ export class GameScene extends Phaser.Scene {
    * shots of Maelra and Ondrel). With darkness and props both before the main graphics, 48 checked frames were whole.
    */
   private darkGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The Wrackline's water marks (raft wakes, Hessa's Outsurge surf), over the rafts (0.9) and under the main graphics. */
+  private surfGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
   private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
@@ -352,6 +354,7 @@ export class GameScene extends Phaser.Scene {
     this.lavaStrips = [];
     this.steamGfx = null;
     this.darkGfx = null;
+    this.surfGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
@@ -1602,7 +1605,7 @@ export class GameScene extends Phaser.Scene {
     if (this.world.dungeonId === 'flue') this.flueMarks(now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
-    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
+    else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -3641,6 +3644,9 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
       }
     }
+    if (!this.surfGfx) this.surfGfx = this.add.graphics().setDepth(1.35);
+    const sg = this.surfGfx.clear();
+    if (w.outsurge && (warn || pulling)) this.outsurgeDraw(sg, now, pulling);
     // The raft texture's deck is 248 of its 256 px across.
     const scale = (WRACK.raftR * 2) / 248;
     w.rafts.forEach((r, i) => {
@@ -3662,6 +3668,8 @@ export class GameScene extends Phaser.Scene {
         }
         return;
       }
+      // Phase 12 W1: which way each raft drifts changes from fight to fight, so it trails a wake.
+      this.raftWake(sg, r, now, w.wrackPhase >= 2 && !w.outsurge);
       // A slight bob and roll, so a raft reads as afloat even while it drifts slowly.
       const bob = 1 + Math.sin(now / 650 + i * 2) * 0.012;
       im.deck.setVisible(true).setPosition(r.x, r.y).setScale(scale * bob).setRotation(Math.sin(now / 1900 + i) * 0.04);
@@ -3674,6 +3682,70 @@ export class GameScene extends Phaser.Scene {
     for (let i = w.rafts.length; i < this.raftImgs.length; i++) { this.raftImgs[i].deck.setVisible(false); this.raftImgs[i].rim.setVisible(false); }
   }
 
+/**
+   * Phase 12 W1, Hessa's Outsurge: while the Ebb runs outward, the outer OUTSURGE.rimR of the arena is breaking surf
+   * that burns. A band of churned water with foam crests rolling out to the rim; its inner edge, where the burn starts,
+   * is a dashed danger line through the warning and a solid one through the pull. Drawn under the main graphics, so a
+   * class ring or a telegraph in the surf still shows on top.
+   */
+  private outsurgeDraw(sg: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
+    const R = this.world.arenaR ?? ARENA;
+    const band = OUTSURGE.rimR;
+    const r0 = R - band;
+    const pulse = pulling ? 1 : 0.55 + 0.35 * Math.sin(now / 120);
+    sg.lineStyle(band, 0x0e5060, (pulling ? 0.5 : 0.22) * (0.8 + 0.2 * pulse)).strokeCircle(0, 0, r0 + band / 2);
+    // Foam crests: broken arcs rolling outward across the band, brightest mid-way, fading as they reach the rim.
+    const crests = this.lowFx ? 2 : 3;
+    for (let j = 0; j < crests; j++) {
+      const t = (now / (pulling ? 650 : 1300) + j / crests) % 1;
+      const rr = r0 + t * band;
+      const al = (pulling ? 0.75 : 0.4) * Math.sin(t * Math.PI);
+      const segs = 28;
+      for (let k = 0; k < segs; k++) {
+        const a = (k / segs) * Math.PI * 2 + j * 0.7 + Math.sin(k * 3.7 + j) * 0.05;
+        sg.lineStyle(pulling ? 3 : 2, 0xe6fbff, al).beginPath().arc(0, 0, rr, a, a + ((Math.PI * 2) / segs) * 0.62).strokePath();
+      }
+    }
+    // The burn line.
+    if (pulling) sg.lineStyle(3, DANGER, 0.85).strokeCircle(0, 0, r0);
+    else {
+      const dashes = 48;
+      for (let k = 0; k < dashes; k++) {
+        const a = (k / dashes) * Math.PI * 2 + now / 4000;
+        sg.lineStyle(2.5, DANGER, 0.45 + 0.4 * pulse).beginPath().arc(0, 0, r0, a, a + ((Math.PI * 2) / dashes) * 0.55).strokePath();
+      }
+    }
+  }
+
+  /**
+   * Phase 12 W1: a raft's wake, two foam lines spreading behind it and bubbles slipping back along them, so the way a
+   * raft drifts reads at a glance. Longer in Riptide, when the rafts drift faster.
+   */
+  private raftWake(sg: Phaser.GameObjects.Graphics, r: { a: number; dir: number; x: number; y: number }, now: number, fast: boolean): void {
+    const R = WRACK.raftR;
+    // Travel direction: along the ring, the way the raft turns.
+    const tx = -Math.sin(r.a) * r.dir, ty = Math.cos(r.a) * r.dir;
+    const nx = Math.cos(r.a), ny = Math.sin(r.a);
+    const L = R * (fast ? 1.1 : 0.75);
+    // White water churned up against the raft's stern.
+    const back = Math.atan2(-ty, -tx);
+    sg.lineStyle(7, 0x7fd0e0, 0.22).beginPath().arc(r.x, r.y, R + 4, back - 0.85, back + 0.85).strokePath();
+    sg.lineStyle(2.5, 0xeafaff, 0.6).beginPath().arc(r.x, r.y, R + 3, back - 0.7, back + 0.7).strokePath();
+    for (const side of [-1, 1]) {
+      // From the raft's rear quarter, out and back.
+      const sx = r.x - tx * R * 0.72 + nx * side * R * 0.69, sy = r.y - ty * R * 0.72 + ny * side * R * 0.69;
+      const ex = sx - tx * L + nx * side * L * 0.4, ey = sy - ty * L + ny * side * L * 0.4;
+      sg.lineStyle(7, 0x7fd0e0, 0.2).lineBetween(sx, sy, ex, ey);
+      sg.lineStyle(2.5, 0xd8f6ff, 0.55).lineBetween(sx, sy, ex, ey);
+      if (this.lowFx) continue;
+      for (let k = 0; k < 3; k++) {
+        const t = (now / (fast ? 500 : 900) + k / 3 + (side > 0 ? 0.17 : 0)) % 1;
+        sg.fillStyle(0xeafaff, 0.6 * (1 - t)).fillCircle(sx + (ex - sx) * t, sy + (ey - sy) * t, 2.4 - t);
+      }
+    }
+  }
+
+ 
  private coldDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
