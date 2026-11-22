@@ -7395,6 +7395,11 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   glarewell: ['open', 'open', 'vents'],
   // V8: the Coldmarrow's fires are out, so no vents or lava: ice pillars only.
   coldmarrow: ['open', 'open', 'pillars'],
+  // Phase 13 E1: raid trash gets stones and vents too (never the boss fight, see layoutRolls).
+  crucible: ['open', 'open', 'pillars', 'vents'],
+  hoard: ['open', 'open', 'pillars', 'vents'],
+  smeltery: ['open', 'open', 'pillars', 'vents'],
+  flue: ['open', 'open', 'pillars', 'vents'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /** V3: the Kiln Mother's phase-2 signature this run. */
