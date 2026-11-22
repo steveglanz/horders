@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW } from '../sim/world';
-import { ENCOUNTERS, KILN_DRAW_TIP } from '../sim/content/dungeon';
+import { ENCOUNTERS, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1178,6 +1178,10 @@ export class GameScene extends Phaser.Scene {
         case 'bossSpawn':
           this.shake = 0.6;
           break;
+        case 'tideTurn':
+          // V8: Maelra's Sluicetide changes course (visuals draw the current).
+          this.hud.ding('The tide turns');
+          break;
         case 'namedSpawn': {
           this.hud.banner(ev.name, `A named foe (${ev.affix}). It carries its own loot.`);
           // It steps out of the pack: a blue flare, rings and a little shake.
@@ -1218,7 +1222,7 @@ export class GameScene extends Phaser.Scene {
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
-          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : def.tip;
+          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }

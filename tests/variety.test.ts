@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
@@ -305,5 +305,71 @@ describe('V8 variety: the Drowned Foundry', () => {
       expect(w.layout).toBe('open');
     }
     expect([...seen].sort()).toEqual(['open', 'pillars', 'vents']);
+  });
+});
+
+describe('V8 variety: Maelra\'s Sluicetide', () => {
+  type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
+    rollMaelraVariant(): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
+  function maelra(variant: 'water' | 'tide'): { w: World; q: M; b: number } {
+    const w = new World({ seed: 9, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+    const q = w as unknown as M;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('maelra', 300, 300);
+    q.bossIndex = b; q.bossSpawned = true;
+    q.startMaelra();
+    w.bossVariant = variant;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; // phase 2
+    w.enemies[b].abilityT = 99;
+    w.player.x = 0; w.player.y = 0;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' }) as unknown as M;
+      const b = new World({ seed, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' }) as unknown as M;
+      expect(a.rollMaelraVariant()).toBe(b.rollMaelraVariant());
+      seen.add(a.rollMaelraVariant());
+    }
+    expect([...seen].sort()).toEqual([...MAELRA_VARIANTS].sort());
+  });
+
+  it('Rising Water shrinks the arena; the Sluicetide keeps it and pushes you one way, then turns', () => {
+    const water = maelra('water');
+    const full = water.w.arenaR;
+    water.q.runMaelra(water.b, 5);
+    expect(water.w.arenaR).toBeLessThan(full);
+    const { w, q, b } = maelra('tide');
+    const r0 = w.arenaR;
+    q.runMaelra(b, 0.01);
+    expect(w.events.filter((e) => e.type === 'tideTurn')).toHaveLength(1);
+    const a0 = w.tideAngle;
+    w.player.x = 0; w.player.y = 0;
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBeCloseTo(Math.cos(a0) * SLUICETIDE.drift, 5);
+    expect(w.player.y).toBeCloseTo(Math.sin(a0) * SLUICETIDE.drift, 5);
+    expect(w.arenaR).toBe(r0);
+    q.runMaelra(b, SLUICETIDE.turnEvery);
+    expect(w.events.filter((e) => e.type === 'tideTurn')).toHaveLength(2);
+    expect(Math.abs(Math.cos(w.tideAngle - a0) + 1)).toBeGreaterThan(0.01); // never straight back
+  });
+
+  it('phase 1 has no tide', () => {
+    const { w, q, b } = maelra('tide');
+    w.enemies[b].hp = w.enemies[b].maxHp;
+    q.runMaelra(b, 1);
+    expect(w.events.some((e) => e.type === 'tideTurn')).toBe(false);
+    expect(w.player.x).toBe(0);
+  });
+
+  it('online co-op: a guest sees the same version and current', () => {
+    const { w } = maelra('tide');
+    w.tideAngle = 1.25;
+    const g = new World({ seed: 9, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.bossVariant).toBe('tide');
+    expect(g.tideAngle).toBe(1.25);
   });
 });

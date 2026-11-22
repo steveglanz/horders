@@ -156,3 +156,27 @@ The target was no two runs alike in 20, and the Kiln now meets it in all 50 bloc
 | Tier 6, hero-t6, good bot | 54 | 50 |
 
 Hashcheck: only the Foundry rows move. Maelra's second version is part 2.
+
+## V8 status, part 2 (built 22 Nov 2026): Maelra's Sluicetide
+- **Two versions:** as Maelra rises, the run rolls `bossVariant` from the seed (a hash, no run-rng draws). It is either `water`, today's Rising Water where the arena shrinks from phase 2, or `tide`, the **Sluicetide**. Phase 1, Temper, the vents and Undertow are the same in both.
+- **Sluicetide** (from phase 2):
+  - The arena keeps its size.
+  - The water pushes every hero 45 px/s one way (heroes run at 128 to 152).
+  - Every 8 s it turns a quarter or an eighth, never straight back. Each turn emits `tideTurn {angle}`, and `World.tideAngle` holds the flow.
+  - You kite her through the vents while leaning against the current. Tuning is in `SLUICETIDE` (sim/world.ts).
+- **Intro:** the boss banner says so (`SLUICETIDE_TIP`), and "The tide turns" shows on each turn until visuals draw the current.
+- **Co-op:** `bossVariant` and `tideAngle` are synced scalars, and the push moves every living hero.
+- **Name:** "Sluicetide" is an invented word. Web searches on 22 Nov 2026 found no WoW match. "Crosscurrent" was dropped because it may be a WoW spell name. The plan's "Undertow" is already a Maelra cast.
+
+**Measured** with tools/foundry.ts, geared reference heroes, seeds 1 to 60. The boss counts are wins out of the runs that reached Maelra, split by this run's version, part 1 → part 2:
+
+| Check | All runs | Boss, water seeds | Boss, tide seeds |
+|---|---|---|---|
+| Tier 4, hero-t4, good bot | 59 → 58 | 27 of 27, same | 32 → 31 of 32 |
+| Tier 4, hero-t4, `SKILL=0.5` | 54 → 54 | 22 of 24, same | 32 of 32, same |
+| Tier 4, hero-t4 as a Bulwark, `SKILL=0.5` | 59 → 59 | 28 of 28, same | 31 of 31, same |
+| Tier 6, hero-t6, good bot | 50 → 53 | 25 of 25, same | 25 → 28 of 31 |
+
+The two versions are about as hard. A Bulwark's fight runs longer with the tide (125 s against 113 s on average). Hashcheck: only Foundry rows move.
+
+**Run variety** with both parts (tools/variety.ts, tier 4, which now counts Maelra's version): 2 runs of 1000 repeat an earlier run in their block of 20 (was 398 before V8), with 925 distinct run shapes.
