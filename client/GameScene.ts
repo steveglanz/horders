@@ -251,6 +251,10 @@ export class GameScene extends Phaser.Scene {
   private enemyFrames: number[] = [];
   private motes: { img: Phaser.GameObjects.Image; ph: number; sp: number }[] = [];
   private ventSprites: Phaser.GameObjects.Image[] = [];
+  /** V5 (variety): the Kiln's layout art, pooled and matched to World.stones / lava / flareVents each frame. */
+  private stoneImgs: Phaser.GameObjects.Image[] = [];
+  private kilnVentImgs: Phaser.GameObjects.Image[] = [];
+  private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -312,6 +316,9 @@ export class GameScene extends Phaser.Scene {
     this.enemyFrames = [];
     this.motes = [];
     this.ventSprites = [];
+    this.stoneImgs = [];
+    this.kilnVentImgs = [];
+    this.lavaStrips = [];
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1039,6 +1046,9 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         // The Flue: a Decree lands with a flare, a pass flashes on its new holder, and a burst rolls out over everyone.
+        case 'ventFlare':
+          this.ring(ev.x, ev.y, LAYOUT.ventRadius, 0xffb060, 0.35);
+          break;
         case 'decree': {
           const q = this.heroXY(ev.hero);
           this.ring(q.x, q.y, 70, 0xff6a3d, 0.4);
@@ -1719,25 +1729,7 @@ export class GameScene extends Phaser.Scene {
       this.bossFlash = Math.max(0, this.bossFlash - this.game.loop.delta / 700);
       g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
-    // V2 (variety) arena layouts: placeholder shapes until visuals' art (V5). They match the sim exactly:
-    // stones block (World.stones), lava burns inside its width (World.lava), vents flare in turn (World.flareVents).
-    for (const c of w.lava) {
-      const glow = 0.5 + 0.12 * Math.sin(now / 260);
-      g.lineStyle(c.w, 0x3a0e04, 0.85).lineBetween(c.x1, c.y1, c.x2, c.y2);
-      g.lineStyle(c.w * 0.7, 0xff5a14, glow).lineBetween(c.x1, c.y1, c.x2, c.y2);
-      g.lineStyle(c.w * 0.25, 0xffd27a, glow * 0.8).lineBetween(c.x1, c.y1, c.x2, c.y2);
-    }
-    for (const c of w.stones) {
-      g.fillStyle(0x000000, 0.35).fillCircle(c.x + 6, c.y + 8, c.r);
-      g.fillStyle(0x4a3c36, 1).fillCircle(c.x, c.y, c.r);
-      g.lineStyle(3, 0x7a6658, 1).strokeCircle(c.x, c.y, c.r);
-      g.fillStyle(0x5d4c44, 1).fillCircle(c.x - c.r * 0.25, c.y - c.r * 0.3, c.r * 0.45);
-    }
-    for (const v of w.flareVents) {
-      g.fillStyle(0x1c120e, 0.9).fillCircle(v.x, v.y, 26);
-      g.lineStyle(3, 0xff8a3a, 0.55 + 0.2 * Math.sin(now / 300)).strokeCircle(v.x, v.y, 26);
-      g.lineStyle(1.5, 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
-    }
+    this.layoutDraw(g, now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -2348,6 +2340,51 @@ export class GameScene extends Phaser.Scene {
    *   hero's time.
    * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
    */
+  /**
+   * V5 (variety): the Kiln's arena layouts, matched to the sim each frame.
+   * - Stones (World.stones): basalt stumps whose base circle is the stone's r, so what blocks you is what you see.
+   * - Lava (World.lava): a scrolling lava strip exactly c.w wide, with dark crust edges and a heat glow.
+   * - Vents (World.flareVents): brick fire pits that rest dim and flare up while their circle is on the floor.
+   * Pools are created on first need and hidden when a fight has fewer.
+   */
+  private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    w.stones.forEach((c, k) => {
+      let img = this.stoneImgs[k];
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
+    });
+    for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
+    w.lava.forEach((c, k) => {
+      const len = Math.hypot(c.x2 - c.x1, c.y2 - c.y1);
+      const ang = Math.atan2(c.y2 - c.y1, c.x2 - c.x1);
+      let ts = this.lavaStrips[k];
+      if (!ts) ts = this.lavaStrips[k] = this.add.tileSprite(0, 0, 64, 64, 'lavaTile').setDepth(1.5);
+      ts.setVisible(true).setPosition((c.x1 + c.x2) / 2, (c.y1 + c.y2) / 2).setSize(len, c.w).setRotation(ang);
+      ts.tilePositionX = -now / 60;
+      // Heat glow either side, then dark crust on the edges, so the burning width reads exactly.
+      const nx = -Math.sin(ang), ny = Math.cos(ang), hw = c.w / 2;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+      g.lineStyle(c.w + 26, 0xff5a14, 0.1 + 0.05 * pulse).lineBetween(c.x1, c.y1, c.x2, c.y2);
+      for (const sd of [-1, 1]) {
+        g.lineStyle(5, 0x2a0a04, 0.95).lineBetween(c.x1 + nx * hw * sd, c.y1 + ny * hw * sd, c.x2 + nx * hw * sd, c.y2 + ny * hw * sd);
+        g.lineStyle(2, 0xffb060, 0.7).lineBetween(c.x1 + nx * (hw - 4) * sd, c.y1 + ny * (hw - 4) * sd, c.x2 + nx * (hw - 4) * sd, c.y2 + ny * (hw - 4) * sd);
+      }
+    });
+    for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
+    w.flareVents.forEach((v, k) => {
+      let img = this.kilnVentImgs[k];
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, 'kilnVent').setDepth(1.4);
+      // Its turn: a flare circle of its radius sits on it.
+      const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
+      const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
+      img.setVisible(true).setPosition(v.x, v.y).setScale(0.5 + 0.06 * f).setAlpha(hot ? 1 : 0.85);
+      if (hot) g.fillStyle(0xff8a3a, 0.18 + 0.12 * f).fillCircle(v.x, v.y, 40);
+      g.lineStyle(1.5, 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
+    });
+    for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
+  }
+
   /** Where hero `k` is drawn: your own sprite, an ally's, or the sim's position. */
   private heroXY(k: number): { x: number; y: number } {
     const w = this.world;
