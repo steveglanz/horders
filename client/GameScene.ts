@@ -277,6 +277,8 @@ export class GameScene extends Phaser.Scene {
   private surfGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 12 W2: the Wandering Vents' trail and chevrons, under the main graphics (1.9) like the other floor tells. */
   private wanderGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
+  private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
   private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
@@ -362,6 +364,7 @@ export class GameScene extends Phaser.Scene {
     this.darkGfx = null;
     this.surfGfx = null;
     this.wanderGfx = null;
+    this.dieGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
@@ -1824,6 +1827,7 @@ export class GameScene extends Phaser.Scene {
     this.layoutDraw(g, now);
     this.edgeDraw(now);
     this.wanderDraw(now);
+    this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
     this.glintDraw(now);
@@ -2502,7 +2506,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2525,7 +2529,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : w.dungeonId === 'pressworks' ? 'pressVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
@@ -3761,6 +3765,53 @@ export class GameScene extends Phaser.Scene {
         const al = 0.8 * Math.sin(u * Math.PI);
         g.lineStyle(3.5, SOAK, al).beginPath().moveTo(cx - tx * 7 + nx * 10, cy - ty * 7 + ny * 10).lineTo(cx + tx * 7, cy + ty * 7).lineTo(cx - tx * 7 - nx * 10, cy - ty * 7 - ny * 10).strokePath();
       }
+    }
+  }
+
+  /**
+   * Phase 12 W2, Oskel's Die Cut: the half-floor 'hit' cone (arc pi) through him reads as a stamping die coming down.
+   * Over the doomed half, steel die lines run parallel to the cut and close in on it as the fuse burns; the cut itself is
+   * a white-hot blade edge with a danger glow and teeth biting into the doomed side, brighter and faster near the end.
+   * Under the main graphics (1.9), so the cone's own red fill and every class ring stay on top.
+   */
+  private dieCutDraw(now: number): void {
+    const w = this.world;
+    const t = w.dungeonId === 'pressworks' ? w.telegraphs.find((q) => q.alive && q.shape === 'cone' && q.kind === 'hit' && q.arc >= Math.PI - 1e-3 && q.r >= ARENA * 1.5) : undefined;
+    if (!t) { this.dieGfx?.clear(); return; }
+    if (!this.dieGfx) this.dieGfx = this.add.graphics().setDepth(1.9);
+    const g = this.dieGfx.clear();
+    const R = w.arenaR ?? ARENA;
+    const u = Math.min(1, t.t / t.dur);
+    const nx = Math.cos(t.angle), ny = Math.sin(t.angle); // into the doomed half
+    const dx = -ny, dy = nx; // along the cut
+    // The chord of the arena circle along the line through p in direction (dx, dy).
+    const chord = (px: number, py: number): [number, number, number, number] | null => {
+      const b = px * dx + py * dy, c = px * px + py * py - R * R, disc = b * b - c;
+      if (disc <= 0) return null;
+      const s0 = -b - Math.sqrt(disc), s1 = -b + Math.sqrt(disc);
+      return [px + dx * s0, py + dy * s0, px + dx * s1, py + dy * s1];
+    };
+    // Die lines over the doomed half, sliding toward the edge.
+    const gap = 46;
+    const slide = ((now / (u > 0.7 ? 160 : 320)) % 1) * gap;
+    for (let o = gap - slide; o < R * 2; o += gap) {
+      const c = chord(t.x + nx * o, t.y + ny * o);
+      if (!c) continue;
+      g.lineStyle(6, 0x1a1c22, 0.35).lineBetween(c[0], c[1], c[2], c[3]);
+      g.lineStyle(2, 0xc8ccd8, 0.18 + 0.2 * u).lineBetween(c[0], c[1], c[2], c[3]);
+    }
+    const e = chord(t.x, t.y);
+    if (!e) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / (u > 0.7 ? 50 : 110));
+    g.lineStyle(16, DANGER, 0.25 + 0.25 * u).lineBetween(e[0], e[1], e[2], e[3]);
+    g.lineStyle(5, 0xf4f6ff, 0.6 + 0.35 * pulse * u).lineBetween(e[0], e[1], e[2], e[3]);
+    // Teeth along the edge, biting into the doomed side.
+    const len = Math.hypot(e[2] - e[0], e[3] - e[1]);
+    const step = 30;
+    g.fillStyle(0xdfe3ee, 0.55 + 0.3 * u);
+    for (let s = step / 2; s < len; s += step) {
+      const x = e[0] + dx * s, y = e[1] + dy * s;
+      g.fillTriangle(x - dx * 8, y - dy * 8, x + dx * 8, y + dy * 8, x + nx * 13, y + ny * 13);
     }
   }
 
