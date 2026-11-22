@@ -258,6 +258,13 @@ export class GameScene extends Phaser.Scene {
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
   private steamGfx: Phaser.GameObjects.Graphics | null = null;
+  /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
+  private tideGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The current's drawn direction, eased toward World.tideAngle so a turn swings round instead of snapping. */
+  private tideShown = 0;
+  private tideOn = false;
+  /** A turn's beat: 1 on tideTurn, fading to 0. */
+  private tideBeat = 0;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -323,6 +330,9 @@ export class GameScene extends Phaser.Scene {
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
+    this.tideGfx = null;
+    this.tideOn = false;
+    this.tideBeat = 0;
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1179,6 +1189,11 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'tideTurn':
+          // V8: Maelra's Sluicetide changes course (visuals draw the current).
+          this.hud.ding('The tide turns');
+          this.tideBeat = 1;
+          break;
         case 'bossSpawn':
           this.shake = 0.6;
           break;
@@ -1747,6 +1762,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.layoutDraw(g, now);
     this.kilnDrawTell(g, now);
+    this.tideDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -2411,6 +2427,50 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1.5, wet ? 0x9fe8da : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
+  }
+
+  /**
+   * V8 (variety): Maelra's Sluicetide. From her phase 2 (60% health) on a tide run, the whole arena flows: a lattice of
+   * pale water streaks drifts along World.tideAngle, faster than the heroes are pushed so the way reads at a glance,
+   * with a faint teal wash over the floor. On each turn (tideTurn) the streaks flare brighter and swing round to the
+   * new way. It sits on its own layer under the main graphics, so it never covers a class ring or a danger area.
+   */
+  private tideDraw(now: number): void {
+    const w = this.world;
+    const m = w.bossVariant === 'tide' ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
+    if (!m || m.hp > m.maxHp * 0.6) { this.tideGfx?.clear(); this.tideOn = false; return; }
+    if (!this.tideGfx) this.tideGfx = this.add.graphics().setDepth(1.3);
+    const g = this.tideGfx;
+    g.clear();
+    const dt = Math.min(0.1, this.game.loop.delta / 1000);
+    if (!this.tideOn) { this.tideOn = true; this.tideShown = w.tideAngle; }
+    const d = Math.atan2(Math.sin(w.tideAngle - this.tideShown), Math.cos(w.tideAngle - this.tideShown));
+    this.tideShown += d * Math.min(1, dt * 5);
+    this.tideBeat = Math.max(0, this.tideBeat - dt * 1.2);
+    const ux = Math.cos(this.tideShown), uy = Math.sin(this.tideShown), px = -uy, py = ux;
+    const R = w.arenaR;
+    g.fillStyle(0x2fa596, 0.06 + 0.06 * this.tideBeat).fillCircle(0, 0, R);
+    // The lattice in flow space (a along the current, b across it), clipped to what the camera sees and to the arena.
+    const view = this.cameras.main.worldView;
+    const cx = view.centerX, cy = view.centerY, half = Math.hypot(view.width, view.height) / 2 + 60;
+    const S = this.lowFx ? 110 : 70, L = 150, len = 38;
+    const ca = cx * ux + cy * uy, cb = cx * px + cy * py;
+    const shift = ((now / 1000) * 120) % L;
+    const alpha = 0.2 + 0.3 * this.tideBeat;
+    g.lineStyle(3, 0xbff6ea, alpha);
+    for (let j = Math.floor((cb - half) / S); j <= Math.ceil((cb + half) / S); j++) {
+      const b = j * S;
+      const off = (((j * 2654435761) >>> 0) % 1000) / 1000 * L;
+      for (let i = Math.floor((ca - half) / L) - 1; i <= Math.ceil((ca + half) / L); i++) {
+        const a = i * L + off + shift;
+        const x = a * ux + b * px, y = a * uy + b * py;
+        if (x * x + y * y > (R - 12) * (R - 12)) continue;
+        g.lineBetween(x - ux * len, y - uy * len, x, y);
+        // A small head, so each streak is also an arrow.
+        g.lineBetween(x, y, x - ux * 10 + px * 7, y - uy * 10 + py * 7);
+        g.lineBetween(x, y, x - ux * 10 - px * 7, y - uy * 10 - py * 7);
+      }
+    }
   }
 
   /**
