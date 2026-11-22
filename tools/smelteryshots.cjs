@@ -47,6 +47,8 @@ const SCENES = [
       const w = window.__ember.scene().world;
       const e = w.enemies.find((o) => o.alive && o.kind === 'colossus');
       if (sc.hp) e.hp = e.maxHp * sc.hp;
+      // The Wheel is the 'wheel' version's phase 2 (W3 added Plate Shift as 'shift'); pin it so the shot is the Wheel.
+      if (sc.until === 'wheel') w.bossVariant = 'wheel';
     }, sc);
     // The predicate freezes the scene itself the moment it holds (a frame can run 0.25 s x warp of sim).
     await page.waitForFunction((sc) => {
