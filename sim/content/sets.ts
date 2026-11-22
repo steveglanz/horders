@@ -7,7 +7,7 @@
 import type { DungeonId } from './dungeon';
 import type { Slot } from './items';
 
-export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound' | 'relay';
+export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound' | 'relay' | 'crawsplitter' | 'platewalker';
 
 export interface SetDef {
   id: SetId;
@@ -59,11 +59,19 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'relay', name: 'Relayer', verb: 'Take turns', dungeon: 'pressworks',
     bonus: ['Standing in a gold circle when it lands gives you 8% more damage for 12s.', 'It also gives the nearest ally 8% more damage for 12s.'],
   },
+  crawsplitter: {
+    id: 'crawsplitter', name: 'Crawsplitter', verb: 'Break them free', dungeon: 'hoard',
+    bonus: ['Your hits on the Craw deal 25% more damage.', 'When you break the Craw, you and the hero it frees deal 8% more damage for 10s.'],
+  },
+  platewalker: {
+    id: 'platewalker', name: 'Platewalker', verb: 'Get behind him', dungeon: 'smeltery',
+    bonus: ['Behind the Cinder Colossus (outside his front and sides), you take 6% less damage.', 'Behind him, your hits deal 6% more damage.'],
+  },
 };
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
 
-/** The set a dungeon drops, if it has one. Every dungeon has one since the raid's Kinbound. */
+/** The set a dungeon drops, if it has one. Every dungeon has one, the three raids included. */
 export function setForDungeon(d: DungeonId): SetId | undefined {
   return SET_IDS.find((s) => SETS[s].dungeon === d);
 }
@@ -86,4 +94,8 @@ export const SET_TUNING = {
   knCovered: 0.06, knBond: 0.06, knTime: 4,
   /** Relay: the damage after you soak a gold circle (2; 3 also gives it to the nearest ally), and how long it lasts. */
   rlDamage: 0.08, rlTime: 12,
+  /** Crawsplitter: extra damage to the Craw (2), and the damage for the breaker and the freed hero after a break (3), and how long. */
+  csCraw: 0.25, csFreed: 0.08, csTime: 10,
+  /** Platewalker: the cut while behind the Colossus (2) and the damage while behind him (3). Behind is the same back arc as COLO.backArc. */
+  pwCut: 0.06, pwDamage: 0.06,
 };

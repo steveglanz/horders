@@ -1280,6 +1280,18 @@ export class GameScene extends Phaser.Scene {
       }
       al.label.setPosition(ax, ay - (al.tag ? 34 + al.tag.height : 34)).setText(down ? `${al.name} · down` : al.name);
       setColorIf(al.label, down ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color);
+      // A hero near the edge of a phone's view kept their name centred over them, so half of it ran off screen
+      // ("Emberwri"). The name and title slide inward to stay whole; the hero's ring still marks where they are.
+      const ev = cam.worldView;
+      const pad = 6 / cam.zoom;
+      const keepIn = (t: Phaser.GameObjects.Text, extraL: number) => {
+        const hw = t.displayWidth / 2;
+        const lo = ev.x + pad + hw + extraL;
+        const hi = ev.right - pad - hw;
+        if (lo < hi) t.x = Math.min(hi, Math.max(lo, t.x));
+      };
+      keepIn(al.label, al.mark ? al.label.displayHeight * 0.78 + 4 : 0);
+      if (al.tag) keepIn(al.tag, 0);
     }
     this.unstackLabels();
     // A bot's mark rides just left of its name (after the names lift apart), at the name's cap height.
@@ -1980,6 +1992,12 @@ export class GameScene extends Phaser.Scene {
       t.vx *= 0.92;
       // Pop in big, settle, then fade.
       t.txt.setScale(1 + Math.max(0, 1 - t.age / 0.14) * 0.7);
+      // A long call-out ("Swallowed! Break the Craw") over a hero near the edge of a phone's view ran off it: keep it
+      // whole inside the view (its origin is its centre).
+      const fhw = t.txt.displayWidth / 2;
+      const flo = view.x + 4 / cam.zoom + fhw;
+      const fhi = view.right - 4 / cam.zoom - fhw;
+      if (flo < fhi) t.txt.x = Math.min(fhi, Math.max(flo, t.txt.x));
       t.txt.setAlpha(Math.min(1, t.life * 2.5));
       if (t.life <= 0) t.txt.setVisible(false);
     }

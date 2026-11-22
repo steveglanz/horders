@@ -160,6 +160,16 @@ Y9 to Y12 are done. These are checks with tools that already exist, so each item
 | Z4 | **Season 7 and 8 rewards:** a glow or trail unlock in Seasons 7 and 8 plays the same reward cue as Seasons 1 to 6 (check the new trail styles from #327 go through it) | sound | ✅ Every season's glows and trail stages, 1 to 8, play `unlock` (rewardCues); a test covers all of them. The trail style is drawing only and never reaches the cue |
 | Z5 | **Raid class coverage, round 2:** the Bellows Slagbinder without a Duskblade (about 19 of 40 in both raids) and Duskblade stacking (two blades, or a blade beside a Bellows Slagbinder, over 70%). Target: every party 22 to 28 of 40 in the Hoard (t9) and the Smeltery (t10), base party unchanged | skills | ⏭ After #324 |
 
+### Phase 9: verb sets for the newer raids (planned by game design, 22 Nov 2026)
+Every dungeon drops a verb set (R4) except the two newest raids: `setForDungeon('hoard')` and `setForDungeon('smeltery')` returned nothing, so their head, hands and trinket drops were plain. Phase 9 gives each one a set built on the check it teaches.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| A1 | **Crawsplitter** (the Hoard, "break them free") and **Platewalker** (the Smeltery, "get behind him"): sets, `SET_TUNING` cs*/pw*, the Crawsplitter buff chip, tests | design | ✅ Phase 9 PR. Behind means the Colossus's back arc (COLO.backArc), the same arc that takes ×1.5. Both names had no WoW match in a search on 22 Nov 2026 |
+| A2 | **Set icons:** SET_ICON.crawsplitter and .platewalker are placeholders from design (client/icons.ts); draw them in the set style | visuals | ⏭ |
+| A3 | **Set cues:** Crawsplitter's "+8% after a break" chip (`freedT`) gets a SET_SOUND cue like Relayer's `relayed`; Platewalker has no timed buff, so a cue only if it reads well | sound | ⏭ |
+| A4 | **Sets in the raid tables:** measure each raid with a party wearing its 3-piece set against the 55 to 70% band; if a set pushes the base party over 70%, tell design the numbers | skills | ⏭ After #324 and Z5 |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
@@ -309,6 +319,8 @@ Each dungeon drops its own set for the **head, hands and trinket** slots. A set 
 | Ember Kiln | Kilnbreaker | interrupt | Interrupting a cast gives +10% damage for 8 s | The interrupted foe takes +15% damage for 6 s |
 | Drowned Foundry | Tidewalker | keep moving | 6% less damage taken while moving | After 2 s on the move, the next hit deals +30% |
 | Glarewell | Glarewarden | dodge a marked attack | Stepping out of a telegraph heals 1.5% (at most every 4 s) | ...and gives +10% damage for 4 s |
+| The Hoard (raid 2) | Crawsplitter | break them free | Your hits on the Craw deal 25% more damage | Breaking the Craw gives you and the freed hero 8% more damage for 10 s (Phase 9) |
+| The Smeltery (raid 3) | Platewalker | get behind him | 6% less damage taken while behind the Cinder Colossus | 6% more damage while behind him (Phase 9) |
 
 **Drops:** a boss item in a set slot has a 60% chance to be a piece of that dungeon's set (it gets the set's name prefix). Never in the daily bounty, stress runs or Mythics, so bounty runs stay equal. The roll uses its own seeded generator, so runs without set pieces replay exactly as before.
 **As built:** `sim/content/sets.ts` holds the sets and every number (`SET_TUNING`); the item card shows a teal set line. Class weapon effects are the skills team's half (PR #38).
