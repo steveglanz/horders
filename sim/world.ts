@@ -6937,6 +6937,8 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
+  // V8: the Glarewell already has its own pillars, so only vents.
+  glarewell: ['open', 'open', 'vents'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /** V3: the Kiln Mother's phase-2 signature this run. */

@@ -180,3 +180,10 @@ Hashcheck: only the Foundry rows move. Maelra's second version is part 2.
 The two versions are about as hard. A Bulwark's fight runs longer with the tide (125 s against 113 s on average). Hashcheck: only Foundry rows move.
 
 **Run variety** with both parts (tools/variety.ts, tier 4, which now counts Maelra's version): 2 runs of 1000 repeat an earlier run in their block of 20 (was 398 before V8), with 925 distinct run shapes.
+
+## V8 status, part 3 (built 22 Nov 2026): the Glarewell's fights and layouts
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2). New: `shadeSpitters` (2 Shades, 2 Ember Spitters), `shadeCharge` (an Ashbuck and 3 Shades), the Kiln's `riftfall`, and the named `lensCharge` (a Lensbearer and 2 Ashbucks).
+- **Layouts:** `LAYOUTS.glarewell` = open, open, vents. The Glarewell already has its own pillars for hiding from the Glare, so it gets no stones. The Lensmother's fight stays open.
+- **Run variety** (tools/variety.ts, tier 7): repeats in blocks of 20 fell from 409 of 1000 to 7, with 150 routes (was 18) and 724 run shapes.
+- **Win rates** (tools/foundry.ts, `DUNGEON=glarewell TIER=7 HERO=tools/heroes/hero-t6.json`, seeds 1 to 40, before → after): good bot 39 → 38, `SKILL=0.5` 40 → 40. The hashcheck has no Glarewell rows, and every row is unchanged.
+- **Next:** a second version of the Lensmother, then the Coldmarrow.
