@@ -275,9 +275,17 @@ export class Hub {
     });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
-        if (spendPoint(h, b.dataset.p as PassiveId)) {
+        const id = b.dataset.p as PassiveId;
+        if (spendPoint(h, id)) {
           this.save();
           this.render();
+          // The talent you raised flares, and its rank number ticks up.
+          const t = $('heroCard').querySelector<HTMLElement>(`[data-p="${id}"]`);
+          if (t) {
+            t.classList.add('ranked');
+            t.querySelector('em')?.classList.add('tick');
+            setTimeout(() => { t.classList.remove('ranked'); t.querySelector('em')?.classList.remove('tick'); }, 900);
+          }
         }
       }));
 

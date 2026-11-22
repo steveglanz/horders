@@ -1323,6 +1323,13 @@
   #end:not([hidden]) #rewards .item:is(.r-epic, .r-mythic)::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--rc) 45%, transparent) 50%, transparent 65%); transform: translateX(-100%); animation: lootShine 0.9s ease-out both; animation-delay: calc(0.75s + min(var(--k, 0), 8) * 0.11s); }
   @keyframes lootShine { to { transform: translateX(100%); } }
   @media (prefers-reduced-motion: reduce) { #end #endTitle, #end #endXp .meter > div, #end #rewards .item { animation: none !important; } #end #rewards .item::after { display: none; } }
+  /* Hub motion: a talent point lands with a flare and its rank ticks up; picking a delve card glides its glow. */
+  .tal.ranked { animation: talRank 0.75s ease-out; }
+  @keyframes talRank { 0% { scale: 1.05; box-shadow: 0 0 0 0 rgba(143,227,155,0.85), inset 0 0 0 999px rgba(143,227,155,0.16); } 40% { scale: 0.99; } 100% { scale: 1; box-shadow: 0 0 0 12px rgba(143,227,155,0), inset 0 0 0 999px transparent; } }
+  .tal em.tick { display: inline-block; animation: rankTick 0.5s cubic-bezier(.2,1.6,.4,1); color: var(--xp); }
+  @keyframes rankTick { from { transform: translateY(-6px) scale(1.4); } to { transform: none; } }
+  .dg { transition: scale 0.09s ease-out, border-color 0.2s, box-shadow 0.25s; }
+  @media (prefers-reduced-motion: reduce) { .tal.ranked, .tal em.tick { animation: none; } }
 </style>
 </head>
 <body>
