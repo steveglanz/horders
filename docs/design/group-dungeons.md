@@ -78,7 +78,7 @@ Unlocks at tier 7, group style, a party of 2 to 4. Trash reuses existing kinds. 
 | Mechanic | What it does | Who answers it |
 |---|---|---|
 | **Twin Vents** (split) | Every 16 s, two gold circles open on opposite sides of Ysmeret, 220 units out, square to the tank's line. Each lands after 4 s. An empty vent blasts **every** hero and spills Ashlings. | The party splits: at least one hero per vent. A party of 2 means the tank and healer each leave the boss for a moment. |
-| **Scatter Embers** (spread) | Every 14 s (never while vents are open), a 2.5 s wind-up marks every hero. On landing, each mark bursts around its hero: the hero takes 10% of max health, and every **other** hero within 80 units takes 35%. | Everyone spreads out. Two stacked heroes take 45% each, and four take 115% (dead). Spread out, it's 10%. |
+| **Scatter Embers** (spread) | Every 14 s (never while vents are open), a 2.5 s wind-up marks every hero. On landing, each mark bursts around its hero: the hero takes 12% of max health (10% until the Phase 12 healer check, variety.md), and every **other** hero within 80 units takes 35%. | Everyone spreads out. Two stacked heroes take 47% each, and four take 117% (dead). Spread out, it's 12%. |
 | **Bellow Slam** (tank) | Every 9 s, a 1.5 s wind-up on its threat target, then a heavy hit that blocks and dodges can't stop. | The tank takes it. It's lighter than Anvilfall, because the tank also has to run to a vent. |
 
 Soft enrage at 4.5 minutes: vents open every 8 s.
