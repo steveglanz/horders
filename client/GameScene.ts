@@ -24,7 +24,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, pickCue, setFlagsOf } from './audio/cues';
+import { behindColossusNow, colossusCue, inLavaNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -802,6 +802,8 @@ export class GameScene extends Phaser.Scene {
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
+      islands: w.islands,
+      myIsland: w.islands.length ? myIsland(w) : -1,
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
       colossus: colossusCue(w),
