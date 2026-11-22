@@ -563,6 +563,9 @@ export type SimEvent =
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
   | { type: 'ventFlare'; x: number; y: number }
+  /** V8: Nhevra's Emberdrift drops `n` embers; a hero picks one up. */
+  | { type: 'emberDrift'; n: number }
+  | { type: 'emberPick'; x: number; y: number; hero: number }
   /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
   | { type: 'tideTurn'; angle: number }
   | { type: 'chest'; x: number; y: number }
@@ -825,7 +828,11 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | '' = '';
+  /** V8 Emberdrift: embers on the floor that refill a coal. */
+  driftEmbers: { x: number; y: number }[] = [];
+  private driftT = 0;
+  private driftN = 0;
   /** V8 Sluicetide: the way the water flows (radians), while it runs. */
   tideAngle = 0;
   private sluiceT = 0;
@@ -1800,6 +1807,8 @@ export class World {
           this.snuffT = COLD.firstSnuff;
           this.tideT = COLD.firstTide;
           this.nightT = COLD.firstNight;
+          this.bossVariant = this.rollNhevraVariant();
+          this.driftEmbers = [];
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'grandmotherSlag') {
@@ -1964,6 +1973,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** V8: Nhevra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollNhevraVariant(): NhevraVariant {
+    if (this.stress) return 'ice';
+    let h = Math.imul(this.seed ^ 0x7a3d1f29, 0x5f356495) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x1b873593) >>> 0;
+    return NHEVRA_VARIANTS[(h >>> 4) % NHEVRA_VARIANTS.length];
   }
 
   /** V8: the Lensmother's phase-2 signature this run, hashed from the seed (no run-rng draws). */
@@ -5311,7 +5328,18 @@ export class World {
       const q = this.heroPlayer(k);
       if (q.hp <= 0) continue;
       if (q.coal === undefined) { q.coal = 1; q.chill = 0; q.chillT = 0; }
-      q.coal = Math.max(0, q.coal - COLD.drain * dt);
+      // V8 Emberdrift: in phase 2 the cold eats coals faster, and fallen embers refill them.
+      const drift = this.coldPhase >= 2 && this.bossVariant === 'drift';
+      q.coal = Math.max(0, q.coal - COLD.drain * (drift ? EMBERDRIFT.drainMult : 1) * dt);
+      if (drift) {
+        for (let n = this.driftEmbers.length - 1; n >= 0; n--) {
+          const m = this.driftEmbers[n];
+          if (dist2(q.x, q.y, m.x, m.y) > EMBERDRIFT.pickR * EMBERDRIFT.pickR) continue;
+          q.coal = Math.min(1, q.coal + EMBERDRIFT.refill);
+          this.driftEmbers.splice(n, 1);
+          this.events.push({ type: 'emberPick', x: m.x, y: m.y, hero: k });
+        }
+      }
       q.coalR = COLD.minR + (COLD.maxR - COLD.minR) * q.coal;
       if (q.coal <= 0) {
         // Out: the cold creeps in a stack at a time.
@@ -5361,7 +5389,22 @@ export class World {
       this.iceT = COLD.firstCrack;
       this.events.push({ type: 'phase', phase: 2 });
     }
-    if (this.coldPhase >= 2) {
+    if (this.coldPhase >= 2 && this.bossVariant === 'drift') {
+      // V8 Emberdrift: embers fall in a ring; the old ones gutter out.
+      this.driftT -= dt;
+      if (this.driftT <= 0) {
+        this.driftT = EMBERDRIFT.every;
+        let h = Math.imul(this.seed ^ 0x3b9aca07, 0x9e3779b1) + Math.imul(++this.driftN, 0x85ebca6b) >>> 0;
+        h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+        const turn = ((h >>> 8) % 360) * (Math.PI / 180);
+        this.driftEmbers = [];
+        for (let k = 0; k < EMBERDRIFT.n; k++) {
+          const a = turn + (k * 2 * Math.PI) / EMBERDRIFT.n;
+          this.driftEmbers.push({ x: Math.cos(a) * EMBERDRIFT.ring, y: Math.sin(a) * EMBERDRIFT.ring });
+        }
+        this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
+      }
+    } else if (this.coldPhase >= 2) {
       this.iceT -= dt;
       if (this.iceT <= 0) {
         this.iceT = COLD.crackEvery;
@@ -6965,6 +7008,12 @@ export type KilnVariant = 'cataclysm' | 'draw';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+
+/** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
+export type NhevraVariant = 'ice' | 'drift';
+export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift'];
+/** V8 Emberdrift: from phase 2 coals drain `drainMult` times faster; every `every` s, `n` embers fall on a `ring` px ring, each refilling `refill` of a coal when touched (within `pickR`). */
+export const EMBERDRIFT = { every: 12, n: 3, ring: 280, pickR: 34, refill: 0.45, drainMult: 2.5 };
 
 /** V8: the Lensmother's phase-2 signature this run: Twin Brand (as before) or Glintfall. */
 export type LensVariant = 'brand' | 'glint';
