@@ -1,4 +1,5 @@
-// Screenshots the Kiln's new foes (V1 sim, V5 art): Ember Spitters winding up a lob, and an Ashbuck showing its lane.
+// Screenshots the Kiln's new foes (V1 sim, V5 art): Ember Spitters winding up a lob, an Ashbuck showing its lane, and
+// the Kiln Mother's Kiln Draw tell (V3) mid-cast.
 // Usage: npm run build && node tools/foeshots.cjs <outDir> [phone|p360]
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -12,6 +13,8 @@ const OPTS = { cls: 'bulwark', dungeon: 'kiln', route: ['spitters'], tier: 2, in
 const SCENES = [
   { name: '1-spitters', route: ['spitters'], until: 'emberLob', kind: 'emberSpitter' },
   { name: '2-ashbucks', route: ['ashbucks'], until: 'charge', kind: 'ashbuck' },
+  // V3's Kiln Draw: this run's Kiln Mother set to the 'draw' variant and dropped into phase 2.
+  { name: '3-kilndraw', route: ['kilnMother'], until: 'kilnDraw', kind: 'kilnMother', draw: true },
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -38,10 +41,14 @@ const SCENES = [
     await page.waitForTimeout(700);
     await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
     await page.waitForFunction(() => window.__ember.scene().world.phase === 'fight', null, { timeout: 30000, polling: 30 });
+    if (sc.draw) {
+      await page.waitForFunction(() => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === 'kilnMother'), null, { timeout: 30000, polling: 30 });
+      await page.evaluate(() => { const w = window.__ember.scene().world; w.bossVariant = 'draw'; const e = w.enemies.find((o) => o.alive && o.kind === 'kilnMother'); e.hp = e.maxHp * 0.5; });
+    }
     // The predicate freezes the scene itself the moment it holds (a frame can run 0.25 s x warp of sim).
     await page.waitForFunction((sc) => {
       const s = window.__ember.scene(); const w = s.world;
-      const ok = w.time > 2 && w.enemies.some((e) => e.alive && e.kind === sc.kind && e.castId === sc.until && e.castT > 0.3);
+      const ok = w.time > 2 && w.enemies.some((e) => e.alive && e.kind === sc.kind && e.castId === sc.until && e.castT > (sc.draw ? 0.6 : 0.3)) && (!sc.draw || w.telegraphs.some((t) => t.alive && t.r === 150));
       return ok && !(s.warp = 0);
     }, sc, { timeout: 100000, polling: 'raf' }).catch(async () => errs.push('timeout ' + sc.name ));
     // Between hits, and with the fight banner out of the way, so the shot shows him and the floor marks.
