@@ -3628,6 +3628,53 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Smeltery's arena edge: an ore cart on a stub of rail, heaped with ore still glowing from the roast, and a stack
+  // of fresh ingots cooling from orange at the bottom to dull iron on top. Their floor pools are the cold paleLight: a
+  // warm pool next to him would blur the hot slice that marks his open back.
+  make(scene, 'smeltCart', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 60, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Rails and sleepers.
+    ctx.fillStyle = '#3a2c20'; for (const x of [-52, -26, 0, 26, 52]) { ctx.fillRect(cx + x - 5, by - 6, 10, 8); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 5; for (const y of [by - 4, by + 2]) { ctx.beginPath(); ctx.moveTo(cx - 64, y); ctx.lineTo(cx + 64, y); ctx.stroke(); }
+    ctx.strokeStyle = '#8a8a90'; ctx.lineWidth = 2; for (const y of [by - 5, by + 1]) { ctx.beginPath(); ctx.moveTo(cx - 64, y); ctx.lineTo(cx + 64, y); ctx.stroke(); }
+    // The heap of glowing ore, behind the tub's lip.
+    softGlow(ctx, cx, by - 66, 46, 'rgba(255,120,40,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx - 40, by - 54); ctx.quadraticCurveTo(cx - 20, by - 86, cx + 2, by - 82); ctx.quadraticCurveTo(cx + 26, by - 84, cx + 40, by - 54); ctx.closePath();
+    ctx.fillStyle = '#3a2a24'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.save(); ctx.clip();
+    let seed = 61; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 22; i++) {
+      const x = cx - 38 + rnd() * 76, y = by - 84 + rnd() * 30, r = 4 + rnd() * 5;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = rnd() < 0.45 ? '#ff8a2a' : '#4a3630'; ctx.fill(); ctx.strokeStyle = 'rgba(20,10,6,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    ctx.restore();
+    // The tub: a riveted iron trough, wider at the top.
+    ctx.beginPath(); ctx.moveTo(cx - 46, by - 58); ctx.lineTo(cx + 46, by - 58); ctx.lineTo(cx + 38, by - 18); ctx.lineTo(cx - 38, by - 18); ctx.closePath();
+    const tg = ctx.createLinearGradient(cx - 46, 0, cx + 46, 0); tg.addColorStop(0, '#6a5a50'); tg.addColorStop(0.5, '#463a34'); tg.addColorStop(1, '#241c1a');
+    ctx.fillStyle = tg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    ctx.fillStyle = '#9a8a7a'; for (const x of [-36, -18, 0, 18, 36]) { ctx.beginPath(); ctx.arc(cx + x * 0.92, by - 52, 2, 0, Math.PI * 2); ctx.fill(); }
+    // Wheels on the rail.
+    for (const x of [-26, 26]) { ctx.beginPath(); ctx.arc(cx + x, by - 12, 10, 0, Math.PI * 2); ctx.fillStyle = '#2e2828'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke(); ctx.beginPath(); ctx.arc(cx + x, by - 12, 3, 0, Math.PI * 2); ctx.fillStyle = '#8a8a90'; ctx.fill(); }
+  });
+
+  make(scene, 'smeltIngots', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    softGlow(ctx, cx, 76, 30, 'rgba(255,110,40,0.45)');
+    // Ingots in crossed layers: bottom still orange, top cooled.
+    const bar = (x: number, y: number, w: number, hot: number) => {
+      ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.lineTo(x + w / 2, y); ctx.lineTo(x + w / 2 - 4, y - 9); ctx.lineTo(x - w / 2 + 4, y - 9); ctx.closePath();
+      const c = hot > 0.6 ? ['#ffb050', '#c8461a'] : hot > 0.3 ? ['#b8643a', '#6a3220'] : ['#7a7a82', '#3e3e46'];
+      const g = ctx.createLinearGradient(0, y - 9, 0, y); g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
+      ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    };
+    bar(cx - 14, 86, 26, 1); bar(cx + 14, 86, 26, 1);
+    bar(cx, 76, 40, 0.5);
+    bar(cx - 12, 66, 22, 0.1); bar(cx + 12, 66, 22, 0.1);
+    bar(cx, 56, 30, 0);
+  });
+
   // The Hoard's arena edge: a heap of tarnished coins and cups with a sword driven into it, and the bones of someone who
   // came for it, a dented shield across their ribs. paleLight is the cold shaft of light falling on them: a warm pool
   // would read as one of Old Vorhulm's gold circles.
