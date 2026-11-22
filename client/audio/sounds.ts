@@ -1306,6 +1306,9 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // The Colossus's Plate Shift (Phase 12 W3) is a cast start: -28.7 dB alone.
   // The Regent's Summons call (Phase 12 W3) is a cast start: -27.1 dB alone.
   summonsWarn: 3.5, // and 5.2 dB over the Flue mix at +2.0 (heroes-r2 t8, SEEDS=1-6, n=46)
+  // Ysmeret's Twin and Wandering Vents: 4.1 and 3.2 dB over the Ashvents mix with heroes-r2 t8 (SEEDS=1-4, n=9 each), right on the floor alone.
+  ventWarn: 3.0,
+  wanderVentWarn: 4.0, // 5.5 at +3.0
   plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,

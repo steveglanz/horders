@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -633,6 +633,18 @@ describe('audio', () => {
     expect(PRIORITY.has('churn')).toBe(false);
     expect(CAST_SOUNDS.churn).toBeUndefined();
     for (const id of ['summonsFall', 'churn'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
+  it('ducks the rest deeper under "you\'re down", which lands with the hit that downed you', () => {
+    for (const [id, g] of Object.entries(DEEP_DUCK)) {
+      expect(PRIORITY.has(id as never), id).toBe(true);
+      expect(g, id).toBeLessThan(DUCK.gain);
+      expect(g, id).toBeGreaterThan(0);
+    }
+    expect(DEEP_DUCK.selfDown).toBeDefined();
+    // The engine and busycheck both use it.
+    expect(readFileSync('client/audio/index.ts', 'utf8')).toContain('DEEP_DUCK[id] ?? DUCK.gain');
+    expect(readFileSync('tools/busycheck.ts', 'utf8')).toContain('DEEP_DUCK[p.id] ?? DUCK.gain');
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {
