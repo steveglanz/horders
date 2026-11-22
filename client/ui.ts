@@ -442,6 +442,13 @@ export class Hud {
       const left = Math.ceil(w.heroes[gulp].player.swallowT ?? 0);
       out.push(`<span class="buff debuff">${w.heroes[gulp].player === p ? `Swallowed ${left}s: allies break the Craw` : `Break the Craw! ${w.heroes[gulp].name} inside ${left}s`}</span>`);
     }
+    // The Flue (raid 4): your Decree's clock, and how to pass it; once passed, how long you're Spent. Allies' seals
+    // show on their party frames.
+    if (w.dungeonId === 'flue') {
+      const mine = w.regentDecree.find((d) => d.hero === w.acting);
+      if (mine) out.push(`<span class="buff debuff">Decree ${Math.ceil(mine.t)}s: touch an ally to pass it</span>`);
+      else if ((p.spentT ?? 0) > 0) out.push(`<span class="buff">Spent ${Math.ceil(p.spentT ?? 0)}s: you can't take a Decree</span>`);
+    }
     if (soak) out.push(`<span class="buff debuff">${press || (soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!')}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
@@ -460,6 +467,7 @@ export class Hud {
     if ((p.bondT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kinbound +6%</span>`);
     if ((p.relayT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Relayer +${Math.round(SET_TUNING.rlDamage * 100)}%</span>`);
     if ((p.freedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Crawsplitter +${Math.round(SET_TUNING.csFreed * 100)}%</span>`);
+    if ((p.spentT ?? 0) > 0 && w.setCount('handover') >= 3) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Handover +${Math.round(SET_TUNING.hoDamage * 100)}%</span>`);
     if (p.planted && w.setCount('wrackrider') >= 2) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Planted</span>`);
     // Hearthkeeper: Warmth as five embers; at full Warmth with 3 pieces the chip glows (the 8% cut is on).
     if (w.setCount('hearthkeeper') >= 2) {
@@ -603,7 +611,7 @@ export class Hud {
   }
 
   /** Co-op party frames: one row per ally, with class glyph, name and health. */
-  private partyRows: { hero: number; el: HTMLElement; fill: HTMLElement; tag: HTMLElement; down: boolean; reviving: boolean }[] = [];
+  private partyRows: { hero: number; el: HTMLElement; fill: HTMLElement; tag: HTMLElement; mark: HTMLElement; markText: string; down: boolean; reviving: boolean }[] = [];
 
   private buildParty(w: World): void {
     const box = $('party');
@@ -619,7 +627,7 @@ export class Hud {
       // Fill with bots: a bot's class tile wears the bot mark on its corner instead of "(bot)" after the name,
       // so the name and role chip keep the row's room on a phone.
       const bot = isBotAlly(w, j) ? `<span class="pfbot" title="Bot" aria-label="Bot">${glyph(BOT_GLYPH, 10)}</span>` : '';
-      rows.push(`<div class="pf${bot ? ' bot' : ''}" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}${bot}</span><div class="pfb"><div class="pfn"><b></b>${chip}<i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
+      rows.push(`<div class="pf${bot ? ' bot' : ''}" data-h="${j}" style="--gc:${ic.color}"><span class="gtile">${glyph(ic.d, 14)}${bot}</span><div class="pfb"><div class="pfn"><b></b>${chip}<em class="pfd"></em><i>Down</i></div><div class="pfbar"><div></div></div></div></div>`);
     }
     // G6: in a boss fight the party shares one pick-up; this chip shows whether it's still there.
     if (rows.length) rows.push('<div class="pfrev" hidden><span class="rvg">+</span><span class="rvt"></span></div>');
@@ -630,7 +638,7 @@ export class Hud {
     box.querySelectorAll<HTMLElement>('.pf').forEach((el) => {
       const hero = Number(el.dataset.h);
       el.querySelector('b')!.textContent = isBotAlly(w, hero) ? botName(w.heroes[hero].name) : w.heroes[hero].name;
-      this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, down: false, reviving: false });
+      this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, mark: el.querySelector('.pfd') as HTMLElement, markText: '', down: false, reviving: false });
     });
   }
 
@@ -688,6 +696,16 @@ export class Hud {
       if (down !== r.down) {
         r.down = down;
         r.el.classList.toggle('down', down);
+      }
+      // The Flue: an ally's Decree counts down on their row; Spent allies can't take one.
+      const dec = w.dungeonId === 'flue' && !down ? w.regentDecree.find((d) => d.hero === r.hero) : undefined;
+      const spent = w.dungeonId === 'flue' && !down && !dec && (q.spentT ?? 0) > 0;
+      const mt = dec ? `${Math.ceil(dec.t)}s` : spent ? 'Spent' : '';
+      if (mt !== r.markText) {
+        r.markText = mt;
+        r.mark.textContent = mt;
+        r.el.classList.toggle('decree', !!dec);
+        r.el.classList.toggle('spent', spent);
       }
       const reviving = rev > 0;
       if (reviving !== r.reviving) {

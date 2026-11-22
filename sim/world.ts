@@ -399,6 +399,8 @@ export interface Player {
   freedT?: number;
   /** Raid 2: seconds left inside Old Coalmouth (swallowed: can't act, can't be hit, digests at 0). */
   swallowT?: number;
+  /** Raid 4: seconds left before this hero can hold a Decree again (after passing one on). */
+  spentT?: number;
   /** The Pressworks: seconds left Pressed after taking a Downstroke (a Pressed hero can't take the next one). */
   pressedT?: number;
   /** Co-op: the run time until which an Emberwright's Kindling lifts this hero's damage. */
@@ -542,6 +544,11 @@ export type SimEvent =
   | { type: 'spatOut'; hero: number }
   | { type: 'wheel'; hero: number }
   | { type: 'meltPulse'; n: number }
+  /** Raid 4 (the Flue): a Decree landed on a hero, was passed (`from` to `hero`; `done`: its last pass, so it fades), or burst. */
+  | { type: 'decree'; hero: number }
+  | { type: 'decreePassed'; from: number; hero: number; done: boolean }
+  | { type: 'decreeBurst'; hero: number }
+  | { type: 'officePulse'; n: number }
   | { type: 'explode'; x: number; y: number; r: number }
   /** Glarewell: a Glare went off; `hit` is whether it caught the hero in the light. */
   | { type: 'glare'; x: number; y: number; hit: boolean }
@@ -860,6 +867,12 @@ export class World {
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
   colDmg: number[] = [];
+  /** Raid 4 (the Flue): the live Decrees: who holds each, seconds left, passes made, and seconds since it last moved. */
+  regentDecree: { hero: number; t: number; passes: number; held: number }[] = [];
+  private decreeT = 0;
+  private ashT = 0;
+  private officeT = 0;
+  private officePulses = 0;
   private swallowT = 0;
   private spillT = 0;
   private swallowed = -1;
@@ -1549,6 +1562,7 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hoard') this.coalClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
+    if (this.phase === 'fight' && this.dungeonId === 'flue') this.regentClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
@@ -1760,6 +1774,19 @@ export class World {
           this.raidVentT = 4;
           this.marksT = 9;
           this.raidBurnT = 1;
+          this.lastEmberCast = false;
+          this.events.push({ type: 'bossSpawn' });
+        }
+        if (sp.kind === 'regent') {
+          this.bossSpawned = true;
+          this.bossIndex = i;
+          this.bossPhase = 1;
+          this.raidStart = this.time;
+          this.decreeT = REGENT.firstDecree;
+          this.ashT = REGENT.ashEvery;
+          this.officeT = REGENT.officeEvery;
+          this.officePulses = 0;
+          this.regentDecree = [];
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -4198,6 +4225,11 @@ export class World {
         this.events.push({ type: 'wheel', hero: pick });
       }
       this.slagSweep(i);
+    } else if (id === 'lastWord') {
+      // Raid 4's hard enrage: the Regent's last word.
+      const at = this.acting;
+      this.eachHero(() => this.hurtPlayer(this.player.maxHp * 10, i, true));
+      this.use(at);
     } else if (id === 'pourOut') {
       // Raid 3's hard enrage: the Smeltery floods.
       const at = this.acting;
@@ -4364,7 +4396,7 @@ export class World {
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
-    if (e.kind === 'coalmouth' || e.kind === 'craw' || e.kind === 'colossus') return; // all on their raid clocks
+    if (e.kind === 'coalmouth' || e.kind === 'craw' || e.kind === 'colossus' || e.kind === 'regent') return; // all on their raid clocks
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -4500,7 +4532,7 @@ export class World {
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
     // The shadow fight and the raid bosses all count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
-    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth' || e.kind === 'colossus') this.shadowDamage += dmg;
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth' || e.kind === 'colossus' || e.kind === 'regent') this.shadowDamage += dmg;
     // Wheel turns on whoever hurt him most lately.
     if (e.kind === 'colossus') this.colDmg[this.acting] = (this.colDmg[this.acting] ?? 0) + dmg;
     const thirst = this.rank('thirst');
@@ -4533,6 +4565,7 @@ export class World {
     if ((p.freedT ?? 0) > 0) m *= 1 + SET_TUNING.csFreed;
     if (e.kind === 'craw' && this.setCount('crawsplitter') >= 2) m *= 1 + SET_TUNING.csCraw;
     if (e.kind === 'colossus' && this.setCount('platewalker') >= 3 && this.behindColossus(e, p.x, p.y)) m *= 1 + SET_TUNING.pwDamage;
+    if ((p.spentT ?? 0) > 0 && this.setCount('handover') >= 3) m *= 1 + SET_TUNING.hoDamage;
     if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
@@ -4552,6 +4585,7 @@ export class World {
     if ((p.bondT ?? 0) > 0) p.bondT = (p.bondT ?? 0) - dt;
     if ((p.relayT ?? 0) > 0) p.relayT = (p.relayT ?? 0) - dt;
     if ((p.freedT ?? 0) > 0) p.freedT = (p.freedT ?? 0) - dt;
+    if ((p.spentT ?? 0) > 0) p.spentT = Math.max(0, (p.spentT ?? 0) - dt);
     if ((p.warmth ?? 0) > 0) {
       p.warmT = (p.warmT ?? 0) + dt;
       if (p.warmT >= SET_TUNING.hkFade) { p.warmT -= SET_TUNING.hkFade; p.warmth = (p.warmth ?? 0) - 1; }
@@ -5526,6 +5560,140 @@ export class World {
       this.marksT = SLAG.marksEvery;
       // Cinder Marks work as Ysmeret's Scatter Embers (finishCast 'scatter'): spread out.
       this.startCast(i, 'scatter', 'Cinder Marks', YSMERET.scatterCast, false);
+    }
+  }
+
+  /**
+   * The Furnace Regent's clocks (raid 4, the Flue). Phases 1 and 2: Decrees land on non-tank heroes
+   * (one at a time, then two). A Decree burns its holder and anyone close; touch an ally who can
+   * take it to pass it on (the passer is Spent for a while), and after `decreePasses` passes it
+   * fades. Left too long, or on a fallen hero, it bursts on the whole party. Phase 2 adds Ash Fall.
+   * Phase 3 (Abdication): no more Decrees, a growing party-wide burn. Last Word at `hardEnrage`.
+   */
+  private regentClock(dt: number): void {
+    if (this.bossIndex < 0) return;
+    const i = this.bossIndex;
+    const e = this.enemies[i];
+    if (!e || !e.alive || e.kind !== 'regent') {
+      this.regentDecree = [];
+      return;
+    }
+    const frac = e.hp / e.maxHp;
+    const phase = frac > REGENT.phase2 ? 1 : frac > REGENT.phase3 ? 2 : 3;
+    if (phase > this.bossPhase) {
+      this.bossPhase = phase;
+      this.events.push({ type: 'phase', phase });
+      if (phase === 3) this.regentDecree = []; // Abdication: the Decrees lapse
+    }
+    const at = this.acting;
+    this.tickDecrees(dt, i);
+    if (phase === 3) {
+      this.officeT -= dt;
+      if (this.officeT <= 0) {
+        this.officeT += REGENT.officeEvery;
+        this.officePulses++;
+        const share = REGENT.officeDamage * (1 + REGENT.officeGrow * (this.officePulses - 1));
+        this.eachHero(() => this.hurtPlayer(this.player.maxHp * share, i, true));
+        this.events.push({ type: 'officePulse', n: this.officePulses });
+      }
+    }
+    this.use(at);
+    if (e.castId || e.stunT > 0) return;
+    if (!this.lastEmberCast && this.time - e.spawnedAt >= REGENT.hardEnrage) {
+      this.lastEmberCast = true;
+      if (!this.bossEnraged) {
+        this.bossEnraged = true;
+        this.events.push({ type: 'bossEnrage' });
+      }
+      this.startCast(i, 'lastWord', 'Last Word', REGENT.lastWordCast, false);
+      return;
+    }
+    if (phase < 3) {
+      this.decreeT -= dt;
+      if (this.decreeT <= 0) {
+        this.decreeT = REGENT.decreeEvery;
+        for (let n = 0; n < (phase === 2 ? 2 : 1); n++) this.landDecree();
+      }
+    }
+    if (phase === 2) {
+      this.ashT -= dt;
+      if (this.ashT <= 0) {
+        this.ashT = REGENT.ashEvery;
+        const dmg = REGENT.ashDamage * this.tierDamage;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0) continue;
+          this.addTelegraph('circle', q.x, q.y, REGENT.ashRadius, 0, 0, REGENT.ashCast, dmg, 'hit', i);
+        }
+      }
+    }
+  }
+
+  /**
+   * True when hero `k` can be given a Decree: up, not Spent, not already holding one. The Regent
+   * never lands one on a tank, but a tank can take one passed by hand (`pass`).
+   */
+  canHoldDecree(k: number, pass = false): boolean {
+    const q = this.heroPlayer(k);
+    if (q.hp <= 0 || (!pass && this.isTank(k)) || (q.spentT ?? 0) > 0) return false;
+    return !this.regentDecree.some((d) => d.hero === k);
+  }
+
+  /** A Decree lands on a hero who can hold one (seeded pick), if anyone can. */
+  private landDecree(): void {
+    const ok: number[] = [];
+    for (let k = 0; k < this.heroes.length; k++) if (this.canHoldDecree(k)) ok.push(k);
+    if (ok.length === 0) return;
+    const k = ok[this.rng.int(ok.length)];
+    this.regentDecree.push({ hero: k, t: REGENT.decreeTime, passes: 0, held: 0 });
+    this.events.push({ type: 'decree', hero: k });
+  }
+
+  /** Burns, passes and bursts for every live Decree. */
+  private tickDecrees(dt: number, boss: number): void {
+    for (let n = this.regentDecree.length - 1; n >= 0; n--) {
+      const d = this.regentDecree[n];
+      d.t -= dt;
+      d.held += dt;
+      const h = this.heroPlayer(d.hero);
+      if (h.hp <= 0 || d.t <= 0) {
+        // It bursts: on a fallen holder, or when time runs out.
+        this.regentDecree.splice(n, 1);
+        const share = REGENT.decreeBurst;
+        this.eachHero(() => this.hurtPlayer(this.player.maxHp * share, boss, true));
+        this.events.push({ type: 'decreeBurst', hero: d.hero });
+        continue;
+      }
+      // The seal burns its holder, and anyone standing close (Handover 2: less on the holder's seal).
+      this.use(d.hero);
+      const burn = this.setCount('handover') >= 2 ? 1 - SET_TUNING.hoCut : 1;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0) continue;
+        const near = k !== d.hero && dist2(q.x, q.y, h.x, h.y) <= REGENT.scorchRadius * REGENT.scorchRadius;
+        if (k !== d.hero && !near) continue;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * (k === d.hero ? REGENT.decreeTick : REGENT.scorchTick) * burn * dt, boss, true);
+      }
+      if (d.held < REGENT.settle) continue;
+      // Pass it on: touch an ally who can take it.
+      let to = -1;
+      let best = REGENT.passRange * REGENT.passRange;
+      for (let k = 0; k < this.heroes.length; k++) {
+        if (k === d.hero || !this.canHoldDecree(k, true)) continue;
+        const q = this.heroPlayer(k);
+        const dd = dist2(q.x, q.y, h.x, h.y);
+        if (dd <= best) { best = dd; to = k; }
+      }
+      if (to < 0) continue;
+      const from = d.hero;
+      h.spentT = REGENT.spentTime;
+      d.passes++;
+      // In Edict (two at once) each Decree fades after one pass, so two can keep moving among three non-tanks.
+      const done = d.passes >= (this.bossPhase === 2 ? REGENT.edictPasses : REGENT.decreePasses);
+      this.events.push({ type: 'decreePassed', from, hero: to, done });
+      if (done) this.regentDecree.splice(n, 1);
+      else { d.hero = to; d.t = REGENT.decreeTime; d.held = 0; }
     }
   }
 
@@ -6686,6 +6854,20 @@ export const SLAG = {
 };
 
 /** Raid 3's tuning: the Cinder Colossus in the Smeltery (docs/design/raid3.md). */
+/** Raid 4 (the Flue): the Furnace Regent. */
+export const REGENT = {
+  phase2: 0.6, phase3: 0.25,
+  /** Decree: every `decreeEvery` s (two at once in phase 2), on a non-tank. It burns its holder `decreeTick` of max health a second and anyone within `scorchRadius` `scorchTick`; after `decreeTime` s it bursts for `decreeBurst` of every hero's max health. */
+  decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.35,
+  /** Passing: touch (within `passRange`) a hero who can hold it, after it has `settle` s on you. The passer is Spent for `spentTime` s; after `decreePasses` passes it fades (`edictPasses` in phase 2). A tank can take one by hand. */
+  passRange: 50, settle: 1, spentTime: 6, decreePasses: 2, edictPasses: 1,
+  /** Ash Fall (phase 2): a circle under every hero. */
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 45,
+  /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
+  officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
+  hardEnrage: 480, lastWordCast: 5,
+};
+
 export const COLO = {
   phase2: 0.6, phase3: 0.3,
   /** Front and back: within `frontArc` of his facing is plated, past `backArc` is his open back. */

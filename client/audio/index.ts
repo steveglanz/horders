@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, pressedCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -86,6 +86,7 @@ class AudioEngine {
   private targeted = { on: false };
   private ebbing = { on: false };
   private pressing = { on: false };
+  private spending = { on: false };
   private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
   private bellyState: BellyState = { on: false, next: 0 };
@@ -338,6 +339,7 @@ class AudioEngine {
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     this.cue(ebbCue(this.ebbing, !!ctx.ebbPull));
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
+    this.cue(spentCue(this.spending, !!ctx.spent));
     if (ctx.sets) for (const c of setCues(this.setFlags, ctx.sets)) this.cue(c);
     else this.setFlags = {};
     if (ctx.hp && ctx.hp.length > 1) {

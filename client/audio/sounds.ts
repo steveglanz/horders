@@ -905,6 +905,18 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.4, lp: 7000, lp2: 1500, hp: 700, curve: 2 }],
     horn(note(-8), 0.35, 0.3).map((v) => ({ ...v, f2: (v.f2 ?? v.f) * 0.9, delay: (v.delay ?? 0) + 0.05 })),
   ),
+  /** A Decree lands on an ally: only the seal's stamp, quieter, so you know someone may hand it your way. */
+  decreeLands: [
+    { wave: 'sine', f: 200, f2: 90, dur: 0.14, vol: 0.3, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.24, lp: 4500, hp: 700, curve: 3 },
+    { wave: 'tri', f: note(3), dur: 0.2, delay: 0.04, vol: 0.1, curve: 3 },
+  ],
+  /** Embers of Office (phase 3, every 3 s): the throne's embers flare across the hall. Softer than Meltdown, louder as they grow. */
+  officePulse: [
+    { wave: 'sine', f: 140, f2: 80, dur: 0.28, vol: 0.24, curve: 2 },
+    { wave: 'saw', f: 260, f2: 170, dur: 0.22, vol: 0.1, lp: 1800, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.35, vol: 0.18, a: 0.03, lp: 7000, hp: 2000, curve: 1.6 },
+  ],
   /** Spent wears off: you can take a Decree again. A small, warm ready tick. */
   spentEnd: join(
     [{ wave: 'noise', f: 0, dur: 0.02, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }],
@@ -977,10 +989,10 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   allyDown: 4.8,
   anvilWarn: 1.2,
   enrage: 1.9,
-  // Raid 4, the Flue: its must-hear cues, brought up to the floor (PHONE_FLOOR_DB) with about 0.5 dB to spare.
-  decreeOnMe: 1.3,
-  phaseEdict: 1.7,
-  phaseAbdication: 1.3,
+  // Raid 4, the Flue: its must-hear cues, lifted to about 6.5 dB over a t8 party fight (tools/busycheck.ts HEROES=heroes-r2).
+  decreeOnMe: 6.3,
+  phaseEdict: 4.5,
+  phaseAbdication: 2.9,
 };
 for (const [id, db] of Object.entries(PHONE_LIFT) as [SoundId, number][]) {
   const g = Math.pow(10, db / 20);
