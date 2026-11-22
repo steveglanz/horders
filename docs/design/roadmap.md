@@ -206,7 +206,7 @@ Phase 11 gave the four early solo dungeons new fights, layouts and a second boss
 | W3 | **Raids:** a second version of Grandmother Slag, Old Vorhulm, the Cinder Colossus and the Furnace Regent | design | Raid tables per raid*.md |
 | W4 | **Art** for the Outsurge (water running outward), the currents, and W2 and W3 tells | visuals | Placeholders first |
 | W5 | **Sound** for the Outsurge and the W2 and W3 casts | sound | A new event needs a cueFor case (#393) |
-| W6 | **Talents for the variety foes and layouts** (situational cards, offered only where the situation is still ahead in the run) | skills | Brief: /mnt/project-files/horders/skills/variety-talents-brief.md |
+| W6 | **Talents for the variety foes and layouts** (situational cards, offered only where the situation is still ahead in the run) | skills | ✅ #414: Vent-Fed, Read the Lane, Back to Stone, Reaching Light, Slag Wade, solo dungeons only; every card within noise for bots, tier 1 bands hold (docs/skills.md, "Site cards") |
 
 ## R2. The Forge
 
