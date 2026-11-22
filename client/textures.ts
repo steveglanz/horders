@@ -3311,6 +3311,27 @@ export function buildTextures(scene: Phaser.Scene): void {
     ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
   });
 
+  // V8 Emberdrift: a live ember fallen on Nhevra's ice, a lumpy coal split by bright seams in a soft orange glow. Drawn at
+  // 2x, shown at 0.8 scale (about 30 px across), so it reads as a pickup and not a danger circle.
+  make(scene, 'driftEmber', 64, (ctx) => {
+    const c = 32;
+    softGlow(ctx, c, c, 30, 'rgba(255,138,58,0.55)');
+    ctx.beginPath();
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2, r = 15 + (i % 3 === 0 ? 3 : i % 2 ? -1 : 1.5);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r * 0.85);
+    }
+    ctx.closePath();
+    const g = ctx.createRadialGradient(c - 4, c - 4, 2, c, c, 18);
+    g.addColorStop(0, '#9a4420'); g.addColorStop(1, '#2a120c');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.save();
+    ctx.strokeStyle = '#ffd27a'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(c - 10, c - 3); ctx.lineTo(c - 2, c + 1); ctx.lineTo(c + 4, c - 6); ctx.moveTo(c - 2, c + 1); ctx.lineTo(c + 2, c + 9); ctx.lineTo(c + 10, c + 5); ctx.stroke();
+    ctx.restore();
+    ell(ctx, c - 5, c - 7, 4, 2.4); ctx.fillStyle = 'rgba(255,226,160,0.55)'; ctx.fill();
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
