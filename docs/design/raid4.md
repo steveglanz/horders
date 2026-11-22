@@ -72,6 +72,8 @@ Every standard party at 16250, seeds 1 to 40: base 21, two Duskblades 26, two Em
 
 Only the Bellows Slagbinder beside an Emberwright is still under the band (45%), so that row stays with skills.
 
+**The Bellows party cut differs by raid (skills, #391).** In the Flue only, a Bellows Slagbinder with allies deals `SLAG_KIT.fluePartyDmg` (0.85) instead of `SLAG_KIT.partyDmg` (0.7, every other raid and dungeon). Seeds 1 to 80: Bellows with an Emberwright went from 39 to 48 of 80, and Bellows with a Duskblade from 50 to 56. A raid-wide 0.85 would push the Hoard's Bellows-with-Duskblade party from 65 to 69 of 80, above its band. Any Flue retune should re-measure the Bellows parties with this cut in place. Table in docs/skills.md.
+
 Tier 11 with t8 gear was in reach once the rules changed, so `unlockTier` stays 11. The verb set **Handover** came in the follow-up PR (below).
 
 ## Handover, the Flue's verb set ("pass it on")
