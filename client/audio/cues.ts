@@ -157,6 +157,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
   charge: { start: 'chargeWindup' }, // Charge
+  // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
+  kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
