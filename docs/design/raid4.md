@@ -1,6 +1,6 @@
 # Raid 4: the Furnace Regent in the Flue (Phase 10, B1, 22 Nov 2026, design)
 
-**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent). Three can now be fought in person: Grandmother Slag (the Crucible), Old Coalmouth (the Hoard) and the Cinder Colossus (the Smeltery). The Furnace Regent is the last one. Visuals already drew its shadow sheet (`regent`, client/textures.ts), and sound gave it a shadow sting (`shadowRegent`).
+**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Vorhulm and the Furnace Regent). Three can now be fought in person: Grandmother Slag (the Crucible), Old Vorhulm (the Hoard) and the Cinder Colossus (the Smeltery). The Furnace Regent is the last one. Visuals already drew its shadow sheet (`regent`, client/textures.ts), and sound gave it a shadow sting (`shadowRegent`).
 
 **Names.**
 - "Furnace Regent" had no WoW match in the 21 Nov 2026 search (raid2.md).
@@ -57,6 +57,20 @@ Built in the B1 PR (22 Nov 2026). Tuning is in `REGENT` (sim/world.ts) and `ENEM
 Before the Edict change, health barely moved it: on 120 seeds, 15500 won 63 and 16000 won 61, and a 25% burst at 16000 won 64. In those runs 70% of hero deaths came in Edict.
 
 Every standard party at 16250, seeds 1 to 40: base 21, two Duskblades 26, two Emberwrights 14, Bellows Slagbinder with an Emberwright 11, Bellows Slagbinder with a Duskblade 14, Anvil Slagbinder tank 15, and the base party at bot skill 0.7 19. So the base party and two Duskblades are in the band, and every party with less blade damage is under it (28 to 38%). A longer enrage (540 s) with more health (17250) did not flatten this: base 16, two Duskblades 15, two Emberwrights 8, Bellows with an Emberwright 4. That's a class-side follow-up for skills (B6), like Z5 for the older raids.
+
+**Flattening the damage race (B6, 22 Nov 2026).** Skills traced the low parties (raid4 B6): it isn't the hand-off (each hero holds a Decree about 10 s a fight, and bursts were 0.3 to 0.9 a run). The fight was a steep damage race decided by Last Word: two Emberwrights deal 9% less than two Duskblades, which was worth about 12 wins of 40. Class knobs barely moved it. A softer clock made the spread wider (14000 hp, officeGrow 0.1, Last Word at 600 s, of 40: base 29, two Duskblades 36, two Emberwrights 16, Bellows with an Emberwright 15). Making the fight test survival as well as damage worked: a heavier Decree burst (35% to **50%**) and Ash Fall (45 to **70**), with less health (**15000**). Seeds 1 to 40, before and after:
+
+| Party | 16250, burst 35%, Ash 45 | **15000, burst 50%, Ash 70 (shipped)** |
+|---|---|---|
+| Base (seeds 1 to 120) | 72 of 120 | **80 of 120 (67%)** (26, 28, 26) |
+| Two Duskblades | 26 | 26 |
+| Two Emberwrights | 14 | 28 |
+| Bellows Slagbinder with an Emberwright | 11 | 18 |
+| Bellows Slagbinder with a Duskblade | 14 | 26 |
+| Anvil Slagbinder tank | 15 | 26 |
+| `NOPASS=1` | 2 | 2 |
+
+Only the Bellows Slagbinder beside an Emberwright is still under the band (45%), so that row stays with skills.
 
 Tier 11 with t8 gear was in reach once the rules changed, so `unlockTier` stays 11. The verb set **Handover** came in the follow-up PR (below).
 

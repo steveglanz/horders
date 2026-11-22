@@ -35,7 +35,7 @@ const only = process.env.ONLY;
 type Case = { label: string; opts: WorldOptions; skill: number; dropWhen?: (w: World) => number };
 const downstrokeUp = (w: World) => w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -3);
 const crawUp = (w: World) => w.enemies.some((e) => e.alive && e.kind === 'craw');
-/** The Hoard: the hero inside Old Coalmouth right now, or -1. */
+/** The Hoard: the hero inside Old Vorhulm right now, or -1. */
 const swallowedHero = (w: World) => w.heroes.findIndex((_, i) => (w.heroPlayer(i).swallowT ?? 0) > 0);
 const cases: Case[] = [];
 for (const seed of seeds) for (const skill of [1, 0.5]) {
@@ -56,7 +56,7 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
   press('pressworks duo drop mid-Downstroke', 'bulwark', ['lumen'], 1);
   // The Hoard (raid 2, tier 9, four heroes): Swallow and the Craw, then Ember Feast.
   const hoard = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>
-    cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: 'hoard', tier: 9, omens: [], worldBoss: 'Old Coalmouth', party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+    cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: 'hoard', tier: 9, omens: [], worldBoss: 'Old Vorhulm', party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
   hoard('hoard four', 'bulwark', ['lumen', 'duskblade', 'emberwright']);
   hoard('hoard no healer', 'bulwark', ['emberwright', 'duskblade', 'emberwright']);
   hoard('hoard no tank', 'emberwright', ['lumen', 'duskblade', 'emberwright']);
@@ -105,7 +105,7 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   t.longest = Math.max(t.longest, w.time);
   t.runs++;
   if (w.state !== 'ended') { stuck++; console.log(`STUCK ${key} seed ${c.opts.seed} at encounter ${w.encounter}`); }
-  // Nobody may be left inside Old Coalmouth once the run is over.
+  // Nobody may be left inside Old Vorhulm once the run is over.
   const inside = w.heroes.findIndex((_, i) => (w.heroPlayer(i).swallowT ?? 0) > 0);
   if (inside >= 0) { stuck++; console.log(`STUCK INSIDE ${key} seed ${c.opts.seed}: hero ${inside} still swallowed at the end`); }
   if (c.dropWhen && gone < 0) console.log(`NO DROP ${key} seed ${c.opts.seed}: the drop moment never came`);

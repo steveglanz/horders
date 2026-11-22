@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import type { SimEvent } from '../../sim/world';
+import { LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -17,6 +17,8 @@ export interface Cue {
   jitter?: number;
   /** Stereo position, -1 (left) to 1 (right). Ordinary sounds only: warnings stay centred. */
   pan?: number;
+  /** Play this many seconds of game time later (a telegraph landing), so a pause holds it too. */
+  after?: number;
 }
 
 /** What the cue needs to know about the run. */
@@ -55,6 +57,14 @@ export interface CueContext {
    * from (World.colossusSide: 0.5 plated front, 1.5 open back, 1 the flanks). Unset once Meltdown cracks the plate.
    */
   colossus?: { x: number; y: number; side: number };
+  /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
+  t?: number;
+  /** The dungeon (World.dungeonId), where a shared hazard sounds different (the Foundry's vents steam). */
+  dungeon?: string;
+  /** Today's Heat for this run (World.heat), '' or unset for none. */
+  heat?: string;
+  /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
+  inLava?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -141,13 +151,18 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
  * not its display name, so renaming a cast never silences it. A new boss needs no new event type.
  */
 export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
-  // The Hoard (raid 2): Old Coalmouth. Gorge can be interrupted (the interrupt cue plays then); Last Meal is the enrage.
+  // The Hoard (raid 2): Old Vorhulm. Gorge can be interrupted (the interrupt cue plays then); Last Meal is the enrage.
   coalGorge: { start: 'gorgeWarn', done: 'gorge' }, // Gorge
   lastMeal: { start: 'lastMealWarn', done: 'lastMeal' }, // Last Meal
   // The Hammerdeep: Ondrel of the Hammerdeep (docs/design/group-dungeons.md).
   anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
   choir: { done: 'choir' }, // Choir of Iron
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
+  // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
+  emberLob: { start: 'spitLob' }, // Ember Lob
+  charge: { start: 'chargeWindup' }, // Charge
+  // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
+  kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
@@ -193,7 +208,7 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   hessa: 'phaseHessa',
   oskel: 'phaseOskel',
   // The Hoard: [phase 2 Swallow, phase 3 Ember Feast].
-  coalmouth: ['phaseSwallow', 'phaseFeast'],
+  vorhulm: ['phaseSwallow', 'phaseFeast'],
   // The Smeltery: [phase 2 Wheel, phase 3 Meltdown].
   colossus: ['phaseWheel', 'phaseMeltdown'],
   // The Flue: [phase 2 Edict, phase 3 Abdication].
@@ -203,13 +218,13 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
 /** The sting for a boss reaching `phase` (2 or 3). */
 /**
  * Each world boss's shadow sting, keyed by the server's boss names (supabase/migrations/0007). 'Old Ashmaw' is
- * the name before migration 0007 renames it, so a live server that hasn't run it still gets Coalmouth's sting.
+ * the name before migration 0007 renames it, so a live server that hasn't run it still gets Vorhulm's sting.
  * A name not listed falls back to PHASE_STING.worldShadow.
  */
 export const SHADOW_STING: Record<string, SoundId> = {
   'Grandmother Slag': 'shadowSlag',
   'The Cinder Colossus': 'shadowColossus',
-  'Old Coalmouth': 'shadowCoal',
+  'Old Vorhulm': 'shadowCoal',
   'Old Ashmaw': 'shadowCoal',
   'The Furnace Regent': 'shadowRegent',
 };
@@ -341,6 +356,15 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'gateChosen': return { id: 'gate' };
     case 'riftOpen': return { id: 'riftOpen' };
     case 'riftClosed': return { id: 'riftClosed' };
+    case 'riftSpawn': return { id: 'riftSpit', jitter: 0.06 };
+    // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
+    case 'spitLob': return null;
+    case 'charge': return { id: 'chargeDash', jitter: 0.04 };
+    case 'ventFlare': return { id: c.dungeon === 'foundry' ? 'steamVentWarn' : 'kilnVentWarn' };
+    case 'layout': {
+      const id = c.dungeon === 'foundry' && ev.id === 'vents' ? 'layoutSteam' : LAYOUT_STING[ev.id];
+      return id ? { id } : null;
+    }
     case 'gather': return { id: 'gather' };
     case 'soak': return { id: ev.ok ? 'soakOk' : 'soakFail' };
     case 'drop':
@@ -349,11 +373,40 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'quest': return { id: 'quest' };
     case 'dodge': return { id: 'dodged' };
     case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
-    case 'encounterStart': return null;
+    // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
+    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
+}
+
+/** Heats that change the floor, so every fight's layout event already plays a sting. */
+export const FLOOR_HEATS: ReadonlySet<string> = new Set(['stoneFloor', 'ventFloor']);
+
+/** Each Kiln arena layout's sting as the fight starts. The plain 'open' room needs none. */
+export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>['id'], SoundId>> = {
+  pillars: 'layoutPillars', channel: 'layoutChannel', vents: 'layoutVents',
+};
+
+/** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
+export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
+  if (ev.type === 'spitLob') return { id: 'spitLand', after: VARIETY.lobLand, jitter: 0.04 };
+  if (ev.type === 'ventFlare') return { id: dungeon === 'foundry' ? 'steamBurst' : 'lavaFlare', after: LAYOUT.ventCast, jitter: 0.04 };
+  return null;
+}
+
+/** The Kiln's channel layout: is this hero standing in a lava strip (World.lava, as World.layoutClock burns it)? */
+export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
+  const p = w.player;
+  if (p.hp <= 0) return false;
+  return w.lava.some((c) => {
+    const dx = c.x2 - c.x1, dy = c.y2 - c.y1;
+    const len2 = dx * dx + dy * dy;
+    const u = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - c.x1) * dx + (p.y - c.y1) * dy) / len2)) : 0;
+    const ex = c.x1 + u * dx - p.x, ey = c.y1 + u * dy - p.y;
+    return ex * ex + ey * ey <= (c.w / 2) ** 2;
+  });
 }
 
 /**
@@ -487,6 +540,9 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   plateHit: 0.12,
   backHit: 0.09,
   reviveTick: 0.3,
+  // The Kiln: a Rift spits every 3 s and two can be open; lava sizzles while you stand in it.
+  riftSpit: 1,
+  lavaSizzle: 0.35,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.

@@ -446,7 +446,7 @@ export const SOUNDS = {
     ...[0.15, 0.7].map((d) => boom(55, 0.5, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
     ...[0.2, 0.28, 0.75, 0.84].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.2, lp: 7000, hp: 2000, curve: 3 }]),
   ),
-  /** Shadow of Old Coalmouth: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
+  /** Shadow of Old Vorhulm: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
   shadowCoal: join(
     phaseShadow(),
     ...[0.15, 0.22, 0.31, 0.55, 0.63].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.3, lp: 2800, hp: 500, curve: 3 }]),
@@ -727,11 +727,105 @@ export const SOUNDS = {
   /** Opening a panel (bags, pause): a soft upward swell. */
   open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
 
+  // ---- variety (Phase 11, V6): new foes, hazards and the Kiln Mother's Kiln Draw
+  /** Ember Spitter lob: a wet cough and a rising arc of hiss, so you look up before it lands. */
+  spitLob: join(
+    [{ wave: 'noise', f: 0, dur: 0.06, vol: 0.3, lp: 2600, hp: 500, curve: 3 },
+     { wave: 'sine', f: 420, f2: 900, dur: 0.35, delay: 0.04, vol: 0.12, curve: 1.6 }],
+    whoosh(1800, 5200, 0.4, 0.12),
+  ),
+  /** The lob lands: a soft splat, then the fire circle catching. */
+  spitLand: join(
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.32, lp: 3000, lp2: 800, hp: 350, curve: 2.5 },
+     { wave: 'sine', f: 300, f2: 160, dur: 0.12, vol: 0.18, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.45, delay: 0.08, vol: 0.16, a: 0.08, lp: 7000, lp2: 2500, hp: 1500, curve: 1.6 }],
+  ),
+  /** A Charger lines up: a rising scrape and snort, the dodge warning. */
+  chargeWindup: join(
+    [{ wave: 'saw', f: 160, f2: 420, dur: 0.55, vol: 0.16, a: 0.2, lp: 1800, lp2: 3200, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.14, a: 0.25, lp: 2500, lp2: 6000, hp: 900, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.08, delay: 0.5, vol: 0.3, lp: 4000, hp: 700, curve: 3 }],
+  ),
+  /** The Charger dashes: a fast thudding rush past you. */
+  chargeDash: join(
+    whoosh(800, 7000, 0.35, 0.3),
+    ...[0, 0.08, 0.16].map((d) => [{ wave: 'sine' as const, f: 180, f2: 90, dur: 0.07, delay: d, vol: 0.2, curve: 2 },
+      { wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.2, lp: 3000, hp: 500, curve: 3 }]),
+  ),
+  /** A lava channel flares: a bubbling surge that rises and spits. */
+  lavaFlare: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.2, lp: 1200, lp2: 4500, hp: 350, curve: 1.4 }],
+    ...[0.1, 0.22, 0.31, 0.45].map((d, k) => [{ wave: 'sine' as const, f: 380 + k * 80, f2: 800 + k * 90, dur: 0.05, delay: d, vol: 0.1, curve: 2 }]),
+  ),
+  /** A Rift spits out Ashlings (every 3 s): a small hollow pop, kept quiet so it never crowds the fight. */
+  riftSpit: [
+    { wave: 'sine', f: 520, f2: 260, dur: 0.12, vol: 0.12, curve: 2 },
+    { wave: 'noise', f: 0, dur: 0.08, vol: 0.12, lp: 3000, hp: 600, curve: 3 },
+  ],
+  /** A Kiln vent's warning circle goes up: a rising rumble-hiss that lands as lavaFlare 1.2 s later. */
+  kilnVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 700, lp2: 4000, hp: 350, curve: 0.8 },
+     { wave: 'saw', f: 140, f2: 280, dur: 1.1, vol: 0.1, a: 0.8, lp: 1400, curve: 0.8 }],
+  ),
+  /** Standing in lava: a short hot sizzle, repeated while a hero is inside. */
+  lavaSizzle: [
+    { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
+    { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
+  ],
+  /** The Drowned Foundry's vents vent steam, not fire: a rising hiss with a pressure whine as the warning circle goes up. */
+  steamVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.8, lp: 3000, lp2: 9000, hp: 1500, curve: 0.8 },
+     { wave: 'sine', f: 700, f2: 1300, dur: 1.1, vol: 0.06, a: 0.8, curve: 0.8, vib: [7, 0.01] }],
+  ),
+  /** The steam vent bursts: a sharp blast of hiss that thins out. */
+  steamBurst: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.32, lp: 7000, hp: 900, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.6, vol: 0.24, a: 0.01, lp: 10000, lp2: 3000, hp: 1800, curve: 1.6 }],
+    boom(70, 0.25, 0.2),
+  ),
+  /** The Foundry's vents layout: three steam breaths and a low pipe note. */
+  layoutSteam: join(
+    ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.18, delay: d, vol: 0.2, lp: 9000, lp2: 4000, hp: 1800, curve: 2 }]),
+    horn(196, 0.5, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.5 })),
+  ),
+  /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
+  layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
+  layoutChannel: join(
+    [{ wave: 'noise', f: 0, dur: 0.8, vol: 0.2, a: 0.2, lp: 1000, lp2: 3500, hp: 350, curve: 1.2 }],
+    chime(A5, 0.1, 0.14, 0.5), chime(E5, 0.3, 0.12, 0.6),
+  ),
+  layoutVents: join(
+    ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.16, delay: d, vol: 0.22, lp: 5000, lp2: 1500, hp: 500, curve: 2 }]),
+    chime(D5 * 2, 0.5, 0.12, 0.5),
+  ),
+  /** Kiln Draw: the Kiln Mother's long inhale pulling heroes in (about 2.2 s). */
+  kilnDraw: join(
+    [{ wave: 'noise', f: 0, dur: 2.2, vol: 0.28, a: 1.6, lp: 600, lp2: 5000, hp: 350, curve: 0.8 },
+     { wave: 'saw', f: note(-14), f2: note(-9), dur: 2.2, vol: 0.12, a: 1.4, lp: 1600, curve: 0.8, vib: [3, 0.01] },
+     { wave: 'sine', f: 220, f2: 440, dur: 2.2, vol: 0.1, a: 1.4, curve: 0.8 }],
+  ),
+  /** Kiln Draw lands: the 150-radius fire circle around the Kiln Mother snaps shut with a roar (played as the cast ends). */
+  ringClose: join(
+    [{ wave: 'noise', f: 0, dur: 0.1, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
+    boom(55, 0.45, 0.35),
+    whoosh(6000, 1500, 0.5, 0.18),
+  ),
+  /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
+  heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
+
   // ---- the ember purse (shared by every class): embers in, embers spent
   /** Salvage: the item crumbles to cinders and embers clink into the purse. */
   salvage: join(
     [{ wave: 'noise', f: 0, dur: 0.22, vol: 0.18, lp: 3500, lp2: 900, hp: 400, curve: 2 }],
     chime(E6, 0.12, 0.14, 0.25), chime(A5 * 2, 0.2, 0.14, 0.35),
+  ),
+  /** Salvage all: a heavier break (a pile crumbles at once) and a run of embers pouring into the purse, about 0.9 s to sit under the purse animation. */
+  salvageAll: join(
+    boom(70, 0.35, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.24, lp: 3200, lp2: 700, hp: 350, curve: 1.8 },
+     { wave: 'noise', f: 0, dur: 0.05, delay: 0.02, vol: 0.2, lp: 7000, hp: 1500, curve: 3 }],
+    ...[E6, A5 * 2, C6 * 2, E6, G6, A5 * 2, C6 * 2].map((f, k) => chime(f, 0.16 + k * 0.07, 0.17 - k * 0.012, 0.25)),
   ),
   /** Upgrade at the Forge: one ringing hammer strike on the anvil, with sparks. */
   forge: join(clang(880, 0.32, 0.6), [
@@ -748,7 +842,7 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.04, delay: 0.36, vol: 0.3, lp: 5000, hp: 900, curve: 3 }, { wave: 'sine', f: 900, f2: 500, dur: 0.06, delay: 0.36, vol: 0.12 }],
   ),
 
-  // ---- the Hoard (raid 2): Old Coalmouth
+  // ---- the Hoard (raid 2): Old Vorhulm
   /** Swallow: a big wet gulp, the fight's main alarm. The throat drops, then a bright smack so a phone hears it. */
   swallowed: join(
     [{ wave: 'sine', f: 320, f2: 55, dur: 0.7, vol: 0.5, a: 0.01, curve: 1.6 },
@@ -967,6 +1061,11 @@ export const PHONE_FLOOR_DB = -26.5;
 // Polish pass (22 Nov 2026): busycheck with the skills team's t8 heroes (HEROES=heroes-r2 HERO_FILE=hero-t8-0.json) found
 // ten warnings under 6 dB over the mix in the Crucible, Hammerdeep, Coldmarrow and Wrackline; each is lifted to about 6.5 dB.
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
+  // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
+  spitLob: 4.5,
+  chargeWindup: 4.0,
+  // Kiln Draw's inhale is a cast wind-up that measured right on the floor (-26.5 dB).
+  kilnDraw: 1.0,
   ebbPull: 1.9,
   haulWarn: 8.9,
   ladleWarn: 3.4,

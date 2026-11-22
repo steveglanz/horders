@@ -22,6 +22,7 @@ import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
+import { HEATS, HEAT_TUNING, HeatId, heatApplies } from './content/heat';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
@@ -397,7 +398,7 @@ export interface Player {
   relayT?: number;
   /** Crawsplitter (verb set): seconds left of the damage bonus after the Craw breaks. */
   freedT?: number;
-  /** Raid 2: seconds left inside Old Coalmouth (swallowed: can't act, can't be hit, digests at 0). */
+  /** Raid 2: seconds left inside Old Vorhulm (swallowed: can't act, can't be hit, digests at 0). */
   swallowT?: number;
   /** Raid 4: seconds left before this hero can hold a Decree again (after passing one on). */
   spentT?: number;
@@ -556,6 +557,14 @@ export type SimEvent =
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
+  /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
+  | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'charge'; index: number }
+  /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
+  | { type: 'layout'; id: LayoutId }
+  | { type: 'ventFlare'; x: number; y: number }
+  /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
+  | { type: 'tideTurn'; angle: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -584,6 +593,8 @@ export type SimEvent =
   | { type: 'rareSpawn' }
   | { type: 'riftOpen'; x: number; y: number }
   | { type: 'riftClosed'; x: number; y: number }
+  /** V1: a Hollow Rift spat out `n` Ashlings. */
+  | { type: 'riftSpawn'; index: number; n: number }
   | { type: 'gather'; x: number; y: number }
   | { type: 'soak'; ok: boolean; x: number; y: number }
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
@@ -689,6 +700,8 @@ export interface WorldOptions {
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
   day?: number;
+  /** V4: today's Heat (heatFor in content/heat.ts). The sim keeps it only where it applies (heatApplies, not the first delve, a bounty or a key run). */
+  heat?: HeatId;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
   omens?: OmenId[];
   /** The living world boss's Omen: added to every delve on top of the tier's Omens, for extra luck. */
@@ -809,6 +822,24 @@ export class World {
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
   arenaR = ARENA;
+  /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
+  layout: LayoutId = 'open';
+  /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
+  bossVariant: KilnVariant | MaelraVariant | '' = '';
+  /** V8 Sluicetide: the way the water flows (radians), while it runs. */
+  tideAngle = 0;
+  private sluiceT = 0;
+  private tideTurns = 0;
+  /** V4: the Day's Heat on this run, or '' for none. */
+  heat: HeatId | '' = '';
+  /** Standing stones: they block heroes and foes alike. */
+  stones: { x: number; y: number; r: number }[] = [];
+  /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
+  lava: { x1: number; y1: number; x2: number; y2: number; w: number }[] = [];
+  /** Kiln vents: they flare one at a time, in turn. */
+  flareVents: { x: number; y: number }[] = [];
+  private flareT = 0;
+  private flareK = 0;
   /** Maelra's steam vents (empty in other fights). */
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
@@ -856,7 +887,7 @@ export class World {
   private bellowTarget = 0;
   // The Pressworks (Oskel): Downstroke, Rivets, Stamp.
   private downT = 0;
-  /** Raid 2 (the Hoard): Old Coalmouth's clocks, the swallowed hero, the Craw and the spilled embers. */
+  /** Raid 2 (the Hoard): Old Vorhulm's clocks, the swallowed hero, the Craw and the spilled embers. */
   private gorgeT = 0;
   private sweepT = 0;
   private wheelT = 0;
@@ -1037,12 +1068,15 @@ export class World {
       this.keyDmg *= FIRST_DELVE.dmg;
     }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
+    this.heat = opts.heat && HEATS[opts.heat] && heatApplies(this.dungeonId, this.tier) && !this.firstDelve && !this.stress
+      && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
-    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1);
+    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1)
+      * (this.heat === 'richHaul' ? HEAT_TUNING.richHaulLuck : 1); // V4 Rich Haul
     const hp = Math.round((this.classDef.baseHp + this.loadout.maxHpBonus) * gritMult(this.grit));
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
@@ -1554,6 +1588,7 @@ export class World {
     }
     if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
+    if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
@@ -1682,6 +1717,7 @@ export class World {
         return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
       })
       : [];
+    this.rollLayout(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
@@ -1703,6 +1739,7 @@ export class World {
           e.aux = a;
           e.aux2 = lead;
         } else if (lead < 0) lead = i;
+        if (sp.kind === 'rift') this.events.push({ type: 'riftOpen', x: e.x, y: e.y }); // V1: the Kiln's Hollow Rift fight
         if (sp.kind === 'worldShadow') {
           this.bossIndex = i;
           this.shadowStart = this.time;
@@ -1714,6 +1751,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
+          this.bossVariant = this.rollKilnVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -1722,6 +1760,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.startMaelra();
+          this.bossVariant = this.rollMaelraVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensmother') {
@@ -1805,7 +1844,7 @@ export class World {
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
-        if (sp.kind === 'coalmouth') {
+        if (sp.kind === 'vorhulm') {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.bossPhase = 1;
@@ -1913,6 +1952,82 @@ export class World {
     this.phaseT = INTRO_TIME * 0.6;
   }
 
+  /**
+   * V2 (variety): each fight in a dungeon that has layouts rolls one, from a hash of the seed and
+   * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
+   * delve stay open.
+   */
+  /** V3: which signature the Kiln Mother uses from phase 2, hashed from the seed (no run-rng draws). The first delve keeps Molten Cataclysm. */
+  private rollKilnVariant(): KilnVariant {
+    if (this.firstDelve || this.stress) return 'cataclysm';
+    let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
+    return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollMaelraVariant(): MaelraVariant {
+    if (this.stress) return 'water';
+    let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
+    return MAELRA_VARIANTS[(h >>> 4) % MAELRA_VARIANTS.length];
+  }
+
+  private rollLayout(id: EncounterId): void {
+    this.stones = [];
+    this.lava = [];
+    this.flareVents = [];
+    this.layout = 'open';
+    const pool = LAYOUTS[this.dungeonId];
+    if (!pool || this.firstDelve || this.stress || id === this.dungeonDef.boss || id === 'shrine' || id === 'worldShadow') return;
+    let h = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) + Math.imul(this.encounter + 1, 0xc2b2ae35)) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
+    const forced = this.heat === 'stoneFloor' ? 'pillars' : this.heat === 'ventFloor' ? 'vents' : undefined;
+    this.layout = forced ?? pool[h % pool.length];
+    const turn = ((h >>> 8) % 360) * (Math.PI / 180);
+    if (this.layout === 'pillars') {
+      for (let k = 0; k < LAYOUT.stoneCount; k++) {
+        const a = turn + (k * 2 * Math.PI) / LAYOUT.stoneCount;
+        this.stones.push({ x: Math.cos(a) * LAYOUT.stoneRing, y: Math.sin(a) * LAYOUT.stoneRing, r: LAYOUT.stoneRadius });
+      }
+    } else if (this.layout === 'channel') {
+      const L = ARENA - 40;
+      this.lava.push({ x1: Math.cos(turn) * L, y1: Math.sin(turn) * L, x2: -Math.cos(turn) * L, y2: -Math.sin(turn) * L, w: LAYOUT.lavaWidth });
+    } else if (this.layout === 'vents') {
+      for (let k = 0; k < LAYOUT.ventCount; k++) {
+        const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
+        this.flareVents.push({ x: Math.cos(a) * LAYOUT.ventRing, y: Math.sin(a) * LAYOUT.ventRing });
+      }
+      this.flareT = LAYOUT.ventFirst;
+      this.flareK = 0;
+    }
+    this.events.push({ type: 'layout', id: this.layout });
+  }
+
+  /** V2: lava burns whoever stands in it; Kiln vents flare in turn. */
+  private layoutClock(dt: number): void {
+    const at = this.acting;
+    for (const c of this.lava) {
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0 || segDist2(q.x, q.y, c.x1, c.y1, c.x2, c.y2) > (c.w / 2) ** 2) continue;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * dt, -1, true);
+      }
+    }
+    this.use(at);
+    if (this.flareVents.length) {
+      this.flareT -= dt;
+      if (this.flareT <= 0) {
+        this.flareT = LAYOUT.ventEvery;
+        const v = this.flareVents[this.flareK % this.flareVents.length];
+        this.flareK++;
+        this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, LAYOUT.ventCast, LAYOUT.ventDamage, 'hit', -1); // scaled by tier as it lands
+        this.events.push({ type: 'ventFlare', x: v.x, y: v.y });
+      }
+    }
+  }
+
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
     const d = Math.hypot(o.x, o.y);
@@ -1920,6 +2035,17 @@ export class World {
     if (d > max) {
       o.x *= max / d;
       o.y *= max / d;
+    }
+    for (const c of this.stones) {
+      const dx = o.x - c.x;
+      const dy = o.y - c.y;
+      const dd = Math.hypot(dx, dy);
+      const min = c.r + r;
+      if (dd < min) {
+        const k = dd > 0.001 ? min / dd : 1;
+        o.x = c.x + (dd > 0.001 ? dx * k : min);
+        o.y = c.y + (dd > 0.001 ? dy * k : 0);
+      }
     }
     for (const c of this.pillars) {
       if (c.cracked) continue;
@@ -1961,6 +2087,7 @@ export class World {
       this.bossSpawned = true;
       this.bossIndex = this.spawnAtRing('kilnMother', 480);
       if (this.bossIndex >= 0) this.enemies[this.bossIndex].aux = 12; // first Molten Cataclysm
+      this.bossVariant = 'cataclysm';
       // Lesser named foes flee when the Kiln Mother rises, so the fight stays readable.
       for (let i = 0; i < this.enemies.length; i++) {
         const e = this.enemies[i];
@@ -3965,6 +4092,17 @@ export class World {
       const d = Math.hypot(dx, dy) || 1;
       let mx = (dx / d) * speed;
       let my = (dy / d) * speed;
+      // V1: an Ember Spitter keeps its distance: it backs off when you close in and circles at range.
+      if (e.kind === 'emberSpitter') {
+        if (d < VARIETY.spitterNear) { mx = -mx; my = -my; }
+        else if (d < VARIETY.spitterFar) { const s = i % 2 ? 0.5 : -0.5; const tx = -my * s; my = mx * s; mx = tx; }
+      }
+      // V1: an Ashbuck mid-charge runs straight down its lane, fast, and doesn't steer.
+      if (e.kind === 'ashbuck' && e.aux2 > 0) {
+        e.aux2 -= dt;
+        mx = Math.cos(e.aux) * VARIETY.chargeSpeed;
+        my = Math.sin(e.aux) * VARIETY.chargeSpeed;
+      }
 
       // Separation so a group reads as separate foes, not a single blob.
       if (e.def.rank !== 'boss') {
@@ -4005,7 +4143,7 @@ export class World {
 
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
         e.touchCd = 0.6;
-        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'coalmouth' ? 1 + COAL.emberDamage * this.coalFed : 1);
+        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
         // A Snuffer's touch drinks the hero's light.
         if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
@@ -4035,10 +4173,15 @@ export class World {
       e.abilityT -= dt;
       if (e.abilityT <= 0) {
         e.abilityT = 3;
-        for (let k = 0; k < 3; k++) {
+        // V1: in a dungeon fight a Rift keeps at most `riftCap` Ashlings out, so the swarm stays readable.
+        let out = 0;
+        if (!this.stress) for (const o of this.enemies) if (o.alive && o.kind === 'ashling') out++;
+        const n = Math.min(3, this.stress ? 3 : VARIETY.riftCap - out);
+        for (let k = 0; k < n; k++) {
           const a = this.rng.next() * Math.PI * 2;
           this.spawn('ashling', e.x + Math.cos(a) * 40, e.y + Math.sin(a) * 40);
         }
+        if (n > 0 && !this.stress) this.events.push({ type: 'riftSpawn', index: i, n });
       }
       return;
     }
@@ -4090,6 +4233,9 @@ export class World {
       const p = this.player;
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
+    } else if (id === 'charge') {
+      e.aux2 = VARIETY.chargeLen / VARIETY.chargeSpeed; // run the lane it showed
+      this.events.push({ type: 'charge', index: i });
     } else if (id === 'mirror') {
       e.aux2 = FOUNDRY.mirrorTime;
     } else if (id === 'rekindle') {
@@ -4206,7 +4352,7 @@ export class World {
       }
       this.use(at);
     } else if (id === 'coalGorge') {
-      // Old Coalmouth's Gorge: not interrupted, he heals.
+      // Old Vorhulm's Gorge: not interrupted, he heals.
       const amount = e.maxHp * COAL.gorgeHeal * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
@@ -4306,11 +4452,33 @@ export class World {
     const e = this.enemies[i];
     const p = this.player;
     if (e.castId) {
+      if (e.castId === 'kilnDraw') this.kilnDrawPull(i, dt);
       e.castT += dt;
       if (e.castT >= e.castDur) this.finishCast(i);
       return;
     }
     e.abilityT -= dt;
+    if (e.kind === 'emberSpitter') {
+      // Ember Lob: a slow fire circle where you stand now. Keep moving, or close in on it.
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < VARIETY.lobRange ** 2) {
+        e.abilityT = VARIETY.lobEvery + this.rng.next() * 0.6;
+        this.startCast(i, 'emberLob', 'Ember Lob', VARIETY.lobCast, false);
+        this.addTelegraph('circle', p.x, p.y, VARIETY.lobRadius, 0, 0, VARIETY.lobLand, VARIETY.lobDamage, 'hit', i);
+        this.events.push({ type: 'spitLob', index: i, x1: e.x, y1: e.y, x2: p.x, y2: p.y });
+      }
+      return;
+    }
+    if (e.kind === 'ashbuck') {
+      // Charge: it lines up on you and runs the lane. Step out of the line, not away.
+      const dd = dist2(p.x, p.y, e.x, e.y);
+      if (e.abilityT <= 0 && e.aux2 <= 0 && dd > VARIETY.chargeMin ** 2 && dd < VARIETY.chargeLen ** 2) {
+        e.abilityT = VARIETY.chargeEvery;
+        e.aux = Math.atan2(p.y - e.y, p.x - e.x);
+        this.startCast(i, 'charge', 'Charge', VARIETY.chargeCast, false);
+        this.addTelegraph('cone', e.x, e.y, VARIETY.chargeLen, e.aux, VARIETY.chargeArc, VARIETY.chargeCast, VARIETY.chargeDamage, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'cinderBrute') {
       if (e.abilityT <= 0) {
         e.abilityT = 5;
@@ -4396,7 +4564,7 @@ export class World {
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
-    if (e.kind === 'coalmouth' || e.kind === 'craw' || e.kind === 'colossus' || e.kind === 'regent') return; // all on their raid clocks
+    if (e.kind === 'vorhulm' || e.kind === 'craw' || e.kind === 'colossus' || e.kind === 'regent') return; // all on their raid clocks
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -4433,6 +4601,12 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
+      if (phase >= 2 && this.bossVariant === 'draw') {
+        // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
+        this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
+        this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        return;
+      }
       this.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true);
       return;
     }
@@ -4464,6 +4638,21 @@ export class World {
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
       }
     }
+  }
+
+  /** Kiln Draw: each living hero slides toward the Kiln Mother while she breathes in, stopping at her edge. */
+  private kilnDrawPull(i: number, dt: number): void {
+    const e = this.enemies[i];
+    this.eachHero(() => {
+      const p = this.player;
+      const dx = e.x - p.x, dy = e.y - p.y;
+      const d = Math.hypot(dx, dy);
+      const room = d - e.def.radius - PLAYER_RADIUS;
+      if (room <= 0 || d > KILN_DRAW.reach) return;
+      const step = Math.min(room, KILN_DRAW.pull * dt);
+      p.x += (dx / d) * step;
+      p.y += (dy / d) * step;
+    });
   }
 
   private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false, forceCrit = false): void {
@@ -4532,7 +4721,7 @@ export class World {
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
     // The shadow fight and the raid bosses all count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
-    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth' || e.kind === 'colossus' || e.kind === 'regent') this.shadowDamage += dmg;
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent') this.shadowDamage += dmg;
     // Wheel turns on whoever hurt him most lately.
     if (e.kind === 'colossus') this.colDmg[this.acting] = (this.colDmg[this.acting] ?? 0) + dmg;
     const thirst = this.rank('thirst');
@@ -5776,7 +5965,7 @@ export class World {
   }
 
   /**
-   * Old Coalmouth's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
+   * Old Vorhulm's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
    * Swallow: a hero goes inside and the Craw appears; break it to free them. Phase 3 Ember
    * Feast: spilled embers he eats unless the heroes grab them first. Last Meal at `hardEnrage`.
    */
@@ -5784,7 +5973,7 @@ export class World {
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
     const e = this.enemies[i];
-    if (!e || !e.alive || e.kind !== 'coalmouth') {
+    if (!e || !e.alive || e.kind !== 'vorhulm') {
       this.releaseSwallowed(false);
       return;
     }
@@ -6070,8 +6259,28 @@ export class World {
         }
       }
     }
+    // V8 Sluicetide (some runs): instead of rising, the water runs across the room and turns now and then.
+    if (phase >= 2 && this.bossVariant === 'tide') {
+      this.sluiceT -= dt;
+      if (this.sluiceT <= 0) {
+        this.sluiceT = SLUICETIDE.turnEvery;
+        let h = Math.imul(this.seed ^ 0x68e31da4, 0xb5297a4d) + Math.imul(++this.tideTurns, 0x1b56c4e9) >>> 0;
+        h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
+        // Never straight back the way it came: a quarter turn either way, or onward at a slant.
+        const turns = [Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4];
+        this.tideAngle = this.tideTurns === 1 ? ((h >>> 8) % 360) * (Math.PI / 180) : this.tideAngle + turns[h % turns.length];
+        this.events.push({ type: 'tideTurn', angle: this.tideAngle });
+      }
+      const ux = Math.cos(this.tideAngle), uy = Math.sin(this.tideAngle);
+      this.eachHero(() => {
+        const q = this.player;
+        q.x += ux * SLUICETIDE.drift * dt;
+        q.y += uy * SLUICETIDE.drift * dt;
+        this.clampArena(q, PLAYER_RADIUS);
+      });
+    }
     // Phase 2: the water rises and the arena shrinks.
-    if (phase >= 2 && this.arenaR > FOUNDRY.waterMin) {
+    if (phase >= 2 && this.bossVariant !== 'tide' && this.arenaR > FOUNDRY.waterMin) {
       this.waterT += dt;
       this.arenaR = Math.max(FOUNDRY.waterMin, ARENA - (ARENA - FOUNDRY.waterMin) * Math.min(1, this.waterT / FOUNDRY.waterTime));
       this.clampArena(p, PLAYER_RADIUS);
@@ -6467,7 +6676,7 @@ export class World {
 
   private gainXp(v: number): void {
     const p = this.player;
-    p.xp += v * this.loadout.xpMult;
+    p.xp += v * this.loadout.xpMult * (this.heat === 'quickStudy' ? HEAT_TUNING.quickStudyXp : 1);
     while (p.xp >= p.xpToNext) {
       p.xp -= p.xpToNext;
       p.level++;
@@ -6608,7 +6817,7 @@ export class World {
     }
     // The run ends on a win, or when the whole party is down.
     if ((this.victory && !this.shadowPending) || down === this.heroes.length) {
-      // The Hoard: a hero still inside when Old Coalmouth falls comes out with the win (coalClock never runs again).
+      // The Hoard: a hero still inside when Old Vorhulm falls comes out with the win (coalClock never runs again).
       if (this.victory) this.releaseSwallowed(false);
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });
@@ -6721,6 +6930,43 @@ export const GLARE = {
 };
 
 /** Drowned Foundry tuning. */
+/** V2 (variety): arena layouts. */
+export type LayoutId = 'open' | 'pillars' | 'channel' | 'vents';
+/** The layouts each dungeon's fights roll from (open is listed twice in the Kiln, so it stays the most common). */
+export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
+  kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
+  // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
+  foundry: ['open', 'open', 'pillars', 'vents'],
+};
+/** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
+/** V3: the Kiln Mother's phase-2 signature this run. */
+export type KilnVariant = 'cataclysm' | 'draw';
+export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
+/** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
+export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+
+/** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
+export type MaelraVariant = 'water' | 'tide';
+export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide'];
+/** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
+export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+
+export const LAYOUT = {
+  stoneCount: 5, stoneRing: 230, stoneRadius: 34,
+  lavaWidth: 70, lavaBurn: 0.08,
+  ventCount: 4, ventRing: 260, ventRadius: 75, ventCast: 1.2, ventEvery: 3.5, ventFirst: 4, ventDamage: 20,
+};
+
+/** V1 (variety, docs/design/variety.md): the Kiln's new foes. */
+export const VARIETY = {
+  /** Ember Spitter: backs off inside `spitterNear`, circles out to `spitterFar`; Ember Lob every `lobEvery` s within `lobRange`, a `lobRadius` circle that lands after `lobLand` s. */
+  spitterNear: 190, spitterFar: 290, lobRange: 440, lobEvery: 3.2, lobCast: 0.7, lobLand: 1.6, lobRadius: 70, lobDamage: 18,
+  /** Ashbuck: from `chargeMin` to `chargeLen` away it shows a lane (`chargeArc` wide cone) for `chargeCast` s, then runs it at `chargeSpeed`. */
+  chargeMin: 110, chargeLen: 360, chargeArc: 0.24, chargeCast: 1.0, chargeEvery: 5, chargeSpeed: 720, chargeDamage: 22,
+  /** Hollow Rift in a dungeon fight: Ashlings out at once. */
+  riftCap: 8,
+};
+
 export const FOUNDRY = {
   mirrorCast: 2,
   mirrorTime: 3,
@@ -6858,11 +7104,11 @@ export const SLAG = {
 export const REGENT = {
   phase2: 0.6, phase3: 0.25,
   /** Decree: every `decreeEvery` s (two at once in phase 2), on a non-tank. It burns its holder `decreeTick` of max health a second and anyone within `scorchRadius` `scorchTick`; after `decreeTime` s it bursts for `decreeBurst` of every hero's max health. */
-  decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.35,
+  decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.5,
   /** Passing: touch (within `passRange`) a hero who can hold it, after it has `settle` s on you. The passer is Spent for `spentTime` s; after `decreePasses` passes it fades (`edictPasses` in phase 2). A tank can take one by hand. */
   passRange: 50, settle: 1, spentTime: 6, decreePasses: 2, edictPasses: 1,
   /** Ash Fall (phase 2): a circle under every hero. */
-  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 45,
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70,
   /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
   officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
   hardEnrage: 480, lastWordCast: 5,

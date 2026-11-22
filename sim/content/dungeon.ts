@@ -13,7 +13,9 @@ export type EncounterId =
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
   | 'grandmotherSlag'
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
-  | 'oskel' | 'coalmouth' | 'colossus' | 'regent';
+  | 'oskel' | 'vorhulm' | 'colossus' | 'regent'
+  | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
+  | 'glassSpitters' | 'crawlerCharge';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -28,8 +30,17 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardens: { id: 'wardens', name: 'Hollow Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
   warpack: { id: 'warpack', name: 'Warden and Hounds', tip: 'A warden with its hounds. Thin the hounds first.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
-  ashmaw: { id: 'ashmaw', name: 'Coalmouth the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
+  ashmaw: { id: 'ashmaw', name: 'Vorhulm the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
   acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
+  // V1 (variety): Kiln fights that move and hit differently: range, a swarm source, and a charge down a lane.
+  spitters: { id: 'spitters', name: 'Ember Spitters', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
+  riftfall: { id: 'riftfall', name: 'The Hollow Rift', tip: 'The Rift spits Ashlings until it breaks. Break the Rift first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  ashbucks: { id: 'ashbucks', name: 'The Ashbucks', tip: 'An Ashbuck shows its lane, then charges down it. Step to the side, not back.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'cinderhound', n: 1 }] },
+  spitterBrute: { id: 'spitterBrute', name: 'Brute and Spitters', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
+  glassSpitters: { id: 'glassSpitters', name: 'Warden and Spitters', tip: 'Quench Mirror Ward, then run the Spitters down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  crawlerCharge: { id: 'crawlerCharge', name: 'Crawler and Ashbuck', tip: 'Drag the blue ring away from the Ashbuck, and step aside from its lane.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'ashbuck', n: 1 }, { kind: 'cinderhound', n: 1 }] },
+  ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
   glass: { id: 'glass', name: 'Glass Warden and Hounds', tip: 'Quench Mirror Ward, or your damage comes back at you.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'cinderhound', n: 2 }] },
@@ -62,13 +73,18 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   regent: { id: 'regent', name: 'The Furnace Regent', tip: 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. You can\'t take it back for a while. It never lands on the tank, but the tank can take one.', spawns: [{ kind: 'regent', n: 1 }] },
   colossus: { id: 'colossus', name: 'The Cinder Colossus', tip: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he Wheels, he turns on whoever hurt him most.', spawns: [{ kind: 'colossus', n: 1 }] },
-  coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'coalmouth', n: 1 }] },
+  vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'vorhulm', n: 1 }] },
   oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', tip: 'Heal the Ladle burn off the tank, dodge the molten lanes, then fill the vents and spread for the Cinder Marks.', spawns: [{ kind: 'grandmotherSlag', n: 1 }] },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
+/** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
+export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
+/** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
+export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';
+
 
 export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard' | 'smeltery' | 'flue';
 
@@ -101,12 +117,12 @@ export interface DungeonDef {
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   kiln: {
     id: 'kiln', name: 'The Kiln Depths', boss: 'kilnMother', unlockTier: 1,
-    openers: ['pack', 'wardens', 'warpack'], named: ['brute', 'ashmaw'], hard: ['acolytes', 'ashmaw'],
+    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
     blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.', style: 'solo', minParty: 1,
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
-    openers: ['twins', 'glass', 'crawlers'], named: ['bellwarden', 'tidepair'], hard: ['twinsAcolyte', 'tidepair'],
+    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {
@@ -146,10 +162,10 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     worldBoss: 'Grandmother Slag',
   },
   hoard: {
-    id: 'hoard', name: 'The Hoard', boss: 'coalmouth', unlockTier: 9,
+    id: 'hoard', name: 'The Hoard', boss: 'vorhulm', unlockTier: 9,
     openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
-    blurb: 'The second raid. Four heroes face Old Coalmouth in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
-    worldBoss: 'Old Coalmouth',
+    blurb: 'The second raid. Four heroes face Old Vorhulm in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'Old Vorhulm',
   },
   smeltery: {
     id: 'smeltery', name: 'The Smeltery', boss: 'colossus', unlockTier: 10,

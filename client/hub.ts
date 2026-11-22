@@ -2,7 +2,7 @@
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, pointsAvailable, potionWorksIn, salvage, spendPoint, gritFor,
+  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
@@ -19,6 +19,7 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../s
 import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
+import { HEATS, heatApplies, heatFor } from '../sim/content/heat';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } from '../sim/content/weekly';
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
@@ -346,7 +347,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
+      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -811,6 +812,13 @@ export class Hub {
     return `<div class="${cls}" title="${o.tip}">${omenTile(id)}<div><b>${o.name}</b><div>${o.text}</div></div></div>`;
   }
 
+  /** V4: today's Heat, on the Kiln below the first Omen tier. */
+  private heatLine(): string {
+    if (!heatApplies(this.dungeon, this.tier)) return '';
+    const h = HEATS[heatFor(dayOf(Date.now()))];
+    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
+  }
+
   /** This week's Omens for the picked tier, or a hint about when they start. */
   private omenLine(omens: OmenId[]): string {
     if (!omens.length) return this.hero().maxTier >= OMEN_FROM_TIER - 1 ? `<div class="hint">From tier ${OMEN_FROM_TIER}, fights carry Omens that change each week.</div>` : '';
@@ -990,22 +998,17 @@ export class Hub {
     $('bagSub').textContent = `${h.inventory.length} ${h.inventory.length === 1 ? 'item' : 'items'} · ${worn.size} equipped`;
     $('bagEmbers').textContent = h.embers.toLocaleString();
     const wornSets = setsWorn(h);
+    const plan = salvageAllPlan(h);
     const grid = !!this.tabs?.matches;
     $('bagList').classList.toggle('grid', grid);
     if (grid) {
       // Phones: icon tiles, tap one for its card and actions (docs/design/mobile-ux.md §3.4).
-      const tile = (it: Item) => {
-        const r = RARITY[it.rarity];
-        return `<button class="itile${worn.has(it.id) ? ' worn' : ''}" data-i="${it.id}" style="--rc:${r.color}" aria-label="${it.name}, ${r.name} ${SLOT_LABEL[it.slot]}, item level ${it.ilvl}${worn.has(it.id) ? ', equipped' : ''}">`
-          + `<span class="ig">${glyph(SLOT_ICON[it.slot], 26)}</span><span class="il">${it.ilvl}</span>`
-          + (it.set ? `<span class="is" style="color:${SET_COLOR}">${glyph(SET_ICON[it.set], 11)}</span>` : '')
-          + (worn.has(it.id) ? '<span class="ie">E</span>' : '') + (this.freshIds.has(it.id) ? '<i class="inew" aria-hidden="true"></i>' : '') + '</button>';
-      };
+      const tile = (it: Item) => this.bagTile(it, worn.has(it.id));
       const wornItems = sorted.filter((i) => worn.has(i.id));
       const spare = sorted.filter((i) => !worn.has(i.id));
       $('bagList').innerHTML = `<div class="sec-h"><span>Equipped</span><span class="gold">Gear score ${gearScore(h)}</span></div>`
         + (wornItems.length ? `<div class="igrid">${wornItems.map(tile).join('')}</div>` : '<div class="muted small">Nothing yet. Equip loot from your bag.</div>')
-        + `<div class="sec-h"><span>Bag</span><span class="muted">${spare.length ? 'Tap an item · hold for stats' : ''}</span></div>`
+        + `<div class="sec-h"><span>Bag</span>${plan.items.length ? this.salvageAllBtn(plan) : `<span class="muted">${spare.length ? 'Tap an item · hold for stats' : ''}</span>`}</div>`
         + (spare.length ? `<div class="igrid">${spare.map(tile).join('')}</div>` : '<div class="muted small">Nothing spare. Loot drops during delves.</div>');
       $('bagList').querySelectorAll<HTMLButtonElement>('[data-i]').forEach((b) => {
         const it = h.inventory.find((i) => i.id === b.dataset.i)!;
@@ -1013,12 +1016,83 @@ export class Hub {
         b.addEventListener('click', () => this.openItem(it.id));
       });
     } else {
-      $('bagList').innerHTML = sorted.map((it) => {
+      $('bagList').innerHTML = (plan.items.length ? `<div class="sa-bar"><span class="muted small">${plan.items.length} spare ${plan.items.length === 1 ? 'item is' : 'items are'} no better than what you wear</span>${this.salvageAllBtn(plan)}</div>` : '') + sorted.map((it) => {
         const isWorn = worn.has(it.id);
         return `<div class="item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
       }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
       this.bindActs($('bagList'), () => this.openBag());
     }
+    $('bagList').querySelector<HTMLButtonElement>('[data-sall]')?.addEventListener('click', () => this.openSalvageAll());
     $('bag').hidden = false;
+  }
+
+  /** One bag icon tile (phones). Without a tap target it is a look-only tile, for the Salvage all list. */
+  private bagTile(it: Item, isWorn: boolean, tap = true): string {
+    const r = RARITY[it.rarity];
+    const tag = tap ? 'button' : 'span';
+    return `<${tag} class="itile${isWorn ? ' worn' : ''}"${tap ? ` data-i="${it.id}"` : ` data-ti="${it.id}" role="img"`} style="--rc:${r.color}" aria-label="${it.name}, ${r.name} ${SLOT_LABEL[it.slot]}, item level ${it.ilvl}${isWorn ? ', equipped' : ''}">`
+      + `<span class="ig">${glyph(SLOT_ICON[it.slot], 26)}</span><span class="il">${it.ilvl}</span>`
+      + (it.set ? `<span class="is" style="color:${SET_COLOR}">${glyph(SET_ICON[it.set], 11)}</span>` : '')
+      + (isWorn ? '<span class="ie">E</span>' : '') + (tap && this.freshIds.has(it.id) ? '<i class="inew" aria-hidden="true"></i>' : '') + `</${tag}>`;
+  }
+
+  private salvageAllBtn(plan: { items: Item[]; embers: number }): string {
+    return `<button class="sbtn danger sall" data-sall data-sfx="open" aria-label="Salvage all: ${plan.items.length} spare items for ${plan.embers} embers">Salvage all<span class="cost">+${plan.embers}</span></button>`;
+  }
+
+  /** Salvage all: what breaks, what it pays and what stays, then one confirm. */
+  private openSalvageAll(): void {
+    const h = this.hero();
+    const plan = salvageAllPlan(h);
+    if (!plan.items.length) { $('sheet').hidden = true; this.openBag(); return; }
+    const n = plan.items.length;
+    const items = [...plan.items].sort((a, b) => itemScore(b) - itemScore(a));
+    const body = `<div class="sa-sum"><b>${n} ${n === 1 ? 'item' : 'items'}</b><span class="sa-pay"><i class="coin"></i>+${plan.embers}</span></div>`
+      + `<div class="igrid sa-grid">${items.map((it) => this.bagTile(it, false, false)).join('')}</div>`
+      + `<div class="hint">Only spares no better than what you wear in that slot${plan.kept ? `. Keeps ${plan.kept} other ${plan.kept === 1 ? 'spare' : 'spares'}` : ''}. Never breaks equipped gear, set pieces, Epics, Mythics, class weapons, upgrades or gear for an empty slot.</div>`
+      + `<div class="sheet-acts"><button class="sbtn" data-sa-no data-sfx="back">Cancel</button><button class="sbtn eq sa-go" data-sa-go data-sfx="salvageAll">Salvage ${n} · +${plan.embers}</button></div>`;
+    openSheet('Salvage all', body);
+    const wornSets = setsWorn(h);
+    $('sheetBody').querySelectorAll<HTMLElement>('[data-ti]').forEach((t) => {
+      const it = items.find((i) => i.id === t.dataset.ti)!;
+      setTip(t, () => itemHtml(it, '', wornSets));
+    });
+    $('sheetBody').querySelector('[data-sa-no]')!.addEventListener('click', () => { $('sheet').hidden = true; });
+    $('sheetBody').querySelector('[data-sa-go]')!.addEventListener('click', () => {
+      const before = h.embers;
+      const got = salvageAll(h);
+      this.save();
+      $('sheet').hidden = true;
+      this.openBag();
+      this.emberGain(before, got.embers);
+    });
+  }
+
+  /** The purse counts up and a +N floats off it after a bulk salvage. */
+  private emberGain(from: number, gain: number): void {
+    if (gain <= 0) return;
+    const el = $('bagEmbers');
+    const pill = el.closest<HTMLElement>('.pill');
+    const to = from + gain;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (pill) {
+      pill.classList.remove('gain'); void pill.offsetWidth; pill.classList.add('gain');
+      pill.querySelector('.pill-up')?.remove();
+      const up = document.createElement('i');
+      up.className = 'pill-up';
+      up.setAttribute('aria-hidden', 'true');
+      up.textContent = `+${gain}`;
+      pill.appendChild(up);
+      setTimeout(() => { pill.classList.remove('gain'); up.remove(); }, 1300);
+    }
+    if (reduce) { el.textContent = to.toLocaleString(); return; }
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / 700);
+      el.textContent = Math.round(from + gain * (1 - (1 - k) ** 3)).toLocaleString();
+      if (k < 1) requestAnimationFrame(step);
+    };
+    el.textContent = from.toLocaleString();
+    requestAnimationFrame(step);
   }
 }

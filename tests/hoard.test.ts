@@ -20,13 +20,13 @@ type Inner = {
   spillT: number;
 };
 
-/** A Bulwark and three Emberwrights in the Hoard, Old Coalmouth beside them and no other foes. */
+/** A Bulwark and three Emberwrights in the Hoard, Old Vorhulm beside them and no other foes. */
 function hoard(): { w: World; inner: Inner; b: number } {
-  const w = new World({ seed: 5, dungeon: 'hoard', omens: [], cls: 'bulwark', worldBoss: 'Old Coalmouth',
+  const w = new World({ seed: 5, dungeon: 'hoard', omens: [], cls: 'bulwark', worldBoss: 'Old Vorhulm',
     party: [{ cls: 'emberwright' }, { cls: 'emberwright' }, { cls: 'emberwright' }] });
   const inner = w as unknown as Inner;
   for (const e of w.enemies) e.alive = false;
-  const b = inner.spawn('coalmouth', 0, -200);
+  const b = inner.spawn('vorhulm', 0, -200);
   inner.bossIndex = b;
   // Keep the timers out of the way unless a test sets them.
   inner.gorgeT = 999;
@@ -36,7 +36,7 @@ function hoard(): { w: World; inner: Inner; b: number } {
   return { w, inner, b };
 }
 
-describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
+describe('raid 2: Old Vorhulm in the Hoard (W2)', () => {
   it('is a four-hero raid with no bot fill, its own achievement, and triple credit while he is live', () => {
     const d = DUNGEONS.hoard;
     expect(d.raid).toBe(true);
@@ -44,10 +44,10 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     expect(partyBlocker('hoard', 3)).not.toBe('');
     expect(partyBlocker('hoard', 4)).toBe('');
     expect(botFillBlocker('hoard')).not.toBe('');
-    expect(raidCountsTriple('hoard', 'Old Coalmouth')).toBe(true);
+    expect(raidCountsTriple('hoard', 'Old Vorhulm')).toBe(true);
     expect(raidCountsTriple('hoard', 'Grandmother Slag')).toBe(false);
     let n = 0;
-    expect(rollRoute(() => n++ % 2, 'hoard')[3]).toBe('coalmouth');
+    expect(rollRoute(() => n++ % 2, 'hoard')[3]).toBe('vorhulm');
     expect(ACHIEVEMENTS.find((a) => a.id === 'boss:hoard')?.name).toBe('Crawbreaker');
   });
 

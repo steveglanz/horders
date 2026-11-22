@@ -683,7 +683,7 @@ export function botInput(w: World, skill = 1): Input {
     const cast = botCast(w, skill);
     return save.d > REVIVE_RADIUS * 0.5 ? { x: save.dx / save.d, y: save.dy / save.d, cast } : { x: 0, y: 0, cast };
   }
-  // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Coalmouth eats it.
+  // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Vorhulm eats it.
   const ember = emberGrab(w, skill);
   if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };
   // The Flue: pass a Decree on (the holder walks to an ally who can take it; that ally meets it).
@@ -723,6 +723,27 @@ export function botInput(w: World, skill = 1): Input {
         fx -= (dx / d) * 0.1 * skill;
         fy -= (dy / d) * 0.1 * skill;
       }
+    }
+  }
+  // V2: stay out of a lava channel; cross it straight across, never along it.
+  for (const c of w.lava) {
+    const ux = c.x2 - c.x1;
+    const uy = c.y2 - c.y1;
+    const L2 = ux * ux + uy * uy || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - c.x1) * ux + (p.y - c.y1) * uy) / L2));
+    const ox = p.x - (c.x1 + ux * t);
+    const oy = p.y - (c.y1 + uy * t);
+    const d = Math.hypot(ox, oy) || 1;
+    if (d < c.w / 2 + 30) { fx += (ox / d) * 0.3; fy += (oy / d) * 0.3; }
+  }
+  // V1: a Hollow Rift keeps spitting Ashlings, so every hero works its way to it (the tip: break the Rift first).
+  // Melee heroes already reach it through bladeTarget; a ranged hero closes to orb range of it.
+  if (!melee) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'rift' || w.stress) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+      if (d > 170) { fx += ((e.x - p.x) / d) * 0.12 * skill; fy += ((e.y - p.y) / d) * 0.12 * skill; }
+      break;
     }
   }
   for (const e of w.enemies) {

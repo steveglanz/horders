@@ -43,7 +43,7 @@ Each season theme names one dungeon that is **in season**. A win there (a delve,
 | 4 (from week 2986, Thu 25 Mar 2027) | the Slag Moon | The Glarewell | The sunken observatory that watches the sky |
 | 5 (from week 2992, Thu 6 May 2027) | the Falling Press | The Pressworks | Oskel's Downstroke; the second group season, and taking turns needs a real party (no bots) |
 | 6 (from week 2998, Thu 17 Jun 2027) | the Low Ebb | The Wrackline | Hessa of the Ebb and the drain; a solo season again |
-| 7 (from week 3004, Thu 29 Jul 2027) | the Long Hunger | The Hoard | Old Coalmouth's appetite; the first raid season, so four real heroes (no bots) |
+| 7 (from week 3004, Thu 29 Jul 2027) | the Long Hunger | The Hoard | Old Vorhulm's appetite; the first raid season, so four real heroes (no bots) |
 | 8 (from week 3010, Thu 9 Sep 2027) | the Cracked Plate | The Smeltery | The Cinder Colossus's front plate; the second raid season |
 
 Seasons 5 and 6 were added on 21 Nov 2026 so the rotation doesn't repeat Season 1 in May 2027. Seasons 7 and 8 were added later the same day for the two raids, so after Season 8 it wraps to the Hollow Tide (week 3016, Thu 21 Oct 2027). The pattern is solo, group, solo, solo, group, solo, so a group season comes round about every four months.
@@ -130,7 +130,7 @@ Co-op needs `trail` and its stage in the looks message, cleaned against `TRAILS`
 | 7, the Long Hunger | Gullet Red #ff3300 | Craw Rose #e07bb8 | Hoard Gilt #ffe926 | Ember Crumbs #bf5c43 |
 | 8, the Cracked Plate | Cinder Violet #be26ff | Crack Cyan #26e9ff | Slag Lime #d4ff26 | Plate Shards #0073bf |
 
-The Long Hunger features the Hoard (raid 2, Old Coalmouth) and the Cracked Plate features the Smeltery (raid 3, the Cinder Colossus). Both are raid seasons, so the featured dungeon needs four real heroes.
+The Long Hunger features the Hoard (raid 2, Old Vorhulm) and the Cracked Plate features the Smeltery (raid 3, the Cinder Colossus). Both are raid seasons, so the featured dungeon needs four real heroes.
 
 **Colours.** Held to a stricter rule than Seasons 5 and 6: every colour, trails included, is at least 22 ΔE (CIE76, sRGB to Lab, D65) from all 24 colours of Seasons 1 to 6, and Season 8's colours are also at least 22 from Season 7's. tests/season.test.ts now checks this. The closest pairs:
 - Gullet Red to Kiln Red: 27.8. Craw Rose to Pour Crimson: 29.5. Hoard Gilt to Wrack Olive: 34.4. Ember Crumbs to Raft Splinters: 27.2.

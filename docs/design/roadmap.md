@@ -104,12 +104,12 @@ Phase 6 is built, apart from the bounty board's migration. Phase 7 brings the ne
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| W1 | **Rename Ashmaw to Coalmouth:** "Ashmaw" is a WoW NPC title (Maxnar the Ashmaw) | design + engineering | ✅ Design: the Kiln rare's display names (#289). 🔨 Engineering: migration 0007 (#292) renames the world boss "Old Ashmaw" to "Old Coalmouth"; not applied until Steve's yes |
-| W2 | **Raid 2: Old Coalmouth in the Hoard,** tier 9. A new group check: break the Craw to get a swallowed ally out | design | ✅ [raid2.md](raid2.md), #295; banners #298, swallow countdown #299 |
-| W3 | **Raid credit follows the live world boss:** the Crucible and the Hoard each count toward the world boss only when their boss is the live one | engineering | ✅ #293, a client rule (design's call): `DungeonDef.worldBoss` and `raidCountsTriple`; in another week a raid's hits count once. The Hoard sets `worldBoss: 'Old Coalmouth'` (#295) |
+| W1 | **Rename Ashmaw to Vorhulm:** "Ashmaw" is a WoW NPC title (Maxnar the Ashmaw) | design + engineering | ✅ Design: the Kiln rare's display names (#289). 🔨 Engineering: migration 0007 (#292) renames the world boss "Old Ashmaw" to "Old Vorhulm"; not applied until Steve's yes |
+| W2 | **Raid 2: Old Vorhulm in the Hoard,** tier 9. A new group check: break the Craw to get a swallowed ally out | design | ✅ [raid2.md](raid2.md), #295; banners #298, swallow countdown #299 |
+| W3 | **Raid credit follows the live world boss:** the Crucible and the Hoard each count toward the world boss only when their boss is the live one | engineering | ✅ #293, a client rule (design's call): `DungeonDef.worldBoss` and `raidCountsTriple`; in another week a raid's hits count once. The Hoard sets `worldBoss: 'Old Vorhulm'` (#295) |
 | W4 | **The Slagbinder in a party:** with the Slagbinder in place of the Duskblade, group runs sit above their bands (76 to 80% in the raid) | skills | ✅ #294: a party-only trim (Bellows x0.7 damage with allies, thinner ally shell and plating). Follow-up ✅ #308: the Anvil tank's cut on unblockable hits is 20% in a party (35% alone); the Pressworks stays the hard way to tank with it (27 of 80) |
 | W5 | **Pressworks content QA** (carried over from V3) | QA | ✅ #278: contentcheck plays the Pressworks at tier 10 (0 stuck in 256 runs); `coopsweep.cjs --pressworks` drops a guest mid-Downstroke and the run reaches the end screen. Re-run on main at 60b2e73 |
-| W6 | **The Hoard's art:** Coalmouth, the Craw, the swallowed state, the embers, a hub card | visuals | ✅ #297 |
+| W6 | **The Hoard's art:** Vorhulm, the Craw, the swallowed state, the embers, a hub card | visuals | ✅ #297 |
 | W7 | **The Hoard's sound:** a theme, a Swallow sting and a "you're swallowed" cue | sound | ✅ Theme `hoard` (chew bed), Swallow sting, belly muffle and heartbeat, and every Hoard event and cast cued (#296) |
 
 ### Visuals batch X (after Phase 7, game design, 21 Nov 2026)
@@ -117,7 +117,7 @@ Every visuals item in Phases 6 and 7 is done. These are gaps found in the code o
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| X1 | **A shadow for each world boss:** the shadow fight always draws Grandmother Slag's silhouette, whichever boss is live (GameScene.ts, `e.kind === 'worldShadow' ? 'slagCrone'`). The rotation has four: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent (migration 0007) | visuals | ✅ #309 |
+| X1 | **A shadow for each world boss:** the shadow fight always draws Grandmother Slag's silhouette, whichever boss is live (GameScene.ts, `e.kind === 'worldShadow' ? 'slagCrone'`). The rotation has four: Grandmother Slag, the Cinder Colossus, Old Vorhulm and the Furnace Regent (migration 0007) | visuals | ✅ #309 |
 | X2 | **World boss portrait on the hub card:** `renderBoss` (hub.ts) shows only the name, a meter and text | visuals | ✅ #309 |
 | X3 | **The Wrackline's hub card art:** every other dungeon has a `.dg[data-d=...]` art rule in index.html; the Wrackline has none | visuals | ✅ #309 |
 | X4 | **Small fixes:** the Hoard's arena rim falls to the Kiln's orange default (the `rim` chain in GameScene.ts has no `hoard`); the Ysmeret "borrows the Kiln Mother's sheet" comment and fallback are stale now that `ysmeret` has a sheet | visuals | ✅ #309 |
@@ -143,7 +143,7 @@ Batches X (#309) and S (#307) are done. Phase 7 is built apart from applying mig
 | Y5 | **Class coverage in the raids:** measure the Hoard at t9 with the Slagbinder (both stances) and with each damage class swapped in, against the 55 to 70% band. The Anvil tank fix (#308, 20% in a party) lands first | skills | ✅ #324: every class can now break the Craw, and Smeltery burns are judged from the hero who lit them. Design retuned COAL (swallowTick 0.06, then #341). The "19 without a Duskblade" Slagbinder rows were a measuring gap (heroes-r2 had no Slagbinder files, now added); fair numbers in docs/skills.md. Round 2 is Z5 |
 | Y6 | **Raid 3 art:** the Colossus in person (the X1 shadow sprite at raid scale, as slagCroneRaid did for Grandmother Slag), the arena and a hub card | visuals | ✅ #320: colossusRaid and colossusMelt, turned by colFacing, the front arc and hot back on the floor, the Wheel and Meltdown rings, floor, rim, card and icon |
 | Y7 | **Raid 3 sound:** a theme, and cues for its new mechanic | sound | ✅ Theme `smeltery` (#313, #315); Slag Sweep, Wheel, Pour Out, Meltdown pulses, phase stings, and a plate clank vs back crunch on your own hits (#321) |
-| Y8 | **Apply the waiting migrations** 0006 (bounty board) and 0007 (Old Coalmouth) | engineering | ⏸ Only after Steve says yes |
+| Y8 | **Apply the waiting migrations** 0006 (bounty board) and 0007 (Old Vorhulm) | engineering | ⏸ Only after Steve says yes |
 | Y9 | **Older boss art at phone size:** a readability pass on the earlier bosses and their telegraphs at 360 px wide, no new names or captions | visuals | ✅ #326 (the Glarewell's shadow wedges), #329 (Snuffer piles share a bar, a pointer to the Craw beside the party frames; the Colossus in Meltdown reads as is) |
 | Y10 | **Seasons 7 and 8:** after Season 6 the rotation wraps to Season 1's theme on Thu 29 Jul 2027 (week 3004, season.md). Season 7 **the Long Hunger** features the Hoard, and Season 8 **the Cracked Plate** (from 9 Sep 2027, week 3010) features the Smeltery. Neither name had a WoW match in a search on 21 Nov 2026 | design | ✅ Y10 PR: SEASONS 6 and 7 with their glows and trails, every colour at least 22 ΔE from Seasons 1 to 6 (tests/season.test.ts); palette in season.md |
 | Y11 | **Season 7 and 8 hub themes** (`HUB_BY_SEASON` entries 6 and 7), drawn from the `hoard` and `smeltery` themes the way hubPress and hubEbb came from their dungeons (#272) | sound | ✅ #325: hubHunger (chew bed) and hubPlate (stride bed) |
@@ -180,8 +180,22 @@ The last of the four world bosses without an in-person fight. Brief: [raid4.md](
 | B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
 | B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
 | B5 | **Raid 4 QA:** contentcheck at t11, coopsweep with a guest dropping while holding a Decree | QA | ⏭ After B1 |
-| B6 | **Raid 4 class coverage:** at 16250 the parties with less blade damage are under the band (of 40: two Emberwrights 14, Bellows with an Emberwright 11, Bellows with a Duskblade 14, Anvil 15). Find why (Decree passing distance for ranged heroes? damage race?) and lift them toward 22 to 28 of 40, base party unchanged | skills | ⏭ After B1 |
+| B6 | **Raid 4 class coverage:** the steep damage race left the parties with less blade damage at 11 to 15 of 40 | skills, design | ✅ Design retuned the Flue to test survival as well (burst 50%, Ash Fall 70, hp 15000): base 80 of 120, every other party 26 to 28 of 40 except the Bellows Slagbinder beside an Emberwright at 18 (raid4.md). That row stays with skills |
 
+
+### Phase 11: variety, so runs feel different (planned by game design, 22 Nov 2026)
+Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs to change from run to run, and the environments need better designs. Brief: [variety.md](variety.md). Every roll is seeded (run rng, or the day or week number), so replays, co-op sync and the hashcheck still work.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| V1 | **Kiln wave archetypes:** Ember Spitter (ranged, Ember Lob), Ashbuck (shows a lane, charges), the Hollow Rift fight (Ashlings until you break it); Kiln pools 3 to 6 openers, 2 to 4 named | design | ✅ #362 |
+| V2 | **Arena layouts:** open, pillars, lava channel, kiln vents, rolled per fight (2 in 5 open) | design, visuals | ✅ Kiln, #362 (variety.md, "V2 status"); art in V5 |
+| V3 | **Boss variants:** the Kiln Mother rolls Molten Cataclysm or Kiln Draw per run; Maelra later | design | ✅ Kiln Mother (variety.md, "V3 status"); Maelra later |
+| V4 | **A daily twist before tier 3**, the same for everyone that day | design | ✅ Today's Heat (variety.md, "V4 status") |
+| V5 | **Layout and silhouette art** (with visuals' look overhaul): the four layouts, the Ember Spitter, the Ashbuck, the Hollow Rift and Ashlings, the Kiln Draw tell | visuals | ⏭ Placeholders: the Spitter uses the acolyte sheet and the Ashbuck the hound's |
+| V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
+| V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ✅ Kiln: 0 repeats in 1000 runs (was 398), tools/variety.ts (variety.md, "V7 status") |
+| V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ✅ Foundry: fights, layouts and Maelra's Sluicetide; repeats 398 → 2 in 1000 (variety.md, "V8 status"). Glarewell and Coldmarrow next |
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.

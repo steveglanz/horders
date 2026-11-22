@@ -162,8 +162,9 @@ export const SET_ICON: Record<SetId, string> = {
   // Platewalker (get behind him): a riveted plate, and a path curling round its edge to come in behind it.
   // (An arrow circling a round body read as a refresh button.)
   platewalker: 'M2.5 4h7v16h-7Z M5 7.5h.01 M7 7.5h.01 M5 16.5h.01 M7 16.5h.01 M12 20.5c5.5 0 9-3.5 9-8.5s-3-8-7.5-8 M16.5 1.5L14 4l2.5 2.5',
-  // Handover (pass it on): placeholder from design for visuals to redraw, a seal moving from one hand to another.
-  handover: 'M3 15.5h5l3-2.5 M21 15.5h-5l-3-2.5 M12 3.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7Z M9 20.5h6',
+  // Handover (pass it on): the Decree's eight-sided seal thrown in an arc from one open hand to the other.
+  // (A seal sitting between two flat arms read as a person, or a map pin.)
+  handover: 'M2 19.5q3.5 3 7 0 M15 19.5q3.5 3 7 0 M10.6 2.5h2.8l2 2v2.8l-2 2h-2.8l-2-2V4.5Z M5.5 16.5C5.5 12 7 9 9 7.5 M15 7.5c2 1.5 3.5 4.5 3.5 9 M16.3 14.3l2.2 2.2 2.2-2.2',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */
@@ -274,7 +275,7 @@ export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
   // Slagbane: Grandmother Slag's crucible, still steaming.
   'boss:crucible': { color: '#ff9b4a', d: 'M3.5 9.5h17 M5 9.5l1.4 8.7a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.8L19 9.5 M9 6.5c0-1.4 1.6-1.6 1.6-3.5 M13.5 6.5c0-1.4 1.6-1.6 1.6-3.5 M9.5 14h5' },
   // Pressbreaker: Oskel's press plate broken in two, the halves tipping apart over the floor. Brass, the Pressworks' colour.
-  // Crawbreaker: Old Coalmouth's Craw split down the middle, its embers spilling out of the gap. Deep ember red, apart from the Crucible's orange.
+  // Crawbreaker: Old Vorhulm's Craw split down the middle, its embers spilling out of the gap. Deep ember red, apart from the Crucible's orange.
   'boss:hoard': { color: '#ff5a2a', d: 'M9.5 4C5 8 3 12 3.6 15.8a5.6 5.6 0 0 0 5.4 4.4l-1.3-3.2 1.9-2.4-2-2.8 1.8-2.8Z M14.5 4C19 8 21 12 20.4 15.8a5.6 5.6 0 0 1-5.4 4.4l1.3-3.2-1.9-2.4 2-2.8-1.8-2.8Z M12 13.5v.01 M12 18v.01 M12 22v.01' },
   // Raid 3, the Smeltery ("get behind him"): his riveted front plate, and an arrow going round it to his back.
   'boss:smeltery': { color: '#ffb35c', d: 'M2.5 5h8v10l-4 3.5-4-3.5Z M5 8.5v.01 M8 8.5v.01 M5 12.5v.01 M8 12.5v.01 M7 21c6 1 12-2 13.5-8 .5-2 .3-4-.5-5.8 M17.5 9.5l2.6-2.6 2.6 2.4' },

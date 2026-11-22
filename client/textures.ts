@@ -349,6 +349,82 @@ function drawHound(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[29.5, 14 + bob]], 1.1, '#ffd23c');
 }
 
+/**
+ * V5 (variety) Ember Spitter: a squat ranged lump that keeps its distance and lobs fire. Its swollen throat sac glows
+ * and fills over the frames, and three little vent spines smoke on its back, so it reads as "this one spits" at a
+ * glance and never as a melee hound. Faces right.
+ */
+function drawSpitter(ctx: Ctx, _s: number, f: number): void {
+  const puff = [0, 0.8, 1.6, 0.8][f];
+  const bob = [0, -0.6, 0, -0.6][f];
+  // Stubby legs.
+  for (const [x, k] of [[10, 1], [15, -1], [23, 1], [28, -1]] as [number, number][]) limb(ctx, x, 30 + bob, x + k, 36, 2.6, '#3a150c');
+  // Vent spines on the back, each with a wisp of glow.
+  for (const [x, h] of [[11, 6], [16, 8], [21, 6]] as [number, number][]) {
+    limb(ctx, x, 21 + bob, x - 1, 21 + bob - h, 2.6, '#2a120a');
+    softGlow(ctx, x - 1, 20 + bob - h, 2.6 + puff * 0.4, 'rgba(255,170,70,0.9)');
+  }
+  // The body: a round, charred lump.
+  ell(ctx, 19, 27 + bob, 12, 8.5);
+  shade(ctx, '#9a3a1e', '#2e0f07', 19, 35, 1.4);
+  cracks(ctx, [[[9, 26 + bob], [13, 24 + bob], [17, 26 + bob]], [[19, 31 + bob], [23, 29 + bob]]], '#ff9a3a', 1);
+  // The head, low and wide, with a broad mouth.
+  ell(ctx, 30, 25 + bob, 6.5, 5);
+  shade(ctx, '#a8442a', '#36120a', 20, 30, 1.3);
+  // An open mouth with fire at the back of it.
+  ctx.beginPath(); ctx.moveTo(29, 26 + bob); ctx.lineTo(37.5, 23.5 + bob); ctx.lineTo(36.5, 28 + bob); ctx.closePath();
+  ctx.fillStyle = '#2a0a04'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.1; ctx.stroke();
+  softGlow(ctx, 33, 26 + bob, 2.6 + puff * 0.6, 'rgba(255,200,90,0.95)');
+  // The throat sac, filling with fire.
+  softGlow(ctx, 29, 30 + bob, 6 + puff * 1.5, 'rgba(255,150,50,0.75)');
+  ell(ctx, 29, 30 + bob, 3.6 + puff * 0.7, 2.8 + puff * 0.6);
+  shade(ctx, '#ffe08a', '#ff6a1e', 27, 33 + puff, 1);
+  eyes(ctx, [[30.5, 22.5 + bob], [33, 23 + bob]], 1, '#ffd23c');
+}
+
+/**
+ * V5 (variety) Ashbuck: an ash-grey charger with great forward horns, head down, an ember mane and glowing seams on
+ * its flank. The horns point along its run, so the lane it shows before a charge and the beast agree. Faces right.
+ */
+function drawAshbuck(ctx: Ctx, _s: number, f: number): void {
+  const a = [0.55, 0.2, -0.55, -0.2][f];
+  const bob = [0, -1, 0, -1][f];
+  // Legs at a gallop.
+  for (const [x, k] of [[16, a], [21, -a], [33, -a], [38, a]] as [number, number][]) {
+    limb(ctx, x, 36 + bob, x + Math.sin(k) * 6, 46, 2.8, '#2a2220');
+    ctx.fillStyle = '#141010'; ell(ctx, x + Math.sin(k) * 6, 46.5, 1.8, 1.2); ctx.fill();
+  }
+  // Short tail.
+  limb(ctx, 12, 30 + bob, 8, 27 + bob - a * 2, 2.4, '#3a3230');
+  // The body.
+  ell(ctx, 27, 32 + bob, 15, 8.5);
+  shade(ctx, '#7a706a', '#2a2422', 24, 41, 1.5);
+  cracks(ctx, [[[15, 31 + bob], [20, 29 + bob], [25, 31 + bob], [30, 29 + bob]], [[22, 36 + bob], [28, 35 + bob]]], '#ff8a3a', 1.1);
+  // An ember mane along the neck.
+  flameLick(ctx, 36, 26 + bob, 1.8, 34, 19 + bob);
+  flameLick(ctx, 39, 26 + bob, 1.8, 38, 18 + bob);
+  flameLick(ctx, 42, 27 + bob, 1.6, 42, 20 + bob);
+  // Neck and lowered head.
+  ell(ctx, 40, 31 + bob, 6, 6.5, 0.4);
+  shade(ctx, '#857a74', '#2e2826', 25, 38, 1.3);
+  ctx.beginPath();
+  ctx.moveTo(40, 28 + bob); ctx.lineTo(50, 34 + bob); ctx.lineTo(51, 38 + bob); ctx.lineTo(46, 41 + bob); ctx.lineTo(38, 37 + bob); ctx.closePath();
+  shade(ctx, '#7a706a', '#2a2422', 30, 40, 1.2);
+  eyes(ctx, [[45, 32.5 + bob]], 1.3, '#ff7a3a');
+  // Horns: thick bone curves sweeping forward past the nose, hot at the tips.
+  for (const [dy, w] of [[0, 3.6], [-2.5, 2.6]] as [number, number][]) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = w + 2;
+    ctx.beginPath(); ctx.moveTo(41, 29 + bob + dy); ctx.quadraticCurveTo(47, 21 + bob + dy, 54.5, 26 + bob + dy); ctx.stroke();
+    ctx.strokeStyle = '#d8cbb8'; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(41, 29 + bob + dy); ctx.quadraticCurveTo(47, 21 + bob + dy, 54.5, 26 + bob + dy); ctx.stroke();
+    ctx.restore();
+  }
+  softGlow(ctx, 54.5, 26 + bob, 3.4, 'rgba(255,150,60,0.95)');
+  softGlow(ctx, 54.5, 23.5 + bob, 2.6, 'rgba(255,150,60,0.9)');
+}
+
 /** Hollow Warden: a hulking guardian of dark stone with pink runes. */
 function drawWarden(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
@@ -421,7 +497,7 @@ function drawBrute(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[34, 17 + bob], [38.5, 17 + bob]], 1.4, '#ffe16b');
 }
 
-/** Coalmouth the Glutton (id ashmaw): a bloated, frost-ash beast that is mostly mouth. */
+/** Vorhulm the Glutton (id ashmaw): a bloated, frost-ash beast that is mostly mouth. */
 function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
   const j = [0, 1, 0, -1][f];
   ctx.fillStyle = '#1b1c26';
@@ -451,12 +527,12 @@ function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
 }
 
 /**
- * Old Coalmouth (raid 2, the Hoard): a bloated heap of coal that is mostly mouth. A lumpy, faceted coal body with
+ * Old Vorhulm (raid 2, the Hoard): a bloated heap of coal that is mostly mouth. A lumpy, faceted coal body with
  * ember seams, four stubby feet, two small ember eyes on top, and a maw splitting his whole front (he faces right)
  * with jagged coal teeth and a furnace glow deep inside. The jaw works open and shut over the four frames. Drawn
  * at 128 and scaled to the sheet (192, the size of Grandmother Slag's raid sheet).
  */
-function drawCoalmouth(ctx: Ctx, s: number, f: number): void {
+function drawVorhulm(ctx: Ctx, s: number, f: number): void {
   const k = s / 128;
   const jaw = [0, 4, 9, 4][f];
   const glow = [0.75, 0.9, 1, 0.9][f];
@@ -542,7 +618,7 @@ function drawCoalmouth(ctx: Ctx, s: number, f: number): void {
 }
 
 /**
- * The Craw (raid 2): a swollen throat-sac bulging off Old Coalmouth's side, its membrane stretched thin over a hot
+ * The Craw (raid 2): a swollen throat-sac bulging off Old Vorhulm's side, its membrane stretched thin over a hot
  * core, veined and throbbing over the four frames. It lives 8 s, so it is the brightest thing near him: GameScene
  * adds a "hit this" ring and its countdown.
  */
@@ -1111,6 +1187,23 @@ function flameTongue(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty:
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = INK;
   ctx.stroke();
+}
+
+/** A flame tongue with a thin warm edge instead of the ink outline, for small licks where the outline would
+ * swallow the fire (the Regent's crown at raid scale, the Decree seal). */
+function flameLick(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x - w, y0);
+  ctx.bezierCurveTo(x - w * 1.25, y0 - (y0 - ty) * 0.45, tx - w * 0.35, ty + (y0 - ty) * 0.3, tx, ty);
+  ctx.bezierCurveTo(tx + w * 0.35, ty + (y0 - ty) * 0.3, x + w * 1.25, y0 - (y0 - ty) * 0.45, x + w, y0);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, ty, 0, y0);
+  g.addColorStop(0, '#fff6c8'); g.addColorStop(0.45, '#ffc050'); g.addColorStop(1, '#ff6a24');
+  ctx.save();
+  ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 5;
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(160,40,10,0.8)'; ctx.stroke();
 }
 
 /**
@@ -1811,15 +1904,15 @@ function drawRegent(ctx: Ctx, s: number, f: number): void {
 }
 
 /** The sheet that draws a world boss by its server name (its shadow fight and the hub's portrait). Old Ashmaw is
- * Old Coalmouth's name until migration 0007 runs. */
+ * Old Vorhulm's name until migration 0007 runs. */
 export const WORLD_BOSS_SHEET: Record<string, { key: string; size: number }> = {
   'Grandmother Slag': { key: 'slagCrone', size: 128 },
   'The Cinder Colossus': { key: 'colossus', size: 128 },
-  'Old Coalmouth': { key: 'coalmouth', size: 192 },
-  'Old Ashmaw': { key: 'coalmouth', size: 192 },
+  'Old Vorhulm': { key: 'vorhulm', size: 192 },
+  'Old Ashmaw': { key: 'vorhulm', size: 192 },
   'The Furnace Regent': { key: 'regent', size: 128 },
 };
-const WORLD_BOSS_DRAW: Record<string, FrameDraw> = { slagCrone: drawSlagCrone, colossus: drawColossus, coalmouth: drawCoalmouth, regent: drawRegent };
+const WORLD_BOSS_DRAW: Record<string, FrameDraw> = { slagCrone: drawSlagCrone, colossus: drawColossus, vorhulm: drawVorhulm, regent: drawRegent };
 
 /** Draws frame `f` of a world boss into a plain 2D canvas `px` pixels square, for the hub (no Phaser). */
 export function drawWorldBossPortrait(ctx: Ctx, px: number, name: string, f = 0): boolean {
@@ -1951,6 +2044,77 @@ function drawColossusRaid(ctx: Ctx, s: number, f: number, melt = false): void {
     const yy = y - f * 3;
     softGlow(ctx, x, yy, 4, 'rgba(255,190,100,0.85)');
     ctx.fillStyle = '#ffe2a0'; ell(ctx, x, yy, 1, 1); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/**
+ * The Furnace Regent in person, for raid 4, the Flue (B2): the shadow sprite's stove king at 1.5x, standing in
+ * the mouth of a flue with a column of smoke and sparks rising behind him. His crown burns taller, his grate roars,
+ * and two Decree seals hang from his belt on chains, the seals he hands down in the fight. `abdicate` (phase 3,
+ * Abdication): the Decrees stop, so the seals are gone, the crown slips askew and dims, and fire pours out of his
+ * collar and grate as he burns down. Drawn in the 128-unit space of drawRegent and scaled up, so the two match.
+ */
+function drawRegentRaid(ctx: Ctx, s: number, f: number, abdicate = false): void {
+  const k = s / 128;
+  const c = 64;
+  const pulse = [0.7, 0.85, 1, 0.85][f];
+  ctx.save();
+  ctx.scale(k * 0.9, k * 0.9);
+  ctx.translate(7, 12);
+  // The flue behind him: a dark brick column, smoke and sparks rising out of its top.
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath(); ctx.moveTo(c - 26, 118); ctx.lineTo(c - 22, -8); ctx.lineTo(c + 22, -8); ctx.lineTo(c + 26, 118); ctx.closePath();
+  shade(ctx, '#2a1c1a', '#140c0c', -8, 118, 1.2);
+  ctx.strokeStyle = 'rgba(90,56,44,0.55)'; ctx.lineWidth = 0.9;
+  for (let y = 4; y < 116; y += 9) { ctx.beginPath(); ctx.moveTo(c - 24, y); ctx.lineTo(c + 24, y); ctx.stroke(); }
+  ctx.restore();
+  softGlow(ctx, c, 70, 64, `rgba(255,120,40,${(abdicate ? 0.34 : 0.22) * pulse})`);
+  for (const [x, y] of [[c - 12, 8], [c + 8, -2], [c - 4, -10], [c + 16, 14], [c - 18, 22]]) {
+    const yy = y - f * 3;
+    softGlow(ctx, x, yy, 3.5, 'rgba(255,190,100,0.8)');
+  }
+  // The regent himself.
+  ctx.save();
+  if (abdicate) { ctx.translate(c, 118); ctx.rotate(-0.04); ctx.translate(-c, -118); }
+  drawRegent(ctx, 128, f);
+  ctx.restore();
+  // The grate roars brighter (white hot when he abdicates).
+  softGlow(ctx, c, 86, 26, abdicate ? `rgba(255,240,190,${0.9 * pulse})` : `rgba(255,170,70,${0.6 * pulse})`);
+  // The crown burns taller and brighter over the circlet (low and guttering, tipped to one side, when he abdicates).
+  softGlow(ctx, c, 8, abdicate ? 12 : 20, `rgba(255,200,90,${(abdicate ? 0.45 : 0.85) * pulse})`);
+  for (const [x, h] of [[c - 9, 7], [c - 3, 12], [c + 3, 10], [c + 9, 7]] as const) {
+    const hh = (abdicate ? h * 0.4 : h) + (f % 2 ? 1.5 : 0) * (x < c ? 1 : -1);
+    flameLick(ctx, x, 14, 2.4, x + (abdicate ? -3 : (f - 1.5) * 0.4), 14 - hh - 4);
+  }
+  if (!abdicate) {
+    // Two Decree seals on chains from his belt: burning wax discs stamped with a crown, the burdens he hands down.
+    // They hang at his hips, either side of the grate, so they never cover it.
+    for (const [x, len] of [[c - 18, 16], [c + 18, 11]] as const) {
+      ctx.save();
+      ctx.strokeStyle = '#8a7a60'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 1.5]);
+      ctx.beginPath(); ctx.moveTo(x, 59); ctx.lineTo(x + (f % 2 ? 0.8 : -0.8), 60 + len); ctx.stroke();
+      ctx.restore();
+      const sy = 60 + len + 4;
+      softGlow(ctx, x, sy, 8, `rgba(255,140,60,${0.8 * pulse})`);
+      ell(ctx, x, sy, 4.6, 4.6); shade(ctx, '#e0402a', '#7a1410', sy - 4.6, sy + 4.6, 1.2);
+      ctx.save(); ctx.fillStyle = '#ffd08a';
+      ctx.beginPath(); ctx.moveTo(x - 2.4, sy + 1.4); ctx.lineTo(x - 2.4, sy - 1.2); ctx.lineTo(x - 1.2, sy); ctx.lineTo(x, sy - 1.8); ctx.lineTo(x + 1.2, sy); ctx.lineTo(x + 2.4, sy - 1.2); ctx.lineTo(x + 2.4, sy + 1.4); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // Abdication: fire pours out of his collar and grate seams.
+    softGlow(ctx, c, 40, 18, `rgba(255,180,80,${0.8 * pulse})`);
+    for (const [x, lean] of [[c - 10, -0.5], [c + 10, 0.5], [c, 0]] as const) {
+      const h = 11 + 4 * pulse + (f % 2) * 2;
+      flameLick(ctx, x, 42, 3.2, x + Math.sin(lean) * h, 42 - h);
+    }
+    cracks(ctx, [[[c - 17, 62], [c - 12, 72], [c - 16, 84], [c - 12, 100]], [[c + 16, 66], [c + 12, 80], [c + 17, 96]]], `rgba(255,220,120,${pulse})`, 1.8);
+  }
+  // Embers on the floor at his hem.
+  for (const [x, y] of [[c - 40, 122], [c + 36, 123], [c - 20, 125], [c + 18, 125]]) {
+    softGlow(ctx, x, y, 3, `rgba(255,160,70,${0.7 * pulse})`);
   }
   ctx.restore();
 }
@@ -2614,6 +2778,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'ashmaw', 60, 4, drawAshmaw);
   sheet(scene, 'kilnMother', 112, 4, drawKiln);
   sheet(scene, 'acolyte', 34, 4, drawAcolyte);
+  sheet(scene, 'emberSpitter', 50, 4, (ctx, sz, f) => { ctx.scale(1.25, 1.25); drawSpitter(ctx, sz, f); });
+  sheet(scene, 'ashbuck', 56, 4, drawAshbuck);
 
   // The Drowned Foundry.
   sheet(scene, 'glassWarden', 56, 4, drawGlassWarden);
@@ -2630,6 +2796,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'colossusRaid', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f));
   sheet(scene, 'colossusMelt', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f, true));
   sheet(scene, 'regent', 128, 4, drawRegent);
+  sheet(scene, 'regentRaid', 192, 4, (ctx, sz, f) => drawRegentRaid(ctx, sz, f));
+  sheet(scene, 'regentAbdicate', 192, 4, (ctx, sz, f) => drawRegentRaid(ctx, sz, f, true));
   // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
   sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
   sheet(scene, 'portal', 80, 1, drawPortal);
@@ -2661,7 +2829,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'hessa', 120, 4, drawHessa);
   sheet(scene, 'oskel', 120, 4, drawOskel);
   // Raid 2, the Hoard.
-  sheet(scene, 'coalmouth', 192, 4, drawCoalmouth);
+  sheet(scene, 'vorhulm', 192, 4, drawVorhulm);
   sheet(scene, 'craw', 56, 4, drawCraw);
   // The Wrackline's raft: a round deck of driftwood boards, gaps between them, nails, a wet edge
   // and a rope lashed round the rim. Drawn once; GameScene scales it to WRACK.raftR.
@@ -2964,6 +3132,183 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(4,8,20,0.9)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#ffffff'; ctx.fill();
     ctx.beginPath(); ctx.moveTo(c + 1, c - 5.4); ctx.lineTo(c + 5.4, c + 2.4); ctx.lineTo(c + 1.6, c + 0.6); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+  });
+
+  // Raid 4's Decree (B2): a burning wax seal stamped with the Regent's crown, worn over the holder's head. Drawn
+  // full colour (no tint); the 8 s countdown ring is drawn round it in GameScene.
+  make(scene, 'decreeSeal', 48, (ctx, s) => {
+    const c = s / 2;
+    softGlow(ctx, c, c, 22, 'rgba(255,120,50,0.55)');
+    // A wax blob with a scalloped rim.
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = 14 + (i % 2 ? 1.6 : 0);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    shade(ctx, '#ff5a3a', '#8a1410', c - 15, c + 15, 2);
+    ell(ctx, c, c, 9.5, 9.5); ctx.strokeStyle = 'rgba(60,8,6,0.7)'; ctx.lineWidth = 1.6; ctx.stroke();
+    // The crown stamp, glowing like a brand.
+    ctx.save();
+    ctx.fillStyle = '#ffe0a0'; ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(c - 6.5, c + 4); ctx.lineTo(c - 6.5, c - 3.5); ctx.lineTo(c - 3.2, c - 0.5); ctx.lineTo(c, c - 5.5);
+    ctx.lineTo(c + 3.2, c - 0.5); ctx.lineTo(c + 6.5, c - 3.5); ctx.lineTo(c + 6.5, c + 4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // A crest of three flame licks off its top edge, the middle one tallest, so it reads as burning.
+    flameLick(ctx, c - 6.5, c - 11, 2.6, c - 8, c - 19);
+    flameLick(ctx, c + 6.5, c - 11, 2.6, c + 8, c - 19);
+    flameLick(ctx, c, c - 13, 3.2, c, c - 23);
+  });
+
+  // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
+  // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
+  // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
+  const stone = (ctx: CanvasRenderingContext2D, wet: boolean) => {
+    const cx = 100, by = 128, r = 68, h = 30;
+    // Contact shadow, offset down-right like the sprites' shadows.
+    ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    // The side: the base ellipse joined to the top ellipse, in hexagonal facets.
+    const ry = r * 0.62;
+    const sides = 7;
+    for (let i = 0; i < sides; i++) {
+      const a0 = (i / sides) * Math.PI * 2 + 0.2, a1 = ((i + 1) / sides) * Math.PI * 2 + 0.2;
+      if (Math.sin(a0) < -0.2 && Math.sin(a1) < -0.2) continue;
+      const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
+      const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
+      ctx.fillStyle = wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // The top face.
+    ctx.beginPath();
+    for (let i = 0; i <= sides; i++) {
+      const a = (i / sides) * Math.PI * 2 + 0.2;
+      ctx.lineTo(cx + Math.cos(a) * r, by - h + Math.sin(a) * ry);
+    }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
+    if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    if (wet) {
+      // Drowned: a waterline band round the side, a teal puddle with a glint on top, and a few drips.
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(cx, by - 8, r - 1, ry - 1, 0, 0, Math.PI); ctx.strokeStyle = 'rgba(79,227,193,0.45)'; ctx.lineWidth = 3; ctx.stroke();
+      ell(ctx, cx + 10, by - h - 4, 26, 11); ctx.fillStyle = 'rgba(40,120,120,0.55)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(160,240,225,0.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 4, by - h - 8); ctx.lineTo(cx + 14, by - h - 10); ctx.stroke();
+      ctx.fillStyle = 'rgba(150,230,220,0.7)';
+      for (const [dx, dy] of [[-40, -6], [-22, 4], [30, 2], [46, -8]]) { ell(ctx, cx + dx, by + dy, 2, 3.4); ctx.fill(); }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(220,250,245,0.22)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
+      return;
+    }
+    // An ember seam across the top, and a couple of chips.
+    ctx.save();
+    ctx.strokeStyle = '#ff8a3a'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - 34, by - h - 10); ctx.lineTo(cx - 10, by - h - 2); ctx.lineTo(cx + 6, by - h - 14); ctx.lineTo(cx + 30, by - h - 6); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,230,200,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
+  };
+  make(scene, 'kilnStone', 200, (ctx) => stone(ctx, false));
+  // V8: the same stump in the Drowned Foundry, slate and wet, with a waterline instead of an ember seam.
+  make(scene, 'foundryStone', 200, (ctx) => stone(ctx, true));
+
+  // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
+  // while its flare circle is up. 26 px across at half scale, the same as the placeholder.
+  make(scene, 'kilnVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,110,40,0.35)');
+    // Bricks round the rim.
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 0.86) / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#5a3428' : '#4a2a22'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // Coals under the grate.
+    const cg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    cg.addColorStop(0, '#ffd27a'); cg.addColorStop(0.45, '#ff6a1e'); cg.addColorStop(1, '#5a1406');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = cg; ctx.fill();
+    // The grate bars.
+    ctx.strokeStyle = '#1c1210'; ctx.lineWidth = 5; ctx.lineCap = 'butt';
+    for (const d of [-24, -12, 0, 12, 24]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(c - 38, c); ctx.lineTo(c + 38, c); ctx.stroke();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  // V8: a Foundry vent: a brass ring round an iron grate over dark, teal-lit water. It rests calm; GameScene puffs steam
+  // from it while its flare circle is up.
+  make(scene, 'steamVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(79,227,193,0.22)');
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 0.86) / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#8a6a34' : '#6e5228'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // Rivets on the brass.
+    ctx.fillStyle = '#d9b46a';
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.26; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.6, 2.6); ctx.fill(); }
+    const wg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    wg.addColorStop(0, '#bff6ea'); wg.addColorStop(0.4, '#2fa596'); wg.addColorStop(1, '#0a2a2e');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = wg; ctx.fill();
+    ctx.strokeStyle = '#141a1c'; ctx.lineWidth = 5; ctx.lineCap = 'butt';
+    for (const d of [-24, -12, 0, 12, 24]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(c - 38, c); ctx.lineTo(c + 38, c); ctx.stroke();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
+  make(scene, 'lavaTile', 64, (ctx, s) => {
+    ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
+    let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // Crust plates, wrapped at the edges so the tile repeats.
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * s, y = rnd() * s, rx = 6 + rnd() * 9, ry = 4 + rnd() * 6;
+      for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+        ell(ctx, x + ox, y + oy, rx, ry, rnd() * 0.01); ctx.fillStyle = 'rgba(70,14,4,0.75)'; ctx.fill();
+      }
+    }
+    // Bright veins.
+    ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
+    for (let i = 0; i < 5; i++) {
+      const y = rnd() * s;
+      ctx.beginPath();
+      for (let x = -4; x <= s + 4; x += 8) ctx.lineTo(x, y + Math.sin((x / s) * Math.PI * 2 + i) * 4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // Raid 4's Spent mark (B2): the same seal gone cold, grey ash with the crown stamp hollow and a crack across it,
+  // over a hero who just passed the Decree on and can't take it back yet.
+  make(scene, 'spentMark', 32, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = 10.5 + (i % 2 ? 1.2 : 0);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    shade(ctx, '#9a948e', '#4a4644', c - 12, c + 12, 1.6);
+    ctx.save();
+    ctx.strokeStyle = '#2a2624'; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(c - 5, c + 3); ctx.lineTo(c - 5, c - 2.5); ctx.lineTo(c - 2.4, c - 0.3); ctx.lineTo(c, c - 4.2);
+    ctx.lineTo(c + 2.4, c - 0.3); ctx.lineTo(c + 5, c - 2.5); ctx.lineTo(c + 5, c + 3); ctx.closePath(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,26,24,0.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(c - 9, c - 6); ctx.lineTo(c - 3, c - 1); ctx.lineTo(c + 1, c + 2); ctx.lineTo(c + 8, c + 8); ctx.stroke();
+    ctx.restore();
   });
 
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
