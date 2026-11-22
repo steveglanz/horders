@@ -365,3 +365,30 @@ Mythic key levels scale `tierDamage` too, so the sweep no longer squares the key
 - Tier 10, hero-t8-0, seeds 1 to 80: 7 → 8.
 
 Bots step out of the cone, so the fix barely moves them. It matters for players, who will be hit by the sweep sometimes. Tiers 4 and 6 are 80 and 78 of 80 on main, and the tier 6 sweep is unchanged. The hashcheck has no Hammerdeep rows.
+
+## Phase 12 W2, part 3 (built 22 Nov 2026): the Ashvents and Ysmeret's Wandering Vents
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2).
+  - New openers: `riftfall`, `glassSpitters` and the Kiln's `spitters`.
+  - New named fight: `spitterBrute`. No Ashbuck fights, for the same reason as the Hammerdeep.
+- **Layouts stay as they were (all open).** Pillars or vents on top of the new fights cost about 11 of 80 tier 8 wins (seeds 1 to 80: main 54, layouts alone 56, fights alone 55, both 43). Each half alone is inside noise, so this ships the fights and leaves layouts for later.
+- **Ysmeret's second version.** The seed picks `bossVariant` (its own salt, no run-rng draws):
+  - `still`: Twin Vents, as before.
+  - `wander`: **Wandering Vents.** The same two soak circles open, then move around her at 70 px/s (`WANDER.speed`, about 70 degrees over the fuse) while they fuse. The soakers have to walk with them. The banner says so (`WANDER_TIP`).
+  - It reuses the `castStart` event with the id `twinVents`, so sound and art already play for it.
+- **Name:** "Wandering Vents" had no WoW match in a web search on 22 Nov 2026.
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, main 5e68e1a → this change:
+
+| Check | main | This change |
+|---|---|---|
+| Tier 4, full party, seeds 1 to 40 | 40 | 40 |
+| Tier 6, full party, seeds 1 to 80 | 71 | 75 |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright), seeds 1 to 40 | 5 | 6 |
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights), seeds 1 to 120 | 36 (30%) | 47 (39%) |
+| Tier 8, full party, seeds 1 to 160 | 95 (59%) | 103 (64%, in the 55 to 70% band) |
+
+At tier 8, by Ysmeret's version: still 46 of 76 (main, same seeds: 52) and wander 57 of 84 (main: 43). The seeds differ between the two groups, so this says the versions are close, not which is harder.
+
+**Open: the Ashvents' healer check is too soft.** No healer wins 30% on main, already over the 25% bar, and 39% now. Almost every loss in both is at Ysmeret, so the fix belongs in her fight (for example Scatter Embers or Bellow Slam damage), measured on its own.
+
+**Run variety** (tools/variety.ts, tier 8): 21 of 1000 runs repeat an earlier run in their block of 20, against 306 on main. Routes went from 24 to 179, and there are 339 run shapes. The hashcheck has no Ashvents rows.
