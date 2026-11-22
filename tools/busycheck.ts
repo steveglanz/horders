@@ -7,7 +7,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -28,7 +28,7 @@ const gearOf = (cls: ClassId) => {
   const p = profile(cls);
   return p ? { gear: equippedItems(p), passives: p.passives } : {};
 };
-const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10 };
+const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10, flue: 11 };
 BOT_PARTY.revive = true;
 const len = new Map<SoundId, number>();
 const RATE = 16000;
@@ -84,6 +84,7 @@ for (const dungeon of dungeons) {
     const sets = {};
     const belly = { on: false, next: 0 };
     const press = { on: false };
+    const spend = { on: false };
     const perSecond = new Map<number, number>();
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const play = (id: SoundId, t: number, vol = 1) => {
@@ -131,6 +132,8 @@ for (const dungeon of dungeons) {
       if (ec) play(ec.id, w.time, ec.vol);
       const pc = pressedCue(press, dungeon === 'pressworks' && (w.player.pressedT ?? 0) > 0);
       if (pc) play(pc.id, w.time, pc.vol);
+      const sc = spentCue(spend, dungeon === 'flue' && (w.player.spentT ?? 0) > 0);
+      if (sc) play(sc.id, w.time, sc.vol);
       for (const c of bellyCues(belly, dungeon === 'hoard' ? w.player.swallowT ?? 0 : 0, w.time)) play(c.id, w.time, c.vol);
       for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)))) play(c.id, w.time, c.vol);
       for (const c of reviveCues(rv, w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), w.reviveSeconds, w.revivesLeft)) play(c.id, w.time);

@@ -722,6 +722,7 @@ export class GameScene extends Phaser.Scene {
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
+      spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
       colossus: colossusCue(w),
