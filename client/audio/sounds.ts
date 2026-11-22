@@ -1020,6 +1020,19 @@ export const SOUNDS = {
   /** The Flue's vents layout: a court bell, then the draught breathes up the flues. */
   layoutFlue: join(chime(note(3), 0, 0.14, 0.6), chime(note(7), 0.15, 0.12, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.3, vol: 0.12, a: 0.25, lp: 1800, hp: 450, curve: 1.2 }]),
+  /** The Ashvents (Phase 13 E2): one of Ysmeret's ash vents builds, a dry rising hiss with embers crackling through it.
+   *  Kept apart from her Twin Vents call (ventWarn: two whooshes and two chimes). */
+  ashVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.18, a: 0.85, lp: 2500, lp2: 7000, hp: 900, curve: 0.8 }],
+    ...[0.15, 0.32, 0.5, 0.63, 0.76, 0.86, 0.95].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 8000, hp: 2500, curve: 3 }]),
+  ),
+  /** The ash vent bursts: a choking puff of ash and a spray of embers. */
+  ashBurst: join(whoosh(900, 3500, 0.45, 0.3), boom(60, 0.25, 0.2),
+    ...[0.06, 0.12, 0.2, 0.27].map((d, k) => [{ wave: 'sine' as const, f: 1700 + k * 220, f2: 2500 + k * 200, dur: 0.08, delay: d, vol: 0.05, curve: 2 }])),
+  /** The Ashvents' vents layout: a fumarole huffs and a cairn spits sparks. */
+  layoutAsh: join([{ wave: 'noise', f: 0, dur: 0.6, vol: 0.18, a: 0.06, lp: 3000, lp2: 900, hp: 400, curve: 1.6 }],
+    ...[0.5, 0.58, 0.7].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.16, lp: 8000, hp: 2500, curve: 3 }]),
+    chime(note(8), 0.45, 0.1, 0.5)),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1354,6 +1367,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   flueVentWarn: 2.6,
   layoutSlag: 5.0,
   layoutSmelt: 3.0,
+  layoutAsh: 1.0,
   plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,
