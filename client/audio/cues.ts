@@ -360,6 +360,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
     case 'spitLob': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
+    case 'tideTurn': return { id: 'tideTurn' };
     case 'ventFlare': return { id: c.dungeon === 'foundry' ? 'steamVentWarn' : 'kilnVentWarn' };
     case 'layout': {
       const id = c.dungeon === 'foundry' && ev.id === 'vents' ? 'layoutSteam' : LAYOUT_STING[ev.id];
@@ -516,7 +517,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

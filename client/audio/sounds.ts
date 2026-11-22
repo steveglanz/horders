@@ -788,6 +788,13 @@ export const SOUNDS = {
     ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.18, delay: d, vol: 0.2, lp: 9000, lp2: 4000, hp: 1800, curve: 2 }]),
     horn(196, 0.5, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.5 })),
   ),
+  /** Sluicetide (Maelra, phase 2+ on tide runs): the current turns. A deep water rush swells and drains, with a bright splash on top for a phone. */
+  tideTurn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.3, a: 0.35, lp: 500, lp2: 2600, hp: 350, curve: 1.2 },
+     { wave: 'sine', f: 180, f2: 320, dur: 0.9, vol: 0.12, a: 0.3, curve: 1.2, vib: [4, 0.03] },
+     { wave: 'noise', f: 0, dur: 0.12, delay: 0.32, vol: 0.22, lp: 8000, hp: 2500, curve: 2.5 }],
+    ...[0.38, 0.5, 0.6].map((d, k) => [{ wave: 'sine' as const, f: 900 + k * 260, f2: 1500 + k * 300, dur: 0.05, delay: d, vol: 0.08, curve: 2 }]),
+  ),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1066,6 +1073,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   chargeWindup: 4.0,
   // Kiln Draw's inhale is a cast wind-up that measured right on the floor (-26.5 dB).
   kilnDraw: 1.0,
+  // The Sluicetide's turn is a must-hear push warning (measured -31.0 dB; 5.7 dB over the Foundry mix at +5.5, so +6.5).
+  tideTurn: 6.5,
   ebbPull: 1.9,
   haulWarn: 8.9,
   ladleWarn: 3.4,
