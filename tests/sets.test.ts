@@ -283,6 +283,30 @@ describe('verb sets (R4)', () => {
     }
   });
 
+  it('a mid-run upgrade never takes off a piece of an active set bonus', () => {
+    const better = (slot: Item['slot'], set?: SetId): Item => ({ ...piece(slot, set), id: `up-${slot}-${set ?? 'none'}`, stats: [{ stat: 'power', value: 40 }] });
+    const pick = (w: World, it: Item) => (w as unknown as { pickUp(i: Item): void }).pickUp(it);
+    // 3 pieces worn: a stronger plain trinket goes to the bags, and the set stays whole.
+    const w3 = world(gear('crawsplitter', 3));
+    pick(w3, better('trinket'));
+    expect(w3.setCount('crawsplitter')).toBe(3);
+    expect(w3.runDrops.map((i) => i.id)).toContain('up-trinket-none');
+    expect(w3.runEquipped).not.toContain('up-trinket-none');
+    // 2 pieces worn: the 2-piece bonus is kept too.
+    const w2 = world(gear('platewalker', 2));
+    pick(w2, better('hands', 'kinbound'));
+    expect(w2.setCount('platewalker')).toBe(2);
+    // A stronger piece of the same set is still worn.
+    pick(w2, better('hands', 'platewalker'));
+    expect(w2.runEquipped).toContain('up-hands-platewalker');
+    expect(w2.setCount('platewalker')).toBe(2);
+    // A lone piece has no bonus to lose, so it is swapped as before.
+    const w1 = world(gear('kinbound', 1));
+    pick(w1, better('head'));
+    expect(w1.runEquipped).toContain('up-head-none');
+    expect(w1.setCount('kinbound')).toBe(0);
+  });
+
   it("the newer sets' bonus texts quote SET_TUNING", () => {
     const pct = (v: number) => `${+(v * 100).toFixed(1)}%`;
     const cs = SETS.crawsplitter.bonus;
