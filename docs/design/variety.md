@@ -87,3 +87,33 @@ All in band, but the novice Emberwright sits near the 40% floor. Softer lava (5%
 | Tier 3, good bot | 44 | 45 | 26 of 42, same | 18 → 19 of 30 |
 
 The Kiln Draw costs at most 2 boss wins in 31 against the same seeds, so the two versions are about as hard. Everything stays in band (novice 46 to 48%, good bot at tier 1 78%).
+
+## V4 status (built 22 Nov 2026): Today's Heat
+The plan called this the "Kindling", but Kindling is already a potion, so it is **Today's Heat**: one twist on the Kiln at tiers 1 and 2, the same for everyone that day. Weekly Omens still start at tier 3.
+- **Pick:** `heatFor(day)` in sim/content/heat.ts hashes the day number (`dayOf`, as the daily bounty uses). The client passes it as `heat`, and the sim keeps it only on the Kiln below tier 3 (`heatApplies`), and never on the first delve, a bounty or a key run. The sim never reads the clock. Tools and tests run with no Heat unless asked (`HEAT=` in tools/balance.ts), so the hashcheck doesn't move.
+- **The Heats:**
+  - **Stone Floor:** every fight but the boss has the pillars layout.
+  - **Vent Floor:** every fight but the boss has the vents layout.
+  - **Quick Study:** 25% more experience.
+  - **Rich Haul:** +20% loot luck.
+- **Shown:** in the hub ("Today's Heat") and in the first fight's banner. `heat` is a synced scalar for co-op guests.
+- **Cut after measuring:**
+  - **Lava Floor** (a channel every fight): the novice Emberwright fell to 23 of 80 and the good bot to 45 of 80.
+  - **Big Packs** (one more hound per group): the novice Bulwark fell to 28 of 80, and still 31 of 80 with the hounds at 75% health.
+- **Names:** "Day's Heat", "Quick Study" and "Rich Haul" had no WoW match (web searches, 22 Nov 2026). Stone Floor and Vent Floor are plain words.
+
+**Measured** (tools/balance.ts, seeds 1 to 80, Emberwright unless noted):
+
+| Heat | Tier 1 novice Emberwright | Tier 1 novice Bulwark | Tier 1 good bot | Tier 2 good bot |
+|---|---|---|---|---|
+| None | 37 | 38 | 62 | 45 |
+| Stone Floor | 41 | 37 | 60 | 66 |
+| Vent Floor | 41 | 38 | 63 | 57 |
+| Quick Study | 37 | 38 | 62 | 45 |
+| Rich Haul | 36 | 39 | 63 | 44 |
+
+All four keep tier 1 in band (novice 45 to 51%, good bot 75 to 79%). A forced pillars or vents day also skips the lava channel, which is why those days run easier at tier 2.
+
+## Found on the way (for V7)
+- **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix.
+- **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons.
