@@ -28,7 +28,7 @@ const gearOf = (cls: ClassId) => {
   const p = profile(cls);
   return p ? { gear: equippedItems(p), passives: p.passives } : {};
 };
-const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10, flue: 11 };
+const TIER: Partial<Record<DungeonId, number>> = { ashvents: 7, crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10, flue: 11 };
 BOT_PARTY.revive = true;
 const len = new Map<SoundId, number>();
 const RATE = 16000;
