@@ -275,7 +275,7 @@ export const ACHIEVEMENT_ICON: Record<string, { color: string; d: string }> = {
   // Slagbane: Grandmother Slag's crucible, still steaming.
   'boss:crucible': { color: '#ff9b4a', d: 'M3.5 9.5h17 M5 9.5l1.4 8.7a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.8L19 9.5 M9 6.5c0-1.4 1.6-1.6 1.6-3.5 M13.5 6.5c0-1.4 1.6-1.6 1.6-3.5 M9.5 14h5' },
   // Pressbreaker: Oskel's press plate broken in two, the halves tipping apart over the floor. Brass, the Pressworks' colour.
-  // Crawbreaker: Old Coalmouth's Craw split down the middle, its embers spilling out of the gap. Deep ember red, apart from the Crucible's orange.
+  // Crawbreaker: Old Vorhulm's Craw split down the middle, its embers spilling out of the gap. Deep ember red, apart from the Crucible's orange.
   'boss:hoard': { color: '#ff5a2a', d: 'M9.5 4C5 8 3 12 3.6 15.8a5.6 5.6 0 0 0 5.4 4.4l-1.3-3.2 1.9-2.4-2-2.8 1.8-2.8Z M14.5 4C19 8 21 12 20.4 15.8a5.6 5.6 0 0 1-5.4 4.4l1.3-3.2-1.9-2.4 2-2.8-1.8-2.8Z M12 13.5v.01 M12 18v.01 M12 22v.01' },
   // Raid 3, the Smeltery ("get behind him"): his riveted front plate, and an arrow going round it to his back.
   'boss:smeltery': { color: '#ffb35c', d: 'M2.5 5h8v10l-4 3.5-4-3.5Z M5 8.5v.01 M8 8.5v.01 M5 12.5v.01 M8 12.5v.01 M7 21c6 1 12-2 13.5-8 .5-2 .3-4-.5-5.8 M17.5 9.5l2.6-2.6 2.6 2.4' },

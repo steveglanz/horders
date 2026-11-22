@@ -1,4 +1,4 @@
-// Screenshots raid 2 (the Hoard, Old Coalmouth) with a party of four: Gorge being cast (interrupt blue), a Swallow
+// Screenshots raid 2 (the Hoard, Old Vorhulm) with a party of four: Gorge being cast (interrupt blue), a Swallow
 // with the Craw up (the swallowed hero inside him), and Ember Feast's spilled embers after he has eaten a few. His
 // health is set by hand to reach each phase; the sim is frozen at the moment. Also the hub card.
 // Usage: npm run build && node tools/hoardshots.cjs <outDir> [phone|p360]  (p360: the 360 px wide phone of the Y9 readability pass)
@@ -10,7 +10,7 @@ const phone = process.argv.includes('phone') || p360;
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const OPTS = { seed: 9, cls: 'bulwark', dungeon: 'hoard', route: ['coalmouth'], tier: 9, invulnerable: true, heroName: 'Bulwark 9', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'emberwright', name: 'Emberwright 9' }, { cls: 'duskblade', name: 'Duskblade 9' }] };
+const OPTS = { seed: 9, cls: 'bulwark', dungeon: 'hoard', route: ['vorhulm'], tier: 9, invulnerable: true, heroName: 'Bulwark 9', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'emberwright', name: 'Emberwright 9' }, { cls: 'duskblade', name: 'Duskblade 9' }] };
 const SCENES = [
   { name: '1-gorge', until: 'gorge' },
   { name: '2-swallow', hp: 0.55, until: 'craw' },
@@ -40,10 +40,10 @@ const SCENES = [
     await page.evaluate((o) => { const s = window.__ember.scene(); s.scene.restart({ opts: o, hud: s.hud, onEnd: () => {} }); }, OPTS);
     await page.waitForTimeout(700);
     await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
-    await page.waitForFunction(() => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === 'coalmouth'), null, { timeout: 30000, polling: 30 });
+    await page.waitForFunction(() => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === 'vorhulm'), null, { timeout: 30000, polling: 30 });
     await page.evaluate((sc) => {
       const w = window.__ember.scene().world;
-      const e = w.enemies.find((o) => o.alive && o.kind === 'coalmouth');
+      const e = w.enemies.find((o) => o.alive && o.kind === 'vorhulm');
       if (sc.hp) e.hp = e.maxHp * sc.hp;
       if (sc.fed) w.coalFed = sc.fed;
     }, sc);
@@ -51,7 +51,7 @@ const SCENES = [
     await page.waitForFunction((sc) => {
       const s = window.__ember.scene(); const w = s.world;
       let ok;
-      if (sc.until === 'gorge') ok = w.enemies.some((e) => e.alive && e.kind === 'coalmouth' && e.castId === 'coalGorge');
+      if (sc.until === 'gorge') ok = w.enemies.some((e) => e.alive && e.kind === 'vorhulm' && e.castId === 'coalGorge');
       else if (sc.until === 'craw') ok = w.enemies.some((e) => e.alive && e.kind === 'craw') && w.time > 1;
       else ok = w.coalEmbers.length >= 4 && w.coalEmbers.some((m) => m.t < 4);
       return ok && !(s.warp = 0);

@@ -1,4 +1,5 @@
--- Rename the world boss "Old Ashmaw" to "Old Coalmouth" (21 Nov 2026).
+-- Rename the world boss "Old Ashmaw" to "Old Vorhulm" (21 Nov 2026; the name chosen
+-- that night was changed to "Old Vorhulm", an invented word, on 22 Nov 2026).
 -- "Ashmaw" is a Warcraft character title, so the name goes. Its title, "Eater
 -- of Embers", and its Omen (sharedPain) stay as they are.
 --
@@ -13,7 +14,7 @@ returns public.world_bosses
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  names  text[] := array['Grandmother Slag', 'The Cinder Colossus', 'Old Coalmouth', 'The Furnace Regent'];
+  names  text[] := array['Grandmother Slag', 'The Cinder Colossus', 'Old Vorhulm', 'The Furnace Regent'];
   titles text[] := array['Mother of Kilns', 'Walking Forge', 'Eater of Embers', 'Lord of the Deep Bellows'];
   omens  text[] := array['kindledDead', 'warded', 'sharedPain', 'quickened'];
   n      int;
@@ -33,4 +34,4 @@ begin
 end;
 $$;
 
-update public.world_bosses set name = 'Old Coalmouth' where name = 'Old Ashmaw';
+update public.world_bosses set name = 'Old Vorhulm' where name in ('Old Ashmaw', 'Old Coalmouth');

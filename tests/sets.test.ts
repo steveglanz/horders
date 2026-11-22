@@ -246,7 +246,7 @@ describe('verb sets (R4)', () => {
       const w = new World({ seed: 5, dungeon: 'hoard', omens: [], cls: 'bulwark', gear: gear('crawsplitter', n), party: [{ cls: 'emberwright' }, { cls: 'emberwright' }, { cls: 'emberwright' }] });
       const q = w as unknown as Raid;
       for (const e of w.enemies) e.alive = false;
-      const b = q.spawn('coalmouth', 0, -200);
+      const b = q.spawn('vorhulm', 0, -200);
       q.bossIndex = b;
       q.gorgeT = 999; q.spillT = 999; q.swallowT = 0;
       w.heroes.forEach((h, k) => { h.player.x = -150 + k * 100; h.player.y = 0; });

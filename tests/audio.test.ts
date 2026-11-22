@@ -173,7 +173,7 @@ describe('audio', () => {
     expect(cueFor({ type: 'phase', phase: 2 }, { ...c, worldBoss: 'Someone New' })?.id).toBe('phaseShadow');
     expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseShadow');
     // A real boss fight in a world boss's dungeon keeps its own sting.
-    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, boss: 'coalmouth', worldBoss: 'Old Coalmouth' })?.id).toBe('phaseSwallow');
+    expect(cueFor({ type: 'phase', phase: 2 }, { ...c, boss: 'vorhulm', worldBoss: 'Old Vorhulm' })?.id).toBe('phaseSwallow');
   });
 
   it('gives the hub its equip, passive point and world boss claim sounds', () => {
@@ -187,10 +187,10 @@ describe('audio', () => {
     expect(readFileSync(new URL('../client/main.ts', import.meta.url), 'utf8')).toContain("hub.onClaimed = () => audio.play('bossClaim');");
   });
 
-  it('gives the Hoard its own theme and every Old Coalmouth moment a sound', () => {
+  it('gives the Hoard its own theme and every Old Vorhulm moment a sound', () => {
     expect(THEMES.hoard.bed).toBe('chew');
     expect(THEMES.hoard).not.toEqual(THEMES.raid);
-    const c = { cls: 'bulwark' as const, acting: 0, boss: 'coalmouth' as const };
+    const c = { cls: 'bulwark' as const, acting: 0, boss: 'vorhulm' as const };
     expect(cueFor({ type: 'swallowed', hero: 1 }, c)?.id).toBe('swallowed');
     expect(PRIORITY.has('swallowed')).toBe(true);
     expect(cueFor({ type: 'spatOut', hero: 0 }, c)).toEqual({ id: 'spatOut' });
@@ -627,7 +627,7 @@ describe('verb-set proc cues', () => {
     const w = (behind: boolean, e = col) => ({ bossIndex: 0, enemies: [e], player: { x: 0, y: 0 }, behindColossus: () => behind });
     expect(behindColossusNow(w(true))).toBe(true);
     expect(behindColossusNow(w(false))).toBe(false);
-    expect(behindColossusNow(w(true, { kind: 'coalmouth', alive: true }))).toBe(false);
+    expect(behindColossusNow(w(true, { kind: 'vorhulm', alive: true }))).toBe(false);
     expect(behindColossusNow(w(true, { kind: 'colossus', alive: false }))).toBe(false);
   });
 

@@ -1,6 +1,6 @@
 # Raid 4: the Furnace Regent in the Flue (Phase 10, B1, 22 Nov 2026, design)
 
-**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent). Three can now be fought in person: Grandmother Slag (the Crucible), Old Coalmouth (the Hoard) and the Cinder Colossus (the Smeltery). The Furnace Regent is the last one. Visuals already drew its shadow sheet (`regent`, client/textures.ts), and sound gave it a shadow sting (`shadowRegent`).
+**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Vorhulm and the Furnace Regent). Three can now be fought in person: Grandmother Slag (the Crucible), Old Vorhulm (the Hoard) and the Cinder Colossus (the Smeltery). The Furnace Regent is the last one. Visuals already drew its shadow sheet (`regent`, client/textures.ts), and sound gave it a shadow sting (`shadowRegent`).
 
 **Names.**
 - "Furnace Regent" had no WoW match in the 21 Nov 2026 search (raid2.md).

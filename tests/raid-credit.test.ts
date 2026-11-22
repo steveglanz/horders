@@ -5,7 +5,7 @@ describe('W3: raid credit follows the live world boss', () => {
   it('the Crucible counts triple only while Grandmother Slag is live', () => {
     expect(DUNGEONS.crucible.worldBoss).toBe('Grandmother Slag');
     expect(raidCountsTriple('crucible', 'Grandmother Slag')).toBe(true);
-    for (const other of ['The Cinder Colossus', 'Old Coalmouth', 'The Furnace Regent', undefined]) expect(raidCountsTriple('crucible', other)).toBe(false);
+    for (const other of ['The Cinder Colossus', 'Old Vorhulm', 'The Furnace Regent', undefined]) expect(raidCountsTriple('crucible', other)).toBe(false);
   });
 
   it('every other dungeon keeps its shadow fight triple whoever is live', () => {
