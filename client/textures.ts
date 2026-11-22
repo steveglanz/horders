@@ -3267,6 +3267,28 @@ export function buildTextures(scene: Phaser.Scene): void {
     ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
   });
 
+  // V5 in the Glarewell: a skylight lens set in the floor, a dark stone ring with brass studs round a pale glass disc,
+  // cracked across. It rests dim; GameScene spills light rays from it while its flare circle is up.
+  make(scene, 'lensVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,236,180,0.22)');
+    ell(ctx, c, c, 52, 52); ctx.fillStyle = '#2a2630'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#c9a25a';
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.6, 2.6); ctx.fill(); }
+    const lg = ctx.createRadialGradient(c - 10, c - 12, 3, c, c, 38);
+    lg.addColorStop(0, '#fffbea'); lg.addColorStop(0.45, '#cfe2ee'); lg.addColorStop(1, '#5c6f86');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = lg; ctx.fill();
+    // Cracks from a strike point, and a glint.
+    ctx.strokeStyle = 'rgba(40,46,66,0.75)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    const ox = c + 9, oy = c + 6;
+    for (const [dx, dy] of [[-30, -18], [-8, -32], [24, -20], [22, 22], [-20, 26]]) {
+      ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + dx * 0.5 + 3, oy + dy * 0.5 - 2); ctx.lineTo(ox + dx, oy + dy); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(c, c, 30, Math.PI * 1.1, Math.PI * 1.4); ctx.stroke();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
