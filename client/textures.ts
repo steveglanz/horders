@@ -3165,8 +3165,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice') => {
-    const wet = look === 'wet', ice = look === 'ice';
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron') => {
+    const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron';
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3179,7 +3179,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3190,7 +3190,7 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
     if (ice) {
       // Frozen: hairline cracks in the ice, a frost rim round the top, icicles down the lit side and a sparkle.
@@ -3209,6 +3209,20 @@ export function buildTextures(scene: Phaser.Scene): void {
       const sx = cx - 26, sy = by - h - 20;
       ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
       ctx.restore();
+      return;
+    }
+    if (iron) {
+      // The Hammerdeep: a dressed granite block bound with an iron hoop, rivets on the hoop, chisel marks on top.
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(cx, by - 13, r + 1, ry + 1, 0, 0.12, Math.PI - 0.12); ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, by - 13, r + 1, ry + 1, 0, 0.12, Math.PI - 0.12); ctx.strokeStyle = '#3a3c46'; ctx.lineWidth = 6; ctx.stroke();
+      ctx.fillStyle = '#c8d0e0';
+      for (let i = 1; i < 8; i++) { const a = (i / 8) * Math.PI; ell(ctx, cx + Math.cos(a) * (r + 1), by - 13 + Math.sin(a) * (ry + 1), 2.2, 2.2); ctx.fill(); }
+      ctx.strokeStyle = 'rgba(30,30,40,0.5)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (const [x0, y0] of [[-30, -10], [-8, -18], [14, -6], [32, -14]]) { ctx.beginPath(); ctx.moveTo(cx + x0, by - h + y0); ctx.lineTo(cx + x0 + 9, by - h + y0 - 4); ctx.stroke(); }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(230,236,255,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
       return;
     }
     if (wet) {
@@ -3238,6 +3252,32 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'foundryStone', 200, (ctx) => stone(ctx, 'wet'));
   // V8: the Coldmarrow's stones, pale blue ice with frost, cracks and icicles.
   make(scene, 'iceStone', 200, (ctx) => stone(ctx, 'ice'));
+  // Phase 12 W2: the Hammerdeep's stones, dressed granite bound with a riveted iron hoop.
+  make(scene, 'deepStone', 200, (ctx) => stone(ctx, 'iron'));
+  // Phase 12 W2: a Hammerdeep vent, a forge hearth set in the floor: a riveted steel ring round a grate over white-hot
+  // coals. Like the Kiln's, it rests dim and GameScene brightens it while its flare circle is up.
+  make(scene, 'forgeVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,190,120,0.3)');
+    for (let i = 0; i < 10; i++) {
+      const a0 = (i / 10) * Math.PI * 2, a1 = ((i + 0.9) / 10) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#4c505e' : '#3a3c48'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.fillStyle = '#c8d0e0';
+    for (let i = 0; i < 10; i++) { const a = ((i + 0.45) / 10) * Math.PI * 2; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.4, 2.4); ctx.fill(); }
+    const cg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    cg.addColorStop(0, '#fffbe8'); cg.addColorStop(0.35, '#ffd27a'); cg.addColorStop(0.7, '#ff7a2a'); cg.addColorStop(1, '#4a1206');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = cg; ctx.fill();
+    // A crossed grate.
+    ctx.strokeStyle = '#16161c'; ctx.lineWidth = 4.5; ctx.lineCap = 'butt';
+    for (const d of [-20, 0, 20]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(c - half, c + d); ctx.lineTo(c + half, c + d); ctx.stroke();
+    }
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
 
   // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
   // while its flare circle is up. 26 px across at half scale, the same as the placeholder.
@@ -3501,6 +3541,28 @@ export function buildTextures(scene: Phaser.Scene): void {
     g.addColorStop(1, 'rgba(110,130,200,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, s, s);
+  });
+
+  // Phase 12 W2, Ondrel's Ironload: the iron weight that hangs over the marked hero and comes down on them. A squat
+  // tapered block with a ring handle, rivets and a bright worn edge; GameScene lowers it as the Ironload counts down.
+  make(scene, 'ironWeight', 128, (ctx) => {
+    const cx = 64;
+    // Ring handle.
+    ctx.strokeStyle = INK; ctx.lineWidth = 11; ctx.beginPath(); ctx.arc(cx, 30, 16, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    ctx.strokeStyle = '#4c505e'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, 30, 16, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    // The block: wider at the foot.
+    ctx.beginPath(); ctx.moveTo(cx - 30, 30); ctx.lineTo(cx + 30, 30); ctx.lineTo(cx + 44, 108); ctx.lineTo(cx - 44, 108); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 44, 0, cx + 44, 0);
+    g.addColorStop(0, '#2a2c34'); g.addColorStop(0.3, '#7a8092'); g.addColorStop(0.55, '#4c505e'); g.addColorStop(1, '#1e2028');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.stroke();
+    // Bands and rivets.
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(14,12,18,0.55)'; ctx.fillRect(cx - 50, 46, 100, 7); ctx.fillRect(cx - 50, 90, 100, 7);
+    ctx.fillStyle = '#c8d0e0';
+    for (const [y, half] of [[49.5, 32], [93.5, 40]] as const) for (let x = cx - half + 6; x <= cx + half - 6; x += 13) { ell(ctx, x, y, 2, 2); ctx.fill(); }
+    ctx.restore();
+    // Bright worn top edge.
+    ctx.strokeStyle = 'rgba(225,232,255,0.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx - 27, 33); ctx.lineTo(cx + 27, 33); ctx.stroke();
   });
 
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
