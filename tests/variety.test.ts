@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -710,10 +710,21 @@ describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
         else {
           expect(moved).toBeGreaterThan(WANDER.speed * 0.8);
           expect(moved).toBeLessThan(WANDER.speed * 1.05);
-          // Same distance from her as before.
-          expect(Math.hypot(now[k].x - e.x, now[k].y - e.y)).toBeCloseTo(Math.hypot(start[k].x - e.x, start[k].y - e.y), 3);
+          // Still ventDist from her.
+          expect(Math.hypot(now[k].x - e.x, now[k].y - e.y)).toBeCloseTo(YSMERET.ventDist, 3);
         }
       }
     }
+  });
+
+  it('a wandering vent pulled in at the rim swings back out to its distance', () => {
+    const { w, q, b } = ysmeret('wander');
+    const e = w.enemies[b];
+    q.ysmeretClock(1 / 30);
+    const t = w.telegraphs.find((x) => x.alive && x.kind === 'soak' && x.owner === -2)!;
+    // As if the rim had pulled it in close to her.
+    t.x = e.x + 40; t.y = e.y;
+    q.ysmeretClock(1 / 30);
+    expect(Math.hypot(t.x - e.x, t.y - e.y)).toBeCloseTo(YSMERET.ventDist, 3);
   });
 });

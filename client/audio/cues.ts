@@ -408,6 +408,8 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   glarewell: { warn: 'lensVentWarn', land: 'lensFlare', sting: 'layoutLens' },
   // Phase 12 W2: the Hammerdeep's forge vents borrow the Kiln's fire until sound gives them their own.
   hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
+  // Phase 12 W2: the Pressworks' vents borrow the Hammerdeep's forge until sound gives them their own.
+  pressworks: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
 };
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
