@@ -3,12 +3,13 @@
 // to see what gets dropped when the mix is full.
 //   npx vite-node tools/busycheck.ts                 (raid, Hammerdeep and Coldmarrow, 4 heroes)
 //   VOICES=20 DUNGEONS=crucible SEEDS=1,2,3 PARTY=bulwark,lumen,duskblade,slagbinder npx vite-node tools/busycheck.ts
+//   WHO=selfDown: which ordinary sounds fill the mix under that cue.
 //   NOEDGE=1: leave out the arena-edge ambience, to compare.
 //   HEROES=<dir> HERO_FILE=hero-t8-0.json: every hero wears <dir>/<cls>/<file>'s gear and passives (as tools/group.ts),
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { edgeCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { edgeCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -52,6 +53,8 @@ const rms = (x: Float32Array, a: number, b: number) => {
   for (let n = a; n < b; n++) e += x[n] * x[n];
   return Math.sqrt(e / Math.max(1, b - a));
 };
+const phoned = new Map<SoundId, Float32Array>();
+const phoneOf = (id: SoundId) => phoned.get(id) ?? (phoned.set(id, phone(samplesOf(id))), phoned.get(id)!);
 const lengthOf = (id: SoundId) => len.get(id) ?? (len.set(id, recipeLength(SOUNDS[id])), len.get(id)!);
 
 for (const dungeon of dungeons) {
@@ -62,6 +65,7 @@ for (const dungeon of dungeons) {
   let seconds = 0;
   /** How far each priority cue stands above everything else playing with it, on a phone (dB). */
   const margins: { id: SoundId; db: number }[] = [];
+  const who = new Map<SoundId, number>();
   for (const seed of seeds) {
     const [main, ...rest] = classes;
     const mp = profile(main);
@@ -162,7 +166,8 @@ for (const dungeon of dungeons) {
         if (!PRIORITY.has(p.id)) continue;
         const a = Math.floor(p.t * RATE);
         const b = Math.min(total, a + Math.floor(Math.min(DUCK.max, lengthOf(p.id)) * RATE));
-        for (let n = a; n < b; n++) duck[n] = DUCK.gain;
+        const g = DEEP_DUCK[p.id] ?? DUCK.gain;
+        for (let n = a; n < b; n++) duck[n] = Math.min(duck[n], g);
       }
     }
     for (let n = 0; n < total; n++) ord[n] *= duck[n];
@@ -175,6 +180,17 @@ for (const dungeon of dungeons) {
       const bed = rms(po, a, b);
       if (bed < 1e-4) continue; // nothing else playing: nothing to mask it
       margins.push({ id: p.id, db: 20 * Math.log10(rms(pp, a, b) / bed) });
+      // WHO=<id>: which ordinary sounds fill the bed under that cue (phone energy in its window, after the duck).
+      if (process.env.WHO === p.id) {
+        for (const o of plays) {
+          if (PRIORITY.has(o.id)) continue;
+          const oa = Math.floor(o.t * RATE), src = phoneOf(o.id);
+          const lo = Math.max(a, oa), hi = Math.min(b, oa + src.length);
+          let e = 0;
+          for (let n = lo; n < hi; n++) e += (src[n - oa] * o.vol * duck[n]) ** 2;
+          if (e > 0) who.set(o.id, (who.get(o.id) ?? 0) + e);
+        }
+      }
     }
     seconds += w.time;
     busiest = Math.max(busiest, ...perSecond.values());
@@ -193,5 +209,6 @@ for (const dungeon of dungeons) {
   const byId = [...worst].map(([id, v]) => [id, v.sort((a, b) => a - b)[Math.floor(v.length / 2)]] as const).sort((a, b) => a[1] - b[1]);
   console.log(`  priority cue over the rest, on a phone: median ${q(0.5)} dB, worst 10% ${q(0.1)} dB (${margins.length} cues)`);
   console.log(`  quietest (median dB): ${byId.slice(0, Number(process.env.QUIET ?? 6)).map(([k, v]) => `${k} ${v.toFixed(1)} (n=${worst.get(k)!.length})`).join(', ')}`);
+  if (process.env.WHO) { const tot = [...who.values()].reduce((x, y) => x + y, 0); console.log(`  under ${process.env.WHO}: ${[...who].sort((x, y) => y[1] - x[1]).slice(0, 8).map(([k, v]) => `${k} ${((100 * v) / tot).toFixed(0)}%`).join(', ')}`); }
   console.log(`  priority cues dropped: ${lostPriority.map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}`);
 }

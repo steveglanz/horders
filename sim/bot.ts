@@ -653,6 +653,26 @@ export function decreePass(w: World): { dx: number; dy: number } | null {
   return null;
 }
 
+/** How close an Anvil tank holds the Cinder Colossus in his Plate Shift version, px from his middle. */
+export const ANVIL_SHIFT_HOLD = 200;
+
+/**
+ * The Smeltery's Plate Shift: an Anvil tank (a ranged Slagbinder) fights from about 340 px, and in
+ * this version that cost the Anvil party half its wins (forced version, seeds 1-160 at t10: 59/160
+ * against 119 in the Wheel version). Held at `ANVIL_SHIFT_HOLD` it wins 117/160. The same hold in
+ * the Wheel version cost 11 of 80, so it applies to Plate Shift only. Not while one of his
+ * telegraphs is out, so the usual step-out still clears a Slag Sweep. NOANVILHOLD=1 turns it off.
+ */
+export function anvilHold(w: World): { dx: number; dy: number } | null {
+  if (w.dungeonId !== 'smeltery' || w.bossVariant !== 'shift' || w.player.stance !== 'anvil' || !w.isTank(w.acting)) return null;
+  if (w.bossIndex < 0 || process.env.NOANVILHOLD === '1') return null;
+  const e = w.enemies[w.bossIndex];
+  if (!e?.alive || w.telegraphs.some((t) => t.alive && t.owner === w.bossIndex)) return null;
+  const p = w.player;
+  const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+  return d > ANVIL_SHIFT_HOLD ? { dx: (e.x - p.x) / d, dy: (e.y - p.y) / d } : null;
+}
+
 /**
  * Where a non-tank should step to stand behind the Cinder Colossus (raid 3), or null when it
  * is already there or is the tank. Stays out of his front cone on the way round by circling at
@@ -736,6 +756,9 @@ export function botInput(w: World, skill = 1): Input {
     const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
     if (d > SUMMONS.radius * 0.9) return { x: (b.x - p.x) / d, y: (b.y - p.y) / d, cast: botCast(w, skill) };
   }
+  // The Smeltery's Plate Shift: an Anvil tank holds the Colossus close (see anvilHold).
+  const hold = anvilHold(w);
+  if (hold) return { x: hold.dx, y: hold.dy, cast: botCast(w, skill) };
   // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
   const isle = islandStep(w);
   if (isle) return { x: isle.dx, y: isle.dy, cast: botCast(w, skill) };

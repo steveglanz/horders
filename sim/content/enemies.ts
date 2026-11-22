@@ -66,8 +66,8 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // The raid (C3): the world boss in person, and her adds.
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', hp: 22000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   // Raid 2 (Phase 7): the next world boss in person, and the Craw that holds a swallowed hero.
-  regent: { id: 'regent', name: 'The Furnace Regent', hp: 15000, speed: 24, damage: 20, radius: 52, xp: 0, rank: 'boss', title: 'Raid boss' },
-  colossus: { id: 'colossus', name: 'The Cinder Colossus', hp: 19000, speed: 26, damage: 20, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
+  regent: { id: 'regent', name: 'The Furnace Regent', hp: 15500, speed: 24, damage: 20, radius: 52, xp: 0, rank: 'boss', title: 'Raid boss' },
+  colossus: { id: 'colossus', name: 'The Cinder Colossus', hp: 19500, speed: 26, damage: 20, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', hp: 18000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   craw: { id: 'craw', name: 'Craw', hp: 120, speed: 0, damage: 0, radius: 22, xp: 0, rank: 'elite', stationary: true, title: 'Break it to free your ally' },
   slagling: { id: 'slagling', name: 'Slagling', hp: 120, speed: 70, damage: 6, radius: 11, xp: 1, rank: 'normal' },

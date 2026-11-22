@@ -461,7 +461,7 @@ The raid brief's cooling islands, deferred in C3, are now Grandmother Slag's sec
 
 Two-tank parties were already over the 70% ceiling on main (raid.md). This change leaves them where they were. Standing on the islands is the check: without it the party wins 5 of 33.
 
-**Run variety** (tools/variety.ts, tier 8): the Crucible has only 12 routes, and with the two versions 24 run shapes. A raid's fight pools are short. Widening them is a W3 follow-up.
+**Run variety** (tools/variety.ts, tier 8): the Crucible has only 12 routes, and with the two versions 24 run shapes. A raid's fight pools were short. Part 5 widened them.
 
 ## Phase 12 W3, part 2 (built 22 Nov 2026): Old Vorhulm's Banked Coals
 The seed picks `bossVariant` for Old Vorhulm (its own salt, no run-rng draws):
@@ -549,3 +549,30 @@ Two coals instead of three helped the Emberwright row as much (26) but made the 
 **The Cinder Colossus's Plate Shift: left as it is.** Skills found an Anvil tank at 25 of 51 on Plate Shift. Seeds 1 to 40, version forced: base 25 (Wheel) and 26 (Plate Shift), Anvil tank 29 and 21. Every Anvil loss wipes with him at 1 to 8%, and skills' position trace shows the Anvil and Bulwark parties standing the same way, so it is damage. Fight knobs move the base party more than the Anvil: 3% less health in this version only gave base 32 and Anvil 23, and 5% gave 33 and 23. A plate shift every 22 s gave 23 and 24. So Plate Shift stays as it is, and the Anvil gap is noted for skills.
 
 **Ash Fall's double scaling (fixed in the next PR).** Ash Fall passed `REGENT.ashDamage * tierDamage` into `addTelegraph`, which scales it by tier again when it lands (the same double scaling as Hammer Sweep before #411). The Flue was tuned that way at tier 11, so `ashDamage` is now 70 × 1.12^10 (about 217 before tier) and scales once. At tier 11 the hit is exactly the same number (70·a·a and (70·a)·a are the same floating-point product), so nothing needs re-tuning. Above tier 11 (keys, harder tiers) it now grows by 1.12 a tier, not 1.25.
+
+## Phase 12 W3, part 5 (built 22 Nov 2026): wider raid fight pools
+Each raid used the same three openers (Warpack, Glass, Crawlers) and two named fights (Anvilguard, Bellwarden), so a raid had 12 routes. Now:
+
+| Raid | Openers | Named | Routes |
+|---|---|---|---|
+| The Crucible | + Hollow Rift, Warden and Spitters | + Brute and Spitters | 60 |
+| The Hoard | + Hollow Wardens, Ember Spitters | + Brute and Spitters | 60 |
+| The Smeltery | + Hollow Wardens | | 24 |
+| The Flue | + Hollow Wardens | | 24 |
+
+With the boss's two versions that's 120 run shapes in the Crucible and Hoard and 48 in the Smeltery and Flue. There are still no Ashbuck charge fights in group play. tests/variety.test.ts checks every raid has at least 24 routes.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, full party, at each raid's unlock tier, main → this change:
+
+| Raid | Seeds | main | This change |
+|---|---|---|---|
+| Crucible t8 | 1 to 160 | 98 | 96 |
+| Hoard t9 | 1 to 160 | 99 | 97 |
+| Smeltery t10 | 1 to 320 | 219 (68%) | 206 (64%), with 19500 health |
+| Flue t11 | 1 to 320 | 212 | 213 |
+
+**Why the Smeltery and Flue got only one new opener.** The first try gave them five openers and three named fights each, the same as the Crucible and Hoard. The Smeltery fell from 109 to 82 of 160 and the Flue from 101 to 65. Parties wiped before the boss in 21 and 43 runs, against 2 and 5 on main. At tiers 10 and 11 with t8 gear, the extra fights wore the party down, and the old named fights did the killing (Anvilguard 11 times in the Flue). Spitter fights also ran long into the trash clock. With Hollow Wardens as the only new opener, early wipes fell back to 1 and 4.
+
+**The Smeltery's health.** With the wider pool the Smeltery won 229 of 320 (72%), over the band. Hollow Rift as its fourth opener instead won 235. The Colossus now has 19500 health (it was 19000), which wins 206 (19750 won 210). Skills: the Anvil Plate Shift row will move with this.
+
+**The Flue after skills' walk-in (#457).** Bots now walk in to the throne 2 s before a Summons is due, as a player learns to. With that and the wider pool, the Flue won 236 of 320 (74%; court 118 of 162, ash 118 of 158), over the band. The Regent now has 15500 health (it was 15000): 206 of 320 (64%; court 100 of 162, ash 106 of 158). 16000 won 190 (59%). A smaller Summons ring barely mattered once the bots walk in early (seeds 1 to 160: radius 130 won 120, 110 won 118, 95 won 115), so the ring stays at 130.

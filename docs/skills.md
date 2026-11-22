@@ -807,6 +807,21 @@ Now, at the Smeltery in phase 3, a Lumen goes to the tank whenever the tank is u
 
 Before is design's table on #342. The rule only runs at the Smeltery, so every other dungeon and the solo fingerprints are unchanged. Test: `tests/smeltery-bot.test.ts`. Still over 70%: two Duskblades (33) and Bellows beside a Duskblade (32).
 
+### Plate Shift: the Anvil tank holds him close (W7, 22 Nov 2026)
+An Anvil tank (a ranged Slagbinder) fights the Colossus from about 340 px. In his Plate Shift version that cost the Anvil party half its wins. With the version forced, seeds 1-80 at t10, it won 39/80 against 59/80 in the Wheel version. The pace through phases 1 and 2 was the same. The gap opened in Meltdown, which took 138 s in winning Shift runs against 123 s in Wheel runs, with the Lumen and the Emberwright dealing less there.
+
+The bot now holds him at `ANVIL_SHIFT_HOLD` (200 px, the edge of his Slag Sweep), in Plate Shift only (`anvilHold` in sim/bot.ts). It doesn't hold while one of his telegraphs is out. `NOANVILHOLD=1` turns it off.
+
+| Anvil party, version forced | Shift | Wheel |
+|---|---|---|
+| main, before | 39/80 | 59/80 |
+| main, after | 60/80 | 59/80 |
+| #458 (Colossus 19500, wider pools), seeds 1-160, before | 59/160 | 119/160 |
+| #458, seeds 1-160, after | 117/160 | 119/160 |
+| main, fresh seeds 81-160, before / after (trial) | 42/80 / 61/80 | |
+
+I measured the hold distances before picking 200 (Shift / Wheel, seeds 1-80): 160 px gave 62 / 49, 200 px gave 63 / 48, 240 px gave 46 / 60 and 280 px gave 38 / 58. That's why it's Shift only. I haven't found why the distance matters in one version and not the other. Holding the ranged damage heroes on the inner edge of their ring in Meltdown made things worse (Anvil 29 / 26), so it isn't simply their reach.
+
 ## Crawsplitter trim (A4, 22 Nov 2026)
 
 Base party, Hoard t9, heroes-r2 hero-t8-0, all four heroes in the 3-piece, seeds 1 to 120. Wins of 120, with the blocks of 40 in brackets. The control tags the gear Platewalker, which does nothing in the Hoard: tagged pieces are kept by the bot (`breaksSet`), so part of any set's lift is the tag.
