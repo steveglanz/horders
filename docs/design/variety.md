@@ -603,3 +603,14 @@ Tier 8, heroes-r2 hero-t8-0, seeds 1 to 320:
 | Full party, with layouts and 5800 health | **195 (61%)** |
 | No healer (Bulwark, two Emberwrights, Duskblade), 5800 | 42 (13%, under the 25% bar) |
 | No tank (two Duskblades, Lumen, Emberwright), 5800 | 6 (2%) |
+
+**Banked Coals, two coals (22 Nov 2026).** Skills re-measured after #458 and found Banked Coals harder than Ember Feast for every party (base 65 against 81 of 120). Now two coals land each time, not three (`BANK.count`). Hoard t9, seeds 1 to 120, version forced:
+
+| Party | Ember Feast | Banked Coals, 3 coals | 2 coals |
+|---|---|---|---|
+| Base | 77 | 67 | 81 |
+| Bellows Slagbinder with an Emberwright | 52 | | 53 |
+| Bellows Slagbinder with a Duskblade | 86 | | 81 |
+| Two Duskblades | 97 | | 92 |
+
+The other knobs I tried on base: coals of radius 65 won 70 and radius 80 won 72, and a 5 s fuse won 55. Two Duskblades and a Bellows Slagbinder with a Duskblade run high in both versions, which is the class-side Z5.
