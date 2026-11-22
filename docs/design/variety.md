@@ -212,3 +212,26 @@ The two versions are about as hard. A Bulwark's fight runs longer with the tide 
 - **Run variety** (tools/variety.ts, tier 10): repeats within blocks of 20 fell from 306 of 1000 to 6. Routes went from 24 to 179, with 766 run shapes.
 - **Win rates** (tools/foundry.ts, `DUNGEON=coldmarrow TIER=10 HERO=tools/heroes/hero-t8.json`, seeds 1 to 40, before → after): good bot 36 → 38, `SKILL=0.5` 29 → 32. The new fights run a little easier than the old pool. The hashcheck has no Coldmarrow rows, so it is unchanged.
 - **Next:** a second version of Nhevra.
+
+## V8 status, part 6 (built 22 Nov 2026): Nhevra's Emberdrift
+- **Two versions:** as Nhevra rises, the seed picks `bossVariant` (a hash, no run-rng draws).
+  - `ice`: Thin Ice, as before.
+  - `drift`: **Emberdrift**.
+- **Emberdrift**, from phase 2:
+  - Coals drain 2.5 times faster.
+  - Every 12 s, 3 embers fall on a ring of 280 px (`World.driftEmbers`), replacing the last ones.
+  - Walking over an ember refills 45% of your coal.
+  - Players have to route between embers to stay bright for the Long Night, rather than step around strips of open water.
+  - Events: `emberDrift {n}` and `emberPick {x, y, hero}`. Tuning is in `EMBERDRIFT`, and the banner says so (`EMBERDRIFT_TIP`).
+- **Bots:** a hero whose coal is low (below 0.3 to 0.6, by skill) walks to the nearest ember.
+- **Co-op:** `driftEmbers` is in netsync ARRAYS, and `bossVariant` is a synced scalar.
+- **Client:** placeholder glows until visuals draw the embers.
+- **Name:** "Emberdrift" is an invented word. A web search on 22 Nov 2026 found no WoW match; WoW has the unrelated "Emberflow" and "Emberdawn". "Banked Embers" was dropped because our talents already use "Banked".
+- **Measured:** tools/foundry.ts, `DUNGEON=coldmarrow TIER=10 HERO=tools/heroes/hero-t8.json`, seeds 1 to 60, before → after.
+  - Good bot: 54 → 54 wins.
+  - `SKILL=0.5`: 49 → 52 wins.
+  - Boss record on drift seeds: 23 of 24 both times (good bot), 22 → 25 of 25 (`SKILL=0.5`).
+  - Emberdrift plays slightly easier than Thin Ice for bots. It stays as tuned until playtests, since humans will miss embers more often than bots do.
+- **Run variety** (tier 10, now counting her version): 2 repeats in 1000 runs (was 306 before V8), with 866 run shapes.
+
+**V8 is done.** All four solo dungeons a player meets before the raids repeat at most 2 runs in 1000 within a block of 20, against 306 to 409 before Phase 11.
