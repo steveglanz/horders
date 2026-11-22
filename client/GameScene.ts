@@ -9,6 +9,7 @@ import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT } from '../sim/world';
 import { ENCOUNTERS, KILN_DRAW_TIP } from '../sim/content/dungeon';
+import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
 import { AFFIXES } from '../sim/content/named';
@@ -1211,11 +1212,13 @@ export class GameScene extends Phaser.Scene {
           // L1: the first delve coaches each fight instead of the usual tip. Coach lines, and on phones a first
           // fight that also names its Omens, get the full-length banner so nothing is cut off.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
+          // V4: the first fight also names the Day's Heat.
+          const heat = ev.index === 0 && w.heat ? ` Today's Heat, ${HEATS[w.heat].name}: ${HEATS[w.heat].text}` : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : def.tip;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + omens, !!coach || (this.hud.compact && !!omens));
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
         case 'fork':

@@ -1,6 +1,7 @@
 import { weekOf } from '../sim/content/omens';
 import { keyOmens, keyTier } from '../sim/content/keys';
 import { bountyFor, dayOf } from '../sim/content/bounty';
+import { heatFor } from '../sim/content/heat';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { Hud } from './ui';
@@ -259,6 +260,8 @@ function startRun(bounty = false, key = false): void {
     const tier = keyTier(hero.maxTier);
     Object.assign(opts, { tier, omens: keyOmens(tier, weekOf(Date.now()), level), keyLevel: level, grit: 0, firstClear: false });
   }
+  // V4: today's Heat; the sim keeps it only for the Kiln below tier 3, and never for a bounty or key run.
+  if (!bounty && !key) opts.heat = heatFor(dayOf(Date.now()));
   lastBounty = bounty;
   lastKey = key;
   const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;

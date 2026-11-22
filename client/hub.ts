@@ -19,6 +19,7 @@ import { DUNGEONS, DUNGEON_IDS, DungeonId, partyBlocker, partyLabel } from '../s
 import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
+import { HEATS, heatApplies, heatFor } from '../sim/content/heat';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } from '../sim/content/weekly';
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
@@ -346,7 +347,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
+      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -809,6 +810,13 @@ export class Hub {
   private omenRow(id: OmenId, cls = 'box omen'): string {
     const o = OMENS[id];
     return `<div class="${cls}" title="${o.tip}">${omenTile(id)}<div><b>${o.name}</b><div>${o.text}</div></div></div>`;
+  }
+
+  /** V4: today's Heat, on the Kiln below the first Omen tier. */
+  private heatLine(): string {
+    if (!heatApplies(this.dungeon, this.tier)) return '';
+    const h = HEATS[heatFor(dayOf(Date.now()))];
+    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
   }
 
   /** This week's Omens for the picked tier, or a hint about when they start. */
