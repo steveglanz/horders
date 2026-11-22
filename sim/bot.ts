@@ -537,6 +537,19 @@ function raftHop(w: World, d: number | undefined): number | undefined {
   return d > hop * 0.6 && can(w, 1) ? 1 : undefined;
 }
 
+/** V8 Emberdrift: the way to the nearest fallen ember when this hero's coal is below `low` (a skilled bot tops up sooner), or null. */
+export function driftGrab(w: World, skill: number): { dx: number; dy: number } | null {
+  const p = w.player;
+  if (!w.driftEmbers.length || p.coal === undefined || p.coal > 0.3 + 0.3 * skill) return null;
+  let best: { dx: number; dy: number } | null = null;
+  let bestD = Infinity;
+  for (const m of w.driftEmbers) {
+    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d < bestD) { bestD = d; best = { dx: (m.x - p.x) / (d || 1), dy: (m.y - p.y) / (d || 1) }; }
+  }
+  return best;
+}
+
 /**
  * The ember this hero should run for, or null: the nearest one no living ally is closer to,
  * within a reach that grows with skill. Tanks stay on the boss.
@@ -683,6 +696,9 @@ export function botInput(w: World, skill = 1): Input {
     const cast = botCast(w, skill);
     return save.d > REVIVE_RADIUS * 0.5 ? { x: save.dx / save.d, y: save.dy / save.d, cast } : { x: 0, y: 0, cast };
   }
+  // V8 Emberdrift: a hero whose coal is running low walks to the nearest fallen ember.
+  const drift = driftGrab(w, skill);
+  if (drift) return { x: drift.dx, y: drift.dy, cast: botCast(w, skill) };
   // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Vorhulm eats it.
   const ember = emberGrab(w, skill);
   if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };

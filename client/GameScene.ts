@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW } from '../sim/world';
-import { ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, KILN_DRAW_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1245,7 +1245,8 @@ export class GameScene extends Phaser.Scene {
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
-            : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP : def.tip;
+            : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
+            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -2387,6 +2388,12 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
+    // V8 Emberdrift (Nhevra): placeholder embers on the floor until visuals draw them; walk over one to refill your coal.
+    for (const m of w.driftEmbers) {
+      const r = 8 + 2 * Math.sin(now / 180 + m.x);
+      g.fillStyle(0xff8a3a, 0.25).fillCircle(m.x, m.y, r * 2.6);
+      g.fillStyle(0xffd27a, 0.9).fillCircle(m.x, m.y, r);
+    }
     // V8: the Drowned Foundry rolls the same layouts; there the stones are wet slate and the vents steam.
     const wet = w.dungeonId === 'foundry';
     // V5 in the Glarewell: its vents are cracked skylight lenses that flare with light.
