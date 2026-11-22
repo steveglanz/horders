@@ -156,8 +156,8 @@ Y9 to Y12 are done. These are checks with tools that already exist, so each item
 |---|---|---|---|
 | Z1 | **The season screen with 8 seasons:** re-run `tools/seasonshots.cjs` and `tools/seasonartshots.cjs` for Seasons 7 and 8 (banner, glow swatches, trails) on desktop, iPhone 13 and 320 px; update `docs/design/shots/season-320.png` | visuals | ⏭ |
 | Z2 | **The three raids side by side at 320 px:** the Crucible, Hoard and Smeltery hub cards (`tools/hubcardshots.cjs`) with their lock lines (four heroes, no bot fill) readable, and no horizontal scroll | visuals | ⏭ |
-| Z3 | **Phone speakers across the new themes:** run `tools/mixcheck.ts` on `hoard`, `smeltery`, `hubHunger` and `hubPlate` and the raid 2 and 3 cues; anything that loses most of its level under 350 Hz gets a higher layer | sound | ⏭ |
-| Z4 | **Season 7 and 8 rewards:** a glow or trail unlock in Seasons 7 and 8 plays the same reward cue as Seasons 1 to 6 (check the new trail styles from #327 go through it) | sound | ⏭ |
+| Z3 | **Phone speakers across the new themes:** run `tools/mixcheck.ts` on `hoard`, `smeltery`, `hubHunger` and `hubPlate` and the raid 2 and 3 cues; anything that loses most of its level under 350 Hz gets a higher layer | sound | ✅ Nothing failed, so nothing changed. Themes: hoard 28-29%, smeltery 29%, hubHunger 51%, hubPlate 45% above 350 Hz (floor 25%). Raid 2 and 3 SFX: 26% (emberEaten) to 89%. Every priority cue at or above -26.5 dB (lowest phaseFeast -26.4) |
+| Z4 | **Season 7 and 8 rewards:** a glow or trail unlock in Seasons 7 and 8 plays the same reward cue as Seasons 1 to 6 (check the new trail styles from #327 go through it) | sound | ✅ Every season's glows and trail stages, 1 to 8, play `unlock` (rewardCues); a test covers all of them. The trail style is drawing only and never reaches the cue |
 | Z5 | **Raid class coverage, round 2:** the Bellows Slagbinder without a Duskblade (about 19 of 40 in both raids) and Duskblade stacking (two blades, or a blade beside a Bellows Slagbinder, over 70%). Target: every party 22 to 28 of 40 in the Hoard (t9) and the Smeltery (t10), base party unchanged | skills | ⏭ After #324 |
 
 ## R2. The Forge
