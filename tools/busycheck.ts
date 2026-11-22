@@ -3,19 +3,31 @@
 // to see what gets dropped when the mix is full.
 //   npx vite-node tools/busycheck.ts                 (raid, Hammerdeep and Coldmarrow, 4 heroes)
 //   VOICES=20 DUNGEONS=crucible SEEDS=1,2,3 PARTY=bulwark,lumen,duskblade,slagbinder npx vite-node tools/busycheck.ts
+//   HEROES=<dir> HERO_FILE=hero-t8-0.json: every hero wears <dir>/<cls>/<file>'s gear and passives (as tools/group.ts),
+//   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
 import type { SetId } from '../sim/content/sets';
+import { equippedItems, type HeroProfile } from '../sim/hero';
+import { existsSync, readFileSync } from 'fs';
 
 const VOICES = Number(process.env.VOICES ?? 12); // the low-end phone cap
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dungeons = (process.env.DUNGEONS ?? 'crucible,hammerdeep,coldmarrow').split(',') as DungeonId[];
 const seeds = (process.env.SEEDS ?? '1,2,3').split(',').map(Number);
+const profile = (cls: ClassId): HeroProfile | null => {
+  const f = process.env.HEROES ? `${process.env.HEROES}/${cls}/${process.env.HERO_FILE ?? 'hero-t6-0.json'}` : '';
+  return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
+};
+const gearOf = (cls: ClassId) => {
+  const p = profile(cls);
+  return p ? { gear: equippedItems(p), passives: p.passives } : {};
+};
 const TIER: Partial<Record<DungeonId, number>> = { crucible: 8, hammerdeep: 4, coldmarrow: 6, wrackline: 13, pressworks: 10, hoard: 9, smeltery: 10 };
 BOT_PARTY.revive = true;
 const len = new Map<SoundId, number>();
@@ -51,7 +63,12 @@ for (const dungeon of dungeons) {
   const margins: { id: SoundId; db: number }[] = [];
   for (const seed of seeds) {
     const [main, ...rest] = classes;
-    const w = new World({ seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main, party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}` })) });
+    const mp = profile(main);
+    const w = new World({
+      seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main,
+      ...(mp ? { ...gearOf(main), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
+      party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}`, ...gearOf(cls) })),
+    });
     // SET=kinbound SETN=3: every hero wears that many pieces of a verb set, to hear its proc cues.
     // The sim rebuilds each loadout from gear between fights, so this is re-applied every tick.
     const wearSet = () => {
@@ -115,7 +132,7 @@ for (const dungeon of dungeons) {
       const pc = pressedCue(press, dungeon === 'pressworks' && (w.player.pressedT ?? 0) > 0);
       if (pc) play(pc.id, w.time, pc.vol);
       for (const c of bellyCues(belly, dungeon === 'hoard' ? w.player.swallowT ?? 0 : 0, w.time)) play(c.id, w.time, c.vol);
-      for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id)))) play(c.id, w.time, c.vol);
+      for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)))) play(c.id, w.time, c.vol);
       for (const c of reviveCues(rv, w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), w.reviveSeconds, w.revivesLeft)) play(c.id, w.time);
     }
     // Offline mix of the whole run, ordinary sounds and priority sounds on separate tracks.

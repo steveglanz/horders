@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -532,28 +532,49 @@ describe('season hub themes', () => {
 describe('verb-set proc cues', () => {
   const p = { hp: 100, planted: true, surge: true, kbT: 3, warmth: 5, coverT: 0, bondT: 0 };
   it('reads each flag only with the pieces that grant it, and never on a dead hero', () => {
-    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false });
-    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false });
+    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
+    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false });
     // Tidewalker's surge and Hearthkeeper's full Warmth are the 3-piece bonuses.
-    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false, relayed: false });
-    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false });
+    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
+    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
     expect(setFlagsOf({ ...p, warmth: 4 }, () => 3).warmFull).toBe(false);
   });
   it('sounds a proc as it turns on, once', () => {
     const was = {};
-    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false };
+    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false };
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(setCues(was, { ...off, planted: true })).toEqual([]);
-    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
+    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(THROTTLE.planted).toBeGreaterThan(0);
   });
+  it('Crawsplitter: Freed sounds on the breaker and the freed hero; Platewalker: a soft cue on getting behind him', () => {
+    // The freed hero may wear none of the set (crawBroken sets freedT on both), like Bonded.
+    expect(setFlagsOf({ hp: 100, freedT: 10 }, () => 0).freed).toBe(true);
+    expect(setFlagsOf({ hp: 0, freedT: 10 }, () => 3).freed).toBe(false);
+    expect(setFlagsOf({ hp: 100 }, () => 2, true).behind).toBe(true);
+    expect(setFlagsOf({ hp: 100 }, () => 1, true).behind).toBe(false);
+    expect(setFlagsOf({ hp: 100 }, () => 3, false).behind).toBe(false);
+    const was = {};
+    setCues(was, setFlagsOf({ hp: 100 }, () => 3));
+    expect(setCues(was, setFlagsOf({ hp: 100, freedT: 10 }, () => 3, true))).toEqual([{ id: 'freed', vol: 1 }, { id: 'behindPlate', vol: 0.7 }]);
+    expect(THROTTLE.behindPlate).toBeGreaterThanOrEqual(3);
+    // Freed waits for the Craw's break, which lands on the same tick.
+    expect(Math.min(...SOUNDS.freed.map((v) => v.delay ?? 0))).toBeGreaterThanOrEqual(0.3);
+    const col = { kind: 'colossus', alive: true };
+    const w = (behind: boolean, e = col) => ({ bossIndex: 0, enemies: [e], player: { x: 0, y: 0 }, behindColossus: () => behind });
+    expect(behindColossusNow(w(true))).toBe(true);
+    expect(behindColossusNow(w(false))).toBe(false);
+    expect(behindColossusNow(w(true, { kind: 'coalmouth', alive: true }))).toBe(false);
+    expect(behindColossusNow(w(true, { kind: 'colossus', alive: false }))).toBe(false);
+  });
+
   it('Kinbound: Covered and Bonded sound as they start, and a dead hero hears neither', () => {
     const q = { hp: 100, coverT: 4, bondT: 4 };
     expect(setFlagsOf(q, () => 0)).toMatchObject({ covered: true, bonded: true });
-    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false, relayed: false });
+    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false, relayed: false, freed: false, behind: false });
     const was = {};
     const off = setFlagsOf({ hp: 100 }, () => 0);
     setCues(was, off);
@@ -592,6 +613,9 @@ describe('takes for busy sounds', () => {
         expect(diff / base.length, `${id}#${k}`).toBeGreaterThan(0.005);
       }
     }
+  });
+  it('gives the busiest class abilities their own takes', () => {
+    for (const id of ['bulwarkSlam', 'emberWave', 'lumenBurst'] as const) expect(VARIANTS[id], id).toBeGreaterThanOrEqual(3);
   });
   it('never plays the same take twice running', () => {
     for (let last = -1; last < 4; last++) for (const r of [0, 0.3, 0.6, 0.999]) {

@@ -5631,8 +5631,9 @@ export class World {
     if (this.swallowed >= 0) {
       const q = this.heroPlayer(this.swallowed);
       q.swallowT = Math.max(0, (q.swallowT ?? 0) - dt);
-      q.hp -= q.maxHp * COAL.swallowTick * dt;
-      if (q.swallowT <= 0 || q.hp <= 0) this.releaseSwallowed(true);
+      // The drain can't kill: only the clock running out Digests them, so the check is how fast the party breaks the Craw.
+      q.hp = Math.max(1, q.hp - q.maxHp * COAL.swallowTick * dt);
+      if (q.swallowT <= 0) this.releaseSwallowed(true);
     }
     // Spilled embers: a hero who walks over one takes it; he inhales the ones left too long.
     for (let k = this.coalEmbers.length - 1; k >= 0; k--) {
@@ -5691,16 +5692,19 @@ export class World {
     }
   }
 
-  /** Swallow: the living non-tank hero furthest from Old Coalmouth goes inside, and the Craw appears. */
+  /**
+   * Swallow: he gulps down the living non-tank hero who has dealt the most damage this run, and the Craw
+   * appears. (It used to be the furthest hero, which made the check how much health the ranged hero had.)
+   */
   private swallow(i: number): void {
     const e = this.enemies[i];
     let pick = -1;
-    let far = -1;
+    let most = -1;
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.hp <= 0 || this.isTank(k)) continue;
-      const d = dist2(q.x, q.y, e.x, e.y);
-      if (d > far) { far = d; pick = k; }
+      const d = k === this.acting ? this.damageDealt : this.heroes[k].damageDealt;
+      if (d > most) { most = d; pick = k; }
     }
     if (pick < 0) return;
     const q = this.heroPlayer(pick);
@@ -6128,12 +6132,16 @@ export class World {
     this.events.push({ type: 'drop', x, y, rarity: item.rarity });
   }
 
-  /** Adds an item to this run's haul and wears it right away if it is an upgrade. */
+  /**
+   * Adds an item to this run's haul and wears it right away if it is an upgrade,
+   * unless that would take off a piece of a set whose 2- or 3-piece bonus is active.
+   */
   private pickUp(item: Item): void {
     this.runDrops.push(item);
     const cur = this.gear.find((g) => g.slot === item.slot);
     const delta = Math.round(itemScore(item) - (cur ? itemScore(cur) : 0));
-    const equipped = delta > 0;
+    const breaksSet = !!cur?.set && cur.set !== item.set && (this.loadout.sets[cur.set] ?? 0) >= 2;
+    const equipped = delta > 0 && !breaksSet;
     if (equipped) {
       this.gear = this.gear.filter((g) => g.slot !== item.slot);
       this.gear.push(item);
@@ -6696,9 +6704,9 @@ export const COAL = {
   /** Gorge: an interruptible channel; if it finishes he heals `gorgeHeal` of max health. */
   gorgeEvery: 12, gorgeCast: 3, gorgeHeal: 0.08, firstGorge: 6,
   /**
-   * Swallow (phase 2 on): the non-tank hero furthest from him goes inside for `swallowTime` s,
-   * losing `swallowTick` of max health a second. Break the Craw at his side to get them out;
-   * otherwise they are Digested (downed). `crawDist` is how far from his middle the Craw sits.
+   * Swallow (phase 2 on): the non-tank hero who has dealt the most damage goes inside for `swallowTime` s,
+   * losing `swallowTick` of max health a second (never below 1). Break the Craw at his side to get them out;
+   * otherwise they are Digested (downed) when the time runs out. `crawDist` is how far from his middle the Craw sits.
    */
   swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.06, crawDist: 90, spitShield: 1.5,
   /** Ember Feast (phase 3): `spillN` embers scatter `spillMin`..`spillMax` from him; he inhales any left after `emberLife` s. */

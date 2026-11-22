@@ -269,6 +269,26 @@ export class Hud {
   /** Phone-sized screen: shorter banners, icon-only HUD. */
   get compact(): boolean { return this.phone.matches; }
   private stacked = '';
+  /**
+   * L2: stackTop reads layout (getBoundingClientRect, offsetHeight), which forced a
+   * full reflow on every HUD tick, 10 times a second (about 3% of the main thread at
+   * 4x CPU throttle). Now it only measures after something it depends on changed size:
+   * the top row (its height places #buffs), the buffs, target, route and party frames
+   * (hiding one resizes it to 0), the window, or the narrow breakpoint.
+   */
+  private stackDirty = true;
+  private stackWatch?: ResizeObserver;
+  private watchStack(): void {
+    if (this.stackWatch || typeof ResizeObserver === 'undefined') return;
+    const dirty = () => { this.stackDirty = true; };
+    // Restack right away: the observer runs after layout and before paint, so the reads are
+    // cheap and the frames never overlap for a frame (waiting for the next tick lagged 100 ms).
+    this.stackWatch = new ResizeObserver(() => { dirty(); this.stackTop(); });
+    const buffs = $('buffs');
+    for (const el of [buffs.previousElementSibling, buffs, $('target'), $('quests'), $('party')]) if (el) this.stackWatch.observe(el);
+    addEventListener('resize', dirty);
+    this.narrow.addEventListener('change', dirty);
+  }
 
   /**
    * Phones: the target frame spans the screen, so it used to sit on top of the
@@ -276,6 +296,9 @@ export class Hud {
    * route line. Stack them instead: buffs, the target frame, the route, then party frames.
    */
   private stackTop(): void {
+    this.watchStack();
+    if (this.stackWatch && !this.stackDirty) return;
+    this.stackDirty = false;
     const target = $('target');
     const quests = $('quests');
     const party = $('party');
