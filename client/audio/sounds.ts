@@ -808,6 +808,18 @@ export const SOUNDS = {
   ),
   /** The Glarewell's vents layout: a rising glass arpeggio as light catches the lenses. */
   layoutLens: join(chime(E6, 0, 0.14, 0.5), chime(G6, 0.12, 0.13, 0.5), chime(B5() * 2, 0.24, 0.13, 0.5), chime(E6 * 2, 0.36, 0.12, 0.8)),
+  /** Glintfall wind-up (the Lensmother, glint runs): light gathers in the lenses overhead, a rising glassy swell (1.8 s cast). */
+  glintWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.7, vol: 0.14, a: 1.3, lp: 4000, lp2: 11000, hp: 2500, curve: 0.8, trem: [9, 0.4] },
+     { wave: 'saw', f: note(7), f2: note(12), dur: 1.7, vol: 0.08, a: 1.2, lp: 3000, curve: 0.8, vib: [6, 0.008] }],
+    ...[0.3, 0.7, 1.1, 1.45].map((d, k) => chime([E6, G6, B5() * 2, E6 * 2][k], d, 0.08 + k * 0.03, 0.35)),
+  ),
+  /** Glintfall lands: shards rain down on every standing pillar at once, one sound for all of them. */
+  glintfall: join(
+    boom(60, 0.45, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.07, vol: 0.32, lp: 12000, hp: 2500, curve: 3 }],
+    ...[0.02, 0.06, 0.11, 0.17, 0.24, 0.32].map((d, k) => chime([E6 * 2, B5() * 2, G6, E6 * 1.5, C6 * 2, E6][k], d, 0.12, 0.3)),
+  ),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1088,6 +1100,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   kilnDraw: 1.0,
   // The Sluicetide's turn is a must-hear push warning (measured -31.0 dB; 5.7 dB over the Foundry mix at +5.5, so +6.5).
   tideTurn: 6.5,
+  // Glintfall's wind-up is a cast start (measured -28.6 dB).
+  glintWarn: 3.0,
   ebbPull: 1.9,
   haulWarn: 8.9,
   ladleWarn: 3.4,

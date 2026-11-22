@@ -490,6 +490,13 @@ describe('audio', () => {
     expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, { ...glare, dungeon: undefined as never })?.id).toBe('kilnVentWarn');
   });
 
+  it('sounds Glintfall once, however many pillars it hits (V8)', () => {
+    expect(CAST_SOUNDS.glintfall).toEqual({ start: 'glintWarn', done: 'glintfall' });
+    expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);
+    expect(THROTTLE.slam).toBeGreaterThan(1 / 60);
+    expect(THROTTLE.slam).toBeLessThan(0.2);
+  });
+
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
     expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
     expect(PRIORITY.has('tideTurn')).toBe(true);
