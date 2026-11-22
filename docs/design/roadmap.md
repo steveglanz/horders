@@ -175,7 +175,7 @@ The last of the four world bosses without an in-person fight. Brief: [raid4.md](
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| B1 | **Raid 4: the Flue,** the Furnace Regent at tier 11 (Decree, Edict, Abdication, Last Word), achievement and verb set, bots, tests, 80+ seed tuning | design | ✅ B1 PR: hp 16250, base party 72 of 120 (60%), `NOPASS=1` 2 of 40. A tank can take a passed Decree, Spent is 6 s, and in Edict a Decree fades after one pass (raid4.md Status). The Handover set follows in its own PR |
+| B1 | **Raid 4: the Flue,** the Furnace Regent at tier 11 (Decree, Edict, Abdication, Last Word), achievement and verb set, bots, tests, 80+ seed tuning | design | ✅ B1 PR: hp 16250, base party 72 of 120 (60%), `NOPASS=1` 2 of 40. A tank can take a passed Decree, Spent is 6 s, and in Edict a Decree fades after one pass (raid4.md Status). The Handover set is in the follow-up PR (raid4.md, Handover) |
 | B2 | **Raid 4 art:** the Regent at raid scale from the `regent` shadow sheet, the Decree seal and its 8 s ring, the Spent mark, floor, hub card, set icon | visuals | ⏭ Can start from the brief now; ids land with B1 |
 | B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
 | B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
@@ -333,6 +333,7 @@ Each dungeon drops its own set for the **head, hands and trinket** slots. A set 
 | Glarewell | Glarewarden | dodge a marked attack | Stepping out of a telegraph heals 1.5% (at most every 4 s) | ...and gives +10% damage for 4 s |
 | The Hoard (raid 2) | Crawsplitter | break them free | Your hits on the Craw deal 25% more damage | Breaking the Craw gives you and the freed hero 8% more damage for 10 s (Phase 9) |
 | The Smeltery (raid 3) | Platewalker | get behind him | 6% less damage taken while behind the Cinder Colossus | 6% more damage while behind him (Phase 9) |
+| The Flue (raid 4) | Handover | pass it on | A Decree you hold burns you and anyone near you 30% less | 8% more damage while Spent after passing a Decree (Phase 10) |
 
 **Drops:** a boss item in a set slot has a 60% chance to be a piece of that dungeon's set (it gets the set's name prefix). Never in the daily bounty, stress runs or Mythics, so bounty runs stay equal. The roll uses its own seeded generator, so runs without set pieces replay exactly as before.
 **As built:** `sim/content/sets.ts` holds the sets and every number (`SET_TUNING`); the item card shows a teal set line. Class weapon effects are the skills team's half (PR #38).

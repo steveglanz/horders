@@ -7,7 +7,7 @@
 import type { DungeonId } from './dungeon';
 import type { Slot } from './items';
 
-export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound' | 'relay' | 'crawsplitter' | 'platewalker';
+export type SetId = 'kilnbreaker' | 'tidewalker' | 'glarewarden' | 'hearthkeeper' | 'wrackrider' | 'deepguard' | 'ventwalker' | 'kinbound' | 'relay' | 'crawsplitter' | 'platewalker' | 'handover';
 
 export interface SetDef {
   id: SetId;
@@ -67,6 +67,10 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'platewalker', name: 'Platewalker', verb: 'Get behind him', dungeon: 'smeltery',
     bonus: ['Behind the Cinder Colossus (outside his front and sides), you take 6% less damage.', 'Behind him, your hits deal 6% more damage.'],
   },
+  handover: {
+    id: 'handover', name: 'Handover', verb: 'Pass it on', dungeon: 'flue',
+    bonus: ['A Decree you hold burns you and anyone near you 30% less.', 'While you are Spent after passing a Decree, you deal 8% more damage.'],
+  },
 };
 
 export const SET_IDS = Object.keys(SETS) as SetId[];
@@ -98,4 +102,6 @@ export const SET_TUNING = {
   csCraw: 0.25, csFreed: 0.08, csTime: 10,
   /** Platewalker: the cut while behind the Colossus (2) and the damage while behind him (3). Behind is the same back arc as COLO.backArc. */
   pwCut: 0.06, pwDamage: 0.06,
+  /** Handover: the cut to a held Decree's burn on its holder and those near (2), and the damage while Spent (3). */
+  hoCut: 0.3, hoDamage: 0.08,
 };
