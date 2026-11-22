@@ -213,6 +213,8 @@ export interface Enemy {
   orbitCd: number;
   burnDps: number;
   burnT: number;
+  /** The hero who last lit the burn or bleed (the Colossus judges its ticks from where they stand). */
+  burnBy?: number;
   /** Duskblade Open Wounds: while above 0, this foe takes half healing. */
   woundT: number;
   flash: number;
@@ -853,11 +855,24 @@ export class World {
   private meltPulses = 0;
   /** Raid 3: the Cinder Colossus's facing (radians), and each hero's recent damage to him (Wheel). */
   colFacing = 0;
+  /** True while a burn or bleed tick lands (see `burnBy`). */
+  private burnTick = false;
   colDmg: number[] = [];
   private swallowT = 0;
   private spillT = 0;
   private swallowed = -1;
   private crawIndex = -1;
+  /** The Hoard's Craw while it is up (for the bot), or -1. */
+  get craw(): number {
+    return this.crawIndex >= 0 && this.enemies[this.crawIndex]?.alive && this.enemies[this.crawIndex].kind === 'craw' ? this.crawIndex : -1;
+  }
+  /** The Craw if it is up and within `range` of the acting hero: ranged attacks hit it before the boss, as blades do. */
+  private crawIn(range: number): number {
+    const c = this.craw;
+    if (c < 0) return -1;
+    const e = this.enemies[c];
+    return dist2(this.player.x, this.player.y, e.x, e.y) < (range + e.def.radius) ** 2 ? c : -1;
+  }
   /** Embers he has eaten: each heals him and makes him hit harder for the rest of the fight. */
   coalFed = 0;
   /** Spilled embers on the floor, with seconds left before he inhales them. */
@@ -2136,6 +2151,7 @@ export class World {
       const e = this.enemies[src];
       e.burnDps = Math.max(e.burnDps, ALT_KIT.emberWardBurn * this.dmgMult);
       e.burnT = Math.max(e.burnT, ALT_KIT.emberWardBurnTime);
+      e.burnBy = this.acting;
     }
     // Molten Plating and Ember Ward stop blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip) or Glare.
     if (!unblockable && !this.verbHit && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
@@ -2409,6 +2425,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, 20 * this.dmgMult);
         e.burnT = 4;
+        e.burnBy = this.acting;
       } else kills++;
     });
     if (banked) this.addHeat(15 * kills);
@@ -2634,6 +2651,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, ALT_KIT.hamstringBleed * this.bleedMult * this.dmgMult);
         e.burnT = Math.max(e.burnT, 4);
+        e.burnBy = this.acting;
       }
       const r = ALT_KIT.hamstringRadius;
       this.forEachNear(e.x, e.y, r + 40, (i) => {
@@ -2920,6 +2938,7 @@ export class World {
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (SLAG_KIT.lobRange + boss.def.radius) ** 2) t = this.bossIndex;
+      if (this.crawIn(SLAG_KIT.lobRange) >= 0) t = this.crawIn(SLAG_KIT.lobRange);
       // As with Sunmote: an acolyte healing a wounded boss is struck first.
       if (boss.alive && boss.hp < boss.maxHp) {
         let best = (SLAG_KIT.lobRange + 40) ** 2;
@@ -2956,6 +2975,7 @@ export class World {
     if (e.alive && this.hasWeaponFx('clingingSlag')) {
       e.burnDps = Math.max(e.burnDps, 6 * this.dmgMult);
       e.burnT = Math.max(e.burnT, 2);
+      e.burnBy = this.acting;
     }
     const r = SLAG_KIT.lobSplashR + 15 * this.rank('shrapnel');
     const splash = SLAG_KIT.lobSplash * (1 + 0.3 * this.rank('shrapnel')) * mult * this.dmgMult;
@@ -3105,6 +3125,7 @@ export class World {
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
       if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
+      if (this.crawIn(this.lumenRange) >= 0) t = this.crawIn(this.lumenRange);
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
     // acolytes on its own: light seeks out an acolyte that is healing a wounded boss first.
@@ -3598,6 +3619,7 @@ export class World {
       if (bleed > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 5 * bleed * this.dmgMult * this.bleedMult);
         e.burnT = Math.max(e.burnT, 3);
+        e.burnBy = this.acting;
       }
     });
     this.addHeat(Math.min(15, 5 * hits) * (1 + 0.3 * this.rank('momentumFlow')));
@@ -3640,6 +3662,7 @@ export class World {
       if (e.alive) {
         e.burnDps = Math.max(e.burnDps, bleed * this.bleedMult);
         e.burnT = Math.max(e.burnT, 4);
+        e.burnBy = this.acting;
       }
     }
     // Flurry Step: a kill brings the dash straight back.
@@ -3750,6 +3773,7 @@ export class World {
       const b = this.enemies[this.bossIndex];
       if (b.alive && b.def.rank === 'boss' && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
     }
+    if (this.crawIn(480) >= 0) targets.unshift(this.crawIn(480));
     for (let k = 0; k < n; k++) {
       const orb = this.orbs.find((o) => !o.alive);
       if (!orb) return;
@@ -3845,6 +3869,7 @@ export class World {
       if (burn > 0 && e.alive) {
         e.burnDps = Math.max(e.burnDps, 6 * burn * (1 + 0.15 * this.rank('deepSmoulder')) * this.dmgMult);
         e.burnT = 3;
+        e.burnBy = this.acting;
       }
       if (ground > 0) this.addZone(hx, hy, 26 + 8 * ground, 5 * ground * this.dmgMult, 2);
       if (boom) {
@@ -3879,7 +3904,9 @@ export class World {
       if ((e.exposedT ?? 0) > 0) e.exposedT = (e.exposedT ?? 0) - dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
+        this.burnTick = true;
         this.damageEnemy(i, e.burnDps * dt, false, true);
+        this.burnTick = false;
         if (!e.alive) continue;
       }
 
@@ -4418,7 +4445,11 @@ export class World {
     // Thin Ice: while the river is open, Nhevra's own footing is broken and she takes more.
     if (e.kind === 'nhevra' && this.coldPhase >= 2 && this.riverOpen()) dmg *= 1 + COLD.thinIceExposed;
     // The Cinder Colossus: plated in front, open behind, until Meltdown cracks the plate.
-    if (e.kind === 'colossus' && this.bossPhase < 3) dmg *= this.colossusSide(e, this.player.x, this.player.y);
+    if (e.kind === 'colossus' && this.bossPhase < 3) {
+      // A burn or bleed ticks while the boss's target is swapped in, so judge it from whoever lit it.
+      const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
+      dmg *= this.colossusSide(e, by.x, by.y);
+    }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
@@ -4438,6 +4469,7 @@ export class World {
         // ...and sets the target burning, so it still pays against a lone boss.
         e.burnDps = Math.max(e.burnDps, CAPSTONES_2.bloomBurnDps * this.dmgMult);
         e.burnT = Math.max(e.burnT, CAPSTONES_2.bloomBurnTime);
+        e.burnBy = this.acting;
       }
     }
     if (e.kind === 'maelra') dmg *= 1 - FOUNDRY.temperCut * this.temper;
@@ -4623,6 +4655,7 @@ export class World {
         if (j === i || dist2(e.x, e.y, n.x, n.y) > 80 * 80) return;
         n.burnDps = Math.max(n.burnDps, dps);
         n.burnT = Math.max(n.burnT, 3);
+        n.burnBy = this.acting;
       });
     }
     if (e.kind === 'emberTwin') this.twinFell();
@@ -4635,6 +4668,7 @@ export class World {
         if (dist2(e.x, e.y, o.x, o.y) > 120 * 120) return;
         o.burnDps = Math.max(o.burnDps, bleed);
         o.burnT = Math.max(o.burnT, 4);
+        o.burnBy = this.acting;
       });
       this.events.push({ type: 'explode', x: e.x, y: e.y, r: 120 });
     }
@@ -6645,7 +6679,7 @@ export const COAL = {
    * losing `swallowTick` of max health a second. Break the Craw at his side to get them out;
    * otherwise they are Digested (downed). `crawDist` is how far from his middle the Craw sits.
    */
-  swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.04, crawDist: 90, spitShield: 1.5,
+  swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.06, crawDist: 90, spitShield: 1.5,
   /** Ember Feast (phase 3): `spillN` embers scatter `spillMin`..`spillMax` from him; he inhales any left after `emberLife` s. */
   spillEvery: 10, firstSpill: 3, spillN: 6, spillMin: 140, spillMax: 320, emberLife: 7, emberPick: 34,
   /** Each ember he eats heals him this share and makes his blows this much harder for the rest of the fight. */

@@ -4,7 +4,7 @@ import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
-import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
+import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
 import { colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
@@ -376,6 +376,18 @@ describe('audio', () => {
     expect(cueFor(alt, { cls: 'lumen', acting: 0 })?.id).toBe('lightwell');
     expect(cueFor(alt, { cls: 'slagbinder', acting: 0 })?.id).toBe('slagPit');
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
+  });
+
+  it('chimes the same for every season\'s glow and trail unlocks, Seasons 7 and 8 included (Z4)', () => {
+    const base = { heroXp: 0, items: [], levelsGained: 0 };
+    expect(SEASONS.slice(6).map((d) => d.trail.id)).toEqual(['emberCrumbs', 'plateShards']);
+    for (let id = 0; id < SEASONS.length; id++) {
+      const looks = seasonRewards(id).filter((r) => r.kind === 'glow' || r.kind === 'trail');
+      // Three glows and three trail stages a season (SEASON.trailAt).
+      expect(looks.filter((r) => r.kind === 'glow').length, `season ${id + 1}`).toBe(SEASONS[id].glows.length);
+      expect(looks.filter((r) => r.kind === 'trail').length, `season ${id + 1}`).toBe(SEASON.trailAt.length);
+      for (const r of looks) expect(rewardCues({ ...base, seasonRewards: [r] } as never).map((c) => c.id), `season ${id + 1} ${r.kind}`).toEqual(['unlock']);
+    }
   });
 
   it('chimes for what a run unlocked, after the end sting, at most three times', () => {

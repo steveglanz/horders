@@ -1,14 +1,51 @@
 // Screenshots hub cards that live behind prep chips: the weekly quests sheet (one quest
 // done, one part way, one fresh, then all three done with the title), on desktop and phone.
-// Usage: npm run build && node tools/hubcardshots.cjs <outDir>
+// Usage: npm run build && node tools/hubcardshots.cjs <outDir> [raids]
+// (raids: the three raids at 320 px instead: each raid card picked by a solo tier 10 hero, then the hub scrolled to
+// its end with the party line's lock lines (four heroes, no bots) and the Delve button; reports horizontal scroll)
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
+const RAIDS = ['crucible', 'hoard', 'smeltery'];
+async function raids(b) {
+  const ctx = await b.newContext({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await ctx.route('https://*.supabase.co/**', (r) => r.abort());
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=2&god=1`);
+  await page.waitForTimeout(700);
+  await page.evaluate(() => {
+    const h = window.__ember.hero(); h.runs = Math.max(h.runs, 12); h.maxTier = 10;
+    document.querySelector('[data-cls="bulwark"]').click(); document.querySelector('[data-cls="emberwright"]').click();
+    document.querySelector('[data-tab="delve"]')?.click();
+  });
+  await page.waitForTimeout(300);
+  for (const id of RAIDS) {
+    await page.evaluate((id) => document.querySelector(`.dg[data-d="${id}"]`)?.click(), id);
+    await page.waitForTimeout(300);
+    const card = page.locator(`.dg[data-d="${id}"]`);
+    await card.scrollIntoViewIfNeeded(); await page.waitForTimeout(250);
+    await card.screenshot({ path: path.join(out, `se-raid-${id}-card.png`) });
+    if (!(await page.locator('.partyroles').count())) errs.push(`no party line for ${id}`);
+    // The party line sits above the fixed Delve button only once the hub is scrolled to its end. (Playwright's mouse
+    // rests at 0,0, so whatever scrolls under it would pop a hover tip: hide tips for the shot.)
+    await page.evaluate(() => { const t = document.getElementById('title'); if (t) t.scrollTop = 1e5; });
+    await page.addStyleTag({ content: '#tip { display: none !important; }' });
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: path.join(out, `se-raid-${id}.png`) });
+    const info = await page.evaluate(() => ({ start: document.getElementById('startBtn')?.textContent, wide: document.documentElement.scrollWidth > window.innerWidth, lines: [...document.querySelectorAll('.partyroles .hint')].map((e) => e.textContent) }));
+    console.log('se', id, JSON.stringify(info));
+  }
+  console.log('se raids', errs.length ? errs.join('\n') : 'no errors');
+  await ctx.close();
+}
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  if (process.argv.includes('raids')) { await raids(b); await b.close(); srv.close(); return; }
   for (const [tag, opt] of [['desk', { viewport: { width: 1280, height: 800 } }], ['phone', { ...devices['iPhone 13'] }]]) {
     const ctx = await b.newContext(opt);
     await ctx.route('https://*.supabase.co/**', (r) => r.abort());
