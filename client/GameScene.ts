@@ -277,6 +277,11 @@ export class GameScene extends Phaser.Scene {
   private surfGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 12 W2: the Wandering Vents' trail and chevrons, under the main graphics (1.9) like the other floor tells. */
   private wanderGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W3: the Brimming's molten floor wash and island seams (1.88), the island crusts (1.9), and when each island rose. */
+  private brimGfx: Phaser.GameObjects.Graphics | null = null;
+  private brimImgs: Phaser.GameObjects.Image[] = [];
+  private brimBorn = new WeakMap<object, number>();
+  private brimStart = 0;
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
@@ -364,6 +369,9 @@ export class GameScene extends Phaser.Scene {
     this.darkGfx = null;
     this.surfGfx = null;
     this.wanderGfx = null;
+    this.brimGfx = null;
+    this.brimImgs = [];
+    this.brimStart = 0;
     this.dieGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
@@ -1625,13 +1633,6 @@ export class GameScene extends Phaser.Scene {
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
-    // Phase 12 W3: the Brimming's cooling islands (placeholder until visuals): dark cooled slag with a glowing rim, dimming as they sink.
-    for (const isl of w.islands) {
-      const sink = isl.t < BRIM.warn ? isl.t / BRIM.warn : 1;
-      const flick = isl.t < BRIM.warn ? 0.6 + 0.4 * Math.sin(now / 90) : 1;
-      g.fillStyle(0x3a3430, 0.85 * sink + 0.1).fillCircle(isl.x, isl.y, BRIM.radius);
-      g.lineStyle(3, 0xffa040, 0.8 * flick).strokeCircle(isl.x, isl.y, BRIM.radius);
-    }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1837,6 +1838,7 @@ export class GameScene extends Phaser.Scene {
     this.layoutDraw(g, now);
     this.edgeDraw(now);
     this.wanderDraw(now);
+    this.brimDraw(now);
     this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
@@ -3749,6 +3751,62 @@ export class GameScene extends Phaser.Scene {
    * the path it came from, and gold chevrons slide ahead of it along the path it will take, so the soakers can walk
    * with it. Drawn under the main graphics (1.9): the circles, class rings and other telegraphs stay on top.
    */
+  /**
+   * Phase 12 W3: Grandmother Slag's Brimming. The pit fills: a molten wash over the floor with slow bright flow, and the
+   * cooling islands as crusts of dark slag. An island rises over half a second; in its last BRIM.warn s it settles,
+   * its cracks flare and it flickers as the slag takes it, with a shrinking arc for the time it has left.
+   */
+  private brimDraw(now: number): void {
+    const w = this.world;
+    const isl = w.islands;
+    if (!isl.length) {
+      if (this.brimGfx) { this.brimGfx.clear(); for (const im of this.brimImgs) im.setVisible(false); }
+      this.brimStart = 0;
+      return;
+    }
+    if (!this.brimGfx) this.brimGfx = this.add.graphics().setDepth(1.88);
+    if (!this.brimStart) this.brimStart = now;
+    const g = this.brimGfx.clear();
+    const R = ARENA;
+    const fill = Math.min(1, (now - this.brimStart) / 1500);
+    // The molten wash: a dark-red pool, brighter where it flows, breathing.
+    g.fillStyle(0x7a1e06, 0.5 * fill).fillCircle(0, 0, R);
+    g.fillStyle(MOLTEN, (0.16 + 0.05 * Math.sin(now / 600)) * fill).fillCircle(0, 0, R);
+    for (let k = 0; k < 9; k++) {
+      const a = k * 2.4 + now / (9000 + k * 700), d = R * (0.25 + 0.6 * ((k * 0.37) % 1));
+      const x = Math.cos(a) * d, y = Math.sin(a) * d;
+      g.fillStyle(0xffa040, (0.10 + 0.06 * Math.sin(now / 500 + k)) * fill).fillEllipse(x, y, 150 + 30 * Math.sin(now / 800 + k), 70);
+    }
+    // Bright veins slowly crawling round the pool.
+    g.lineStyle(3, 0xffd27a, 0.28 * fill);
+    for (let k = 0; k < 5; k++) {
+      const r0 = R * (0.3 + k * 0.13), a0 = k * 1.3 + now / (7000 - k * 600);
+      g.beginPath();
+      for (let j = 0; j <= 10; j++) { const a = a0 + j * 0.09, rr = r0 + Math.sin(j * 1.7 + now / 900 + k) * 9; const px = Math.cos(a) * rr, py = Math.sin(a) * rr; if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.strokePath();
+    }
+    const rad = BRIM.radius;
+    isl.forEach((s, k) => {
+      let born = this.brimBorn.get(s);
+      if (born === undefined) { born = now; this.brimBorn.set(s, born); }
+      const rise = Math.min(1, (now - born) / 500);
+      const sinking = s.t < BRIM.warn;
+      const u = sinking ? Math.max(0, s.t / BRIM.warn) : 1; // 1 = solid, 0 = gone
+      const flick = sinking ? 0.75 + 0.25 * Math.sin(now / 70 + k) : 1;
+      // The seam where the slag laps the crust: a hot halo, brighter as it sinks.
+      g.lineStyle(16, 0xffb040, (0.22 + (1 - u) * 0.35) * rise * flick).strokeCircle(s.x, s.y, rad + 6);
+      // The time it has left, in its last BRIM.warn s.
+      if (sinking) g.lineStyle(3, 0xfff0c0, 0.85).beginPath().arc(s.x, s.y, rad + 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * u).strokePath();
+      let im = this.brimImgs[k];
+      if (!im) im = this.brimImgs[k] = this.add.image(0, 0, 'brimIsland').setDepth(1.9);
+      const sc = ((rad * 2 + 12) / 192) * (0.75 + 0.25 * rise) * (0.88 + 0.12 * u);
+      // Sinking, the crust takes the slag's colour and goes under.
+      const f = 1 - u, tint = (255 << 16) | (Math.round(255 - f * 117) << 8) | Math.round(255 - f * 175);
+      im.setVisible(true).setPosition(s.x, s.y).setScale(sc).setAlpha(rise * (0.3 + 0.7 * u) * flick).setTint(tint);
+    });
+    for (let k = isl.length; k < this.brimImgs.length; k++) this.brimImgs[k].setVisible(false);
+  }
+
   private wanderDraw(now: number): void {
     const w = this.world;
     const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;

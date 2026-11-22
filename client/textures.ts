@@ -3628,6 +3628,43 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // Phase 12 W3: a cooling island in Grandmother Slag's Brimming: a raft of dark cooled slag, its crust plates split by
+  // faintly glowing cracks, the edge still soft and hot. Drawn at 192 px for an 80 px island (a little edge overhang).
+  make(scene, 'brimIsland', 192, (ctx, s) => {
+    const c = s / 2, r = 84;
+    let seed = 29; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // The soft hot edge, then the lumpy crust outline.
+    softGlow(ctx, c, c, r + 10, 'rgba(255,110,40,0.55)');
+    ctx.beginPath();
+    for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 2; const rr = r - 4 + Math.sin(a * 5 + 1) * 3 + Math.sin(a * 9) * 2; ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath();
+    const g = ctx.createRadialGradient(c - 18, c - 22, 6, c, c, r);
+    g.addColorStop(0, '#4a403c'); g.addColorStop(0.6, '#2e2624'); g.addColorStop(1, '#1a1210');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    // Crust plates, lighter on top.
+    for (let i = 0; i < 14; i++) {
+      const a = rnd() * Math.PI * 2, d = rnd() * (r - 18), px = c + Math.cos(a) * d, py = c + Math.sin(a) * d;
+      ell(ctx, px, py, 10 + rnd() * 14, 7 + rnd() * 9, rnd() * Math.PI);
+      ctx.fillStyle = `rgba(${80 + Math.floor(rnd() * 30)},${66 + Math.floor(rnd() * 20)},${60 + Math.floor(rnd() * 16)},0.55)`; ctx.fill();
+    }
+    // Glowing cracks from the middle out to the edge.
+    ctx.strokeStyle = '#ff7a2a'; ctx.shadowColor = '#ff5a12'; ctx.shadowBlur = 6; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = 0; i < 6; i++) {
+      let a = (i / 6) * Math.PI * 2 + rnd() * 0.6, d = 10 + rnd() * 14;
+      ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * d, c + Math.sin(a) * d);
+      while (d < r) { d += 12 + rnd() * 10; a += (rnd() - 0.5) * 0.5; ctx.lineTo(c + Math.cos(a) * d, c + Math.sin(a) * d); }
+      ctx.globalAlpha = 0.55 + rnd() * 0.3; ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // Hot rim where the slag still laps the crust.
+    ctx.strokeStyle = 'rgba(255,150,60,0.75)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(c, c, r - 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath();
+    for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 2; const rr = r - 4 + Math.sin(a * 5 + 1) * 3 + Math.sin(a * 9) * 2; ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.stroke();
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
