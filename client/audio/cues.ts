@@ -163,6 +163,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
+  glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
@@ -363,7 +365,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'tideTurn': return { id: 'tideTurn' };
     case 'ventFlare': return { id: ventSounds(c.dungeon).warn };
     case 'layout': {
-      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : LAYOUT_STING[ev.id];
+      const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' && c.dungeon === 'coldmarrow' ? 'layoutIce' : LAYOUT_STING[ev.id];
       return id ? { id } : null;
     }
     case 'gather': return { id: 'gather' };
@@ -542,6 +544,8 @@ export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  // Several slams can land on one tick (Glintfall hits up to four pillars at once): one boom, not a stack.
+  slam: 0.06,
   // The Hoard: six embers spill at once and a party can sweep them up together.
   emberTaken: 0.1,
   emberEaten: 0.15,
