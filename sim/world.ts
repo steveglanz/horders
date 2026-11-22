@@ -6209,7 +6209,8 @@ export class World {
           this.summonsT = SUMMONS.warn;
           this.events.push({ type: 'castStart', index: i, id: 'summons', name: 'Summons' });
         }
-        const dmg = REGENT.ashDamage * this.tierDamage;
+        // Scaled by tier as it lands (it was scaled twice before; ashDamage now carries the old tier 11 factor).
+        const dmg = REGENT.ashDamage;
         for (let k = 0; k < this.heroes.length; k++) {
           const q = this.heroPlayer(k);
           if (q.hp <= 0) continue;
@@ -7655,8 +7656,12 @@ export const REGENT = {
   decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.5,
   /** Passing: touch (within `passRange`) a hero who can hold it, after it has `settle` s on you. The passer is Spent for `spentTime` s; after `decreePasses` passes it fades (`edictPasses` in phase 2). A tank can take one by hand. */
   passRange: 50, settle: 1, spentTime: 6, decreePasses: 2, edictPasses: 1,
-  /** Ash Fall (phase 2): a circle under every hero. */
-  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70,
+  /**
+   * Ash Fall (phase 2): a circle under every hero. Until 22 Nov 2026 its 70 was scaled by tier twice (once when
+   * cast, again when it lands); the Flue was tuned that way at its tier 11, so ashDamage keeps that hit there
+   * (70 x 1.12^10, about 217 before tier) and now scales once, like every other telegraph, at other tiers.
+   */
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70 * Math.pow(1.12, 10),
   /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
   officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
   hardEnrage: 480, lastWordCast: 5,

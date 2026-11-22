@@ -137,6 +137,8 @@ describe('raid 4: the Furnace Regent in the Flue (B1)', () => {
     expect(w.regentDecree).toHaveLength(2);
     expect(new Set(w.regentDecree.map((d) => d.hero)).size).toBe(2);
     expect(w.telegraphs.filter((t) => t.alive && t.owner === b && t.shape === 'circle')).toHaveLength(4);
+    // Ash Fall is scaled by tier once, when it lands, like every telegraph (it used to be scaled twice).
+    for (const t of w.telegraphs.filter((t) => t.alive && t.owner === b && t.shape === 'circle')) expect(t.dmg).toBe(REGENT.ashDamage);
   });
 
   it('Abdication (phase 3): the Decrees lapse and Embers of Office pulses grow', () => {
