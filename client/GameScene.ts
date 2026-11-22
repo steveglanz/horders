@@ -163,6 +163,16 @@ export interface SceneData {
   trail?: { id: string; stage: number };
 }
 
+/**
+ * L2: one past the last live slot of a pool. Pools fill lowest slot first (World.spawn takes the
+ * first dead enemy), so in a normal fight this is a handful out of 900, and the render loops below
+ * stop there instead of touching every slot's sprite each frame.
+ */
+function liveEnd(pool: readonly { alive: boolean }[]): number {
+  for (let i = pool.length - 1; i >= 0; i--) if (pool[i].alive) return i + 1;
+  return 0;
+}
+
 export class GameScene extends Phaser.Scene {
   world!: World;
   hud!: Hud;
@@ -211,6 +221,8 @@ export class GameScene extends Phaser.Scene {
   private enemyKinds: string[] = [];
   private orbSprites: Phaser.GameObjects.Image[] = [];
   private gemSprites: Phaser.GameObjects.Image[] = [];
+  /** L2: sprites at or past these slots are already hidden (see liveEnd). */
+  private shownEnd = { enemies: Infinity, orbs: Infinity, gems: Infinity };
   private zoneSprites: Phaser.GameObjects.Image[] = [];
   private dropSprites: Phaser.GameObjects.Image[] = [];
   private beamSprites: Phaser.GameObjects.Image[] = [];
@@ -320,6 +332,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyKinds = [];
     this.orbSprites = [];
     this.gemSprites = [];
+    this.shownEnd = { enemies: Infinity, orbs: Infinity, gems: Infinity };
     this.zoneSprites = [];
     this.dropSprites = [];
     this.beamSprites = [];
@@ -1323,7 +1336,11 @@ export class GameScene extends Phaser.Scene {
     // The Graphics setting overrides the automatic choice.
     if (display.graphics !== 'auto') this.lowFx = display.graphics === 'saver';
     const cheap = this.lowFx;
-    for (let i = 0; i < w.enemies.length; i++) {
+    // Slots past the last live enemy only need hiding once (shownEnd), then are skipped.
+    const eEnd = liveEnd(w.enemies);
+    const eLoop = Math.min(w.enemies.length, Math.max(eEnd, this.shownEnd.enemies));
+    this.shownEnd.enemies = eEnd;
+    for (let i = 0; i < eLoop; i++) {
       const e = w.enemies[i];
       const s = this.enemySprites[i];
       const sh = this.shadows[i];
@@ -1392,13 +1409,19 @@ export class GameScene extends Phaser.Scene {
       else s.clearTint();
     }
 
-    for (let i = 0; i < w.orbs.length; i++) {
+    const oEnd = liveEnd(w.orbs);
+    const oLoop = Math.min(w.orbs.length, Math.max(oEnd, this.shownEnd.orbs));
+    this.shownEnd.orbs = oEnd;
+    for (let i = 0; i < oLoop; i++) {
       const o = w.orbs[i];
       const s = this.orbSprites[i];
       if (!o.alive) { if (s.visible) s.setVisible(false); continue; }
       s.setVisible(true).setPosition(lerp(o.px, o.x), lerp(o.py, o.y)).setRotation(Math.atan2(o.vy, o.vx));
     }
-    for (let i = 0; i < w.gems.length; i++) {
+    const gEnd = liveEnd(w.gems);
+    const gLoop = Math.min(w.gems.length, Math.max(gEnd, this.shownEnd.gems));
+    this.shownEnd.gems = gEnd;
+    for (let i = 0; i < gLoop; i++) {
       const g = w.gems[i];
       const s = this.gemSprites[i];
       if (!g.alive) { if (s.visible) s.setVisible(false); continue; }
@@ -1771,7 +1794,8 @@ export class GameScene extends Phaser.Scene {
     }
     // Boss casts and acolyte heal beams.
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
-    for (const e of w.enemies) {
+    for (let ei = 0; ei < eEnd; ei++) {
+      const e = w.enemies[ei];
       if (!e.alive) continue;
       if (e.kind === 'acolyte') {
         // The Kindle beam to the ward pulses while it heals: kill the acolyte to stop it.
@@ -1908,7 +1932,8 @@ export class GameScene extends Phaser.Scene {
     // same name printed over each stacks into an unreadable block on a phone.
     const names: { x: number; y: number; text: string; color: string }[] = [];
     const bars: World['enemies'] = [];
-    for (const e of w.enemies) {
+    for (let ei = 0; ei < eEnd; ei++) {
+      const e = w.enemies[ei];
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
       if (!onScreen(e.x, e.y)) continue;
       // Warded: a bubble on the body (the shield segment goes on the bar below).
