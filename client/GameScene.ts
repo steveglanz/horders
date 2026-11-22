@@ -283,6 +283,9 @@ export class GameScene extends Phaser.Scene {
   private brimImgs: Phaser.GameObjects.Image[] = [];
   private brimBorn = new WeakMap<object, number>();
   private brimStart = 0;
+  /** Phase 12 W3 (Plate Shift): the Colossus's plate turn as drawn, easing to World.colPlate, and when it was last eased. */
+  private plateShown: number | null = null;
+  private plateAt = 0;
   /** Phase 12 W3: Old Vorhulm's Banked Coals: their glow (1.89), the coal heaps (1.9), how smothered each looks, and the ash a smothered one leaves. */
   private bankGfx: Phaser.GameObjects.Graphics | null = null;
   private bankImgs: { hot: Phaser.GameObjects.Image; ash: Phaser.GameObjects.Image }[] = [];
@@ -378,6 +381,7 @@ export class GameScene extends Phaser.Scene {
     this.brimGfx = null;
     this.brimImgs = [];
     this.brimStart = 0;
+    this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
     this.bankAsh = [];
@@ -2825,15 +2829,45 @@ export class GameScene extends Phaser.Scene {
     const o = this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
-    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift).
-    const fa = w.colFacing + w.colPlate;
+    // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift). The drawn plate slides to the sim's
+    // over about a third of a second, so the band visibly sweeps round when the cast lands.
+    const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+    if (this.plateShown === null) this.plateShown = w.colPlate;
+    this.plateShown = wrap(this.plateShown + wrap(w.colPlate - this.plateShown) * (1 - Math.exp(-Math.max(0, now - this.plateAt) / 110)));
+    this.plateAt = now;
+    const shifting = e.castId === 'plateShift' ? Math.min(1, e.castT / e.castDur) : 0;
+    // While Plate Shift is cast, the band rattles in place.
+    const fa = w.colFacing + this.plateShown + (shifting ? Math.sin(now / 28) * 0.05 * shifting : 0);
     if (w.bossPhase < 3) {
-      // His plated front: a steel band round the front half, with a chevron where he faces.
-      g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      // His plated front: a steel band round the front half, with a chevron where it points.
+      g.lineStyle(7, shifting ? 0xffe0a8 : 0xc8d0e0, 0.5 + 0.3 * shifting).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
       g.lineStyle(2, 0xeef2ff, 0.75).beginPath().arc(e.x, e.y, R + 5, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
-      const cx = e.x + Math.cos(fa) * (R + 10);
-      const cy = e.y + Math.sin(fa) * (R + 10);
-      g.fillStyle(0xeef2ff, 0.7).fillTriangle(cx + Math.cos(fa) * 9, cy + Math.sin(fa) * 9, cx + Math.cos(fa + 2.4) * 7, cy + Math.sin(fa + 2.4) * 7, cx + Math.cos(fa - 2.4) * 7, cy + Math.sin(fa - 2.4) * 7);
+      const chev = (a: number, r: number, size: number, col: number, alpha: number) => {
+        const cx = e.x + Math.cos(a) * r;
+        const cy = e.y + Math.sin(a) * r;
+        g.fillStyle(col, alpha).fillTriangle(cx + Math.cos(a) * size, cy + Math.sin(a) * size, cx + Math.cos(a + 2.4) * size * 0.78, cy + Math.sin(a + 2.4) * size * 0.78, cx + Math.cos(a - 2.4) * size * 0.78, cy + Math.sin(a - 2.4) * size * 0.78);
+      };
+      chev(fa, R + 10, 9, 0xeef2ff, 0.7);
+      // Plate Shift's cast: sparks scrape off the band's ends, and a ghost band grows where it will slide to
+      // (the same pick as the sim: the living non-tank who has hurt him most).
+      if (shifting) {
+        if (!this.lowFx && Math.random() < 0.5) {
+          const end = fa + (Math.random() < 0.5 ? -1 : 1) * COLO.frontArc;
+          this.spark(e.x + Math.cos(end) * R, e.y + Math.sin(end) * R, (Math.random() - 0.5) * 120, -40 - Math.random() * 80, 0.4, 1.3);
+        }
+        let pick = -1;
+        let most = -1;
+        for (let k = 0; k < w.heroes.length; k++) {
+          const q = w.heroData(k).player;
+          if (q.hp <= 0 || w.isTank(k)) continue;
+          if ((w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
+        }
+        if (pick >= 0) {
+          const q = w.heroData(pick).player;
+          const ta = Math.atan2(q.y - e.y, q.x - e.x);
+          g.lineStyle(6, 0xeef2ff, 0.25 + 0.55 * shifting).beginPath().arc(e.x, e.y, R + 14, ta - COLO.frontArc * shifting, ta + COLO.frontArc * shifting, false).strokePath();
+        }
+      }
       // His open back: a hot slice that breathes.
       const back = fa + Math.PI;
       const half = Math.PI - COLO.backArc;
