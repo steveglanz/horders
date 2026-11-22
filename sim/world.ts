@@ -22,6 +22,7 @@ import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
+import { HEATS, HEAT_TUNING, HeatId, heatApplies } from './content/heat';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
@@ -697,6 +698,8 @@ export interface WorldOptions {
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
   day?: number;
+  /** V4: today's Heat (heatFor in content/heat.ts). The sim keeps it only where it applies (heatApplies, not the first delve, a bounty or a key run). */
+  heat?: HeatId;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
   omens?: OmenId[];
   /** The living world boss's Omen: added to every delve on top of the tier's Omens, for extra luck. */
@@ -821,6 +824,8 @@ export class World {
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
   bossVariant: KilnVariant | '' = '';
+  /** V4: the Day's Heat on this run, or '' for none. */
+  heat: HeatId | '' = '';
   /** Standing stones: they block heroes and foes alike. */
   stones: { x: number; y: number; r: number }[] = [];
   /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
@@ -1057,12 +1062,15 @@ export class World {
       this.keyDmg *= FIRST_DELVE.dmg;
     }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
+    this.heat = opts.heat && HEATS[opts.heat] && heatApplies(this.dungeonId, this.tier) && !this.firstDelve && !this.stress
+      && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
     this.bossOmen = bossOmen && !omens.includes(bossOmen) ? bossOmen : undefined;
     this.omens = this.bossOmen ? [...omens, this.bossOmen] : omens;
     // The boss's Omen always pays its bonus, even when the tier already rolled that Omen.
-    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1);
+    this.luck = (1 + 0.12 * (this.tier - 1)) * (1 + OMEN_TUNING.luckPerOmen * this.omens.length) * (bossOmen ? 1 + OMEN_TUNING.bossOmenLuck : 1)
+      * (this.heat === 'richHaul' ? HEAT_TUNING.richHaulLuck : 1); // V4 Rich Haul
     const hp = Math.round((this.classDef.baseHp + this.loadout.maxHpBonus) * gritMult(this.grit));
     this.player = {
       x: 0, y: 0, px: 0, py: 0,
@@ -1959,7 +1967,8 @@ export class World {
     if (!pool || this.firstDelve || this.stress || id === this.dungeonDef.boss || id === 'shrine' || id === 'worldShadow') return;
     let h = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) + Math.imul(this.encounter + 1, 0xc2b2ae35)) >>> 0;
     h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
-    this.layout = pool[h % pool.length];
+    const forced = this.heat === 'stoneFloor' ? 'pillars' : this.heat === 'ventFloor' ? 'vents' : undefined;
+    this.layout = forced ?? pool[h % pool.length];
     const turn = ((h >>> 8) % 360) * (Math.PI / 180);
     if (this.layout === 'pillars') {
       for (let k = 0; k < LAYOUT.stoneCount; k++) {
@@ -6632,7 +6641,7 @@ export class World {
 
   private gainXp(v: number): void {
     const p = this.player;
-    p.xp += v * this.loadout.xpMult;
+    p.xp += v * this.loadout.xpMult * (this.heat === 'quickStudy' ? HEAT_TUNING.quickStudyXp : 1);
     while (p.xp >= p.xpToNext) {
       p.xp -= p.xpToNext;
       p.level++;

@@ -3,6 +3,7 @@ import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS } from '../si
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
+import { HEAT_IDS, HEAT_TUNING, heatFor } from '../sim/content/heat';
 
 type Inner = {
   spawn(kind: string, x: number, y: number): number;
@@ -228,5 +229,57 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
     const g = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.bossVariant).toBe('draw');
+  });
+});
+
+describe('V4 variety: the Day\'s Heat', () => {
+  type H = { rollLayout(id: string): void; encounter: number; gainXp(v: number): void };
+  const opts = { seed: 5, dungeon: 'kiln' as const, tier: 1, omens: [], cls: 'emberwright' as const };
+
+  it('is the same all day for everyone, uses every Heat, and only the Kiln below tier 3 keeps it', () => {
+    expect(heatFor(20414)).toBe(heatFor(20414));
+    const seen = new Set<string>();
+    for (let d = 20000; d < 20060; d++) seen.add(heatFor(d));
+    expect([...seen].sort()).toEqual([...HEAT_IDS].sort());
+    expect(new World({ ...opts, heat: 'quickStudy' }).heat).toBe('quickStudy');
+    expect(new World({ ...opts, tier: 2, heat: 'quickStudy' }).heat).toBe('quickStudy');
+    expect(new World({ ...opts, tier: 3, heat: 'quickStudy' }).heat).toBe('');
+    expect(new World({ ...opts, dungeon: 'foundry', tier: 1, heat: 'quickStudy' }).heat).toBe('');
+    expect(new World({ ...opts, heat: 'quickStudy', firstDelve: true }).heat).toBe('');
+    expect(new World({ ...opts, heat: 'quickStudy', bounty: 20414 }).heat).toBe('');
+    expect(new World({ ...opts }).heat).toBe('');
+  });
+
+  it('a floor Heat fixes every non-boss layout; the boss stays open', () => {
+    for (const [heat, layout] of [['stoneFloor', 'pillars'], ['ventFloor', 'vents']] as const) {
+      for (let seed = 1; seed <= 6; seed++) {
+        const w = new World({ ...opts, seed, heat });
+        const q = w as unknown as H;
+        q.encounter = 1;
+        q.rollLayout('pack');
+        expect(w.layout).toBe(layout);
+        q.rollLayout('kilnMother');
+        expect(w.layout).toBe('open');
+      }
+    }
+  });
+
+  it('Rich Haul raises loot luck', () => {
+    expect(new World({ ...opts, heat: 'richHaul' }).luck).toBeCloseTo(new World({ ...opts }).luck * HEAT_TUNING.richHaulLuck, 9);
+  });
+
+  it('Quick Study gives more experience', () => {
+    const a = new World({ ...opts });
+    const b = new World({ ...opts, heat: 'quickStudy' });
+    (a as unknown as H).gainXp(1);
+    (b as unknown as H).gainXp(1);
+    expect(b.player.xp).toBeCloseTo(a.player.xp * HEAT_TUNING.quickStudyXp, 9);
+  });
+
+  it('online co-op: a guest sees the same Heat', () => {
+    const w = new World({ ...opts, heat: 'ventFloor' });
+    const g = new World({ ...opts });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.heat).toBe('ventFloor');
   });
 });

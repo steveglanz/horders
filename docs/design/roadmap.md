@@ -191,7 +191,7 @@ Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs t
 | V1 | **Kiln wave archetypes:** Ember Spitter (ranged, Ember Lob), Ashbuck (shows a lane, charges), the Hollow Rift fight (Ashlings until you break it); Kiln pools 3 to 6 openers, 2 to 4 named | design | ✅ #362 |
 | V2 | **Arena layouts:** open, pillars, lava channel, kiln vents, rolled per fight (2 in 5 open) | design, visuals | ✅ Kiln, #362 (variety.md, "V2 status"); art in V5 |
 | V3 | **Boss variants:** the Kiln Mother rolls Molten Cataclysm or Kiln Draw per run; Maelra later | design | ✅ Kiln Mother (variety.md, "V3 status"); Maelra later |
-| V4 | **A daily twist before tier 3**, the same for everyone that day | design | ⏭ |
+| V4 | **A daily twist before tier 3**, the same for everyone that day | design | ✅ Today's Heat (variety.md, "V4 status") |
 | V5 | **Layout and silhouette art** (with visuals' look overhaul): the four layouts, the Ember Spitter, the Ashbuck, the Hollow Rift and Ashlings, the Kiln Draw tell | visuals | ⏭ Placeholders: the Spitter uses the acolyte sheet and the Ashbuck the hound's |
 | V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
 | V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ⏭ |
