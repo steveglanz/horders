@@ -834,7 +834,10 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | '' = '';
+  /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
+  islands: { x: number; y: number; t: number }[] = [];
+  private islandN = 0;
   /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
   cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
@@ -1843,6 +1846,9 @@ export class World {
           this.marksT = 9;
           this.raidBurnT = 1;
           this.lastEmberCast = false;
+          this.bossVariant = this.rollSlagVariant();
+          this.islands = [];
+          this.islandN = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'regent') {
@@ -1995,6 +2001,28 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** Phase 12 W3: Grandmother Slag's version this run, hashed from the seed (no run-rng draws). */
+  private rollSlagVariant(): SlagVariant {
+    if (this.stress) return 'pour';
+    let h = Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return SLAG_VARIANTS[(h >>> 4) % SLAG_VARIANTS.length];
+  }
+
+  /** Is (x, y) on a cooling island that hasn't sunk? */
+  onIsland(x: number, y: number): boolean {
+    return this.islands.some((s) => s.t > 0 && dist2(x, y, s.x, s.y) <= (BRIM.radius + PLAYER_RADIUS * 0.5) ** 2);
+  }
+
+  /** The Brimming: place island `n` round Slag, turning by the golden angle, near and far in turn. */
+  private placeIsland(e: { x: number; y: number }, n: number, life: number): { x: number; y: number; t: number } {
+    const a = n * 2.39996 + (this.seed & 7) * 0.785;
+    const r = n % 2 === 0 ? BRIM.near : BRIM.far;
+    const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+    this.clampArena(c, BRIM.radius + 10);
+    return { x: c.x, y: c.y, t: life };
   }
 
   /** Phase 12 W2: Oskel's version this run, hashed from the seed (no run-rng draws). */
@@ -4616,7 +4644,8 @@ export class World {
       for (let k = 0; k < n; k++) {
         if (!pos[k].up) continue;
         this.use(k);
-        let share = YSMERET.scatterSelf;
+        // Grandmother Slag's Cinder Marks keep their own self-burn: the Ashvents' healer check (#424) is Ysmeret's alone.
+        let share = this.enemies[i]?.kind === 'grandmotherSlag' ? SLAG.marksSelf : YSMERET.scatterSelf;
         for (let j = 0; j < n; j++) if (j !== k && pos[j].up && dist2(pos[j].x, pos[j].y, pos[k].x, pos[k].y) <= r2) share += YSMERET.scatterOther;
         this.hurtPlayer(this.player.maxHp * share, i, true);
         this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
@@ -5934,6 +5963,20 @@ export class World {
     if (phase > this.bossPhase) {
       this.bossPhase = phase;
       this.events.push({ type: 'phase', phase });
+      if (phase === 2 && this.bossVariant === 'brim') {
+        // The Brimming: the pit fills, and cooling islands rise, each due to sink at a different time.
+        this.islands = [];
+        for (let k = 0; k < BRIM.count; k++) this.islands.push(this.placeIsland(e, this.islandN++, BRIM.life * (k + 1) / BRIM.count));
+        this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
+      }
+      if (phase === 3) this.islands = [];
+    }
+    if (this.islands.length) {
+      // An island that sinks is replaced by a new one elsewhere.
+      for (let k = 0; k < this.islands.length; k++) {
+        this.islands[k].t -= dt;
+        if (this.islands[k].t <= 0) this.islands[k] = this.placeIsland(e, this.islandN++, BRIM.life);
+      }
     }
     // Ladle Burn: once a second, every hero burns for their stacks.
     const at = this.acting;
@@ -5955,7 +5998,12 @@ export class World {
       this.heatT -= dt;
       if (this.heatT <= 0) {
         this.heatT += SLAG.heatEvery;
-        this.eachHero(() => this.hurtPlayer(this.player.maxHp * SLAG.heat, i, true));
+        // The Brimming: off an island the slag burns harder, and on one it doesn't burn at all.
+        const brim = this.bossVariant === 'brim';
+        this.eachHero(() => {
+          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : SLAG.heat;
+          if (share > 0) this.hurtPlayer(this.player.maxHp * share, i, true);
+        });
         this.use(at);
       }
     }
@@ -6003,7 +6051,7 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0) {
+    } else if (phase === 2 && this.pourT <= 0 && this.bossVariant !== 'brim') {
       this.pourT = SLAG.pourEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const base = Math.atan2(tgt.y - e.y, tgt.x - e.x);
@@ -7393,6 +7441,15 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
+export type SlagVariant = 'pour' | 'brim';
+export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
+/**
+ * The Brimming (her phase 2 in the `brim` version, in place of the Pour's lanes): `count` cooling islands of `radius`,
+ * `near` or `far` from her. Each lasts `life` s (dimming for its last `warn`), then sinks and a new one rises elsewhere.
+ * The rising slag burns a hero off an island `heat` of max health every SLAG.heatEvery s, and one on an island nothing.
+ */
+export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
 /** Phase 12 W2: Oskel's two versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. */
 export type OskelVariant = 'rivets' | 'cut';
 export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
@@ -7455,6 +7512,8 @@ export const SLAG = {
   /** Phase 3, Last Ember: Ysmeret's two checks together (soak vents, then Cinder Marks). */
   ventEvery: 16, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70,
   marksEvery: 14,
+  /** Cinder Marks' burst on its own hero (Scatter Embers' 10% from before #424 raised Ysmeret's). */
+  marksSelf: 0.1,
   /** Hard enrage: this long after she appears, she casts Last Ember, which wipes the party. */
   hardEnrage: 420, lastEmberCast: 5,
 };
