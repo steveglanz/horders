@@ -1112,6 +1112,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
   chargeWindup: 4.0,
+  // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
+  bellowWarn: 3.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
   kilnDraw: 4.0,
   // The Sluicetide's turn is a must-hear push warning (measured -31.0 dB; 5.7 dB over the Foundry mix at +5.5, so +6.5).
@@ -1134,7 +1136,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
   revivesSpent: 4,
   reviveStart: 2.1,
-  rivetsWarn: 1.4,
+  rivetsWarn: 3.0, // 4.7 dB over the Pressworks mix at +1.4 (busycheck, 22 Nov)
   scatterWarn: 6.0,
   shadowCoal: 0.6,
   shadowSlag: 1.5,
