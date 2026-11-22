@@ -334,7 +334,7 @@ export class Hub {
       const { label } = partyLabel(id, this.members());
       return `<button data-d="${id}" class="dg ${id === this.dungeon ? 'on' : ''}${featured ? ' insea' : ''}" ${locked ? 'disabled' : ''} aria-pressed="${id === this.dungeon}"${featured ? ` style="${sea!.vars}"` : ''} title="${d.name}: ${d.blurb}${locked ? ` Unlocks at tier ${d.unlockTier}.` : ''} ${label}.${featured ? ` In season: +${SEASON.featured} marks a win.` : ''}">`
         + `${featured ? `<span class="insea-b"><i aria-hidden="true"></i>In season</span>` : ''}${locked ? `<span class="lock">Tier ${d.unlockTier} to unlock</span>` : ''}<b>${d.name}</b><span>${d.blurb}</span>`
-        + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}${label}</span></button>`;
+        + `<span class="style ${d.style}">${d.style === 'group' ? `<span class="roles">${roleTile('bulwark', 14)}${roleTile('lumen', 14)}</span>` : ''}<span class="slbl">${label}</span></span></button>`;
     }).join('');
     const tiers: string[] = [];
     for (let t = 1; t <= h.maxTier; t++) tiers.push(`<button data-t="${t}" class="${t === this.tier ? 'on' : ''}" aria-pressed="${t === this.tier}">${t}</button>`);
