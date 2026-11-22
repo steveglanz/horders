@@ -3628,6 +3628,58 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Pressworks' arena edge: an idle stamping press (two steel columns, a crown and a raised ram over a die block),
+  // and a stack of stamped plates under a caged work lamp. paleLight is the cold pool the lamps throw: a warm one would
+  // read as a gold soak circle, which here means "stand in it".
+  make(scene, 'pressFrame', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 58, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const steel = (x: number, y: number, w: number, h: number, c0: string, c1: string) => {
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, c0); g.addColorStop(1, c1);
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+    };
+    // Bed and die block.
+    steel(cx - 54, by - 18, 108, 18, '#5a5a60', '#2e2e34');
+    steel(cx - 28, by - 32, 56, 14, '#6a6458', '#3a362e');
+    // Columns.
+    steel(cx - 50, by - 118, 14, 100, '#7a7a84', '#3a3a42');
+    steel(cx + 36, by - 118, 14, 100, '#7a7a84', '#3a3a42');
+    // Crown with a gold-rimmed flywheel.
+    steel(cx - 56, by - 132, 112, 20, '#6a6a72', '#2a2a30');
+    ctx.beginPath(); ctx.arc(cx + 40, by - 132, 16, 0, Math.PI * 2); ctx.fillStyle = '#3a3a40'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#f0c66a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx + 40, by - 132, 12, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx + 40, by - 132); ctx.lineTo(cx + 40 + Math.cos(a) * 12, by - 132 + Math.sin(a) * 12); ctx.stroke(); }
+    // The ram, raised, on its screw.
+    ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(cx, by - 112); ctx.lineTo(cx, by - 92); ctx.stroke();
+    ctx.strokeStyle = '#8a8a90'; ctx.lineWidth = 3; ctx.stroke();
+    steel(cx - 30, by - 92, 60, 22, '#8a8a92', '#44444c');
+    // Hazard stripes on the ram's face.
+    ctx.save(); ctx.beginPath(); ctx.rect(cx - 30, by - 76, 60, 6); ctx.clip();
+    for (let x = -34; x < 34; x += 8) { ctx.fillStyle = '#f0c66a'; ctx.beginPath(); ctx.moveTo(cx + x, by - 70); ctx.lineTo(cx + x + 4, by - 70); ctx.lineTo(cx + x + 10, by - 76); ctx.lineTo(cx + x + 6, by - 76); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // Oil streak down a column.
+    ctx.strokeStyle = 'rgba(20,16,10,0.6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 44, by - 110); ctx.lineTo(cx - 45, by - 60); ctx.stroke();
+  });
+
+  make(scene, 'pressStack', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Stamped plates, each a little askew.
+    for (let k = 0; k < 6; k++) {
+      const y = 84 - k * 6, dx = (k % 2 ? 2 : -2) + (k === 4 ? 3 : 0);
+      ctx.beginPath(); ctx.moveTo(cx - 26 + dx, y); ctx.lineTo(cx + 26 + dx, y); ctx.lineTo(cx + 22 + dx, y - 5); ctx.lineTo(cx - 22 + dx, y - 5); ctx.closePath();
+      ctx.fillStyle = k % 2 ? '#6a6a72' : '#7e7e88'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // The stamp on the top plate.
+    ell(ctx, cx + 2, 52, 8, 2.5); ctx.strokeStyle = '#f0c66a'; ctx.lineWidth = 1.5; ctx.stroke();
+    // A pole with a caged lamp.
+    ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 30, 86); ctx.lineTo(cx + 30, 18); ctx.lineTo(cx + 20, 18); ctx.stroke();
+    softGlow(ctx, cx + 20, 28, 18, 'rgba(225,235,255,0.6)');
+    ctx.beginPath(); ctx.arc(cx + 20, 27, 6, 0, Math.PI * 2); ctx.fillStyle = '#f4f8ff'; ctx.fill();
+    ctx.strokeStyle = '#2a2a30'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx + 20, 27, 7, 0, Math.PI * 2); ctx.stroke();
+    for (const dx of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(cx + 20 + dx, 20); ctx.lineTo(cx + 20 + dx, 34); ctx.stroke(); }
+  });
+
   // The Wrackline's arena edge: the broken ribs of a wrecked hull hung with weed, and a tarred mooring post with a
   // lantern swinging from a hook. Their lamps throw warm coalLight pools: a teal pool here would read as the Ebb's water.
   make(scene, 'wrackWreck', 160, (ctx) => {
