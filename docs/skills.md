@@ -807,6 +807,23 @@ Now, at the Smeltery in phase 3, a Lumen goes to the tank whenever the tank is u
 
 Before is design's table on #342. The rule only runs at the Smeltery, so every other dungeon and the solo fingerprints are unchanged. Test: `tests/smeltery-bot.test.ts`. Still over 70%: two Duskblades (33) and Bellows beside a Duskblade (32).
 
+## Crawsplitter trim (A4, 22 Nov 2026)
+
+Base party, Hoard t9, heroes-r2 hero-t8-0, all four heroes in the 3-piece, seeds 1 to 120. Wins of 120, with the blocks of 40 in brackets. The control tags the gear Platewalker, which does nothing in the Hoard: tagged pieces are kept by the bot (`breaksSet`), so part of any set's lift is the tag.
+
+| Case | Wins |
+|---|---|
+| Control (Platewalker tag) | 83 (31, 27, 25) |
+| Full Crawsplitter, csCraw 0.25 | 108 (37, 33, 38) |
+| csCraw 0 | 88 (33, 27, 28) |
+| csFreed 0 | 111 (38, 35, 38) |
+| Both 0 | 83, seed for seed the control |
+| csCraw 0.03 | 95 (35, 30, 30) |
+| **csCraw 0.05, chosen (#355)** | **91 (32, 25, 34)** |
+| csCraw 0.08 | 100 (35, 30, 35) |
+
+The Craw bonus carried the whole lift. Its effect is a threshold (break the Craw before the 8 s Digest), so it is not linear. 0.05 adds +2.7 per 40 over the control, inside the 2 to 7 of earlier sets, and leaves room below the jump at 0.08 (design's call).
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
