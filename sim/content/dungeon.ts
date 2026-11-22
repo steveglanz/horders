@@ -16,7 +16,8 @@ export type EncounterId =
   | 'oskel' | 'vorhulm' | 'colossus' | 'regent'
   | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
   | 'glassSpitters' | 'crawlerCharge'
-  | 'shadeSpitters' | 'shadeCharge' | 'lensCharge';
+  | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
+  | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -45,6 +46,11 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   shadeSpitters: { id: 'shadeSpitters', name: 'Shades and Spitters', tip: 'Pull the Shades into the light, and keep moving through the lobs.', spawns: [{ kind: 'shade', n: 2 }, { kind: 'emberSpitter', n: 2 }] },
   shadeCharge: { id: 'shadeCharge', name: 'The Ashbuck in the Dark', tip: 'The Ashbuck charges out of the shadows. Step aside from its lane, then pull the Shades into the light.', spawns: [{ kind: 'ashbuck', n: 1 }, { kind: 'shade', n: 3 }] },
   lensCharge: { id: 'lensCharge', name: 'Lens and Ashbucks', tip: 'Hide from the Glare without stepping into an Ashbuck\'s lane.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'ashbuck', n: 2 }] },
+  // V8: the Coldmarrow's new fights, from its own cold foes (the fire foes don't live down here).
+  snufferPack: { id: 'snufferPack', name: 'The Snuffer and the Pack', tip: 'Kill the Snuffer before it reaches you, while the hounds feed your coal.', spawns: [{ kind: 'snuffer', n: 1 }, { kind: 'rimehound', n: 3 }] },
+  wardenPack: { id: 'wardenPack', name: 'Warden and Rime Pack', tip: 'Kill the hounds to feed your coal, then crack the Warden inside its light.', spawns: [{ kind: 'frostWarden', n: 1 }, { kind: 'rimehound', n: 3 }] },
+  weaverSnuffers: { id: 'weaverSnuffers', name: 'Weaver and Snuffers', tip: 'Step out of the Lace, but don\'t let the Snuffers touch you while you do.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'snuffer', n: 2 }] },
+  twoWeavers: { id: 'twoWeavers', name: 'The Two Weavers', tip: 'Two Weavers take turns with Frost Lace. Save a Quench for each.', spawns: [{ kind: 'hoarfrostWeaver', n: 2 }, { kind: 'rimehound', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -139,7 +145,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   coldmarrow: {
     id: 'coldmarrow', name: 'The Coldmarrow', boss: 'nhevra', unlockTier: 10,
-    openers: ['rimepack', 'snuffers', 'frostwardens'], named: ['weaver', 'frostwardens'], hard: ['weaverWardens', 'snuffers'],
+    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
     blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
   },
   wrackline: {
