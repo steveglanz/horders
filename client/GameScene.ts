@@ -3852,11 +3852,11 @@ export class GameScene extends Phaser.Scene {
       this.bankCool.set(t, cool);
       const settle = Math.min(1, t.t / 0.35);
       const heat = (1 - cool) * (0.6 + 0.4 * f) * (0.85 + 0.15 * Math.sin(now / 110 + k * 2));
-      g.fillStyle(MOLTEN, 0.22 * heat * settle).fillCircle(t.x, t.y, t.r * 1.15);
+      g.fillStyle(MOLTEN, 0.3 * heat * settle).fillCircle(t.x, t.y, t.r * 1.15);
       g.fillStyle(0xffd27a, 0.18 * heat * settle).fillCircle(t.x, t.y, t.r * 0.6);
       let im = this.bankImgs[k];
       if (!im) im = this.bankImgs[k] = { hot: this.add.image(0, 0, 'coalBed').setDepth(1.9), ash: this.add.image(0, 0, 'coalAsh').setDepth(1.9) };
-      const sc = ((t.r * 1.7) / 128) * (0.8 + 0.2 * settle);
+      const sc = ((t.r * 1.9) / 128) * (0.8 + 0.2 * settle);
       im.hot.setVisible(true).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * (1 - cool * 0.85));
       im.ash.setVisible(cool > 0).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * cool);
       // Embers lifting off a live heap.
@@ -3867,7 +3867,7 @@ export class GameScene extends Phaser.Scene {
 
   /** A Banked Coal smothered as it lands: grey ash left behind, and a puff of smoke. */
   private bankSmothered(x: number, y: number): void {
-    const img = this.add.image(x, y, 'coalAsh').setDepth(1.9).setScale((BANK.radius * 1.7) / 128).setAlpha(0.9);
+    const img = this.add.image(x, y, 'coalAsh').setDepth(1.9).setScale((BANK.radius * 1.9) / 128).setAlpha(0.9);
     this.bankAsh.push({ img, at: this.time.now });
     this.ring(x, y, BANK.radius, 0xb8b0a8, 0.35);
   }
