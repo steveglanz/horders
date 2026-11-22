@@ -1,15 +1,17 @@
 // The hub during Season 2 (the Deep Bellows): the clock is set to Mon 4 Jan 2027, the hero has played and is
 // at season level 18 with two glows and the trail. Shoots the season box (desktop), the dungeon list with its
-// "In season" mark, and the phone's season sheet. Usage: npm run build && node tools/seasonartshots.cjs <outDir> [saver] [s1|s3|s4|s5|s6]  (s1: the Hollow Tide, s3: the Cold Hearth on Mon 15 Feb 2027, s4: the Slag Moon on Mon 29 Mar 2027, s5: the Falling Press on Mon 10 May 2027, s6: the Low Ebb on Mon 21 Jun 2027, instead)
+// "In season" mark, and the phone's season sheet. Usage: npm run build && node tools/seasonartshots.cjs <outDir> [saver] [s1|s3|s4|s5|s6|s7|s8]  (s1: the Hollow Tide, s3: the Cold Hearth on Mon 15 Feb 2027, s4: the Slag Moon on Mon 29 Mar 2027, s5: the Falling Press on Mon 10 May 2027, s6: the Low Ebb on Mon 21 Jun 2027, s7: the Long Hunger on Mon 2 Aug 2027, s8: the Cracked Plate on Mon 13 Sep 2027, instead)
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2]; fs.mkdirSync(out, { recursive: true });
-const saver = process.argv.includes('saver'); const s1 = process.argv.includes('s1'); const s3 = process.argv.includes('s3'); const s4 = process.argv.includes('s4'); const s5 = process.argv.includes('s5'); const s6 = process.argv.includes('s6');
+const saver = process.argv.includes('saver'); const s1 = process.argv.includes('s1'); const s3 = process.argv.includes('s3'); const s4 = process.argv.includes('s4'); const s5 = process.argv.includes('s5'); const s6 = process.argv.includes('s6'); const s7 = process.argv.includes('s7'); const s8 = process.argv.includes('s8');
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const NOW = s1 ? Date.UTC(2026, 11, 1, 12) : s3 ? Date.UTC(2027, 1, 15, 12) : s4 ? Date.UTC(2027, 2, 29, 12) : s5 ? Date.UTC(2027, 4, 10, 12) : s6 ? Date.UTC(2027, 5, 21, 12) : Date.UTC(2027, 0, 4, 12);
+const NOW = s1 ? Date.UTC(2026, 11, 1, 12) : s3 ? Date.UTC(2027, 1, 15, 12) : s4 ? Date.UTC(2027, 2, 29, 12) : s5 ? Date.UTC(2027, 4, 10, 12) : s6 ? Date.UTC(2027, 5, 21, 12) : s7 ? Date.UTC(2027, 7, 2, 12) : s8 ? Date.UTC(2027, 8, 13, 12) : Date.UTC(2027, 0, 4, 12);
 const LOOK = s1 ? { id: 0, glows: ['tideSilver', 'hollowViolet'], trails: { saltMist: 2 }, wear: 'hollowViolet', dungeon: 'foundry', sfx: '-s1' }
   : s5 ? { id: 4, glows: ['oilGreen', 'rivetBlue', 'hotStamp'], trails: { oilSheen: 2 }, wear: 'hotStamp', dungeon: 'pressworks', sfx: '-s5' }
+  : s7 ? { id: 6, glows: ['gulletRed', 'crawRose', 'hoardGilt'], trails: { emberCrumbs: 2 }, wear: 'gulletRed', dungeon: 'hoard', sfx: '-s7' }
+  : s8 ? { id: 7, glows: ['cinderViolet', 'crackCyan', 'slagLime'], trails: { plateShards: 2 }, wear: 'crackCyan', dungeon: 'smeltery', sfx: '-s8' }
   : s6 ? { id: 5, glows: ['wrackOlive', 'drainBlue', 'ebbIndigo'], trails: { raftSplinters: 2 }, wear: 'ebbIndigo', dungeon: 'wrackline', sfx: '-s6' }
   : s4 ? { id: 3, glows: ['slagGold', 'moonAsh', 'pourCrimson'], trails: { slagDrips: 2 }, wear: 'pourCrimson', dungeon: 'glarewell', sfx: '-s4' }
   : s3 ? { id: 2, glows: ['rimeBlue', 'coalGlow', 'frostbite'], trails: { rimeDust: 2 }, wear: 'coalGlow', dungeon: 'coldmarrow', sfx: '-s3' }

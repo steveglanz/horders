@@ -1045,6 +1045,16 @@
   .kart .le-wrack { animation: leWrack 3.4s ease-in-out infinite; }
   @keyframes leSpin { to { transform: rotate(360deg); } }
   @keyframes leWrack { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -1px); } }
+  /* Seasons 7 and 8: the Long Hunger's gullet breathes and its gilt flickers; the Cracked Plate's seam pulses and shards fall. */
+  .kart .lh-maw { animation: lhMaw 3.6s ease-in-out infinite; }
+  .kart .lh-gilt { animation: lhGilt 1.4s steps(2) infinite; }
+  .kart .lh-crumbs { animation: leWrack 2.6s ease-in-out infinite; }
+  @keyframes lhMaw { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+  @keyframes lhGilt { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .kart .cp-crack { animation: cpCrack 2.4s ease-in-out infinite; }
+  .kart .cp-shards { animation: cpShards 3s ease-in infinite; }
+  @keyframes cpCrack { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+  @keyframes cpShards { 0% { transform: translate(0, -4px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(6px, 6px); opacity: 0; } }
   body.saver .kart *, .kart.still * { animation: none !important; }
   body.saver .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; }
   @media (prefers-reduced-motion: reduce) { .kart * { animation: none !important; } .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; } }
