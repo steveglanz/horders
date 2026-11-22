@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -106,6 +106,30 @@ describe('audio', () => {
       expect(THEMES.smeltery.bed).not.toBe(THEMES[other].bed);
       expect(THEMES.smeltery.scale).not.toEqual(THEMES[other].scale);
     }
+  });
+
+  it('gives raid 4, the Flue, its own theme (B3): the chimney draft and the Regent shadow\'s call', () => {
+    expect(THEMES.flue.bed).toBe('draft');
+    expect(THEMES.flue.pluck).toBe('brass');
+    for (const other of ['raid', 'hoard', 'smeltery'] as const) {
+      expect(THEMES.flue.bed).not.toBe(THEMES[other].bed);
+      expect(THEMES.flue.scale).not.toEqual(THEMES[other].scale);
+    }
+    const bed = bedSamples('draft', RATE);
+    expect(bed.every(Number.isFinite)).toBe(true);
+    expect(phoneShare(bed, RATE)).toBeGreaterThan(0.25);
+  });
+
+  it('hears the Flue\'s Spent end once, and nothing going in', () => {
+    const st = { on: false };
+    expect(spentCue(st, false)).toBeNull();
+    expect(spentCue(st, true)).toBeNull();
+    expect(spentCue(st, true)).toBeNull();
+    expect(spentCue(st, false)?.id).toBe('spentEnd');
+    expect(spentCue(st, false)).toBeNull();
+    // Last Word's wind-up fits inside its 5 s cast; the Decree cues are short enough to stack.
+    expect(recipeLength(SOUNDS.lastWordWarn)).toBeLessThan(5);
+    expect(recipeLength(SOUNDS.decreePass)).toBeLessThan(0.6);
   });
 
   it('gives each world boss shadow its own sting, keyed by the server names', () => {

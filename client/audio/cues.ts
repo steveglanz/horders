@@ -415,6 +415,16 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
   return pressed && !was ? { id: 'pressed' } : !pressed && was ? { id: 'pressedClear' } : null;
 }
 
+/**
+ * The Flue (raid 4): Spent ends. A hero who just passed a Decree can't take it back for a while (Player.spentT);
+ * a small tick when this screen's hero may take one again. Silent going in: the pass itself already sounded.
+ */
+export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
+  const was = state.on;
+  state.on = spent;
+  return !spent && was ? { id: 'spentEnd' } : null;
+}
+
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
 export function ebbCue(state: { on: boolean }, pulling: boolean): Cue | null {
   const fire = pulling && !state.on;

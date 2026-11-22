@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
 import type { Item } from '../sim/content/items';
-import { SET_SLOTS, SetId } from '../sim/content/sets';
+import { SET_SLOTS, SET_TUNING, SetId } from '../sim/content/sets';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
@@ -51,11 +51,11 @@ const tagSet = (items: Item[]): Item[] => {
 BOT_PARTY.revive = process.env.REVIVE !== '0';
 // HUDDLE=1: ranged bots stay near an ally with no set (BOT_PARTY.huddle).
 BOT_PARTY.huddle = process.env.HUDDLE === '1';
-// TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only.
+// TUNE=SLAG.searMult=0.8,ENEMIES.grandmotherSlag.hp=20000 overrides tuning for this run only (also SET_TUNING.csCraw=0.12).
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   const [path, v] = kv.split('=');
   const keys = path.split('.');
-  let o: Record<string, unknown> = keys[0] === 'ENEMIES' ? (ENEMIES as unknown as Record<string, unknown>) : ((WORLD as unknown as Record<string, unknown>)[keys[0]] as Record<string, unknown>);
+  let o: Record<string, unknown> = keys[0] === 'ENEMIES' ? (ENEMIES as unknown as Record<string, unknown>) : keys[0] === 'SET_TUNING' ? (SET_TUNING as unknown as Record<string, unknown>) : ((WORLD as unknown as Record<string, unknown>)[keys[0]] as Record<string, unknown>);
   for (const k of keys.slice(1, -1)) o = o[k] as Record<string, unknown>;
   o[keys[keys.length - 1]] = Number(v);
 }
@@ -129,6 +129,9 @@ for (const seed of seeds) {
       if (ev.type === 'revive') bump('revive');
       // The Hoard: Swallow and Ember Feast.
       if (ev.type === 'swallowed' || ev.type === 'digested' || ev.type === 'spatOut' || ev.type === 'emberTaken' || ev.type === 'emberEaten') bump(ev.type);
+      // The Flue: Decrees.
+      if (ev.type === 'decree' || ev.type === 'decreeBurst' || ev.type === 'officePulse') bump(ev.type);
+      if (ev.type === 'decreePassed') bump(ev.done ? 'decreeDone' : 'decreePassed');
     }
   }
   const s = w.summary();
