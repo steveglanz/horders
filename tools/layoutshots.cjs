@@ -6,6 +6,8 @@
 // With `coldmarrow`, it shoots the Coldmarrow's pillars: stones of frosted ice.
 // With `hammerdeep`, it shoots the Hammerdeep's pillars and vents (W2): iron-bound granite and forge hearths.
 // With `pressworks`, it shoots the Pressworks' pillars and vents (W2): oiled steel bolsters and press exhausts.
+// With `raid=crucible|hoard|smeltery|flue`, it shoots that raid's pillars and vents in a trash fight (Phase 13 E3), trying
+// seeds until the first fight rolls each layout.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
@@ -16,6 +18,7 @@ const glarewell = process.argv.includes('glarewell');
 const coldmarrow = process.argv.includes('coldmarrow');
 const hammerdeep = process.argv.includes('hammerdeep');
 const pressworks = process.argv.includes('pressworks');
+const raid = (process.argv.find((a) => a.startsWith('raid=')) || '').slice(5);
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -25,7 +28,11 @@ if (glarewell) Object.assign(OPTS, { dungeon: 'glarewell', route: ['shades'], ti
 if (coldmarrow) Object.assign(OPTS, { dungeon: 'coldmarrow', route: ['rimepack'], tier: 11 });
 if (hammerdeep) Object.assign(OPTS, { dungeon: 'hammerdeep', route: ['warpack'], tier: 4 });
 if (pressworks) Object.assign(OPTS, { dungeon: 'pressworks', route: ['warpack'], tier: 10 });
-const SCENES = pressworks ? [
+if (raid) Object.assign(OPTS, { dungeon: raid, route: ['warpack'], tier: 10 });
+const SCENES = raid ? [
+  { name: `${raid}-1-pillars`, seed: 1, until: 'pillars' },
+  { name: `${raid}-3-vents`, seed: 1, until: 'vents' },
+] : pressworks ? [
   { name: 'pressworks-1-pillars', seed: 2, until: 'pillars' },
   { name: 'pressworks-3-vents', seed: 3, until: 'vents' },
 ] : hammerdeep ? [
@@ -63,11 +70,15 @@ const SCENES = pressworks ? [
   await page.evaluate(() => document.getElementById('startBtn').click());
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 15000 });
   for (const sc of SCENES) {
-    await page.evaluate((o) => { const s = window.__ember.scene(); s.scene.restart({ opts: o, hud: s.hud, onEnd: () => {} }); }, { ...OPTS, seed: sc.seed });
-    await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = ''; });
-    await page.waitForTimeout(700);
-    await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
-    await page.waitForFunction(() => window.__ember.scene().world.phase === 'fight', null, { timeout: 30000, polling: 30 });
+    // A raid tries seeds until its first fight rolls the layout; the others use their known seed.
+    for (let seed = sc.seed; seed < sc.seed + (raid ? 40 : 1); seed++) {
+      await page.evaluate((o) => { const s = window.__ember.scene(); s.scene.restart({ opts: o, hud: s.hud, onEnd: () => {} }); }, { ...OPTS, seed });
+      await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = ''; });
+      await page.waitForTimeout(700);
+      await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
+      await page.waitForFunction(() => window.__ember.scene().world.phase === 'fight', null, { timeout: 30000, polling: 30 });
+      if (!raid || (await page.evaluate(() => window.__ember.scene().world.layout)) === sc.until) break;
+    }
     // The predicate freezes the scene itself the moment it holds (a frame can run 0.25 s x warp of sim).
     await page.waitForFunction((sc) => {
       const s = window.__ember.scene(); const w = s.world;
