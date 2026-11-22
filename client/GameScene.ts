@@ -1544,7 +1544,11 @@ export class GameScene extends Phaser.Scene {
       const bag = this.dropSprites[i];
       const beam = this.beamSprites[i];
       if (!d.alive || !d.item) {
-        if (bag.visible) { bag.setVisible(false); beam.setVisible(false); }
+        if (bag.visible) {
+          // Picked up: the bag flies into the nearest hero and shrinks, so you see where it went.
+          if (!d.alive && this.time.now - (this.dropBorn[i] ?? -1e9) > 400) this.lootFly(bag.x, bag.y, bag.tintTopLeft);
+          bag.setVisible(false); beam.setVisible(false);
+        }
         continue;
       }
       const c = hex(RARITY[d.item.rarity].color);
@@ -4118,6 +4122,20 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  /** A picked-up bag flies into the nearest hero, shrinking, with a small flash in its rarity colour when it arrives. */
+  private lootFly(x: number, y: number, tint: number): void {
+    const w = this.world;
+    let to = this.heroXY(w.acting), best = Infinity;
+    for (let k = 0; k < w.heroes.length; k++) {
+      const q = this.heroXY(k), dd = (q.x - x) ** 2 + (q.y - y) ** 2;
+      if (dd < best) { best = dd; to = q; }
+    }
+    const life = 0.22;
+    const f = this.emit(this.fx, 'loot', undefined, x, y, life, { vx: (to.x - x) / life, vy: (to.y - 14 - y) / life, sx0: 1, sx1: 0.35 });
+    f?.img.setTint(tint).setTintMode(Phaser.TintModes.MULTIPLY);
+    this.time.delayedCall(life * 1000, () => this.ring(to.x, to.y - 10, 26, tint, 0.25));
   }
 
   /** Loot hits the floor: the bag pops in, and the better the rarity the louder the arrival. */
