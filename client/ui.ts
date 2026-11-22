@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
-import { World, BOSS_PHASES, BRIM } from '../sim/world';
+import { World, BOSS_PHASES, BRIM, SUMMONS } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -467,6 +467,12 @@ export class Hud {
     if ((p.bondT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Kinbound +6%</span>`);
     if ((p.relayT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Relayer +${Math.round(SET_TUNING.rlDamage * 100)}%</span>`);
     if ((p.freedT ?? 0) > 0) out.push(`<span class="buff" style="--bc:${SET_COLOR}">Crawsplitter +${Math.round(SET_TUNING.csFreed * 100)}%</span>`);
+    // The Furnace Regent's Summons (court version): 2.5 s to get inside his gold ring, or take the hit.
+    if (w.summonsT > 0 && w.bossIndex >= 0 && p.hp > 0) {
+      const e = w.enemies[w.bossIndex];
+      const inside = (e.x - p.x) ** 2 + (e.y - p.y) ** 2 <= SUMMONS.radius ** 2;
+      out.unshift(inside ? '<span class="buff">Summons: you are inside the ring</span>' : `<span class="buff debuff">Summons ${Math.ceil(w.summonsT)}s: get inside his gold ring</span>`);
+    }
     // The Brimming (Grandmother Slag's phase 2): are you safe on an island, and for how long, or burning in the pit?
     if (w.islands.some((s) => s.t > 0) && p.hp > 0) {
       const d2 = (s: { x: number; y: number }) => (s.x - p.x) ** 2 + (s.y - p.y) ** 2;
