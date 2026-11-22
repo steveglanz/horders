@@ -3084,6 +3084,91 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, c, c - 13, 3.2, c, c - 23);
   });
 
+  // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
+  // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
+  // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
+  make(scene, 'kilnStone', 200, (ctx) => {
+    const cx = 100, by = 128, r = 68, h = 30;
+    // Contact shadow, offset down-right like the sprites' shadows.
+    ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+    // The side: the base ellipse joined to the top ellipse, in hexagonal facets.
+    const ry = r * 0.62;
+    const sides = 7;
+    for (let i = 0; i < sides; i++) {
+      const a0 = (i / sides) * Math.PI * 2 + 0.2, a1 = ((i + 1) / sides) * Math.PI * 2 + 0.2;
+      if (Math.sin(a0) < -0.2 && Math.sin(a1) < -0.2) continue;
+      const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
+      const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
+      ctx.fillStyle = `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // The top face.
+    ctx.beginPath();
+    for (let i = 0; i <= sides; i++) {
+      const a = (i / sides) * Math.PI * 2 + 0.2;
+      ctx.lineTo(cx + Math.cos(a) * r, by - h + Math.sin(a) * ry);
+    }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
+    g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // An ember seam across the top, and a couple of chips.
+    ctx.save();
+    ctx.strokeStyle = '#ff8a3a'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - 34, by - h - 10); ctx.lineTo(cx - 10, by - h - 2); ctx.lineTo(cx + 6, by - h - 14); ctx.lineTo(cx + 30, by - h - 6); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,230,200,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
+  });
+
+  // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
+  // while its flare circle is up. 26 px across at half scale, the same as the placeholder.
+  make(scene, 'kilnVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,110,40,0.35)');
+    // Bricks round the rim.
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 0.86) / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#5a3428' : '#4a2a22'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // Coals under the grate.
+    const cg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    cg.addColorStop(0, '#ffd27a'); cg.addColorStop(0.45, '#ff6a1e'); cg.addColorStop(1, '#5a1406');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = cg; ctx.fill();
+    // The grate bars.
+    ctx.strokeStyle = '#1c1210'; ctx.lineWidth = 5; ctx.lineCap = 'butt';
+    for (const d of [-24, -12, 0, 12, 24]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(c - 38, c); ctx.lineTo(c + 38, c); ctx.stroke();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
+  make(scene, 'lavaTile', 64, (ctx, s) => {
+    ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
+    let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // Crust plates, wrapped at the edges so the tile repeats.
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * s, y = rnd() * s, rx = 6 + rnd() * 9, ry = 4 + rnd() * 6;
+      for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+        ell(ctx, x + ox, y + oy, rx, ry, rnd() * 0.01); ctx.fillStyle = 'rgba(70,14,4,0.75)'; ctx.fill();
+      }
+    }
+    // Bright veins.
+    ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
+    for (let i = 0; i < 5; i++) {
+      const y = rnd() * s;
+      ctx.beginPath();
+      for (let x = -4; x <= s + 4; x += 8) ctx.lineTo(x, y + Math.sin((x / s) * Math.PI * 2 + i) * 4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
   // Raid 4's Spent mark (B2): the same seal gone cold, grey ash with the crown stamp hollow and a crack across it,
   // over a hero who just passed the Decree on and can't take it back yet.
   make(scene, 'spentMark', 32, (ctx, s) => {
