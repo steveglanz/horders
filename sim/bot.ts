@@ -725,6 +725,27 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // V2: stay out of a lava channel; cross it straight across, never along it.
+  for (const c of w.lava) {
+    const ux = c.x2 - c.x1;
+    const uy = c.y2 - c.y1;
+    const L2 = ux * ux + uy * uy || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - c.x1) * ux + (p.y - c.y1) * uy) / L2));
+    const ox = p.x - (c.x1 + ux * t);
+    const oy = p.y - (c.y1 + uy * t);
+    const d = Math.hypot(ox, oy) || 1;
+    if (d < c.w / 2 + 30) { fx += (ox / d) * 0.3; fy += (oy / d) * 0.3; }
+  }
+  // V1: a Hollow Rift keeps spitting Ashlings, so every hero works its way to it (the tip: break the Rift first).
+  // Melee heroes already reach it through bladeTarget; a ranged hero closes to orb range of it.
+  if (!melee) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'rift' || w.stress) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+      if (d > 170) { fx += ((e.x - p.x) / d) * 0.12 * skill; fy += ((e.y - p.y) / d) * 0.12 * skill; }
+      break;
+    }
+  }
   for (const e of w.enemies) {
     if (!e.alive || melee) continue;
     const dx = p.x - e.x;

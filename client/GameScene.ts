@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1199,7 +1199,9 @@ export class GameScene extends Phaser.Scene {
           // L1: the first delve coaches each fight instead of the usual tip. Coach lines, and on phones a first
           // fight that also names its Omens, get the full-length banner so nothing is cut off.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
-          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + omens, !!coach || (this.hud.compact && !!omens));
+          // V2: name the arena layout too, so the player knows why the floor looks different.
+          const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? def.tip + ground + omens, !!coach || (this.hud.compact && !!omens));
           break;
         }
         case 'fork':
@@ -1397,7 +1399,10 @@ export class GameScene extends Phaser.Scene {
         : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
         // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
         : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
-        : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
+        : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
+        // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
+        : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
+        : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1713,6 +1718,25 @@ export class GameScene extends Phaser.Scene {
     if (this.bossFlash > 0) {
       this.bossFlash = Math.max(0, this.bossFlash - this.game.loop.delta / 700);
       g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
+    }
+    // V2 (variety) arena layouts: placeholder shapes until visuals' art (V5). They match the sim exactly:
+    // stones block (World.stones), lava burns inside its width (World.lava), vents flare in turn (World.flareVents).
+    for (const c of w.lava) {
+      const glow = 0.5 + 0.12 * Math.sin(now / 260);
+      g.lineStyle(c.w, 0x3a0e04, 0.85).lineBetween(c.x1, c.y1, c.x2, c.y2);
+      g.lineStyle(c.w * 0.7, 0xff5a14, glow).lineBetween(c.x1, c.y1, c.x2, c.y2);
+      g.lineStyle(c.w * 0.25, 0xffd27a, glow * 0.8).lineBetween(c.x1, c.y1, c.x2, c.y2);
+    }
+    for (const c of w.stones) {
+      g.fillStyle(0x000000, 0.35).fillCircle(c.x + 6, c.y + 8, c.r);
+      g.fillStyle(0x4a3c36, 1).fillCircle(c.x, c.y, c.r);
+      g.lineStyle(3, 0x7a6658, 1).strokeCircle(c.x, c.y, c.r);
+      g.fillStyle(0x5d4c44, 1).fillCircle(c.x - c.r * 0.25, c.y - c.r * 0.3, c.r * 0.45);
+    }
+    for (const v of w.flareVents) {
+      g.fillStyle(0x1c120e, 0.9).fillCircle(v.x, v.y, 26);
+      g.lineStyle(3, 0xff8a3a, 0.55 + 0.2 * Math.sin(now / 300)).strokeCircle(v.x, v.y, 26);
+      g.lineStyle(1.5, 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     }
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
