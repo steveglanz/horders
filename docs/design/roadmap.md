@@ -180,8 +180,22 @@ The last of the four world bosses without an in-person fight. Brief: [raid4.md](
 | B3 | **Raid 4 sound:** a `flue` theme, and cues for Decree on you, pass, burst, Spent ending, phase stings | sound | ⏭ Can start from the brief now; event names in raid4.md |
 | B4 | **Raid 4 on phones:** the Decree timer and Spent mark at 360 px under the party frames | mobile | ⏭ After B1 and B2 |
 | B5 | **Raid 4 QA:** contentcheck at t11, coopsweep with a guest dropping while holding a Decree | QA | ⏭ After B1 |
-| B6 | **Raid 4 class coverage:** at 16250 the parties with less blade damage are under the band (of 40: two Emberwrights 14, Bellows with an Emberwright 11, Bellows with a Duskblade 14, Anvil 15). Find why (Decree passing distance for ranged heroes? damage race?) and lift them toward 22 to 28 of 40, base party unchanged | skills | ⏭ After B1 |
+| B6 | **Raid 4 class coverage:** the steep damage race left the parties with less blade damage at 11 to 15 of 40 | skills, design | ✅ Design retuned the Flue to test survival as well (burst 50%, Ash Fall 70, hp 15000): base 80 of 120, every other party 26 to 28 of 40 except the Bellows Slagbinder beside an Emberwright at 18 (raid4.md). That row stays with skills |
 
+
+### Phase 11: variety, so runs feel different (planned by game design, 22 Nov 2026)
+Steve (22 Nov 2026): the bosses and waves feel similar, the same dungeon needs to change from run to run, and the environments need better designs. Brief: [variety.md](variety.md). Every roll is seeded (run rng, or the day or week number), so replays, co-op sync and the hashcheck still work.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| V1 | **Kiln wave archetypes:** Ember Spitter (ranged, Ember Lob), Ashbuck (shows a lane, charges), the Hollow Rift fight (Ashlings until you break it); Kiln pools 3 to 6 openers, 2 to 4 named | design | ✅ #362 |
+| V2 | **Arena layouts:** open, pillars, lava channel, kiln vents, rolled per fight (2 in 5 open) | design, visuals | ✅ Kiln, #362 (variety.md, "V2 status"); art in V5 |
+| V3 | **Boss variants:** the Kiln Mother rolls Molten Cataclysm or Kiln Draw per run; Maelra later | design | ⏭ |
+| V4 | **A daily twist before tier 3**, the same for everyone that day | design | ⏭ |
+| V5 | **Layout and silhouette art** (with visuals' look overhaul): the four layouts, the Ember Spitter, the Ashbuck, the Hollow Rift and Ashlings, the Kiln Draw tell | visuals | ⏭ Placeholders: the Spitter uses the acolyte sheet and the Ashbuck the hound's |
+| V6 | **Sound:** Spitter lob, Rift spawn and break, Ashbuck charge, lava flare, Kiln Draw, the daily twist sting | sound | 🔨 Drafts in #361; ids from the V1 PR |
+| V7 | **Measure:** tier 1 to 4 win rates in band, and route variety per 20 runs | design, QA | ⏭ |
+| V8 | **The same pass for the Foundry, the Glarewell and the Coldmarrow** | design | ⏭ |
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.

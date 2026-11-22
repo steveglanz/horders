@@ -27,10 +27,14 @@ export type EnemyKind =
   | 'vorhulm' | 'craw'
   | 'colossus'
   | 'regent'
-  | 'shoalLurker' | 'bargeHauler' | 'hessa';
+  | 'shoalLurker' | 'bargeHauler' | 'hessa'
+  | 'emberSpitter' | 'ashbuck';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
+  // V1 (variety): a ranged foe that keeps its distance, and a charger that dashes down a lane.
+  emberSpitter: { id: 'emberSpitter', name: 'Ember Spitter', hp: 420, speed: 48, damage: 8, radius: 14, xp: 4, rank: 'elite', title: 'Spitter' },
+  ashbuck: { id: 'ashbuck', name: 'Ashbuck', hp: 620, speed: 52, damage: 12, radius: 18, xp: 5, rank: 'elite', title: 'Charger' },
   cinderhound: { id: 'cinderhound', name: 'Cinderhound', hp: 150, speed: 100, damage: 7, radius: 11, xp: 1, rank: 'elite', title: 'Pack hunter' },
   husk: { id: 'husk', name: 'Hollow Warden', hp: 700, speed: 40, damage: 14, radius: 20, xp: 4, rank: 'elite', title: 'Guardian' },
   rift: { id: 'rift', name: 'Hollow Rift', hp: 420, speed: 0, damage: 0, radius: 22, xp: 12, rank: 'normal', stationary: true },
@@ -62,7 +66,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // The raid (C3): the world boss in person, and her adds.
   grandmotherSlag: { id: 'grandmotherSlag', name: 'Grandmother Slag', hp: 22000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   // Raid 2 (Phase 7): the next world boss in person, and the Craw that holds a swallowed hero.
-  regent: { id: 'regent', name: 'The Furnace Regent', hp: 16250, speed: 24, damage: 20, radius: 52, xp: 0, rank: 'boss', title: 'Raid boss' },
+  regent: { id: 'regent', name: 'The Furnace Regent', hp: 15000, speed: 24, damage: 20, radius: 52, xp: 0, rank: 'boss', title: 'Raid boss' },
   colossus: { id: 'colossus', name: 'The Cinder Colossus', hp: 19000, speed: 26, damage: 20, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', hp: 18000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   craw: { id: 'craw', name: 'Craw', hp: 120, speed: 0, damage: 0, radius: 22, xp: 0, rank: 'elite', stationary: true, title: 'Break it to free your ally' },

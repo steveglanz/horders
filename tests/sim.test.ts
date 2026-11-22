@@ -55,7 +55,7 @@ describe('simulation', () => {
       if (Object.keys(w.talents).some((id) => TALENTS[id as keyof typeof TALENTS].capstone)) capstones++;
     }
     expect(capstones).toBeGreaterThanOrEqual(5);
-  });
+  }, 20000); // six full bot runs: about 4 s alone, so the 5 s default times out on a busy CI runner
 
   it('Hot Heels rank 2 lets Blink be cast twice in a row', () => {
     const w = new World({ seed: 3 });
