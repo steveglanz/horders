@@ -3444,6 +3444,65 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, s, s);
   });
 
+  // The Hammerdeep's arena edge: a great anvil on a dressed stone block with a sledge leaning on it, and an iron
+  // miner's lantern on a post burning a pale cold flame. paleLight is the steel-white pool they throw onto the floor.
+  make(scene, 'deepAnvil', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 58, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Stone block.
+    const sg = ctx.createLinearGradient(0, by - 50, 0, by);
+    sg.addColorStop(0, '#5a5866'); sg.addColorStop(1, '#2e2c36');
+    ctx.fillStyle = sg; ctx.fillRect(cx - 40, by - 50, 80, 50); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.strokeRect(cx - 40, by - 50, 80, 50);
+    ctx.strokeStyle = 'rgba(14,10,16,0.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 40, by - 25); ctx.lineTo(cx + 40, by - 25); ctx.moveTo(cx - 6, by - 50); ctx.lineTo(cx - 6, by - 25); ctx.moveTo(cx + 18, by - 25); ctx.lineTo(cx + 18, by); ctx.stroke();
+    // The anvil: waist, body and horn.
+    ctx.beginPath();
+    ctx.moveTo(cx - 20, by - 50); ctx.lineTo(cx - 14, by - 64); ctx.lineTo(cx + 14, by - 64); ctx.lineTo(cx + 20, by - 50); ctx.closePath();
+    ctx.fillStyle = '#2a2a32'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 36, by - 64); ctx.lineTo(cx + 34, by - 64); ctx.lineTo(cx + 34, by - 82); ctx.lineTo(cx - 30, by - 82);
+    ctx.quadraticCurveTo(cx - 58, by - 82, cx - 66, by - 76); ctx.quadraticCurveTo(cx - 52, by - 70, cx - 36, by - 64); ctx.closePath();
+    const ag = ctx.createLinearGradient(0, by - 82, 0, by - 64);
+    ag.addColorStop(0, '#8e94a6'); ag.addColorStop(0.35, '#4c505e'); ag.addColorStop(1, '#2a2c34');
+    ctx.fillStyle = ag; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Bright worn face.
+    ctx.strokeStyle = 'rgba(220,228,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 28, by - 81); ctx.lineTo(cx + 32, by - 81); ctx.stroke();
+    // A sledge leaning on the block.
+    ctx.strokeStyle = INK; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx + 52, by - 2); ctx.lineTo(cx + 38, by - 72); ctx.stroke();
+    ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 52, by - 2); ctx.lineTo(cx + 38, by - 72); ctx.stroke();
+    ctx.save(); ctx.translate(cx + 37, by - 76); ctx.rotate(-0.2);
+    ctx.fillStyle = '#3c3e48'; ctx.fillRect(-14, -9, 28, 18); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(-14, -9, 28, 18);
+    ctx.restore();
+  });
+
+  make(scene, 'deepLantern', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 18, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Post and arm.
+    ctx.fillStyle = '#3a2e26'; ctx.fillRect(cx - 4, 16, 8, 72); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(cx - 4, 16, 8, 72);
+    // Lantern cage hanging from the top.
+    softGlow(ctx, cx, 40, 26, 'rgba(200,220,255,0.35)');
+    ctx.fillStyle = '#d8e6ff'; ctx.beginPath(); ctx.moveTo(cx - 10, 30); ctx.lineTo(cx + 10, 30); ctx.lineTo(cx + 8, 52); ctx.lineTo(cx - 8, 52); ctx.closePath();
+    ctx.save(); ctx.shadowColor = '#bcd4ff'; ctx.shadowBlur = 12; ctx.fill(); ctx.restore();
+    const fg = ctx.createRadialGradient(cx, 44, 1, cx, 42, 9); fg.addColorStop(0, '#ffffff'); fg.addColorStop(1, 'rgba(150,190,255,0)');
+    ell(ctx, cx, 43, 6, 8); ctx.fillStyle = fg; ctx.fill();
+    ctx.strokeStyle = '#1c1c22'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - 10, 30); ctx.lineTo(cx + 10, 30); ctx.lineTo(cx + 8, 52); ctx.lineTo(cx - 8, 52); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 30); ctx.lineTo(cx, 52); ctx.stroke();
+    ctx.fillStyle = '#2a2a32'; ctx.fillRect(cx - 12, 24, 24, 7); ctx.strokeRect(cx - 12, 24, 24, 7); ctx.fillRect(cx - 10, 52, 20, 5);
+  });
+
+  make(scene, 'paleLight', 256, (ctx, s) => {
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(225,235,255,0.5)');
+    g.addColorStop(0.2, 'rgba(180,200,240,0.32)');
+    g.addColorStop(0.6, 'rgba(130,150,210,0.17)');
+    g.addColorStop(0.94, 'rgba(110,130,200,0.08)');
+    g.addColorStop(1, 'rgba(110,130,200,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
