@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH, COLO, REGENT } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -990,7 +990,7 @@ export class GameScene extends Phaser.Scene {
           // Raid 3: the Cinder Colossus.
           else if (ev.name === 'Wheel') this.hud.banner('Wheel!', 'He is turning on someone. Get out of his front');
           else if (ev.name === 'Pour Out') this.hud.banner('Pour Out!', "It can't be stopped. Finish him now");
-          // Raid 2: Old Coalmouth.
+          // Raid 2: Old Vorhulm.
           else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
           else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
           break;
@@ -1130,7 +1130,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
           break;
         case 'rareSpawn':
-          this.hud.banner('Rare: Coalmouth the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
+          this.hud.banner('Rare: Vorhulm the Glutton', 'Interrupt its Gorge or it heals. Drops rare loot');
           break;
         case 'riftOpen':
           this.hud.banner('A Hollow Rift tears open', 'Close it before the Tide pours out');
@@ -1387,12 +1387,12 @@ export class GameScene extends Phaser.Scene {
       // Ember Twins alternate palettes by slot so a pair always reads as two.
       const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
         : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
-        // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
+        // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
         // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
         : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
         // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
         : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
-        : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
+        : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1428,10 +1428,10 @@ export class GameScene extends Phaser.Scene {
       // Hit flash: small foes blink solid white; bosses and rares brighten instead, so a
       // big boss being hit nonstop never turns into a white silhouette.
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
-      // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
+      // Old Vorhulm's coal is darker still and a raid hits him nearly every frame, so even the soft screen
       // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
       // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron.
-      if (e.flash > 0 && (e.kind === 'coalmouth' || e.kind === 'colossus' || e.kind === 'regent')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      if (e.flash > 0 && (e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1854,7 +1854,7 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
-      if (e.kind === 'coalmouth') this.hoardDraw(g, e, now);
+      if (e.kind === 'vorhulm') this.hoardDraw(g, e, now);
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
@@ -2434,7 +2434,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     const o = this.overFx;
     for (const m of w.coalEmbers) {
-      const f = Math.max(0, Math.min(1, m.t / COALMOUTH.emberLife));
+      const f = Math.max(0, Math.min(1, m.t / VORHULM.emberLife));
       // Steady while fresh, guttering in the last third.
       const flick = f > 0.35 ? 1 : 0.55 + 0.45 * Math.abs(Math.sin(now / 70 + m.x));
       const r = 7 + 2 * Math.sin(now / 200 + m.y);
@@ -2450,8 +2450,8 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(2, 0xffa040, 0.9 * flick).strokePoints(pts, true);
       g.fillStyle(0xffe6a0, 0.85 * flick).fillCircle(m.x, m.y, r * 0.42);
       // The pickup ring, its arc the time left.
-      g.lineStyle(1.5, 0xffe2a0, 0.25).strokeCircle(m.x, m.y, COALMOUTH.emberPick);
-      g.lineStyle(3, 0xffc861, 0.85).beginPath().arc(m.x, m.y, COALMOUTH.emberPick, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
+      g.lineStyle(1.5, 0xffe2a0, 0.25).strokeCircle(m.x, m.y, VORHULM.emberPick);
+      g.lineStyle(3, 0xffc861, 0.85).beginPath().arc(m.x, m.y, VORHULM.emberPick, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2, false).strokePath();
     }
     // Fed: his mouth burns brighter for every ember he has eaten (capped at 6).
     if (w.coalFed > 0) {
@@ -2477,7 +2477,7 @@ export class GameScene extends Phaser.Scene {
         const a = q * (Math.PI / 2) + Math.PI / 4;
         o.beginPath().arc(cw.x, cw.y, R, a - 0.35, a + 0.35, false).strokePath();
       }
-      if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / COALMOUTH.swallowTime) * Math.PI * 2, false).strokePath();
+      if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / VORHULM.swallowTime) * Math.PI * 2, false).strokePath();
       // Y9: on a phone the party frames sit over the left of the arena, and he often stands under them with the Craw
       // hidden. Then a pulsing pointer sits just right of the frames, aimed at it, so the "break this" target never
       // vanishes behind the HUD.

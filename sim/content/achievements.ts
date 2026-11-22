@@ -58,7 +58,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   boss('boss:pressworks', 'pressworks', 'Pressbreaker', 'Oskel in the Pressworks', 'Pressbreaker'),
   boss('boss:flue', 'flue', 'Sealbreaker', 'the Furnace Regent in the Flue', 'Sealbreaker', T.big),
   boss('boss:smeltery', 'smeltery', 'Platebreaker', 'the Cinder Colossus in the Smeltery', 'Platebreaker', T.big),
-  boss('boss:hoard', 'hoard', 'Crawbreaker', 'Old Coalmouth in the Hoard', 'Crawbreaker', T.big),
+  boss('boss:hoard', 'hoard', 'Crawbreaker', 'Old Vorhulm in the Hoard', 'Crawbreaker', T.big),
   boss('boss:crucible', 'crucible', 'Slagbane', 'Grandmother Slag in the Crucible', 'Slagbane', T.big),
   {
     id: 'classes', name: 'Many Hands', text: 'Win a delve with every class.', title: 'the Many-Handed', embers: T.big,

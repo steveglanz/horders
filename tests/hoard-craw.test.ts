@@ -13,13 +13,13 @@ type Inner = {
   orbs: { alive: boolean; vx: number; vy: number }[];
 };
 
-/** A Hoard party with `cls` first, Old Coalmouth 200 px right of it and his Craw 200 px above it. */
+/** A Hoard party with `cls` first, Old Vorhulm 200 px right of it and his Craw 200 px above it. */
 function hoard(cls: ClassId): { w: World; inner: Inner; boss: number; craw: number } {
   const w = new World({ seed: 3, dungeon: 'hoard', tier: 9, omens: [], cls, party: [{ cls: 'bulwark' }] });
   for (const e of w.enemies) e.alive = false;
   const inner = w as unknown as Inner;
   const p = w.player;
-  const boss = inner.spawn('coalmouth', p.x + 200, p.y);
+  const boss = inner.spawn('vorhulm', p.x + 200, p.y);
   inner.bossIndex = boss;
   const craw = inner.spawn('craw', p.x, p.y - 200);
   inner.crawIndex = craw;

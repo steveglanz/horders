@@ -42,7 +42,7 @@ describe('raid 3: the Cinder Colossus in the Smeltery (Y1)', () => {
     expect(partyBlocker('smeltery', 3)).not.toBe('');
     expect(botFillBlocker('smeltery')).not.toBe('');
     expect(raidCountsTriple('smeltery', 'The Cinder Colossus')).toBe(true);
-    expect(raidCountsTriple('smeltery', 'Old Coalmouth')).toBe(false);
+    expect(raidCountsTriple('smeltery', 'Old Vorhulm')).toBe(false);
     let n = 0;
     expect(rollRoute(() => n++ % 2, 'smeltery')[3]).toBe('colossus');
     expect(ACHIEVEMENTS.find((a) => a.id === 'boss:smeltery')?.name).toBe('Platebreaker');

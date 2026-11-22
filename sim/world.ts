@@ -397,7 +397,7 @@ export interface Player {
   relayT?: number;
   /** Crawsplitter (verb set): seconds left of the damage bonus after the Craw breaks. */
   freedT?: number;
-  /** Raid 2: seconds left inside Old Coalmouth (swallowed: can't act, can't be hit, digests at 0). */
+  /** Raid 2: seconds left inside Old Vorhulm (swallowed: can't act, can't be hit, digests at 0). */
   swallowT?: number;
   /** Raid 4: seconds left before this hero can hold a Decree again (after passing one on). */
   spentT?: number;
@@ -856,7 +856,7 @@ export class World {
   private bellowTarget = 0;
   // The Pressworks (Oskel): Downstroke, Rivets, Stamp.
   private downT = 0;
-  /** Raid 2 (the Hoard): Old Coalmouth's clocks, the swallowed hero, the Craw and the spilled embers. */
+  /** Raid 2 (the Hoard): Old Vorhulm's clocks, the swallowed hero, the Craw and the spilled embers. */
   private gorgeT = 0;
   private sweepT = 0;
   private wheelT = 0;
@@ -1805,7 +1805,7 @@ export class World {
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
-        if (sp.kind === 'coalmouth') {
+        if (sp.kind === 'vorhulm') {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.bossPhase = 1;
@@ -4005,7 +4005,7 @@ export class World {
 
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
         e.touchCd = 0.6;
-        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'coalmouth' ? 1 + COAL.emberDamage * this.coalFed : 1);
+        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
         // A Snuffer's touch drinks the hero's light.
         if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
@@ -4206,7 +4206,7 @@ export class World {
       }
       this.use(at);
     } else if (id === 'coalGorge') {
-      // Old Coalmouth's Gorge: not interrupted, he heals.
+      // Old Vorhulm's Gorge: not interrupted, he heals.
       const amount = e.maxHp * COAL.gorgeHeal * this.healTakenMult(e);
       e.hp = Math.min(e.maxHp, e.hp + amount);
       this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
@@ -4396,7 +4396,7 @@ export class World {
     if (e.kind === 'ysmeret') return; // all on ysmeretClock
     if (e.kind === 'oskel') return; // all on oskelClock
     if (e.kind === 'grandmotherSlag') return; // all on slagClock
-    if (e.kind === 'coalmouth' || e.kind === 'craw' || e.kind === 'colossus' || e.kind === 'regent') return; // all on their raid clocks
+    if (e.kind === 'vorhulm' || e.kind === 'craw' || e.kind === 'colossus' || e.kind === 'regent') return; // all on their raid clocks
     if (e.def.rank !== 'boss') return;
     this.runBoss(i, dt);
   }
@@ -4532,7 +4532,7 @@ export class World {
     this.damageDealt += dmg;
     if (this.threat.length) damageThreat(this.threat[i], this.heroes[this.acting].id, dmg, this.threatMult);
     // The shadow fight and the raid bosses all count triple toward the world boss (a raid only while its boss is the live one: raidCountsTriple).
-    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'coalmouth' || e.kind === 'colossus' || e.kind === 'regent') this.shadowDamage += dmg;
+    if (e.kind === 'worldShadow' || e.kind === 'grandmotherSlag' || e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent') this.shadowDamage += dmg;
     // Wheel turns on whoever hurt him most lately.
     if (e.kind === 'colossus') this.colDmg[this.acting] = (this.colDmg[this.acting] ?? 0) + dmg;
     const thirst = this.rank('thirst');
@@ -5776,7 +5776,7 @@ export class World {
   }
 
   /**
-   * Old Coalmouth's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
+   * Old Vorhulm's clocks (raid 2, the Hoard). Phase 1 Gorge: an interruptible heal. Phase 2
    * Swallow: a hero goes inside and the Craw appears; break it to free them. Phase 3 Ember
    * Feast: spilled embers he eats unless the heroes grab them first. Last Meal at `hardEnrage`.
    */
@@ -5784,7 +5784,7 @@ export class World {
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
     const e = this.enemies[i];
-    if (!e || !e.alive || e.kind !== 'coalmouth') {
+    if (!e || !e.alive || e.kind !== 'vorhulm') {
       this.releaseSwallowed(false);
       return;
     }
@@ -6608,7 +6608,7 @@ export class World {
     }
     // The run ends on a win, or when the whole party is down.
     if ((this.victory && !this.shadowPending) || down === this.heroes.length) {
-      // The Hoard: a hero still inside when Old Coalmouth falls comes out with the win (coalClock never runs again).
+      // The Hoard: a hero still inside when Old Vorhulm falls comes out with the win (coalClock never runs again).
       if (this.victory) this.releaseSwallowed(false);
       this.state = 'ended';
       this.events.push({ type: 'end', victory: this.victory });

@@ -7,7 +7,7 @@ const phone = process.argv.includes('phone');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const BOSSES = [['slag', 'Grandmother Slag', 'Mother of Kilns'], ['colossus', 'The Cinder Colossus', 'Walking Forge'], ['coalmouth', 'Old Coalmouth', 'Eater of Embers'], ['regent', 'The Furnace Regent', 'Lord of the Deep Bellows']];
+const BOSSES = [['slag', 'Grandmother Slag', 'Mother of Kilns'], ['colossus', 'The Cinder Colossus', 'Walking Forge'], ['vorhulm', 'Old Vorhulm', 'Eater of Embers'], ['regent', 'The Furnace Regent', 'Lord of the Deep Bellows']];
 (async () => {
   const b = await chromium.launch();
   const tag = phone ? 'phone' : 'desk';

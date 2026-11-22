@@ -154,7 +154,7 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
       const { P, ctx } = await party(['bulwark', 'lumen', 'emberwright', 'duskblade'], 'hoard', 9);
       let who = -1, dropT = -1, finishAt = -1, theme = null;
       const r = await play(P, {
-        // Guests stand still, so trash is set to 1 hp and Old Coalmouth starts in phase 2 (Swallow).
+        // Guests stand still, so trash is set to 1 hp and Old Vorhulm starts in phase 2 (Swallow).
         dropWhen: async (A) => {
           const s = await world(A, `if (!w.bossUp) { for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1); return null; }
             const b = w.enemies.find((e) => e.alive && e.def.rank === "boss"); if (b && b.hp > b.maxHp * 0.59) b.hp = b.maxHp * 0.59;

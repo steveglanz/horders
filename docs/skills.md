@@ -738,7 +738,7 @@ At 20% the Anvil matches the Bulwark in three of the four. The Pressworks is the
 ## The Hoard: class coverage (Y5, 21 Nov 2026)
 Measured on the Hoard t9 with tools/group.ts, heroes-r2 hero-t8-0 (the Slagbinder on the Duskblade's files), 40 seeds, no potions. The band is 22 to 28 of 40.
 
-**The bug:** Slag Lob, Sunmote and the Emberwright's first orb always lock onto a boss in range. Only blades (`bladeTarget`) ever went for the Craw. A party without a Duskblade couldn't break it, so its swallowed heroes were Digested. The Anvil tank also kited Old Coalmouth away from the Craw, so even the Duskblade lost reach.
+**The bug:** Slag Lob, Sunmote and the Emberwright's first orb always lock onto a boss in range. Only blades (`bladeTarget`) ever went for the Craw. A party without a Duskblade couldn't break it, so its swallowed heroes were Digested. The Anvil tank also kited Old Vorhulm away from the Craw, so even the Duskblade lost reach.
 
 **The fix:**
 - While the Craw is up and in range, it comes first for all three (`crawIn` in sim/world.ts).

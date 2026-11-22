@@ -446,7 +446,7 @@ export const SOUNDS = {
     ...[0.15, 0.7].map((d) => boom(55, 0.5, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
     ...[0.2, 0.28, 0.75, 0.84].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.05, delay: d, vol: 0.2, lp: 7000, hp: 2000, curve: 3 }]),
   ),
-  /** Shadow of Old Coalmouth: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
+  /** Shadow of Old Vorhulm: the Hoard's chew carried over, a crunch of coal and a deep gulp. */
   shadowCoal: join(
     phaseShadow(),
     ...[0.15, 0.22, 0.31, 0.55, 0.63].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.3, lp: 2800, hp: 500, curve: 3 }]),
@@ -748,7 +748,7 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.04, delay: 0.36, vol: 0.3, lp: 5000, hp: 900, curve: 3 }, { wave: 'sine', f: 900, f2: 500, dur: 0.06, delay: 0.36, vol: 0.12 }],
   ),
 
-  // ---- the Hoard (raid 2): Old Coalmouth
+  // ---- the Hoard (raid 2): Old Vorhulm
   /** Swallow: a big wet gulp, the fight's main alarm. The throat drops, then a bright smack so a phone hears it. */
   swallowed: join(
     [{ wave: 'sine', f: 320, f2: 55, dur: 0.7, vol: 0.5, a: 0.01, curve: 1.6 },
