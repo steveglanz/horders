@@ -6,14 +6,15 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, ARENA_EVENT_SOUNDS, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -737,6 +738,55 @@ describe('audio', () => {
     expect(new Set(Object.values(HEAT_STING)).size).toBe(Object.keys(HEAT_STING).length);
     // Anywhere else (a group dungeon, if X1 ever reaches one) falls back to the Kiln's.
     expect(cueFor(first, { ...c, dungeon: 'hammerdeep' })?.id).toBe('heatSting');
+  });
+
+  it('sounds each arena event: a must-hear warning inside its fuse, then a landing in that dungeon\'s own sound (Phase 14 X7)', () => {
+    type Q = { rollLayout(id: string): void; rollArenaEvent(id: string): void; arenaEventClock(dt: number): void; encounter: number };
+    const tier = { kiln: 2, foundry: 4, glarewell: 7, coldmarrow: 10, wrackline: 13 } as const;
+    const pack = { coldmarrow: 'rimepack' } as Record<string, string>;
+    const fuse: Record<string, number> = { caveIn: ARENA_EVENTS.caveWarn, ventSurge: ARENA_EVENTS.surgeWarn, coldSnap: ARENA_EVENTS.snapWarn };
+    const lands: Record<string, string[]> = {};
+    for (const [dungeon, pool] of Object.entries(ARENA_EVENT_POOLS)) {
+      for (const id of pool!) {
+        const w = new World({ seed: 1, dungeon: dungeon as DungeonId, tier: tier[dungeon as keyof typeof tier], omens: [], cls: 'emberwright' });
+        const q = w as unknown as Q;
+        ARENA_EVENTS.force = id;
+        try { q.encounter = 1; q.rollLayout(pack[dungeon] ?? 'pack'); q.rollArenaEvent(pack[dungeon] ?? 'pack'); } finally { ARENA_EVENTS.force = ''; }
+        expect(w.arenaEvent, `${dungeon} ${id}`).toBe(id);
+        w.events.length = 0;
+        q.arenaEventClock(w.arenaEventT + 0.01);
+        q.arenaEventClock((fuse[id] ?? 0) + 0.01);
+        const c = { cls: 'emberwright' as const, acting: 0, dungeon };
+        const got = w.events.filter((e) => e.type === 'arenaEvent').map((e) => cueFor(e, c)?.id ?? null);
+        const set = ARENA_EVENT_SOUNDS[id];
+        expect(got[0], `${dungeon} ${id} warn`).toBe(set.warn);
+        if (id === 'highWater') {
+          // Its warn and land arrive together and the Ebb's own call follows: one ordinary swell, no landing.
+          expect(PRIORITY.has(set.warn)).toBe(false);
+          expect(got.slice(1).every((x) => x === null), `${dungeon} ${id}: ${got}`).toBe(true);
+          continue;
+        }
+        expect(PRIORITY.has(set.warn), id).toBe(true);
+        expect(recipeLength(SOUNDS[set.warn]), id).toBeLessThan(fuse[id]);
+        expect(got[1], `${dungeon} ${id} land`).toBeTruthy();
+        (lands[id] ??= []).push(got[1]!);
+      }
+    }
+    // Every dungeon that rolls an event lands it in its own sound.
+    for (const [id, ids] of Object.entries(lands)) expect(new Set(ids).size, `${id}: ${ids}`).toBe(ids.length);
+    expect(Object.keys(lands).sort()).toEqual(['caveIn', 'coldSnap', 'ventSurge']);
+  });
+
+  it('calls a marked foe in by its mark, as a must-hear cue; other named foes keep the usual call (Phase 14 X7)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0 };
+    for (const affix of AFFIXES) {
+      const id = cueFor({ type: 'namedSpawn', index: 0, name: 'X', affix } as never, c)?.id;
+      expect(id, affix).toBe(AFFIX_SPAWN[affix] ?? 'namedSpawn');
+      expect(PRIORITY.has(id!), affix).toBe(true);
+      expect(recipeLength(SOUNDS[id!]), affix).toBeLessThan(1.5);
+    }
+    expect(Object.keys(AFFIX_SPAWN).sort()).toEqual(['Brood', 'Smoldering']);
+    expect(new Set(Object.values(AFFIX_SPAWN)).size).toBe(2);
   });
 
   it('lists exactly the Heats that lay a floor in FLOOR_HEATS, so no Heat stings twice or goes silent (Phase 14 X1)', () => {
