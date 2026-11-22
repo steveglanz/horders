@@ -803,6 +803,21 @@ export const SOUNDS = {
      { wave: 'saw', f: 140, f2: 280, dur: 1.1, vol: 0.1, a: 0.8, lp: 1400, curve: 0.8 }],
   ),
   /** Standing in lava: a short hot sizzle, repeated while a hero is inside. */
+  /** The Brimming (Grandmother Slag's second version, phase 2): the pit fills with slag, a deep rising churn with
+   *  bubbles popping up through it, and three islands crack up out of it. */
+  brimWarn: join(
+    [{ wave: 'saw', f: 50, f2: 110, dur: 1.6, vol: 0.2, a: 1.2, lp: 600, lp2: 1600, curve: 0.8, trem: [5, 0.4] },
+     { wave: 'noise', f: 0, dur: 1.6, vol: 0.16, a: 1.2, lp: 1500, lp2: 5000, hp: 500, curve: 0.8 }],
+    ...[0.2, 0.45, 0.62, 0.8, 0.95, 1.08, 1.2].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 70, f2: 1100 + k * 90, dur: 0.05, delay: d, vol: 0.12, curve: 2 }]),
+    clang(196, 0.18, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.25 })),
+  ),
+  /** A cooling island starts to sink (its last BRIM.warn s): a long hiss of slag closing over stone, falling. */
+  islandSink: [
+    { wave: 'noise', f: 0, dur: 1.3, vol: 0.2, a: 0.15, lp: 8000, lp2: 2500, hp: 1200, curve: 0.9, trem: [7, 0.3] },
+    { wave: 'sine', f: 900, f2: 450, dur: 1.0, vol: 0.07, a: 0.1, curve: 1.2 },
+  ],
+  /** A new island rises: a stone knock and a short steam breath as it breaks the surface. */
+  islandRise: join(clang(262, 0.14, 0.3), [{ wave: 'noise', f: 0, dur: 0.3, delay: 0.05, vol: 0.1, a: 0.05, lp: 6000, hp: 1500, curve: 1.6 }]),
   lavaSizzle: [
     { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
     { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
@@ -1203,6 +1218,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   ironloadWarn: 10.5,
   // Oskel's Die Cut wind-up (Phase 12 W2) is a cast start: -27.3 dB alone.
   dieCutWarn: 2.0,
+  // Grandmother Slag's Brimming (Phase 12 W3) opens with a cast start: -29.7 dB alone, mostly a low churn.
+  brimWarn: 4.0,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

@@ -7,7 +7,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
+import { islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -85,6 +85,7 @@ for (const dungeon of dungeons) {
     const belly = { on: false, next: 0 };
     const press = { on: false };
     const spend = { on: false };
+    const isl = { t: [] as number[] };
     const perSecond = new Map<number, number>();
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const play = (id: SoundId, t: number, vol = 1) => {
@@ -134,6 +135,7 @@ for (const dungeon of dungeons) {
       if (pc) play(pc.id, w.time, pc.vol);
       const sc = spentCue(spend, dungeon === 'flue' && (w.player.spentT ?? 0) > 0);
       if (sc) play(sc.id, w.time, sc.vol);
+      for (const c of islandCues(isl, w.islands, myIsland(w))) play(c.id, w.time, c.vol);
       for (const c of bellyCues(belly, dungeon === 'hoard' ? w.player.swallowT ?? 0 : 0, w.time)) play(c.id, w.time, c.vol);
       for (const c of setCues(sets, setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)))) play(c.id, w.time, c.vol);
       for (const c of reviveCues(rv, w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), w.reviveSeconds, w.revivesLeft)) play(c.id, w.time);
@@ -185,6 +187,6 @@ for (const dungeon of dungeons) {
   for (const m of margins) worst.set(m.id, [...(worst.get(m.id) ?? []), m.db]);
   const byId = [...worst].map(([id, v]) => [id, v.sort((a, b) => a - b)[Math.floor(v.length / 2)]] as const).sort((a, b) => a[1] - b[1]);
   console.log(`  priority cue over the rest, on a phone: median ${q(0.5)} dB, worst 10% ${q(0.1)} dB (${margins.length} cues)`);
-  console.log(`  quietest (median dB): ${byId.slice(0, 6).map(([k, v]) => `${k} ${v.toFixed(1)} (n=${worst.get(k)!.length})`).join(', ')}`);
+  console.log(`  quietest (median dB): ${byId.slice(0, Number(process.env.QUIET ?? 6)).map(([k, v]) => `${k} ${v.toFixed(1)} (n=${worst.get(k)!.length})`).join(', ')}`);
   console.log(`  priority cues dropped: ${lostPriority.map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}`);
 }

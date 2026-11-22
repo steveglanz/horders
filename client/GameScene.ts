@@ -24,7 +24,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, pickCue, setFlagsOf } from './audio/cues';
+import { behindColossusNow, colossusCue, inLavaNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -810,6 +810,8 @@ export class GameScene extends Phaser.Scene {
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
+      islands: w.islands,
+      myIsland: w.islands.length ? myIsland(w) : -1,
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
       colossus: colossusCue(w),
@@ -1201,6 +1203,7 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else if (w.bossVariant === 'bank') this.hud.banner('Phase 3: Banked Coals', 'Hot coals settle round him. Stand on each one as it lands, or he eats it');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.

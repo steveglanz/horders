@@ -5,14 +5,14 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
+import { BRIM, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -532,6 +532,30 @@ describe('audio', () => {
     // The warning must finish well inside the 2.4 s fuse.
     expect(recipeLength(SOUNDS.dieCutWarn)).toBeLessThanOrEqual(1.8);
     for (const id of ['dieCut', 'pressVentWarn', 'pressBurst', 'layoutPress'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
+  it('sounds the Brimming: the pit filling, each island sinking (loudest under you) and rising again (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.brimming).toEqual({ start: 'brimWarn' });
+    expect(PRIORITY.has('brimWarn')).toBe(true);
+    const st = { t: [] as number[] };
+    expect(islandCues(st, [{ t: 4 }, { t: 8 }, { t: 12 }], 1)).toEqual([]);
+    // Island 0 crosses into its last BRIM.warn s: a quiet hiss, since this hero is on island 1.
+    expect(islandCues(st, [{ t: BRIM.warn - 0.01 }, { t: 7.9 }, { t: 11.9 }], 1)).toEqual([{ id: 'islandSink', vol: 0.55 }]);
+    expect(islandCues(st, [{ t: 1 }, { t: 7 }, { t: 11 }], 1)).toEqual([]);
+    // It sinks and a new one rises in its slot.
+    expect(islandCues(st, [{ t: BRIM.life }, { t: 6.9 }, { t: 10.9 }], 1)).toEqual([{ id: 'islandRise', vol: 0.6 }]);
+    expect(islandCues(st, [{ t: 11.9 }, { t: BRIM.warn - 0.01 }, { t: 10.8 }], 1)).toEqual([{ id: 'islandSink', vol: 1.1 }]);
+    expect(islandCues(st, [], -1)).toEqual([]);
+    expect(st.t).toEqual([]);
+    // myIsland uses the sim's own rule: BRIM.radius plus half of PLAYER_RADIUS.
+    const src = readFileSync('sim/world.ts', 'utf8');
+    expect(src).toContain('const PLAYER_RADIUS = 12;');
+    expect(src).toContain('(BRIM.radius + PLAYER_RADIUS * 0.5) ** 2');
+    expect(ISLAND_SLACK).toBe(6);
+    const w = { islands: [{ x: 0, y: 0, t: 5 }, { x: 300, y: 0, t: 5 }], player: { x: 300 + BRIM.radius + 5, y: 0 } };
+    expect(myIsland(w)).toBe(1);
+    expect(myIsland({ ...w, player: { x: 300 + BRIM.radius + 7, y: 0 } })).toBe(-1);
+    for (const id of ['brimWarn', 'islandSink', 'islandRise'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {

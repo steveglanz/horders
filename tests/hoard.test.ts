@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COAL } from '../sim/world';
+import { World, COAL, BANK, VORHULM_VARIANTS } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -18,6 +18,8 @@ type Inner = {
   gorgeT: number;
   swallowT: number;
   spillT: number;
+  updatePartyTelegraphs(dt: number): void;
+  rollVorhulmVariant(): string;
 };
 
 /** A Bulwark and three Emberwrights in the Hoard, Old Vorhulm beside them and no other foes. */
@@ -180,5 +182,44 @@ describe('raid 2: Old Vorhulm in the Hoard (W2)', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.coalEmbers).toEqual(w.coalEmbers);
     expect((g as unknown as Inner).swallowed).toBe(inner.swallowed);
+  });
+});
+
+describe('Phase 12 W3: Old Vorhulm\'s Banked Coals', () => {
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'hoard', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      const b = new World({ seed, dungeon: 'hoard', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      expect(a.rollVorhulmVariant()).toBe(b.rollVorhulmVariant());
+      seen.add(a.rollVorhulmVariant());
+    }
+    expect([...seen].sort()).toEqual([...VORHULM_VARIANTS].sort());
+  });
+
+  it('in phase 3 lays gold circles instead of embers; a smothered one is safe, an empty one feeds him', () => {
+    const { w, inner, b } = hoard();
+    w.bossVariant = 'bank';
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.2;
+    inner.spillT = 0;
+    inner.coalClock(1 / 30);
+    expect(w.coalEmbers).toHaveLength(0);
+    const coals = w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4);
+    expect(coals).toHaveLength(BANK.count);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'bankedCoals')).toBe(true);
+    // Hero 0 stands on the first coal; the rest are left empty.
+    w.heroes.forEach((h, k) => { h.player.x = k === 0 ? coals[0].x : 500; h.player.y = k === 0 ? coals[0].y : 500 - k * 5; });
+    for (const t of coals.slice(1)) if (Math.hypot(t.x - 500, t.y - 500) < 80) { t.x = -500; t.y = -500; }
+    const hpHeroes = w.heroes.map((h) => h.player.hp);
+    const fed = w.coalFed;
+    const hp = e.hp;
+    for (const t of coals) t.t = t.dur - 0.001;
+    inner.updatePartyTelegraphs(0.01);
+    expect(w.coalFed).toBe(fed + BANK.count - 1);
+    expect(e.hp).toBeGreaterThan(hp);
+    // No blast on the party and no adds.
+    expect(w.heroes.map((h) => h.player.hp)).toEqual(hpHeroes);
+    expect(w.enemies.filter((x) => x.alive && x.kind === 'ashling')).toHaveLength(0);
   });
 });
