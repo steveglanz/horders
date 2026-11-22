@@ -542,6 +542,44 @@ export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
 }
 
 /**
+ * Arena-edge ambience: the props round each rim (GameScene's EDGE_SETS) give off a quiet sound now and then, from the
+ * side, between boss fights. Two per dungeon, matched to its big and small prop.
+ */
+export const EDGE_SOUNDS: Record<string, readonly [SoundId, SoundId]> = {
+  kiln: ['edgeFurnace', 'edgeBrazier'],
+  foundry: ['edgeBoiler', 'edgeValve'],
+  hammerdeep: ['edgeAnvil', 'edgeLantern'],
+  ashvents: ['edgeFumarole', 'edgeCairn'],
+  wrackline: ['edgeHull', 'edgePost'],
+  pressworks: ['edgePress', 'edgePlate'],
+  hoard: ['edgeCoins', 'edgeBones'],
+  smeltery: ['edgeCart', 'edgeIngot'],
+  flue: ['edgeFlue', 'edgeBanner'],
+  glarewell: ['edgeLens', 'edgeShards'],
+  coldmarrow: ['edgeRib', 'edgeFrost'],
+  crucible: ['edgeLadle', 'edgeSlagPot'],
+};
+/** How often an edge prop sounds (s of game time, picked between min and max), how loud, and how far to the side. */
+export const EDGE = { min: 7, max: 15, vol: 0.45, pan: 0.7 };
+
+/**
+ * The next edge-prop sound, if one is due. `t` is game time; a boss on the field (or no dungeon) keeps it quiet and
+ * pushes the next one back. `rnd` returns [0, 1) (Math.random in the engine; a seeded one in tests).
+ */
+export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number): Cue | null {
+  const set = dungeon ? EDGE_SOUNDS[dungeon] : undefined;
+  if (!set || t === undefined) return null;
+  const gap = () => EDGE.min + rnd() * (EDGE.max - EDGE.min);
+  // A new run restarts the clock.
+  if (!(state.next > 0) || state.next - t > EDGE.max) state.next = t + gap();
+  if (t < state.next) return null;
+  state.next = t + gap();
+  if (boss) return null;
+  const side = rnd() < 0.5 ? -1 : 1;
+  return { id: set[rnd() < 0.5 ? 0 : 1], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
+}
+
+/**
  * The Brimming (the Crucible, Grandmother Slag's `brim` version): each cooling island hisses as it starts to sink
  * (its last BRIM.warn s), loudest for the one this screen's hero stands on, and knocks softly when a new one rises
  * in its place (the sim replaces a sunk island in its slot, so its time jumps back up). `mine` is the index of the
