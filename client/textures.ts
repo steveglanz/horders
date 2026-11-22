@@ -3628,6 +3628,57 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Hoard's arena edge: a heap of tarnished coins and cups with a sword driven into it, and the bones of someone who
+  // came for it, a dented shield across their ribs. paleLight is the cold shaft of light falling on them: a warm pool
+  // would read as one of Old Vorhulm's gold circles.
+  make(scene, 'hoardPile', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 6, by + 4, 62, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    let seed = 53; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // The sword, driven in behind the heap.
+    ctx.save(); ctx.translate(cx + 18, by - 50); ctx.rotate(0.22);
+    ctx.fillStyle = '#b8bcc8'; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.lineTo(3, -64); ctx.lineTo(0, -70); ctx.lineTo(-3, -64); ctx.closePath(); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#6a5030'; ctx.fillRect(-14, -70, 28, 6); ctx.strokeRect(-14, -70, 28, 6);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-3, -88, 6, 18); ctx.strokeRect(-3, -88, 6, 18);
+    ctx.restore();
+    // The mound.
+    ctx.beginPath(); ctx.moveTo(cx - 62, by); ctx.quadraticCurveTo(cx - 30, by - 70, cx + 4, by - 66); ctx.quadraticCurveTo(cx + 40, by - 62, cx + 62, by); ctx.closePath();
+    const g = ctx.createLinearGradient(0, by - 70, 0, by); g.addColorStop(0, '#c89a40'); g.addColorStop(0.6, '#8a6424'); g.addColorStop(1, '#4a3414');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Coins, each a small ellipse, darker low down.
+    ctx.save(); ctx.clip();
+    for (let i = 0; i < 70; i++) {
+      const x = cx - 58 + rnd() * 116, y = by - rnd() * 68;
+      ell(ctx, x, y, 4, 2); ctx.fillStyle = y < by - 40 ? '#f0cc70' : '#b08838'; ctx.fill(); ctx.strokeStyle = 'rgba(40,24,8,0.6)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.restore();
+    // A cup tipped on the slope and a few glints.
+    ctx.beginPath(); ctx.moveTo(cx - 30, by - 40); ctx.lineTo(cx - 16, by - 46); ctx.lineTo(cx - 14, by - 34); ctx.lineTo(cx - 26, by - 30); ctx.closePath(); ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff6d0';
+    for (const [x, y] of [[-8, -58], [24, -40], [-40, -22], [8, -30]]) { ctx.beginPath(); ctx.moveTo(cx + x, by + y - 4); ctx.lineTo(cx + x + 1.2, by + y); ctx.lineTo(cx + x, by + y + 4); ctx.lineTo(cx + x - 1.2, by + y); ctx.closePath(); ctx.fill(); }
+  });
+
+  make(scene, 'hoardBones', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 86, 30, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Ribs.
+    ctx.strokeStyle = INK; ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const x = cx - 14 + k * 8;
+      ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(x, 80); ctx.quadraticCurveTo(x - 8, 66, x + 2, 58); ctx.stroke();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#d8d0bc'; ctx.stroke();
+    }
+    ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(cx - 18, 80); ctx.lineTo(cx + 18, 80); ctx.stroke(); ctx.lineWidth = 3; ctx.strokeStyle = '#d8d0bc'; ctx.stroke();
+    // The skull, rolled to one side.
+    ell(ctx, cx - 26, 76, 9, 8); ctx.fillStyle = '#e0d8c4'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#2a2018'; ctx.beginPath(); ctx.arc(cx - 29, 75, 2, 0, Math.PI * 2); ctx.arc(cx - 23, 75, 2, 0, Math.PI * 2); ctx.fill();
+    // The dented round shield across them.
+    ell(ctx, cx + 14, 66, 16, 14, -0.3); const sg = ctx.createLinearGradient(cx, 52, cx + 28, 80); sg.addColorStop(0, '#7a8a9a'); sg.addColorStop(1, '#3a4450');
+    ctx.fillStyle = sg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ell(ctx, cx + 14, 66, 4, 4); ctx.fillStyle = '#a8b0b8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#2a3038'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx + 4, 58); ctx.lineTo(cx + 10, 64); ctx.lineTo(cx + 8, 70); ctx.stroke();
+  });
+
   // The Pressworks' arena edge: an idle stamping press (two steel columns, a crown and a raised ram over a die block),
   // and a stack of stamped plates under a caged work lamp. paleLight is the cold pool the lamps throw: a warm one would
   // read as a gold soak circle, which here means "stand in it".
