@@ -1,6 +1,6 @@
 // Screenshots Grandmother Slag's Brimming (Phase 12 W3): the scene restarts into her fight in the Crucible, sets the
 // Brimming version, drops her into phase 2 and shoots twice: just after the islands rise (`rise`) and while the first
-// island is sinking (`sink`). The sim pauses for each shot (the render runs on).
+// island is sinking (`sink`). For the first shot the hero is put on the middle island so the camera frames the islands. The sim pauses for each shot (the render runs on).
 // Usage: npm run build && node tools/brimshots.cjs <outDir> [p360]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -30,7 +30,7 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
   await page.waitForFunction(() => window.__ember.scene().world.bossIndex >= 0, null, { timeout: 60000, polling: 30 }).catch(() => errs.push('timeout boss'));
   await page.evaluate(() => { const w = window.__ember.scene().world; w.bossVariant = 'brim'; const e = w.enemies[w.bossIndex]; e.hp = e.maxHp * 0.65; });
-  await page.waitForFunction(() => { const s = window.__ember.scene(); const ok = s.world.islands.length > 0; if (ok) s.warp = 0; return ok; }, null, { timeout: 30000, polling: 30 }).catch(() => errs.push('timeout islands'));
+  await page.waitForFunction(() => { const s = window.__ember.scene(); const ok = s.world.islands.length > 0; if (ok) { s.warp = 0; const i = s.world.islands[1]; const p = s.world.player; p.x = p.px = i.x; p.y = p.py = i.y; } return ok; }, null, { timeout: 30000, polling: 30 }).catch(() => errs.push('timeout islands'));
   await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = 'hidden'; });
   await page.waitForTimeout(1800);
   await page.screenshot({ path: path.join(out, `${tag}-rise.png`) });
