@@ -567,6 +567,11 @@
   .wbcard:empty, #endXp:empty, #rewards:empty { display: none; }
   #endTalents { display: flex; flex-wrap: wrap; gap: 6px; }
   #endTalents:empty { display: none; }
+  /* Phase 14 X4: what this run rolled (route, floors, mark, events, boss version, Heat). */
+  #endShape { display: flex; flex-wrap: wrap; gap: 6px; }
+  #endShape:empty { display: none; }
+  #endShape .shape { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.22); color: var(--muted); font-size: 12px; }
+  #endShape .shape b { color: var(--text); font-weight: 600; }
   .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
   .end-foot { display: flex; gap: 10px; justify-content: center; }
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
@@ -1473,6 +1478,7 @@
       <div class="end-col">
         <div id="endXp" class="box"></div>
         <div id="endBoss" class="box wbcard"></div>
+        <div id="endShape" aria-label="This run's shape"></div>
         <div id="endTalents"></div>
       </div>
       <div id="rewards" class="box loot"></div>
