@@ -980,6 +980,46 @@ export const SOUNDS = {
   edgeLadle: [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.14, a: 0.3, lp: 1600, lp2: 2600, hp: 350, curve: 1.2, trem: [8, 0.25] }],
   /** A brimming slag pot blurps. */
   edgeSlagPot: join(...[0, 0.18].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 90, f2: 520 + k * 120, dur: 0.09, delay: d, vol: 0.12, curve: 2 }])),
+  // ---- raid trash-fight vents (Phase 13 E4): each raid's own warn (inside LAYOUT.ventCast 1.2 s), burst and layout sting ----
+  /** The Crucible: a slag vent thickens, slow fat bubbles rising under a hot hiss. */
+  slagVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.18, a: 0.8, lp: 1500, lp2: 4500, hp: 400, curve: 0.8 }],
+    ...[0.1, 0.35, 0.55, 0.72, 0.86, 0.97].map((d, k) => [{ wave: 'sine' as const, f: 280 + k * 45, f2: 560 + k * 60, dur: 0.07, delay: d, vol: 0.1 + k * 0.01, curve: 2 }]),
+  ),
+  /** The slag vent bursts: a heavy molten splash over a thump. */
+  slagBurst: join(boom(55, 0.35, 0.3), whoosh(5000, 1200, 0.4, 0.3), [{ wave: 'sine', f: 500, f2: 260, dur: 0.15, delay: 0.05, vol: 0.12, curve: 2 }]),
+  /** The Crucible's vents layout: a ladle tips and slag glugs out. */
+  layoutSlag: join(clang(196, 0.22, 0.5), ...[0.3, 0.45, 0.6].map((d, k) => [{ wave: 'sine' as const, f: 320 - k * 30, f2: 650 - k * 40, dur: 0.1, delay: d, vol: 0.12, curve: 2 }])),
+  /** The Hoard: an ember vent in his lair draws a long growling breath. */
+  hoardVentWarn: [
+    { wave: 'saw', f: 75, f2: 110, dur: 1.1, vol: 0.14, a: 0.8, lp: 800, lp2: 1800, curve: 0.8, trem: [9, 0.4] },
+    { wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.8, lp: 1200, lp2: 4000, hp: 500, curve: 0.8 },
+  ],
+  /** The Hoard's vent bursts: a belch of embers that sets loose coins chiming. */
+  hoardBurst: join(whoosh(1500, 5000, 0.4, 0.28), boom(60, 0.3, 0.22), ...[0.08, 0.14, 0.23].map((d, k) => chime(2800 + k * 320, d, 0.05, 0.25))),
+  /** The Hoard's vents layout: a coin heap slides as something stirs under it. */
+  layoutHoard: join(...[0, 0.05, 0.1, 0.17, 0.22, 0.3].map((d, k) => chime(2600 + ((k * 5) % 4) * 300, d, 0.07, 0.25)),
+    [{ wave: 'saw', f: 70, f2: 60, dur: 0.6, delay: 0.25, vol: 0.12, a: 0.2, lp: 900, curve: 1.2 }]),
+  /** The Smeltery: a tuyere vent gathers air, a rising roar like a bellows-fed furnace. */
+  smeltVentWarn: [
+    { wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 900, lp2: 6000, hp: 450, curve: 0.8 },
+    { wave: 'saw', f: 110, f2: 220, dur: 1.1, vol: 0.06, a: 0.8, lp: 2000, curve: 0.8 },
+  ],
+  /** The Smeltery's vent bursts: a shower of sparks off hot ore. */
+  smeltBurst: join(clang(330, 0.2, 0.35), whoosh(3000, 8000, 0.35, 0.25), ...[0.05, 0.11, 0.16, 0.24].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
+  /** The Smeltery's vents layout: an ore cart clanks to a stop and the furnace breathes. */
+  layoutSmelt: join(clang(247, 0.22, 0.4), clang(185, 0.2, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.16 })),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.4, vol: 0.14, a: 0.2, lp: 3000, hp: 450, curve: 1.4 }]),
+  /** The Flue: a draught vent pulls, the chimney's hollow moan rising. */
+  flueVentWarn: [
+    { wave: 'noise', f: 0, dur: 1.1, vol: 0.18, a: 0.8, lp: 700, lp2: 2600, hp: 450, curve: 0.8 },
+    { wave: 'sine', f: 300, f2: 420, dur: 1.1, vol: 0.06, a: 0.7, curve: 0.9, vib: [5, 0.01] },
+  ],
+  /** The Flue's vent bursts: a plume of hot ash and a cracking brick. */
+  flueBurst: join(whoosh(1200, 4500, 0.45, 0.3), [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.2, lp: 7000, hp: 1500, curve: 3 }], boom(65, 0.25, 0.2)),
+  /** The Flue's vents layout: a court bell, then the draught breathes up the flues. */
+  layoutFlue: join(chime(note(3), 0, 0.14, 0.6), chime(note(7), 0.15, 0.12, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.3, vol: 0.12, a: 0.25, lp: 1800, hp: 450, curve: 1.2 }]),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1309,6 +1349,11 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Ysmeret's Twin and Wandering Vents: 4.1 and 3.2 dB over the Ashvents mix with heroes-r2 t8 (SEEDS=1-4, n=9 each), right on the floor alone.
   ventWarn: 3.0,
   wanderVentWarn: 4.0, // 5.5 at +3.0
+  // Phase 13 E4 raid vents, matched to the other vent sets (warns about -30, stings about -31 dB on a phone).
+  hoardVentWarn: 1.8,
+  flueVentWarn: 2.6,
+  layoutSlag: 5.0,
+  layoutSmelt: 3.0,
   plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,
