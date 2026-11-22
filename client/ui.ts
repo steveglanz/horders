@@ -757,14 +757,15 @@ export class Hud {
         notes.push(`<span class="keynote ${d > 0 ? 'up' : d < 0 ? 'down' : ''}"><span aria-hidden="true">⚿</span> Delver's Key +${rewards.keyFrom} → <b>+${rewards.keyTo}</b>${d > 1 ? ' (fast clear!)' : d === 0 && s.victory ? ' (over par)' : ''}</span>${rewards.keyEmbers ? ` · +${rewards.keyEmbers} embers` : ''}`);
       }
       xp = `<div class="top"><b>Hero XP</b><span>+${rewards.heroXp.toLocaleString()}</span></div>`
-        + `<div class="meter"><div style="width:${pct}%"></div></div>`
+        // The bar fills from where this run started (from empty after a level up).
+        + `<div class="meter"><div style="width:${pct}%;--from:${atCap || rewards.levelsGained ? 0 : Math.max(0, (100 * (hero.xp - rewards.heroXp)) / need)}%"></div></div>`
         + `<div class="kv"><span>Level ${hero.level}</span><span>${atCap ? 'Max level' : `${hero.xp.toLocaleString()} / ${need.toLocaleString()} XP`}</span></div>`
         + `<div class="note">${notes.map((t) => `<span class="n">${t}</span>`).join('<span class="sep"> · </span>')}</div>`;
       const equipped = new Set(Object.values(hero.equipped));
       const n = rewards.items.length;
       const worn = rewards.items.filter((it) => equipped.has(it.id)).length;
       loot = !n ? '' : `<div class="top"><b>Loot</b><span>${n ? `${n} ${n === 1 ? 'item' : 'items'}${worn ? ` · ${worn} equipped` : ''}` : 'Nothing this time'}</span></div>`
-        + rewards.items.map((it) => `<div class="item" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', setsWorn(hero))}</div>`).join('');
+        + rewards.items.map((it, k) => `<div class="item r-${it.rarity}" style="--rc:${RARITY[it.rarity].color};--k:${k}">${itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', setsWorn(hero))}</div>`).join('');
     }
     $('endXp').innerHTML = xp;
     $('rewards').innerHTML = loot;
