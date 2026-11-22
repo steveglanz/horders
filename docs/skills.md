@@ -870,6 +870,36 @@ A player learns the cadence after one Summons, so bots now walk in to the throne
 
 An Anvil-only rule (hold the Regent close in phase 2) moved the Anvil row only from 21 to 24/76, because the healer and the caster were still struck. Design re-tunes the Summons itself afterward, aiming base near 62%.
 
+## Raid trash floors: class check (E6, 22 Nov 2026)
+Phase 13 E1 (#462) gave each raid's openers and named fight open, open, pillars or vents. The boss fight is always open.
+
+**What the floors do.** Stones only block movement (`clampArena`). Nothing checks them for shots, orbs or Radiant Burst, so there are no lines of fire to block. Vents flare in turn, as they do in the solo dungeons.
+
+**Measured.** 6 parties (base, two Duskblades, two Emberwrights, Bellows with an Emberwright, Bellows with a Duskblade, Anvil tank) in 4 raids at their tiers, seeds 1-80, heroes-r2 hero-t8-0, on main after #467.
+
+"Held up" counts ticks where a bot pushed to move at over half speed but covered less than 30% of a step, as a share of its moving ticks in trash fights:
+
+| Class | Open | Pillars | Vents |
+|---|---|---|---|
+| Bulwark | 0.08% | 0.52% | 0.09% |
+| Lumen | 0.08% | 0.76% | 0.08% |
+| Duskblade | 0.08% | 0.72% | 0.06% |
+| Emberwright | 0.07% | 0.68% | 0.06% |
+| Slagbinder | 0.06% | 0.70% | 0.06% |
+
+Trash fights by floor (all 6 parties pooled; fights, mean seconds, hero deaths, wipes):
+
+| Raid | Open | Pillars | Vents |
+|---|---|---|---|
+| Crucible t8 | 648, 59 s, 0, 0 | 372, 56 s, 0, 0 | 420, 58 s, 0, 0 |
+| Hoard t9 | 648, 73 s, 3, 1 | 370, 70 s, 0, 1 | 419, 73 s, 0, 0 |
+| Smeltery t10 | 645, 90 s, 5, 5 | 368, 86 s, 3, 2 | 416, 91 s, 3, 1 |
+| Flue t11 | 634, 105 s, 24, 15 | 360, 102 s, 14, 6 | 412, 110 s, 21, 10 |
+
+Every class gets round a stone the same way, and pillar fights are a little shorter. The Flue's vent fights run 5% longer, with deaths a little higher per fight (0.051 vs 0.038), but no class carries it. So no class change is needed.
+
+**A measuring trap.** Forcing the same trash fights open on the same seeds gave a few big win swings in the boss fight. For example, Flue Anvil won 35/80 with layouts against 52/80 forced open, though the boss arena is open in both. The floors change how many run-rng draws the trash uses, so the drafts and the boss fight roll differently. A control that keeps the fights open but adds 1, 2 or 3 extra rng draws per fight gave 39, 39 and 38 of 80. So the 52 was luck, not the floors. Compare floors on the trash itself, or use 320 seeds or more for the whole run, as design did (#462).
+
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 
 Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.
