@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
@@ -392,5 +392,55 @@ describe('V8 variety: the Glarewell', () => {
       expect(w.layout).toBe('open');
     }
     expect([...seen].sort()).toEqual(['open', 'vents']);
+  });
+});
+
+describe('V8 variety: the Lensmother\'s Glintfall', () => {
+  type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void; rollLensVariant(): string;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; bossBrandT: number; glareT: number; markT: number };
+  function lens(variant: 'brand' | 'glint'): { w: World; q: G; b: number } {
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant;
+    q.bossPhase = 2; q.markT = 0; q.bossBrandT = 0; q.glareT = 99;
+    w.enemies[b].abilityT = 99;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' }) as unknown as G;
+      const c = new World({ seed, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' }) as unknown as G;
+      expect(a.rollLensVariant()).toBe(c.rollLensVariant());
+      seen.add(a.rollLensVariant());
+    }
+    expect([...seen].sort()).toEqual([...LENS_VARIANTS].sort());
+  });
+
+  it('the brand version still casts Twin Brand; the glint version drops light on every standing pillar', () => {
+    const brand = lens('brand');
+    brand.q.runLensmother(brand.b, 0.01);
+    expect(brand.w.enemies[brand.b].castId).toBe('twinBrand');
+    const { w, q, b } = lens('glint');
+    w.pillars = [0, 1, 2, 3].map((k) => ({ x: 200 * Math.cos(k), y: 200 * Math.sin(k), r: 26, cracked: k === 0 }));
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).toBe('glintfall');
+    const ts = w.telegraphs.filter((t) => t.alive && t.owner === b);
+    expect(ts).toHaveLength(3);
+    for (const t of ts) {
+      expect(t.r).toBe(GLINTFALL.radius);
+      expect(w.pillars.some((p) => p.x === t.x && p.y === t.y && !p.cracked)).toBe(true);
+    }
+  });
+
+  it('online co-op: a guest sees the same version', () => {
+    const { w } = lens('glint');
+    const g = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.bossVariant).toBe('glint');
   });
 });
