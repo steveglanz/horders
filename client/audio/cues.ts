@@ -59,6 +59,8 @@ export interface CueContext {
   colossus?: { x: number; y: number; side: number };
   /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
   t?: number;
+  /** The dungeon (World.dungeonId), where a shared hazard sounds different (the Foundry's vents steam). */
+  dungeon?: string;
   /** Today's Heat for this run (World.heat), '' or unset for none. */
   heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
@@ -358,8 +360,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
     case 'spitLob': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
-    case 'ventFlare': return { id: 'kilnVentWarn' };
-    case 'layout': return LAYOUT_STING[ev.id] ? { id: LAYOUT_STING[ev.id]! } : null;
+    case 'ventFlare': return { id: c.dungeon === 'foundry' ? 'steamVentWarn' : 'kilnVentWarn' };
+    case 'layout': {
+      const id = c.dungeon === 'foundry' && ev.id === 'vents' ? 'layoutSteam' : LAYOUT_STING[ev.id];
+      return id ? { id } : null;
+    }
     case 'gather': return { id: 'gather' };
     case 'soak': return { id: ev.ok ? 'soakOk' : 'soakFail' };
     case 'drop':
@@ -385,9 +390,9 @@ export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>[
 };
 
 /** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
-export function landCueFor(ev: SimEvent): Cue | null {
+export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
   if (ev.type === 'spitLob') return { id: 'spitLand', after: VARIETY.lobLand, jitter: 0.04 };
-  if (ev.type === 'ventFlare') return { id: 'lavaFlare', after: LAYOUT.ventCast, jitter: 0.04 };
+  if (ev.type === 'ventFlare') return { id: dungeon === 'foundry' ? 'steamBurst' : 'lavaFlare', after: LAYOUT.ventCast, jitter: 0.04 };
   return null;
 }
 

@@ -563,6 +563,8 @@ export type SimEvent =
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
   | { type: 'ventFlare'; x: number; y: number }
+  /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
+  | { type: 'tideTurn'; angle: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -823,7 +825,11 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | '' = '';
+  /** V8 Sluicetide: the way the water flows (radians), while it runs. */
+  tideAngle = 0;
+  private sluiceT = 0;
+  private tideTurns = 0;
   /** V4: the Day's Heat on this run, or '' for none. */
   heat: HeatId | '' = '';
   /** Standing stones: they block heroes and foes alike. */
@@ -1754,6 +1760,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.startMaelra();
+          this.bossVariant = this.rollMaelraVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensmother') {
@@ -1956,6 +1963,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollMaelraVariant(): MaelraVariant {
+    if (this.stress) return 'water';
+    let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
+    return MAELRA_VARIANTS[(h >>> 4) % MAELRA_VARIANTS.length];
   }
 
   private rollLayout(id: EncounterId): void {
@@ -6244,8 +6259,28 @@ export class World {
         }
       }
     }
+    // V8 Sluicetide (some runs): instead of rising, the water runs across the room and turns now and then.
+    if (phase >= 2 && this.bossVariant === 'tide') {
+      this.sluiceT -= dt;
+      if (this.sluiceT <= 0) {
+        this.sluiceT = SLUICETIDE.turnEvery;
+        let h = Math.imul(this.seed ^ 0x68e31da4, 0xb5297a4d) + Math.imul(++this.tideTurns, 0x1b56c4e9) >>> 0;
+        h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
+        // Never straight back the way it came: a quarter turn either way, or onward at a slant.
+        const turns = [Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4];
+        this.tideAngle = this.tideTurns === 1 ? ((h >>> 8) % 360) * (Math.PI / 180) : this.tideAngle + turns[h % turns.length];
+        this.events.push({ type: 'tideTurn', angle: this.tideAngle });
+      }
+      const ux = Math.cos(this.tideAngle), uy = Math.sin(this.tideAngle);
+      this.eachHero(() => {
+        const q = this.player;
+        q.x += ux * SLUICETIDE.drift * dt;
+        q.y += uy * SLUICETIDE.drift * dt;
+        this.clampArena(q, PLAYER_RADIUS);
+      });
+    }
     // Phase 2: the water rises and the arena shrinks.
-    if (phase >= 2 && this.arenaR > FOUNDRY.waterMin) {
+    if (phase >= 2 && this.bossVariant !== 'tide' && this.arenaR > FOUNDRY.waterMin) {
       this.waterT += dt;
       this.arenaR = Math.max(FOUNDRY.waterMin, ARENA - (ARENA - FOUNDRY.waterMin) * Math.min(1, this.waterT / FOUNDRY.waterTime));
       this.clampArena(p, PLAYER_RADIUS);
@@ -6909,6 +6944,12 @@ export type KilnVariant = 'cataclysm' | 'draw';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+
+/** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
+export type MaelraVariant = 'water' | 'tide';
+export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide'];
+/** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
+export const SLUICETIDE = { drift: 45, turnEvery: 8 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
