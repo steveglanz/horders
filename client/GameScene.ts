@@ -1254,7 +1254,8 @@ export class GameScene extends Phaser.Scene {
           // fight that also names its Omens, get the full-length banner so nothing is cut off.
           const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
           // V4: the first fight also names the Day's Heat.
-          const heat = ev.index === 0 && w.heat ? ` Today's Heat, ${HEATS[w.heat].name}: ${HEATS[w.heat].text}` : '';
+          // Phones name it only: the hub's Heat chip has the details, and the floor line already says what stones or vents do.
+          const heat = ev.index === 0 && w.heat ? (this.hud.compact ? ` Today's Heat: ${HEATS[w.heat].name}.` : ` Today's Heat, ${HEATS[w.heat].name}: ${HEATS[w.heat].text}`) : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.

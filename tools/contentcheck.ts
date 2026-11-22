@@ -82,6 +82,7 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
   });
   // Phase 11 variety: the Kiln's layouts and Kiln Draw (rolled per seed) under each of Today's Heats, and the Drowned Foundry's new fights.
   for (const heat of HEAT_IDS) cases.push({ label: `kiln heat ${heat}`, skill, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: 'kiln', tier: 1 + (seed % 2), omens: [], heat } });
+  for (const cls of CLASSES) cases.push({ label: `glarewell ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'glarewell', tier: 7, omens: [] } });
   for (const cls of CLASSES) cases.push({ label: `foundry ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'foundry', tier: 4, omens: [] } });
   // The Flue (raid 4, tier 11, four heroes): pass the Decree before it bursts.
   const flue = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>

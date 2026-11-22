@@ -172,6 +172,13 @@ describe('Slagbinder in a party (party-only trim)', () => {
     expect(duo.dmgMult).toBeCloseTo(anvilSolo.dmgMult);
   });
 
+  it('in the Flue (a damage race) the Bellows party cut is fluePartyDmg instead', () => {
+    const mk = (dungeon: 'flue' | 'hammerdeep', stance: 'bellows' | 'anvil') =>
+      new World({ seed: 4, dungeon, omens: [], cls: 'slagbinder', stance, worldBoss: dungeon === 'flue' ? 'The Furnace Regent' : undefined, party: [{ cls: 'bulwark' }] });
+    expect(mk('flue', 'bellows').dmgMult / mk('flue', 'anvil').dmgMult).toBeCloseTo(SLAG_KIT.fluePartyDmg / 1, 5);
+    expect(mk('hammerdeep', 'bellows').dmgMult / mk('hammerdeep', 'anvil').dmgMult).toBeCloseTo(SLAG_KIT.partyDmg, 5);
+  });
+
   it('Cooling Shell cuts its wearer by shellCut and allies by allyShellCut', () => {
     const { w, inner } = party('duskblade', ['slagbinder'], 50);
     w.heroes[1].player.shellUntil = w.time + 5;

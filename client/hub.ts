@@ -289,7 +289,7 @@ export class Hub {
       + (cls === 'slagbinder'
         ? `<div class="stance" role="group" aria-label="Stance">${(['anvil', 'bellows'] as const).map((st) => {
           const on = (h.stance ?? 'bellows') === st;
-          const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, hits land 35% lighter (20% in a party), and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. In a party, you deal 30% less damage.';
+          const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, hits land 35% lighter (20% in a party), and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. In a party, you deal 30% less damage (15% less in the Flue).';
           return `<button data-stance="${st}" data-sfx="${st}Pick" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
         }).join('')}</div>`
         : '')
@@ -360,7 +360,7 @@ export class Hub {
       this.render();
     });
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -419,6 +419,9 @@ export class Hub {
   private prepChips(omens: OmenId[]): string {
     const h = this.hero();
     const chips: string[] = [];
+    // V4: today's Heat (the Kiln at tiers 1 and 2) gets a chip too; on phones the full line is folded away.
+    const heat = this.heatToday();
+    if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}"><span class="star" aria-hidden="true">✺</span><span>${heat.name}</span></button>`);
     if (omens.length) {
       chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
     }
@@ -459,9 +462,10 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
-    const titles = { omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
-    const body = kind === 'omens'
+  private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
+    const titles = { heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
+    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on the Kiln at tiers 1 and 2, the same for everyone. It changes every day.</div>'
+      : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
       : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
@@ -812,11 +816,17 @@ export class Hub {
     return `<div class="${cls}" title="${o.tip}">${omenTile(id)}<div><b>${o.name}</b><div>${o.text}</div></div></div>`;
   }
 
+  /** Today's Heat when it applies to the picked dungeon and tier; never on a hero's first delve. */
+  private heatToday(): (typeof HEATS)[keyof typeof HEATS] | null {
+    // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
+    if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return null;
+    return HEATS[heatFor(dayOf(Date.now()))];
+  }
+
   /** V4: today's Heat, on the Kiln below the first Omen tier. */
   private heatLine(): string {
-    // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
-    if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return '';
-    const h = HEATS[heatFor(dayOf(Date.now()))];
+    const h = this.heatToday();
+    if (!h) return '';
     return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
   }
 

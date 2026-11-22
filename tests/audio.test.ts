@@ -490,6 +490,23 @@ describe('audio', () => {
     expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, { ...glare, dungeon: undefined as never })?.id).toBe('kilnVentWarn');
   });
 
+  it('sounds Glintfall once, however many pillars it hits (V8)', () => {
+    expect(CAST_SOUNDS.glintfall).toEqual({ start: 'glintWarn', done: 'glintfall' });
+    expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);
+    expect(THROTTLE.slam).toBeGreaterThan(1 / 60);
+    expect(THROTTLE.slam).toBeLessThan(0.2);
+    // The Coldmarrow's ice pillars (#384) clink; elsewhere pillars stay stone.
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'coldmarrow' })?.id).toBe('layoutIce');
+    expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' })?.id).toBe('layoutPillars');
+  });
+
+  it('sounds Nhevra\'s Emberdrift: embers falling, and your own coal brightening (V8)', () => {
+    const c = { cls: 'emberwright' as const, acting: 1 };
+    expect(cueFor({ type: 'emberDrift', n: 3 } as never, c)?.id).toBe('emberDriftFall');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 1 } as never, c)?.id).toBe('emberPickUp');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 0 } as never, c)).toMatchObject({ id: 'emberTaken', vol: 0.5 });
+  });
+
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
     expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
     expect(PRIORITY.has('tideTurn')).toBe(true);
@@ -514,6 +531,16 @@ describe('audio', () => {
       }
       expect(seen.some((s) => s === 'layout:pillars' || s === 'layout:vents'), `${heat}: ${seen.join(',')}`).toBe(true);
     }
+  });
+
+  it('has a case in cueFor for every SimEvent type, so a new event is never silent by accident', () => {
+    const world = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    const cues = readFileSync(new URL('../client/audio/cues.ts', import.meta.url), 'utf8');
+    const types = [...world.matchAll(/^\s*\| \{ type: '(\w+)'/gm)].map((m) => m[1]);
+    expect(types.length).toBeGreaterThan(50);
+    const handled = new Set([...cues.matchAll(/case '(\w+)'/g)].map((m) => m[1]));
+    // A silent event still gets its own `case 'x': return null;` line, so the choice is written down.
+    expect(types.filter((t) => !handled.has(t))).toEqual([]);
   });
 
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {
