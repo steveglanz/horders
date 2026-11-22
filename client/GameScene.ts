@@ -183,6 +183,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
   ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
+  wrackline: { big: 'wrackWreck', small: 'wrackPost', light: 'coalLight', flicker: 400, puff: 'none' },
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
