@@ -1,4 +1,4 @@
-// Usage: npm run build && node tools/coopsweep.cjs [--raid] [--pressworks] [--hoard] [screenshot dir]
+// Usage: npm run build && node tools/coopsweep.cjs [--raid] [--pressworks] [--hoard] [--smeltery] [screenshot dir]
 // Roadmap G8, the co-op QA sweep. Every hero is a page in one Chromium (same-browser signalling,
 // real WebRTC), at phone size. Only the host plays (autopilot); guests stand still, so runs use
 // ?god=1 and a hero is downed by hand where a check needs it. Exits 1 if any check fails.
@@ -11,6 +11,8 @@
 //     host and the other guest reach the end screen.
 //  7. (--hoard, ~4 min) The Hoard (raid 2): a guest drops while swallowed, and another while the Craw stands
 //     with someone else inside. The run reaches the end screen, nobody is left inside, guests hear the Hoard theme.
+//  8. (--smeltery, ~2 min) The Smeltery (raid 3): the guest Wheel is about to turn on drops mid-cast. The run goes
+//     on through Meltdown to the end screen; guests get the phase banners and the Smeltery theme.
 // Quick join has its own script (tools/quickjoincheck.cjs) and role matching is unit tested (tests/lobby.test.ts).
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -19,6 +21,7 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
 const RAID = process.argv.includes('--raid');
 const PRESS = process.argv.includes('--pressworks');
 const HOARD = process.argv.includes('--hoard');
+const SMELT = process.argv.includes('--smeltery');
 const dir = process.argv.slice(2).find((a) => !a.startsWith('--')) || 'tools/shots';
 const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) process.exitCode = 1; };
 const tab = async (p, t) => { if (await p.evaluate(() => document.body.classList.contains('tabs'))) { await p.click(`#tabbar [data-tab="${t}"]`); await p.waitForTimeout(150); } };
@@ -175,6 +178,45 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
       ok(theme === 'hoard', `Hoard: a guest hears the Hoard theme (${theme})`);
       await ctx.close();
     }
+  }
+  // 8. The Smeltery: the guest the Colossus is about to Wheel onto leaves mid-cast.
+  if (SMELT) {
+    const { P, ctx } = await party(['bulwark', 'lumen', 'emberwright', 'duskblade'], 'smeltery', 10);
+    let who = -1, dropT = -1, theme = null, step = 0; const banners = [];
+    const banner = async (q) => q.evaluate(() => document.getElementById('banner').classList.contains('show') ? document.getElementById('bannerTitle').textContent : '');
+    const r = await play(P, {
+      // Guests stand still, so trash is set to 1 hp and the Colossus starts in phase 2 (Wheel).
+      dropWhen: async (A) => {
+        const s = await world(A, `if (!w.bossUp) { for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1); return null; }
+          const b = w.enemies.find((e) => e.alive && e.kind === "colossus"); if (!b) return null;
+          if (b.hp > b.maxHp * 0.59) b.hp = b.maxHp * 0.59;
+          if (b.castId !== "wheel") return { cast: false };
+          let pick = -1, most = -1;
+          for (let k = 1; k < w.heroes.length; k++) if (!w.isTank(k) && w.heroPlayer(k).hp > 0 && (w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
+          return { cast: true, pick, t: w.time };`);
+        if (!s) return false;
+        if (theme === null) theme = await P[1].evaluate(() => window.__ember.audio.music?.theme ?? null);
+        if (!step) { const t = await banner(P[1]); if (/^Phase 2/.test(t)) { banners.push(t); step = 1; } }
+        if (!s.cast || s.pick < 1) return false;
+        who = s.pick; dropT = s.t;
+        return true;
+      },
+      dropWho: () => who,
+      // Ten seconds after the drop he goes to Meltdown (29%), and ten after that he is finished off.
+      each: async (A, P, live) => {
+        if (dropT < 0) return;
+        const t = await world(A, 'return w.time;');
+        const watcher = [...live].find((i) => i > 0);
+        if (step < 2 && t > dropT + 10) { await world(A, 'const b = w.enemies.find((e) => e.alive && e.kind === "colossus"); if (b) b.hp = Math.min(b.hp, b.maxHp * 0.29);'); step = 2; }
+        else if (step === 2) { const b = await banner(P[watcher]); if (/^Phase 3/.test(b)) { banners.push(b); step = 3; } }
+        if (t > dropT + 20) await world(A, 'const b = w.enemies.find((e) => e.alive && e.kind === "colossus"); if (b) b.hp = 1;');
+      },
+    });
+    ok(dropT >= 0, `Smeltery: the guest Wheel was turning on dropped mid-cast (guest ${who}, t=${dropT.toFixed(1)} s)`);
+    ok(r.live.size === 3 && r.ends.every(Boolean), `Smeltery: the other three reach the end screen (${r.victory ? 'win' : 'loss'})`);
+    ok(banners.length === 2, `Smeltery: a guest saw both phase banners ${JSON.stringify(banners)}`);
+    ok(theme === 'smeltery', `Smeltery: a guest hears the Smeltery theme (${theme})`);
+    await ctx.close();
   }
   ok(!errs.length, `no page errors ${JSON.stringify(errs)}`);
   await b.close(); srv.close();

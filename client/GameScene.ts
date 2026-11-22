@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH } from '../sim/world';
+import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as COALMOUTH, COLO } from '../sim/world';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -23,7 +23,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { pickCue, setFlagsOf } from './audio/cues';
+import { colossusCue, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -93,10 +93,11 @@ interface Fx {
  * How each season trail is drawn (TRAILS ids); any other trail is soft motes. 'sparks': rising, cooling embers (the
  * Deep Bellows). 'frost': falling crystals that settle (the Cold Hearth). 'drip': molten drops that fall and cool (the
  * Slag Moon). 'oil': iridescent oil drops that spread into a green slick (the Falling Press). 'chips': wood splinters
- * that tumble off the heels (the Low Ebb).
+ * that tumble off the heels (the Low Ebb). 'crumbs': hot coal crumbs that drop and cool (the Long Hunger). 'shards':
+ * steel plate shards that flash crack cyan as they break off and fall (the Cracked Plate).
  */
-type TrailStyle = 'motes' | 'sparks' | 'frost' | 'drip' | 'oil' | 'chips';
-const TRAIL_STYLE: Record<string, TrailStyle> = { bellowsSparks: 'sparks', rimeDust: 'frost', slagDrips: 'drip', oilSheen: 'oil', raftSplinters: 'chips' };
+type TrailStyle = 'motes' | 'sparks' | 'frost' | 'drip' | 'oil' | 'chips' | 'crumbs' | 'shards';
+const TRAIL_STYLE: Record<string, TrailStyle> = { bellowsSparks: 'sparks', rimeDust: 'frost', slagDrips: 'drip', oilSheen: 'oil', raftSplinters: 'chips', emberCrumbs: 'crumbs', plateShards: 'shards' };
 /** The deeper rime blue a settled crystal turns, so a near-white trail still shows on the Coldmarrow's frost. */
 const FROST_SETTLE = 0x7fa6e8;
 /** The dim forge red an ember cools to. */
@@ -107,6 +108,10 @@ const SLAG_CRUST = 0x8a2a2a;
 const HOARD_RIM = 0xd8382a;
 /** The dark wet wood a splinter darkens to as it settles. */
 const WET_WOOD = 0x5a3a22;
+/** The hot gold an ember crumb starts at before it cools to the trail's red (the Long Hunger's Hoard Gilt, warmed). */
+const CRUMB_HOT = 0xffc46a;
+/** The crack cyan a plate shard flashes as it breaks off, before it settles to the trail's plate blue. */
+const SHARD_FLASH = 0x26e9ff;
 /** Blend two 0xRRGGBB colours, t from 0 (a) to 1 (b). */
 function mixRgb(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + ((((b >> sh) & 255) - ((a >> sh) & 255)) * t)) << sh;
@@ -348,6 +353,9 @@ export class GameScene extends Phaser.Scene {
     // The Pressworks' floor is oily olive brass (at least 21 Delta-E from every other floor), so the gold Downstroke
     // plate and the red Rivets both read on it.
     else if (w.dungeonId === 'pressworks') this.ground.setTint(0x9aa070);
+    // The Smeltery's floor is sooty blue-grey cast iron (at least 20 Delta-E from every other floor), so his hot back,
+    // the Sweep cone and the Meltdown pulses read warm against it.
+    else if (w.dungeonId === 'smeltery') this.ground.setTint(0x606878);
 
     w.zones.forEach(() => this.zoneSprites.push(this.add.image(0, 0, 'burn').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(1)));
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
@@ -465,6 +473,8 @@ export class GameScene extends Phaser.Scene {
       onStick: (x, y) => { this.stickVec.x = x; this.stickVec.y = y; },
       onCast: (slot) => this.cast(slot),
     });
+    // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
+    this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
   }
 
@@ -709,6 +719,7 @@ export class GameScene extends Phaser.Scene {
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       stance: w.player.stance,
       worldBoss: w.worldBoss || undefined,
+      colossus: colossusCue(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id)),
       listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
@@ -990,6 +1001,20 @@ export class GameScene extends Phaser.Scene {
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
           break;
+        // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
+        case 'wheel': {
+          const e = w.enemies.find((q) => q.alive && q.kind === 'colossus');
+          if (e) this.ring(e.x, e.y, 150, 0xffd27a, 0.35);
+          this.shakeBy(0.08);
+          break;
+        }
+        case 'meltPulse': {
+          const e = w.enemies.find((q) => q.alive && q.kind === 'colossus');
+          this.meltAt = w.time;
+          if (e) { this.ring(e.x, e.y, 420, MOLTEN, 0.7); this.ring(e.x, e.y, 220, 0xffd27a, 0.45); }
+          this.shakeBy(0.05);
+          break;
+        }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
           break;
@@ -1305,6 +1330,8 @@ export class GameScene extends Phaser.Scene {
       const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
         : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
         // Old Coalmouth and his Craw borrow the Coalmouth rare's and the rift's sheets until their own land.
+        // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
+        : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
         : e.kind === 'coalmouth' && !this.textures.exists('coalmouth') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift' : e.kind;
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
@@ -1332,7 +1359,7 @@ export class GameScene extends Phaser.Scene {
       const hit = e.flash > 0 ? 0.12 : 0;
       // Every shadow shows at the size Grandmother Slag's 128-unit sheet always did, whatever its sheet's size.
       const shadowScale = e.kind === 'worldShadow' ? (1.05 * 128) / shadowSheet(w.worldBoss).size : 1;
-      s.setVisible(true).setPosition(x, y).setFlipX(!e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
+      s.setVisible(true).setPosition(x, y).setFlipX(e.kind === 'colossus' ? Math.cos(w.colFacing) < 0 : !e.def.stationary && x > px).setScale(BASE * k * (1 + hit) * (e.kind === 'worldShadow' ? shadowScale : 1), BASE * k * (1 - hit) * (e.kind === 'worldShadow' ? shadowScale : 1));
       const r = e.def.radius;
       if (cheap && e.def.rank === 'normal') { if (sh.visible) sh.setVisible(false); } else sh.setVisible(true).setPosition(x, y + r * 0.85).setScale((r * 2.5 * k) / 32, (r * 0.9 * k) / 32);
       if (e.kind === 'rift') s.setRotation(now / 900);
@@ -1342,8 +1369,9 @@ export class GameScene extends Phaser.Scene {
       // big boss being hit nonstop never turns into a white silhouette.
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
       // Old Coalmouth's coal is darker still and a raid hits him nearly every frame, so even the soft screen
-      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up.
-      if (e.flash > 0 && e.kind === 'coalmouth') s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
+      // Colossus is the same dark cinder, so he gets it too.
+      if (e.flash > 0 && (e.kind === 'coalmouth' || e.kind === 'colossus')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -1533,7 +1561,7 @@ export class GameScene extends Phaser.Scene {
       // The Foundry's rim is water-blue; Rising Water pulls it in (w.arenaR).
       // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
-      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : 0xff8a3d;
+      const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : 0xff8a3d;
       g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
@@ -1564,7 +1592,8 @@ export class GameScene extends Phaser.Scene {
         const L = GLARE.shadowLength;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
-        g.fillStyle(0x06051a, 0.62).lineStyle(2, 0x8a9cff, 0.35).beginPath();
+        // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
+        g.fillStyle(0x06051a, 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, 0.65).beginPath();
         g.moveTo(c.x - uy * w0, c.y + ux * w0);
         g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
         g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
@@ -1758,6 +1787,7 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2 + w.temper, 0xcfd8e6, 0.12 + w.temper * 0.06).strokeCircle(e.x, e.y, e.def.radius + 10);
       }
       if (e.kind === 'coalmouth') this.hoardDraw(g, e, now);
+      if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
@@ -1863,34 +1893,75 @@ export class GameScene extends Phaser.Scene {
     }
     let plate = 0;
     // A pack of the same elite (four Shoal Lurkers round a raft) shows its name once, over the topmost one: the
-    // same name printed over each stacks into an unreadable block on a phone. Every one keeps its own health bar.
+    // same name printed over each stacks into an unreadable block on a phone.
     const names: { x: number; y: number; text: string; color: string }[] = [];
+    const bars: World['enemies'] = [];
     for (const e of w.enemies) {
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
       if (!onScreen(e.x, e.y)) continue;
-      const bw = e.def.rank === 'rare' ? 70 : 56;
-      const top = e.y - e.def.radius - 14;
-      b.fillStyle(0x000000, 0.6).fillRect(e.x - bw / 2, top, bw, 6);
-      b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(e.x - bw / 2, top, (bw * Math.max(0, e.hp)) / e.maxHp, 6);
-      if (e.named >= 0) this.namedMark(g, b, e, top, now);
-      if (e.castId) {
-        b.fillStyle(0x000000, 0.7).fillRect(e.x - bw / 2, top + 8, bw, 5);
-        b.fillStyle(e.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(e.x - bw / 2, top + 8, (bw * e.castT) / e.castDur, 5);
-      }
-      // Warded: a pale shield segment over the health bar, and a bubble on the body.
+      // Warded: a bubble on the body (the shield segment goes on the bar below).
       if (e.ward > 0) {
-        const wf = Math.min(1, e.ward / e.maxHp);
-        b.fillStyle(0xe8f4ff, 0.95).fillRect(e.x - bw / 2, top - 3, bw * Math.min(1, wf * 5), 3);
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
-      // C2: a named elite shows its title in the rare colour.
-      names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+      bars.push(e);
+    }
+    // Y9: a pile of the same unnamed elite (Nhevra's Snuffers crowding in) shares one bar, so a dozen bars don't
+    // stack into a block. A pack of PACK_MIN or more draws one bar over its topmost member, with the pack's summed health, a count and the summed ward. Smaller
+    // groups, named elites and any elite mid-cast keep their own bars, so an interrupt target is always marked.
+    const PACK_DX = 70;
+    const PACK_DY = 50;
+    const PACK_MIN = 3;
+    bars.sort((a, c) => (a.y - a.def.radius) - (c.y - c.def.radius));
+    // Packs merge transitively: two of a kind whose bars would crowd (within PACK_DX by PACK_DY) share a pack.
+    const solo = (m: World['enemies'][number]) => m.named >= 0 || !!m.castId;
+    const root = bars.map((_, i) => i);
+    const find = (i: number): number => (root[i] === i ? i : (root[i] = find(root[i])));
+    for (let i = 0; i < bars.length; i++) {
+      if (solo(bars[i])) continue;
+      for (let j = i + 1; j < bars.length; j++) {
+        const p = bars[i], q = bars[j];
+        if (solo(q) || q.def !== p.def || Math.abs(q.x - p.x) >= PACK_DX || Math.abs(q.y - p.y) >= PACK_DY) continue;
+        root[find(j)] = find(i);
+      }
+    }
+    const byRoot = new Map<number, World['enemies']>();
+    bars.forEach((e, i) => { const r = find(i); const pk = byRoot.get(r); if (pk) pk.push(e); else byRoot.set(r, [e]); });
+    const packs = [...byRoot.values()];
+    const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
+      const bw = e.def.rank === 'rare' ? 70 : 56;
+      b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
+      b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
+      if (cast) {
+        b.fillStyle(0x000000, 0.7).fillRect(x - bw / 2, top + 8, bw, 5);
+        b.fillStyle(cast.interruptible ? 0x8fd8ff : SOAK, 1).fillRect(x - bw / 2, top + 8, (bw * cast.castT) / cast.castDur, 5);
+      }
+      if (ward > 0) b.fillStyle(0xe8f4ff, 0.95).fillRect(x - bw / 2, top - 3, bw * Math.min(1, (ward / maxHp) * 5), 3);
+    };
+    for (const pk of packs) {
+      if (pk.length < PACK_MIN) {
+        for (const e of pk) {
+          const top = e.y - e.def.radius - 14;
+          drawBar(e, e.hp, e.maxHp, e.ward, e.castId ? e : undefined, e.x, top);
+          if (e.named >= 0) this.namedMark(g, b, e, top, now);
+          // C2: a named elite shows its title in the rare colour.
+          names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
+        }
+        continue;
+      }
+      const e = pk[0];
+      let hp = 0, maxHp = 0, ward = 0, x = 0;
+      for (const m of pk) { hp += Math.max(0, m.hp); maxHp += m.maxHp; ward += m.ward; x += m.x; }
+      x /= pk.length;
+      const top = e.y - e.def.radius - 14;
+      drawBar(e, hp, maxHp, ward, undefined, x, top);
+      names.push({ x, y: top, text: `${e.def.name} \u00d7${pk.length}`, color: NAME_COLOR[e.def.rank] });
     }
     names.sort((a, c) => a.y - c.y);
     const shown: typeof names = [];
     for (const n of names) {
-      if (shown.some((q) => q.text === n.text && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
+      const base = n.text.replace(/ \u00d7\d+$/, '');
+      if (shown.some((q) => q.text.replace(/ \u00d7\d+$/, '') === base && Math.abs(q.x - n.x) < 110 && n.y - q.y < 70)) continue;
       shown.push(n);
       const t = this.plates[plate++];
       if (t) setColorIf(t.setVisible(true).setPosition(n.x, n.y - 2).setText(n.text), n.color);
@@ -2014,6 +2085,8 @@ export class GameScene extends Phaser.Scene {
       if (tr.style === 'drip') { this.trailDrip(tr, px, py, rich); continue; }
       if (tr.style === 'oil') { this.trailOil(tr, px, py, rich); continue; }
       if (tr.style === 'chips') { this.trailChips(tr, px, py, rich); continue; }
+      if (tr.style === 'crumbs') { this.trailCrumbs(tr, px, py, rich); continue; }
+      if (tr.style === 'shards') { this.trailShards(tr, px, py, rich); continue; }
       // Each mote is a soft glow with a small glint beside it, so a few a second still read as a trail.
       const life = rich ? 0.8 : 0.4;
       const sz = (rich ? 1.6 : 1.4) + Math.random() * 0.3;
@@ -2098,6 +2171,36 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A crumb trail (the Long Hunger): small coal crumbs dropped off the heels, as if spilled from the Hoard. Each drops a
+   * short way and lands, cooling from hot gold to the trail's ember red and crumbling a little smaller as it fades.
+   * Unlike the Slag Moon's drips they are lumps, not stretched drops, and they don't splash flat.
+   */
+  private trailCrumbs(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1 : 0.6;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.65 : 0.9) + Math.random() * 0.2;
+      this.emit(tr.fx, 'coalCrumb', undefined, px + (Math.random() - 0.5) * 30, py + 10 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: CRUMB_HOT, tint1: tr.color, rot: Math.random() * Math.PI, vx: (Math.random() - 0.5) * 18, vy: 26 + Math.random() * 10, drag: 0.88, sx0: sz, sx1: sz * 0.7 });
+    }
+  }
+
+  /**
+   * A shard trail (the Cracked Plate): angular steel shards that break off the hero's heels with a flash of crack cyan,
+   * then fall, turning slowly, and settle to the trail's plate blue. Plate blue is the darkest trail yet, so each
+   * shard starts bright cyan and only darkens as it settles, keeping the fresh end of the trail readable on a dark floor.
+   */
+  private trailShards(tr: GameScene['trails'][number], px: number, py: number, rich: boolean): void {
+    const life = rich ? 1 : 0.6;
+    const n = this.lowFx ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const sz = (i ? 0.75 : 1) + Math.random() * 0.2;
+      this.emit(tr.fx, 'plateShard', undefined, px + (Math.random() - 0.5) * 32, py + 12 + (Math.random() - 0.5) * 6, life * (i ? 0.8 : 1),
+        { tint: SHARD_FLASH, tint1: tr.color, rot: Math.random() * Math.PI * 2, vx: (Math.random() - 0.5) * 20, vy: 30 + Math.random() * 10, drag: 0.9, spin: (Math.random() - 0.5) * 4, sx0: sz, sx1: sz * 0.9 });
+    }
+  }
+
   /** A worn trail, if it names a known trail: its motes sit on the floor with the glow, under the
    * telegraph layer (depth 2), so a trail never hides an attack. Each has its own pool, so a busy fight
    * can't steal its motes. */
@@ -2106,7 +2209,7 @@ export class GameScene extends Phaser.Scene {
     if (!def || !(worn!.stage >= 1)) return;
     const fx: Fx[] = [];
     const style = TRAIL_STYLE[def.id] ?? 'motes';
-    const tex = style === 'frost' ? 'frostFlake' : style === 'oil' ? 'oilDrop' : style === 'chips' ? 'woodChip' : 'trailMote';
+    const tex = style === 'frost' ? 'frostFlake' : style === 'oil' ? 'oilDrop' : style === 'chips' ? 'woodChip' : style === 'crumbs' ? 'coalCrumb' : style === 'shards' ? 'plateShard' : 'trailMote';
     // Motes and sparks glow (additive). The others blend normally, so what settles on the floor (rime blue, slag crust,
     // an oil slick, wet wood) stays visible instead of fading into it.
     for (let i = 0; i < pool; i++) fx.push(this.newFx(tex, 1.35, style === 'motes' || style === 'sparks'));
@@ -2124,6 +2227,60 @@ export class GameScene extends Phaser.Scene {
    *   hero's time.
    * - Swallowed: the hero fades almost out (they are inside him) and a ring in their class colour pulses on his belly.
    */
+  /** World time of the last Meltdown pulse, for the countdown ring to the next. */
+  private meltAt = -1;
+
+  /**
+   * The Smeltery (raid 3, "get behind him"), drawn under the sprites. Phases 1 and 2: a cool steel arc on the floor
+   * round his plated front half, and a hot slice behind him where hits land hardest (`colossusSide`'s arcs). Wheel:
+   * gold chevrons circle him faster as the cast runs, with a ring closing in. Meltdown: the arcs go, his plate
+   * cracks (the sheet) and a ring closes in on him until each pulse.
+   */
+  private smelteryDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
+    const w = this.world;
+    const o = this.overFx;
+    // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
+    const R = e.def.radius + 36;
+    const fa = w.colFacing;
+    if (w.bossPhase < 3) {
+      // His plated front: a steel band round the front half, with a chevron where he faces.
+      g.lineStyle(7, 0xc8d0e0, 0.5).beginPath().arc(e.x, e.y, R, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      g.lineStyle(2, 0xeef2ff, 0.75).beginPath().arc(e.x, e.y, R + 5, fa - COLO.frontArc, fa + COLO.frontArc, false).strokePath();
+      const cx = e.x + Math.cos(fa) * (R + 10);
+      const cy = e.y + Math.sin(fa) * (R + 10);
+      g.fillStyle(0xeef2ff, 0.7).fillTriangle(cx + Math.cos(fa) * 9, cy + Math.sin(fa) * 9, cx + Math.cos(fa + 2.4) * 7, cy + Math.sin(fa + 2.4) * 7, cx + Math.cos(fa - 2.4) * 7, cy + Math.sin(fa - 2.4) * 7);
+      // His open back: a hot slice that breathes.
+      const back = fa + Math.PI;
+      const half = Math.PI - COLO.backArc;
+      const breathe = 0.5 + 0.5 * Math.sin(now / 260);
+      g.fillStyle(0xff8a3d, 0.08 + 0.06 * breathe).slice(e.x, e.y, R + 46, back - half, back + half, false).fillPath();
+      g.lineStyle(4, 0xffb347, 0.55 + 0.25 * breathe).beginPath().arc(e.x, e.y, R + 46, back - half, back + half, false).strokePath();
+    }
+    if (e.castId === 'wheel') {
+      const k = Math.min(1, e.castT / e.castDur);
+      // Chevrons circling him, faster as the cast runs, and a ring closing in.
+      const spin = (now / 1000) * (2 + 8 * k);
+      o.lineStyle(3, 0xffd27a, 0.85);
+      for (let q = 0; q < 3; q++) {
+        const a = spin + (q * Math.PI * 2) / 3;
+        o.beginPath().arc(e.x, e.y, R + 24, a, a + 0.9, false).strokePath();
+        const hx = e.x + Math.cos(a + 0.9) * (R + 24);
+        const hy = e.y + Math.sin(a + 0.9) * (R + 24);
+        const t = a + 0.9 + Math.PI / 2;
+        o.fillStyle(0xffd27a, 0.9).fillTriangle(hx + Math.cos(t) * 8, hy + Math.sin(t) * 8, hx + Math.cos(t + 2.3) * 6, hy + Math.sin(t + 2.3) * 6, hx + Math.cos(t - 2.3) * 6, hy + Math.sin(t - 2.3) * 6);
+      }
+      o.lineStyle(5, 0xffd27a, 0.8).strokeCircle(e.x, e.y, R + 70 - 50 * k);
+    }
+    if (w.bossPhase >= 3) {
+      // Meltdown: a molten ring closes in on him until the next pulse.
+      const since = this.meltAt >= 0 ? w.time - this.meltAt : 0;
+      const k = Math.min(1, Math.max(0, since / COLO.meltEvery));
+      const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+      g.fillStyle(MOLTEN, 0.08 + 0.06 * pulse).fillCircle(e.x, e.y, R + 10);
+      o.lineStyle(4, MOLTEN, 0.35 + 0.5 * k).strokeCircle(e.x, e.y, R + 160 - 150 * k);
+    }
+  }
+
   private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
     const o = this.overFx;
@@ -2172,6 +2329,25 @@ export class GameScene extends Phaser.Scene {
         o.beginPath().arc(cw.x, cw.y, R, a - 0.35, a + 0.35, false).strokePath();
       }
       if (left > 0) o.lineStyle(3, 0xff6a3d, 0.9).beginPath().arc(cw.x, cw.y, cw.def.radius + 6, -Math.PI / 2, -Math.PI / 2 + (left / COALMOUTH.swallowTime) * Math.PI * 2, false).strokePath();
+      // Y9: on a phone the party frames sit over the left of the arena, and he often stands under them with the Craw
+      // hidden. Then a pulsing pointer sits just right of the frames, aimed at it, so the "break this" target never
+      // vanishes behind the HUD.
+      const pb = this.partyBox();
+      if (pb && cw.x + R > pb.l && cw.x - R < pb.r && cw.y + R > pb.t && cw.y - R < pb.b) {
+        const cam = this.cameras.main;
+        const sz = 16 / cam.zoom;
+        const ex = pb.r + sz * 1.6;
+        const ey = Math.min(pb.b - sz, Math.max(pb.t + sz, cw.y));
+        const a = Math.atan2(cw.y - ey, cw.x - ex);
+        const blink = 0.775 + 0.225 * Math.sin(now / 90);
+        o.fillStyle(0x000000, 0.6).fillCircle(ex, ey, sz * 1.25);
+        o.lineStyle(2 / cam.zoom, 0xfff0b0, blink).strokeCircle(ex, ey, sz * 1.25);
+        o.fillStyle(0xfff0b0, blink).fillTriangle(
+          ex + Math.cos(a) * sz, ey + Math.sin(a) * sz,
+          ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
+          ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
+        );
+      }
     }
   }
 
@@ -2197,7 +2373,20 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; banner?: DOMRect } = { px: 0, at: -1 };
+  private hudCover: { px: number; at: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1 };
+
+  /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
+  private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
+    this.clearView();
+    const pr = this.hudCover.party;
+    const full = this.cameras.main.worldView;
+    const c = this.game.canvas.getBoundingClientRect();
+    if (!pr || !c.width || !c.height) return undefined;
+    return {
+      l: full.x + ((pr.left - c.left) / c.width) * full.width, r: full.x + ((pr.right - c.left) / c.width) * full.width,
+      t: full.y + ((pr.top - c.top) / c.height) * full.height, b: full.y + ((pr.bottom - c.top) / c.height) * full.height,
+    };
+  }
 
   /**
    * Allies' names (with their title and bot mark) that sit under the HUD's top panels or behind the cast banner are
@@ -2248,6 +2437,9 @@ export class GameScene extends Phaser.Scene {
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden ? pe.getBoundingClientRect() : undefined;
+      this.hudCover.party = pr && pr.width > 0 && pr.height > 0 ? pr : undefined;
     }
     const ch = this.game.canvas.getBoundingClientRect().height || 1;
     // Never take more than 40% of the view, so a tall panel can't push arrows down into the fight.
@@ -2276,6 +2468,18 @@ export class GameScene extends Phaser.Scene {
         // Splinters: the landing ones burst out spinning, like a plank giving way.
         this.emit(tr.fx, 'woodChip', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.5 + t * 0.35,
           { tint: tr.color, tint1: WET_WOOD, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, drag: 0.92, spin: (Math.random() - 0.5) * 16, sx0: 1, sx1: 0.85 });
+        continue;
+      }
+      if (tr.style === 'crumbs') {
+        // Crumbs: the landing ones scatter out low like a spilled handful, then cool.
+        this.emit(tr.fx, 'coalCrumb', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.55 + t * 0.4,
+          { tint: CRUMB_HOT, tint1: tr.color, rot: Math.random() * Math.PI, vx: Math.cos(a) * sp, vy: Math.abs(Math.sin(a)) * sp * 0.3 + 18, drag: 0.9, sx0: 0.95, sx1: 0.7 });
+        continue;
+      }
+      if (tr.style === 'shards') {
+        // Shards: the landing ones burst out like a plate cracking apart, then fall and settle.
+        this.emit(tr.fx, 'plateShard', undefined, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 12, 0.6 + t * 0.4,
+          { tint: SHARD_FLASH, tint1: tr.color, rot: Math.random() * Math.PI * 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 + 24, drag: 0.92, spin: (Math.random() - 0.5) * 10, sx0: 1.1, sx1: 0.9 });
         continue;
       }
       if (tr.style === 'sparks') {

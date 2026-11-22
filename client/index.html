@@ -377,6 +377,9 @@
   /* X3: the Wrackline. A raft adrift at the top right, its planks and wet edge, over teal water with a drain's
      swirl pulling toward the bottom right, and a pale line of surf. */
   .dg[data-d="wrackline"] { --art: repeating-linear-gradient(90deg, rgba(110,72,40,0.85) 0 9px, rgba(60,38,22,0.85) 9px 10px) right 6% top 16% / 22% 13% no-repeat, linear-gradient(rgba(191,233,255,0.5), rgba(191,233,255,0.5)) right 6% top 29% / 22% 2px no-repeat, radial-gradient(circle at 90% 112%, rgba(20,30,70,0.75) 0 8px, transparent 8px 14px, rgba(120,210,240,0.28) 14px 16px, transparent 16px 26px, rgba(120,210,240,0.2) 26px 28px, transparent 28px 40px, rgba(120,210,240,0.12) 40px 42px, transparent 42px), radial-gradient(ellipse 30% 30% at 90% 108%, rgba(30,40,90,0.55), transparent 80%), radial-gradient(ellipse at 80% 20%, rgba(127,208,224,0.26), transparent 60%), linear-gradient(160deg, rgba(22,58,70,0.75), rgba(28,40,80,0.5) 50%, transparent 80%); }
+  /* Raid 3, the Smeltery: a foundry floor. Two ingot moulds glowing at the top right, a molten slag channel running
+     along the bottom, and heat rising off it. */
+  .dg[data-d="smeltery"] { --art: radial-gradient(ellipse at 50% 40%, rgba(255,240,180,1), rgba(255,150,50,0.9) 60%, rgba(200,70,20,0.9)) right 8% top 16% / 9% 9% no-repeat, radial-gradient(ellipse at 50% 40%, rgba(255,230,160,0.9), rgba(255,140,45,0.85) 60%, rgba(190,60,20,0.85)) right 20% top 16% / 9% 9% no-repeat, linear-gradient(rgba(24,20,20,0.9), rgba(40,34,32,0.9)) right 5% top 12% / 30% 17% no-repeat, linear-gradient(0deg, transparent 0 4%, rgba(255,120,40,0.35) 4% 6%, rgba(255,214,130,0.7) 6% 8%, rgba(255,120,40,0.35) 8% 10%, transparent 10%), radial-gradient(ellipse 50% 22% at 75% 100%, rgba(255,120,40,0.3), transparent 75%), radial-gradient(ellipse at 82% 18%, rgba(255,160,70,0.2), transparent 55%), linear-gradient(165deg, rgba(40,32,30,0.8), rgba(60,40,30,0.5) 50%, transparent 82%); }
   .dg[data-d="hoard"] { --art: radial-gradient(ellipse 9% 17% at 88% 16%, rgba(8,4,4,0.9) 55%, rgba(255,150,60,0.55) 72%, transparent 84%), radial-gradient(circle at 76% 88%, rgba(255,214,120,0.85) 0 2px, transparent 3px), radial-gradient(circle at 62% 94%, rgba(255,180,80,0.75) 0 1.5px, transparent 2.5px), radial-gradient(circle at 90% 92%, rgba(255,200,100,0.8) 0 2px, transparent 3px), radial-gradient(ellipse 34% 22% at 80% 104%, rgba(255,120,40,0.42), transparent 75%), radial-gradient(ellipse at 88% 10%, rgba(255,140,60,0.18), transparent 50%), linear-gradient(165deg, rgba(34,24,22,0.78), rgba(56,36,28,0.5) 50%, transparent 82%); }
   /* Text size: Large (L3). The fight HUD's words and the menus' small print grow; bars and buttons keep their size. */
   /* Zoom the contents, never a fixed-position box itself: zoom also scales its top/bottom/left offsets, which threw the
@@ -1042,6 +1045,16 @@
   .kart .le-wrack { animation: leWrack 3.4s ease-in-out infinite; }
   @keyframes leSpin { to { transform: rotate(360deg); } }
   @keyframes leWrack { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -1px); } }
+  /* Seasons 7 and 8: the Long Hunger's gullet breathes and its gilt flickers; the Cracked Plate's seam pulses and shards fall. */
+  .kart .lh-maw { animation: lhMaw 3.6s ease-in-out infinite; }
+  .kart .lh-gilt { animation: lhGilt 1.4s steps(2) infinite; }
+  .kart .lh-crumbs { animation: leWrack 2.6s ease-in-out infinite; }
+  @keyframes lhMaw { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+  @keyframes lhGilt { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .kart .cp-crack { animation: cpCrack 2.4s ease-in-out infinite; }
+  .kart .cp-shards { animation: cpShards 3s ease-in infinite; }
+  @keyframes cpCrack { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+  @keyframes cpShards { 0% { transform: translate(0, -4px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(6px, 6px); opacity: 0; } }
   body.saver .kart *, .kart.still * { animation: none !important; }
   body.saver .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; }
   @media (prefers-reduced-motion: reduce) { .kart * { animation: none !important; } .kart :is(.kb-sparks, .ch-frost, .sm-drips) circle { opacity: 0.7; } }
@@ -1209,6 +1222,30 @@
   @media (max-width: 340px) { #hpText .hpmax { display: none; } }
   /* Downed in co-op: phones keep "Down" and the revive percent; the how-to shows once as a banner (client/ui.ts). */
   @media (max-width: 560px), (max-height: 520px) { #hpText .hplong { display: none; } }
+  /* Portrait phones: one line per ally (class tile, short name, thin health bar), so a four-hero raid's frames take
+     about 130 x 94 px instead of 140 x 130 and stop hiding the boss's left side. The role chip goes (the class tile
+     says it); a downed ally's name gives way to Down / Reviving. While a boss, elite or the Craw is under the frames,
+     they fade (#party.under, set by the HUD). */
+  @media (max-width: 560px) and (orientation: portrait) {
+    #party { width: 130px; gap: 3px; transition: opacity 0.2s; }
+    body.text-large #party { width: 152px; }
+    .pf { padding: 2px 6px 2px 2px; gap: 5px; border-radius: 8px; }
+    .pf .gtile { width: 16px; height: 16px; border-radius: 5px; }
+    .pf .gtile svg { width: 11px; height: 11px; }
+    .pfbot { right: -3px; bottom: -3px; width: 10px; height: 10px; }
+    .pf .gtile .pfbot svg { width: 7px; height: 7px; }
+    .pfb { display: flex; align-items: center; gap: 5px; }
+    .pfn { flex: 0 1 auto; max-width: 64px; min-width: 0; font-size: 10px; }
+    .pfn i { margin-left: 0; font-size: 9px; }
+    .pf.down .pfn b { display: none; }
+    .pfr { display: none; }
+    .pfbar { flex: 1; min-width: 24px; height: 4px; margin-top: 0; }
+    .pfrev { padding: 2px 6px 2px 2px; gap: 4px; font-size: 9px; border-radius: 8px; }
+    .pfrev .rvg { width: 13px; height: 13px; font-size: 11px; }
+    .pfrev.used .rvg::after { top: 5.5px; }
+    #party.under { opacity: 0.28; }
+  }
+
 </style>
 </head>
 <body>

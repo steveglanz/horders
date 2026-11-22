@@ -520,7 +520,8 @@ export interface Player {
 }
 
 export type SimEvent =
-  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean }
+  /** `hero`: who landed it (World.acting), so a screen can tell its own hits from an ally's. */
+  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number }
   | { type: 'kill'; x: number; y: number; kind: EnemyKind }
   | { type: 'playerHurt'; amount: number; hero?: number }
   | { type: 'levelUp'; level: number; hero?: number }
@@ -4499,7 +4500,7 @@ export class World {
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
       e.flash = 0.08;
-      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit });
+      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting });
     }
     if (canCrit && this.hasMythic('splittingCinders')) {
       let other = -1;

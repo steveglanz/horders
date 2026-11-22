@@ -63,6 +63,8 @@ export const SEASONS: SeasonDef[] = [
   { name: 'the Slag Moon', glows: [{ id: 'slagGold', name: 'Slag Gold', color: '#ffc861' }, { id: 'moonAsh', name: 'Moon Ash', color: '#c9c2b8' }, { id: 'pourCrimson', name: 'Pour Crimson', color: '#ff6a8a' }], trail: { id: 'slagDrips', name: 'Slag Drips', color: '#ffcf6e' }, dungeon: 'glarewell' },
   { name: 'the Falling Press', glows: [{ id: 'oilGreen', name: 'Oil Green', color: '#7fd46a' }, { id: 'rivetBlue', name: 'Rivet Blue', color: '#4f7dff' }, { id: 'hotStamp', name: 'Hot Stamp', color: '#ff4fd8' }], trail: { id: 'oilSheen', name: 'Oil Sheen', color: '#b8f07a' }, dungeon: 'pressworks' },
   { name: 'the Low Ebb', glows: [{ id: 'wrackOlive', name: 'Wrack Olive', color: '#b5c24a' }, { id: 'drainBlue', name: 'Drain Blue', color: '#2fa8d8' }, { id: 'ebbIndigo', name: 'Ebb Indigo', color: '#7a5cff' }], trail: { id: 'raftSplinters', name: 'Raft Splinters', color: '#c8915a' }, dungeon: 'wrackline' },
+  { name: 'the Long Hunger', glows: [{ id: 'gulletRed', name: 'Gullet Red', color: '#ff3300' }, { id: 'crawRose', name: 'Craw Rose', color: '#e07bb8' }, { id: 'hoardGilt', name: 'Hoard Gilt', color: '#ffe926' }], trail: { id: 'emberCrumbs', name: 'Ember Crumbs', color: '#bf5c43' }, dungeon: 'hoard' },
+  { name: 'the Cracked Plate', glows: [{ id: 'cinderViolet', name: 'Cinder Violet', color: '#be26ff' }, { id: 'crackCyan', name: 'Crack Cyan', color: '#26e9ff' }, { id: 'slagLime', name: 'Slag Lime', color: '#d4ff26' }], trail: { id: 'plateShards', name: 'Plate Shards', color: '#0073bf' }, dungeon: 'smeltery' },
 ];
 
 /** Season 1 starts on the week of 21 Nov 2026: weekOf(Date.UTC(2026, 10, 21)) = 2968. */

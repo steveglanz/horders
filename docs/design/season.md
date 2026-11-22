@@ -43,8 +43,10 @@ Each season theme names one dungeon that is **in season**. A win there (a delve,
 | 4 (from week 2986, Thu 25 Mar 2027) | the Slag Moon | The Glarewell | The sunken observatory that watches the sky |
 | 5 (from week 2992, Thu 6 May 2027) | the Falling Press | The Pressworks | Oskel's Downstroke; the second group season, and taking turns needs a real party (no bots) |
 | 6 (from week 2998, Thu 17 Jun 2027) | the Low Ebb | The Wrackline | Hessa of the Ebb and the drain; a solo season again |
+| 7 (from week 3004, Thu 29 Jul 2027) | the Long Hunger | The Hoard | Old Coalmouth's appetite; the first raid season, so four real heroes (no bots) |
+| 8 (from week 3010, Thu 9 Sep 2027) | the Cracked Plate | The Smeltery | The Cinder Colossus's front plate; the second raid season |
 
-Seasons 5 and 6 were added on 21 Nov 2026 so the rotation doesn't repeat Season 1 in May 2027. After Season 6 it wraps to the Hollow Tide (week 3004, Thu 29 Jul 2027). The pattern is solo, group, solo, solo, group, solo, so a group season comes round about every four months.
+Seasons 5 and 6 were added on 21 Nov 2026 so the rotation doesn't repeat Season 1 in May 2027. Seasons 7 and 8 were added later the same day for the two raids, so after Season 8 it wraps to the Hollow Tide (week 3016, Thu 21 Oct 2027). The pattern is solo, group, solo, solo, group, solo, so a group season comes round about every four months.
 
 The weeks were checked with node (`new Date(w * 7 * 864e5)`): week numbers count from 1 Jan 1970, a Thursday, so every season turns on a Thursday (UTC). The Crucible is never in season, because it needs four heroes and a bonus there would only reward players who already have a raid group. No theme shares a dungeon (`tests/season.test.ts`).
 
@@ -74,6 +76,8 @@ The six rewards left gaps of five levels, which is two to three days of play for
 | the Slag Moon | Slag Drips | #ffcf6e |
 | the Falling Press | Oil Sheen | #b8f07a |
 | the Low Ebb | Raft Splinters | #c8915a |
+| the Long Hunger | Ember Crumbs | #bf5c43 |
+| the Cracked Plate | Plate Shards | #0073bf |
 
 **Stages:** stage 1 is the name alone ("Bellows Sparks"), then "Bellows Sparks II" and "III". A hero keeps a trail at its best stage forever (`hero.trails[id]`). Trails arrived mid-season 1, so a hero already past level 8 or 18 gets the stage they passed on their next run. Wearing one (`wearCosmetic(hero, 'trail', id)`) always shows its best stage.
 
@@ -119,3 +123,20 @@ Co-op needs `trail` and its stage in the looks message, cleaned against `TRAILS`
 - Titles follow the existing pattern: "Delver of the Falling Press" and so on.
 
 **For other teams.** Visuals: no season box art yet for Seasons 5 and 6 (`SEASON_ART` in client/seasonArt.ts). The hub falls back to the plain season box until it's added. Sound: `hubThemeFor` already wraps, so the Falling Press and the Low Ebb play the existing hub themes until they get their own. Season 5 doesn't start until 6 May 2027, so neither is urgent.
+
+## Seasons 7 and 8 (21 Nov 2026, roadmap Y10)
+| Season | Glow 1 (level 5) | Glow 2 (level 15) | Glow 3 (level 25) | Trail |
+|---|---|---|---|---|
+| 7, the Long Hunger | Gullet Red #ff3300 | Craw Rose #e07bb8 | Hoard Gilt #ffe926 | Ember Crumbs #bf5c43 |
+| 8, the Cracked Plate | Cinder Violet #be26ff | Crack Cyan #26e9ff | Slag Lime #d4ff26 | Plate Shards #0073bf |
+
+The Long Hunger features the Hoard (raid 2, Old Coalmouth) and the Cracked Plate features the Smeltery (raid 3, the Cinder Colossus). Both are raid seasons, so the featured dungeon needs four real heroes.
+
+**Colours.** Held to a stricter rule than Seasons 5 and 6: every colour, trails included, is at least 22 ΔE (CIE76, sRGB to Lab, D65) from all 24 colours of Seasons 1 to 6, and Season 8's colours are also at least 22 from Season 7's. tests/season.test.ts now checks this. The closest pairs:
+- Gullet Red to Kiln Red: 27.8. Craw Rose to Pour Crimson: 29.5. Hoard Gilt to Wrack Olive: 34.4. Ember Crumbs to Raft Splinters: 27.2.
+- Cinder Violet to Ebb Indigo: 31.9. Crack Cyan to Tide Silver: 28.2. Slag Lime to Hoard Gilt: 28.0. Plate Shards to Rime Blue: 28.6.
+- Within a season, every pair is at least 50 apart.
+
+**Names.** Searched on 21 Nov 2026 with "World of Warcraft" and wowhead: "the Long Hunger", "the Cracked Plate", "Gullet Red", "Craw Rose", "Hoard Gilt", "Ember Crumbs", "Cinder Violet", "Crack Cyan", "Slag Lime" and "Plate Shards" returned no WoW item, spell, place or NPC with those names. "Maw Red" was dropped before the search, because the Maw is a WoW zone (Shadowlands). Titles follow the pattern: "Delver of the Long Hunger" and so on.
+
+**For other teams.** Visuals (Y12): no SEASON_ART for 7 and 8 yet; the hub shows the plain season box until it lands. Sound (Y11): hubThemeFor falls back to the plain hub theme until HUB_BY_SEASON gets entries 6 and 7. Season 7 starts on 29 Jul 2027.

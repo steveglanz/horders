@@ -48,6 +48,11 @@ export interface CueContext {
   stance?: string;
   /** The living world boss's name (World.worldBoss), so its shadow gets its own sting. */
   worldBoss?: string;
+  /**
+   * The Smeltery, phases 1-2: where the Cinder Colossus stands and the damage side this screen's hero hits him
+   * from (World.colossusSide: 0.5 plated front, 1.5 open back, 1 the flanks). Unset once Meltdown cracks the plate.
+   */
+  colossus?: { x: number; y: number; side: number };
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -151,6 +156,10 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   shoalCall: { start: 'shoalCall' }, // Call the Shoal
   // The Pressworks (Oskel). The Downstroke lands as a soak (soakOk / soakFail); the Rivets land as strikes.
   downstroke: { start: 'downstrokeWarn' }, rivets: { start: 'rivetsWarn' }, stamp: { start: 'stampWarn', done: 'stamp' },
+  // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
+  slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
+  wheel: { start: 'wheelWarn' }, // Wheel
+  pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
 };
 
 /** Each boss's own phase-change sting. */
@@ -170,6 +179,8 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   oskel: 'phaseOskel',
   // The Hoard: [phase 2 Swallow, phase 3 Ember Feast].
   coalmouth: ['phaseSwallow', 'phaseFeast'],
+  // The Smeltery: [phase 2 Wheel, phase 3 Meltdown].
+  colossus: ['phaseWheel', 'phaseMeltdown'],
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
@@ -185,6 +196,22 @@ export const SHADOW_STING: Record<string, SoundId> = {
   'Old Ashmaw': 'shadowCoal',
   'The Furnace Regent': 'shadowRegent',
 };
+
+/** The bits of World that colossusCue reads. */
+interface ColossusView<E extends { kind: string; x: number; y: number; alive: boolean }> {
+  bossIndex: number;
+  bossPhase: number;
+  enemies: readonly E[];
+  player: { x: number; y: number };
+  colossusSide(e: E, x: number, y: number): number;
+}
+
+/** CueContext.colossus for this tick: set only while the Cinder Colossus lives and his plate still holds (phases 1-2). */
+export function colossusCue<E extends { kind: string; x: number; y: number; alive: boolean }>(w: ColossusView<E>): CueContext['colossus'] {
+  const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+  if (!e || !e.alive || e.kind !== 'colossus' || w.bossPhase >= 3) return undefined;
+  return { x: e.x, y: e.y, side: w.colossusSide(e, w.player.x, w.player.y) };
+}
 
 export function phaseSting(boss: string | undefined, phase: number): SoundId {
   const s = boss ? PHASE_STING[boss] : undefined;
@@ -206,7 +233,14 @@ export function panFor(ev: SimEvent, c: CueContext): number | undefined {
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
   const mine = (hero?: number) => hero === undefined || hero === c.acting;
   switch (ev.type) {
-    case 'hit': return ev.crit ? { id: 'crit', jitter: 0.08 } : { id: 'hit', jitter: 0.15 };
+    case 'hit': {
+      // The Smeltery: your own hits on the Colossus say which side you are on (the sim puts a hit at its target's spot).
+      const col = c.colossus;
+      if (col && col.side !== 1 && mine(ev.hero) && Math.abs(ev.x - col.x) < 1 && Math.abs(ev.y - col.y) < 1) {
+        return col.side < 1 ? { id: 'plateHit', jitter: 0.08 } : { id: 'backHit', jitter: 0.1, vol: ev.crit ? 1.2 : 1 };
+      }
+      return ev.crit ? { id: 'crit', jitter: 0.08 } : { id: 'hit', jitter: 0.15 };
+    }
     case 'kill': {
       // The Hoard: breaking the Craw frees the swallowed hero.
       if (ev.kind === 'craw') return { id: 'crawBreak' };
@@ -264,7 +298,12 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'emberEaten': return { id: 'emberEaten', vol: Math.min(1.2, 0.8 + 0.04 * ev.fed), jitter: 0.08 };
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
-    case 'castDone': return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
+    case 'castDone':
+      if (ev.id === 'wheel') return null;
+      return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
+    // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
+    case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
+    case 'meltPulse': return { id: 'meltPulse', vol: Math.min(1.3, 0.7 + 0.03 * ev.n), jitter: 0.04 };
     case 'heal': return { id: 'heal', jitter: 0.05 };
     case 'ward': return { id: 'ward' };
     case 'fork': return { id: 'fork' };
@@ -383,7 +422,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
@@ -403,6 +442,9 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // The Hoard: six embers spill at once and a party can sweep them up together.
   emberTaken: 0.1,
   emberEaten: 0.15,
+  // The Smeltery: four heroes beating on one boss; the side cue only needs to be heard now and then.
+  plateHit: 0.12,
+  backHit: 0.09,
   reviveTick: 0.3,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,

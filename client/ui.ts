@@ -215,6 +215,7 @@ export class Hud {
     this.wasNoRevive = noRevive;
     if (hpHtml !== this.hpHtml) { this.hpHtml = hpHtml; $('hpText').innerHTML = hpHtml; }
     this.tickParty(w);
+    this.fadeParty(w);
     $('xpFill').style.width = `${(100 * p.xp) / p.xpToNext}%`;
     $('level').textContent = String(p.level);
     $('timer').textContent = fmt(w.time);
@@ -607,6 +608,34 @@ export class Hud {
       el.querySelector('b')!.textContent = isBotAlly(w, hero) ? botName(w.heroes[hero].name) : w.heroes[hero].name;
       this.partyRows.push({ hero, el, fill: el.querySelector('.pfbar div') as HTMLElement, tag: el.querySelector('.pfn i') as HTMLElement, down: false, reviving: false });
     });
+  }
+
+  /** Set by GameScene: the camera's world view (live) and the canvas, to place enemies on the screen. */
+  view?: { rect: { x: number; y: number; width: number; height: number }; canvas: HTMLCanvasElement };
+  /** The party frames' and canvas's boxes (CSS px), re-read at most once a second so the HUD doesn't force a reflow every tick. */
+  private partyBox?: { party: DOMRect; canvas: DOMRect; at: number };
+  private partyUnder = false;
+
+  /** Portrait phones: fade the party frames while a boss, elite or the Craw (anything with a name plate) is under them,
+   * so the frames never hide what you have to hit. */
+  private fadeParty(w: World): void {
+    const box = $('party');
+    const now = performance.now();
+    let under = false;
+    if (this.view && !box.hidden && this.narrow.matches && innerHeight > innerWidth) {
+      if (!this.partyBox || now - this.partyBox.at > 1000) this.partyBox = { party: box.getBoundingClientRect(), canvas: this.view.canvas.getBoundingClientRect(), at: now };
+      const { party: pr, canvas: c } = this.partyBox;
+      const v = this.view.rect;
+      if (pr.width > 0 && c.width > 0 && v.width > 0) {
+        const k = c.width / v.width;
+        under = w.enemies.some((e) => {
+          if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary)) return false;
+          const x = c.left + (e.x - v.x) * k, y = c.top + (e.y - v.y) * k, r = e.def.radius * k;
+          return x + r > pr.left && x - r < pr.right && y + r > pr.top && y - r < pr.bottom;
+        });
+      }
+    }
+    if (under !== this.partyUnder) { this.partyUnder = under; box.classList.toggle('under', under); }
   }
 
   private revChip: HTMLElement | null = null;

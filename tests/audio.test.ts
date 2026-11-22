@@ -4,8 +4,8 @@ import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
-import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf } from '../sim/content/season';
-import { SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
+import { colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -160,6 +160,62 @@ describe('audio', () => {
     // The Gorge wind-up has to fit inside its 3 s cast, so the interrupt lands on a sound that is still going.
     expect(recipeLength(SOUNDS.gorgeWarn)).toBeLessThanOrEqual(3);
   });
+
+  it('gives every Cinder Colossus moment in the Smeltery a sound', () => {
+    expect(THEMES.smeltery).not.toEqual(THEMES.raid);
+    const c = { cls: 'duskblade' as const, acting: 0, boss: 'colossus' as const };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'slagSweep', name: 'Slag Sweep' }, c)?.id).toBe('sweepWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'slagSweep', name: 'Slag Sweep' }, c)?.id).toBe('slagSweep');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'wheel', name: 'Wheel' }, c)?.id).toBe('wheelWarn');
+    // Wheel's end is the wheel event plus the Sweep wind-up on the same tick, so its own castDone stays quiet.
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'wheel', name: 'Wheel' }, c)).toBeNull();
+    expect(cueFor({ type: 'castStart', index: 0, id: 'pourOut', name: 'Pour Out' }, c)?.id).toBe('pourOutWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'pourOut', name: 'Pour Out' }, c)?.id).toBe('pourOut');
+    expect(cueFor({ type: 'wheel', hero: 0 }, c)?.id).toBe('wheelOnMe');
+    expect(cueFor({ type: 'wheel', hero: 2 }, c)).toBeNull();
+    expect(cueFor({ type: 'meltPulse', n: 1 }, c)?.vol).toBeCloseTo(0.73);
+    expect(cueFor({ type: 'meltPulse', n: 40 }, c)?.vol).toBe(1.3);
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseWheel');
+    expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseMeltdown');
+    for (const id of ['sweepWarn', 'wheelWarn', 'pourOutWarn', 'wheelOnMe', 'phaseWheel', 'phaseMeltdown'] as const) expect(PRIORITY.has(id), id).toBe(true);
+    // Front and back: only this screen's own hits on him, and only while the plate holds (colossusCue unset in phase 3).
+    const hit = (hero: number | undefined, x = 100, y = 50) => ({ type: 'hit' as const, x, y, amount: 10, crit: false, hero });
+    const at = (side: number) => ({ ...c, colossus: { x: 100, y: 50, side } });
+    expect(cueFor(hit(0), at(0.5))?.id).toBe('plateHit');
+    expect(cueFor(hit(0), at(1.5))?.id).toBe('backHit');
+    expect(cueFor(hit(0), at(1))?.id).toBe('hit');
+    expect(cueFor(hit(1), at(1.5))?.id).toBe('hit');
+    expect(cueFor(hit(0, 300, 50), at(1.5))?.id).toBe('hit');
+    expect(cueFor(hit(0), c)?.id).toBe('hit');
+    // Pour Out's wind-up fits inside its 5 s cast.
+    expect(recipeLength(SOUNDS.pourOutWarn)).toBeLessThan(5);
+  });
+
+  it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
+    const w = new World({ seed: 3, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    const heard = new Set<string>();
+    let phase3Side = false;
+    while (w.state !== 'ended' && w.time < 900) {
+      if (w.state === 'draft') {
+        const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
+        w.use(h);
+        const pick = botChoose(w);
+        w.use(0);
+        w.choose(pick, h);
+        continue;
+      }
+      const inputs = w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; });
+      w.step(inputs);
+      const col = colossusCue(w);
+      if (col && w.bossPhase >= 3) phase3Side = true;
+      for (const ev of w.events) {
+        const cue = cueFor(ev, { cls: w.cls, acting: 0, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: col });
+        if (cue) heard.add(cue.id);
+      }
+    }
+    for (const id of ['sweepWarn', 'slagSweep', 'wheelWarn', 'phaseWheel', 'phaseMeltdown', 'meltPulse', 'backHit']) expect(heard.has(id), id).toBe(true);
+    expect(phase3Side).toBe(false);
+  }, 60_000);
 
   it('gives the Anvil Slagbinder plated hits and each stance its own pick sound', () => {
     const anvil = { cls: 'slagbinder' as const, acting: 0, stance: 'anvil' };
@@ -322,6 +378,18 @@ describe('audio', () => {
     for (const v of Object.values(PHASE_STING)) for (const id of [v].flat()) expect(SOUNDS[id], id).toBeDefined();
   });
 
+  it('chimes the same for every season\'s glow and trail unlocks, Seasons 7 and 8 included (Z4)', () => {
+    const base = { heroXp: 0, items: [], levelsGained: 0 };
+    expect(SEASONS.slice(6).map((d) => d.trail.id)).toEqual(['emberCrumbs', 'plateShards']);
+    for (let id = 0; id < SEASONS.length; id++) {
+      const looks = seasonRewards(id).filter((r) => r.kind === 'glow' || r.kind === 'trail');
+      // Three glows and three trail stages a season (SEASON.trailAt).
+      expect(looks.filter((r) => r.kind === 'glow').length, `season ${id + 1}`).toBe(SEASONS[id].glows.length);
+      expect(looks.filter((r) => r.kind === 'trail').length, `season ${id + 1}`).toBe(SEASON.trailAt.length);
+      for (const r of looks) expect(rewardCues({ ...base, seasonRewards: [r] } as never).map((c) => c.id), `season ${id + 1} ${r.kind}`).toEqual(['unlock']);
+    }
+  });
+
   it('chimes for what a run unlocked, after the end sting, at most three times', () => {
     expect(rewardCues(undefined)).toEqual([]);
     const base = { heroXp: 0, items: [], levelsGained: 0 } as never;
@@ -441,16 +509,20 @@ describe('season hub themes', () => {
     expect(hubThemeFor(2, SEASONS.length)).toBe('hubHearth');
     expect(THEMES.hubHearth.bed).toBe('frost');
     expect(THEMES.hubHearth.coal).toBe(true);
-    // Seasons 4 to 6 take their featured dungeon's bed: the Glarewell's shimmer, the Pressworks' press, the Wrackline's surf.
-    expect(SEASONS.slice(3).map((d) => d.name)).toEqual(['the Slag Moon', 'the Falling Press', 'the Low Ebb']);
-    expect([3, 4, 5].map((i) => THEMES[hubThemeFor(i, SEASONS.length)].bed)).toEqual(['shimmer', 'press', 'surf']);
+    // Seasons 4 to 8 take their featured dungeon's bed: the Glarewell's shimmer, the Pressworks' press, the Wrackline's surf, the Hoard's chew, the Smeltery's stride.
+    expect(SEASONS.slice(3).map((d) => d.name)).toEqual(['the Slag Moon', 'the Falling Press', 'the Low Ebb', 'the Long Hunger', 'the Cracked Plate']);
+    expect([3, 4, 5, 6, 7].map((i) => THEMES[hubThemeFor(i, SEASONS.length)].bed)).toEqual(['shimmer', 'press', 'surf', 'chew', 'stride']);
     // Every season has its own hub theme.
     expect(new Set(SEASONS.map((_, i) => hubThemeFor(i, SEASONS.length))).size).toBe(SEASONS.length);
     // Season 2 starts on week 2974 (docs/design/season.md).
     expect(hubThemeFor(seasonOf(SEASON_START_WEEK + SEASON.weeks), SEASONS.length)).toBe('hubBellows');
   });
   it('wraps with the season rotation and falls back to the plain hub', () => {
-    expect(HUB_BY_SEASON.length).toBeLessThanOrEqual(SEASONS.length);
+    // Seasons 7 and 8 (Y10, Y11) take the Hoard's chew and the Smeltery's stride; entries past SEASONS wait for their season.
+    expect(HUB_BY_SEASON.slice(6)).toEqual(['hubHunger', 'hubPlate']);
+    expect([THEMES.hubHunger.bed, THEMES.hubPlate.bed]).toEqual([THEMES.hoard.bed, THEMES.smeltery.bed]);
+    expect(new Set(HUB_BY_SEASON).size).toBe(HUB_BY_SEASON.length);
+    for (const id of HUB_BY_SEASON) if (id) expect(THEMES[id], id).toBeDefined();
     expect(hubThemeFor(SEASONS.length + 1, SEASONS.length)).toBe('hubBellows');
     expect(hubThemeFor(-1, SEASONS.length)).toBe(HUB_BY_SEASON[SEASONS.length - 1] ?? 'hub');
     for (let i = 0; i < SEASONS.length; i++) expect(THEMES[hubThemeFor(i, SEASONS.length)]).toBeDefined();
