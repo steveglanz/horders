@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, edgeCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -89,6 +89,7 @@ class AudioEngine {
   private spending = { on: false };
   private islanding = { t: [] as number[] };
   private edging = { next: 0 };
+  private duckGain = 1;
   private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
   private bellyState: BellyState = { on: false, next: 0 };
@@ -288,7 +289,7 @@ class AudioEngine {
     }
     node.connect(DRY.has(id) ? this.dry : priority ? this.sfxBus : this.fxBus);
     this.voices++;
-    if (priority) this.duck(now, src.buffer.duration);
+    if (priority) this.duck(now, src.buffer.duration, DEEP_DUCK[id] ?? DUCK.gain);
     else this.ordinary.push(src);
     src.onended = () => {
       this.voices--;
@@ -302,9 +303,12 @@ class AudioEngine {
   }
 
   /** Pulls ordinary sounds (and a little of the music) down while a priority cue plays, so it reads on a phone. */
-  private duck(now: number, dur: number): void {
+  private duck(now: number, dur: number, gain: number = DUCK.gain): void {
     const until = Math.max(this.duckUntil, now + Math.min(DUCK.max, dur));
-    for (const [g, to] of [[this.fxBus.gain, DUCK.gain], [this.musicDuck.gain, DUCK.music]] as const) {
+    // A deeper duck still running (DEEP_DUCK) is not raised by a shallower one that starts under it.
+    const fx = this.duckUntil > now ? Math.min(gain, this.duckGain) : gain;
+    this.duckGain = fx;
+    for (const [g, to] of [[this.fxBus.gain, fx], [this.musicDuck.gain, DUCK.music]] as const) {
       g.cancelScheduledValues(now);
       g.setTargetAtTime(to, now, DUCK.attack / 3);
       g.setTargetAtTime(1, until, DUCK.release / 3);
