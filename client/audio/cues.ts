@@ -409,12 +409,17 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'dodge': return { id: 'dodged' };
     case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
     // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
-    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: 'heatSting' } : null;
+    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: HEAT_STING[c.dungeon ?? ''] ?? 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
 }
+
+/** Today's Heat sting in each solo dungeon (Phase 14 X1): the Kiln's figure over that dungeon's own texture. */
+export const HEAT_STING: Record<string, SoundId> = {
+  kiln: 'heatSting', foundry: 'heatFoundry', glarewell: 'heatGlarewell', coldmarrow: 'heatColdmarrow', wrackline: 'heatWrackline',
+};
 
 /** Heats that change the floor, so every fight's layout event already plays a sting. */
 export const FLOOR_HEATS: ReadonlySet<string> = new Set(['stoneFloor', 'ventFloor']);

@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
-import { DUNGEON_IDS } from '../sim/content/dungeon';
+import { DUNGEON_IDS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
+import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -721,6 +722,40 @@ describe('audio', () => {
       }
       expect(seen.some((s) => s === 'layout:pillars' || s === 'layout:vents'), `${heat}: ${seen.join(',')}`).toBe(true);
     }
+  });
+
+  it('gives Today\'s Heat its own sting in every solo dungeon, the same figure at the same level (Phase 14 X1)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0, heat: 'richHaul' };
+    const first = { type: 'encounterStart', index: 0, id: 'pack' } as never;
+    const base = phoneDb(render(SOUNDS.heatSting, 22050), 22050);
+    for (const d of SOLO_DUNGEON_IDS) {
+      const id = cueFor(first, { ...c, dungeon: d })?.id;
+      expect(id, d).toBe(HEAT_STING[d]);
+      expect(recipeLength(SOUNDS[id!]), d).toBeLessThan(1);
+      expect(Math.abs(phoneDb(render(SOUNDS[id!], 22050), 22050) - base), d).toBeLessThan(1.5);
+    }
+    expect(new Set(Object.values(HEAT_STING)).size).toBe(Object.keys(HEAT_STING).length);
+    // Anywhere else (a group dungeon, if X1 ever reaches one) falls back to the Kiln's.
+    expect(cueFor(first, { ...c, dungeon: 'hammerdeep' })?.id).toBe('heatSting');
+  });
+
+  it('lists exactly the Heats that lay a floor in FLOOR_HEATS, so no Heat stings twice or goes silent (Phase 14 X1)', () => {
+    let checked = 0;
+    for (const heat of HEAT_IDS) {
+      const d = SOLO_DUNGEON_IDS.find((id) => heatApplies(id, 1));
+      expect(d, heat).toBeDefined();
+      const w = new World({ seed: 5, dungeon: d!, tier: 1, omens: [], cls: 'emberwright', heat });
+      if (w.heat !== heat) continue; // a Heat of another dungeon's own; X1 will say which
+      const seen: string[] = [];
+      for (let k = 0; k < 120 && !seen.includes('encounterStart'); k++) {
+        if (k) w.step({ mx: 0, my: 0 } as never);
+        for (const ev of w.events) seen.push(ev.type === 'layout' ? `layout:${ev.id}` : ev.type);
+      }
+      const laysFloor = seen.some((x) => x === 'layout:pillars' || x === 'layout:vents' || x === 'layout:channel');
+      expect(laysFloor, heat).toBe(FLOOR_HEATS.has(heat));
+      checked++;
+    }
+    expect(checked).toBeGreaterThanOrEqual(4);
   });
 
   it('has a case in cueFor for every SimEvent type, so a new event is never silent by accident', () => {

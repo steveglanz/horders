@@ -221,6 +221,21 @@ Steve, 22 Nov: "the environments need better designs". Phases 11 and 12 gave the
 | E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ⏭ |
 | E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ✅ No class change needed: stones block movement only, every class is held up under 1% of its moving time on pillars, trash fights are no longer or deadlier (skills.md, "Raid trash floors") |
 
+### Phase 14: runs that surprise (planned by game design, 22 Nov 2026)
+Steve, 22 Nov: "People aren't going to want to play the same dungeon multiple times with no changes." Phases 11 to 13 made the route, the floor and the boss version change from run to run. A run still has one shape from the first fight to the boss: once a layout or a named foe is rolled, nothing new happens inside the fight. Phase 14 adds changes that happen during a run, and lets the player see what this run rolled. Every roll stays hashed from the seed (and Today's Heat from the day), so co-op and the server agree.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| X1 | **Today's Heat everywhere solo:** the daily Heat (heatFor, content/heat.ts) reaches every solo dungeon, not only the Kiln tiers 1 to 2, with one or two heats of each dungeon's own | design | ⏭ Measured against the solo band on 320 seeds per dungeon; never on the first delve, a bounty or a key run (as now) |
+| X2 | **Marked foes:** one named foe per run gets a seeded mark (for example faster, shielded, or splits on death), shown on its name plate | design | ⏭ Every mark name searched for a WoW match first; the named fight stays in its band with each mark forced |
+| X3 | **Arena events:** each dungeon has one or two mid-fight events in trash fights (a cave-in that drops new stones, a vent surge, a flood line), never in the boss fight | design | ⏭ Seeded per encounter like layouts; at most one event per fight |
+| X4 | **This run's shape:** the run summary (and the dungeon card for co-op) lists what this run rolled: route, floors, mark, events, boss version, Heat | engineering | ⏭ After X1 to X3 ids. Engineering also runs the next big deploy (about 03:40Z) after QA's final pass |
+| X5 | **Class check:** each class's answer to every mark and event; talents that answer them if a class falls out of the band | skills | ⏭ After X2/X3 |
+| X6 | **Art** for marks (a name-plate badge and a foe tint), each event's warning and effect, and the run-shape chips, in the current lit 2D style | visuals | ⏭ After X2 to X4 ids |
+| X7 | **Sound:** a cue for each mark when its foe appears and for each event's warning and landing, each dungeon's events with their own sound | sound | ⏭ After X2/X3 ids |
+| X8 | **QA:** contentcheck plays every mark and event (0 stuck); variety.ts counts the distinct run shapes per dungeon | QA | ⏭ |
+| X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ⏭ After X4/X6 |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
