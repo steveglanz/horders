@@ -3,7 +3,8 @@
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
 import { HEAT_IDS } from '../sim/content/heat';
-import { World, WorldOptions } from '../sim/world';
+import { World, WorldOptions, LayoutId } from '../sim/world';
+import type { DungeonId } from '../sim/content/dungeon';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import { existsSync, readFileSync } from 'fs';
@@ -98,12 +99,42 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
   // A guest leaves while holding a Decree: nobody walks it on, so it must still burst or fade.
   flue('flue drop holding a Decree', 'bulwark', ['lumen', 'duskblade', 'emberwright'], (w) => w.regentDecree.find((d) => d.hero > 0)?.hero ?? -1);
 }
+// Phase 13 E1/E5: raid trash rolls stones and vents (never the boss fight). Layouts are hashed from the seed, so
+// for each raid pick the first RAID_LAYOUT_SEEDS seeds whose route has a pillars (or vents) trash fight, and play
+// them with four heroes: bots must path round the stones and through the flares with a full party.
+const RAID_LAYOUT_SEEDS = Number(process.env.RAID_LAYOUT_SEEDS ?? 4);
+const RAIDS: { dungeon: DungeonId; tier: number; worldBoss: string }[] = [
+  { dungeon: 'crucible', tier: 8, worldBoss: 'Grandmother Slag' },
+  { dungeon: 'hoard', tier: 9, worldBoss: 'Old Vorhulm' },
+  { dungeon: 'smeltery', tier: 10, worldBoss: 'The Cinder Colossus' },
+  { dungeon: 'flue', tier: 11, worldBoss: 'The Furnace Regent' },
+];
+const layoutSeeds = (r: (typeof RAIDS)[number], want: LayoutId) => {
+  const out: number[] = [];
+  for (let s = 1; out.length < RAID_LAYOUT_SEEDS && s < 500; s++) {
+    const w = new World({ seed: s, cls: 'bulwark', dungeon: r.dungeon, tier: r.tier, omens: [], party: [{ cls: 'lumen' }, { cls: 'duskblade' }, { cls: 'emberwright' }] });
+    if (w.route.some((id, k) => w.layoutAt(k, id) === want)) out.push(s);
+  }
+  return out;
+};
+const RAID_LAYOUT_CASES: [(typeof RAIDS)[number], LayoutId, number[]][] = RAIDS.flatMap((r) => (["pillars", "vents"] as LayoutId[]).map((want) => [r, want, layoutSeeds(r, want)] as [(typeof RAIDS)[number], LayoutId, number[]]));
+if (!only || RAIDS.some((r) => only.startsWith(r.dungeon))) for (const [r, want, s] of RAID_LAYOUT_CASES) console.log(`${r.dungeon} ${want} seeds ${s.join(",")}`);
+for (const [r, want, picked] of RAID_LAYOUT_CASES) for (const seed of picked) for (const skill of [1, 0.5]) {
+  const raid = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>
+    cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: r.dungeon, tier: r.tier, omens: [], worldBoss: r.worldBoss, party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+  raid(`${r.dungeon} ${want} four`, 'bulwark', ['lumen', 'duskblade', 'emberwright']);
+  raid(`${r.dungeon} ${want} no tank`, 'emberwright', ['lumen', 'duskblade', 'emberwright']);
+  // A guest leaves once the stones or vents are down: their idle hero stays on the floor for the rest of the run.
+  raid(`${r.dungeon} ${want} drop in the layout fight`, 'bulwark', ['lumen', 'duskblade', 'emberwright'], (w) => (w.phase === 'fight' && w.layout === want ? 3 : -1));
+}
 let stuck = 0, longest = 0, mostAlive = 0;
+const layoutFights: Record<string, number> = {};
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
 for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   const w = new World(c.opts);
   let maxAlive = 0;
   let gone = -1;
+  let lastEnc = -1;
   while (w.state !== 'ended' && w.time < 3000) {
     if (w.state === 'draft') {
       const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
@@ -113,6 +144,7 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
       w.choose(pick, h);
       continue;
     }
+    if (w.phase === 'fight' && w.encounter !== lastEnc) { lastEnc = w.encounter; if (w.layout !== 'open') layoutFights[w.layout] = (layoutFights[w.layout] ?? 0) + 1; }
     if (c.dropWhen && gone < 0) gone = c.dropWhen(w);
     const inputs = w.heroes.map((_, i) => { if (i === gone) return { x: 0, y: 0 }; w.use(i); const inp = botInput(w, c.skill); w.use(0); return inp; });
     w.step(inputs.length === 1 ? inputs[0] : inputs);
@@ -132,4 +164,5 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   mostAlive = Math.max(mostAlive, maxAlive);
 }
 for (const [k, t] of Object.entries(tally)) console.log(`${k}: ${t.wins}/${t.runs} wins, longest ${t.longest.toFixed(0)} s`);
+console.log(`layout fights played ${JSON.stringify(layoutFights)}`);
 console.log(`runs ${cases.filter((k) => !only || k.label.startsWith(only)).length}, stuck ${stuck}, longest ${longest.toFixed(0)} s, most foes alive ${mostAlive}`);
