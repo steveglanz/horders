@@ -392,6 +392,19 @@ export const SOUNDS = {
     { wave: 'tri', f: A5, dur: 0.22, delay: 2.1, vol: 0.35, curve: 1 },
   ],
   anvilfall: join(clang(196, 0.6, 1.2), boom(40, 1.1, 0.8)),
+  /** Ironload winds up (Ondrel's second version): chains rattle and an iron weight is hauled up overhead. */
+  ironloadWarn: join(
+    ...[0, 0.18, 0.34, 0.48, 0.6].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.06, delay: d, vol: 0.16 + k * 0.02, lp: 7000, hp: 1800, curve: 3 },
+      { wave: 'sine' as const, f: 1250 + k * 60, dur: 0.08, delay: d, vol: 0.05, curve: 3 }]),
+    [{ wave: 'saw', f: 70, f2: 140, dur: 1.4, vol: 0.18, a: 0.9, lp: 900, lp2: 2000, curve: 0.8 },
+      // The weight creaks up overhead, and the chains keep rattling under it: both sit in the phone band so a busy fight can't bury the wind-up.
+      { wave: 'square', f: 220, f2: 440, dur: 1.3, vol: 0.07, a: 0.6, lp: 2400, curve: 0.8 },
+      { wave: 'noise', f: 0, dur: 1.2, vol: 0.06, a: 0.4, lp: 6000, hp: 1600, curve: 1 }],
+  ),
+  /** Ironload is marked on a hero: one heavy chain clank as the weight swings into place (5 s to stack up under it). */
+  ironloadMark: join(clang(147, 0.4, 0.8), [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.2, lp: 6000, hp: 1500, curve: 3 }]),
+  /** Ironload lands: a crushing iron weight on everyone under it. Deeper and longer than a slam. */
+  ironload: join(clang(110, 0.55, 1.1), boom(35, 1.0, 0.85), [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.4, lp: 5000, hp: 800, curve: 3 }]),
   /** Choir of Iron: the party-wide pulse, a dissonant iron chord that thumps everyone. */
   choir: join(
     [note(-17), note(-11), note(-10)].flatMap((f) => [
@@ -851,6 +864,16 @@ export const SOUNDS = {
      { wave: 'sine', f: 330, f2: 440, dur: 0.4, vol: 0.12, a: 0.06, curve: 1.6 }],
     chime(E5 * 2, 0.08, 0.16, 0.5), chime(A5 * 2, 0.16, 0.14, 0.6),
   ),
+  /** The Hammerdeep's vents are forge vents: a bellows draw with a metal whine as the warning circle goes up. */
+  forgeVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.22, a: 0.9, lp: 800, lp2: 5000, hp: 350, curve: 0.8, trem: [4, 0.4] },
+     { wave: 'saw', f: 220, f2: 330, dur: 1.1, vol: 0.07, a: 0.8, lp: 2600, curve: 0.8, vib: [6, 0.01] }],
+  ),
+  /** The forge vent bursts: a roar of fire off an anvil ring. */
+  forgeFlare: join(clang(392, 0.25, 0.5), whoosh(1500, 6000, 0.45, 0.25), boom(60, 0.3, 0.25)),
+  /** The Hammerdeep's vents layout: two hammer strikes and a bellows breath. */
+  layoutForge: join(clang(523, 0.24, 0.35), clang(392, 0.24, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.2 })),
+    [{ wave: 'noise', f: 0, dur: 0.45, delay: 0.4, vol: 0.14, a: 0.2, lp: 4000, hp: 500, curve: 1.4 }]),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1150,6 +1173,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Hessa's Outsurge (Phase 12 W1): -26.9 and -29.2 dB alone; raised again to about 6.5 dB over the Wrackline mix (busycheck SEEDS=4,5).
   outsurgeWarn: 4.0,
   outsurgePull: 5.0,
+  // Ondrel's Ironload wind-up (Phase 12 W2) is a cast start: -33.5 dB alone and 1.0 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=13); now creaks and rattles in the phone band too.
+  ironloadWarn: 10.5,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

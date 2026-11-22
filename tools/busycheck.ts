@@ -122,7 +122,7 @@ for (const dungeon of dungeons) {
       });
       wearSet();
       w.step(inputs);
-      const ctx = { cls: w.cls, acting: w.acting, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge };
+      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge };
       for (const ev of w.events) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
