@@ -3565,6 +3565,42 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.strokeStyle = 'rgba(225,232,255,0.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx - 27, 33); ctx.lineTo(cx + 27, 33); ctx.stroke();
   });
 
+  // The Ashvents' arena edge: a fumarole, a squat cone of cracked basalt with lava glowing in its throat and seams, and
+  // a cairn of stacked basalt slabs with an ember smouldering on top. Their light is the warm coalLight.
+  make(scene, 'ashFumarole', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 58, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 58, by); ctx.quadraticCurveTo(cx - 40, by - 50, cx - 18, by - 92); ctx.lineTo(cx + 18, by - 92); ctx.quadraticCurveTo(cx + 40, by - 50, cx + 58, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 58, 0, cx + 58, 0);
+    g.addColorStop(0, '#5a4440'); g.addColorStop(0.4, '#3a2c2c'); g.addColorStop(1, '#1e1618');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Glowing seams down the cone.
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = '#ff7a3a'; ctx.shadowColor = '#ff5a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (const [x0, x1, x2] of [[-10, -22, -30], [8, 16, 30], [-2, 4, -6]]) { ctx.beginPath(); ctx.moveTo(cx + x0, by - 88); ctx.lineTo(cx + x1, by - 50); ctx.lineTo(cx + x2, by - 14); ctx.stroke(); }
+    ctx.restore();
+    // The throat.
+    ell(ctx, cx, by - 92, 18, 6);
+    const tg = ctx.createRadialGradient(cx, by - 92, 1, cx, by - 92, 18); tg.addColorStop(0, '#fff2b0'); tg.addColorStop(0.5, '#ff8a3a'); tg.addColorStop(1, '#7a1e08');
+    ctx.save(); ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 16; ctx.fillStyle = tg; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  make(scene, 'ashCairn', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 26, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const slab = (y: number, w: number, h: number, dx: number, c: string) => {
+      ctx.beginPath(); ctx.moveTo(cx - w + dx, y); ctx.lineTo(cx + w + dx, y); ctx.lineTo(cx + w - 4 + dx, y - h); ctx.lineTo(cx - w + 5 + dx, y - h); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    };
+    slab(86, 26, 16, 0, '#3a2e2e'); slab(70, 21, 14, 3, '#4a3a38'); slab(56, 16, 12, -2, '#3e3030');
+    // The ember on top.
+    softGlow(ctx, cx - 2, 40, 18, 'rgba(255,120,50,0.5)');
+    ell(ctx, cx - 2, 41, 8, 5); const eg = ctx.createRadialGradient(cx - 2, 40, 1, cx - 2, 41, 8); eg.addColorStop(0, '#ffe2a0'); eg.addColorStop(1, '#c8401a');
+    ctx.fillStyle = eg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
+  });
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
