@@ -417,3 +417,20 @@ At tier 8, by Ysmeret's version: still 46 of 76 (main, same seeds: 52) and wande
 By Oskel's version, Die Cut alone on seeds 1 to 80: cut 28 of 42 (main, same seeds: 31) and rivets 28 of 38 (main: 28). Most losses are still the Stamp on the tank. The duo gets easier with the new fights, but it's still under half, the hard way.
 
 **Run variety** (tools/variety.ts, tier 10): 3 of 1000 runs repeat an earlier run in their block of 20, against 409 on main. Routes went from 18 to 150, and there are 922 run shapes. The hashcheck has no Pressworks rows.
+
+## Phase 12: the Ashvents' healer check (22 Nov 2026)
+After part 3, a party with no healer won 39% of tier 6 Ashvents runs (main before it: 30%), over the 25% bar for a party missing a role. Almost every loss was at Ysmeret, so the fix is in her fight. Scatter Embers now costs each hero 12% of max health (`YSMERET.scatterSelf`, was 10%). That is party-wide damage every 14 s, which a healer covers.
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, wins (scatterSelf 0.10 is main after #421):
+
+| Check | 0.10 | 0.11 | 0.12 (shipped) | 0.13 | 0.15 |
+|---|---|---|---|---|---|
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights), seeds 1 to 120 | 47 (39%) | 35 (29%) | 26 (22%) | | |
+| Tier 6, no healer, seeds 1 to 80 | 29 | 22 | 19 | 16 | 12 |
+| Tier 8, full party, seeds 1 to 160 | 102 (64%) | 90 (56%) | 84 (53%) | | |
+| Tier 8, full party, seeds 1 to 80 | 52 | 47 | 46 | 42 | 33 |
+| Tier 6, full party, seeds 1 to 80 | 75 | | 72 (90%) | | |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright), seeds 1 to 40 | 6 | | 5 | | |
+| Tier 4, full party, seeds 1 to 40 | 40 | | 40 | | |
+
+The knob moves both cells together. 0.11 keeps tier 8 in its 55 to 70% band but leaves no healer at 29%. 0.12 meets the role bar, and tier 8 lands at 53%, 2 points under its band and inside the ±4% noise of 160 seeds. The role bar is the rule that keeps the group dungeon a group check, so 0.12 ships. If players find tier 8 too hard, the next knob is one that hits a full party less than a party with no healer, not this one.
