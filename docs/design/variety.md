@@ -482,3 +482,23 @@ The seed picks `bossVariant` for Old Vorhulm (its own salt, no run-rng draws):
 On seeds 1 to 80, he ate 290 embers or coals in the new runs against 185 on main, and the bots smothered most coals. Banked Coals is the harder version (60% against Ember Feast's 64%), and both are inside the band. The Hoard had been at the 70% ceiling, so this also brings it back under.
 
 **Run variety:** like the Crucible, the Hoard has 12 routes and now 24 run shapes. Widening raid fight pools is still a follow-up.
+
+## Phase 12 W3, part 3 (built 22 Nov 2026): the Cinder Colossus's Plate Shift
+The seed picks `bossVariant` for the Cinder Colossus (its own salt, no run-rng draws):
+- `wheel`: phase 2 is the Wheel, as before. He turns on the non-tank who hurt him most in the last 8 s and Slag Sweeps there.
+- `shift`: phase 2 is **Plate Shift**, on the Wheel's timer and 2 s cast. His body keeps facing the tank, but his plate slides round to face the non-tank who hurt him most, and it stays there until the next shift (`World.colPlate`, the plate's turn from his facing). No sweep comes with it. His open back moves with the plate, so the damage dealers who were behind him are now hitting plate (half damage) and have to walk round to find his back again. It is often where the tank stands.
+- The Wheel asks the tank to take him back. Plate Shift asks the damage dealers to keep reading where his back is.
+- `colossusSide` and `behindColossus` (the Platewalker set) both use the plate's angle, and so do the bots' flanking (`colossusFlank`) and the floor arcs that show his front and back. The banner says "Phase 2: Plate Shift". The cast id is `plateShift`, and it reuses the `wheel` event for the hero it turned to, so "it's on you" cues still play.
+- **Name:** "Plate Shift" had no WoW spell or zone match in a web search on 22 Nov 2026.
+
+Also in this PR: the `soak` event now carries the telegraph's `owner`, and GameScene skips the missed-soak blast and the "Brand missed!" text for Banked Coals (owner -4). Sound found this.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, tier 10, full party (Bulwark, Lumen, Duskblade, Emberwright), main → this change, seeds 1 to 160:
+
+| | main | This change |
+|---|---|---|
+| All seeds | 111 (69%) | 109 (68%, in the 55 to 70% band) |
+| Wheel seeds (73) | 48 | 48 |
+| Plate Shift seeds (87) | 63 | 61 |
+
+The two versions are about as hard. The bots find his back again, as players will have to.
