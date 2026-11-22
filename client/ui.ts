@@ -2,6 +2,7 @@
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
 import { World, BOSS_PHASES, BRIM, SUMMONS } from '../sim/world';
+import { runShape } from '../sim/runshape';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -849,6 +850,12 @@ export class Hud {
       // Six figures and up run past the box on a 320px phone, so those go compact (the hold tip has the full number).
       ['Damage', s.damageDealt >= 100_000 ? s.damageDealt.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 }) : s.damageDealt.toLocaleString(), s.damageDealt >= 100_000 ? `${s.damageDealt.toLocaleString()} damage` : ''],
     ].map(([k, v, tip]) => `<div${tip ? ` title="${tip}"` : ''}><b>${v}</b><span>${k}</span></div>`).join('');
+    const shape = runShape(w);
+    $('endShape').innerHTML = shape.map((c) => {
+      const [k, ...v] = c.label.split(': ');
+      return `<span class="shape" data-shape="${c.kind}">${k}: <b>${v.join(': ')}</b></span>`;
+    }).join('');
+    $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip));
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
       .map((id) => {
         const def = TALENTS[id];
