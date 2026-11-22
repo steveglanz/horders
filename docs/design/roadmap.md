@@ -204,10 +204,22 @@ Phase 11 gave the four early solo dungeons new fights, layouts and a second boss
 | W1 | **The Wrackline:** 4 new fights (3 openers, 1 named) from the Kiln's new foes in the water; raft currents rolled per fight; Hessa's second version, the **Outsurge** (from phase 2 the Ebb throws you out to a burning rim) | design | ✅ #406 |
 | W2 | **Group dungeons** (the Hammerdeep, the Ashvents, the Pressworks): their own new fights, pillars or vents layouts (no lava in group play), and a second version of Ondrel, Ysmeret and Oskel. Fix Ondrel's double-scaled Hammer Sweep and re-measure the Hammerdeep with it | design, skills | 🔨 Hammerdeep fights, layouts and Ondrel's **Ironload** ✅ #409; Hammer Sweep counts the tier once ✅ #411; the Ashvents' fights and Ysmeret's **Wandering Vents** ✅ #416 (layouts held back; healer check: Scatter Embers 10% → 12%); the Pressworks' fights, layouts and Oskel's **Die Cut** (part 4) |
 | W3 | **Raids:** a second version of Grandmother Slag, Old Vorhulm, the Cinder Colossus and the Furnace Regent | design | ✅ Grandmother Slag's **Brimming** #426 (with the Churn, part 4); Old Vorhulm's **Banked Coals** #429 (closer coals, part 4); the Colossus's **Plate Shift** #432; the Regent's **Summons** (part 4). Follow-ups: the Flue's double-scaled Ash Fall, and wider raid fight pools ([variety.md](variety.md)) |
-| W4 | **Art** for the Outsurge (water running outward), the currents, and W2 and W3 tells | visuals | Placeholders first |
+| W4 | **Art** for the Outsurge (water running outward), the currents, and W2 and W3 tells | visuals | ✅ W2: #418 (Wandering Vents), #422 (Die Cut); W3: #428 (Brimming), #430 (Banked Coals), #436 (Plate Shift), #450 (Summons) |
 | W5 | **Sound** for the Outsurge and the W2 and W3 casts | sound | ✅ Outsurge #407; Ironload and forge vents #412; Wandering Vents #417; Die Cut and steam-press vents #423; Brimming islands #427; Banked Coals #431; Plate Shift #435; Summons and a quiet Churn #449. Arena-edge ambience for every edge set #445. Every warning is at or above the phone floor and 6.0 to 9.3 dB over its fight's mix (busycheck) |
 | W6 | **Talents for the variety foes and layouts** (situational cards, offered only where the situation is still ahead in the run) | skills | ✅ #414: Vent-Fed, Read the Lane, Back to Stone, Reaching Light, Slag Wade, solo dungeons only; every card within noise for bots, tier 1 bands hold (docs/skills.md, "Site cards") |
-| W7 | **Raid class pass for the second boss versions:** as each W3 version lands (Grandmother Slag's Brimming first, then Vorhulm, the Colossus and the Regent), measure every standard party against the 55 to 70% band and check each class kit has an answer: melee reach and Lumen healing from the Brimming's islands, the Bellows Slagbinder rows, blade stacking (as Z5 and B6) | skills | ⏭ Waits on each W3 PR |
+| W7 | **Raid class pass for the second boss versions:** as each W3 version lands (Grandmother Slag's Brimming first, then Vorhulm, the Colossus and the Regent), measure every standard party against the 55 to 70% band and check each class kit has an answer: melee reach and Lumen healing from the Brimming's islands, the Bellows Slagbinder rows, blade stacking (as Z5 and B6) | skills | 🔨 Measured on all four (Brimming, Banked Coals, Plate Shift, Summons); design fixes in #446 and #458, the Summons walk-in #457. Open: the Anvil tank on Plate Shift |
+
+### Phase 13: arenas that change the fight (planned by game design, 22 Nov 2026)
+Steve, 22 Nov: "the environments need better designs". Phases 11 and 12 gave the solo and group dungeons layouts (stones, vents, a lava channel) that change how a fight plays. The raids and the Ashvents still fight on an open floor. Phase 13 brings layouts to them, measured against the same bands, and keeps every roll hashed from the seed.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| E1 | **Raid trash layouts:** stones or vents in a raid's openers and named fight, never in the boss fight (each boss has its own floor rules: islands, coals, his back, the throne) | design | 🔨 All four raids: open, open, pillars, vents (variety.md, Phase 13 E1); all in the band on 320 seeds |
+| E2 | **The Ashvents' layouts** (held back from W2 because they cost 11/80 with the new fights) and its full-party band (53% at tier 8, just under 55%) | design | ⏭ |
+| E3 | **Art** for raid-floor stones and vents (the Crucible's, the Hoard's, the Smeltery's and the Flue's own look) and the Ashvents' | visuals | ⏭ After E1/E2 ids |
+| E4 | **Sound** for raid-floor vents | sound | ⏭ A new event needs a cueFor case |
+| E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ⏭ |
+| E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ⏭ After E1 |
 
 ## R2. The Forge
 
