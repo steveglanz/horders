@@ -12,7 +12,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { BRIM, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 import type { DungeonId } from '../sim/content/dungeon';
@@ -566,6 +566,9 @@ describe('audio', () => {
     expect(withoutBankedSoaks(missed).map((e) => e.type)).toEqual(['heal', 'emberEaten']);
     const smothered = [{ type: 'soak', ok: true, x: 5, y: 5 }, { type: 'emberTaken', x: 5, y: 5 }] as SimEvent[];
     expect(withoutBankedSoaks(smothered).map((e) => e.type)).toEqual(['emberTaken']);
+    // The owner field says it outright (#432), with or without the ember event.
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -4 }] as SimEvent[])).toEqual([]);
+    expect(withoutBankedSoaks([{ type: 'soak', ok: false, x: 9, y: 9, owner: -2 }] as SimEvent[]).length).toBe(1);
     // Any other soak (no ember at its spot) keeps its cue.
     const other = [{ type: 'soak', ok: false, x: 1, y: 1 }, { type: 'emberTaken', x: 50, y: 50 }] as SimEvent[];
     expect(withoutBankedSoaks(other).map((e) => e.type)).toEqual(['soak', 'emberTaken']);
@@ -573,6 +576,18 @@ describe('audio', () => {
     const src = readFileSync('sim/world.ts', 'utf8');
     expect(src).toContain("if (ok) this.events.push({ type: 'emberTaken', x: t.x, y: t.y });");
     expect(src).toContain('else this.feedVorhulm(t.x, t.y);');
+  });
+
+  it('sets the Colossus\'s Plate Shift apart from the Wheel (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.plateShift).toEqual({ start: 'plateShiftWarn', done: 'plateLock' });
+    expect(PRIORITY.has('plateShiftWarn')).toBe(true);
+    expect(CAST_SOUNDS.plateShift.start).not.toBe(CAST_SOUNDS.wheel.start);
+    // The wind-up ends inside the 2 s cast (COLO.wheelCast).
+    expect(recipeLength(SOUNDS.plateShiftWarn)).toBeLessThanOrEqual(COLO.wheelCast);
+    expect(recipeLength(SOUNDS.plateLock)).toBeLessThan(3);
+    const smelt = { cls: 'duskblade' as const, acting: 1, dungeon: 'smeltery' };
+    expect(cueFor({ type: 'castDone', index: 0, id: 'plateShift' } as never, smelt)?.id).toBe('plateLock');
+    expect(cueFor({ type: 'wheel', hero: 1 } as never, smelt)?.id).toBe('wheelOnMe');
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {
