@@ -481,6 +481,11 @@ describe('audio', () => {
     expect(cueFor({ type: 'layout', id: 'vents' } as never, kiln)?.id).toBe('layoutVents');
   });
 
+  it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
+    expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
+    expect(PRIORITY.has('tideTurn')).toBe(true);
+  });
+
   it('stings Today\'s Heat once, with the first Kiln fight, unless its floor already sounds (V4/V6)', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     const first = { type: 'encounterStart', index: 0, id: 'pack' } as never;
