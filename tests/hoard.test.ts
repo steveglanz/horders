@@ -74,11 +74,13 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     expect(e.hp / e.maxHp).toBeCloseTo(0.7 + COAL.gorgeHeal, 3);
   });
 
-  it('Swallow takes the furthest non-tank, who is safe inside until the Craw breaks and spits them out shielded', () => {
+  it('Swallow takes the non-tank who has dealt the most damage, who is safe inside until the Craw breaks and spits them out shielded', () => {
     const { w, inner, b } = hoard();
     w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    w.heroes[0].player.x = 2000; // the Bulwark is furthest, but tanks are never swallowed
-    w.heroes[3].player.x = 300;
+    // The Bulwark has dealt the most, but tanks are never swallowed; distance no longer matters.
+    const dealt = [5000, 100, 200, 900];
+    dealt.forEach((d, k) => { (k === 0 ? (w as unknown as { damageDealt: number }) : w.heroes[k]).damageDealt = d; });
+    w.heroes[1].player.x = 2000;
     inner.swallowT = 0;
     inner.coalClock(0.01);
     expect(inner.swallowed).toBe(3);
@@ -108,7 +110,12 @@ describe('raid 2: Old Coalmouth in the Hoard (W2)', () => {
     const k = inner.swallowed;
     const craw = inner.crawIndex;
     expect(k).toBeGreaterThan(0);
-    for (let t = 0; t < COAL.swallowTime + 0.5; t += 0.1) inner.coalClock(0.1);
+    // The drain alone can't down them: just before the clock runs out they are still in there at 1 hp or more.
+    w.heroes[k].player.hp = 5;
+    for (let t = 0; t < COAL.swallowTime - 0.3; t += 0.1) inner.coalClock(0.1);
+    expect(w.heroes[k].player.hp).toBeGreaterThanOrEqual(1);
+    expect(inner.swallowed).toBe(k);
+    for (let t = 0; t < 0.8; t += 0.1) inner.coalClock(0.1);
     expect(w.heroes[k].player.hp).toBe(0);
     expect(w.enemies[craw].alive).toBe(false);
     expect(w.events).toContainEqual({ type: 'digested', hero: k });
