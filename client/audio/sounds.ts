@@ -733,6 +733,13 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.22, vol: 0.18, lp: 3500, lp2: 900, hp: 400, curve: 2 }],
     chime(E6, 0.12, 0.14, 0.25), chime(A5 * 2, 0.2, 0.14, 0.35),
   ),
+  /** Salvage all: a heavier break (a pile crumbles at once) and a run of embers pouring into the purse, about 0.9 s to sit under the purse animation. */
+  salvageAll: join(
+    boom(70, 0.35, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.24, lp: 3200, lp2: 700, hp: 350, curve: 1.8 },
+     { wave: 'noise', f: 0, dur: 0.05, delay: 0.02, vol: 0.2, lp: 7000, hp: 1500, curve: 3 }],
+    ...[E6, A5 * 2, C6 * 2, E6, G6, A5 * 2, C6 * 2].map((f, k) => chime(f, 0.16 + k * 0.07, 0.17 - k * 0.012, 0.25)),
+  ),
   /** Upgrade at the Forge: one ringing hammer strike on the anvil, with sparks. */
   forge: join(clang(880, 0.32, 0.6), [
     { wave: 'noise', f: 0, dur: 0.05, vol: 0.35, lp: 6000, hp: 1200, curve: 3 },

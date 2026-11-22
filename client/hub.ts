@@ -1042,7 +1042,7 @@ export class Hub {
     const body = `<div class="sa-sum"><b>${n} ${n === 1 ? 'item' : 'items'}</b><span class="sa-pay"><i class="coin"></i>+${plan.embers}</span></div>`
       + `<div class="igrid sa-grid">${items.map((it) => this.bagTile(it, false, false)).join('')}</div>`
       + `<div class="hint">Only spares no better than what you wear in that slot${plan.kept ? `. Keeps ${plan.kept} other ${plan.kept === 1 ? 'spare' : 'spares'}` : ''}. Never breaks equipped gear, set pieces, Epics, Mythics, class weapons, upgrades or gear for an empty slot.</div>`
-      + `<div class="sheet-acts"><button class="sbtn" data-sa-no data-sfx="back">Cancel</button><button class="sbtn eq sa-go" data-sa-go data-sfx="salvage">Salvage ${n} · +${plan.embers}</button></div>`;
+      + `<div class="sheet-acts"><button class="sbtn" data-sa-no data-sfx="back">Cancel</button><button class="sbtn eq sa-go" data-sa-go data-sfx="salvageAll">Salvage ${n} · +${plan.embers}</button></div>`;
     openSheet('Salvage all', body);
     const wornSets = setsWorn(h);
     $('sheetBody').querySelectorAll<HTMLElement>('[data-ti]').forEach((t) => {
