@@ -660,6 +660,12 @@ export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
  * (about -3 dB), for at most `max` seconds. tools/busycheck.ts measures what this buys on a phone.
  */
 export const DUCK = { gain: 0.5, music: 0.7, max: 2.5, attack: 0.03, release: 0.25 };
+/**
+ * A few warnings duck the ordinary sounds deeper than DUCK.gain. "You're down" lands on the same tick as the boss hit
+ * that downed you (busycheck WHO=selfDown: that landing is 50-70% of what is under it), so lifting it alone stopped
+ * paying (+2 dB bought about +1.3). A deeper duck clears the hit instead.
+ */
+export const DEEP_DUCK: Partial<Record<SoundId, number>> = { selfDown: 0.25 };
 
 /**
  * Minimum seconds between two plays of the same sound. Keeps a 40-enemy pile-up

@@ -568,7 +568,28 @@ export class Hud {
   private placeDing(): void {
     const d = $('ding');
     const b = $('banner');
-    d.style.top = b.classList.contains('show') ? `${Math.round(b.getBoundingClientRect().bottom + 16)}px` : '';
+    d.style.visibility = '';
+    if (!b.classList.contains('show')) { d.style.top = ''; return; }
+    const br = b.getBoundingClientRect();
+    let top = br.bottom + 16;
+    // Phones: the banner can sit just above the action bar (portrait with party frames, or a 4-line banner
+    // in landscape), and "Cleared!" below it landed on the Heat bar and ability buttons. Tuck it into the
+    // gap if there is one, otherwise put it above the banner. With no room either side the banner already
+    // says the next fight is on, so the ding sits this one out rather than covering the HUD.
+    const bar = $('actionbar');
+    if (!bar.hidden) {
+      const maxTop = bar.getBoundingClientRect().top - 8 - d.offsetHeight;
+      if (top > maxTop) {
+        if (maxTop >= br.bottom + 2) top = maxTop;
+        else {
+          top = br.top - 8 - d.offsetHeight;
+          const above = ['target', 'party', 'pauseBtn'].map((id) => $(id)).filter((e) => !e.hidden && e.getClientRects().length > 0)
+            .reduce((m, e) => Math.max(m, e.getBoundingClientRect().bottom), 0);
+          if (top < above + 4) d.style.visibility = 'hidden';
+        }
+      }
+    }
+    d.style.top = `${Math.round(top)}px`;
   }
 
   showDraft(w: World): void {

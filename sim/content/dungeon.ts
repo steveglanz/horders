@@ -194,25 +194,25 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   crucible: {
     id: 'crucible', name: 'The Crucible', boss: 'grandmotherSlag', unlockTier: 8,
-    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    openers: ['warpack', 'glass', 'crawlers', 'riftfall', 'glassSpitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: [],
     blurb: 'The raid. Four heroes face Grandmother Slag herself, and while she is the live world boss, every hit on her counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'Grandmother Slag',
   },
   hoard: {
     id: 'hoard', name: 'The Hoard', boss: 'vorhulm', unlockTier: 9,
-    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    openers: ['warpack', 'glass', 'crawlers', 'wardens', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: [],
     blurb: 'The second raid. Four heroes face Old Vorhulm in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'Old Vorhulm',
   },
   smeltery: {
     id: 'smeltery', name: 'The Smeltery', boss: 'colossus', unlockTier: 10,
-    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    openers: ['warpack', 'glass', 'crawlers', 'wardens'], named: ['anvilguard', 'bellwarden'], hard: [],
     blurb: 'The third raid. Four heroes face the Cinder Colossus. His front is plated, so the tank holds it and the rest work his back. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'The Cinder Colossus',
   },
   flue: {
     id: 'flue', name: 'The Flue', boss: 'regent', unlockTier: 11,
-    openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
+    openers: ['warpack', 'glass', 'crawlers', 'wardens'], named: ['anvilguard', 'bellwarden'], hard: [],
     blurb: 'The fourth raid. Four heroes face the Furnace Regent. Its Decree burns whoever holds it, so pass it on before it bursts. While it is the live world boss, every hit on it counts triple toward it.', style: 'group', minParty: 4, raid: true,
     worldBoss: 'The Furnace Regent',
   },
@@ -250,7 +250,8 @@ export function partyLabel(d: DungeonId, party: (string | { cls: string; stance?
   // A Slagbinder's role comes from its stance, so an Anvil Slagbinder fills the tank slot.
   const roles = party.map((m) => (typeof m === 'string' ? roleOf(m) : roleOf(m.cls, m.stance)));
   const missing = (['tank', 'healer'] as PartyRole[]).filter((r) => !roles.includes(r));
-  return { label: 'Group · tank + healer recommended', missing };
+  // Raids always take four heroes (botfill.ts); a tank and healer are still advice, not a lock.
+  return { label: DUNGEONS[d].raid ? 'Raid · 4 heroes · bring a tank + healer' : 'Group · tank + healer recommended', missing };
 }
 
 export const DUNGEON_IDS = Object.keys(DUNGEONS) as DungeonId[];
