@@ -818,6 +818,17 @@ export const SOUNDS = {
   ],
   /** A new island rises: a stone knock and a short steam breath as it breaks the surface. */
   islandRise: join(clang(262, 0.14, 0.3), [{ wave: 'noise', f: 0, dur: 0.3, delay: 0.05, vol: 0.1, a: 0.05, lp: 6000, hp: 1500, curve: 1.6 }]),
+  /** The Furnace Regent's Summons (court version, 2.5 s to come before the throne): a herald's two-note brass call,
+   *  rising, with a staff struck on stone under it. */
+  summonsWarn: join(horn(note(-5), 0.6, 0.4), horn(note(0), 0.9, 0.42).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+    clang(147, 0.2, 0.4), clang(147, 0.2, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 }))),
+  /** The Summons lands: judgement on all who did not come, a gavel-like boom with a court bell. */
+  summonsFall: join(boom(50, 0.6, 0.6), clang(233, 0.3, 0.9), chime(note(3), 0.05, 0.12, 0.8)),
+  /** The Brimming's Churn (harmless; on the Pour's timer): she stirs the pit, a slow deep bubbling. Ordinary, not a warning. */
+  churn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.12, a: 0.3, lp: 1400, hp: 400, curve: 1.2, trem: [4, 0.4] }],
+    ...[0.1, 0.35, 0.55, 0.8].map((d, k) => [{ wave: 'sine' as const, f: 300 + k * 50, f2: 600 + k * 60, dur: 0.08, delay: d, vol: 0.1, curve: 2 }]),
+  ),
   lavaSizzle: [
     { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
     { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
@@ -1293,6 +1304,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Old Vorhulm's Banked Coals (Phase 12 W3): 5.4 dB over the Hoard mix (heroes-r2 t8, SEEDS=1,2,7, n=32).
   bankWarn: 1.5,
   // The Colossus's Plate Shift (Phase 12 W3) is a cast start: -28.7 dB alone.
+  // The Regent's Summons call (Phase 12 W3) is a cast start: -27.1 dB alone.
+  summonsWarn: 3.5, // and 5.2 dB over the Flue mix at +2.0 (heroes-r2 t8, SEEDS=1-6, n=46)
   plateShiftWarn: 4.0, // and 5.7 dB over the Smeltery mix at +3.0 (heroes-r2 t8, SEEDS=1-6, n=14)
   haulWarn: 8.9,
   ladleWarn: 3.4,

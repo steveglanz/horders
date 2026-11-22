@@ -620,6 +620,21 @@ describe('audio', () => {
     expect(back.next).toBeLessThan(2 + EDGE.max + 0.001);
   });
 
+  it('sounds the Regent\'s Summons as a must-hear call, and the Brimming\'s Churn as a quiet stir (Phase 12 W3)', () => {
+    expect(CAST_SOUNDS.summons).toEqual({ start: 'summonsWarn', done: 'summonsFall' });
+    expect(PRIORITY.has('summonsWarn')).toBe(true);
+    // The call ends well inside the 2.5 s to come before the throne.
+    expect(recipeLength(SOUNDS.summonsWarn)).toBeLessThanOrEqual(1.8);
+    const flue = { cls: 'bulwark' as const, acting: 0, dungeon: 'flue' };
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'summons', name: 'Summons' } as never, flue)?.id).toBe('summonsFall');
+    const crucible = { ...flue, dungeon: 'crucible' };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'churn', name: 'Churn' } as never, crucible)?.id).toBe('churn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'churn', name: 'Churn' } as never, crucible)).toBeNull();
+    expect(PRIORITY.has('churn')).toBe(false);
+    expect(CAST_SOUNDS.churn).toBeUndefined();
+    for (const id of ['summonsFall', 'churn'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {
     expect(CAST_SOUNDS.glintfall).toEqual({ start: 'glintWarn', done: 'glintfall' });
     expect(recipeLength(SOUNDS.glintWarn)).toBeLessThanOrEqual(1.8);

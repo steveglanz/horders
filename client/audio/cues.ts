@@ -204,6 +204,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   wheel: { start: 'wheelWarn' }, // Wheel
   // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
   plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
+  // The Furnace Regent's court version: come before the throne in 2.5 s, or be struck (it lands with a slam r SUMMONS.radius).
+  summons: { start: 'summonsWarn', done: 'summonsFall' }, // Summons
   pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
   // The Flue (raid 4): the Furnace Regent. The Decrees sound from their own events (decree, decreePassed, decreeBurst).
   lastWord: { start: 'lastWordWarn', done: 'lastWord' }, // Last Word
@@ -351,6 +353,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castStart':
       // Ysmeret's Wandering Vents reuse the twinVents cast; only its name says the circles will move.
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
+      // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
+      if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
       return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
@@ -364,6 +368,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone':
       if (ev.id === 'wheel') return null;
+      if (ev.id === 'churn') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
     case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
