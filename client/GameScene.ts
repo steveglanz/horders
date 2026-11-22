@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { SUMMONS, BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -1303,6 +1303,10 @@ export class GameScene extends Phaser.Scene {
         case 'tideTurn':
           // V8: Maelra's Sluicetide changes course (visuals draw the current).
           this.hud.ding('The tide turns');
+          break;
+        case 'arenaEvent':
+          // Phase 14 X3: the warning gets a banner; the art (visuals' X6) shows where.
+          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip);
           break;
         case 'namedSpawn': {
           this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
