@@ -182,6 +182,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
+  ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -2641,6 +2642,7 @@ export class GameScene extends Phaser.Scene {
    * - The Kiln: brick furnaces and braziers, warm light, embers.
    * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
    * - The Hammerdeep: great anvils and miners' lanterns, a steady steel-white light.
+   * - The Ashvents: basalt fumaroles and ember cairns, warm light, sparks.
    */
   private edgeDraw(now: number): void {
     const w = this.world;
