@@ -42,6 +42,8 @@ export interface CueContext {
   sets?: SetFlags;
   /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
   swallowLeft?: number;
+  /** The Flue: this screen's hero is Spent (Player.spentT > 0) and can't take a Decree back yet. */
+  spent?: boolean;
   /** The Pressworks: this screen's hero is Pressed (Player.pressedT > 0) and must sit out the next Downstroke. */
   pressed?: boolean;
   /** Slagbinder: this screen's hero's stance ('anvil' tanks behind thick plate, 'bellows' deals damage). */
@@ -75,11 +77,13 @@ export interface SetFlags {
   freed: boolean;
   /** Platewalker (2): behind the Cinder Colossus (World.behindColossus), where the set's bonuses apply. */
   behind: boolean;
+  /** Handover (3): Spent after passing a Decree, which is when the set's +damage applies (Player.spentT). */
+  handover: boolean;
 }
 
 /** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
 export function setFlagsOf(
-  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number; freedT?: number },
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number; freedT?: number; spentT?: number },
   count: (id: SetId) => number,
   /** The Smeltery: this hero stands in the Colossus's back arc (World.behindColossus). */
   behind = false,
@@ -95,10 +99,11 @@ export function setFlagsOf(
     relayed: up && (p.relayT ?? 0) > 0,
     freed: up && (p.freedT ?? 0) > 0,
     behind: up && count('platewalker') >= 2 && behind,
+    handover: up && count('handover') >= 3 && (p.spentT ?? 0) > 0,
   };
 }
 
-const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed', freed: 'freed', behind: 'behindPlate' };
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed', freed: 'freed', behind: 'behindPlate', handover: 'handedOver' };
 
 /**
  * The set procs have no events of their own (they are states on the hero), so this sounds each one
@@ -168,6 +173,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
   pourOut: { start: 'pourOutWarn', done: 'pourOut' }, // Pour Out
+  // The Flue (raid 4): the Furnace Regent. The Decrees sound from their own events (decree, decreePassed, decreeBurst).
+  lastWord: { start: 'lastWordWarn', done: 'lastWord' }, // Last Word
 };
 
 /** Each boss's own phase-change sting. */
@@ -189,6 +196,8 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   coalmouth: ['phaseSwallow', 'phaseFeast'],
   // The Smeltery: [phase 2 Wheel, phase 3 Meltdown].
   colossus: ['phaseWheel', 'phaseMeltdown'],
+  // The Flue: [phase 2 Edict, phase 3 Abdication].
+  regent: ['phaseEdict', 'phaseAbdication'],
 };
 
 /** The sting for a boss reaching `phase` (2 or 3). */
@@ -317,6 +326,14 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
     case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
+    // The Flue: a Decree on you is the alarm (pass it on in 8 s); on an ally, only its stamp.
+    case 'decree': return mine(ev.hero) ? { id: 'decreeOnMe' } : { id: 'decreeLands', vol: 0.8 };
+    case 'decreePassed':
+      // Handed to you: the same alarm as a landing. Handed on by you, or faded on the pass: the handoff. Others: a quiet handoff.
+      if (!ev.done && ev.hero === c.acting) return { id: 'decreeOnMe' };
+      return ev.from === c.acting ? { id: 'decreePass' } : { id: 'decreePass', vol: 0.5 };
+    case 'decreeBurst': return { id: 'decreeBurst' };
+    case 'officePulse': return { id: 'officePulse', vol: Math.min(1.3, 0.7 + 0.03 * ev.n), jitter: 0.04 };
     case 'meltPulse': return { id: 'meltPulse', vol: Math.min(1.3, 0.7 + 0.03 * ev.n), jitter: 0.04 };
     case 'heal': return { id: 'heal', jitter: 0.05 };
     case 'ward': return { id: 'ward' };
@@ -446,7 +463,7 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

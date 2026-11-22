@@ -104,6 +104,18 @@
   .pfrev.spent { animation: revSpent 0.9s ease-out; }
   @keyframes revSpent { 0% { box-shadow: 0 0 0 0 rgba(159,232,168,0.9); transform: scale(1.06); } 100% { box-shadow: 0 0 0 10px rgba(159,232,168,0); transform: scale(1); } }
   .pf.reviving .pfn i { color: #9fe8a8; }
+  /* The Flue (raid 4): an ally holding a Decree glows ember and shows its seconds; a Spent ally shows Spent, dimmed. */
+  .pfd { flex: none; font-style: normal; font-size: 10px; font-weight: 700; line-height: 14px; padding: 0 5px 0 3px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; }
+  .pfd:empty { display: none; }
+  .pf.decree { border-color: rgba(255,138,61,0.85); box-shadow: 0 0 10px rgba(255,138,61,0.5); animation: decreePulse 0.9s ease-in-out infinite alternate; }
+  .pf.decree .pfd { color: #1a0d06; background: #ffa24a; }
+  .pf.decree .pfd::before { content: ''; width: 7px; height: 7px; border-radius: 50%; border: 2px solid #1a0d06; box-sizing: border-box; }
+  .pf.spent .pfd { color: #c9b8b0; background: rgba(255,255,255,0.1); text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+  .pf.spent .gtile { opacity: 0.55; }
+  /* The badge takes the role chip's place, so the name stays readable. */
+  .pf:is(.decree, .spent) .pfr { display: none; }
+  @keyframes decreePulse { from { box-shadow: 0 0 4px rgba(255,138,61,0.35); } to { box-shadow: 0 0 12px rgba(255,138,61,0.75); } }
+  @media (prefers-reduced-motion: reduce) { .pf.decree { animation: none; } }
   .pf.down .pfn i { display: inline; }
   #buffs { display: flex; gap: 5px; margin: 6px 0 0 48px; flex-wrap: wrap; }
   .buff { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid var(--bc, var(--line)); color: var(--bc, var(--ink)); white-space: nowrap; }
@@ -1234,7 +1246,7 @@
      says it); a downed ally's name gives way to Down / Reviving. While a boss, elite or the Craw is under the frames,
      they fade (#party.under, set by the HUD). */
   @media (max-width: 560px) and (orientation: portrait) {
-    #party { width: 130px; gap: 3px; transition: opacity 0.2s; }
+    #party { width: 136px; gap: 3px; transition: opacity 0.2s; }
     body.text-large #party { width: 152px; }
     .pf { padding: 2px 6px 2px 2px; gap: 5px; border-radius: 8px; }
     .pf .gtile { width: 16px; height: 16px; border-radius: 5px; }
@@ -1245,6 +1257,10 @@
     .pfn { flex: 0 1 auto; max-width: 64px; min-width: 0; font-size: 10px; }
     .pfn i { margin-left: 0; font-size: 9px; }
     .pf.down .pfn b { display: none; }
+    /* A Decree or Spent badge gets its room from the name, which ellipses. */
+    .pf:is(.decree, .spent) .pfn { max-width: 92px; }
+    .pf:is(.decree, .spent) .pfbar { min-width: 12px; }
+    .pfd { font-size: 9px; padding: 0 4px 0 2px; }
     .pfr { display: none; }
     .pfbar { flex: 1; min-width: 24px; height: 4px; margin-top: 0; }
     .pfrev { padding: 2px 6px 2px 2px; gap: 4px; font-size: 9px; border-radius: 8px; }

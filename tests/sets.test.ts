@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLD, COLD_FED_BY, World } from '../sim/world';
+import { COLD, COLD_FED_BY, REGENT, World } from '../sim/world';
 import { loadoutFrom } from '../sim/hero';
 import { Item } from '../sim/content/items';
 import { SETS, SET_TUNING, SetId, setForDungeon } from '../sim/content/sets';
@@ -40,10 +40,11 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('ashvents')).toBe('ventwalker');
     expect(setForDungeon('crucible')).toBe('kinbound');
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(11);
+    expect(Object.keys(SETS)).toHaveLength(12);
     expect(setForDungeon('hoard')).toBe('crawsplitter');
     expect(setForDungeon('smeltery')).toBe('platewalker');
     expect(setForDungeon('pressworks')).toBe('relay');
+    expect(setForDungeon('flue')).toBe('handover');
   });
 
   it('Kilnbreaker: an interrupt sharpens you at 2 pieces and exposes the foe at 3', () => {
@@ -283,6 +284,37 @@ describe('verb sets (R4)', () => {
     }
   });
 
+  it('Handover: a Decree you hold burns less (2); while Spent you deal more (3)', () => {
+    type Raid = { spawn(kind: string, x: number, y: number): number; setDamageMult(e: unknown, silent: boolean): number; regentClock(dt: number): void; bossIndex: number; decreeT: number; ashT: number };
+    const burnOf = (n: number) => {
+      const w = new World({ seed: 5, dungeon: 'flue', omens: [], cls: 'lumen', gear: gear('handover', n), party: [{ cls: 'bulwark' }, { cls: 'duskblade' }, { cls: 'emberwright' }] });
+      const q = w as unknown as Raid;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('regent', 0, 0);
+      q.bossIndex = b; q.decreeT = 999; q.ashT = 999;
+      w.heroes.forEach((h, k) => { h.player.x = 60 + k * 200; h.player.y = 0; });
+      w.heroes[3].player.x = w.heroes[0].player.x + 55; // near the holder (scorch 70) but out of reach of a hand-off (50)
+      w.heroes[3].player.spentT = 99;
+      w.regentDecree = [{ hero: 0, t: REGENT.decreeTime, passes: 0, held: 0 }];
+      q.regentClock(0.5);
+      const e = w.enemies[b];
+      w.player.spentT = 0;
+      const plain = q.setDamageMult(e, true);
+      w.player.spentT = 3;
+      const spent = q.setDamageMult(e, true);
+      const lost = (k: number) => 1 - w.heroes[k].player.hp / w.heroes[k].player.maxHp; // a share, since set pieces can change max health
+      return { holder: lost(0), near: lost(3), plain, spent };
+    };
+    const one = burnOf(1);
+    for (const n of [2, 3]) {
+      const r = burnOf(n);
+      expect(r.holder / one.holder).toBeCloseTo(1 - SET_TUNING.hoCut, 3);
+      expect(r.near / one.near).toBeCloseTo(1 - SET_TUNING.hoCut, 3);
+      expect(r.spent / r.plain).toBeCloseTo(n >= 3 ? 1 + SET_TUNING.hoDamage : 1, 5);
+    }
+    expect(one.spent).toBeCloseTo(one.plain, 5);
+  });
+
   it('a mid-run upgrade never takes off a piece of an active set bonus', () => {
     const better = (slot: Item['slot'], set?: SetId): Item => ({ ...piece(slot, set), id: `up-${slot}-${set ?? 'none'}`, stats: [{ stat: 'power', value: 40 }] });
     const pick = (w: World, it: Item) => (w as unknown as { pickUp(i: Item): void }).pickUp(it);
@@ -312,6 +344,9 @@ describe('verb sets (R4)', () => {
     const cs = SETS.crawsplitter.bonus;
     expect(cs[0]).toContain(`deal ${pct(SET_TUNING.csCraw)} more damage`);
     expect(cs[1]).toContain(`deal ${pct(SET_TUNING.csFreed)} more damage for ${SET_TUNING.csTime}s`);
+    const ho = SETS.handover.bonus;
+    expect(ho[0]).toContain(`${pct(SET_TUNING.hoCut)} less`);
+    expect(ho[1]).toContain(`deal ${pct(SET_TUNING.hoDamage)} more damage`);
     const pw = SETS.platewalker.bonus;
     expect(pw[0]).toContain(`take ${pct(SET_TUNING.pwCut)} less`);
     expect(pw[1]).toContain(`deal ${pct(SET_TUNING.pwDamage)} more`);
