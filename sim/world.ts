@@ -819,6 +819,8 @@ export class World {
   arenaR = ARENA;
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
+  /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
+  bossVariant: KilnVariant | '' = '';
   /** Standing stones: they block heroes and foes alike. */
   stones: { x: number; y: number; r: number }[] = [];
   /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
@@ -1735,6 +1737,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
+          this.bossVariant = this.rollKilnVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -1939,6 +1942,14 @@ export class World {
    * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
    * delve stay open.
    */
+  /** V3: which signature the Kiln Mother uses from phase 2, hashed from the seed (no run-rng draws). The first delve keeps Molten Cataclysm. */
+  private rollKilnVariant(): KilnVariant {
+    if (this.firstDelve || this.stress) return 'cataclysm';
+    let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
+    return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
   private rollLayout(id: EncounterId): void {
     this.stones = [];
     this.lava = [];
@@ -1987,7 +1998,7 @@ export class World {
         this.flareT = LAYOUT.ventEvery;
         const v = this.flareVents[this.flareK % this.flareVents.length];
         this.flareK++;
-        this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, LAYOUT.ventCast, LAYOUT.ventDamage * this.tierDamage, 'hit', -1);
+        this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, LAYOUT.ventCast, LAYOUT.ventDamage, 'hit', -1); // scaled by tier as it lands
         this.events.push({ type: 'ventFlare', x: v.x, y: v.y });
       }
     }
@@ -2052,6 +2063,7 @@ export class World {
       this.bossSpawned = true;
       this.bossIndex = this.spawnAtRing('kilnMother', 480);
       if (this.bossIndex >= 0) this.enemies[this.bossIndex].aux = 12; // first Molten Cataclysm
+      this.bossVariant = 'cataclysm';
       // Lesser named foes flee when the Kiln Mother rises, so the fight stays readable.
       for (let i = 0; i < this.enemies.length; i++) {
         const e = this.enemies[i];
@@ -4416,6 +4428,7 @@ export class World {
     const e = this.enemies[i];
     const p = this.player;
     if (e.castId) {
+      if (e.castId === 'kilnDraw') this.kilnDrawPull(i, dt);
       e.castT += dt;
       if (e.castT >= e.castDur) this.finishCast(i);
       return;
@@ -4564,6 +4577,12 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
+      if (phase >= 2 && this.bossVariant === 'draw') {
+        // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
+        this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
+        this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        return;
+      }
       this.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true);
       return;
     }
@@ -4595,6 +4614,21 @@ export class World {
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
       }
     }
+  }
+
+  /** Kiln Draw: each living hero slides toward the Kiln Mother while she breathes in, stopping at her edge. */
+  private kilnDrawPull(i: number, dt: number): void {
+    const e = this.enemies[i];
+    this.eachHero(() => {
+      const p = this.player;
+      const dx = e.x - p.x, dy = e.y - p.y;
+      const d = Math.hypot(dx, dy);
+      const room = d - e.def.radius - PLAYER_RADIUS;
+      if (room <= 0 || d > KILN_DRAW.reach) return;
+      const step = Math.min(room, KILN_DRAW.pull * dt);
+      p.x += (dx / d) * step;
+      p.y += (dy / d) * step;
+    });
   }
 
   private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false, forceCrit = false): void {
@@ -6859,6 +6893,12 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
+/** V3: the Kiln Mother's phase-2 signature this run. */
+export type KilnVariant = 'cataclysm' | 'draw';
+export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
+/** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
+export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
   lavaWidth: 70, lavaBurn: 0.08,
