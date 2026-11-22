@@ -17,7 +17,8 @@ export type EncounterId =
   | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
   | 'glassSpitters' | 'crawlerCharge'
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
-  | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers';
+  | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
+  | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -51,6 +52,11 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardenPack: { id: 'wardenPack', name: 'Warden and Rime Pack', tip: 'Kill the hounds to feed your coal, then crack the Warden inside its light.', spawns: [{ kind: 'frostWarden', n: 1 }, { kind: 'rimehound', n: 3 }] },
   weaverSnuffers: { id: 'weaverSnuffers', name: 'Weaver and Snuffers', tip: 'Step out of the Lace, but don\'t let the Snuffers touch you while you do.', spawns: [{ kind: 'hoarfrostWeaver', n: 1 }, { kind: 'snuffer', n: 2 }] },
   twoWeavers: { id: 'twoWeavers', name: 'The Two Weavers', tip: 'Two Weavers take turns with Frost Lace. Save a Quench for each.', spawns: [{ kind: 'hoarfrostWeaver', n: 2 }, { kind: 'rimehound', n: 2 }] },
+  // Phase 12 W1: the Wrackline's new fights mix the Kiln's new foes into the water.
+  quaySpitters: { id: 'quaySpitters', name: 'Spitters on the Quay', tip: 'They lob fire onto the rafts. Run them down between pulls, and keep moving.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'shoalLurker', n: 2 }] },
+  quayCharge: { id: 'quayCharge', name: 'Ashbucks on the Quay', tip: 'An Ashbuck charges down its lane: step aside, but not off your raft when the water pulls.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'shoalLurker', n: 1 }] },
+  shoalRift: { id: 'shoalRift', name: 'The Rift in the Wrack', tip: 'Break the Rift first. The water drags its Ashlings to the drain, so let the Ebb help.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spitters', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -97,6 +103,8 @@ export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the
 export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
+/** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
+export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water turns and throws you out to the rim: the rim burns, so stay on a raft.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
 export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';
 
@@ -152,7 +160,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   wrackline: {
     id: 'wrackline', name: 'The Wrackline', boss: 'hessa', unlockTier: 13,
-    openers: ['lurkers', 'haulers', 'wardenShoal'], named: ['twoHaulers', 'wardenShoal'], hard: ['haulerWarden', 'twoHaulers'],
+    openers: ['lurkers', 'haulers', 'wardenShoal', 'quaySpitters', 'quayCharge', 'shoalRift'], named: ['twoHaulers', 'wardenShoal', 'haulerSpitters'], hard: ['haulerWarden', 'twoHaulers'],
     blurb: 'A wrecked quay where the Ebb drags everything to the drain. Ride the rafts when the water pulls.', style: 'solo', minParty: 1,
   },
   hammerdeep: {
