@@ -915,6 +915,60 @@ export const SOUNDS = {
   /** The Pressworks' vents layout: a piston stroke down and back, and a valve letting go. */
   layoutPress: join(clang(294, 0.22, 0.35), clang(294, 0.2, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.28 })),
     [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.5, vol: 0.14, a: 0.05, lp: 7000, hp: 1200, curve: 1.6 }]),
+  // ---- arena-edge ambience (EDGE_SOUNDS in cues.ts): quiet one-shots from the props round each rim, between boss fights ----
+  /** The Kiln's brick furnace draws: a low roar swelling and falling. */
+  edgeFurnace: [{ wave: 'noise', f: 0, dur: 1.6, vol: 0.2, a: 0.6, lp: 700, lp2: 2200, hp: 350, curve: 1.2, trem: [6, 0.3] }],
+  /** A brazier crackles. */
+  edgeBrazier: join(...[0, 0.11, 0.19, 0.34, 0.41].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.18, lp: 7000, hp: 1800, curve: 3 }])),
+  /** The Foundry's boiler knocks twice and bubbles. */
+  edgeBoiler: join(clang(220, 0.16, 0.3), clang(208, 0.12, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    ...[0.5, 0.62, 0.7].map((d, k) => [{ wave: 'sine' as const, f: 420 + k * 60, f2: 700 + k * 70, dur: 0.05, delay: d, vol: 0.08, curve: 2 }])),
+  /** A valve lets off a thin hiss. */
+  edgeValve: [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.12, a: 0.15, lp: 9000, lp2: 5000, hp: 2500, curve: 1.4 }],
+  /** The Hammerdeep: a far anvil rings once. */
+  edgeAnvil: clang(392, 0.16, 1.2),
+  /** A miner's lantern creaks on its hook. */
+  edgeLantern: [{ wave: 'saw', f: 620, f2: 480, dur: 0.35, vol: 0.08, a: 0.05, lp: 2400, curve: 1.4, vib: [18, 0.03] },
+    { wave: 'saw', f: 560, f2: 700, dur: 0.3, delay: 0.45, vol: 0.065, a: 0.05, lp: 2400, curve: 1.4, vib: [18, 0.03] }],
+  /** The Ashvents: a fumarole huffs out. */
+  edgeFumarole: [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.15, a: 0.08, lp: 3500, lp2: 900, hp: 400, curve: 1.6 }],
+  /** An ember cairn spits a spark. */
+  edgeCairn: join([{ wave: 'noise', f: 0, dur: 0.04, vol: 0.18, lp: 8000, hp: 2500, curve: 3 }], [{ wave: 'sine', f: 1800, f2: 2600, dur: 0.12, delay: 0.03, vol: 0.05, curve: 2 }]),
+  /** The Wrackline: a wrecked hull creaks as the water moves it. */
+  edgeHull: [{ wave: 'saw', f: 180, f2: 140, dur: 1.2, vol: 0.08, a: 0.3, lp: 1400, curve: 1.2, vib: [9, 0.04] },
+    { wave: 'noise', f: 0, dur: 1.2, vol: 0.06, a: 0.4, lp: 2500, hp: 600, curve: 1.2 }],
+  /** A mooring-post lantern's chain clinks. */
+  edgePost: join(...[0, 0.16].map((d, k) => [{ wave: 'sine' as const, f: 2100 - k * 140, dur: 0.18, delay: d, vol: 0.06, curve: 3 }])),
+  /** The Pressworks: a far press stamps, then breathes out steam. */
+  edgePress: join(boom(60, 0.35, 0.22), [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.25, vol: 0.1, a: 0.05, lp: 7000, hp: 1500, curve: 1.6 }]),
+  /** A plate on the stack settles with a clink. */
+  edgePlate: clang(660, 0.1, 0.5),
+  /** The Hoard: a coin heap shifts and slides. */
+  edgeCoins: join(...[0, 0.07, 0.12, 0.2, 0.26, 0.37].map((d, k) => [{ wave: 'sine' as const, f: 3000 + ((k * 7) % 5) * 260, dur: 0.07, delay: d, vol: 0.07, curve: 4 }])),
+  /** An old challenger's bones settle. */
+  edgeBones: join(...[0, 0.09, 0.22].map((d, k) => [{ wave: 'tri' as const, f: 900 - k * 120, dur: 0.05, delay: d, vol: 0.12, lp: 3000, curve: 3 }])),
+  /** The Smeltery: an ore cart rolls a little on its rails. */
+  edgeCart: [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.16, a: 0.25, lp: 1800, hp: 400, curve: 1.2, trem: [14, 0.5] }],
+  /** A cooling ingot ticks. */
+  edgeIngot: join(...[0, 0.5].map((d) => [{ wave: 'sine' as const, f: 2600, dur: 0.06, delay: d, vol: 0.12, curve: 4 }])),
+  /** The Flue: wind draws up a brick flue, a hollow moan. */
+  edgeFlue: [{ wave: 'noise', f: 0, dur: 1.8, vol: 0.14, a: 0.7, lp: 900, lp2: 1500, hp: 500, curve: 1.1 },
+    { wave: 'sine', f: 330, f2: 349, dur: 1.6, vol: 0.04, a: 0.6, curve: 1.2 }],
+  /** A banner of office flaps. */
+  edgeBanner: join(...[0, 0.12, 0.22].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.07, delay: d, vol: 0.12, lp: 3500, hp: 700, curve: 2 }])),
+  /** The Glarewell: a cracked lens hums. */
+  edgeLens: [{ wave: 'sine', f: 1320, dur: 1.4, vol: 0.04, a: 0.5, curve: 1.2, trem: [3, 0.4] },
+    { wave: 'sine', f: 1980, dur: 1.4, vol: 0.02, a: 0.6, curve: 1.2 }],
+  /** Mirror shards tinkle. */
+  edgeShards: join(chime(C6 * 2, 0, 0.04, 0.3), chime(G6, 0.09, 0.04, 0.3), chime(E6 * 2, 0.17, 0.035, 0.3)),
+  /** The Coldmarrow: a frosted rib arch creaks with cold. */
+  edgeRib: [{ wave: 'saw', f: 400, f2: 320, dur: 0.8, vol: 0.08, a: 0.1, lp: 2200, curve: 1.3, vib: [24, 0.05] }],
+  /** Frost cracks on a frozen brazier. */
+  edgeFrost: join(...[0, 0.05, 0.13].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.2, lp: 9000, hp: 3500, curve: 3 }])),
+  /** The Crucible: a far ladle pours, a heavy liquid rush. */
+  edgeLadle: [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.14, a: 0.3, lp: 1600, lp2: 2600, hp: 350, curve: 1.2, trem: [8, 0.25] }],
+  /** A brimming slag pot blurps. */
+  edgeSlagPot: join(...[0, 0.18].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 90, f2: 520 + k * 120, dur: 0.09, delay: d, vol: 0.12, curve: 2 }])),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
