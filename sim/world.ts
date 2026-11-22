@@ -556,6 +556,9 @@ export type SimEvent =
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'slam'; x: number; y: number; r: number }
+  /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
+  | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'charge'; index: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -584,6 +587,8 @@ export type SimEvent =
   | { type: 'rareSpawn' }
   | { type: 'riftOpen'; x: number; y: number }
   | { type: 'riftClosed'; x: number; y: number }
+  /** V1: a Hollow Rift spat out `n` Ashlings. */
+  | { type: 'riftSpawn'; index: number; n: number }
   | { type: 'gather'; x: number; y: number }
   | { type: 'soak'; ok: boolean; x: number; y: number }
   | { type: 'drop'; x: number; y: number; rarity: Rarity }
@@ -1703,6 +1708,7 @@ export class World {
           e.aux = a;
           e.aux2 = lead;
         } else if (lead < 0) lead = i;
+        if (sp.kind === 'rift') this.events.push({ type: 'riftOpen', x: e.x, y: e.y }); // V1: the Kiln's Hollow Rift fight
         if (sp.kind === 'worldShadow') {
           this.bossIndex = i;
           this.shadowStart = this.time;
@@ -3965,6 +3971,17 @@ export class World {
       const d = Math.hypot(dx, dy) || 1;
       let mx = (dx / d) * speed;
       let my = (dy / d) * speed;
+      // V1: an Ember Spitter keeps its distance: it backs off when you close in and circles at range.
+      if (e.kind === 'emberSpitter') {
+        if (d < VARIETY.spitterNear) { mx = -mx; my = -my; }
+        else if (d < VARIETY.spitterFar) { const s = i % 2 ? 0.5 : -0.5; const tx = -my * s; my = mx * s; mx = tx; }
+      }
+      // V1: an Ashbuck mid-charge runs straight down its lane, fast, and doesn't steer.
+      if (e.kind === 'ashbuck' && e.aux2 > 0) {
+        e.aux2 -= dt;
+        mx = Math.cos(e.aux) * VARIETY.chargeSpeed;
+        my = Math.sin(e.aux) * VARIETY.chargeSpeed;
+      }
 
       // Separation so a group reads as separate foes, not a single blob.
       if (e.def.rank !== 'boss') {
@@ -4035,10 +4052,15 @@ export class World {
       e.abilityT -= dt;
       if (e.abilityT <= 0) {
         e.abilityT = 3;
-        for (let k = 0; k < 3; k++) {
+        // V1: in a dungeon fight a Rift keeps at most `riftCap` Ashlings out, so the swarm stays readable.
+        let out = 0;
+        if (!this.stress) for (const o of this.enemies) if (o.alive && o.kind === 'ashling') out++;
+        const n = Math.min(3, this.stress ? 3 : VARIETY.riftCap - out);
+        for (let k = 0; k < n; k++) {
           const a = this.rng.next() * Math.PI * 2;
           this.spawn('ashling', e.x + Math.cos(a) * 40, e.y + Math.sin(a) * 40);
         }
+        if (n > 0 && !this.stress) this.events.push({ type: 'riftSpawn', index: i, n });
       }
       return;
     }
@@ -4090,6 +4112,9 @@ export class World {
       const p = this.player;
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
+    } else if (id === 'charge') {
+      e.aux2 = VARIETY.chargeLen / VARIETY.chargeSpeed; // run the lane it showed
+      this.events.push({ type: 'charge', index: i });
     } else if (id === 'mirror') {
       e.aux2 = FOUNDRY.mirrorTime;
     } else if (id === 'rekindle') {
@@ -4311,6 +4336,27 @@ export class World {
       return;
     }
     e.abilityT -= dt;
+    if (e.kind === 'emberSpitter') {
+      // Ember Lob: a slow fire circle where you stand now. Keep moving, or close in on it.
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < VARIETY.lobRange ** 2) {
+        e.abilityT = VARIETY.lobEvery + this.rng.next() * 0.6;
+        this.startCast(i, 'emberLob', 'Ember Lob', VARIETY.lobCast, false);
+        this.addTelegraph('circle', p.x, p.y, VARIETY.lobRadius, 0, 0, VARIETY.lobLand, VARIETY.lobDamage, 'hit', i);
+        this.events.push({ type: 'spitLob', index: i, x1: e.x, y1: e.y, x2: p.x, y2: p.y });
+      }
+      return;
+    }
+    if (e.kind === 'ashbuck') {
+      // Charge: it lines up on you and runs the lane. Step out of the line, not away.
+      const dd = dist2(p.x, p.y, e.x, e.y);
+      if (e.abilityT <= 0 && e.aux2 <= 0 && dd > VARIETY.chargeMin ** 2 && dd < VARIETY.chargeLen ** 2) {
+        e.abilityT = VARIETY.chargeEvery;
+        e.aux = Math.atan2(p.y - e.y, p.x - e.x);
+        this.startCast(i, 'charge', 'Charge', VARIETY.chargeCast, false);
+        this.addTelegraph('cone', e.x, e.y, VARIETY.chargeLen, e.aux, VARIETY.chargeArc, VARIETY.chargeCast, VARIETY.chargeDamage, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'cinderBrute') {
       if (e.abilityT <= 0) {
         e.abilityT = 5;
@@ -6721,6 +6767,16 @@ export const GLARE = {
 };
 
 /** Drowned Foundry tuning. */
+/** V1 (variety, docs/design/variety.md): the Kiln's new foes. */
+export const VARIETY = {
+  /** Ember Spitter: backs off inside `spitterNear`, circles out to `spitterFar`; Ember Lob every `lobEvery` s within `lobRange`, a `lobRadius` circle that lands after `lobLand` s. */
+  spitterNear: 190, spitterFar: 290, lobRange: 440, lobEvery: 3.2, lobCast: 0.7, lobLand: 1.6, lobRadius: 70, lobDamage: 18,
+  /** Ashbuck: from `chargeMin` to `chargeLen` away it shows a lane (`chargeArc` wide cone) for `chargeCast` s, then runs it at `chargeSpeed`. */
+  chargeMin: 110, chargeLen: 360, chargeArc: 0.24, chargeCast: 1.0, chargeEvery: 5, chargeSpeed: 720, chargeDamage: 22,
+  /** Hollow Rift in a dungeon fight: Ashlings out at once. */
+  riftCap: 8,
+};
+
 export const FOUNDRY = {
   mirrorCast: 2,
   mirrorTime: 3,
@@ -6858,11 +6914,11 @@ export const SLAG = {
 export const REGENT = {
   phase2: 0.6, phase3: 0.25,
   /** Decree: every `decreeEvery` s (two at once in phase 2), on a non-tank. It burns its holder `decreeTick` of max health a second and anyone within `scorchRadius` `scorchTick`; after `decreeTime` s it bursts for `decreeBurst` of every hero's max health. */
-  decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.35,
+  decreeEvery: 20, firstDecree: 6, decreeTime: 8, decreeTick: 0.01, scorchRadius: 70, scorchTick: 0.02, decreeBurst: 0.5,
   /** Passing: touch (within `passRange`) a hero who can hold it, after it has `settle` s on you. The passer is Spent for `spentTime` s; after `decreePasses` passes it fades (`edictPasses` in phase 2). A tank can take one by hand. */
   passRange: 50, settle: 1, spentTime: 6, decreePasses: 2, edictPasses: 1,
   /** Ash Fall (phase 2): a circle under every hero. */
-  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 45,
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70,
   /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
   officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
   hardEnrage: 480, lastWordCast: 5,

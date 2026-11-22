@@ -725,6 +725,16 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // V1: a Hollow Rift keeps spitting Ashlings, so every hero works its way to it (the tip: break the Rift first).
+  // Melee heroes already reach it through bladeTarget; a ranged hero closes to orb range of it.
+  if (!melee) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'rift' || w.stress) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+      if (d > 170) { fx += ((e.x - p.x) / d) * 0.12 * skill; fy += ((e.y - p.y) / d) * 0.12 * skill; }
+      break;
+    }
+  }
   for (const e of w.enemies) {
     if (!e.alive || melee) continue;
     const dx = p.x - e.x;
