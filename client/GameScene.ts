@@ -1586,8 +1586,9 @@ export class GameScene extends Phaser.Scene {
       // Ondrel's iron is near black, so a full-strength screen flash washes it out: give it a softer one.
       // Old Vorhulm's coal is darker still and a raid hits him nearly every frame, so even the soft screen
       // flash left him grey all fight: his hits add a faint warm glow instead, as if the coal heats up. The Cinder
-      // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron.
-      if (e.flash > 0 && (e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
+      // Colossus is the same dark cinder, so he gets it too, and so does the Furnace Regent's black iron. Grandmother
+      // Slag's raid pot is dark iron too: the soft flash turned her flat beige a third of the fight (tools/slagflashshots.cjs).
+      if (e.flash > 0 && (e.kind === 'vorhulm' || e.kind === 'colossus' || e.kind === 'regent' || e.kind === 'grandmotherSlag')) s.setTint(0x1c0c04).setTintMode(Phaser.TintModes.ADD);
       else if (e.flash > 0) s.setTint(idleRank(e) ? (e.kind === 'ondrel' ? 0x3a2e26 : 0x6a5a4a) : 0xffffff).setTintMode(idleRank(e) ? Phaser.TintModes.SCREEN : Phaser.TintModes.FILL);
       else if (e.stunT > 0) s.setTint(0x8fd8ff).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
