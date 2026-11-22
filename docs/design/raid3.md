@@ -51,4 +51,18 @@ At 420 s the wins fell off a cliff between 18000 and 18500, because winning part
 
 Skill 0.7 bots win a little more than skill 1. The likely cause is that lower-skill bots dodge less and so stay behind him. I haven't checked this.
 
+**Re-centre with #342 (22 Nov 2026).** Skills' #342 lets ranged damage heroes keep their ring in Meltdown, which lifted the base party from 28 to 32 of 40 at 17750. One set of 40 seeds proved too noisy at this slope (at 18750: 21 on seeds 1 to 40, 33 on seeds 41 to 80), so the pick uses 120 seeds (heroes-r2 with skills' slagbinder files, t10, bot skill 1):
+
+| Colossus base hp | Seeds 1-40 | 41-80 | 81-120 | Total |
+|---|---|---|---|---|
+| 18500 | 29 | 33 | - | 62 of 80 (78%) |
+| 18750 | 21 | 33 | 24 | 78 of 120 (65%) |
+| **19000** | **24** | **30** | **18** | **72 of 120 (60%), chosen** |
+| 19750 | 15 | - | - | 15 of 40 |
+| 20500 | 10 | - | - | 10 of 40 |
+
+Every party at 19000, seeds 1 to 40 (18500 in brackets): base 24 (29), two Duskblades 33 (37), two Emberwrights 27 (31), Bellows for the Duskblade 17 (18), Bellows for the Emberwright 32 (32), Anvil tank 35 (34). Over the band at 19000: two Duskblades, a Bellows Slagbinder beside a Duskblade, and the Anvil tank. Under: the Bellows Slagbinder without a Duskblade. Those are class-side, for skills (Z5; skills traced the Slagbinder rows to ally Brittle and the Bellows party damage cut).
+
+**The Lumen heals the tank first in Meltdown (#347, skills, 22 Nov 2026).** In phase 3 a Lumen goes to a tank under 60% health before the lowest hero. Smeltery t10 at 19000, heroes-r2, seeds 1 to 40, before then after: base 24 to 25, two Duskblades 33 to 33, two Emberwrights 27 to 29, Bellows for the Duskblade 17 to 25, Bellows for the Emberwright 32 to 32, Anvil tank 35 to 29. The base party over 120 seeds: 25 + 31 + 22 = 78 of 120 (65%), so no re-centre. Still over the band: two Duskblades (36 on seeds 41 to 80) and a Bellows Slagbinder beside a Duskblade (37 on seeds 41 to 80).
+
 Placeholder art: until visuals' `colossusRaid` lands, he uses the X1 shadow sheet `colossus`. Sound's theme `smeltery` is already on main (#315).

@@ -763,20 +763,49 @@ Does every class and stance work the Cinder Colossus's open back? Measured at t1
 - Every non-tank hits his back: 93 to 98% of each hero's damage, for the Lumen, the Duskblade, the Emberwright and the Slagbinder (Bellows), in every party below, and with the Kindling, Wildfire, Bloodletting and Tempo branches forced. With `NOFLANK=1` it drops to 12 to 32% and the party wins 0 of 40.
 - **Bug fixed:** a burn or bleed ticks while the boss's target (the tank) is swapped in, so every tick was judged from the tank's spot in front of him, at half. Now each tick is judged from the hero who lit it (`Enemy.burnBy`). Only the Colossus reads it, so solo fingerprints and every other dungeon are unchanged. Test: `tests/smeltery-dots.test.ts`.
 
-| Party (t10, of 40) | Before | After the fix |
-|---|---|---|
-| Base (Bulwark, Lumen, Duskblade, Emberwright) | 26 | 28 |
-| Two Duskblades | 37 | 39 |
-| Two Emberwrights | 25 | 25 |
-| Bellows Slagbinder for the Duskblade | 18 | 19 |
-| Bellows Slagbinder for the Emberwright | 33 | not re-run |
-| Anvil Slagbinder tank | 22 | 22 |
-| Base, Emberwright forced to Kindling | 26 | 30 |
-| Base, Emberwright forced to Wildfire | 26 | 24 |
-| Base, Duskblade forced to Bloodletting | 27 | 29 |
-| Base, Duskblade forced to Tempo | 25 | not re-run |
+**Correction (22 Nov 2026):** the table that was here used heroes-fair, my scratch copy of heroes-r2 with a Slagbinder linked to the Duskblade's files. The design tables used heroes-r2, which had no Slagbinder, so `tools/group.ts` ran it with no gear, no passives and the default level. heroes-r2 now has a `slagbinder` folder (copies of the Duskblade's files, same item level), and `tools/group.ts` warns when a hero file is missing. Every number below uses that fair set.
 
-Losses are Meltdown wipes with the boss at 0 to 9%. Parties with two Duskblades and no Emberwright (two Duskblades, Bellows for the Emberwright) are over the 70% raid line; parties without a Duskblade are under 55%. That is a party-mix balance question for design, not a plate bug.
+| Party (wins of 40) | Hoard t9 | Smeltery t10, main | Smeltery t10, Meltdown ring fix |
+|---|---|---|---|
+| Base: Bulwark, Lumen, Duskblade, Emberwright | 26 | 28 | 32 |
+| Two Duskblades | 24 | 39 | 39 |
+| Two Emberwrights | 28 | 25 | 31 |
+| Bellows Slagbinder for the Duskblade | 33 | 19 | 21 |
+| Bellows Slagbinder for the Emberwright | 36 | 37 | 35 |
+| Anvil Slagbinder tank | 37 | 22 | 39 |
+
+The Hoard column is before design's COAL fix (#341), which changes it.
+
+### Meltdown: ranged damage heroes keep their ring
+
+All Smeltery losses are Meltdown wipes with the boss at 0 to 9%, so phase 3 is a damage race against growing pulses. Per hero, boss damage a second in phases 1, 2 and 3 (base party, 16 seeds):
+
+| Hero | Phase 1 | Phase 2 | Phase 3 |
+|---|---|---|---|
+| Duskblade | 258 | 265 | 218 |
+| Emberwright | 334 | 322 | 174 |
+| Lumen | 314 | 303 | 169 |
+
+His back takes x1.5 until Meltdown, so x1 in phase 3 should cost a third: the Emberwright should land near 223, but it fell to 174. Once `colossusFlank` stopped at Meltdown, the ranged bots drifted out of reach (they back off a boss inside 200 px and nothing brings them back). Now an Emberwright or a Slagbinder keeps its ring in phase 3 (any side does, since the plate is gone), and it deals 222. The blades and the Lumen still fight as usual. Keeping the Lumen on the ring too cost the two-Duskblade party 6 of 16 wins (16 to 10; I did not trace why). Test: `tests/smeltery-bot.test.ts`. Only Smeltery party runs change; solo fingerprints are identical.
+
+What's left at the Smeltery: two Duskblades 39 and the Anvil party 39 are over the band, and Bellows for the Duskblade (21) is under it. The base party moves from 28 to 32 with the fix, so COLO needs a re-centre after it (design).
+
+### Meltdown: the Lumen heals the tank first
+
+With the ring fix and the Colossus at 19000 health (design's re-centre), parties without a Duskblade still lost Meltdown on the tank. In phase 3 the Bulwark recovered only 0.12 of its health and died in 11 of 20 runs in the Bellows-for-Duskblade party, against 0.50 recovered and no deaths with two Duskblades (17750 health, 20 seeds). The Lumen bot follows the lowest hero, and in Meltdown the pulses keep everyone low, so it stayed on the back ring.
+
+Now, at the Smeltery in phase 3, a Lumen goes to the tank whenever the tank is under `MELT_TANK_FIRST` (0.6) of its health, and to the lowest hero otherwise. Smeltery t10, heroes-r2, 40 seeds, Colossus at 19000:
+
+| Party | Before | After |
+|---|---|---|
+| Base | 24 | 25 |
+| Two Duskblades | 33 | 33 |
+| Two Emberwrights | 27 | 29 |
+| Bellows Slagbinder for the Duskblade | 17 | 25 |
+| Bellows Slagbinder for the Emberwright | 32 | 32 |
+| Anvil Slagbinder tank | 35 | 29 |
+
+Before is design's table on #342. The rule only runs at the Smeltery, so every other dungeon and the solo fingerprints are unchanged. Test: `tests/smeltery-bot.test.ts`. Still over 70%: two Duskblades (33) and Bellows beside a Duskblade (32).
 
 ## Order of work
 
