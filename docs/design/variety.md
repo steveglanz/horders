@@ -116,7 +116,7 @@ All four keep tier 1 in band (novice 45 to 51%, good bot 75 to 79%). A forced pi
 
 ## Found on the way (for V7)
 - **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix.
-- **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons.
+- **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons. Done: see "The lava channel and the L7 check" at the end.
 
 ## V7 status (measured 22 Nov 2026): the Kiln
 **Run variety.** tools/variety.ts (new) counts run shapes: the route, each fight's layout and the Kiln Mother's version, all fixed by the seed. It looks at 50 blocks of 20 runs in a row (seeds 1 to 1000).
@@ -235,3 +235,47 @@ The two versions are about as hard. A Bulwark's fight runs longer with the tide 
 - **Run variety** (tier 10, now counting her version): 2 repeats in 1000 runs (was 306 before V8), with 866 run shapes.
 
 **V8 is done.** All four solo dungeons a player meets before the raids repeat at most 2 runs in 1000 within a block of 20, against 306 to 409 before Phase 11.
+
+## The lava channel and the L7 check (22 Nov 2026)
+Skills' L7 re-check after the variety pass (l7-lock.md) had the tier 1 good-bot Emberwright at 119 of 160 on the Kiln, 10.25 per 40 behind the Duskblade and Bulwark. That is just past the ±10 bar. Before V1 (38ae385) it was 135 of 160.
+
+**160 seeds is too few for this cell.** Measured with tools/balance.ts, good bot, tier 1, no gear:
+
+| Seeds | Before V1 (38ae385) | main 8e2c124 |
+|---|---|---|
+| 1 to 480 | 411 | 359 |
+| 481 to 960 | 386 | 372 |
+| 961 to 1440 | 382 | 373 |
+| All 1440, per 40 | **32.75** | **30.7** |
+
+Seeds 1 to 480 happened to be lucky for the old code. Over 1440 seeds, the variety pass costs about 2 per 40, not 4.
+
+**Where the 2 points go.** Seeds 1 to 480, main code with parts switched off. The Kiln Mother uses Molten Cataclysm only, so Kiln Draw plays no part:
+
+| | Wins |
+|---|---|
+| Old fight pools, open arenas | 411 (same as before V1) |
+| New fight pools, open arenas | 389 |
+| Old fight pools, layouts | 380 |
+
+So no other code change moved it. The heroes reach the Kiln Mother at the same level and full health, and with gear within 2 points of before.
+
+**The lava channel bug.** Of the 45 early deaths on main in 1440 runs, every one I traced was in a lava channel fight, nearly all with a Brute. A ranged bot backs away from a Brute. The old lava rule pushed it off the near bank with a fixed force, so it stood pinned on that bank and was beaten down.
+
+Lava burn has nothing to do with it: `LAYOUT.lavaBurn` 0 or 0.04 gives the same 119 of 160.
+
+A player would just cross, which costs about 3% health. Now a bot pressed against the bank crosses straight over. It only does this when the rest of its pull points across, at least 0.25 of the way, and is stronger than 0.02. Otherwise it keeps off the lava as before. The threshold was picked from 0 to 0.05 at 160 seeds.
+
+**After the fix** (1440 seeds, tier 1 Kiln, per 40):
+
+| Cell | main | With the fix |
+|---|---|---|
+| Good-bot Emberwright | 30.7 (45 early deaths) | **31.4** (9 early deaths) |
+| Novice Emberwright | 19.7 | 21.3 (53%, in the 40 to 65% band) |
+| Novice Duskblade | 14.2 (seeds 1 to 480 only) | 14.3 |
+
+At 160 seeds, the good-bot Duskblade and Bulwark win 159 or 160 of 160 both before and after. The good-bot gap is now about 8.6 and the novice gap about 7.0, both inside ±10. Melee heroes rarely back into the lava, so they barely move.
+
+I also tried a tier 1 spawn cut: one Spitter in Brute and Spitters, one Ashbuck in Warden and Ashbucks. It made no difference beyond noise, so I dropped it.
+
+The bot change only affects channel fights, which only the Kiln has. The hashcheck's Kiln rows move.

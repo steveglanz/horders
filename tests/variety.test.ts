@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
+import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
 import { HEAT_IDS, HEAT_TUNING, heatFor } from '../sim/content/heat';
@@ -130,6 +131,21 @@ describe('V2 variety: arena layouts', () => {
     q.layoutClock(0.01);
     expect(w.telegraphs.filter((t) => t.alive)).toHaveLength(1);
     expect(w.events).toContainEqual({ type: 'ventFlare', x: 200, y: 0 });
+  });
+
+  it('a bot pressed against the lava by a Brute crosses it, and otherwise keeps off it', () => {
+    const w = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    while (!(w.phase === 'fight' && w.enemies.some((e) => e.alive))) w.step(botInput(w));
+    for (const e of w.enemies) e.alive = false;
+    const q = w as unknown as { spawn(kind: string, x: number, y: number): number };
+    w.lava = [{ x1: 0, y1: -500, x2: 0, y2: 500, w: LAYOUT.lavaWidth }];
+    w.player.x = -(LAYOUT.lavaWidth / 2 + 20); w.player.y = 0;
+    const calm = botInput(w);
+    expect(calm.x).toBeLessThan(0);
+    const b = q.spawn('cinderBrute', -150, 0);
+    w.enemies[b].castId = '';
+    const pressed = botInput(w);
+    expect(pressed.x).toBeGreaterThan(0);
   });
 
   it('online co-op: a guest sees the same layout', () => {
