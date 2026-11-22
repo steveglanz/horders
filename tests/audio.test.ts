@@ -401,7 +401,15 @@ describe('audio', () => {
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'select' }))).toBe('select');
     expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': 'none' }))).toBeNull();
     expect(uiSoundFor(el(['div']))).toBeNull();
-    for (const id of ['salvage', 'forge', 'temper', 'brew']) expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': id }))).toBe(id);
+    for (const id of ['salvage', 'salvageAll', 'forge', 'temper', 'brew']) expect(uiSoundFor(el(['[data-sfx]', 'button'], { 'data-sfx': id }))).toBe(id);
+  });
+
+  it('makes Salvage all a heavier, longer break than one salvage that ends near the purse animation', () => {
+    const one = render(SOUNDS.salvage, RATE), all = render(SOUNDS.salvageAll, RATE);
+    const energy = (s: Float32Array) => s.reduce((t, v) => t + v * v, 0);
+    expect(energy(all)).toBeGreaterThan(energy(one) * 2);
+    expect(recipeLength(SOUNDS.salvageAll)).toBeGreaterThan(0.7);
+    expect(recipeLength(SOUNDS.salvageAll)).toBeLessThan(1.2);
   });
 
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {
