@@ -834,7 +834,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
   private islandN = 0;
@@ -920,6 +920,8 @@ export class World {
   colFacing = 0;
   /** Phase 12 W3 (Plate Shift): how far his plate's middle is turned from his facing, radians. 0 in the Wheel version. */
   colPlate = 0;
+  /** Phase 12 W3 (the Regent's Summons): seconds until the Summons lands, 0 when none is called. */
+  summonsT = 0;
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
   colDmg: number[] = [];
@@ -1866,6 +1868,8 @@ export class World {
           this.officePulses = 0;
           this.regentDecree = [];
           this.lastEmberCast = false;
+          this.summonsT = 0;
+          this.bossVariant = this.rollRegentVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'colossus') {
@@ -2017,6 +2021,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
     return SLAG_VARIANTS[(h >>> 4) % SLAG_VARIANTS.length];
+  }
+
+  /** Phase 12 W3: the Furnace Regent's version this run, hashed from the seed (no run-rng draws). */
+  private rollRegentVariant(): RegentVariant {
+    if (this.stress) return 'ash';
+    let h = Math.imul(this.seed ^ 0x5be0cd19, 0xcc9e2d51) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return REGENT_VARIANTS[(h >>> 4) % REGENT_VARIANTS.length];
   }
 
   /** Phase 12 W3: the Cinder Colossus's version this run, hashed from the seed (no run-rng draws). */
@@ -6100,7 +6112,12 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0 && this.bossVariant !== 'brim') {
+    } else if (phase === 2 && this.pourT <= 0 && this.bossVariant === 'brim') {
+      // The Brimming: she churns the pit on the Pour's timer and cast, with no lanes. It keeps the Pour's
+      // pause on the tank (skills' W7 trace: without it an Anvil Slagbinder tank won 4 of 32).
+      this.pourT = SLAG.pourEvery;
+      this.startCast(i, 'churn', 'Churn', SLAG.pourCast, false);
+    } else if (phase === 2 && this.pourT <= 0) {
       this.pourT = SLAG.pourEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const base = Math.atan2(tgt.y - e.y, tgt.x - e.x);
@@ -6169,10 +6186,29 @@ export class World {
         for (let n = 0; n < (phase === 2 ? 2 : 1); n++) this.landDecree();
       }
     }
+    if (this.summonsT > 0) {
+      this.summonsT -= dt;
+      if (this.summonsT <= 0) {
+        // The Summons lands: everyone not before the throne (within SUMMONS.radius of him) is struck.
+        this.summonsT = 0;
+        const at = this.acting;
+        this.eachHero(() => {
+          if (dist2(this.player.x, this.player.y, e.x, e.y) > (SUMMONS.radius + PLAYER_RADIUS * 0.5) ** 2) this.hurtPlayer(SUMMONS.damage * this.tierDamage, i);
+        });
+        this.use(at);
+        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'summons', name: 'Summons' });
+        this.events.push({ type: 'slam', x: e.x, y: e.y, r: SUMMONS.radius });
+      }
+    }
     if (phase === 2) {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
+        if (this.bossVariant === 'court') {
+          // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
+          this.summonsT = SUMMONS.warn;
+          this.events.push({ type: 'castStart', index: i, id: 'summons', name: 'Summons' });
+        }
         const dmg = REGENT.ashDamage * this.tierDamage;
         for (let k = 0; k < this.heroes.length; k++) {
           const q = this.heroPlayer(k);
@@ -7510,6 +7546,15 @@ export const WRACK = {
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
 /**
+ * Phase 12 W3: the Furnace Regent's two versions (his phase 2). `ash`: Ash Fall, a circle under every hero (step out).
+ * `court`: Summons, on Ash Fall's timer: after `warn` s, every hero farther than `radius` from him takes `damage`
+ * (scaled by tier). The party has to gather on him, where a Decree's scorch (REGENT.scorchRadius) catches anyone close
+ * to its holder, so holders stand at the edge and passes happen in the crowd.
+ */
+export type RegentVariant = 'ash' | 'court';
+export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court'];
+export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
+/**
  * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
  * `shift`: Plate Shift, on the Wheel's timer and cast: his plate slides round to face that hero instead, and stays
  * there (World.colPlate) while he keeps facing the tank, so his open back moves and the damage dealers have to find it again.
@@ -7524,7 +7569,7 @@ export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
  * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats
  * (COAL.emberHeal and COAL.emberDamage, as for an ember). No blast and no adds.
  */
-export const BANK = { count: 3, radius: 50, fuse: 4, near: 170, far: 260 };
+export const BANK = { count: 3, radius: 50, fuse: 4, near: 120, far: 170 };
 /** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
 export type SlagVariant = 'pour' | 'brim';
 export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];

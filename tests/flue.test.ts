@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { World, REGENT } from '../sim/world';
+import { World, REGENT, SUMMONS, REGENT_VARIANTS } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { applySnapshot, snapshot } from '../sim/netsync';
-import { decreePass } from '../sim/bot';
+import { decreePass, botInput } from '../sim/bot';
 
 type Inner = {
   use(i: number): void;
@@ -16,6 +16,9 @@ type Inner = {
   decreeT: number;
   ashT: number;
   officeT: number;
+  summonsT: number;
+  tierDamage: number;
+  rollRegentVariant(): string;
 };
 
 /** A Bulwark tank, a Lumen, a Duskblade and an Emberwright in the Flue with only the Regent up. */
@@ -189,5 +192,72 @@ describe('raid 4: the Furnace Regent in the Flue (B1)', () => {
     const g = flue().w;
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.regentDecree).toEqual([{ hero: 2, t: 3.5, passes: 1, held: 1 }]);
+  });
+});
+
+describe('Phase 12 W3: the Furnace Regent\'s Summons', () => {
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'flue', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      const b = new World({ seed, dungeon: 'flue', omens: [], cls: 'bulwark' }) as unknown as Inner;
+      expect(a.rollRegentVariant()).toBe(b.rollRegentVariant());
+      seen.add(a.rollRegentVariant());
+    }
+    expect([...seen].sort()).toEqual([...REGENT_VARIANTS].sort());
+  });
+
+  it('in court, Ash Fall comes with a Summons; when it lands only heroes outside the ring are struck', () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'court';
+    const e = w.enemies[b];
+    e.hp = e.maxHp * (REGENT.phase2 - 0.01);
+    inner.ashT = 0;
+    inner.regentClock(0.01);
+    expect(inner.summonsT).toBeCloseTo(SUMMONS.warn, 5);
+    expect(w.telegraphs.filter((t) => t.alive && t.owner === b && t.shape === 'circle')).toHaveLength(4);
+    // Hero 0 inside the ring, the rest well outside it. Clear the ash so only the Summons hurts.
+    for (const t of w.telegraphs) t.alive = false;
+    w.heroes[0].player.x = SUMMONS.radius - 20;
+    w.heroes.forEach((h, k) => { if (k) h.player.x = SUMMONS.radius + 150 + k * 10; });
+    const before = w.heroes.map((h) => h.player.hp);
+    inner.summonsT = 0.01;
+    inner.regentClock(0.02);
+    expect(inner.summonsT).toBe(0);
+    expect(w.heroes[0].player.hp).toBe(before[0]);
+    for (let k = 1; k < 4; k++) expect(w.heroes[k].player.hp).toBeLessThan(before[k]);
+  });
+
+  it('the other version calls no Summons', () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'ash';
+    w.enemies[b].hp = w.enemies[b].maxHp * (REGENT.phase2 - 0.01);
+    inner.ashT = 0;
+    inner.regentClock(0.01);
+    expect(inner.summonsT).toBe(0);
+  });
+
+  it('bots: step out of an ash circle first, then walk into the ring', () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'court';
+    inner.use(3);
+    const p = w.player;
+    p.x = 400; p.y = 0;
+    inner.summonsT = 2;
+    const go = botInput(w, 1);
+    expect(go.x).toBeLessThan(0); // toward the Regent at 0,0
+    // Standing in a live circle, the bot does not walk in yet.
+    (w as unknown as { addTelegraph(...a: unknown[]): void }).addTelegraph('circle', 370, 0, REGENT.ashRadius, 0, 0, REGENT.ashCast, 10, 'hit', b);
+    const out = botInput(w, 1);
+    expect(out.x).toBeGreaterThan(0); // out of the circle first, away from him
+    inner.use(0);
+  });
+
+  it('online co-op: a guest sees the Summons coming', () => {
+    const { w, inner } = flue();
+    inner.summonsT = 1.5;
+    const g = flue().w;
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect((g as unknown as Inner).summonsT).toBe(1.5);
   });
 });

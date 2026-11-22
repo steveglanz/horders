@@ -21,6 +21,8 @@ The Crucible tests tank swaps and soaks, the Hoard switching targets to save som
 | 3, Abdication | 25 to 0% | The Decrees stop. **Embers of Office** pulse party-wide fire every 3 s, growing each pulse (like Meltdown, but softer), so it's a damage race. | Burn it down. |
 | Hard enrage | 480 s after it appears | **Last Word**: a 5 s cast that can't be stopped, then 10× max health to every hero. | Kill it first. |
 
+**Phase 12 W3 (22 Nov 2026):** the Regent has a second version, `court`. In its Edict each Ash Fall comes with a **Summons**: come within 130 of him before it lands, 2.5 s later (variety.md, Phase 12 W3 part 4). Ash Fall here is scaled by tier twice (see there), which is left for a separate PR.
+
 **Targets** (as for the other raids): a real party in hero-t8-0 gear wins 55 to 70%, never more than 70%, on at least 80 seeds (40 proved too noisy in the Smeltery). Tier 11 with t8 gear may be out of reach (the Hoard won 0 of 40 at t10), so B1 measures at the tier where t8 gear can win and records it, or asks skills for hero-t10 files.
 
 **Bots** (sims only): the Decree holder walks to the nearest hero who isn't Spent and isn't already holding one, as soon as it lands; the tank never gets one from the Regent, but can take one passed by hand (see Status). With `NOPASS=1` nobody passes, and the party should win 0.

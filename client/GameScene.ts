@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1223,7 +1223,8 @@ export class GameScene extends Phaser.Scene {
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
+            if (ev.phase === 2 && w.bossVariant === 'court') this.hud.banner('Phase 2: Edict', 'Two Decrees at once. When he calls a Summons, come inside the gold ring, but keep clear of a Decree');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
@@ -1340,7 +1341,9 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
             : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
-            : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP : def.tip;
+            : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
+            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
+            : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -1661,6 +1664,14 @@ export class GameScene extends Phaser.Scene {
     if (this.world.dungeonId === 'flue') this.flueMarks(now);
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
+    // Phase 12 W3: the Regent's Summons (placeholder until visuals): a gold ring round him that closes in while it warns.
+    if (w.summonsT > 0 && w.bossIndex >= 0) {
+      const b = w.enemies[w.bossIndex];
+      const k = 1 - w.summonsT / SUMMONS.warn;
+      g.fillStyle(0xffd27a, 0.06 + 0.08 * k).fillCircle(b.x, b.y, SUMMONS.radius);
+      g.lineStyle(4, 0xffd27a, 0.6 + 0.4 * k).strokeCircle(b.x, b.y, SUMMONS.radius);
+      g.lineStyle(2, 0xffd27a, 0.5 * (1 - k)).strokeCircle(b.x, b.y, SUMMONS.radius + 120 * (1 - k));
+    }
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
