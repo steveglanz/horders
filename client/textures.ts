@@ -3628,6 +3628,51 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Wrackline's arena edge: the broken ribs of a wrecked hull hung with weed, and a tarred mooring post with a
+  // lantern swinging from a hook. Their lamps throw warm coalLight pools: a teal pool here would read as the Ebb's water.
+  make(scene, 'wrackWreck', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 6, by + 4, 62, 12); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The keel, half sunk.
+    ctx.beginPath(); ctx.moveTo(cx - 62, by - 2); ctx.quadraticCurveTo(cx, by + 8, cx + 60, by - 6); ctx.lineTo(cx + 58, by - 16); ctx.quadraticCurveTo(cx, by - 4, cx - 60, by - 12); ctx.closePath();
+    ctx.fillStyle = '#4a3a2c'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    // Ribs curving up, some snapped.
+    ctx.lineCap = 'round';
+    const ribs: [number, number, number][] = [[-46, 64, -0.35], [-26, 92, -0.2], [-6, 104, -0.05], [14, 70, 0.1], [34, 96, 0.25], [52, 52, 0.4]];
+    for (const [x, h, lean] of ribs) {
+      const x0 = cx + x, y0 = by - 8, x1 = x0 + lean * h + 14, y1 = y0 - h;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0 - 10, y0 - h * 0.6, x1, y1);
+      ctx.strokeStyle = INK; ctx.lineWidth = 9; ctx.stroke();
+      ctx.strokeStyle = '#6a5440'; ctx.lineWidth = 5; ctx.stroke();
+      // Weed hanging off the tops.
+      ctx.strokeStyle = 'rgba(70,130,100,0.85)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(x1, y1 + 2); ctx.quadraticCurveTo(x1 + 4, y1 + 14, x1 - 1, y1 + 24); ctx.stroke();
+    }
+    // A plank strake still nailed across the ribs.
+    ctx.beginPath(); ctx.moveTo(cx - 50, by - 40); ctx.quadraticCurveTo(cx - 10, by - 52, cx + 30, by - 44); ctx.lineTo(cx + 30, by - 36); ctx.quadraticCurveTo(cx - 10, by - 44, cx - 50, by - 32); ctx.closePath();
+    ctx.fillStyle = '#5a4634'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // Wet sheen pooling at the foot.
+    ell(ctx, cx - 10, by + 2, 40, 5); ctx.fillStyle = 'rgba(127,208,224,0.25)'; ctx.fill();
+  });
+
+  make(scene, 'wrackPost', 96, (ctx) => {
+    const cx = 44;
+    ell(ctx, cx + 6, 88, 20, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The post: tarred timber with rope turns.
+    ctx.fillStyle = '#3a2e26'; ctx.fillRect(cx - 7, 18, 14, 70); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 7, 18, 14, 70);
+    ctx.strokeStyle = '#b8a07a'; ctx.lineWidth = 2;
+    for (const y of [60, 65, 70]) { ctx.beginPath(); ctx.moveTo(cx - 7, y); ctx.lineTo(cx + 7, y + 2); ctx.stroke(); }
+    // Barnacles near the foot.
+    ctx.fillStyle = '#c8c0b0'; for (const [x, y] of [[-4, 80], [3, 83], [-1, 76], [5, 78]]) { ctx.beginPath(); ctx.arc(cx + x, y, 1.6, 0, Math.PI * 2); ctx.fill(); }
+    // The hook arm and the lantern.
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx + 6, 24); ctx.lineTo(cx + 26, 24); ctx.lineTo(cx + 26, 32); ctx.stroke();
+    softGlow(ctx, cx + 26, 44, 20, 'rgba(255,200,120,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx + 20, 34); ctx.lineTo(cx + 32, 34); ctx.lineTo(cx + 30, 52); ctx.lineTo(cx + 22, 52); ctx.closePath();
+    const lg = ctx.createLinearGradient(0, 34, 0, 52); lg.addColorStop(0, '#fff2c8'); lg.addColorStop(1, '#ffa040');
+    ctx.fillStyle = lg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#2a2420'; ctx.fillRect(cx + 19, 31, 14, 4); ctx.fillRect(cx + 21, 52, 10, 3);
+  });
+
   // The Crucible's arena edge: a great iron ladle tipped on its trunnion stand, pouring a thread of slag into a glowing
   // puddle, and a squat slag pot brimming with molten slag under a cracked crust. coalLight is the warm pool they throw.
   make(scene, 'crucibleLadle', 160, (ctx) => {
