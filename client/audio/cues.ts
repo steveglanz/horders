@@ -75,11 +75,13 @@ export interface SetFlags {
   freed: boolean;
   /** Platewalker (2): behind the Cinder Colossus (World.behindColossus), where the set's bonuses apply. */
   behind: boolean;
+  /** Handover (3): Spent after passing a Decree, which is when the set's +damage applies (Player.spentT). */
+  handover: boolean;
 }
 
 /** Reads the set flags off a hero (World.player) and the pieces it wears (World.setCount). */
 export function setFlagsOf(
-  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number; freedT?: number },
+  p: { hp: number; planted?: boolean; surge?: boolean; kbT?: number; warmth?: number; coverT?: number; bondT?: number; relayT?: number; freedT?: number; spentT?: number },
   count: (id: SetId) => number,
   /** The Smeltery: this hero stands in the Colossus's back arc (World.behindColossus). */
   behind = false,
@@ -95,10 +97,11 @@ export function setFlagsOf(
     relayed: up && (p.relayT ?? 0) > 0,
     freed: up && (p.freedT ?? 0) > 0,
     behind: up && count('platewalker') >= 2 && behind,
+    handover: up && count('handover') >= 3 && (p.spentT ?? 0) > 0,
   };
 }
 
-const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed', freed: 'freed', behind: 'behindPlate' };
+const SET_SOUND: Record<keyof SetFlags, SoundId> = { planted: 'planted', surge: 'surgeReady', sharp: 'sharpen', warmFull: 'warmthFull', covered: 'covered', bonded: 'bonded', relayed: 'relayed', freed: 'freed', behind: 'behindPlate', handover: 'handedOver' };
 
 /**
  * The set procs have no events of their own (they are states on the hero), so this sounds each one

@@ -610,6 +610,13 @@ export const SOUNDS = {
     clang(1500, 0.14, 0.2).map((v) => ({ ...v, delay: 0.35 })),
     chime(D5 * 2, 0.42, 0.15, 0.35), chime(A5 * 2, 0.52, 0.16, 0.45),
   ),
+  /** Handover (3): you passed the Decree and your hands are free to strike (+damage while Spent). A seal let go, then a bright rising pair. */
+  handedOver: join(
+    // It waits 0.3 s for the pass's own handoff (decreePass) on the same tick.
+    whoosh(2500, 7000, 0.14, 0.12).map((v) => ({ ...v, delay: 0.3 })),
+    chime(G5, 0.35, 0.14, 0.3), chime(D5 * 2, 0.43, 0.15, 0.4),
+    [{ wave: 'saw', f: 660, f2: 990, dur: 0.12, delay: 0.43, vol: 0.05, lp: 4000, curve: 2 }],
+  ),
   /** Platewalker (2): you slipped round behind the Colossus. A soft stone knock and a small rising glint, "in the gap". */
   behindPlate: join(
     [{ wave: 'tri', f: 260, f2: 380, dur: 0.1, vol: 0.18, curve: 2 },

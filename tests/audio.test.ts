@@ -556,24 +556,36 @@ describe('season hub themes', () => {
 describe('verb-set proc cues', () => {
   const p = { hp: 100, planted: true, surge: true, kbT: 3, warmth: 5, coverT: 0, bondT: 0 };
   it('reads each flag only with the pieces that grant it, and never on a dead hero', () => {
-    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
-    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false });
+    expect(setFlagsOf(p, () => 1)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false });
+    expect(setFlagsOf(p, () => 3)).toEqual({ planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false });
     // Tidewalker's surge and Hearthkeeper's full Warmth are the 3-piece bonuses.
-    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
-    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false });
+    expect(setFlagsOf(p, () => 2)).toEqual({ planted: true, surge: false, sharp: true, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false });
+    expect(setFlagsOf({ ...p, hp: 0 }, () => 3)).toEqual({ planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false });
     expect(setFlagsOf({ ...p, warmth: 4 }, () => 3).warmFull).toBe(false);
   });
   it('sounds a proc as it turns on, once', () => {
     const was = {};
-    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false };
+    const off = { planted: false, surge: false, sharp: false, warmFull: false, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false };
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(setCues(was, { ...off, planted: true })).toEqual([]);
-    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
+    expect(setCues(was, { planted: true, surge: true, sharp: true, warmFull: true, covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false }).map((c) => c.id)).toEqual(['surgeReady', 'sharpen', 'warmthFull']);
     expect(setCues(was, off)).toEqual([]);
     expect(setCues(was, { ...off, planted: true }).map((c) => c.id)).toEqual(['planted']);
     expect(THROTTLE.planted).toBeGreaterThan(0);
   });
+  it('Handover: a cue as Spent starts with 3 pieces on, none with fewer or once Spent wears off', () => {
+    expect(setFlagsOf({ hp: 100, spentT: 9 }, () => 3).handover).toBe(true);
+    expect(setFlagsOf({ hp: 100, spentT: 9 }, () => 2).handover).toBe(false);
+    expect(setFlagsOf({ hp: 100, spentT: 0 }, () => 3).handover).toBe(false);
+    expect(setFlagsOf({ hp: 0, spentT: 9 }, () => 3).handover).toBe(false);
+    const was = {};
+    setCues(was, setFlagsOf({ hp: 100 }, () => 3));
+    expect(setCues(was, setFlagsOf({ hp: 100, spentT: 10 }, () => 3)).map((c) => c.id)).toEqual(['handedOver']);
+    expect(setCues(was, setFlagsOf({ hp: 100, spentT: 9 }, () => 3))).toEqual([]);
+    expect(Math.min(...SOUNDS.handedOver.map((v) => v.delay ?? 0))).toBeGreaterThanOrEqual(0.3);
+  });
+
   it('Crawsplitter: Freed sounds on the breaker and the freed hero; Platewalker: a soft cue on getting behind him', () => {
     // The freed hero may wear none of the set (crawBroken sets freedT on both), like Bonded.
     expect(setFlagsOf({ hp: 100, freedT: 10 }, () => 0).freed).toBe(true);
@@ -598,7 +610,7 @@ describe('verb-set proc cues', () => {
   it('Kinbound: Covered and Bonded sound as they start, and a dead hero hears neither', () => {
     const q = { hp: 100, coverT: 4, bondT: 4 };
     expect(setFlagsOf(q, () => 0)).toMatchObject({ covered: true, bonded: true });
-    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false, relayed: false, freed: false, behind: false });
+    expect(setFlagsOf({ ...q, hp: 0 }, () => 3)).toMatchObject({ covered: false, bonded: false, relayed: false, freed: false, behind: false, handover: false });
     const was = {};
     const off = setFlagsOf({ hp: 100 }, () => 0);
     setCues(was, off);
