@@ -3165,7 +3165,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron' | 'press' | 'slag' | 'bone' | 'ingot' | 'brick') => {
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron' | 'press' | 'slag' | 'bone' | 'ingot' | 'brick' | 'pumice') => {
     const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron', press = look === 'press';
     // Phase 13 E3, the raids: side colours [r, g, b] base and lit lift, and the top face's gradient.
     const RAID: Record<string, { side: number[]; lift: number[]; top: [string, string] }> = {
@@ -3173,6 +3173,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       bone: { side: [26, 22, 22], lift: [22, 18, 18], top: ['#4a4040', '#1e1a1a'] },
       ingot: { side: [40, 38, 40], lift: [34, 30, 28], top: ['#6e6a66', '#34302e'] },
       brick: { side: [70, 30, 24], lift: [50, 22, 16], top: ['#5a4a46', '#2a2222'] },
+      pumice: { side: [70, 64, 62], lift: [52, 46, 42], top: ['#b4aaa4', '#6a605c'] },
     };
     const raid = RAID[look];
     const cx = 100, by = 128, r = 68, h = 30;
@@ -3268,6 +3269,22 @@ export function buildTextures(scene: Phaser.Scene): void {
       ctx.restore();
       return;
     }
+    if (look === 'pumice') {
+      // The Ashvents: a block of pale pumice, pitted all over, ash drifted on top and a dark glassy streak of obsidian.
+      ctx.save();
+      ctx.fillStyle = 'rgba(40,32,30,0.45)';
+      for (const [dx, dy, rr] of [[-34, -6, 4], [-20, 8, 3], [-6, -16, 3.5], [10, 10, 3], [26, -10, 4], [38, 4, 2.5], [-40, 10, 2.5], [4, -2, 2.5]]) { ell(ctx, cx + dx, top + dy, rr, rr * 0.7); ctx.fill(); }
+      for (const [dx, dy] of [[-46, 18], [-24, 26], [30, 24], [50, 14]]) { ell(ctx, cx + dx, top + dy + 12, 2.6, 2); ctx.fill(); }
+      ell(ctx, cx + 12, top - 12, 30, 10); ctx.fillStyle = 'rgba(232,226,220,0.55)'; ctx.fill();
+      ctx.strokeStyle = '#1c1820'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 30, top + 12); ctx.lineTo(cx - 12, top + 2); ctx.lineTo(cx + 2, top + 8); ctx.stroke();
+      ctx.strokeStyle = 'rgba(200,190,230,0.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx - 28, top + 10); ctx.lineTo(cx - 13, top + 1); ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(255,250,240,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, top - 22); ctx.lineTo(cx - 20, top - 30); ctx.stroke();
+      return;
+    }
     if (look === 'brick') {
       // The Flue: the stump of an old brick flue, mortar courses round the side and a sooty mouth with embers deep inside.
       ctx.save();
@@ -3346,6 +3363,24 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'ingotStone', 200, (ctx) => stone(ctx, 'ingot'));
   // The Flue: an old brick flue stump; its sooty mouth glows only faintly, so it reads as a stone, not a hazard.
   make(scene, 'brickStone', 200, (ctx) => stone(ctx, 'brick'));
+  // Phase 13 E2: the Ashvents' stones, pitted pale pumice with drifted ash and an obsidian streak.
+  make(scene, 'pumiceStone', 200, (ctx) => stone(ctx, 'pumice'));
+  // Phase 13 E2: an Ashvents vent, a little fumarole: a cone of ash-grey rock round a dark throat with a red ember glow.
+  // Red-orange, never gold, since the Ysmeret's gold vents are soaks. Rests dim; GameScene brightens it while it flares.
+  make(scene, 'fumaroleVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,100,60,0.3)');
+    const cg = ctx.createRadialGradient(c - 10, c - 12, 6, c, c, 54); cg.addColorStop(0, '#9a908a'); cg.addColorStop(0.7, '#5a524e'); cg.addColorStop(1, '#3a3432');
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) { const a = (i / 16) * Math.PI * 2; const rr = 52 + (i % 3 === 0 ? -4 : i % 2 ? 2 : 0); ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fillStyle = cg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,24,22,0.5)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * 30, c + Math.sin(a) * 30); ctx.lineTo(c + Math.cos(a + 0.08) * 48, c + Math.sin(a + 0.08) * 48); ctx.stroke(); }
+    const tg = ctx.createRadialGradient(c, c, 3, c, c, 28); tg.addColorStop(0, '#ffb070'); tg.addColorStop(0.45, '#e2442a'); tg.addColorStop(1, '#1a0c0a');
+    ell(ctx, c, c, 28, 28); ctx.fillStyle = tg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(220,214,208,0.6)';
+    for (const [dx, dy] of [[-38, -18], [30, -30], [36, 26], [-26, 36], [-44, 10]]) { ell(ctx, c + dx, c + dy, 4, 2.6); ctx.fill(); }
+  });
   // Phase 13 E3: the raids' vents. Like the others, each rests dim and GameScene brightens it while its flare circle is up.
   // The Crucible: a crust ring round a molten pool with floating crust plates.
   make(scene, 'slagVent', 128, (ctx) => {
