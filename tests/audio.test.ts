@@ -500,6 +500,13 @@ describe('audio', () => {
     expect(cueFor({ type: 'layout', id: 'pillars' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' })?.id).toBe('layoutPillars');
   });
 
+  it('sounds Nhevra\'s Emberdrift: embers falling, and your own coal brightening (V8)', () => {
+    const c = { cls: 'emberwright' as const, acting: 1 };
+    expect(cueFor({ type: 'emberDrift', n: 3 } as never, c)?.id).toBe('emberDriftFall');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 1 } as never, c)?.id).toBe('emberPickUp');
+    expect(cueFor({ type: 'emberPick', x: 0, y: 0, hero: 0 } as never, c)).toMatchObject({ id: 'emberTaken', vol: 0.5 });
+  });
+
   it('sounds the Sluicetide turning, as a must-hear cue (V8)', () => {
     expect(cueFor({ type: 'tideTurn', angle: 1 } as never, { cls: 'emberwright' as const, acting: 0 })?.id).toBe('tideTurn');
     expect(PRIORITY.has('tideTurn')).toBe(true);

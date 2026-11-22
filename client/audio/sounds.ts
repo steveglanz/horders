@@ -825,6 +825,17 @@ export const SOUNDS = {
     chime(B5() * 2, 0, 0.16, 0.6), chime(E6, 0.16, 0.14, 0.7),
     [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.05, lp: 12000, hp: 5000, curve: 1.6 }],
   ),
+  /** Emberdrift (Nhevra, drift runs): three embers drift down into the cold, soft falling sparks. */
+  emberDriftFall: join(
+    ...[0, 0.18, 0.36].map((d, k) => [{ wave: 'sine' as const, f: [G6, E6, C6][k] * 2, f2: [G6, E6, C6][k], dur: 0.4, delay: d, vol: 0.07, a: 0.04, curve: 1.6 },
+      { wave: 'noise' as const, f: 0, dur: 0.25, delay: d, vol: 0.05, lp: 9000, hp: 3000, curve: 2 }]),
+  ),
+  /** An ember picked up in the Coldmarrow: a warm bloom as your coal brightens. */
+  emberPickUp: join(
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.14, a: 0.05, lp: 2500, lp2: 6000, hp: 400, curve: 1.6 },
+     { wave: 'sine', f: 330, f2: 440, dur: 0.4, vol: 0.12, a: 0.06, curve: 1.6 }],
+    chime(E5 * 2, 0.08, 0.16, 0.5), chime(A5 * 2, 0.16, 0.14, 0.6),
+  ),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(

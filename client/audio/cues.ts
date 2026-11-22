@@ -363,6 +363,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'spitLob': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
+    case 'emberDrift': return { id: 'emberDriftFall' };
+    // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
+    case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
     case 'ventFlare': return { id: ventSounds(c.dungeon).warn };
     case 'layout': {
       const id = ev.id === 'vents' ? ventSounds(c.dungeon).sting : ev.id === 'pillars' && c.dungeon === 'coldmarrow' ? 'layoutIce' : LAYOUT_STING[ev.id];
