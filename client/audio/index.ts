@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -88,6 +88,7 @@ class AudioEngine {
   private pressing = { on: false };
   private spending = { on: false };
   private islanding = { t: [] as number[] };
+  private edging = { next: 0 };
   private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
   private bellyState: BellyState = { on: false, next: 0 };
@@ -356,6 +357,8 @@ class AudioEngine {
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
+    // The props round the rim give off a quiet sound now and then (not in a boss fight).
+    this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random));
     if (ctx.sets) for (const c of setCues(this.setFlags, ctx.sets)) this.cue(c);
     else this.setFlags = {};
     if (ctx.hp && ctx.hp.length > 1) {

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, BRIM, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -717,6 +717,14 @@ export function botInput(w: World, skill = 1): Input {
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
+  // The Flue's Summons: get before the throne (inside SUMMONS.radius) before it lands (NOCOURT=1 turns this off for measuring).
+  // Step out of a circle first (the Ash Fall falls with the call), then come in.
+  const inCircle = w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && t.shape === 'circle' && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 12) ** 2);
+  if (w.summonsT > 0 && !inCircle && w.bossIndex >= 0 && process.env.NOCOURT !== '1') {
+    const b = w.enemies[w.bossIndex];
+    const d = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+    if (d > SUMMONS.radius * 0.75) return { x: (b.x - p.x) / d, y: (b.y - p.y) / d, cast: botCast(w, skill) };
+  }
   // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
   const isle = islandStep(w);
   if (isle) return { x: isle.dx, y: isle.dy, cast: botCast(w, skill) };

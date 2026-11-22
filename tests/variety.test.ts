@@ -767,6 +767,8 @@ describe('Phase 12 W3: Grandmother Slag\'s Brimming', () => {
     q.pourT = 0;
     for (let k = 0; k < 10; k++) q.slagClock(1 / 30);
     expect(w.telegraphs.filter((t) => t.alive && t.shape === 'cone')).toHaveLength(0);
+    // On the Pour's timer she Churns instead: a cast with no lanes (the tank's breather, as in the Pour).
+    expect(w.enemies[w.bossIndex].castId).toBe('churn');
   });
 
   it('islands sink in turn and new ones rise elsewhere', () => {
