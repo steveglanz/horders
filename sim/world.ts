@@ -825,7 +825,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | '' = '';
   /** V8 Sluicetide: the way the water flows (radians), while it runs. */
   tideAngle = 0;
   private sluiceT = 0;
@@ -1769,6 +1769,7 @@ export class World {
           this.glareT = 6;
           this.bossBrandT = 4;
           this.crackT = GLARE.crackEvery;
+          this.bossVariant = this.rollLensVariant();
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'ondrel') {
@@ -1963,6 +1964,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** V8: the Lensmother's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  private rollLensVariant(): LensVariant {
+    if (this.stress) return 'brand';
+    let h = Math.imul(this.seed ^ 0x2545f491, 0x4cf5ad43) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+    return LENS_VARIANTS[(h >>> 4) % LENS_VARIANTS.length];
   }
 
   /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
@@ -5213,6 +5222,14 @@ export class World {
       this.bossBrandT -= dt;
       if (this.bossBrandT <= 0) {
         this.bossBrandT = GLARE.bossBrandEvery;
+        if (this.bossVariant === 'glint') {
+          // V8 Glintfall: light shards fall on every standing pillar. Step off your cover until they land.
+          this.startCast(i, 'glintfall', 'Glintfall', GLINTFALL.cast, false);
+          for (const q of this.pillars) {
+            if (!q.cracked) this.addTelegraph('circle', q.x, q.y, GLINTFALL.radius, 0, 0, GLINTFALL.cast, GLINTFALL.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+          }
+          return;
+        }
         this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
         return;
       }
@@ -6937,6 +6954,10 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
+  // V8: the Glarewell already has its own pillars, so only vents.
+  glarewell: ['open', 'open', 'vents'],
+  // V8: the Coldmarrow's fires are out, so no vents or lava: ice pillars only.
+  coldmarrow: ['open', 'open', 'pillars'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /** V3: the Kiln Mother's phase-2 signature this run. */
@@ -6944,6 +6965,12 @@ export type KilnVariant = 'cataclysm' | 'draw';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
+
+/** V8: the Lensmother's phase-2 signature this run: Twin Brand (as before) or Glintfall. */
+export type LensVariant = 'brand' | 'glint';
+export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint'];
+/** V8 Glintfall: on the Twin Brand timer, a `cast` s warning, then a `radius` circle of falling light on every standing pillar. */
+export const GLINTFALL = { cast: 1.8, radius: 80, damage: 24 };
 
 /** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
 export type MaelraVariant = 'water' | 'tide';
