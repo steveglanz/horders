@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
 import { EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -282,6 +282,11 @@ export class GameScene extends Phaser.Scene {
   private brimImgs: Phaser.GameObjects.Image[] = [];
   private brimBorn = new WeakMap<object, number>();
   private brimStart = 0;
+  /** Phase 12 W3: Old Vorhulm's Banked Coals: their glow (1.89), the coal heaps (1.9), how smothered each looks, and the ash a smothered one leaves. */
+  private bankGfx: Phaser.GameObjects.Graphics | null = null;
+  private bankImgs: { hot: Phaser.GameObjects.Image; ash: Phaser.GameObjects.Image }[] = [];
+  private bankCool = new WeakMap<object, number>();
+  private bankAsh: { img: Phaser.GameObjects.Image; at: number }[] = [];
   /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
   private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
@@ -372,6 +377,9 @@ export class GameScene extends Phaser.Scene {
     this.brimGfx = null;
     this.brimImgs = [];
     this.brimStart = 0;
+    this.bankGfx = null;
+    this.bankImgs = [];
+    this.bankAsh = [];
     this.dieGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
@@ -1101,6 +1109,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
+          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankEaten(ev.x, ev.y);
           break;
         // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
         case 'wheel': {
@@ -1141,6 +1150,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
+          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankSmothered(ev.x, ev.y);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -1840,6 +1850,7 @@ export class GameScene extends Phaser.Scene {
     this.edgeDraw(now);
     this.wanderDraw(now);
     this.brimDraw(now);
+    this.bankDraw(now);
     this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
@@ -3806,6 +3817,69 @@ export class GameScene extends Phaser.Scene {
       im.setVisible(true).setPosition(s.x, s.y).setScale(sc).setAlpha(rise * (0.3 + 0.7 * u) * flick).setTint(tint);
     });
     for (let k = isl.length; k < this.brimImgs.length; k++) this.brimImgs[k].setVisible(false);
+  }
+
+  /**
+   * Phase 12 W3: Old Vorhulm's Banked Coals (his phase 3, `bank` version): a heap of glowing coals inside each gold soak
+   * circle, settling in and burning brighter as the fuse runs. While a hero stands in one it cools toward grey ash, so a
+   * smothered coal reads differently from an empty one. The gold ring and fuse stay on the main graphics as for any soak.
+   */
+  private bankDraw(now: number): void {
+    const w = this.world;
+    const coals = w.dungeonId === 'hoard' && w.bossVariant === 'bank' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
+    // The ash a smothered coal leaves, fading over 2.5 s.
+    this.bankAsh = this.bankAsh.filter((a) => {
+      const u = (now - a.at) / 2500;
+      if (u >= 1) { a.img.destroy(); return false; }
+      a.img.setAlpha(0.9 * (1 - u * u));
+      return true;
+    });
+    if (!coals.length) {
+      if (this.bankGfx) { this.bankGfx.clear(); for (const im of this.bankImgs) { im.hot.setVisible(false); im.ash.setVisible(false); } }
+      return;
+    }
+    if (!this.bankGfx) this.bankGfx = this.add.graphics().setDepth(1.89);
+    const g = this.bankGfx.clear();
+    coals.forEach((t, k) => {
+      const f = Math.min(1, t.t / t.dur);
+      let covered = false;
+      for (let i = 0; i < w.heroes.length && !covered; i++) {
+        const q = w.heroData(i).player;
+        if (q.hp > 0 && (q.x - t.x) ** 2 + (q.y - t.y) ** 2 <= t.r * t.r) covered = true;
+      }
+      // How smothered it looks eases toward 1 while covered and back while empty.
+      const cool = Math.max(0, Math.min(1, (this.bankCool.get(t) ?? 0) + (covered ? 0.05 : -0.05)));
+      this.bankCool.set(t, cool);
+      const settle = Math.min(1, t.t / 0.35);
+      const heat = (1 - cool) * (0.6 + 0.4 * f) * (0.85 + 0.15 * Math.sin(now / 110 + k * 2));
+      g.fillStyle(MOLTEN, 0.3 * heat * settle).fillCircle(t.x, t.y, t.r * 1.15);
+      g.fillStyle(0xffd27a, 0.18 * heat * settle).fillCircle(t.x, t.y, t.r * 0.6);
+      let im = this.bankImgs[k];
+      if (!im) im = this.bankImgs[k] = { hot: this.add.image(0, 0, 'coalBed').setDepth(1.9), ash: this.add.image(0, 0, 'coalAsh').setDepth(1.9) };
+      const sc = ((t.r * 1.9) / 128) * (0.8 + 0.2 * settle);
+      im.hot.setVisible(true).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * (1 - cool * 0.85));
+      im.ash.setVisible(cool > 0).setPosition(t.x, t.y - (1 - settle) * 30).setScale(sc).setAlpha(settle * cool);
+      // Embers lifting off a live heap.
+      if (!this.lowFx && Math.random() < 0.15 * heat) this.spark(t.x + (Math.random() - 0.5) * t.r, t.y + (Math.random() - 0.5) * t.r * 0.6, (Math.random() - 0.5) * 20, -50 - 50 * f, 0.7, 1.4);
+    });
+    for (let k = coals.length; k < this.bankImgs.length; k++) { this.bankImgs[k].hot.setVisible(false); this.bankImgs[k].ash.setVisible(false); }
+  }
+
+  /** A Banked Coal smothered as it lands: grey ash left behind, and a puff of smoke. */
+  private bankSmothered(x: number, y: number): void {
+    const img = this.add.image(x, y, 'coalAsh').setDepth(1.9).setScale((BANK.radius * 1.9) / 128).setAlpha(0.9);
+    this.bankAsh.push({ img, at: this.time.now });
+    this.ring(x, y, BANK.radius, 0xb8b0a8, 0.35);
+  }
+
+  /** An empty Banked Coal he eats: it flares, and its embers stream to him. */
+  private bankEaten(x: number, y: number): void {
+    const w = this.world;
+    const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    this.ring(x, y, BANK.radius * 1.3, MOLTEN, 0.5);
+    if (!e) return;
+    const dx = e.x - x, dy = e.y - y, d = Math.max(1, Math.hypot(dx, dy));
+    for (let k = 0; k < 10; k++) this.spark(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 20, (dx / d) * (180 + Math.random() * 120), (dy / d) * (180 + Math.random() * 120), 0.6 + Math.random() * 0.3, 1.8);
   }
 
   private wanderDraw(now: number): void {

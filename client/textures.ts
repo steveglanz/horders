@@ -3665,6 +3665,38 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.closePath(); ctx.stroke();
   });
 
+  // Phase 12 W3: Old Vorhulm's Banked Coals, a heap of coals glowing between the lumps (`coalBed`), and the same heap
+  // smothered to grey ash (`coalAsh`), shown under a soak circle and left behind when a hero smothers it.
+  for (const [key, hot] of [['coalBed', true], ['coalAsh', false]] as [string, boolean][]) {
+    make(scene, key, 128, (ctx, s) => {
+      const c = s / 2;
+      let seed = 41; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      if (hot) softGlow(ctx, c, c, 60, 'rgba(255,120,40,0.6)');
+      ell(ctx, c, c + 4, 50, 40); ctx.fillStyle = hot ? '#7a2408' : '#3a3634'; ctx.fill();
+      if (hot) { const g = ctx.createRadialGradient(c, c, 4, c, c, 46); g.addColorStop(0, '#ffe08a'); g.addColorStop(0.5, '#ff8a2a'); g.addColorStop(1, 'rgba(160,40,8,0)'); ell(ctx, c, c + 2, 44, 34); ctx.fillStyle = g; ctx.fill(); }
+      // The lumps, back to front, each a rough polygon with a lit top.
+      const lumps: [number, number, number][] = [];
+      for (let i = 0; i < 16; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * 36; lumps.push([c + Math.cos(a) * d, c + Math.sin(a) * d * 0.78, 8 + rnd() * 6]); }
+      lumps.sort((p, q) => p[1] - q[1]);
+      for (const [x, y, r] of lumps) {
+        ctx.beginPath();
+        const n = 6 + Math.floor(rnd() * 3), a0 = rnd() * 6;
+        for (let k = 0; k < n; k++) { const a = a0 + (k / n) * Math.PI * 2, rr = r * (0.75 + rnd() * 0.35); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8); }
+        ctx.closePath();
+        const lg = ctx.createLinearGradient(x, y - r, x, y + r);
+        if (hot) { lg.addColorStop(0, '#4a3430'); lg.addColorStop(1, '#1a0e0c'); } else { lg.addColorStop(0, '#8a8480'); lg.addColorStop(1, '#4a4644'); }
+        ctx.fillStyle = lg; ctx.fill();
+        ctx.strokeStyle = hot ? 'rgba(255,140,50,0.9)' : 'rgba(30,26,24,0.9)'; ctx.lineWidth = hot ? 2 : 1.5; ctx.stroke();
+      }
+      // A few lumps burning through, or white ash flecks once smothered.
+      for (let i = 0; i < 7; i++) {
+        const [x, y] = lumps[Math.floor(rnd() * lumps.length)];
+        ctx.fillStyle = hot ? 'rgba(255,200,90,0.85)' : 'rgba(220,214,206,0.6)';
+        ctx.beginPath(); ctx.arc(x + (rnd() - 0.5) * 6, y + (rnd() - 0.5) * 4, hot ? 2.5 : 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  }
+
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.
   make(scene, 'lavaTile', 64, (ctx, s) => {
     ctx.fillStyle = '#b8320a'; ctx.fillRect(0, 0, s, s);
