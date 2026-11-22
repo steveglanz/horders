@@ -84,6 +84,9 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
   for (const heat of HEAT_IDS) cases.push({ label: `kiln heat ${heat}`, skill, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: 'kiln', tier: 1 + (seed % 2), omens: [], heat } });
   for (const cls of CLASSES) cases.push({ label: `glarewell ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'glarewell', tier: 7, omens: [] } });
   for (const cls of CLASSES) cases.push({ label: `foundry ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'foundry', tier: 4, omens: [] } });
+  // The Hammerdeep (group, tier 4): the W2 fights and layouts, and Ondrel's Ironload (rolled per seed).
+  cases.push({ label: 'hammerdeep trio', skill, opts: { seed, ...main('bulwark'), dungeon: 'hammerdeep', tier: 6, omens: [], party: (['lumen', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
+  cases.push({ label: 'hammerdeep duo', skill, opts: { seed, ...main('bulwark'), dungeon: 'hammerdeep', tier: 6, omens: [], party: (['lumen'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
   // The Flue (raid 4, tier 11, four heroes): pass the Decree before it bursts.
   const flue = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>
     cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: 'flue', tier: 11, omens: [], worldBoss: 'The Furnace Regent', party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
