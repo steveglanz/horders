@@ -990,6 +990,8 @@ export class GameScene extends Phaser.Scene {
           // Raid 3: the Cinder Colossus.
           else if (ev.name === 'Wheel') this.hud.banner('Wheel!', 'He is turning on someone. Get out of his front');
           else if (ev.name === 'Pour Out') this.hud.banner('Pour Out!', "It can't be stopped. Finish him now");
+          // Raid 4: the Furnace Regent.
+          else if (ev.name === 'Last Word') this.hud.banner('Last Word!', 'Kill him before he finishes');
           // Raid 2: Old Vorhulm.
           else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
           else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
@@ -1114,6 +1116,9 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
+          } else if (w.dungeonId === 'flue') {
+            if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
+            else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
