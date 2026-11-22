@@ -14,7 +14,8 @@ export type EncounterId =
   | 'grandmotherSlag'
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
   | 'oskel' | 'vorhulm' | 'colossus' | 'regent'
-  | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden';
+  | 'spitters' | 'riftfall' | 'ashbucks' | 'spitterBrute' | 'ashbuckWarden'
+  | 'glassSpitters' | 'crawlerCharge';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -36,6 +37,9 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   riftfall: { id: 'riftfall', name: 'The Hollow Rift', tip: 'The Rift spits Ashlings until it breaks. Break the Rift first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   ashbucks: { id: 'ashbucks', name: 'The Ashbucks', tip: 'An Ashbuck shows its lane, then charges down it. Step to the side, not back.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'cinderhound', n: 1 }] },
   spitterBrute: { id: 'spitterBrute', name: 'Brute and Spitters', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
+  glassSpitters: { id: 'glassSpitters', name: 'Warden and Spitters', tip: 'Quench Mirror Ward, then run the Spitters down through their lobs.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
+  crawlerCharge: { id: 'crawlerCharge', name: 'Crawler and Ashbuck', tip: 'Drag the blue ring away from the Ashbuck, and step aside from its lane.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'ashbuck', n: 1 }, { kind: 'cinderhound', n: 1 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -116,7 +120,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
-    openers: ['twins', 'glass', 'crawlers'], named: ['bellwarden', 'tidepair'], hard: ['twinsAcolyte', 'tidepair'],
+    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {

@@ -788,14 +788,14 @@ export const SOUNDS = {
      { wave: 'saw', f: note(-14), f2: note(-9), dur: 2.2, vol: 0.12, a: 1.4, lp: 1600, curve: 0.8, vib: [3, 0.01] },
      { wave: 'sine', f: 220, f2: 440, dur: 2.2, vol: 0.1, a: 1.4, curve: 0.8 }],
   ),
-  /** The fire ring closes: a crackling roar that snaps shut. */
+  /** Kiln Draw lands: the 150-radius fire circle around the Kiln Mother snaps shut with a roar (played as the cast ends). */
   ringClose: join(
-    whoosh(2000, 6000, 0.5, 0.22),
-    [{ wave: 'noise', f: 0, dur: 0.1, delay: 0.45, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
-    boom(55, 0.45, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
+    [{ wave: 'noise', f: 0, dur: 0.1, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
+    boom(55, 0.45, 0.35),
+    whoosh(6000, 1500, 0.5, 0.18),
   ),
-  /** Kindling hub sting: the day's gentle twist, a small warm rising figure. */
-  hubKindling: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
+  /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
+  heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
 
   // ---- the ember purse (shared by every class): embers in, embers spent
@@ -1048,6 +1048,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
   chargeWindup: 4.0,
+  // Kiln Draw's inhale is a cast wind-up that measured right on the floor (-26.5 dB).
+  kilnDraw: 1.0,
   ebbPull: 1.9,
   haulWarn: 8.9,
   ladleWarn: 3.4,

@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { FLOOR_HEATS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -417,6 +417,10 @@ describe('audio', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     expect(CAST_SOUNDS.emberLob.start).toBe('spitLob');
     expect(CAST_SOUNDS.charge.start).toBe('chargeWindup');
+    // Kiln Draw (KILN_DRAW.cast 2.2 s): the inhale fills the cast and the ring's roar plays the moment it lands.
+    expect(CAST_SOUNDS.kilnDraw).toEqual({ start: 'kilnDraw', done: 'ringClose' });
+    expect(recipeLength(SOUNDS.kilnDraw)).toBeLessThanOrEqual(2.3);
+    expect(SOUNDS.ringClose.every((v) => (v.delay ?? 0) < 0.05)).toBe(true);
     expect(cueFor({ type: 'charge', index: 0 } as never, c)?.id).toBe('chargeDash');
     expect(cueFor({ type: 'riftSpawn', index: 0, n: 2 } as never, c)?.id).toBe('riftSpit');
     expect(THROTTLE.riftSpit).toBeGreaterThan(0);
@@ -462,6 +466,27 @@ describe('audio', () => {
       expect(w.player.hp < hp, `burns at y=${y}`).toBe(inside);
     }
     expect(inLavaNow({ lava: [strip], player: { x: 0, y: 0, hp: 0 } })).toBe(false);
+  });
+
+  it('stings Today\'s Heat once, with the first Kiln fight, unless its floor already sounds (V4/V6)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0 };
+    const first = { type: 'encounterStart', index: 0, id: 'pack' } as never;
+    expect(cueFor(first, { ...c, heat: 'quickStudy' })?.id).toBe('heatSting');
+    expect(cueFor(first, { ...c, heat: 'richHaul' })?.id).toBe('heatSting');
+    expect(cueFor({ type: 'encounterStart', index: 1, id: 'pack' } as never, { ...c, heat: 'richHaul' })).toBeNull();
+    expect(cueFor(first, c)).toBeNull();
+    for (const h of FLOOR_HEATS) expect(cueFor(first, { ...c, heat: h }), h).toBeNull();
+    // The real sim: a floor Heat's first fight does fire a layout event, so its layout sting stands in.
+    for (const heat of ['stoneFloor', 'ventFloor'] as const) {
+      const w = new World({ seed: 5, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', heat });
+      expect(w.heat, heat).toBe(heat);
+      const seen: string[] = [];
+      for (let k = 0; k < 120 && !seen.includes('encounterStart'); k++) {
+        if (k) w.step({ mx: 0, my: 0 } as never);
+        for (const ev of w.events) seen.push(ev.type === 'layout' ? `layout:${ev.id}` : ev.type);
+      }
+      expect(seen.some((s) => s === 'layout:pillars' || s === 'layout:vents'), `${heat}: ${seen.join(',')}`).toBe(true);
+    }
   });
 
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {

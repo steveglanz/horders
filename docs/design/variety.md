@@ -28,7 +28,7 @@ Each item is seeded from the run's rng, or from the day or week number like boun
 **Names:** every new name is searched first (wowhead, warcraft.wiki.gg, the open web), and boss names can be invented words (Steve, 22 Nov 2026).
 
 ## V1 status (built 22 Nov 2026)
-- **Foes:** `emberSpitter` (Ember Spitter, 420 hp, keeps 190 to 290 px away, casts `emberLob`: a 70-radius circle on your spot that lands 1.6 s later) and `ashbuck` (Ashbuck, 620 hp, casts `charge` for 1 s with a lane telegraph, then runs 360 px straight down it). The Hollow Rift fight reuses `rift` and `ashling`, with at most `VARIETY.riftCap` = 8 Ashlings out. Tuning is in `VARIETY` (sim/world.ts).
+- **Foes:** `emberSpitter` (Ember Spitter, 420 hp, keeps 190 to 290 px away, casts `emberLob`: a 70-radius circle on your spot that lands 1.6 s later) and `ashbuck` (Ashbuck, 620 hp, 520 since V7, casts `charge` for 1 s with a lane telegraph, then runs 360 px straight down it). The Hollow Rift fight reuses `rift` and `ashling`, with at most `VARIETY.riftCap` = 8 Ashlings out. Tuning is in `VARIETY` (sim/world.ts).
 - **Fights:** openers `spitters` (2 Spitters, 2 hounds), `riftfall` (a Rift and 2 hounds), `ashbucks` (2 Ashbucks, a hound); named `spitterBrute` and `ashbuckWarden`. The first delve keeps its fixed route.
 - **Bots:** a ranged bot closes in on a Rift (the fight's tip). The Rift fight first had a Hollow Warden: at tier 3 the Emberwright lost the opener in 11 of 20 runs (the Warden's slams while it went for the Rift), so the Warden became 2 hounds. Then it lost none of 20, though the fight runs about 56 s for an Emberwright, longer than an opener should (15 to 40 s). V7 looks at that.
 - **Events:** `spitLob {index, x1, y1, x2, y2}`, `charge {index}`, `riftSpawn {index, n}`; `riftOpen` now also fires when a fight spawns a Rift.
@@ -117,3 +117,42 @@ All four keep tier 1 in band (novice 45 to 51%, good bot 75 to 79%). A forced pi
 ## Found on the way (for V7)
 - **Hammer Sweep:** Ondrel's Hammer Sweep (sim/world.ts, since #51) multiplies its damage by tier when it is made, and telegraphs multiply by tier again when they land. So at tier 8 it hits about 2.2 times harder than `ONDREL.sweepDamage` says. The Hammerdeep's group tables were tuned with this, so it stays until V7 re-measures the Hammerdeep with a fix.
 - **Lava channel:** the V2 lava channel is the hardest layout for bots. V7 checks it with the full pools before it goes to other dungeons.
+
+## V7 status (measured 22 Nov 2026): the Kiln
+**Run variety.** tools/variety.ts (new) counts run shapes: the route, each fight's layout and the Kiln Mother's version, all fixed by the seed. It looks at 50 blocks of 20 runs in a row (seeds 1 to 1000).
+
+| Dungeon, tier | Runs that repeat an earlier run in their block of 20 | Distinct routes | Distinct run shapes |
+|---|---|---|---|
+| Kiln 1, main 38ae385 (before Phase 11) | 398 of 1000 | 18 | 18 |
+| Kiln 1, now | **0 of 1000** | 206 | 989 |
+| Foundry 4, now (no V1 to V3 yet) | 398 of 1000 | 18 | 18 |
+
+The target was no two runs alike in 20, and the Kiln now meets it in all 50 blocks. The Foundry still repeats 4 runs in 10, so it is next (V8). Today's Heat adds a daily change on top, which this count leaves out.
+
+**Fight length** (tools/balance.ts, seeds 1 to 80, tier 1 Emberwright, the average time to clear each fight, good bot / novice):
+- **Openers:** pack 18 / 19 s, wardens 33 / 36, warpack 37 / 39, spitters 38 / 35, riftfall 34 / 37, and ashbucks 46 / 49 s.
+- **Change:** Ashbucks was the one opener over the 15 to 40 s target, so the Ashbuck went from 620 to 520 hp. Ashbucks now runs 40 / 43 s.
+- **Rift fight:** at tier 1 it runs 34 / 37 s, inside the target. The 56 s seen in V1 was at tier 3.
+- **Named and hard fights:** 31 to 53 s.
+
+**Win rates after the Ashbuck change** (seeds 1 to 80, before → after): tier 1 novice Emberwright 37 → 36, novice Bulwark 38 → 36, good bot 62 → 61, tier 3 good bot 45 → 45. That is within run-to-run noise, and all stay in band. Hashcheck: only the Kiln rows move.
+
+**Still open:**
+- The lava channel: see "Found on the way".
+- Ondrel's double-scaled Hammer Sweep: re-measure the Hammerdeep with a fix, together with the group team.
+
+## V8 status, part 1 (built 22 Nov 2026): the Drowned Foundry's fights and layouts
+- **Fights:** the Foundry now draws from 6 openers (was 3) and 3 named fights (was 2). New: `glassSpitters` (a Glass Warden and 2 Ember Spitters), `crawlerCharge` (a Sluice Crawler, an Ashbuck and a hound), plus the Kiln's `riftfall` opener and `spitterBrute` named fight.
+- **Layouts:** `LAYOUTS.foundry` = open, open, pillars, vents. There is no lava channel, since the Foundry is drowned and the channel was the layout bots handled worst. Maelra's fight stays open (it has its own steam vents).
+- **Run variety** (tools/variety.ts, tier 4, 50 blocks of 20): repeats fell from 398 of 1000 to 4, with 149 routes (was 18) and 853 run shapes.
+
+**Measured** with tools/foundry.ts and the geared reference heroes, seeds 1 to 60, before → after:
+
+| Check | Before | After |
+|---|---|---|
+| Tier 4, hero-t4, good bot | 58 | 59 |
+| Tier 4, hero-t4, `SKILL=0.5` | 57 | 54 |
+| Tier 4, hero-t4 as a Bulwark, `SKILL=0.5` | 56 | 59 |
+| Tier 6, hero-t6, good bot | 54 | 50 |
+
+Hashcheck: only the Foundry rows move. Maelra's second version is part 2.

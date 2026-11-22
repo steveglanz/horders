@@ -59,6 +59,8 @@ export interface CueContext {
   colossus?: { x: number; y: number; side: number };
   /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
   t?: number;
+  /** Today's Heat for this run (World.heat), '' or unset for none. */
+  heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
   inLava?: boolean;
 }
@@ -157,6 +159,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
   charge: { start: 'chargeWindup' }, // Charge
+  // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
+  kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
@@ -364,12 +368,16 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'quest': return { id: 'quest' };
     case 'dodge': return { id: 'dodged' };
     case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
-    case 'encounterStart': return null;
+    // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
+    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
 }
+
+/** Heats that change the floor, so every fight's layout event already plays a sting. */
+export const FLOOR_HEATS: ReadonlySet<string> = new Set(['stoneFloor', 'ventFloor']);
 
 /** Each Kiln arena layout's sting as the fight starts. The plain 'open' room needs none. */
 export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>['id'], SoundId>> = {
