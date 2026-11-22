@@ -20,8 +20,8 @@
  */
 import { note } from './synth';
 
-export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery' | 'hubHunger' | 'hubPlate';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride';
+export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery' | 'hubHunger' | 'hubPlate' | 'flue';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride' | 'draft';
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -83,6 +83,10 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Raid 3, the Smeltery (roadmap Y7, docs/design/raid3.md): the Cinder Colossus in person. A slow, grand march in harmonic minor; the bed is
   // the giant's stride (two footfalls round the loop, cinders pattering down after each) and the brass is its herald.
   smeltery: { root: -17, scale: [0, 2, 3, 5, 7, 8, 11, 12], progression: [0, -4, -5, -1], bpm: 56, drone: 'sawtooth', droneLp: 900, pluck: 'brass', density: 0.3, bed: 'stride', bedVol: 0.5, phaseTempo: [1, 1.1, 1.2, 1.3], floodBed: 1.6 },
+  // Raid 4, the Flue (docs/design/raid4.md): the Furnace Regent's court, from its shadow sting's world. The brass keeps the
+  // shadow's stately call (a fourth, then a fifth up) in mixolydian, a major mode with a flat 7th, regal but smoke-dark, over
+  // the chimney's updraft: a deep roar that pulls upward twice round the loop, with a hollow howl across the stack and fire pops.
+  flue: { root: -14, scale: [0, 2, 4, 5, 7, 9, 10, 12], progression: [0, 5, -2, 7], bpm: 64, drone: 'sawtooth', droneLp: 900, pluck: 'brass', density: 0.32, bed: 'draft', bedVol: 0.45, phaseTempo: [1, 1.1, 1.2, 1.3], floodBed: 1.5 },
   hammerdeep: { root: -10, scale: [0, 2, 3, 5, 7, 9, 10, 12], progression: [0, -2, -4, -5], bpm: 88, drone: 'sawtooth', droneLp: 420, pluck: 'anvil', density: 0.3, bed: 'forge', bedVol: 0.35 },
   glarewell: { root: -5, scale: [0, 2, 4, 6, 7, 11, 12, 14, 18], progression: [0, 6, 4, -1], bpm: 66, drone: 'triangle', droneLp: 500, pluck: 'bell', density: 0.45, bed: 'shimmer', bedVol: 0.3 },
 };
@@ -247,6 +251,16 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = fall + lp * 0.4 + brown * 1.0;
         break;
       }
+      case 'draft': {
+        // The Flue's chimney: an updraft roar that swells twice round the loop, a hollow howl in the stack riding on it.
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.08;
+        const pull = 0.55 + 0.45 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const howl = Math.sin(2 * Math.PI * 174 * (i / rate)) + 0.4 * Math.sin(2 * Math.PI * 261 * (i / rate));
+        raw[i] = lp * 0.9 * pull + howl * 0.05 * pull + brown * 1.3;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -259,7 +273,7 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Pops for fire, drips for steam (short decaying tones placed at random).
-  const events = kind === 'stride' ? 60 : kind === 'chew' ? 54 : kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
+  const events = kind === 'draft' ? 40 : kind === 'stride' ? 60 : kind === 'chew' ? 54 : kind === 'fire' ? 70 : kind === 'hearth' ? 28 : kind === 'steam' ? 5 : kind === 'forge' ? 40 : kind === 'vents' ? 50 : kind === 'slag' ? 26 : kind === 'frost' ? 6 : 0;
   for (let k = 0; k < events; k++) {
     // Chew: the crunches land while the jaw is closing (the first 60% of each of the three chews).
     // Stride: the cinders fall in the second after each footfall (thickest right after it lands).
