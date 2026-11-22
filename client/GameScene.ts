@@ -178,9 +178,10 @@ function liveEnd(pool: readonly { alive: boolean }[]): number {
 }
 
 /** Arena edge props and light by dungeon, for GameScene.edgeDraw. flicker is the light's slow period in ms. */
-const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' }> = {
+const EDGE_SETS: Record<string, { big: string; small: string; light: string; flicker: number; puff: 'spark' | 'steam' | 'none' }> = {
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
+  hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -264,7 +265,14 @@ export class GameScene extends Phaser.Scene {
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
   private steamGfx: Phaser.GameObjects.Graphics | null = null;
-  /** The Kiln's edge props (furnaces and braziers just outside the rim) and their light pools; made on first need. */
+  /**
+   * The darkness beyond the arena edge, on its own layer (1.95) under the edge props (1.97) and the main graphics (2).
+   * It used to be the first stroke of the main graphics with the props drawn just after it at 2.05; in that order,
+   * WebGL (Chromium/SwiftShader, Phaser 4.2.1) dropped pieces of the boss sprite drawn later in the frame (#404/#405
+   * shots of Maelra and Ondrel). With darkness and props both before the main graphics, 48 checked frames were whole.
+   */
+  private darkGfx: Phaser.GameObjects.Graphics | null = null;
+  /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
   private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
   private tideGfx: Phaser.GameObjects.Graphics | null = null;
@@ -343,6 +351,7 @@ export class GameScene extends Phaser.Scene {
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
+    this.darkGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
@@ -1715,7 +1724,8 @@ export class GameScene extends Phaser.Scene {
       // The Hoard's is a deep coal red, darker than the Kiln's orange, like the embers he hoards.
       const R = w.arenaR ?? ARENA;
       const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : w.dungeonId === 'flue' ? FLUE_RIM : 0xff8a3d;
-      g.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
+      if (!this.darkGfx) this.darkGfx = this.add.graphics().setDepth(1.95);
+      this.darkGfx.clear().lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
         g.lineStyle(ARENA - R, 0x0b2f44, 0.8).strokeCircle(0, 0, (ARENA + R) / 2);
@@ -2583,11 +2593,12 @@ export class GameScene extends Phaser.Scene {
   /**
    * Arena edge environments, by dungeon (EDGE_SETS). Props stand just outside the rim, alternating big and small,
    * each throwing a light pool that spills onto the floor inside. Props sit outside the play area (above the dark
-   * beyond the rim, depth 2.05) and the light sits under everything that matters (depth 1.2), so neither ever hides a
+   * beyond the rim, depth 1.97) and the light sits under everything that matters (depth 1.2), so neither ever hides a
    * danger area or a class ring. The pools flicker; the small props give off a spark or a steam puff now and then
    * (not on trimmed effects).
    * - The Kiln: brick furnaces and braziers, warm light, embers.
    * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
+   * - The Hammerdeep: great anvils and miners' lanterns, a steady steel-white light.
    */
   private edgeDraw(now: number): void {
     const w = this.world;
@@ -2601,7 +2612,7 @@ export class GameScene extends Phaser.Scene {
         // Far enough out that even a prop below the arena (drawn upward) stays outside the rim.
         const r = R + (big ? 92 : 62);
         const x = Math.cos(a) * r, y = Math.sin(a) * r;
-        const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(2.05);
+        const img = this.add.image(x, y, big ? set.big : set.small).setOrigin(0.5, 0.85).setScale(big ? 0.55 : 0.6).setDepth(1.97);
         const lr = R - 10;
         const light = this.add.image(Math.cos(a) * lr, Math.sin(a) * lr, set.light).setBlendMode(Phaser.BlendModes.ADD).setDepth(1.2).setScale(big ? 1.15 : 0.85);
         this.edgeProps.push({ img, light, x, y, fire: !big });
