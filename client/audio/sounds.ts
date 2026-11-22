@@ -604,6 +604,18 @@ export const SOUNDS = {
   bonded: join(chime(D5 * 2, 0, 0.14, 0.4), chime(A5 * 2, 0.06, 0.13, 0.4), [{ wave: 'saw', f: 880, f2: 1320, dur: 0.12, delay: 0.1, vol: 0.05, lp: 4000, curve: 2 }]),
   /** Relayer: Relayed. A quick handoff, two bright notes passing upward like a baton. */
   relayed: join(whoosh(2000, 6500, 0.16, 0.12), chime(A5, 0.02, 0.14, 0.3), chime(E6, 0.1, 0.15, 0.4)),
+  /** Crawsplitter (3): Freed. Lands just after the Craw's break: a link snapping loose and two notes leaping up. */
+  freed: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, delay: 0.35, vol: 0.16, lp: 9000, hp: 2500, curve: 3 }],
+    clang(1500, 0.14, 0.2).map((v) => ({ ...v, delay: 0.35 })),
+    chime(D5 * 2, 0.42, 0.15, 0.35), chime(A5 * 2, 0.52, 0.16, 0.45),
+  ),
+  /** Platewalker (2): you slipped round behind the Colossus. A soft stone knock and a small rising glint, "in the gap". */
+  behindPlate: join(
+    [{ wave: 'tri', f: 260, f2: 380, dur: 0.1, vol: 0.18, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.04, vol: 0.12, lp: 4000, hp: 800, curve: 3 }],
+    chime(E5 * 2, 0.08, 0.12, 0.3),
+  ),
   /** Hearthkeeper: Warmth reaches 5. A low fire swells and two warm notes settle. */
   warmthFull: join(
     [{ wave: 'noise', f: 0, dur: 0.45, vol: 0.18, a: 0.15, lp: 2200, hp: 400, trem: [18, 0.5] }],

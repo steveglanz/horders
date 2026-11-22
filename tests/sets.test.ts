@@ -40,7 +40,9 @@ describe('verb sets (R4)', () => {
     expect(setForDungeon('ashvents')).toBe('ventwalker');
     expect(setForDungeon('crucible')).toBe('kinbound');
     expect(loadoutFrom({}, [...gear('kilnbreaker', 2), piece('chest')]).sets).toEqual({ kilnbreaker: 2 });
-    expect(Object.keys(SETS)).toHaveLength(9);
+    expect(Object.keys(SETS)).toHaveLength(11);
+    expect(setForDungeon('hoard')).toBe('crawsplitter');
+    expect(setForDungeon('smeltery')).toBe('platewalker');
     expect(setForDungeon('pressworks')).toBe('relay');
   });
 
@@ -237,8 +239,58 @@ describe('verb sets (R4)', () => {
     }
   });
 
+  it('Crawsplitter: the Craw takes more from you (2); breaking it gives you and the freed hero more damage (3)', () => {
+    type Raid = { spawn(kind: string, x: number, y: number): number; setDamageMult(e: unknown, silent: boolean): number; damageEnemy(i: number, a: number, c: boolean): void; coalClock(dt: number): void; bossIndex: number; swallowed: number; crawIndex: number; gorgeT: number; swallowT: number; spillT: number };
+    for (const n of [1, 2, 3]) {
+      const w = new World({ seed: 5, dungeon: 'hoard', omens: [], cls: 'bulwark', gear: gear('crawsplitter', n), party: [{ cls: 'emberwright' }, { cls: 'emberwright' }, { cls: 'emberwright' }] });
+      const q = w as unknown as Raid;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('coalmouth', 0, -200);
+      q.bossIndex = b;
+      q.gorgeT = 999; q.spillT = 999; q.swallowT = 0;
+      w.heroes.forEach((h, k) => { h.player.x = -150 + k * 100; h.player.y = 0; });
+      w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+      q.coalClock(0.01);
+      const k = q.swallowed;
+      expect(k).toBeGreaterThan(0);
+      const craw = w.enemies[q.crawIndex];
+      expect(q.setDamageMult(craw, true)).toBeCloseTo(n >= 2 ? 1 + SET_TUNING.csCraw : 1, 5);
+      q.damageEnemy(q.crawIndex, 1e9, false);
+      expect(q.swallowed).toBe(-1);
+      expect((w.player.freedT ?? 0) > 0).toBe(n >= 3);
+      expect((w.hero(k).player.freedT ?? 0) > 0).toBe(n >= 3);
+    }
+  });
+
+  it('Platewalker: behind the Colossus you take less (2) and deal more (3); in front, neither', () => {
+    type Raid = { spawn(kind: string, x: number, y: number): number; setDamageMult(e: unknown, silent: boolean): number; hurtPlayer(a: number): void; bossIndex: number; colFacing: number };
+    for (const n of [1, 2, 3]) {
+      const w = new World({ seed: 5, dungeon: 'smeltery', omens: [], cls: 'emberwright', gear: gear('platewalker', n), party: [{ cls: 'bulwark' }, { cls: 'lumen' }, { cls: 'duskblade' }] });
+      const q = w as unknown as Raid;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('colossus', 0, 0);
+      q.bossIndex = b;
+      q.colFacing = 0; // facing +x, so his back is at -x
+      const e = w.enemies[b];
+      const hit = () => { w.player.hp = w.player.maxHp; w.player.shieldT = 0; q.hurtPlayer(100); return w.player.maxHp - w.player.hp; };
+      w.player.x = 200; w.player.y = 0; // in front
+      const front = hit();
+      expect(q.setDamageMult(e, true)).toBeCloseTo(1, 5);
+      w.player.x = -200; // behind
+      const back = hit();
+      expect(back / front).toBeCloseTo(n >= 2 ? 1 - SET_TUNING.pwCut : 1, 3);
+      expect(q.setDamageMult(e, true)).toBeCloseTo(n >= 3 ? 1 + SET_TUNING.pwDamage : 1, 5);
+    }
+  });
+
   it("the newer sets' bonus texts quote SET_TUNING", () => {
     const pct = (v: number) => `${+(v * 100).toFixed(1)}%`;
+    const cs = SETS.crawsplitter.bonus;
+    expect(cs[0]).toContain(`deal ${pct(SET_TUNING.csCraw)} more damage`);
+    expect(cs[1]).toContain(`deal ${pct(SET_TUNING.csFreed)} more damage for ${SET_TUNING.csTime}s`);
+    const pw = SETS.platewalker.bonus;
+    expect(pw[0]).toContain(`take ${pct(SET_TUNING.pwCut)} less`);
+    expect(pw[1]).toContain(`deal ${pct(SET_TUNING.pwDamage)} more`);
     const rl = SETS.relay.bonus;
     expect(rl[0]).toContain(`${pct(SET_TUNING.rlDamage)} more damage for ${SET_TUNING.rlTime}s`);
     expect(rl[1]).toContain(`${pct(SET_TUNING.rlDamage)} more damage for ${SET_TUNING.rlTime}s`);

@@ -395,6 +395,8 @@ export interface Player {
   sunderT?: number;
   /** Relay (verb set): seconds left of the damage bonus from a soak. */
   relayT?: number;
+  /** Crawsplitter (verb set): seconds left of the damage bonus after the Craw breaks. */
+  freedT?: number;
   /** Raid 2: seconds left inside Old Coalmouth (swallowed: can't act, can't be hit, digests at 0). */
   swallowT?: number;
   /** The Pressworks: seconds left Pressed after taking a Downstroke (a Pressed hero can't take the next one). */
@@ -2205,6 +2207,11 @@ export class World {
     if ((p.warmth ?? 0) >= SET_TUNING.hkMax && this.setCount('hearthkeeper') >= 3) amount *= 1 - SET_TUNING.hkCut;
     // Wrackrider: a Planted hero is hard to knock about.
     if (p.planted && this.setCount('wrackrider') >= 2) amount *= 1 - SET_TUNING.wrCut;
+    // Platewalker: behind the Cinder Colossus, his blows land glancing.
+    if (this.setCount('platewalker') >= 2 && this.bossIndex >= 0) {
+      const b = this.enemies[this.bossIndex];
+      if (b.alive && b.kind === 'colossus' && this.behindColossus(b, p.x, p.y)) amount *= 1 - SET_TUNING.pwCut;
+    }
     // Deepguard: stay close. Less damage with an ally near (2), and a wearer of 3 guards the allies near it.
     if (this.heroes.length > 1) amount *= this.deepguardMult();
     // Kinbound: an ally's heal leaves you Covered.
@@ -4523,6 +4530,9 @@ export class World {
     if (p.planted && this.setCount('wrackrider') >= 3) m *= 1 + SET_TUNING.wrDamage;
     if ((p.bondT ?? 0) > 0) m *= 1 + SET_TUNING.knBond;
     if ((p.relayT ?? 0) > 0) m *= 1 + SET_TUNING.rlDamage;
+    if ((p.freedT ?? 0) > 0) m *= 1 + SET_TUNING.csFreed;
+    if (e.kind === 'craw' && this.setCount('crawsplitter') >= 2) m *= 1 + SET_TUNING.csCraw;
+    if (e.kind === 'colossus' && this.setCount('platewalker') >= 3 && this.behindColossus(e, p.x, p.y)) m *= 1 + SET_TUNING.pwDamage;
     if (this.heroes.length > 1 && this.setCount('ventwalker') >= 2 && this.splitFromAllies()) m *= 1 + SET_TUNING.vwDamage;
     if (p.surge && !silent) {
       p.surge = false;
@@ -4541,6 +4551,7 @@ export class World {
     if ((p.coverT ?? 0) > 0) p.coverT = (p.coverT ?? 0) - dt;
     if ((p.bondT ?? 0) > 0) p.bondT = (p.bondT ?? 0) - dt;
     if ((p.relayT ?? 0) > 0) p.relayT = (p.relayT ?? 0) - dt;
+    if ((p.freedT ?? 0) > 0) p.freedT = (p.freedT ?? 0) - dt;
     if ((p.warmth ?? 0) > 0) {
       p.warmT = (p.warmT ?? 0) + dt;
       if (p.warmT >= SET_TUNING.hkFade) { p.warmT -= SET_TUNING.hkFade; p.warmth = (p.warmth ?? 0) - 1; }
@@ -5586,6 +5597,11 @@ export class World {
   }
 
   /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
+  /** True when (x, y) is in the Colossus's back arc, the same arc that takes COLO.backMult. Meltdown doesn't change where his back is. */
+  behindColossus(e: Enemy, x: number, y: number): boolean {
+    return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing)) >= COLO.backArc;
+  }
+
   colossusSide(e: Enemy, x: number, y: number): number {
     const off = Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing));
     return off <= COLO.frontArc ? COLO.frontMult : off >= COLO.backArc ? COLO.backMult : 1;
@@ -5615,8 +5631,9 @@ export class World {
     if (this.swallowed >= 0) {
       const q = this.heroPlayer(this.swallowed);
       q.swallowT = Math.max(0, (q.swallowT ?? 0) - dt);
-      q.hp -= q.maxHp * COAL.swallowTick * dt;
-      if (q.swallowT <= 0 || q.hp <= 0) this.releaseSwallowed(true);
+      // The drain can't kill: only the clock running out Digests them, so the check is how fast the party breaks the Craw.
+      q.hp = Math.max(1, q.hp - q.maxHp * COAL.swallowTick * dt);
+      if (q.swallowT <= 0) this.releaseSwallowed(true);
     }
     // Spilled embers: a hero who walks over one takes it; he inhales the ones left too long.
     for (let k = this.coalEmbers.length - 1; k >= 0; k--) {
@@ -5675,16 +5692,19 @@ export class World {
     }
   }
 
-  /** Swallow: the living non-tank hero furthest from Old Coalmouth goes inside, and the Craw appears. */
+  /**
+   * Swallow: he gulps down the living non-tank hero who has dealt the most damage this run, and the Craw
+   * appears. (It used to be the furthest hero, which made the check how much health the ranged hero had.)
+   */
   private swallow(i: number): void {
     const e = this.enemies[i];
     let pick = -1;
-    let far = -1;
+    let most = -1;
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.hp <= 0 || this.isTank(k)) continue;
-      const d = dist2(q.x, q.y, e.x, e.y);
-      if (d > far) { far = d; pick = k; }
+      const d = k === this.acting ? this.damageDealt : this.heroes[k].damageDealt;
+      if (d > most) { most = d; pick = k; }
     }
     if (pick < 0) return;
     const q = this.heroPlayer(pick);
@@ -5702,6 +5722,11 @@ export class World {
 
   /** The Craw broke: he spits the swallowed hero out beside it, with a moment's shield. */
   private crawBroken(): void {
+    // Crawsplitter (3): the hero who broke it and the hero it frees both hit harder for a while.
+    if (this.swallowed >= 0 && this.setCount('crawsplitter') >= 3) {
+      this.player.freedT = SET_TUNING.csTime;
+      this.heroPlayer(this.swallowed).freedT = SET_TUNING.csTime;
+    }
     this.crawIndex = -1;
     this.releaseSwallowed(false);
   }
@@ -6675,9 +6700,9 @@ export const COAL = {
   /** Gorge: an interruptible channel; if it finishes he heals `gorgeHeal` of max health. */
   gorgeEvery: 12, gorgeCast: 3, gorgeHeal: 0.08, firstGorge: 6,
   /**
-   * Swallow (phase 2 on): the non-tank hero furthest from him goes inside for `swallowTime` s,
-   * losing `swallowTick` of max health a second. Break the Craw at his side to get them out;
-   * otherwise they are Digested (downed). `crawDist` is how far from his middle the Craw sits.
+   * Swallow (phase 2 on): the non-tank hero who has dealt the most damage goes inside for `swallowTime` s,
+   * losing `swallowTick` of max health a second (never below 1). Break the Craw at his side to get them out;
+   * otherwise they are Digested (downed) when the time runs out. `crawDist` is how far from his middle the Craw sits.
    */
   swallowEvery: 18, firstSwallow: 4, swallowTime: 8, swallowTick: 0.06, crawDist: 90, spitShield: 1.5,
   /** Ember Feast (phase 3): `spillN` embers scatter `spillMin`..`spillMax` from him; he inhales any left after `emberLife` s. */
