@@ -291,6 +291,8 @@ export class GameScene extends Phaser.Scene {
   private brimImgs: Phaser.GameObjects.Image[] = [];
   private brimBorn = new WeakMap<object, number>();
   private brimStart = 0;
+  /** Phase 12 W3: the Regent's Summons tell (depth 1.9). */
+  private summonsGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 12 W3 (Plate Shift): the Colossus's plate turn as drawn, easing to World.colPlate, and when it was last eased. */
   private plateShown: number | null = null;
   private plateAt = 0;
@@ -389,6 +391,7 @@ export class GameScene extends Phaser.Scene {
     this.brimGfx = null;
     this.brimImgs = [];
     this.brimStart = 0;
+    this.summonsGfx = null;
     this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
@@ -1665,14 +1668,7 @@ export class GameScene extends Phaser.Scene {
     if (this.coalLights.length) this.coldDraw(g, now);
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
-    // Phase 12 W3: the Regent's Summons (placeholder until visuals): a gold ring round him that closes in while it warns.
-    if (w.summonsT > 0 && w.bossIndex >= 0) {
-      const b = w.enemies[w.bossIndex];
-      const k = 1 - w.summonsT / SUMMONS.warn;
-      g.fillStyle(0xffd27a, 0.06 + 0.08 * k).fillCircle(b.x, b.y, SUMMONS.radius);
-      g.lineStyle(4, 0xffd27a, 0.6 + 0.4 * k).strokeCircle(b.x, b.y, SUMMONS.radius);
-      g.lineStyle(2, 0xffd27a, 0.5 * (1 - k)).strokeCircle(b.x, b.y, SUMMONS.radius + 120 * (1 - k));
-    }
+    this.summonsDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -3940,6 +3936,56 @@ export class GameScene extends Phaser.Scene {
     if (!e) return;
     const dx = e.x - x, dy = e.y - y, d = Math.max(1, Math.hypot(dx, dy));
     for (let k = 0; k < 10; k++) this.spark(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 20, (dx / d) * (180 + Math.random() * 120), (dy / d) * (180 + Math.random() * 120), 0.6 + Math.random() * 0.3, 1.8);
+  }
+
+  /**
+   * Phase 12 W3: the Furnace Regent's Summons (court version, phase 2). Unlike every other ring, it says "come close":
+   * - inside SUMMONS.radius round him, a gold (SOAK, "stand in it") court circle with a timer sweep;
+   * - gold chevrons outside the rim crawling in toward him;
+   * - outside, a DANGER wash that darkens as it is about to land;
+   * - for each living hero still outside, a gold arrow a little way from their feet pointing at him.
+   * The Ash Fall circles that come with it stay on the main graphics above this.
+   */
+  private summonsDraw(now: number): void {
+    const w = this.world;
+    const e = w.summonsT > 0 && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (!e || !e.alive) { this.summonsGfx?.clear(); return; }
+    if (!this.summonsGfx) this.summonsGfx = this.add.graphics().setDepth(1.9);
+    const g = this.summonsGfx.clear();
+    const R = SUMMONS.radius;
+    const k = Math.max(0, Math.min(1, 1 - w.summonsT / SUMMONS.warn));
+    const pulse = 0.5 + 0.5 * Math.sin(now / 140);
+    // Outside: the danger wash, a wide band from the rim outward.
+    g.lineStyle(1400, DANGER, 0.05 + 0.13 * k).strokeCircle(e.x, e.y, R + 700);
+    // Inside: the court circle.
+    g.fillStyle(SOAK, 0.1 + 0.08 * k).fillCircle(e.x, e.y, R);
+    g.lineStyle(5, SOAK, 0.75 + 0.25 * pulse).strokeCircle(e.x, e.y, R);
+    g.lineStyle(3, 0xfff2c8, 0.9).beginPath().arc(e.x, e.y, R - 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - k), false).strokePath();
+    // Chevrons crawling in from outside the rim.
+    for (let q = 0; q < 10; q++) {
+      const a = (q / 10) * Math.PI * 2 + 0.15;
+      for (let j = 0; j < 2; j++) {
+        const u = ((now / 900 + j * 0.5) % 1);
+        const r = R + 70 - 60 * u;
+        const x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r;
+        const ia = a + Math.PI;
+        const al = 0.85 * Math.sin(u * Math.PI);
+        g.lineStyle(4, SOAK, al).beginPath()
+          .moveTo(x + Math.cos(ia + 2.4) * 10, y + Math.sin(ia + 2.4) * 10).lineTo(x + Math.cos(ia) * 6, y + Math.sin(ia) * 6).lineTo(x + Math.cos(ia - 2.4) * 10, y + Math.sin(ia - 2.4) * 10).strokePath();
+      }
+    }
+    // An arrow toward him beside each hero still outside.
+    for (let i = 0; i < w.heroes.length; i++) {
+      const q = w.heroData(i).player;
+      if (q.hp <= 0) continue;
+      const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
+      if (d <= R) continue;
+      const ux = dx / d, uy = dy / d;
+      const bx = q.x + ux * 44, by = q.y + 10 + uy * 44;
+      const ia = Math.atan2(uy, ux);
+      g.fillStyle(SOAK, 0.6 + 0.35 * pulse).fillTriangle(bx + Math.cos(ia) * 14, by + Math.sin(ia) * 14, bx + Math.cos(ia + 2.5) * 10, by + Math.sin(ia + 2.5) * 10, bx + Math.cos(ia - 2.5) * 10, by + Math.sin(ia - 2.5) * 10);
+      g.lineStyle(2, 0x1a1010, 0.8).strokeTriangle(bx + Math.cos(ia) * 14, by + Math.sin(ia) * 14, bx + Math.cos(ia + 2.5) * 10, by + Math.sin(ia + 2.5) * 10, bx + Math.cos(ia - 2.5) * 10, by + Math.sin(ia - 2.5) * 10);
+    }
   }
 
   private wanderDraw(now: number): void {
