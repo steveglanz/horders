@@ -1112,8 +1112,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
   chargeWindup: 4.0,
-  // Kiln Draw's inhale is a cast wind-up that measured right on the floor (-26.5 dB).
-  kilnDraw: 1.0,
+  // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
+  kilnDraw: 4.0,
   // The Sluicetide's turn is a must-hear push warning (measured -31.0 dB; 5.7 dB over the Foundry mix at +5.5, so +6.5).
   tideTurn: 6.5,
   // Glintfall's wind-up is a cast start (measured -28.6 dB).

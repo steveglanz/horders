@@ -533,6 +533,16 @@ describe('audio', () => {
     }
   });
 
+  it('has a case in cueFor for every SimEvent type, so a new event is never silent by accident', () => {
+    const world = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    const cues = readFileSync(new URL('../client/audio/cues.ts', import.meta.url), 'utf8');
+    const types = [...world.matchAll(/^\s*\| \{ type: '(\w+)'/gm)].map((m) => m[1]);
+    expect(types.length).toBeGreaterThan(50);
+    const handled = new Set([...cues.matchAll(/case '(\w+)'/g)].map((m) => m[1]));
+    // A silent event still gets its own `case 'x': return null;` line, so the choice is written down.
+    expect(types.filter((t) => !handled.has(t))).toEqual([]);
+  });
+
   it('has themes and cues ready for the Ashvents, the Coldmarrow and the raid', () => {
     for (const t of ['ashvents', 'coldmarrow', 'raid'] as const) expect(THEMES[t], t).toBeDefined();
     expect(THEMES.raid.meter).toBe(3);
