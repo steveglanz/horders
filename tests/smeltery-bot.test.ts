@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { colossusFlank, lumenWard, MELT_TANK_FIRST } from '../sim/bot';
+import { anvilHold, ANVIL_SHIFT_HOLD, colossusFlank, lumenWard, MELT_TANK_FIRST } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 
 type Inner = { spawn(kind: string, x: number, y: number): number; use(i: number): void; bossIndex: number; bossPhase: number };
@@ -53,5 +53,29 @@ describe('the Smeltery Lumen in Meltdown', () => {
     expect(ward(3, MELT_TANK_FIRST - 0.1)).toBe(0);
     expect(ward(3, MELT_TANK_FIRST + 0.1)).toBe(2);
     expect(ward(1, MELT_TANK_FIRST - 0.1)).toBe(2);
+  });
+});
+
+describe('the Smeltery Anvil tank in Plate Shift', () => {
+  /** anvilHold for an Anvil Slagbinder tank `d` px from the Colossus, in version `v`. */
+  function hold(v: 'wheel' | 'shift', d: number, telegraph = false): { dx: number; dy: number } | null {
+    const w = new World({ seed: 5, dungeon: 'smeltery', omens: [], cls: 'slagbinder', stance: 'anvil', worldBoss: 'The Cinder Colossus', party: [{ cls: 'lumen' }] });
+    const inner = w as unknown as Inner;
+    for (const e of w.enemies) e.alive = false;
+    inner.bossIndex = inner.spawn('colossus', 0, 0);
+    w.bossVariant = v;
+    for (const t of w.telegraphs) t.alive = false;
+    if (telegraph) (w as unknown as { addTelegraph(...a: unknown[]): void }).addTelegraph('cone', 0, 0, 200, 0, Math.PI / 2, 1.5, 10, 'hit', inner.bossIndex);
+    w.player.x = d; w.player.y = 0;
+    return anvilHold(w);
+  }
+
+  it('holds him close in Plate Shift only, and lets a telegraph be dodged first', () => {
+    const far = hold('shift', 340);
+    expect(far).not.toBeNull();
+    expect(far!.dx).toBeLessThan(-0.99); // straight in toward him at 0,0
+    expect(hold('shift', ANVIL_SHIFT_HOLD - 20)).toBeNull();
+    expect(hold('wheel', 340)).toBeNull();
+    expect(hold('shift', 340, true)).toBeNull();
   });
 });
