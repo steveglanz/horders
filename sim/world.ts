@@ -830,7 +830,7 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | '' = '';
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -886,6 +886,9 @@ export class World {
   }
   private choirT = 0;
   private choirN = 0;
+  /** Phase 12 W2: Ondrel's Ironload. The marked hero (-1: none), and how long until it lands. */
+  loadHero = -1;
+  loadT = 0;
   /** Set while a dungeon verb that wards must not soak (Glare) lands. */
   private verbHit = false;
   private gripT = 0;
@@ -1791,6 +1794,9 @@ export class World {
           this.anvilT = ONDREL.firstAnvil;
           this.choirT = ONDREL.firstChoir;
           this.choirN = 0;
+          this.loadHero = -1;
+          this.loadT = 0;
+          this.bossVariant = this.rollOndrelVariant();
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
@@ -1980,6 +1986,14 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** Phase 12 W2: Ondrel's version this run, hashed from the seed (no run-rng draws). */
+  private rollOndrelVariant(): OndrelVariant {
+    if (this.stress) return 'choir';
+    let h = Math.imul(this.seed ^ 0x510e527f, 0x9b05688c) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x1f83d9ab) >>> 0;
+    return ONDREL_VARIANTS[(h >>> 4) % ONDREL_VARIANTS.length];
   }
 
   /** Phase 12 W1: Hessa's phase-2 signature this run, hashed from the seed (no run-rng draws). */
@@ -4482,6 +4496,16 @@ export class World {
         this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
       }
       this.use(at);
+    } else if (id === 'ironload') {
+      // Mark a hero other than the one holding Ondrel; it lands in `time` s, split among everyone with them.
+      const tank = this.targetOf(i, 0);
+      const pick: number[] = [];
+      for (let k = 0; k < this.heroes.length; k++) if (k !== tank && this.heroPlayer(k).hp > 0) pick.push(k);
+      if (!pick.length) for (let k = 0; k < this.heroes.length; k++) if (this.heroPlayer(k).hp > 0) pick.push(k);
+      if (pick.length) {
+        this.loadHero = pick[this.rng.int(pick.length)];
+        this.loadT = IRONLOAD.time;
+      }
     } else if (id === 'choir') {
       // Every hero takes a share of their health, a bit more each time: the healer's job.
       const at = this.acting;
@@ -6241,7 +6265,29 @@ export class World {
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
-        this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+        if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+      }
+    }
+    // Ironload: when it lands, its weight is shared by every hero standing with the marked one.
+    if (this.loadHero >= 0) {
+      this.loadT -= dt;
+      const m = this.heroPlayer(this.loadHero);
+      if (!m || m.hp <= 0) { this.loadHero = -1; this.loadT = 0; }
+      else if (this.loadT <= 0) {
+        const at = this.acting;
+        const near: number[] = [];
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp > 0 && dist2(q.x, q.y, m.x, m.y) <= IRONLOAD.radius ** 2) near.push(k);
+        }
+        const share = (IRONLOAD.share + IRONLOAD.grow * this.choirN) / Math.max(1, near.length);
+        this.choirN++;
+        for (const k of near) { this.use(k); this.hurtPlayer(this.player.maxHp * share, i, true); }
+        this.use(at);
+        this.events.push({ type: 'slam', x: m.x, y: m.y, r: IRONLOAD.radius });
+        this.loadHero = -1;
+        this.loadT = 0;
       }
     }
     // Slag Grip burns once a second; Sundered fades.
@@ -7028,6 +7074,8 @@ export type LayoutId = 'open' | 'pillars' | 'channel' | 'vents';
 /** The layouts each dungeon's fights roll from (open is listed twice in the Kiln, so it stays the most common). */
 export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
+  // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
+  hammerdeep: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
@@ -7168,6 +7216,15 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
+export type OndrelVariant = 'choir' | 'load';
+export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
+/**
+ * Ironload, on the Choir's timer: marks a hero (not the one Ondrel is on) for `time` s. It lands for
+ * `share` (+`grow` each time) of max health, split evenly among the living heroes within `radius` of the mark.
+ * Four together take about what one Choir costs each; alone it is half a hero's health.
+ */
+export const IRONLOAD = { time: 5, radius: 110, share: 0.5, grow: 0.08 };
 /** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
 export type HessaVariant = 'riptide' | 'outsurge';
 export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];

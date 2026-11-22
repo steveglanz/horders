@@ -103,6 +103,8 @@ export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the
 export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
+/** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
+export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
 export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water turns and throws you out to the rim: the rim burns, so stay on a raft.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
@@ -165,7 +167,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   hammerdeep: {
     id: 'hammerdeep', name: 'The Hammerdeep', boss: 'ondrel', unlockTier: 4,
-    openers: ['warpack', 'wardens', 'glass'], named: ['anvilguard', 'bellwarden'], hard: ['acolytes', 'anvilguard'],
+    openers: ['warpack', 'wardens', 'glass', 'glassSpitters', 'riftfall', 'spitters'], named: ['anvilguard', 'bellwarden', 'spitterBrute'], hard: ['acolytes', 'anvilguard'],
     blurb: 'A group dungeon. A tank holds Ondrel\'s Anvilfall, a healer keeps the party standing.', style: 'group', minParty: 2,
   },
   ashvents: {

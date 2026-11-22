@@ -314,3 +314,34 @@ Hessa's boss record by version (tier 10, wins out of the runs that reached her):
 The two versions are about as hard for bots, which ride a raft through every Ebb either way. For a human, the Outsurge changes where the danger is.
 
 The tier 13 moves are within the noise at 160 seeds (about ±5). The hashcheck has no Wrackline rows and is identical to main.
+
+## Phase 12 W2, part 1 (built 22 Nov 2026): the Hammerdeep and Ondrel's Ironload
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2).
+  - New openers: `glassSpitters`, `riftfall` and the Kiln's `spitters`.
+  - New named fight: `spitterBrute`.
+- **Ashbucks are left out of group play.** The first set had `crawlerCharge` and `ashbuckWarden`. An Ashbuck's charge lane runs through a party standing together, and the full party at tier 8 fell from 96 to 71 of 160 with the new fights alone (layouts alone: 94).
+- **Layouts:** `LAYOUTS.hammerdeep` is open, open, pillars or vents. There is no lava in group dungeons, since a party can't all cross it at once. The vents borrow the Kiln's fire sounds (`VENT_SOUNDS.hammerdeep`) until sound gives them their own. Ondrel's fight stays open.
+- **Ondrel's second version.** The seed picks `bossVariant`:
+  - `choir`: Choir of Iron, as before.
+  - `load`: **Ironload** on the same timer. It marks a hero other than the one Ondrel is on (`World.loadHero`). After 5 s it lands for 50% of max health, plus 8% more each time. The damage is split evenly among the living heroes within 110 px of the mark.
+  - Four heroes together take about what one Choir costs each. Alone, the marked hero takes half its health.
+  - The Choir is a healer check. Ironload is a party positioning check, the opposite of the Ashvents' Scatter Embers, which want you spread out.
+  - Tuning is in `IRONLOAD`. The banner says so (`IRONLOAD_TIP`), and the client draws a placeholder iron ring that fills as it comes down.
+- **Bots:** while a hero is marked, everyone walks to it, and the marked hero walks to the others. `NOSTACK=1` turns this off for measuring.
+- **Name:** "Ironload" is an invented word, and a web search on 22 Nov 2026 found no WoW match. "Ironbrand" was dropped as too close to WoW's "Ironband", and "Shared Weight" as too close to WoW's "Shared Burden".
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, full party Bulwark, Lumen, Duskblade and Emberwright, main → this change:
+
+| Check | main | This change |
+|---|---|---|
+| Tier 4, seeds 1 to 80 | 80 | 80 |
+| Tier 6, seeds 1 to 80 | 78 | 78 |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright) | 5 | 3 |
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights) | 10 | 19 (24%, under the 25% bar) |
+| Tier 8, seeds 1 to 160 | 96 (60%) | 94 (59%, in the 55 to 70% band) |
+
+At tier 8, Ondrel's record by version is choir 52 of 88 and load 42 of 72, so the two are about as hard.
+
+**Run variety** (tools/variety.ts, tier 6, now counting Ondrel's version): 2 of 1000 runs repeat an earlier run in their block of 20, against 409 before. Routes went from 18 to 150, and there are 928 run shapes.
+
+The hashcheck has no Hammerdeep rows and is identical to main. Ondrel's double-scaled Hammer Sweep is still open; it is the next W2 PR, with its own re-measure.
