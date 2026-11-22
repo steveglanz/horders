@@ -3165,7 +3165,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  make(scene, 'kilnStone', 200, (ctx) => {
+  const stone = (ctx: CanvasRenderingContext2D, wet: boolean) => {
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3178,7 +3178,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3189,8 +3189,22 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a');
+    if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    if (wet) {
+      // Drowned: a waterline band round the side, a teal puddle with a glint on top, and a few drips.
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(cx, by - 8, r - 1, ry - 1, 0, 0, Math.PI); ctx.strokeStyle = 'rgba(79,227,193,0.45)'; ctx.lineWidth = 3; ctx.stroke();
+      ell(ctx, cx + 10, by - h - 4, 26, 11); ctx.fillStyle = 'rgba(40,120,120,0.55)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(160,240,225,0.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 4, by - h - 8); ctx.lineTo(cx + 14, by - h - 10); ctx.stroke();
+      ctx.fillStyle = 'rgba(150,230,220,0.7)';
+      for (const [dx, dy] of [[-40, -6], [-22, 4], [30, 2], [46, -8]]) { ell(ctx, cx + dx, by + dy, 2, 3.4); ctx.fill(); }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(220,250,245,0.22)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
+      return;
+    }
     // An ember seam across the top, and a couple of chips.
     ctx.save();
     ctx.strokeStyle = '#ff8a3a'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 3; ctx.lineCap = 'round';
@@ -3198,7 +3212,10 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.restore();
     ctx.strokeStyle = 'rgba(255,230,200,0.25)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 44, by - h - 22); ctx.lineTo(cx - 20, by - h - 30); ctx.stroke();
-  });
+  };
+  make(scene, 'kilnStone', 200, (ctx) => stone(ctx, false));
+  // V8: the same stump in the Drowned Foundry, slate and wet, with a waterline instead of an ember seam.
+  make(scene, 'foundryStone', 200, (ctx) => stone(ctx, true));
 
   // A kiln vent set in the floor: a brick ring round an iron grate over coals. It rests dim; GameScene brightens it
   // while its flare circle is up. 26 px across at half scale, the same as the placeholder.
@@ -3217,6 +3234,31 @@ export function buildTextures(scene: Phaser.Scene): void {
     ell(ctx, c, c, 38, 38); ctx.fillStyle = cg; ctx.fill();
     // The grate bars.
     ctx.strokeStyle = '#1c1210'; ctx.lineWidth = 5; ctx.lineCap = 'butt';
+    for (const d of [-24, -12, 0, 12, 24]) {
+      const half = Math.sqrt(38 * 38 - d * d);
+      ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(c - 38, c); ctx.lineTo(c + 38, c); ctx.stroke();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  // V8: a Foundry vent: a brass ring round an iron grate over dark, teal-lit water. It rests calm; GameScene puffs steam
+  // from it while its flare circle is up.
+  make(scene, 'steamVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(79,227,193,0.22)');
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 0.86) / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#8a6a34' : '#6e5228'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // Rivets on the brass.
+    ctx.fillStyle = '#d9b46a';
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.26; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.6, 2.6); ctx.fill(); }
+    const wg = ctx.createRadialGradient(c, c, 4, c, c, 38);
+    wg.addColorStop(0, '#bff6ea'); wg.addColorStop(0.4, '#2fa596'); wg.addColorStop(1, '#0a2a2e');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = wg; ctx.fill();
+    ctx.strokeStyle = '#141a1c'; ctx.lineWidth = 5; ctx.lineCap = 'butt';
     for (const d of [-24, -12, 0, 12, 24]) {
       const half = Math.sqrt(38 * 38 - d * d);
       ctx.beginPath(); ctx.moveTo(c + d, c - half); ctx.lineTo(c + d, c + half); ctx.stroke();

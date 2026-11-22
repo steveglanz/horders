@@ -1,16 +1,22 @@
 // Screenshots the Kiln's arena layouts (V2 sim, V5 art): pillars (basalt stumps that block), the lava channel and the
 // kiln vents, one of them flaring. Each scene restarts on a seed whose first fight rolls that layout.
-// Usage: npm run build && node tools/layoutshots.cjs <outDir> [phone|p360]
+// Usage: npm run build && node tools/layoutshots.cjs <outDir> [phone|p360] [foundry]
+// With `foundry`, it shoots the Drowned Foundry's pillars and vents (V8): wet slate stones and steaming vents.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const p360 = process.argv.includes('p360');
 const phone = process.argv.includes('phone') || p360;
+const foundry = process.argv.includes('foundry');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const OPTS = { cls: 'bulwark', dungeon: 'kiln', route: ['warpack'], tier: 2, invulnerable: true, heroName: 'Bulwark 9', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'emberwright', name: 'Emberwright 9' }, { cls: 'duskblade', name: 'Duskblade 9' }] };
-const SCENES = [
+if (foundry) Object.assign(OPTS, { dungeon: 'foundry', route: ['glass'], tier: 5 });
+const SCENES = foundry ? [
+  { name: 'foundry-1-pillars', seed: 2, until: 'pillars' },
+  { name: 'foundry-3-vents', seed: 3, until: 'vents' },
+] : [
   { name: '1-pillars', seed: 3, until: 'pillars' },
   { name: '2-channel', seed: 6, until: 'channel' },
   { name: '3-vents', seed: 2, until: 'vents' },

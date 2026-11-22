@@ -256,6 +256,8 @@ export class GameScene extends Phaser.Scene {
   private stoneImgs: Phaser.GameObjects.Image[] = [];
   private kilnVentImgs: Phaser.GameObjects.Image[] = [];
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
+  /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
+  private steamGfx: Phaser.GameObjects.Graphics | null = null;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -320,6 +322,7 @@ export class GameScene extends Phaser.Scene {
     this.stoneImgs = [];
     this.kilnVentImgs = [];
     this.lavaStrips = [];
+    this.steamGfx = null;
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1051,7 +1054,7 @@ export class GameScene extends Phaser.Scene {
         }
         // The Flue: a Decree lands with a flare, a pass flashes on its new holder, and a burst rolls out over everyone.
         case 'ventFlare':
-          this.ring(ev.x, ev.y, LAYOUT.ventRadius, 0xffb060, 0.35);
+          this.ring(ev.x, ev.y, LAYOUT.ventRadius, this.world.dungeonId === 'foundry' ? 0xdff6f0 : 0xffb060, 0.35);
           break;
         case 'decree': {
           const q = this.heroXY(ev.hero);
@@ -2358,9 +2361,13 @@ export class GameScene extends Phaser.Scene {
    */
   private layoutDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
+    // V8: the Drowned Foundry rolls the same layouts; there the stones are wet slate and the vents steam.
+    const wet = w.dungeonId === 'foundry';
+    if (wet && !this.steamGfx) this.steamGfx = this.add.graphics().setDepth(1.45);
+    this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2383,13 +2390,20 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
       img.setVisible(true).setPosition(v.x, v.y).setScale(0.5 + 0.06 * f).setAlpha(hot ? 1 : 0.85);
-      if (hot) g.fillStyle(0xff8a3a, 0.18 + 0.12 * f).fillCircle(v.x, v.y, 40);
-      g.lineStyle(1.5, 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
+      if (hot && wet) {
+        // Steam: soft puffs rising and spreading from the grate, staggered so the column keeps moving.
+        for (let p = 0; p < (this.lowFx ? 3 : 6); p++) {
+          const u = ((now / 900) + p / 6) % 1;
+          const px = v.x + Math.sin(p * 2.1 + now / 400) * 10 * u, py = v.y - 70 * u;
+          this.steamGfx!.fillStyle(0xdff6f0, 0.32 * (1 - u)).fillCircle(px, py, 12 + 26 * u);
+        }
+      } else if (hot) g.fillStyle(0xff8a3a, 0.18 + 0.12 * f).fillCircle(v.x, v.y, 40);
+      g.lineStyle(1.5, wet ? 0x9fe8da : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
   }
