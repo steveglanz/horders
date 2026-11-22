@@ -2,7 +2,7 @@
 // (stage 3 just after a dash), and all four seasons' trails at stage 2. No network.
 // With `rime`: Rime Dust (the Cold Hearth's falling frost) at stages 1 and 2, stage 2 on the Glarewell's pale floor, and stage 3's dash in the Coldmarrow.
 // `full` sets Graphics to Full: software GL runs under 42 fps, so Auto would trim the trail to Battery saver's rate.
-// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver|full] [rime|slag|oil|chips]
+// Usage: npm run build && node tools/trailshots.cjs <outDir> [saver|full] [rime|slag|oil|chips|crumbs|shards]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots'; const saver = process.argv.includes('saver'); const full = process.argv.includes('full');
@@ -24,6 +24,7 @@ const SLAG = [
 ];
 // With `oil`: Oil Sheen (the Falling Press) at stages 1 and 2, stage 2 in the Pressworks and stage 3's dash.
 // With `chips`: Raft Splinters (the Low Ebb) the same way, stage 2 in the Wrackline.
+// With `crumbs`: Ember Crumbs (the Long Hunger), stage 2 in the Hoard. With `shards`: Plate Shards (the Cracked Plate), stage 2 in the Smeltery.
 const SEASON56 = (id, key, dungeon) => [
   { name: `${key}-1`, id, stage: 1, cls: 'emberwright' },
   { name: `${key}-2`, id, stage: 2, cls: 'emberwright' },
@@ -41,7 +42,8 @@ const ALL = [
   { name: 'party', id: 'bellowsSparks', stage: 2, cls: 'emberwright', party: [{ cls: 'lumen', name: 'Lumen 9' }, { cls: 'bulwark', name: 'Bulwark 9' }], looks: [{}, { trail: { id: 'saltMist', stage: 2 } }, { trail: { id: 'rimeDust', stage: 3 } }] },
 ];
 const SHOTS = process.argv.includes('rime') ? RIME : process.argv.includes('slag') ? SLAG
-  : process.argv.includes('oil') ? SEASON56('oilSheen', 'oil', 'pressworks') : process.argv.includes('chips') ? SEASON56('raftSplinters', 'chips', 'wrackline') : ALL;
+  : process.argv.includes('oil') ? SEASON56('oilSheen', 'oil', 'pressworks') : process.argv.includes('chips') ? SEASON56('raftSplinters', 'chips', 'wrackline')
+  : process.argv.includes('crumbs') ? SEASON56('emberCrumbs', 'crumbs', 'hoard') : process.argv.includes('shards') ? SEASON56('plateShards', 'shards', 'smeltery') : ALL;
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });

@@ -2946,6 +2946,26 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.beginPath(); ctx.moveTo(c - 3.5, c + 0.2); ctx.lineTo(c + 4, c - 0.2); ctx.strokeStyle = 'rgba(90,60,30,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
   });
 
+  // Ember Crumbs (the Long Hunger trail): a lumpy coal crumb with a dark outline and one shaded facet, tinted from hot
+  // gold to the trail's ember red as it cools.
+  make(scene, 'coalCrumb', 16, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath(); ctx.moveTo(c - 4.6, c + 0.6); ctx.lineTo(c - 2.4, c - 3.6); ctx.lineTo(c + 2.2, c - 3.8); ctx.lineTo(c + 4.8, c - 0.4); ctx.lineTo(c + 3, c + 3.6); ctx.lineTo(c - 2.6, c + 3.8); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(24,8,4,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(c + 4.8, c - 0.4); ctx.lineTo(c + 3, c + 3.6); ctx.lineTo(c - 2.6, c + 3.8); ctx.lineTo(c + 0.6, c + 0.6); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+  });
+
+  // Plate Shards (the Cracked Plate trail): an angular steel shard with a dark outline and a shaded bevel along one
+  // edge. It is emitted crack cyan and settles to the trail's plate blue (the body is white, so it ends on that exact colour).
+  make(scene, 'plateShard', 16, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath(); ctx.moveTo(c - 5.6, c + 3); ctx.lineTo(c + 1, c - 5.4); ctx.lineTo(c + 5.4, c + 2.4); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(4,8,20,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(c + 1, c - 5.4); ctx.lineTo(c + 5.4, c + 2.4); ctx.lineTo(c + 1.6, c + 0.6); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+  });
+
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
 
   // Ember Vein: a gatherable crystal cluster.

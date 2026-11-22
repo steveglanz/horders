@@ -238,10 +238,74 @@ const LOW_EBB = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xM
 <rect y="106" width="360" height="4" fill="#041016"/>
 </svg>`;
 
+/**
+ * The Long Hunger (docs/design/season.md, "Seasons 7 and 8"). Old Coalmouth's maw fills the right of the banner,
+ * its gullet glowing Gullet Red over a spill of Hoard Gilt embers; a hero darts in low from the left to snatch one,
+ * Ember Crumbs scattering behind. The gullet breathes and the embers flicker, both stopping for Battery saver and
+ * reduced motion.
+ */
+const LONG_HUNGER = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbCave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0405"/><stop offset="1" stop-color="#26100c"/></linearGradient>
+<radialGradient id="kbGullet" cx="0.38" cy="0.5" r="0.6"><stop offset="0" stop-color="#ffe0a0"/><stop offset="0.25" stop-color="#ff7a3a"/><stop offset="0.6" stop-color="#ff3300"/><stop offset="1" stop-color="#3a0804"/></radialGradient>
+<radialGradient id="kbHoardGlow" cx="0.5" cy="1" r="0.7"><stop offset="0" stop-color="#ffe926" stop-opacity="0.45"/><stop offset="1" stop-color="#ffe926" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbCave)"/>
+<ellipse cx="250" cy="108" rx="140" ry="30" fill="url(#kbHoardGlow)"/>
+<path d="M190 110q-6-52 30-84 34-28 96-24 40 4 44 8v100Z" fill="#160b09" stroke="#3a1a12" stroke-width="1.6"/>
+<path d="M212 50q20 4 46 2 M206 74q26 6 60 2 M226 32l8 10 M300 20l-6 12" fill="none" stroke="#ff5a2a" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round"/>
+<g class="lh-maw"><path d="M232 58q28-20 92-22 36 0 36 0v52q-40 4-80-4-32-8-48-26Z" fill="url(#kbGullet)"/></g>
+<path d="M232 58q28-20 92-22h36 M232 58q16 18 48 26 40 8 80 4" fill="none" stroke="#1a0a06" stroke-width="2.4"/>
+<path d="M246 51l5 8 4-10 5 9 4-11 5 10 4-11 5 10 4-10 5 9 4-9 5 8 5-8 4 8" fill="#2a1a12" stroke="#ff9a5a" stroke-opacity="0.7" stroke-width="1" stroke-linejoin="round"/>
+<path d="M244 68l5-6 4 9 5-8 4 9 5-8 4 9 5-8 5 9 4-8 5 8 5-8 5 7" fill="#2a1a12" stroke="#ff9a5a" stroke-opacity="0.7" stroke-width="1" stroke-linejoin="round"/>
+<g class="lh-gilt" fill="#ffe926">
+<circle cx="200" cy="100" r="2.4"/><circle cx="214" cy="104" r="2"/><circle cx="186" cy="104" r="1.8"/><circle cx="228" cy="100" r="2.2"/><circle cx="172" cy="102" r="1.6"/><circle cx="244" cy="104" r="1.8"/>
+</g>
+<g fill="#06030a" stroke="#ff3300" stroke-opacity="0.85" stroke-width="1.1" stroke-linejoin="round">
+<path d="M104 104l12-10q4-10 12-12 8 0 10 6l10 4 18 2-2 5-18 1-6 4 6 8h-7l-6-6-8 4-6-6Z"/>
+<circle cx="135" cy="76" r="5"/>
+</g>
+<path d="M164 94l12 4" stroke="#ffe926" stroke-width="2" stroke-linecap="round"/>
+<g class="lh-crumbs" fill="#bf5c43"><path d="M92 100l3-1 1 2-3 1Z"/><path d="M80 96l3 0 0 2-3 0Z"/><path d="M70 102l2-2 2 1-2 2Z"/><path d="M86 106l3-1 .6 1.6-3 1Z"/></g>
+<rect y="106" width="360" height="4" fill="#120604"/>
+</svg>`;
+
+/**
+ * The Cracked Plate (docs/design/season.md, "Seasons 7 and 8"). The Cinder Colossus's front plate, huge and side-on,
+ * split by a Crack Cyan seam that glows against a Cinder Violet night; Slag Lime drips from the break and Plate
+ * Shards fall away. A hero slips round the plate's edge toward his open back. The crack pulses and the shards
+ * fall, both stopping for Battery saver and reduced motion.
+ */
+const CRACKED_PLATE = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+<defs>
+<linearGradient id="kbNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0414"/><stop offset="0.6" stop-color="#1c0a32"/><stop offset="1" stop-color="#2a0e3a"/></linearGradient>
+<linearGradient id="kbPlate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a5868"/><stop offset="1" stop-color="#1e1c28"/></linearGradient>
+<radialGradient id="kbCrackGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#26e9ff" stop-opacity="0.55"/><stop offset="1" stop-color="#26e9ff" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="360" height="110" fill="url(#kbNight)"/>
+<g fill="#e8d8ff" fill-opacity="0.6"><circle cx="30" cy="14" r="0.7"/><circle cx="96" cy="8" r="0.6"/><circle cx="300" cy="12" r="0.7"/><circle cx="336" cy="30" r="0.6"/><circle cx="62" cy="34" r="0.5"/></g>
+<ellipse cx="180" cy="110" rx="170" ry="22" fill="#be26ff" fill-opacity="0.16"/>
+<g class="cp-crack"><ellipse cx="184" cy="58" rx="46" ry="52" fill="url(#kbCrackGlow)"/></g>
+<path d="M136 104l6-92 82 6 4 86Z" fill="url(#kbPlate)" stroke="#0a0814" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M142 16l80 6" stroke="#e8ecf8" stroke-opacity="0.55" stroke-width="1.4"/>
+<g fill="#b8bcc8" fill-opacity="0.75"><circle cx="150" cy="26" r="1.8"/><circle cx="214" cy="30" r="1.8"/><circle cx="148" cy="92" r="1.8"/><circle cx="216" cy="94" r="1.8"/></g>
+<g class="cp-crack"><path d="M188 18l-8 18 10 10-12 16 8 12-6 30 M180 36l-14 6 M190 46l16 4 M178 62l-12 8 M186 74l14 6" fill="none" stroke="#26e9ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+<path d="M188 18l-8 18 10 10-12 16 8 12-6 30" fill="none" stroke="#e8fcff" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+<g fill="#d4ff26"><path d="M178 62q-2 6 0 10 2-4 0-10Z"/><path d="M190 46q-1.6 5 0 8 1.6-3 0-8Z"/></g>
+<g class="cp-shards" fill="#0073bf" stroke="#5ab8ff" stroke-width="0.6" stroke-linejoin="round"><path d="M232 70l6-2 1 5-5 2Z"/><path d="M244 88l5-3 2 4-5 2Z"/><path d="M228 98l4-2 1 3-4 1Z"/></g>
+<g fill="#06030c" stroke="#26e9ff" stroke-opacity="0.85" stroke-width="1.1" stroke-linejoin="round">
+<path d="M246 104l4-14q2-10 10-12 7 0 8 7l8 6 10 2-1 4-11 0-4 5 6 6h-7l-5-5-6 6Z"/>
+<circle cx="262" cy="70" r="5"/>
+</g>
+<rect y="106" width="360" height="4" fill="#0a0414"/>
+</svg>`;
+
 export const SEASON_ART: Record<number, SeasonArt> = {
   1: { accent: '#ff9a3c', hi: '#ffc98a', deep: '#d9442c', banner: DEEP_BELLOWS },
   2: { accent: '#8fb8ff', hi: '#d8f4ff', deep: '#3f62b0', banner: COLD_HEARTH },
   3: { accent: '#ffc861', hi: '#ffe6a8', deep: '#a8522a', banner: SLAG_MOON },
   4: { accent: '#7fd46a', hi: '#d2f7b0', deep: '#2f7a3a', banner: FALLING_PRESS },
   5: { accent: '#2fa8d8', hi: '#b8e8ff', deep: '#4a3cb0', banner: LOW_EBB },
+  6: { accent: '#ff4a2a', hi: '#ffc0a8', deep: '#8a1a10', banner: LONG_HUNGER },
+  7: { accent: '#26e9ff', hi: '#c8faff', deep: '#6a2ab8', banner: CRACKED_PLATE },
 };
