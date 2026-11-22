@@ -766,10 +766,7 @@ export function botInput(w: World, skill = 1): Input {
     fy += dy * wgt;
   }
   // V2: stay out of a lava channel; cross it straight across, never along it.
-  // Slag Wade: above half health a Slagbinder stays in the lava; below it, it leaves the shortest way.
-  const wade = w.rank('slagWade') > 0;
   for (const c of w.lava) {
-    if (wade && p.hp > p.maxHp * 0.5) continue;
     const ux = c.x2 - c.x1;
     const uy = c.y2 - c.y1;
     const L2 = ux * ux + uy * uy || 1;
@@ -782,41 +779,12 @@ export function botInput(w: World, skill = 1): Input {
     // hard against the near bank crosses (a quick burn) rather than standing pinned there.
     const across = (fx * ox + fy * oy) / d;
     const pressed = across < -0.25 * Math.hypot(fx, fy) && Math.hypot(fx, fy) > 0.02;
-    const side = pressed && !(wade && w.inLava()) ? -1 : 1;
+    const side = pressed ? -1 : 1;
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
   }
-  // Site cards: a Bulwark with Back to Stone fights from beside the nearest stone or pillar,
-  // and a healthy Slagbinder with Slag Wade drifts into a lava channel close by.
-  if (w.rank('backToStone') > 0 && !w.nearStone()) {
-    let bx = 0;
-    let by = 0;
-    let bd = 150;
-    for (const c of [...w.stones, ...w.pillars.filter((q) => !q.cracked)]) {
-      const d = Math.hypot(c.x - p.x, c.y - p.y) - c.r;
-      if (d < bd) { bd = d; bx = c.x - p.x; by = c.y - p.y; }
-    }
-    if (bd < 150) {
-      const L = Math.hypot(bx, by) || 1;
-      fx += (bx / L) * 0.2 * skill;
-      fy += (by / L) * 0.2 * skill;
-    }
-  }
-  if (wade && p.hp > p.maxHp * 0.6 && !w.inLava()) {
-    for (const c of w.lava) {
-      const ux = c.x2 - c.x1;
-      const uy = c.y2 - c.y1;
-      const L2 = ux * ux + uy * uy || 1;
-      const t = Math.max(0, Math.min(1, ((p.x - c.x1) * ux + (p.y - c.y1) * uy) / L2));
-      const ox = c.x1 + ux * t - p.x;
-      const oy = c.y1 + uy * t - p.y;
-      const d = Math.hypot(ox, oy) || 1;
-      if (d < 150) {
-        fx += (ox / d) * 0.2 * skill;
-        fy += (oy / d) * 0.2 * skill;
-      }
-    }
-  }
+  // Site cards have no movement rules: pulling a Bulwark to a stone (Back to Stone) cost 23 of 80
+  // Coldmarrow runs that took it, and a Slagbinder staying in lava (Slag Wade) 10 of 45 Kiln runs.
   // The Coldmarrow: a ranged hero brings a Frost Warden inside its coal's light to crack it.
   if (!melee && p.coalR !== undefined) {
     let wi = -1;
@@ -1113,6 +1081,8 @@ const MEASURE_NEW = typeof process !== 'undefined' && !!process.env.NEW_CAPS;
 const FORCE_BRANCH = typeof process !== 'undefined' ? (process.env.BOT_BRANCH ?? '').split(',').filter(Boolean) : [];
 /** BOT_CAP=haven (balance tools only): the bot takes these capstones over their twin, to measure the one it would skip. */
 const FORCE_CAP = typeof process !== 'undefined' ? (process.env.BOT_CAP ?? '').split(',').filter(Boolean) : [];
+/** BOT_SITE=1 (balance tools only): the bot takes a site card whenever one is offered, unless a capstone is. */
+const FORCE_SITE = typeof process !== 'undefined' && process.env.BOT_SITE === '1';
 /** Takes a capstone when offered, otherwise commits to the branch it has the most ranks in. */
 export function botChoose(w: World): number {
   let best = 0;
@@ -1122,7 +1092,7 @@ export function botChoose(w: World): number {
     const committed = def.branch === 'general' ? 0 : w.branchRanks(def.branch);
     // Forced only until the branch's capstone is in; after that the bot drafts as usual.
     const forced = FORCE_BRANCH.includes(def.branch) && !(Object.keys(TALENTS) as TalentId[]).some((id) => TALENTS[id].branch === def.branch && TALENTS[id].capstone && w.rank(id) > 0) ? 2000 : 0;
-    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) + BOT_PRIORITY.indexOf(c.id);
+    const s = (def.capstone ? -1000 : 0) - (MEASURE_NEW && NEW_CAPS.includes(c.id) ? 500 : 0) - committed * 100 - forced - (FORCE_CAP.includes(c.id) ? 3000 : 0) - (FORCE_SITE && def.where ? 900 : 0) + BOT_PRIORITY.indexOf(c.id);
     if (s < bestScore) {
       bestScore = s;
       best = i;

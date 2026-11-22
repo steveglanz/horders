@@ -839,6 +839,45 @@ After design's retune of the Flue (base 80 of 120), one party stayed under the b
 
 A raid-wide 0.85 would push the Hoard's Bellows-with-Duskblade party (already 81%) further over, so the lighter cut is the Flue's only: `SLAG_KIT.fluePartyDmg` 0.85. The Bellows tip in the hub says so. Test: tests/party-cards.test.ts.
 
+## Site cards: talents for the variety layouts and foes (22 Nov 2026)
+
+Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.
+
+| Class (branch) | Card | Situation | Per rank (max 2) |
+|---|---|---|---|
+| Emberwright (kindling) | Vent-Fed | Vents | A vent flaring within 260 px (you outside its circle): +25 Heat, and the next Cinder Volley deals double |
+| Duskblade (guard) | Read the Lane | Lob circles, charge lanes | Sidestep while in one that hasn't landed: Sidestep back 3 s sooner, next 3 swings +35% |
+| Bulwark (bastion) | Back to Stone | Stones, Glarewell pillars | Within 50 px of one: 7% less damage (4% in the Glarewell), Rim Smash stuns 0.3 s longer |
+| Lumen (grace) | Reaching Light | Ember Spitters | Radiant Burst also burns Spitters out to 240 + 80 px; Hush on a Spitter gives 2.5 s back |
+| Slagbinder (forge) | Slag Wade | Lava | Lava burns 50% less (lava-proof at rank 2); in lava, hits +10% and make the foe Brittle |
+
+**Offered only while the situation is still ahead** (`TalentDef.where`, `World.situationAhead`). The draft checks the fights still to come in this run's route: each fight's layout (`World.layoutAt`, the same hash `rollLayout` uses, with Today's Heat), and the foes in each remaining slot. The boss arena is always open, so a layout card is never offered with only the boss left. A fork that later swaps a fight is an accepted small miss. `SITE_CARDS.off=1` (TUNE, measuring only) turns them off, which matches main exactly (tools/hashcheck.ts identical).
+
+**Bots:** the cards are in BOT_PRIORITY after each class's plain cards. Two movement rules were tried and dropped. Pulling a Bulwark with Back to Stone toward the nearest stone cost 23 of the 80 Coldmarrow runs that took the card. A Slagbinder with Slag Wade staying in lava above half health cost 10 of 45 Kiln runs. #402's lava crossing is untouched. `BOT_SITE=1` (tools only) makes the bot take a site card whenever one is offered, unless a capstone is.
+
+**Measured** (heroes-r2, 3 heroes x 80 seeds, `BOT_SITE=1` against `SITE_CARDS.off=1`). Columns: wins per 40 over all runs, then wins on the seeds where the card was taken, against the same seeds with the cards off:
+
+| Card | Dungeon, tier | All runs, on / off | Taken seeds: on vs off |
+|---|---|---|---|
+| Vent-Fed | Kiln 6 | 25.8 / 25.3 | 25 vs 26 of 42 |
+| Vent-Fed | Foundry 6 | 30.3 / 31.7 | 53 vs 57 of 66 |
+| Vent-Fed | Glarewell 8 | 35.2 / 35.3 | 59 vs 58 of 64 |
+| Read the Lane | Kiln 6 | 24.3 / 24.8 | 31 vs 34 of 43 |
+| Read the Lane | Foundry 6 | 36.2 / 35.8 | 28 vs 26 of 32 |
+| Read the Lane | Glarewell 8 | 32.7 / 32.7 | 25 vs 25 of 32 |
+| Back to Stone | Kiln 6 | 37.7 / 37.2 | 49 vs 46 of 51 |
+| Back to Stone | Foundry 6 | 30.5 / 31.3 | 42 vs 47 of 58 |
+| Back to Stone | Glarewell 8 | 35.0 / 34.7 | 100 vs 98 of 115 |
+| Back to Stone | Coldmarrow 10 | 31.5 / 31.2 | 60 vs 59 of 80 |
+| Reaching Light | Kiln 6 | 38.3 / 39.0 | 28 vs 32 of 33 |
+| Reaching Light | Foundry 6 | 35.7 / 35.5 | 40 vs 39 of 42 |
+| Reaching Light | Glarewell 8 | 39.7 / 39.7 | 9 vs 9 of 9 |
+| Slag Wade | Kiln 6 | 29.5 / 29.0 (no bot rule) | 27 vs 30 of 45 |
+
+Every cell is within seed noise of zero: bots don't seek out a situation, and a taken card replaces another pick. That is the intended shape: the cards don't win every draft, and they pay a player who plays to the room. Design asked for Back to Stone in the Glarewell (pillars in every fight) to be checked on its own: +2 wins in the 115 runs that took it, well under +4 per 40, so it keeps its 4% Glarewell value. The first numbers (Heat 15, 2 swings at +20%, reach 200 + 60, burn -30% and +5%) measured the same, so the stronger ones shipped.
+
+**Tier 1 Kiln** (no gear, 480 seeds, cards on / off): good bot Emberwright 368 / 379, Duskblade 478 / 478, Bulwark 480 / 480, Lumen 461 / 461, Slagbinder 479 / 479. Novice: Emberwright 270 / 270, Duskblade 167 / 167, Bulwark 206 / 216, Lumen 459 / 459, Slagbinder 478 / 478. The good-bot Emberwright gap to the Duskblade goes from 8.2 to 9.1 per 40 (the bot takes Vent-Fed in about half its offers), still inside ±10. Everything else is unchanged or under 1 per 40. **Hashcheck:** 1 of 24 rows moves (emberwright kiln seed 3), because a site card in the pool changes that draft.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).

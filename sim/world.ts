@@ -7150,24 +7150,24 @@ export const SITE_CARDS = {
   /** Measuring only (TUNE=SITE_CARDS.off=1): never offer site cards, as before this pass. */
   off: 0,
   /** Vent-Fed: flare reach (px), Heat per rank; the next volley deals double. */
-  ventRange: 220,
-  ventHeat: 15,
+  ventRange: 260,
+  ventHeat: 25,
   /** Read the Lane: Sidestep seconds back per rank, swings that get the bonus, bonus per rank. */
-  laneRefund: 2,
-  laneSwings: 2,
-  laneDmg: 0.2,
+  laneRefund: 3,
+  laneSwings: 3,
+  laneDmg: 0.35,
   /** Back to Stone: reach past the stone's edge (px), damage cut per rank (lower in the Glarewell, whose pillars stand in every fight), Rim Smash stun per rank. */
   stoneRange: 50,
   stoneDr: 0.07,
   glareStoneDr: 0.04,
   stoneStun: 0.3,
   /** Reaching Light: Spitter reach = base + per rank (px); Hush seconds back per rank on a Spitter. */
-  reachBase: 200,
-  reachPerRank: 60,
-  hushRefund: 1.5,
-  /** Slag Wade: lava burn cut per rank, damage per rank while in lava. */
-  wadeBurn: 0.3,
-  wadeDmg: 0.05,
+  reachBase: 240,
+  reachPerRank: 80,
+  hushRefund: 2.5,
+  /** Slag Wade: lava burn cut per rank (rank 2 is lava-proof), damage per rank while in lava. */
+  wadeBurn: 0.5,
+  wadeDmg: 0.1,
 };
 
 export const VARIETY = {
