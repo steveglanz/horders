@@ -222,7 +222,7 @@ export class GameScene extends Phaser.Scene {
   private orbSprites: Phaser.GameObjects.Image[] = [];
   private gemSprites: Phaser.GameObjects.Image[] = [];
   /** L2: sprites at or past these slots are already hidden (see liveEnd). */
-  private shownEnd = { enemies: Infinity, orbs: Infinity, gems: Infinity };
+  private shownEnd = { enemies: 0, orbs: 0, gems: 0 };
   private zoneSprites: Phaser.GameObjects.Image[] = [];
   private dropSprites: Phaser.GameObjects.Image[] = [];
   private beamSprites: Phaser.GameObjects.Image[] = [];
@@ -332,7 +332,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyKinds = [];
     this.orbSprites = [];
     this.gemSprites = [];
-    this.shownEnd = { enemies: Infinity, orbs: Infinity, gems: Infinity };
+    this.shownEnd = { enemies: 0, orbs: 0, gems: 0 };
     this.zoneSprites = [];
     this.dropSprites = [];
     this.beamSprites = [];
@@ -380,16 +380,9 @@ export class GameScene extends Phaser.Scene {
     if (w.dungeonId === 'coldmarrow') for (let k = 0; k < w.heroes.length; k++) this.coalLights.push(this.add.image(0, 0, 'coalLight').setDepth(1.2).setBlendMode(Phaser.BlendModes.ADD).setVisible(false));
     this.frost = document.getElementById('frost');
     if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
-    w.gems.forEach(() => this.gemSprites.push(this.add.image(0, 0, 'gem').setVisible(false).setDepth(3)));
     w.drops.forEach(() => {
       this.beamSprites.push(this.add.image(0, 0, 'beam').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(3));
       this.dropSprites.push(this.add.image(0, 0, 'loot').setVisible(false).setDepth(3.5));
-    });
-    w.enemies.forEach(() => {
-      this.shadows.push(this.add.image(0, 0, 'shadow').setVisible(false).setDepth(2.5));
-      this.enemySprites.push(this.add.image(0, 0, 'ashling', '0').setScale(BASE).setVisible(false).setDepth(4));
-      this.enemyKinds.push('ashling');
-      this.enemyFrames.push(0);
     });
     for (let i = 0; i < 48; i++) this.smoke.push(this.newFx('puff', 4.5, false));
     this.playerShadow = this.add.image(0, 0, 'shadow').setDepth(2.5);
@@ -424,7 +417,6 @@ export class GameScene extends Phaser.Scene {
       // An ally's trail: a smaller pool, since it is somebody else's flourish.
       this.addTrail(j, look.trail, 24);
     }
-    w.orbs.forEach(() => this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7)));
     for (let i = 0; i < 3; i++) this.orbiterSprites.push(this.add.image(0, 0, 'ember').setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(7));
     for (let i = 0; i < 200; i++) this.fx.push(this.newFx('spark', 8, true));
     // Drifting embers in the air, wrapped around the camera.
@@ -1338,6 +1330,7 @@ export class GameScene extends Phaser.Scene {
     const cheap = this.lowFx;
     // Slots past the last live enemy only need hiding once (shownEnd), then are skipped.
     const eEnd = liveEnd(w.enemies);
+    this.growPools(eEnd, liveEnd(w.orbs), liveEnd(w.gems));
     const eLoop = Math.min(w.enemies.length, Math.max(eEnd, this.shownEnd.enemies));
     this.shownEnd.enemies = eEnd;
     for (let i = 0; i < eLoop; i++) {
@@ -2047,6 +2040,23 @@ export class GameScene extends Phaser.Scene {
     const tex = { double: 'heroGlowDouble', edge: 'heroGlowEdge', facet: 'heroGlowFacet', crack: 'heroGlowCrack' }[mark ?? ''] ?? 'heroGlow';
     const img = this.add.image(0, 0, tex).setTint(hex(g.color)).setDepth(1.3);
     return mark === 'edge' ? img : img.setBlendMode(Phaser.BlendModes.ADD);
+  }
+
+  /**
+   * L2: enemy, shadow, orb and gem sprites are made the first time their slot fills, not all
+   * 2,960 up front: Phaser walks every display-list object each frame (getVisibleChildren,
+   * willRender), and a fight shows a few dozen. Depths sit just under the objects made after them
+   * in create() (hero shadows 2.5, loot beams 3, orbiters 7), so the draw order is unchanged.
+   */
+  private growPools(enemies: number, orbs: number, gems: number): void {
+    while (this.enemySprites.length < enemies) {
+      this.shadows.push(this.add.image(0, 0, 'shadow').setVisible(false).setDepth(2.49));
+      this.enemySprites.push(this.add.image(0, 0, 'ashling', '0').setScale(BASE).setVisible(false).setDepth(4));
+      this.enemyKinds.push('ashling');
+      this.enemyFrames.push(0);
+    }
+    while (this.orbSprites.length < orbs) this.orbSprites.push(this.add.image(0, 0, 'bolt').setOrigin(0.78, 0.5).setScale(0.7).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(6.99));
+    while (this.gemSprites.length < gems) this.gemSprites.push(this.add.image(0, 0, 'gem').setVisible(false).setDepth(2.99));
   }
 
   private newFx(tex: string, depth: number, add: boolean): Fx {
