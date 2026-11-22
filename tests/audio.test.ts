@@ -120,6 +120,30 @@ describe('audio', () => {
     expect(phoneShare(bed, RATE)).toBeGreaterThan(0.25);
   });
 
+  it('gives every Furnace Regent moment in the Flue a sound (B3)', () => {
+    const c = { cls: 'lumen' as const, acting: 1, boss: 'regent' as const };
+    expect(themeFor('flue')).toBe('flue');
+    expect(cueFor({ type: 'decree', hero: 1 }, c)?.id).toBe('decreeOnMe');
+    expect(cueFor({ type: 'decree', hero: 2 }, c)).toEqual({ id: 'decreeLands', vol: 0.8 });
+    // Handed to you is the same alarm as a landing; handed on by you is the handoff; between others, a quiet handoff.
+    expect(cueFor({ type: 'decreePassed', from: 2, hero: 1, done: false }, c)?.id).toBe('decreeOnMe');
+    expect(cueFor({ type: 'decreePassed', from: 1, hero: 3, done: false }, c)).toEqual({ id: 'decreePass' });
+    expect(cueFor({ type: 'decreePassed', from: 1, hero: 3, done: true }, c)).toEqual({ id: 'decreePass' });
+    expect(cueFor({ type: 'decreePassed', from: 2, hero: 1, done: true }, c)).toEqual({ id: 'decreePass', vol: 0.5 });
+    expect(cueFor({ type: 'decreePassed', from: 2, hero: 3, done: false }, c)).toEqual({ id: 'decreePass', vol: 0.5 });
+    expect(cueFor({ type: 'decreeBurst', hero: 3 }, c)?.id).toBe('decreeBurst');
+    expect(cueFor({ type: 'officePulse', n: 1 }, c)?.vol).toBeCloseTo(0.73);
+    expect(cueFor({ type: 'officePulse', n: 50 }, c)?.vol).toBe(1.3);
+    expect(cueFor({ type: 'phase', phase: 2 }, c)?.id).toBe('phaseEdict');
+    expect(cueFor({ type: 'phase', phase: 3 }, c)?.id).toBe('phaseAbdication');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'lastWord', name: 'Last Word' }, c)?.id).toBe('lastWordWarn');
+    expect(cueFor({ type: 'castDone', x: 0, y: 0, id: 'lastWord', name: 'Last Word' }, c)?.id).toBe('lastWord');
+    for (const id of ['decreeOnMe', 'lastWordWarn', 'phaseEdict', 'phaseAbdication'] as const) expect(PRIORITY.has(id), id).toBe(true);
+    // GameScene passes Spent to the engine, which plays spentCue.
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toContain("spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0");
+  });
+
   it('hears the Flue\'s Spent end once, and nothing going in', () => {
     const st = { on: false };
     expect(spentCue(st, false)).toBeNull();
