@@ -45,3 +45,25 @@ Each item is seeded from the run's rng, or from the day or week number like boun
 | Tier 3, good bot | 24 | 23 |
 
 All stay in balance.md's bands (novice 40 to 65%, good bot at tier 1 70% or more).
+
+## V2 status (built 22 Nov 2026)
+- **Layouts:** each Kiln fight except the Kiln Mother, shrines and the first delve rolls one of `LAYOUTS.kiln` = open, open, pillars, channel, vents (so open 2 in 5). The roll hashes the run seed and the fight number and doesn't draw from the run rng, so it adds no rng calls; every other dungeon stays open. Tuning is in `LAYOUT` (sim/world.ts).
+  - **Pillars:** 5 stones of radius 34 on a ring of 230 px. Heroes and foes can't walk through them.
+  - **Channel:** a lava strip 70 px wide across the arena that burns 8% of max health a second while you stand in it.
+  - **Vents:** 4 vents on a ring of 260 px. One at a time, every 3.5 s (first at 4 s), a vent shows a 75-radius circle for 1.2 s, then flares for 20 damage.
+- **Co-op:** `stones`, `lava` and `flareVents` are synced to guests (netsync ARRAYS), and `layout` is a synced scalar.
+- **Bots:** step out of lava; they already dodge vent circles like any telegraph.
+- **Events:** `layout {id}` as a fight starts (the fight banner names it), `ventFlare {x, y}` as a vent's circle goes up.
+- **Placeholders:** the client draws stones, lava and vents as plain shapes until visuals' art (V5).
+- **Hashcheck:** only the Kiln rows change; the Foundry rows are identical.
+
+**Measured** (tools/balance.ts, seeds 1 to 40 unless noted, main 38ae385 / V1 / V1 and V2):
+
+| Check | Main | V1 | V1 and V2 |
+|---|---|---|---|
+| Tier 1, novice, Emberwright | 26 | 20 | 17 (seeds 1 to 80: 38 of 80, main 50 of 80) |
+| Tier 1, novice, Bulwark | 16 | 17 | 20 |
+| Tier 1, good bot | 34 | 33 | 32 |
+| Tier 3, good bot | 24 | 23 | 20 |
+
+All in band, but the novice Emberwright sits near the 40% floor. Softer lava (5%) and vents (14 damage) gave 39 of 80, no real change, so the tuning stays and V7 rechecks it with the full pools.

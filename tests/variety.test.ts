@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS } from '../sim/world';
+import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
 
@@ -75,5 +76,72 @@ describe('V1 variety: the Kiln\'s new foes', () => {
     const r = inner.spawn('rift', 200, 0);
     for (let k = 0; k < 10; k++) { w.enemies[r].abilityT = 0; inner.runStationary(r, 0.01); }
     expect(w.enemies.filter((e) => e.alive && e.kind === 'ashling').length).toBe(VARIETY.riftCap);
+  });
+});
+
+describe('V2 variety: arena layouts', () => {
+  type L = { rollLayout(id: string): void; layoutClock(dt: number): void; clampArena(o: { x: number; y: number }, r: number): void; encounter: number };
+
+  it('Kiln fights roll layouts from the seed alone; the boss fight and the first delve stay open', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = new World({ seed, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+      const q = w as unknown as L;
+      q.encounter = 1;
+      q.rollLayout('pack');
+      seen.add(w.layout);
+      const again = new World({ seed, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+      (again as unknown as L).encounter = 1;
+      (again as unknown as L).rollLayout('pack');
+      expect(again.layout).toBe(w.layout);
+      q.rollLayout('kilnMother');
+      expect(w.layout).toBe('open');
+    }
+    expect([...seen].sort()).toEqual([...new Set(LAYOUTS.kiln)].sort());
+    const first = new World({ seed: 4, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
+    (first as unknown as L).rollLayout('pack');
+    expect(first.layout).toBe('open');
+    const foundry = new World({ seed: 4, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+    (foundry as unknown as L).rollLayout('twins');
+    expect(foundry.layout).toBe('open');
+  });
+
+  it('stones block, lava burns only inside its width, and vents flare one at a time', () => {
+    const w = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    const q = w as unknown as L;
+    w.stones = [{ x: 100, y: 0, r: LAYOUT.stoneRadius }];
+    const o = { x: 100, y: 5 };
+    q.clampArena(o, 10);
+    expect(Math.hypot(o.x - 100, o.y)).toBeGreaterThanOrEqual(LAYOUT.stoneRadius + 10 - 1e-6);
+    w.layout = 'channel';
+    w.lava = [{ x1: -500, y1: 0, x2: 500, y2: 0, w: LAYOUT.lavaWidth }];
+    w.player.x = 0; w.player.y = 10;
+    const hp = w.player.hp;
+    q.layoutClock(1);
+    expect(w.player.hp).toBeLessThan(hp);
+    w.player.hp = w.player.maxHp; w.player.y = LAYOUT.lavaWidth;
+    q.layoutClock(1);
+    expect(w.player.hp).toBe(w.player.maxHp);
+    w.lava = [];
+    w.layout = 'vents';
+    w.flareVents = [{ x: 200, y: 0 }, { x: -200, y: 0 }];
+    (w as unknown as { flareT: number }).flareT = 0;
+    q.layoutClock(0.01);
+    expect(w.telegraphs.filter((t) => t.alive)).toHaveLength(1);
+    expect(w.events).toContainEqual({ type: 'ventFlare', x: 200, y: 0 });
+  });
+
+  it('online co-op: a guest sees the same layout', () => {
+    const w = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    w.layout = 'pillars';
+    w.stones = [{ x: 1, y: 2, r: 3 }];
+    w.lava = [{ x1: 0, y1: 0, x2: 1, y2: 1, w: 70 }];
+    w.flareVents = [{ x: 5, y: 6 }];
+    const g = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.layout).toBe('pillars');
+    expect(g.stones).toEqual(w.stones);
+    expect(g.lava).toEqual(w.lava);
+    expect(g.flareVents).toEqual(w.flareVents);
   });
 });

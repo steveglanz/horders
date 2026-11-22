@@ -559,6 +559,9 @@ export type SimEvent =
   /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
   | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
   | { type: 'charge'; index: number }
+  /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
+  | { type: 'layout'; id: LayoutId }
+  | { type: 'ventFlare'; x: number; y: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -814,6 +817,16 @@ export class World {
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
   arenaR = ARENA;
+  /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
+  layout: LayoutId = 'open';
+  /** Standing stones: they block heroes and foes alike. */
+  stones: { x: number; y: number; r: number }[] = [];
+  /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
+  lava: { x1: number; y1: number; x2: number; y2: number; w: number }[] = [];
+  /** Kiln vents: they flare one at a time, in turn. */
+  flareVents: { x: number; y: number }[] = [];
+  private flareT = 0;
+  private flareK = 0;
   /** Maelra's steam vents (empty in other fights). */
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
@@ -1559,6 +1572,7 @@ export class World {
     }
     if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
+    if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
@@ -1687,6 +1701,7 @@ export class World {
         return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
       })
       : [];
+    this.rollLayout(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
@@ -1919,6 +1934,65 @@ export class World {
     this.phaseT = INTRO_TIME * 0.6;
   }
 
+  /**
+   * V2 (variety): each fight in a dungeon that has layouts rolls one, from a hash of the seed and
+   * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
+   * delve stay open.
+   */
+  private rollLayout(id: EncounterId): void {
+    this.stones = [];
+    this.lava = [];
+    this.flareVents = [];
+    this.layout = 'open';
+    const pool = LAYOUTS[this.dungeonId];
+    if (!pool || this.firstDelve || this.stress || id === this.dungeonDef.boss || id === 'shrine' || id === 'worldShadow') return;
+    let h = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) + Math.imul(this.encounter + 1, 0xc2b2ae35)) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0x27d4eb2f) >>> 0;
+    this.layout = pool[h % pool.length];
+    const turn = ((h >>> 8) % 360) * (Math.PI / 180);
+    if (this.layout === 'pillars') {
+      for (let k = 0; k < LAYOUT.stoneCount; k++) {
+        const a = turn + (k * 2 * Math.PI) / LAYOUT.stoneCount;
+        this.stones.push({ x: Math.cos(a) * LAYOUT.stoneRing, y: Math.sin(a) * LAYOUT.stoneRing, r: LAYOUT.stoneRadius });
+      }
+    } else if (this.layout === 'channel') {
+      const L = ARENA - 40;
+      this.lava.push({ x1: Math.cos(turn) * L, y1: Math.sin(turn) * L, x2: -Math.cos(turn) * L, y2: -Math.sin(turn) * L, w: LAYOUT.lavaWidth });
+    } else if (this.layout === 'vents') {
+      for (let k = 0; k < LAYOUT.ventCount; k++) {
+        const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
+        this.flareVents.push({ x: Math.cos(a) * LAYOUT.ventRing, y: Math.sin(a) * LAYOUT.ventRing });
+      }
+      this.flareT = LAYOUT.ventFirst;
+      this.flareK = 0;
+    }
+    this.events.push({ type: 'layout', id: this.layout });
+  }
+
+  /** V2: lava burns whoever stands in it; Kiln vents flare in turn. */
+  private layoutClock(dt: number): void {
+    const at = this.acting;
+    for (const c of this.lava) {
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0 || segDist2(q.x, q.y, c.x1, c.y1, c.x2, c.y2) > (c.w / 2) ** 2) continue;
+        this.use(k);
+        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * dt, -1, true);
+      }
+    }
+    this.use(at);
+    if (this.flareVents.length) {
+      this.flareT -= dt;
+      if (this.flareT <= 0) {
+        this.flareT = LAYOUT.ventEvery;
+        const v = this.flareVents[this.flareK % this.flareVents.length];
+        this.flareK++;
+        this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, LAYOUT.ventCast, LAYOUT.ventDamage * this.tierDamage, 'hit', -1);
+        this.events.push({ type: 'ventFlare', x: v.x, y: v.y });
+      }
+    }
+  }
+
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
     const d = Math.hypot(o.x, o.y);
@@ -1926,6 +2000,17 @@ export class World {
     if (d > max) {
       o.x *= max / d;
       o.y *= max / d;
+    }
+    for (const c of this.stones) {
+      const dx = o.x - c.x;
+      const dy = o.y - c.y;
+      const dd = Math.hypot(dx, dy);
+      const min = c.r + r;
+      if (dd < min) {
+        const k = dd > 0.001 ? min / dd : 1;
+        o.x = c.x + (dd > 0.001 ? dx * k : min);
+        o.y = c.y + (dd > 0.001 ? dy * k : 0);
+      }
     }
     for (const c of this.pillars) {
       if (c.cracked) continue;
@@ -6767,6 +6852,19 @@ export const GLARE = {
 };
 
 /** Drowned Foundry tuning. */
+/** V2 (variety): arena layouts. */
+export type LayoutId = 'open' | 'pillars' | 'channel' | 'vents';
+/** The layouts each dungeon's fights roll from (open is listed twice in the Kiln, so it stays the most common). */
+export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
+  kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
+};
+/** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
+export const LAYOUT = {
+  stoneCount: 5, stoneRing: 230, stoneRadius: 34,
+  lavaWidth: 70, lavaBurn: 0.08,
+  ventCount: 4, ventRing: 260, ventRadius: 75, ventCast: 1.2, ventEvery: 3.5, ventFirst: 4, ventDamage: 20,
+};
+
 /** V1 (variety, docs/design/variety.md): the Kiln's new foes. */
 export const VARIETY = {
   /** Ember Spitter: backs off inside `spitterNear`, circles out to `spitterFar`; Ember Lob every `lobEvery` s within `lobRange`, a `lobRadius` circle that lands after `lobLand` s. */
