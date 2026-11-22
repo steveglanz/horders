@@ -727,6 +727,63 @@ export const SOUNDS = {
   /** Opening a panel (bags, pause): a soft upward swell. */
   open: [{ wave: 'sine', f: 600, f2: 1100, dur: 0.12, vol: 0.12, a: 0.03 }, { wave: 'noise', f: 0, dur: 0.1, vol: 0.05, lp: 5000, hp: 1500 }],
 
+  // ---- variety (Phase 11, V6): new foes, hazards and the Kiln Mother's Kiln Draw
+  /** Ember Spitter lob: a wet cough and a rising arc of hiss, so you look up before it lands. */
+  spitLob: join(
+    [{ wave: 'noise', f: 0, dur: 0.06, vol: 0.3, lp: 2600, hp: 500, curve: 3 },
+     { wave: 'sine', f: 420, f2: 900, dur: 0.35, delay: 0.04, vol: 0.12, curve: 1.6 }],
+    whoosh(1800, 5200, 0.4, 0.12),
+  ),
+  /** The lob lands: a soft splat, then the fire circle catching. */
+  spitLand: join(
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.32, lp: 3000, lp2: 800, hp: 350, curve: 2.5 },
+     { wave: 'sine', f: 300, f2: 160, dur: 0.12, vol: 0.18, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.45, delay: 0.08, vol: 0.16, a: 0.08, lp: 7000, lp2: 2500, hp: 1500, curve: 1.6 }],
+  ),
+  /** A Hollow Rift opens and Ashlings spill out: a hollow tearing swell over a dark interval. */
+  hollowRiftOpen: join(
+    [{ wave: 'saw', f: note(-11), f2: note(-10), dur: 0.8, vol: 0.12, a: 0.3, lp: 1400, curve: 1.2, vib: [6, 0.01] },
+     { wave: 'saw', f: note(-5), dur: 0.8, vol: 0.1, a: 0.3, lp: 1800, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.7, vol: 0.18, a: 0.35, lp: 900, lp2: 4500, hp: 400, curve: 1.2 }],
+  ),
+  /** The Rift breaks: glassy shards over a short boom, the reward for closing it. */
+  hollowRiftBreak: join(
+    boom(60, 0.4, 0.4),
+    ...[0, 0.04, 0.09, 0.15].map((d, k) => chime([E6, G6, C6 * 2, E6 * 1.5][k], d, 0.16, 0.3)),
+  ),
+  /** A Charger lines up: a rising scrape and snort, the dodge warning. */
+  chargeWindup: join(
+    [{ wave: 'saw', f: 160, f2: 420, dur: 0.55, vol: 0.16, a: 0.2, lp: 1800, lp2: 3200, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.14, a: 0.25, lp: 2500, lp2: 6000, hp: 900, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.08, delay: 0.5, vol: 0.3, lp: 4000, hp: 700, curve: 3 }],
+  ),
+  /** The Charger dashes: a fast thudding rush past you. */
+  chargeDash: join(
+    whoosh(800, 7000, 0.35, 0.3),
+    ...[0, 0.08, 0.16].map((d) => [{ wave: 'sine' as const, f: 180, f2: 90, dur: 0.07, delay: d, vol: 0.2, curve: 2 },
+      { wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.2, lp: 3000, hp: 500, curve: 3 }]),
+  ),
+  /** A lava channel flares: a bubbling surge that rises and spits. */
+  lavaFlare: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.2, lp: 1200, lp2: 4500, hp: 350, curve: 1.4 }],
+    ...[0.1, 0.22, 0.31, 0.45].map((d, k) => [{ wave: 'sine' as const, f: 380 + k * 80, f2: 800 + k * 90, dur: 0.05, delay: d, vol: 0.1, curve: 2 }]),
+  ),
+  /** Kiln Draw: the Kiln Mother's long inhale pulling heroes in (about 2.2 s). */
+  kilnDraw: join(
+    [{ wave: 'noise', f: 0, dur: 2.2, vol: 0.28, a: 1.6, lp: 600, lp2: 5000, hp: 350, curve: 0.8 },
+     { wave: 'saw', f: note(-14), f2: note(-9), dur: 2.2, vol: 0.12, a: 1.4, lp: 1600, curve: 0.8, vib: [3, 0.01] },
+     { wave: 'sine', f: 220, f2: 440, dur: 2.2, vol: 0.1, a: 1.4, curve: 0.8 }],
+  ),
+  /** The fire ring closes: a crackling roar that snaps shut. */
+  ringClose: join(
+    whoosh(2000, 6000, 0.5, 0.22),
+    [{ wave: 'noise', f: 0, dur: 0.1, delay: 0.45, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
+    boom(55, 0.45, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
+  ),
+  /** Kindling hub sting: the day's gentle twist, a small warm rising figure. */
+  hubKindling: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
+
   // ---- the ember purse (shared by every class): embers in, embers spent
   /** Salvage: the item crumbles to cinders and embers clink into the purse. */
   salvage: join(
