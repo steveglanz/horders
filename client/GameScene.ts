@@ -265,6 +265,8 @@ export class GameScene extends Phaser.Scene {
   private tideOn = false;
   /** A turn's beat: 1 on tideTurn, fading to 0. */
   private tideBeat = 0;
+  /** V8: the Lensmother's Glintfall shards, above the pillars (1.5) and under the main graphics (2), so never over a ring. */
+  private glintGfx: Phaser.GameObjects.Graphics | null = null;
   private pillarSprites: Phaser.GameObjects.Image[] = [];
   /** A Glare's white-gold wash over the room, fading from 1 to 0. */
   private glareFlash = 0;
@@ -333,6 +335,7 @@ export class GameScene extends Phaser.Scene {
     this.tideGfx = null;
     this.tideOn = false;
     this.tideBeat = 0;
+    this.glintGfx = null;
     this.pillarSprites = [];
     this.glareFlash = 0;
     this.warmSeen = 0;
@@ -1764,6 +1767,7 @@ export class GameScene extends Phaser.Scene {
     this.layoutDraw(g, now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
+    this.glintDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
@@ -2443,6 +2447,40 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1.5, wet ? 0x9fe8da : glass ? 0xffe6a0 : 0xff8a3a, 0.25).strokeCircle(v.x, v.y, LAYOUT.ventRadius);
     });
     for (let k = w.flareVents.length; k < this.kilnVentImgs.length; k++) this.kilnVentImgs[k].setVisible(false);
+  }
+
+  /**
+   * V8 (variety): the tell for the Lensmother's Glintfall. While she casts it (castId 'glintfall'), shards of light gather
+   * in a turning crown high over every standing pillar and brighten; in the last fifth of the cast they drop onto the
+   * pillar, landing as the 80-radius hit circles do.
+   */
+  private glintDraw(now: number): void {
+    const w = this.world;
+    const m = w.enemies.find((e) => e.alive && e.kind === 'lensmother' && e.castId === 'glintfall');
+    if (!m) { this.glintGfx?.clear(); return; }
+    if (!this.glintGfx) this.glintGfx = this.add.graphics().setDepth(1.55);
+    const g = this.glintGfx;
+    g.clear();
+    const f = Math.min(1, m.castT / Math.max(0.01, m.castDur));
+    const n = this.lowFx ? 4 : 7;
+    const fall = Math.max(0, (f - 0.8) / 0.2);
+    for (const q of w.pillars) {
+      if (q.cracked) continue;
+      const hy = q.y - q.r - 90;
+      const y0 = hy + (q.y - hy) * fall * fall;
+      const gather = Math.min(1, f / 0.8);
+      const spread = 46 * (1 - gather) + 10;
+      g.fillStyle(0xfff4d6, 0.12 + 0.22 * gather).fillCircle(q.x, y0, 16 + 10 * gather);
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + now / 500;
+        const sx = q.x + Math.cos(a) * spread, sy = y0 + Math.sin(a) * spread * 0.5;
+        // A long, thin diamond pointing down, so each shard reads as falling glass.
+        const hl = 13 + 7 * gather + 18 * fall, hw = 4;
+        g.fillStyle(0xfffbea, 0.5 + 0.4 * gather);
+        g.fillTriangle(sx - hw, sy, sx + hw, sy, sx, sy - hl * 0.6);
+        g.fillTriangle(sx - hw, sy, sx + hw, sy, sx, sy + hl);
+      }
+    }
   }
 
   /**
