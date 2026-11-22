@@ -3165,8 +3165,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron') => {
-    const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron';
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron' | 'press') => {
+    const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron', press = look === 'press';
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3179,7 +3179,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = press ? `rgb(${40 + 30 * lit},${42 + 30 * lit},${40 + 24 * lit})` : iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3190,7 +3190,7 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    if (press) { g.addColorStop(0, '#7e8478'); g.addColorStop(1, '#3a3e38'); } else if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
     if (ice) {
       // Frozen: hairline cracks in the ice, a frost rim round the top, icicles down the lit side and a sparkle.
@@ -3208,6 +3208,17 @@ export function buildTextures(scene: Phaser.Scene): void {
       ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2;
       const sx = cx - 26, sy = by - h - 20;
       ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    if (press) {
+      // The Pressworks: an oiled steel bolster block, brass cap bolts round the top and a sheen of oil.
+      ctx.save();
+      ctx.fillStyle = '#d8b25a';
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.5; ell(ctx, cx + Math.cos(a) * (r - 14), by - h + Math.sin(a) * (ry - 9), 5, 3.6); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ell(ctx, cx - 6, by - h + 2, 22, 8); ctx.fillStyle = 'rgba(120,140,110,0.35)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(240,230,190,0.45)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 20, by - h - 2); ctx.lineTo(cx + 2, by - h - 6); ctx.stroke();
       ctx.restore();
       return;
     }
@@ -3254,6 +3265,22 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'iceStone', 200, (ctx) => stone(ctx, 'ice'));
   // Phase 12 W2: the Hammerdeep's stones, dressed granite bound with a riveted iron hoop.
   make(scene, 'deepStone', 200, (ctx) => stone(ctx, 'iron'));
+  // Phase 12 W2: the Pressworks' stones, oiled steel bolster blocks with brass cap bolts.
+  make(scene, 'pressStone', 200, (ctx) => stone(ctx, 'press'));
+  // Phase 12 W2: a Pressworks vent, a press exhaust in the floor: a brass ring round a slotted steel plate over a hot
+  // glow. Like the others, it rests dim and GameScene brightens it while its flare circle is up.
+  make(scene, 'pressVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,180,90,0.3)');
+    ell(ctx, c, c, 52, 52); ctx.fillStyle = '#8a6a34'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#d9b46a';
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 + 0.2; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.6, 2.6); ctx.fill(); }
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = '#2a2c2a'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // Slots glowing from below.
+    const sg = ctx.createLinearGradient(0, c - 30, 0, c + 30); sg.addColorStop(0, '#ffb04a'); sg.addColorStop(0.5, '#ffe2a0'); sg.addColorStop(1, '#ff8a2a');
+    ctx.fillStyle = sg;
+    for (const d of [-21, -7, 7, 21]) { const half = Math.sqrt(34 * 34 - d * d) - 4; ctx.beginPath(); ctx.roundRect(c + d - 3.5, c - half, 7, half * 2, 3.5); ctx.fill(); }
+  });
   // Phase 12 W2: a Hammerdeep vent, a forge hearth set in the floor: a riveted steel ring round a grate over white-hot
   // coals. Like the Kiln's, it rests dim and GameScene brightens it while its flare circle is up.
   make(scene, 'forgeVent', 128, (ctx) => {
@@ -3563,6 +3590,42 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.restore();
     // Bright worn top edge.
     ctx.strokeStyle = 'rgba(225,232,255,0.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx - 27, 33); ctx.lineTo(cx + 27, 33); ctx.stroke();
+  });
+
+  // The Ashvents' arena edge: a fumarole, a squat cone of cracked basalt with lava glowing in its throat and seams, and
+  // a cairn of stacked basalt slabs with an ember smouldering on top. Their light is the warm coalLight.
+  make(scene, 'ashFumarole', 160, (ctx) => {
+    const cx = 80, by = 138;
+    ell(ctx, cx + 8, by + 4, 58, 13); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 58, by); ctx.quadraticCurveTo(cx - 40, by - 50, cx - 18, by - 92); ctx.lineTo(cx + 18, by - 92); ctx.quadraticCurveTo(cx + 40, by - 50, cx + 58, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 58, 0, cx + 58, 0);
+    g.addColorStop(0, '#5a4440'); g.addColorStop(0.4, '#3a2c2c'); g.addColorStop(1, '#1e1618');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Glowing seams down the cone.
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = '#ff7a3a'; ctx.shadowColor = '#ff5a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (const [x0, x1, x2] of [[-10, -22, -30], [8, 16, 30], [-2, 4, -6]]) { ctx.beginPath(); ctx.moveTo(cx + x0, by - 88); ctx.lineTo(cx + x1, by - 50); ctx.lineTo(cx + x2, by - 14); ctx.stroke(); }
+    ctx.restore();
+    // The throat.
+    ell(ctx, cx, by - 92, 18, 6);
+    const tg = ctx.createRadialGradient(cx, by - 92, 1, cx, by - 92, 18); tg.addColorStop(0, '#fff2b0'); tg.addColorStop(0.5, '#ff8a3a'); tg.addColorStop(1, '#7a1e08');
+    ctx.save(); ctx.shadowColor = '#ff7a2a'; ctx.shadowBlur = 16; ctx.fillStyle = tg; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+
+  make(scene, 'ashCairn', 96, (ctx) => {
+    const cx = 48;
+    ell(ctx, cx + 4, 88, 26, 6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    const slab = (y: number, w: number, h: number, dx: number, c: string) => {
+      ctx.beginPath(); ctx.moveTo(cx - w + dx, y); ctx.lineTo(cx + w + dx, y); ctx.lineTo(cx + w - 4 + dx, y - h); ctx.lineTo(cx - w + 5 + dx, y - h); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    };
+    slab(86, 26, 16, 0, '#3a2e2e'); slab(70, 21, 14, 3, '#4a3a38'); slab(56, 16, 12, -2, '#3e3030');
+    // The ember on top.
+    softGlow(ctx, cx - 2, 40, 18, 'rgba(255,120,50,0.5)');
+    ell(ctx, cx - 2, 41, 8, 5); const eg = ctx.createRadialGradient(cx - 2, 40, 1, cx - 2, 41, 8); eg.addColorStop(0, '#ffe2a0'); eg.addColorStop(1, '#c8401a');
+    ctx.fillStyle = eg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
   // Lava for the channel layout: a seamless 64 px tile of bright veins in a darker flow, scrolled along the strip.

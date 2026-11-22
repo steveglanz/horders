@@ -834,7 +834,9 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | '' = '';
+  /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
+  cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   private driftT = 0;
@@ -1891,6 +1893,7 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.twinVentT = YSMERET.firstVents;
+          this.bossVariant = this.rollYsmeretVariant();
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
           this.events.push({ type: 'bossSpawn' });
@@ -1901,6 +1904,8 @@ export class World {
           this.downT = OSKEL.firstDown;
           this.rivetT = OSKEL.firstRivets;
           this.stampT = OSKEL.firstStamp;
+          this.bossVariant = this.rollOskelVariant();
+          this.cutCount = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -1990,6 +1995,22 @@ export class World {
     let h = Math.imul(this.seed ^ 0x5bd1e995, 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x297a2d39) >>> 0;
     return KILN_VARIANTS[(h >>> 4) % KILN_VARIANTS.length];
+  }
+
+  /** Phase 12 W2: Oskel's version this run, hashed from the seed (no run-rng draws). */
+  private rollOskelVariant(): OskelVariant {
+    if (this.stress) return 'rivets';
+    let h = Math.imul(this.seed ^ 0x3c6ef372, 0x1f83d9ab) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return OSKEL_VARIANTS[(h >>> 4) % OSKEL_VARIANTS.length];
+  }
+
+  /** Phase 12 W2: Ysmeret's version this run, hashed from the seed (no run-rng draws). */
+  private rollYsmeretVariant(): YsmeretVariant {
+    if (this.stress) return 'still';
+    let h = Math.imul(this.seed ^ 0x9b05688c, 0x5be0cd19) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return YSMERET_VARIANTS[(h >>> 4) % YSMERET_VARIANTS.length];
   }
 
   /** Phase 12 W2: Ondrel's version this run, hashed from the seed (no run-rng draws). */
@@ -5756,7 +5777,18 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+    } else if (ventsOpen && this.bossVariant === 'wander') {
+      // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
+      const turn = (WANDER.speed / YSMERET.ventDist) * dt;
+      for (const t of this.telegraphs) {
+        if (!t.alive || t.kind !== 'soak' || t.owner !== -2) continue;
+        // Always at ventDist from her (not the clamped distance), so a circle pulled in at the rim swings back out.
+        const a = Math.atan2(t.y - e.y, t.x - e.x) + turn;
+        const c = { x: e.x + Math.cos(a) * YSMERET.ventDist, y: e.y + Math.sin(a) * YSMERET.ventDist };
+        this.clampArena(c, YSMERET.ventRadius + 10);
+        t.x = c.x; t.y = c.y;
+      }
     }
     if (e.castId || e.stunT > 0) return;
     if (this.bellowT <= 0) {
@@ -5803,7 +5835,16 @@ export class World {
       this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
       this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
     }
-    if (this.rivetT <= 0) {
+    if (this.rivetT <= 0 && this.bossVariant === 'cut') {
+      // Die Cut: half the floor, split through Oskel. Away from an open plate, so its taker is safe;
+      // otherwise the side turns a quarter each time.
+      this.rivetT = DIECUT.every;
+      const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      const a = plate ? Math.atan2(plate.y - e.y, plate.x - e.x) + Math.PI : (this.cutCount * Math.PI) / 2 + ((this.seed & 3) * Math.PI) / 2;
+      this.cutCount++;
+      this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
+      this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
+    } else if (this.rivetT <= 0) {
       this.rivetT = OSKEL.rivetEvery;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
@@ -7186,6 +7227,7 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   kiln: ['open', 'open', 'pillars', 'channel', 'vents'],
   // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
   hammerdeep: ['open', 'open', 'pillars', 'vents'],
+  pressworks: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
@@ -7351,6 +7393,16 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W2: Oskel's two versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. */
+export type OskelVariant = 'rivets' | 'cut';
+export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
+/** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
+export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
+/** Phase 12 W2: Ysmeret's two versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. */
+export type YsmeretVariant = 'still' | 'wander';
+export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
+/** Wandering Vents: each circle moves `speed` px/s around Ysmeret (heroes run 128 to 152), about 70 degrees over a 4 s fuse. */
+export const WANDER = { speed: 70 };
 /** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
 export type OndrelVariant = 'choir' | 'load';
 export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
@@ -7457,7 +7509,8 @@ export const YSMERET = {
   /** Twin Vents: two soak circles this far either side of Ysmeret; an empty one blasts every hero. */
   ventEvery: 16, ventEnraged: 8, ventFuse: 4, ventDist: 220, ventRadius: 55, ventBlast: 70, firstVents: 8,
   /** Scatter Embers: each hero's burst costs them `scatterSelf` of max health and each other hero inside `scatterOther`. */
-  scatterEvery: 14, scatterCast: 2.5, scatterRadius: 80, scatterSelf: 0.1, scatterOther: 0.35, firstScatter: 4,
+  /** Phase 12 healer check: scatterSelf 0.1 -> 0.12, so a party with no healer wins under 25% at tier 6 (was 39%). */
+  scatterEvery: 14, scatterCast: 2.5, scatterRadius: 80, scatterSelf: 0.12, scatterOther: 0.35, firstScatter: 4,
   /** Bellow Slam: the tank hit, through dodges and shields. Lighter than Anvilfall: the tank also runs to vents. */
   bellow: 90, bellowEvery: 9, bellowCast: 1.5, firstBellow: 5,
   /** Soft enrage: vents open twice as often. */

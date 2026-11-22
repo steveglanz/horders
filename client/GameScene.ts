@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
-import { EMBERDRIFT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP } from '../sim/content/dungeon';
+import { EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -182,6 +182,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
+  ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -274,6 +275,10 @@ export class GameScene extends Phaser.Scene {
   private darkGfx: Phaser.GameObjects.Graphics | null = null;
   /** The Wrackline's water marks (raft wakes, Hessa's Outsurge surf), over the rafts (0.9) and under the main graphics. */
   private surfGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W2: the Wandering Vents' trail and chevrons, under the main graphics (1.9) like the other floor tells. */
+  private wanderGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W2: Oskel's Die Cut (the steel die over the doomed half and its cutting edge), under the main graphics. */
+  private dieGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
   private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
@@ -358,6 +363,8 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx = null;
     this.darkGfx = null;
     this.surfGfx = null;
+    this.wanderGfx = null;
+    this.dieGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
@@ -1291,7 +1298,9 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
-            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP : def.tip;
+            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
+            : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
+            : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP : def.tip;
           this.hud.banner(ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name, coach ?? tip + ground + heat + omens, !!coach || (this.hud.compact && !!(omens || heat)));
           break;
         }
@@ -1817,6 +1826,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.layoutDraw(g, now);
     this.edgeDraw(now);
+    this.wanderDraw(now);
+    this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
     this.glintDraw(now);
@@ -2495,7 +2506,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2518,7 +2529,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : w.dungeonId === 'pressworks' ? 'pressVent' : 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
@@ -2636,6 +2647,7 @@ export class GameScene extends Phaser.Scene {
    * - The Kiln: brick furnaces and braziers, warm light, embers.
    * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
    * - The Hammerdeep: great anvils and miners' lanterns, a steady steel-white light.
+   * - The Ashvents: basalt fumaroles and ember cairns, warm light, sparks.
    */
   private edgeDraw(now: number): void {
     const w = this.world;
@@ -3722,6 +3734,87 @@ export class GameScene extends Phaser.Scene {
    * is a dashed danger line through the warning and a solid one through the pull. Drawn under the main graphics, so a
    * class ring or a telegraph in the surf still shows on top.
    */
+  /**
+   * Phase 12 W2, Ysmeret's Wandering Vents: while her two soak circles circle her, each drags a fading gold swath along
+   * the path it came from, and gold chevrons slide ahead of it along the path it will take, so the soakers can walk
+   * with it. Drawn under the main graphics (1.9): the circles, class rings and other telegraphs stay on top.
+   */
+  private wanderDraw(now: number): void {
+    const w = this.world;
+    const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const vents = e?.alive && e.kind === 'ysmeret' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2) : [];
+    if (!vents.length) { this.wanderGfx?.clear(); return; }
+    if (!this.wanderGfx) this.wanderGfx = this.add.graphics().setDepth(1.9);
+    const g = this.wanderGfx.clear();
+    const vr = YSMERET.ventRadius;
+    for (const t of vents) {
+      const R = Math.hypot(t.x - e!.x, t.y - e!.y);
+      if (R < 1) continue;
+      const a0 = Math.atan2(t.y - e!.y, t.x - e!.x);
+      // The sim turns them by a growing angle: forward is +a (clockwise on screen).
+      const step = 0.07;
+      for (let i = 0; i < 8; i++) {
+        g.lineStyle(vr * 1.3, SOAK, 0.16 * (1 - i / 8)).beginPath().arc(e!.x, e!.y, R, a0 - (i + 1) * step - vr / R * 0.4, a0 - i * step - vr / R * 0.4, false).strokePath();
+      }
+      const n = this.lowFx ? 2 : 3;
+      for (let k = 0; k < n; k++) {
+        const u = ((now / 700) + k / n) % 1;
+        const a = a0 + (vr + 14) / R + u * 0.42;
+        const cx = e!.x + Math.cos(a) * R, cy = e!.y + Math.sin(a) * R;
+        const tx = -Math.sin(a), ty = Math.cos(a), nx = Math.cos(a), ny = Math.sin(a);
+        const al = 0.8 * Math.sin(u * Math.PI);
+        g.lineStyle(3.5, SOAK, al).beginPath().moveTo(cx - tx * 7 + nx * 10, cy - ty * 7 + ny * 10).lineTo(cx + tx * 7, cy + ty * 7).lineTo(cx - tx * 7 - nx * 10, cy - ty * 7 - ny * 10).strokePath();
+      }
+    }
+  }
+
+  /**
+   * Phase 12 W2, Oskel's Die Cut: the half-floor 'hit' cone (arc pi) through him reads as a stamping die coming down.
+   * Over the doomed half, steel die lines run parallel to the cut and close in on it as the fuse burns; the cut itself is
+   * a white-hot blade edge with a danger glow and teeth biting into the doomed side, brighter and faster near the end.
+   * Under the main graphics (1.9), so the cone's own red fill and every class ring stay on top.
+   */
+  private dieCutDraw(now: number): void {
+    const w = this.world;
+    const t = w.dungeonId === 'pressworks' ? w.telegraphs.find((q) => q.alive && q.shape === 'cone' && q.kind === 'hit' && q.arc >= Math.PI - 1e-3 && q.r >= ARENA * 1.5) : undefined;
+    if (!t) { this.dieGfx?.clear(); return; }
+    if (!this.dieGfx) this.dieGfx = this.add.graphics().setDepth(1.9);
+    const g = this.dieGfx.clear();
+    const R = w.arenaR ?? ARENA;
+    const u = Math.min(1, t.t / t.dur);
+    const nx = Math.cos(t.angle), ny = Math.sin(t.angle); // into the doomed half
+    const dx = -ny, dy = nx; // along the cut
+    // The chord of the arena circle along the line through p in direction (dx, dy).
+    const chord = (px: number, py: number): [number, number, number, number] | null => {
+      const b = px * dx + py * dy, c = px * px + py * py - R * R, disc = b * b - c;
+      if (disc <= 0) return null;
+      const s0 = -b - Math.sqrt(disc), s1 = -b + Math.sqrt(disc);
+      return [px + dx * s0, py + dy * s0, px + dx * s1, py + dy * s1];
+    };
+    // Die lines over the doomed half, sliding toward the edge.
+    const gap = 46;
+    const slide = ((now / (u > 0.7 ? 160 : 320)) % 1) * gap;
+    for (let o = gap - slide; o < R * 2; o += gap) {
+      const c = chord(t.x + nx * o, t.y + ny * o);
+      if (!c) continue;
+      g.lineStyle(6, 0x1a1c22, 0.35).lineBetween(c[0], c[1], c[2], c[3]);
+      g.lineStyle(2, 0xc8ccd8, 0.18 + 0.2 * u).lineBetween(c[0], c[1], c[2], c[3]);
+    }
+    const e = chord(t.x, t.y);
+    if (!e) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / (u > 0.7 ? 50 : 110));
+    g.lineStyle(16, DANGER, 0.25 + 0.25 * u).lineBetween(e[0], e[1], e[2], e[3]);
+    g.lineStyle(5, 0xf4f6ff, 0.6 + 0.35 * pulse * u).lineBetween(e[0], e[1], e[2], e[3]);
+    // Teeth along the edge, biting into the doomed side.
+    const len = Math.hypot(e[2] - e[0], e[3] - e[1]);
+    const step = 30;
+    g.fillStyle(0xdfe3ee, 0.55 + 0.3 * u);
+    for (let s = step / 2; s < len; s += step) {
+      const x = e[0] + dx * s, y = e[1] + dy * s;
+      g.fillTriangle(x - dx * 8, y - dy * 8, x + dx * 8, y + dy * 8, x + nx * 13, y + ny * 13);
+    }
+  }
+
   private outsurgeDraw(sg: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
     const R = this.world.arenaR ?? ARENA;
     const band = OUTSURGE.rimR;

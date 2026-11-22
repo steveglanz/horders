@@ -5,7 +5,7 @@ import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, VENT_SOUNDS, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -504,6 +504,34 @@ describe('audio', () => {
     expect(cueFor({ type: 'slam', x: 0, y: 0, r: 160 } as never, deep)?.id).toBe('slam');
     expect(cueFor({ type: 'slam', x: 0, y: 0, r: IRONLOAD.radius } as never, { ...deep, dungeon: 'foundry' })?.id).toBe('slam');
     for (const id of ['ironloadWarn', 'ironloadMark', 'ironload', 'forgeVentWarn', 'forgeFlare', 'layoutForge'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
+  });
+
+  it('tells Ysmeret\'s Wandering Vents from her Twin Vents (Phase 12 W2)', () => {
+    const ash = { cls: 'bulwark' as const, acting: 0, dungeon: 'ashvents' };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'twinVents', name: WANDERING_VENTS } as never, ash)?.id).toBe('wanderVentWarn');
+    expect(cueFor({ type: 'castStart', index: 0, id: 'twinVents', name: 'Twin Vents' } as never, ash)?.id).toBe('ventWarn');
+    expect(PRIORITY.has('wanderVentWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.wanderVentWarn)).toBeLessThan(3);
+    // The sim must still call the wander version by this exact name.
+    expect(readFileSync('sim/world.ts', 'utf8')).toContain(`'${WANDERING_VENTS}'`);
+  });
+
+  it('gives Oskel\'s Die Cut a wind-up and a shear, and the Pressworks its own steam-press vents (Phase 12 W2)', () => {
+    const press = { cls: 'bulwark' as const, acting: 0, dungeon: 'pressworks' };
+    expect(CAST_SOUNDS.dieCut).toEqual({ start: 'dieCutWarn' });
+    expect(PRIORITY.has('dieCutWarn')).toBe(true);
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: DIECUT_R } as never, press)?.id).toBe('dieCut');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: 160 } as never, press)?.id).toBe('slam');
+    expect(cueFor({ type: 'slam', x: 0, y: 0, r: DIECUT_R } as never, { ...press, dungeon: 'kiln' })?.id).toBe('slam');
+    // The sim's Die Cut cone must still be DIECUT_R across (ARENA * 2).
+    expect(readFileSync('sim/world.ts', 'utf8')).toMatch(/addTelegraph\('cone', e\.x, e\.y, ARENA \* 2, a, Math\.PI, DIECUT\.fuse/);
+    expect(cueFor({ type: 'ventFlare', x: 0, y: 0 } as never, press)?.id).toBe('pressVentWarn');
+    expect(landCueFor({ type: 'ventFlare', x: 0, y: 0 } as never, 'pressworks')?.id).toBe('pressBurst');
+    expect(cueFor({ type: 'layout', id: 'vents' } as never, press)?.id).toBe('layoutPress');
+    expect(VENT_SOUNDS.pressworks).not.toEqual(VENT_SOUNDS.hammerdeep);
+    // The warning must finish well inside the 2.4 s fuse.
+    expect(recipeLength(SOUNDS.dieCutWarn)).toBeLessThanOrEqual(1.8);
+    for (const id of ['dieCut', 'pressVentWarn', 'pressBurst', 'layoutPress'] as const) expect(recipeLength(SOUNDS[id]), id).toBeLessThan(3);
   });
 
   it('sounds Glintfall once, however many pillars it hits (V8)', () => {

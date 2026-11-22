@@ -365,3 +365,72 @@ Mythic key levels scale `tierDamage` too, so the sweep no longer squares the key
 - Tier 10, hero-t8-0, seeds 1 to 80: 7 → 8.
 
 Bots step out of the cone, so the fix barely moves them. It matters for players, who will be hit by the sweep sometimes. Tiers 4 and 6 are 80 and 78 of 80 on main, and the tier 6 sweep is unchanged. The hashcheck has no Hammerdeep rows.
+
+## Phase 12 W2, part 3 (built 22 Nov 2026): the Ashvents and Ysmeret's Wandering Vents
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2).
+  - New openers: `riftfall`, `glassSpitters` and the Kiln's `spitters`.
+  - New named fight: `spitterBrute`. No Ashbuck fights, for the same reason as the Hammerdeep.
+- **Layouts stay as they were (all open).** Pillars or vents on top of the new fights cost about 11 of 80 tier 8 wins (seeds 1 to 80: main 54, layouts alone 56, fights alone 55, both 43). Each half alone is inside noise, so this ships the fights and leaves layouts for later.
+- **Ysmeret's second version.** The seed picks `bossVariant` (its own salt, no run-rng draws):
+  - `still`: Twin Vents, as before.
+  - `wander`: **Wandering Vents.** The same two soak circles open, then move around her at 70 px/s (`WANDER.speed`, about 70 degrees over the fuse) while they fuse. The soakers have to walk with them. The banner says so (`WANDER_TIP`).
+  - It reuses the `castStart` event with the id `twinVents`, so sound and art already play for it.
+- **Name:** "Wandering Vents" had no WoW match in a web search on 22 Nov 2026.
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, main 5e68e1a → this change:
+
+| Check | main | This change |
+|---|---|---|
+| Tier 4, full party, seeds 1 to 40 | 40 | 40 |
+| Tier 6, full party, seeds 1 to 80 | 71 | 75 |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright), seeds 1 to 40 | 5 | 6 |
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights), seeds 1 to 120 | 36 (30%) | 47 (39%) |
+| Tier 8, full party, seeds 1 to 160 | 95 (59%) | 103 (64%, in the 55 to 70% band) |
+
+At tier 8, by Ysmeret's version: still 46 of 76 (main, same seeds: 52) and wander 57 of 84 (main: 43). The seeds differ between the two groups, so this says the versions are close, not which is harder.
+
+**Open: the Ashvents' healer check is too soft.** No healer wins 30% on main, already over the 25% bar, and 39% now. Almost every loss in both is at Ysmeret, so the fix belongs in her fight (for example Scatter Embers or Bellow Slam damage), measured on its own.
+
+**Run variety** (tools/variety.ts, tier 8): 21 of 1000 runs repeat an earlier run in their block of 20, against 306 on main. Routes went from 24 to 179, and there are 339 run shapes. The hashcheck has no Ashvents rows.
+
+## Phase 12 W2, part 4 (built 22 Nov 2026): the Pressworks and Oskel's Die Cut
+- **Fights:** 6 openers (was 3) and 3 named fights (was 2), the same additions as the Ashvents: `riftfall`, `glassSpitters`, `spitters`, and named `spitterBrute`. No Ashbuck fights.
+- **Layouts:** `LAYOUTS.pressworks` is open, open, pillars or vents, like the Hammerdeep. Oskel's fight stays open. The vents borrow the Hammerdeep's forge sounds (`VENT_SOUNDS.pressworks`) until sound gives them their own.
+- **Oskel's second version.** The seed picks `bossVariant` (its own salt, no run-rng draws):
+  - `rivets`: Rivets, as before.
+  - `cut`: **Die Cut** on the Rivets timer (every 9 s). Half the floor, split through Oskel, warns for 2.4 s and hits everyone in it for 45 (scaled by tier as it lands). While a Downstroke plate is open the cut goes to the far side from it, so the plate's taker is safe and the party has to cross to the plate's side. With no plate open the side turns a quarter each time. Tuning in `DIECUT`.
+  - Rivets ask each hero to step out on their own. Die Cut moves the whole party at once, and it meets the Downstroke: the party gathers on the plate's half while one hero takes the plate and the next one waits.
+  - The banner says so (`DIECUT_TIP`). The cast id is `dieCut`.
+- **Bots:** inside a cut of 162 degrees or more, a bot walks straight back across its edge (`sim/bot.ts`). Outside one, it ignores it.
+- **Name:** "Die Cut" is a plain stamping term. Two web searches on 22 Nov 2026 found no WoW spell or zone by that name.
+- **Ysmeret fix (from visuals' shots):** a Wandering Vent that the arena edge pulled in close to her stayed close, because each tick turned the clamped spot. Now each tick places it at `YSMERET.ventDist` from her and then clamps, so it swings back out. The Ashvents at tier 8, full party, seeds 1 to 160: 103 before the fix, 102 after.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, main → this change (wins):
+
+| Check | main | This change |
+|---|---|---|
+| Tier 10, full party, seeds 1 to 160 | 116 (73%) | 113 (71%, in the 60 to 75% band) |
+| Tier 10, full party, seeds 1 to 80, Die Cut alone | 59 | 56 |
+| Tier 10, full party, seeds 1 to 80, fights and Die Cut, no layouts | 59 | 60 |
+| Duo (Bulwark, Lumen) tier 9, seeds 1 to 80 | 26 (33%) | 35 (44%) |
+
+By Oskel's version, Die Cut alone on seeds 1 to 80: cut 28 of 42 (main, same seeds: 31) and rivets 28 of 38 (main: 28). Most losses are still the Stamp on the tank. The duo gets easier with the new fights, but it's still under half, the hard way.
+
+**Run variety** (tools/variety.ts, tier 10): 3 of 1000 runs repeat an earlier run in their block of 20, against 409 on main. Routes went from 18 to 150, and there are 922 run shapes. The hashcheck has no Pressworks rows.
+
+## Phase 12: the Ashvents' healer check (22 Nov 2026)
+After part 3, a party with no healer won 39% of tier 6 Ashvents runs (main before it: 30%), over the 25% bar for a party missing a role. Almost every loss was at Ysmeret, so the fix is in her fight. Scatter Embers now costs each hero 12% of max health (`YSMERET.scatterSelf`, was 10%). That is party-wide damage every 14 s, which a healer covers.
+
+**Measured** with tools/group.ts, heroes-r2 at the matching tier, wins (scatterSelf 0.10 is main after #421):
+
+| Check | 0.10 | 0.11 | 0.12 (shipped) | 0.13 | 0.15 |
+|---|---|---|---|---|---|
+| Tier 6, no healer (Bulwark, Duskblade, 2 Emberwrights), seeds 1 to 120 | 47 (39%) | 35 (29%) | 26 (22%) | | |
+| Tier 6, no healer, seeds 1 to 80 | 29 | 22 | 19 | 16 | 12 |
+| Tier 8, full party, seeds 1 to 160 | 102 (64%) | 90 (56%) | 84 (53%) | | |
+| Tier 8, full party, seeds 1 to 80 | 52 | 47 | 46 | 42 | 33 |
+| Tier 6, full party, seeds 1 to 80 | 75 | | 72 (90%) | | |
+| Tier 6, no tank (Lumen, 2 Duskblades, Emberwright), seeds 1 to 40 | 6 | | 5 | | |
+| Tier 4, full party, seeds 1 to 40 | 40 | | 40 | | |
+
+The knob moves both cells together. 0.11 keeps tier 8 in its 55 to 70% band but leaves no healer at 29%. 0.12 meets the role bar, and tier 8 lands at 53%, 2 points under its band and inside the ±4% noise of 160 seeds. The role bar is the rule that keeps the group dungeon a group check, so 0.12 ships. If players find tier 8 too hard, the next knob is one that hits a full party less than a party with no healer, not this one.

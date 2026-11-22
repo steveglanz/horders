@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -161,6 +161,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   choir: { done: 'choir' }, // Choir of Iron
   // Ondrel's Ironload version: chains haul the weight up, then it is marked on a hero; it lands 5 s later as an r-110 slam.
   ironload: { start: 'ironloadWarn', done: 'ironloadMark' }, // Ironload
+  // Oskel's Die Cut version: half the floor is stamped after a 2.4 s fuse; it lands as a slam of r DIECUT_R.
+  dieCut: { start: 'dieCutWarn' }, // Die Cut
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
@@ -309,7 +311,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'explode':
     case 'strike': return { id: 'explode', jitter: 0.12 };
     // Ironload lands as a slam the size of IRONLOAD.radius in the Hammerdeep: its own crushing weight.
-    case 'slam': return c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius ? { id: 'ironload' } : { id: 'slam' };
+    case 'slam':
+      if (c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius) return { id: 'ironload' };
+      // Die Cut's half-floor cone is the only slam the size of the whole arena twice over.
+      if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
+      return { id: 'slam' };
     case 'glare': return { id: ev.hit ? 'glareHit' : 'glare' };
     case 'brandBurst': return { id: 'brand' };
     case 'pillarCrack': return { id: 'crack' };
@@ -333,7 +339,10 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
     // Hessa's Outsurge keeps the Ebb's cast id, so its own wind-up keys on World.outsurge.
-    case 'castStart': return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
+    case 'castStart':
+      // Ysmeret's Wandering Vents reuse the twinVents cast; only its name says the circles will move.
+      if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
+      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
@@ -408,6 +417,8 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   glarewell: { warn: 'lensVentWarn', land: 'lensFlare', sting: 'layoutLens' },
   // Phase 12 W2: the Hammerdeep's forge vents borrow the Kiln's fire until sound gives them their own.
   hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
+  // Phase 12 W2: the Pressworks' steam-press vents.
+  pressworks: { warn: 'pressVentWarn', land: 'pressBurst', sting: 'layoutPress' },
 };
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
@@ -535,9 +546,14 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
  * Sounds that must never be lost to a full mix: boss warnings, the moments that need a reaction,
  * and party news. When every voice is busy, one of these takes the voice of the oldest ordinary sound.
  */
+/** Die Cut's cone radius in sim/world.ts (ARENA * 2): its landing slam carries it. */
+export const DIECUT_R = ARENA * 2;
+/** The cast name sim/world.ts gives Twin Vents in Ysmeret's `wander` version (tests/audio.test.ts checks it). */
+export const WANDERING_VENTS = 'Wandering Vents';
+
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'castWarn', 'wanderVentWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),

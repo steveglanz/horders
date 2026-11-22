@@ -480,6 +480,13 @@ export const SOUNDS = {
     whoosh(400, 3500, 0.55, 0.35), whoosh(400, 3500, 0.55, 0.3).map((v) => ({ ...v, delay: 0.45 })),
     chime(E5, 0.1, 0.2, 0.5), chime(B5(), 0.55, 0.22, 0.7),
   ),
+  /** Wandering Vents (Ysmeret's second version, Phase 12 W2): the same two vents open, then a turning figure says
+   *  "they move": a chime that circles up and back down while a long whoosh sweeps round, so the soakers walk with them. */
+  wanderVentWarn: join(
+    whoosh(400, 3500, 0.55, 0.35), whoosh(400, 3500, 0.55, 0.3).map((v) => ({ ...v, delay: 0.45 })),
+    ...[E5, G5, B5(), G5, E5].map((f, k) => chime(f, 0.5 + k * 0.14, 0.2, 0.4)),
+    whoosh(1800, 900, 1.0, 0.18).map((v) => ({ ...v, delay: 0.9 })),
+  ),
   /** Scatter Embers (and the raid's Cinder Marks): a crackling sparkle that says "get apart". */
   scatterWarn: [
     { wave: 'noise', f: 0, dur: 1.2, vol: 0.25, a: 0.9, curve: 0.7, lp: 3000, lp2: 9000, hp: 1200, trem: [14, 0.7] },
@@ -874,6 +881,25 @@ export const SOUNDS = {
   /** The Hammerdeep's vents layout: two hammer strikes and a bellows breath. */
   layoutForge: join(clang(523, 0.24, 0.35), clang(392, 0.24, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.2 })),
     [{ wave: 'noise', f: 0, dur: 0.45, delay: 0.4, vol: 0.14, a: 0.2, lp: 4000, hp: 500, curve: 1.4 }]),
+  /** Die Cut winds up (Oskel's second version, 2.4 s fuse): a press die is drawn back with a long rising metal scrape and a
+   *  ratchet, so the half of the floor about to be stamped has time to run for the other side. */
+  dieCutWarn: join(
+    [{ wave: 'saw', f: 300, f2: 900, dur: 1.6, vol: 0.12, a: 1.2, lp: 3500, curve: 0.8, vib: [9, 0.01] },
+     { wave: 'noise', f: 0, dur: 1.6, vol: 0.18, a: 1.3, lp: 3000, lp2: 8000, hp: 1500, curve: 0.8 }],
+    ...[0, 0.3, 0.55, 0.75, 0.92, 1.06].map((d) => [{ wave: 'square' as const, f: 1400, dur: 0.03, delay: d, vol: 0.12, lp: 6000, curve: 3 }]),
+  ),
+  /** Die Cut lands: the die shears through half the floor, a sharp cut over a heavy press thump. */
+  dieCut: join(whoosh(6000, 1200, 0.35, 0.35), clang(220, 0.4, 0.8), boom(45, 0.7, 0.7)),
+  /** The Pressworks' steam-press vents: a hydraulic hiss builds against a valve tick. */
+  pressVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 2000, lp2: 7000, hp: 900, curve: 0.8 }],
+    ...[0, 0.35, 0.7].map((d) => [{ wave: 'square' as const, f: 1100, dur: 0.035, delay: d, vol: 0.1, lp: 5000, curve: 3 }]),
+  ),
+  /** The press vent bursts: a piston thump and a blast of steam. */
+  pressBurst: join(clang(165, 0.25, 0.4), whoosh(2500, 7000, 0.5, 0.25), boom(55, 0.25, 0.3)),
+  /** The Pressworks' vents layout: a piston stroke down and back, and a valve letting go. */
+  layoutPress: join(clang(294, 0.22, 0.35), clang(294, 0.2, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.28 })),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.5, vol: 0.14, a: 0.05, lp: 7000, hp: 1200, curve: 1.6 }]),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
@@ -1175,6 +1201,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   outsurgePull: 5.0,
   // Ondrel's Ironload wind-up (Phase 12 W2) is a cast start: -33.5 dB alone and 1.0 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=13); now creaks and rattles in the phone band too.
   ironloadWarn: 10.5,
+  // Oskel's Die Cut wind-up (Phase 12 W2) is a cast start: -27.3 dB alone.
+  dieCutWarn: 2.0,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -656,5 +656,75 @@ describe('Phase 12 W2: the Hammerdeep and Ondrel\'s Ironload', () => {
     expect(lost[others[0]]).toBeGreaterThan(0);
     expect(lost[others[1]]).toBe(0);
     expect(lost[others[2]]).toBe(0);
+  });
+});
+
+describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
+  type Y = { rollYsmeretVariant(): string; ysmeretClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; twinVentT: number; scatterT: number; bellowT: number };
+  function ysmeret(variant: string): { w: World; q: Y; b: number } {
+    const w = new World({ seed: 3, dungeon: 'ashvents', tier: 6, omens: [], cls: 'bulwark' });
+    const q = w as unknown as Y;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ysmeret', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never;
+    q.twinVentT = 0; q.scatterT = 99; q.bellowT = 99;
+    return { w, q, b };
+  }
+  const vents = (w: World) => w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2).map((t) => ({ x: t.x, y: t.y }));
+
+  it('draws from 6 openers and 3 named fights, and keeps its layouts unchanged', () => {
+    const d = DUNGEONS.ashvents;
+    expect(d.openers).toHaveLength(6);
+    expect(d.named).toHaveLength(3);
+    for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
+    expect(LAYOUTS.ashvents).toBeUndefined();
+  });
+
+  it('rolls from the seed alone, and both versions show up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'ashvents', tier: 6, omens: [], cls: 'bulwark' }) as unknown as Y;
+      const b = new World({ seed, dungeon: 'ashvents', tier: 6, omens: [], cls: 'bulwark' }) as unknown as Y;
+      expect(a.rollYsmeretVariant()).toBe(b.rollYsmeretVariant());
+      seen.add(a.rollYsmeretVariant());
+    }
+    expect([...seen].sort()).toEqual([...YSMERET_VARIANTS].sort());
+  });
+
+  it('still vents stay put; wandering vents circle her at the set speed', () => {
+    for (const v of ['still', 'wander']) {
+      const { w, q, b } = ysmeret(v);
+      q.ysmeretClock(1 / 30);
+      const start = vents(w);
+      expect(start).toHaveLength(2);
+      const named = w.events.find((ev) => ev.type === 'castStart' && ev.id === 'twinVents') as { name: string } | undefined;
+      expect(named?.name).toBe(v === 'wander' ? 'Wandering Vents' : 'Twin Vents');
+      for (let k = 0; k < 30; k++) q.ysmeretClock(1 / 30);
+      const now = vents(w);
+      const e = w.enemies[b];
+      for (let k = 0; k < 2; k++) {
+        const moved = Math.hypot(now[k].x - start[k].x, now[k].y - start[k].y);
+        if (v === 'still') expect(moved).toBe(0);
+        else {
+          expect(moved).toBeGreaterThan(WANDER.speed * 0.8);
+          expect(moved).toBeLessThan(WANDER.speed * 1.05);
+          // Still ventDist from her.
+          expect(Math.hypot(now[k].x - e.x, now[k].y - e.y)).toBeCloseTo(YSMERET.ventDist, 3);
+        }
+      }
+    }
+  });
+
+  it('a wandering vent pulled in at the rim swings back out to its distance', () => {
+    const { w, q, b } = ysmeret('wander');
+    const e = w.enemies[b];
+    q.ysmeretClock(1 / 30);
+    const t = w.telegraphs.find((x) => x.alive && x.kind === 'soak' && x.owner === -2)!;
+    // As if the rim had pulled it in close to her.
+    t.x = e.x + 40; t.y = e.y;
+    q.ysmeretClock(1 / 30);
+    expect(Math.hypot(t.x - e.x, t.y - e.y)).toBeCloseTo(YSMERET.ventDist, 3);
   });
 });
