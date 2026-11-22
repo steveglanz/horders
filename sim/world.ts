@@ -7585,7 +7585,7 @@ export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
  * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats
  * (COAL.emberHeal and COAL.emberDamage, as for an ember). No blast and no adds.
  */
-export const BANK = { count: 3, radius: 50, fuse: 4, near: 120, far: 170 };
+export const BANK = { count: 2, radius: 50, fuse: 4, near: 120, far: 170 };
 /** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
 export type SlagVariant = 'pour' | 'brim';
 export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
