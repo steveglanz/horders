@@ -13,7 +13,7 @@ export type EncounterId =
   | 'rimepack' | 'snuffers' | 'frostwardens' | 'weaver' | 'weaverWardens' | 'nhevra'
   | 'grandmotherSlag'
   | 'lurkers' | 'haulers' | 'wardenShoal' | 'twoHaulers' | 'haulerWarden' | 'hessa'
-  | 'oskel' | 'coalmouth' | 'colossus' | 'regent';
+  | 'oskel' | 'vorhulm' | 'colossus' | 'regent';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -28,7 +28,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   wardens: { id: 'wardens', name: 'Hollow Wardens', tip: 'Two hulking guards. Get clear of their slams.', spawns: [{ kind: 'husk', n: 2 }] },
   warpack: { id: 'warpack', name: 'Warden and Hounds', tip: 'A warden with its hounds. Thin the hounds first.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   brute: { id: 'brute', name: 'Cinder Brute', tip: 'Quench its Ground Pound.', spawns: [{ kind: 'cinderBrute', n: 1 }] },
-  ashmaw: { id: 'ashmaw', name: 'Coalmouth the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
+  ashmaw: { id: 'ashmaw', name: 'Vorhulm the Glutton', tip: 'Quench its Gorge, or it heals.', spawns: [{ kind: 'ashmaw', n: 1 }] },
   acolytes: { id: 'acolytes', name: 'The Brute and its Acolytes', tip: 'Two acolytes heal the Brute. Kill the healers first.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'acolyte', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
@@ -62,7 +62,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   haulerWarden: { id: 'haulerWarden', name: 'Hauler and Warden', tip: 'Quench the Haul, or it yanks you off your raft and into the Warden\'s reach.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'husk', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   regent: { id: 'regent', name: 'The Furnace Regent', tip: 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. You can\'t take it back for a while. It never lands on the tank, but the tank can take one.', spawns: [{ kind: 'regent', n: 1 }] },
   colossus: { id: 'colossus', name: 'The Cinder Colossus', tip: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he Wheels, he turns on whoever hurt him most.', spawns: [{ kind: 'colossus', n: 1 }] },
-  coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'coalmouth', n: 1 }] },
+  vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', tip: 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, grab the spilled embers before he does.', spawns: [{ kind: 'vorhulm', n: 1 }] },
   oskel: { id: 'oskel', name: 'Oskel of the Pressworks', tip: 'Take turns under the Downstroke: a Pressed hero must stay out. Dodge the Rivets, tank takes the Stamp.', spawns: [{ kind: 'oskel', n: 1 }] },
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', tip: 'She holds the drain. Hit her between pulls, and keep a raft afloat.', spawns: [{ kind: 'hessa', n: 1 }] },
   nhevra: { id: 'nhevra', name: 'Nhevra, the Cold Hearth', tip: 'Quench her Snuff, kill the Snuffers, and keep your coal bright for the Long Night.', spawns: [{ kind: 'nhevra', n: 1 }] },
@@ -146,10 +146,10 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
     worldBoss: 'Grandmother Slag',
   },
   hoard: {
-    id: 'hoard', name: 'The Hoard', boss: 'coalmouth', unlockTier: 9,
+    id: 'hoard', name: 'The Hoard', boss: 'vorhulm', unlockTier: 9,
     openers: ['warpack', 'glass', 'crawlers'], named: ['anvilguard', 'bellwarden'], hard: [],
-    blurb: 'The second raid. Four heroes face Old Coalmouth in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
-    worldBoss: 'Old Coalmouth',
+    blurb: 'The second raid. Four heroes face Old Vorhulm in his ember hoard. When he swallows one of you, the rest break the Craw to get them out. While he is the live world boss, every hit on him counts triple toward it.', style: 'group', minParty: 4, raid: true,
+    worldBoss: 'Old Vorhulm',
   },
   smeltery: {
     id: 'smeltery', name: 'The Smeltery', boss: 'colossus', unlockTier: 10,

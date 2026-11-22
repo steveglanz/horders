@@ -141,7 +141,7 @@ const ABILITY: Record<ClassId, (SoundId | null)[]> = {
  * not its display name, so renaming a cast never silences it. A new boss needs no new event type.
  */
 export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = {
-  // The Hoard (raid 2): Old Coalmouth. Gorge can be interrupted (the interrupt cue plays then); Last Meal is the enrage.
+  // The Hoard (raid 2): Old Vorhulm. Gorge can be interrupted (the interrupt cue plays then); Last Meal is the enrage.
   coalGorge: { start: 'gorgeWarn', done: 'gorge' }, // Gorge
   lastMeal: { start: 'lastMealWarn', done: 'lastMeal' }, // Last Meal
   // The Hammerdeep: Ondrel of the Hammerdeep (docs/design/group-dungeons.md).
@@ -193,7 +193,7 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
   hessa: 'phaseHessa',
   oskel: 'phaseOskel',
   // The Hoard: [phase 2 Swallow, phase 3 Ember Feast].
-  coalmouth: ['phaseSwallow', 'phaseFeast'],
+  vorhulm: ['phaseSwallow', 'phaseFeast'],
   // The Smeltery: [phase 2 Wheel, phase 3 Meltdown].
   colossus: ['phaseWheel', 'phaseMeltdown'],
   // The Flue: [phase 2 Edict, phase 3 Abdication].
@@ -203,13 +203,13 @@ export const PHASE_STING: Record<string, SoundId | SoundId[]> = {
 /** The sting for a boss reaching `phase` (2 or 3). */
 /**
  * Each world boss's shadow sting, keyed by the server's boss names (supabase/migrations/0007). 'Old Ashmaw' is
- * the name before migration 0007 renames it, so a live server that hasn't run it still gets Coalmouth's sting.
+ * the name before migration 0007 renames it, so a live server that hasn't run it still gets Vorhulm's sting.
  * A name not listed falls back to PHASE_STING.worldShadow.
  */
 export const SHADOW_STING: Record<string, SoundId> = {
   'Grandmother Slag': 'shadowSlag',
   'The Cinder Colossus': 'shadowColossus',
-  'Old Coalmouth': 'shadowCoal',
+  'Old Vorhulm': 'shadowCoal',
   'Old Ashmaw': 'shadowCoal',
   'The Furnace Regent': 'shadowRegent',
 };

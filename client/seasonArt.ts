@@ -239,7 +239,7 @@ const LOW_EBB = `<svg class="kart" viewBox="0 0 360 110" preserveAspectRatio="xM
 </svg>`;
 
 /**
- * The Long Hunger (docs/design/season.md, "Seasons 7 and 8"). Old Coalmouth's maw fills the right of the banner,
+ * The Long Hunger (docs/design/season.md, "Seasons 7 and 8"). Old Vorhulm's maw fills the right of the banner,
  * its gullet glowing Gullet Red over a spill of Hoard Gilt embers; a hero darts in low from the left to snatch one,
  * Ember Crumbs scattering behind. The gullet breathes and the embers flicker, both stopping for Battery saver and
  * reduced motion.

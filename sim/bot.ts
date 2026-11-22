@@ -683,7 +683,7 @@ export function botInput(w: World, skill = 1): Input {
     const cast = botCast(w, skill);
     return save.d > REVIVE_RADIUS * 0.5 ? { x: save.dx / save.d, y: save.dy / save.d, cast } : { x: 0, y: 0, cast };
   }
-  // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Coalmouth eats it.
+  // The Hoard: in Ember Feast a non-tank grabs the nearest spilled ember before Old Vorhulm eats it.
   const ember = emberGrab(w, skill);
   if (ember) return { x: ember.dx, y: ember.dy, cast: botCast(w, skill) };
   // The Flue: pass a Decree on (the holder walks to an ally who can take it; that ally meets it).

@@ -42,7 +42,7 @@ describe('raid 4: the Furnace Regent in the Flue (B1)', () => {
     expect(partyBlocker('flue', 3)).not.toBe('');
     expect(botFillBlocker('flue')).not.toBe('');
     expect(raidCountsTriple('flue', 'The Furnace Regent')).toBe(true);
-    expect(raidCountsTriple('flue', 'Old Coalmouth')).toBe(false);
+    expect(raidCountsTriple('flue', 'Old Vorhulm')).toBe(false);
     let n = 0;
     expect(rollRoute(() => n++ % 2, 'flue')[3]).toBe('regent');
     expect(ACHIEVEMENTS.find((a) => a.id === 'boss:flue')?.name).toBe('Sealbreaker');

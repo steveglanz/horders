@@ -421,7 +421,7 @@ function drawBrute(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[34, 17 + bob], [38.5, 17 + bob]], 1.4, '#ffe16b');
 }
 
-/** Coalmouth the Glutton (id ashmaw): a bloated, frost-ash beast that is mostly mouth. */
+/** Vorhulm the Glutton (id ashmaw): a bloated, frost-ash beast that is mostly mouth. */
 function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
   const j = [0, 1, 0, -1][f];
   ctx.fillStyle = '#1b1c26';
@@ -451,12 +451,12 @@ function drawAshmaw(ctx: Ctx, _s: number, f: number): void {
 }
 
 /**
- * Old Coalmouth (raid 2, the Hoard): a bloated heap of coal that is mostly mouth. A lumpy, faceted coal body with
+ * Old Vorhulm (raid 2, the Hoard): a bloated heap of coal that is mostly mouth. A lumpy, faceted coal body with
  * ember seams, four stubby feet, two small ember eyes on top, and a maw splitting his whole front (he faces right)
  * with jagged coal teeth and a furnace glow deep inside. The jaw works open and shut over the four frames. Drawn
  * at 128 and scaled to the sheet (192, the size of Grandmother Slag's raid sheet).
  */
-function drawCoalmouth(ctx: Ctx, s: number, f: number): void {
+function drawVorhulm(ctx: Ctx, s: number, f: number): void {
   const k = s / 128;
   const jaw = [0, 4, 9, 4][f];
   const glow = [0.75, 0.9, 1, 0.9][f];
@@ -542,7 +542,7 @@ function drawCoalmouth(ctx: Ctx, s: number, f: number): void {
 }
 
 /**
- * The Craw (raid 2): a swollen throat-sac bulging off Old Coalmouth's side, its membrane stretched thin over a hot
+ * The Craw (raid 2): a swollen throat-sac bulging off Old Vorhulm's side, its membrane stretched thin over a hot
  * core, veined and throbbing over the four frames. It lives 8 s, so it is the brightest thing near him: GameScene
  * adds a "hit this" ring and its countdown.
  */
@@ -1828,15 +1828,15 @@ function drawRegent(ctx: Ctx, s: number, f: number): void {
 }
 
 /** The sheet that draws a world boss by its server name (its shadow fight and the hub's portrait). Old Ashmaw is
- * Old Coalmouth's name until migration 0007 runs. */
+ * Old Vorhulm's name until migration 0007 runs. */
 export const WORLD_BOSS_SHEET: Record<string, { key: string; size: number }> = {
   'Grandmother Slag': { key: 'slagCrone', size: 128 },
   'The Cinder Colossus': { key: 'colossus', size: 128 },
-  'Old Coalmouth': { key: 'coalmouth', size: 192 },
-  'Old Ashmaw': { key: 'coalmouth', size: 192 },
+  'Old Vorhulm': { key: 'vorhulm', size: 192 },
+  'Old Ashmaw': { key: 'vorhulm', size: 192 },
   'The Furnace Regent': { key: 'regent', size: 128 },
 };
-const WORLD_BOSS_DRAW: Record<string, FrameDraw> = { slagCrone: drawSlagCrone, colossus: drawColossus, coalmouth: drawCoalmouth, regent: drawRegent };
+const WORLD_BOSS_DRAW: Record<string, FrameDraw> = { slagCrone: drawSlagCrone, colossus: drawColossus, vorhulm: drawVorhulm, regent: drawRegent };
 
 /** Draws frame `f` of a world boss into a plain 2D canvas `px` pixels square, for the hub (no Phaser). */
 export function drawWorldBossPortrait(ctx: Ctx, px: number, name: string, f = 0): boolean {
@@ -2751,7 +2751,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'hessa', 120, 4, drawHessa);
   sheet(scene, 'oskel', 120, 4, drawOskel);
   // Raid 2, the Hoard.
-  sheet(scene, 'coalmouth', 192, 4, drawCoalmouth);
+  sheet(scene, 'vorhulm', 192, 4, drawVorhulm);
   sheet(scene, 'craw', 56, 4, drawCraw);
   // The Wrackline's raft: a round deck of driftwood boards, gaps between them, nails, a wet edge
   // and a rope lashed round the rim. Drawn once; GameScene scales it to WRACK.raftR.

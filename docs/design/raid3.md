@@ -1,6 +1,6 @@
 # Raid 3: the Cinder Colossus in the Smeltery (Phase 8, Y1, 21 Nov 2026, design)
 
-**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Coalmouth and the Furnace Regent). Two can be fought in person: Grandmother Slag in the Crucible (C3) and Old Coalmouth in the Hoard (W2, #295). The Cinder Colossus is next. Visuals already drew his shadow (X1, #309, texture key `colossus`), and sound gave him a shadow sting (S3, #307).
+**Why.** The world boss rotates through four bosses (migration 0007: Grandmother Slag, the Cinder Colossus, Old Vorhulm and the Furnace Regent). Two can be fought in person: Grandmother Slag in the Crucible (C3) and Old Vorhulm in the Hoard (W2, #295). The Cinder Colossus is next. Visuals already drew his shadow (X1, #309, texture key `colossus`), and sound gave him a shadow sting (S3, #307).
 
 **Names.**
 - "Cinder Colossus" had no WoW match in the 21 Nov 2026 search (raid2.md).

@@ -1,5 +1,5 @@
 // Screenshots the world boss shadow fight for each boss in the rotation (X1): Grandmother Slag, the Cinder
-// Colossus, Old Coalmouth and the Furnace Regent, each drawn from its own sheet under the purple shadow tint.
+// Colossus, Old Vorhulm and the Furnace Regent, each drawn from its own sheet under the purple shadow tint.
 // Also a sheet of the four sprites untinted, from their textures. The run starts on the shadow fight.
 // Usage: npm run build && node tools/shadowshots.cjs <outDir> [phone]
 const { chromium, devices } = require('playwright');
@@ -9,7 +9,7 @@ const phone = process.argv.includes('phone');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
-const BOSSES = [['slag', 'Grandmother Slag'], ['colossus', 'The Cinder Colossus'], ['coalmouth', 'Old Coalmouth'], ['regent', 'The Furnace Regent']];
+const BOSSES = [['slag', 'Grandmother Slag'], ['colossus', 'The Cinder Colossus'], ['vorhulm', 'Old Vorhulm'], ['regent', 'The Furnace Regent']];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const tag = phone ? 'phone' : 'desk';
@@ -47,7 +47,7 @@ const BOSSES = [['slag', 'Grandmother Slag'], ['colossus', 'The Cinder Colossus'
     await page.screenshot({ path: path.join(out, `${tag}-shadow-${id}.png`) });
   }
   const png = await page.evaluate(() => {
-    const s = window.__ember.scene(); const keys = ['slagCrone', 'colossus', 'coalmouth', 'regent']; const D = 256;
+    const s = window.__ember.scene(); const keys = ['slagCrone', 'colossus', 'vorhulm', 'regent']; const D = 256;
     const c = document.createElement('canvas'); c.width = D * 4; c.height = D;
     const g = c.getContext('2d'); g.fillStyle = '#1a1412'; g.fillRect(0, 0, c.width, c.height);
     keys.forEach((k, i) => { const fr = s.textures.getFrame(k, '0'); g.drawImage(fr.source.image, fr.cutX, fr.cutY, fr.cutWidth, fr.cutHeight, i * D, 0, D, D); });

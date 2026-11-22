@@ -77,7 +77,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   wrackline: { root: -9, scale: [0, 2, 3, 5, 7, 8, 10, 12, 14], progression: [0, -4, -5, -2], bpm: 60, drone: 'sawtooth', droneLp: 600, pluck: 'bell', density: 0.28, bed: 'surf', bedVol: 0.42 },
   // The Pressworks: a working rhythm. The bed is a press cycle (thud, then steam), the plucks ring like struck plate, and the drone is a saw so it holds up on phones.
   pressworks: { root: -11, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, -2, 1, -4], bpm: 80, drone: 'sawtooth', droneLp: 650, pluck: 'anvil', density: 0.32, bed: 'press', bedVol: 0.5 },
-  // The Hoard (raid 2): Old Coalmouth's coal cave. A slow, heavy chewing groove in phrygian: the bed is his jaw
+  // The Hoard (raid 2): Old Vorhulm's coal cave. A slow, heavy chewing groove in phrygian: the bed is his jaw
   // grinding coal three times round the loop, the plucks are embers, and the march of the Crucible's raid is gone.
   hoard: { root: -16, scale: [0, 1, 3, 5, 7, 8, 10, 12], progression: [0, 1, -2, 1], bpm: 62, drone: 'sawtooth', droneLp: 650, pluck: 'ember', density: 0.3, bed: 'chew', bedVol: 0.5, phaseTempo: [1, 1.15, 1.25, 1.35], floodBed: 1.5 },
   // Raid 3, the Smeltery (roadmap Y7, docs/design/raid3.md): the Cinder Colossus in person. A slow, grand march in harmonic minor; the bed is

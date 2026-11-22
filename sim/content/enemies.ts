@@ -24,7 +24,7 @@ export type EnemyKind =
   | 'worldShadow' | 'ondrel' | 'ysmeret' | 'oskel'
   | 'rimehound' | 'snuffer' | 'frostWarden' | 'hoarfrostWeaver' | 'nhevra'
   | 'grandmotherSlag' | 'slagling'
-  | 'coalmouth' | 'craw'
+  | 'vorhulm' | 'craw'
   | 'colossus'
   | 'regent'
   | 'shoalLurker' | 'bargeHauler' | 'hessa';
@@ -36,7 +36,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   rift: { id: 'rift', name: 'Hollow Rift', hp: 420, speed: 0, damage: 0, radius: 22, xp: 12, rank: 'normal', stationary: true },
   acolyte: { id: 'acolyte', name: 'Ember Acolyte', hp: 380, speed: 0, damage: 8, radius: 14, xp: 8, rank: 'elite', stationary: true, title: 'Healer' },
   cinderBrute: { id: 'cinderBrute', name: 'Cinder Brute', hp: 1500, speed: 46, damage: 18, radius: 26, xp: 40, rank: 'elite', title: 'Elite' },
-  ashmaw: { id: 'ashmaw', name: 'Coalmouth the Glutton', hp: 1700, speed: 58, damage: 14, radius: 24, xp: 50, rank: 'rare', title: 'Rare' },
+  ashmaw: { id: 'ashmaw', name: 'Vorhulm the Glutton', hp: 1700, speed: 58, damage: 14, radius: 24, xp: 50, rank: 'rare', title: 'Rare' },
   glassWarden: { id: 'glassWarden', name: 'Glass Warden', hp: 950, speed: 42, damage: 14, radius: 20, xp: 6, rank: 'elite', title: 'Mirror' },
   emberTwin: { id: 'emberTwin', name: 'Ember Twin', hp: 620, speed: 62, damage: 10, radius: 16, xp: 5, rank: 'elite', title: 'Twin' },
   sluiceCrawler: { id: 'sluiceCrawler', name: 'Sluice Crawler', hp: 820, speed: 50, damage: 12, radius: 18, xp: 6, rank: 'elite', title: 'Tidecaller' },
@@ -64,7 +64,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   // Raid 2 (Phase 7): the next world boss in person, and the Craw that holds a swallowed hero.
   regent: { id: 'regent', name: 'The Furnace Regent', hp: 16250, speed: 24, damage: 20, radius: 52, xp: 0, rank: 'boss', title: 'Raid boss' },
   colossus: { id: 'colossus', name: 'The Cinder Colossus', hp: 19000, speed: 26, damage: 20, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
-  coalmouth: { id: 'coalmouth', name: 'Old Coalmouth', hp: 18000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
+  vorhulm: { id: 'vorhulm', name: 'Old Vorhulm', hp: 18000, speed: 30, damage: 18, radius: 56, xp: 0, rank: 'boss', title: 'Raid boss' },
   craw: { id: 'craw', name: 'Craw', hp: 120, speed: 0, damage: 0, radius: 22, xp: 0, rank: 'elite', stationary: true, title: 'Break it to free your ally' },
   slagling: { id: 'slagling', name: 'Slagling', hp: 120, speed: 70, damage: 6, radius: 11, xp: 1, rank: 'normal' },
   // The Wrackline (fifth solo dungeon): the Ebb drags everything to the drain, except what swims in it.
