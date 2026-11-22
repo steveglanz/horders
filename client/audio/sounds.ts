@@ -794,8 +794,8 @@ export const SOUNDS = {
     boom(55, 0.45, 0.35),
     whoosh(6000, 1500, 0.5, 0.18),
   ),
-  /** Kindling hub sting: the day's gentle twist, a small warm rising figure. */
-  hubKindling: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
+  /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
+  heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
 
   // ---- the ember purse (shared by every class): embers in, embers spent
