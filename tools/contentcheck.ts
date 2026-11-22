@@ -2,6 +2,7 @@
 // and reports any run that hasn't ended by 3000 s of sim time (a soft-lock), plus the
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
+import { HEAT_IDS } from '../sim/content/heat';
 import { World, WorldOptions } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -79,6 +80,17 @@ for (const seed of seeds) for (const skill of [1, 0.5]) {
     for (let k = 1; k < w.heroes.length; k++) if (!w.isTank(k) && (w.colDmg[k] ?? 0) > most) { most = w.colDmg[k] ?? 0; pick = k; }
     return pick;
   });
+  // Phase 11 variety: the Kiln's layouts and Kiln Draw (rolled per seed) under each of Today's Heats, and the Drowned Foundry's new fights.
+  for (const heat of HEAT_IDS) cases.push({ label: `kiln heat ${heat}`, skill, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: 'kiln', tier: 1 + (seed % 2), omens: [], heat } });
+  for (const cls of CLASSES) cases.push({ label: `foundry ${cls}`, skill, opts: { seed, ...main(cls), dungeon: 'foundry', tier: 4, omens: [] } });
+  // The Flue (raid 4, tier 11, four heroes): pass the Decree before it bursts.
+  const flue = (label: string, lead: ClassId, rest: ClassId[], dropWhen?: (w: World) => number) =>
+    cases.push({ label, skill, dropWhen, opts: { seed, ...main(lead), dungeon: 'flue', tier: 11, omens: [], worldBoss: 'The Furnace Regent', party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+  flue('flue four', 'bulwark', ['lumen', 'duskblade', 'emberwright']);
+  flue('flue no healer', 'bulwark', ['emberwright', 'duskblade', 'emberwright']);
+  flue('flue no tank', 'emberwright', ['lumen', 'duskblade', 'emberwright']);
+  // A guest leaves while holding a Decree: nobody walks it on, so it must still burst or fade.
+  flue('flue drop holding a Decree', 'bulwark', ['lumen', 'duskblade', 'emberwright'], (w) => w.regentDecree.find((d) => d.hero > 0)?.hero ?? -1);
 }
 let stuck = 0, longest = 0, mostAlive = 0;
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
