@@ -3628,6 +3628,53 @@ export function buildTextures(scene: Phaser.Scene): void {
     flameLick(ctx, cx - 2, 40, 5, cx - 3, 22);
   });
 
+  // The Flue's arena edge: a soot-black brick flue with the Regent's brass crown on its breast and a grate glowing at
+  // its foot, and a tattered crimson banner of office on an iron stand. paleLight is the cold pool under them: a warm one
+  // would look like the Scorch round a Decree's holder.
+  make(scene, 'flueChimney', 160, (ctx) => {
+    const cx = 80, by = 140;
+    ell(ctx, cx + 6, by + 4, 46, 11); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // The stack, tapering, with a cap.
+    ctx.beginPath(); ctx.moveTo(cx - 34, by); ctx.lineTo(cx - 22, by - 128); ctx.lineTo(cx + 22, by - 128); ctx.lineTo(cx + 34, by); ctx.closePath();
+    const g = ctx.createLinearGradient(cx - 34, 0, cx + 34, 0); g.addColorStop(0, '#4a3438'); g.addColorStop(0.5, '#2e2024'); g.addColorStop(1, '#1a1214');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3.5; ctx.stroke();
+    // Brick courses.
+    ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(10,6,8,0.55)'; ctx.lineWidth = 1.5;
+    for (let y = by - 8, r = 0; y > by - 128; y -= 9, r++) { ctx.beginPath(); ctx.moveTo(cx - 40, y); ctx.lineTo(cx + 40, y); ctx.stroke(); for (let x = cx - 40 + (r % 2) * 7; x < cx + 40; x += 14) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 9); ctx.stroke(); } }
+    ctx.restore();
+    ctx.fillStyle = '#3a2a2e'; ctx.fillRect(cx - 28, by - 136, 56, 10); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(cx - 28, by - 136, 56, 10);
+    // The crown crest.
+    ctx.beginPath(); ctx.moveTo(cx - 14, by - 70); ctx.lineTo(cx - 14, by - 84); ctx.lineTo(cx - 7, by - 77); ctx.lineTo(cx, by - 88); ctx.lineTo(cx + 7, by - 77); ctx.lineTo(cx + 14, by - 84); ctx.lineTo(cx + 14, by - 70); ctx.closePath();
+    ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#e0607a'; ctx.beginPath(); ctx.arc(cx, by - 75, 2.5, 0, Math.PI * 2); ctx.fill();
+    // The grate at the foot.
+    softGlow(ctx, cx, by - 16, 26, 'rgba(255,110,60,0.55)');
+    ctx.beginPath(); ctx.moveTo(cx - 16, by - 2); ctx.lineTo(cx - 16, by - 22); ctx.quadraticCurveTo(cx, by - 34, cx + 16, by - 22); ctx.lineTo(cx + 16, by - 2); ctx.closePath();
+    const gg = ctx.createRadialGradient(cx, by - 10, 2, cx, by - 12, 20); gg.addColorStop(0, '#ffe08a'); gg.addColorStop(0.5, '#ff6a2a'); gg.addColorStop(1, '#5a1408');
+    ctx.fillStyle = gg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = '#1a1214'; ctx.lineWidth = 3; for (const dx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(cx + dx, by - 2); ctx.lineTo(cx + dx, by - 26 + Math.abs(dx) * 0.5); ctx.stroke(); }
+    // Soot smudges up the stack.
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ell(ctx, cx - 4, by - 118, 14, 6); ctx.fill();
+  });
+
+  make(scene, 'flueBanner', 96, (ctx) => {
+    const cx = 40;
+    ell(ctx, cx + 6, 88, 20, 5); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+    // Iron stand with a crossbar.
+    ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, 88); ctx.lineTo(cx, 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 12, 88); ctx.lineTo(cx + 12, 88); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 14); ctx.lineTo(cx + 38, 14); ctx.stroke();
+    ctx.fillStyle = '#d8a848'; ctx.beginPath(); ctx.arc(cx, 8, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+    // The banner, tattered at the foot.
+    ctx.beginPath(); ctx.moveTo(cx + 4, 16); ctx.lineTo(cx + 36, 16); ctx.lineTo(cx + 36, 62); ctx.lineTo(cx + 30, 56); ctx.lineTo(cx + 26, 66); ctx.lineTo(cx + 20, 58); ctx.lineTo(cx + 14, 68); ctx.lineTo(cx + 8, 58); ctx.lineTo(cx + 4, 62); ctx.closePath();
+    const bg = ctx.createLinearGradient(cx + 4, 0, cx + 36, 0); bg.addColorStop(0, '#a83048'); bg.addColorStop(1, '#5a1424');
+    ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    // The crown on it.
+    ctx.beginPath(); ctx.moveTo(cx + 12, 40); ctx.lineTo(cx + 12, 30); ctx.lineTo(cx + 16, 35); ctx.lineTo(cx + 20, 27); ctx.lineTo(cx + 24, 35); ctx.lineTo(cx + 28, 30); ctx.lineTo(cx + 28, 40); ctx.closePath();
+    ctx.fillStyle = '#d8a848'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+
   // The Smeltery's arena edge: an ore cart on a stub of rail, heaped with ore still glowing from the roast, and a stack
   // of fresh ingots cooling from orange at the bottom to dull iron on top. Their floor pools are the cold paleLight: a
   // warm pool next to him would blur the hot slice that marks his open back.

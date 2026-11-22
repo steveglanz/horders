@@ -187,6 +187,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   pressworks: { big: 'pressFrame', small: 'pressStack', light: 'paleLight', flicker: 900, puff: 'none' },
   hoard: { big: 'hoardPile', small: 'hoardBones', light: 'paleLight', flicker: 1100, puff: 'none' },
   smeltery: { big: 'smeltCart', small: 'smeltIngots', light: 'paleLight', flicker: 900, puff: 'spark' },
+  flue: { big: 'flueChimney', small: 'flueBanner', light: 'paleLight', flicker: 800, puff: 'spark' },
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
