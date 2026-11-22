@@ -1113,6 +1113,23 @@ function flameTongue(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty:
   ctx.stroke();
 }
 
+/** A flame tongue with a thin warm edge instead of the ink outline, for small licks where the outline would
+ * swallow the fire (the Regent's crown at raid scale, the Decree seal). */
+function flameLick(ctx: Ctx, x: number, y0: number, w: number, tx: number, ty: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x - w, y0);
+  ctx.bezierCurveTo(x - w * 1.25, y0 - (y0 - ty) * 0.45, tx - w * 0.35, ty + (y0 - ty) * 0.3, tx, ty);
+  ctx.bezierCurveTo(tx + w * 0.35, ty + (y0 - ty) * 0.3, x + w * 1.25, y0 - (y0 - ty) * 0.45, x + w, y0);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, ty, 0, y0);
+  g.addColorStop(0, '#fff6c8'); g.addColorStop(0.45, '#ffc050'); g.addColorStop(1, '#ff6a24');
+  ctx.save();
+  ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 5;
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(160,40,10,0.8)'; ctx.stroke();
+}
+
 /**
  * Ysmeret, the Twofold Flame (the Ashvents' group boss): a fire spirit rising out of a
  * basalt hearth, two flames wound into one. The gold flame on the left and the rose flame
@@ -1955,6 +1972,77 @@ function drawColossusRaid(ctx: Ctx, s: number, f: number, melt = false): void {
   ctx.restore();
 }
 
+/**
+ * The Furnace Regent in person, for raid 4, the Flue (B2): the shadow sprite's stove king at 1.5x, standing in
+ * the mouth of a flue with a column of smoke and sparks rising behind him. His crown burns taller, his grate roars,
+ * and two Decree seals hang from his belt on chains, the seals he hands down in the fight. `abdicate` (phase 3,
+ * Abdication): the Decrees stop, so the seals are gone, the crown slips askew and dims, and fire pours out of his
+ * collar and grate as he burns down. Drawn in the 128-unit space of drawRegent and scaled up, so the two match.
+ */
+function drawRegentRaid(ctx: Ctx, s: number, f: number, abdicate = false): void {
+  const k = s / 128;
+  const c = 64;
+  const pulse = [0.7, 0.85, 1, 0.85][f];
+  ctx.save();
+  ctx.scale(k * 0.9, k * 0.9);
+  ctx.translate(7, 12);
+  // The flue behind him: a dark brick column, smoke and sparks rising out of its top.
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath(); ctx.moveTo(c - 26, 118); ctx.lineTo(c - 22, -8); ctx.lineTo(c + 22, -8); ctx.lineTo(c + 26, 118); ctx.closePath();
+  shade(ctx, '#2a1c1a', '#140c0c', -8, 118, 1.2);
+  ctx.strokeStyle = 'rgba(90,56,44,0.55)'; ctx.lineWidth = 0.9;
+  for (let y = 4; y < 116; y += 9) { ctx.beginPath(); ctx.moveTo(c - 24, y); ctx.lineTo(c + 24, y); ctx.stroke(); }
+  ctx.restore();
+  softGlow(ctx, c, 70, 64, `rgba(255,120,40,${(abdicate ? 0.34 : 0.22) * pulse})`);
+  for (const [x, y] of [[c - 12, 8], [c + 8, -2], [c - 4, -10], [c + 16, 14], [c - 18, 22]]) {
+    const yy = y - f * 3;
+    softGlow(ctx, x, yy, 3.5, 'rgba(255,190,100,0.8)');
+  }
+  // The regent himself.
+  ctx.save();
+  if (abdicate) { ctx.translate(c, 118); ctx.rotate(-0.04); ctx.translate(-c, -118); }
+  drawRegent(ctx, 128, f);
+  ctx.restore();
+  // The grate roars brighter (white hot when he abdicates).
+  softGlow(ctx, c, 86, 26, abdicate ? `rgba(255,240,190,${0.9 * pulse})` : `rgba(255,170,70,${0.6 * pulse})`);
+  // The crown burns taller and brighter over the circlet (low and guttering, tipped to one side, when he abdicates).
+  softGlow(ctx, c, 8, abdicate ? 12 : 20, `rgba(255,200,90,${(abdicate ? 0.45 : 0.85) * pulse})`);
+  for (const [x, h] of [[c - 9, 7], [c - 3, 12], [c + 3, 10], [c + 9, 7]] as const) {
+    const hh = (abdicate ? h * 0.4 : h) + (f % 2 ? 1.5 : 0) * (x < c ? 1 : -1);
+    flameLick(ctx, x, 14, 2.4, x + (abdicate ? -3 : (f - 1.5) * 0.4), 14 - hh - 4);
+  }
+  if (!abdicate) {
+    // Two Decree seals on chains from his belt: burning wax discs stamped with a crown, the burdens he hands down.
+    // They hang at his hips, either side of the grate, so they never cover it.
+    for (const [x, len] of [[c - 18, 16], [c + 18, 11]] as const) {
+      ctx.save();
+      ctx.strokeStyle = '#8a7a60'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 1.5]);
+      ctx.beginPath(); ctx.moveTo(x, 59); ctx.lineTo(x + (f % 2 ? 0.8 : -0.8), 60 + len); ctx.stroke();
+      ctx.restore();
+      const sy = 60 + len + 4;
+      softGlow(ctx, x, sy, 8, `rgba(255,140,60,${0.8 * pulse})`);
+      ell(ctx, x, sy, 4.6, 4.6); shade(ctx, '#e0402a', '#7a1410', sy - 4.6, sy + 4.6, 1.2);
+      ctx.save(); ctx.fillStyle = '#ffd08a';
+      ctx.beginPath(); ctx.moveTo(x - 2.4, sy + 1.4); ctx.lineTo(x - 2.4, sy - 1.2); ctx.lineTo(x - 1.2, sy); ctx.lineTo(x, sy - 1.8); ctx.lineTo(x + 1.2, sy); ctx.lineTo(x + 2.4, sy - 1.2); ctx.lineTo(x + 2.4, sy + 1.4); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // Abdication: fire pours out of his collar and grate seams.
+    softGlow(ctx, c, 40, 18, `rgba(255,180,80,${0.8 * pulse})`);
+    for (const [x, lean] of [[c - 10, -0.5], [c + 10, 0.5], [c, 0]] as const) {
+      const h = 11 + 4 * pulse + (f % 2) * 2;
+      flameLick(ctx, x, 42, 3.2, x + Math.sin(lean) * h, 42 - h);
+    }
+    cracks(ctx, [[[c - 17, 62], [c - 12, 72], [c - 16, 84], [c - 12, 100]], [[c + 16, 66], [c + 12, 80], [c + 17, 96]]], `rgba(255,220,120,${pulse})`, 1.8);
+  }
+  // Embers on the floor at his hem.
+  for (const [x, y] of [[c - 40, 122], [c + 36, 123], [c - 20, 125], [c + 18, 125]]) {
+    softGlow(ctx, x, y, 3, `rgba(255,160,70,${0.7 * pulse})`);
+  }
+  ctx.restore();
+}
+
 // ------------------------------------------------------------------ the Drowned Foundry
 
 /** Glass Warden: a golem of cracked furnace glass around a banked ember. */
@@ -2630,6 +2718,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'colossusRaid', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f));
   sheet(scene, 'colossusMelt', 192, 4, (ctx, sz, f) => drawColossusRaid(ctx, sz, f, true));
   sheet(scene, 'regent', 128, 4, drawRegent);
+  sheet(scene, 'regentRaid', 192, 4, (ctx, sz, f) => drawRegentRaid(ctx, sz, f));
+  sheet(scene, 'regentAbdicate', 192, 4, (ctx, sz, f) => drawRegentRaid(ctx, sz, f, true));
   // The raid's Grandmother Slag in person (EnemyKind 'grandmotherSlag' maps to this key).
   sheet(scene, 'slagCroneRaid', 192, 4, drawSlagCroneRaid);
   sheet(scene, 'portal', 80, 1, drawPortal);
@@ -2964,6 +3054,56 @@ export function buildTextures(scene: Phaser.Scene): void {
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(4,8,20,0.9)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#ffffff'; ctx.fill();
     ctx.beginPath(); ctx.moveTo(c + 1, c - 5.4); ctx.lineTo(c + 5.4, c + 2.4); ctx.lineTo(c + 1.6, c + 0.6); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+  });
+
+  // Raid 4's Decree (B2): a burning wax seal stamped with the Regent's crown, worn over the holder's head. Drawn
+  // full colour (no tint); the 8 s countdown ring is drawn round it in GameScene.
+  make(scene, 'decreeSeal', 48, (ctx, s) => {
+    const c = s / 2;
+    softGlow(ctx, c, c, 22, 'rgba(255,120,50,0.55)');
+    // A wax blob with a scalloped rim.
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = 14 + (i % 2 ? 1.6 : 0);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    shade(ctx, '#ff5a3a', '#8a1410', c - 15, c + 15, 2);
+    ell(ctx, c, c, 9.5, 9.5); ctx.strokeStyle = 'rgba(60,8,6,0.7)'; ctx.lineWidth = 1.6; ctx.stroke();
+    // The crown stamp, glowing like a brand.
+    ctx.save();
+    ctx.fillStyle = '#ffe0a0'; ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(c - 6.5, c + 4); ctx.lineTo(c - 6.5, c - 3.5); ctx.lineTo(c - 3.2, c - 0.5); ctx.lineTo(c, c - 5.5);
+    ctx.lineTo(c + 3.2, c - 0.5); ctx.lineTo(c + 6.5, c - 3.5); ctx.lineTo(c + 6.5, c + 4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // A crest of three flame licks off its top edge, the middle one tallest, so it reads as burning.
+    flameLick(ctx, c - 6.5, c - 11, 2.6, c - 8, c - 19);
+    flameLick(ctx, c + 6.5, c - 11, 2.6, c + 8, c - 19);
+    flameLick(ctx, c, c - 13, 3.2, c, c - 23);
+  });
+
+  // Raid 4's Spent mark (B2): the same seal gone cold, grey ash with the crown stamp hollow and a crack across it,
+  // over a hero who just passed the Decree on and can't take it back yet.
+  make(scene, 'spentMark', 32, (ctx, s) => {
+    const c = s / 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = 10.5 + (i % 2 ? 1.2 : 0);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    shade(ctx, '#9a948e', '#4a4644', c - 12, c + 12, 1.6);
+    ctx.save();
+    ctx.strokeStyle = '#2a2624'; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(c - 5, c + 3); ctx.lineTo(c - 5, c - 2.5); ctx.lineTo(c - 2.4, c - 0.3); ctx.lineTo(c, c - 4.2);
+    ctx.lineTo(c + 2.4, c - 0.3); ctx.lineTo(c + 5, c - 2.5); ctx.lineTo(c + 5, c + 3); ctx.closePath(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,26,24,0.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(c - 9, c - 6); ctx.lineTo(c - 3, c - 1); ctx.lineTo(c + 1, c + 2); ctx.lineTo(c + 8, c + 8); ctx.stroke();
+    ctx.restore();
   });
 
   make(scene, 'aura', 128, (ctx, s) => glow(ctx, s, 'rgba(255,170,80,0.35)', 'rgba(255,90,30,0.10)', 0.02));
