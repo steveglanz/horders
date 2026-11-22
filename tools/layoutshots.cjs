@@ -5,6 +5,7 @@
 // With `glarewell`, it shoots the Glarewell's vents: cracked skylight lenses that flare with light.
 // With `coldmarrow`, it shoots the Coldmarrow's pillars: stones of frosted ice.
 // With `hammerdeep`, it shoots the Hammerdeep's pillars and vents (W2): iron-bound granite and forge hearths.
+// With `pressworks`, it shoots the Pressworks' pillars and vents (W2): oiled steel bolsters and press exhausts.
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
@@ -14,6 +15,7 @@ const foundry = process.argv.includes('foundry');
 const glarewell = process.argv.includes('glarewell');
 const coldmarrow = process.argv.includes('coldmarrow');
 const hammerdeep = process.argv.includes('hammerdeep');
+const pressworks = process.argv.includes('pressworks');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -22,7 +24,11 @@ if (foundry) Object.assign(OPTS, { dungeon: 'foundry', route: ['glass'], tier: 5
 if (glarewell) Object.assign(OPTS, { dungeon: 'glarewell', route: ['shades'], tier: 8 });
 if (coldmarrow) Object.assign(OPTS, { dungeon: 'coldmarrow', route: ['rimepack'], tier: 11 });
 if (hammerdeep) Object.assign(OPTS, { dungeon: 'hammerdeep', route: ['warpack'], tier: 4 });
-const SCENES = hammerdeep ? [
+if (pressworks) Object.assign(OPTS, { dungeon: 'pressworks', route: ['warpack'], tier: 10 });
+const SCENES = pressworks ? [
+  { name: 'pressworks-1-pillars', seed: 2, until: 'pillars' },
+  { name: 'pressworks-3-vents', seed: 3, until: 'vents' },
+] : hammerdeep ? [
   { name: 'hammerdeep-1-pillars', seed: 2, until: 'pillars' },
   { name: 'hammerdeep-3-vents', seed: 3, until: 'vents' },
 ] : coldmarrow ? [
