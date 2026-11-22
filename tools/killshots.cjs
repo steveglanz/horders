@@ -1,11 +1,13 @@
 // Screenshots the kill effect as a strip: the fight is frozen, three Cinderhounds around the hero are "killed" through the
 // scene's own death effect, and frames are taken 0, 80, 160 and 260 ms later. The sim stays frozen, the effects run.
-// Usage: npm run build && node tools/killshots.cjs <outDir> [phone|p360]
+// With `loot`, it fires the loot pick-up effect instead: three bags (common, rare, epic tints) fly into the hero.
+// Usage: npm run build && node tools/killshots.cjs <outDir> [phone|p360] [loot]
 const { chromium, devices } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const p360 = process.argv.includes('p360');
 const phone = process.argv.includes('phone') || p360;
+const loot = process.argv.includes('loot');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -42,15 +44,19 @@ const SCENES = [{ name: 'kill', route: ['pack'] }];
       const b = document.getElementById('banner'); if (b) b.style.visibility = 'hidden';
     });
     await page.waitForTimeout(400);
-    await page.evaluate(() => {
+    if (!loot) await page.evaluate(() => {
       const s = window.__ember.scene(); const p = s.world.player;
       for (const [dx, dy] of [[-90, -40], [80, -60], [20, 90]]) s.death('cinderhound', p.x + dx, p.y + dy);
+    }, null);
+    if (loot) await page.evaluate(() => {
+      const s = window.__ember.scene(); const p = s.world.player;
+      [[-70, -30, 0xb8b8b8], [70, -40, 0x4f8fff], [30, 70, 0xb36bff]].forEach(([dx, dy, c]) => s.lootFly(p.x + dx, p.y + dy, c));
     });
     let t0 = Date.now();
     for (const ms of [0, 80, 160, 260]) {
       const wait = ms - (Date.now() - t0);
       if (wait > 0) await page.waitForTimeout(wait);
-      await page.screenshot({ path: path.join(out, `${tag}-kill-${String(ms).padStart(3, '0')}.png`) });
+      await page.screenshot({ path: path.join(out, `${tag}-${loot ? 'loot' : 'kill'}-${String(ms).padStart(3, '0')}.png`) });
     }
   }
   console.log(tag, errs.length ? errs.join('\n') : 'no errors');
