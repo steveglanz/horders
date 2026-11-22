@@ -349,6 +349,82 @@ function drawHound(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[29.5, 14 + bob]], 1.1, '#ffd23c');
 }
 
+/**
+ * V5 (variety) Ember Spitter: a squat ranged lump that keeps its distance and lobs fire. Its swollen throat sac glows
+ * and fills over the frames, and three little vent spines smoke on its back, so it reads as "this one spits" at a
+ * glance and never as a melee hound. Faces right.
+ */
+function drawSpitter(ctx: Ctx, _s: number, f: number): void {
+  const puff = [0, 0.8, 1.6, 0.8][f];
+  const bob = [0, -0.6, 0, -0.6][f];
+  // Stubby legs.
+  for (const [x, k] of [[10, 1], [15, -1], [23, 1], [28, -1]] as [number, number][]) limb(ctx, x, 30 + bob, x + k, 36, 2.6, '#3a150c');
+  // Vent spines on the back, each with a wisp of glow.
+  for (const [x, h] of [[11, 6], [16, 8], [21, 6]] as [number, number][]) {
+    limb(ctx, x, 21 + bob, x - 1, 21 + bob - h, 2.6, '#2a120a');
+    softGlow(ctx, x - 1, 20 + bob - h, 2.6 + puff * 0.4, 'rgba(255,170,70,0.9)');
+  }
+  // The body: a round, charred lump.
+  ell(ctx, 19, 27 + bob, 12, 8.5);
+  shade(ctx, '#9a3a1e', '#2e0f07', 19, 35, 1.4);
+  cracks(ctx, [[[9, 26 + bob], [13, 24 + bob], [17, 26 + bob]], [[19, 31 + bob], [23, 29 + bob]]], '#ff9a3a', 1);
+  // The head, low and wide, with a broad mouth.
+  ell(ctx, 30, 25 + bob, 6.5, 5);
+  shade(ctx, '#a8442a', '#36120a', 20, 30, 1.3);
+  // An open mouth with fire at the back of it.
+  ctx.beginPath(); ctx.moveTo(29, 26 + bob); ctx.lineTo(37.5, 23.5 + bob); ctx.lineTo(36.5, 28 + bob); ctx.closePath();
+  ctx.fillStyle = '#2a0a04'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.1; ctx.stroke();
+  softGlow(ctx, 33, 26 + bob, 2.6 + puff * 0.6, 'rgba(255,200,90,0.95)');
+  // The throat sac, filling with fire.
+  softGlow(ctx, 29, 30 + bob, 6 + puff * 1.5, 'rgba(255,150,50,0.75)');
+  ell(ctx, 29, 30 + bob, 3.6 + puff * 0.7, 2.8 + puff * 0.6);
+  shade(ctx, '#ffe08a', '#ff6a1e', 27, 33 + puff, 1);
+  eyes(ctx, [[30.5, 22.5 + bob], [33, 23 + bob]], 1, '#ffd23c');
+}
+
+/**
+ * V5 (variety) Ashbuck: an ash-grey charger with great forward horns, head down, an ember mane and glowing seams on
+ * its flank. The horns point along its run, so the lane it shows before a charge and the beast agree. Faces right.
+ */
+function drawAshbuck(ctx: Ctx, _s: number, f: number): void {
+  const a = [0.55, 0.2, -0.55, -0.2][f];
+  const bob = [0, -1, 0, -1][f];
+  // Legs at a gallop.
+  for (const [x, k] of [[16, a], [21, -a], [33, -a], [38, a]] as [number, number][]) {
+    limb(ctx, x, 36 + bob, x + Math.sin(k) * 6, 46, 2.8, '#2a2220');
+    ctx.fillStyle = '#141010'; ell(ctx, x + Math.sin(k) * 6, 46.5, 1.8, 1.2); ctx.fill();
+  }
+  // Short tail.
+  limb(ctx, 12, 30 + bob, 8, 27 + bob - a * 2, 2.4, '#3a3230');
+  // The body.
+  ell(ctx, 27, 32 + bob, 15, 8.5);
+  shade(ctx, '#7a706a', '#2a2422', 24, 41, 1.5);
+  cracks(ctx, [[[15, 31 + bob], [20, 29 + bob], [25, 31 + bob], [30, 29 + bob]], [[22, 36 + bob], [28, 35 + bob]]], '#ff8a3a', 1.1);
+  // An ember mane along the neck.
+  flameLick(ctx, 36, 26 + bob, 1.8, 34, 19 + bob);
+  flameLick(ctx, 39, 26 + bob, 1.8, 38, 18 + bob);
+  flameLick(ctx, 42, 27 + bob, 1.6, 42, 20 + bob);
+  // Neck and lowered head.
+  ell(ctx, 40, 31 + bob, 6, 6.5, 0.4);
+  shade(ctx, '#857a74', '#2e2826', 25, 38, 1.3);
+  ctx.beginPath();
+  ctx.moveTo(40, 28 + bob); ctx.lineTo(50, 34 + bob); ctx.lineTo(51, 38 + bob); ctx.lineTo(46, 41 + bob); ctx.lineTo(38, 37 + bob); ctx.closePath();
+  shade(ctx, '#7a706a', '#2a2422', 30, 40, 1.2);
+  eyes(ctx, [[45, 32.5 + bob]], 1.3, '#ff7a3a');
+  // Horns: thick bone curves sweeping forward past the nose, hot at the tips.
+  for (const [dy, w] of [[0, 3.6], [-2.5, 2.6]] as [number, number][]) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = w + 2;
+    ctx.beginPath(); ctx.moveTo(41, 29 + bob + dy); ctx.quadraticCurveTo(47, 21 + bob + dy, 54.5, 26 + bob + dy); ctx.stroke();
+    ctx.strokeStyle = '#d8cbb8'; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(41, 29 + bob + dy); ctx.quadraticCurveTo(47, 21 + bob + dy, 54.5, 26 + bob + dy); ctx.stroke();
+    ctx.restore();
+  }
+  softGlow(ctx, 54.5, 26 + bob, 3.4, 'rgba(255,150,60,0.95)');
+  softGlow(ctx, 54.5, 23.5 + bob, 2.6, 'rgba(255,150,60,0.9)');
+}
+
 /** Hollow Warden: a hulking guardian of dark stone with pink runes. */
 function drawWarden(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
@@ -2702,6 +2778,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'ashmaw', 60, 4, drawAshmaw);
   sheet(scene, 'kilnMother', 112, 4, drawKiln);
   sheet(scene, 'acolyte', 34, 4, drawAcolyte);
+  sheet(scene, 'emberSpitter', 50, 4, (ctx, sz, f) => { ctx.scale(1.25, 1.25); drawSpitter(ctx, sz, f); });
+  sheet(scene, 'ashbuck', 56, 4, drawAshbuck);
 
   // The Drowned Foundry.
   sheet(scene, 'glassWarden', 56, 4, drawGlassWarden);
