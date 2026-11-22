@@ -1203,6 +1203,7 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
+            else if (w.bossVariant === 'bank') this.hud.banner('Phase 3: Banked Coals', 'Hot coals settle round him. Stand on each one as it lands, or he eats it');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.

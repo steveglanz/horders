@@ -834,10 +834,12 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
-  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | '' = '';
+  bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
   private islandN = 0;
+  /** Phase 12 W3: how many Banked Coals Old Vorhulm has laid (turns where they land). */
+  private bankN = 0;
   /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
   cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
@@ -1892,6 +1894,8 @@ export class World {
           this.coalFed = 0;
           this.coalEmbers.length = 0;
           this.lastEmberCast = false;
+          this.bossVariant = this.rollVorhulmVariant();
+          this.bankN = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
@@ -2009,6 +2013,25 @@ export class World {
     let h = Math.imul(this.seed ^ 0x6a09e667, 0x9e3779b1) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
     return SLAG_VARIANTS[(h >>> 4) % SLAG_VARIANTS.length];
+  }
+
+  /** Old Vorhulm eats an ember (or a Banked Coal) at (x, y): he heals and hits harder for the rest of the fight. */
+  private feedVorhulm(x: number, y: number): void {
+    const e = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : null;
+    if (!e || !e.alive || e.kind !== 'vorhulm') return;
+    this.coalFed++;
+    const amount = e.maxHp * COAL.emberHeal * this.healTakenMult(e);
+    e.hp = Math.min(e.maxHp, e.hp + amount);
+    this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
+    this.events.push({ type: 'emberEaten', x, y, fed: this.coalFed });
+  }
+
+  /** Phase 12 W3: Old Vorhulm's version this run, hashed from the seed (no run-rng draws). */
+  private rollVorhulmVariant(): VorhulmVariant {
+    if (this.stress) return 'spill';
+    let h = Math.imul(this.seed ^ 0x510e527f, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x27d4eb2f) >>> 0;
+    return VORHULM_VARIANTS[(h >>> 4) % VORHULM_VARIANTS.length];
   }
 
   /** Is (x, y) on a cooling island that hasn't sunk? */
@@ -6322,14 +6345,26 @@ export class World {
         this.events.push({ type: 'emberTaken', x: m.x, y: m.y });
       } else if (m.t <= 0 || dist2(e.x, e.y, m.x, m.y) <= (e.def.radius + 10) ** 2) {
         this.coalEmbers.splice(k, 1);
-        this.coalFed++;
-        const amount = e.maxHp * COAL.emberHeal * this.healTakenMult(e);
-        e.hp = Math.min(e.maxHp, e.hp + amount);
-        this.events.push({ type: 'heal', x: e.x, y: e.y, amount });
-        this.events.push({ type: 'emberEaten', x: m.x, y: m.y, fed: this.coalFed });
+        this.feedVorhulm(m.x, m.y);
       }
     }
-    if (phase === 3) {
+    if (phase === 3 && this.bossVariant === 'bank') {
+      this.spillT -= dt;
+      if (this.spillT <= 0) {
+        // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
+        this.spillT = COAL.spillEvery;
+        for (let k = 0; k < BANK.count; k++) {
+          const n = this.bankN++;
+          const a = n * 2.39996 + (this.seed & 7) * 0.785;
+          const r = n % 2 === 0 ? BANK.near : BANK.far;
+          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+          this.clampArena(c, BANK.radius + 10);
+          // owner -4: a Banked Coal (no blast if missed: he eats it instead).
+          this.addTelegraph('circle', c.x, c.y, BANK.radius, 0, 0, BANK.fuse, 0, 'soak', -4);
+        }
+        this.events.push({ type: 'castStart', index: i, id: 'bankedCoals', name: 'Banked Coals' });
+      }
+    } else if (phase === 3) {
       this.spillT -= dt;
       if (this.spillT <= 0) {
         this.spillT = COAL.spillEvery;
@@ -6763,6 +6798,12 @@ export class World {
             const q = this.player;
             if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
           });
+        }
+        if (t.owner === -4) {
+          // A Banked Coal: smothered, or he eats it (the same as an ember he inhales).
+          if (ok) this.events.push({ type: 'emberTaken', x: t.x, y: t.y });
+          else this.feedVorhulm(t.x, t.y);
+          continue;
         }
         if (!ok) {
           this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage));
@@ -7441,6 +7482,15 @@ export const WRACK = {
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
+/** Phase 12 W3: Old Vorhulm's two versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. */
+export type VorhulmVariant = 'spill' | 'bank';
+export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
+/**
+ * Banked Coals (his phase 3 in the `bank` version, on Ember Spill's timer, in place of the embers): `count` gold circles of
+ * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats
+ * (COAL.emberHeal and COAL.emberDamage, as for an ember). No blast and no adds.
+ */
+export const BANK = { count: 3, radius: 50, fuse: 4, near: 170, far: 260 };
 /** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
 export type SlagVariant = 'pour' | 'brim';
 export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
