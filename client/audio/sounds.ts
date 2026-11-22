@@ -1320,7 +1320,10 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   phaseShadow: 1.8,
   phaseYsmeret: 1.7,
   // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
-  revivesSpent: 4,
+  // Raised again (22 Nov W5 polish): 3.4-7.2 dB over raid and group mixes at +4 (heroes-r2 t8, SEEDS=1-4, n=13).
+  revivesSpent: 6,
+  // You're down: 2.6 (Ashvents, n=2) and 3.4 (Crucible, default gear, n=9) dB over the mix in busycheck, 22 Nov.
+  selfDown: 4.0, // and 3.7 / 4.6 dB at +2.0: it lands on the same tick as the hit that downs you
   reviveStart: 2.1,
   rivetsWarn: 3.0, // 4.7 dB over the Pressworks mix at +1.4 (busycheck, 22 Nov)
   scatterWarn: 6.0,
