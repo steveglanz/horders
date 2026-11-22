@@ -535,6 +535,21 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 2.1, vol: 0.26, a: 0.12, lp: 5000, lp2: 2500, hp: 900, trem: [5, 0.7] },
     { wave: 'saw', f: 300, f2: 240, dur: 2.1, vol: 0.11, a: 0.2, lp: 2400, trem: [5, 0.5] },
   ],
+  /** The Outsurge winds up (Hessa's second version, phase 2): the water draws in under you, then rears to rush outward, a falling swell with a bright crest. */
+  outsurgeWarn: [
+    { wave: 'noise', f: 0, dur: 2.8, vol: 0.32, a: 2.2, curve: 0.5, lp: 4500, lp2: 700, hp: 250 },
+    { wave: 'tri', f: 110, f2: 240, dur: 2.8, vol: 0.13, a: 1.0, curve: 0.8, vib: [3, 0.03] },
+    { wave: 'sine', f: 1500, f2: 700, dur: 2.6, vol: 0.08, a: 1.8, curve: 0.6 },
+    { wave: 'noise', f: 0, dur: 0.3, delay: 2.4, vol: 0.2, lp: 9000, hp: 2500, curve: 2 },
+  ],
+  /** The Outsurge throws you out: a backwash that surges and breaks on the burning rim, not the Ebb's churning drag. */
+  outsurgePull: [
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.3, a: 0.05, lp: 700, lp2: 3500, hp: 300, curve: 1.2 },
+    { wave: 'saw', f: 120, f2: 200, dur: 2.0, vol: 0.12, a: 0.1, lp: 1600, curve: 1.2, vib: [2, 0.04] },
+    { wave: 'noise', f: 0, dur: 2.1, vol: 0.22, a: 0.1, lp: 7000, lp2: 3000, hp: 1500, trem: [2.5, 0.6] },
+    // The rim burns: a hiss that crackles in as the water hits it.
+    { wave: 'noise', f: 0, dur: 1.2, delay: 0.8, vol: 0.14, a: 0.3, lp: 10000, hp: 4000, curve: 1.4, trem: [16, 0.5] },
+  ],
   /** Sink winds up (2.2 s): a raft's planks groan and bubbles rise under it. */
   sinkWarn: join(
     [{ wave: 'saw', f: 180, f2: 120, dur: 1.9, vol: 0.14, a: 0.3, lp: 1800, vib: [2.5, 0.06] }],
@@ -1132,6 +1147,9 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Glintfall's wind-up is a cast start (measured -28.6 dB).
   glintWarn: 3.0,
   ebbPull: 1.9,
+  // Hessa's Outsurge (Phase 12 W1): -26.9 and -29.2 dB alone; raised again to about 6.5 dB over the Wrackline mix (busycheck SEEDS=4,5).
+  outsurgeWarn: 4.0,
+  outsurgePull: 5.0,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,

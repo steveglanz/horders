@@ -773,6 +773,7 @@ export class GameScene extends Phaser.Scene {
       boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined,
       anvilOnMe: w.dungeonId === 'hammerdeep' && w.anvilOnMe,
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
+      outsurge: w.dungeonId === 'wrackline' && w.outsurge,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
