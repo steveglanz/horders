@@ -219,7 +219,7 @@ Steve, 22 Nov: "the environments need better designs". Phases 11 and 12 gave the
 | E3 | **Art** for raid-floor stones and vents (the Crucible's, the Hoard's, the Smeltery's and the Flue's own look) and the Ashvents' | visuals | ⏭ After E1/E2 ids |
 | E4 | **Sound** for raid-floor vents | sound | ⏭ A new event needs a cueFor case |
 | E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ⏭ |
-| E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ⏭ After E1 |
+| E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ✅ No class change needed: stones block movement only, every class is held up under 1% of its moving time on pillars, trash fights are no longer or deadlier (skills.md, "Raid trash floors") |
 
 ## R2. The Forge
 
