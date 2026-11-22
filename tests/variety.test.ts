@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
@@ -143,5 +143,90 @@ describe('V2 variety: arena layouts', () => {
     expect(g.stones).toEqual(w.stones);
     expect(g.lava).toEqual(w.lava);
     expect(g.flareVents).toEqual(w.flareVents);
+  });
+});
+
+describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
+  type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; runBoss(i: number, dt: number): void };
+
+  /** A Kiln fight with only the Kiln Mother up, in phase 2, Cataclysm due now. */
+  function mother(variant: 'cataclysm' | 'draw'): { w: World; q: B; b: number } {
+    const { w, inner } = kiln();
+    const q = inner as B;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant;
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.5;
+    q.bossPhase = 2;
+    e.aux = 0;
+    w.player.x = 200; w.player.y = 0;
+    return { w, q, b };
+  }
+
+  it('rolls from the seed alone, both versions show up, and the first delve keeps Molten Cataclysm', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const a = new World({ seed, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' }) as unknown as B;
+      const b = new World({ seed, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' }) as unknown as B;
+      expect(a.rollKilnVariant()).toBe(b.rollKilnVariant());
+      seen.add(a.rollKilnVariant());
+    }
+    expect([...seen].sort()).toEqual([...KILN_VARIANTS].sort());
+    for (let seed = 1; seed <= 10; seed++) {
+      const f = new World({ seed, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true }) as unknown as B;
+      expect(f.rollKilnVariant()).toBe('cataclysm');
+    }
+  });
+
+  it('phase 1 is the same in both: Molten Cataclysm', () => {
+    const { w, q, b } = mother('draw');
+    q.bossPhase = 1;
+    w.enemies[b].hp = w.enemies[b].maxHp;
+    q.runBoss(b, 0.01);
+    expect(w.enemies[b].castId).toBe('cataclysm');
+  });
+
+  it('from phase 2 the draw version breathes in: not interruptible, a fire circle on her, and it pulls you in', () => {
+    const { w, q, b } = mother('draw');
+    q.runBoss(b, 0.01);
+    const e = w.enemies[b];
+    expect(e.castId).toBe('kilnDraw');
+    expect(e.interruptible).toBe(false);
+    const t = w.telegraphs.find((x) => x.alive && x.owner === b)!;
+    expect(t.r).toBe(KILN_DRAW.radius);
+    expect(t.x).toBe(e.x);
+    q.runAbilities(b, 1);
+    expect(w.player.x).toBeCloseTo(200 - KILN_DRAW.pull, 5);
+    // It never drags you into her body.
+    w.player.x = e.def.radius + 13;
+    q.runAbilities(b, 1);
+    expect(w.player.x).toBeGreaterThanOrEqual(e.def.radius + 12 - 1e-9);
+  });
+
+  it('standing still in reach gets you burned; walking out against the pull escapes it', () => {
+    for (const walk of [false, true]) {
+      const { w, q, b } = mother('draw');
+      w.player.x = 120;
+      q.runBoss(b, 0.01);
+      const hp = w.player.hp;
+      for (let k = 0; k < 30 * (KILN_DRAW.cast + 0.2); k++) w.step({ x: walk ? 1 : 0, y: 0 } as never);
+      if (walk) expect(w.player.hp).toBe(hp);
+      else expect(w.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('the cataclysm version keeps Molten Cataclysm in phase 2', () => {
+    const { w, q, b } = mother('cataclysm');
+    q.runBoss(b, 0.01);
+    expect(w.enemies[b].castId).toBe('cataclysm');
+  });
+
+  it('online co-op: a guest sees the same version', () => {
+    const w = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    w.bossVariant = 'draw';
+    const g = new World({ seed: 2, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(g.bossVariant).toBe('draw');
   });
 });
