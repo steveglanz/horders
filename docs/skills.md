@@ -824,6 +824,21 @@ Base party, Hoard t9, heroes-r2 hero-t8-0, all four heroes in the 3-piece, seeds
 
 The Craw bonus carried the whole lift. Its effect is a threshold (break the Craw before the 8 s Digest), so it is not linear. 0.05 adds +2.7 per 40 over the control, inside the 2 to 7 of earlier sets, and leaves room below the jump at 0.08 (design's call).
 
+## The Flue: a lighter Bellows cut (B6, 22 Nov 2026)
+
+After design's retune of the Flue (base 80 of 120), one party stayed under the band: a Bellows Slagbinder beside an Emberwright, at 18 of 40. The Flue is a damage race, where the Bellows' Brittle and sustain count for less than raw damage. Bellows party cut, seeds 1 to 80, wins of 80:
+
+| Party | Cut | Flue t11 | Hoard t9 | Smeltery t10 |
+|---|---|---|---|---|
+| Bellows with an Emberwright | 0.7 | 39 | 48 | 53 |
+| Bellows with an Emberwright | 0.85 | 48 | 52 | 56 |
+| Bellows with an Emberwright | 1.0 | 47 | - | - |
+| Bellows with a Duskblade | 0.7 | 50 | 65 | 69 |
+| Bellows with a Duskblade | 0.85 | 56 | 69 | 66 |
+| Bellows with a Duskblade | 1.0 | 57 | - | - |
+
+A raid-wide 0.85 would push the Hoard's Bellows-with-Duskblade party (already 81%) further over, so the lighter cut is the Flue's only: `SLAG_KIT.fluePartyDmg` 0.85. The Bellows tip in the hub says so. Test: tests/party-cards.test.ts.
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
