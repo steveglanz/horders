@@ -576,3 +576,30 @@ With the boss's two versions that's 120 run shapes in the Crucible and Hoard and
 **The Smeltery's health.** With the wider pool the Smeltery won 229 of 320 (72%), over the band. Hollow Rift as its fourth opener instead won 235. The Colossus now has 19500 health (it was 19000), which wins 206 (19750 won 210). Skills: the Anvil Plate Shift row will move with this.
 
 **The Flue after skills' walk-in (#457).** Bots now walk in to the throne 2 s before a Summons is due, as a player learns to. With that and the wider pool, the Flue won 236 of 320 (74%; court 118 of 162, ash 118 of 158), over the band. The Regent now has 15500 health (it was 15000): 206 of 320 (64%; court 100 of 162, ash 106 of 158). 16000 won 190 (59%). A smaller Summons ring barely mattered once the bots walk in early (seeds 1 to 160: radius 130 won 120, 110 won 118, 95 won 115), so the ring stays at 130.
+
+## Phase 13 E1 (built 22 Nov 2026): stones and vents in raid trash
+Each raid's openers and named fight now roll a layout, as the group dungeons do: `LAYOUTS.crucible`, `.hoard`, `.smeltery` and `.flue` are open, open, pillars, vents. The boss fight never rolls one (`layoutRolls`), since each boss already has floor rules of its own: islands, coals, his open back, the throne. There's no lava in group play. Stones and vents are the existing pieces (`World.stones`, `flareVents`, both in netsync), so guests get them already. Until visuals draws raid looks for them (E3), the client draws them in its default look.
+
+**Measured** with tools/group.ts, heroes-r2 hero-t8-0, full party, seeds 1 to 320, main (#458) → this change:
+
+| Raid | main | With layouts |
+|---|---|---|
+| Crucible t8 | 189 (59%) | 199 (62%) |
+| Hoard t9 | 190 (59%) | 191 (60%) |
+| Smeltery t10 | 206 (64%) | 205 (64%) |
+| Flue t11 | 206 (64%) | 191 (60%) |
+
+Every raid stays in the band. The Flue loses about 5 points, and parties wiped before the boss in 7 runs (4 before). That's the cost of vents at tier 11, and I've kept it.
+
+## Phase 13 E2 (built 22 Nov 2026): the Ashvents' layouts and band
+The Ashvents now roll open, open, pillars or vents for their trash, like the other group dungeons (`LAYOUTS.ashvents`). In W2 the layouts were held back because, together with the new fights, they cost 11 of 80. Measured on their own now, they cost nothing. The dungeon was also just under its band (53% at tier 8), so Ysmeret has 5800 health (she had 6200). Her vents get sound's own set (#466).
+
+Tier 8, heroes-r2 hero-t8-0, seeds 1 to 320:
+
+| | Wins |
+|---|---|
+| Full party, main | 170 (53%) |
+| Full party, with layouts | 169 (53%) |
+| Full party, with layouts and 5800 health | **195 (61%)** |
+| No healer (Bulwark, two Emberwrights, Duskblade), 5800 | 42 (13%, under the 25% bar) |
+| No tank (two Duskblades, Lumen, Emberwright), 5800 | 6 (2%) |

@@ -7389,12 +7389,19 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   // Phase 12 W2: group dungeons get stones and vents, never lava (a party can't all cross it at once).
   hammerdeep: ['open', 'open', 'pillars', 'vents'],
   pressworks: ['open', 'open', 'pillars', 'vents'],
+  // Phase 13 E2: the Ashvents' layouts, held back in W2.
+  ashvents: ['open', 'open', 'pillars', 'vents'],
   // V8: the Foundry is drowned, so no lava channel: stones and steam vents.
   foundry: ['open', 'open', 'pillars', 'vents'],
   // V8: the Glarewell already has its own pillars, so only vents.
   glarewell: ['open', 'open', 'vents'],
   // V8: the Coldmarrow's fires are out, so no vents or lava: ice pillars only.
   coldmarrow: ['open', 'open', 'pillars'],
+  // Phase 13 E1: raid trash gets stones and vents too (never the boss fight, see layoutRolls).
+  crucible: ['open', 'open', 'pillars', 'vents'],
+  hoard: ['open', 'open', 'pillars', 'vents'],
+  smeltery: ['open', 'open', 'pillars', 'vents'],
+  flue: ['open', 'open', 'pillars', 'vents'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /** V3: the Kiln Mother's phase-2 signature this run. */

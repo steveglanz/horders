@@ -429,10 +429,17 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
   kiln: { warn: 'kilnVentWarn', land: 'lavaFlare', sting: 'layoutVents' },
   foundry: { warn: 'steamVentWarn', land: 'steamBurst', sting: 'layoutSteam' },
   glarewell: { warn: 'lensVentWarn', land: 'lensFlare', sting: 'layoutLens' },
-  // Phase 12 W2: the Hammerdeep's forge vents borrow the Kiln's fire until sound gives them their own.
+  // Phase 12 W2: the Hammerdeep's forge vents.
   hammerdeep: { warn: 'forgeVentWarn', land: 'forgeFlare', sting: 'layoutForge' },
   // Phase 12 W2: the Pressworks' steam-press vents.
   pressworks: { warn: 'pressVentWarn', land: 'pressBurst', sting: 'layoutPress' },
+  // Phase 13 E2: Ysmeret's ash-and-ember vents in the Ashvents' trash fights.
+  ashvents: { warn: 'ashVentWarn', land: 'ashBurst', sting: 'layoutAsh' },
+  // Phase 13 E4: the raids' trash-fight vents: slag, ember breath, a tuyere's blast and the flue's draught.
+  crucible: { warn: 'slagVentWarn', land: 'slagBurst', sting: 'layoutSlag' },
+  hoard: { warn: 'hoardVentWarn', land: 'hoardBurst', sting: 'layoutHoard' },
+  smeltery: { warn: 'smeltVentWarn', land: 'smeltBurst', sting: 'layoutSmelt' },
+  flue: { warn: 'flueVentWarn', land: 'flueBurst', sting: 'layoutFlue' },
 };
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 

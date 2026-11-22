@@ -3165,8 +3165,17 @@ export function buildTextures(scene: Phaser.Scene): void {
   // V5 (variety): the Kiln's arena layouts, drawn at 2x and shown at half scale.
   // A basalt stump that blocks movement: its base circle is the sim's stone (LAYOUT.stoneRadius 34 -> 68 here), a short
   // faceted side, a lighter top with an ember seam, so it reads as solid rock and not a hole or a soak circle.
-  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron' | 'press') => {
+  const stone = (ctx: CanvasRenderingContext2D, look: 'kiln' | 'wet' | 'ice' | 'iron' | 'press' | 'slag' | 'bone' | 'ingot' | 'brick' | 'pumice') => {
     const wet = look === 'wet', ice = look === 'ice', iron = look === 'iron', press = look === 'press';
+    // Phase 13 E3, the raids: side colours [r, g, b] base and lit lift, and the top face's gradient.
+    const RAID: Record<string, { side: number[]; lift: number[]; top: [string, string] }> = {
+      slag: { side: [34, 24, 22], lift: [30, 18, 14], top: ['#6a564c', '#2c201c'] },
+      bone: { side: [26, 22, 22], lift: [22, 18, 18], top: ['#4a4040', '#1e1a1a'] },
+      ingot: { side: [40, 38, 40], lift: [34, 30, 28], top: ['#6e6a66', '#34302e'] },
+      brick: { side: [70, 30, 24], lift: [50, 22, 16], top: ['#5a4a46', '#2a2222'] },
+      pumice: { side: [70, 64, 62], lift: [52, 46, 42], top: ['#b4aaa4', '#6a605c'] },
+    };
+    const raid = RAID[look];
     const cx = 100, by = 128, r = 68, h = 30;
     // Contact shadow, offset down-right like the sprites' shadows.
     ell(ctx, cx + 8, by + 10, r + 4, r * 0.62 + 4); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -3179,7 +3188,7 @@ export function buildTextures(scene: Phaser.Scene): void {
       const x0 = cx + Math.cos(a0) * r, y0 = by + Math.sin(a0) * ry, x1 = cx + Math.cos(a1) * r, y1 = by + Math.sin(a1) * ry;
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - h); ctx.lineTo(x0, y0 - h); ctx.closePath();
       const lit = 0.5 + 0.5 * Math.cos(a0 + 0.9);
-      ctx.fillStyle = press ? `rgb(${40 + 30 * lit},${42 + 30 * lit},${40 + 24 * lit})` : iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
+      ctx.fillStyle = raid ? `rgb(${raid.side[0] + raid.lift[0] * lit},${raid.side[1] + raid.lift[1] * lit},${raid.side[2] + raid.lift[2] * lit})` : press ? `rgb(${40 + 30 * lit},${42 + 30 * lit},${40 + 24 * lit})` : iron ? `rgb(${50 + 34 * lit},${52 + 34 * lit},${62 + 36 * lit})` : ice ? `rgb(${92 + 70 * lit},${128 + 70 * lit},${158 + 64 * lit})` : wet ? `rgb(${26 + 22 * lit},${36 + 28 * lit},${42 + 32 * lit})` : `rgb(${38 + 30 * lit},${28 + 22 * lit},${30 + 22 * lit})`; ctx.fill();
       ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     }
     // The top face.
@@ -3190,7 +3199,7 @@ export function buildTextures(scene: Phaser.Scene): void {
     }
     ctx.closePath();
     const g = ctx.createLinearGradient(cx - r, by - h - ry, cx + r, by - h + ry);
-    if (press) { g.addColorStop(0, '#7e8478'); g.addColorStop(1, '#3a3e38'); } else if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
+    if (raid) { g.addColorStop(0, raid.top[0]); g.addColorStop(1, raid.top[1]); } else if (press) { g.addColorStop(0, '#7e8478'); g.addColorStop(1, '#3a3e38'); } else if (iron) { g.addColorStop(0, '#a4a8b6'); g.addColorStop(1, '#50525e'); } else if (ice) { g.addColorStop(0, '#f2fbff'); g.addColorStop(1, '#8fb6d4'); } else if (wet) { g.addColorStop(0, '#6f8a90'); g.addColorStop(1, '#2e4048'); } else { g.addColorStop(0, '#8a7468'); g.addColorStop(1, '#4e3e3a'); }
     ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
     if (ice) {
       // Frozen: hairline cracks in the ice, a frost rim round the top, icicles down the lit side and a sparkle.
@@ -3208,6 +3217,85 @@ export function buildTextures(scene: Phaser.Scene): void {
       ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2;
       const sx = cx - 26, sy = by - h - 20;
       ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    const top = by - h;
+    if (look === 'slag') {
+      // The Crucible: a block of cooled slag, glowing cracks across the crust and molten drips down the lit side.
+      ctx.save();
+      ctx.strokeStyle = '#ff7a2a'; ctx.shadowColor = '#ff5a14'; ctx.shadowBlur = 10; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 40, top - 4); ctx.lineTo(cx - 18, top + 6); ctx.lineTo(cx - 4, top - 10); ctx.lineTo(cx + 18, top - 2); ctx.lineTo(cx + 38, top - 14);
+      ctx.moveTo(cx - 4, top - 10); ctx.lineTo(cx + 2, top - 26); ctx.moveTo(cx - 18, top + 6); ctx.lineTo(cx - 14, top + 22); ctx.stroke();
+      ctx.shadowBlur = 6; ctx.fillStyle = '#ff8a3a';
+      for (const [dx, len] of [[-40, 16], [-14, 24], [20, 12], [42, 18]]) {
+        const y0 = top + ry * Math.sqrt(Math.max(0, 1 - (dx / r) ** 2)) - 2;
+        ctx.beginPath(); ctx.moveTo(cx + dx - 4, y0); ctx.lineTo(cx + dx + 4, y0); ctx.quadraticCurveTo(cx + dx + 4, y0 + len, cx + dx, y0 + len + 4); ctx.quadraticCurveTo(cx + dx - 4, y0 + len, cx + dx - 4, y0); ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(20,12,10,0.6)';
+      for (const [dx, dy, rr] of [[-26, -14, 7], [24, 8, 6], [8, -24, 5]]) { ell(ctx, cx + dx, top + dy, rr, rr * 0.6); ctx.fill(); }
+      return;
+    }
+    if (look === 'bone') {
+      // The Hoard: a lump of fused coal and old bones from his meals, a rib cage and a thigh bone sticking out, two coins.
+      ctx.save();
+      ctx.strokeStyle = '#d8ccb4'; ctx.lineCap = 'round';
+      for (let i = 0; i < 4; i++) { ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx - 34 + i * 12, top + 6); ctx.quadraticCurveTo(cx - 40 + i * 12, top - 18, cx - 22 + i * 10, top - 28); ctx.stroke(); }
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(cx - 34 + i * 12 - 2.5, top + 6); ctx.quadraticCurveTo(cx - 40 + i * 12 - 2.5, top - 18, cx - 22 + i * 10 - 2.5, top - 28); ctx.stroke(); }
+      ctx.lineWidth = 8; ctx.strokeStyle = '#e4dac4'; ctx.beginPath(); ctx.moveTo(cx + 8, top + 2); ctx.lineTo(cx + 44, top - 20); ctx.stroke();
+      ctx.fillStyle = '#e4dac4'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      for (const [x, y] of [[cx + 44, top - 24], [cx + 48, top - 16]]) { ell(ctx, x, y, 6, 6); ctx.fill(); ctx.stroke(); }
+      ctx.strokeStyle = '#ff8a3a'; ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 8; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(cx - 10, top + 14); ctx.lineTo(cx + 8, top + 8); ctx.lineTo(cx + 22, top + 16); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.fillStyle = '#c9a050';
+      for (const [dx, dy] of [[-12, 16], [30, 12]]) { ell(ctx, cx + dx, top + dy, 6, 3.2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.restore();
+      return;
+    }
+    if (look === 'ingot') {
+      // The Smeltery: a cast-iron plinth stacked with copper ingots, two courses crosswise.
+      ctx.save();
+      const bar = (x: number, y: number, w: number, hh: number) => {
+        ctx.beginPath(); ctx.moveTo(x - w / 2, y); ctx.lineTo(x + w / 2, y); ctx.lineTo(x + w / 2 - 4, y - hh); ctx.lineTo(x - w / 2 + 4, y - hh); ctx.closePath();
+        const bg = ctx.createLinearGradient(0, y - hh, 0, y); bg.addColorStop(0, '#e8a06a'); bg.addColorStop(1, '#8a4a28');
+        ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,230,200,0.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - w / 2 + 6, y - hh + 2); ctx.lineTo(x + w / 2 - 10, y - hh + 2); ctx.stroke();
+      };
+      for (const dx of [-26, 0, 26]) bar(cx + dx, top + 14, 22, 12);
+      for (const dx of [-14, 14]) bar(cx + dx, top + 2, 30, 12);
+      bar(cx, top - 10, 30, 12);
+      ctx.restore();
+      return;
+    }
+    if (look === 'pumice') {
+      // The Ashvents: a block of pale pumice, pitted all over, ash drifted on top and a dark glassy streak of obsidian.
+      ctx.save();
+      ctx.fillStyle = 'rgba(40,32,30,0.45)';
+      for (const [dx, dy, rr] of [[-34, -6, 4], [-20, 8, 3], [-6, -16, 3.5], [10, 10, 3], [26, -10, 4], [38, 4, 2.5], [-40, 10, 2.5], [4, -2, 2.5]]) { ell(ctx, cx + dx, top + dy, rr, rr * 0.7); ctx.fill(); }
+      for (const [dx, dy] of [[-46, 18], [-24, 26], [30, 24], [50, 14]]) { ell(ctx, cx + dx, top + dy + 12, 2.6, 2); ctx.fill(); }
+      ell(ctx, cx + 12, top - 12, 30, 10); ctx.fillStyle = 'rgba(232,226,220,0.55)'; ctx.fill();
+      ctx.strokeStyle = '#1c1820'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 30, top + 12); ctx.lineTo(cx - 12, top + 2); ctx.lineTo(cx + 2, top + 8); ctx.stroke();
+      ctx.strokeStyle = 'rgba(200,190,230,0.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx - 28, top + 10); ctx.lineTo(cx - 13, top + 1); ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(255,250,240,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 44, top - 22); ctx.lineTo(cx - 20, top - 30); ctx.stroke();
+      return;
+    }
+    if (look === 'brick') {
+      // The Flue: the stump of an old brick flue, mortar courses round the side and a sooty mouth with embers deep inside.
+      ctx.save();
+      ctx.strokeStyle = 'rgba(200,170,150,0.45)'; ctx.lineWidth = 1.5;
+      for (const yy of [8, 18]) { ctx.beginPath(); ctx.ellipse(cx, by - yy, r - 1, ry - 1, 0, 0.15, Math.PI - 0.15); ctx.stroke(); }
+      for (let i = 0; i < 9; i++) { const a = 0.3 + (i / 9) * (Math.PI - 0.6); const x = cx + Math.cos(a) * (r - 1); const y = by + Math.sin(a) * (ry - 1); const o = i % 2 ? 0 : 10; ctx.beginPath(); ctx.moveTo(x, y - o - 2); ctx.lineTo(x, y - o - 8); ctx.stroke(); }
+      ell(ctx, cx, top, r - 16, ry - 12); ctx.fillStyle = '#100a0a'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+      const mg = ctx.createRadialGradient(cx, top + 4, 2, cx, top + 4, 34); mg.addColorStop(0, 'rgba(255,130,60,0.32)'); mg.addColorStop(1, 'rgba(255,90,30,0)');
+      ell(ctx, cx, top + 2, r - 22, ry - 16); ctx.fillStyle = mg; ctx.fill();
+      ctx.strokeStyle = 'rgba(170,160,160,0.5)'; ctx.lineWidth = 4;
+      ell(ctx, cx, top, r - 10, ry - 7); ctx.stroke();
       ctx.restore();
       return;
     }
@@ -3267,6 +3355,88 @@ export function buildTextures(scene: Phaser.Scene): void {
   make(scene, 'deepStone', 200, (ctx) => stone(ctx, 'iron'));
   // Phase 12 W2: the Pressworks' stones, oiled steel bolster blocks with brass cap bolts.
   make(scene, 'pressStone', 200, (ctx) => stone(ctx, 'press'));
+  // Phase 13 E3: the raids' stones. The Crucible: cooled slag with glowing cracks and drips.
+  make(scene, 'slagStone', 200, (ctx) => stone(ctx, 'slag'));
+  // The Hoard: fused coal and bones from his meals (not gold, which reads as a soak).
+  make(scene, 'boneStone', 200, (ctx) => stone(ctx, 'bone'));
+  // The Smeltery: a cast-iron plinth stacked with copper ingots.
+  make(scene, 'ingotStone', 200, (ctx) => stone(ctx, 'ingot'));
+  // The Flue: an old brick flue stump; its sooty mouth glows only faintly, so it reads as a stone, not a hazard.
+  make(scene, 'brickStone', 200, (ctx) => stone(ctx, 'brick'));
+  // Phase 13 E2: the Ashvents' stones, pitted pale pumice with drifted ash and an obsidian streak.
+  make(scene, 'pumiceStone', 200, (ctx) => stone(ctx, 'pumice'));
+  // Phase 13 E2: an Ashvents vent, a little fumarole: a cone of ash-grey rock round a dark throat with a red ember glow.
+  // Red-orange, never gold, since the Ysmeret's gold vents are soaks. Rests dim; GameScene brightens it while it flares.
+  make(scene, 'fumaroleVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,100,60,0.3)');
+    const cg = ctx.createRadialGradient(c - 10, c - 12, 6, c, c, 54); cg.addColorStop(0, '#9a908a'); cg.addColorStop(0.7, '#5a524e'); cg.addColorStop(1, '#3a3432');
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) { const a = (i / 16) * Math.PI * 2; const rr = 52 + (i % 3 === 0 ? -4 : i % 2 ? 2 : 0); ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fillStyle = cg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,24,22,0.5)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * 30, c + Math.sin(a) * 30); ctx.lineTo(c + Math.cos(a + 0.08) * 48, c + Math.sin(a + 0.08) * 48); ctx.stroke(); }
+    const tg = ctx.createRadialGradient(c, c, 3, c, c, 28); tg.addColorStop(0, '#ffb070'); tg.addColorStop(0.45, '#e2442a'); tg.addColorStop(1, '#1a0c0a');
+    ell(ctx, c, c, 28, 28); ctx.fillStyle = tg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(220,214,208,0.6)';
+    for (const [dx, dy] of [[-38, -18], [30, -30], [36, 26], [-26, 36], [-44, 10]]) { ell(ctx, c + dx, c + dy, 4, 2.6); ctx.fill(); }
+  });
+  // Phase 13 E3: the raids' vents. Like the others, each rests dim and GameScene brightens it while its flare circle is up.
+  // The Crucible: a crust ring round a molten pool with floating crust plates.
+  make(scene, 'slagVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,110,30,0.35)');
+    ctx.beginPath();
+    for (let i = 0; i <= 14; i++) { const a = (i / 14) * Math.PI * 2; const rr = 52 + (i % 2 ? -3 : 2); ctx.lineTo(c + Math.cos(a) * rr, c + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fillStyle = '#2c1e1a'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    const mg = ctx.createRadialGradient(c, c, 4, c, c, 38); mg.addColorStop(0, '#ffe8a0'); mg.addColorStop(0.45, '#ff8a2a'); mg.addColorStop(1, '#7a1e08');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = mg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#3a2620'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    for (const [dx, dy, w, hh] of [[-16, -12, 13, 8], [14, 6, 15, 9], [-6, 18, 10, 6], [18, -18, 8, 5]]) { ctx.beginPath(); ctx.ellipse(c + dx, c + dy, w, hh, dx * 0.05, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  });
+  // The Hoard: a ring of charred coal chunks round a bed of embers.
+  make(scene, 'emberVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,120,50,0.32)');
+    const eg = ctx.createRadialGradient(c, c, 4, c, c, 40); eg.addColorStop(0, '#ffd27a'); eg.addColorStop(0.5, '#ff6a1e'); eg.addColorStop(1, '#3a0e06');
+    ell(ctx, c, c, 40, 40); ctx.fillStyle = eg; ctx.fill();
+    ctx.fillStyle = '#1e1414'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    for (let i = 0; i < 11; i++) { const a = (i / 11) * Math.PI * 2; const x = c + Math.cos(a) * 46, y = c + Math.sin(a) * 46; ctx.beginPath(); for (let j = 0; j < 5; j++) { const b = (j / 5) * Math.PI * 2 + i; const rr = 8 + ((i * 7 + j * 3) % 4); ctx.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#2a1a16';
+    for (const [dx, dy] of [[-12, -6], [10, 10], [4, -16]]) { ell(ctx, c + dx, c + dy, 6, 4); ctx.fill(); }
+  });
+  // The Smeltery: a tuyere set in the floor, a riveted iron ring round a diagonal grate over the blast.
+  make(scene, 'tuyereVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,170,90,0.3)');
+    ell(ctx, c, c, 52, 52); ctx.fillStyle = '#4a4440'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#a8906c';
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ell(ctx, c + Math.cos(a) * 45, c + Math.sin(a) * 45, 2.4, 2.4); ctx.fill(); }
+    const bg = ctx.createRadialGradient(c, c, 4, c, c, 38); bg.addColorStop(0, '#fff4d0'); bg.addColorStop(0.4, '#ffb050'); bg.addColorStop(1, '#5a1a08');
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = bg; ctx.fill();
+    ctx.save(); ell(ctx, c, c, 38, 38); ctx.clip();
+    ctx.strokeStyle = '#1a1616'; ctx.lineWidth = 5;
+    for (let d = -60; d <= 60; d += 15) { ctx.beginPath(); ctx.moveTo(c + d - 40, c + 40); ctx.lineTo(c + d + 40, c - 40); ctx.stroke(); }
+    ctx.restore();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
+  // The Flue: a brick ring round a bed of grey ash with embers glowing through.
+  make(scene, 'ashVent', 128, (ctx) => {
+    const c = 64;
+    softGlow(ctx, c, c, 60, 'rgba(255,120,60,0.28)');
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 0.86) / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(c, c, 52, a0, a1); ctx.arc(c, c, 38, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#6a2e24' : '#58261e'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ell(ctx, c, c, 38, 38); ctx.fillStyle = '#5a5250'; ctx.fill();
+    ctx.save(); ell(ctx, c, c, 38, 38); ctx.clip();
+    for (const [dx, dy, rr] of [[-10, -8, 12], [12, 6, 10], [-4, 16, 8], [16, -14, 7]]) { const g2 = ctx.createRadialGradient(c + dx, c + dy, 1, c + dx, c + dy, rr); g2.addColorStop(0, 'rgba(255,200,110,0.95)'); g2.addColorStop(0.5, 'rgba(255,100,40,0.7)'); g2.addColorStop(1, 'rgba(255,80,30,0)'); ctx.fillStyle = g2; ctx.fillRect(c + dx - rr, c + dy - rr, rr * 2, rr * 2); }
+    ctx.fillStyle = 'rgba(200,192,188,0.5)';
+    for (const [dx, dy] of [[-22, 6], [4, -22], [22, 18], [-16, 24], [26, -4]]) { ell(ctx, c + dx, c + dy, 5, 3); ctx.fill(); }
+    ctx.restore();
+    ell(ctx, c, c, 38, 38); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
+  });
   // Phase 12 W2: a Pressworks vent, a press exhaust in the floor: a brass ring round a slotted steel plate over a hot
   // glow. Like the others, it rests dim and GameScene brightens it while its flare circle is up.
   make(scene, 'pressVent', 128, (ctx) => {

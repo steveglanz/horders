@@ -40,6 +40,9 @@ const COLD_FLOOR = 0x7e98c4;
 const NAMED = 0x5aa9ff;
 /** The Crucible (raid): molten slag. */
 const MOLTEN = 0xff6a1f;
+/** Phase 13 E3 (raids) and E2 (the Ashvents): each one's own stones and vents for its trash-fight layouts (the boss fight is always open). */
+const RAID_STONE: Record<string, string> = { ashvents: 'pumiceStone', crucible: 'slagStone', hoard: 'boneStone', smeltery: 'ingotStone', flue: 'brickStone' };
+const RAID_VENT: Record<string, string> = { ashvents: 'fumaroleVent', crucible: 'slagVent', hoard: 'emberVent', smeltery: 'tuyereVent', flue: 'ashVent' };
 let DANGER = 0xff3b6b; // the one colour used for enemy attacks
 let SOAK = 0xffc861; // gold: stand in it
 let BLOOM = 0x5fe0c8;
@@ -2567,7 +2570,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : RAID_STONE[w.dungeonId] ?? 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2590,7 +2593,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
     w.flareVents.forEach((v, k) => {
       let img = this.kilnVentImgs[k];
-      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : w.dungeonId === 'pressworks' ? 'pressVent' : 'kilnVent').setDepth(1.4);
+      if (!img) img = this.kilnVentImgs[k] = this.add.image(0, 0, wet ? 'steamVent' : glass ? 'lensVent' : w.dungeonId === 'hammerdeep' ? 'forgeVent' : w.dungeonId === 'pressworks' ? 'pressVent' : RAID_VENT[w.dungeonId] ?? 'kilnVent').setDepth(1.4);
       // Its turn: a flare circle of its radius sits on it.
       const hot = w.telegraphs.some((t) => t.alive && t.shape === 'circle' && Math.abs(t.r - LAYOUT.ventRadius) < 1 && Math.abs(t.x - v.x) < 2 && Math.abs(t.y - v.y) < 2);
       const f = hot ? 0.5 + 0.5 * Math.sin(now / 70) : 0;
