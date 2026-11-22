@@ -337,7 +337,7 @@ class AudioEngine {
       else if (ev.type === 'end') this.theme(null);
       const c = cueFor(ev, ctx);
       if (c) this.cue({ ...c, pan: panFor(ev, ctx) });
-      const land = landCueFor(ev);
+      const land = landCueFor(ev, ctx.dungeon);
       if (land && ctx.t !== undefined) this.later.push({ at: ctx.t + (land.after ?? 0), c: { ...land, pan: panFor(ev, ctx) } });
     }
     if (this.later.length && ctx.t !== undefined) {

@@ -772,6 +772,22 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.3, vol: 0.16, a: 0.03, lp: 9000, lp2: 4000, hp: 2000, curve: 1.6 },
     { wave: 'sine', f: 700, f2: 500, dur: 0.12, vol: 0.06, curve: 2 },
   ],
+  /** The Drowned Foundry's vents vent steam, not fire: a rising hiss with a pressure whine as the warning circle goes up. */
+  steamVentWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.8, lp: 3000, lp2: 9000, hp: 1500, curve: 0.8 },
+     { wave: 'sine', f: 700, f2: 1300, dur: 1.1, vol: 0.06, a: 0.8, curve: 0.8, vib: [7, 0.01] }],
+  ),
+  /** The steam vent bursts: a sharp blast of hiss that thins out. */
+  steamBurst: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.32, lp: 7000, hp: 900, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.6, vol: 0.24, a: 0.01, lp: 10000, lp2: 3000, hp: 1800, curve: 1.6 }],
+    boom(70, 0.25, 0.2),
+  ),
+  /** The Foundry's vents layout: three steam breaths and a low pipe note. */
+  layoutSteam: join(
+    ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.18, delay: d, vol: 0.2, lp: 9000, lp2: 4000, hp: 1800, curve: 2 }]),
+    horn(196, 0.5, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.5 })),
+  ),
   /** Kiln layouts: a short sting as the fight starts, so the player notices the arena (nothing for 'open'). */
   layoutPillars: join(clang(330, 0.3, 0.5), clang(247, 0.22, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 }))),
   layoutChannel: join(
