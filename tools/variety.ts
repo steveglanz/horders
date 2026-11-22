@@ -1,7 +1,7 @@
 /**
  * V7 variety check (docs/design/variety.md): how many different runs a player sees.
  * A run's shape is its route, each fight's arena layout and the boss's version (the Kiln
- * Mother's or Maelra's), all fixed by the seed, so this needs no bot runs.
+ * Mother's, Maelra's or the Lensmother's), all fixed by the seed, so this needs no bot runs.
  *   DUNGEON=kiln TIER=1 RUNS=20 WINDOWS=50 npx tsx tools/variety.ts
  * It reports, over WINDOWS blocks of RUNS consecutive seeds, how many shapes repeat inside a block.
  */
@@ -11,13 +11,13 @@ const dungeon = (process.env.DUNGEON ?? 'kiln') as 'kiln';
 const tier = Number(process.env.TIER ?? 1);
 const runs = Number(process.env.RUNS ?? 20);
 const windows = Number(process.env.WINDOWS ?? 50);
-type Inner = { rollLayout(id: string): void; rollKilnVariant(): string; rollMaelraVariant(): string; encounter: number };
+type Inner = { rollLayout(id: string): void; rollKilnVariant(): string; rollMaelraVariant(): string; rollLensVariant(): string; encounter: number };
 
 function shape(seed: number): { route: string; layouts: string; variant: string } {
   const w = new World({ seed, dungeon, tier, omens: [], cls: 'emberwright' });
   const q = w as unknown as Inner;
   const layouts = w.route.map((id, k) => { q.encounter = k; q.rollLayout(id); return w.layout; });
-  return { route: w.route.join(','), layouts: layouts.join(','), variant: dungeon === 'kiln' ? q.rollKilnVariant() : dungeon === 'foundry' ? q.rollMaelraVariant() : '-' };
+  return { route: w.route.join(','), layouts: layouts.join(','), variant: dungeon === 'kiln' ? q.rollKilnVariant() : dungeon === 'foundry' ? q.rollMaelraVariant() : dungeon === 'glarewell' ? q.rollLensVariant() : '-' };
 }
 
 let alike = 0, routeAlike = 0, fullBlocks = 0;

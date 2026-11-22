@@ -187,3 +187,19 @@ The two versions are about as hard. A Bulwark's fight runs longer with the tide 
 - **Run variety** (tools/variety.ts, tier 7): repeats in blocks of 20 fell from 409 of 1000 to 7, with 150 routes (was 18) and 724 run shapes.
 - **Win rates** (tools/foundry.ts, `DUNGEON=glarewell TIER=7 HERO=tools/heroes/hero-t6.json`, seeds 1 to 40, before → after): good bot 39 → 38, `SKILL=0.5` 40 → 40. The hashcheck has no Glarewell rows, and every row is unchanged.
 - **Next:** a second version of the Lensmother, then the Coldmarrow.
+
+## V8 status, part 4 (built 22 Nov 2026): the Lensmother's Glintfall
+- **Two versions:** as the Lensmother rises, the seed picks `bossVariant`. It uses a hash, so the run rng is untouched.
+  - `brand`: Twin Brand from phase 2, as before.
+  - `glint`: **Glintfall** on the same timer.
+- **Glintfall:** a 1.8 s cast (`glintfall`) puts an 80-radius circle of falling light on every standing pillar. It lands for 24 damage, or 1.5 times that when she is enraged.
+  - The pillars you hide behind from her Glare are unsafe for a moment, so you step off your cover and come back.
+  - Tuning is in `GLINTFALL` (sim/world.ts). The banner says so (`GLINTFALL_TIP`).
+- **Co-op:** `bossVariant` is a synced scalar.
+- **Name:** "Glintfall" is an invented word. A web search on 22 Nov 2026 found no WoW match; the nearest is WoW's unrelated "Glintrok" NPCs.
+- **Measured:** tools/foundry.ts, tier 7, hero-t6, seeds 1 to 60, before → after.
+  - Good bot: 58 → 59 wins.
+  - `SKILL=0.5`: 60 → 60 wins.
+  - On glint seeds the boss record is 32 → 33 of 33 (good bot) and 33 of 33 both times (`SKILL=0.5`). The average fight stays 127 to 133 s.
+  - The geared bot steps out of the circles, so Glintfall costs it nothing. It is a movement check for humans more than a damage check. Watch it in playtests.
+- **Run variety** (tier 7, now counting her version): 2 repeats in 1000 runs (was 409 before V8), with 853 run shapes.
