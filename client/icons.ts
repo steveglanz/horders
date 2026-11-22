@@ -156,10 +156,12 @@ export const SET_ICON: Record<SetId, string> = {
   // Relayer (take turns): two press plates, one down on the floor and one raised with an arrow under it,
   // the next to come down. (Arrows chasing round a circle read as Kinbound or as a refresh button.)
   relay: 'M3 21h18 M7.5 3v10.5 M4.5 13.5h6v3.5h-6Z M16.5 3v3 M13.5 6h6v3.5h-6Z M16.5 12.5v5 M14.5 15.5l2 2 2-2',
-  // Crawsplitter (break them free): a placeholder from design until visuals draws it (Phase 9): a cracked ring with an arrow out.
-  crawsplitter: 'M12 3a9 9 0 1 0 9 9 M12 7v5l3 3 M16 3h5v5 M21 3l-6 6',
-  // Platewalker (get behind him): a placeholder from design until visuals draws it (Phase 9): a plate in front, an arrow round behind it.
-  platewalker: 'M4 4h7v9l-3.5 3-3.5-3Z M14 19a6 6 0 0 0 6-6V7 M17.5 9.5L20 7l2.5 2.5',
+  // Crawsplitter (break them free): a hero's head bursting up out of the Craw, its shell split along a jagged rim.
+  // (A whole figure standing in the shell read as an anchor, which Anchored Dawn's talent already uses.)
+  crawsplitter: 'M3.5 14a8.5 7.5 0 0 0 17 0l-3 1.6-2.6-2.4-2.9 2.2-2.9-2.2-2.6 2.4Z M12 6.5a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M4.5 3.5l2 3.5 M19.5 3.5l-2 3.5 M12 1.5v2.5',
+  // Platewalker (get behind him): a riveted plate, and a path curling round its edge to come in behind it.
+  // (An arrow circling a round body read as a refresh button.)
+  platewalker: 'M2.5 4h7v16h-7Z M5 7.5h.01 M7 7.5h.01 M5 16.5h.01 M7 16.5h.01 M12 20.5c5.5 0 9-3.5 9-8.5s-3-8-7.5-8 M16.5 1.5L14 4l2.5 2.5',
 };
 
 /** Alchemy potions: three flask shapes so each reads by silhouette, coloured by what they do. */

@@ -1,10 +1,11 @@
 // Screenshots verb-set pieces: the hero card's gear marker and the bag's set block.
 // Plays one god-mode run for loot, then marks two worn pieces and one bag piece as Kilnbreaker.
-// Usage: npm run build && node tools/setshots.cjs <outDir> [phone]
+// Usage: npm run build && node tools/setshots.cjs <outDir> [phone|desk] [setId]  (setId: which set to mark, default kilnbreaker)
 const { chromium, devices } = require('playwright');
 const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const phone = process.argv[3] === 'phone';
+const setId = process.argv[4] || 'kilnbreaker';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = phone ? await browser.newContext({ ...devices['iPhone 13'] }) : await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -20,24 +21,24 @@ const phone = process.argv[3] === 'phone';
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 12; });
   const t0 = Date.now();
   while (Date.now() - t0 < 240000 && await page.evaluate(() => document.getElementById('end').hidden)) await page.waitForTimeout(250);
-  await page.evaluate(() => {
+  await page.evaluate((setId) => {
     const h = window.__ember.hero();
     // Sets only roll on head, hands and trinket: wear head and hands, leave a trinket in the bag.
     const worn = new Set(Object.values(h.equipped));
-    for (const slot of ['head', 'hands']) { const it = h.inventory.find((i) => i.id === h.equipped[slot]); if (it) it.set = 'kilnbreaker'; }
+    for (const slot of ['head', 'hands']) { const it = h.inventory.find((i) => i.id === h.equipped[slot]); if (it) it.set = setId; }
     const loose = h.inventory.find((it) => !worn.has(it.id) && it.slot === 'trinket') ?? h.inventory.find((it) => !worn.has(it.id));
-    if (loose) loose.set = 'kilnbreaker';
+    if (loose) loose.set = setId;
     localStorage.setItem('horders.hero.v1', JSON.stringify(h));
-  });
+  }, setId);
   await page.goto(url);
   await page.waitForTimeout(1000);
-  await (await page.$('#heroCard')).screenshot({ path: path.join(out, `${tag}-sets-gear.png`) });
+  await (await page.$('#heroCard')).screenshot({ path: path.join(out, `${tag}-sets-gear-${setId}.png`) });
   await page.evaluate(() => document.getElementById('bagBtn').click()); // hidden on phones, where the Bags tab opens it
   await page.waitForTimeout(300);
   const items = await page.$$('#bagList .item');
   let k = 0;
   for (const el of items) {
-    if (await el.$('.setb')) { await el.scrollIntoViewIfNeeded(); await el.screenshot({ path: path.join(out, `${tag}-sets-item-${++k}.png`) }); }
+    if (await el.$('.setb')) { await el.scrollIntoViewIfNeeded(); await el.screenshot({ path: path.join(out, `${tag}-sets-item-${setId}-${++k}.png`) }); }
     if (k >= 2) break;
   }
   console.log('set cards shot:', k, errors.length ? errors.join('\n') : 'no errors');
