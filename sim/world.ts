@@ -6128,12 +6128,16 @@ export class World {
     this.events.push({ type: 'drop', x, y, rarity: item.rarity });
   }
 
-  /** Adds an item to this run's haul and wears it right away if it is an upgrade. */
+  /**
+   * Adds an item to this run's haul and wears it right away if it is an upgrade,
+   * unless that would take off a piece of a set whose 2- or 3-piece bonus is active.
+   */
   private pickUp(item: Item): void {
     this.runDrops.push(item);
     const cur = this.gear.find((g) => g.slot === item.slot);
     const delta = Math.round(itemScore(item) - (cur ? itemScore(cur) : 0));
-    const equipped = delta > 0;
+    const breaksSet = !!cur?.set && cur.set !== item.set && (this.loadout.sets[cur.set] ?? 0) >= 2;
+    const equipped = delta > 0 && !breaksSet;
     if (equipped) {
       this.gear = this.gear.filter((g) => g.slot !== item.slot);
       this.gear.push(item);
