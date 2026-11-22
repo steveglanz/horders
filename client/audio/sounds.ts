@@ -480,6 +480,13 @@ export const SOUNDS = {
     whoosh(400, 3500, 0.55, 0.35), whoosh(400, 3500, 0.55, 0.3).map((v) => ({ ...v, delay: 0.45 })),
     chime(E5, 0.1, 0.2, 0.5), chime(B5(), 0.55, 0.22, 0.7),
   ),
+  /** Wandering Vents (Ysmeret's second version, Phase 12 W2): the same two vents open, then a turning figure says
+   *  "they move": a chime that circles up and back down while a long whoosh sweeps round, so the soakers walk with them. */
+  wanderVentWarn: join(
+    whoosh(400, 3500, 0.55, 0.35), whoosh(400, 3500, 0.55, 0.3).map((v) => ({ ...v, delay: 0.45 })),
+    ...[E5, G5, B5(), G5, E5].map((f, k) => chime(f, 0.5 + k * 0.14, 0.2, 0.4)),
+    whoosh(1800, 900, 1.0, 0.18).map((v) => ({ ...v, delay: 0.9 })),
+  ),
   /** Scatter Embers (and the raid's Cinder Marks): a crackling sparkle that says "get apart". */
   scatterWarn: [
     { wave: 'noise', f: 0, dur: 1.2, vol: 0.25, a: 0.9, curve: 0.7, lp: 3000, lp2: 9000, hp: 1200, trem: [14, 0.7] },

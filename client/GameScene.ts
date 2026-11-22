@@ -182,6 +182,7 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string; fli
   kiln: { big: 'kilnFurnace', small: 'kilnBrazier', light: 'coalLight', flicker: 130, puff: 'spark' },
   foundry: { big: 'foundryBoiler', small: 'foundryValve', light: 'coolLight', flicker: 420, puff: 'steam' },
   hammerdeep: { big: 'deepAnvil', small: 'deepLantern', light: 'paleLight', flicker: 700, puff: 'none' },
+  ashvents: { big: 'ashFumarole', small: 'ashCairn', light: 'coalLight', flicker: 180, puff: 'spark' },
 };
 
 export class GameScene extends Phaser.Scene {
@@ -274,6 +275,8 @@ export class GameScene extends Phaser.Scene {
   private darkGfx: Phaser.GameObjects.Graphics | null = null;
   /** The Wrackline's water marks (raft wakes, Hessa's Outsurge surf), over the rafts (0.9) and under the main graphics. */
   private surfGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 12 W2: the Wandering Vents' trail and chevrons, under the main graphics (1.9) like the other floor tells. */
+  private wanderGfx: Phaser.GameObjects.Graphics | null = null;
   /** The arena edge props (EDGE_SETS, just outside the rim) and their light pools; made on first need. */
   private edgeProps: { img: Phaser.GameObjects.Image; light: Phaser.GameObjects.Image; x: number; y: number; fire: boolean }[] = [];
   /** V8: Maelra's Sluicetide current, on a layer under the main graphics so it never covers a class ring. */
@@ -358,6 +361,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx = null;
     this.darkGfx = null;
     this.surfGfx = null;
+    this.wanderGfx = null;
     this.edgeProps = [];
     this.tideGfx = null;
     this.tideOn = false;
@@ -1819,6 +1823,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.layoutDraw(g, now);
     this.edgeDraw(now);
+    this.wanderDraw(now);
     this.kilnDrawTell(g, now);
     this.tideDraw(now);
     this.glintDraw(now);
@@ -2638,6 +2643,7 @@ export class GameScene extends Phaser.Scene {
    * - The Kiln: brick furnaces and braziers, warm light, embers.
    * - The Drowned Foundry: brass boilers and valve standpipes, teal light, steam from the valve nozzles.
    * - The Hammerdeep: great anvils and miners' lanterns, a steady steel-white light.
+   * - The Ashvents: basalt fumaroles and ember cairns, warm light, sparks.
    */
   private edgeDraw(now: number): void {
     const w = this.world;
@@ -3724,6 +3730,40 @@ export class GameScene extends Phaser.Scene {
    * is a dashed danger line through the warning and a solid one through the pull. Drawn under the main graphics, so a
    * class ring or a telegraph in the surf still shows on top.
    */
+  /**
+   * Phase 12 W2, Ysmeret's Wandering Vents: while her two soak circles circle her, each drags a fading gold swath along
+   * the path it came from, and gold chevrons slide ahead of it along the path it will take, so the soakers can walk
+   * with it. Drawn under the main graphics (1.9): the circles, class rings and other telegraphs stay on top.
+   */
+  private wanderDraw(now: number): void {
+    const w = this.world;
+    const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const vents = e?.alive && e.kind === 'ysmeret' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2) : [];
+    if (!vents.length) { this.wanderGfx?.clear(); return; }
+    if (!this.wanderGfx) this.wanderGfx = this.add.graphics().setDepth(1.9);
+    const g = this.wanderGfx.clear();
+    const vr = YSMERET.ventRadius;
+    for (const t of vents) {
+      const R = Math.hypot(t.x - e!.x, t.y - e!.y);
+      if (R < 1) continue;
+      const a0 = Math.atan2(t.y - e!.y, t.x - e!.x);
+      // The sim turns them by a growing angle: forward is +a (clockwise on screen).
+      const step = 0.07;
+      for (let i = 0; i < 8; i++) {
+        g.lineStyle(vr * 1.3, SOAK, 0.16 * (1 - i / 8)).beginPath().arc(e!.x, e!.y, R, a0 - (i + 1) * step - vr / R * 0.4, a0 - i * step - vr / R * 0.4, false).strokePath();
+      }
+      const n = this.lowFx ? 2 : 3;
+      for (let k = 0; k < n; k++) {
+        const u = ((now / 700) + k / n) % 1;
+        const a = a0 + (vr + 14) / R + u * 0.42;
+        const cx = e!.x + Math.cos(a) * R, cy = e!.y + Math.sin(a) * R;
+        const tx = -Math.sin(a), ty = Math.cos(a), nx = Math.cos(a), ny = Math.sin(a);
+        const al = 0.8 * Math.sin(u * Math.PI);
+        g.lineStyle(3.5, SOAK, al).beginPath().moveTo(cx - tx * 7 + nx * 10, cy - ty * 7 + ny * 10).lineTo(cx + tx * 7, cy + ty * 7).lineTo(cx - tx * 7 - nx * 10, cy - ty * 7 - ny * 10).strokePath();
+      }
+    }
+  }
+
   private outsurgeDraw(sg: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
     const R = this.world.arenaR ?? ARENA;
     const band = OUTSURGE.rimR;
