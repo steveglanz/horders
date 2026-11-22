@@ -1032,6 +1032,13 @@ export const SOUNDS = {
     chime(note(3), 0.25, 0.12, 0.4),
   ),
   /** A hero takes a spilled ember: a bright pick-up tick. */
+  /** Banked Coals (Old Vorhulm's second version, phase 3): three coals banked to a glow round the room, a low ember
+   *  crackle with three rising glows (one per coal), so the party splits up to smother them before he eats them. */
+  bankWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.16, a: 0.5, lp: 4000, hp: 900, curve: 0.9, trem: [11, 0.6] }],
+    chime(G5, 0.15, 0.18, 0.5), chime(B5(), 0.45, 0.18, 0.5), chime(E6, 0.75, 0.2, 0.7),
+    [{ wave: 'saw', f: 90, f2: 130, dur: 1.2, vol: 0.12, a: 0.6, lp: 900, curve: 0.9 }],
+  ),
   emberTaken: join(
     [{ wave: 'noise', f: 0, dur: 0.02, vol: 0.2, lp: 9000, hp: 3000, curve: 3 }],
     chime(E6, 0, 0.16, 0.18), chime(A5 * 2, 0.05, 0.14, 0.22),
@@ -1220,6 +1227,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   dieCutWarn: 2.0,
   // Grandmother Slag's Brimming (Phase 12 W3) opens with a cast start: -29.7 dB alone, mostly a low churn.
   brimWarn: 4.0,
+  // Old Vorhulm's Banked Coals (Phase 12 W3): 5.4 dB over the Hoard mix (heroes-r2 t8, SEEDS=1,2,7, n=32).
+  bankWarn: 1.5,
   haulWarn: 8.9,
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,
