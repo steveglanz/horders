@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import type { SimEvent } from '../../sim/world';
+import { LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -17,6 +17,8 @@ export interface Cue {
   jitter?: number;
   /** Stereo position, -1 (left) to 1 (right). Ordinary sounds only: warnings stay centred. */
   pan?: number;
+  /** Play this many seconds of game time later (a telegraph landing), so a pause holds it too. */
+  after?: number;
 }
 
 /** What the cue needs to know about the run. */
@@ -55,6 +57,10 @@ export interface CueContext {
    * from (World.colossusSide: 0.5 plated front, 1.5 open back, 1 the flanks). Unset once Meltdown cracks the plate.
    */
   colossus?: { x: number; y: number; side: number };
+  /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
+  t?: number;
+  /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
+  inLava?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -148,6 +154,9 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   anvilfall: { start: 'anvilWarn', done: 'anvilfall' }, // Anvilfall
   choir: { done: 'choir' }, // Choir of Iron
   hammerSweep: { done: 'sweep' }, // Hammer Sweep
+  // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
+  emberLob: { start: 'spitLob' }, // Ember Lob
+  charge: { start: 'chargeWindup' }, // Charge
   // The Ashvents: Ysmeret, the Twofold Flame.
   twinVents: { start: 'ventWarn' }, // Twin Vents
   scatter: { start: 'scatterWarn', done: 'scatter' }, // Scatter Embers, and the raid's Cinder Marks
@@ -341,6 +350,12 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'gateChosen': return { id: 'gate' };
     case 'riftOpen': return { id: 'riftOpen' };
     case 'riftClosed': return { id: 'riftClosed' };
+    case 'riftSpawn': return { id: 'riftSpit', jitter: 0.06 };
+    // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
+    case 'spitLob': return null;
+    case 'charge': return { id: 'chargeDash', jitter: 0.04 };
+    case 'ventFlare': return { id: 'kilnVentWarn' };
+    case 'layout': return LAYOUT_STING[ev.id] ? { id: LAYOUT_STING[ev.id]! } : null;
     case 'gather': return { id: 'gather' };
     case 'soak': return { id: ev.ok ? 'soakOk' : 'soakFail' };
     case 'drop':
@@ -354,6 +369,31 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
+}
+
+/** Each Kiln arena layout's sting as the fight starts. The plain 'open' room needs none. */
+export const LAYOUT_STING: Partial<Record<Extract<SimEvent, { type: 'layout' }>['id'], SoundId>> = {
+  pillars: 'layoutPillars', channel: 'layoutChannel', vents: 'layoutVents',
+};
+
+/** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
+export function landCueFor(ev: SimEvent): Cue | null {
+  if (ev.type === 'spitLob') return { id: 'spitLand', after: VARIETY.lobLand, jitter: 0.04 };
+  if (ev.type === 'ventFlare') return { id: 'lavaFlare', after: LAYOUT.ventCast, jitter: 0.04 };
+  return null;
+}
+
+/** The Kiln's channel layout: is this hero standing in a lava strip (World.lava, as World.layoutClock burns it)? */
+export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
+  const p = w.player;
+  if (p.hp <= 0) return false;
+  return w.lava.some((c) => {
+    const dx = c.x2 - c.x1, dy = c.y2 - c.y1;
+    const len2 = dx * dx + dy * dy;
+    const u = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - c.x1) * dx + (p.y - c.y1) * dy) / len2)) : 0;
+    const ex = c.x1 + u * dx - p.x, ey = c.y1 + u * dy - p.y;
+    return ex * ex + ey * ey <= (c.w / 2) ** 2;
+  });
 }
 
 /**
@@ -487,6 +527,9 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   plateHit: 0.12,
   backHit: 0.09,
   reviveTick: 0.3,
+  // The Kiln: a Rift spits every 3 s and two can be open; lava sizzles while you stand in it.
+  riftSpit: 1,
+  lavaSizzle: 0.35,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.

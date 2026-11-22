@@ -11,7 +11,7 @@ import { rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, BELLY, DRY, Cue, CueContext, cueFor, DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -310,6 +310,9 @@ class AudioEngine {
     this.duckUntil = until;
   }
 
+  /** Cues waiting for a telegraph to land, in game time (Cue.after). */
+  private later: { at: number; c: Cue }[] = [];
+
   cue(c: Cue | null): void {
     if (c) this.play(c.id, c.vol ?? 1, c.jitter ?? 0, c.pan ?? 0);
   }
@@ -334,7 +337,17 @@ class AudioEngine {
       else if (ev.type === 'end') this.theme(null);
       const c = cueFor(ev, ctx);
       if (c) this.cue({ ...c, pan: panFor(ev, ctx) });
+      const land = landCueFor(ev);
+      if (land && ctx.t !== undefined) this.later.push({ at: ctx.t + (land.after ?? 0), c: { ...land, pan: panFor(ev, ctx) } });
     }
+    if (this.later.length && ctx.t !== undefined) {
+      const t = ctx.t;
+      // A new run restarts the clock: drop anything left from the last one.
+      this.later = this.later.filter((l) => l.at - t < 10);
+      for (const l of this.later) if (l.at <= t) this.cue(l.c);
+      this.later = this.later.filter((l) => l.at > t);
+    }
+    if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     this.cue(ebbCue(this.ebbing, !!ctx.ebbPull));
