@@ -884,6 +884,56 @@ export const SOUNDS = {
     boom(42, 0.9, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.18 })),
     [{ wave: 'noise', f: 0, dur: 1.3, delay: 0.3, vol: 0.28, a: 0.1, lp: 8000, hp: 2000, trem: [18, 0.4], curve: 1.2 }],
   ),
+  // ---- Raid 4, the Flue: the Furnace Regent (docs/design/raid4.md). Its world is the shadowRegent sting: a stately call over a furnace roar.
+  /** A Decree lands on you (8 s to pass it on): a seal stamped down, the Regent's two-note call, and the burn starting to hiss. */
+  decreeOnMe: join(
+    [{ wave: 'sine', f: 180, f2: 70, dur: 0.18, vol: 0.4, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.06, vol: 0.32, lp: 4000, hp: 600, curve: 3 }],
+    horn(note(-9), 0.3, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.1 })),
+    horn(note(-2), 0.45, 0.32).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.32 })),
+    [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.25, vol: 0.18, a: 0.1, lp: 8000, hp: 2500, trem: [20, 0.5], curve: 1.4 }],
+    chime(E6, 0.36, 0.16, 0.4),
+  ),
+  /** A Decree is handed on: a quick flick of parchment and a falling-then-rising pair, the seal changing hands. */
+  decreePass: join(
+    whoosh(1800, 6500, 0.18, 0.2),
+    chime(A5, 0.04, 0.16, 0.25), chime(E6, 0.12, 0.17, 0.35),
+  ),
+  /** A Decree was held too long and burst (heavy party fire): a sealed blast with a broken horn stab. */
+  decreeBurst: join(
+    boom(50, 0.8, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.4, lp: 7000, lp2: 1500, hp: 700, curve: 2 }],
+    horn(note(-8), 0.35, 0.3).map((v) => ({ ...v, f2: (v.f2 ?? v.f) * 0.9, delay: (v.delay ?? 0) + 0.05 })),
+  ),
+  /** Spent wears off: you can take a Decree again. A small, warm ready tick. */
+  spentEnd: join(
+    [{ wave: 'noise', f: 0, dur: 0.02, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }],
+    chime(D5 * 2, 0, 0.13, 0.25), chime(G5 * 2, 0.07, 0.12, 0.3),
+  ),
+  /** Phase 2, Edict: two seals stamp at once and the call doubles, a fifth over itself. */
+  phaseEdict: join(
+    boom(46, 0.8, 0.5),
+    ...[0, 0.12].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.06, delay: d, vol: 0.32, lp: 4500, hp: 700, curve: 3 }]),
+    horn(note(-9), 0.5, 0.26).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.15 })),
+    horn(note(-2), 0.9, 0.26).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
+    horn(note(5), 0.8, 0.18).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+  ),
+  /** Phase 3, Abdication: the crown falls. A descending call, a ringing crash, and the furnace roars up behind it. */
+  phaseAbdication: join(
+    horn(note(-2), 0.4, 0.26), horn(note(-9), 0.5, 0.26).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.3 })),
+    clang(note(10), 0.32, 0.8).map((v) => ({ ...v, delay: 0.75 })),
+    boom(42, 0.9, 0.5).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.75 })),
+    whoosh(300, 5000, 1.0, 0.24).map((v) => ({ ...v, delay: 0.85 })),
+  ),
+  /** Last Word (the enrage, 5 s): the Regent's final proclamation, a horn swelling over a furnace roar that keeps climbing. */
+  lastWordWarn: join(
+    [{ wave: 'noise', f: 0, dur: 2.9, vol: 0.38, a: 2.2, lp: 300, lp2: 5500, hp: 200, curve: 0.4 },
+     { wave: 'saw', f: note(-26), f2: note(-14), dur: 2.9, vol: 0.2, a: 2.0, lp: 900, lp2: 2400, vib: [4, 0.02], curve: 0.4 }],
+    horn(note(-9), 1.2, 0.26).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.3 })),
+    horn(note(-2), 1.4, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.4 })),
+  ),
+  /** Last Word lands: the furnace door thrown open on everyone. */
+  lastWord: join(boom(36, 1.3, 0.7), whoosh(500, 8000, 1.0, 0.32), horn(note(-21), 1.1, 0.28)),
 } satisfies Record<string, Recipe>;
 
 export type SoundId = keyof typeof SOUNDS;
@@ -927,6 +977,10 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   allyDown: 4.8,
   anvilWarn: 1.2,
   enrage: 1.9,
+  // Raid 4, the Flue: its must-hear cues, brought up to the floor (PHONE_FLOOR_DB) with about 0.5 dB to spare.
+  decreeOnMe: 1.3,
+  phaseEdict: 1.7,
+  phaseAbdication: 1.3,
 };
 for (const [id, db] of Object.entries(PHONE_LIFT) as [SoundId, number][]) {
   const g = Math.pow(10, db / 20);
