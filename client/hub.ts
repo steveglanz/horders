@@ -386,6 +386,25 @@ export class Hub {
     const dgs = $('tiers').querySelector<HTMLElement>('.dungeons');
     const dgOn = dgs?.querySelector<HTMLElement>('.dg.on');
     if (dgs && dgOn && dgs.scrollWidth > dgs.clientWidth) dgs.scrollLeft = dgOn.offsetLeft - dgs.offsetLeft - 16;
+    // Dots under the carousel say there are more delves to swipe to (QA, 23 Nov: at 360 px the next card was just cut
+    // off), and which one you're looking at.
+    if (dgs && dgs.scrollWidth > dgs.clientWidth + 4) {
+      const cards = [...dgs.children] as HTMLElement[];
+      const dots = document.createElement('div');
+      dots.className = 'dg-dots';
+      dots.setAttribute('aria-hidden', 'true');
+      dots.innerHTML = cards.map(() => '<i></i>').join('');
+      dgs.after(dots);
+      const mark = () => {
+        const x = dgs.scrollLeft + 24;
+        let at = 0;
+        cards.forEach((c, i) => { if (c.offsetLeft - dgs.offsetLeft <= x) at = i; });
+        if (dgs.scrollLeft + dgs.clientWidth >= dgs.scrollWidth - 4) at = cards.length - 1;
+        dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === at));
+      };
+      mark();
+      dgs.addEventListener('scroll', mark, { passive: true });
+    }
     const blocked = this.partyBlocker();
     const start = $('startBtn') as HTMLButtonElement;
     start.disabled = !!blocked;

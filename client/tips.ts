@@ -134,6 +134,9 @@ export function installTips(): void {
     clearTimeout(hoverTimer);
     if (!el) { if (shownFor) hideTip(); return; }
     if (el === shownFor) return;
+    // Phone-sized screens (a mouse on a small window, or a phone that reports one): no hover tips on combat buttons
+    // mid-fight, where one covered the resource bar (QA, 23 Nov). Pause lists the abilities with their tips.
+    if (el.getAttribute('data-tip-touch') === 'off' && matchMedia('(max-width: 560px), (max-height: 520px)').matches) return;
     hoverTimer = window.setTimeout(() => show(el), HOVER_MS);
   });
   document.addEventListener('pointerout', (e) => {

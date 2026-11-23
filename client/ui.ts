@@ -244,7 +244,7 @@ export class Hud {
     let next = '';
     if (w.stress) next = 'Stress test';
     else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
-    else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} in ${Math.ceil(w.phaseT)}`;
+    else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} · ${Math.ceil(w.phaseT)}`; // a countdown, as "Choose a path · 6"
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
