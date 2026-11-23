@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -664,9 +664,12 @@ export const ANVIL_SHIFT_HOLD = 200;
  * telegraphs is out, so the usual step-out still clears a Slag Sweep. NOANVILHOLD=1 turns it off.
  */
 export function anvilHold(w: World): { dx: number; dy: number } | null {
-  if (w.dungeonId !== 'smeltery' || w.bossVariant !== 'shift' || w.player.stance !== 'anvil' || !w.isTank(w.acting)) return null;
+  if (w.dungeonId !== 'smeltery' || w.player.stance !== 'anvil' || !w.isTank(w.acting)) return null;
   if (w.bossIndex < 0 || process.env.NOANVILHOLD === '1') return null;
   const e = w.enemies[w.bossIndex];
+  // Phase 16 U1 (QA on #599): a Plate Shift echo needs the hold too, once his echo turns have begun.
+  const shiftEcho = w.bossEcho === 'shift' && !!e && e.hp <= e.maxHp * RAID_ECHO.colossus && process.env.NOSHIFTECHOHOLD !== '1';
+  if (w.bossVariant !== 'shift' && !shiftEcho) return null;
   if (!e?.alive || w.telegraphs.some((t) => t.alive && t.owner === w.bossIndex)) return null;
   const p = w.player;
   const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;

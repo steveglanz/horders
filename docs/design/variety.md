@@ -1410,6 +1410,14 @@ Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party i
 - The base parties land at 64 to 74% with echoes on, against 59 to 73% with them off.
 - **Grandmother Slag** gets a little easier with her echo (4 to 5 wins in every setup). Each window change clears the islands or the overflow that was building, which may be why; I haven't measured that. Every setup stays inside the band, so it is kept. Fewer runs see her echo (57 to 73 of 80), because only a run that brings her to 50% in phase 2 gets a window.
 - **The Colossus Anvil party** drops the most, 60 to 48 (75% to 60%), and is still inside the band. The Anvil party was over the band before echoes.
+- **The Anvil bots and a Plate Shift echo (QA on #599, 23 Nov):** the drop was the bots, not the echo. The Anvil tank's hold (`anvilHold` in sim/bot.ts, which keeps him close so he doesn't walk off with his plates turned) only ran in his own Plate Shift version, so a Plate Shift echo found the tank wandering. The hold now also runs once a Plate Shift echo's turns have begun (`bossEcho === 'shift'` and his hp at or under `RAID_ECHO.colossus`). `NOSHIFTECHOHOLD=1` turns that off for measuring. Smeltery t10, Anvil party, wins out of 80:
+
+| Seeds | Hold in the echo | No hold in the echo | Echoes off |
+|---|---|---|---|
+| 41 to 120 | 59 | 48 | 60 |
+| 121 to 200 | 59 | 47 | 57 |
+
+  Of the 60 runs that drew a Plate Shift echo, 40 won with the hold and 17 without. With the hold the Anvil party is back level with echoes off (118 against 117 of 160).
 - **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
 - **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.
 

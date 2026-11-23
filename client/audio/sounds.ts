@@ -854,6 +854,26 @@ export const SOUNDS = {
      { wave: 'saw', f: 110, f2: 190, dur: 0.45, vol: 0.12, a: 0.1, lp: 900, lp2: 1600, curve: 1.2 }],
     clang(note(-7), 0.16, 0.25).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
   ),
+  /** Phase 16 U2: the Ballast winds up Anchor Slam (a ring round it, BALLAST.slamCast 0.9 s): its chain draws taut with
+   *  a rising rattle over a deep strain, and a bright ring of iron at the top. Ends before the slam lands. */
+  anchorWarn: join(
+    ...[0, 0.1, 0.19, 0.27, 0.34, 0.4, 0.46, 0.51, 0.56].map((d, k) => clang(1500 + k * 90, 0.09 + k * 0.012, 0.08).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'saw', f: 75, f2: 150, dur: 0.65, vol: 0.14, a: 0.25, lp: 700, lp2: 1500, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.55, vol: 0.1, a: 0.3, lp: 2500, lp2: 5000, hp: 1200, curve: 1.3 }],
+    clang(note(-5), 0.2, 0.2).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.62 })),
+  ),
+  /** The Ballast drops anchor (stops and plants, hits now glance): a short run of chain paying out, then a heavy thunk. */
+  anchorDrop: join(
+    ...[0, 0.04, 0.08, 0.115, 0.15].map((d, k) => clang(1700 - k * 120, 0.06, 0.06).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'sine', f: 130, f2: 55, dur: 0.2, delay: 0.19, vol: 0.2 },
+     { wave: 'noise', f: 0, dur: 0.1, delay: 0.19, vol: 0.24, lp: 2400, hp: 500, curve: 3 },
+     { wave: 'tri', f: 420, f2: 260, dur: 0.12, delay: 0.19, vol: 0.2, curve: 3 }],
+  ),
+  /** The Ballast weighs anchor (walks again, hits land in full): the chain hauled in, a few slow ratchet clicks rising. */
+  anchorWeigh: join(
+    ...[0, 0.11, 0.21, 0.3].map((d, k) => clang(1200 + k * 160, 0.07, 0.07).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.07, a: 0.05, lp: 3000, lp2: 5000, hp: 900, curve: 1.5 }],
+  ),
   /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
    *  so "that did little" is heard without looking. Takes the place of the hit sound. */
   glance: [
@@ -1751,7 +1771,8 @@ export const PHONE_FLOOR_DB = -26.5;
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
-  chargeWindup: 4.0,
+  // +2 (Phase 16): it was 4.0 dB over the Foundry mix, under the slams (busycheck t8 heroes, SEEDS=1-24, n=8).
+  chargeWindup: 6.0,
   // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
   bellowWarn: 3.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
@@ -1796,6 +1817,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
   bashWarn: 7.2, glance: 4.0, // U2 Ashwall: the wind-up 6.1 dB over the Kiln mix (busycheck t8 heroes, SEEDS=1-16, n=9), level with chargeWindup; the glance a little over plateHit, under the plain hit
+  anchorWarn: 4.5, anchorDrop: 3.0, anchorWeigh: 3.0, // U2 Ballast: the wind-up ~8 dB over the Foundry mix (busycheck t8 heroes, SEEDS=1-24); drop and weigh ordinary
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
