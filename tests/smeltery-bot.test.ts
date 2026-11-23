@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World } from '../sim/world';
+import { World, RAID_ECHO } from '../sim/world';
 import { anvilHold, ANVIL_SHIFT_HOLD, colossusFlank, lumenWard, MELT_TANK_FIRST } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
 
@@ -58,12 +58,15 @@ describe('the Smeltery Lumen in Meltdown', () => {
 
 describe('the Smeltery Anvil tank in Plate Shift', () => {
   /** anvilHold for an Anvil Slagbinder tank `d` px from the Colossus, in version `v`. */
-  function hold(v: 'wheel' | 'shift', d: number, telegraph = false): { dx: number; dy: number } | null {
+  function hold(v: 'wheel' | 'shift', d: number, telegraph = false, echo = '', hpFrac = 1): { dx: number; dy: number } | null {
     const w = new World({ seed: 5, dungeon: 'smeltery', omens: [], cls: 'slagbinder', stance: 'anvil', worldBoss: 'The Cinder Colossus', party: [{ cls: 'lumen' }] });
     const inner = w as unknown as Inner;
     for (const e of w.enemies) e.alive = false;
     inner.bossIndex = inner.spawn('colossus', 0, 0);
     w.bossVariant = v;
+    w.bossEcho = echo;
+    const boss = w.enemies[inner.bossIndex];
+    boss.hp = boss.maxHp * hpFrac;
     for (const t of w.telegraphs) t.alive = false;
     if (telegraph) (w as unknown as { addTelegraph(...a: unknown[]): void }).addTelegraph('cone', 0, 0, 200, 0, Math.PI / 2, 1.5, 10, 'hit', inner.bossIndex);
     w.player.x = d; w.player.y = 0;
@@ -77,5 +80,11 @@ describe('the Smeltery Anvil tank in Plate Shift', () => {
     expect(hold('shift', ANVIL_SHIFT_HOLD - 20)).toBeNull();
     expect(hold('wheel', 340)).toBeNull();
     expect(hold('shift', 340, true)).toBeNull();
+  });
+
+  it('holds him close in a Plate Shift echo too, once his echo turns have begun (Phase 16 U1)', () => {
+    expect(hold('wheel', 340, false, 'shift', RAID_ECHO.colossus - 0.05)).not.toBeNull();
+    expect(hold('wheel', 340, false, 'shift', RAID_ECHO.colossus + 0.05)).toBeNull();
+    expect(hold('wheel', 340, false, 'wheel', 0.2)).toBeNull();
   });
 });
