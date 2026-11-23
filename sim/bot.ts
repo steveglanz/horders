@@ -1362,22 +1362,72 @@ export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
  * - a newly spawned enemy.
  * `skill` < 1 also misses some interrupts, as in botInput. Not covered: cues that are not
  * telegraphs, casts or foes (arena vents' glow, a boss picking a target), which it sees at once.
+ *
+ * With no `mistakes` it is a best case: it notices late but then plays perfectly. `mistakes` (BotMistakes) adds
+ * what real players also do: now and then never noticing a mechanic, and steps that are a little off.
  */
-export function reactBot(reactS: number, skill = 1): (w: World) => Input {
-  return (w: World) => (reactS > 0 ? perceiveLate(w, reactS, () => botInput(w, skill)) : botInput(w, skill));
+export function reactBot(reactS: number, skill = 1, mistakes: BotMistakes = {}): (w: World) => Input {
+  const forget = mistakes.forget ?? 0;
+  const stepErr = mistakes.stepErr ?? 0;
+  const salt = mistakes.salt ?? 0;
+  return (w: World) => {
+    const inp = reactS > 0 || forget > 0 ? perceiveLate(w, reactS, forget, salt, () => botInput(w, skill)) : botInput(w, skill);
+    if (!stepErr || (!inp.x && !inp.y)) return inp;
+    // A misjudged step: the move is off by up to stepErr radians, the same error held for STEP_WINDOW s, so the hero
+    // drifts the wrong way for a moment and corrects (unlike a delayed input, it never replays an old move).
+    const a = stepErr * (2 * hash01(salt, w.acting, Math.floor(w.time / STEP_WINDOW), 7) - 1);
+    const c = Math.cos(a), sn = Math.sin(a);
+    return { ...inp, x: inp.x * c - inp.y * sn, y: inp.x * sn + inp.y * c };
+  };
 }
 
-/** Runs `decide` with what appeared in the last `reactS` seconds hidden from it, then puts it all back. */
-function perceiveLate<T>(w: World, reactS: number, decide: () => T): T {
+/**
+ * Execution mistakes for reactBot (all default 0, which is #639's mistake-free bot):
+ * - `forget`: the chance that a hero never notices a given telegraph or enemy cast at all (it stands in it, or lets
+ *   the cast finish). Rolled once per telegraph or cast and per hero, so a party doesn't all miss the same one.
+ * - `stepErr`: the most a step can be off, in radians, held for STEP_WINDOW s at a time.
+ * - `salt`: varies which telegraphs are forgotten and which steps go wrong, without touching the run's own rng.
+ */
+export interface BotMistakes {
+  forget?: number;
+  stepErr?: number;
+  salt?: number;
+}
+
+/** How long one misjudged step lasts (s). */
+export const STEP_WINDOW = 0.4;
+
+/** A hash of four integers to [0, 1): the bot's own dice, so its mistakes never draw on the world's rng. */
+function hash01(a: number, b: number, c: number, d: number): number {
+  let h = 2166136261 ^ (a | 0);
+  for (const v of [b, c, d]) {
+    h = Math.imul(h ^ (v | 0), 16777619);
+    h ^= h >>> 13;
+    h = Math.imul(h, 0x5bd1e995);
+    h ^= h >>> 15;
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * Runs `decide` with what appeared in the last `reactS` seconds hidden from it, and with what this hero `forget`s
+ * hidden for good, then puts it all back. A telegraph is known by its pool slot and the tick it appeared; a cast by
+ * its caster and the tick it began.
+ */
+function perceiveLate<T>(w: World, reactS: number, forget: number, salt: number, decide: () => T): T {
   const tele: Telegraph[] = [];
   const foes: Enemy[] = [];
   const casts: [Enemy, string][] = [];
-  for (const t of w.telegraphs) if (t.alive && t.t < reactS) { t.alive = false; tele.push(t); }
-  for (const e of w.enemies) {
-    if (!e.alive) continue;
+  const tick = (age: number) => Math.round((w.time - age) * 30);
+  const forgot = (kind: number, slot: number, born: number) => forget > 0 && hash01(salt * 131 + kind, w.acting, slot, born) < forget;
+  w.telegraphs.forEach((t, i) => {
+    if (t.alive && (t.t < reactS || forgot(1, i, tick(t.t)))) { t.alive = false; tele.push(t); }
+  });
+  w.enemies.forEach((e, i) => {
+    if (!e.alive) return;
     if (w.time - e.spawnedAt < reactS) { e.alive = false; foes.push(e); }
-    else if (e.castId && e.castT < reactS) { casts.push([e, e.castId]); e.castId = ''; }
-  }
+    else if (e.castId && (e.castT < reactS || forgot(2, i, tick(e.castT)))) { casts.push([e, e.castId]); e.castId = ''; }
+  });
   try {
     return decide();
   } finally {
