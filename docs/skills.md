@@ -39,7 +39,7 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 ## Novice aid (melee, tiers 1 to 3)
 
 A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
-- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by up to 50%.
+- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1 and 70% at tiers 2 and 3 (`BLADE_GUARD`), and not at all from tier 4. Unlike the rest of the aid it doesn't fade through tiers 2 and 3. When it faded, a novice Duskblade won 0 of 40 ungeared at Kiln t2 and t3 (QA's playtest, 23 Nov). Most of the damage came from Cinder Brute hits.
 - **Duskblade Sidestep:** heals up to 3% of max health.
 - **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.

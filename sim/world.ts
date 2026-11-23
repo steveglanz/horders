@@ -68,8 +68,13 @@ const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
 const BULWARK_BLOCK = 0.35;
 const RINGWALL_BLOCK = 0.2;
-/** Blade Guard: share of each hit the Duskblade stops from the foe it is swinging at. */
-const BLADE_GUARD = 0.5;
+/**
+ * Blade Guard (novice aid): share of each hit the Duskblade stops from the foe it is swinging at, by tier (1, 2, 3),
+ * and none from tier 4. It stays strong through tiers 2 and 3 instead of fading with the rest of the aid: with it
+ * fading, a novice Duskblade (LAG=0.3 SKILL=0.5, ungeared) won 0 of 40 at Kiln t2 and t3, mostly to Cinder Brute
+ * hits (QA's playtest, 23 Nov). See docs/skills.md.
+ */
+export const BLADE_GUARD: readonly number[] = [0.5, 0.7, 0.7];
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -3128,7 +3133,7 @@ export class World {
     // Kinbound: an ally's heal leaves you Covered.
     if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
-    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
+    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (BLADE_GUARD[this.tier - 1] ?? 0);
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
