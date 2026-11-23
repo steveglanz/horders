@@ -27,6 +27,7 @@ import { frames as artFrames, HERO, BOSS } from './art';
 import type { Hd2dAdapter, Hd2dView } from './api';
 import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
+import { SIM } from './simconsts';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
 const S = 1 / 70;
@@ -40,12 +41,9 @@ const BOSS_PX = 0.03;
 const VIEW = 560 * S;
 /** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
 const SELF_LIFT = 1.6;
-/** BALLAST.plantDelay (sim/world.ts): seconds in reach before the Ballast drops anchor. */
-const BALLAST_PLANT = 0.8;
-/** LAMPEYE.full (sim/world.ts): the Lampeye's gaze at which it starts its Searing Look. */
-const LAMPEYE_FULL = 6;
-/** DIMHORN.callAt (sim/world.ts): seconds in the dark before the Dimhorn sounds its Dark Call. */
-const DIMHORN_CALL = 7;
+const BALLAST_PLANT = SIM.ballastPlant;
+const LAMPEYE_FULL = SIM.lampeyeFull;
+const DIMHORN_CALL = SIM.dimhornCall;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
