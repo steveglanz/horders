@@ -352,6 +352,11 @@ export const SOUNDS = {
     ...[0.62, 0.75, 0.83, 0.99, 1.1, 1.24].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
   /** A named elite falls: a heavy thud, then a rising sparkle for the loot it drops. */
   namedKill: join(boom(60, 0.6, 0.45), chime(E5, 0.15, 0.22, 0.5), chime(B5(), 0.25, 0.22, 0.5), chime(E6, 0.35, 0.26, 0.9)),
+  /** Phase 14 X2: a Brood named foe falls and its pack spills out: the same thud, then the brood scrabbling free, then the loot. */
+  namedKillBrood: join(boom(60, 0.6, 0.45),
+    ...[0.08, 0.13, 0.19, 0.24, 0.31, 0.36, 0.43].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.16, lp: 7000 + (k % 3) * 1200, hp: 2200, curve: 3 }]),
+    [{ wave: 'tri', f: 1300, f2: 1800, dur: 0.07, delay: 0.3, vol: 0.08, curve: 3 }, { wave: 'tri', f: 1500, f2: 2100, dur: 0.07, delay: 0.4, vol: 0.07, curve: 3 }],
+    chime(E5, 0.5, 0.2, 0.5), chime(B5(), 0.6, 0.2, 0.5), chime(E6, 0.7, 0.24, 0.9)),
   rareSpawn: join(horn(note(-16), 0.8, 0.3), chime(E6, 0.3, 0.15, 0.6)),
   enrage: [
     { wave: 'saw', f: 70, f2: 55, dur: 1.0, vol: 0.4, a: 0.1, lp: 900, lp2: 2000, vib: [9, 0.05] },
@@ -1474,6 +1479,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   lastEmberWarn: 2.5,
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
+  namedKillBrood: 1.6,
   namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
   phase: 2.2,
   phaseIce: 5.9,

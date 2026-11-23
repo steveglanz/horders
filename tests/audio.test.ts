@@ -777,6 +777,22 @@ describe('audio', () => {
     expect(Object.keys(lands).sort()).toEqual(['caveIn', 'coldSnap', 'ventSurge']);
   });
 
+  it('lets a Brood named foe\'s pack be heard spilling out when it falls; every other named foe falls as usual (Phase 14 X7)', () => {
+    const c = { cls: 'emberwright' as const, acting: 0 };
+    const kill = { type: 'namedKill', x: 0, y: 0, name: 'X' } as never;
+    for (const affix of AFFIXES) expect(cueFor(kill, { ...c, namedAffix: affix })?.id, affix).toBe(affix === 'Brood' ? 'namedKillBrood' : 'namedKill');
+    expect(cueFor(kill, c)?.id).toBe('namedKill');
+    expect(Math.abs(phoneDb(render(SOUNDS.namedKillBrood, 22050), 22050) - phoneDb(render(SOUNDS.namedKill, 22050), 22050))).toBeLessThan(1);
+    // The sim spawns the pack on the same kill that fires namedKill, and the game and busycheck pass the run's affix.
+    const world = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    expect(world).toMatch(/if \(AFFIXES\[e\.affix\] === 'Brood'\) \{[\s\S]{0,400}this\.spawn\(kind[\s\S]{0,200}type: 'namedKill'/);
+    const w = new World({ seed: 1, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright' });
+    expect(typeof w.namedPlan).toBe('function');
+    for (const f of ['../client/GameScene.ts', '../tools/busycheck.ts']) {
+      expect(readFileSync(new URL(f, import.meta.url), 'utf8'), f).toContain('namedAffix: w.namedPlan()?.affix');
+    }
+  });
+
   it('calls a marked foe in by its mark, as a must-hear cue; other named foes keep the usual call (Phase 14 X7)', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     for (const affix of AFFIXES) {
