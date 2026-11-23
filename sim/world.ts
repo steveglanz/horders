@@ -4910,6 +4910,18 @@ export class World {
           my = gd > 8 ? (gy / gd) * speed : 0;
         }
       }
+      // Phase 16 U2: the Dimhorn shuns the light. It hangs just outside its hero's coal light; time out of every coal's
+      // light (aux) builds toward its Dark Call, and inside one it drains and the horn can't sound.
+      if (e.kind === 'dimhorn') {
+        const lit = this.warmthAt(e.x, e.y, e.def.radius) > 0;
+        if (!e.castId) {
+          e.aux = lit ? Math.max(0, e.aux - dt * DIMHORN.drain) : e.aux + dt;
+          if (!lit && e.aux >= DIMHORN.callAt && e.aux2 < DIMHORN.maxCalls) this.startCast(i, 'darkCall', 'Dark Call', DIMHORN.callCast, false);
+        }
+        const R = (p.coal ? p.coalR ?? this.coalMaxR : COLD.minR) + DIMHORN.hang;
+        if (d < R) { mx = -mx; my = -my; }
+        else if (d < R + DIMHORN.band) { const tx = -my * 0.6; my = mx * 0.6; mx = tx; }
+      }
       // Phase 16 U2: the Lampeye's gaze (aux) builds while it can see its hero and fades while a pillar is between
       // them. Full, it starts its Searing Look (a cast, so a hero can still step behind a pillar).
       if (e.kind === 'lampeye' && !e.castId) {
@@ -5087,6 +5099,18 @@ export class World {
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+    } else if (id === 'darkCall') {
+      // Phase 16 U2: the Dimhorn's horn calls the pack in from the dark edge behind it. A Dimhorn dragged into a coal's
+      // light before the call ends is silenced, and the call is lost.
+      e.aux = 0;
+      if (this.warmthAt(e.x, e.y, e.def.radius) > 0) { this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'darkCallLost', name: 'Silenced' }); return; }
+      e.aux2++;
+      const a = Math.atan2(e.y, e.x), r = this.arenaR - 60;
+      for (let k = 0; k < DIMHORN.calls; k++) {
+        const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;
+        this.spawn('rimehound', Math.cos(b) * r, Math.sin(b) * r);
+      }
+      this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x: Math.cos(a) * r, y: Math.sin(a) * r });
     } else if (id === 'searingLook') {
       // Phase 16 U2: the Lampeye sears a hero it can still see; a pillar in the way blocks it. Either way its gaze resets.
       const at = this.acting;
@@ -8633,7 +8657,7 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
  * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
  */
-export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye'];
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye', 'dimhorn'];
 export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
@@ -8745,6 +8769,15 @@ export const VARIETY = {
  * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
  * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
  */
+/**
+ * Phase 16 U2: the Dimhorn (the Coldmarrow). It hangs `hang` px outside its hero's coal light (circling in a `band`
+ * px wide ring). `Enemy.aux` counts its seconds out of every coal's light, draining `drain` times as fast inside one.
+ * At `callAt` it casts Dark Call for `callCast` s, not interruptible: `calls` Rimehounds come in from the arena edge
+ * behind it, unless it is inside a coal's light when the cast ends. After `maxCalls` calls (`Enemy.aux2` counts them) its
+ * horn is spent. Uncapped, a ranged hero who never brought the light over it faced 10 to 26 calls and died every time.
+ */
+export const DIMHORN = { hang: 40, band: 70, drain: 2, callAt: 7, callCast: 2, calls: 3, maxCalls: 2 };
+
 /**
  * Phase 16 U2: the Lampeye (the Glarewell). Its gaze (`Enemy.aux`, seconds) builds while it can see its hero and
  * fades `fade` times as fast behind a pillar. At `full` it casts Searing Look for `lookCast` s: every hero it can

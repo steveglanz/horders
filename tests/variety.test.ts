@@ -584,9 +584,9 @@ describe('V8 variety: the Lensmother\'s Glintfall', () => {
 
 describe('V8 variety: the Coldmarrow', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, and rolls only pillars; Nhevra stays open', () => {
+  it('draws from 7 openers and 3 named fights, and rolls only pillars; Nhevra stays open', () => {
     const d = DUNGEONS.coldmarrow;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
