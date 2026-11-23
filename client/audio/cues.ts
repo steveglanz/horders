@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, MILL, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -39,12 +39,20 @@ export interface CueContext {
   ebbPull?: boolean;
   /** The Wrackline: Hessa's Outsurge version is live (World.outsurge), so the Ebb runs outward and sounds different. */
   outsurge?: boolean;
+  /** The Wrackline: Hessa's Whirl version is live (World.whirl), so the Ebb swirls round the drain and sounds different. */
+  whirl?: boolean;
   /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
   revive?: { t: number[]; need: number; left: number };
-  /** Where this screen listens from: the hero's x and half the view's width (world units), for panning. */
-  listen?: { x: number; half: number };
+  /**
+   * Where this screen listens from: the hero's x and half the view's width (world units), for panning.
+   * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
+   * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
+   */
+  /** The arena's radius (World.arenaR), so the 3D room's props can be placed for the edge sounds. */
+  arenaR?: number;
+  listen?: { x: number; half: number; y?: number; screen?: (x: number, y: number) => { x: number; y: number } | null; screenHalf?: number };
   /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
   sets?: SetFlags;
   /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
@@ -61,7 +69,7 @@ export interface CueContext {
    * The Smeltery, phases 1-2: where the Cinder Colossus stands and the damage side this screen's hero hits him
    * from (World.colossusSide: 0.5 plated front, 1.5 open back, 1 the flanks). Unset once Meltdown cracks the plate.
    */
-  colossus?: { x: number; y: number; side: number };
+  colossus?: { x: number; y: number; side: number; /** Millstone: grinding now, and the floor point his front (the pour) faces. */ mill?: { x: number; y: number } };
   /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
   t?: number;
   /** The dungeon (World.dungeonId), where a shared hazard sounds different (the Foundry's vents steam). */
@@ -72,6 +80,8 @@ export interface CueContext {
   heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
   inLava?: boolean;
+  /** Y3 Creeping Rime: this screen's hero stands in the rime (inRimeNow), so frost crackles underfoot. */
+  inRime?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -168,6 +178,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   ironload: { start: 'ironloadWarn', done: 'ironloadMark' }, // Ironload
   // Oskel's Die Cut version: half the floor is stamped after a 2.4 s fuse; it lands as a slam of r DIECUT_R.
   dieCut: { start: 'dieCutWarn' }, // Die Cut
+  punchLine: { start: 'punchLineWarn' }, // Punch Line (Y3): three rows of punches march out from Oskel; each lands as a slam of r PUNCH.r + PUNCH.grow * n
   // Grandmother Slag's Brimming version: phase 2's pit fills and cooling islands rise in place of the Pour.
   brimming: { start: 'brimWarn' }, // The Brimming
   // Old Vorhulm's Banked Coals version (phase 3, in place of Ember Spill): three coals to smother before he eats them.
@@ -178,6 +189,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
+  turningFire: { start: 'turnFireWarn' }, // Turning Fire (Y3): each cone's landing is a slam the size of KILN_TURN.reach
   // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
   glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
   // The Ashvents: Ysmeret, the Twofold Flame.
@@ -204,6 +217,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  tithe: { start: 'titheWarn' }, // The Regent's Tithe (Y3): the gold circle appears (TITHE.fuse 4 s); its landing is the tithe event
+  millstone: { start: 'millWarn' }, // Millstone (Y3): its end is the millstone event's start, so no castDone
   // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
   plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
   // The Furnace Regent's court version: come before the throne in 2.5 s, or be struck (it lands with a slam r SUMMONS.radius).
@@ -263,13 +278,27 @@ interface ColossusView<E extends { kind: string; x: number; y: number; alive: bo
   enemies: readonly E[];
   player: { x: number; y: number };
   colossusSide(e: E, x: number, y: number): number;
+  millT?: number;
+  colFacing?: number;
 }
 
 /** CueContext.colossus for this tick: set only while the Cinder Colossus lives and his plate still holds (phases 1-2). */
 export function colossusCue<E extends { kind: string; x: number; y: number; alive: boolean }>(w: ColossusView<E>): CueContext['colossus'] {
   const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
   if (!e || !e.alive || e.kind !== 'colossus' || w.bossPhase >= 3) return undefined;
-  return { x: e.x, y: e.y, side: w.colossusSide(e, w.player.x, w.player.y) };
+  const side = w.colossusSide(e, w.player.x, w.player.y);
+  if (!((w.millT ?? 0) > 0)) return { x: e.x, y: e.y, side };
+  // Halfway out along the slag's reach in front of him.
+  const f = w.colFacing ?? 0, d = MILL.range / 2;
+  return { x: e.x, y: e.y, side, mill: { x: e.x + Math.cos(f) * d, y: e.y + Math.sin(f) * d } };
+}
+
+/** Millstone's grind while he turns, panned to where his front faces (CueContext.colossus.mill). Throttled to MILL.tick. */
+export function millCue(c: Pick<CueContext, 'colossus' | 'listen'>): Cue | null {
+  const m = c.colossus?.mill;
+  if (!m) return null;
+  const o = offsetAt(c.listen, m.x, m.y);
+  return { id: 'millGrind', jitter: 0.05, pan: o === null ? undefined : o * PAN_MAX };
 }
 
 export function phaseSting(boss: string | undefined, phase: number): SoundId {
@@ -283,10 +312,27 @@ export const PAN_MAX = 0.5;
 
 /** Stereo position for an event that has a place, relative to the listening hero (undefined: centred). */
 export function panFor(ev: SimEvent, c: CueContext): number | undefined {
+  // A pincer or ring comes from all round you, so its call stays centred (only the reinforcements' flank pans).
+  if (ev.type === 'waveShape' && ev.stage === 'start') return undefined;
   const x = (ev as { x?: unknown }).x;
-  if (!c.listen || typeof x !== 'number' || !(c.listen.half > 0)) return undefined;
-  const p = Math.max(-1, Math.min(1, (x - c.listen.x) / c.listen.half)) * PAN_MAX;
+  if (typeof x !== 'number') return undefined;
+  const o = offsetAt(c.listen, x, (ev as { y?: unknown }).y);
+  if (o === null) return undefined;
+  const p = o * PAN_MAX;
   return Math.abs(p) < 0.02 ? undefined : p;
+}
+
+/** How far across the view a floor point is from the hero, -1 (left edge) to 1 (right edge); null with no listener. */
+function offsetAt(l: CueContext['listen'], x: number, y: unknown): number | null {
+  if (!l || !(l.half > 0)) return null;
+  return Math.max(-1, Math.min(1, screenOffset(l, x, y) ?? (x - l.x) / l.half));
+}
+
+/** 3D view: how far across the screen a floor point shows from the hero, in half-widths; null when it can't be placed (then world x is used). */
+function screenOffset(l: NonNullable<CueContext['listen']>, x: number, y: unknown): number | null {
+  if (!l.screen || !(l.screenHalf && l.screenHalf > 0) || typeof y !== 'number' || typeof l.y !== 'number') return null;
+  const at = l.screen(x, y), me = l.screen(l.x, l.y);
+  return at && me ? (at.x - me.x) / l.screenHalf : null;
 }
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
@@ -328,6 +374,10 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius) return { id: 'ironload' };
       // Die Cut's half-floor cone is the only slam the size of the whole arena twice over.
       if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
+      // Punch Line's nth punch out has radius PUNCH.r + PUNCH.grow * n (55 to 85); Rivets and the Downstroke are 60.
+      if (c.dungeon === 'pressworks' && isPunchR(ev.r)) return { id: 'punchHit', jitter: 0.04 };
+      // Turning Fire's cones are the only Kiln telegraphs as long as KILN_TURN.reach (Kiln Draw's ring is KILN_DRAW.radius).
+      if (c.dungeon === 'kiln' && ev.r === KILN_TURN.reach) return { id: 'turnCone' };
       return { id: 'slam' };
     case 'glare': return { id: ev.hit ? 'glareHit' : 'glare' };
     case 'brandBurst': return { id: 'brand' };
@@ -355,9 +405,10 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castStart':
       // Ysmeret's Wandering Vents reuse the twinVents cast; only its name says the circles will move.
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
+      if (ev.id === 'twinVents' && ev.name === ROLLING_VENTS) return { id: 'rollVentWarn' };
       // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
-      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
+      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
@@ -369,7 +420,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone':
-      if (ev.id === 'wheel') return null;
+      if (ev.id === 'wheel' || ev.id === 'millstone') return null;
       if (ev.id === 'churn') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
@@ -400,8 +451,35 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       const land = ARENA_LAND[`${ev.id}.${c.dungeon ?? ''}`] ?? set.land;
       return land ? { id: land } : null;
     }
+    // Phase 15 Y1: placeholder until sound's Y7 cues.
+    case 'waveShape': {
+      // Phase 15 Y1: a pincer or ring calls as the fight starts; reinforcements warn from their flank (pan follows x), then land.
+      const id = ev.stage === 'start' ? WAVE_SOUNDS[ev.id]?.start : ev.stage === 'warn' ? WAVE_SOUNDS[ev.id]?.warn : WAVE_SOUNDS[ev.id]?.land;
+      return id ? { id } : null;
+    }
+    // Phase 15 Y10: placeholder until sound's cue.
+    // Phase 15 Y10: one groan for any stirred fight; its reaction (event, wave, named, elite) sounds by its own cue.
+    case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
+    // Y3 Sealed Vents: a building hiss as the steam is about to move, a burst as it opens at the new vent.
+    case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
+    // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
+    case 'lightMove': return { id: 'lightSwing' };
+    // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
+    // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
+    case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
+    // Phase 16 U1: the echo marks a borrowed move; the move's own cast cue (the same tick) still says what to do.
+    case 'echo': return { id: 'echoSting' };
+    case 'tithe': return { id: ev.ok ? 'titheShared' : 'titheMissed' };
+    case 'millstone': return { id: ev.stage === 'start' ? 'millStart' : 'millEnd' };
+    case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };
+    // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
+    case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
+    case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };
+    // Y3 Creeping Rime: silent until sound adds its cue.
+    // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
+    case 'rimeRise': return { id: 'rimeRise' };
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
@@ -443,9 +521,21 @@ export const ARENA_EVENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId |
 export const ARENA_LAND: Record<string, SoundId> = {
   'caveIn.foundry': 'caveInWet', 'caveIn.coldmarrow': 'caveInIce',
   'ventSurge.foundry': 'surgeSteam', 'ventSurge.glarewell': 'surgeLens',
+  // X3 part 2, group-dungeon trash: dead-forge iron, ash and pumice, sheet steel.
+  'caveIn.hammerdeep': 'caveInDeep', 'caveIn.ashvents': 'caveInAsh', 'caveIn.pressworks': 'caveInPress',
+  'ventSurge.hammerdeep': 'surgeDeep', 'ventSurge.ashvents': 'surgeAsh', 'ventSurge.pressworks': 'surgePress',
+  // Phase 15 Y2, raid trash: slag, coal and bone, copper ingots, old brick (as their stones and vents look, #464).
+  'caveIn.crucible': 'caveInSlag', 'caveIn.hoard': 'caveInBone', 'caveIn.smeltery': 'caveInIngot', 'caveIn.flue': 'caveInBrick',
+  'ventSurge.crucible': 'surgeSlag', 'ventSurge.hoard': 'surgeHoard', 'ventSurge.smeltery': 'surgeTuyere', 'ventSurge.flue': 'surgeFlue',
 };
 /** Arena-event warnings that must be heard: the ones you dodge or answer (not High Water's swell). */
 export const ARENA_WARN_PRIORITY: readonly SoundId[] = ['caveInWarn', 'ventSurgeWarn', 'coldSnapWarn'];
+/** Phase 15 Y1: wave shapes. A reinforce wave's 'start' is silent: its warning comes 2 s before they arrive. */
+export const WAVE_SOUNDS: Record<string, { start?: SoundId; warn?: SoundId; land?: SoundId }> = {
+  pincer: { start: 'wavePincer' },
+  ring: { start: 'waveRing' },
+  reinforce: { warn: 'reinforceWarn', land: 'reinforceLand' },
+};
 /** Phase 14 X2: a marked named foe's arrival call, by affix (a foe with none keeps namedSpawn). */
 export const AFFIX_SPAWN: Record<string, SoundId> = { Brood: 'namedBrood', Smoldering: 'namedSmolder' };
 
@@ -491,6 +581,14 @@ export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
 }
 
 /** The Kiln's channel layout: is this hero standing in a lava strip (World.lava, as World.layoutClock burns it)? */
+/** Y3 Creeping Rime: is this screen's (living) hero inside the rime? The same test the sim uses to chill. */
+export function inRimeNow(w: { rimeOn: boolean; rimeX: number; rimeY: number; player: { x: number; y: number; hp: number } }): boolean {
+  const p = w.player;
+  if (!w.rimeOn || p.hp <= 0) return false;
+  const dx = p.x - w.rimeX, dy = p.y - w.rimeY;
+  return dx * dx + dy * dy <= CREEPING_RIME.r ** 2;
+}
+
 export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
   const p = w.player;
   if (p.hp <= 0) return false;
@@ -586,7 +684,8 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
  */
 export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
   // The soak event names its telegraph's owner now (#432): -4 is a Banked Coal. The same-spot match stays for older events.
-  evs = evs.filter((ev) => ev.type !== 'soak' || ev.owner !== -4);
+  // -5 is the Furnace Regent's Tithe (Y3): its own tithe event, in the same tick, says shared or missed.
+  evs = evs.filter((ev) => ev.type !== 'soak' || (ev.owner !== -4 && ev.owner !== -5));
   const at = new Set<string>();
   for (const ev of evs) if (ev.type === 'emberTaken' || ev.type === 'emberEaten') at.add(`${ev.x},${ev.y}`);
   if (!at.size) return evs as E[];
@@ -614,11 +713,49 @@ export const EDGE_SOUNDS: Record<string, readonly [SoundId, SoundId]> = {
 /** How often an edge prop sounds (s of game time, picked between min and max), how loud, and how far to the side. */
 export const EDGE = { min: 7, max: 15, vol: 0.45, pan: 0.7 };
 
+/** client/hd2d/renderer.ts ROOM_R: the 3D room is built at this radius, then scaled so it fits World.arenaR. */
+export const HD2D_ROOM_R = 7.45;
+/**
+ * The 3D rooms (client/hd2d/renderer.ts buildRoom): where each edge sound's prop stands, so in the 3D view the sound
+ * comes from the prop you can see. Each spot is [angle round the room (0 the front, PI the back wall), radius in room
+ * units]. Only the dungeons with their own room (renderer.ts OWN_ROOMS); the rest share the Flue's room, whose chimneys aren't their props,
+ * and a sound with no spots (or the 2D view) keeps the random side.
+ */
+export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [number, number])[], readonly (readonly [number, number])[]]>> = {
+  // Three beehive kilns (radius 9.2 + r * 0.25 for r 2.3 and 1.65), and four braziers.
+  kiln: [[[Math.PI, 9.775], [Math.PI - 0.8, 9.6125], [Math.PI + 0.8, 9.6125]], [[Math.PI - 0.5, 8.62], [Math.PI + 0.5, 8.62], [Math.PI - 1.1, 8.62], [Math.PI + 1.1, 8.62]]],
+  // Three brass boilers; the valve's pipe run spans the back wall, so it keeps the random side.
+  foundry: [[[Math.PI, 9.4], [Math.PI - 0.8, 9.4], [Math.PI + 0.8, 9.4]], []],
+  // Three great anvils; the lanterns are the sconces all round, so they keep the random side.
+  hammerdeep: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // Three chimneys; the banners hang between sconces, so they keep the random side.
+  flue: [[[Math.PI, 9.7], [Math.PI - 0.78, 9.7], [Math.PI + 0.78, 9.7]], []],
+  // The great lens, high at the back wall centre (its floor point: it's straight ahead either way). The shard clusters
+  // stand at seeded random spots round the open wall, so they keep the random side.
+  glarewell: [[[Math.PI, 9.6]], []],
+  // Three fumaroles; the cairns are at the same seeded random spots as the Glarewell's shards, so they keep the random side.
+  ashvents: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The giant ladle at the back wall centre (z -9.3), and the two slag pots either side.
+  crucible: [[[Math.PI, 9.3]], [[Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]]],
+  // The three gold mounds (radius 9.4 + r * 0.25 for r 3.4 and 2.0); the bone heaps are at seeded random spots.
+  hoard: [[[Math.PI, 10.25], [Math.PI - 0.85, 9.9], [Math.PI + 0.85, 9.9]], []],
+  // The three frosted arches; the frost (ice shards) is at seeded random spots.
+  coldmarrow: [[[Math.PI, 9.6], [Math.PI - 0.8, 9.6], [Math.PI + 0.8, 9.6]], []],
+  // The three press frames; the plate stacks are at seeded random spots.
+  pressworks: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The four ore carts on the rail; the ingots are at seeded random spots.
+  smeltery: [[[Math.PI - 0.55, 9.9], [Math.PI - 0.95, 9.9], [Math.PI + 0.6, 9.9], [Math.PI + 1.0, 9.9]], []],
+  // The wrecked hull at the back wall centre (z -9.6), and the six mooring posts.
+  wrackline: [[[Math.PI, 9.6]], [0.7, 1.0, 1.3].flatMap((d) => [[Math.PI - d, 8.9], [Math.PI + d, 8.9]] as const)],
+};
+/** Where a 3D room spot is on the floor, in world units (the room is centred on the arena and scaled to arenaR). */
+export const edgeSpotAt = ([a, r]: readonly [number, number], arenaR: number) => ({ x: Math.sin(a) * r * arenaR / HD2D_ROOM_R, y: Math.cos(a) * r * arenaR / HD2D_ROOM_R });
+
 /**
  * The next edge-prop sound, if one is due. `t` is game time; a boss on the field (or no dungeon) keeps it quiet and
  * pushes the next one back. `rnd` returns [0, 1) (Math.random in the engine; a seeded one in tests).
  */
-export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number): Cue | null {
+export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number, room?: { listen: CueContext['listen']; arenaR: number }): Cue | null {
   const set = dungeon ? EDGE_SOUNDS[dungeon] : undefined;
   if (!set || t === undefined) return null;
   const gap = () => EDGE.min + rnd() * (EDGE.max - EDGE.min);
@@ -628,7 +765,16 @@ export function edgeCue(state: { next: number }, dungeon: string | undefined, t:
   state.next = t + gap();
   if (boss) return null;
   const side = rnd() < 0.5 ? -1 : 1;
-  return { id: set[rnd() < 0.5 ? 0 : 1], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
+  const which = rnd() < 0.5 ? 0 : 1;
+  const cue: Cue = { id: set[which], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
+  // The 3D view: from one of that prop's spots, panned by where it shows on screen.
+  const spots = room?.listen?.screen && room.arenaR > 0 && dungeon ? EDGE_SPOTS[dungeon]?.[which] : undefined;
+  if (spots && spots.length > 0) {
+    const at = edgeSpotAt(spots[Math.min(spots.length - 1, Math.floor(rnd() * spots.length))], room!.arenaR);
+    const o = offsetAt(room!.listen, at.x, at.y);
+    if (o !== null) cue.pan = o * EDGE.pan;
+  }
+  return cue;
 }
 
 /**
@@ -672,10 +818,10 @@ export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
 }
 
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
-export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false): Cue | null {
+export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false, whirl = false): Cue | null {
   const fire = pulling && !state.on;
   state.on = pulling;
-  return fire ? { id: outsurge ? 'outsurgePull' : 'ebbPull' } : null;
+  return fire ? { id: outsurge ? 'outsurgePull' : whirl ? 'whirlPull' : 'ebbPull' } : null;
 }
 
 /** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
@@ -693,11 +839,13 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const DIECUT_R = ARENA * 2;
 /** The cast name sim/world.ts gives Twin Vents in Ysmeret's `wander` version (tests/audio.test.ts checks it). */
 export const WANDERING_VENTS = 'Wandering Vents';
+/** Ysmeret's Rolling Vents (Phase 15 Y3) reuse the twinVents cast too; its name is the only tell. */
+export const ROLLING_VENTS = 'Rolling Vents';
 
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
@@ -732,6 +880,10 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // The Kiln: a Rift spits every 3 s and two can be open; lava sizzles while you stand in it.
   riftSpit: 1,
   lavaSizzle: 0.35,
+  // Punch Line: each step of the march lands on all three rows in one tick; one thunk per step (0.25 s apart).
+  punchHit: 0.1,
+  rimeCrackle: 0.35,
+  millGrind: 0.45, // one per MILL.tick (0.5 s); a frame's slack under it so none is skipped
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.

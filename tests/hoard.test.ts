@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COAL, BANK, VORHULM_VARIANTS } from '../sim/world';
+import { World, COAL, BANK, INHALE, VORHULM_VARIANTS } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -221,5 +221,32 @@ describe('Phase 12 W3: Old Vorhulm\'s Banked Coals', () => {
     // No blast on the party and no adds.
     expect(w.heroes.map((h) => h.player.hp)).toEqual(hpHeroes);
     expect(w.enemies.filter((x) => x.alive && x.kind === 'ashling')).toHaveLength(0);
+  });
+
+  it('Y3 Inhale: in phase 3 he warns, then draws every hero in; anyone at his mouth is bitten; no embers', () => {
+    const { w, inner, b } = hoard();
+    w.bossVariant = 'inhale';
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.2;
+    inner.spillT = 0;
+    inner.coalClock(1 / 30);
+    expect(w.coalEmbers).toHaveLength(0);
+    expect(w.inhaleStage).toBe(1);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'inhale')).toBe(true);
+    // Hero 0 at his mouth, hero 1 far off.
+    const mouth = w.heroData(0).player, far = w.heroData(1).player;
+    mouth.x = e.x + e.def.radius + 10; mouth.y = e.y;
+    far.x = e.x; far.y = e.y + 400;
+    inner.coalClock(INHALE.warn + 0.001);
+    expect(w.inhaleStage).toBe(2);
+    const d0 = Math.hypot(far.x - e.x, far.y - e.y);
+    const hp0 = mouth.hp, hp1 = far.hp;
+    inner.spillT = 999;
+    for (let k = 0; k < 15; k++) inner.coalClock(1 / 30);
+    expect(Math.hypot(far.x - e.x, far.y - e.y)).toBeLessThan(d0);
+    expect(mouth.hp).toBeLessThan(hp0);
+    expect(far.hp).toBe(hp1);
+    inner.coalClock(INHALE.time);
+    expect(w.inhaleStage).toBe(0);
   });
 });

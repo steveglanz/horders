@@ -98,29 +98,49 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
+export const CREEPING_RIME_TIP = 'Quench her Snuff and kill the Snuffers. Later a patch of rime creeps after you and smothers your coal: keep moving and lead it away.';
 export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the cold eats your coal fast, but embers fall: walk over them to keep your coal bright for the Long Night.';
 /** V8: the Lensmother's intro when this run's version brings Glintfall from phase 2. */
+export const CARRIED_LIGHT_TIP = 'Hide from her Glare behind a pillar. Later she carries the light herself: when a Glare starts, put a pillar between you and her.';
 export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
 /** Phase 12 W2: Ysmeret's intro when this run's Twin Vents wander. */
+/** Phase 15 Y3: Ysmeret's intro when this run's version rolls her vents round her one at a time. */
+export const ROLLING_TIP = 'Her vents open one at a time, three in a row, each further round her than the last: spread round her so someone is always near the next. Never stand together when the Embers mark you.';
 export const WANDER_TIP = 'Two of you stand in her vents, and they drift round her as they fuse: walk with them. Never stand together when the Embers mark you.';
 /** Phase 12 W2: Oskel's intro when this run's version brings Die Cut instead of Rivets. */
+/** Phase 15 Y3: Oskel's intro when this run's version runs Punch Lines out from him. */
+export const PUNCH_TIP = 'Take turns under his Downstroke. His Punch Line runs three rows of punches out from his feet: step off the line, or cross it right behind a punch.';
 export const DIECUT_TIP = 'Take turns under his Downstroke. His Die Cut stamps half the floor: get to the other side, toward the plate.';
 /** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
 export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
+/** Phase 15 Y3: Ondrel's intro when this run's version throws the Homeward Hammer instead of the Choir of Iron. */
+export const HOMEWARD_TIP = 'The tank holds his Anvilfall. He throws his hammer at whoever stands farthest away: step out of where it lands, then off the straight line back to his hand.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
+export const WHIRL_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water swirls round the drain and carries you with it: it turns the other way each time, so watch which way and wade across it to a raft.';
 export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water turns and throws you out to the rim: the rim burns, so stay on a raft.';
 /** Phase 12 W3: Grandmother Slag's intro when this run's version brings the Brimming (cooling islands) instead of the Pour's lanes. */
+/** Phase 15 Y3: Grandmother Slag's intro when this run's version floods the pit in from the rim (the Overflow). */
+export const OVERFLOW_TIP = 'Heal the Ladle burn off the tank. Later the pit overflows from the rim: when it rises, gather in close to her until it ebbs. Then fill the vents and spread for the Cinder Marks.';
 export const BRIMMING_TIP = 'Heal the Ladle burn off the tank. Later the pit fills: stand on the cooling islands and move before they sink. Then fill the vents and spread for the Cinder Marks.';
 /** Phase 12 W3: Old Vorhulm's intro when this run's version lays Banked Coals instead of spilling embers. */
+/** Phase 15 Y3: Old Vorhulm's intro when this run's version breathes the raid in (Inhale) in place of Ember Feast. */
+export const INHALE_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end he breathes you in: when he Inhales, walk away from his mouth until he stops.';
 export const BANKED_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, stand on each hot coal as it lands, or he eats it.';
 /** Phase 12 W3: the Cinder Colossus's intro when this run's version shifts his plate instead of Wheeling. */
+/** Phase 15 Y3: the Cinder Colossus's intro when this run's version grinds round (Millstone). */
+export const MILLSTONE_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he grinds round, slag pours off him everywhere but his open back: walk round the way he turns to stay behind him, or step well clear.';
 export const PLATE_SHIFT_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, it moves to whoever hurt him most: find his open back again.';
 /** Phase 12 W3: the Furnace Regent's intro when this run's version calls a Summons with the Ash Fall. */
+/** Phase 15 Y3: the Furnace Regent's intro when this run's version demands a Tithe. */
+export const TITHE_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he demands a Tithe, at least two of you stand in the gold circle to share it, or everyone pays.';
 export const COURT_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he calls a Summons, step out of the ash and come close to him before it lands.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
 export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';
+/** Phase 15 Y3: the Kiln Mother's intro when this run's version pours Turning Fire from phase 2. */
+export const SEALED_VENTS_TIP = 'Kite her over the steam vents to boil off her Temper. Later only one vent steams: drag her to it, and watch for the steam to move.';
+export const TURNING_FIRE_TIP = 'Quench her Cataclysm at first. Later she pours fire round herself, cone after cone: step back against the turn.';
 
 
 export type DungeonId = 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'crucible' | 'wrackline' | 'pressworks' | 'hoard' | 'smeltery' | 'flue';

@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, edgeCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -355,14 +355,16 @@ class AudioEngine {
       this.later = this.later.filter((l) => l.at > t);
     }
     if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
+    if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
+    this.cue(millCue(ctx));
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
-    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge));
+    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge, !!ctx.whirl));
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
     // The props round the rim give off a quiet sound now and then (not in a boss fight).
-    this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random));
+    this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random, ctx.arenaR ? { listen: ctx.listen, arenaR: ctx.arenaR } : undefined));
     if (ctx.sets) for (const c of setCues(this.setFlags, ctx.sets)) this.cue(c);
     else this.setFlags = {};
     if (ctx.hp && ctx.hp.length > 1) {

@@ -17,10 +17,23 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
-  #game { position: fixed; inset: 0; }
+  #game { position: fixed; inset: 0; background: #120b0a; }
   /* main.ts renders the canvas at device resolution (capped at 2x) and shows it at CSS size. */
   #game canvas { width: 100% !important; height: 100% !important; }
   #game canvas { display: block; }
+  /* HD-2D look test: the short loading screen while dist/hd2d.js comes in after Delve. */
+  #hd2dLoad { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 60%, #2a1208 0%, #120b0a 70%); padding: 16px; }
+  #hd2dLoad[hidden] { display: none; }
+  #hd2dLoad .hl-card { width: min(280px, 100%); text-align: center; }
+  #hd2dLoad .hl-title { font-family: var(--serif); font-size: 22px; color: var(--gold); text-shadow: 0 0 18px rgba(255,138,61,0.55); }
+  #hd2dLoad .hl-bar { height: 6px; margin: 14px 0 10px; border-radius: 3px; background: rgba(255,200,97,0.14); overflow: hidden; }
+  #hd2dLoad .hl-bar i { display: block; width: 40%; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ff6a1f, #ffc861); animation: hlSweep 1.1s ease-in-out infinite; }
+  @keyframes hlSweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  #hd2dLoad .hl-note { font-size: 13px; color: var(--muted); }
+  #hd2dLoad .hl-fail { display: none; font-size: 13px; color: var(--ink); }
+  #hd2dLoad.failed .hl-note { display: none; }
+  #hd2dLoad.failed .hl-fail { display: block; }
+  #hd2dLoad.failed .hl-bar i { animation: none; width: 100%; background: var(--muted); }
   [hidden] { display: none !important; }
   button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -30,6 +43,10 @@
   #vignette.hurt::after { animation: hurtFlash 0.35s ease-out; }
   #vignette.hurt.big::after { animation: hurtFlash 0.6s ease-out; }
   #vignette.low::after { animation: lowPulse 1s ease-in-out infinite alternate; }
+  /* Phase 15 Y10: the dungeon stirs. The edges darken and warm for a moment as a stirred fight starts. */
+  #vignette::before { content: ""; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(70,24,6,0.55) 80%, rgba(20,6,2,0.85) 100%); }
+  #vignette.stir::before { animation: stirPulse 1.4s ease-out; }
+  @keyframes stirPulse { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes hurtFlash { from { opacity: 1; } to { opacity: 0; } }
   /* The Coldmarrow: frost creeping in from the screen edge as Chill builds (opacity set each frame). */
   #frost { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 52%, rgba(150,200,245,0.28) 74%, rgba(215,238,255,0.72) 100%); box-shadow: inset 0 0 70px 10px rgba(200,232,255,0.45); }
@@ -575,6 +592,9 @@
   /* X6: each chip kind's accent (--sc, set in ui.ts) tints its border and key; same size as before. */
   #endShape .shape { border-color: color-mix(in srgb, var(--sc, var(--muted)) 55%, transparent); }
   #endShape .shape i { font-style: normal; color: var(--sc, var(--muted)); }
+  /* Phase 15 Y4: met for the first time. */
+  #endShape .shape.new { background: color-mix(in srgb, var(--sc, var(--muted)) 16%, rgba(0,0,0,0.22)); }
+  #endShape .shape s { text-decoration: none; margin-right: 3px; }
   .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
   .end-foot { display: flex; gap: 10px; justify-content: center; }
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
@@ -1003,6 +1023,17 @@
   .prep-chip .gtile { border-radius: 8px; }
   .prep-chip .star { color: var(--gold); font-size: 16px; }
   .prep-chip svg { flex: none; }
+  /* Phase 15 Y4: the Seen log. Met entries in full, the rest dimmed with a "?". */
+  .seen { display: flex; flex-direction: column; gap: 6px; }
+  .seen-k { font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .seen-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seen-e { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--card-line); color: var(--muted); font: 500 12px var(--sans); max-width: 100%; }
+  .seen-e i { font-style: normal; font-weight: 700; }
+  .seen-e.met { border-style: solid; border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--ink); }
+  /* Y6: a met entry's glyph in its own colour (the trait badge, event mark, Heat glyph or boss crown), and its border tinted to match. */
+  .seen-e.met[style] { border-color: color-mix(in srgb, var(--gc) 55%, transparent); }
+  .seen-e svg { flex: none; color: var(--gc, var(--gold)); stroke-width: 2.6; }
+  .prep-chip .seen-eye { display: inline-flex; }
   .sheet .bounty { margin-top: 10px; }
   /* P1 weekly quests: a teal card (progress over the week), a diamond per quest that fills when done, a bar each, and the title as a crest. */
   .prep-chip[data-prep="weekly"] .star { color: var(--xp); }
@@ -1317,6 +1348,9 @@
     #hud.tgt .stat { font-size: 0; }
     #hud.tgt .stat b { font-size: 16px; }
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { margin-left: 212px; margin-right: 14px; max-width: none; }
+    /* Too narrow for the banner and the quest chip side by side: the chip steps aside while a banner shows. */
+    #quests { transition: opacity 0.35s; }
+    #hud:has(~ #banner.show) #quests { opacity: 0; }
   }
   /* Motion polish (phones first): every tap target gives under the finger, a new hub tab eases in, the bag
      slides up, and a piece you equip settles into its slot. Uses the scale property, so it never fights an
@@ -1364,6 +1398,15 @@
 </head>
 <body>
 <div id="game"></div>
+<!-- HD-2D look test (?hd2d=1): shown while the 3D file loads after Delve (client/hd2d/api.ts). -->
+<div id="hd2dLoad" hidden role="status" aria-live="polite">
+  <div class="hl-card">
+    <div class="hl-title">Entering the depths</div>
+    <div class="hl-bar"><i></i></div>
+    <div class="hl-note">Loading the 3D look, once</div>
+    <div class="hl-fail">The 3D look didn&rsquo;t load. Starting in 2D.</div>
+  </div>
+</div>
 <div id="vignette"></div>
 <div id="frost"></div>
 <div id="touch"></div>

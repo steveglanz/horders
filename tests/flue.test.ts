@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, REGENT, SUMMONS, REGENT_VARIANTS } from '../sim/world';
+import { World, REGENT, SUMMONS, REGENT_VARIANTS, TITHE } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -19,6 +19,7 @@ type Inner = {
   summonsT: number;
   tierDamage: number;
   rollRegentVariant(): string;
+  updatePartyTelegraphs(dt: number): void;
 };
 
 /** A Bulwark tank, a Lumen, a Duskblade and an Emberwright in the Flue with only the Regent up. */
@@ -284,5 +285,62 @@ describe('Phase 12 W3: the Furnace Regent\'s Summons', () => {
     const g = flue().w;
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect((g as unknown as Inner).summonsT).toBe(1.5);
+  });
+});
+
+describe('Phase 15 Y3: the Furnace Regent\'s Tithe', () => {
+  const tithe = () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'tithe';
+    w.enemies[b].hp = w.enemies[b].maxHp * (REGENT.phase2 - 0.01);
+    inner.ashT = 0;
+    inner.regentClock(0.01);
+    const gold = w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -5);
+    return { w, inner, b, gold };
+  };
+
+  it('in place of the ash, one gold circle lands TITHE.dist from him; no Summons', () => {
+    const { w, inner, b, gold } = tithe();
+    expect(gold).toHaveLength(1);
+    expect(w.telegraphs.filter((t) => t.alive && t.owner === b)).toHaveLength(0);
+    expect(inner.summonsT).toBe(0);
+    const e = w.enemies[b];
+    expect(Math.hypot(gold[0].x - e.x, gold[0].y - e.y)).toBeLessThanOrEqual(TITHE.dist + 0.001);
+    expect(gold[0].r).toBe(TITHE.r);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'tithe')).toBe(true);
+  });
+
+  it('shared by enough heroes, only they pay; with too few, everyone pays more', () => {
+    const a = tithe();
+    const t = a.gold[0];
+    a.w.heroes.forEach((h, k) => { h.player.x = k < TITHE.need ? t.x : t.x + 400 + k * 50; h.player.y = t.y; });
+    // The circle may sit near the wall: put the far heroes on the other side of it.
+    a.w.heroes.forEach((h, k) => { if (k >= TITHE.need) { h.player.x = -t.x * 0.5; h.player.y = -t.y * 0.5 + k * 40; } });
+    let before = a.w.heroes.map((h) => h.player.hp);
+    t.t = t.dur;
+    a.inner.updatePartyTelegraphs(0.01);
+    a.w.heroes.forEach((h, k) => {
+      if (k < TITHE.need) expect(h.player.hp).toBeLessThan(before[k]);
+      else expect(h.player.hp).toBe(before[k]);
+    });
+    expect(a.w.events.some((ev) => ev.type === 'tithe' && ev.ok && ev.n === TITHE.need)).toBe(true);
+    const z = tithe();
+    const t2 = z.gold[0];
+    z.w.heroes.forEach((h, k) => { h.player.x = -t2.x * 0.5; h.player.y = -t2.y * 0.5 + k * 40; });
+    before = z.w.heroes.map((h) => h.player.hp);
+    t2.t = t2.dur;
+    z.inner.updatePartyTelegraphs(0.01);
+    z.w.heroes.forEach((h, k) => expect(h.player.hp).toBeLessThan(before[k]));
+    expect(z.w.events.some((ev) => ev.type === 'tithe' && !ev.ok && ev.n === 0)).toBe(true);
+  });
+
+  it('one hero alone is not a paid Tithe: the soak reads as missed, so no gold blast, Relayer or Ventwalker heal (QA on #579)', () => {
+    const a = tithe();
+    const t = a.gold[0];
+    a.w.heroes.forEach((h, k) => { h.player.x = k === 0 ? t.x : -t.x * 0.5; h.player.y = k === 0 ? t.y : -t.y * 0.5 + k * 40; });
+    t.t = t.dur;
+    a.inner.updatePartyTelegraphs(0.01);
+    expect(a.w.events.some((ev) => ev.type === 'soak' && ev.owner === -5 && !ev.ok)).toBe(true);
+    expect(a.w.events.some((ev) => ev.type === 'tithe' && !ev.ok && ev.n === 1)).toBe(true);
   });
 });

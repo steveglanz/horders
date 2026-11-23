@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["sim", "client", "tests", "vite.config.ts"]
+  "include": ["sim", "client", "tests", "vite.config.ts", "vite.hd2d.config.ts"]
 }

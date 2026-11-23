@@ -7,8 +7,9 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -19,12 +20,13 @@ import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
+import { hd2dFx, hd2dModule, hideHd2dLoading, type Hd2dView } from './hd2d/api';
 import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures';
 import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
+import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -205,6 +207,11 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string | nu
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
+/** A named foe's banner line. */
+function namedLine(affix: keyof typeof AFFIX_TIP): string {
+  return `A named foe (${affix}). ${AFFIX_TIP[affix]} It carries its own loot.`;
+}
+
 export class GameScene extends Phaser.Scene {
   world!: World;
   hud!: Hud;
@@ -247,6 +254,14 @@ export class GameScene extends Phaser.Scene {
   warp = 1;
 
   private ground!: Phaser.GameObjects.TileSprite;
+  /** HD-2D look test (?hd2d=1): the 3D view drawn over this scene, when its module has loaded (client/hd2d/api.ts). */
+  private hd2d: Hd2dView | null = null;
+  private hd2dAlpha = 1;
+  /** The floor bridge (3D look): a second camera drawing the floor layer top-down into the canvas's corner, copied each frame. */
+  private bridge: { cam: Phaser.Cameras.Scene2D.Camera; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; n: number; span: number; stamp: number; blank: boolean } | null = null;
+  private hd2dDt = 0;
+  /** How long the 3D view took to build and to draw its first frame, in ms (tools/hd2dload.cjs). */
+  hd2dTimes: { mount: number; firstFrame: number } | null = null;
   private player!: Phaser.GameObjects.Image;
   private aura!: Phaser.GameObjects.Image;
   private enemySprites: Phaser.GameObjects.Image[] = [];
@@ -282,6 +297,8 @@ export class GameScene extends Phaser.Scene {
   private ventSprites: Phaser.GameObjects.Image[] = [];
   /** V5 (variety): the Kiln's layout art, pooled and matched to World.stones / lava / flareVents each frame. */
   private stoneImgs: Phaser.GameObjects.Image[] = [];
+  /** Phase 14 X6: the cave-in rocks as they fall, each the dungeon's own stone (stoneKey). */
+  private caveRocks: Phaser.GameObjects.Image[] = [];
   private kilnVentImgs: Phaser.GameObjects.Image[] = [];
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
@@ -304,6 +321,31 @@ export class GameScene extends Phaser.Scene {
   private brimStart = 0;
   /** Phase 12 W3: the Regent's Summons tell (depth 1.9). */
   private summonsGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 15 Y6: wave marks on the floor (depth 1.95): a ring closing, pincer chevrons, the reinforcement gate and its burst. */
+  private waveGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Y6: the Kiln Mother's Turning Fire sweep arrow (depth 2.1, over the cones), and Maelra's sealed-vent plates (depth 1.42, over the grates). */
+  private turnGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Y6 Carried Light: the light's drawn spot, gliding from where it was to her over 0.6 s when it moves (lightMove). */
+  private lightAnim: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
+  /** Y6 Creeping Rime: its floor layer (1.44, with the other floor tells), when it rose, and which way it is creeping. */
+  private rimeGfx: Phaser.GameObjects.Graphics | null = null;
+  private flowGfx: Phaser.GameObjects.Graphics | null = null;
+  private rimeBorn = 0;
+  private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
+  /** Y6 the Whirl: the way it last turned, and when that flipped (whirlDraw grows the arrows in fresh). */
+  private whirlSeen = 0;
+  /** Y6 the Homeward Hammer: the throw (from him to where it lands, when), its floor layer and its lying layer, the last stage seen. */
+  private homeThrow: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
+  private homeFloor: Phaser.GameObjects.Graphics | null = null;
+  private homeLie: Phaser.GameObjects.Graphics | null = null;
+  private homeLast = 0;
+  private whirlGfx: Phaser.GameObjects.Graphics | null = null;
+  private whirlFlip = 0;
+  private sealGfx: Phaser.GameObjects.Graphics | null = null;
+  private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
+  /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
+  private stirElite: { i: number; at: number } | null = null;
+  private stirAt = -1;
   /** Phase 14 X6: the arena events' floor marks (depth 1.9); falling rock goes on overFx. */
   private arenaGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 14 X6: just above enemy bodies and under heroes (Brood egg sacs at a foe's feet). */
@@ -397,6 +439,7 @@ export class GameScene extends Phaser.Scene {
     this.motes = [];
     this.ventSprites = [];
     this.stoneImgs = [];
+    this.caveRocks = [];
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
@@ -409,6 +452,23 @@ export class GameScene extends Phaser.Scene {
     this.summonsGfx = null;
     this.arenaGfx = null;
     this.footGfx = null;
+    this.waveGfx = null;
+    this.turnGfx = null;
+    this.lightAnim = null;
+    this.rimeGfx = null;
+    this.flowGfx = null;
+    this.rimeBorn = 0;
+    this.whirlSeen = 0;
+    this.homeThrow = null;
+    this.homeFloor = null;
+    this.homeLie = null;
+    this.homeLast = 0;
+    this.whirlGfx = null;
+    this.lightLast = { x: 0, y: 0 };
+    this.sealGfx = null;
+    this.waveFx = [];
+    this.stirElite = null;
+    this.stirAt = -1;
     this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
@@ -592,11 +652,46 @@ export class GameScene extends Phaser.Scene {
 
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => {
+      this.hd2d?.destroy();
+      this.hd2d = null;
+      this.bridgeStop();
+      this.edgeCanvas?.remove();
+      this.edgeCanvas = null;
       this.scale.off('resize', this.layout, this);
       if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
     });
     this.layout();
     this.cameras.main.centerOn(0, 0);
+    // HD-2D: the 3D view draws the run; this scene keeps the sim, input and HUD, and stops drawing its own camera.
+    const hd = hd2dModule();
+    if (hd) {
+      const t0 = performance.now();
+      try {
+        this.hd2d = hd.mount(this.game.canvas.parentElement ?? document.body, {
+          world: () => this.world,
+          alpha: () => this.hd2dAlpha,
+          enemyTex: (i) => this.enemyTex(this.world.enemies[i], i),
+          frame: (key, n) => this.frameCanvas(key, n),
+          frames: (key) => FRAMES[key] ?? 1,
+          texScale: BASE,
+          heroName: (i) => this.world.heroes[i]?.name ?? '',
+          floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
+        }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
+        this.cameras.main.setVisible(false);
+        this.bridgeStart();
+        const t1 = performance.now();
+        // The first frame builds and compiles everything while the loading screen is still up.
+        this.hd2d.frame(0);
+        this.hd2dTimes = { mount: Math.round(t1 - t0), firstFrame: Math.round(performance.now() - t1) };
+      } catch (err) {
+        console.warn('HD-2D view failed, drawing in 2D', err);
+        this.hd2d?.destroy();
+        this.hd2d = null;
+        this.bridgeStop();
+        this.cameras.main.setVisible(true);
+      }
+      hideHd2dLoading();
+    }
 
     this.hud.bindRun({
       onPick: (i) => this.pick(i),
@@ -607,6 +702,76 @@ export class GameScene extends Phaser.Scene {
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
     this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
+  }
+
+  /**
+   * The floor bridge (3D look, step 2 of the 3D plan): every floor tell drawn in 2D (rafts, vents, the Glarewell's light,
+   * coals, wave marks, boss tells) shows on the 3D floor without porting each one. A second camera draws the whole arena
+   * top-down into an n x n corner of this canvas, skipping the ground, the edge props and everything standing (depth 2.3
+   * and up: heroes, foes, stones, names, bars, effects), which the 3D view draws itself. After Phaser renders, that corner
+   * is copied into a small canvas the renderer lays on its floor (bridgeCopy). The main camera stays as it was, hidden.
+   */
+  private bridgeStart(): void {
+    const cv = this.game.canvas;
+    const n = Math.floor(Math.min(512, cv.width, cv.height));
+    if (n < 128) return;
+    const span = 2 * ((this.world.arenaR ?? ARENA) + 80);
+    const cam = this.cameras.add(0, 0, n, n, false, 'bridge');
+    cam.setZoom(n / span).centerOn(0, 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = n;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { this.cameras.remove(cam); return; }
+    this.bridge = { cam, canvas, ctx, n, span, stamp: 0, blank: true };
+    this.bridgeFilter();
+    this.game.events.on('postrender', this.bridgeCopy, this);
+  }
+
+  private bridgeStop(): void {
+    if (!this.bridge) return;
+    this.game.events.off('postrender', this.bridgeCopy, this);
+    this.cameras.remove(this.bridge.cam);
+    this.bridge = null;
+  }
+
+  /** Keeps the bridge camera to the floor layer: new objects appear all run, so each frame checks for unfiltered ones. */
+  private bridgeFilter(): void {
+    const b = this.bridge;
+    if (!b) return;
+    const id = b.cam.id;
+    const props = new Set<Phaser.GameObjects.GameObject>();
+    for (const p of this.edgeProps) { props.add(p.img); if (p.light) props.add(p.light); }
+    for (const o of this.children.list) {
+      const d = (o as Phaser.GameObjects.Image).depth ?? 0;
+      if ((o.cameraFilter & id) !== 0) continue;
+      if (d >= 2.3 || d < 0 || d === 1.95 || d === 1.97 || props.has(o)) b.cam.ignore(o);
+    }
+  }
+
+  /** After Phaser has drawn the bridge camera's corner: copy it out, then draw the 3D frame over it. */
+  private bridgeCopy(): void {
+    const b = this.bridge;
+    if (!b || !this.hd2d) return;
+    // Copy (a GPU readback plus a texture upload) only when the bridge camera drew something, or once to clear it after.
+    // A Graphics cleared this frame still renders, so it counts only if its buffer holds a fill or stroke (Phaser's
+    // Graphics Commands 3 and 8 to 11; an argument can match too, which only costs a copy).
+    const drew = b.cam.renderList.some((o) => !(o instanceof Phaser.GameObjects.Graphics) || o.commandBuffer.some((c) => c === 3 || (c >= 8 && c <= 11)));
+    if (drew || !b.blank) {
+      b.ctx.clearRect(0, 0, b.n, b.n);
+      if (drew) b.ctx.drawImage(this.game.canvas, 0, 0, b.n, b.n, 0, 0, b.n, b.n);
+      b.blank = !drew;
+      b.stamp++;
+    }
+    this.hd2d.frame(this.hd2dDt);
+    this.hd2dDt = 0;
+    this.foeEdgeMarks3d(this.time.now);
+  }
+
+  /** Where sound pans from: in 3D, by where things show on screen (client/audio/cues.ts panFor), else the 2D camera's width. */
+  private listenFrom(w: World): NonNullable<CueContext['listen']> {
+    const l = { x: w.player.x, y: w.player.y, half: this.cameras.main.worldView.width / 2 };
+    const view = this.hd2d, width = this.game.canvas.parentElement?.clientWidth ?? 0;
+    return view && width > 0 ? { ...l, screen: (x, y) => view.project(x, y), screenHalf: width / 2 } : l;
   }
 
   private layout(): void {
@@ -800,6 +965,13 @@ export class GameScene extends Phaser.Scene {
       ? Math.min(1, this.snapAge / SNAP_SECONDS)
       : w.state === 'running' && (!this.paused || this.coop) ? this.acc / TICK : 1;
     this.render(alpha, deltaMs / 1000);
+    if (this.hd2d) {
+      this.hd2dAlpha = alpha;
+      this.hd2dDt += deltaMs / 1000;
+      this.bridgeFilter();
+      // With the floor bridge, the 3D frame is drawn after Phaser renders (bridgeCopy), so the floor it lays is this frame's.
+      if (!this.bridge) { this.hd2d.frame(this.hd2dDt); this.hd2dDt = 0; this.foeEdgeMarks3d(this.time.now); }
+    }
     this.hud.tick(w, this.fps());
   }
 
@@ -848,6 +1020,7 @@ export class GameScene extends Phaser.Scene {
       anvilOnMe: w.dungeonId === 'hammerdeep' && (w.anvilOnMe || (w.loadHero === w.acting && w.loadT > 0)),
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       outsurge: w.dungeonId === 'wrackline' && w.outsurge,
+      whirl: w.dungeonId === 'wrackline' && w.whirl,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
@@ -861,11 +1034,15 @@ export class GameScene extends Phaser.Scene {
       namedAffix: w.namedPlan()?.affix,
       heat: w.heat || undefined,
       inLava: w.lava.length > 0 && inLavaNow(w),
+      inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
-      listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
+      listen: this.listenFrom(w),
+      arenaR: w.arenaR,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
+    // A named foe steps out as its fight starts: its banner follows the fight's own (encounterStart), which would replace it.
+    const fightStarts = events.some((e) => e.type === 'encounterStart');
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
@@ -1228,39 +1405,53 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'phase':
           if (w.dungeonId === 'glarewell') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
+            if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
+            else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            else if (w.bossEcho) this.hud.banner('Phase 3: The pillars fall', `She cracks a pillar every so often, and echoes ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
+            else if (ev.phase === 2 && w.bossVariant === 'flow') this.hud.banner('Phase 2: The Overflow', 'The pit floods in from the rim. When it rises, gather close to her');
             else if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
             else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            if (ev.phase === 2 && w.bossVariant === 'tide') this.hud.banner('Phase 2: Sluicetide', 'The water runs across the room and pushes you. Lean into it, and watch for it to turn');
+            else if (ev.phase === 2 && w.bossVariant === 'seal') this.hud.banner('Phase 2: Sealed Vents', 'Only one vent steams now. Drag her to it, and watch for the steam to move');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            else if (w.bossEcho) this.hud.banner('Phase 3: Overpressure', `The vents erupt on their own, and ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho} comes and goes`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
-            this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+            if (w.bossVariant === 'outsurge') this.hud.banner('Phase 2: The Outsurge', 'The water throws you out to the rim, and the rim burns. Stay on a raft');
+            else if (w.bossVariant === 'whirl') this.hud.banner('Phase 2: The Whirl', 'The water swirls round the drain and carries you. It turns the other way each time');
+            else this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
+            else if (ev.phase === 2 && w.bossVariant === 'mill') this.hud.banner('Phase 2: Millstone', 'He grinds round, pouring slag everywhere but his back. Walk round with him');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
             if (ev.phase === 2 && w.bossVariant === 'court') this.hud.banner('Phase 2: Edict', this.hud.compact ? 'Two Decrees at once. On a Summons, get inside his gold ring' : 'Two Decrees at once. When he calls a Summons, come inside the gold ring, but keep clear of a Decree');
+            else if (ev.phase === 2 && w.bossVariant === 'tithe') this.hud.banner('Phase 2: Edict', this.hud.compact ? 'Two Decrees at once. On a Tithe, two or more share the gold circle' : 'Two Decrees at once. When he demands a Tithe, at least two of you share the gold circle, or everyone pays');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Edict', 'Two Decrees at once. Each fades after one pass, and Ash falls under everyone');
             else this.hud.banner('Phase 3: Abdication', 'The Decrees lapse. Burn him down, the fire keeps rising');
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
             else if (w.bossVariant === 'bank') this.hud.banner('Phase 3: Banked Coals', 'Hot coals settle round him. Stand on each one as it lands, or he eats it');
+            else if (w.bossVariant === 'inhale') this.hud.banner('Phase 3: Inhale', 'He breathes you in. Walk away from his mouth until he stops');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
           } else if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
+          else if (w.bossEcho) this.hud.banner('Phase 3: The kiln cracks', `She casts faster, and echoes ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
           else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           break;
         case 'soak':
           // A Banked Coal (owner -4) has its own ember effects, and a missed one blasts nobody.
           if (ev.owner === -4) break;
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
-          if (!ev.ok) this.floatText(ev.x, ev.y, 'Brand missed!', '#ff8aa5', 16);
+          if (!ev.ok) this.floatText(ev.x, ev.y, ev.owner === -5 ? 'Tithe unpaid!' : 'Brand missed!', '#ff8aa5', 16);
           break;
         case 'eliteSpawn':
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');
@@ -1306,6 +1497,50 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           this.tideBeat = 1;
           break;
+        case 'homeward': {
+          // Y6 the Homeward Hammer: 'out' as he throws it (homeDraw flies it there for the circle's 1.8 s), 'back' as it lands.
+          const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+          if (ev.stage === 'out') this.homeThrow = { fx: b?.x ?? ev.x, fy: (b?.y ?? ev.y) - 30, tx: ev.x, ty: ev.y, t0: this.time.now };
+          else {
+            this.homeThrow = null;
+            this.shakeBy(6);
+            this.emit(this.fx, 'ring', undefined, ev.x, ev.y + 6, 0.4, { tint: 0xffc27a, sx0: 0.5, sx1: 1.3 });
+            for (let m = 0; m < (this.lowFx ? 5 : 12); m++) {
+              const a2 = (m / 12) * Math.PI * 2;
+              this.emit(this.fx, 'spark', undefined, ev.x + Math.cos(a2) * 14, ev.y + Math.sin(a2) * 6, 0.45, { tint: 0xffd08a, vx: Math.cos(a2) * 160, vy: Math.sin(a2) * 70 - 60, drag: 0.92, sx0: 1.6, sx1: 0.3 });
+            }
+          }
+          break;
+        }
+        case 'lightMove':
+          // Y3 Carried Light: the shadows swing to point away from her.
+          this.hud.ding('The light moves');
+          this.ring(ev.x, ev.y, 70, 0xfff0c0, 0.6);
+          {
+            // Y6: the light glides from where it was onto her, and the shadow wedges swing with it.
+            const from = this.lightLast;
+            this.lightAnim = { fx: from.x, fy: from.y, tx: ev.x, ty: ev.y, t0: this.time.now };
+          }
+          break;
+        case 'rimeRise':
+          // Y3 Creeping Rime: the frost rises under Nhevra.
+          this.hud.ding('The rime creeps');
+          this.ring(ev.x, ev.y, CREEPING_RIME.r, 0xcfeaff, 0.7);
+          // Y6: the frost spreads out from under her over 0.6 s (rimeDraw), with a puff of flakes.
+          this.rimeBorn = this.time.now;
+          this.rimeDir = { x: 0, y: 1, lx: ev.x, ly: ev.y };
+          for (let m = 0; m < (this.lowFx ? 6 : 14); m++) {
+            const a = (m / 14) * Math.PI * 2;
+            this.emit(this.fx, 'frostFlake', undefined, ev.x + Math.cos(a) * 20, ev.y + Math.sin(a) * 12, 0.7, { tint: FROST, vx: Math.cos(a) * 120, vy: Math.sin(a) * 70, drag: 0.93, spin: 3, sx0: 1.2, sx1: 0.3 });
+          }
+          break;
+        case 'ventShift': {
+          // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
+          const v = w.vents[ev.vent];
+          if (ev.stage === 'warn') this.hud.ding('The steam moves');
+          if (v) this.ring(v.x, v.y, v.r + 16, 0xbfe6ff, ev.stage === 'open' ? 0.7 : 0.4);
+          break;
+        }
         case 'bossSpawn':
           this.shake = 0.6;
           break;
@@ -1314,7 +1549,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           break;
         case 'namedSpawn': {
-          this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
+          if (!fightStarts) this.hud.banner(ev.name, namedLine(ev.affix));
           // It steps out of the pack: a blue flare, rings and a little shake.
           const ne = w.enemies[ev.index];
           if (ne) {
@@ -1325,10 +1560,41 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         }
+        case 'waveShape':
+          // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
+          // own banner (encounterStart), which comes after 'start' and would replace a banner here.
+          if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          {
+            // Y6: a ring closing in round the hero, chevrons squeezing in from both flanks, or the gate the held pack
+            // comes through (pulsing for its 2 s warning) and a burst as it arrives.
+            const now = this.time.now;
+            if (ev.stage === 'start' && (ev.id === 'ring' || ev.id === 'pincer')) this.waveFx.push({ kind: ev.id, x: w.player.x, y: w.player.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: 1500 });
+            else if (ev.stage === 'warn') this.waveFx.push({ kind: 'gate', x: ev.x, y: ev.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: WAVES.reinforceWarn * 1000 + 300 });
+            else if (ev.stage === 'land') {
+              this.waveFx = this.waveFx.filter((f) => f.kind !== 'gate');
+              this.waveFx.push({ kind: 'burst', x: ev.x, y: ev.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: 600 });
+              this.shakeBy(0.08);
+            }
+          }
+          break;
+        case 'stir': {
+          // Y10: the dungeon notices. The screen's edges darken and warm for a moment, grit falls, and the ground shudders.
+          this.stirAt = this.time.now;
+          this.shakeBy(0.12);
+          if (this.vignette) { this.vignette.classList.remove('stir'); void this.vignette.offsetWidth; this.vignette.classList.add('stir'); }
+          if (ev.id === 'elite') {
+            // The extra elite is the newest elite (it spawns after the fight's own pack).
+            let best = -1;
+            w.enemies.forEach((e, i) => { if (e.alive && e.def.rank === 'elite' && (best < 0 || e.spawnedAt >= w.enemies[best].spawnedAt)) best = i; });
+            this.stirElite = best >= 0 ? { i: best, at: w.enemies[best].spawnedAt } : null;
+          }
+          break;
+        }
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
-          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip);
+          // The warning wins over a fight's banner chain (stir, wave, named foe), which resumes after it.
+          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, false, this.hud.pendingBanner());
           else if (ev.stage === 'land' && ev.id === 'caveIn') {
             this.shakeBy(0.35);
             for (const c of w.caveInSpots()) {
@@ -1364,20 +1630,28 @@ export class GameScene extends Phaser.Scene {
           const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
           const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
-          const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          const floor = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          // Phase 15 Y1: a pincer or ring wave says so in the fight banner (a banner of its own would be replaced by this one).
+          const shaped = w.waveShape === 'pincer' || w.waveShape === 'ring' ? w.waveShape : undefined;
+          // Phase 15 Y10: a stirred fight says so (a 'wave' reaction's wave line already says how they come).
+          const stirTip = w.stir ? (w.stir === 'wave' ? STIR_INFO.wave.tip : STIR_INFO[w.stir].tip) : '';
+          const stirLine = w.stir ? ` The dungeon stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
+          const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
-          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
-            : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
-            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
-            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
-            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
-            : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
-            : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
-            : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
-            : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
-            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
-            : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
+          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
+            : ev.id === 'lensmother' && w.bossVariant === 'walk' ? CARRIED_LIGHT_TIP : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
+            : ev.id === 'nhevra' && w.bossVariant === 'rime' ? CREEPING_RIME_TIP : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
+            : ev.id === 'hessa' && w.bossVariant === 'whirl' ? WHIRL_TIP : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
+            : ev.id === 'ondrel' && w.bossVariant === 'home' ? HOMEWARD_TIP : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
+            : ev.id === 'ysmeret' && w.bossVariant === 'roll' ? ROLLING_TIP : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
+            : ev.id === 'oskel' && w.bossVariant === 'punch' ? PUNCH_TIP : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
+            : ev.id === 'grandmotherSlag' && w.bossVariant === 'flow' ? OVERFLOW_TIP : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
+            : ev.id === 'vorhulm' && w.bossVariant === 'inhale' ? INHALE_TIP : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
+            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP : ev.id === 'colossus' && w.bossVariant === 'mill' ? MILLSTONE_TIP
+            : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : ev.id === 'regent' && w.bossVariant === 'tithe' ? TITHE_TIP : def.tip;
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
+          const named = events.find((e) => e.type === 'namedSpawn');
+          const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
           if (this.hud.compact && !coach && (omens || heat)) {
             // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
@@ -1385,8 +1659,15 @@ export class GameScene extends Phaser.Scene {
             const next = omens
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
-            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, next);
-          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach);
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
+          } else if (this.hud.compact && !coach && (shaped || w.stir)) {
+            // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
+            // in the Dark: 198 characters), and the wave line is the part cut off. Each gets its own banner right after,
+            // the stir first (Y10), then the wave, then a named foe's (if one stepped out).
+            const waveNext = shaped ? { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip, next: namedNext } : namedNext;
+            const after = w.stir ? { title: 'The dungeon stirs', sub: stirTip, next: waveNext } : waveNext;
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, after);
+          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach, namedNext);
           break;
         }
         case 'fork':
@@ -1434,6 +1715,42 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** The 2D texture enemy slot `i` draws with (the HD-2D view stands the same sheet up in 3D). */
+  private enemyTex(e: Enemy, i: number): string {
+    const w = this.world;
+    return e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
+      : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
+      // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
+      // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
+      : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
+      // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
+      : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
+      : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
+      // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
+      : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
+      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
+  }
+
+  /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
+  private frameCanvas(key: string, n: number): HTMLCanvasElement | null {
+    const id = `${key}#${n}`;
+    const hit = this.frameCache.get(id);
+    if (hit !== undefined) return hit;
+    let out: HTMLCanvasElement | null = null;
+    if (this.textures.exists(key)) {
+      const f = this.textures.getFrame(key, String(n)) ?? this.textures.getFrame(key);
+      const src = f?.source.image as CanvasImageSource | undefined;
+      if (f && src) {
+        out = document.createElement('canvas');
+        out.width = f.cutWidth; out.height = f.cutHeight;
+        out.getContext('2d')!.drawImage(src, f.cutX, f.cutY, f.cutWidth, f.cutHeight, 0, 0, f.cutWidth, f.cutHeight);
+      }
+    }
+    this.frameCache.set(id, out);
+    return out;
+  }
+  private readonly frameCache = new Map<string, HTMLCanvasElement | null>();
+
   // ---------------------------------------------------------------- rendering
 
   private render(a: number, dt: number): void {
@@ -1458,6 +1775,12 @@ export class GameScene extends Phaser.Scene {
       sy = (Math.random() - 0.5) * m;
     }
     cam.centerOn(px + sx, py + sy);
+    // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
+    // Name plates, bars and edge marks all cull against worldView, so keep it current by hand.
+    if (!cam.visible) {
+      const dw = cam.width / cam.zoom, dh = cam.height / cam.zoom;
+      cam.worldView.setTo(cam.midPoint.x - dw / 2, cam.midPoint.y - dh / 2, dw, dh);
+    }
     this.ground.setTilePosition(cam.worldView.x, cam.worldView.y);
     this.ground.setTileScale(1);
 
@@ -1577,17 +1900,7 @@ export class GameScene extends Phaser.Scene {
       }
       // The world boss shadow is the live boss's silhouette (Grandmother Slag's if the name is unknown);
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
-        // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
-        // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
-        : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
-        // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
-        : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
-        : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
-        // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
-        : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
-        : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
+      const tex = this.enemyTex(e, i);
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;
@@ -1713,6 +2026,7 @@ export class GameScene extends Phaser.Scene {
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     this.summonsDraw(now);
     this.arenaEventDraw(now);
+    this.waveDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1730,7 +2044,7 @@ export class GameScene extends Phaser.Scene {
     this.slagDraw(g, now);
     this.altDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
-    for (const al of this.allies) {
+    for (const al of this.bridge ? [] : this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
       g.lineStyle(2, down ? 0x6a5a54 : hex(CLASS_ICON[w.heroes[al.hero].cls].color), down ? 0.5 : 0.85).strokeEllipse(al.img.x, al.img.y + 22, 44, 16);
     }
@@ -1846,23 +2160,40 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(6, 0xd8f6ff, 0.18 + 0.08 * Math.sin(now / 400)).strokeCircle(0, 0, R + 4);
       }
-      g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
-      g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      // In 3D the room's own edge marks a full-size arena, so the floor bridge carries the rim only once it has moved in.
+      if (!this.bridge || R < ARENA) {
+        g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
+        g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      }
       // The Crucible: the arena is a crucible's rim, molten slag slowly breathing just beyond it.
-      if (w.dungeonId === 'crucible') g.lineStyle(40, MOLTEN, 0.12 + 0.06 * Math.sin(now / 700)).strokeCircle(0, 0, R + 30);
+      if (w.dungeonId === 'crucible' && !this.bridge) g.lineStyle(40, MOLTEN, 0.12 + 0.06 * Math.sin(now / 700)).strokeCircle(0, 0, R + 30);
     }
     // The Glarewell: the floor is lit pale gold, and pillars cast shadow wedges
     // away from the centre lens. The wedges match World.shadowed(), so what you
     // see is where you're safe.
     if (w.pillars.length) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
+    const light = this.lightAt(now);
+    // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
+    // pillar, so a phone shows which way each shadow now falls before it lands.
+    const carried = (w.bossVariant === 'walk' || w.bossEcho === 'walk') && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
+    if (carried && w.pillars.length) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+      for (const c of w.pillars) {
+        if (c.cracked) continue;
+        g.lineStyle(10, 0xfff0c0, 0.08 + 0.06 * pulse).lineBetween(light.x, light.y, c.x, c.y);
+        g.lineStyle(3, 0xffe2a0, 0.45 + 0.3 * pulse).lineBetween(light.x, light.y, c.x, c.y);
+      }
+    }
     this.pillarSprites.forEach((ps, k) => {
       const c = w.pillars[k];
       if (!c) { if (ps.visible) ps.setVisible(false); return; }
       if (!c.cracked) {
-        const d = Math.hypot(c.x, c.y) || 1;
-        const ux = c.x / d;
-        const uy = c.y / d;
-        const L = w.shadowLen;
+        // Y3 Carried Light: the wedge points away from wherever the light is now.
+        const cx = c.x - light.x, cy = c.y - light.y;
+        const d = Math.hypot(cx, cy) || 1;
+        const ux = cx / d;
+        const uy = cy / d;
+        const L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
@@ -1883,8 +2214,10 @@ export class GameScene extends Phaser.Scene {
       // The centre lens glows; it brightens while a Glare is coming.
       const glaring = w.enemies.some((o) => o.alive && o.castId === 'glare');
       const a = glaring ? 0.25 + 0.2 * Math.sin(now / 50) : 0.1;
-      g.fillStyle(0xfff0c0, a).fillCircle(0, 0, 60);
-      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(0, 0, 60);
+      // Y3 Carried Light: the glow sits wherever the light is now.
+      g.fillStyle(0xfff0c0, a).fillCircle(light.x, light.y, 60);
+      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(light.x, light.y, 60);
+      if (this.lightAnim) g.fillStyle(0xfff8e0, 0.5).fillCircle(light.x, light.y, 22); // the bright core as it travels
     }
     if (w.lampBeam) {
       const b = w.lampBeam;
@@ -1922,20 +2255,66 @@ export class GameScene extends Phaser.Scene {
     this.bankDraw(now);
     this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
+    this.turnDraw(now);
     this.tideDraw(now);
     this.glintDraw(now);
+    this.rimeDraw(now);
+    this.overflowDraw(now);
+    this.homeDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
+    let sealedDrawn = false;
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
       if (!v) { if (vs.visible) vs.setVisible(false); return; }
       const fr = String(Math.floor(now / 160 + k) % 4);
       if (vs.frame.name !== fr) vs.setFrame(fr);
+      // Y3 Sealed Vents: a sealed vent goes dark; the open one glows; the next one pulses before the steam moves.
+      const sealed = w.openVent >= 0 && versionLive(w, 'seal') && k !== w.openVent;
+      const next = sealed && k === w.nextVent;
       vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(0.88);
-      g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
+      if (sealed) {
+        // Y6: a sealed vent is capped with a riveted iron plate. The next one's plate rattles, its seam glows and steam
+        // leaks round its rim in the 2.5 s before the steam moves there.
+        if (!this.sealGfx) this.sealGfx = this.add.graphics().setDepth(1.42);
+        const sg = this.sealGfx;
+        if (!sealedDrawn) { sg.clear(); sealedDrawn = true; }
+        const jig = next ? Math.sin(now / 35) * 1.5 : 0;
+        const x = v.x + jig, y = v.y, r = v.r * 1.02;
+        sg.fillStyle(0x000000, 0.35).fillCircle(v.x, v.y + 3, r + 2);
+        sg.fillStyle(0x3b3431, 1).fillCircle(x, y, r);
+        sg.fillStyle(0x534945, 1).fillCircle(x - r * 0.12, y - r * 0.14, r * 0.8);
+        sg.fillStyle(0x3b3431, 1).fillCircle(x, y, r * 0.62);
+        sg.lineStyle(Math.max(3, r * 0.14), 0x2a2422, 1).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
+        for (let j = 0; j < 6; j++) {
+          const a = (j / 6) * Math.PI * 2 + 0.5;
+          sg.fillStyle(0x8a7f78, 1).fillCircle(x + Math.cos(a) * r * 0.82, y + Math.sin(a) * r * 0.82, Math.max(1.6, r * 0.07));
+        }
+        if (next) {
+          const p = 0.5 + 0.5 * Math.sin(now / 90);
+          sg.lineStyle(3, 0xbfe6ff, 0.45 + 0.4 * p).strokeCircle(x, y, r + 1);
+          sg.lineStyle(2, 0xffffff, 0.25 + 0.35 * p).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
+          if (!this.lowFx && Math.random() < 0.25) { const a = Math.random() * Math.PI * 2; this.steam(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8 - 4, 0.35); }
+        }
+      } else if (w.openVent >= 0 && versionLive(w, 'seal')) {
+        // Y6: the open vent boils her from MAELRA_SEAL.wide times its radius (skills' Y5 fix), so its reach is drawn
+        // there: a faint steam pool and a ring of dashes turning slowly, round the grate's own ring.
+        const tk = Math.max(1, this.textK);
+        const R = v.r * MAELRA_SEAL.wide;
+        g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
+        g.fillStyle(0xbfe6ff, 0.07 + 0.03 * Math.sin(now / 300)).fillCircle(v.x, v.y, R);
+        const D = 20, rot = now / 2400;
+        for (let j = 0; j < D; j++) {
+          const a0 = rot + (j / D) * Math.PI * 2;
+          g.lineStyle(2.4 * tk, 0xdff3ff, 0.6).beginPath();
+          g.arc(v.x, v.y, R, a0, a0 + (Math.PI * 2 / D) * 0.55).strokePath();
+        }
+      }
+      else g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
     });
+    if (!sealedDrawn) this.sealGfx?.clear();
     if (w.vents.length && now > this.steamAt && !this.lowFx) {
       this.steamAt = now + 140;
-      const v = w.vents[Math.floor(Math.random() * w.vents.length)];
+      const v = w.openVent >= 0 && versionLive(w, 'seal') && w.vents[w.openVent] ? w.vents[w.openVent] : w.vents[Math.floor(Math.random() * w.vents.length)];
       this.steam(v.x + (Math.random() - 0.5) * v.r * 0.6, v.y - 4, 0.5 + Math.random() * 0.4);
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
@@ -1963,6 +2342,8 @@ export class GameScene extends Phaser.Scene {
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
     const lk = this.textK;
     this.emptyVents.length = 0;
+    // In 3D the view draws the plain circles and cones itself, so the floor bridge keeps only the marks drawn over them.
+    const plain = !this.bridge;
     for (const t of w.telegraphs) {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
       if (!t.alive || this.bossFell) continue;
@@ -1971,19 +2352,21 @@ export class GameScene extends Phaser.Scene {
       // The edge glows and flickers faster as the strike gets close.
       const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
-        g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
-        g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
-        g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
-        g.lineStyle((t.kind === 'soak' ? 3 : 2) * lk, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
-        g.lineStyle(1.5 * lk, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
-        // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
-        if (HATCH && t.kind === 'hit') {
-          g.lineStyle(2, col, 0.45);
-          for (let d = -t.r + 14; d < t.r; d += 16) {
-            // Diagonal chords across the circle.
-            const h = Math.sqrt(t.r * t.r - d * d);
-            const c = Math.SQRT1_2;
-            g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+        if (plain) {
+          g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
+          g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
+          g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
+          g.lineStyle((t.kind === 'soak' ? 3 : 2) * lk, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
+          g.lineStyle(1.5 * lk, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
+          // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
+          if (HATCH && t.kind === 'hit') {
+            g.lineStyle(2, col, 0.45);
+            for (let d = -t.r + 14; d < t.r; d += 16) {
+              // Diagonal chords across the circle.
+              const h = Math.sqrt(t.r * t.r - d * d);
+              const c = Math.SQRT1_2;
+              g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+            }
           }
         }
         if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
@@ -1998,17 +2381,19 @@ export class GameScene extends Phaser.Scene {
       } else {
         const a0 = t.angle - t.arc / 2;
         const a1 = t.angle + t.arc / 2;
-        g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
-        g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
-        g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
-        g.lineStyle(2 * lk, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
-        if (HATCH && t.kind === 'hit') {
-          // Hatched cones: spokes every few degrees and arcs across them.
-          g.lineStyle(2, col, 0.45);
-          const n = Math.max(3, Math.round(t.arc / 0.14));
-          for (let k = 1; k < n; k++) {
-            const a = a0 + (t.arc * k) / n;
-            g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+        if (plain) {
+          g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
+          g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
+          g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
+          g.lineStyle(2 * lk, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+          if (HATCH && t.kind === 'hit') {
+            // Hatched cones: spokes every few degrees and arcs across them.
+            g.lineStyle(2, col, 0.45);
+            const n = Math.max(3, Math.round(t.arc / 0.14));
+            for (let k = 1; k < n; k++) {
+              const a = a0 + (t.arc * k) / n;
+              g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+            }
           }
         }
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'grandmotherSlag') this.pourLane(g, t, f, now);
@@ -2137,6 +2522,10 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
+    // Y9: on a phone the view is narrow, so foes coming in from the sides or behind (or hidden under the boss panel)
+    // get a small red chevron at the edge of the clear view: one per direction, a little bigger for a crowd, with a
+    // gold rim when an elite or the boss is among them. Desktop views see the arena, so they stay clean.
+    if (this.hud.compact && w.phase === 'fight') this.foeEdgeMarks(b, now);
     // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
     // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
     if (w.dungeonId === 'pressworks') {
@@ -2214,8 +2603,11 @@ export class GameScene extends Phaser.Scene {
     const packs = [...byRoot.values()];
     // Where enemy bars and names sit this frame, so an ally's name over one can step back (below).
     const foeBoxes: { l: number; r: number; t: number; b: number }[] = [];
+    this.barRecs.length = 0;
     const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
       const bw = e.def.rank === 'rare' ? 70 : 56;
+      // HD-2D: the overlay redraws these bars over the 3D view (foeEdgeMarks3d), at the foe's projected place.
+      if (this.hd2d) this.barRecs.push({ x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (cast.interruptible ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
       foeBoxes.push({ l: x - bw / 2, r: x + bw / 2, t: top - 3, b: top + (cast ? 13 : 6) });
       b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
       b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
@@ -2616,7 +3008,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : RAID_STONE[w.dungeonId] ?? 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, this.stoneKey()).setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -2712,7 +3104,7 @@ export class GameScene extends Phaser.Scene {
    */
   private tideDraw(now: number): void {
     const w = this.world;
-    const m = w.bossVariant === 'tide' ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
+    const m = versionLive(w, 'tide') ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
     if (!m || m.hp > m.maxHp * 0.6) { this.tideGfx?.clear(); this.tideOn = false; return; }
     if (!this.tideGfx) this.tideGfx = this.add.graphics().setDepth(1.3);
     const g = this.tideGfx;
@@ -2797,6 +3189,277 @@ export class GameScene extends Phaser.Scene {
    * - her furnace mouth swells with light until the 150-radius burst lands.
    * The burst itself is the sim's ordinary red circle telegraph; this only adds the inward motion.
    */
+  /** Y6 Carried Light: where the light is drawn now: World.lightX/Y, or on its way there for 0.6 s after it moved. */
+  private lightAt(now: number): { x: number; y: number } {
+    const w = this.world, an = this.lightAnim;
+    const k = an ? (now - an.t0) / 600 : 1;
+    if (an && (k >= 1 || an.tx !== w.lightX || an.ty !== w.lightY)) this.lightAnim = null;
+    const e = 1 - (1 - k) * (1 - k);
+    const at = this.lightAnim && an ? { x: an.fx + (an.tx - an.fx) * e, y: an.fy + (an.ty - an.fy) * e } : { x: w.lightX, y: w.lightY };
+    this.lightLast = at;
+    return at;
+  }
+  private lightLast = { x: 0, y: 0 };
+
+  /**
+   * Y6: the Kiln Mother's Turning Fire. Her four cones land one after another, turning one cone each time (w.turnDir).
+   * A molten arrow curves round her through the cones in the order they land, the next cone to land shows a bright
+   * leading edge, and small pips count 1 to 4 along each cone, so the way the sweep turns reads at a glance.
+   */
+  /**
+   * Y6 Creeping Rime (Nhevra's third version): frost on the floor where the rime is. Fingers of hoarfrost branch out from
+   * its middle and reach further on the side it is creeping toward, the trailing side thins, crystals glint, and a cold
+   * mist rolls round the rim. The rim itself stays a clear pale line at CREEPING_RIME.r, so you can see where it bites.
+   */
+  /**
+   * Y3 the Overflow (Grandmother Slag's third version), a placeholder until visuals: while it warns, a pulsing ring at
+   * OVERFLOW.safeR round her; while it has risen, molten slag fills everything outside that ring.
+   */
+  private overflowDraw(now: number): void {
+    const w = this.world;
+    const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if ((!w.flowStage && !w.inhaleStage && !(w.millT > 0)) || !b?.alive) { this.flowGfx?.clear(); return; }
+    if (!this.flowGfx) this.flowGfx = this.add.graphics().setDepth(1.43);
+    const g = this.flowGfx;
+    g.clear();
+    if (w.millT > 0) {
+      // Y3 Millstone (the Cinder Colossus), a placeholder: the slag pouring off him (all but his open back) as he grinds round.
+      const R = b.def.radius + MILL.range;
+      const flick = 0.25 + 0.1 * Math.sin(now / 90);
+      g.fillStyle(0xff6020, flick).slice(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).fillPath();
+      g.lineStyle(2, 0xffb060, 0.7).beginPath().arc(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).strokePath();
+      return;
+    }
+    if (w.inhaleStage) {
+      // Y3 Inhale (Old Vorhulm), also a placeholder: his mouth's reach, and streaks drawn in toward him while he breathes in.
+      const m = b.def.radius + INHALE.bite;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+      g.lineStyle(3, 0xff5030, w.inhaleStage === 2 ? 0.9 : 0.4 + 0.4 * pulse).strokeCircle(b.x, b.y, m);
+      if (w.inhaleStage === 2) for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        const r0 = m + 40 + ((now / 4 + k * 37) % 220);
+        g.lineStyle(2, 0xffd0a0, 0.5).lineBetween(b.x + Math.cos(a) * r0, b.y + Math.sin(a) * r0, b.x + Math.cos(a) * (r0 - 30), b.y + Math.sin(a) * (r0 - 30));
+      }
+      return;
+    }
+    const R = OVERFLOW.safeR;
+    if (w.flowStage === 2) {
+      const outer = ARENA * 2;
+      g.lineStyle(outer - R, 0xff6a1a, 0.32 + 0.05 * Math.sin(now / 160)).strokeCircle(b.x, b.y, (outer + R) / 2);
+      g.lineStyle(4, 0xffc070, 0.9).strokeCircle(b.x, b.y, R);
+    } else {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 110);
+      g.lineStyle(3 + 2 * pulse, 0xff8a30, 0.45 + 0.4 * pulse).strokeCircle(b.x, b.y, R);
+    }
+  }
+
+  private rimeDraw(now: number): void {
+    const w = this.world;
+    if (!w.rimeOn) { this.rimeGfx?.clear(); return; }
+    if (!this.rimeGfx) this.rimeGfx = this.add.graphics().setDepth(1.44);
+    const g = this.rimeGfx;
+    g.clear();
+    const x = w.rimeX, y = w.rimeY;
+    // It spreads out from under her as it rises, then breathes a little.
+    const grow = this.rimeBorn ? Math.min(1, (now - this.rimeBorn) / 600) : 1;
+    const r = CREEPING_RIME.r * (1 - (1 - grow) ** 3) * (1 + 0.025 * Math.sin(now / 420));
+    if (r < 2) return;
+    // Which way it creeps, smoothed, so the leading fingers don't flick about as the nearest hero changes.
+    const d = this.rimeDir;
+    const mx = x - d.lx, my = y - d.ly, ml = Math.hypot(mx, my);
+    if (ml > 0.2) { d.x += (mx / ml - d.x) * 0.08; d.y += (my / ml - d.y) * 0.08; }
+    d.lx = x; d.ly = y;
+    const dl = Math.hypot(d.x, d.y) || 1;
+    const dir = Math.atan2(d.y / dl, d.x / dl);
+    // The rime's floor: a cold sheen, densest in the middle, and a faint shadow ring outside the rim.
+    g.fillStyle(0x0c1a2c, 0.18).fillCircle(x, y + 3, r * 1.04);
+    for (let k = 0; k < 4; k++) g.fillStyle(0xe6f5ff, 0.07 + k * 0.025).fillCircle(x, y, r * (1 - k * 0.2));
+    // Hoarfrost fingers: fixed angles and lengths (so the pattern holds still as it moves), longer toward where it creeps.
+    const N = this.lowFx ? 16 : 26;
+    const tk = Math.max(1, this.textK);
+    for (let i = 0; i < N; i++) {
+      const h = Math.sin(i * 12.9898) * 43758.5453;
+      const rnd = h - Math.floor(h);
+      const a = (i / N) * Math.PI * 2 + rnd * 0.3;
+      const lead = Math.cos(a - dir);
+      const len = r * (0.72 + rnd * 0.22) * (lead > 0 ? 1 + 0.18 * lead : 1 + 0.12 * lead);
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const x0 = x + ca * r * 0.06, y0 = y + sa * r * 0.06;
+      const x1 = x + ca * len, y1 = y + sa * len;
+      const wv = (1.2 + rnd * 0.9) * tk;
+      const al = 0.42 + 0.3 * Math.max(0, lead);
+      // A tapered blade: wide at the root, a point at the tip.
+      g.fillStyle(0xf6fcff, al).fillTriangle(x0 - sa * wv, y0 + ca * wv, x0 + sa * wv, y0 - ca * wv, x1, y1);
+      // Two side branches at about 55%, and on the leading side a third further out.
+      for (const [at, side, bl] of [[0.35, 1, 0.22], [0.5, -1, 0.26], [0.65, 1, 0.24], [0.8, -1, lead > 0.3 ? 0.2 : 0.12]] as const) {
+        if (!bl) continue;
+        const bx = x + ca * len * at, by = y + sa * len * at;
+        const ba = a + side * (0.6 + rnd * 0.25);
+        const bw = wv * 0.6;
+        g.fillStyle(0xeaf7ff, al * 0.85).fillTriangle(bx - sa * bw, by + ca * bw, bx + sa * bw, by - ca * bw, bx + Math.cos(ba) * len * bl, by + Math.sin(ba) * len * bl);
+      }
+    }
+    // Crystals that catch the light, a few at a time.
+    for (let i = 0; i < 9; i++) {
+      const h = Math.sin(i * 78.233 + 1.7) * 24634.6345;
+      const rnd = h - Math.floor(h);
+      const a = rnd * Math.PI * 2, rr = r * (0.25 + 0.6 * ((rnd * 7.3) % 1));
+      const tw = Math.max(0, Math.sin(now / 260 + i * 2.1));
+      if (tw < 0.4) continue;
+      const cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr, cs = (2 + 2.5 * tw) * tk;
+      g.fillStyle(0xffffff, 0.5 + 0.5 * tw);
+      g.fillTriangle(cx - cs, cy, cx, cy - cs * 1.6, cx + cs, cy);
+      g.fillTriangle(cx - cs, cy, cx, cy + cs * 1.6, cx + cs, cy);
+    }
+    // Cold mist rolling round the rim: soft puffs that drift round and swell, thicker on the leading side.
+    const P = this.lowFx ? 8 : 12;
+    for (let i = 0; i < P; i++) {
+      const a = (i / P) * Math.PI * 2 + now / 5200 * (i % 2 ? 1 : -1);
+      const lead = Math.max(0, Math.cos(a - dir));
+      const sw = 0.5 + 0.5 * Math.sin(now / 700 + i * 1.9);
+      g.fillStyle(0xdcefff, 0.04 + 0.04 * sw + 0.05 * lead).fillCircle(x + Math.cos(a) * r * 1.0, y + Math.sin(a) * r * 1.0, r * (0.12 + 0.06 * sw + 0.05 * lead));
+    }
+    // The rim: a crisp frost line, ragged by a few px, brightest where it is creeping.
+    const pts: Phaser.Math.Vector2[] = [];
+    const M = 40;
+    for (let k = 0; k <= M; k++) {
+      const a = (k / M) * Math.PI * 2;
+      const j = k % M;
+      const h = Math.sin(j * 4.1 + 0.3) * 9631.17;
+      const rr = r * (0.985 + 0.03 * (h - Math.floor(h)));
+      pts.push(new Phaser.Math.Vector2(x + Math.cos(a) * rr, y + Math.sin(a) * rr));
+    }
+    g.lineStyle(2.4 * tk, 0xd4ecff, 0.8).strokePoints(pts, true);
+    const lx = x + Math.cos(dir) * r, ly = y + Math.sin(dir) * r;
+    g.lineStyle(3.2 * tk, 0xffffff, 0.55 + 0.25 * Math.sin(now / 160)).beginPath();
+    g.arc(x, y, r, dir - 0.7, dir + 0.7).strokePath();
+    g.fillStyle(0xffffff, 0.35).fillCircle(lx, ly, 3 * tk);
+  }
+
+  /** Points of Ondrel's thrown hammer (a long haft and an iron head), turned by `ang`, at (x, y), `k` times life size. */
+  private hammerShape(g: Phaser.GameObjects.Graphics, x: number, y: number, ang: number, k: number, glow = 0): void {
+    const c = Math.cos(ang), sn = Math.sin(ang);
+    const P = (pts: number[][]) => pts.map(([px, py]) => new Phaser.Math.Vector2(x + (px * c - py * sn) * k, y + (px * sn + py * c) * k));
+    // The haft runs along +x from the grip; the head sits across its far end.
+    const haft = P([[-30, -3], [16, -3], [16, 3], [-30, 3]]);
+    const head = P([[12, -15], [30, -13], [30, 13], [12, 15]]);
+    const face = P([[26, -12], [30, -11], [30, 11], [26, 12]]);
+    g.fillStyle(0x5a3a22, 1).fillPoints(haft, true);
+    g.lineStyle(1.5, 0x1a0e08, 1).strokePoints(haft, true);
+    g.fillStyle(0x4a4650, 1).fillPoints(head, true);
+    g.fillStyle(glow > 0 ? 0xffc27a : 0x8a8694, glow > 0 ? 0.6 + 0.4 * glow : 1).fillPoints(face, true);
+    g.lineStyle(2, 0x0c0506, 1).strokePoints(head, true);
+  }
+
+  /**
+   * Y6 the Homeward Hammer (Ondrel's third version). Stage 1: the hammer wheels end over end through the air from him to
+   * the farthest hero, its shadow racing ahead and swelling, and lands as the circle does. Stage 2: it lies in a cracked
+   * crater, rattling harder as it is called home, with a tug line drawn back to him; in the last 0.25 s it streaks back
+   * along the line, the moment that line strikes. While it is out he has no hammer, so this is the only one on screen.
+   */
+  private homeDraw(now: number): void {
+    const w = this.world;
+    const st = w.bossVariant === 'home' ? w.homeStage : 0;
+    const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (!st || !b) {
+      if (this.homeLast === 2 && b?.alive) this.emit(this.fx, 'ring', undefined, b.x, b.y - 20, 0.3, { tint: 0xffd08a, sx0: 0.6, sx1: 0.2 });
+      this.homeLast = st;
+      this.homeFloor?.clear(); this.homeLie?.clear();
+      return;
+    }
+    this.homeLast = st;
+    if (!this.homeFloor) this.homeFloor = this.add.graphics().setDepth(1.44);
+    if (!this.homeLie) this.homeLie = this.add.graphics().setDepth(2.55);
+    const fl = this.homeFloor, lie = this.homeLie, o = this.overFx;
+    fl.clear(); lie.clear();
+    const hx = w.homeX, hy = w.homeY;
+    if (st === 1) {
+      // In flight: from his hand to where it lands, timed to land as the circle does (HOMEWARD.fall).
+      const th = this.homeThrow ?? { fx: b.x, fy: b.y - 30, tx: hx, ty: hy, t0: now - (1 - w.homeT / 1.8) * 1800 };
+      const f = Math.min(1, (now - th.t0) / 1800);
+      const gx = th.fx + (th.tx - th.fx) * f, gy = th.fy + 30 * f + (th.ty - th.fy - 30) * f;
+      const lift = Math.sin(Math.PI * f) * 150 * (1 - 0.3 * f);
+      fl.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(gx, gy + 8, 26 + 30 * f, 9 + 10 * f);
+      this.hammerShape(o, gx, gy - lift - 10, now / 70, 1.1);
+      // A faint arc of where it's going, so the farthest hero sees it's for them.
+      o.lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
+      return;
+    }
+    // Landed: a cracked crater with the hammer head-down in it.
+    const left = Math.max(0, w.homeT);
+    const pull = 1 - left / 1.2;
+    fl.fillStyle(0x000000, 0.35).fillEllipse(hx, hy + 6, 70, 26);
+    fl.lineStyle(2, 0x1a1210, 0.9);
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.05 + 0.3;
+      fl.beginPath().moveTo(hx + Math.cos(a) * 12, hy + 4 + Math.sin(a) * 5).lineTo(hx + Math.cos(a + 0.2) * 30, hy + 4 + Math.sin(a + 0.2) * 12).lineTo(hx + Math.cos(a) * 44, hy + 4 + Math.sin(a) * 17).strokePath();
+    }
+    const ang = Math.atan2(b.y - hy, b.x - hx);
+    if (left > 0.25) {
+      // The tug line back to him, brightening as it's called home, and the hammer rattling in the crater.
+      const dash = 14, len = Math.hypot(b.x - hx, b.y - hy);
+      const ux = (b.x - hx) / (len || 1), uy = (b.y - hy) / (len || 1);
+      const run = (now / 12) % (dash * 2);
+      fl.lineStyle(3, 0xffc27a, 0.25 + 0.45 * pull);
+      for (let d = run; d < len - 20; d += dash * 2) fl.lineBetween(hx + ux * d, hy + uy * d, hx + ux * Math.min(len, d + dash), hy + uy * Math.min(len, d + dash));
+      const jig = Math.sin(now / (pull > 0.6 ? 25 : 55)) * (2 + 4 * pull);
+      this.hammerShape(lie, hx + Math.cos(ang) * jig * 0.5, hy - 8, Math.PI / 2 + jig * 0.04 + ang * 0.15 * pull, 1.1, pull);
+    } else {
+      // Home: it streaks back along the line with a hot trail.
+      const f = 1 - left / 0.25;
+      const x = hx + (b.x - hx) * f, y = hy - 8 + (b.y - 30 - hy + 8) * f;
+      o.lineStyle(10, 0xffc27a, 0.25).lineBetween(hx, hy - 8, x, y);
+      o.lineStyle(4, 0xfff0c0, 0.6).lineBetween(hx + (x - hx) * 0.4, hy - 8 + (y - hy + 8) * 0.4, x, y);
+      this.hammerShape(o, x, y, ang + Math.PI + now / 40, 1.1, 1);
+    }
+  }
+
+  private turnDraw(now: number): void {
+    const w = this.world;
+    const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const cones = boss?.alive && boss.kind === 'kilnMother' && w.bossVariant === 'turning'
+      ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).sort((a, b) => (a.dur - a.t) - (b.dur - b.t))
+      : [];
+    if (!cones.length) { this.turnGfx?.clear(); return; }
+    if (!this.turnGfx) this.turnGfx = this.add.graphics().setDepth(2.1);
+    const g = this.turnGfx.clear();
+    const dir = w.turnDir;
+    const cx = boss!.x, cy = boss!.y;
+    const R = boss!.def.radius + 70;
+    const first = cones[0].angle, last = cones[cones.length - 1].angle;
+    // The arrow: from the next cone to land round to the last, ending in a head that points the way it turns.
+    const a0 = first - dir * cones[0].arc * 0.25, a1 = last + dir * cones[0].arc * 0.2;
+    const steps = 24;
+    g.lineStyle(10, 0x000000, 0.35).beginPath();
+    for (let j = 0; j <= steps; j++) { const a = a0 + (a1 - a0) * (j / steps); const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R; if (j) g.lineTo(x, y); else g.moveTo(x, y); }
+    g.strokePath();
+    const flow = (now / 400) % 1;
+    for (let j = 0; j < steps; j++) {
+      const u = j / steps, a = a0 + (a1 - a0) * u, b = a0 + (a1 - a0) * ((j + 1) / steps);
+      const lit = 0.55 + 0.45 * Math.max(0, Math.cos((u - flow) * Math.PI * 2));
+      g.lineStyle(6, MOLTEN, lit).beginPath().moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R).lineTo(cx + Math.cos(b) * R, cy + Math.sin(b) * R).strokePath();
+    }
+    const hx = cx + Math.cos(a1) * R, hy = cy + Math.sin(a1) * R;
+    const ta = a1 + dir * Math.PI / 2; // the tangent, the way it turns
+    const back = 22, half = 14;
+    g.fillStyle(MOLTEN, 1).fillTriangle(
+      hx + Math.cos(ta) * 16, hy + Math.sin(ta) * 16,
+      hx - Math.cos(ta) * back + Math.cos(a1) * half, hy - Math.sin(ta) * back + Math.sin(a1) * half,
+      hx - Math.cos(ta) * back - Math.cos(a1) * half, hy - Math.sin(ta) * back - Math.sin(a1) * half,
+    );
+    // The next cone's leading edge (the side the sweep turns toward), brightening as it lands.
+    const nx = cones[0], k = Math.max(0, Math.min(1, nx.t / nx.dur));
+    const ea = nx.angle + dir * nx.arc / 2;
+    g.lineStyle(4, 0xffe2a0, 0.4 + 0.5 * k).lineBetween(cx + Math.cos(ea) * boss!.def.radius, cy + Math.sin(ea) * boss!.def.radius, cx + Math.cos(ea) * Math.min(nx.r, 420), cy + Math.sin(ea) * Math.min(nx.r, 420));
+    // Order pips: 1 to 4 dots along each cone's middle.
+    cones.forEach((c, n) => {
+      for (let j = 0; j <= n; j++) {
+        const d = R + 46 + j * 16;
+        g.fillStyle(n === 0 ? 0xffe2a0 : MOLTEN, n === 0 ? 1 : 0.8).fillCircle(cx + Math.cos(c.angle) * d, cy + Math.sin(c.angle) * d, 4.5);
+      }
+    });
+  }
+
   private kilnDrawTell(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const i = w.enemies.findIndex((e) => e.alive && e.kind === 'kilnMother' && e.castId === 'kilnDraw');
@@ -2865,10 +3528,12 @@ export class GameScene extends Phaser.Scene {
       const q = this.heroXY(d.hero);
       const late = d.t < 3;
       const pulse = 0.5 + 0.5 * Math.sin(now / (late ? 90 : 220));
-      // Scorch: a hot dashed ring on the floor round the holder.
-      g.fillStyle(0xff5a2a, 0.07 + 0.05 * pulse).fillCircle(q.x, q.y, REGENT.scorchRadius);
-      g.lineStyle(3, 0xff7a3a, 0.55 + 0.3 * pulse);
-      this.dashedCircle(g, q.x, q.y, REGENT.scorchRadius, now);
+      // Scorch: a hot dashed ring on the floor round the holder (the 3D view draws its own).
+      if (!this.bridge) {
+        g.fillStyle(0xff5a2a, 0.07 + 0.05 * pulse).fillCircle(q.x, q.y, REGENT.scorchRadius);
+        g.lineStyle(3, 0xff7a3a, 0.55 + 0.3 * pulse);
+        this.dashedCircle(g, q.x, q.y, REGENT.scorchRadius, now);
+      }
       const img = this.decreeImgs[di++];
       const sy = q.y - lift * k;
       if (img) img.setVisible(true).setPosition(q.x, sy).setScale(0.62 * k * (late ? 1 + 0.08 * pulse : 1));
@@ -3070,7 +3735,7 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1 };
+  private hudCover: { px: number; at: number; row: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0 };
 
   /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
   private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
@@ -3116,6 +3781,296 @@ export class GameScene extends Phaser.Scene {
    * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
    * panels. Edge arrows test against it and sit on its edge, so a gold circle under the boss panel still gets one.
    */
+  private barCover: { at: number; r?: { left: number; top: number }; party?: { right: number; top: number; bottom: number } } = { at: -1 };
+  /** Y9: edge chevrons for foes off screen on a phone (see the call in the draw loop). */
+  private foeEdgeMarks(b: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const cam = this.cameras.main;
+    const v = this.clearView();
+    const inset = 10 / cam.zoom;
+    const SECTORS = 16;
+    const count = new Array<number>(SECTORS).fill(0);
+    const big = new Array<boolean>(SECTORS).fill(false);
+    const sx = new Array<number>(SECTORS).fill(0);
+    const sy = new Array<number>(SECTORS).fill(0);
+    const cx = v.centerX;
+    const cy = v.centerY;
+    for (const e of w.enemies) {
+      if (!e.alive || e.def.stationary) continue;
+      if (e.x > v.x + inset && e.x < v.right - inset && e.y > v.y + inset && e.y < v.bottom - inset) continue;
+      const a = Math.atan2(e.y - cy, e.x - cx);
+      const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+      count[k]++;
+      sx[k] += e.x - cx;
+      sy[k] += e.y - cy;
+      if (e.def.rank !== 'normal') big[k] = true;
+    }
+    // Phase 15 Y1: a held pack about to come in (the 2 s "More Coming" warning) has not spawned yet, so point at the
+    // flank it comes from, sized by how many are coming and pulsing faster than the foes already here.
+    const fast = new Array<boolean>(SECTORS).fill(false);
+    if (w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+      const rr = w.arenaR - 60;
+      const ix = Math.cos(w.reinforceA) * rr, iy = Math.sin(w.reinforceA) * rr;
+      if (!(ix > v.x + inset && ix < v.right - inset && iy > v.y + inset && iy < v.bottom - inset)) {
+        const a = Math.atan2(iy - cy, ix - cx);
+        const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+        count[k] += w.reinforceN;
+        sx[k] += (ix - cx) * w.reinforceN;
+        sy[k] += (iy - cy) * w.reinforceN;
+        fast[k] = true;
+      }
+    }
+    const pad = 20 / cam.zoom;
+    const hw = v.width / 2 - pad;
+    const hh = v.height / 2 - pad;
+    const pulse = 0.8 + 0.2 * Math.sin(now / 160);
+    // The action bar covers the bottom-right corner of a phone's view: a mark that would land under it slides
+    // along the edge to clear it (left along the bottom edge, up along the right edge).
+    if (now - this.barCover.at > 500) {
+      this.barCover.at = now;
+      const el = document.getElementById('actionbar');
+      const r = el && !el.hidden ? el.getBoundingClientRect() : undefined;
+      const c = this.game.canvas.getBoundingClientRect();
+      this.barCover.r = r && r.width > 0 && c.width > 0
+        ? { left: (r.left - c.left) / c.width, top: (r.top - c.top) / c.height }
+        : undefined;
+      // The party frames sit on the left edge in co-op: a mark that would land under them drops just below them.
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden ? pe.getBoundingClientRect() : undefined;
+      this.barCover.party = pr && pr.width > 0 && c.width > 0
+        ? { right: (pr.right - c.left) / c.width, top: (pr.top - c.top) / c.height, bottom: (pr.bottom - c.top) / c.height }
+        : undefined;
+    }
+    const wv = cam.worldView;
+    const bar = this.barCover.r ? { left: wv.x + this.barCover.r.left * wv.width, top: wv.y + this.barCover.r.top * wv.height } : undefined;
+    const pc = this.barCover.party;
+    const party = pc ? { right: wv.x + pc.right * wv.width, top: wv.y + pc.top * wv.height, bottom: wv.y + pc.bottom * wv.height } : undefined;
+    for (let k = 0; k < SECTORS; k++) {
+      if (!count[k]) continue;
+      const a = Math.atan2(sy[k], sx[k]);
+      const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+      let ex = cx + Math.cos(a) * r;
+      let ey = cy + Math.sin(a) * r;
+      if (bar && ex > bar.left - pad && ey > bar.top - pad) {
+        if (ey >= v.bottom - pad - 1) ex = bar.left - pad;
+        else ey = bar.top - pad;
+      }
+      if (party && ex < party.right + pad && ey > party.top - pad && ey < party.bottom + pad) ey = party.bottom + pad;
+      const sz = (count[k] >= 5 ? 14 : count[k] >= 2 ? 12 : 10) / cam.zoom;
+      const tri = (s: number) => [
+        ex + Math.cos(a) * s, ey + Math.sin(a) * s,
+        ex + Math.cos(a + 2.5) * s * 0.85, ey + Math.sin(a + 2.5) * s * 0.85,
+        ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85,
+      ] as const;
+      b.fillStyle(0x000000, 0.55).fillTriangle(...tri(sz * 1.45));
+      const pk = fast[k] ? 0.7 + 0.3 * Math.sin(now / 70) : pulse;
+      if (big[k]) b.fillStyle(0xffc861, pk).fillTriangle(...tri(sz * 1.25));
+      b.fillStyle(0xff4d3d, pk).fillTriangle(...tri(sz));
+    }
+  }
+
+  /** HD-2D: this frame's foe health and cast bars, for the overlay (world units, as drawBar draws them in 2D). */
+  private barRecs: { x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
+  /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
+  private edgeCanvas: HTMLCanvasElement | null = null;
+  /**
+   * Y9 in the HD-2D test: the same chevrons as foeEdgeMarks, placed with the 3D camera (Hd2dView.project) and
+   * drawn on a 2D canvas above the 3D one (z-index 2: over its canvas and top shade, under the HUD).
+   */
+  private foeEdgeMarks3d(now: number): void {
+    const view = this.hd2d;
+    const host = this.game.canvas.parentElement;
+    if (!view || !host) return;
+    let cv = this.edgeCanvas;
+    const foes = this.hud.compact && this.world.phase === 'fight';
+    // Co-op: an ally off screen gets its class-coloured arrow at every size, as in 2D (the 3D view hides those too).
+    // Bars, names and combat text are flat UI the 3D view leaves to this overlay too (see drawLabels3d).
+    const on = true;
+    if (!cv) {
+      if (!on) return;
+      cv = this.edgeCanvas = document.createElement('canvas');
+      cv.className = 'hd2d-edge';
+      cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:2';
+      host.appendChild(cv);
+    }
+    const hr = host.getBoundingClientRect();
+    const W = hr.width, H = hr.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d');
+    if (!g) return;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (!on || !W || !H) return;
+    const w = this.world;
+    // The clear view: below a full-width boss or quest panel (clearView's cache, in viewport px), at most 40% down.
+    this.clearView();
+    const top = Math.min(0.4 * H, Math.max(0, this.hudCover.px - hr.top));
+    this.drawLabels3d(g, view, Math.max(top, this.hudCover.row - hr.top), W, H);
+    const inset = 10;
+    const cx = W / 2, cy = (top + H) / 2;
+    const SECTORS = 16;
+    const count = new Array<number>(SECTORS).fill(0);
+    const big = new Array<boolean>(SECTORS).fill(false);
+    const fast = new Array<boolean>(SECTORS).fill(false);
+    const sx = new Array<number>(SECTORS).fill(0);
+    const sy = new Array<number>(SECTORS).fill(0);
+    const add = (x: number, y: number, n: number, isBig: boolean, isFast: boolean) => {
+      const p = view.project(x, y);
+      // Behind the camera: point straight away from it (down the screen is toward the camera, so up).
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      if (p && px > inset && px < W - inset && py > top + inset && py < H - inset) return;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+      count[k] += n;
+      sx[k] += (px - cx) * n;
+      sy[k] += (py - cy) * n;
+      if (isBig) big[k] = true;
+      if (isFast) fast[k] = true;
+    };
+    if (foes) for (const e of w.enemies) if (e.alive && !e.def.stationary) add(e.x, e.y, 1, e.def.rank !== 'normal', false);
+    if (foes && w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+      const rr = w.arenaR - 60;
+      add(Math.cos(w.reinforceA) * rr, Math.sin(w.reinforceA) * rr, w.reinforceN, false, true);
+    }
+    const pad = 20;
+    const hw = W / 2 - pad, hh = (H - top) / 2 - pad;
+    const rel = (id: string) => {
+      const el = document.getElementById(id);
+      const r = el && !el.hidden ? el.getBoundingClientRect() : undefined;
+      return r && r.width > 0 ? { left: r.left - hr.left, top: r.top - hr.top, right: r.right - hr.left, bottom: r.bottom - hr.top } : undefined;
+    };
+    const bar = rel('actionbar');
+    const party = rel('party');
+    const pulse = 0.8 + 0.2 * Math.sin(now / 160);
+    const tri = (ex: number, ey: number, a: number, s: number, col: string, alpha: number) => {
+      g.globalAlpha = alpha;
+      g.fillStyle = col;
+      g.beginPath();
+      g.moveTo(ex + Math.cos(a) * s, ey + Math.sin(a) * s);
+      g.lineTo(ex + Math.cos(a + 2.5) * s * 0.85, ey + Math.sin(a + 2.5) * s * 0.85);
+      g.lineTo(ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85);
+      g.closePath();
+      g.fill();
+    };
+    for (let k = 0; k < SECTORS; k++) {
+      if (!count[k]) continue;
+      const a = Math.atan2(sy[k], sx[k]);
+      const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+      let ex = cx + Math.cos(a) * r;
+      let ey = cy + Math.sin(a) * r;
+      // Clear of the action bar (slide along the edge) and below the co-op party frames, as in 2D.
+      if (bar && ex > bar.left - pad && ey > bar.top - pad) {
+        if (ey >= H - pad - 1) ex = bar.left - pad;
+        else ey = bar.top - pad;
+      }
+      if (party && ex < party.right + pad && ey > party.top - pad && ey < party.bottom + pad) ey = party.bottom + pad;
+      const sz = count[k] >= 5 ? 14 : count[k] >= 2 ? 12 : 10;
+      const pk = fast[k] ? 0.7 + 0.3 * Math.sin(now / 70) : pulse;
+      tri(ex, ey, a, sz * 1.45, '#000000', 0.55);
+      if (big[k]) tri(ex, ey, a, sz * 1.25, '#ffc861', pk);
+      tri(ex, ey, a, sz, '#ff4d3d', pk);
+    }
+    // Allies off screen or under the top panels: a class-coloured arrow on a dark disc (grey when down), as in 2D.
+    for (const al of this.allies) {
+      const q = w.heroData(al.hero).player;
+      const p = view.project(q.x, q.y);
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      const ins = 20, pd = 26;
+      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      const sz = 12;
+      g.globalAlpha = 0.55;
+      g.fillStyle = '#000000';
+      g.beginPath(); g.arc(ex, ey, sz * 1.2, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1;
+      g.fillStyle = q.hp <= 0 ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color;
+      g.beginPath();
+      g.moveTo(ex + Math.cos(a) * sz, ey + Math.sin(a) * sz);
+      g.lineTo(ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8);
+      g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
+      g.closePath(); g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+
+  /**
+   * HD-2D: foe health and cast bars, foe names, damage numbers and the soak, revive and gate texts, which the 2D
+   * scene draws on its own (hidden) camera. Each goes at its projected floor point, at the same on-screen size as
+   * in 2D. Over-the-head items (bars, names) get lifted by the 2D offset times LIFT, since the 3D sprites stand up.
+   */
+  private drawLabels3d(g: CanvasRenderingContext2D, view: Hd2dView, top: number, W: number, H: number): void {
+    // The camera zoom maps world px to the game canvas, which runs at device resolution (main.ts); this overlay draws
+    // in CSS px, so divide by that ratio or every name, number and bar comes out DPR times too big.
+    const cw = this.game.canvas.getBoundingClientRect().width || 1;
+    const z = this.cameras.main.zoom * (cw / this.game.canvas.width);
+    const LIFT = 3.2;
+    // A foe whose floor point is off screen gets no bar, name or number, as in 2D, where they'd be outside the camera.
+    const onScreen = (q: { x: number; y: number }) => q.x >= 0 && q.x <= W && q.y >= 0 && q.y <= H;
+    for (const r of this.barRecs) {
+      const p = view.project(r.x, r.y);
+      if (!p || !onScreen(p)) continue;
+      const bw = r.bw * z, x = p.x - bw / 2, y = p.y + (r.top - r.y) * z * LIFT;
+      // Under the top row or a full-width panel the bar goes with its name (below), so neither clutters the HUD.
+      if (y < top) continue;
+      g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * z);
+      g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * z);
+      if (r.cast >= 0) {
+        g.globalAlpha = 0.7; g.fillStyle = '#000000'; g.fillRect(x, y + 8 * z, bw, 5 * z);
+        g.globalAlpha = 1; g.fillStyle = r.castCol; g.fillRect(x, y + 8 * z, bw * r.cast, 5 * z);
+      }
+      if (r.ward > 0) { g.globalAlpha = 0.95; g.fillStyle = '#e8f4ff'; g.fillRect(x, y - 3 * z, bw * r.ward, 3 * z); }
+    }
+    g.globalAlpha = 1;
+    const texts: { t: Phaser.GameObjects.Text; head: boolean }[] = [
+      ...this.plates.map((t) => ({ t, head: true })),
+      ...this.floats.filter((f) => f.life > 0).map((f) => ({ t: f.txt, head: false })),
+      ...this.gateTexts.map((t) => ({ t, head: false })),
+      { t: this.soakText, head: false },
+      { t: this.reviveText, head: false },
+    ];
+    const heads: { l: number; r: number; t: number; b: number; text: string }[] = [];
+    for (const { t, head } of texts) {
+      if (!t || !t.visible || !t.text || t.alpha <= 0) continue;
+      // A name sits on its foe's bar: project the foe's own floor point (the bar record just below it) and lift.
+      let p: { x: number; y: number } | null;
+      if (head) {
+        const bar = this.barRecs.find((r) => Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
+        const q = bar ? view.project(bar.x, bar.y) : view.project(t.x, t.y);
+        if (!q || !onScreen(q)) continue;
+        p = bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
+      } else p = view.project(t.x, t.y);
+      if (!p || !onScreen(p)) continue;
+      // A name under the top row, or the boss or quest panel, stays hidden.
+      if (head && p.y < top) continue;
+      const st = t.style;
+      const size = parseFloat(String(st.fontSize)) * z * t.scaleY;
+      g.font = `${st.fontStyle || ''} ${size}px ${st.fontFamily}`;
+      g.textAlign = 'center';
+      g.textBaseline = t.originY >= 1 ? 'bottom' : t.originY <= 0 ? 'top' : 'middle';
+      g.globalAlpha = t.alpha;
+      // Two of a kind whose names the 3D view's foreshortening pushes together: the second is dropped, as 2D drops
+      // a name within 110 x 70 of the same one.
+      if (head) {
+        const tw = g.measureText(t.text).width;
+        const box = { l: p.x - tw / 2, r: p.x + tw / 2, t: p.y - size, b: p.y };
+        if (heads.some((q) => q.text === t.text && q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b)) continue;
+        heads.push({ ...box, text: t.text });
+      }
+      const lines = t.text.split('\n');
+      const lh = size * 1.15;
+      lines.forEach((line, i) => {
+        const ly = p!.y - (lines.length - 1 - i) * lh * (t.originY >= 1 ? 1 : 0) + i * lh * (t.originY >= 1 ? 0 : 1);
+        if (st.strokeThickness) { g.lineJoin = 'round'; g.lineWidth = st.strokeThickness * z; g.strokeStyle = st.stroke; g.strokeText(line, p!.x, ly); }
+        g.fillStyle = st.color as string;
+        g.fillText(line, p!.x, ly);
+      });
+    }
+    g.globalAlpha = 1;
+  }
+
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
     const v = this.cameras.main.worldView;
     const now = this.time.now;
@@ -3131,6 +4086,9 @@ export class GameScene extends Phaser.Scene {
         if (r.height > 0 && r.width > window.innerWidth * 0.5) px = Math.max(px, r.bottom);
       }
       this.hudCover.px = px;
+      // The top row (level, health, clock): the 3D overlay keeps names and bars out of it (see drawLabels3d).
+      const row = document.querySelector('#hud > .row');
+      this.hudCover.row = row ? row.getBoundingClientRect().bottom : 0;
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
@@ -3846,6 +4804,45 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Y6 Hessa's Whirl: which way the water turns this Ebb, readable at a glance on a phone. Curved arrows circle the drain
+   * on two rings (one near the drain, one out where the heroes stand), turning the way whirlDir carries you. The way flips
+   * every Ebb as the warning starts, so the arrows grow in fresh with a white flash then, and go bold and fast in the pull.
+   */
+  private whirlDraw(g: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
+    const w = this.world;
+    const dir = w.whirlDir;
+    if (dir !== this.whirlSeen) { this.whirlSeen = dir; this.whirlFlip = now; }
+    const age = (now - this.whirlFlip) / 450;
+    const grow = Math.min(1, age);
+    const flash = Math.max(0, 1 - age);
+    const tk = Math.max(1, this.textK);
+    const turn = dir * (now / 1000) * (pulling ? 0.9 : 0.35);
+    const rings: [number, number][] = [[WRACK.drainR + 70, 3], [Math.min(ARENA - 70, WRACK.drainR + 210), 4]];
+    for (const [R, n] of rings) {
+      const span = (pulling ? 1.15 : 0.95) * grow;
+      for (let k = 0; k < n; k++) {
+        const a0 = turn + (k / n) * Math.PI * 2;
+        const a1 = a0 + dir * span;
+        const hw = (pulling ? 12 : 9) * tk;
+        const thick = (pulling ? 6 : 4.5) * tk;
+        const al = pulling ? 0.9 : 0.7 + 0.2 * Math.sin(now / 140);
+        const lo = Math.min(a0, a1), hi = Math.max(a0, a1);
+        // A dark under-stroke so the arrow reads on bright water, then the water-blue body and a pale crest.
+        g.lineStyle(thick + 3 * tk, 0x07202a, 0.55 * al).beginPath().arc(0, 0, R, lo, hi).strokePath();
+        g.lineStyle(thick, 0x7fd0e0, al).beginPath().arc(0, 0, R, lo, hi).strokePath();
+        g.lineStyle(thick * 0.35, 0xeafaff, al * (0.6 + 0.4 * flash)).beginPath().arc(0, 0, R - thick * 0.15, lo + (hi - lo) * 0.25, hi).strokePath();
+        // The head: a point ahead of the arc's end, along the way it turns.
+        const tipA = a1 + (dir * hw * 1.6) / R;
+        const tx = Math.cos(tipA) * R, ty = Math.sin(tipA) * R;
+        const bx0 = Math.cos(a1) * (R - hw), by0 = Math.sin(a1) * (R - hw);
+        const bx1 = Math.cos(a1) * (R + hw), by1 = Math.sin(a1) * (R + hw);
+        g.fillStyle(0x07202a, 0.55 * al).fillTriangle(tx, ty, bx0 - Math.cos(a1) * 2, by0 - Math.sin(a1) * 2, bx1 + Math.cos(a1) * 2, by1 + Math.sin(a1) * 2);
+        g.fillStyle(flash > 0 ? 0xffffff : 0xbfe9ff, Math.min(1, al + 0.15)).fillTriangle(tx, ty, bx0, by0, bx1, by1);
+      }
+    }
+  }
+
   private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const pulling = w.ebbT > 0;
@@ -3854,11 +4851,13 @@ export class GameScene extends Phaser.Scene {
     // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
     // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
     if (!this.drainImg) this.drainImg = this.add.image(0, 0, 'drain').setDepth(0.8);
-    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(-(now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
+    // Y6 the Whirl: the drain turns the way the water will carry you (whirlDir 1 is clockwise on screen).
+    const spinDir = w.whirl ? w.whirlDir : -1;
+    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
     if (pulling && !this.lowFx) {
       // Foam spun off the drain's rim.
       for (let k = 0; k < 3; k++) {
-        const a = -(now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
+        const a = spinDir * (now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
         g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(0, 0, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
       }
     }
@@ -3871,6 +4870,16 @@ export class GameScene extends Phaser.Scene {
         const t = (now / (pulling ? 500 : 900) + k * 0.37) % 1;
         // Phase 12 W1: Hessa's Outsurge runs the other way, from the drain out to the rim (placeholder until visuals).
         const outward = w.outsurge;
+        if (w.whirl) {
+          // Y3 the Whirl: streaks run round the drain the way it turns (the arrowed eddies are drawn below, whirlDraw).
+          const rr = WRACK.drainR + 60 + ((k * 97) % (ARENA - WRACK.drainR - 90));
+          const a0 = a + w.whirlDir * t * 1.4;
+          const a1 = a0 - w.whirlDir * (pulling ? 0.22 : 0.12);
+          const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
+          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(Math.cos(a1) * rr, Math.sin(a1) * rr, Math.cos(a0) * rr, Math.sin(a0) * rr);
+          g.fillStyle(0xeafaff, al).fillCircle(Math.cos(a0) * rr, Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
+          continue;
+        }
         const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
         const len = pulling ? 80 : 44;
         const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
@@ -3881,6 +4890,10 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
       }
     }
+    // Y6: the Whirl's eddies lie on the water under the rafts (0.85; rafts 0.9), so a raft, which the water can't carry, stays clear.
+    if (!this.whirlGfx && w.whirl) this.whirlGfx = this.add.graphics().setDepth(0.85);
+    this.whirlGfx?.clear();
+    if (w.whirl && (warn || pulling) && this.whirlGfx) this.whirlDraw(this.whirlGfx, now, pulling);
     if (!this.surfGfx) this.surfGfx = this.add.graphics().setDepth(1.35);
     const sg = this.surfGfx.clear();
     if (w.outsurge && (warn || pulling)) this.outsurgeDraw(sg, now, pulling);
@@ -4107,9 +5120,96 @@ export class GameScene extends Phaser.Scene {
    * - Cold Snap: frost creeps in from the arena edge and snow falls; when it lands the coals dim (the sim) with a frost ring.
    * - High Water: the Ebb's own warning shows it, so there is nothing more to draw.
    */
+  /** Each dungeon's stone texture for its layouts and cave-ins (the boss fight is always open). */
+  private stoneKey(): string {
+    const id = this.world.dungeonId;
+    return id === 'foundry' ? 'foundryStone' : id === 'coldmarrow' ? 'iceStone' : id === 'hammerdeep' ? 'deepStone' : id === 'pressworks' ? 'pressStone' : RAID_STONE[id] ?? 'kilnStone';
+  }
+
+  /** Phase 15 Y6 and Y10: the wave marks (waveFx), the stir beat's falling grit, and the stirred elite's mark. */
+  private waveDraw(now: number): void {
+    const w = this.world;
+    this.waveFx = this.waveFx.filter((f) => now - f.t0 < f.dur);
+    const se = this.stirElite;
+    const elite = se && w.enemies[se.i]?.alive && w.enemies[se.i].spawnedAt === se.at ? w.enemies[se.i] : null;
+    if (!elite) this.stirElite = null;
+    const stirring = this.stirAt >= 0 && now - this.stirAt < 1400;
+    if (!this.waveFx.length && !elite && !stirring) { this.waveGfx?.clear(); return; }
+    if (!this.waveGfx) this.waveGfx = this.add.graphics().setDepth(1.95);
+    const g = this.waveGfx.clear();
+    const AMBER = 0xffb35c, DEEP = 0xff6a1f;
+    const chevron = (x: number, y: number, a: number, size: number, col: number, alpha: number, width = 4) => {
+      // Points along a.
+      const bx = x - Math.cos(a) * size, by = y - Math.sin(a) * size;
+      const px = -Math.sin(a) * size * 0.8, py = Math.cos(a) * size * 0.8;
+      g.lineStyle(width, col, alpha).beginPath().moveTo(bx + px, by + py).lineTo(x, y).lineTo(bx - px, by - py).strokePath();
+    };
+    for (const f of this.waveFx) {
+      const k = (now - f.t0) / f.dur;
+      const fade = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4);
+      if (f.kind === 'ring') {
+        // A dashed ring round where the hero stood, drawing in from where the wave forms (WAVES.ringR) as it fades.
+        const r = WAVES.ringR * (1 - 0.6 * (1 - (1 - k) * (1 - k)));
+        const n = 28, turn = k * 0.6;
+        for (let j = 0; j < n; j++) {
+          const a0 = turn + (j / n) * Math.PI * 2;
+          g.lineStyle(5, AMBER, 0.75 * fade).beginPath().arc(f.x, f.y, r, a0, a0 + (Math.PI * 2) / n * 0.55).strokePath();
+        }
+        for (let j = 0; j < 8; j++) {
+          const a = (j / 8) * Math.PI * 2 + turn;
+          chevron(f.x + Math.cos(a) * (r - 26), f.y + Math.sin(a) * (r - 26), a + Math.PI, 12, AMBER, 0.85 * fade);
+        }
+      } else if (f.kind === 'pincer') {
+        // Two columns of chevrons squeezing in on the hero from both flanks (a quarter turn either side of the far side).
+        for (const side of [1, -1]) {
+          const a = f.a + side * (Math.PI / 2);
+          for (let j = 0; j < 3; j++) {
+            const d = 250 - 150 * ((k * 1.4 + j * 0.18) % 1);
+            chevron(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, a + Math.PI, 20, AMBER, 0.9 * fade * (1 - j * 0.2), 6);
+          }
+        }
+      } else if (f.kind === 'gate') {
+        // The held pack's gate: a glowing stretch of the arena wall and chevrons marching in from it, pulsing faster as it nears.
+        const R = w.arenaR - 18, pulse = 0.65 + 0.35 * Math.sin(now / (110 - 50 * k));
+        g.lineStyle(14, DEEP, 0.22 * fade).beginPath().arc(0, 0, R, f.a - 0.55, f.a + 0.55).strokePath();
+        g.lineStyle(5, AMBER, 0.9 * fade * pulse).beginPath().arc(0, 0, R, f.a - 0.5, f.a + 0.5).strokePath();
+        g.fillStyle(DEEP, 0.18 * fade * pulse).fillCircle(f.x, f.y, 70 + 20 * k);
+        for (let j = 0; j < 3; j++) {
+          const d = (now / 9 + j * 45) % 135;
+          chevron(f.x - Math.cos(f.a) * (30 + d), f.y - Math.sin(f.a) * (30 + d), f.a + Math.PI, 16, AMBER, 0.9 * fade * (1 - d / 135), 5);
+        }
+      } else {
+        // The pack bursts through: a ring of dust thrown out from the gate.
+        g.lineStyle(6 * (1 - k) + 1, AMBER, 0.8 * (1 - k)).strokeCircle(f.x, f.y, 30 + 110 * k);
+        g.fillStyle(0xb8aca4, 0.35 * (1 - k)).fillCircle(f.x, f.y, 30 + 70 * k);
+      }
+    }
+    if (stirring && !this.lowFx) {
+      // Grit shaken loose from the dark above, over the whole view.
+      const v = this.cameras.main.worldView, k = (now - this.stirAt) / 1400;
+      for (let j = 0; j < 26; j++) {
+        const u = ((k * 1.6 + j * 0.137) % 1);
+        const x = v.x + ((j * 97.31) % 1) * v.width + (j % 2 ? 6 : -6) * u;
+        this.overFx.fillStyle(0xb8aca4, 0.55 * (1 - k)).fillCircle(x, v.y + u * v.height, 1.4 + (j % 3) * 0.6);
+      }
+    }
+    if (elite) {
+      // The stirred elite: an amber rune ring turning under it, with three notches, so the extra one reads as the dungeon's.
+      const r = elite.def.radius * 1.35, a0 = now / 700;
+      const x = elite.x, y = elite.y + elite.def.radius * 0.55;
+      g.lineStyle(3, AMBER, 0.75).strokeEllipse(x, y, r * 2, r * 0.9);
+      g.lineStyle(2, DEEP, 0.5).strokeEllipse(x, y, r * 2.3, r * 1.05);
+      for (let j = 0; j < 3; j++) {
+        const a = a0 + (j / 3) * Math.PI * 2;
+        g.fillStyle(AMBER, 0.9).fillCircle(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.45, 4);
+      }
+    }
+  }
+
   private arenaEventDraw(now: number): void {
     const w = this.world;
     const ev = w.arenaEvent;
+    for (const r of this.caveRocks) r.setVisible(false);
     if (!ev || w.arenaEventStage !== 1 || ev === 'highWater') { this.arenaGfx?.clear(); return; }
     if (!this.arenaGfx) this.arenaGfx = this.add.graphics().setDepth(1.9);
     const g = this.arenaGfx.clear();
@@ -4124,16 +5224,13 @@ export class GameScene extends Phaser.Scene {
           const u = ((now / 700) + m / 6 + n * 0.31) % 1;
           o.fillStyle(0xb8aca4, 0.6 * (1 - u)).fillCircle(c.x + Math.sin(m * 2.3 + n) * 18, c.y - 220 + 220 * u, 1.6 + m % 2);
         }
-        // The rock: it falls in the last 40% of the warning, a seeded lump the size of the stone it becomes.
+        // The rock: it falls in the last 40% of the warning. It is the very stone it becomes, in this dungeon's own
+        // look (Hammerdeep iron, Pressworks plate, Coldmarrow ice, pumice in the Ashvents), a little larger while high.
         if (k > 0.6) {
           const f = (k - 0.6) / 0.4;
-          const y = c.y - 260 * (1 - f * f);
-          const r = A.caveRadius * 1.15;
-          const pts: Phaser.Math.Vector2[] = [];
-          for (let q = 0; q < 7; q++) { const a = (q / 7) * Math.PI * 2 + n; const rr = r * (0.8 + 0.25 * Math.sin(q * 3.1 + n * 1.7)); pts.push(new Phaser.Math.Vector2(c.x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8)); }
-          o.fillStyle(0x5a4e48, 1).fillPoints(pts, true);
-          o.lineStyle(3, 0x1a1010, 1).strokePoints(pts, true);
-          o.fillStyle(0x8a7c74, 1).fillCircle(c.x - r * 0.3, y - r * 0.3, r * 0.25);
+          const rock = this.caveRocks[n] ?? (this.caveRocks[n] = this.add.image(0, 0, this.stoneKey()).setOrigin(0.5, 0.64).setDepth(5.5)); // under heroes (6): never over an ally's ring
+          rock.setTexture(this.stoneKey()).setVisible(true).setPosition(c.x, c.y - 260 * (1 - f * f))
+            .setScale((A.caveRadius / 68) * (1.3 - 0.3 * f)).setRotation((1 - f) * (n % 2 ? 0.5 : -0.5));
         }
       }
     } else if (ev === 'ventSurge') {

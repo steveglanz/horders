@@ -62,9 +62,22 @@ for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
 // Phase 14 X3: ARENA=caveIn|ventSurge forces that arena event in every trash fight that can have it; ARENA=off turns them off.
 if (process.env.ARENA === 'off') WORLD.ARENA_EVENTS.off = true;
 else if (process.env.ARENA) WORLD.ARENA_EVENTS.force = process.env.ARENA;
+// Phase 15 Y1: WAVE=off keeps every wave an arc; WAVE=pincer|ring|reinforce forces one.
+if (process.env.WAVE === 'off') WORLD.WAVES.off = true;
+else if (process.env.WAVE) WORLD.WAVES.force = process.env.WAVE;
+// Phase 15 Y10: STIR=off turns the dungeon's stirring off; STIR=elite|named|event|wave|any stirs every trash fight after the opener.
+// Phase 16 U1: ECHO=off turns boss echoes off; ECHO=<version id> forces that echo where the boss has it.
+if (process.env.ECHO === 'off') WORLD.ECHO.off = true;
+else if (process.env.ECHO) WORLD.ECHO.force = process.env.ECHO;
+if (process.env.STIR === 'off') WORLD.STIR.off = true;
+else if (process.env.STIR) WORLD.STIR.force = process.env.STIR;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 
 let wins = 0;
+/** STIRHURT=1: Phase 15 Y10's judged cost of each trash clear (the worst hero against their class bar), as percentiles. */
+const fightHurts: number[] = [];
+/** STIRHURT=1: how often each class was the worst-off hero of a cleared fight. */
+const worstBy: Record<string, number> = {};
 for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
@@ -77,6 +90,11 @@ for (const seed of seeds) {
     }),
   };
   const w = new World(opts);
+  // BOSSV=home (any boss version id) forces this run's boss version, so versions compare on the same seeds.
+  if (process.env.BOSSV) {
+    const q = w as unknown as Record<string, unknown>;
+    for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(w))) if (/^roll\w+Variant$/.test(k)) q[k] = () => process.env.BOSSV;
+  }
   // GRANT=leeSide:2,frontMend:2 gives each hero of the card's class those ranks from the start
   // (to measure cards the bot rarely drafts). Granted ranks don't count toward the branch's capstone,
   // so the bot's own draft and capstone timing stay as they were.
@@ -127,6 +145,13 @@ for (const seed of seeds) {
         });
       }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
+      if (ev.type === 'stir') bump('stir:' + ev.id);
+      if (ev.type === 'encounterClear') {
+        fightHurts.push(w.fightHurt);
+        const k = w.fightWorst;
+        const who = k < 0 ? 'none' : `${w.heroes[k].cls}${w.heroData(k).player.stance === 'anvil' ? '(anvil)' : ''}`;
+        worstBy[who] = (worstBy[who] ?? 0) + 1;
+      }
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');
       if (ev.type === 'revive') bump('revive');
@@ -141,5 +166,10 @@ for (const seed of seeds) {
   if (s.victory) wins++;
   const alive = w.heroes.map((_, i) => (w.hero(i).player.hp > 0 ? 'up' : 'down')).join('/');
   console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} heroes=${alive} boss=${w.bossIndex >= 0 ? Math.round((100 * w.enemies[w.bossIndex].hp) / w.enemies[w.bossIndex].maxHp) + '%' : '-'} deaths=${deaths.join(',')} ${JSON.stringify(c)}`);
+}
+if (process.env.STIRHURT === '1' && fightHurts.length) {
+  const q = [...fightHurts].sort((x, y) => x - y);
+  const at = (f: number) => q[Math.min(q.length - 1, Math.floor(f * q.length))].toFixed(3);
+  console.log(`stirhurt n=${q.length} p25=${at(0.25)} p50=${at(0.5)} p75=${at(0.75)} p90=${at(0.9)} worst=${JSON.stringify(worstBy)}`);
 }
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);

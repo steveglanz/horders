@@ -306,6 +306,11 @@ export const SOUNDS = {
   bellowsPick: join(whoosh(300, 3200, 0.4, 0.3), chime(E5 * 2, 0.25, 0.12, 0.3)),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
+  /** Phase 15 Y4: something new went into your Seen log this run. A page turns, then a soft questioning figure that
+   *  answers itself (a fourth up and back to the fifth), apart from unlock's straight rise. */
+  seenNew: join(
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.12, a: 0.03, lp: 7000, lp2: 3000, hp: 1200, curve: 2 }],
+    chime(D5 * 2, 0.12, 0.2, 0.4), chime(G5 * 2, 0.24, 0.18, 0.4), chime(A5 * 2, 0.4, 0.2, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
   victory: join(
     horn(note(-9), 0.5, 0.25), chime(C5, 0, 0.25, 0.4), chime(E5, 0.15, 0.25, 0.4), chime(G5, 0.3, 0.28, 0.4),
@@ -428,6 +433,19 @@ export const SOUNDS = {
     ]),
     boom(55, 0.5, 0.45).map((v) => ({ ...v, delay: 0.3 })),
   ),
+  /** The Homeward Hammer (Ondrel, home runs) is thrown: a hammer spinning end over end through the air toward the farthest hero (panned there). */
+  homeOut: join(
+    [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.22, a: 0.08, lp: 1800, lp2: 4500, hp: 500, curve: 1.4, trem: [9, 0.7] },
+     { wave: 'saw', f: 140, f2: 90, dur: 0.8, vol: 0.08, a: 0.05, lp: 1200, curve: 1.6, trem: [9, 0.6] }],
+  ),
+  /** It lands and rings through the floor, then starts home: an anvil ring (every hero is hurt) and a whoosh that builds
+   *  toward his hand, peaking as the return line lands HOMEWARD.back (1.2 s) later. The line's own slam is the catch. */
+  homeBack: join(
+    clang(392, 0.32, 0.9), clang(523, 0.14, 0.7),
+    [{ wave: 'sine', f: note(-5), dur: 1.0, vol: 0.1, curve: 1.2, vib: [6, 0.006] },
+     { wave: 'noise', f: 0, dur: 0.85, delay: 0.3, vol: 0.24, a: 0.8, lp: 1200, lp2: 6000, hp: 600, curve: 0.4, trem: [12, 0.6] },
+     { wave: 'sine', f: 500, f2: 1100, dur: 0.85, delay: 0.3, vol: 0.06, a: 0.8, curve: 0.4 }],
+  ),
   /** Slag Grip: molten slag clamps on, a sizzle that gets angrier with each stack. */
   slag: [
     { wave: 'noise', f: 0, dur: 0.45, vol: 0.3, a: 0.01, lp: 6000, lp2: 2500, hp: 1500, trem: [22, 0.6] },
@@ -503,6 +521,22 @@ export const SOUNDS = {
     ...[E5, G5, B5(), G5, E5].map((f, k) => chime(f, 0.5 + k * 0.14, 0.2, 0.4)),
     whoosh(1800, 900, 1.0, 0.18).map((v) => ({ ...v, delay: 0.9 })),
   ),
+  /** Rolling Vents (Ysmeret's third version, Phase 15 Y3): one vent opens, and two more will follow round her one at a time.
+   *  The vent's whoosh, then three rising chimes that count the roll ("one, two, three"). */
+  rollVentWarn: join(
+    whoosh(400, 3500, 0.55, 0.35),
+    ...[E5, G5, B5()].map((f, k) => chime(f, 0.35 + k * 0.2, 0.2, 0.45)),
+  ),
+  /** Rolling Vents: the next vent opens round her as the last closes. A short whoosh and the next step of the count. */
+  ventRollNext: join(
+    whoosh(500, 3200, 0.35, 0.3),
+    chime(G5, 0.08, 0.22, 0.5),
+  ),
+  /** Rolling Vents: the last of the three. The same step a note higher, with a closing ring so the soakers know it ends here. */
+  ventRollLast: join(
+    whoosh(500, 3200, 0.35, 0.3),
+    chime(B5(), 0.08, 0.22, 0.5), chime(E6, 0.22, 0.14, 0.7),
+  ),
   /** Scatter Embers (and the raid's Cinder Marks): a crackling sparkle that says "get apart". */
   scatterWarn: [
     { wave: 'noise', f: 0, dur: 1.2, vol: 0.25, a: 0.9, curve: 0.7, lp: 3000, lp2: 9000, hp: 1200, trem: [14, 0.7] },
@@ -577,6 +611,22 @@ export const SOUNDS = {
     { wave: 'tri', f: 110, f2: 240, dur: 2.8, vol: 0.13, a: 1.0, curve: 0.8, vib: [3, 0.03] },
     { wave: 'sine', f: 1500, f2: 700, dur: 2.6, vol: 0.08, a: 1.8, curve: 0.6 },
     { wave: 'noise', f: 0, dur: 0.3, delay: 2.4, vol: 0.2, lp: 9000, hp: 2500, curve: 2 },
+  ],
+  /** The Whirl (Hessa, phase 2+ on whirl runs) winds up: the water starts to turn. Three swells of churn that circle faster and faster,
+   *  a low tone that wobbles like a spinning drain, and a whistle that climbs into the pull. Same length as ebbWarn. */
+  whirlWarn: [
+    { wave: 'noise', f: 0, dur: 1.2, vol: 0.24, a: 0.6, lp: 600, lp2: 3000, hp: 250, curve: 0.8, trem: [2, 0.6] },
+    { wave: 'noise', f: 0, dur: 1.0, delay: 0.9, vol: 0.27, a: 0.4, lp: 1200, lp2: 4500, hp: 300, curve: 0.8, trem: [3.5, 0.6] },
+    { wave: 'noise', f: 0, dur: 1.0, delay: 1.8, vol: 0.3, a: 0.3, lp: 2000, lp2: 6000, hp: 400, curve: 0.9, trem: [6, 0.6] },
+    { wave: 'tri', f: 160, f2: 200, dur: 2.8, vol: 0.13, a: 1.0, curve: 0.8, vib: [2.5, 0.08] },
+    { wave: 'sine', f: 700, f2: 1400, dur: 2.6, vol: 0.07, a: 1.8, curve: 0.6, vib: [4, 0.05] },
+  ],
+  /** The Whirl turns: a churning round-and-round swirl, not the Ebb's straight drag or the Outsurge's backwash. */
+  whirlPull: [
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.28, a: 0.1, lp: 1400, lp2: 900, hp: 250, trem: [3, 0.6] },
+    { wave: 'saw', f: 110, f2: 95, dur: 2.2, vol: 0.12, a: 0.15, lp: 1400, vib: [3, 0.06], trem: [3, 0.4] },
+    { wave: 'noise', f: 0, dur: 2.1, vol: 0.24, a: 0.12, lp: 6000, lp2: 3000, hp: 1200, trem: [6, 0.6] },
+    { wave: 'sine', f: 900, f2: 700, dur: 2.0, vol: 0.06, a: 0.2, curve: 1.2, vib: [3, 0.12] },
   ],
   /** The Outsurge throws you out: a backwash that surges and breaks on the burning rim, not the Ebb's churning drag. */
   outsurgePull: [
@@ -827,6 +877,52 @@ export const SOUNDS = {
     ...[0.2, 0.45, 0.62, 0.8, 0.95, 1.08, 1.2].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 70, f2: 1100 + k * 90, dur: 0.05, delay: d, vol: 0.12, curve: 2 }]),
     clang(196, 0.18, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.25 })),
   ),
+  /** The Overflow (Grandmother Slag's third version, phase 2): the pit is about to flood in from the rim. A deep molten swell
+   *  that builds from the edges, and a two-note horn that rises "come in to her". Ends before it rises (OVERFLOW.warn 2.5 s). */
+  overflowWarn: join(
+    [{ wave: 'saw', f: 45, f2: 90, dur: 2.2, vol: 0.2, a: 1.6, lp: 500, lp2: 1400, curve: 0.7, trem: [3, 0.4] },
+     { wave: 'noise', f: 0, dur: 2.2, vol: 0.18, a: 1.7, lp: 1200, lp2: 5000, hp: 400, curve: 0.7, trem: [3, 0.4] }],
+    horn(note(-7), 0.5, 0.34).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.7 })),
+    horn(note(0), 0.8, 0.36).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.25 })),
+    // Slag bubbling up through it, quickening: the phone band carries the warning under a busy raid.
+    ...[0.3, 0.6, 0.85, 1.05, 1.25, 1.4, 1.55, 1.7, 1.82, 1.94].map((d, k) => [{ wave: 'sine' as const, f: 600 + k * 60, f2: 1300 + k * 80, dur: 0.05, delay: d, vol: 0.12, curve: 2 }]),
+  ),
+  /** The Overflow rises: molten slag pours over the rim and burns anyone far out. A heavy crash with a long sizzle. */
+  overflowRise: join(
+    boom(55, 0.6, 0.55),
+    [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.3, a: 0.04, lp: 9000, lp2: 3000, hp: 1500, curve: 1.2, trem: [14, 0.4] },
+     { wave: 'saw', f: 120, f2: 70, dur: 0.8, vol: 0.1, a: 0.05, lp: 1200, curve: 1.4 },
+     // A bright hiss as it meets the stone, for phone speakers.
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.18, a: 0.02, lp: 10000, hp: 3500, curve: 1.6, trem: [22, 0.5] }],
+  ),
+  /** The Overflow ebbs: the slag drains back into the pit. A falling hiss and a sinking tone (safe to spread again). */
+  overflowEbb: [
+    { wave: 'noise', f: 0, dur: 0.9, vol: 0.18, a: 0.1, lp: 6000, lp2: 1200, hp: 600, curve: 1.2 },
+    { wave: 'sine', f: 700, f2: 300, dur: 0.8, vol: 0.08, a: 0.08, curve: 1.3 },
+  ],
+  /** Phase 15 Y3: Old Vorhulm's Inhale (the Hoard, phase 3). The warning (INHALE.warn, 1.5 s): a deep throat rumble as his
+   *  jaw opens, three quick snuffs, and two rising horn calls that say walk away now. */
+  inhaleWarn: join(
+    [{ wave: 'saw', f: 48, f2: 62, dur: 1.3, vol: 0.2, a: 0.3, lp: 420, lp2: 900, curve: 1.0, trem: [7, 0.5] },
+     { wave: 'noise', f: 0, dur: 1.3, vol: 0.12, a: 0.4, lp: 700, lp2: 1600, hp: 200, curve: 1.0, trem: [7, 0.5] }],
+    ...[0.15, 0.32, 0.49].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.2, a: 0.03, lp: 5000, lp2: 2500, hp: 900, curve: 1.6 }]),
+    horn(note(-5), 0.35, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.65 })),
+    horn(note(2), 0.5, 0.32).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.95 })),
+  ),
+  /** He breathes in (INHALE.time, 3 s), pulling every hero toward his mouth: a long rising in-breath, its filter opening as
+   *  the pull goes on, with embers rattling in his throat. Ends before the all-clear. */
+  inhaleDraw: join(
+    [{ wave: 'noise', f: 0, dur: 2.9, vol: 0.3, a: 2.2, lp: 500, lp2: 4500, hp: 300, curve: 0.6, trem: [5, 0.25] },
+     { wave: 'saw', f: 55, f2: 82, dur: 2.9, vol: 0.14, a: 2.0, lp: 700, lp2: 1800, curve: 0.6 },
+     { wave: 'sine', f: 330, f2: 660, dur: 2.9, vol: 0.07, a: 2.2, curve: 0.6, vib: [4, 0.01] }],
+    ...[0.4, 0.9, 1.3, 1.65, 1.95, 2.2, 2.45, 2.65].map((d, k) => [{ wave: 'sine' as const, f: 900 + k * 90, f2: 1500 + k * 110, dur: 0.04, delay: d, vol: 0.08, curve: 2 }]),
+  ),
+  /** The all-clear: his jaw shuts and he breathes out, a falling sigh. */
+  inhaleEnd: join(
+    clang(180, 0.12, 0.25),
+    [{ wave: 'noise', f: 0, dur: 0.8, delay: 0.05, vol: 0.16, a: 0.06, lp: 3000, lp2: 600, hp: 250, curve: 1.3 },
+     { wave: 'saw', f: 70, f2: 45, dur: 0.6, delay: 0.05, vol: 0.08, a: 0.05, lp: 500, curve: 1.4 }],
+  ),
   /** A cooling island starts to sink (its last BRIM.warn s): a long hiss of slag closing over stone, falling. */
   islandSink: [
     { wave: 'noise', f: 0, dur: 1.3, vol: 0.2, a: 0.15, lp: 8000, lp2: 2500, hp: 1200, curve: 0.9, trem: [7, 0.3] },
@@ -864,6 +960,40 @@ export const SOUNDS = {
   layoutSteam: join(
     ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.18, delay: d, vol: 0.2, lp: 9000, lp2: 4000, hp: 1800, curve: 2 }]),
     horn(196, 0.5, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.5 })),
+  ),
+  /** Sealed Vents (Maelra, phase 2+ on seal runs): the steam is about to move. A hiss that builds over 2 s under a rising pipe whistle, so it is heard before the next vent opens (MAELRA_SEAL.warn 2.5 s). */
+  steamMoveWarn: join(
+    [{ wave: 'noise', f: 0, dur: 2.0, vol: 0.22, a: 1.6, lp: 2500, lp2: 9000, hp: 1400, curve: 0.7 },
+     { wave: 'sine', f: 600, f2: 1400, dur: 2.0, vol: 0.07, a: 1.4, curve: 0.7, vib: [6, 0.012] },
+     { wave: 'tri', f: 880, f2: 1320, dur: 0.6, delay: 1.4, vol: 0.06, a: 0.3, curve: 1.2 }],
+  ),
+  /** Sealed Vents: the steam arrives at the new vent. A valve knock, then a full blast of steam that thins out. */
+  steamMoveOpen: join(
+    clang(330, 0.18, 0.25),
+    [{ wave: 'noise', f: 0, dur: 0.06, vol: 0.34, lp: 8000, hp: 900, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.8, vol: 0.26, a: 0.02, lp: 10000, lp2: 2800, hp: 1600, curve: 1.4 }],
+    boom(65, 0.3, 0.25),
+  ),
+  /** Carried Light (the Lensmother, phase 2+ on walk runs): she takes the light with her and every shadow swings round.
+   *  Starts 0.45 s in, once the Glare's castWarn (0.4 s) has finished, so it isn't ducked under it: a glassy sweep that rises and falls, with a bright shimmer on top. */
+  lightSwing: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, delay: 0.45, vol: 0.22, a: 0.3, lp: 1800, lp2: 7000, hp: 900, curve: 1.3 },
+     { wave: 'sine', f: 1200, f2: 2400, dur: 0.35, delay: 0.45, vol: 0.08, a: 0.2, curve: 1 },
+     { wave: 'sine', f: 2400, f2: 1600, dur: 0.35, delay: 0.8, vol: 0.08, curve: 1.4 }],
+    chime(E6, 0.6, 0.05, 0.4), chime(B5(), 0.75, 0.04, 0.4),
+  ),
+  /** Creeping Rime (Nhevra, phase 2 on rime runs): the frost rises under her. It waits 1.4 s for her phase sting (phaseIce, priority) to finish,
+   *  then a cold swell with frost cracking through it, rising in pitch as the patch spreads. */
+  rimeRise: join(
+    [{ wave: 'noise', f: 0, dur: 1.0, delay: 1.4, vol: 0.2, a: 0.5, lp: 2500, lp2: 8000, hp: 1200, curve: 1 },
+     { wave: 'sine', f: 520, f2: 880, dur: 1.0, delay: 1.4, vol: 0.07, a: 0.5, curve: 1, vib: [5, 0.01] }],
+    ...[1.5, 1.62, 1.7, 1.86, 1.95, 2.08, 2.2].map((d, k) => [{ wave: 'tri' as const, f: 3200 + k * 260, dur: 0.03, delay: d, vol: 0.06, curve: 4 }]),
+    chime(B5() * 2, 1.9, 0.06, 0.5),
+  ),
+  /** Standing in the Creeping Rime: a dry crackle of frost underfoot (throttled like lavaSizzle). */
+  rimeCrackle: join(
+    ...[0, 0.05, 0.13, 0.2].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.14 - k * 0.02, lp: 9000, hp: 2500, curve: 4 }]),
+    [{ wave: 'tri', f: 3600, dur: 0.04, delay: 0.08, vol: 0.04, curve: 4 }],
   ),
   /** Sluicetide (Maelra, phase 2+ on tide runs): the current turns. A deep water rush swells and drains, with a bright splash on top for a phone. */
   tideTurn: join(
@@ -932,6 +1062,18 @@ export const SOUNDS = {
   ),
   /** Die Cut lands: the die shears through half the floor, a sharp cut over a heavy press thump. */
   dieCut: join(whoosh(6000, 1200, 0.35, 0.35), clang(220, 0.4, 0.8), boom(45, 0.7, 0.7)),
+  /** Punch Line (Oskel's third version, Phase 15 Y3) winds up: the presses draw breath. A pneumatic hiss that rises under a
+   *  ratchet ticking at the punches' own 0.25 s beat, so the rhythm is heard before the first lands (PUNCH.first 1.4 s). */
+  punchLineWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.2, vol: 0.2, a: 0.9, lp: 1500, lp2: 6000, hp: 700, curve: 0.7 },
+     { wave: 'saw', f: 90, f2: 130, dur: 1.2, vol: 0.1, a: 0.6, lp: 900, curve: 0.8 }],
+    ...[0.4, 0.65, 0.9, 1.15].map((d, k) => [{ wave: 'square' as const, f: 900 + k * 120, dur: 0.04, delay: d, vol: 0.1, lp: 5000, curve: 3 }]),
+  ),
+  /** Punch Line lands: one press punch, a hard metal thunk. Short, so each step of the march (0.25 s apart) stays its own. */
+  punchHit: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.32, lp: 6000, hp: 600, curve: 3 }],
+    clang(330, 0.18, 0.16), boom(70, 0.2, 0.35),
+  ),
   /** The Pressworks' steam-press vents: a hydraulic hiss builds against a valve tick. */
   pressVentWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 2000, lp2: 7000, hp: 900, curve: 0.8 }],
@@ -1088,6 +1230,17 @@ export const SOUNDS = {
      { wave: 'saw', f: note(-14), f2: note(-9), dur: 2.2, vol: 0.12, a: 1.4, lp: 1600, curve: 0.8, vib: [3, 0.01] },
      { wave: 'sine', f: 220, f2: 440, dur: 2.2, vol: 0.1, a: 1.4, curve: 0.8 }],
   ),
+  /** Phase 15 Y3: the Kiln Mother's Turning Fire (her third phase-2 version). She draws breath and the fire starts to
+   *  turn: a roar swelling under a swirl (tremolo speeding up), with four rising pips, one for each cone to come. */
+  turnFireWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.4, vol: 0.24, a: 0.9, lp: 900, lp2: 5000, hp: 380, curve: 0.8, trem: [4, 0.5] as [number, number] },
+     { wave: 'saw', f: note(-12), f2: note(-7), dur: 1.4, vol: 0.1, a: 0.9, lp: 1800, curve: 0.8, trem: [6, 0.4] as [number, number] }],
+    ...[0.5, 0.7, 0.9, 1.1].map((d, k) => [{ wave: 'sine' as const, f: note(10 + k * 2) * 2, dur: 0.12, delay: d, vol: 0.09, curve: 3 }])),
+  /** Each Turning Fire cone lands (0.7 s apart): a short fire whoosh that cuts off clean, so four in a row stay four. */
+  turnCone: join(
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.24, a: 0.01, lp: 6000, lp2: 1400, hp: 400, curve: 2 },
+     { wave: 'saw', f: 160, f2: 90, dur: 0.3, vol: 0.1, lp: 1500, curve: 2 }],
+    ...[0.08, 0.16].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
   /** Kiln Draw lands: the 150-radius fire circle around the Kiln Mother snaps shut with a roar (played as the cast ends). */
   ringClose: join(
     [{ wave: 'noise', f: 0, dur: 0.1, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
@@ -1148,6 +1301,88 @@ export const SOUNDS = {
   surgeLens: join(boom(80, 0.4, 0.25),
     [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.28, lp: 12000, hp: 3000, curve: 3 }],
     chime(E6 * 1.5, 0, 0.18, 0.7), chime(B5() * 2, 0.04, 0.14, 0.7), chime(G6 * 1.5, 0.08, 0.12, 0.7)),
+  /** Group dungeons (X3 part 2). The Hammerdeep's cave-in: dead-forge rock and iron slag clatter down. */
+  caveInDeep: join(boom(55, 0.6, 0.45),
+    ...[0.05, 0.15].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }]),
+    clang(220, 0.14, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    clang(165, 0.12, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 }))),
+  /** The Ashvents' cave-in: pumice drops in soft crunches and the ash it sheds hangs in the air. */
+  caveInAsh: join(boom(60, 0.5, 0.35),
+    ...[0.04, 0.13, 0.2].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.1, delay: d, vol: 0.22, lp: 3200, hp: 500, curve: 2.5 }]),
+    [{ wave: 'noise', f: 0, dur: 0.7, delay: 0.2, vol: 0.1, a: 0.15, lp: 10000, hp: 3500, curve: 1.4 }]),
+  /** The Pressworks' cave-in: rock lands on sheet steel, a dull ring under the crash. */
+  caveInPress: join(boom(60, 0.5, 0.4),
+    ...[0.05, 0.14].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2600, hp: 500, curve: 2.5 }]),
+    clang(131, 0.2, 0.6).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.06 }))),
+  /** The Hammerdeep's vent surge: every forge vent roars back to life at once. */
+  surgeDeep: join(boom(60, 0.6, 0.35),
+    [{ wave: 'saw', f: 110, f2: 70, dur: 0.6, vol: 0.12, lp: 1800, lp2: 600, curve: 1.6 },
+     { wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 4000, lp2: 1200, hp: 450, curve: 1.6 }],
+    ...[0.15, 0.24, 0.36].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
+  /** The Ashvents' vent surge: every fumarole coughs ash and embers together. */
+  surgeAsh: join(boom(70, 0.4, 0.3),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 5000, lp2: 1500, hp: 450, curve: 1.6 }],
+    ...[0.12, 0.2, 0.27, 0.38, 0.47].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.13, lp: 9000, hp: 3000, curve: 3 }])),
+  /** The Pressworks' vent surge: every steam press blows its valves at once. */
+  surgePress: join(clang(165, 0.2, 0.4), clang(196, 0.16, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.08 })),
+    whoosh(2500, 8000, 0.7, 0.3), boom(55, 0.3, 0.3)),
+  /** Phase 15 Y1 wave shapes (WAVE_SOUNDS in cues.ts). A pincer: two calls answer each other from either side. */
+  wavePincer: join(horn(note(-14), 0.35, 0.28), horn(note(-7), 0.4, 0.26).map((v) => ({ ...v, delay: 0.3 })),
+    [{ wave: 'saw', f: note(-2), dur: 0.3, vol: 0.08, a: 0.02, lp: 2400, curve: 1.5 }, { wave: 'saw', f: note(5), dur: 0.35, delay: 0.3, vol: 0.08, a: 0.02, lp: 2400, curve: 1.5 }]),
+  /** A ring: a whoosh circles you while a low drum rolls, closing in. */
+  waveRing: join(
+    [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.18, a: 0.3, lp: 1500, lp2: 5000, hp: 450, curve: 1, trem: [5, 0.6] as [number, number] }],
+    ...[0, 0.12, 0.22, 0.31, 0.39, 0.46, 0.52].map((d, k) => [{ wave: 'tri' as const, f: 140, f2: 90, dur: 0.1, delay: d + 0.2, vol: 0.12 + k * 0.015, curve: 3 }, { wave: 'noise' as const, f: 0, dur: 0.04, delay: d + 0.2, vol: 0.08, lp: 2500, hp: 500, curve: 3 }])),
+  /** Reinforcements are coming (2 s before they arrive, panned to their flank): a distant war horn swells. */
+  reinforceWarn: join(horn(note(-9), 1.2, 0.34).map((v) => ({ ...v, a: 0.35 })),
+    [{ wave: 'saw', f: note(3), f2: note(5), dur: 1.0, delay: 0.15, vol: 0.1, a: 0.3, lp: 2600, curve: 1, vib: [5, 0.01] as [number, number] }],
+    ...[0.9, 1.05, 1.2].map((d) => [{ wave: 'tri' as const, f: 160, f2: 110, dur: 0.09, delay: d, vol: 0.14, curve: 3 }])),
+  /** They arrive: a rush of feet and claws, and a thump as they hit the floor. */
+  reinforceLand: join(boom(70, 0.35, 0.3),
+    ...[0, 0.04, 0.09, 0.13, 0.18, 0.22, 0.27, 0.32].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.12, lp: 4000 + (k % 3) * 1500, hp: 800, curve: 3 }])),
+  /** Phase 15 Y2, raid trash (matched to the raids' stones and vents, #464). The Crucible's cave-in: crusted slag
+   *  drops and cracks, molten drips hissing. */
+  caveInSlag: join(boom(55, 0.6, 0.45),
+    ...[0.05, 0.14].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }]),
+    ...[0.22, 0.3, 0.41].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 9000, hp: 3000, curve: 3 }]),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.3, vol: 0.1, a: 0.08, lp: 7000, hp: 2500, curve: 1.6 }]),
+  /** The Hoard's cave-in: coal and old bones tumble down, loose coins chiming. */
+  caveInBone: join(boom(60, 0.5, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.12, delay: 0.04, vol: 0.18, lp: 1800, hp: 300, curve: 2.5 }],
+    ...[0.15, 0.24, 0.3, 0.39].map((d, k) => [{ wave: 'tri' as const, f: [900, 760, 1040, 820][k], f2: [800, 700, 950, 760][k], dur: 0.06, delay: d, vol: 0.13, curve: 3.5 }]),
+    chime(2900, 0.45, 0.08, 0.25), chime(3300, 0.52, 0.07, 0.25)),
+  /** The Smeltery's cave-in: ore and copper ingots crash down onto iron. */
+  caveInIngot: join(boom(60, 0.5, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.12, delay: 0.04, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }],
+    clang(294, 0.16, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.12 })), clang(247, 0.14, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.26 }))),
+  /** The Flue's cave-in: old brickwork gives way, mortar crumbling after it. */
+  caveInBrick: join(boom(60, 0.5, 0.4),
+    ...[0.03, 0.13, 0.22].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.07, delay: d, vol: 0.22, lp: 1600, hp: 450, curve: 3 }, { wave: 'tri' as const, f: 320, f2: 250, dur: 0.08, delay: d, vol: 0.1, curve: 3 }]),
+    ...[0.32, 0.38, 0.45, 0.5, 0.58, 0.66].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.08, lp: 6000, hp: 1500, curve: 3 }])),
+  /** The Crucible's vent surge: every slag pool spits at once, a thick molten splash. */
+  surgeSlag: join(boom(60, 0.6, 0.35),
+    ...[0.02, 0.12, 0.2].map((d, k) => [{ wave: 'sine' as const, f: 260 - k * 30, f2: 560 - k * 50, dur: 0.12, delay: d, vol: 0.14, curve: 2 }]),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.2, a: 0.02, lp: 3500, lp2: 1000, hp: 400, curve: 1.6 }]),
+  /** The Hoard's vent surge: every ember bed belches at once, sparks and coins scattering. */
+  surgeHoard: join(boom(65, 0.5, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.2, a: 0.02, lp: 4000, lp2: 1200, hp: 450, curve: 1.6 }],
+    ...[0.1, 0.16, 0.23, 0.3].map((d, k) => chime(2600 + (k % 3) * 350, d, 0.07, 0.22))),
+  /** The Smeltery's vent surge: every tuyere blasts together, a roar and a shower of sparks. */
+  surgeTuyere: join(boom(60, 0.5, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.24, a: 0.02, lp: 6000, lp2: 1500, hp: 450, curve: 1.4 },
+     { wave: 'saw', f: 150, f2: 90, dur: 0.6, vol: 0.08, lp: 2000, curve: 1.6 }],
+    ...[0.15, 0.22, 0.3, 0.37, 0.45].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.12, lp: 10000, hp: 3500, curve: 3 }])),
+  /** The Flue's vent surge: every ash bed blows at once, a chimney's cough and grey ash. */
+  surgeFlue: join(boom(65, 0.45, 0.3),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 3000, lp2: 900, hp: 400, curve: 1.6 },
+     { wave: 'sine', f: 330, f2: 220, dur: 0.6, vol: 0.08, curve: 1.6 }]),
+  /** Phase 15 Y10: the dungeon stirs and notices you. A slow stone groan and a long breath through the walls, starting
+   *  0.6 s in so it follows the fight's own stings (layout, Heat, wave) instead of landing on them. */
+  dungeonStir: join(
+    [{ wave: 'saw', f: 62, f2: 50, dur: 1.1, delay: 0.6, vol: 0.14, a: 0.45, lp: 600, curve: 1 },
+     { wave: 'saw', f: 196, f2: 165, dur: 1.0, delay: 0.65, vol: 0.14, a: 0.45, lp: 1400, curve: 1, vib: [3, 0.012] as [number, number] },
+     { wave: 'noise', f: 0, dur: 1.1, delay: 0.6, vol: 0.14, a: 0.5, lp: 1100, lp2: 2600, hp: 380, curve: 1, trem: [1.6, 0.5] as [number, number] }],
+    ...[1.25, 1.36, 1.5].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.08, lp: 7000, hp: 2500, curve: 3 }])),
   /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
   coldSnapWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
@@ -1320,6 +1555,58 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
     ...[0.15, 0.55, 0.95, 1.35, 1.7].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.035, delay: d, vol: 0.24 + k * 0.03, lp: 5000, hp: 1400, curve: 3 }]),
   ),
+  /** Phase 16 U1: a boss's echo, the move she borrows from another of her versions, is about to come. A ghostly shimmer
+   *  rising in the high band, as if the move were heard twice: it rides over the move's own warning (which says what to
+   *  do) rather than under it, so it is ordinary and quiet. One sound for every boss. */
+  echoSting: join(
+    [{ wave: 'sine', f: note(22), f2: note(29), dur: 0.55, vol: 0.06, a: 0.35, curve: 2, vib: [7, 0.01] },
+     { wave: 'sine', f: note(22) * 1.006, f2: note(29) * 1.006, dur: 0.55, vol: 0.05, a: 0.35, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.3, lp: 9000, hp: 4000, curve: 2 }],
+  ),
+  /** Phase 15 Y3: the Furnace Regent's Tithe (his third phase-2 version). The gold circle appears and he demands payment:
+   *  a struck gong of office, a ripple of coins, and a two-note call that says "together". */
+  titheWarn: join(
+    clang(note(2), 0.3, 1.0), clang(note(9), 0.14, 0.8),
+    // A rolling shimmer of coins under it all, so the phone band carries the call through a busy raid.
+    [{ wave: 'noise', f: 0, dur: 1.4, vol: 0.16, a: 0.2, lp: 9000, hp: 3000, curve: 0.9, trem: [16, 0.7] }],
+    ...[0.2, 0.28, 0.35, 0.41, 0.47, 0.52, 0.6, 0.68].map((d, k) => chime(note(17 + (k % 3) * 2) * 2, d, 0.07, 0.14)),
+    horn(note(-2), 0.3, 0.34).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.65 })),
+    horn(note(5), 0.5, 0.36).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.95 })),
+  ),
+  /** Shared: the heroes in the circle pay their part. Coins counted out into a dish, and a settled major chord. */
+  titheShared: join(
+    ...[0, 0.07, 0.14, 0.21].map((d, k) => chime(note(19 + k) * 2, d, 0.06, 0.15)),
+    chime(C5, 0.3, 0.12, 0.7), chime(E5, 0.3, 0.1, 0.7), chime(G5, 0.3, 0.1, 0.7),
+  ),
+  /** Missed: too few paid, so every hero pays (TITHE.miss). A heavy fall of gold and a dark minor stamp, louder than a
+   *  soakFail, so the whole party knows why they all just lost a third of their health. */
+  titheMissed: join(
+    boom(50, 0.6, 0.5), clang(note(-2), 0.3, 0.8), clang(note(1), 0.2, 0.7),
+    [{ wave: 'saw', f: note(-2), dur: 0.7, vol: 0.12, a: 0.02, lp: 2400, curve: 1.4 },
+     { wave: 'saw', f: note(1), dur: 0.7, vol: 0.1, a: 0.02, lp: 2400, curve: 1.4 },
+     // Gold spilling everywhere: a long bright scatter the phone band carries.
+     { wave: 'noise', f: 0, dur: 0.75, vol: 0.24, a: 0.01, lp: 9000, lp2: 4000, hp: 2500, curve: 1.1, trem: [22, 0.6] }],
+    ...[0.08, 0.17, 0.27, 0.38, 0.5].map((d, k) => chime(note(19 - k * 2) * 2, d, 0.06, 0.15)),
+  ),
+  /** Phase 15 Y3: the Colossus's Millstone (his third phase-2 version). The 2 s cast: a great stone wheel straining to
+   *  start, slow heavy knocks speeding up, and a low horn that says get to his back. */
+  millWarn: join(
+    [{ wave: 'saw', f: 52, f2: 78, dur: 1.8, vol: 0.22, a: 0.3, lp: 700, lp2: 1500, trem: [4, 0.6], curve: 0.8 },
+     { wave: 'noise', f: 0, dur: 1.8, vol: 0.3, a: 0.35, lp: 900, lp2: 2600, hp: 350, trem: [4, 0.7], curve: 0.8 }],
+    ...[0.1, 0.55, 0.9, 1.18, 1.4, 1.58].map((d, k) => clang(note(-17 + k), 0.16 + k * 0.02, 0.25).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    horn(note(-10), 0.7, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.9 })),
+  ),
+  /** He starts to grind: the wheel lurches round with a heavy stone thud. */
+  millStart: join(boom(60, 0.4, 0.4), clang(130, 0.2, 0.5), [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.2, a: 0.02, lp: 2500, lp2: 800, hp: 300, curve: 1.4 }]),
+  /** The grind itself, every half second while he turns (as often as the slag ticks): stone on stone with a pour of slag
+   *  hissing off his front. Panned to where his front faces on screen, so it sweeps round with him. */
+  millGrind: [
+    { wave: 'noise', f: 0, dur: 0.55, vol: 0.24, a: 0.06, lp: 1400, lp2: 900, hp: 250, curve: 1.0, trem: [18, 0.6] },
+    { wave: 'saw', f: 58, f2: 54, dur: 0.55, vol: 0.12, a: 0.06, lp: 600, curve: 1.0, trem: [18, 0.5] },
+    { wave: 'noise', f: 0, dur: 0.4, delay: 0.05, vol: 0.12, a: 0.05, lp: 9000, hp: 2500, curve: 1.3 },
+  ],
+  /** The grind stops: the wheel settles with a last knock and a falling scrape. */
+  millEnd: join(clang(110, 0.22, 0.6), [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.16, a: 0.03, lp: 2000, lp2: 500, hp: 250, curve: 1.3 }]),
   /** Wheel picked you: he is facing you now and the Sweep is coming. Two stone knocks and a hard rising ping. */
   wheelOnMe: join(
     clang(note(-5), 0.3, 0.3), clang(note(-5), 0.32, 0.3).map((v) => ({ ...v, delay: 0.14 })),
@@ -1451,6 +1738,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Hessa's Outsurge (Phase 12 W1): -26.9 and -29.2 dB alone; raised again to about 6.5 dB over the Wrackline mix (busycheck SEEDS=4,5).
   outsurgeWarn: 4.0,
   outsurgePull: 5.0,
+  // Hessa's Whirl (Phase 15 Y3).
+  whirlWarn: 5.0, whirlPull: 5.2, // level with the Outsurge's pair
   // Ondrel's Ironload wind-up (Phase 12 W2) is a cast start: -33.5 dB alone and 1.0 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=13); now creaks and rattles in the phone band too.
   ironloadWarn: 10.5,
   // Oskel's Die Cut wind-up (Phase 12 W2) is a cast start: -27.3 dB alone.
@@ -1480,7 +1769,27 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
-  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
+  echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
+  titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
+  millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
+  inhaleWarn: 5.5, inhaleDraw: 3.0, inhaleEnd: 4.0, // Y3 Inhale: warning 6.9 dB and in-breath (priority) 7.9 dB over the Hoard raid mix (busycheck t8 heroes, SEEDS=1-6, n=51); the all-clear a quieter exhale
+  overflowWarn: 4.1, overflowRise: 2.4, overflowEbb: 2.0, // Y3 the Overflow: warn 6.5 dB and rise 7.1 dB over the Crucible raid mix (busycheck t8 heroes, SEEDS=1-6, n=37); the ebb a quieter all-clear
+  punchLineWarn: 3.5, punchHit: 1.5, // Y3 Punch Line: the wind-up level with dieCutWarn, each punch level with slam
+  rollVentWarn: 4.0, ventRollNext: 2.7, ventRollLast: 2.4, // Y3 Rolling Vents: the opening level with wanderVentWarn, each next vent a little under it
+  homeOut: 7.0, homeBack: 4.2, // Y3 Homeward Hammer: the throw near slam, the ring-and-return (priority) lands with the circle's slam, so it sits 6.6 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=11)
+  rimeRise: 2.0, rimeCrackle: 7.0, // Y3 Creeping Rime: the swell (after its 1.4 s wait) near slam, the crackle a little under lavaSizzle
+  steamMoveWarn: 3.0, steamMoveOpen: 0.4, // Y3 Sealed Vents: the warning level with tideTurn, the burst level with slam
+  lightSwing: 3.2, // Y3 Carried Light: level with slam
+  turnFireWarn: 5.5, turnCone: 2.1, // Y3 Turning Fire: the warning near the Kiln's other boss calls, each cone level with slam
+  // Phase 15 Y2 raid landings, level with the others (cave-ins about -28.5, surges about -26 dB).
+  caveInSlag: 1.6, caveInBone: 1.5, caveInIngot: 1.8, caveInBrick: 2.5, surgeSlag: 2.2, surgeHoard: 1.5, surgeTuyere: 0.6, surgeFlue: 3.5,
+  dungeonStir: 4.5, // about -30.5 dB counting its 0.6 s lead-in, level with layoutPillars
+  // Phase 15 Y1 waves: the warning 1.5 dB over the floor (landing slams mask it: busycheck WHO), 6.8 dB over the Foundry and Pressworks mix; the start calls and landing about -28 dB, over a layout sting.
+  reinforceWarn: 4.8, wavePincer: 3.7, waveRing: 6.0, reinforceLand: 2.8,
+  seenNew: 1.7, // level with unlock (-23.8 dB)
+  // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
+  caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
+  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 2.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 6.0, // cave-in +1.5 and surge +1.0 for raid trash (Y2): party sounds held them near 6 dB over the mix
   phase: 2.2,
   phaseIce: 5.9,
   phaseMaelra: 0.7,
@@ -1503,8 +1812,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   sinkWarn: 5.7,
   snufferTide: 4.0,
   stampWarn: 1.6,
-  wheelWarn: 2.8,
-  phaseWheel: 2.3,
+  wheelWarn: 3.6, // was 2.8 (5.6 dB over the Smeltery raid mix, crit and bulwarkSlam over it); now 6.4 dB (busycheck t8 heroes, SEEDS=1-12, n=17)
+  phaseWheel: 3.8, // was 2.3 (4.9 dB); now 6.3 dB over the Smeltery raid mix (same check, n=12)
   allyDown: 4.8,
   anvilWarn: 1.2,
   enrage: 1.9,

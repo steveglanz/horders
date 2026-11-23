@@ -9,7 +9,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { edgeCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
+import { edgeCue, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -70,7 +70,7 @@ for (const dungeon of dungeons) {
     const [main, ...rest] = classes;
     const mp = profile(main);
     const w = new World({
-      seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main,
+      seed, dungeon, tier: Number(process.env.TIER ?? 0) || (TIER[dungeon] ?? 4), omens: [], cls: main,
       ...(mp ? { ...gearOf(main), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
       party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}`, ...gearOf(cls) })),
     });
@@ -131,13 +131,15 @@ for (const dungeon of dungeons) {
       });
       wearSet();
       w.step(inputs);
-      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, namedAffix: w.namedPlan()?.affix };
+      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, whirl: dungeon === 'wrackline' && w.whirl, namedAffix: w.namedPlan()?.affix };
       for (const ev of withoutBankedSoaks(w.events)) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
       }
       for (const c of partyCues(wasDown, w.heroes.map((_, i) => w.heroData(i).player.hp), w.acting)) play(c.id, w.time);
-      const ec = ebbCue(ebb, dungeon === 'wrackline' && w.ebbT > 0, ctx.outsurge);
+      const mc = millCue(ctx);
+      if (mc) play(mc.id, w.time, mc.vol);
+      const ec = ebbCue(ebb, dungeon === 'wrackline' && w.ebbT > 0, ctx.outsurge, ctx.whirl);
       if (ec) play(ec.id, w.time, ec.vol);
       const pc = pressedCue(press, dungeon === 'pressworks' && (w.player.pressedT ?? 0) > 0);
       if (pc) play(pc.id, w.time, pc.vol);

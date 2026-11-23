@@ -7,9 +7,9 @@
 import { ENCOUNTERS, type EncounterId } from './content/dungeon';
 import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
-import type { ArenaEventId, LayoutId, World } from './world';
+import { STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'boss' | 'heat';
+export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'boss' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -20,18 +20,18 @@ export interface ShapeChip {
 
 /** Each boss version's name, as its phase banner shows it (client/GameScene.ts). */
 export const BOSS_VERSION_NAME: Record<string, string> = {
-  cataclysm: 'Molten Cataclysm', draw: 'Kiln Draw',
-  water: 'Rising Water', tide: 'Sluicetide',
-  brand: 'Twin Brand', glint: 'Glintfall',
-  ice: 'Thin Ice', drift: 'Emberdrift',
-  riptide: 'Riptide', outsurge: 'The Outsurge',
-  choir: 'Choir of Iron', load: 'Ironload',
-  still: 'Twin Vents', wander: 'Wandering Vents',
-  rivets: 'Rivets', cut: 'Die Cut',
-  pour: 'The Pour', brim: 'The Brimming',
-  spill: 'Ember Feast', bank: 'Banked Coals',
-  wheel: 'Wheel', shift: 'Plate Shift',
-  ash: 'Ash Fall', court: 'Summons',
+  cataclysm: 'Molten Cataclysm', draw: 'Kiln Draw', turning: 'Turning Fire',
+  water: 'Rising Water', tide: 'Sluicetide', seal: 'Sealed Vents',
+  brand: 'Twin Brand', glint: 'Glintfall', walk: 'Carried Light',
+  ice: 'Thin Ice', drift: 'Emberdrift', rime: 'Creeping Rime',
+  riptide: 'Riptide', outsurge: 'The Outsurge', whirl: 'The Whirl',
+  choir: 'Choir of Iron', load: 'Ironload', home: 'Homeward Hammer',
+  still: 'Twin Vents', wander: 'Wandering Vents', roll: 'Rolling Vents',
+  rivets: 'Rivets', cut: 'Die Cut', punch: 'Punch Line',
+  pour: 'The Pour', brim: 'The Brimming', flow: 'The Overflow',
+  spill: 'Ember Feast', bank: 'Banked Coals', inhale: 'Inhale',
+  wheel: 'Wheel', shift: 'Plate Shift', mill: 'Millstone',
+  ash: 'Ash Fall', court: 'Summons', tithe: 'Tithe',
 };
 
 /** Each floor's short chip word ("Floors: 2 stone, 1 vent" stays one line on a phone) and its tip line. */
@@ -87,6 +87,26 @@ export function runShape(w: World): ShapeChip[] {
   const ids = Object.keys(n) as ArenaEventId[];
   if (ids.length) {
     out.push({ kind: 'event', label: `Events: ${ids.map((e) => `${EVENT_NAME[e]}${n[e]! > 1 ? ` x${n[e]}` : ''}`).join(', ')}`, tip: evs.join('. ') });
+  }
+
+  // Phase 15 Y1: wave shapes other than the usual arc, as the route rolls them (like the events above).
+  const ws: string[] = [];
+  const wn: Partial<Record<Exclude<WaveShape, 'arc'>, number>> = {};
+  for (const f of fights) {
+    const v = w.waveShapeAt(f.k, f.id);
+    if (v === 'arc') continue;
+    wn[v] = (wn[v] ?? 0) + 1;
+    ws.push(`${name(f.id)}: ${WAVE_SHAPE_INFO[v].name.toLowerCase()}`);
+  }
+  const wids = Object.keys(wn) as Exclude<WaveShape, 'arc'>[];
+  if (wids.length) {
+    out.push({ kind: 'wave', label: `Waves: ${wids.map((v) => `${WAVE_SHAPE_INFO[v].name}${wn[v]! > 1 ? ` x${wn[v]}` : ''}`).join(', ')}`, tip: ws.join('. ') });
+  }
+
+  // Phase 15 Y10: how the dungeon stirred this run, after clean fights (decided as the run goes, so it reads what happened).
+  const stirred = STIR_IDS.filter((v) => w.stirsMet & STIR_BIT[v]);
+  if (stirred.length) {
+    out.push({ kind: 'stir', label: `Stirred: ${stirred.map((v) => STIR_INFO[v].name).join(', ')}`, tip: `Clean fights stirred the dungeon. ${stirred.map((v) => STIR_INFO[v].tip).join(' ')}` });
   }
 
   // The boss's version is rolled when it appears, so a run that never reached it shows none.

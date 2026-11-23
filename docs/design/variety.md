@@ -705,3 +705,608 @@ Skills' re-screen (heroes-r2, every named foe forced to Warded, seeds 41 to 200)
 | Lumen | 116 | 125 | 125 |
 
 My own check, good bot, hero-t8, Coldmarrow t10: `BURNOUT.named` 0 against 60 gave 93 and 93 of 120 on the same seeds.
+
+### X3, part 2 (23 Nov 2026): arena events in the group dungeons
+The Hammerdeep, the Ashvents and the Pressworks trash fights now roll Cave-in and Vent Surge, as the solo dungeons do: 40% of trash fights, never the boss. Raids don't roll them yet. Their trash got stones and vents in Phase 13 E1, and the raids' bands are tight.
+
+**Measured** with tools/group.ts (`ARENA=`), the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, event forced in every trash fight:
+
+| Dungeon, tier, seeds | Events off | Cave-in | Vent Surge |
+|---|---|---|---|
+| Hammerdeep t8, 120 | 70 | 79 | 73 |
+| Ashvents t8, 100 | 62 | 69 | 65 |
+| Pressworks t10, 74 | 47 | 50 | 47 |
+
+- **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 6 with events off and 6 with Cave-in. That stays well under the 25% missing-role line.
+- **Sound:** each group dungeon has its own landing sounds (#493).
+- Forced events don't cost a full party anything here. I haven't traced why.
+
+## Phase 15 Y1 (built 23 Nov 2026): wave shapes
+
+Steve: "The bosses I have fought, and the waves, have seemed pretty similar." Until now every trash fight's foes came in at once, in one arc from the far side of the arena (`startEncounter`).
+
+Now each solo and group trash fight after the opener rolls how its wave comes in (`waveShapeAt`, a hash of the seed and the fight's place, so the run's other rolls don't move):
+
+| Shape | Chance | What happens |
+|---|---|---|
+| Arc | the rest | As before: one arc from the far side |
+| Pincer | 20% | Alternate foes come from the two flanks, a quarter turn either side of the far side |
+| Ring | 15% | The foes form a ring 460 round the hero (a foe that would stand outside the arena waits at the wall instead, still 460 away) |
+| Reinforcements | 20% | Up to half the fight's pack foes (Cinderhounds, Shades, Rimehounds, Shoal Lurkers) wait. After 7 s, or as soon as the first half is dead, a 2 s warning, then they come from a flank. The fight doesn't end while they're on the way |
+
+Never in the opener, a boss fight, a shrine, a raid or the first delve. A fight with one foe stays an arc, and so does the Twin Lamps fight (split lamps would sweep their beam across the whole arena). Tuning is in `WAVES`; names and tips in `WAVE_SHAPE_INFO`; `World.wavesMet` holds which shapes a run met (for engineering's Seen log, Y4). Event: `{ type: 'waveShape', id, stage: 'start' | 'warn' | 'land', x, y }`. Tools: `WAVE=off` or `WAVE=pincer|ring|reinforce` in tools/foundry.ts and tools/group.ts.
+
+**What the first build got wrong.** The first try put a pincer's second half, the ring and the reinforcements on the far side's opposite, which is the hero's own side: foes spawned on top of the hero. Glarewell with every fight forced to a pincer fell from 119 to 109 of 120, the Twin Lamps fight lost 4 runs in each of ring and pincer, and Coldmarrow's opener (four Rimehounds at level 1) killed the hero in 11 s. The flanks, the wider ring, keeping the Lamps in an arc and leaving the opener alone fixed those.
+
+**Measured,** solo, seeds 1 to 120, the shape forced in every trash fight after the opener, then the natural rates:
+
+| Dungeon, tier, hero | Waves off | Pincer | Ring | Reinforcements | Natural |
+|---|---|---|---|---|---|
+| Kiln t2, no gear | 71 | 78 | 77 | 79 | 74 |
+| Foundry t4, hero-t4 | 118 | 115 | 117 | 117 | 119 |
+| Glarewell t7, hero-t6 | 119 | 119 | 117 | 119 | 118 |
+| Coldmarrow t10, hero-t8 | 114 | 105 | 95 | 112 | 111 |
+| Wrackline t13, hero-t8 | 19 | 10 | 21 | 14 | 20 |
+
+- A forced ring is the hardest shape in Coldmarrow (95 against 114): its Snuffers and Rimehounds close from every side at once. At the natural rate it costs 3 of 120, and that's the point of a ring. Kept.
+- Wrackline t13 with t8 gear wins too few runs to read a shape from (10 to 21 of 120). The natural rate matches waves off.
+- Reinforcements never cost anything: half a pack at a time is easier, but the second half comes from somewhere new.
+
+**Group,** tools/group.ts, the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 1 to 120:
+
+| Dungeon, tier | Waves off | Pincer | Ring | Reinforcements | Natural |
+|---|---|---|---|---|---|
+| Hammerdeep t8 | 72 | 75 | 77 | 67 | 81 |
+| Ashvents t8 | 77 | 75 | 78 | 77 | 83 |
+| Pressworks t10 | 81 | 88 | 96 | 82 | 88 |
+
+- No shape costs a full party much. A forced ring helps in the Pressworks (96 against 81). I haven't traced why.
+- **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 7 with waves off, 7 natural, 5 forced ring, 5 forced pincer. That stays well under the 25% missing-role line.
+- **Names:** Pincer, Surrounded and More Coming are plain English. A search on 23 Nov found no WoW-branded name among them.
+
+## Phase 15 Y10 (built 23 Nov 2026): the dungeon stirs
+
+Steve, 23 Nov: "It would be cool if the dungeons sort of adapted or adjusted difficulty as you played, if you were doing really well they like added an extra monster or something, or something happened."
+
+**How it works** (`STIR` in sim/world.ts):
+- After each trash fight, the dungeon looks at how much damage the party took: each hero's damage as a share of their own health, averaged over the party (`World.fightHurt`).
+- A clean clear (at most 15%, nobody down) adds one to a hidden count. A rough one (50% or more, or a hero down) sets it back to 0. Anything in between leaves it as it is.
+- Two clean clears in a row stir the next trash fight. It gets one reaction, picked by a hash of the seed and the fight's place (no run-rng draws), from the ones that fit the fight:
+
+| Reaction | What happens |
+|---|---|
+| Another joins (`elite`) | One more of the fight's first elite kind comes in from the far side |
+| A named foe (`named`) | The fight's first elite becomes a named foe, only if the run has none |
+| The ground answers (`event`) | An arena event from the dungeon's pool, only if the fight has none |
+| They close in (`wave`) | The wave comes as a pincer or a ring, only if it was an arc |
+
+- A stirred fight drops a second loot bag at the same rarity as its clear bag.
+- At most 2 a run. Never the opener or the boss. Off on the first delve, on tiers 1 to 3, in raids, and in any party with a fill bot, so a bot party can't farm it. A run that's going badly never gets harder.
+- The fight banner says "The dungeon stirs." with the reaction's line. On phones it gets its own banner after the fight's.
+- `World.stirsMet` holds the reactions a run met (`STIR_BIT`), for the Seen log. The event is `{ type: 'stir', id }`.
+- Tools: `STIR=off` or `STIR=elite|named|event|wave|any` in tools/foundry.ts and tools/group.ts.
+
+**Measured,** the good bot (Emberwright solo, the full party in groups), seeds 1 to 120:
+
+| Dungeon, tier | Stir off | Natural | Stirs in 120 runs | Every fight stirred |
+|---|---|---|---|---|
+| Foundry t4, hero-t4 | 119 | 120 | 94 | 114 |
+| Glarewell t7, hero-t6 | 118 | 115 | 72 | 103 |
+| Coldmarrow t10, hero-t8 | 111 | 109 | 110 | 108 |
+| Wrackline t13, hero-t8 | 20 | 18 | 30 | 11 |
+| Hammerdeep t8 (group) | 81 | 81 | 119 | |
+| Ashvents t8 (group) | 83 | 85 | 118 | |
+| Pressworks t10 (group) | 88 | 87 | 119 | |
+
+- The bot takes almost no damage in most trash fights (its median is 0% of its health), so it stirs about once a run. Players who take more hits will see it less, which is the point.
+- **Loot:** tools/lootrate.ts, Emberwright, hero-t6, Glarewell t7, 40 seeds: items a minute 0.92 with stir off and 1.02 on, Rare or better 0.52 and 0.62. Fill with bots runs don't change, since stirring is off there.
+- **Name:** "The dungeon stirs" had no WoW-branded match in a search on 23 Nov.
+
+## Phase 15 Y2 (built 23 Nov 2026): arena events in raid trash
+
+The raids' trash fights (openers and named fights, never the boss) now roll Cave-in and Vent Surge, as the group dungeons have since #494: 40% of trash fights, from `ARENA_EVENT_POOLS` crucible, hoard, smeltery and flue. Their trash has had stones and vents since Phase 13 E1. Each raid has its own landing sounds (#513).
+
+**Measured** with tools/group.ts, the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 1 to 160, at each raid's unlock tier. The band is 55 to 70%:
+
+| Raid, tier | Events off | Events on (natural) |
+|---|---|---|
+| Crucible t8 | 94 (59%) | 88 (55%) |
+| Hoard t9 | 97 (61%) | 103 (64%) |
+| Smeltery t10 | 108 (68%) | 111 (69%) |
+| Flue t11 | 99 (62%) | 108 (68%) |
+
+- Every raid stays in the band. Any change to the trash reshuffles the run rng before the boss, and paired-seed swings this size are luck (horders-raid-measuring), so I read these as no change.
+- The Crucible is at the bottom edge (88 of 160). If later work takes it lower, it's the first raid to retune.
+- tests/audio.test.ts's real Smeltery run moved from seed 3 to seed 19. Seed 3's run changed and no longer reached Meltdown; seed 19 hears every cue the test lists.
+
+**Y5 follow-up (23 Nov 2026): no ring of Rimehounds.** Skills' class check (seeds 41 to 200) found the ring's Coldmarrow cost was the Hoarfrost Weaver fight. On a ring, its 3 Rimehounds reached the hero from 2 or 3 sides within a second and took 405 health in 3.5 s. The Emberwright won 97 of 160 with a forced ring, against 134 with waves off, and the Duskblade 82 against 107. Healers lived through it. A bot rule to step out through the widest gap didn't help. Now a fight with 3 or more Rimehounds never forms a ring: a rolled or forced ring stays an arc, and a stir's wave reaction there is a pincer. Emberwright, hero-t8, Coldmarrow t10, seeds 1 to 120: forced ring 95 → 111, natural 111 → 112 (waves off 114).
+
+## Phase 15 Y3 (built 23 Nov 2026): the Kiln Mother's third version, Turning Fire
+
+The Kiln Mother had two phase-2 versions (Cataclysm and the Draw). The third is **Turning Fire** (`turning`, cast `turningFire`). In phase 2 she pours four fire cones round herself, one after another, each turned 70° from the last, the first aimed at the hero. The direction flips every pour (`w.turnDir`). The first cone lands after 2.2 s and the next ones 0.7 s apart, 40 damage each before tier scaling, 1.5x when she's enraged. While she pours, her other abilities and the Kiln Brand wait. Tuning is `KILN_TURN` in sim/world.ts. The tip says: step back against the turn.
+
+- The Seen log picks it up from `KILN_VARIANTS` and `BOSS_VERSION_NAME`, so tests/seen.test.ts's Kiln pool went from 20 to 21.
+- The bot steps sideways against the turn when it stands inside a Turning Fire cone (sim/bot.ts), the way a player reads the tell.
+
+**Measured** with tools/foundry.ts, seeds 1 to 160, forcing each version with `BOSSV`:
+
+| Kiln, setup | Cataclysm | The Draw | Turning Fire |
+|---|---|---|---|
+| t2, no gear | 107 | 106 | 105 |
+| t4, hero-t4 | 156 | 155 | 152 |
+
+- Natural rolls at t2 (all three versions): 109 of 160.
+- The first build (first cone at 1.2 s, 50° cones) won 32 of 160 at t2. The cones landed before a hero could leave them. A 2.2 s lead and 70° cones brought it into line.
+- **Name:** "Turning Fire" had no WoW-branded match in a search on 23 Nov.
+
+### Y3 Maelra: Sealed Vents (built 23 Nov 2026)
+
+Maelra had two phase-2 versions (Rising Water and the Sluicetide). The third is **Sealed Vents** (`seal`). From phase 2 only one steam vent is open, and only it boils off her Temper. Every 16 s the steam moves to another vent, never the one she stands on when another is free. The next vent pulses 2.5 s ahead, with a "The steam moves" ding. Boiling her Temper at the open vent heals 1.5x as much as a normal vent. The arena keeps its size and nothing pushes the hero. Tuning is `MAELRA_SEAL` in sim/world.ts. Events: `{type:'ventShift', stage:'warn'|'open', vent}`. Fields `w.openVent` and `w.nextVent` (-1 when off). The bot leads her to the open vent.
+
+**Measured** with tools/foundry.ts, Foundry t4, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Rising Water | Sluicetide | Sealed Vents |
+|---|---|---|---|
+| hero-t4 | 157 | 159 | 156 |
+| no gear | 59 | 52 | 61 |
+
+- Natural rolls with hero-t4: 155 of 160.
+- With the steam moving every 12 s, no gear won 45 and hero-t4 153. With 16 s it sits with the other two.
+- Raising the heal to 2.5x changed nothing (46), so the time between moves is the knob.
+- **Name:** "Sealed Vents" had no WoW-branded match in a search on 23 Nov.
+
+### Y3 the Lensmother: Carried Light (built 23 Nov 2026)
+
+The Lensmother had two phase-2 versions (Twin Brand and Glintfall). The third is **Carried Light** (`walk`). From phase 2 the light comes from her, not the centre lens. Each Glare moves the light to where she stands as its 2.6 s warning starts, so the shadows swing then and the hero has the whole warning to put a pillar between them and her. She casts no Twin Brand in this version. A pillar within 40 px of the light casts no shadow (`CARRIED_LIGHT.minD`). Fields `w.lightX` and `w.lightY` (0, 0 is the centre lens), event `{type:'lightMove', x, y}`. `World.shadowed`, the drawn wedges and the bot's shade spot all use the light's position.
+
+**Measured** with tools/foundry.ts, Glarewell t7, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Twin Brand | Glintfall | Carried Light |
+|---|---|---|---|
+| hero-t6 | 152 | 159 | 159 |
+| hero-t4 | 122 | 149 | 147 |
+
+- Natural rolls: 157 of 160 with hero-t6, 138 with hero-t4.
+- Carried Light sits with Glintfall. Twin Brand stays the hardest of the three, as before.
+- **Name:** first called Walking Light, which is too close to WoW's "Walk in the Light" and "Walk Into Light", so renamed. "Carried Light" had no WoW match in a search on 23 Nov.
+
+### Y10 follow-up (23 Nov 2026): a fair stir for melee classes, and parties judged by their worst hero
+
+Skills' Y10 check found two problems. In the Foundry the melee classes almost never stirred (Bulwark 13 of 80, Duskblade 23, against 49 to 60 for the others). In group dungeons nearly every run stirred, whatever the party (74 to 80 of 80).
+
+**Changes**
+- Each hero's loss in a fight is tracked on its own (`Player.stirHurt`). The fight is judged by the worst-off hero.
+- Each hero is judged against their own class bar, `STIR_CLASS`. The Bulwark and the Duskblade trade hits in melee, so their clean and rough bars are 2x. The loosened rough bar never goes past 80% of max health (`STIR.roughMax`).
+- A party fight is clean only under 0.15 x 0.35, which is about 5% of a hero's health (`STIR.groupClean`). Even half-skill bot parties stayed under 0.15 in almost every trash fight.
+- tools/foundry.ts and tools/group.ts take `STIRHURT=1`, which prints the judged cost of each trash fight as percentiles.
+
+**Per-fight cost** (`STIRHURT=1`, heroes-r2, seeds 41 to 120). This is the share of trash fights after the opener with at most 0.15 lost, before the change:
+
+| Class | Kiln t6 | Foundry t6 | Glarewell t8 | Coldmarrow t10 |
+|---|---|---|---|---|
+| Emberwright | 214/240 | 151/228 | 151/228 | 205/230 |
+| Duskblade | 155/237 | 70/228 | 103/234 | 181/232 |
+| Bulwark | 137/240 | 60/226 | 133/222 | 148/229 |
+| Lumen | 198/237 | 157/237 | 135/238 | 207/231 |
+| Slagbinder | 211/240 | 166/195 | 181/240 | 185/240 |
+
+**Runs that stirred, out of 80** (same seeds), before and after:
+
+| Class | Kiln t6 | Foundry t6 | Glarewell t8 | Coldmarrow t10 |
+|---|---|---|---|---|
+| Emberwright | 74 / 74 | 49 / 49 | 61 / 61 | 75 / 76 |
+| Duskblade | 63 / 73 | 23 / 50 | 37 / 64 | 77 / 77 |
+| Bulwark | 62 / 80 | 13 / 48 | 46 / 72 | 62 / 73 |
+| Lumen | 73 / 73 | 49 / 49 | 39 / 39 | 72 / 73 |
+| Slagbinder | 76 / 76 | 60 / 60 | 76 / 76 | 72 / 72 |
+
+Win rates moved by at most 5 of 80 in any cell (Glarewell Duskblade 70 to 65). The Lumen still trails in the Glarewell (39). Its trash fights cost little most of the time but a lot when they go wrong (75th percentile 57% of health), so a class multiplier doesn't fit it. I've left it as a watch item.
+
+**Groups**, with the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 41 to 120. Each cell gives the runs that stirred and the wins, out of 80:
+
+| Dungeon | Before | Worst hero only | Plus groupClean 0.35 | Half-skill bots (SKILL=0.5), before / after |
+|---|---|---|---|---|
+| Hammerdeep t8 | skills: 74 to 80 | 79, 50 wins | 54, 48 wins | 76 / 46 |
+| Ashvents t8 | skills: 74 to 80 | 74, 52 wins | 29, 54 wins | - |
+| Pressworks t10 | skills: 74 to 80 | 73, 55 wins | 29, 63 wins | 66 / 20 |
+
+- Judging by the worst hero alone changed little, because a bot party's tank and healer keep everyone's trash cost low. Worst-hero cost on Hammerdeep (seeds 41 to 70): median 0, 90th percentile 9%. The tighter group bar is what makes a stir depend on how well the party plays.
+- The Pressworks went from 55 to 63 wins, since fewer stirred fights mean fewer extra elites. That's a watch item for its next retune.
+
+**Y5 ring follow-up: the Two Weavers.** Skills found that the Emberwright's ring deaths in the Coldmarrow had moved to the Two Weavers fight (two Weavers, two Rimehounds). Weavers now count toward the threshold: a fight with at least one Rimehound, and 3 or more Rimehounds and Hoarfrost Weavers together, never forms a ring. Emberwright, heroes-r2 hero-t8-0, Coldmarrow t10, seeds 41 to 200: forced ring went from 103 to 113 (skills' number before, mine after), and natural is 114 both times. So the rest of the natural gap to waves off (126 in skills' run) doesn't come from the ring.
+
+**Acolytes stay inside the wall** (QA's note). A ward near the wall swung its acolytes outside the arena, out of reach. Their circling position is now clamped inside. Kiln t6, heroes-r2, seeds 41 to 120, with the new stir rules, wins before and after the clamp: Emberwright 52 / 51, Duskblade 44 / 46, Bulwark 63 / 62, Lumen 78 / 79, Slagbinder 52 / 52.
+
+**Sealed Vents fix (23 Nov 2026, after skills' Y5).** In skills' class check (seeds 41 to 200), the Bulwark at t6 won 49 of 160 on Sealed Vents, against 131 on Rising Water. It fought her 204 s against 161 and boiled her less often. Her Temper also stayed high: in my runs it averaged 2.4 stacks against 1.0 on Rising Water, so she took less damage for longer. Three changes, all in `MAELRA_SEAL`:
+- The open vent boils her from 1.6x its radius (`wide`).
+- The steam moves to the free vent nearest her (`near`).
+- Her Temper builds 1.5x slower in this version (`temperSlow`).
+
+The Bulwark was the worst case, so I measured it on heroes-r2 hero-t6-0 at Foundry t6, seeds 41 to 120. Wins out of 80, against 62 on Rising Water:
+
+| Change | Bulwark |
+|---|---|
+| Before | 23 |
+| Nearest vent | 27 |
+| 1.6x radius | 36 |
+| Every 24 s | 31 |
+| Nearest + 1.6x | 37 |
+| Temper 1.5x slower | 33 |
+| Temper 2x slower | 40 |
+| **Nearest + 1.6x + Temper 1.5x slower (shipped)** | **52** |
+| Nearest + 1.6x + Temper 2x slower | 55 |
+
+- The Emberwright, same setup: 62 before, 65 after (Rising Water 63).
+- Foundry t4, seeds 1 to 160: hero-t4 156 (unchanged), no gear 55 (Rising Water 59, Sluicetide 52).
+- Skills will add a stronger melee vent lead to the bot on top of this. Their test of it alone gave +6 of 80.
+- QA's note: the steam clock lives in runMaelra, which doesn't run while she casts. So the warning can run past 2.5 s, but it always comes before the move.
+
+### Y3 Nhevra: Creeping Rime (built 23 Nov 2026)
+
+Nhevra had two phase-2 versions, Thin Ice and Emberdrift. The third is **Creeping Rime** (`rime`).
+- When phase 2 starts, a patch of rime 85 px across rises under her. It creeps after the nearest living hero at 48 px/s, slower than any hero walks.
+- Inside it, a coal loses 0.05 warmth a second on top of the usual drain, and Chill builds 1.5 stacks a second. While the coal still burns, Chill falls faster than that (2 a second), so in practice the Chill only bites once the coal is out.
+- There is no Thin Ice in this version. The Long Night keeps its phase-2 pace.
+- Tuning is `CREEPING_RIME` in sim/world.ts. Fields `w.rimeOn`, `w.rimeX` and `w.rimeY`, all scalars. Event `{type:'rimeRise', x, y}`.
+- The bot keeps clear of the patch.
+
+**Measured** with tools/foundry.ts at Coldmarrow t10, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Thin Ice | Emberdrift | Creeping Rime |
+|---|---|---|---|
+| hero-t8 | 144 | 156 | 150 |
+| hero-t6 | 81 | 113 | 106 |
+
+- Creeping Rime sits between the other two. Thin Ice stays the hardest.
+- **Name:** "Creeping Rime" had no WoW match in a search on 23 Nov ("Rime" alone is a WoW page, but it's a single plain word).
+
+### Y3 Hessa: the Whirl (built 23 Nov 2026)
+
+Hessa had two phase-2 versions, Riptide and the Outsurge. The third is **the Whirl** (`whirl`).
+- From phase 2, each Ebb swirls round the drain instead of only pulling in.
+- A hero off a raft is carried round at 0.6x their class speed and pulled in at half the usual rate.
+- The direction flips every Ebb (`w.whirlDir`), so the safe way to wade to a raft changes each time. The Ebb's cast is named "The Whirl".
+- Foes in the water swirl too.
+- Anvil Skin still anchors the Bulwark.
+- Rafts drift at their normal speed. Riptide's faster drift doesn't apply in this version.
+- Tuning is `WHIRL` in sim/world.ts.
+- The client has a placeholder: streaks run round the drain in the direction of the turn.
+
+**Measured** with tools/foundry.ts, hero-t8, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Riptide | Outsurge | The Whirl |
+|---|---|---|---|
+| Wrackline t10 | 144 | 144 | 143 |
+| Wrackline t13 | 21 | 25 | 27 |
+
+- At tier 10, one run of 160 was lost to Hessa (Whirl). The other losses came before her. Tier 13 is only a relative check, because the reference heroes stop at hero-t8, and with hero-t6 every version won 0.
+- As with the Outsurge, the bots ride a raft through every Ebb, so the bot numbers barely tell the versions apart. For a person, the Whirl changes which way to wade.
+- **Name:** a search on 23 Nov found no WoW spell named just "Whirl". WoW has compounds such as Fire Whirl, Grievous Whirl and Whirlwind, so "Whirl" falls under the single-plain-word rule.
+
+
+### Y3 Ondrel: the Homeward Hammer (built 23 Nov 2026)
+
+Ondrel (the Hammerdeep) had two versions on the Choir's timer: the Choir of Iron (every hero hurt) and Ironload (stack to share a mark). The third is **the Homeward Hammer** (`home`, tuning in `HOMEWARD`, sim/world.ts). It is a movement check where the other two are a healing check and a stacking check.
+
+- On the Choir's timer he throws his hammer at the hero farthest from him. A circle (`radius` 75) lands there after `fall` 1.8 s for `damage` 70.
+- As it lands, it rings through the floor: every hero loses `ring` 8% of max health, growing by the Choir's 2% a throw. Without this ring the version was far too easy (see below), and it keeps the healer's job.
+- Then it flies straight back to his hand: a line from where it lay to him (`width` 40 px either side) lands after `back` 1.2 s for `backDamage` 60.
+- Each throw hits `grow` 8% harder. While the hammer is out he makes no Hammer Sweep.
+- The throw targets the farthest hero, so the ranged heroes learn to step out, then sideways off the line home.
+
+Hammerdeep tier 8, heroes-r2 hero-t8-0, the base party (Bulwark, Lumen, Duskblade, Emberwright), seeds 1 to 80, each version forced (`BOSSV`, now read by tools/group.ts too):
+
+| Setup | Choir of Iron | Ironload | Homeward Hammer |
+|---|---|---|---|
+| Full-skill bots | 47 | 48 | 49 |
+| Half-skill bots (`SKILL=0.5`) | 46 | 49 | 49 |
+| No healer (Slagbinder for the Lumen), seeds 1 to 40 | 2 | 1 | 3 |
+
+- First build, with no ring: 77 of 80. A ring of 8% gave 49, 12% gave 44, 16% gave 37.
+- The bots step out of every throw and line: with the circle or the line set to 2000 damage, no hero died to either (25 and 27 of 40, the same as normal). So the sim only measures the ring and the lost Sweeps. For a person, the throw and the line are the new part.
+- **Name:** searches on 23 Nov found WoW NPC spells named Hammer Throw and Throw Hammer, so those were avoided. "Homeward Hammer" found no WoW match.
+
+### Y10 follow-up 2 (23 Nov 2026): Anvil parties stir more, and that is kept
+
+Skills' re-run of #532 found that a party with an Anvil Slagbinder tank stirs 2 to 3 times as often as one with a Bulwark (Hammerdeep / Ashvents / Pressworks: 76 / 76 / 67 of 80, against 54 / 29 / 29). `STIRHURT=1` in tools/group.ts now also tallies which hero was worst off in each cleared fight (`World.fightWorst`), to trace it. Seeds 41 to 120, heroes-r2 hero-t8-0; Hammerdeep t8, Ashvents t6, Pressworks t10:
+
+| Party | Fights where nobody was hurt | Worst hero (most often) | Runs that stirred |
+|---|---|---|---|
+| Bulwark tank, Hammerdeep | 138 of 320 | Bulwark 131 | 54 |
+| Anvil tank, Hammerdeep | 227 of 320 | Duskblade 62 (Anvil 4) | 76 |
+| Bulwark tank, Pressworks | 115 of 320 | Bulwark 154 | 29 |
+| Anvil tank, Pressworks | 209 of 320 | Duskblade 72 (Anvil 3) | 67 |
+
+- A tank bar for the Anvil would change nothing: the Anvil is almost never the worst hero. In most Anvil fights no hero loses any health at all.
+- Counting health that the Anvil's plating soaks as damage was tried. It only moved Hammerdeep 76 to 73 and Pressworks 67 to 65, so it was dropped.
+- The extra stirs do not cost the Anvil party wins. With the stir off, Anvil parties won 45 (Hammerdeep) and 36 (Pressworks), against 48 and 39 with it on. Bulwark parties won 47 and 63 with it off, against 48 and 63 on.
+- **Kept as it is.** The Anvil party does clear trash cleanly, which is what the stir answers. The Pressworks win gap between the Anvil and the Bulwark (36 and 63 with the stir off) is a class question, so it went to skills.
+### Y3 Ysmeret: Rolling Vents (built 23 Nov 2026)
+
+Ysmeret (the Ashvents) had Twin Vents (two circles to split for) and Wandering Vents (the two circles drift round her). The third is **Rolling Vents** (`roll`, tuning in `ROLLING`, sim/world.ts).
+
+- She opens one vent at a time, `count` 3 in a row. The first opens where a Twin Vent would, on the usual 4 s fuse.
+- As each closes, the next opens `step` 120 degrees further round her, on a shorter `fuse` of 3.4 s. The way round flips every cast (`World.rollDir`).
+- Scatter Embers can come while a vent is open (`scatterDuring`). In the other two versions it waits for the vents. So the party gathers in one circle, then has to spread out of it.
+- A missed vent blasts every hero and spawns ashlings, as before. Each new vent fires `{type:'ventRoll', x, y, left}`.
+
+Ashvents tier 8, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each version forced:
+
+| Setup | Twin Vents | Wandering Vents | Rolling Vents |
+|---|---|---|---|
+| Full-skill bots | 54 | 54 | 51 |
+| Half-skill bots | 52 | 53 | 47 |
+| No healer (Slagbinder for the Lumen), seeds 1 to 40 | 7 | — | 5 |
+
+- **Tuning steps:**
+  - With Scatter held back and a 2.8 s fuse it won 71: everyone ran to each vent together, and nobody had to spread.
+  - A 2.2 s fuse gave 72, and 4 vents gave 64.
+  - Letting Scatter come during the roll gave 46 at a 2.8 s fuse, 54 with 2 vents, and 51 at 3.4 s with 3 vents. The last one was kept.
+- **Name:** a search on 23 Nov found no WoW match for "Rolling Vents". WoW has a "Steam Vent", which is a different phrase.
+
+### Creeping Rime fix (23 Nov 2026): her body holds the rime off
+
+Skills' class check on #534 (seeds 41 to 200, out of 160) found Creeping Rime far too hard for melee. Ice / drift / rime: Duskblade 63 / 126 / 19, Bulwark 104 / 139 / 39. The rime rises under her and creeps after the nearest hero, and a melee hero is always nearest, standing at her side.
+
+- **The fix:** the rime is now held `hold` 85 px past her edge. When it would creep through her, it slides round her toward the hero instead, at its usual speed (`orbit` 1). When it first rises, it comes out on the hero's side.
+  - So a melee hero has to keep stepping round her, away from it.
+  - A ranged hero is chased across the floor as before.
+- **Bot:** a melee hero within 120 px of her edge, with the rime near, steps on round her away from it (weight 0.5; `RIMEROUND=0` turns it off for measuring).
+
+Coldmarrow tier 10, heroes-r2 `<class>/hero-t8-0`, seeds 41 to 120, out of 80:
+
+| Class | Thin Ice | Emberdrift | Rime before | Rime now |
+|---|---|---|---|---|
+| Duskblade | 34 | 65 | 11 | 54 |
+| Bulwark | 52 | 67 | 19 | 44 |
+| Slagbinder | 37 | 73 | — | 40 |
+| Emberwright | 54 | 66 | 66 | 66 |
+| Lumen | 48 | 69 | — | 60 |
+
+- **Tried and dropped:**
+  - A slower creep (30 px/s) took the Duskblade to 52 but the Bulwark only to 29.
+  - A smaller patch (r 70) gave the Duskblade 22 and the Bulwark 26.
+  - A plain radial push-out (it stalled when the hero stood straight across from it) gave the Bulwark 54, but only through that stall.
+  - A slower slide round her (`orbit` 0.5 or 0.7) changed nothing beyond noise.
+  - A wider gap (`hold` 130) made it worse: Bulwark 22, Duskblade 19.
+- Skills will re-run all five classes on 160 seeds.
+
+### Homeward Hammer follow-up (23 Nov 2026): a lighter ring
+
+Skills' Hammerdeep sweep on #541 (seeds 41 to 200, out of 160, choir / load / home) found the Homeward Hammer was the hard version for two parties: two Duskblades 95 / 86 / 66 and Bellows 97 / 71 / 73. The base party was level (95 / 96 / 95).
+
+- **Traced:** in the two-Duskblade party (Bulwark, Lumen, two Duskblades; seeds 41 to 120), the ring is the cause.
+  - Ring 0 gave 66 of 80, 6% gave 39, and 8% gave 33. Ironload and the Choir both gave 45.
+  - Taking the throw and the return line's damage away left it at 33.
+  - Stopping the return line short of his body gave 31.
+- **The fix:** `HOMEWARD.ring` goes from 0.08 to 0.05.
+
+Hammerdeep t8, seeds 41 to 120, out of 80:
+
+| Party | Choir | Ironload | Home, ring 8% | Home, ring 5% |
+|---|---|---|---|---|
+| Base (Bulwark, Lumen, Duskblade, Emberwright) | 48 | 48 | 48 | 52 |
+| Two Duskblades (Bulwark, Lumen, Duskblade, Duskblade) | 45 | 45 | 33 | 42 |
+| Bellows (Bulwark, Lumen, Slagbinder, Emberwright) | 41 | — | 35 | 46 |
+
+- With no healer (Slagbinder for the Lumen, seeds 1 to 40) it now wins 9 of 40, against 3 at 8% (Choir 2, Ironload 1). So it still needs a healer, though less than the Choir does.
+
+### Y3 Oskel: Punch Line (built 23 Nov 2026)
+
+Oskel (the Pressworks) had Rivets (a ring under every hero) and Die Cut (half the floor at once) on the Rivets timer. The third is **Punch Line** (`punch`, tuning in `PUNCH`, sim/world.ts).
+
+- Every `every` 7 s, `rows` 3 rows of punches run out from his feet, evenly spaced round him. One row goes through a random living hero.
+- While a Downstroke plate is open, the plate sits midway between two rows instead, so its taker is safe.
+- Each row is `n` 6 circles of `r` 65, `gap` 90 apart, for `damage` 35. The nearest lands after `first` 1.4 s and each one further out `step` 0.25 s later, so the punches march out across the floor.
+- A hero steps off the line, or crosses it just behind a punch.
+
+Pressworks tier 10, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each version forced:
+
+| Setup | Rivets | Die Cut | Punch Line |
+|---|---|---|---|
+| Full-skill bots | 64 | 55 | 58 |
+| Half-skill bots | 52 | 55 | 55 |
+
+- **Tuning steps:**
+  - Two rows of r 50 every 9 s gave 70.
+  - Three rows gave 64 when a plate was placed square to one row. A row could then clip the plate's edge, so that placement was dropped, and the version went back to 70.
+  - Every 7 s gave 65, r 65 gave 64, and a faster march (1.1 s first, 0.2 s step) gave 65. Every 7 s with r 65 together gave 58, which was kept.
+- The bots step out of the punches, so the sim mostly measures the time spent moving. Up to 18 circles fit in the 24-telegraph pool, beside the plate.
+- **Name:** searches on 23 Nov found no WoW ability called "Punch Line".
+
+### Punch Line fix (23 Nov 2026): wider punches further out
+
+Skills' sweep on #554 (seeds 41 to 200, out of 160, band 88 to 112) found Punch Line split by range. Two Emberwrights won 150 and Bellows 141, but Two Duskblades won only 78. Melee heroes under Oskel lost uptime stepping out of the first punches, while ranged heroes stood off.
+
+- **The fix:** the nth punch out now has radius `r` 55 + `grow` 6 x n, so 55 at his feet and 85 at the far end. Before, every punch had radius 65.
+- Pressworks t10, heroes-r2 hero-t8-0, seeds 41 to 120, BOSSV=punch, wins out of 80:
+
+| Party | Before (r 65) | r 50 + 8 x n | r 55 + 6 x n (kept) | Kept, plus 7 punches, 0.18 s step |
+|---|---|---|---|---|
+| Base | 56 | 58 | 57 | 56 |
+| Two Duskblades | 32 | 47 | 50 | 41 |
+| Two Emberwrights | 76 | 78 | 77 | 76 |
+| Bellows | 71 | 77 | 75 | 76 |
+
+- Wider punches far out didn't touch the ranged parties: the bots dodge them, and a faster, longer march only hurt the melee party. Ranged parties are high across the Pressworks (skills had them at 129 to 132 of 160 on Rivets too), so that is a dungeon-wide watch item, not Punch Line's.
+
+### Creeping Rime fix 2 (23 Nov 2026): no jump when she walks into it
+
+QA on #550 found that Nhevra could walk into the held rime (as close as 90 px). On the next tick it snapped to the hero's side, a jump of 110 to 173 px (51 to 103 degrees round her), 8 times in 16 solo runs.
+
+- **The fix:** it now comes out on the hero's side only on the tick it rises. After that, when she walks into it, it is pushed out along its own angle and slides round at its usual speed.
+- Coldmarrow t10, seeds 41 to 120: Bulwark 44 to 54 of 80 (Thin Ice 52), Duskblade 54 (ice 34, drift 65).
+- QA also saw Rolling Vents win 12 of 24 against 23 for Twin Vents, at tier 6 with hero-t6 gear. On 80 seeds at tier 6 (hero-t6-0) they are level: roll 72, still 72, wander 73. So that was a small-sample gap.
+
+### Y3 Grandmother Slag: the Overflow (built 23 Nov 2026)
+
+Grandmother Slag (the Crucible, raid 1) had two phase-2 versions: the Pour's molten lanes and the Brimming's cooling islands. The third is **the Overflow** (`flow`, tuning in `OVERFLOW`, sim/world.ts). Where the Brimming spreads the raid onto islands, the Overflow pulls it in to her.
+
+- In phase 2 the pit overflows from the rim every `every` 14 s (the first after `first` 4 s).
+- After a `warn` 2.5 s warning it rises for `last` 4 s. Every hero farther than `safeR` 190 px from her burns `burn` 3% of max health every `tick` 0.5 s. Close to her, nothing.
+- Between floods, the party heat burns `heat` 3.5% every SLAG.heatEvery s (the Pour's is 3%).
+- She churns on the Pour's timer, as in the Brimming, so the tank keeps the Pour's pause. There are no lanes and no islands.
+- New state: `World.flowStage` (0 still, 1 warning, 2 risen) and `flowT`. New event `{type:'overflow', stage:'warn'|'rise'|'ebb'}`.
+- Bot: while it warns or has risen, a hero farther than safeR − 45 heads in to her (`NOFLOW=1` turns this off for measuring).
+- Client: a placeholder ring at safeR while it warns, and molten slag outside it while it has risen.
+
+Crucible tier 8, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | The Pour | The Brimming | The Overflow |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 43 | 48 | 45 |
+| Half-skill bots, seeds 41 to 120 | 50 | 48 | 53 |
+| Anvil party, seeds 41 to 120 | 48 | 51 | 59 |
+
+- **Tuning steps:**
+  - With the Pour's 3% heat it won 56. At 4% it won 36, at 5% 18, and 3.5% (kept) gave 45.
+  - A tighter safe ring (160) gave 54, floods every 11 s gave 53, and both together 56.
+- Without the bots gathering in (`NOFLOW=1`) it won 13 of 80, so the flood is the real check.
+- The Anvil party is 8 to 11 above its other versions: a watch item for skills' raid sweep.
+- **Name:** a search on 23 Nov turned up WoW compounds such as "Sanguine Overflow", and no spell called just "Overflow" in its results. "The Overflow" is a single plain word.
+
+### Y3 Old Vorhulm: Inhale (built 23 Nov 2026)
+
+Old Vorhulm (the Hoard, raid 2) had two phase-3 versions: Ember Feast's embers to grab and Banked Coals' gold circles to stand on. The third is **Inhale** (`inhale`, tuning in `INHALE`, sim/world.ts). Both older versions send heroes out to something on the floor. Inhale pulls them in, and the job is to walk out.
+
+- In phase 3, on Ember Spill's timer (COAL.spillEvery 10 s), he casts Inhale in place of the embers. There are no embers.
+- After a `warn` 1.5 s warning he breathes in for `time` 3 s. Every hero is drawn toward him at `pull` 0.3 of their class speed. A Bulwark under Anvil Skin is anchored, as against the Ebb.
+- Anyone within `bite` 40 px of his edge is bitten every `tick` 0.5 s for `damage` 8% of max health. A swallowed hero is skipped.
+- New state: `World.inhaleStage` (0 quiet, 1 warning, 2 drawing), `inhaleT` and `inhaleTickT`. New event `{type:'inhale', stage:'warn'|'draw'|'end'}`.
+- Bot: while he warns or draws, a hero within his mouth plus 90 px walks straight away from him (`NOINHALE=1` turns this off for measuring).
+- Client: `INHALE_TIP`, a phase-3 banner, `BOSS_VERSION_NAME.inhale`, and a placeholder ring at his mouth's reach with streaks drawn in toward him (2D floor layer, `flowGfx`).
+
+Hoard tier 9, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Ember Feast | Banked Coals | Inhale |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 58 | 50 | 56 |
+| Half-skill bots, seeds 41 to 120 | 43 | 38 | 38 |
+| Anvil party, seeds 41 to 120 | 73 | 74 | 74 |
+
+- **Tuning steps** (base / half skill):
+  - The first build had a bite that also healed him 1% of his health. At pull 0.45 and 6% bites it won 45 of 80. At pull 0.38 it won 51, but half-skill bots won only 14.
+  - The losses were a damage race in phase 3: he ended them at 2% to 23%. Without the heal, pull 0.38 gave 53 / 38. Pull 0.3 with 8% bites (kept) gave 56 / 38.
+  - A longer breath (4 s at pull 0.3) gave 44 / 5, so the breath stays at 3 s.
+- Without the bots walking out (`NOINHALE=1`) it wins 24 of 80, so the walk-out is the real check.
+- **Name:** WoW has a spell called "Inhale" (wowhead spell 153721). It is a single plain word, which Steve's rule allows (21 Nov). The cast is shown as "Inhale".
+- **Overflow timing fix (QA's nit on #558):** the Overflow's stage changes now add to `flowT` instead of setting it, so each stage keeps the leftover part of the tick. Warnings were 14.07 s apart and are now 14 s. Inhale's warning-to-draw step does the same. The Overflow's base result is unchanged at 45 of 80.
+
+### Y3 the Cinder Colossus: Millstone (built 23 Nov 2026)
+
+The Cinder Colossus (the Smeltery, raid 3) had two phase-2 versions on the Wheel's timer: the Wheel (he turns on whoever hurts him most and sweeps) and Plate Shift (his plate slides round to them). The third is **Millstone** (`mill`, tuning in `MILL`, sim/world.ts). Both older versions move his open back once. Millstone keeps it moving.
+
+- On the Wheel's timer (COLO.wheelEvery 16 s, the same 2 s cast) he casts Millstone. Then he grinds round on the spot for `time` 6 s, turning `turn` 0.9 radians a second one way, picked at random, and ignoring the tank.
+- Slag pours off him all round. Every `tick` 0.5 s, a non-tank hero within `range` 200 px of his edge and within `arc` 2.1 radians of his facing takes `damage` 8% of max health. That covers everything but his open back.
+- His open back turns with him, so the damage dealers walk round with it, or step well clear. There is no Slag Sweep while he grinds, and he turns back toward his target when it ends.
+- New state: `World.millT`, `millDir` (+1 or -1) and `millTickT`. New event `{type:'millstone', stage:'start'|'end', dir}`.
+- Bot: a non-tank in the burn, or just ahead of it, gets clear. Close in, it walks round the way he turns. Further out, where his edge turns faster than a hero walks, it steps out of reach. `NOMILL=1` turns this off for measuring.
+- Client: `MILLSTONE_TIP`, a phase-2 banner, `BOSS_VERSION_NAME.mill`, and a placeholder wedge of slag round him while he grinds (2D floor layer, `flowGfx`).
+
+Smeltery tier 10, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Wheel | Plate Shift | Millstone |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 54 | 58 | 57 |
+| Half-skill bots, seeds 41 to 120 | 58 | 53 | 51 |
+| Anvil party, seeds 41 to 120 | 60 | 54 | 57 |
+
+- **Tuning steps:**
+  - The first build burned only his front (arc pi/3, 4%). It won 59, and 60 without the bots dodging. The flanking bots already stood at his back, so it hit almost nobody, even at 10%.
+  - The bot's walk-round also couldn't keep a ranged hero ahead of his edge at 230 px. Stepping out of reach fixed that.
+  - Burning everything but his back (arc 2.1): 4% won 61 (54 without the dodge), 6% 58, 8% (kept) 57, 10% 55. A faster turn (1.2) didn't change it.
+- Without the bots getting clear (`NOMILL=1`) it wins 42 of 80.
+- **Name:** a search on 23 Nov found no WoW spell called "Millstone". It is a single plain word.
+- tests/audio.test.ts: the Smeltery fight test's seed 19 now rolls Millstone, so the test pins its Wheel run.
+- **Timing (QA on #575):** the Wheel's 16 s timer stops while he casts and grinds, so Millstones come about 29.5 s apart (median), against 25 s for the Wheel. The results above were measured that way.
+
+### Y3 the Furnace Regent: Tithe (built 23 Nov 2026)
+
+The Furnace Regent (the Flue, raid 4) had two phase-2 versions on Ash Fall's timer: Ash Fall (a circle under every hero, so spread out) and the Summons (come close to him). The third is **Tithe** (`tithe`, tuning in `TITHE`, sim/world.ts). Ash Fall spreads the party, and the Summons gathers it on him. Tithe gathers it somewhere else.
+
+- On Ash Fall's timer (REGENT.ashEvery 12 s), he demands a Tithe in place of the ash. A gold circle of `r` 80 lands `dist` 240 px from him on a random side (kept inside the arena), after `fuse` 4 s.
+- If at least `need` 2 heroes stand in it, they share the tithe: each takes `cost` 65% of max health, split between them. Four heroes take about 16% each, and two take about 33%. If fewer than 2 are in it, every hero pays `miss` 35%.
+- The Decrees go on as before, two at once in phase 2. A holder who joins the tithe scorches the others standing close.
+- New event `{type:'tithe', ok, n}` as the circle lands (plus the usual `soak`). The circle is a soak telegraph with owner -5, drawn like every gold circle, so it needs no new placeholder.
+- Bot: every hero runs into the gold circle, like any soak (`NOTITHE=1` makes them ignore it, for measuring).
+- Client: `TITHE_TIP`, a phase-2 banner, and `BOSS_VERSION_NAME.tithe`.
+
+Flue tier 11, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Ash Fall | Summons | Tithe |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 55 | 55 | 55 |
+| Half-skill bots, seeds 41 to 120 | 44 | 56 | 50 |
+| Anvil party, seeds 41 to 120 | 51 | 54 | 48 |
+
+- **Tuning steps** (base / half skill / Anvil): a 60% tithe won 59 / 58 / 53, and 65% (kept) 55 / 50 / 48. It is steep above that: 80% won 27 and 100% won 6.
+- Without the bots answering it (`NOTITHE=1`, measured at 60%) it won 0 of 80.
+- **Name:** "Tithe" turns up in WoW (a warcraft.wiki.gg page called Tithe, and a spell called "Scouring Tithe"). It is a single plain word, which Steve's rule allows (21 Nov).
+- **Fix (QA on #579):** a hero alone in the gold circle used to read as a made soak. The client showed the gold blast and played the made-soak sound, and that hero got the Relayer buff and the Ventwalker 3-piece heal, while everyone paid 35%. A Tithe now only counts as made with `TITHE.need` heroes in it, and a missed one reads "Tithe unpaid!".
+
+## Phase 16 U1: the Kiln Mother's echo
+
+From tier 8 (`ECHO.minTier`), the Kiln Mother's last phase also borrows the signature of one version this run didn't roll. A Draw run can now end with Turning Fire in the mix, so the same version can end two ways.
+
+- **The pick:** `rollEcho` hashes the seed (no run-rng draws) over the versions other than the rolled one. There's no echo below tier 8, on the first delve (always tier 1), or in stress runs.
+- **The timer:** in phase 3 her signatures alternate, her own and then the echo's. She casts one every 12 s in phase 3, so the echo comes every 24 s. Phase 2 never echoes.
+- New event `{type:'echo', id}` when she casts the echo, followed by the echo's own cast events. The cue is a placeholder (`return null`) until sound adds one.
+- **Client:** the phase-3 banner reads "She casts faster, and echoes Turning Fire" (or whichever echo it is, from `BOSS_VERSION_NAME`).
+- **Tools:** `ECHO=off` turns echoes off, and `ECHO=<id>` forces one (if it isn't the rolled version), in tools/foundry.ts and tools/group.ts.
+
+Solo Kiln at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off |
+|---|---|---|
+| Bulwark | 48 | 50 |
+| Duskblade | 29 | 29 |
+| Emberwright | 46 | 47 |
+| Lumen | 56 | 55 |
+| Slagbinder | 51 | 48 |
+
+Every class is within 3 wins of echoes off. In the Bulwark logs all 80 runs reached her (every one shows her Molten Cataclysm).
+
+## Phase 16 U1: Maelra's echo
+
+Maelra's versions are lasting effects, not single casts, so her echo comes and goes in windows. From tier 8, in her last phase, the echo is on for `MAELRA_ECHO.on` 12 s, then off for `off` 10 s. The first window starts `first` 2 s into phase 3.
+
+- **Which versions echo:** only the Sluicetide and Sealed Vents (`MAELRA_ECHOES`). The water already rises in every version but the Sluicetide, so a Rising Water echo would change nothing. A Rising Water run echoes one of the two, picked from the seed. A Sluicetide run echoes Sealed Vents, and a Sealed Vents run echoes the Sluicetide.
+- **Sealed Vents echo:** while it is on, one vent is open and the steam moves as in that version. When it ends, every vent opens again.
+- **Sluicetide echo:** while it is on, the current runs and turns as in that version. It stops when the window ends.
+- `World.echoLive` is true while a window is on. `versionLive(w, id)` tells the bot and the client whether a version is in effect, rolled or echoed. Each window that opens fires `{type:'echo', id}`.
+- **Client:** the phase-3 banner reads "The vents erupt on their own, and Sealed Vents comes and goes" (or the Sluicetide).
+
+Solo Drowned Foundry at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off |
+|---|---|---|
+| Bulwark | 40 | 39 |
+| Duskblade | 53 | 54 |
+| Emberwright | 62 | 62 |
+| Lumen | 66 | 66 |
+| Slagbinder | 66 | 64 |
+
+Every class is within 2 wins of echoes off.
+
+## Phase 16 U1: the Lensmother's echo
+
+From tier 8, the Lensmother's last phase also uses the version this run didn't roll. Her first echo-able cast in phase 3 is the echo, then her own and the echo alternate.
+
+- **A Twin Brand or Glintfall echo** takes every other turn of her brand timer (`GLARE.bossBrandEvery`).
+  - On a Twin Brand or Glintfall run, the timer alternates her own cast and the echo.
+  - A Carried Light run has nothing of its own on that timer. In phase 3 the timer runs, and every other turn casts the echo.
+- **A Carried Light echo** carries every other Glare: the light moves to her as the warning starts. On the Glares between, the light goes back to the middle of the room (with a `lightMove` event to 0, 0).
+- Each echo cast fires `{type:'echo', id}`. The client draws the carried-light beams for a Carried Light echo too. The phase-3 banner reads "She cracks a pillar every so often, and echoes Glintfall" (or whichever echo it is).
+
+Solo Glarewell at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80. Wins out of 80, and how many runs reached phase 3 and saw an echo:
+
+| Class | Echo on | Echo off | Phase 3 | Saw an echo |
+|---|---|---|---|---|
+| Bulwark | 72 | 73 | 74 | 71 |
+| Duskblade | 64 | 67 | 70 | 64 |
+| Emberwright | 75 | 73 | 77 | 71 |
+| Lumen | 79 | 79 | 79 | 78 |
+| Slagbinder | 80 | 80 | 80 | 80 |
+
+- **Echo first:** with her own cast first, phase 3 often ended before the echo came, and wins were unchanged in every class. So the echo comes first.
+- **The Kiln Mother keeps her own signature first.** With her echo first, solo Bulwark at Kiln t8 fell to 42 from 50, against 48 with her own first (#583). The other classes stayed within 2. 14 seeds changed outcome: 5 of the new losses had a Kiln Draw echo and 4 a Molten Cataclysm echo.

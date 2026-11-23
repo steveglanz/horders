@@ -59,6 +59,63 @@ export const HEAT_ICON: Record<HeatId, { color: string; d: string }> = {
   slackWater: { color: '#6fd0c8', d: 'M3 9c3-2 6 2 9 0s6-2 9 0 M3 14.5h18 M6.5 19h11' },
 };
 
+/** Phase 15 Y6: the named-foe traits, in the same colours and shapes as their badges over a marked foe (GameScene affixBadge). */
+export const AFFIX_ICON: Record<string, { color: string; d: string }> = {
+  Swift: { color: '#e8f4ff', d: 'M5 6l6 6-6 6 M12 6l6 6-6 6' },
+  Warded: { color: '#cfe6ff', d: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6Z' },
+  Vengeful: { color: '#ff3b6b', d: 'M12 2v4.5 M12 17.5V22 M2 12h4.5 M17.5 12H22 M5 5l3 3 M16 16l3 3 M5 19l3-3 M16 8l3-3 M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z' },
+  Brood: { color: '#d8c89a', d: 'M4.5 14a3 4 0 1 0 6 0a3 4 0 1 0-6 0Z M13.5 14a3 4 0 1 0 6 0a3 4 0 1 0-6 0Z M9 6.5a3 3.5 0 1 0 6 0a3 3.5 0 1 0-6 0Z' },
+  Smoldering: { color: '#ff6a1f', d: 'M12 3c1 3 5 5 5 9.5a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 1.8.9 2.8 2 2.8-.6-2.6 0-5 .5-7.3Z' },
+};
+
+/** Phase 15 Y6: the arena events, in their warning colours (GameScene arenaEventDraw). */
+export const EVENT_ICON: Record<string, { color: string; d: string }> = {
+  // Cave-in: a rock falling, with grit above it.
+  caveIn: { color: '#c8bcb4', d: 'M6.5 14.5 9.5 10h5.5l3 4.5-3 5.5H9Z M8.5 3v3 M12 2v4.5 M15.5 3v3' },
+  // Vent Surge: a vent throwing up three jets.
+  ventSurge: { color: '#ff8a3d', d: 'M4 20h16 M7 20l1.5-5h7l1.5 5 M9.5 12 8 6 M12 12V3 M14.5 12 16 6' },
+  // Cold Snap: a snowflake.
+  coldSnap: { color: '#bfe4ff', d: 'M12 3v18 M4.2 7.5l15.6 9 M4.2 16.5l15.6-9 M9.5 4.5 12 7l2.5-2.5 M9.5 19.5 12 17l2.5 2.5' },
+  // High Water: three rising waves.
+  highWater: { color: '#6fd0c8', d: 'M3 8c3-2 6 2 9 0s6-2 9 0 M3 13c3-2 6 2 9 0s6-2 9 0 M3 18c3-2 6 2 9 0s6-2 9 0' },
+};
+
+/** Phase 15 Y6: the wave shapes, in the amber of their floor marks (GameScene waveDraw). */
+export const WAVE_ICON: Record<string, { color: string; d: string }> = {
+  // Pincer: chevrons pressing in from both sides.
+  pincer: { color: '#ffb35c', d: 'M3 7l5 5-5 5 M8 7l5 5-5 5 M21 7l-5 5 5 5' },
+  // Surrounded: a dashed ring closing on a point.
+  ring: { color: '#ffb35c', d: 'M12 3a9 9 0 0 1 4.5 1.2 M19.8 7.5A9 9 0 0 1 21 12 M19.8 16.5A9 9 0 0 1 16.5 19.8 M12 21a9 9 0 0 1-4.5-1.2 M4.2 16.5A9 9 0 0 1 3 12 M4.2 7.5A9 9 0 0 1 7.5 4.2 M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z' },
+  // More Coming: a gate in the wall with a chevron coming through.
+  reinforce: { color: '#ffb35c', d: 'M4 20V9a8 8 0 0 1 16 0v11 M4 20h16 M10 11l3 3-3 3' },
+};
+/** Phase 15 Y10: the dungeon's reactions, in its deep amber (the stirred elite's rune ring). */
+export const STIR_ICON: Record<string, { color: string; d: string }> = {
+  // Another joins: a figure with a plus.
+  elite: { color: '#ff8a3d', d: 'M9 7a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M3 21c0-4 3-6 6-6s6 2 6 6 M18 8v6 M15 11h6' },
+  // A named foe: the named-foe blue diamond.
+  named: { color: '#5aa9ff', d: 'M12 3l7 9-7 9-7-9Z M12 8l3 4-3 4-3-4Z' },
+  // The ground answers: a cracked floor.
+  event: { color: '#ff8a3d', d: 'M3 19h18 M6 19l3-6 3 3 2-5 3 8 M12 3v3 M7 5l1.5 2.5 M17 5l-1.5 2.5' },
+  // They close in: the pincer's chevrons.
+  wave: { color: '#ff8a3d', d: 'M3 7l5 5-5 5 M21 7l-5 5 5 5 M10.5 12h3' },
+};
+
+/** Phase 15 Y6: a boss version (a crown), and the Seen log itself (an open eye) for its hub chip. */
+export const BOSS_VERSION_ICON = { color: '#ffc861', d: 'M4 18h16 M4 18 3 8l5 4 4-6 4 6 5-4-1 10' };
+export const SEEN_GLYPH = 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z';
+
+/** Phase 15 Y6: a Seen log entry's glyph and colour by kind and id (null when it has none, so it shows no glyph). */
+export function seenIcon(kind: string, id: string): { color: string; d: string } | null {
+  if (kind === 'boss') return BOSS_VERSION_ICON;
+  if (kind === 'mark') return AFFIX_ICON[id] ?? null;
+  if (kind === 'event') return EVENT_ICON[id] ?? null;
+  if (kind === 'wave') return WAVE_ICON[id] ?? null;
+  if (kind === 'stir') return STIR_ICON[id] ?? null;
+  if (kind === 'heat') return (HEAT_ICON as Record<string, { color: string; d: string }>)[id] ?? null;
+  return null;
+}
+
 /** A tinted tile holding a Heat glyph. */
 export function heatTile(id: HeatId, size = 36): string {
   const o = HEAT_ICON[id];

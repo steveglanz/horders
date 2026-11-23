@@ -20,6 +20,7 @@ import { BOT_FILL, botFillBlocker, fillClasses } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
 import { OMENS, OMEN_FROM_TIER, OMEN_TUNING, OmenId, omensFor, weekOf } from '../sim/content/omens';
 import { HEATS, heatApplies, heatFor } from '../sim/content/heat';
+import { SEEN_KIND_NAME, seenIn, type SeenKind } from '../sim/seen';
 import { BOUNTY, bountyEmbers, bountyFor, dayOf } from '../sim/content/bounty';
 import { weekState, weeklyText, weeklyTitle, WEEKLY_QUESTS, type WeeklyQuest } from '../sim/content/weekly';
 import { KEYS, keyEmbers, keyOmens, keyScale, keyTier } from '../sim/content/keys';
@@ -27,7 +28,7 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile, seenIcon, SEEN_GLYPH } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -358,7 +359,7 @@ export class Hub {
       + (h.maxTier === 1 ? '<div class="hint">Beat the Kiln Mother to unlock tier 2.</div>' : '')
       + (h.runs === 0 ? `<div class="firstrun" data-tip="Every fight you clear is a level, a talent and a loot bag. Your hero keeps the gear."><b>New here?</b> Tap Delve to start. Drag anywhere to move; you attack on your own. Hold anything to see what it does.</div>` : '')
       + this.partyLine() + this.gritLine() + this.prepChips(omens)
-      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}</div>`;
+      + `<div class="prep-full">${this.heatLine()}${this.omenLine(omens)}${this.potionLine()}${this.bountyLine()}${this.keyLine()}${this.weeklyLine()}${this.seasonLine()}${this.seenLine(true)}</div>`;
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
         this.dungeon = b.dataset.d as DungeonId;
@@ -371,7 +372,7 @@ export class Hub {
       this.render();
     });
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-prep]').forEach((b) =>
-      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens)));
+      b.addEventListener('click', () => this.openPrep(b.dataset.prep as 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens)));
     $('tiers').querySelectorAll<HTMLButtonElement>('[data-t]').forEach((b) =>
       b.addEventListener('click', () => {
         this.tier = Number(b.dataset.t);
@@ -459,6 +460,12 @@ export class Hub {
       chips.push(`<button class="prep-chip ${n === wk.quests.length ? 'on' : ''}" data-prep="weekly" data-sfx="open"><span class="star" aria-hidden="true">◆</span>`
         + `<span>Weekly <b>${n}/${wk.quests.length}</b></span></button>`);
     }
+    // Phase 15 Y4: the Seen log for the picked dungeon, after the first delve like the weekly quests.
+    if (h.runs > 0) {
+      const sn = seenIn(h, this.dungeon);
+      chips.push(`<button class="prep-chip ${sn.seen === sn.total ? 'on' : ''}" data-prep="seen" data-sfx="open" aria-label="Seen log: ${sn.seen} of ${sn.total} met"><span class="star seen-eye" aria-hidden="true">${glyph(SEEN_GLYPH, 18)}</span>`
+        + `<span>Seen <b>${sn.seen}/${sn.total}</b></span></button>`);
+    }
     // P2: the season track, after the first delve like the weekly quests.
     if (h.runs > 0) {
       const st = seasonState(h.season, weekOf(Date.now()));
@@ -473,11 +480,12 @@ export class Hub {
   }
 
   /** Opens the sheet for one prep chip. */
-  private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
-    const titles = { heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
+  private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season' | 'seen', omens: OmenId[]): void {
+    const titles = { seen: `Seen in ${DUNGEONS[this.dungeon].name}`, heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
     const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on this dungeon, the same for everyone. Each solo dungeon has its own, and it changes every day.</div>'
       : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
+      : kind === 'seen' ? this.seenLine(false)
       : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
     openSheet(titles[kind], body);
     $('sheet').dataset.prep = kind;
@@ -839,6 +847,24 @@ export class Hub {
     const h = this.heatToday();
     if (!h) return '';
     return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen">${heatTile(h.id)}<div><b>${h.name}</b><div>${h.text}</div></div></div>`;
+  }
+
+  /** Phase 15 Y4: what the picked dungeon can show, met or not yet, by kind (after the first delve). */
+  private seenLine(heading: boolean): string {
+    const h = this.hero();
+    if (!h.runs) return '';
+    const sn = seenIn(h, this.dungeon);
+    const kinds = (Object.keys(SEEN_KIND_NAME) as SeenKind[]).filter((k) => sn.entries.some((e) => e.kind === k));
+    const rows = kinds.map((k) => `<div class="seen-k">${SEEN_KIND_NAME[k]}</div><div class="seen-row">`
+      + sn.entries.filter((e) => e.kind === k).map((e) => {
+        // Y6: a met entry carries its own glyph (the trait's badge, the event's mark, the Heat's glyph, a crown for a boss version).
+        const ic = e.seen ? seenIcon(e.kind, e.id) : null;
+        return `<span class="seen-e ${e.seen ? 'met' : ''}" title="${e.seen ? e.tip : 'Not met yet'}"${ic ? ` style="--gc:${ic.color}"` : ''}>${ic ? glyph(ic.d, 14) : e.seen ? '' : '<i aria-hidden="true">?</i>'}${e.name}</span>`;
+      }).join('')
+      + '</div>').join('');
+    return (heading ? `<div class="sec-h"><span>Seen log</span><span class="muted">${sn.seen} of ${sn.total} met</span></div>` : '')
+      + `<div class="seen">${rows}</div>`
+      + (heading ? '' : `<div class="hint">${sn.seen} of ${sn.total} met. Bosses, named foes, events and Heats change from run to run: keep delving to meet them all.</div>`);
   }
 
   /** This week's Omens for the picked tier, or a hint about when they start. */

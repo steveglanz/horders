@@ -20,7 +20,7 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
-const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', boss: '#ffc861', heat: '#ff8a3d' };
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', boss: '#ffc861', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
@@ -89,12 +89,15 @@ function fmt(t: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** A banner to show after the current one times out; it can carry one of its own (a fight, then its wave, then a named foe). */
+export type BannerNext = { title: string; sub: string; next?: BannerNext };
+
 export class Hud {
   private handlers?: RunHandlers;
   private lastTick = 0;
   private draftShownFor = -1;
   private bannerTimer = 0;
-  private bannerNext: { title: string; sub: string } | undefined;
+  private bannerNext: BannerNext | undefined;
   private bannerNextAt = 0;
   showPerf = false;
 
@@ -284,7 +287,7 @@ export class Hud {
     if (this.bannerNextAt && now > this.bannerNextAt && this.bannerNext) {
       const next = this.bannerNext;
       this.bannerNextAt = 0;
-      this.banner(next.title, next.sub);
+      this.banner(next.title, next.sub, false, next.next);
     }
   }
 
@@ -659,8 +662,13 @@ export class Hud {
     $('pause').hidden = !p;
   }
 
+  /** The rest of the current banner chain (what shows after this banner), if any. */
+  pendingBanner(): BannerNext | undefined {
+    return this.bannerNext;
+  }
+
   /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
-  banner(title: string, sub: string, full = false, next?: { title: string; sub: string }): void {
+  banner(title: string, sub: string, full = false, next?: BannerNext): void {
     $('bannerTitle').textContent = title;
     const subEl = $('bannerSub');
     subEl.textContent = sub;
@@ -866,11 +874,14 @@ export class Hud {
     // X6: each kind of chip has its own accent (the Heat's from its glyph), as a border and key colour only, so no chip
     // gets wider than X9 sized it for 320 px.
     const heatCol = w.heat && w.heat in HEAT_ICON ? HEAT_ICON[w.heat as HeatId].color : SHAPE_COLOR.heat;
+    // Phase 15 Y4: a chip whose boss version, named-foe trait, event or Heat this hero met for the first time gets a star.
+    const fresh = new Set((rewards?.seenNew ?? []).map((key) => key.split(':')[1]));
+    const isNew = (c: (typeof shape)[number]) => fresh.has(c.kind);
     $('endShape').innerHTML = shape.map((c) => {
       const [k, ...v] = c.label.split(': ');
-      return `<span class="shape" data-shape="${c.kind}" style="--sc:${c.kind === 'heat' ? heatCol : SHAPE_COLOR[c.kind]}"><i>${k}:</i> <b>${v.join(': ')}</b></span>`;
+      return `<span class="shape${isNew(c) ? ' new' : ''}" data-shape="${c.kind}" style="--sc:${c.kind === 'heat' ? heatCol : SHAPE_COLOR[c.kind]}"><i>${isNew(c) ? '<s aria-label="New">★</s>' : ''}${k}:</i> <b>${v.join(': ')}</b></span>`;
     }).join('');
-    $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip));
+    $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip + (isNew(shape[k]) ? ' (new in your Seen log)' : '')));
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
       .map((id) => {
         const def = TALENTS[id];

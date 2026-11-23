@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -688,6 +688,20 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
   const e = w.enemies[w.bossIndex];
   if (!e?.alive || e.kind !== 'colossus') return null;
   const p = w.player;
+  // Y3 Millstone: in (or just ahead of) his grinding front, get clear of it (NOMILL=1 turns this off).
+  if (w.millT > 0 && process.env.NOMILL !== '1') {
+    const at0 = Math.atan2(p.y - e.y, p.x - e.x);
+    const d0 = Math.hypot(p.x - e.x, p.y - e.y) || 1;
+    const lead = ((at0 - w.colFacing) * w.millDir + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+    if (d0 < e.def.radius + MILL.range + 40 && lead > -MILL.arc - 0.2 && lead < MILL.arc + 0.6) {
+      const tx = -Math.sin(at0) * w.millDir, ty = Math.cos(at0) * w.millDir;
+      const ox = (p.x - e.x) / d0, oy = (p.y - e.y) / d0;
+      // Close in, his front turns slower than a hero walks: keep ahead of it. Further out it turns faster: step out of its reach.
+      const far = d0 > e.def.radius + MILL.range * 0.5;
+      const dx = far ? ox : tx + ox * 0.35, dy = far ? oy : ty + oy * 0.35, n = Math.hypot(dx, dy) || 1;
+      return { dx: dx / n, dy: dy / n };
+    }
+  }
   // In a Slag Sweep: let the usual step-out handle it.
   for (const t of w.telegraphs) {
     if (!t.alive || t.shape !== 'cone' || t.owner !== w.bossIndex) continue;
@@ -762,6 +776,18 @@ export function botInput(w: World, skill = 1): Input {
   // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
   const isle = islandStep(w);
   if (isle) return { x: isle.dx, y: isle.dy, cast: botCast(w, skill) };
+  // Y3 Inhale: while Vorhulm warns or breathes in, keep back from his mouth and walk out against the pull (NOINHALE=1 turns this off).
+  if (w.inhaleStage > 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && process.env.NOINHALE !== '1') {
+    const b = w.enemies[w.bossIndex];
+    const dx = p.x - b.x, dy = p.y - b.y, d = Math.hypot(dx, dy) || 1;
+    if (d < b.def.radius + INHALE.bite + 90) return { x: (dx / d) * skill, y: (dy / d) * skill, cast: botCast(w, skill) };
+  }
+  // Y3 the Overflow: when the pit floods in from the rim, get in close to her (NOFLOW=1 turns this off for measuring).
+  if (w.flowStage > 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && process.env.NOFLOW !== '1') {
+    const b = w.enemies[w.bossIndex];
+    const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy) || 1;
+    if (d > OVERFLOW.safeR - 45) return { x: (dx / d) * skill, y: (dy / d) * skill, cast: botCast(w, skill) };
+  }
   // Coldmarrow co-op: under the Long Night, a hero with a dim coal runs into a brighter ally's light.
   const glow = longNightShelter(w);
   if (glow) return { x: glow.dx, y: glow.dy, cast: botCast(w, skill) };
@@ -975,6 +1001,8 @@ export function botInput(w: World, skill = 1): Input {
       if (d < t.r + 30) { fx += (dx / d) * 0.6 * skill; fy += (dy / d) * 0.6 * skill; }
       continue;
     }
+    // NOTITHE=1 (measuring only): nobody answers the Regent's Tithe.
+    if (t.kind === 'soak' && t.owner === -5 && process.env.NOTITHE === '1') continue;
     if (t.kind === 'soak') {
       // Co-op: only go to the circle this hero was given (so a pair of vents is split).
       if (vent && t !== vent) continue;
@@ -999,6 +1027,13 @@ export function botInput(w: World, skill = 1): Input {
         // A half-floor cut (Die Cut): walk straight back across its edge, everyone at full pace.
         fx -= Math.cos(t.angle) * 0.8 * skill;
         fy -= Math.sin(t.angle) * 0.8 * skill;
+      } else if (t.shape === 'cone' && t.r === KILN_TURN.reach && t.owner !== -3) {
+        // Phase 15 Y3 Turning Fire: only the cone the hero is in matters, and the way out is back against the turn.
+        const off = Math.atan2(Math.sin(Math.atan2(dy, dx) - t.angle), Math.cos(Math.atan2(dy, dx) - t.angle));
+        if (Math.abs(off) > t.arc / 2 + 0.1) continue;
+        const a = Math.atan2(dy, dx) - w.turnDir * (Math.PI / 2);
+        fx += Math.cos(a) * 0.8 * skill;
+        fy += Math.sin(a) * 0.8 * skill;
       } else if (t.shape === 'cone') {
         // A long cone can't be outrun: step sideways out of it instead.
         const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
@@ -1065,6 +1100,8 @@ export function botInput(w: World, skill = 1): Input {
       const d = Math.hypot(v.x - b.x, v.y - b.y) + Math.hypot(v.x - p.x, v.y - p.y);
       if (d < bd) { bd = d; best = v; }
     }
+    // Y3 Sealed Vents: only the open vent works.
+    if (w.openVent >= 0 && versionLive(w, 'seal') && w.vents[w.openVent]) best = w.vents[w.openVent];
     const vx = best.x - b.x;
     const vy = best.y - b.y;
     const vd = Math.hypot(vx, vy) || 1;
@@ -1073,6 +1110,23 @@ export function botInput(w: World, skill = 1): Input {
     const td = Math.hypot(tx, ty) || 1;
     fx += (tx / td) * 0.06 * skill;
     fy += (ty / td) * 0.06 * skill;
+  }
+  // Y3 Creeping Rime: keep out of the frost as it creeps after you.
+  if (w.rimeOn) {
+    const dx = p.x - w.rimeX, dy = p.y - w.rimeY, d = Math.hypot(dx, dy) || 1;
+    const reach = CREEPING_RIME.r + 70;
+    if (d < reach) { fx += (dx / d) * 0.6 * skill * (1 - d / reach + 0.3); fy += (dy / d) * 0.6 * skill * (1 - d / reach + 0.3); }
+    // Held off her body, it slides round her: a hero close in steps on round her, away from it (RIMEROUND=0 to measure without).
+    const nh = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (nh?.alive && d < reach && process.env.RIMEROUND !== '0') {
+      const bx = p.x - nh.x, by = p.y - nh.y, bd = Math.hypot(bx, by) || 1;
+      if (bd < nh.def.radius + 120) {
+        const side = Math.sign(bx * (w.rimeY - nh.y) - by * (w.rimeX - nh.x)) || 1;
+        const k = Number(process.env.RIMEROUND ?? 0.5) * skill;
+        fx += (by / bd) * side * k;
+        fy += (-bx / bd) * side * k;
+      }
+    }
   }
   // Glarewell: hide from a Glare, burst a Brand in the open, stay out of the lamps' beam.
   if (w.pillars.length) {
@@ -1083,9 +1137,11 @@ export function botInput(w: World, skill = 1): Input {
       let bd = Infinity;
       for (const c of w.pillars) {
         if (c.cracked) continue;
-        const d = Math.hypot(c.x, c.y) || 1;
-        const sx = (c.x / d) * (d + c.r + 45);
-        const sy = (c.y / d) * (d + c.r + 45);
+        // The shade spot lies past the pillar, away from the light (the centre, or the Lensmother's Carried Light).
+        const cx = c.x - w.lightX, cy = c.y - w.lightY;
+        const d = Math.hypot(cx, cy) || 1;
+        const sx = w.lightX + (cx / d) * (d + c.r + 45);
+        const sy = w.lightY + (cy / d) * (d + c.r + 45);
         const dd = Math.hypot(sx - p.x, sy - p.y);
         if (dd < bd) { bd = dd; bx = sx; by = sy; }
       }

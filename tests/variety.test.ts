@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -167,7 +167,7 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
   type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; runBoss(i: number, dt: number): void };
 
   /** A Kiln fight with only the Kiln Mother up, in phase 2, Cataclysm due now. */
-  function mother(variant: 'cataclysm' | 'draw'): { w: World; q: B; b: number } {
+  function mother(variant: 'cataclysm' | 'draw' | 'turning'): { w: World; q: B; b: number } {
     const { w, inner } = kiln();
     const q = inner as B;
     const b = q.spawn('kilnMother', 0, 0);
@@ -237,6 +237,27 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
     const { w, q, b } = mother('cataclysm');
     q.runBoss(b, 0.01);
     expect(w.enemies[b].castId).toBe('cataclysm');
+  });
+
+  it('Y3: Turning Fire pours four cones that turn from the hero, flipping way each pour, and holds her other abilities', () => {
+    const { w, q, b } = mother('turning');
+    q.runBoss(b, 0.01);
+    expect(w.enemies[b].castId).toBe('turningFire');
+    const cones = w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.r === KILN_TURN.reach);
+    expect(cones.length).toBe(KILN_TURN.cones);
+    const dir = w.turnDir;
+    cones.forEach((t, k) => {
+      // The first cone points at the hero (at +x), each next one turned by one arc.
+      const want = dir * k * KILN_TURN.arc;
+      expect(Math.abs(Math.atan2(Math.sin(t.angle - want), Math.cos(t.angle - want)))).toBeLessThan(1e-6);
+      expect(t.dur).toBeCloseTo(KILN_TURN.first + k * KILN_TURN.step, 6);
+    });
+    const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+    expect(w.enemies[b].abilityT).toBeGreaterThanOrEqual(pour);
+    for (const t of cones) t.alive = false;
+    w.enemies[b].castId = ''; w.enemies[b].aux = 0;
+    q.runBoss(b, 0.01);
+    expect(w.turnDir).toBe(-dir);
   });
 
   it('online co-op: a guest sees the same version', () => {
@@ -365,8 +386,8 @@ describe('V8 variety: the Drowned Foundry', () => {
 
 describe('V8 variety: Maelra\'s Sluicetide', () => {
   type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
-    rollMaelraVariant(): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
-  function maelra(variant: 'water' | 'tide'): { w: World; q: M; b: number } {
+    rollMaelraVariant(): string; bossIndex: number; bossSpawned: boolean; bossPhase: number; temper: number };
+  function maelra(variant: 'water' | 'tide' | 'seal'): { w: World; q: M; b: number } {
     const w = new World({ seed: 9, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
     const q = w as unknown as M;
     for (const e of w.enemies) e.alive = false;
@@ -411,6 +432,41 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
     expect(Math.abs(Math.cos(w.tideAngle - a0) + 1)).toBeGreaterThan(0.01); // never straight back
   });
 
+  it('Y3 Sealed Vents: one vent open, a warning, then the steam moves; only the open vent boils her Temper', () => {
+    const { w, q, b } = maelra('seal');
+    expect(w.vents.length).toBeGreaterThan(1);
+    q.runMaelra(b, 0.01);
+    const first = w.openVent;
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(w.events.filter((e) => e.type === 'ventShift' && e.stage === 'open')).toHaveLength(1);
+    q.runMaelra(b, MAELRA_SEAL.every - MAELRA_SEAL.warn);
+    expect(w.nextVent).toBeGreaterThanOrEqual(0);
+    expect(w.nextVent).not.toBe(first);
+    const next = w.nextVent;
+    expect(w.events.some((e) => e.type === 'ventShift' && e.stage === 'warn' && e.vent === next)).toBe(true);
+    q.runMaelra(b, MAELRA_SEAL.warn);
+    expect(w.openVent).toBe(next);
+    expect(w.nextVent).toBe(-1);
+    // A sealed vent keeps her Temper; the open one boils it off.
+    const e = w.enemies[b];
+    const shut = w.vents.findIndex((_, k) => k !== w.openVent);
+    q.temper = 3;
+    e.x = w.vents[shut].x; e.y = w.vents[shut].y;
+    q.runMaelra(b, 0.01);
+    expect(q.temper).toBe(3);
+    e.x = w.vents[w.openVent].x; e.y = w.vents[w.openVent].y;
+    q.runMaelra(b, 0.01);
+    expect(q.temper).toBe(0);
+  });
+
+  it('Rising Water and the Sluicetide leave every vent open', () => {
+    for (const v of ['water', 'tide'] as const) {
+      const { w, q, b } = maelra(v);
+      q.runMaelra(b, 1);
+      expect(w.openVent).toBe(-1);
+    }
+  });
+
   it('phase 1 has no tide', () => {
     const { w, q, b } = maelra('tide');
     w.enemies[b].hp = w.enemies[b].maxHp;
@@ -453,7 +509,7 @@ describe('V8 variety: the Glarewell', () => {
 describe('V8 variety: the Lensmother\'s Glintfall', () => {
   type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void; rollLensVariant(): string;
     bossIndex: number; bossSpawned: boolean; bossPhase: number; bossBrandT: number; glareT: number; markT: number };
-  function lens(variant: 'brand' | 'glint'): { w: World; q: G; b: number } {
+  function lens(variant: 'brand' | 'glint' | 'walk'): { w: World; q: G; b: number } {
     const w = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
     const q = w as unknown as G;
     for (const e of w.enemies) e.alive = false;
@@ -492,6 +548,32 @@ describe('V8 variety: the Lensmother\'s Glintfall', () => {
     }
   });
 
+  it('Y3 Carried Light: from phase 2 each Glare moves the light to her, the shadows point away from her, and no Twin Brand', () => {
+    const { w, q, b } = lens('walk');
+    w.pillars = [{ x: 200, y: 0, r: 26, cracked: false }];
+    // At the centre, the shade is past the pillar on the far side from the centre.
+    expect(w.shadowed(260, 0)).toBe(true);
+    expect(w.shadowed(140, 0)).toBe(false);
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).not.toBe('twinBrand');
+    // Her next Glare starts with her at (400, 0): the light moves there, and the shade flips side.
+    w.enemies[b].castId = '';
+    w.enemies[b].x = 400; w.enemies[b].y = 0;
+    q.glareT = 0;
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).toBe('glare');
+    expect(w.lightX).toBe(400);
+    expect(w.events.some((e) => e.type === 'lightMove')).toBe(true);
+    expect(w.shadowed(140, 0)).toBe(true);
+    expect(w.shadowed(260, 0)).toBe(false);
+    // Phase 1 keeps the centre lens.
+    const one = lens('walk');
+    one.q.bossPhase = 1; one.q.glareT = 0;
+    one.w.enemies[one.b].x = 400;
+    one.q.runLensmother(one.b, 0.01);
+    expect(one.w.lightX).toBe(0);
+  });
+
   it('online co-op: a guest sees the same version', () => {
     const { w } = lens('glint');
     const g = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
@@ -524,7 +606,7 @@ describe('V8 variety: the Coldmarrow', () => {
 describe('V8 variety: Nhevra\'s Emberdrift', () => {
   type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void; rollNhevraVariant(): string;
     bossIndex: number; bossSpawned: boolean; coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
-  function nhevra(variant: 'ice' | 'drift'): { w: World; q: N; b: number } {
+  function nhevra(variant: 'ice' | 'drift' | 'rime'): { w: World; q: N; b: number } {
     const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
     const q = w as unknown as N;
     for (const e of w.enemies) e.alive = false;
@@ -570,6 +652,59 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     expect(w.events.some((e) => e.type === 'emberPick')).toBe(true);
   });
 
+  it('Y3 Creeping Rime: rises under her in phase 2, creeps after the hero, and smothers a coal inside it; no Thin Ice', () => {
+    const { w, q } = nhevra('rime');
+    q.coldClock(0.01);
+    expect(w.rimeOn).toBe(true);
+    expect(w.events.some((e) => e.type === 'rimeRise')).toBe(true);
+    expect(w.cracks.some((c) => c.alive)).toBe(false);
+    const d0 = Math.hypot(w.player.x - w.rimeX, w.player.y - w.rimeY);
+    q.coldClock(1);
+    expect(d0 - Math.hypot(w.player.x - w.rimeX, w.player.y - w.rimeY)).toBeCloseTo(CREEPING_RIME.speed, 3);
+    // Outside it the coal drains as usual; inside it, much faster, and Chill builds.
+    w.player.coal = 0.5; w.player.chill = 0;
+    w.player.x = w.rimeX; w.player.y = w.rimeY;
+    q.coldClock(1);
+    expect(0.5 - w.player.coal!).toBeCloseTo(0.01 + CREEPING_RIME.drain, 3);
+    expect(w.player.chill!).toBeGreaterThan(0);
+    // Phase 1 has none.
+    const one = nhevra('rime');
+    one.q.coldPhase = 1; one.w.enemies[one.b].hp = one.w.enemies[one.b].maxHp;
+    one.q.coldClock(0.5);
+    expect(one.w.rimeOn).toBe(false);
+  });
+
+  it('Y3 Creeping Rime: her body holds it off, so a hero at her side makes it creep round her, never onto her', () => {
+    const { w, q, b } = nhevra('rime');
+    const e = w.enemies[b];
+    w.player.x = e.x + e.def.radius + 20; w.player.y = e.y;
+    for (let k = 0; k < 90; k++) {
+      q.coldClock(1 / 30);
+      expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeGreaterThanOrEqual(e.def.radius + CREEPING_RIME.hold - 1e-6);
+    }
+    // Step round to her far side: the rime follows round, still held off her.
+    w.player.x = e.x - e.def.radius - 20;
+    for (let k = 0; k < 150; k++) q.coldClock(1 / 30);
+    expect(w.rimeX).toBeLessThan(e.x + e.def.radius);
+    expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeGreaterThanOrEqual(e.def.radius + CREEPING_RIME.hold - 1e-6);
+  });
+
+  it('Y3 Creeping Rime: if she walks into it, it is pushed out along its own angle, with no jump round her (QA on #550)', () => {
+    const { w, q, b } = nhevra('rime');
+    const e = w.enemies[b];
+    w.player.x = e.x + 300; w.player.y = e.y;
+    q.coldClock(1 / 30); // risen, on the hero's side (+x)
+    const min = e.def.radius + CREEPING_RIME.hold;
+    // She steps toward it, and the hero is now a quarter turn round her.
+    e.x += 50;
+    w.player.x = e.x; w.player.y = e.y + 300;
+    const a0 = Math.atan2(w.rimeY - e.y, w.rimeX - e.x);
+    q.coldClock(1 / 30);
+    const a1 = Math.atan2(w.rimeY - e.y, w.rimeX - e.x);
+    expect(Math.abs(a1 - a0)).toBeLessThanOrEqual((CREEPING_RIME.speed * CREEPING_RIME.orbit) / 30 / min + 1e-9);
+    expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeCloseTo(min, 5);
+  });
+
   it('online co-op: a guest sees the same version and embers', () => {
     const { w, q } = nhevra('drift');
     q.coldClock(0.01);
@@ -583,7 +718,7 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
 describe('Phase 12 W1: Hessa\'s Outsurge', () => {
   type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; rollHessaVariant(): string;
     bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; rafts: unknown[] };
-  function hessa(variant: 'riptide' | 'outsurge', phase = 2): { w: World; q: H } {
+  function hessa(variant: 'riptide' | 'outsurge' | 'whirl', phase = 2): { w: World; q: H } {
     const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
     const q = w as unknown as H;
     for (const e of w.enemies) e.alive = false;
@@ -628,6 +763,26 @@ describe('Phase 12 W1: Hessa\'s Outsurge', () => {
     mid.q.wrackClock(0.5);
     expect(lost).toBeGreaterThan((hp2 - mid.w.player.hp) * 1.5);
     expect(OUTSURGE.rimBurn).toBeGreaterThan(0);
+  });
+
+  it('Y3 the Whirl: in phase 2 the Ebb carries a hero round the drain, drawing in more gently, and turns the other way each Ebb', () => {
+    const { w, q } = hessa('whirl');
+    expect(w.whirl).toBe(true);
+    const dir = w.whirlDir;
+    q.wrackClock(0.5);
+    // Carried round: the hero (at +x) moves along y in the whirl's direction, and in less than Riptide would pull.
+    expect(Math.sign(w.player.y)).toBe(dir);
+    const rip = hessa('riptide');
+    rip.q.wrackClock(0.5);
+    expect(300 - Math.hypot(w.player.x, w.player.y)).toBeLessThan(300 - Math.hypot(rip.w.player.x, rip.w.player.y));
+    // The next Ebb turns the other way.
+    const n = hessa('whirl');
+    const q2 = n.q as unknown as { ebbT: number; ebbWarnT: number; tideClockT: number };
+    q2.ebbT = 0; q2.ebbWarnT = 0; q2.tideClockT = 0;
+    n.q.wrackClock(0.01);
+    expect(n.w.whirlDir).toBe(-dir);
+    expect(n.w.events.some((e) => e.type === 'castStart' && e.name === 'The Whirl')).toBe(true);
+    expect(WHIRL.spin).toBeGreaterThan(0);
   });
 
   it('phase 1 pulls in for both versions', () => {
@@ -696,6 +851,35 @@ describe('Phase 12 W2: the Hammerdeep and Ondrel\'s Ironload', () => {
     expect(lost[others[1]]).toBe(0);
     expect(lost[others[2]]).toBe(0);
   });
+
+  it('Y3 the Homeward Hammer: thrown at the farthest hero, it lands there, then flies back on a line to his hand; no Sweep while it is out', () => {
+    const { w, q, b } = ondrel();
+    w.bossVariant = 'home';
+    const e = w.enemies[b];
+    // Hero 0 is nearest (so holds him with no threat yet), 1 and 2 are mid-way, 3 is farthest.
+    for (let k = 0; k < 4; k++) { const p = w.heroData(k).player; p.x = 0; p.y = k === 0 ? -170 : 0; }
+    w.heroData(3).player.x = 300; w.heroData(3).player.y = 100;
+    e.castId = 'homeward';
+    q.finishCast(b);
+    const h = w as unknown as { homeStage: number; homeX: number; homeY: number; homeT: number };
+    expect(h.homeStage).toBe(1);
+    expect([h.homeX, h.homeY]).toEqual([300, 100]);
+    const circle = w.telegraphs.find((t) => t.alive && t.shape === 'circle' && t.x === 300 && t.y === 100);
+    expect(circle?.r).toBe(HOMEWARD.radius);
+    // While it is out, Ondrel makes no Hammer Sweep.
+    e.abilityT = 0;
+    (w as unknown as { runOndrel(i: number): void }).runOndrel(b);
+    expect(e.castId).not.toBe('hammerSweep');
+    q.choirT = 99;
+    q.ondrelClock(HOMEWARD.fall + 0.01);
+    expect(h.homeStage).toBe(2);
+    const line = w.telegraphs.find((t) => t.alive && t.shape === 'cone' && t.x === 300 && t.y === 100);
+    expect(line).toBeDefined();
+    expect(line!.angle).toBeCloseTo(Math.atan2(e.y - 100, e.x - 300));
+    expect(w.events.some((ev) => ev.type === 'homeward' && ev.stage === 'back')).toBe(true);
+    q.ondrelClock(HOMEWARD.back + 0.01);
+    expect(h.homeStage).toBe(0);
+  });
 });
 
 describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
@@ -730,6 +914,53 @@ describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
       seen.add(a.rollYsmeretVariant());
     }
     expect([...seen].sort()).toEqual([...YSMERET_VARIANTS].sort());
+  });
+
+  it('Y3 Rolling Vents: one vent at a time, three in a row, each a third of the way further round her; the way round flips each cast', () => {
+    const { w, q, b } = ysmeret('roll');
+    const e = w.enemies[b];
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    const named = w.events.find((ev) => ev.type === 'castStart' && ev.id === 'twinVents') as { name: string } | undefined;
+    expect(named?.name).toBe('Rolling Vents');
+    const angs = [Math.atan2(vents(w)[0].y - e.y, vents(w)[0].x - e.x)];
+    const dir = w.rollDir;
+    for (let n = 1; n < ROLLING.count; n++) {
+      for (const t of w.telegraphs) if (t.alive && t.owner === -2) t.alive = false; // soaked
+      q.ysmeretClock(1 / 30);
+      const v = w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+      expect(v).toHaveLength(1);
+      expect(v[0].dur).toBe(ROLLING.fuse);
+      angs.push(Math.atan2(v[0].y - e.y, v[0].x - e.x));
+      let d = angs[n] - angs[n - 1];
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      expect(d).toBeCloseTo((dir * ROLLING.step * Math.PI) / 180, 5);
+    }
+    expect(w.rollLeft).toBe(0);
+    expect(w.events.filter((ev) => ev.type === 'ventRoll')).toHaveLength(ROLLING.count - 1);
+    // After the last one closes, no more until the vent timer comes round again; then it rolls the other way.
+    for (const t of w.telegraphs) if (t.alive && t.owner === -2) t.alive = false;
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(0);
+    q.twinVentT = 0;
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    expect(w.rollDir).toBe(-dir);
+  });
+
+  it('Y3 Rolling Vents: Scatter Embers can come while a vent is open', () => {
+    const { w, q, b } = ysmeret('roll');
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    q.scatterT = 0;
+    q.ysmeretClock(1 / 30);
+    expect(w.enemies[b].castId).toBe('scatter');
+    const still = ysmeret('still');
+    still.q.ysmeretClock(1 / 30);
+    still.q.scatterT = 0;
+    still.q.ysmeretClock(1 / 30);
+    expect(still.w.enemies[still.b].castId).not.toBe('scatter');
   });
 
   it('still vents stay put; wandering vents circle her at the set speed', () => {
@@ -847,6 +1078,29 @@ describe('Phase 12 W3: Grandmother Slag\'s Brimming', () => {
     expect(lost / w.heroData(2).player.maxHp).toBeLessThan(YSMERET.scatterSelf);
     expect(SLAG.marksSelf).toBe(0.1);
   });
+  it('Y3 the Overflow: in phase 2 it warns, rises from the rim and burns only heroes far from her, then ebbs; no lanes, no islands', () => {
+    const { w, q, b } = slag('flow');
+    const e = w.enemies[b];
+    q.slagClock(1 / 30);
+    expect(w.flowStage).toBe(0);
+    expect(w.islands).toHaveLength(0);
+    q.heatT = 99; q.pourT = 99;
+    // Hero 0 (Bulwark) close to her, hero 1 far out.
+    const near = w.heroData(0).player, far = w.heroData(1).player;
+    near.x = e.x + 60; near.y = e.y; far.x = e.x + OVERFLOW.safeR + 100; far.y = e.y;
+    q.slagClock(OVERFLOW.first + 0.01);
+    expect(w.flowStage).toBe(1);
+    expect(w.events.some((ev) => ev.type === 'overflow' && ev.stage === 'warn')).toBe(true);
+    const hp0 = near.hp, hp1 = far.hp;
+    q.slagClock(OVERFLOW.warn + 0.01);
+    expect(w.flowStage).toBe(2);
+    for (let k = 0; k < 4; k++) { q.heatT = 99; q.pourT = 99; q.slagClock(OVERFLOW.tick); }
+    expect(near.hp).toBe(hp0);
+    expect(far.hp).toBeLessThan(hp1);
+    q.slagClock(OVERFLOW.last);
+    expect(w.flowStage).toBe(0);
+    expect(w.telegraphs.some((t) => t.alive && t.shape === 'cone')).toBe(false);
+  });
 });
 
 describe('Phase 12 W3 follow-up: wider raid fight pools', () => {
@@ -901,7 +1155,7 @@ describe('Phase 14 X3: arena events', () => {
   const make = (dungeon: 'kiln' | 'foundry' | 'glarewell' | 'coldmarrow' | 'wrackline' | 'hammerdeep' | 'ashvents' | 'pressworks' | 'crucible', seed = 1) =>
     new World({ seed, dungeon, tier: { kiln: 2, foundry: 4, glarewell: 7, coldmarrow: 10, wrackline: 13, hammerdeep: 4, ashvents: 7, pressworks: 10, crucible: 8 }[dungeon], omens: [], cls: 'emberwright' });
 
-  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss, never a group dungeon or raid', () => {
+  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss', () => {
     for (const dg of Object.keys(ARENA_EVENT_POOLS) as (keyof typeof ARENA_EVENT_POOLS)[]) {
       let hits = 0, n = 0;
       const seen = new Set<string>();
@@ -919,9 +1173,11 @@ describe('Phase 14 X3: arena events', () => {
       expect(hits / n, dg).toBeLessThan(ARENA_EVENTS.chance + 0.08);
       expect([...seen].sort(), dg).toEqual([...ARENA_EVENT_POOLS[dg]!].sort());
     }
-    // Solo only for now: group dungeons (X3 part 2, being measured) and raids have none.
-    const g = make('hammerdeep');
-    for (let k = 0; k < g.route.length; k++) expect(g.arenaEventAt(k, g.route[k])).toBe('');
+    // X3 part 2: the group dungeons have them too, and (Phase 15 Y2) the raids' trash, never a raid boss.
+    expect(ARENA_EVENT_POOLS.hammerdeep).toBeDefined();
+    expect(ARENA_EVENT_POOLS.crucible).toBeDefined();
+    const g = make('crucible');
+    expect(g.arenaEventAt(g.route.length - 1, g.route[g.route.length - 1])).toBe('');
     expect(new World({ seed: 1, omens: [], firstDelve: true }).arenaEventAt(0, 'pack')).toBe('');
   });
 
@@ -974,5 +1230,206 @@ describe('Phase 14 X3: arena events', () => {
   it('a forced event that the dungeon has no use for never comes', () => {
     ARENA_EVENTS.force = 'coldSnap';
     try { expect(make('kiln').arenaEventAt(1, 'pack')).toBe(''); } finally { ARENA_EVENTS.force = ''; }
+  });
+});
+
+describe('Phase 16 U1: the Kiln Mother\'s echo', () => {
+  type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; rollEcho(all: readonly string[], rolled: string): string; runBoss(i: number, dt: number): void };
+  const make = (seed: number, tier: number) =>
+    new World({ seed, dungeon: 'kiln', tier, omens: [], cls: 'emberwright' });
+  const inner = (w: World) => w as unknown as B;
+
+  it('no echo below tier 8 (the first delve is tier 1); from tier 8 it is seeded and never the rolled version', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      expect(inner(make(seed, ECHO.minTier - 1)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      for (const rolled of KILN_VARIANTS) {
+        const a = inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled);
+        expect(a).not.toBe('');
+        expect(a).not.toBe(rolled);
+        expect(KILN_VARIANTS).toContain(a);
+        expect(inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled)).toBe(a);
+        if (rolled === 'cataclysm') seen.add(a);
+      }
+    }
+    expect([...seen].sort()).toEqual(['draw', 'turning']);
+  });
+
+  it('ECHO.off turns it off and ECHO.force picks one (for the tools)', () => {
+    try {
+      ECHO.off = true;
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      ECHO.off = false;
+      ECHO.force = 'turning';
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('turning');
+      // Forcing the rolled version gives the seeded pick instead.
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'turning')).not.toBe('turning');
+    } finally { ECHO.off = false; ECHO.force = ''; }
+  });
+
+  it('a spawned Kiln Mother at tier 8 gets an echo other than her version', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = make(seed, ECHO.minTier);
+      w.bossVariant = inner(w).rollKilnVariant() as never;
+      const echo = inner(w).rollEcho(KILN_VARIANTS, w.bossVariant);
+      expect(echo).not.toBe(w.bossVariant);
+    }
+  });
+
+  it('in phase 3 her signatures alternate: her own, then the echo with an echo event', () => {
+    const w = make(3, ECHO.minTier);
+    const q = w as unknown as B;
+    for (const e of w.enemies) e.alive = false;
+    w.player.x = 200; w.player.y = 0;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'draw';
+    w.bossEcho = 'turning';
+    w.echoNext = false;
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.2;
+    q.bossPhase = 3;
+    const cast = () => {
+      e.castId = ''; e.aux = 0; e.abilityT = 0;
+      w.events.length = 0;
+      q.runBoss(b, 0.01);
+      return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+    };
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    expect(cast()).toEqual({ id: 'turningFire', echo: true });
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    // Phase 2 never echoes.
+    e.hp = e.maxHp * 0.5; q.bossPhase = 2; w.echoNext = true;
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Maelra\'s echo', () => {
+  type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
+    rollEcho(all: readonly string[], rolled: string): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
+  function maelra(variant: 'water' | 'tide' | 'seal', echo: string): { w: World; q: M; b: number } {
+    const w = new World({ seed: 9, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as M;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('maelra', 300, 300);
+    q.bossIndex = b; q.bossSpawned = true;
+    q.startMaelra();
+    w.bossVariant = variant;
+    w.bossEcho = echo;
+    w.echoLive = false; w.echoT = MAELRA_ECHO.first;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2; // phase 3
+    q.bossPhase = 3;
+    w.enemies[b].abilityT = 99;
+    w.player.x = 0; w.player.y = 0;
+    return { w, q, b };
+  }
+
+  it('only the Sluicetide and Sealed Vents echo, never the rolled version', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const q = new World({ seed, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' }) as unknown as M;
+      expect(q.rollEcho(MAELRA_ECHOES, 'water')).not.toBe('water');
+      expect(q.rollEcho(MAELRA_ECHOES, 'tide')).toBe('seal');
+      expect(q.rollEcho(MAELRA_ECHOES, 'seal')).toBe('tide');
+    }
+  });
+
+  it('a Sealed Vents echo comes on with an echo event, seals the vents, then lets them all go', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    q.runMaelra(b, 0.01);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    w.events.length = 0;
+    q.runMaelra(b, MAELRA_ECHO.first);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.filter((x) => x.type === 'echo')).toEqual([{ type: 'echo', id: 'seal' }]);
+    expect(w.openVent).toBeGreaterThanOrEqual(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    q.runMaelra(b, MAELRA_ECHO.off);
+    expect(w.echoLive).toBe(true);
+  });
+
+  it('a Sluicetide echo only pushes you while it is on', () => {
+    const { w, q, b } = maelra('seal', 'tide');
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(0);
+    expect(w.player.y).toBe(0);
+    q.runMaelra(b, MAELRA_ECHO.first);
+    q.runMaelra(b, 1);
+    expect(Math.hypot(w.player.x, w.player.y)).toBeGreaterThan(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    const x = w.player.x, y = w.player.y;
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(x);
+    expect(w.player.y).toBe(y);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; q.bossPhase = 2;
+    q.runMaelra(b, MAELRA_ECHO.first + 1);
+    expect(w.echoLive).toBe(false);
+  });
+});
+
+describe('Phase 16 U1: the Lensmother\'s echo', () => {
+  type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; markT: number; bossBrandT: number; glareT: number };
+  function lens(variant: 'brand' | 'glint' | 'walk', echo: string): { w: World; q: G; b: number } {
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoNext = false;
+    q.bossPhase = 3; q.markT = 0; q.bossBrandT = 99; q.glareT = 99;
+    w.enemies[b].abilityT = 99;
+    return { w, q, b };
+  }
+  /** Fire her brand timer once and say what she cast. */
+  const brand = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.bossBrandT = 0; w.events.length = 0;
+    q.runLensmother(b, 0.01);
+    return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+  };
+  /** Fire her Glare once and say whether the light was carried. */
+  const glare = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.glareT = 0; w.events.length = 0;
+    e.x = 120; e.y = 40;
+    q.runLensmother(b, 0.01);
+    return { carried: w.lightX === 120 && w.lightY === 40, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('a Glintfall echo on a Twin Brand run takes every other turn', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'glintfall', echo: true });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+
+  it('a Carried Light run gets its Twin Brand echo every other turn, and nothing on the others', () => {
+    const { w, q, b } = lens('walk', 'brand');
+    expect(brand(w, q, b).id).not.toBe('twinBrand');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: true });
+  });
+
+  it('a Carried Light echo carries every other Glare, and the light goes back to the middle between', () => {
+    const { w, q, b } = lens('glint', 'walk');
+    expect(glare(w, q, b)).toEqual({ carried: false, echo: false });
+    expect(glare(w, q, b)).toEqual({ carried: true, echo: true });
+    const back = glare(w, q, b);
+    expect(back.carried).toBe(false);
+    expect([w.lightX, w.lightY]).toEqual([0, 0]);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    q.bossPhase = 2;
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
   });
 });

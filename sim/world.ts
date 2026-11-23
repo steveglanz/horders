@@ -392,6 +392,8 @@ export interface Player {
   coalR?: number;
   chill?: number;
   chillT?: number;
+  /** Phase 15 Y10: share of max health this hero has lost in the current fight (for the dungeon's stir). */
+  stirHurt?: number;
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   /** P1 weekly quests: casts this hero interrupted this run. */
@@ -551,6 +553,12 @@ export type SimEvent =
   | { type: 'digested'; hero: number }
   | { type: 'spatOut'; hero: number }
   | { type: 'wheel'; hero: number }
+  /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
+  | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
+  /** Phase 16 U1: the boss uses her echo's move (`id`, a version id) in her last phase. */
+  | { type: 'echo'; id: string }
+  /** Phase 15 Y3 Tithe: the Regent's gold circle landed with `n` heroes in it; `ok` when that was enough. */
+  | { type: 'tithe'; ok: boolean; n: number }
   | { type: 'meltPulse'; n: number }
   /** Raid 4 (the Flue): a Decree landed on a hero, was passed (`from` to `hero`; `done`: its last pass, so it fades), or burst. */
   | { type: 'decree'; hero: number }
@@ -570,12 +578,26 @@ export type SimEvent =
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
   | { type: 'arenaEvent'; id: ArenaEventId; stage: 'warn' | 'land' }
+  /** Phase 15 Y10: the dungeon stirred: this fight has a reaction (and drops a second bag). */
+  | { type: 'stir'; id: StirId }
+  /** Phase 15 Y1: a fight's wave came in a new shape (`start`), or its held pack is about to come (`warn`) or came (`land`). */
+  | { type: 'waveShape'; id: Exclude<WaveShape, 'arc'>; stage: 'start' | 'warn' | 'land'; x: number; y: number }
   | { type: 'ventFlare'; x: number; y: number }
   /** V8: Nhevra's Emberdrift drops `n` embers; a hero picks one up. */
   | { type: 'emberDrift'; n: number }
   | { type: 'emberPick'; x: number; y: number; hero: number }
   /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
   | { type: 'tideTurn'; angle: number }
+  /** Y3 Carried Light: the Glarewell's light now comes from here. */
+  | { type: 'lightMove'; x: number; y: number }
+  | { type: 'homeward'; stage: 'out' | 'back'; x: number; y: number }
+  | { type: 'ventRoll'; x: number; y: number; left: number }
+  | { type: 'overflow'; stage: 'warn' | 'rise' | 'ebb' }
+  | { type: 'inhale'; stage: 'warn' | 'draw' | 'end' }
+  /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
+  | { type: 'rimeRise'; x: number; y: number }
+  /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
+  | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -836,22 +858,47 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
+  /**
+   * Phase 16 U1: this run's echo, a second version of the same boss (never the rolled one) whose move she also uses in her
+   * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
+   */
+  bossEcho: string = '';
+  /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
+  echoNext = false;
+  /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
+  echoLive = false;
+  echoT = 0;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
   private islandN = 0;
+  /** Phase 15 Y3 the Overflow: 0 still, 1 warning, 2 risen; time left on this stage (or until the next warning, when still). */
+  flowStage = 0;
+  flowT = 0;
+  private flowTickT = 0;
   /** Phase 12 W3: how many Banked Coals Old Vorhulm has laid (turns where they land). */
   private bankN = 0;
   /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
   cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
+  /** Y3 Creeping Rime: whether it's up, and where. */
+  /** Y3 the Whirl: which way Hessa's water turns this Ebb (1 or -1). */
+  whirlDir = 1;
+  rimeOn = false;
+  rimeX = 0;
+  rimeY = 0;
   private driftT = 0;
   private driftN = 0;
   /** V8 Sluicetide: the way the water flows (radians), while it runs. */
   tideAngle = 0;
   private sluiceT = 0;
   private tideTurns = 0;
+  /** Y3 Sealed Vents: the one open vent (-1 before it starts), the vent the steam moves to next (-1 until warned), and its clock. */
+  openVent = -1;
+  nextVent = -1;
+  private sealT = 0;
+  private sealMoves = 0;
   /** V4: the Day's Heat on this run, or '' for none. */
   heat: HeatId | '' = '';
   /** Standing stones: they block heroes and foes alike. */
@@ -864,14 +911,41 @@ export class World {
   private flareK = 0;
   /** Phase 14 X3: this fight's arena event ('' for none), its clock, and its stage (0 waiting, 1 warned, 2 landed). */
   arenaEvent: ArenaEventId | '' = '';
+  /** Phase 15 Y1: how this fight's wave came in. */
+  waveShape: WaveShape = 'arc';
+  /** Phase 15 Y1: how many foes a `reinforce` wave still holds back, the seconds until they come, and the angle they come from. */
+  reinforceN = 0;
+  reinforceT = 0;
+  reinforceA = 0;
+  /** Phase 15 Y10: the dungeon's hidden count of clean clears, the reactions so far, whether the next trash fight stirs, and this fight's reaction. */
+  stirCount = 0;
+  stirs = 0;
+  stirNext = false;
+  stir: StirId | '' = '';
+  /** Phase 15 Y10/Y4: the reactions this run has met, as bits of STIR_BIT. */
+  stirsMet = 0;
+  /** Phase 15 Y10: this fight's damage taken (each hero's share of their own health, averaged over the party) and whether a hero went down. */
+  fightHurt = 0;
+  /** Phase 15 Y10: which hero was worst off in the last cleared fight (-1: none hurt), for the tools. */
+  fightWorst = -1;
+  fightDown = false;
+  /** Phase 15 Y1/Y4: the wave shapes this run has met, as bits of WAVE_BIT (a pincer or ring when it starts, reinforcements when they warn). */
+  wavesMet = 0;
   arenaEventT = 0;
   arenaEventStage = 0;
+  /** Phase 15 Y4 (Seen log): each arena event this delve has warned of, one bit per id in ARENA_EVENT_ORDER. Read-only to the sim. */
+  arenaEventsMet = 0;
+  /** Phase 15 Y4: the named foe's affix index once it has spawned this delve (-1 before), for the Seen log. */
+  namedMet = -1;
   /** Maelra's steam vents (empty in other fights). */
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
   temper = 0;
   /** Glarewell stone pillars around the central lens; each casts a shadow wedge outward. Empty elsewhere. */
   pillars: { x: number; y: number; r: number; cracked: boolean }[] = [];
+  /** Where the Glarewell's light comes from: the centre lens, or (Y3 Carried Light) where the Lensmother last began a Glare. */
+  lightX = 0;
+  lightY = 0;
   /** Seconds until the Brand on the hero bursts (0 when there's none). */
   markT = 0;
   /** A second Brand queued by the Lensmother's Twin Brand. */
@@ -906,6 +980,11 @@ export class World {
   /** Phase 12 W2: Ondrel's Ironload. The marked hero (-1: none), and how long until it lands. */
   loadHero = -1;
   loadT = 0;
+  /** Phase 15 Y3 the Homeward Hammer: 0 in his hand, 1 thrown (landing), 2 flying home; where it lies, and the time left on this leg. */
+  homeStage = 0;
+  homeX = 0;
+  homeY = 0;
+  homeT = 0;
   /** Set while a dungeon verb that wards must not soak (Glare) lands. */
   private verbHit = false;
   private gripT = 0;
@@ -926,6 +1005,10 @@ export class World {
   colFacing = 0;
   /** Phase 12 W3 (Plate Shift): how far his plate's middle is turned from his facing, radians. 0 in the Wheel version. */
   colPlate = 0;
+  /** Phase 15 Y3 Millstone: seconds left of his grind (0 when not grinding), its turn (+1 or -1), and the next heat tick. */
+  millT = 0;
+  millDir = 1;
+  millTickT = 0;
   /** Phase 12 W3 (the Regent's Summons): seconds until the Summons lands, 0 when none is called. */
   summonsT = 0;
   /**
@@ -947,6 +1030,10 @@ export class World {
   private officePulses = 0;
   private swallowT = 0;
   private spillT = 0;
+  /** Phase 15 Y3 Inhale: 0 still, 1 warning, 2 breathing in; time left on this stage. */
+  inhaleStage = 0;
+  inhaleT = 0;
+  private inhaleTickT = 0;
   private swallowed = -1;
   private crawIndex = -1;
   /** The Hoard's Craw while it is up (for the bot), or -1. */
@@ -990,6 +1077,10 @@ export class World {
   private temperT = 0;
   private undertowT = 0;
   private twinVentT = 0;
+  /** Phase 15 Y3 Rolling Vents: vents still to open in this roll, the last one's angle round her, and the way round (1 or -1). */
+  rollLeft = 0;
+  rollAng = 0;
+  rollDir = -1;
   /** C2: the fight (encounter index) that hides this delve's named elite; -2 until rolled, -1 for none. */
   private namedAt = -2;
   /** Named elites felled this run (the whole party's). */
@@ -1647,7 +1738,8 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'flue') this.regentClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
-    if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
+    if (this.phase === 'fight' && this.reinforceN > 0 && !this.victory) this.reinforceClock(dt);
+    if (this.phase === 'fight' && this.aliveEnemies === 0 && this.reinforceN === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
   /** A won delve with a living world boss goes on to the shadow fight. */
@@ -1703,6 +1795,7 @@ export class World {
     const e = this.enemies[elite];
     e.named = this.namedTitle;
     e.affix = this.namedAffix;
+    this.namedMet = this.namedAffix;
     e.maxHp *= NAMED.hp;
     e.hp = e.maxHp;
     if (AFFIXES[e.affix] === 'Warded') {
@@ -1790,20 +1883,61 @@ export class World {
       : [];
     this.rollLayout(def.id);
     this.rollArenaEvent(def.id);
+    this.rollStir(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
-    const n = def.spawns.reduce((a, s) => a + s.n, 0);
+    const all = def.spawns.reduce((a, s) => a + s.n, 0);
+    // Phase 15 Y1: how this wave comes in (a hash, so the run rng above is untouched).
+    this.waveShape = this.waveShapeAt(this.encounter, def.id);
+    if (this.stir === 'wave') this.waveShape = (this.stirHash() >>> 12) & 1 && !ringless(def.spawns) ? 'ring' : 'pincer';
+    this.reinforceN = this.waveShape === 'reinforce' ? reinforceCount(def.spawns) : 0;
+    this.reinforceT = WAVES.reinforceAt;
+    this.reinforceA = base - Math.PI / 2; // a flank, never the hero's own side
+    const held = heldMask(def.spawns, this.reinforceN);
+    const n = all - this.reinforceN;
+    if (this.waveShape !== 'arc') {
+      const r = this.arenaR - 60;
+      this.events.push({ type: 'waveShape', id: this.waveShape, stage: 'start', x: Math.cos(base) * r, y: Math.sin(base) * r });
+      if (this.waveShape !== 'reinforce') this.wavesMet |= WAVE_BIT[this.waveShape];
+    }
+    let at = 0;
+    const edge = this.arenaR - 60;
+    const onEdge = (a: number) => ({ x: Math.cos(a) * edge, y: Math.sin(a) * edge });
+    const outside = [0, 0];
+    const wavePos = (k: number): { x: number; y: number } => {
+      if (this.waveShape === 'pincer') {
+        // The two flanks (a quarter turn either side of the far side), so neither half lands on the hero.
+        const side = k % 2, m = side ? Math.floor(n / 2) : Math.ceil(n / 2), idx = Math.floor(k / 2);
+        return onEdge(base + (side ? -1 : 1) * (Math.PI / 2) + (idx - (m - 1) / 2) * 0.35);
+      }
+      if (this.waveShape === 'ring') {
+        // A ring round the hero. A foe that would stand outside the arena goes to the wall instead, at least
+        // ringR from the hero (further round the wall for each one, so they don't stack).
+        const a = base + (k * 2 * Math.PI) / n;
+        const rr = Math.min(WAVES.ringR, edge);
+        const x = p.x + Math.cos(a) * rr, y = p.y + Math.sin(a) * rr;
+        if (Math.hypot(x, y) <= edge) return { x, y };
+        const d0 = Math.hypot(p.x, p.y), u = Math.atan2(p.y, p.x);
+        const c = (edge * edge + d0 * d0 - rr * rr) / (2 * edge * d0);
+        const th = Math.acos(Math.max(-1, Math.min(1, c)));
+        const side = Math.sin(a - u) >= 0 ? 1 : -1;
+        outside[side > 0 ? 0 : 1]++;
+        return onEdge(u + side * (th + 0.3 * (outside[side > 0 ? 0 : 1] - 1)));
+      }
+      return onEdge(base + (k - (n - 1) / 2) * 0.35);
+    };
     let k = 0;
     let lead = -1;
     let firstElite = -1;
     for (const sp of def.spawns) {
       for (let j = 0; j < sp.n; j++, k++) {
-        const a = base + (k - (n - 1) / 2) * 0.35;
-        const r = this.arenaR - 60;
-        const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
+        if (held[k]) continue;
+        const pos = wavePos(at++);
+        const a = Math.atan2(pos.y, pos.x);
+        const i = this.spawn(sp.kind, pos.x, pos.y);
         if (i < 0) continue;
         const e = this.enemies[i];
         if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
@@ -1824,6 +1958,8 @@ export class World {
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
           this.bossVariant = this.rollKilnVariant();
+          this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
+          this.echoNext = false;
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -1833,6 +1969,9 @@ export class World {
           this.bossIndex = i;
           this.startMaelra();
           this.bossVariant = this.rollMaelraVariant();
+          // Rising water is already in every version but the Sluicetide, so only the other two echo.
+          this.bossEcho = this.rollEcho(MAELRA_ECHOES, this.bossVariant);
+          this.echoLive = false; this.echoT = MAELRA_ECHO.first;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensmother') {
@@ -1842,6 +1981,8 @@ export class World {
           this.bossBrandT = 4;
           this.crackT = GLARE.crackEvery;
           this.bossVariant = this.rollLensVariant();
+          this.bossEcho = this.rollEcho(LENS_VARIANTS, this.bossVariant);
+          this.echoNext = true; // her first brand-timer cast (or Glare, for a Carried Light echo) in phase 3 is the echo
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'ondrel') {
@@ -1852,6 +1993,8 @@ export class World {
           this.choirN = 0;
           this.loadHero = -1;
           this.loadT = 0;
+          this.homeStage = 0;
+          this.homeT = 0;
           this.bossVariant = this.rollOndrelVariant();
           this.gripT = 0;
           this.slagTickT = 1;
@@ -1896,6 +2039,8 @@ export class World {
           this.bossVariant = this.rollSlagVariant();
           this.islands = [];
           this.islandN = 0;
+          this.flowStage = 0;
+          this.flowT = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'regent') {
@@ -1926,6 +2071,9 @@ export class World {
           const t = this.heroPlayer(this.targetOf(i, 0));
           this.colFacing = Math.atan2(t.y - e.y, t.x - e.x);
           this.colPlate = 0;
+          this.millT = 0;
+          this.millDir = 1;
+          this.millTickT = 0;
           this.bossVariant = this.rollColossusVariant();
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
@@ -1945,6 +2093,8 @@ export class World {
           this.lastEmberCast = false;
           this.bossVariant = this.rollVorhulmVariant();
           this.bankN = 0;
+          this.inhaleStage = 0;
+          this.inhaleT = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
@@ -1952,6 +2102,8 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.twinVentT = YSMERET.firstVents;
+          this.rollLeft = 0;
+          this.rollDir = -1;
           this.bossVariant = this.rollYsmeretVariant();
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
@@ -1973,7 +2125,14 @@ export class World {
         if (sp.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
       }
     }
+    if (this.stir === 'elite') {
+      // One more of the fight's first elite kind joins from the far side.
+      const kind = def.spawns.find((x) => ENEMIES[x.kind].rank === 'elite')!.kind;
+      this.spawn(kind, Math.cos(base) * (this.arenaR - 60), Math.sin(base) * (this.arenaR - 60));
+    }
+    if (this.stir === 'named') this.namedAt = this.encounter;
     this.rollNamed(firstElite);
+    if (this.stir) this.events.push({ type: 'stir', id: this.stir });
     this.events.push({ type: 'encounterStart', index: this.encounter, id: def.id });
   }
 
@@ -2000,6 +2159,8 @@ export class World {
       let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
       if (this.namedFight) min++;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
+      // Phase 15 Y10: a stirred fight leaves a second bag.
+      if (this.stir) this.dropLoot(p.x - 40, p.y, order[Math.min(order.length - 1, min)]);
     }
   }
 
@@ -2007,6 +2168,7 @@ export class World {
     // Co-op: heroes who went down get back up between fights.
     if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
+    this.countStir(this.route[this.encounter]);
     this.encounter++;
     this.openFork();
   }
@@ -2048,6 +2210,20 @@ export class World {
    * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
    * delve stay open.
    */
+  /**
+   * Phase 16 U1: from ECHO.minTier, a boss also echoes one of her other versions in her last phase. Hashed from the seed
+   * (no run-rng draws), never the rolled version, and none on the first delve or in stress runs.
+   */
+  private rollEcho<V extends string>(all: readonly V[], rolled: string): V | '' {
+    if (this.firstDelve || this.stress || this.tier < ECHO.minTier || ECHO.off) return '';
+    const others = all.filter((v) => v !== rolled);
+    if (!others.length) return '';
+    if (ECHO.force && (others as string[]).includes(ECHO.force)) return ECHO.force as V;
+    let h = Math.imul(this.seed ^ 0x6c8e9cf5, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+    return others[(h >>> 4) % others.length];
+  }
+
   /** V3: which signature the Kiln Mother uses from phase 2, hashed from the seed (no run-rng draws). The first delve keeps Molten Cataclysm. */
   private rollKilnVariant(): KilnVariant {
     if (this.firstDelve || this.stress) return 'cataclysm';
@@ -2146,6 +2322,11 @@ export class World {
   }
 
   /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
+  /** Phase 15 Y3: Hessa's Whirl version, in phase 2 while she lives. */
+  get whirl(): boolean {
+    return this.bossVariant === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+  }
+
   get outsurge(): boolean {
     return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
@@ -2167,6 +2348,26 @@ export class World {
   }
 
   /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  /** Y3 Sealed Vents: the next open vent, never `not`, from the seed; the one under Maelra is skipped when another is free. */
+  private pickVent(not: number, e: Enemy): number {
+    const n = this.vents.length;
+    let h = Math.imul(this.seed ^ 0x2c1b3c6d, 0x9e3779b1) + Math.imul(++this.sealMoves, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0xc2b2ae35) >>> 0;
+    const free: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const v = this.vents[k];
+      if (k !== not && dist2(e.x, e.y, v.x, v.y) > (v.r + e.def.radius) ** 2) free.push(k);
+    }
+    if (!free.length) for (let k = 0; k < n; k++) if (k !== not) free.push(k);
+    if (MAELRA_SEAL.near) {
+      // The free vent nearest her, so a slow melee lead can reach it.
+      let best = free[0], bd = Infinity;
+      for (const k of free) { const d = dist2(e.x, e.y, this.vents[k].x, this.vents[k].y); if (d < bd) { bd = d; best = k; } }
+      return best;
+    }
+    return free[h % free.length];
+  }
+
   private rollMaelraVariant(): MaelraVariant {
     if (this.stress) return 'water';
     let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
@@ -2275,16 +2476,143 @@ export class World {
     this.events.push({ type: 'layout', id: this.layout });
   }
 
+  /** Phase 15 Y3: which way this Turning Fire turns (1 anticlockwise, -1 clockwise). */
+  turnDir = 1;
+
+  /** Phase 15 Y10: whether this run can stir at all. */
+  get stirOn(): boolean {
+    return !STIR.off && !this.firstDelve && !this.stress && !this.dungeonDef.raid && this.tier >= STIR.minTier && this.fillBots === 0;
+  }
+
+  private stirHash(): number {
+    const h = (Math.imul(this.seed ^ 0x7f4a7c15, 0x9e3779b1) + Math.imul(this.encounter + 1, 0x85ebca77)) >>> 0;
+    return Math.imul(h ^ (h >>> 13), 0xc2b2ae3d) >>> 0;
+  }
+
+  /** Phase 15 Y10: after a trash clear, a clean fight builds the count and a rough one sets it back. */
+  private countStir(id: EncounterId): void {
+    const was = this.stir;
+    this.stir = '';
+    if (!this.stirOn || !this.layoutRolls(id) || was) return;
+    // The worst-off hero decides, each judged against their own class's usual cost (STIR_CLASS).
+    // A rough fight for anyone resets the count; the rough bar never loosens past STIR.roughMax of max health.
+    let worst = 0;
+    let rough = false;
+    this.fightWorst = -1;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const cls = k === this.acting ? this.cls : this.heroes[k].cls;
+      const hurt = this.heroPlayer(k).stirHurt ?? 0;
+      if (hurt / STIR_CLASS[cls] > worst) { worst = hurt / STIR_CLASS[cls]; this.fightWorst = k; }
+      if (hurt >= Math.min(STIR.roughMax, STIR.rough * STIR_CLASS[cls])) rough = true;
+    }
+    this.fightHurt = worst;
+    if (this.fightDown || rough) {
+      this.stirCount = 0;
+      this.stirNext = false;
+    } else if (this.fightHurt <= STIR.clean * (this.heroes.length > 1 ? STIR.groupClean : 1) && ++this.stirCount >= STIR.need && this.stirs < STIR.max) {
+      this.stirCount = 0;
+      this.stirNext = true;
+    }
+  }
+
+  /** The reactions fight `id` could take now. */
+  private stirChoices(id: EncounterId): StirId[] {
+    const def = ENCOUNTERS[id];
+    const n = def.spawns.reduce((a, x) => a + x.n, 0);
+    const elite = def.spawns.some((x) => ENEMIES[x.kind].rank === 'elite');
+    const out: StirId[] = [];
+    if (elite) out.push('elite');
+    this.planNamed();
+    if (elite && this.namedAt === -1) out.push('named');
+    if (ARENA_EVENT_POOLS[this.dungeonId] && !this.arenaEvent && !ARENA_EVENTS.off) out.push('event');
+    if (n >= 2 && this.waveShapeAt(this.encounter, id) === 'arc' && !WAVES.off && !def.spawns.some((x) => x.kind === 'twinLamp')) out.push('wave');
+    return out;
+  }
+
+  /** Phase 15 Y10: a stirred fight picks its reaction (a hash, no run-rng draws) and applies the arena event one now. */
+  private rollStir(id: EncounterId): void {
+    this.stir = '';
+    this.fightHurt = 0;
+    this.fightDown = false;
+    for (let k = 0; k < this.heroes.length; k++) this.heroPlayer(k).stirHurt = 0;
+    if (!this.stirOn || !this.layoutRolls(id) || this.encounter === 0) return;
+    if (!this.stirNext && !STIR.force) return;
+    const choices = this.stirChoices(id);
+    const pick = STIR.force && STIR.force !== 'any' ? (choices.includes(STIR.force as StirId) ? (STIR.force as StirId) : undefined) : choices[this.stirHash() % Math.max(1, choices.length)];
+    if (!pick) return;
+    this.stir = pick;
+    this.stirNext = false;
+    this.stirs++;
+    this.stirsMet |= STIR_BIT[pick];
+    if (pick === 'event') {
+      const pool = ARENA_EVENT_POOLS[this.dungeonId]!;
+      this.arenaEvent = pool[(this.stirHash() >>> 8) % pool.length];
+      this.arenaEventStage = 0;
+      this.arenaEventT = ARENA_EVENTS.at;
+    }
+  }
+
+  /** Phase 15 Y1: a `reinforce` wave's held pack: warns, then comes in from the far side (at once if the first half is dead). */
+  private reinforceClock(dt: number): void {
+    const r = this.arenaR - 60;
+    const x = Math.cos(this.reinforceA) * r, y = Math.sin(this.reinforceA) * r;
+    const early = this.aliveEnemies === 0 && this.reinforceT > WAVES.reinforceWarn;
+    const was = early ? Infinity : this.reinforceT;
+    this.reinforceT = (early ? WAVES.reinforceWarn : this.reinforceT) - dt;
+    if (was > WAVES.reinforceWarn && this.reinforceT <= WAVES.reinforceWarn) {
+      this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'warn', x, y });
+      this.wavesMet |= WAVE_BIT.reinforce;
+    }
+    if (this.reinforceT > 0) return;
+    const def = this.encounterDef;
+    const held = heldMask(def.spawns, this.reinforceN);
+    const m = this.reinforceN;
+    let k = 0, at = 0;
+    for (const sp of def.spawns) {
+      for (let j = 0; j < sp.n; j++, k++) {
+        if (!held[k]) continue;
+        const a = this.reinforceA + (at++ - (m - 1) / 2) * 0.35;
+        this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
+      }
+    }
+    this.reinforceN = 0;
+    this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x, y });
+  }
+
+  /** Phase 15 Y1: the wave shape the fight `id` at route position `k` gets: 'arc' unless a solo or group trash fight rolls another. */
+  waveShapeAt(k: number, id: EncounterId): WaveShape {
+    // The opener stays an arc: the hero has no talents yet, and a ring of hounds at level 1 killed in 11 s (Coldmarrow t10).
+    if (WAVES.off || k === 0 || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id) || id === 'worldShadow') return 'arc';
+    let h = (Math.imul(this.seed ^ 0x51ed270b, 0x9e3779b1) + Math.imul(k + 1, 0xc2b2ae35)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+    const def = ENCOUNTERS[id];
+    const n = def ? def.spawns.reduce((a, s) => a + s.n, 0) : 0;
+    if (WAVES.force) {
+      const f = WAVES.force as WaveShape;
+      if (f === 'reinforce') return def && reinforceCount(def.spawns) > 0 ? f : 'arc';
+      return n >= 2 && !def!.spawns.some((x) => x.kind === 'twinLamp') && !(f === 'ring' && ringless(def!.spawns)) ? f : 'arc';
+    }
+    if (n < 2) return 'arc';
+    // The Twin Lamps' beam runs between them, so split lamps would sweep the whole arena: they keep the arc.
+    const lamps = def!.spawns.some((x) => x.kind === 'twinLamp');
+    const u = (h % 1000) / 1000;
+    if (u < WAVES.pincer) return lamps ? 'arc' : 'pincer';
+    // Skills' Y5: three or more Rimehounds closing from every side at once took 405 health in 3.5 s, and only healers lived.
+    if (u < WAVES.pincer + WAVES.ring) return lamps || ringless(def!.spawns) ? 'arc' : 'ring';
+    if (u < WAVES.pincer + WAVES.ring + WAVES.reinforce && reinforceCount(def!.spawns) > 0) return 'reinforce';
+    return 'arc';
+  }
+
   /** Phase 14 X3: the arena event hash for route position `k` (its own salt, no run-rng draws). */
   private arenaEventHash(k: number): number {
     const h = (Math.imul(this.seed ^ 0x2f8a6b1d, 0x9e3779b1) + Math.imul(k + 1, 0x85ebca6b)) >>> 0;
     return Math.imul(h ^ (h >>> 15), 0xc2b2ae35) >>> 0;
   }
 
-  /** Phase 14 X3: the event the fight `id` at route position `k` gets, if any (solo trash fights only). */
+  /** Phase 14 X3: the event the fight `id` at route position `k` gets, if any (solo and group trash fights; never a raid). */
   arenaEventAt(k: number, id: EncounterId): ArenaEventId | '' {
     const pool = ARENA_EVENT_POOLS[this.dungeonId];
-    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || this.dungeonDef.style !== 'solo' || !this.layoutRolls(id)) return '';
+    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || !this.layoutRolls(id)) return '';
     const forced = ARENA_EVENTS.force as ArenaEventId | '';
     if (forced) return pool.includes(forced) ? forced : '';
     const h = this.arenaEventHash(k);
@@ -2332,6 +2660,7 @@ export class World {
     const A = ARENA_EVENTS;
     if (this.arenaEventStage === 0) {
       this.arenaEventStage = 1;
+      this.arenaEventsMet |= 1 << ARENA_EVENT_ORDER.indexOf(ev);
       this.events.push({ type: 'arenaEvent', id: ev, stage: 'warn' });
       if (ev === 'caveIn') {
         for (const c of this.caveInSpots()) this.addTelegraph('circle', c.x, c.y, A.caveRadius + PLAYER_RADIUS, 0, 0, A.caveWarn, A.caveDamage); // scaled by tier as it lands
@@ -2434,12 +2763,15 @@ export class World {
   shadowed(x: number, y: number): boolean {
     for (const c of this.pillars) {
       if (c.cracked) continue;
-      const d = Math.hypot(c.x, c.y);
-      const ux = c.x / d;
-      const uy = c.y / d;
-      const along = x * ux + y * uy - d;
+      const cx = c.x - this.lightX, cy = c.y - this.lightY;
+      const d = Math.hypot(cx, cy);
+      if (d < CARRIED_LIGHT.minD) continue;
+      const ux = cx / d;
+      const uy = cy / d;
+      const px = x - this.lightX, py = y - this.lightY;
+      const along = px * ux + py * uy - d;
       if (along <= 0 || along > this.shadowLen) continue;
-      const across = Math.abs(x * uy - y * ux);
+      const across = Math.abs(px * uy - py * ux);
       if (across <= c.r + along * GLARE.shadowWiden) return true;
     }
     return false;
@@ -2768,6 +3100,8 @@ export class World {
     }
     p.hp -= amount;
     p.hurtFlash = 0.15;
+    p.stirHurt = (p.stirHurt ?? 0) + amount / p.maxHp;
+    if (p.hp <= 0) this.fightDown = true;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
     // Steady Breath: once per fight, a melee hero knocked low catches its breath.
     // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
@@ -4596,6 +4930,8 @@ export class World {
         e.aux += 0.35 * dt;
         e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
         e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
+        // A ward near the wall would swing its acolytes outside it, out of reach (QA, Y8): keep them in.
+        this.clampArena(e, e.def.radius);
         b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE.heal * dt * this.healTakenMult(b));
       }
     }
@@ -4772,6 +5108,12 @@ export class World {
         this.colPlate = angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing);
         this.events.push({ type: 'wheel', hero: pick });
       }
+    } else if (id === 'millstone') {
+      // Phase 15 Y3: he starts to grind round.
+      this.millT = MILL.time;
+      this.millDir = this.rng.int(2) === 0 ? 1 : -1;
+      this.millTickT = MILL.tick;
+      this.events.push({ type: 'millstone', stage: 'start', dir: this.millDir });
     } else if (id === 'wheel') {
       // Raid 3: he turns on the non-tank who hurt him most in the last few seconds, and sweeps.
       let pick = -1;
@@ -4845,6 +5187,29 @@ export class World {
         this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
       }
       this.use(at);
+    } else if (id === 'homeward') {
+      // The Homeward Hammer: thrown at the hero farthest from him (the tank only if no one else stands).
+      const tank = this.targetOf(i, 0);
+      const b = this.enemies[i];
+      let best = -1, bd = -1;
+      for (let pass = 0; pass < 2 && best < 0; pass++) {
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || (pass === 0 && k === tank && this.heroes.length > 1)) continue;
+          const dd = dist2(q.x, q.y, b.x, b.y);
+          if (dd > bd) { bd = dd; best = k; }
+        }
+      }
+      if (best >= 0) {
+        const q = this.heroPlayer(best);
+        this.homeX = q.x; this.homeY = q.y;
+        const dmg = HOMEWARD.damage * (1 + HOMEWARD.grow * this.choirN);
+        this.choirN++;
+        this.addTelegraph('circle', q.x, q.y, HOMEWARD.radius, 0, 0, HOMEWARD.fall, dmg, 'hit', i); // scaled by tier as it lands
+        this.homeStage = 1;
+        this.homeT = HOMEWARD.fall;
+        this.events.push({ type: 'homeward', stage: 'out', x: q.x, y: q.y });
+      }
     } else if (id === 'ironload') {
       // Mark a hero other than the one holding Ondrel; it lands in `time` s, split among everyone with them.
       const tank = this.targetOf(i, 0);
@@ -5028,7 +5393,28 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
-      if (phase >= 2 && this.bossVariant === 'draw') {
+      // Phase 16 U1: in her last phase every other signature is her echo's.
+      let move: string = this.bossVariant;
+      if (phase === 3 && this.bossEcho) {
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      if (phase >= 2 && move === 'turning') {
+        this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
+        // She's busy pouring: nothing else from her until the last cone lands.
+        const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+        e.abilityT = Math.max(e.abilityT, pour + 0.5);
+        // And no Kiln Brand to soak while the fire turns: one job at a time.
+        this.brandT = Math.max(this.brandT, pour + 1);
+        // Clockwise or not, in turn, so a player can't learn one way round.
+        const dir = (this.turnDir = e.aux2 = e.aux2 > 0 ? -1 : 1);
+        const a0 = Math.atan2(p.y - e.y, p.x - e.x);
+        for (let k = 0; k < KILN_TURN.cones; k++) {
+          this.addTelegraph('cone', e.x, e.y, KILN_TURN.reach, a0 + dir * k * KILN_TURN.arc, KILN_TURN.arc, KILN_TURN.first + k * KILN_TURN.step, KILN_TURN.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        }
+        return;
+      }
+      if (phase >= 2 && move === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
         this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
@@ -5654,22 +6040,49 @@ export class World {
     if (this.glareT <= 0) {
       this.glareT = (this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery) * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
+      // Y3 Carried Light: from phase 2 she carries the light; the shadows swing as the warning starts.
+      let carry = this.bossPhase >= 2 && this.bossVariant === 'walk';
+      // Phase 16 U1: a Carried Light echo carries every other Glare in her last phase; the others come from the middle again.
+      if (this.bossPhase >= 3 && this.bossEcho === 'walk') {
+        carry = this.echoNext;
+        this.echoNext = !this.echoNext;
+        if (carry) this.events.push({ type: 'echo', id: 'walk' });
+        else if (this.lightX !== 0 || this.lightY !== 0) {
+          this.lightX = 0; this.lightY = 0;
+          this.events.push({ type: 'lightMove', x: 0, y: 0 });
+        }
+      }
+      if (carry) {
+        this.lightX = e.x;
+        this.lightY = e.y;
+        this.events.push({ type: 'lightMove', x: e.x, y: e.y });
+      }
       return;
     }
-    if (this.bossPhase >= 2 && this.markT <= 0) {
+    // Phase 16 U1: a Twin Brand or Glintfall echo takes every other turn of this timer in her last phase.
+    const brandEcho = this.bossPhase >= 3 && (this.bossEcho === 'brand' || this.bossEcho === 'glint');
+    if (this.bossPhase >= 2 && this.markT <= 0 && (this.bossVariant !== 'walk' || brandEcho)) {
       this.bossBrandT -= dt;
       if (this.bossBrandT <= 0) {
         this.bossBrandT = GLARE.bossBrandEvery;
-        if (this.bossVariant === 'glint') {
+        let move: string = this.bossVariant;
+        if (brandEcho) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'walk') {
+          // A Carried Light run has nothing of its own on this timer: only the echo.
+        } else if (move === 'glint') {
           // V8 Glintfall: light shards fall on every standing pillar. Step off your cover until they land.
           this.startCast(i, 'glintfall', 'Glintfall', GLINTFALL.cast, false);
           for (const q of this.pillars) {
             if (!q.cracked) this.addTelegraph('circle', q.x, q.y, GLINTFALL.radius, 0, 0, GLINTFALL.cast, GLINTFALL.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
           }
           return;
+        } else {
+          this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
+          return;
         }
-        this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
-        return;
       }
     }
     if (e.abilityT > 0) return;
@@ -5692,7 +6105,7 @@ export class World {
       p.slag = Math.min(ONDREL.slagMax, (p.slag ?? 0) + 1);
       this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
     }
-    if (e.abilityT > 0) return;
+    if (e.abilityT > 0 || this.homeStage > 0) return;
     e.abilityT = ONDREL.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
@@ -5780,6 +6193,11 @@ export class World {
         this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
         this.use(at);
       }
+      if (this.rimeOn && q.hp > 0 && dist2(q.x, q.y, this.rimeX, this.rimeY) <= CREEPING_RIME.r ** 2) {
+        // Y3 Creeping Rime: it soaks the coal and chills, but doesn't burn.
+        q.coal = Math.max(0, q.coal - CREEPING_RIME.drain * dt);
+        q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + CREEPING_RIME.chill * dt);
+      }
       if (this.coldPhase >= 2 && q.hp > 0 && this.inWater(q.x, q.y)) {
         // Thin Ice: open water soaks the coal, chills fast, and hurts.
         q.coal = Math.max(0, q.coal - COLD.waterDrain * dt);
@@ -5824,6 +6242,42 @@ export class World {
           this.driftEmbers.push({ x: Math.cos(a) * EMBERDRIFT.ring, y: Math.sin(a) * EMBERDRIFT.ring });
         }
         this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
+      }
+    } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
+      // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
+      const risen = !this.rimeOn;
+      if (!this.rimeOn) {
+        this.rimeOn = true;
+        this.rimeX = e.x;
+        this.rimeY = e.y;
+        this.events.push({ type: 'rimeRise', x: e.x, y: e.y });
+      }
+      let tx = this.rimeX, ty = this.rimeY, best = Infinity;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0) continue;
+        const d = dist2(q.x, q.y, this.rimeX, this.rimeY);
+        if (d < best) { best = d; tx = q.x; ty = q.y; }
+      }
+      const dx = tx - this.rimeX, dy = ty - this.rimeY, d = Math.hypot(dx, dy);
+      const step = Math.min(d, CREEPING_RIME.speed * dt);
+      const min = e.def.radius + CREEPING_RIME.hold;
+      const nx = d > 1 ? this.rimeX + (dx / d) * step : this.rimeX, ny = d > 1 ? this.rimeY + (dy / d) * step : this.rimeY;
+      if (CREEPING_RIME.hold > 0 && Math.hypot(nx - e.x, ny - e.y) < min) {
+        // Her own body holds the rime off (`hold`, px past her edge): it creeps round her toward the hero, not through her.
+        // Just risen under her, it first comes out on the hero's side. If she walks into it later, it is pushed out
+        // along its own angle (QA on #550: snapping to the hero's side then made it jump up to 100 degrees round her).
+        const hd = Math.hypot(this.rimeX - e.x, this.rimeY - e.y);
+        const a0 = risen || hd < 1 ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
+        let da = Math.atan2(ty - e.y, tx - e.x) - a0;
+        while (da > Math.PI) da -= 2 * Math.PI;
+        while (da < -Math.PI) da += 2 * Math.PI;
+        const turn = Math.sign(da || 1) * Math.min(Math.abs(da), (CREEPING_RIME.speed * CREEPING_RIME.orbit * dt) / min);
+        this.rimeX = e.x + Math.cos(a0 + turn) * min;
+        this.rimeY = e.y + Math.sin(a0 + turn) * min;
+      } else {
+        this.rimeX = nx;
+        this.rimeY = ny;
       }
     } else if (this.coldPhase >= 2) {
       this.iceT -= dt;
@@ -5887,7 +6341,8 @@ export class World {
     const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
     // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
     const out = this.outsurge;
-    const riptide = this.wrackPhase >= 2 && !out;
+    const whirl = this.whirl;
+    const riptide = this.wrackPhase >= 2 && !out && !whirl;
     const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
@@ -5907,9 +6362,18 @@ export class World {
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
         const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
-        const step = this.anchored(q) ? 0 : Math.min(room, pull * CLASSES[this.heroes[k].cls].speed * dt) * (out ? -1 : 1);
+        const speed = CLASSES[this.heroes[k].cls].speed;
+        const step = this.anchored(q) ? 0 : Math.min(room, pull * (whirl ? WHIRL.inward : 1) * speed * dt) * (out ? -1 : 1);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
+        if (whirl && !this.anchored(q)) {
+          // Y3 the Whirl: carried round the drain, the way it turns this Ebb.
+          const s = WHIRL.spin * speed * dt * this.whirlDir;
+          const qx = q.x;
+          q.x += (-q.y / d) * s;
+          q.y += (qx / d) * s;
+          this.clampArena(q, PLAYER_RADIUS);
+        }
         const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
@@ -5922,8 +6386,14 @@ export class World {
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
-        e.x -= (e.x / d) * step;
-        e.y -= (e.y / d) * step;
+        e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
+        e.y -= (e.y / d) * step * (whirl ? WHIRL.inward : 1);
+        if (whirl) {
+          const s = foePull * dt * this.whirlDir;
+          const ex = e.x;
+          e.x += (-e.y / d) * s;
+          e.y += (ex / d) * s;
+        }
         if (out ? d >= rim : d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
       }
     } else if (this.ebbWarnT > 0) {
@@ -5934,7 +6404,8 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
+        if (whirl) this.whirlDir = -this.whirlDir;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : whirl ? 'The Whirl' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -6003,11 +6474,18 @@ export class World {
     this.scatterT -= dt;
     this.bellowT -= dt;
     const ventsOpen = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
-    if (this.twinVentT <= 0 && !ventsOpen) {
+    if (this.twinVentT <= 0 && !ventsOpen && this.rollLeft === 0) {
       this.twinVentT = late ? YSMERET.ventEnraged : YSMERET.ventEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
-      for (const s of [1, -1]) {
+      const roll = this.bossVariant === 'roll';
+      if (roll) {
+        // Rolling Vents: only the first opens now; the rest follow round her (below).
+        this.rollLeft = ROLLING.count - 1;
+        this.rollAng = a;
+        this.rollDir = -this.rollDir;
+      }
+      for (const s of roll ? [1] : [1, -1]) {
         const x = e.x + Math.cos(a) * YSMERET.ventDist * s;
         const y = e.y + Math.sin(a) * YSMERET.ventDist * s;
         const c = { x, y };
@@ -6015,7 +6493,15 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+    } else if (!ventsOpen && this.rollLeft > 0) {
+      // Rolling Vents: as one closes, the next opens further round her.
+      this.rollLeft--;
+      this.rollAng += this.rollDir * (ROLLING.step * Math.PI) / 180;
+      const c = { x: e.x + Math.cos(this.rollAng) * YSMERET.ventDist, y: e.y + Math.sin(this.rollAng) * YSMERET.ventDist };
+      this.clampArena(c, YSMERET.ventRadius + 10);
+      this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, ROLLING.fuse, YSMERET.ventBlast, 'soak', -2);
+      this.events.push({ type: 'ventRoll', x: c.x, y: c.y, left: this.rollLeft });
     } else if (ventsOpen && this.bossVariant === 'wander') {
       // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
       const turn = (WANDER.speed / YSMERET.ventDist) * dt;
@@ -6033,7 +6519,7 @@ export class World {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
-    } else if (this.scatterT <= 0 && !ventsOpen && this.twinVentT > YSMERET.scatterCast + 0.5) {
+    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.bossVariant === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
       this.scatterT = YSMERET.scatterEvery;
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
     }
@@ -6082,6 +6568,29 @@ export class World {
       this.cutCount++;
       this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
+    } else if (this.rivetT <= 0 && this.bossVariant === 'punch') {
+      // Punch Line: marching rows of punches out from Oskel.
+      this.rivetT = PUNCH.every;
+      const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      let a: number;
+      // With a plate open, it sits midway between two rows, so its taker is safe.
+      if (plate) a = Math.atan2(plate.y - e.y, plate.x - e.x) + Math.PI / PUNCH.rows;
+      else {
+        const up: number[] = [];
+        for (let k = 0; k < this.heroes.length; k++) if (this.heroPlayer(k).hp > 0) up.push(k);
+        const q = this.heroPlayer(up.length ? up[this.rng.int(up.length)] : 0);
+        a = Math.atan2(q.y - e.y, q.x - e.x);
+      }
+      for (let row = 0; row < PUNCH.rows; row++) {
+        const s = (row * 2 * Math.PI) / PUNCH.rows;
+        for (let n = 0; n < PUNCH.n; n++) {
+          const d = PUNCH.gap * (n + 0.5);
+          const x = e.x + Math.cos(a + s) * d, y = e.y + Math.sin(a + s) * d;
+          if (x * x + y * y > (ARENA - PUNCH.r * 0.5) ** 2) break;
+          this.addTelegraph('circle', x, y, PUNCH.r + PUNCH.grow * n, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', -1); // scaled by tier as it lands
+        }
+      }
+      this.events.push({ type: 'castStart', index: i, id: 'punchLine', name: 'Punch Line' });
     } else if (this.rivetT <= 0) {
       this.rivetT = OSKEL.rivetEvery;
       for (let k = 0; k < this.heroes.length; k++) {
@@ -6178,7 +6687,28 @@ export class World {
         for (let k = 0; k < BRIM.count; k++) this.islands.push(this.placeIsland(e, this.islandN++, BRIM.life * (k + 1) / BRIM.count));
         this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
       }
-      if (phase === 3) this.islands = [];
+      if (phase === 2 && this.bossVariant === 'flow') { this.flowStage = 0; this.flowT = OVERFLOW.first; }
+      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; }
+    }
+    if (phase === 2 && this.bossVariant === 'flow') {
+      // The Overflow: warn, rise from the rim, burn anyone far from her, ebb.
+      this.flowT -= dt;
+      if (this.flowT <= 0) {
+        if (this.flowStage === 0) { this.flowStage = 1; this.flowT += OVERFLOW.warn; this.events.push({ type: 'overflow', stage: 'warn' }); }
+        else if (this.flowStage === 1) { this.flowStage = 2; this.flowT += OVERFLOW.last; this.flowTickT = 0; this.events.push({ type: 'overflow', stage: 'rise' }); }
+        else { this.flowStage = 0; this.flowT += OVERFLOW.every - OVERFLOW.warn - OVERFLOW.last; this.events.push({ type: 'overflow', stage: 'ebb' }); }
+      }
+      if (this.flowStage === 2) {
+        this.flowTickT -= dt;
+        if (this.flowTickT <= 0) {
+          this.flowTickT += OVERFLOW.tick;
+          const back = this.acting;
+          this.eachHero(() => {
+            if (dist2(this.player.x, this.player.y, e.x, e.y) > OVERFLOW.safeR ** 2) this.hurtPlayer(this.player.maxHp * OVERFLOW.burn, i, true);
+          });
+          this.use(back);
+        }
+      }
     }
     if (this.islands.length) {
       // An island that sinks is replaced by a new one elsewhere.
@@ -6210,7 +6740,7 @@ export class World {
         // The Brimming: off an island the slag burns harder, and on one it doesn't burn at all.
         const brim = this.bossVariant === 'brim';
         this.eachHero(() => {
-          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : SLAG.heat;
+          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : this.bossVariant === 'flow' ? OVERFLOW.heat : SLAG.heat;
           if (share > 0) this.hurtPlayer(this.player.maxHp * share, i, true);
         });
         this.use(at);
@@ -6260,7 +6790,7 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0 && this.bossVariant === 'brim') {
+    } else if (phase === 2 && this.pourT <= 0 && (this.bossVariant === 'brim' || this.bossVariant === 'flow')) {
       // The Brimming: she churns the pit on the Pour's timer and cast, with no lanes. It keeps the Pour's
       // pause on the tank (skills' W7 trace: without it an Anvil Slagbinder tank won 4 of 32).
       this.pourT = SLAG.pourEvery;
@@ -6352,6 +6882,16 @@ export class World {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
+        if (this.bossVariant === 'tithe') {
+          // Phase 15 Y3: he demands a Tithe instead of the ash: a gold circle away from him that needs at least TITHE.need heroes.
+          const a = this.rng.next() * Math.PI * 2;
+          let x = e.x + Math.cos(a) * TITHE.dist, y = e.y + Math.sin(a) * TITHE.dist;
+          const lim = ARENA - TITHE.r - 20, m = Math.hypot(x, y);
+          if (m > lim) { x *= lim / m; y *= lim / m; }
+          this.addTelegraph('circle', x, y, TITHE.r, 0, 0, TITHE.fuse, 0, 'soak', -5);
+          this.events.push({ type: 'castStart', index: i, id: 'tithe', name: 'Tithe' });
+          return;
+        }
         if (this.bossVariant === 'court') {
           // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
           this.summonsT = SUMMONS.warn;
@@ -6467,8 +7007,32 @@ export class World {
         this.events.push({ type: 'meltPulse', n: this.meltPulses });
       }
     }
-    // He turns toward the hero he is fighting, but slowly, and not while he casts.
-    if (!e.castId) {
+    if (this.millT > 0) {
+      // Millstone: he grinds round, and slag pours off him onto any non-tank not at his back.
+      this.millT -= dt;
+      this.colFacing = angleDiff(this.colFacing + this.millDir * MILL.turn * dt, 0);
+      this.millTickT -= dt;
+      if (this.millTickT <= 0) {
+        this.millTickT += MILL.tick;
+        const at = this.acting;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || this.isTank(k)) continue;
+          const d = Math.hypot(q.x - e.x, q.y - e.y);
+          if (d > e.def.radius + MILL.range + PLAYER_RADIUS) continue;
+          if (Math.abs(angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing)) > MILL.arc) continue;
+          this.use(k);
+          this.hurtPlayer(q.maxHp * MILL.damage, i, true);
+        }
+        this.use(at);
+      }
+      if (this.millT <= 0) {
+        this.millT = 0;
+        this.events.push({ type: 'millstone', stage: 'end', dir: this.millDir });
+      }
+    }
+    // He turns toward the hero he is fighting, but slowly, and not while he casts or grinds.
+    if (!e.castId && this.millT <= 0) {
       const t = this.heroPlayer(this.targetOf(i, 0));
       const want = Math.atan2(t.y - e.y, t.x - e.x);
       const diff = angleDiff(want, this.colFacing);
@@ -6485,11 +7049,13 @@ export class World {
       this.startCast(i, 'pourOut', 'Pour Out', COLO.pourOutCast, false);
       return;
     }
+    if (this.millT > 0) return;
     this.sweepT -= dt;
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
       if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else if (this.bossVariant === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
       else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
@@ -6560,7 +7126,50 @@ export class World {
         this.feedVorhulm(m.x, m.y);
       }
     }
-    if (phase === 3 && this.bossVariant === 'bank') {
+    if (phase === 3 && this.bossVariant === 'inhale') {
+      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
+      this.spillT -= dt;
+      if (this.inhaleStage === 0 && this.spillT <= 0) {
+        this.spillT = COAL.spillEvery;
+        this.inhaleStage = 1;
+        this.inhaleT = INHALE.warn;
+        this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
+        this.events.push({ type: 'inhale', stage: 'warn' });
+      } else if (this.inhaleStage > 0) {
+        this.inhaleT -= dt;
+        if (this.inhaleT <= 0 && this.inhaleStage === 1) {
+          this.inhaleStage = 2;
+          this.inhaleT += INHALE.time;
+          this.inhaleTickT = INHALE.tick;
+          this.events.push({ type: 'inhale', stage: 'draw' });
+        } else if (this.inhaleT <= 0) {
+          this.inhaleStage = 0;
+          this.events.push({ type: 'inhale', stage: 'end' });
+        }
+      }
+      if (this.inhaleStage === 2) {
+        const mouth = e.def.radius + INHALE.bite;
+        this.inhaleTickT -= dt;
+        const bite = this.inhaleTickT <= 0;
+        if (bite) this.inhaleTickT += INHALE.tick;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || (q.swallowT ?? 0) > 0) continue;
+          const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy) || 1;
+          if (!this.anchored(q)) {
+            const step = Math.min(Math.max(0, d - e.def.radius - PLAYER_RADIUS), INHALE.pull * CLASSES[this.heroes[k].cls].speed * dt);
+            q.x += (dx / d) * step;
+            q.y += (dy / d) * step;
+          }
+          if (bite && d <= mouth + PLAYER_RADIUS) {
+            this.use(k);
+            this.hurtPlayer(q.maxHp * INHALE.damage, i, true);
+            this.events.push({ type: 'slam', x: q.x, y: q.y, r: 40 });
+          }
+        }
+        this.use(at);
+      }
+    } else if (phase === 3 && this.bossVariant === 'bank') {
       this.spillT -= dt;
       if (this.spillT <= 0) {
         // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
@@ -6712,7 +7321,29 @@ export class World {
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
         if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else if (this.bossVariant === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
         else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+      }
+    }
+    // The Homeward Hammer: once it has landed, it flies straight back to his hand.
+    if (this.homeStage > 0) {
+      this.homeT -= dt;
+      if (this.homeT <= 0 && this.homeStage === 1) {
+        // It lands ringing: every hero loses a share of health, like a lighter Choir.
+        const at = this.acting;
+        const ring = HOMEWARD.ring + ONDREL.choirGrow * (this.choirN - 1);
+        if (ring > 0) this.eachHero(() => this.hurtPlayer(this.player.maxHp * ring, i, true));
+        this.use(at);
+        const d = Math.max(1, Math.hypot(e.x - this.homeX, e.y - this.homeY));
+        const ang = Math.atan2(e.y - this.homeY, e.x - this.homeX);
+        const dmg = HOMEWARD.backDamage * (1 + HOMEWARD.grow * (this.choirN - 1));
+        this.addTelegraph('cone', this.homeX, this.homeY, d, ang, 2 * Math.atan(HOMEWARD.width / d), HOMEWARD.back, dmg, 'hit', i); // scaled by tier as it lands
+        this.homeStage = 2;
+        this.homeT = HOMEWARD.back;
+        this.events.push({ type: 'homeward', stage: 'back', x: this.homeX, y: this.homeY });
+      } else if (this.homeT <= 0 && this.homeStage === 2) {
+        this.homeStage = 0;
+        this.homeT = 0;
       }
     }
     // Ironload: when it lands, its weight is shared by every hero standing with the marked one.
@@ -6823,17 +7454,56 @@ export class World {
       this.bossPhase = phase;
       this.events.push({ type: 'phase', phase });
     }
+    // Phase 16 U1: in her last phase her echo comes and goes, `on` s at a time.
+    if (phase >= 3 && this.bossEcho) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? MAELRA_ECHO.on : MAELRA_ECHO.off;
+        if (this.echoLive) {
+          this.events.push({ type: 'echo', id: this.bossEcho });
+          if (this.bossEcho === 'tide') this.sluiceT = 0;
+        } else if (this.bossEcho === 'seal') {
+          // The steam lets go: every vent is open again until the next echo.
+          this.openVent = -1; this.nextVent = -1;
+        }
+      }
+    }
+    const has = (v: MaelraVariant) => versionLive(this, v);
     // Temper builds over time; dragging her through a vent boils it away.
-    this.temperT -= dt;
+    // Y3 Sealed Vents: with one vent open, her Temper builds `temperSlow` times slower from phase 2.
+    this.temperT -= dt / (phase >= 2 && has('seal') ? MAELRA_SEAL.temperSlow : 1);
     if (this.temperT <= 0) {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
+    // Y3 Sealed Vents: one vent open at a time, the steam moving round.
+    const sealed = phase >= 2 && has('seal') && this.vents.length > 1;
+    if (sealed) {
+      if (this.openVent < 0) {
+        this.openVent = this.pickVent(-1, e);
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+      this.sealT -= dt;
+      if (this.nextVent < 0 && this.sealT <= MAELRA_SEAL.warn) {
+        this.nextVent = this.pickVent(this.openVent, e);
+        this.events.push({ type: 'ventShift', stage: 'warn', vent: this.nextVent });
+      }
+      if (this.sealT <= 0) {
+        this.openVent = this.nextVent >= 0 ? this.nextVent : this.pickVent(this.openVent, e);
+        this.nextVent = -1;
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+    }
     if (this.temper > 0) {
-      for (const v of this.vents) {
-        if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
+      for (let vi = 0; vi < this.vents.length; vi++) {
+        const v = this.vents[vi];
+        if (sealed && vi !== this.openVent) continue;
+        if (dist2(e.x, e.y, v.x, v.y) <= (v.r * (sealed ? MAELRA_SEAL.wide : 1) + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * (sealed ? MAELRA_SEAL.healMult : 1) * this.temper);
           if (heal > 0) {
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
@@ -6845,7 +7515,7 @@ export class World {
       }
     }
     // V8 Sluicetide (some runs): instead of rising, the water runs across the room and turns now and then.
-    if (phase >= 2 && this.bossVariant === 'tide') {
+    if (phase >= 2 && has('tide')) {
       this.sluiceT -= dt;
       if (this.sluiceT <= 0) {
         this.sluiceT = SLUICETIDE.turnEvery;
@@ -7002,8 +7672,9 @@ export class World {
       t.alive = false;
       if (t.kind === 'soak') {
         const took = this.soakers(t);
-        const ok = took.length > 0;
-        this.relaySoak(took);
+        // The Regent's Tithe (owner -5) is only made with TITHE.need heroes in it: one alone gets no Relayer, no Ventwalker heal.
+        const ok = took.length >= (t.owner === -5 ? TITHE.need : 1);
+        if (ok) this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {
@@ -7011,6 +7682,17 @@ export class World {
             const q = this.player;
             if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
           });
+        }
+        if (t.owner === -5) {
+          // Y3 the Regent's Tithe: enough heroes share it, or everyone pays.
+          const boss = this.bossIndex;
+          if (took.length >= TITHE.need) {
+            const share = TITHE.cost / took.length;
+            for (const k of took) { this.use(k); this.hurtPlayer(this.player.maxHp * share, boss, true); }
+          } else this.eachHero(() => this.hurtPlayer(this.player.maxHp * TITHE.miss, boss, true));
+          this.use(0);
+          this.events.push({ type: 'tithe', ok: took.length >= TITHE.need, n: took.length });
+          continue;
         }
         if (t.owner === -4) {
           // A Banked Coal: smothered, or he eats it (the same as an ember he inhales).
@@ -7546,6 +8228,87 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /**
+ * Phase 15 Y1: wave shapes. A solo or group trash fight's foes come in as one arc from the far side (as before),
+ * or a pincer (alternate foes from opposite sides), or a ring round the arena. `pincer` and `ring` are each fight's
+ * chance of that shape. `force` (tools) forces one; `off` keeps every wave an arc. Never boss fights or raids.
+ */
+export type WaveShape = 'arc' | 'pincer' | 'ring' | 'reinforce';
+export const WAVES = {
+  pincer: 0.2,
+  ring: 0.15,
+  /** `reinforce`: up to half the pack (the kinds in REINFORCE_KINDS) is held back and comes in from the other side. */
+  reinforce: 0.2,
+  /** `ring`: how far from the hero the ring forms. */
+  ringR: 460,
+  /** Seconds into the fight the held pack arrives (sooner if the first half is already dead). */
+  reinforceAt: 7,
+  /** Seconds of warning before it arrives. */
+  reinforceWarn: 2,
+  force: '' as string,
+  off: false,
+};
+/** Phase 15 Y1: the pack foes a `reinforce` wave can hold back. */
+export const REINFORCE_KINDS: readonly EnemyKind[] = ['cinderhound', 'shade', 'rimehound', 'shoalLurker'];
+/** Phase 15 Y1: how many of a fight's foes a `reinforce` wave holds back: the pack foes, at most half the fight, at least one left in. */
+export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]): number {
+  const all = spawns.reduce((a, s) => a + s.n, 0);
+  const pack = spawns.reduce((a, s) => a + (REINFORCE_KINDS.includes(s.kind) ? s.n : 0), 0);
+  return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
+}
+/** Phase 15 Y5 fix: a Rimehound pack that is 3 or more with its Hoarfrost Weavers never forms a ring (it stays an arc). */
+function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
+  // Hoarfrost Weavers count too: their Frost Lace pins a hero while the hounds close (skills' Y5, the Two Weavers).
+  const n = (k: EnemyKind) => spawns.filter((s) => s.kind === k).reduce((a, s) => a + s.n, 0);
+  const hounds = n('rimehound');
+  return hounds >= 1 && hounds + n('hoarfrostWeaver') >= 3;
+}
+/** Which flat spawn slots are held back: the last `m` pack foes. */
+function heldMask(spawns: readonly { kind: EnemyKind; n: number }[], m: number): boolean[] {
+  const flat: EnemyKind[] = [];
+  for (const sp of spawns) for (let j = 0; j < sp.n; j++) flat.push(sp.kind);
+  const out = flat.map(() => false);
+  for (let k = flat.length - 1; k >= 0 && m > 0; k--) if (REINFORCE_KINDS.includes(flat[k])) { out[k] = true; m--; }
+  return out;
+}
+/** Phase 15 Y4: each shape's bit in World.wavesMet. */
+export const WAVE_BIT: Record<Exclude<WaveShape, 'arc'>, number> = { pincer: 1, ring: 2, reinforce: 4 };
+/** The shapes a `wavesMet` mask holds. */
+export function wavesIn(mask: number): Exclude<WaveShape, 'arc'>[] {
+  return (Object.keys(WAVE_BIT) as Exclude<WaveShape, 'arc'>[]).filter((s) => mask & WAVE_BIT[s]);
+}
+export const WAVE_SHAPE_INFO: Record<Exclude<WaveShape, 'arc'>, { name: string; tip: string }> = {
+  pincer: { name: 'Pincer', tip: 'They come from both sides. Pick one side and break it.' },
+  ring: { name: 'Surrounded', tip: 'They come from every side. Cut a way out.' },
+  reinforce: { name: 'More Coming', tip: 'The rest of the pack is on its way from another side.' },
+};
+
+/**
+ * Phase 15 Y10, the dungeon stirs (Steve, 23 Nov: "if you were doing really well they like added an extra monster").
+ * A trash fight cleared taking at most `clean` of the party's health in damage, with nobody down, adds one to a hidden
+ * count; one that took `rough` or more, or put a hero down, sets it back to 0. When it reaches `need`, the next trash fight
+ * (never the boss) stirs: it gets one reaction and an extra loot bag. At most `max` a run. Off on the first delve, below
+ * `minTier`, in raids, and in a party with fill bots. `force` (tools) stirs every trash fight after the opener with that
+ * reaction (or 'any'); `off` turns it off.
+ */
+export type StirId = 'elite' | 'named' | 'event' | 'wave';
+/**
+ * Phase 15 Y10 follow-up: how much of a fight's usual cost each class takes, as a multiple of the clean and rough bars.
+ * A Bulwark's kit trades hits in melee, so its bar is looser; the party's worst hero, so judged, decides.
+ */
+export const STIR_CLASS: Record<ClassId, number> = { emberwright: 1, duskblade: 2, bulwark: 2, lumen: 1, slagbinder: 1 };
+/** `groupClean`: a party trash fight is clean only under `clean` times this (at 0.15 even half-skill bot parties stirred almost every run). `roughMax` caps a class's loosened rough bar. */
+export const STIR = { clean: 0.15, rough: 0.5, roughMax: 0.8, groupClean: 0.35, need: 2, max: 2, minTier: 4, force: '' as string, off: false };
+export const STIR_IDS: readonly StirId[] = ['elite', 'named', 'event', 'wave'];
+export const STIR_INFO: Record<StirId, { name: string; tip: string }> = {
+  elite: { name: 'Another joins', tip: 'One more joins the fight.' },
+  named: { name: 'A named foe', tip: 'A named foe has come to meet you.' },
+  event: { name: 'The ground answers', tip: 'The arena itself turns on you.' },
+  wave: { name: 'They close in', tip: 'They come at you from more than one side.' },
+};
+/** Phase 15 Y10: each reaction's bit in World.stirsMet. */
+export const STIR_BIT: Record<StirId, number> = { elite: 1, named: 2, event: 4, wave: 8 };
+export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
+/**
  * Phase 14 X3: arena events, one thing that happens partway through a solo trash fight.
  * `chance` of trash fights get one, `at` + 0..`spread` s in (a hash, so co-op agrees).
  * Cave-in: `caveCount` stones fall on a ring of `caveRing`; under one as it lands takes `caveDamage`, then it stands.
@@ -7554,7 +8317,6 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
  * High Water (the Wrackline): the Ebb comes at once. `force` (tools) forces one; `off` turns them off.
  * Damage numbers are before tierDamage.
  */
-export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
 export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,
   caveCount: 3, caveRing: 150, caveRadius: 30, caveWarn: 2.2, caveDamage: 26,
@@ -7562,6 +8324,8 @@ export const ARENA_EVENTS = {
   snapWarn: 2.5, snapCut: 0.2,
   force: '' as string, off: false,
 };
+/** Phase 15 Y4: a fixed order of the events, for World.arenaEventsMet's bits. Add new ids at the end. */
+export const ARENA_EVENT_ORDER: ArenaEventId[] = ['caveIn', 'ventSurge', 'coldSnap', 'highWater'];
 /** Phase 14 X3: each event's name and warning line, for its banner. */
 export const ARENA_EVENT_INFO: Record<ArenaEventId, { name: string; tip: string }> = {
   caveIn: { name: 'Cave-in', tip: 'Rock is falling. Get out from under the shadows.' },
@@ -7576,30 +8340,76 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   glarewell: ['ventSurge'],
   coldmarrow: ['caveIn', 'coldSnap'],
   wrackline: ['highWater'],
+  // Phase 14 X3, part 2: the group dungeons' trash, which has had stones and vents since Phase 12 W2.
+  hammerdeep: ['caveIn', 'ventSurge'],
+  ashvents: ['caveIn', 'ventSurge'],
+  pressworks: ['caveIn', 'ventSurge'],
+  // Phase 15 Y2: raid trash (openers and named fights, never the boss), which has had stones and vents since Phase 13 E1.
+  crucible: ['caveIn', 'ventSurge'],
+  hoard: ['caveIn', 'ventSurge'],
+  smeltery: ['caveIn', 'ventSurge'],
+  flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
-export type KilnVariant = 'cataclysm' | 'draw';
-export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
+/**
+ * Phase 16 U1 echoes: from `minTier`, a boss's last phase also uses one of her other versions' moves, every other time her
+ * signature comes round. `off` and `force` (a version id) are for measuring.
+ */
+export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
+export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
+export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
+/**
+ * Phase 15 Y3 Turning Fire: from phase 2, in place of Molten Cataclysm, she pours `cones` cones of fire around herself,
+ * each `arc` wide, the first on the hero, each next one a turn further on and landing `step` s after the last (the first
+ * at `first` s). Not interruptible: follow the fire round her, into the ground the last cone already burned.
+ */
+export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step: 0.7, reach: 900, damage: 40 };
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
-export type NhevraVariant = 'ice' | 'drift';
-export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift'];
+export type NhevraVariant = 'ice' | 'drift' | 'rime';
+export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
+/**
+ * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
+ * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.
+ */
+export const CREEPING_RIME = { r: 85, speed: 48, drain: 0.05, chill: 1.5, hold: 85, orbit: 1 };
 /** V8 Emberdrift: from phase 2 coals drain `drainMult` times faster; every `every` s, `n` embers fall on a `ring` px ring, each refilling `refill` of a coal when touched (within `pickR`). */
 export const EMBERDRIFT = { every: 12, n: 3, ring: 280, pickR: 34, refill: 0.45, drainMult: 2.5 };
 
 /** V8: the Lensmother's phase-2 signature this run: Twin Brand (as before) or Glintfall. */
-export type LensVariant = 'brand' | 'glint';
-export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint'];
+export type LensVariant = 'brand' | 'glint' | 'walk';
+export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint', 'walk'];
 /** V8 Glintfall: on the Twin Brand timer, a `cast` s warning, then a `radius` circle of falling light on every standing pillar. */
 export const GLINTFALL = { cast: 1.8, radius: 80, damage: 24 };
+/**
+ * Phase 15 Y3 Carried Light: from phase 2 the light comes from her, not the centre lens.
+ * Each Glare moves it to where she stands as the warning starts (so shadows swing then, `glareWarn` s before the burn),
+ * and she has no Twin Brand. A pillar closer than `minD` to the light casts no shadow.
+ */
+export const CARRIED_LIGHT = { minD: 40 };
 
 /** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
-export type MaelraVariant = 'water' | 'tide';
-export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide'];
+export type MaelraVariant = 'water' | 'tide' | 'seal';
+export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+/** Phase 16 U1: Maelra's echo windows in her last phase: the first `first` s in, then `on` s on and `off` s off. */
+export const MAELRA_ECHO = { first: 2, on: 12, off: 10 };
+/** Maelra's versions that can echo: rising water is in every version but the Sluicetide already. */
+export const MAELRA_ECHOES: MaelraVariant[] = ['tide', 'seal'];
+/** Phase 16 U1: is this version in effect now, rolled or as a live echo? (For bosses whose echo runs in windows.) */
+export const versionLive = (w: { bossVariant: string; bossEcho: string; echoLive: boolean }, v: string): boolean =>
+  w.bossVariant === v || (w.echoLive && w.bossEcho === v);
+/**
+ * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
+ * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
+ * Skills' Y5 fix (the Bulwark fell to 49 of 160 at t6): the open vent boils her from `wide` times its radius, the steam moves
+ * to the free vent nearest her when `near` is 1, and her Temper builds `temperSlow` times slower. The clock runs in runMaelra,
+ * so it pauses while she casts.
+ */
+export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5, wide: 1.6, near: 1, temperSlow: 1.5 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
@@ -7742,47 +8552,99 @@ export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1
  * (scaled by tier). The party has to gather on him, where a Decree's scorch (REGENT.scorchRadius) catches anyone close
  * to its holder, so holders stand at the edge and passes happen in the crowd.
  */
-export type RegentVariant = 'ash' | 'court';
-export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court'];
+export type RegentVariant = 'ash' | 'court' | 'tithe';
+export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court', 'tithe'];
+/**
+ * Phase 15 Y3 Tithe (his phase 2 in the `tithe` version, on Ash Fall's timer, in place of the ash): a gold circle of `r` lands
+ * `dist` px from him (a random side) after `fuse` s. If at least `need` heroes stand in it, they share the tithe: each takes
+ * `cost` of max health split between them. If fewer do, every hero pays `miss` of max health. Decrees still scorch anyone close
+ * to their holder, so a holder who joins the tithe burns the others.
+ */
+export const TITHE = { dist: 240, r: 80, fuse: 4, need: 2, cost: 0.65, miss: 0.35 };
 export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
 /**
  * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
  * `shift`: Plate Shift, on the Wheel's timer and cast: his plate slides round to face that hero instead, and stays
  * there (World.colPlate) while he keeps facing the tank, so his open back moves and the damage dealers have to find it again.
  */
-export type ColossusVariant = 'wheel' | 'shift';
-export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift'];
-/** Phase 12 W3: Old Vorhulm's two versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. */
-export type VorhulmVariant = 'spill' | 'bank';
-export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
+export type ColossusVariant = 'wheel' | 'shift' | 'mill';
+export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift', 'mill'];
+/**
+ * Phase 15 Y3 Millstone (his phase 2 in the `mill` version, on the Wheel's timer and cast): he grinds round on the spot for `time` s,
+ * turning `turn` radians a second one way (chosen at random), ignoring the tank. Slag pours off him all round: every `tick` s a non-tank
+ * hero within `range` px of his edge and within `arc` radians of his facing (all but his open back) takes `damage` of max health. His open
+ * back turns with him, so the damage dealers have to walk round with it. No Slag Sweep while he grinds. (A front-only burn, arc pi/3,
+ * hit almost nobody: the bots already stood at his back.)
+ */
+export const MILL = { time: 6, turn: 0.9, arc: 2.1, range: 200, tick: 0.5, damage: 0.08 };
+/** Phase 12 W3 and Phase 15 Y3: Old Vorhulm's versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. `inhale`: he draws the raid in to bite. */
+export type VorhulmVariant = 'spill' | 'bank' | 'inhale';
+export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];
+/**
+ * Phase 15 Y3 Inhale (his phase 3 in the `inhale` version, on Ember Spill's timer, in place of the embers): after a `warn` s
+ * warning he breathes in for `time` s, drawing every hero toward him at `pull` of their class speed (Anvil Skin holds a Bulwark).
+ * Anyone within `bite` px of his edge is bitten every `tick` s for `damage` of max health. (A bite that also healed him
+ * made it a damage race weaker parties lost: half-skill bots won 20 of 80 with it, 38 without.)
+ */
+export const INHALE = { warn: 1.5, time: 3, pull: 0.3, bite: 40, tick: 0.5, damage: 0.08 };
 /**
  * Banked Coals (his phase 3 in the `bank` version, on Ember Spill's timer, in place of the embers): `count` gold circles of
  * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats
  * (COAL.emberHeal and COAL.emberDamage, as for an ember). No blast and no adds.
  */
 export const BANK = { count: 2, radius: 50, fuse: 4, near: 120, far: 170 };
-/** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
-export type SlagVariant = 'pour' | 'brim';
-export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
+/** Phase 12 W3 and Phase 15 Y3: Grandmother Slag's versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. `flow`: the Overflow, the pit floods in from the rim. */
+export type SlagVariant = 'pour' | 'brim' | 'flow';
+export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim', 'flow'];
+/**
+ * Phase 15 Y3 the Overflow (her phase 2 in the `flow` version, in place of the Pour's lanes): every `every` s (first after
+ * `first`) the pit overflows from the rim. After a `warn` s warning, for `last` s every hero farther than `safeR` from her
+ * burns `burn` of max health each `tick` s, so the raid gathers at her feet. The party heat burns `heat` (the Pour's is SLAG.heat) as before.
+ */
+export const OVERFLOW = { every: 14, first: 4, warn: 2.5, last: 4, safeR: 190, burn: 0.03, tick: 0.5, heat: 0.035 };
 /**
  * The Brimming (her phase 2 in the `brim` version, in place of the Pour's lanes): `count` cooling islands of `radius`,
  * `near` or `far` from her. Each lasts `life` s (dimming for its last `warn`), then sinks and a new one rises elsewhere.
  * The rising slag burns a hero off an island `heat` of max health every SLAG.heatEvery s, and one on an island nothing.
  */
 export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
-/** Phase 12 W2: Oskel's two versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. */
-export type OskelVariant = 'rivets' | 'cut';
-export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
+/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, three rows marching out from him. */
+export type OskelVariant = 'rivets' | 'cut' | 'punch';
+export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
+/**
+ * Phase 15 Y3 Punch Line, on the Rivets timer: `rows` rows of punches run out from Oskel's feet, evenly spaced round him, one through a
+ * hero (or, while a Downstroke plate is open, with the plate midway between two rows, so its taker is safe). Each row is `n` circles of `r`, `gap` apart;
+ * the nearest lands after `first` s and each one further out `step` s later, so the punches march out across the floor. The nth punch out
+ * has radius `r` + `grow` x n (55 at his feet to 85 at the far end), so melee under him lose less uptime than heroes standing off.
+ */
+export const PUNCH = { every: 7, rows: 3, n: 6, r: 55, grow: 6, gap: 90, first: 1.4, step: 0.25, damage: 35 };
+/** True for a Punch Line punch's radius (PUNCH.r + PUNCH.grow * n, for n below PUNCH.n): its sound keys on the slam's size. */
+export const isPunchR = (r: number): boolean => {
+  for (let n = 0; n < PUNCH.n; n++) if (r === PUNCH.r + PUNCH.grow * n) return true;
+  return false;
+};
 /** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
 export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
-/** Phase 12 W2: Ysmeret's two versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. */
-export type YsmeretVariant = 'still' | 'wander';
-export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
+/** Phase 12 W2 and Phase 15 Y3: Ysmeret's versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. `roll`: Rolling Vents, one at a time round her. */
+export type YsmeretVariant = 'still' | 'wander' | 'roll';
+export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander', 'roll'];
+/**
+ * Phase 15 Y3 Rolling Vents: one vent at a time, `count` in a row. The first opens where Twin Vents would (on its usual fuse);
+ * each next one opens `step` degrees further round her as the last one closes, on a shorter `fuse`. The way round flips every cast.
+ */
+export const ROLLING = { count: 3, step: 120, fuse: 3.4, scatterDuring: 1 };
 /** Wandering Vents: each circle moves `speed` px/s around Ysmeret (heroes run 128 to 152), about 70 degrees over a 4 s fuse. */
 export const WANDER = { speed: 70 };
-/** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
-export type OndrelVariant = 'choir' | 'load';
-export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
+/** Phase 12 W2 and Phase 15 Y3: Ondrel's versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. `home`: the Homeward Hammer, thrown out and flying back. */
+export type OndrelVariant = 'choir' | 'load' | 'home';
+export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
+/**
+ * Phase 15 Y3 the Homeward Hammer, on the Choir's timer: he throws his hammer at the hero farthest from him. It lands
+ * in a circle (`radius`, after `fall` s), then flies straight back to his hand along a line `width` px either side
+ * (after `back` s). As it lands it rings through the floor: every hero loses `ring` of max health (growing like the Choir).
+ * Each throw hits `grow` harder. While it is out he has no Hammer Sweep.
+ */
+export const HOMEWARD = { fall: 1.8, radius: 75, damage: 70, back: 1.2, width: 40, backDamage: 60, grow: 0.08, ring: 0.05 };
 /**
  * Ironload, on the Choir's timer: marks a hero (not the one Ondrel is on) for `time` s. It lands for
  * `share` (+`grow` each time) of max health, split evenly among the living heroes within `radius` of the mark.
@@ -7790,8 +8652,13 @@ export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
  */
 export const IRONLOAD = { time: 5, radius: 110, share: 0.5, grow: 0.08 };
 /** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
-export type HessaVariant = 'riptide' | 'outsurge';
-export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];
+export type HessaVariant = 'riptide' | 'outsurge' | 'whirl';
+export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
+/**
+ * Phase 15 Y3 the Whirl: from phase 2 the Ebb swirls round the drain instead of only pulling in. Off a raft, a hero is carried
+ * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
+ */
+export const WHIRL = { spin: 0.6, inward: 0.5 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */

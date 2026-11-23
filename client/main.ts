@@ -8,6 +8,7 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
+import { metIn, recordSeen } from '../sim/seen';
 import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
@@ -16,6 +17,7 @@ import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
+import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
@@ -83,6 +85,9 @@ const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#120b0a',
+  // The 3D look lays this canvas's floor layer on its 3D floor (the floor bridge), which needs a see-through canvas.
+  // #game paints the same dark colour behind it, so the 2D look is unchanged.
+  transparent: hd2dWanted(),
   scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60, limit: display.graphics === 'saver' ? 30 : 0 },
@@ -109,6 +114,15 @@ const applyDisplay = () => {
 };
 applyDisplay();
 onDisplayChange(applyDisplay);
+/**
+ * The Look setting (3D or 2D) is fixed for a page load (hd2dWanted), so a new choice reloads the page, but only on the
+ * main menu and outside a party (a reload would leave it). Picked mid-run or in a party, it applies on the next load.
+ */
+const reloadForLook = () => {
+  if (lookWanted(display.look) === hd2dWanted() || el('title').hidden || coop) return;
+  location.reload();
+};
+onDisplayChange(reloadForLook);
 /**
  * L2: Graphics on Auto, and a run still under 36 fps with the light effects already on. Most
  * phones that slow are limited by pixels drawn (tools/partyperf.cjs: 18 fps at 2x against 47 at
@@ -160,6 +174,8 @@ function finishRun(w: World) {
     summary = { ...summary, tier: Math.min(summary.tier ?? 1, hero.maxTier) };
   }
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
+  // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
+  rewards.seenNew = recordSeen(hero, metIn(w));
   save();
   hub.render();
   // P3: a beaten key goes on the dungeon's leaderboard (solo key runs only).
@@ -295,11 +311,15 @@ function startRun(bounty = false, key = false): void {
 game.events.once(Phaser.Core.Events.READY, () => {
   game.scene.add('game', GameScene, false);
   if (stress) startRun();
+  // HD-2D look test: fetch the 3D file quietly once the title is up, so Delve waits less.
+  prefetchHd2d();
 });
 
 el('startBtn').addEventListener('click', () => {
   stress = params.has('stress');
   hud.showPerf = stress || params.has('debug');
+  // HD-2D look test: the 3D file loads the first time you press Delve (a short loading screen), never before.
+  if (hd2dWanted() && !hd2dMounted()) { void loadHd2d(DUNGEONS[hub.dungeon]?.name).then(() => startRun()); return; }
   startRun();
 });
 el('stressLink').addEventListener('click', (e) => {
@@ -344,6 +364,7 @@ el('menuBtn').addEventListener('click', () => {
   hud.hideRun();
   hub.render();
   el('title').hidden = false;
+  reloadForLook();
 });
 el('quitBtn').addEventListener('click', () => {
   if (coop?.role === 'host') coop.endRun();
@@ -355,6 +376,7 @@ el('quitBtn').addEventListener('click', () => {
   el('pause').hidden = true;
   hud.hideRun();
   el('title').hidden = false;
+  reloadForLook();
 });
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;

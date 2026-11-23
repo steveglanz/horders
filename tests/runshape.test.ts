@@ -86,10 +86,15 @@ describe('Phase 14 X4: this run\'s shape', () => {
     expect(evented).toBeGreaterThan(10);
   });
 
-  it('group dungeons roll no arena events, so they show no event chip', () => {
+  it('group dungeons (X3 part 2) and raids (Phase 15 Y2) roll arena events too, so their runs show event chips', () => {
+    let group = 0, raid = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const w = new World({ seed, dungeon: 'hammerdeep', tier: 4, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'L' }, { cls: 'emberwright', name: 'E' }] });
-      expect(runShape(w).some((c) => c.kind === 'event')).toBe(false);
+      if (runShape(w).some((c) => c.kind === 'event')) group++;
+      const r = new World({ seed, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'L' }, { cls: 'emberwright', name: 'E' }, { cls: 'duskblade', name: 'D' }] });
+      if (runShape(r).some((c) => c.kind === 'event')) raid++;
     }
+    expect(group).toBeGreaterThan(5);
+    expect(raid).toBeGreaterThan(5);
   });
 });
