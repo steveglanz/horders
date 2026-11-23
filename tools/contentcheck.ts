@@ -144,6 +144,16 @@ for (const seed of x8Seeds) for (const skill of [1, 0.5]) {
   // Phase 14 X1: every solo dungeon under each of its Heats (the Kiln's are the kiln heat cases above).
   for (const d of X8_SOLO) if (d.dungeon !== 'kiln') for (const heat of HEAT_POOLS[d.dungeon] ?? [])
     cases.push({ label: `heat ${heat} ${d.dungeon}`, skill, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: d.dungeon, tier: d.tier, omens: [], heat } });
+  // Group dungeons' events (#494): a full party, a duo, and a guest who drops once the event has landed.
+  const X8_GROUP: { dungeon: DungeonId; tier: number }[] = [{ dungeon: 'hammerdeep', tier: 6 }, { dungeon: 'ashvents', tier: 7 }, { dungeon: 'pressworks', tier: 10 }];
+  for (const d of X8_GROUP) for (const ev of ARENA_EVENT_POOLS[d.dungeon] ?? []) {
+    const setup = () => { resetForces(); ARENA_EVENTS.force = ev as ArenaEventId; };
+    const grp = (label: string, rest: ClassId[], dropWhen?: (w: World) => number) =>
+      cases.push({ label: `arena ${ev} ${d.dungeon} ${label}`, skill, setup, dropWhen, opts: { seed, ...main('bulwark'), dungeon: d.dungeon, tier: d.tier, omens: [], party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+    grp('four', ['lumen', 'duskblade', 'emberwright']);
+    grp('duo', ['lumen']);
+    grp('drop after it lands', ['lumen', 'duskblade', 'emberwright'], (w) => (w.phase === 'fight' && w.arenaEventStage >= 2 ? 3 : -1));
+  }
   for (const d of X8_SOLO) for (const ev of ARENA_EVENT_POOLS[d.dungeon] ?? []) for (const cls of CLASSES)
     cases.push({ label: `arena ${ev} ${d.dungeon} ${cls}`, skill, setup: () => { resetForces(); ARENA_EVENTS.force = ev as ArenaEventId; }, opts: { seed, ...main(cls), dungeon: d.dungeon, tier: d.tier, omens: [] } });
 }
