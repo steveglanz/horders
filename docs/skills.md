@@ -41,7 +41,7 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
 - **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1, fading with the rest of the aid (`BLADE_GUARD` x the aid), and not at all from tier 4. #618 briefly kept it at 70% through tiers 2 and 3 from laggedBot numbers; that is undone (see the reactBot table below).
 - **Duskblade Sidestep:** heals up to 3% of max health.
-- **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
+- **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron). Shield Block used to cover every big foe within 75° of the last sweep too; that was dropped on 23 Nov, since under reactBot (`REACT=0.3 SKILL=0.5`, Kiln, ungeared, seeds 1-80) it was worth nothing: 79 vs 78 of 80 at t3.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
 - **Duskblade Grit Guard (tier 4 on):** where Blade Guard ends, each Grit stack (a loss in a row on that tier) gives 20% Blade Guard, up to 3 stacks, so 60% (`GRIT_GUARD`, cap 70%). A win clears Grit, so a player who keeps winning never has it, and a skilled first try is untouched. In QA's career sim (`tools/pt/career.ts`, `LAG=0.5 SKILL=0.3`, 10 careers of 25 runs, 190 tier-4 runs) the Duskblade went from 0 to 26 tier-4 wins, its worst losing streak from 21 to 13, and every career now beats tier 4 (first win on run 10 to 21). The Bulwark got nothing: on the same sim it already wins 37 of 150 tier-4 runs, every career breaks through, and its worst streak is 11 (23 Nov).
 
@@ -58,6 +58,16 @@ Blade Guard at tiers 2 and 3 with the reaction-time novice (`REACT=0.3 SKILL=0.5
 | 3 | 42 | 48 | 64 | 32 | 79 |
 
 #618 kept Blade Guard at 70% through tiers 2 and 3 because the old novice proxy (`LAG=0.3`, laggedBot) had the Duskblade at 0 of 80 there. That proxy rocks melee heroes into contact (docs/design/variety.md, the lagged-bot section). With reactBot, the fading Blade Guard already puts the Duskblade above the Emberwright, so it is back to fading. The rest of this melee aid was also set from laggedBot numbers and is for skills to re-check with reactBot. So is the Emberwright, which is now the weakest novice at tier 3.
+
+Novice aid under reactBot (`REACT=0.3 SKILL=0.5`, Kiln, ungeared, seeds 1-80, after #644), wins out of 80 at t1 / t2 / t3, with one piece switched off:
+
+| Class | All aid | No Sidestep heal | No Steady Breath | No Blade Guard | No Anvil Skin heal | No wide Shield Block | No aid |
+|---|---|---|---|---|---|---|---|
+| Duskblade | 79 / 77 / 48 | 80 / 75 / 46 | 80 / 75 / 42 | 80 / 74 / 42 | - | - | 76 / 68 / 36 |
+| Bulwark | 80 / 78 / 79 | - | 79 / 78 / 75 | - | 80 / 78 / 72 | 80 / 78 / 78 | 80 / 77 / 65 |
+| Slagbinder | 79 / 75 / 61 | - | 78 / 75 / 59 | - | - | - | - |
+
+No aid of their own: Emberwright 63 / 55 / 32, Lumen 78 / 74 / 78. The Emberwright's t3 losses were mostly the Kiln Mother's aimed cone, because the bot stepped out of cones at 0.2 when ranged (0.6 melee), scaled by skill. The bot's sideways step out of a cone is no longer scaled by skill (reactBot already models noticing it late), so nothing changes at skill 1. At novice settings, t3 goes 32 to 42 for the Emberwright, 48 to 60 for the Duskblade and 78 to 73 for the Lumen. A flat 0.6 step for ranged heroes was tried first and dropped: at full skill it took the Kiln t8 Emberwright (hero-t8-0, seeds 41-200) from 92 to 69 of 160. Under reactBot almost every melee class and the Lumen win 77-80 at Kiln t1 at any REACT 0.3-0.7 / SKILL 0.3-0.5, so no reactBot setting reproduces the old 40-65% novice band (design dropped it in #645). The rest of the aid stays as it is until real player data comes in.
 
 ## Co-op threat hooks
 

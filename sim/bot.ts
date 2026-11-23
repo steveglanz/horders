@@ -1102,10 +1102,13 @@ export function botInput(w: World, skill = 1): Input {
         fx += Math.cos(a) * 0.8 * skill;
         fy += Math.sin(a) * 0.8 * skill;
       } else if (t.shape === 'cone') {
-        // A long cone can't be outrun: step sideways out of it instead.
+        // A long cone can't be outrun: step sideways out of it instead. Once a hero has seen a cone (reactBot models
+        // noticing it late), it steps out as hard as a skilled one: scaling the step by skill too left a skill-0.5
+        // Emberwright barely moving, and the Kiln Mother's aimed cone was most of its novice t3 losses (skills,
+        // 23 Nov). At skill 1 nothing changes.
         const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
-        fx += -Math.sin(t.angle) * side * k * skill;
-        fy += Math.cos(t.angle) * side * k * skill;
+        fx += -Math.sin(t.angle) * side * k;
+        fy += Math.cos(t.angle) * side * k;
       } else {
         let ux = dx / d;
         let uy = dy / d;
