@@ -1555,6 +1555,25 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
     ...[0.15, 0.55, 0.95, 1.35, 1.7].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.035, delay: d, vol: 0.24 + k * 0.03, lp: 5000, hp: 1400, curve: 3 }]),
   ),
+  /** Phase 15 Y3: the Colossus's Millstone (his third phase-2 version). The 2 s cast: a great stone wheel straining to
+   *  start, slow heavy knocks speeding up, and a low horn that says get to his back. */
+  millWarn: join(
+    [{ wave: 'saw', f: 52, f2: 78, dur: 1.8, vol: 0.22, a: 0.3, lp: 700, lp2: 1500, trem: [4, 0.6], curve: 0.8 },
+     { wave: 'noise', f: 0, dur: 1.8, vol: 0.3, a: 0.35, lp: 900, lp2: 2600, hp: 350, trem: [4, 0.7], curve: 0.8 }],
+    ...[0.1, 0.55, 0.9, 1.18, 1.4, 1.58].map((d, k) => clang(note(-17 + k), 0.16 + k * 0.02, 0.25).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    horn(note(-10), 0.7, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.9 })),
+  ),
+  /** He starts to grind: the wheel lurches round with a heavy stone thud. */
+  millStart: join(boom(60, 0.4, 0.4), clang(130, 0.2, 0.5), [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.2, a: 0.02, lp: 2500, lp2: 800, hp: 300, curve: 1.4 }]),
+  /** The grind itself, every half second while he turns (as often as the slag ticks): stone on stone with a pour of slag
+   *  hissing off his front. Panned to where his front faces on screen, so it sweeps round with him. */
+  millGrind: [
+    { wave: 'noise', f: 0, dur: 0.55, vol: 0.24, a: 0.06, lp: 1400, lp2: 900, hp: 250, curve: 1.0, trem: [18, 0.6] },
+    { wave: 'saw', f: 58, f2: 54, dur: 0.55, vol: 0.12, a: 0.06, lp: 600, curve: 1.0, trem: [18, 0.5] },
+    { wave: 'noise', f: 0, dur: 0.4, delay: 0.05, vol: 0.12, a: 0.05, lp: 9000, hp: 2500, curve: 1.3 },
+  ],
+  /** The grind stops: the wheel settles with a last knock and a falling scrape. */
+  millEnd: join(clang(110, 0.22, 0.6), [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.16, a: 0.03, lp: 2000, lp2: 500, hp: 250, curve: 1.3 }]),
   /** Wheel picked you: he is facing you now and the Sweep is coming. Two stone knocks and a hard rising ping. */
   wheelOnMe: join(
     clang(note(-5), 0.3, 0.3), clang(note(-5), 0.32, 0.3).map((v) => ({ ...v, delay: 0.14 })),
@@ -1717,6 +1736,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
   inhaleWarn: 5.5, inhaleDraw: 3.0, inhaleEnd: 4.0, // Y3 Inhale: warning 6.9 dB and in-breath (priority) 7.9 dB over the Hoard raid mix (busycheck t8 heroes, SEEDS=1-6, n=51); the all-clear a quieter exhale
   overflowWarn: 4.1, overflowRise: 2.4, overflowEbb: 2.0, // Y3 the Overflow: warn 6.5 dB and rise 7.1 dB over the Crucible raid mix (busycheck t8 heroes, SEEDS=1-6, n=37); the ebb a quieter all-clear
   punchLineWarn: 3.5, punchHit: 1.5, // Y3 Punch Line: the wind-up level with dieCutWarn, each punch level with slam

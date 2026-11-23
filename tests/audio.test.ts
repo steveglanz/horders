@@ -6,7 +6,7 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, EDGE_SPOTS, edgeSpotAt, HD2D_ROOM_R, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, millCue, EDGE, EDGE_SOUNDS, EDGE_SPOTS, edgeSpotAt, HD2D_ROOM_R, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -1210,6 +1210,41 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.inhaleWarn)).toBeLessThan(INHALE.warn);
     expect(recipeLength(SOUNDS.inhaleDraw)).toBeLessThan(INHALE.time);
   });
+
+  it('warns of the Colossus\'s Millstone, grinds every slag tick panned round with his front, and settles at the end (Phase 15 Y3)', () => {
+    const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'mill';
+    const c = { cls: 'duskblade' as const, acting: 0, dungeon: 'smeltery', boss: 'colossus' as const };
+    const heard: string[] = [];
+    const pans: number[] = [];
+    let grinds = 0, lastGrind = -1;
+    while (w.state !== 'ended' && w.time < 900 && !heard.includes('end:millEnd')) {
+      if (w.state === 'draft') {
+        const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
+        w.use(h); const pick = botChoose(w); w.use(0); w.choose(pick, h);
+        continue;
+      }
+      const inputs = w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; });
+      w.step(inputs);
+      for (const ev of w.events) {
+        if ((ev.type === 'castStart' || ev.type === 'castDone') && ev.id === 'millstone') heard.push(`${ev.type}:${cueFor(ev, c)?.id ?? '-'}`);
+        if (ev.type === 'millstone') heard.push(`${ev.stage}:${cueFor(ev, c)?.id}`);
+      }
+      // The grind: only while he turns, panned by where his front faces from the hero (world x, as in 2D).
+      const g = millCue({ colossus: colossusCue(w), listen: { x: w.player.x, half: 280 } });
+      expect(!!g).toBe(w.millT > 0);
+      if (g && w.time - lastGrind >= THROTTLE.millGrind!) { grinds++; lastGrind = w.time; pans.push(g.pan ?? 0); }
+    }
+    expect(heard.slice(0, 4)).toEqual(['castStart:millWarn', 'start:millStart', 'castDone:-', 'end:millEnd']);
+    expect(PRIORITY.has('millWarn')).toBe(true);
+    for (const id of ['millStart', 'millGrind', 'millEnd'] as const) expect(PRIORITY.has(id), id).toBe(false);
+    // One grind per slag tick over the 6 s turn, and a turn of about 5 radians swings it from one side to the other.
+    expect(grinds).toBeGreaterThanOrEqual(11);
+    expect(Math.min(...pans)).toBeLessThan(-0.1);
+    expect(Math.max(...pans)).toBeGreaterThan(0.1);
+    expect(recipeLength(SOUNDS.millWarn)).toBeLessThan(2);
+    expect(THROTTLE.millGrind!).toBeLessThan(0.5);
+  }, 60000);
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
     type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
