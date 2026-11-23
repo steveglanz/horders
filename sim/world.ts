@@ -8450,6 +8450,11 @@ export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
  * has radius `r` + `grow` x n (55 at his feet to 85 at the far end), so melee under him lose less uptime than heroes standing off.
  */
 export const PUNCH = { every: 7, rows: 3, n: 6, r: 55, grow: 6, gap: 90, first: 1.4, step: 0.25, damage: 35 };
+/** True for a Punch Line punch's radius (PUNCH.r + PUNCH.grow * n, for n below PUNCH.n): its sound keys on the slam's size. */
+export const isPunchR = (r: number): boolean => {
+  for (let n = 0; n < PUNCH.n; n++) if (r === PUNCH.r + PUNCH.grow * n) return true;
+  return false;
+};
 /** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
 export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
 /** Phase 12 W2 and Phase 15 Y3: Ysmeret's versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. `roll`: Rolling Vents, one at a time round her. */

@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, PUNCH, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -178,7 +178,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   ironload: { start: 'ironloadWarn', done: 'ironloadMark' }, // Ironload
   // Oskel's Die Cut version: half the floor is stamped after a 2.4 s fuse; it lands as a slam of r DIECUT_R.
   dieCut: { start: 'dieCutWarn' }, // Die Cut
-  punchLine: { start: 'punchLineWarn' }, // Punch Line (Y3): three rows of punches march out from Oskel; each lands as a slam of r PUNCH.r
+  punchLine: { start: 'punchLineWarn' }, // Punch Line (Y3): three rows of punches march out from Oskel; each lands as a slam of r PUNCH.r + PUNCH.grow * n
   // Grandmother Slag's Brimming version: phase 2's pit fills and cooling islands rise in place of the Pour.
   brimming: { start: 'brimWarn' }, // The Brimming
   // Old Vorhulm's Banked Coals version (phase 3, in place of Ember Spill): three coals to smother before he eats them.
@@ -358,7 +358,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius) return { id: 'ironload' };
       // Die Cut's half-floor cone is the only slam the size of the whole arena twice over.
       if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
-      if (c.dungeon === 'pressworks' && ev.r === PUNCH.r) return { id: 'punchHit', jitter: 0.04 };
+      // Punch Line's nth punch out has radius PUNCH.r + PUNCH.grow * n (55 to 85); Rivets and the Downstroke are 60.
+      if (c.dungeon === 'pressworks' && isPunchR(ev.r)) return { id: 'punchHit', jitter: 0.04 };
       // Turning Fire's cones are the only Kiln telegraphs as long as KILN_TURN.reach (Kiln Draw's ring is KILN_DRAW.radius).
       if (c.dungeon === 'kiln' && ev.r === KILN_TURN.reach) return { id: 'turnCone' };
       return { id: 'slam' };
