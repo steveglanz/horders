@@ -9087,8 +9087,11 @@ export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
  * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
  */
 export const WHIRL = { spin: 0.6, inward: 0.5 };
-/** Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers. */
-export const HESSA_ECHO = { below: 0.25 };
+/**
+ * Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers.
+ * 0.5 (was 0.25, QA's expert report): all of phase 2, so a run sees it about twice, not once at the very end.
+ */
+export const HESSA_ECHO = { below: 0.5 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
