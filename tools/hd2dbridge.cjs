@@ -25,6 +25,9 @@ const CASES = [
   { name: 'brute-cast', dungeon: 'kiln', boss: 'brute', kind: 'cinderBrute', until: 'cast', tier: 1, hp: 0.9 },
   { name: 'lampeye-gaze', dungeon: 'glarewell', boss: 'lampeye', until: 'gaze', tier: 6, hp: 0.9 },
   { name: 'lampeye-look', dungeon: 'glarewell', boss: 'lampeye', until: 'look', tier: 6, hp: 0.9 },
+  { name: 'dimhorn-dark', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'dark', tier: 6, hp: 0.9 },
+  { name: 'dimhorn-call', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'call', tier: 6, hp: 0.9 },
+  { name: 'conch-call', dungeon: 'wrackline', boss: 'conch', kind: 'conchblower', until: 'conch', tier: 13, hp: 0.9 },
   { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
   { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
   { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
@@ -76,6 +79,21 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200
         : c.until === 'gaze' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.aux > 3.5 && !e.castId && w.lampeyeSees(e, w.player.x, w.player.y))
         : c.until === 'look' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.castId === 'searingLook' && e.castT > 0.3)
+        // The Dimhorn: forced, since an autopilot hero keeps it in the coal's light. Placed out in the dark beside you.
+        : c.until === 'dark' || c.until === 'call' ? (() => {
+          const i = w.enemies.findIndex((e) => e.alive && e.kind === 'dimhorn'); if (i < 0) return false;
+          const e = w.enemies[i]; e.x = e.px = w.player.x + 150; e.y = e.py = w.player.y - 90;
+          if (c.until === 'dark') { e.aux = 4.5; return true; }
+          if (!e.castId) w.startCast(i, 'darkCall', 'Dark Call', 2, false);
+          e.castT = Math.max(e.castT, 0.8);
+          return e.castId === 'darkCall';
+        })()
+        // The Conchblower: forced mid-call, since the autopilot Quenches it.
+        : c.until === 'conch' ? (() => {
+          const i = w.enemies.findIndex((e) => e.alive && e.kind === 'conchblower'); if (i < 0) return false;
+          const e = w.enemies[i]; e.x = e.px = w.player.x + 140; e.y = e.py = w.player.y - 70; if (!e.castId) w.startCast(i, 'conchCall', 'Conch Call', 1.8, true);
+          e.castT = Math.max(e.castT, 0.9); return e.castId === 'conchCall';
+        })()
         : c.until === 'cast' ? w.enemies.some((e) => e.alive && e.castId && e.castT / e.castDur > 0.45)
         : c.until === 'boss' ? true
         : w.nextVent >= 0;
