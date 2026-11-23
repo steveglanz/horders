@@ -1218,3 +1218,27 @@ Smeltery tier 10, heroes-r2 hero-t8-0, each version forced:
 - Without the bots getting clear (`NOMILL=1`) it wins 42 of 80.
 - **Name:** a search on 23 Nov found no WoW spell called "Millstone". It is a single plain word.
 - tests/audio.test.ts: the Smeltery fight test's seed 19 now rolls Millstone, so the test pins its Wheel run.
+- **Timing (QA on #575):** the Wheel's 16 s timer stops while he casts and grinds, so Millstones come about 29.5 s apart (median), against 25 s for the Wheel. The results above were measured that way.
+
+### Y3 the Furnace Regent: Tithe (built 23 Nov 2026)
+
+The Furnace Regent (the Flue, raid 4) had two phase-2 versions on Ash Fall's timer: Ash Fall (a circle under every hero, so spread out) and the Summons (come close to him). The third is **Tithe** (`tithe`, tuning in `TITHE`, sim/world.ts). Ash Fall spreads the party, and the Summons gathers it on him. Tithe gathers it somewhere else.
+
+- On Ash Fall's timer (REGENT.ashEvery 12 s), he demands a Tithe in place of the ash. A gold circle of `r` 80 lands `dist` 240 px from him on a random side (kept inside the arena), after `fuse` 4 s.
+- If at least `need` 2 heroes stand in it, they share the tithe: each takes `cost` 65% of max health, split between them. Four heroes take about 16% each, and two take about 33%. If fewer than 2 are in it, every hero pays `miss` 35%.
+- The Decrees go on as before, two at once in phase 2. A holder who joins the tithe scorches the others standing close.
+- New event `{type:'tithe', ok, n}` as the circle lands (plus the usual `soak`). The circle is a soak telegraph with owner -5, drawn like every gold circle, so it needs no new placeholder.
+- Bot: every hero runs into the gold circle, like any soak (`NOTITHE=1` makes them ignore it, for measuring).
+- Client: `TITHE_TIP`, a phase-2 banner, and `BOSS_VERSION_NAME.tithe`.
+
+Flue tier 11, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Ash Fall | Summons | Tithe |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 55 | 55 | 55 |
+| Half-skill bots, seeds 41 to 120 | 44 | 56 | 50 |
+| Anvil party, seeds 41 to 120 | 51 | 54 | 48 |
+
+- **Tuning steps** (base / half skill / Anvil): a 60% tithe won 59 / 58 / 53, and 65% (kept) 55 / 50 / 48. It is steep above that: 80% won 27 and 100% won 6.
+- Without the bots answering it (`NOTITHE=1`, measured at 60%) it won 0 of 80.
+- **Name:** "Tithe" turns up in WoW (a warcraft.wiki.gg page called Tithe, and a spell called "Scouring Tithe"). It is a single plain word, which Steve's rule allows (21 Nov).

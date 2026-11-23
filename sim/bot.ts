@@ -1001,6 +1001,8 @@ export function botInput(w: World, skill = 1): Input {
       if (d < t.r + 30) { fx += (dx / d) * 0.6 * skill; fy += (dy / d) * 0.6 * skill; }
       continue;
     }
+    // NOTITHE=1 (measuring only): nobody answers the Regent's Tithe.
+    if (t.kind === 'soak' && t.owner === -5 && process.env.NOTITHE === '1') continue;
     if (t.kind === 'soak') {
       // Co-op: only go to the circle this hero was given (so a pair of vents is split).
       if (vent && t !== vent) continue;

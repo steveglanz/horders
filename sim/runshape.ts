@@ -31,7 +31,7 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   pour: 'The Pour', brim: 'The Brimming', flow: 'The Overflow',
   spill: 'Ember Feast', bank: 'Banked Coals', inhale: 'Inhale',
   wheel: 'Wheel', shift: 'Plate Shift', mill: 'Millstone',
-  ash: 'Ash Fall', court: 'Summons',
+  ash: 'Ash Fall', court: 'Summons', tithe: 'Tithe',
 };
 
 /** Each floor's short chip word ("Floors: 2 stone, 1 vent" stays one line on a phone) and its tip line. */
