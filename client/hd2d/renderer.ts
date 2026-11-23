@@ -27,6 +27,7 @@ import { frames as artFrames, HERO, BOSS } from './art';
 import type { Hd2dAdapter, Hd2dView } from './api';
 import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
+import { SIM } from './simconsts';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
 const S = 1 / 70;
@@ -40,10 +41,9 @@ const BOSS_PX = 0.03;
 const VIEW = 560 * S;
 /** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
 const SELF_LIFT = 1.6;
-/** BALLAST.plantDelay (sim/world.ts): seconds in reach before the Ballast drops anchor. */
-const BALLAST_PLANT = 0.8;
-/** LAMPEYE.full (sim/world.ts): the Lampeye's gaze at which it starts its Searing Look. */
-const LAMPEYE_FULL = 6;
+const BALLAST_PLANT = SIM.ballastPlant;
+const LAMPEYE_FULL = SIM.lampeyeFull;
+const DIMHORN_CALL = SIM.dimhornCall;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
@@ -934,7 +934,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS };
   // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
   // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
   const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
@@ -982,6 +982,57 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const beamMat = new THREE.MeshBasicMaterial({ color: '#fff4c0', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const beam = new THREE.Mesh(eyeBeamGeo, beamMat); beam.renderOrder = 5; scene.add(beam);
     return { g, ball, iris, pupil, lid, hull, beam, irisMat, beamMat };
+  };
+  // Phase 16 U2, the Dimhorn (design #621): a long curled horn on its head. The horn frosts over and glows cold blue as
+  // its time in the dark (Enemy.aux) fills toward the Dark Call; through the call it tips up and blue rings of sound
+  // roll off its bell, so you know to bring your coal's light over it.
+  type HornS = { g: THREE.Group; mat: THREE.MeshStandardMaterial; rings: THREE.Mesh[]; ringMat: THREE.MeshBasicMaterial };
+  const hornCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.05, 0.28, 0), new THREE.Vector3(0.22, 0.5, 0), new THREE.Vector3(0.48, 0.58, 0), new THREE.Vector3(0.7, 0.5, 0)]);
+  const hornGeo = (() => {
+    const g = new THREE.TubeGeometry(hornCurve, 24, 1, 8, false);
+    // Taper: thick at the root, flaring again into a small bell at the tip.
+    const pos = g.attributes.position as THREE.BufferAttribute, n = pos.count, ring = 9;
+    for (let v = 0; v < n; v++) {
+      const seg = Math.floor(v / ring) / 24, c = hornCurve.getPointAt(seg); // TubeGeometry lays rings by arc length
+      const r = seg < 0.85 ? 0.09 * (1 - seg * 0.75) : 0.035 + (seg - 0.85) * 0.5;
+      const x = pos.getX(v) - c.x, y = pos.getY(v) - c.y, z = pos.getZ(v) - c.z, l = Math.hypot(x, y, z) || 1;
+      pos.setXYZ(v, c.x + (x / l) * r, c.y + (y / l) * r, c.z + (z / l) * r);
+    }
+    g.computeVertexNormals();
+    return g;
+  })();
+  const hornTip = hornCurve.getPointAt(1);
+  const hornRingGeo = new THREE.TorusGeometry(1, 0.06, 6, 28);
+  const makeHorn = (): HornS => {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: '#d8d0bc', roughness: 0.45, metalness: 0.05, emissive: new THREE.Color('#7aa8ff'), emissiveIntensity: 0 });
+    const m = new THREE.Mesh(hornGeo, mat); m.castShadow = !saver; g.add(m);
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#9ab8ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    const rings: THREE.Mesh[] = [];
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(hornRingGeo, ringMat.clone()); r.position.copy(hornTip); r.rotation.y = Math.PI / 2; g.add(r); rings.push(r); }
+    scene.add(g);
+    return { g, mat, rings, ringMat };
+  };
+  // Phase 16 U2, the Conchblower (design #623): a great spiral shell carried at its side. Through its Conch Call
+  // (Quenchable; it hastens the Ebb) it lifts the shell to its mouth, the shell glows sea green, rings of sound roll
+  // off the mouth and a ripple runs out over the floor around it.
+  type ConchS = { g: THREE.Group; shell: THREE.Group; mat: THREE.MeshStandardMaterial; rings: THREE.Mesh[]; ripple: THREE.Mesh; rippleMat: THREE.MeshBasicMaterial };
+  const conchStripes = (() => { const c = mk(64, 64), k = c.getContext('2d')!; k.fillStyle = '#f1d9c4'; k.fillRect(0, 0, 64, 64); k.fillStyle = '#c98a6a';
+    for (let y = 0; y < 64; y += 8) { k.save(); k.translate(0, y); k.transform(1, 0.35, 0, 1, 0, 0); k.fillRect(0, 0, 64, 3); k.restore(); } return canvasTex(c); })();
+  const makeConch = (): ConchS => {
+    const g = new THREE.Group(), shell = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ map: conchStripes, roughness: 0.4, metalness: 0.05, emissive: new THREE.Color('#40ffc8'), emissiveIntensity: 0 });
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 12, 1), mat); body.rotation.z = -Math.PI / 2; body.position.x = -0.1; shell.add(body);
+    const whorl = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.07, 8, 16), mat); whorl.position.x = 0.12; whorl.rotation.y = Math.PI / 2; shell.add(whorl);
+    for (let k = 0; k < 5; k++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 5), mat); const a = (k / 5) * Math.PI * 2; sp.position.set(0.02 - k * 0.06, Math.cos(a) * 0.17, Math.sin(a) * 0.17); sp.rotation.x = a; shell.add(sp); }
+    shell.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; });
+    g.add(shell);
+    const rings: THREE.Mesh[] = [];
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(hornRingGeo, new THREE.MeshBasicMaterial({ color: '#7dffd8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); r.rotation.x = -0.6; g.add(r); rings.push(r); } // facing the camera, not edge-on
+    scene.add(g);
+    const rippleMat = new THREE.MeshBasicMaterial({ color: '#7dffd8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const ripple = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48), rippleMat); ripple.rotation.x = -Math.PI / 2; scene.add(ripple);
+    return { g, shell, mat, rings, ripple, rippleMat };
   };
   // Phase 16 U2, the Ashwall: a real slab of cooled slag carried before it, glowing in its cracks, turned to Enemy.aux
   // (its shield facing). The front arc and the shelter wedge are 2D floor marks the bridge already carries.
@@ -1338,7 +1389,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1406,9 +1457,51 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.mesh.visible = false;
         foeHeads[i].h = ey + R * 1.1;
       } else if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; }
+      if (e.kind === 'dimhorn') {
+        if (!f.horn) f.horn = makeHorn();
+        const H = f.horn, calling = e.castId === 'darkCall', k = calling ? 1 : Math.min(1, e.aux / DIMHORN_CALL);
+        const side = flip > 0 ? 1 : -1, sc = 1.4 * rise;
+        H.g.visible = true;
+        H.g.position.set(f.mesh.position.x - side * wd * 0.12, FLOOR + ht * rise * 0.72, f.mesh.position.z + 0.02);
+        H.g.scale.set(side * sc, sc, sc);
+        H.g.rotation.set(0, 0, calling ? side * (0.5 + 0.06 * Math.sin(t * 18)) : side * 0.12 * k);
+        H.mat.emissiveIntensity = calling ? 1.6 + 0.6 * Math.sin(t * 14) : 0.15 + 1.1 * k * k;
+        H.mat.color.setRGB(0.85 - 0.25 * k, 0.82 - 0.12 * k, 0.74 + 0.2 * k);
+        H.rings.forEach((r, j) => {
+          const ph = calling ? ((t * 1.4 + j / 3) % 1) : 0;
+          r.visible = calling;
+          r.scale.setScalar(0.06 + ph * 0.32);
+          r.position.set(hornTip.x + ph * 0.4, hornTip.y + ph * 0.08, 0);
+          (r.material as THREE.MeshBasicMaterial).opacity = calling ? 0.8 * (1 - ph) : 0;
+        });
+      } else if (f.horn) f.horn.g.visible = false;
+      if (e.kind === 'conchblower') {
+        if (!f.conch) f.conch = makeConch();
+        const C = f.conch, calling = e.castId === 'conchCall';
+        const cf = calling ? Math.min(1, e.castT / Math.max(0.01, e.castDur)) : 0, lift = calling ? Math.min(1, cf * 4) : 0;
+        const side = flip > 0 ? 1 : -1, sc = 0.75 * rise;
+        C.g.visible = true;
+        // At rest under its arm at hip height; through the call raised to its mouth, mouth pointing out to the side.
+        C.g.position.set(f.mesh.position.x + side * wd * (0.6 - 0.1 * lift), FLOOR + ht * rise * (0.38 + 0.4 * lift), f.mesh.position.z + 0.05);
+        C.g.scale.set(side * sc, sc, sc);
+        C.shell.rotation.set(Math.sin(t * 2 + i) * 0.1 * (1 - lift), 0, 0.25 * lift + (calling ? 0.04 * Math.sin(t * 20) : 0));
+        C.mat.emissiveIntensity = calling ? 0.25 + 0.5 * cf + 0.15 * Math.sin(t * 16) : 0;
+        C.rings.forEach((r, j) => {
+          const ph = (t * 1.6 + j / 3) % 1;
+          r.visible = calling && lift > 0.9;
+          r.position.set(0.25 + ph * 0.6, 0.06 * ph, 0); r.scale.setScalar(0.1 + ph * 0.5);
+          (r.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - ph);
+        });
+        C.ripple.visible = calling;
+        if (calling) {
+          const ph = (t * 0.9) % 1;
+          C.ripple.position.set(x, FLOOR + 0.035, z); C.ripple.scale.setScalar(e.def.radius * S * (1.5 + ph * 4));
+          C.rippleMat.opacity = 0.55 * (1 - ph);
+        }
+      } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
