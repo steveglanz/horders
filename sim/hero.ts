@@ -99,6 +99,8 @@ export interface HeroProfile {
   /** P6: what the account has done (shared by every class), and the achievements already paid. */
   deeds?: Deeds;
   achieved?: string[];
+  /** Phase 15 Y4: the Seen log (sim/seen.ts), `dungeon:kind:id` keys, shared by every class. */
+  seen?: string[];
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -281,6 +283,8 @@ export interface RunRewards {
   seasonFeatured?: boolean;
   /** P6: achievements this run completed (each pays its title and embers once). */
   achievements?: Achievement[];
+  /** Phase 15 Y4: Seen log keys this run met for the first time (set by the client from sim/seen.ts). */
+  seenNew?: string[];
 }
 
 /** One random item for a mid-run drop, at least `minRarity`. */

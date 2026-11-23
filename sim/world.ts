@@ -866,6 +866,10 @@ export class World {
   arenaEvent: ArenaEventId | '' = '';
   arenaEventT = 0;
   arenaEventStage = 0;
+  /** Phase 15 Y4 (Seen log): each arena event this delve has warned of, one bit per id in ARENA_EVENT_ORDER. Read-only to the sim. */
+  arenaEventsMet = 0;
+  /** Phase 15 Y4: the named foe's affix index once it has spawned this delve (-1 before), for the Seen log. */
+  namedMet = -1;
   /** Maelra's steam vents (empty in other fights). */
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
@@ -1703,6 +1707,7 @@ export class World {
     const e = this.enemies[elite];
     e.named = this.namedTitle;
     e.affix = this.namedAffix;
+    this.namedMet = this.namedAffix;
     e.maxHp *= NAMED.hp;
     e.hp = e.maxHp;
     if (AFFIXES[e.affix] === 'Warded') {
@@ -2332,6 +2337,7 @@ export class World {
     const A = ARENA_EVENTS;
     if (this.arenaEventStage === 0) {
       this.arenaEventStage = 1;
+      this.arenaEventsMet |= 1 << ARENA_EVENT_ORDER.indexOf(ev);
       this.events.push({ type: 'arenaEvent', id: ev, stage: 'warn' });
       if (ev === 'caveIn') {
         for (const c of this.caveInSpots()) this.addTelegraph('circle', c.x, c.y, A.caveRadius + PLAYER_RADIUS, 0, 0, A.caveWarn, A.caveDamage); // scaled by tier as it lands
@@ -7562,6 +7568,8 @@ export const ARENA_EVENTS = {
   snapWarn: 2.5, snapCut: 0.2,
   force: '' as string, off: false,
 };
+/** Phase 15 Y4: a fixed order of the events, for World.arenaEventsMet's bits. Add new ids at the end. */
+export const ARENA_EVENT_ORDER: ArenaEventId[] = ['caveIn', 'ventSurge', 'coldSnap', 'highWater'];
 /** Phase 14 X3: each event's name and warning line, for its banner. */
 export const ARENA_EVENT_INFO: Record<ArenaEventId, { name: string; tip: string }> = {
   caveIn: { name: 'Cave-in', tip: 'Rock is falling. Get out from under the shadows.' },
