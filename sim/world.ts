@@ -8350,6 +8350,7 @@ export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
  */
 export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
 /** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, three rows marching out from him. */
+/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, two rows marching out from him. */
 export type OskelVariant = 'rivets' | 'cut' | 'punch';
 export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
 /**
