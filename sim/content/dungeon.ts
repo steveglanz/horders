@@ -122,6 +122,7 @@ export const COURT_TIP = 'Its Decree burns whoever holds it: walk it to an ally 
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
 export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';
 /** Phase 15 Y3: the Kiln Mother's intro when this run's version pours Turning Fire from phase 2. */
+export const SEALED_VENTS_TIP = 'Kite her over the steam vents to boil off her Temper. Later only one vent steams: drag her to it, and watch for the steam to move.';
 export const TURNING_FIRE_TIP = 'Quench her Cataclysm at first. Later she pours fire round herself, cone after cone: step back against the turn.';
 
 

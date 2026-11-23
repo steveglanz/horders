@@ -580,6 +580,8 @@ export type SimEvent =
   | { type: 'emberPick'; x: number; y: number; hero: number }
   /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
   | { type: 'tideTurn'; angle: number }
+  /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
+  | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -856,6 +858,11 @@ export class World {
   tideAngle = 0;
   private sluiceT = 0;
   private tideTurns = 0;
+  /** Y3 Sealed Vents: the one open vent (-1 before it starts), the vent the steam moves to next (-1 until warned), and its clock. */
+  openVent = -1;
+  nextVent = -1;
+  private sealT = 0;
+  private sealMoves = 0;
   /** V4: the Day's Heat on this run, or '' for none. */
   heat: HeatId | '' = '';
   /** Standing stones: they block heroes and foes alike. */
@@ -2246,6 +2253,20 @@ export class World {
   }
 
   /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  /** Y3 Sealed Vents: the next open vent, never `not`, from the seed; the one under Maelra is skipped when another is free. */
+  private pickVent(not: number, e: Enemy): number {
+    const n = this.vents.length;
+    let h = Math.imul(this.seed ^ 0x2c1b3c6d, 0x9e3779b1) + Math.imul(++this.sealMoves, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0xc2b2ae35) >>> 0;
+    const free: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const v = this.vents[k];
+      if (k !== not && dist2(e.x, e.y, v.x, v.y) > (v.r + e.def.radius) ** 2) free.push(k);
+    }
+    if (!free.length) for (let k = 0; k < n; k++) if (k !== not) free.push(k);
+    return free[h % free.length];
+  }
+
   private rollMaelraVariant(): MaelraVariant {
     if (this.stress) return 'water';
     let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
@@ -7040,11 +7061,33 @@ export class World {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
+    // Y3 Sealed Vents: one vent open at a time, the steam moving round.
+    const sealed = phase >= 2 && this.bossVariant === 'seal' && this.vents.length > 1;
+    if (sealed) {
+      if (this.openVent < 0) {
+        this.openVent = this.pickVent(-1, e);
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+      this.sealT -= dt;
+      if (this.nextVent < 0 && this.sealT <= MAELRA_SEAL.warn) {
+        this.nextVent = this.pickVent(this.openVent, e);
+        this.events.push({ type: 'ventShift', stage: 'warn', vent: this.nextVent });
+      }
+      if (this.sealT <= 0) {
+        this.openVent = this.nextVent >= 0 ? this.nextVent : this.pickVent(this.openVent, e);
+        this.nextVent = -1;
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+    }
     if (this.temper > 0) {
-      for (const v of this.vents) {
+      for (let vi = 0; vi < this.vents.length; vi++) {
+        const v = this.vents[vi];
+        if (sealed && vi !== this.openVent) continue;
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * (sealed ? MAELRA_SEAL.healMult : 1) * this.temper);
           if (heal > 0) {
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
@@ -7895,10 +7938,15 @@ export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint'];
 export const GLINTFALL = { cast: 1.8, radius: 80, damage: 24 };
 
 /** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
-export type MaelraVariant = 'water' | 'tide';
-export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide'];
+export type MaelraVariant = 'water' | 'tide' | 'seal';
+export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+/**
+ * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
+ * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
+ */
+export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,

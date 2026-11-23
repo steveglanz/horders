@@ -1072,6 +1072,8 @@ export function botInput(w: World, skill = 1): Input {
       const d = Math.hypot(v.x - b.x, v.y - b.y) + Math.hypot(v.x - p.x, v.y - p.y);
       if (d < bd) { bd = d; best = v; }
     }
+    // Y3 Sealed Vents: only the open vent works.
+    if (w.openVent >= 0 && w.bossVariant === 'seal' && w.vents[w.openVent]) best = w.vents[w.openVent];
     const vx = best.x - b.x;
     const vy = best.y - b.y;
     const vd = Math.hypot(vx, vy) || 1;
