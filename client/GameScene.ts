@@ -5274,7 +5274,7 @@ export class GameScene extends Phaser.Scene {
 
   private wanderDraw(now: number): void {
     const w = this.world;
-    const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const e = w.dungeonId === 'ashvents' && w.ventMove === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     const vents = e?.alive && e.kind === 'ysmeret' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2) : [];
     if (!vents.length) { this.wanderGfx?.clear(); return; }
     if (!this.wanderGfx) this.wanderGfx = this.add.graphics().setDepth(1.9);

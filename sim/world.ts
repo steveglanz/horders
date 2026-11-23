@@ -867,6 +867,8 @@ export class World {
   echoNext = false;
   /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
   echoLive = false;
+  /** Phase 16 U1: the way Ysmeret's current vents run (her version, or her echo's). */
+  ventMove: string = '';
   echoT = 0;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
@@ -2113,6 +2115,8 @@ export class World {
           this.rollLeft = 0;
           this.rollDir = -1;
           this.bossVariant = this.rollYsmeretVariant();
+          this.bossEcho = this.rollEcho(YSMERET_VARIANTS, this.bossVariant);
+          this.echoNext = true; this.ventMove = this.bossVariant;
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
           this.events.push({ type: 'bossSpawn' });
@@ -2124,6 +2128,8 @@ export class World {
           this.rivetT = OSKEL.firstRivets;
           this.stampT = OSKEL.firstStamp;
           this.bossVariant = this.rollOskelVariant();
+          this.bossEcho = this.rollEcho(OSKEL_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.cutCount = 0;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -6520,7 +6526,13 @@ export class World {
       this.twinVentT = late ? YSMERET.ventEnraged : YSMERET.ventEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
-      const roll = this.bossVariant === 'roll';
+      // Phase 16 U1: from `GROUP_ECHO.below` health, every other set of vents is her echo's (the first one is).
+      this.ventMove = this.bossVariant;
+      if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+        if (this.echoNext) { this.ventMove = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      const roll = this.ventMove === 'roll';
       if (roll) {
         // Rolling Vents: only the first opens now; the rest follow round her (below).
         this.rollLeft = ROLLING.count - 1;
@@ -6535,7 +6547,7 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.ventMove === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
     } else if (!ventsOpen && this.rollLeft > 0) {
       // Rolling Vents: as one closes, the next opens further round her.
       this.rollLeft--;
@@ -6544,7 +6556,7 @@ export class World {
       this.clampArena(c, YSMERET.ventRadius + 10);
       this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, ROLLING.fuse, YSMERET.ventBlast, 'soak', -2);
       this.events.push({ type: 'ventRoll', x: c.x, y: c.y, left: this.rollLeft });
-    } else if (ventsOpen && this.bossVariant === 'wander') {
+    } else if (ventsOpen && this.ventMove === 'wander') {
       // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
       const turn = (WANDER.speed / YSMERET.ventDist) * dt;
       for (const t of this.telegraphs) {
@@ -6561,7 +6573,7 @@ export class World {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
-    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.bossVariant === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
+    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.ventMove === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
       this.scatterT = YSMERET.scatterEvery;
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
     }
@@ -6601,7 +6613,13 @@ export class World {
       this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
       this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
     }
-    if (this.rivetT <= 0 && this.bossVariant === 'cut') {
+    // Phase 16 U1: from `GROUP_ECHO.below` health, every other one on this timer is his echo's (the first one is).
+    let move: string = this.bossVariant;
+    if (this.rivetT <= 0 && this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+      if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+      this.echoNext = !this.echoNext;
+    }
+    if (this.rivetT <= 0 && move === 'cut') {
       // Die Cut: half the floor, split through Oskel. Away from an open plate, so its taker is safe;
       // otherwise the side turns a quarter each time.
       this.rivetT = DIECUT.every;
@@ -6610,7 +6628,7 @@ export class World {
       this.cutCount++;
       this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
-    } else if (this.rivetT <= 0 && this.bossVariant === 'punch') {
+    } else if (this.rivetT <= 0 && move === 'punch') {
       // Punch Line: marching rows of punches out from Oskel.
       this.rivetT = PUNCH.every;
       const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
