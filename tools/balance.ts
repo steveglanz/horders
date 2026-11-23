@@ -10,6 +10,8 @@ if (process.env.FD_HP) FIRST_DELVE.hp = Number(process.env.FD_HP);
 if (process.env.FD_DMG) FIRST_DELVE.dmg = Number(process.env.FD_DMG);
 
 // ROUTE=pack,brute,kilnMother fixes the fights. REACT=seconds gives the bot a reaction time (a novice proxy; see reactBot).
+// FORGET=0.1 STEPERR=0.35 add reactBot's execution mistakes (BotMistakes): a chance to never notice a telegraph or
+// cast, and steps off by up to that many radians.
 // LAG=seconds is the old delayed-input proxy (laggedBot), which overstates melee and group difficulty; kept to compare.
 const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
 const react = Number(process.env.REACT ?? 0);
@@ -28,7 +30,7 @@ let wins = 0;
 let hpLeft = 0;
 for (const seed of seeds) {
   const w = new World({ heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined });
-  const drive = react ? reactBot(react, skill) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
+  const drive = react ? reactBot(react, skill, { forget: Number(process.env.FORGET ?? 0), stepErr: Number(process.env.STEPERR ?? 0), salt: seed }) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);
   let bossAt = 0;
