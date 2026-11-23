@@ -3363,7 +3363,7 @@ export class GameScene extends Phaser.Scene {
    */
   private homeDraw(now: number): void {
     const w = this.world;
-    const st = w.bossVariant === 'home' ? w.homeStage : 0;
+    const st = w.bossVariant === 'home' || w.bossEcho === 'home' ? w.homeStage : 0;
     const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     if (!st || !b) {
       if (this.homeLast === 2 && b?.alive) this.emit(this.fx, 'ring', undefined, b.x, b.y - 20, 0.3, { tint: 0xffd08a, sx0: 0.6, sx1: 0.2 });

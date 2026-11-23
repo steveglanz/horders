@@ -1998,6 +1998,8 @@ export class World {
           this.homeStage = 0;
           this.homeT = 0;
           this.bossVariant = this.rollOndrelVariant();
+          this.bossEcho = this.rollEcho(ONDREL_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
@@ -7360,8 +7362,14 @@ export class World {
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
-        if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
-        else if (this.bossVariant === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
+        // Phase 16 U1: from `GROUP_ECHO.below` health, every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else if (move === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
         else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
       }
     }
@@ -8680,6 +8688,8 @@ export const WANDER = { speed: 70 };
 /** Phase 12 W2 and Phase 15 Y3: Ondrel's versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. `home`: the Homeward Hammer, thrown out and flying back. */
 export type OndrelVariant = 'choir' | 'load' | 'home';
 export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
+/** Phase 16 U1: the group bosses have one phase, so their echo starts at `below` health: every other signature is the echo's, the first one first. */
+export const GROUP_ECHO = { below: 0.25 };
 /**
  * Phase 15 Y3 the Homeward Hammer, on the Choir's timer: he throws his hammer at the hero farthest from him. It lands
  * in a circle (`radius`, after `fall` s), then flies straight back to his hand along a line `width` px either side

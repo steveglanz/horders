@@ -73,6 +73,7 @@ for (const seed of seeds) {
       if (ev.type === 'dodge') bump('dodge');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
       if (ev.type === 'stir') bump('stir:' + ev.id);
+      if (ev.type === 'echo') bump('echo:' + ev.id);
       if (ev.type === 'encounterClear' && ev.index > 0) fightHurts.push(w.fightHurt);
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'phase') bump('phase' + ev.phase);
