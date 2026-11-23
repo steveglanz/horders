@@ -3,7 +3,7 @@
  * chime for each thing the run unlocked, in the order the end screen lists them:
  * an achievement gets the big one, a new season-track level its own sting, a
  * Delver's Key move a key turning (up, fast or down), an in-season win (the season's own dungeon) a spark chime, and a
- * title or a season, collection or weekly reward a smaller one. Achievements come
+ * title or a season, collection or weekly reward a smaller one, and anything new in the Seen log a page turning. Achievements come
  * first, so a cap of three never drops one. Pure, so it can be tested.
  */
 import type { RunRewards } from '../../sim/hero';
@@ -44,6 +44,8 @@ export function rewardCues(r: RunRewards | undefined): TimedCue[] {
     ...(r.seasonRewards ?? []).map(() => 'unlock' as const),
     ...(r.collectionRewards ?? []).map(() => 'unlock' as const),
     ...(r.weeklyDone ?? []).map(() => 'unlock' as const),
+    // Phase 15 Y4: one chime however much is new in the Seen log (the end screen stars each chip).
+    ...(r.seenNew?.length ? ['seenNew' as const] : []),
   ];
   return ids.slice(0, MAX).map((id, k) => ({ id, at: FIRST + k * GAP }));
 }

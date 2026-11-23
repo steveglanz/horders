@@ -2144,6 +2144,10 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
+    // Y9: on a phone the view is narrow, so foes coming in from the sides or behind (or hidden under the boss panel)
+    // get a small red chevron at the edge of the clear view: one per direction, a little bigger for a crowd, with a
+    // gold rim when an elite or the boss is among them. Desktop views see the arena, so they stay clean.
+    if (this.hud.compact && w.phase === 'fight') this.foeEdgeMarks(b, now);
     // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
     // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
     if (w.dungeonId === 'pressworks') {
@@ -3123,6 +3127,78 @@ export class GameScene extends Phaser.Scene {
    * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
    * panels. Edge arrows test against it and sit on its edge, so a gold circle under the boss panel still gets one.
    */
+  private barCover: { at: number; r?: { left: number; top: number }; party?: { right: number; top: number; bottom: number } } = { at: -1 };
+  /** Y9: edge chevrons for foes off screen on a phone (see the call in the draw loop). */
+  private foeEdgeMarks(b: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const cam = this.cameras.main;
+    const v = this.clearView();
+    const inset = 10 / cam.zoom;
+    const SECTORS = 16;
+    const count = new Array<number>(SECTORS).fill(0);
+    const big = new Array<boolean>(SECTORS).fill(false);
+    const sx = new Array<number>(SECTORS).fill(0);
+    const sy = new Array<number>(SECTORS).fill(0);
+    const cx = v.centerX;
+    const cy = v.centerY;
+    for (const e of w.enemies) {
+      if (!e.alive || e.def.stationary) continue;
+      if (e.x > v.x + inset && e.x < v.right - inset && e.y > v.y + inset && e.y < v.bottom - inset) continue;
+      const a = Math.atan2(e.y - cy, e.x - cx);
+      const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+      count[k]++;
+      sx[k] += e.x - cx;
+      sy[k] += e.y - cy;
+      if (e.def.rank !== 'normal') big[k] = true;
+    }
+    const pad = 20 / cam.zoom;
+    const hw = v.width / 2 - pad;
+    const hh = v.height / 2 - pad;
+    const pulse = 0.8 + 0.2 * Math.sin(now / 160);
+    // The action bar covers the bottom-right corner of a phone's view: a mark that would land under it slides
+    // along the edge to clear it (left along the bottom edge, up along the right edge).
+    if (now - this.barCover.at > 500) {
+      this.barCover.at = now;
+      const el = document.getElementById('actionbar');
+      const r = el && !el.hidden ? el.getBoundingClientRect() : undefined;
+      const c = this.game.canvas.getBoundingClientRect();
+      this.barCover.r = r && r.width > 0 && c.width > 0
+        ? { left: (r.left - c.left) / c.width, top: (r.top - c.top) / c.height }
+        : undefined;
+      // The party frames sit on the left edge in co-op: a mark that would land under them drops just below them.
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden ? pe.getBoundingClientRect() : undefined;
+      this.barCover.party = pr && pr.width > 0 && c.width > 0
+        ? { right: (pr.right - c.left) / c.width, top: (pr.top - c.top) / c.height, bottom: (pr.bottom - c.top) / c.height }
+        : undefined;
+    }
+    const wv = cam.worldView;
+    const bar = this.barCover.r ? { left: wv.x + this.barCover.r.left * wv.width, top: wv.y + this.barCover.r.top * wv.height } : undefined;
+    const pc = this.barCover.party;
+    const party = pc ? { right: wv.x + pc.right * wv.width, top: wv.y + pc.top * wv.height, bottom: wv.y + pc.bottom * wv.height } : undefined;
+    for (let k = 0; k < SECTORS; k++) {
+      if (!count[k]) continue;
+      const a = Math.atan2(sy[k], sx[k]);
+      const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+      let ex = cx + Math.cos(a) * r;
+      let ey = cy + Math.sin(a) * r;
+      if (bar && ex > bar.left - pad && ey > bar.top - pad) {
+        if (ey >= v.bottom - pad - 1) ex = bar.left - pad;
+        else ey = bar.top - pad;
+      }
+      if (party && ex < party.right + pad && ey > party.top - pad && ey < party.bottom + pad) ey = party.bottom + pad;
+      const sz = (count[k] >= 5 ? 14 : count[k] >= 2 ? 12 : 10) / cam.zoom;
+      const tri = (s: number) => [
+        ex + Math.cos(a) * s, ey + Math.sin(a) * s,
+        ex + Math.cos(a + 2.5) * s * 0.85, ey + Math.sin(a + 2.5) * s * 0.85,
+        ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85,
+      ] as const;
+      b.fillStyle(0x000000, 0.55).fillTriangle(...tri(sz * 1.45));
+      if (big[k]) b.fillStyle(0xffc861, pulse).fillTriangle(...tri(sz * 1.25));
+      b.fillStyle(0xff4d3d, pulse).fillTriangle(...tri(sz));
+    }
+  }
+
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
     const v = this.cameras.main.worldView;
     const now = this.time.now;
