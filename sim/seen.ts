@@ -13,17 +13,18 @@
  * warn. Y3's third boss versions show up here by themselves once they are in their *_VARIANTS list.
  */
 import { DUNGEONS, ENCOUNTERS, type DungeonId } from './content/dungeon';
+import { ENEMIES } from './content/enemies';
 import { HEATS, HEAT_POOLS, type HeatId } from './content/heat';
 import { AFFIXES, AFFIX_TIP } from './content/named';
 import type { HeroProfile } from './hero';
 import { BOSS_VERSION_NAME } from './runshape';
 import {
-  ARENA_EVENT_INFO, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, type World, WAVE_SHAPE_INFO, reinforceCount, wavesIn, type WaveShape,
+  ARENA_EVENT_INFO, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, type World, WAVE_SHAPE_INFO, STIR_IDS, STIR_INFO, STIR_BIT, type StirId, reinforceCount, wavesIn, type WaveShape,
   KILN_VARIANTS, MAELRA_VARIANTS, LENS_VARIANTS, NHEVRA_VARIANTS, HESSA_VARIANTS, ONDREL_VARIANTS, YSMERET_VARIANTS,
   OSKEL_VARIANTS, SLAG_VARIANTS, VORHULM_VARIANTS, COLOSSUS_VARIANTS, REGENT_VARIANTS,
 } from './world';
 
-export type SeenKind = 'boss' | 'wave' | 'mark' | 'event' | 'heat';
+export type SeenKind = 'boss' | 'wave' | 'mark' | 'event' | 'stir' | 'heat';
 export type SeenKey = string;
 
 export interface SeenEntry {
@@ -43,7 +44,7 @@ export const BOSS_VERSIONS: Record<DungeonId, readonly string[]> = {
 };
 
 /** The section names, in the order the hub lists them. */
-export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', heat: 'Heats' };
+export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', stir: 'The dungeon stirs', heat: 'Heats' };
 
 export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey => `${dungeon}:${kind}:${id}`;
 
@@ -54,6 +55,7 @@ export function seenPool(dungeon: DungeonId): SeenEntry[] {
   for (const v of wavesPossible(dungeon)) out.push({ kind: 'wave', id: v, name: WAVE_SHAPE_INFO[v].name, tip: WAVE_SHAPE_INFO[v].tip });
   for (const a of AFFIXES) out.push({ kind: 'mark', id: a, name: a, tip: AFFIX_TIP[a] });
   for (const e of ARENA_EVENT_POOLS[dungeon] ?? []) out.push({ kind: 'event', id: e, name: ARENA_EVENT_INFO[e].name, tip: ARENA_EVENT_INFO[e].tip });
+  for (const v of stirsPossible(dungeon)) out.push({ kind: 'stir', id: v, name: STIR_INFO[v].name, tip: STIR_INFO[v].tip });
   for (const h of HEAT_POOLS[dungeon] ?? []) out.push({ kind: 'heat', id: h, name: HEATS[h].name, tip: HEATS[h].text });
   return out;
 }
@@ -65,12 +67,36 @@ export function seenPool(dungeon: DungeonId): SeenEntry[] {
 export function wavesPossible(dungeon: DungeonId): Exclude<WaveShape, 'arc'>[] {
   const d = DUNGEONS[dungeon];
   if (d.raid) return [];
-  const fights = [...new Set([...d.openers, ...d.named, ...d.hard])].filter((id) => id !== d.boss && id !== 'shrine' && id !== 'worldShadow');
-  const defs = fights.map((id) => ENCOUNTERS[id]).filter((e) => !!e);
+  const defs = trashFights(dungeon);
   const out: Exclude<WaveShape, 'arc'>[] = [];
   if (defs.some((e) => e.spawns.reduce((a, x) => a + x.n, 0) >= 2 && !e.spawns.some((x) => x.kind === 'twinLamp'))) out.push('pincer', 'ring');
   if (defs.some((e) => reinforceCount(e.spawns) > 0)) out.push('reinforce');
   return out;
+}
+
+/**
+ * Y10's reactions `dungeon` can stir (World.stirChoices): none in a raid; another foe or a named one where a trash
+ * fight has an elite; an arena event where the dungeon has events; a closing wave where a fight has two or more foes
+ * and no Twin Lamps. Stirring needs tier 4 or higher, which every dungeon can be played at.
+ */
+export function stirsPossible(dungeon: DungeonId): StirId[] {
+  const d = DUNGEONS[dungeon];
+  if (d.raid) return [];
+  const defs = trashFights(dungeon);
+  const can: Record<StirId, boolean> = {
+    elite: defs.some((e) => e.spawns.some((x) => ENEMIES[x.kind].rank === 'elite')),
+    named: defs.some((e) => e.spawns.some((x) => ENEMIES[x.kind].rank === 'elite')),
+    event: !!ARENA_EVENT_POOLS[dungeon]?.length,
+    wave: defs.some((e) => e.spawns.reduce((a, x) => a + x.n, 0) >= 2 && !e.spawns.some((x) => x.kind === 'twinLamp')),
+  };
+  return STIR_IDS.filter((v) => can[v]);
+}
+
+function trashFights(dungeon: DungeonId) {
+  const d = DUNGEONS[dungeon];
+  return [...new Set([...d.openers, ...d.named, ...d.hard])]
+    .filter((id) => id !== d.boss && id !== 'shrine' && id !== 'worldShadow')
+    .map((id) => ENCOUNTERS[id]).filter((e) => !!e);
 }
 
 /** What this run met, as Seen keys (no rng, no state changes). */
@@ -81,6 +107,7 @@ export function metIn(w: World): SeenKey[] {
   for (const v of wavesIn(w.wavesMet)) out.push(seenKey(d, 'wave', v));
   if (w.namedMet >= 0 && AFFIXES[w.namedMet]) out.push(seenKey(d, 'mark', AFFIXES[w.namedMet]));
   ARENA_EVENT_ORDER.forEach((e, k) => { if (w.arenaEventsMet & (1 << k)) out.push(seenKey(d, 'event', e)); });
+  for (const v of STIR_IDS) if (w.stirsMet & STIR_BIT[v]) out.push(seenKey(d, 'stir', v));
   if (w.heat && w.heat in HEATS) out.push(seenKey(d, 'heat', w.heat as HeatId));
   return out;
 }
