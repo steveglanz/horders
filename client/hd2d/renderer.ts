@@ -10,7 +10,8 @@
  * - the Furnace Regent as the handoff's sprite, every other foe as its 2D sheet standing upright;
  * - telegraphs (hatched danger, gold soaks) filling as they near landing, Decrees and their scorch;
  * - hero bolts, strikes, gems and drops, and rising embers.
- * Damage numbers, nameplates over foes and cast bars stay 2D-only for now (the HUD's boss frame still shows casts).
+ * Foe health and cast bars, foe names and damage numbers are drawn by the 2D scene on the overlay canvas over this view,
+ * at each foe's projected place (GameScene drawLabels3d, #540).
  *
  * The 2D scene keeps running the sim and the HUD underneath; it only stops drawing its own camera.
  */
@@ -1157,6 +1158,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
 
   const times: number[] = [];
   const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3(), pv = new THREE.Vector3();
+  /** Per enemy index: where its sprite's head was drawn this frame (3D units), for view.foeHead. */
+  const foeHeads: { x: number; z: number; h: number; at: number }[] = [];
+  let frameNo = 0;
   let t = 0;
   const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, s: number) => { v3.set(x, y, z); sc.set(s, s, s); m4.compose(v3, q0, sc); im.setMatrixAt(n, m4); };
 
@@ -1264,6 +1268,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const heroPts: { x: number; y: number }[] = [];
     for (let j = 0; j < w.heroes.length; j++) { const q = w.heroData(j).player; if (q.hp > 0) heroPts.push({ x: q.x, y: q.y }); }
     let bossMesh: THREE.Mesh | null = null;
+    frameNo++;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1307,6 +1312,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.14 * ak), ht * rise * (1 - hit - 0.1 * ak + rear), 1);
       const reach = Math.min(0.35, (e.def.radius * S) * 0.6) * ak;
       f.mesh.position.set(x + fa.dx * reach, FLOOR, z + fa.dz * reach);
+      // Where this foe's head is drawn, for its health and cast bar on the overlay (view.foeHead).
+      (foeHeads[i] ??= { x: 0, z: 0, h: 0, at: 0 });
+      foeHeads[i].x = f.mesh.position.x; foeHeads[i].z = f.mesh.position.z; foeHeads[i].h = FLOOR + ht * rise * (1 - 0.04); foeHeads[i].at = frameNo;
       if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; bossMesh = f.mesh; }
       f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak;
       f.mesh.visible = true;
@@ -1515,7 +1523,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     pgeo.attributes.position.needsUpdate = true;
 
     // The camera follows the hero like the 2D camera, at the handoff's angle; the sun's shadow box follows too.
-    const look = v3.set(cx, 0, cz - 0.9);
+    // GameScene's focus offset (phones: keep the boss clear of the ability buttons) moves the camera, not the lamp.
+    const fo = A.focus?.();
+    const look = v3.set(cx + (fo?.x ?? 0) * S, 0, cz - 0.9 + (fo?.y ?? 0) * S);
     camera.position.copy(camDir).multiplyScalar(dist).add(look);
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);
@@ -1550,6 +1560,13 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     project(x, y) {
       const p = pv.set(x * S, FLOOR, y * S).project(camera);
       if (p.z > 1 || !W || !H) return null;
+      return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
+    },
+    foeHead(i) {
+      const f = foeHeads[i];
+      if (!f || f.at !== frameNo || !W || !H) return null;
+      const p = pv.set(f.x, f.h, f.z).project(camera);
+      if (p.z > 1) return null;
       return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
     },
     sounds() {

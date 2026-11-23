@@ -487,9 +487,9 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
 
 describe('V8 variety: the Glarewell', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
+  it('draws from 7 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
     const d = DUNGEONS.glarewell;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
@@ -1688,5 +1688,24 @@ describe('Phase 16 U1: Grandmother Slag\'s echo', () => {
     const { w, q } = slag('pour', 'flow', RAID_ECHO.slag + 0.1);
     q.slagClock(1);
     expect(w.echoLive).toBe(false);
+  });
+});
+
+describe('routes never repeat a fight (playtest must-fix, 23 Nov)', () => {
+  it('no dungeon rolls the same fight twice in one route, over 3000 rolls each', () => {
+    for (const id of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) {
+      let s = 7;
+      const pick = (n: number) => { s = (s * 1103515245 + 12345) % 2147483648; return Math.floor((s / 2147483648) * n); };
+      for (let k = 0; k < 3000; k++) {
+        const r = rollRoute(pick, id);
+        expect(new Set(r).size, `${id}: ${r.join(', ')}`).toBe(r.length);
+        expect(r.every((e) => !!e), `${id}: ${r.join(', ')}`).toBe(true);
+      }
+    }
+  });
+
+  it('the Wrackline seed 11 route the playtest caught no longer has the Warden Shoal twice', () => {
+    const w = new World({ seed: 11, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    expect(new Set(w.route).size).toBe(w.route.length);
   });
 });

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -872,6 +872,26 @@ export function botInput(w: World, skill = 1): Input {
       if (d > BALLAST.reach + e.def.radius + 30) continue;
       fx += (dx / d) * 0.2 * skill;
       fy += (dy / d) * 0.2 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: once a Lampeye's gaze is half full and it can still see you, put the nearest pillar between you and
+  // it (NOLAMPEYE=1 turns this off for measuring). Its gaze fades there and the hero steps back out once it has.
+  if (process.env.NOLAMPEYE !== '1' && w.pillars.length) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'lampeye' || e.aux < LAMPEYE.full * 0.5 || !w.lampeyeSees(e, p.x, p.y)) continue;
+      let best: { x: number; y: number; r: number } | null = null, bd = Infinity;
+      for (const c of w.pillars) {
+        if (c.cracked) continue;
+        const dd = Math.hypot(c.x - p.x, c.y - p.y);
+        if (dd < bd) { bd = dd; best = c; }
+      }
+      if (!best) break;
+      const ux = best.x - e.x, uy = best.y - e.y, ul = Math.hypot(ux, uy) || 1;
+      const hx = best.x + (ux / ul) * (best.r + 25) - p.x, hy = best.y + (uy / ul) * (best.r + 25) - p.y;
+      const hl = Math.hypot(hx, hy) || 1;
+      fx += (hx / hl) * 0.25 * skill;
+      fy += (hy / hl) * 0.25 * skill;
       break;
     }
   }

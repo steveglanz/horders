@@ -1452,7 +1452,7 @@ Natural Kiln t8 runs (the Ashwall is one of 7 openers, and it came up in 16 of s
 
 The Drowned Foundry already asks you to kite Maelra over its vents, so its new elite asks the same thing. The **Ballast** (`ballast`, 950 hp, elite, title "Keep it moving") drops anchor when you stand in its reach, and while it's planted it barely feels hits. It comes in the new opener **The Ballast** (`ballast`): one Ballast and two Cinderhounds. Tip: "When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks." The name was searched: no World of Warcraft match.
 
-- **Anchor:** with its hero within `BALLAST.reach` (90 px past its radius) for `plantDelay` (0.8 s), it drops anchor (`Enemy.aux` counts toward it, and a ring fills on the client). Planted, it stops, takes `planted` (30%) damage, and each hit is a `glance` for sound. It weighs anchor `unplant` (0.6 s) after its hero leaves its reach. Each change fires `castDone` with id `anchor` or `unanchor`.
+- **Anchor:** with its hero within `BALLAST.reach` (90 px past its radius) for `plantDelay` (0.8 s), it drops anchor (`Enemy.aux` counts toward it, and a ring fills on the client). Out of reach the count drains at the same rate rather than resetting, so a hero who steps out and straight back in plants it sooner (QA saw 0.33 to 0.6 s in 84 of 811 plants). That is on purpose: dancing on the edge of its reach can't keep it walking for free. Planted, it stops, takes `planted` (30%) damage, and each hit is a `glance` for sound. It weighs anchor `unplant` (0.6 s) after its hero leaves its reach; that clock starts again if the hero comes back into reach first (`aux2` resets), which may explain the 16 of 807 QA saw take up to 0.9 s (not traced). Each change fires `castDone` with id `anchor` or `unanchor`.
 - **Anchor Slam:** only while planted, a ring `slamR` (95 px past its radius) round it, `slamFirst` (1 s) after it plants and then every `slamEvery` (2.6 s). It is not interruptible.
 - **Bots:** any hero near a planted Ballast steps out of its reach (`NOBALLAST=1` turns that off). Ranged heroes never let it plant, so for them it is a plain chaser.
 - **Seen log:** appended to `NEW_FOES`.
@@ -1469,3 +1469,48 @@ Foundry t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`), m
 | Slagbinder | 67 s, 73 | 67 s, 73 | 96 s, 65 |
 
 Natural Foundry t8 runs, seeds 1 to 160 (first version), wins before / after: Bulwark 72 / 62, Duskblade 112 / 110, Emberwright 125 / 121, Lumen 133 / 126, Slagbinder 125 / 119. With the tuned slam the Bulwark gets 61. Of the Bulwark's 160 runs, 24 met the Ballast and won 7 of them (29%). Its other runs won 54 of 136 (40%), against 45% before, so most of its drop is the re-rolled routes. **The Bulwark against the Ballast is a watch item for skills:** it is the Foundry's weakest class already, and it has to step out of reach the most.
+
+## Phase 16 U2: the Glarewell's new elite, the Lampeye
+
+The Glarewell already teaches you to hide behind pillars from the Lensmother's Glare, and its Shades grow tough in shadow. Its new elite plays those two against each other. The **Lampeye** (`lampeye`, 800 hp, elite, title "Break its gaze") is a slow floating eye that keeps its distance. It comes in the new opener **The Lampeye** (`lampeye`): one Lampeye and three Shades. Tip: "While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light." The name was searched: no World of Warcraft match ("Gazer" is used there, so it was avoided).
+
+- **Gaze** (`Enemy.aux`, seconds): it builds 1 a second while the Lampeye can see its hero, meaning no standing pillar crosses the line between them (`World.lampeyeSees`). Behind a pillar it fades `LAMPEYE.fade` (2) times as fast. A cracked pillar blocks nothing.
+- **Searing Look:** at `full` (6 s) it casts Searing Look for `lookCast` (1 s), not interruptible. When the cast ends, every hero it can still see takes `lookDamage` (34) times the tier's damage. A hero who gets behind a pillar during the cast takes nothing. Either way the gaze resets to 0.
+- **It keeps its distance:** inside `keep` (220 px) it backs away, so its gaze crosses the room.
+- **The trade:** a pillar's shadow is where Shades take less damage (`GLARE.shadeShadowTaken`). Hide to break the gaze, then step back out and draw the Shades into the light.
+- **Bots:** once the gaze is half full and it can see them, a bot heads for the far side of the nearest standing pillar (`NOLAMPEYE=1` turns that off).
+- **Client:** a ring round it fills as the gaze builds, and a thin beam joins it to your hero while it can see you. The beam flares during Searing Look. It wears the Shade's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+
+Glarewell t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`), median fight seconds and whole-run wins:
+
+| Class | Lampeye | Lampeye, bots don't hide | Shades |
+|---|---|---|---|
+| Bulwark | 95 s, 59 | 45 s, 69 | 22 s, 71 |
+| Duskblade | 53 s, 48 | 42 s, 44 | 28 s, 63 |
+| Emberwright | 83 s, 70 | 76 s, 8 | 39 s, 74 |
+| Lumen | 65 s, 78 | 75 s, 22 | 53 s, 79 |
+| Slagbinder | 80 s, 78 | 82 s, 80 | 44 s, 80 |
+
+The fight times count only fights that were cleared. Without hiding, the Emberwright cleared 9 of 80 and the Lumen 22, so the gaze is the fight for ranged heroes. Natural Glarewell t8 runs, seeds 1 to 160, wins before / after: Bulwark 139 / 139, Duskblade 118 / 116, Emberwright 143 / 144, Lumen 156 / 152, Slagbinder 160 / 157. **Watch item for skills:** the Bulwark bot hides when it would do better to stand and finish the eye (59 with hiding against 69 without), and its fight takes twice as long. Its natural runs don't move, so the bot rule is kept the same for every class for now.
+
+## Routes never repeat a fight (playtest must-fix, 23 Nov)
+
+QA's playtest found that one route could hold the same fight twice. Some fights are in more than one of a dungeon's lists:
+- The Coldmarrow's Frost Wardens are an opener and a named fight, and its Snuffers are an opener and a hard fight.
+- The Wrackline's Warden Shoal is an opener and a named fight.
+
+`rollRoute` (sim/content/dungeon.ts) now leaves out fights already rolled when it picks the named and hard fights. It still takes one pick per slot, so a route that had no repeat rolls exactly as before.
+
+Over 2000 seeds, the repeat routes were 535 in the Coldmarrow and 220 in the Wrackline. Those are the only routes that change. No other dungeon had a repeat.
+
+Natural runs at t10, heroes-r2 hero-t8-0, seeds 1 to 160, wins before / after:
+
+| Class | Coldmarrow | Wrackline |
+|---|---|---|
+| Bulwark | 115 / 116 | 93 / 92 |
+| Duskblade | 95 / 90 | 112 / 110 |
+| Emberwright | 124 / 121 | 120 / 122 |
+| Lumen | 125 / 123 | 137 / 136 |
+| Slagbinder | 118 / 116 | 158 / 158 |
+
