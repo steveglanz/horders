@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1230,5 +1230,76 @@ describe('Phase 14 X3: arena events', () => {
   it('a forced event that the dungeon has no use for never comes', () => {
     ARENA_EVENTS.force = 'coldSnap';
     try { expect(make('kiln').arenaEventAt(1, 'pack')).toBe(''); } finally { ARENA_EVENTS.force = ''; }
+  });
+});
+
+describe('Phase 16 U1: the Kiln Mother\'s echo', () => {
+  type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; rollEcho(all: readonly string[], rolled: string): string; runBoss(i: number, dt: number): void };
+  const make = (seed: number, tier: number) =>
+    new World({ seed, dungeon: 'kiln', tier, omens: [], cls: 'emberwright' });
+  const inner = (w: World) => w as unknown as B;
+
+  it('no echo below tier 8 (the first delve is tier 1); from tier 8 it is seeded and never the rolled version', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      expect(inner(make(seed, ECHO.minTier - 1)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      for (const rolled of KILN_VARIANTS) {
+        const a = inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled);
+        expect(a).not.toBe('');
+        expect(a).not.toBe(rolled);
+        expect(KILN_VARIANTS).toContain(a);
+        expect(inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled)).toBe(a);
+        if (rolled === 'cataclysm') seen.add(a);
+      }
+    }
+    expect([...seen].sort()).toEqual(['draw', 'turning']);
+  });
+
+  it('ECHO.off turns it off and ECHO.force picks one (for the tools)', () => {
+    try {
+      ECHO.off = true;
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      ECHO.off = false;
+      ECHO.force = 'turning';
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('turning');
+      // Forcing the rolled version gives the seeded pick instead.
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'turning')).not.toBe('turning');
+    } finally { ECHO.off = false; ECHO.force = ''; }
+  });
+
+  it('a spawned Kiln Mother at tier 8 gets an echo other than her version', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = make(seed, ECHO.minTier);
+      w.bossVariant = inner(w).rollKilnVariant() as never;
+      const echo = inner(w).rollEcho(KILN_VARIANTS, w.bossVariant);
+      expect(echo).not.toBe(w.bossVariant);
+    }
+  });
+
+  it('in phase 3 her signatures alternate: her own, then the echo with an echo event', () => {
+    const w = make(3, ECHO.minTier);
+    const q = w as unknown as B;
+    for (const e of w.enemies) e.alive = false;
+    w.player.x = 200; w.player.y = 0;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'draw';
+    w.bossEcho = 'turning';
+    w.echoNext = false;
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.2;
+    q.bossPhase = 3;
+    const cast = () => {
+      e.castId = ''; e.aux = 0; e.abilityT = 0;
+      w.events.length = 0;
+      q.runBoss(b, 0.01);
+      return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+    };
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    expect(cast()).toEqual({ id: 'turningFire', echo: true });
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    // Phase 2 never echoes.
+    e.hp = e.maxHp * 0.5; q.bossPhase = 2; w.echoNext = true;
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
   });
 });
