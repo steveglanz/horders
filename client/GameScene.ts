@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -25,7 +25,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
+import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -694,6 +694,13 @@ export class GameScene extends Phaser.Scene {
     this.hud.showRun(w);
   }
 
+  /** Where sound pans from: in 3D, by where things show on screen (client/audio/cues.ts panFor), else the 2D camera's width. */
+  private listenFrom(w: World): NonNullable<CueContext['listen']> {
+    const l = { x: w.player.x, y: w.player.y, half: this.cameras.main.worldView.width / 2 };
+    const view = this.hd2d, width = this.game.canvas.parentElement?.clientWidth ?? 0;
+    return view && width > 0 ? { ...l, screen: (x, y) => view.project(x, y), screenHalf: width / 2 } : l;
+  }
+
   private layout(): void {
     const { width, height } = this.scale;
     const short = Math.min(width, height);
@@ -954,7 +961,7 @@ export class GameScene extends Phaser.Scene {
       inLava: w.lava.length > 0 && inLavaNow(w),
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
-      listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
+      listen: this.listenFrom(w),
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -1322,17 +1329,24 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'phase':
           if (w.dungeonId === 'glarewell') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
+            if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
+            else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
             else if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
             else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            if (ev.phase === 2 && w.bossVariant === 'tide') this.hud.banner('Phase 2: Sluicetide', 'The water runs across the room and pushes you. Lean into it, and watch for it to turn');
+            else if (ev.phase === 2 && w.bossVariant === 'seal') this.hud.banner('Phase 2: Sealed Vents', 'Only one vent steams now. Drag her to it, and watch for the steam to move');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
-            this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+            if (w.bossVariant === 'outsurge') this.hud.banner('Phase 2: The Outsurge', 'The water throws you out to the rim, and the rim burns. Stay on a raft');
+            else if (w.bossVariant === 'whirl') this.hud.banner('Phase 2: The Whirl', 'The water swirls round the drain and carries you. It turns the other way each time');
+            else this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
@@ -1546,7 +1560,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'nhevra' && w.bossVariant === 'rime' ? CREEPING_RIME_TIP : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'whirl' ? WHIRL_TIP : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
             : ev.id === 'ondrel' && w.bossVariant === 'home' ? HOMEWARD_TIP : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
-            : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
+            : ev.id === 'ysmeret' && w.bossVariant === 'roll' ? ROLLING_TIP : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
             : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
             : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP

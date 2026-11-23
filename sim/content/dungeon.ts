@@ -106,6 +106,8 @@ export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Gli
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';
 /** Phase 12 W2: Ysmeret's intro when this run's Twin Vents wander. */
+/** Phase 15 Y3: Ysmeret's intro when this run's version rolls her vents round her one at a time. */
+export const ROLLING_TIP = 'Her vents open one at a time, three in a row, each further round her than the last: spread round her so someone is always near the next. Never stand together when the Embers mark you.';
 export const WANDER_TIP = 'Two of you stand in her vents, and they drift round her as they fuse: walk with them. Never stand together when the Embers mark you.';
 /** Phase 12 W2: Oskel's intro when this run's version brings Die Cut instead of Rivets. */
 export const DIECUT_TIP = 'Take turns under his Downstroke. His Die Cut stamps half the floor: get to the other side, toward the plate.';

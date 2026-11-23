@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -674,6 +674,21 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     expect(one.w.rimeOn).toBe(false);
   });
 
+  it('Y3 Creeping Rime: her body holds it off, so a hero at her side makes it creep round her, never onto her', () => {
+    const { w, q, b } = nhevra('rime');
+    const e = w.enemies[b];
+    w.player.x = e.x + e.def.radius + 20; w.player.y = e.y;
+    for (let k = 0; k < 90; k++) {
+      q.coldClock(1 / 30);
+      expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeGreaterThanOrEqual(e.def.radius + CREEPING_RIME.hold - 1e-6);
+    }
+    // Step round to her far side: the rime follows round, still held off her.
+    w.player.x = e.x - e.def.radius - 20;
+    for (let k = 0; k < 150; k++) q.coldClock(1 / 30);
+    expect(w.rimeX).toBeLessThan(e.x + e.def.radius);
+    expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeGreaterThanOrEqual(e.def.radius + CREEPING_RIME.hold - 1e-6);
+  });
+
   it('online co-op: a guest sees the same version and embers', () => {
     const { w, q } = nhevra('drift');
     q.coldClock(0.01);
@@ -883,6 +898,53 @@ describe('Phase 12 W2: the Ashvents and Ysmeret\'s Wandering Vents', () => {
       seen.add(a.rollYsmeretVariant());
     }
     expect([...seen].sort()).toEqual([...YSMERET_VARIANTS].sort());
+  });
+
+  it('Y3 Rolling Vents: one vent at a time, three in a row, each a third of the way further round her; the way round flips each cast', () => {
+    const { w, q, b } = ysmeret('roll');
+    const e = w.enemies[b];
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    const named = w.events.find((ev) => ev.type === 'castStart' && ev.id === 'twinVents') as { name: string } | undefined;
+    expect(named?.name).toBe('Rolling Vents');
+    const angs = [Math.atan2(vents(w)[0].y - e.y, vents(w)[0].x - e.x)];
+    const dir = w.rollDir;
+    for (let n = 1; n < ROLLING.count; n++) {
+      for (const t of w.telegraphs) if (t.alive && t.owner === -2) t.alive = false; // soaked
+      q.ysmeretClock(1 / 30);
+      const v = w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+      expect(v).toHaveLength(1);
+      expect(v[0].dur).toBe(ROLLING.fuse);
+      angs.push(Math.atan2(v[0].y - e.y, v[0].x - e.x));
+      let d = angs[n] - angs[n - 1];
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      expect(d).toBeCloseTo((dir * ROLLING.step * Math.PI) / 180, 5);
+    }
+    expect(w.rollLeft).toBe(0);
+    expect(w.events.filter((ev) => ev.type === 'ventRoll')).toHaveLength(ROLLING.count - 1);
+    // After the last one closes, no more until the vent timer comes round again; then it rolls the other way.
+    for (const t of w.telegraphs) if (t.alive && t.owner === -2) t.alive = false;
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(0);
+    q.twinVentT = 0;
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    expect(w.rollDir).toBe(-dir);
+  });
+
+  it('Y3 Rolling Vents: Scatter Embers can come while a vent is open', () => {
+    const { w, q, b } = ysmeret('roll');
+    q.ysmeretClock(1 / 30);
+    expect(vents(w)).toHaveLength(1);
+    q.scatterT = 0;
+    q.ysmeretClock(1 / 30);
+    expect(w.enemies[b].castId).toBe('scatter');
+    const still = ysmeret('still');
+    still.q.ysmeretClock(1 / 30);
+    still.q.scatterT = 0;
+    still.q.ysmeretClock(1 / 30);
+    expect(still.w.enemies[still.b].castId).not.toBe('scatter');
   });
 
   it('still vents stay put; wandering vents circle her at the set speed', () => {
