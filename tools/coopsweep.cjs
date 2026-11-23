@@ -189,6 +189,8 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
       dropWhen: async (A) => {
         const s = await world(A, `if (!w.bossUp) { for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1); return null; }
           const b = w.enemies.find((e) => e.alive && e.kind === "colossus"); if (!b) return null;
+          // Phase 12 W3: this case tests the Wheel, so it holds him to that version (Plate Shift casts plateShift instead).
+          w.bossVariant = "wheel";
           if (b.hp > b.maxHp * 0.59) b.hp = b.maxHp * 0.59;
           if (b.castId !== "wheel") return { cast: false };
           let pick = -1, most = -1;
