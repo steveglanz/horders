@@ -282,6 +282,8 @@ export class GameScene extends Phaser.Scene {
   private ventSprites: Phaser.GameObjects.Image[] = [];
   /** V5 (variety): the Kiln's layout art, pooled and matched to World.stones / lava / flareVents each frame. */
   private stoneImgs: Phaser.GameObjects.Image[] = [];
+  /** Phase 14 X6: the cave-in rocks as they fall, each the dungeon's own stone (stoneKey). */
+  private caveRocks: Phaser.GameObjects.Image[] = [];
   private kilnVentImgs: Phaser.GameObjects.Image[] = [];
   private lavaStrips: Phaser.GameObjects.TileSprite[] = [];
   /** V8: Foundry vent steam, on its own layer under the main graphics so it never covers a class ring. */
@@ -397,6 +399,7 @@ export class GameScene extends Phaser.Scene {
     this.motes = [];
     this.ventSprites = [];
     this.stoneImgs = [];
+    this.caveRocks = [];
     this.kilnVentImgs = [];
     this.lavaStrips = [];
     this.steamGfx = null;
@@ -2616,7 +2619,7 @@ export class GameScene extends Phaser.Scene {
     this.steamGfx?.clear();
     w.stones.forEach((c, k) => {
       let img = this.stoneImgs[k];
-      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, wet ? 'foundryStone' : w.dungeonId === 'coldmarrow' ? 'iceStone' : w.dungeonId === 'hammerdeep' ? 'deepStone' : w.dungeonId === 'pressworks' ? 'pressStone' : RAID_STONE[w.dungeonId] ?? 'kilnStone').setOrigin(0.5, 0.64).setDepth(2.4);
+      if (!img) img = this.stoneImgs[k] = this.add.image(0, 0, this.stoneKey()).setOrigin(0.5, 0.64).setDepth(2.4);
       img.setVisible(true).setPosition(c.x, c.y).setScale(c.r / 68);
     });
     for (let k = w.stones.length; k < this.stoneImgs.length; k++) this.stoneImgs[k].setVisible(false);
@@ -4107,9 +4110,16 @@ export class GameScene extends Phaser.Scene {
    * - Cold Snap: frost creeps in from the arena edge and snow falls; when it lands the coals dim (the sim) with a frost ring.
    * - High Water: the Ebb's own warning shows it, so there is nothing more to draw.
    */
+  /** Each dungeon's stone texture for its layouts and cave-ins (the boss fight is always open). */
+  private stoneKey(): string {
+    const id = this.world.dungeonId;
+    return id === 'foundry' ? 'foundryStone' : id === 'coldmarrow' ? 'iceStone' : id === 'hammerdeep' ? 'deepStone' : id === 'pressworks' ? 'pressStone' : RAID_STONE[id] ?? 'kilnStone';
+  }
+
   private arenaEventDraw(now: number): void {
     const w = this.world;
     const ev = w.arenaEvent;
+    for (const r of this.caveRocks) r.setVisible(false);
     if (!ev || w.arenaEventStage !== 1 || ev === 'highWater') { this.arenaGfx?.clear(); return; }
     if (!this.arenaGfx) this.arenaGfx = this.add.graphics().setDepth(1.9);
     const g = this.arenaGfx.clear();
@@ -4124,16 +4134,13 @@ export class GameScene extends Phaser.Scene {
           const u = ((now / 700) + m / 6 + n * 0.31) % 1;
           o.fillStyle(0xb8aca4, 0.6 * (1 - u)).fillCircle(c.x + Math.sin(m * 2.3 + n) * 18, c.y - 220 + 220 * u, 1.6 + m % 2);
         }
-        // The rock: it falls in the last 40% of the warning, a seeded lump the size of the stone it becomes.
+        // The rock: it falls in the last 40% of the warning. It is the very stone it becomes, in this dungeon's own
+        // look (Hammerdeep iron, Pressworks plate, Coldmarrow ice, pumice in the Ashvents), a little larger while high.
         if (k > 0.6) {
           const f = (k - 0.6) / 0.4;
-          const y = c.y - 260 * (1 - f * f);
-          const r = A.caveRadius * 1.15;
-          const pts: Phaser.Math.Vector2[] = [];
-          for (let q = 0; q < 7; q++) { const a = (q / 7) * Math.PI * 2 + n; const rr = r * (0.8 + 0.25 * Math.sin(q * 3.1 + n * 1.7)); pts.push(new Phaser.Math.Vector2(c.x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8)); }
-          o.fillStyle(0x5a4e48, 1).fillPoints(pts, true);
-          o.lineStyle(3, 0x1a1010, 1).strokePoints(pts, true);
-          o.fillStyle(0x8a7c74, 1).fillCircle(c.x - r * 0.3, y - r * 0.3, r * 0.25);
+          const rock = this.caveRocks[n] ?? (this.caveRocks[n] = this.add.image(0, 0, this.stoneKey()).setOrigin(0.5, 0.64).setDepth(5.5)); // under heroes (6): never over an ally's ring
+          rock.setTexture(this.stoneKey()).setVisible(true).setPosition(c.x, c.y - 260 * (1 - f * f))
+            .setScale((A.caveRadius / 68) * (1.3 - 0.3 * f)).setRotation((1 - f) * (n % 2 ? 0.5 : -0.5));
         }
       }
     } else if (ev === 'ventSurge') {

@@ -1,11 +1,13 @@
 // Phase 14 X6 art: the five named-foe traits (badge right of the crown, body tint and body look) and the arena events'
 // warnings and landings (cave-in, vent surge, cold snap). The sim pauses for each shot; traits and events are set on
 // the live world by hand (no tools flags reach the browser).
-// Usage: npm run build && node tools/x6shots.cjs <outDir> [p360]
+// Usage: npm run build && node tools/x6shots.cjs <outDir> [p360] [group]
+// (group: only the cave-in in each dungeon with its own stone look, plus the vent surge in the group dungeons, #494)
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const p360 = process.argv.includes('p360');
+const group = process.argv.includes('group');
 fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
@@ -37,7 +39,7 @@ const AFFIXES = ['Swift', 'Warded', 'Vengeful', 'Brood', 'Smoldering'];
     await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = ''; });
   };
   // Traits: one elite in a Kiln trash fight is made a named foe with each trait in turn.
-  for (const [ai, affix] of AFFIXES.entries()) {
+  for (const [ai, affix] of (group ? [] : AFFIXES).entries()) {
     await start({ ...PARTY, seed: 3, dungeon: 'kiln', tier: 3, route: ['wardens'] });
     await page.evaluate((ai) => {
       const s = window.__ember.scene(); const w = s.world;
@@ -65,9 +67,16 @@ const AFFIXES = ['Swift', 'Warded', 'Vengeful', 'Brood', 'Smoldering'];
     if (id === 'caveIn') await page.evaluate(() => { const w = window.__ember.scene().world; const c = w.caveInSpots()[0]; const p = w.player; p.x = p.px = c.x; p.y = p.py = c.y + 120; });
     await shoot(`${name}-land`);
   };
+  if (group) {
+    for (const [d, tier] of [['hammerdeep', 4], ['ashvents', 7], ['pressworks', 10], ['coldmarrow', 11], ['foundry', 5]]) {
+      await event({ ...PARTY, seed: 3, dungeon: d, tier, route: ['warpack'] }, 'caveIn', 2.2, `${d}-caveIn`);
+      if (d !== 'coldmarrow' && d !== 'foundry') await event({ ...PARTY, seed: 3, dungeon: d, tier, route: ['warpack'] }, 'ventSurge', 1.8, `${d}-ventSurge`);
+    }
+  } else {
   await event({ ...PARTY, seed: 3, dungeon: 'kiln', tier: 3, route: ['warpack'] }, 'caveIn', 2.2, 'caveIn');
   await event({ ...PARTY, seed: 3, dungeon: 'kiln', tier: 3, route: ['warpack'] }, 'ventSurge', 1.8, 'ventSurge');
   await event({ ...PARTY, seed: 3, dungeon: 'coldmarrow', tier: 11, route: ['rimepack'] }, 'coldSnap', 2.5, 'coldSnap');
+  }
   console.log(tag, errs.length ? errs.join('\n') : 'no errors');
   await b.close(); srv.close();
 })();
