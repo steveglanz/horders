@@ -25,7 +25,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
+import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -694,6 +694,13 @@ export class GameScene extends Phaser.Scene {
     this.hud.showRun(w);
   }
 
+  /** Where sound pans from: in 3D, by where things show on screen (client/audio/cues.ts panFor), else the 2D camera's width. */
+  private listenFrom(w: World): NonNullable<CueContext['listen']> {
+    const l = { x: w.player.x, y: w.player.y, half: this.cameras.main.worldView.width / 2 };
+    const view = this.hd2d, width = this.game.canvas.parentElement?.clientWidth ?? 0;
+    return view && width > 0 ? { ...l, screen: (x, y) => view.project(x, y), screenHalf: width / 2 } : l;
+  }
+
   private layout(): void {
     const { width, height } = this.scale;
     const short = Math.min(width, height);
@@ -954,7 +961,7 @@ export class GameScene extends Phaser.Scene {
       inLava: w.lava.length > 0 && inLavaNow(w),
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
-      listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
+      listen: this.listenFrom(w),
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
