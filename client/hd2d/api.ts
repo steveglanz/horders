@@ -32,9 +32,11 @@ export interface Hd2dAdapter {
    * centred on (0, 0). The renderer lays it on its floor. `stamp` changes whenever the canvas was redrawn.
    */
   floor?(): { canvas: HTMLCanvasElement; span: number; stamp: number } | null;
+  /** Run time (World.time) of the boss's last echoed cast (the 'echo' event, Phase 16 U1), or -Infinity for none. */
+  echoAt?(): number;
 }
 
-export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number }
+export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number }
 
 export interface Hd2dView {
   /** Draws one frame from the world as it is now. `dt` is seconds since the last frame. */

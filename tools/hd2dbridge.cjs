@@ -22,6 +22,7 @@ const CASES = [
   { name: 'whirl-warn', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlWarn', tier: 13 },
   { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'home-fly', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeFly', tier: 8 },
+  { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
   { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
   { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
   { name: 'inhale', dungeon: 'hoard', boss: 'vorhulm', variant: 'inhale', party: true, until: 'inhale', tier: 9, hp: 0.2 },
@@ -63,6 +64,7 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'whirlWarn' ? w.whirl && w.ebbWarnT > 0 && w.ebbWarnT < 2.2
         : c.until === 'whirlPull' ? w.whirl && w.ebbT > 0.4
         : c.until === 'homeFly' ? w.homeStage === 1 && w.homeT < 0.9
+        : c.until === 'echo' ? w.time - s.echoAt < 0.4
         : c.until === 'mill' ? w.millT > 0 && w.millT < 4.5
         : c.until === 'tithe' ? w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -5 && t.t > 2.5)
         : c.until === 'inhale' ? w.inhaleStage === 2 && w.inhaleT > 1.5

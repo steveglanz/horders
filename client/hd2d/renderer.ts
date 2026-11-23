@@ -729,7 +729,74 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // v2's phone budget: two shared warm lights instead of nine (one at the back wall, one at the front braziers).
   addLight(th.backLight, id === 'kiln' ? 38 : 34, 22, new THREE.Vector3(0, 2.4, -8.2), 1.4);
   if (!saver) addLight(th.frontLight, 14, 14, new THREE.Vector3(0, 2.2, 7.6), 2.0);
-  return { room, flames, basalt, glows, th, drift };
+  // Life (Steve, 23 Nov: "it's kind of dead. I don't want to make it busy, but I want to have something"): quiet motion
+  // that every room has, ticked by frame(): faint shafts of light swaying down from above, low mist drifting over the
+  // floor, and per room chains swaying on the walls (forges) or drips falling and ringing on the floor (wet rooms).
+  const life: ((t: number) => void)[] = [];
+  {
+    const keyC = new THREE.Color(th.key);
+    // Shafts of light: tall soft cones from the dark above, each with a pool on the floor, swaying slowly.
+    const shaftTex = canvasTex((() => { const c = mk(16, 128), k = c.getContext('2d')!; const g = k.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.6, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(255,255,255,0.9)'); k.fillStyle = g; k.fillRect(0, 0, 16, 128); return c; })());
+    const shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, color: keyC.clone().multiplyScalar(0.045), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide, fog: false });
+    const poolMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.5)', 'rgba(255,255,255,0)')), color: keyC.clone().multiplyScalar(0.16), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const shaftGeo = new THREE.CylinderGeometry(0.3, 0.75, 9, 16, 1, true).translate(0, 4.5, 0);
+    const SH = [[2.2, -3.4], [-4.6, -1.2], [4.8, 2.6], [-1.8, 4.4], [0.6, 0.8]];
+    SH.forEach(([sx, sz], k) => {
+      const sh = new THREE.Mesh(shaftGeo, shaftMat); sh.position.set(sx, FLOOR, sz); room.add(sh);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(sx, FLOOR + 0.012, sz); room.add(pool);
+      life.push((t) => { const a = Math.sin(t * 0.21 + k * 1.7); sh.rotation.set(a * 0.05, 0, Math.cos(t * 0.17 + k) * 0.05); pool.scale.setScalar(1 + 0.08 * a); });
+    });
+    life.push((t) => { shaftMat.opacity = 0.85 + 0.15 * Math.sin(t * 0.5); });
+    // Low mist drifting over the floor, tinted by the room's fog, very faint so telegraphs stay clear.
+    if (id !== 'wrackline') {
+      const mc = new THREE.Color(th.wall).lerp(new THREE.Color(th.fog), 0.35);
+      const mistMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.55)', 'rgba(255,255,255,0)')), color: mc, transparent: true, opacity: 0.12, depthWrite: false });
+      for (let k = 0; k < 7; k++) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + 0.08 + k * 0.004; room.add(m);
+        const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
+        life.push((t) => { const a = a0 + t * sp * (k % 2 ? 1 : -1); m.position.x = Math.cos(a) * r0; m.position.z = Math.sin(a) * r0; m.rotation.z = a * 0.5; });
+      }
+    }
+    const forge = id === 'flue' || id === 'kiln' || id === 'hammerdeep' || id === 'pressworks' || id === 'smeltery' || id === 'crucible' || id === 'hoard';
+    const wet = id === 'foundry' || id === 'coldmarrow' || id === 'wrackline' || id === 'glarewell';
+    if (forge) {
+      // Chains hanging on the walls, swaying a little, a hook at the end.
+      const iron = new THREE.MeshStandardMaterial({ color: '#2a2422', roughness: 0.6, metalness: 0.8 });
+      const link = new THREE.TorusGeometry(0.09, 0.025, 4, 8);
+      for (let k = 0; k < 7; k++) {
+        const a = Math.PI + (k - 3) * 0.42, r = 8.6;
+        const g = new THREE.Group(); g.position.set(Math.sin(a) * r, 6.2, Math.cos(a) * r); g.rotation.y = a;
+        const n = 10 + (k * 3) % 7;
+        for (let j = 0; j < n; j++) { const l = new THREE.Mesh(link, iron); l.position.y = -j * 0.15; l.rotation.y = j % 2 ? Math.PI / 2 : 0; g.add(l); }
+        const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3), iron); hook.position.y = -n * 0.15 - 0.12; g.add(hook);
+        room.add(g);
+        life.push((t) => { g.rotation.z = Math.sin(t * 0.7 + k * 1.3) * 0.045; g.rotation.x = Math.sin(t * 0.5 + k) * 0.03; });
+      }
+    }
+    if (wet) {
+      // Drips falling from the dark above near the walls and arena edge, each ringing out on the floor.
+      const dropC = new THREE.Color(id === 'coldmarrow' ? '#d8ecff' : id === 'glarewell' ? '#e0d8ff' : '#bfe8e0');
+      const dropMat = new THREE.MeshBasicMaterial({ color: dropC.clone().multiplyScalar(1.6) });
+      const ringMat = new THREE.MeshBasicMaterial({ color: dropC, transparent: true, depthWrite: false });
+      for (let k = 0; k < 9; k++) {
+        const a = k * 0.73 + 0.4, r = 3 + (k * 2.3) % 4.8;
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const drop = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), dropMat); drop.scale.y = 2.2; room.add(drop);
+        const ringM = ringMat.clone();
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), ringM); ring.rotation.x = -Math.PI / 2; ring.position.set(x, FLOOR + 0.015, z); room.add(ring);
+        const per = 2.2 + (k % 4) * 0.7, off = k * 0.61;
+        life.push((t) => {
+          const ph = ((t + off) % per) / per, fall = 0.45; // 45% of the cycle falling, then the ring spreads
+          drop.visible = ph < fall;
+          if (ph < fall) { const f = ph / fall; drop.position.set(x, FLOOR + 6 * (1 - f * f), z); }
+          const rp = ph < fall ? -1 : (ph - fall) / 0.35;
+          ring.visible = rp >= 0 && rp < 1;
+          if (ring.visible) { ring.scale.setScalar(0.08 + 0.5 * rp); ringM.opacity = 0.7 * (1 - rp); }
+        });
+      }
+    }
+  }
+  return { room, flames, basalt, glows, th, drift, life };
 }
 
 /* ---------- sprites ---------- */
@@ -758,7 +825,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   renderer.shadowMap.enabled = !saver; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
   // A touch over the handoff's 1.0. Steve, 23 Nov: 0.78 read "very dark".
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.65; // 1.05 read murky on Steve's phone (23 Nov)
   const cv = renderer.domElement;
   cv.className = 'hd2d-canvas';
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1';
@@ -779,17 +846,17 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /** The handoff's camera angle: up 15.5 and back 13.6 from what it looks at. */
   const camDir = new THREE.Vector3(0, 15.5, 13.6).normalize();
 
-  scene.add(new THREE.HemisphereLight(th0.hemi[0], th0.hemi[1], th0.hemi[2]));
-  const key = new THREE.DirectionalLight(th0.key, 1.3);
+  scene.add(new THREE.HemisphereLight(th0.hemi[0], th0.hemi[1], th0.hemi[2] * 1.6));
+  const key = new THREE.DirectionalLight(th0.key, 1.6);
   key.castShadow = !saver; key.shadow.mapSize.set(512, 512);
   Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 40 });
   key.shadow.bias = -0.0008; scene.add(key); scene.add(key.target);
   // A warm lamp over your own hero, so the ground you fight on is always lit (the room's other lights sit at its edges).
-  const lamp = new THREE.PointLight(th0.lamp, saver ? 0 : 5, 6.5, 2); lamp.position.set(0, 2.4, 0); if (!saver) scene.add(lamp);
+  const lamp = new THREE.PointLight(th0.lamp, saver ? 0 : 7, 8, 2); lamp.position.set(0, 2.4, 0); if (!saver) scene.add(lamp);
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
-  const { room, flames, basalt, glows, drift } = buildRoom(scene, saver, addLight, rid);
+  const { room, flames, basalt, glows, drift, life } = buildRoom(scene, saver, addLight, rid);
   let roomFor = -1;
 
   const flat = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + y; m.renderOrder = 2; scene.add(m); return m; };
@@ -804,26 +871,31 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
     atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
     /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
-    twin?: THREE.Mesh };
+    twin?: THREE.Mesh;
+    /** The green outline (outline()). */
+    rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> };
   const heroes: HeroS[] = [];
+  /** Per enemy slot: its attack timers last frame, when its last attack began, and which way it lunged. */
+  const foeAtk: ({ born: number; touch: number; abil: number; at: number; dx: number; dz: number } | undefined)[] = [];
   const heroSprite = (i: number, cls: string): HeroS => {
     const set = F[ART[cls] ?? 'ew'];
     const mats: Record<string, THREE.MeshStandardMaterial> = {};
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
     const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
     mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); scene.add(mesh);
-    const rc = new THREE.Color(RING[cls] ?? '#ffc861');
+    const rc = GOOD.clone(); // was the class colour (RING); Steve, 23 Nov: green = good
     const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
     const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
     const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
-    const h: HeroS = { cls, mesh, mats, blob, ring, disc, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
+    const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(heroGeo, rimMat(GOOD, false)); rim.renderOrder = 4; scene.add(rim);
+    const h: HeroS = { cls, mesh, mats, blob, ring, disc, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
     if (i === 0) {
       const tm = new THREE.MeshBasicMaterial({ map: mats.idle.map, alphaTest: 0.5, side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
       h.twin = new THREE.Mesh(heroGeo, tm); h.twin.castShadow = true; scene.add(h.twin);
     }
     heroes[i] = h; return h;
   };
-  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin]) if (o) scene.remove(o); };
+  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -843,14 +915,58 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> };
+  // Steve, 23 Nov: "Can't see the enemies... Green = good, red = bad". Every foe gets a faint red outline and a red
+  // ring the size of its hit box at its feet; every hero (you and allies) a green outline and a green ring.
+  const GOOD = new THREE.Color('#5dff8a'), BAD = new THREE.Color('#ff3b3b');
+  /**
+   * An outline of a sprite: a quad a little larger than it whose shader lights only the texels just outside the
+   * sprite's alpha edge, in one colour. A foe's outline ignores depth (`xray`), so a foe standing behind or under a hero
+   * still shows its red edge: melee foes crowd inside your hero's footprint, which hid them completely (23 Nov).
+   */
+  const rimMat = (tint: THREE.Color, xray: boolean) => new THREE.ShaderMaterial({
+    uniforms: { map: { value: null as THREE.Texture | null }, opacity: { value: 0.9 }, tint: { value: tint.clone() }, texel: { value: new THREE.Vector2(1 / 32, 1 / 32) }, k: { value: new THREE.Vector2(1, 1) } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D map; uniform float opacity; uniform vec3 tint; uniform vec2 texel; uniform vec2 k; varying vec2 vUv;
+      float A(vec2 u) { if (u.x < 0.0 || u.x > 1.0 || u.y < 0.0 || u.y > 1.0) return 0.0; return texture2D(map, u).a; }
+      void main() {
+        vec2 u = (vUv - vec2(0.5, 0.0)) * k + vec2(0.5, 0.0);
+        vec2 dx = vec2(texel.x * 1.5, 0.0), dy = vec2(0.0, texel.y * 1.5);
+        float n = max(max(max(A(u + dx), A(u - dx)), max(A(u + dy), A(u - dy))), max(max(A(u + dx + dy), A(u - dx - dy)), max(A(u + dx - dy), A(u - dx + dy))));
+        float e = step(0.5, n) * (1.0 - step(0.5, A(u)));
+        if (e * opacity < 0.01) discard;
+        gl_FragColor = vec4(tint, e * opacity);
+      }`,
+    transparent: true, depthWrite: false, depthTest: !xray, side: THREE.DoubleSide, toneMapped: false,
+  });
+  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge. */
+  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number) => {
+    rim.visible = m.visible;
+    if (!m.visible) return;
+    const map = (m.material as THREE.MeshStandardMaterial).map;
+    if (!map) { rim.visible = false; return; }
+    const u = rim.material.uniforms;
+    u.map.value = map;
+    const img = map.image as { width?: number; height?: number } | undefined;
+    u.texel.value.set(1 / (img?.width || 32), 1 / (img?.height || 32));
+    rim.geometry = m.geometry;
+    rim.position.copy(m.position).addScaledVector(camDir, 0.01);
+    rim.rotation.copy(m.rotation);
+    const sx = Math.abs(m.scale.x) || 1, sy = m.scale.y || 1;
+    const kx = 1 + (2 * grow) / sx, ky = 1 + grow / sy;
+    rim.scale.set(m.scale.x * kx, sy * ky, 1);
+    u.k.value.set(kx, ky);
+  };
+  const RIM_GROW = 0.05;
   const foes: FoeS[] = [];
   const foe = (i: number): FoeS => {
     let f = foes[i];
     if (!f) {
       const mesh = new THREE.Mesh(foeGeo, regentMat); mesh.castShadow = !saver; scene.add(mesh);
       const blob = flat(circle, blobMat, 0.005);
-      f = foes[i] = { mesh, blob };
+      const ring = flat(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: 0.6, depthWrite: false }), 0.031);
+      const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, rimMat(BAD, true)); rim.renderOrder = 6; scene.add(rim);
+      f = foes[i] = { mesh, blob, ring, rim };
     }
     return f;
   };
@@ -864,6 +980,19 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const millGeo = new THREE.BufferGeometry(); millGeo.setAttribute('position', new THREE.BufferAttribute(millPos, 3));
   const millMat = new THREE.PointsMaterial({ map: canvasTex(dotCanvas('rgba(255,240,190,1)', 'rgba(255,110,30,0)')), color: new THREE.Color(2.2, 1.1, 0.45), size: 0.42, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const mill = new THREE.Points(millGeo, millMat); mill.frustumCulled = false; mill.visible = false; scene.add(mill);
+  // An echoed cast (Phase 16 U1: the boss borrows another version's move): a pale, ghostly double of him swells out
+  // and fades for ECHO_GHOST s, with a cold ring at his feet, so the borrowed move reads as not his own.
+  const ECHO_GHOST = 1.6;
+  // A silhouette: the sprite's alpha only, filled with a cold colour (his own dark colours would add almost nothing).
+  const ghostMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: null as THREE.Texture | null }, opacity: { value: 0 }, tint: { value: new THREE.Color(0.45, 0.8, 1.5) } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D map; uniform float opacity; uniform vec3 tint; varying vec2 vUv; void main() { float a = texture2D(map, vUv).a * opacity; if (a < 0.01) discard; gl_FragColor = vec4(tint * a, a); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  const ghost = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, ghostMat); ghost.visible = false; ghost.renderOrder = 3; scene.add(ghost);
+  const ghostRing = flat(new THREE.RingGeometry(0.85, 1, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 0.9, 1.5), transparent: true, depthWrite: false }), 0.04);
+  ghostRing.visible = false;
   const INH = 80;
   const inhPos = new Float32Array(INH * 3);
   const inhGeo = new THREE.BufferGeometry(); inhGeo.setAttribute('position', new THREE.BufferAttribute(inhPos, 3));
@@ -966,6 +1095,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   let W = 0, H = 0, dist = 20;
   /** How many attacks your hero has started (stats(), so a test can see the pose fire). */
   let attacks = 0;
+  /** How many foe attacks (lunges) have started, for stats(). */
+  let foeAttacks = 0;
   let bridge: { mesh: THREE.Mesh; tex: THREE.CanvasTexture; stamp: number } | null = null;
   const resize = () => {
     const w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
@@ -1072,6 +1203,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       h.blob.position.set(x, FLOOR + 0.006, z);
       h.ring.position.set(x, FLOOR + 0.03, z); h.disc.position.set(x, FLOOR + 0.028, z);
       h.ring.visible = h.disc.visible = !dead;
+      outline(h.rim, h.mesh, RIM_GROW); if (dead) h.rim.visible = false;
       if (i > 0) {
         const nm = A.heroName(i);
         if (nm !== h.nameText) {
@@ -1086,6 +1218,13 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
 
     // Foes.
     let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0, bossR = 0;
+    // Steve, 23 Nov: enemies had no attack animation. A foe attacks when its touch timer resets (a melee hit, the
+    // 0.6 s touchCd) or its ability timer jumps back up (a shot, a summon, a boss move): it lunges at the nearest hero
+    // and squashes, for FOE_ATK s. While casting it rears up and pulses.
+    const FOE_ATK = 0.3;
+    const heroPts: { x: number; y: number }[] = [];
+    for (let j = 0; j < w.heroes.length; j++) { const q = w.heroData(j).player; if (q.hp > 0) heroPts.push({ x: q.x, y: q.y }); }
+    let bossMesh: THREE.Mesh | null = null;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1095,6 +1234,17 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const age = w.time - e.spawnedAt;
       const rise = age < 0.3 ? 0.3 + 0.7 * (age / 0.3) + Math.sin((age / 0.3) * Math.PI) * 0.25 : 1;
       const hit = e.flash > 0 ? 0.1 : 0;
+      let fa = foeAtk[i];
+      if (!fa || fa.born !== e.spawnedAt) fa = foeAtk[i] = { born: e.spawnedAt, touch: e.touchCd, abil: e.abilityT, at: -9, dx: 0, dz: 1 };
+      if (e.touchCd > fa.touch + 0.05 || e.abilityT > fa.abil + 0.05) {
+        fa.at = w.time; foeAttacks++;
+        let best = Infinity;
+        for (const q of heroPts) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < best) { best = d; const l = Math.sqrt(d) || 1; fa.dx = (q.x - e.x) / l; fa.dz = (q.y - e.y) / l; } }
+      }
+      fa.touch = e.touchCd; fa.abil = e.abilityT;
+      const sinceAtk = w.time - fa.at;
+      const ak = sinceAtk >= 0 && sinceAtk < FOE_ATK ? Math.sin((sinceAtk / FOE_ATK) * Math.PI) : 0;
+      const rear = e.castId ? 0.06 + 0.04 * Math.sin(t * 12) : 0;
       let wd: number, ht: number;
       if (e.kind === 'regent') {
         f.mesh.geometry = bossGeo; f.mesh.material = regentMat;
@@ -1107,22 +1257,40 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = false; continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
-        m.emissiveIntensity = e.flash > 0 ? 0.7 : 0.22;
+        m.emissiveIntensity = e.flash > 0 ? 0.7 : 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
-      f.mesh.scale.set(flip * wd * rise * (1 + hit), ht * rise * (1 - hit), 1);
-      f.mesh.position.set(x, FLOOR, z);
-      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; }
-      f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : 0;
+      f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.14 * ak), ht * rise * (1 - hit - 0.1 * ak + rear), 1);
+      const reach = Math.min(0.35, (e.def.radius * S) * 0.6) * ak;
+      f.mesh.position.set(x + fa.dx * reach, FLOOR, z + fa.dz * reach);
+      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; bossMesh = f.mesh; }
+      f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak;
       f.mesh.visible = true;
       f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
+      f.ring.visible = true; f.ring.position.set(x, FLOOR + 0.031, z); f.ring.scale.setScalar(e.def.radius * S * rise);
+      outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
+    const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
+    const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
+    ghost.visible = ghostRing.visible = echoing;
+    if (echoing && bossMesh) {
+      const bm = bossMesh as THREE.Mesh;
+      const k = echoAge / ECHO_GHOST;
+      const map = (bm.material as THREE.MeshStandardMaterial).map;
+      ghostMat.uniforms.map.value = map;
+      ghost.geometry = bm.geometry;
+      ghost.position.copy(bm.position).addScaledVector(camDir, 0.05); ghost.position.y += 0.1 * k;
+      ghost.scale.copy(bm.scale).multiplyScalar(1.04 + 0.22 * k);
+      ghostMat.uniforms.opacity.value = 0.8 * (1 - k) * (0.8 + 0.2 * Math.sin(t * 20));
+      ghostRing.position.set(bossX, FLOOR + 0.04, bossZ); ghostRing.scale.setScalar(bossR * (1.1 + 0.9 * k));
+      (ghostRing.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
+    }
     const milling = w.millT > 0 && bossH > 0;
     mill.visible = milling;
     if (milling) {
@@ -1274,6 +1442,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (const f of flick) f.l.intensity = f.base * (0.84 + 0.1 * Math.sin(t * 7 * f.speed + f.seed) + 0.06 * Math.sin(t * 17 * f.speed + f.seed * 2));
     flames.forEach((fl, i) => fl.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(t * 9 + i * 1.7)), 1));
     for (const d of drift) { d.offset.x = (t * 0.012) % 1; d.offset.y = (t * 0.007) % 1; }
+    for (const f of life) f(t);
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
@@ -1321,7 +1490,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     },
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;
-      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks };
+      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks, foeAttacks };
     },
   };
 }

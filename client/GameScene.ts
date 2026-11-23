@@ -343,6 +343,8 @@ export class GameScene extends Phaser.Scene {
   private homeThrow: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
   private homeFloor: Phaser.GameObjects.Graphics | null = null;
   private homeLie: Phaser.GameObjects.Graphics | null = null;
+  /** World.time of the boss's last echoed cast, for the 3D view's ghost (Hd2dAdapter.echoAt). */
+  private echoAt = -Infinity;
   private homeLast = 0;
   private whirlGfx: Phaser.GameObjects.Graphics | null = null;
   private whirlFlip = 0;
@@ -681,6 +683,7 @@ export class GameScene extends Phaser.Scene {
           texScale: BASE,
           heroName: (i) => this.world.heroes[i]?.name ?? '',
           floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
+          echoAt: () => this.echoAt,
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
         this.bridgeStart();
@@ -1491,6 +1494,7 @@ export class GameScene extends Phaser.Scene {
         case 'echo':
           // Phase 16 U1: the boss borrows another version's move. Name it, so a phone shows what's coming.
           this.hud.ding(`Echo: ${BOSS_VERSION_NAME[ev.id] ?? ev.id}`);
+          this.echoAt = w.time;
           break;
         case 'emberDrift':
           // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
