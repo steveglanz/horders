@@ -750,9 +750,10 @@
     #pauseBtn, #hud .snd-toggle { flex: none; width: 44px; height: 44px; }
     .row { gap: 8px; }
     #hud.tgt #quests { display: none; }
-    /* Icon-only action buttons: the names live in the pause menu (hold for details). */
-    .ab .n { display: none; }
-    .ab svg { margin-top: 13px; }
+    /* Each button names its ability under a smaller icon (Steve, 23 Nov: icons alone didn't say what they do).
+       A two-word name may wrap to a second line; hold an ability in pause for what it does. */
+    .ab svg { position: absolute; left: 50%; top: 6px; width: 24px; height: 24px; margin: 0; translate: -50% 0; }
+    .ab .n { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow: hidden; bottom: 4px; padding: 0 2px; font-size: 9.5px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.05; }
     /* Fight intro: a compact card in the upper band instead of a paragraph over your hero, below the target frame (up to 152px with a cast bar). */
     #banner { top: max(21%, 164px); width: fit-content; max-width: min(92vw, 520px); margin: 0 auto; padding: 8px 16px 10px; border-radius: 14px; background: rgba(14,8,7,0.62); }
     /* With party frames down the left, the intro card drops below your hero instead of covering them. */
@@ -800,6 +801,7 @@
     #actionbar { left: auto; right: max(14px, env(safe-area-inset-right)); transform: none; align-items: flex-end; }
     #heat { width: 200px; }
     .ab { width: 60px; height: 60px; }
+    .ab .n { font-size: 9px; }
     /* Pause on a short landscape screen: Resume sits right under the title so it never needs a scroll, and the panel is wider
        with the Omens and Today's Heat two to a row. */
     #pause .panel { max-width: min(94vw, 680px) !important; width: 100%; display: flex; flex-direction: column; }
