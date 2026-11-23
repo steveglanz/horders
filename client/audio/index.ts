@@ -355,6 +355,7 @@ class AudioEngine {
       this.later = this.later.filter((l) => l.at > t);
     }
     if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
+    if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge));
