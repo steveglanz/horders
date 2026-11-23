@@ -891,6 +891,19 @@ export const SOUNDS = {
      { wave: 'sine', f: 2400, f2: 1600, dur: 0.35, delay: 0.8, vol: 0.08, curve: 1.4 }],
     chime(E6, 0.6, 0.05, 0.4), chime(B5(), 0.75, 0.04, 0.4),
   ),
+  /** Creeping Rime (Nhevra, phase 2 on rime runs): the frost rises under her. It waits 1.4 s for her phase sting (phaseIce, priority) to finish,
+   *  then a cold swell with frost cracking through it, rising in pitch as the patch spreads. */
+  rimeRise: join(
+    [{ wave: 'noise', f: 0, dur: 1.0, delay: 1.4, vol: 0.2, a: 0.5, lp: 2500, lp2: 8000, hp: 1200, curve: 1 },
+     { wave: 'sine', f: 520, f2: 880, dur: 1.0, delay: 1.4, vol: 0.07, a: 0.5, curve: 1, vib: [5, 0.01] }],
+    ...[1.5, 1.62, 1.7, 1.86, 1.95, 2.08, 2.2].map((d, k) => [{ wave: 'tri' as const, f: 3200 + k * 260, dur: 0.03, delay: d, vol: 0.06, curve: 4 }]),
+    chime(B5() * 2, 1.9, 0.06, 0.5),
+  ),
+  /** Standing in the Creeping Rime: a dry crackle of frost underfoot (throttled like lavaSizzle). */
+  rimeCrackle: join(
+    ...[0, 0.05, 0.13, 0.2].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.14 - k * 0.02, lp: 9000, hp: 2500, curve: 4 }]),
+    [{ wave: 'tri', f: 3600, dur: 0.04, delay: 0.08, vol: 0.04, curve: 4 }],
+  ),
   /** Sluicetide (Maelra, phase 2+ on tide runs): the current turns. A deep water rush swells and drains, with a bright splash on top for a phone. */
   tideTurn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.3, a: 0.35, lp: 500, lp2: 2600, hp: 350, curve: 1.2 },
@@ -1599,6 +1612,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  rimeRise: 2.0, rimeCrackle: 7.0, // Y3 Creeping Rime: the swell (after its 1.4 s wait) near slam, the crackle a little under lavaSizzle
   steamMoveWarn: 3.0, steamMoveOpen: 0.4, // Y3 Sealed Vents: the warning level with tideTurn, the burst level with slam
   lightSwing: 3.2, // Y3 Carried Light: level with slam
   turnFireWarn: 5.5, turnCone: 2.1, // Y3 Turning Fire: the warning near the Kiln's other boss calls, each cone level with slam

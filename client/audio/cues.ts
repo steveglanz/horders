@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, IRONLOAD, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -72,6 +72,8 @@ export interface CueContext {
   heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
   inLava?: boolean;
+  /** Y3 Creeping Rime: this screen's hero stands in the rime (inRimeNow), so frost crackles underfoot. */
+  inRime?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -421,7 +423,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
     case 'lightMove': return { id: 'lightSwing' };
     // Y3 Creeping Rime: silent until sound adds its cue.
-    case 'rimeRise': return null;
+    // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
+    case 'rimeRise': return { id: 'rimeRise' };
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
@@ -523,6 +526,14 @@ export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
 }
 
 /** The Kiln's channel layout: is this hero standing in a lava strip (World.lava, as World.layoutClock burns it)? */
+/** Y3 Creeping Rime: is this screen's (living) hero inside the rime? The same test the sim uses to chill. */
+export function inRimeNow(w: { rimeOn: boolean; rimeX: number; rimeY: number; player: { x: number; y: number; hp: number } }): boolean {
+  const p = w.player;
+  if (!w.rimeOn || p.hp <= 0) return false;
+  const dx = p.x - w.rimeX, dy = p.y - w.rimeY;
+  return dx * dx + dy * dy <= CREEPING_RIME.r ** 2;
+}
+
 export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
   const p = w.player;
   if (p.hp <= 0) return false;
@@ -764,6 +775,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // The Kiln: a Rift spits every 3 s and two can be open; lava sizzles while you stand in it.
   riftSpit: 1,
   lavaSizzle: 0.35,
+  rimeCrackle: 0.35,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.
