@@ -261,7 +261,7 @@ Phase 15 gave every boss three versions, but a run still meets only one of them,
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| U1 | **Echoes:** from tier 8, each boss's last phase also borrows one move from a version this run didn't roll (seeded), on a slower timer, so the same version can end two ways | design | 🔨 Kiln Mother (#583), Maelra (#584), the Lensmother (#587), Nhevra (this PR), then Hessa, then group bosses, then raids; every boss stays within the band with its echo on, measured against echoes off |
+| U1 | **Echoes:** from tier 8, each boss's last phase also borrows one move from a version this run didn't roll (seeded), on a slower timer, so the same version can end two ways | design | 🔨 Kiln Mother (#583), Maelra (#584), the Lensmother (#587), Nhevra (#589), Hessa (#591): every solo boss done. Group: Ondrel (this PR), then Ysmeret and Oskel; then raids; every boss stays within the band with its echo on, measured against echoes off |
 | U2 | **New foes:** one new elite for each solo dungeon whose answer is something other than "kill it or step out" (for example one that shields the foes behind it, a pair that must die close together, or one that calls a wave in from the edge if it lives too long) | design | ⏭ One dungeon per PR; names searched for WoW matches |
 | U3 | **Seen log:** echoes and the new foes join the Seen log and the run summary | engineering | ⏭ After U1 and U2 ids |
 | U4 | **Class check:** each class against each echo and each new foe | skills | ⏭ After U1 and U2 |

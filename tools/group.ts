@@ -146,6 +146,7 @@ for (const seed of seeds) {
       }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'stir') bump('stir:' + ev.id);
+      if (ev.type === 'echo') bump('echo:' + ev.id);
       if (ev.type === 'encounterClear') {
         fightHurts.push(w.fightHurt);
         const k = w.fightWorst;
