@@ -903,6 +903,8 @@ export class World {
   stirsMet = 0;
   /** Phase 15 Y10: this fight's damage taken (each hero's share of their own health, averaged over the party) and whether a hero went down. */
   fightHurt = 0;
+  /** Phase 15 Y10: which hero was worst off in the last cleared fight (-1: none hurt), for the tools. */
+  fightWorst = -1;
   fightDown = false;
   /** Phase 15 Y1/Y4: the wave shapes this run has met, as bits of WAVE_BIT (a pincer or ring when it starts, reinforcements when they warn). */
   wavesMet = 0;
@@ -2431,10 +2433,11 @@ export class World {
     // A rough fight for anyone resets the count; the rough bar never loosens past STIR.roughMax of max health.
     let worst = 0;
     let rough = false;
+    this.fightWorst = -1;
     for (let k = 0; k < this.heroes.length; k++) {
       const cls = k === this.acting ? this.cls : this.heroes[k].cls;
       const hurt = this.heroPlayer(k).stirHurt ?? 0;
-      worst = Math.max(worst, hurt / STIR_CLASS[cls]);
+      if (hurt / STIR_CLASS[cls] > worst) { worst = hurt / STIR_CLASS[cls]; this.fightWorst = k; }
       if (hurt >= Math.min(STIR.roughMax, STIR.rough * STIR_CLASS[cls])) rough = true;
     }
     this.fightHurt = worst;

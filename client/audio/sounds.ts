@@ -433,6 +433,19 @@ export const SOUNDS = {
     ]),
     boom(55, 0.5, 0.45).map((v) => ({ ...v, delay: 0.3 })),
   ),
+  /** The Homeward Hammer (Ondrel, home runs) is thrown: a hammer spinning end over end through the air toward the farthest hero (panned there). */
+  homeOut: join(
+    [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.22, a: 0.08, lp: 1800, lp2: 4500, hp: 500, curve: 1.4, trem: [9, 0.7] },
+     { wave: 'saw', f: 140, f2: 90, dur: 0.8, vol: 0.08, a: 0.05, lp: 1200, curve: 1.6, trem: [9, 0.6] }],
+  ),
+  /** It lands and rings through the floor, then starts home: an anvil ring (every hero is hurt) and a whoosh that builds
+   *  toward his hand, peaking as the return line lands HOMEWARD.back (1.2 s) later. The line's own slam is the catch. */
+  homeBack: join(
+    clang(392, 0.32, 0.9), clang(523, 0.14, 0.7),
+    [{ wave: 'sine', f: note(-5), dur: 1.0, vol: 0.1, curve: 1.2, vib: [6, 0.006] },
+     { wave: 'noise', f: 0, dur: 0.85, delay: 0.3, vol: 0.24, a: 0.8, lp: 1200, lp2: 6000, hp: 600, curve: 0.4, trem: [12, 0.6] },
+     { wave: 'sine', f: 500, f2: 1100, dur: 0.85, delay: 0.3, vol: 0.06, a: 0.8, curve: 0.4 }],
+  ),
   /** Slag Grip: molten slag clamps on, a sizzle that gets angrier with each stack. */
   slag: [
     { wave: 'noise', f: 0, dur: 0.45, vol: 0.3, a: 0.01, lp: 6000, lp2: 2500, hp: 1500, trem: [22, 0.6] },
@@ -1630,6 +1643,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  homeOut: 7.0, homeBack: 4.2, // Y3 Homeward Hammer: the throw near slam, the ring-and-return (priority) lands with the circle's slam, so it sits 6.6 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=11)
   rimeRise: 2.0, rimeCrackle: 7.0, // Y3 Creeping Rime: the swell (after its 1.4 s wait) near slam, the crackle a little under lavaSizzle
   steamMoveWarn: 3.0, steamMoveOpen: 0.4, // Y3 Sealed Vents: the warning level with tideTurn, the burst level with slam
   lightSwing: 3.2, // Y3 Carried Light: level with slam
