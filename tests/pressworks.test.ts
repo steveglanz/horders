@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, OSKEL, OSKEL_VARIANTS, DIECUT } from '../sim/world';
+import { World, OSKEL, OSKEL_VARIANTS, DIECUT, PUNCH } from '../sim/world';
 import { BOUNTY_DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS, WEEKLY_DUNGEON_IDS, partyBlocker } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { botInput, downstrokeTaker } from '../sim/bot';
@@ -162,6 +162,27 @@ describe('Phase 12 W2: the Pressworks and Oskel\'s Die Cut', () => {
     expect(w.hero(0).player.hp).toBeLessThan(hp0);
     expect(w.hero(1).player.hp).toBe(hp1);
     expect(DIECUT.fuse).toBeGreaterThan(OSKEL.rivetFuse);
+  });
+
+  it('Y3 Punch Line takes the Rivets\' place: rows of punches march out from Oskel, clear of an open plate, nearest first', () => {
+    const { w, inner, b } = pair();
+    w.bossVariant = 'punch';
+    inner.downT = 99; inner.stampT = 99; inner.rivetT = 0;
+    const e = w.enemies[b];
+    inner.addTelegraph('circle', e.x + 200, e.y, OSKEL.downRadius, 0, 0, 4, OSKEL.downMiss, 'soak', -3);
+    place(w, inner, 0, e.x - 150, e.y);
+    place(w, inner, 1, e.x + 150, e.y);
+    inner.oskelClock(1 / 30);
+    const punches = w.telegraphs.filter((t) => t.alive && t.shape === 'circle' && t.kind === 'hit');
+    expect(punches.length).toBeGreaterThan(PUNCH.rows * 2);
+    expect(punches.length).toBeLessThanOrEqual(PUNCH.rows * PUNCH.n);
+    expect(w.events.some((ev) => ev.type === 'castStart' && ev.id === 'punchLine')).toBe(true);
+    // Every punch is clear of the plate, and the farther out a punch is, the later it lands.
+    for (const t of punches) {
+      expect(Math.hypot(t.x - (e.x + 200), t.y - e.y)).toBeGreaterThan(OSKEL.downRadius + PUNCH.r);
+      const n = Math.round(Math.hypot(t.x - e.x, t.y - e.y) / PUNCH.gap - 0.5);
+      expect(t.dur).toBeCloseTo(PUNCH.first + PUNCH.step * n, 5);
+    }
   });
 
   it('a bot inside the cut walks back across its edge', () => {

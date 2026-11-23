@@ -1070,3 +1070,54 @@ Coldmarrow tier 10, heroes-r2 `<class>/hero-t8-0`, seeds 41 to 120, out of 80:
   - A slower slide round her (`orbit` 0.5 or 0.7) changed nothing beyond noise.
   - A wider gap (`hold` 130) made it worse: Bulwark 22, Duskblade 19.
 - Skills will re-run all five classes on 160 seeds.
+
+### Homeward Hammer follow-up (23 Nov 2026): a lighter ring
+
+Skills' Hammerdeep sweep on #541 (seeds 41 to 200, out of 160, choir / load / home) found the Homeward Hammer was the hard version for two parties: two Duskblades 95 / 86 / 66 and Bellows 97 / 71 / 73. The base party was level (95 / 96 / 95).
+
+- **Traced:** in the two-Duskblade party (Bulwark, Lumen, two Duskblades; seeds 41 to 120), the ring is the cause.
+  - Ring 0 gave 66 of 80, 6% gave 39, and 8% gave 33. Ironload and the Choir both gave 45.
+  - Taking the throw and the return line's damage away left it at 33.
+  - Stopping the return line short of his body gave 31.
+- **The fix:** `HOMEWARD.ring` goes from 0.08 to 0.05.
+
+Hammerdeep t8, seeds 41 to 120, out of 80:
+
+| Party | Choir | Ironload | Home, ring 8% | Home, ring 5% |
+|---|---|---|---|---|
+| Base (Bulwark, Lumen, Duskblade, Emberwright) | 48 | 48 | 48 | 52 |
+| Two Duskblades (Bulwark, Lumen, Duskblade, Duskblade) | 45 | 45 | 33 | 42 |
+| Bellows (Bulwark, Lumen, Slagbinder, Emberwright) | 41 | — | 35 | 46 |
+
+- With no healer (Slagbinder for the Lumen, seeds 1 to 40) it now wins 9 of 40, against 3 at 8% (Choir 2, Ironload 1). So it still needs a healer, though less than the Choir does.
+
+### Y3 Oskel: Punch Line (built 23 Nov 2026)
+
+Oskel (the Pressworks) had Rivets (a ring under every hero) and Die Cut (half the floor at once) on the Rivets timer. The third is **Punch Line** (`punch`, tuning in `PUNCH`, sim/world.ts).
+
+- Every `every` 7 s, `rows` 3 rows of punches run out from his feet, evenly spaced round him. One row goes through a random living hero.
+- While a Downstroke plate is open, the plate sits midway between two rows instead, so its taker is safe.
+- Each row is `n` 6 circles of `r` 65, `gap` 90 apart, for `damage` 35. The nearest lands after `first` 1.4 s and each one further out `step` 0.25 s later, so the punches march out across the floor.
+- A hero steps off the line, or crosses it just behind a punch.
+
+Pressworks tier 10, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each version forced:
+
+| Setup | Rivets | Die Cut | Punch Line |
+|---|---|---|---|
+| Full-skill bots | 64 | 55 | 58 |
+| Half-skill bots | 52 | 55 | 55 |
+
+- **Tuning steps:**
+  - Two rows of r 50 every 9 s gave 70.
+  - Three rows gave 64 when a plate was placed square to one row. A row could then clip the plate's edge, so that placement was dropped, and the version went back to 70.
+  - Every 7 s gave 65, r 65 gave 64, and a faster march (1.1 s first, 0.2 s step) gave 65. Every 7 s with r 65 together gave 58, which was kept.
+- The bots step out of the punches, so the sim mostly measures the time spent moving. Up to 18 circles fit in the 24-telegraph pool, beside the plate.
+- **Name:** searches on 23 Nov found no WoW ability called "Punch Line".
+
+### Creeping Rime fix 2 (23 Nov 2026): no jump when she walks into it
+
+QA on #550 found that Nhevra could walk into the held rime (as close as 90 px). On the next tick it snapped to the hero's side, a jump of 110 to 173 px (51 to 103 degrees round her), 8 times in 16 solo runs.
+
+- **The fix:** it now comes out on the hero's side only on the tick it rises. After that, when she walks into it, it is pushed out along its own angle and slides round at its usual speed.
+- Coldmarrow t10, seeds 41 to 120: Bulwark 44 to 54 of 80 (Thin Ice 52), Duskblade 54 (ice 34, drift 65).
+- QA also saw Rolling Vents win 12 of 24 against 23 for Twin Vents, at tier 6 with hero-t6 gear. On 80 seeds at tier 6 (hero-t6-0) they are level: roll 72, still 72, wander 73. So that was a small-sample gap.

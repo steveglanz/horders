@@ -6154,6 +6154,7 @@ export class World {
       }
     } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
       // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
+      const risen = !this.rimeOn;
       if (!this.rimeOn) {
         this.rimeOn = true;
         this.rimeX = e.x;
@@ -6173,9 +6174,10 @@ export class World {
       const nx = d > 1 ? this.rimeX + (dx / d) * step : this.rimeX, ny = d > 1 ? this.rimeY + (dy / d) * step : this.rimeY;
       if (CREEPING_RIME.hold > 0 && Math.hypot(nx - e.x, ny - e.y) < min) {
         // Her own body holds the rime off (`hold`, px past her edge): it creeps round her toward the hero, not through her.
-        // (Just risen under her, it first comes out on the hero's side.)
-        const inside = Math.hypot(this.rimeX - e.x, this.rimeY - e.y) < min - 1;
-        const a0 = inside ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
+        // Just risen under her, it first comes out on the hero's side. If she walks into it later, it is pushed out
+        // along its own angle (QA on #550: snapping to the hero's side then made it jump up to 100 degrees round her).
+        const hd = Math.hypot(this.rimeX - e.x, this.rimeY - e.y);
+        const a0 = risen || hd < 1 ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
         let da = Math.atan2(ty - e.y, tx - e.x) - a0;
         while (da > Math.PI) da -= 2 * Math.PI;
         while (da < -Math.PI) da += 2 * Math.PI;
@@ -6475,6 +6477,29 @@ export class World {
       this.cutCount++;
       this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
+    } else if (this.rivetT <= 0 && this.bossVariant === 'punch') {
+      // Punch Line: two marching rows of punches through Oskel.
+      this.rivetT = PUNCH.every;
+      const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      let a: number;
+      // With a plate open, it sits midway between two rows, so its taker is safe.
+      if (plate) a = Math.atan2(plate.y - e.y, plate.x - e.x) + Math.PI / PUNCH.rows;
+      else {
+        const up: number[] = [];
+        for (let k = 0; k < this.heroes.length; k++) if (this.heroPlayer(k).hp > 0) up.push(k);
+        const q = this.heroPlayer(up.length ? up[this.rng.int(up.length)] : 0);
+        a = Math.atan2(q.y - e.y, q.x - e.x);
+      }
+      for (let row = 0; row < PUNCH.rows; row++) {
+        const s = (row * 2 * Math.PI) / PUNCH.rows;
+        for (let n = 0; n < PUNCH.n; n++) {
+          const d = PUNCH.gap * (n + 0.5);
+          const x = e.x + Math.cos(a + s) * d, y = e.y + Math.sin(a + s) * d;
+          if (x * x + y * y > (ARENA - PUNCH.r * 0.5) ** 2) break;
+          this.addTelegraph('circle', x, y, PUNCH.r, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', -1); // scaled by tier as it lands
+        }
+      }
+      this.events.push({ type: 'castStart', index: i, id: 'punchLine', name: 'Punch Line' });
     } else if (this.rivetT <= 0) {
       this.rivetT = OSKEL.rivetEvery;
       for (let k = 0; k < this.heroes.length; k++) {
@@ -8324,9 +8349,16 @@ export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
  * The rising slag burns a hero off an island `heat` of max health every SLAG.heatEvery s, and one on an island nothing.
  */
 export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
-/** Phase 12 W2: Oskel's two versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. */
-export type OskelVariant = 'rivets' | 'cut';
-export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
+/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, three rows marching out from him. */
+/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, two rows marching out from him. */
+export type OskelVariant = 'rivets' | 'cut' | 'punch';
+export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
+/**
+ * Phase 15 Y3 Punch Line, on the Rivets timer: `rows` rows of punches run out from Oskel's feet, evenly spaced round him, one through a
+ * hero (or, while a Downstroke plate is open, with the plate midway between two rows, so its taker is safe). Each row is `n` circles of `r`, `gap` apart;
+ * the nearest lands after `first` s and each one further out `step` s later, so the punches march out across the floor.
+ */
+export const PUNCH = { every: 7, rows: 3, n: 6, r: 65, gap: 90, first: 1.4, step: 0.25, damage: 35 };
 /** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
 export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
 /** Phase 12 W2 and Phase 15 Y3: Ysmeret's versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. `roll`: Rolling Vents, one at a time round her. */
@@ -8348,7 +8380,7 @@ export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
  * (after `back` s). As it lands it rings through the floor: every hero loses `ring` of max health (growing like the Choir).
  * Each throw hits `grow` harder. While it is out he has no Hammer Sweep.
  */
-export const HOMEWARD = { fall: 1.8, radius: 75, damage: 70, back: 1.2, width: 40, backDamage: 60, grow: 0.08, ring: 0.08 };
+export const HOMEWARD = { fall: 1.8, radius: 75, damage: 70, back: 1.2, width: 40, backDamage: 60, grow: 0.08, ring: 0.05 };
 /**
  * Ironload, on the Choir's timer: marks a hero (not the one Ondrel is on) for `time` s. It lands for
  * `share` (+`grow` each time) of max health, split evenly among the living heroes within `radius` of the mark.

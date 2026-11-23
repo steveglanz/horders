@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, OSKEL, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1071,6 +1071,44 @@ describe('audio', () => {
     const ash = { cls: 'bulwark' as const, acting: 0, dungeon: 'ashvents' };
     expect(cueFor({ type: 'castStart', index: 0, id: 'twinVents', name: 'Twin Vents' } as never, ash)?.id).not.toBe('rollVentWarn');
     expect(readFileSync('sim/world.ts', 'utf8')).toContain(`'${ROLLING_VENTS}'`);
+  });
+
+  it('winds up Oskel\'s Punch Line on its own beat, then thunks once for each step of the march (Phase 15 Y3)', () => {
+    type P = { spawn(kind: string, x: number, y: number): number; oskelClock(dt: number): void; updatePartyTelegraphs(dt: number): void;
+      bossIndex: number; rivetT: number; downT: number; stampT: number };
+    const w = new World({ seed: 5, dungeon: 'pressworks', omens: [], cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const q = w as unknown as P;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('oskel', 0, -300);
+    q.bossIndex = b;
+    w.bossVariant = 'punch';
+    q.downT = 99; q.stampT = 99; q.rivetT = 0;
+    w.events.length = 0;
+    q.oskelClock(1 / 30);
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'pressworks' };
+    const start = w.events.find((e) => e.type === 'castStart' && e.id === 'punchLine');
+    expect(start && cueFor(start, c)?.id).toBe('punchLineWarn');
+    expect(PRIORITY.has('punchLineWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.punchLineWarn)).toBeLessThan(PUNCH.first);
+    // March the fuses down and listen to every landing.
+    const lands: number[] = [];
+    const dt = 1 / 60;
+    for (let t = 0; t < PUNCH.first + PUNCH.step * PUNCH.n + 0.2; t += dt) {
+      w.events.length = 0;
+      q.updatePartyTelegraphs(dt);
+      const here = w.events.filter((e) => e.type === 'slam' && e.r === PUNCH.r);
+      for (const e of here) expect(cueFor(e, c)?.id).toBe('punchHit');
+      if (here.length) lands.push(t);
+    }
+    // Steps land PUNCH.step apart (all rows in one tick), and each thunk is over before the next step.
+    expect(lands.length).toBeGreaterThanOrEqual(2);
+    for (let k = 1; k < lands.length; k++) expect(lands[k] - lands[k - 1]).toBeCloseTo(PUNCH.step, 1);
+    expect(recipeLength(SOUNDS.punchHit)).toBeLessThan(PUNCH.step);
+    // The throttle folds the three rows of one step into one thunk and never swallows the next step.
+    expect(THROTTLE.punchHit ?? 0).toBeGreaterThan(dt);
+    expect(THROTTLE.punchHit ?? 0).toBeLessThan(PUNCH.step);
+    // No other Pressworks landing shares the punch's radius.
+    for (const r of [OSKEL.downRadius, OSKEL.rivetRadius, DIECUT_R]) expect(r).not.toBe(PUNCH.r);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {

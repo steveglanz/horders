@@ -689,6 +689,22 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeGreaterThanOrEqual(e.def.radius + CREEPING_RIME.hold - 1e-6);
   });
 
+  it('Y3 Creeping Rime: if she walks into it, it is pushed out along its own angle, with no jump round her (QA on #550)', () => {
+    const { w, q, b } = nhevra('rime');
+    const e = w.enemies[b];
+    w.player.x = e.x + 300; w.player.y = e.y;
+    q.coldClock(1 / 30); // risen, on the hero's side (+x)
+    const min = e.def.radius + CREEPING_RIME.hold;
+    // She steps toward it, and the hero is now a quarter turn round her.
+    e.x += 50;
+    w.player.x = e.x; w.player.y = e.y + 300;
+    const a0 = Math.atan2(w.rimeY - e.y, w.rimeX - e.x);
+    q.coldClock(1 / 30);
+    const a1 = Math.atan2(w.rimeY - e.y, w.rimeX - e.x);
+    expect(Math.abs(a1 - a0)).toBeLessThanOrEqual((CREEPING_RIME.speed * CREEPING_RIME.orbit) / 30 / min + 1e-9);
+    expect(Math.hypot(w.rimeX - e.x, w.rimeY - e.y)).toBeCloseTo(min, 5);
+  });
+
   it('online co-op: a guest sees the same version and embers', () => {
     const { w, q } = nhevra('drift');
     q.coldClock(0.01);
