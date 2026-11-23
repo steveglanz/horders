@@ -416,8 +416,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
-    // Y3 Sealed Vents: silent until sound adds its cue.
-    case 'ventShift': return null;
+    // Y3 Sealed Vents: a building hiss as the steam is about to move, a burst as it opens at the new vent.
+    case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
+    // Y3 Carried Light: silent until sound adds its cue (the Glare's own warning already plays).
+    // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
+    case 'lightMove': return { id: 'lightSwing' };
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
@@ -725,7 +728,7 @@ export const WANDERING_VENTS = 'Wandering Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

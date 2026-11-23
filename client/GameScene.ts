@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1367,6 +1367,11 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           this.tideBeat = 1;
           break;
+        case 'lightMove':
+          // Y3 Carried Light: the shadows swing to point away from her.
+          this.hud.ding('The light moves');
+          this.ring(ev.x, ev.y, 70, 0xfff0c0, 0.6);
+          break;
         case 'ventShift': {
           // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
           const v = w.vents[ev.vent];
@@ -1472,7 +1477,7 @@ export class GameScene extends Phaser.Scene {
           const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
-            : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
+            : ev.id === 'lensmother' && w.bossVariant === 'walk' ? CARRIED_LIGHT_TIP : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
             : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
@@ -2000,10 +2005,12 @@ export class GameScene extends Phaser.Scene {
       const c = w.pillars[k];
       if (!c) { if (ps.visible) ps.setVisible(false); return; }
       if (!c.cracked) {
-        const d = Math.hypot(c.x, c.y) || 1;
-        const ux = c.x / d;
-        const uy = c.y / d;
-        const L = w.shadowLen;
+        // Y3 Carried Light: the wedge points away from wherever the light is now.
+        const cx = c.x - w.lightX, cy = c.y - w.lightY;
+        const d = Math.hypot(cx, cy) || 1;
+        const ux = cx / d;
+        const uy = cy / d;
+        const L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
@@ -2024,8 +2031,9 @@ export class GameScene extends Phaser.Scene {
       // The centre lens glows; it brightens while a Glare is coming.
       const glaring = w.enemies.some((o) => o.alive && o.castId === 'glare');
       const a = glaring ? 0.25 + 0.2 * Math.sin(now / 50) : 0.1;
-      g.fillStyle(0xfff0c0, a).fillCircle(0, 0, 60);
-      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(0, 0, 60);
+      // Y3 Carried Light: the glow sits wherever the light is now.
+      g.fillStyle(0xfff0c0, a).fillCircle(w.lightX, w.lightY, 60);
+      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(w.lightX, w.lightY, 60);
     }
     if (w.lampBeam) {
       const b = w.lampBeam;
