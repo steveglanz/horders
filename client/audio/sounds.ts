@@ -1771,7 +1771,8 @@ export const PHONE_FLOOR_DB = -26.5;
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
-  chargeWindup: 4.0,
+  // +2 (Phase 16): it was 4.0 dB over the Foundry mix, under the slams (busycheck t8 heroes, SEEDS=1-24, n=8).
+  chargeWindup: 6.0,
   // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
   bellowWarn: 3.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
