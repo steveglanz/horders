@@ -424,6 +424,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
     // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
     case 'lightMove': return { id: 'lightSwing' };
+    case 'homeward': return null; // Y3 the Homeward Hammer: cue to come from sound
     // Y3 Creeping Rime: silent until sound adds its cue.
     // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
     case 'rimeRise': return { id: 'rimeRise' };

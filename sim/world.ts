@@ -584,6 +584,7 @@ export type SimEvent =
   | { type: 'tideTurn'; angle: number }
   /** Y3 Carried Light: the Glarewell's light now comes from here. */
   | { type: 'lightMove'; x: number; y: number }
+  | { type: 'homeward'; stage: 'out' | 'back'; x: number; y: number }
   /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
   | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
@@ -954,6 +955,11 @@ export class World {
   /** Phase 12 W2: Ondrel's Ironload. The marked hero (-1: none), and how long until it lands. */
   loadHero = -1;
   loadT = 0;
+  /** Phase 15 Y3 the Homeward Hammer: 0 in his hand, 1 thrown (landing), 2 flying home; where it lies, and the time left on this leg. */
+  homeStage = 0;
+  homeX = 0;
+  homeY = 0;
+  homeT = 0;
   /** Set while a dungeon verb that wards must not soak (Glare) lands. */
   private verbHit = false;
   private gripT = 0;
@@ -1943,6 +1949,8 @@ export class World {
           this.choirN = 0;
           this.loadHero = -1;
           this.loadT = 0;
+          this.homeStage = 0;
+          this.homeT = 0;
           this.bossVariant = this.rollOndrelVariant();
           this.gripT = 0;
           this.slagTickT = 1;
@@ -5105,6 +5113,29 @@ export class World {
         this.events.push({ type: 'slam', x: pos[k].x, y: pos[k].y, r: YSMERET.scatterRadius });
       }
       this.use(at);
+    } else if (id === 'homeward') {
+      // The Homeward Hammer: thrown at the hero farthest from him (the tank only if no one else stands).
+      const tank = this.targetOf(i, 0);
+      const b = this.enemies[i];
+      let best = -1, bd = -1;
+      for (let pass = 0; pass < 2 && best < 0; pass++) {
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || (pass === 0 && k === tank && this.heroes.length > 1)) continue;
+          const dd = dist2(q.x, q.y, b.x, b.y);
+          if (dd > bd) { bd = dd; best = k; }
+        }
+      }
+      if (best >= 0) {
+        const q = this.heroPlayer(best);
+        this.homeX = q.x; this.homeY = q.y;
+        const dmg = HOMEWARD.damage * (1 + HOMEWARD.grow * this.choirN);
+        this.choirN++;
+        this.addTelegraph('circle', q.x, q.y, HOMEWARD.radius, 0, 0, HOMEWARD.fall, dmg, 'hit', i); // scaled by tier as it lands
+        this.homeStage = 1;
+        this.homeT = HOMEWARD.fall;
+        this.events.push({ type: 'homeward', stage: 'out', x: q.x, y: q.y });
+      }
     } else if (id === 'ironload') {
       // Mark a hero other than the one holding Ondrel; it lands in `time` s, split among everyone with them.
       const tank = this.targetOf(i, 0);
@@ -5973,7 +6004,7 @@ export class World {
       p.slag = Math.min(ONDREL.slagMax, (p.slag ?? 0) + 1);
       this.events.push({ type: 'slagGrip', x: p.x, y: p.y, stacks: p.slag });
     }
-    if (e.abilityT > 0) return;
+    if (e.abilityT > 0 || this.homeStage > 0) return;
     e.abilityT = ONDREL.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
     this.startCast(i, 'hammerSweep', 'Hammer Sweep', ONDREL.sweepCast, false);
@@ -7036,7 +7067,29 @@ export class World {
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
         if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else if (this.bossVariant === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
         else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
+      }
+    }
+    // The Homeward Hammer: once it has landed, it flies straight back to his hand.
+    if (this.homeStage > 0) {
+      this.homeT -= dt;
+      if (this.homeT <= 0 && this.homeStage === 1) {
+        // It lands ringing: every hero loses a share of health, like a lighter Choir.
+        const at = this.acting;
+        const ring = HOMEWARD.ring + ONDREL.choirGrow * (this.choirN - 1);
+        if (ring > 0) this.eachHero(() => this.hurtPlayer(this.player.maxHp * ring, i, true));
+        this.use(at);
+        const d = Math.max(1, Math.hypot(e.x - this.homeX, e.y - this.homeY));
+        const ang = Math.atan2(e.y - this.homeY, e.x - this.homeX);
+        const dmg = HOMEWARD.backDamage * (1 + HOMEWARD.grow * (this.choirN - 1));
+        this.addTelegraph('cone', this.homeX, this.homeY, d, ang, 2 * Math.atan(HOMEWARD.width / d), HOMEWARD.back, dmg, 'hit', i); // scaled by tier as it lands
+        this.homeStage = 2;
+        this.homeT = HOMEWARD.back;
+        this.events.push({ type: 'homeward', stage: 'back', x: this.homeX, y: this.homeY });
+      } else if (this.homeT <= 0 && this.homeStage === 2) {
+        this.homeStage = 0;
+        this.homeT = 0;
       }
     }
     // Ironload: when it lands, its weight is shared by every hero standing with the marked one.
@@ -8243,9 +8296,16 @@ export type YsmeretVariant = 'still' | 'wander';
 export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
 /** Wandering Vents: each circle moves `speed` px/s around Ysmeret (heroes run 128 to 152), about 70 degrees over a 4 s fuse. */
 export const WANDER = { speed: 70 };
-/** Phase 12 W2: Ondrel's two versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. */
-export type OndrelVariant = 'choir' | 'load';
-export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
+/** Phase 12 W2 and Phase 15 Y3: Ondrel's versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. `home`: the Homeward Hammer, thrown out and flying back. */
+export type OndrelVariant = 'choir' | 'load' | 'home';
+export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
+/**
+ * Phase 15 Y3 the Homeward Hammer, on the Choir's timer: he throws his hammer at the hero farthest from him. It lands
+ * in a circle (`radius`, after `fall` s), then flies straight back to his hand along a line `width` px either side
+ * (after `back` s). As it lands it rings through the floor: every hero loses `ring` of max health (growing like the Choir).
+ * Each throw hits `grow` harder. While it is out he has no Hammer Sweep.
+ */
+export const HOMEWARD = { fall: 1.8, radius: 75, damage: 70, back: 1.2, width: 40, backDamage: 60, grow: 0.08, ring: 0.08 };
 /**
  * Ironload, on the Choir's timer: marks a hero (not the one Ondrel is on) for `time` s. It lands for
  * `share` (+`grow` each time) of max health, split evenly among the living heroes within `radius` of the mark.
