@@ -19,7 +19,7 @@ export type EncounterId =
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
   | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
-  | 'ashwall' | 'ballast';
+  | 'ashwall' | 'ballast' | 'lampeye';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -71,6 +71,8 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   tidepair: { id: 'tidepair', name: 'The Tide Pair', tip: 'Two Sluice Crawlers. Keep their rings apart from them.', spawns: [{ kind: 'sluiceCrawler', n: 2 }] },
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
+  // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
+  lampeye: { id: 'lampeye', name: 'The Lampeye', tip: 'While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light.', spawns: [{ kind: 'lampeye', n: 1 }, { kind: 'shade', n: 3 }] },
   shades: { id: 'shades', name: 'Shades in the Dark', tip: 'Shades barely feel hits in shadow. Pull them into the light.', spawns: [{ kind: 'shade', n: 4 }] },
   lensbearer: { id: 'lensbearer', name: 'The Lensbearer', tip: 'When it raises the lens, hide behind a pillar, or Quench the Glare.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 2 }] },
   brandkeeper: { id: 'brandkeeper', name: 'The Brandkeeper', tip: 'A Brand on you bursts: get clear of pillars and enemies first.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'shade', n: 2 }] },
@@ -189,7 +191,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
-    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
+    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall', 'lampeye'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
     blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
   },
   coldmarrow: {
