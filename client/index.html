@@ -575,6 +575,9 @@
   /* X6: each chip kind's accent (--sc, set in ui.ts) tints its border and key; same size as before. */
   #endShape .shape { border-color: color-mix(in srgb, var(--sc, var(--muted)) 55%, transparent); }
   #endShape .shape i { font-style: normal; color: var(--sc, var(--muted)); }
+  /* Phase 15 Y4: met for the first time. */
+  #endShape .shape.new { background: color-mix(in srgb, var(--sc, var(--muted)) 16%, rgba(0,0,0,0.22)); }
+  #endShape .shape s { text-decoration: none; margin-right: 3px; }
   .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
   .end-foot { display: flex; gap: 10px; justify-content: center; }
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
@@ -1003,6 +1006,13 @@
   .prep-chip .gtile { border-radius: 8px; }
   .prep-chip .star { color: var(--gold); font-size: 16px; }
   .prep-chip svg { flex: none; }
+  /* Phase 15 Y4: the Seen log. Met entries in full, the rest dimmed with a "?". */
+  .seen { display: flex; flex-direction: column; gap: 6px; }
+  .seen-k { font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .seen-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seen-e { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--card-line); color: var(--muted); font: 500 12px var(--sans); max-width: 100%; }
+  .seen-e i { font-style: normal; font-weight: 700; }
+  .seen-e.met { border-style: solid; border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--ink); }
   .sheet .bounty { margin-top: 10px; }
   /* P1 weekly quests: a teal card (progress over the week), a diamond per quest that fills when done, a bar each, and the title as a crest. */
   .prep-chip[data-prep="weekly"] .star { color: var(--xp); }
