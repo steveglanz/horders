@@ -260,8 +260,8 @@ function startRun(bounty = false, key = false): void {
     const tier = keyTier(hero.maxTier);
     Object.assign(opts, { tier, omens: keyOmens(tier, weekOf(Date.now()), level), keyLevel: level, grit: 0, firstClear: false });
   }
-  // V4: today's Heat; the sim keeps it only for the Kiln below tier 3, and never for a bounty or key run.
-  if (!bounty && !key) opts.heat = heatFor(dayOf(Date.now()));
+  // V4 / Phase 14 X1: today's Heat in the picked dungeon; the sim keeps it only in a solo dungeon, and never for a bounty or key run.
+  if (!bounty && !key) opts.heat = heatFor(dayOf(Date.now()), hub.dungeon);
   lastBounty = bounty;
   lastKey = key;
   const hosting = coop?.role === 'host' && coop.roster.length > 1 && !stress;

@@ -390,6 +390,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'riftSpawn': return { id: 'riftSpit', jitter: 0.06 };
     // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
     case 'spitLob': return null;
+    case 'arenaEvent': return null; // Phase 14 X3: sound's X7 gives each event's warn and landing its own cue
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
