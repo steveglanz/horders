@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -323,6 +323,10 @@ export class GameScene extends Phaser.Scene {
   private turnGfx: Phaser.GameObjects.Graphics | null = null;
   /** Y6 Carried Light: the light's drawn spot, gliding from where it was to her over 0.6 s when it moves (lightMove). */
   private lightAnim: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
+  /** Y6 Creeping Rime: its floor layer (1.44, with the other floor tells), when it rose, and which way it is creeping. */
+  private rimeGfx: Phaser.GameObjects.Graphics | null = null;
+  private rimeBorn = 0;
+  private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
   private sealGfx: Phaser.GameObjects.Graphics | null = null;
   private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
   /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
@@ -437,6 +441,8 @@ export class GameScene extends Phaser.Scene {
     this.waveGfx = null;
     this.turnGfx = null;
     this.lightAnim = null;
+    this.rimeGfx = null;
+    this.rimeBorn = 0;
     this.lightLast = { x: 0, y: 0 };
     this.sealGfx = null;
     this.waveFx = [];
@@ -1392,6 +1398,13 @@ export class GameScene extends Phaser.Scene {
           // Y3 Creeping Rime: the frost rises under Nhevra.
           this.hud.ding('The rime creeps');
           this.ring(ev.x, ev.y, CREEPING_RIME.r, 0xcfeaff, 0.7);
+          // Y6: the frost spreads out from under her over 0.6 s (rimeDraw), with a puff of flakes.
+          this.rimeBorn = this.time.now;
+          this.rimeDir = { x: 0, y: 1, lx: ev.x, ly: ev.y };
+          for (let m = 0; m < (this.lowFx ? 6 : 14); m++) {
+            const a = (m / 14) * Math.PI * 2;
+            this.emit(this.fx, 'frostFlake', undefined, ev.x + Math.cos(a) * 20, ev.y + Math.sin(a) * 12, 0.7, { tint: FROST, vx: Math.cos(a) * 120, vy: Math.sin(a) * 70, drag: 0.93, spin: 3, sx0: 1.2, sx1: 0.3 });
+          }
           break;
         case 'ventShift': {
           // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
@@ -2108,12 +2121,7 @@ export class GameScene extends Phaser.Scene {
     this.turnDraw(now);
     this.tideDraw(now);
     this.glintDraw(now);
-    // Y3 Creeping Rime: a pale frost patch with a breathing edge (placeholder until visuals' art).
-    if (w.rimeOn) {
-      const br = 1 + 0.04 * Math.sin(now / 300);
-      g.fillStyle(0xdff3ff, 0.22).fillCircle(w.rimeX, w.rimeY, CREEPING_RIME.r * br);
-      g.lineStyle(2.5 * this.textK, 0xbfe6ff, 0.7).strokeCircle(w.rimeX, w.rimeY, CREEPING_RIME.r * br);
-    }
+    this.rimeDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     let sealedDrawn = false;
     this.ventSprites.forEach((vs, k) => {
@@ -2148,7 +2156,20 @@ export class GameScene extends Phaser.Scene {
           sg.lineStyle(2, 0xffffff, 0.25 + 0.35 * p).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
           if (!this.lowFx && Math.random() < 0.25) { const a = Math.random() * Math.PI * 2; this.steam(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8 - 4, 0.35); }
         }
-      } else if (w.openVent >= 0 && w.bossVariant === 'seal') g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
+      } else if (w.openVent >= 0 && w.bossVariant === 'seal') {
+        // Y6: the open vent boils her from MAELRA_SEAL.wide times its radius (skills' Y5 fix), so its reach is drawn
+        // there: a faint steam pool and a ring of dashes turning slowly, round the grate's own ring.
+        const tk = Math.max(1, this.textK);
+        const R = v.r * MAELRA_SEAL.wide;
+        g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
+        g.fillStyle(0xbfe6ff, 0.07 + 0.03 * Math.sin(now / 300)).fillCircle(v.x, v.y, R);
+        const D = 20, rot = now / 2400;
+        for (let j = 0; j < D; j++) {
+          const a0 = rot + (j / D) * Math.PI * 2;
+          g.lineStyle(2.4 * tk, 0xdff3ff, 0.6).beginPath();
+          g.arc(v.x, v.y, R, a0, a0 + (Math.PI * 2 / D) * 0.55).strokePath();
+        }
+      }
       else g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
     });
     if (!sealedDrawn) this.sealGfx?.clear();
@@ -3037,6 +3058,94 @@ export class GameScene extends Phaser.Scene {
    * A molten arrow curves round her through the cones in the order they land, the next cone to land shows a bright
    * leading edge, and small pips count 1 to 4 along each cone, so the way the sweep turns reads at a glance.
    */
+  /**
+   * Y6 Creeping Rime (Nhevra's third version): frost on the floor where the rime is. Fingers of hoarfrost branch out from
+   * its middle and reach further on the side it is creeping toward, the trailing side thins, crystals glint, and a cold
+   * mist rolls round the rim. The rim itself stays a clear pale line at CREEPING_RIME.r, so you can see where it bites.
+   */
+  private rimeDraw(now: number): void {
+    const w = this.world;
+    if (!w.rimeOn) { this.rimeGfx?.clear(); return; }
+    if (!this.rimeGfx) this.rimeGfx = this.add.graphics().setDepth(1.44);
+    const g = this.rimeGfx;
+    g.clear();
+    const x = w.rimeX, y = w.rimeY;
+    // It spreads out from under her as it rises, then breathes a little.
+    const grow = this.rimeBorn ? Math.min(1, (now - this.rimeBorn) / 600) : 1;
+    const r = CREEPING_RIME.r * (1 - (1 - grow) ** 3) * (1 + 0.025 * Math.sin(now / 420));
+    if (r < 2) return;
+    // Which way it creeps, smoothed, so the leading fingers don't flick about as the nearest hero changes.
+    const d = this.rimeDir;
+    const mx = x - d.lx, my = y - d.ly, ml = Math.hypot(mx, my);
+    if (ml > 0.2) { d.x += (mx / ml - d.x) * 0.08; d.y += (my / ml - d.y) * 0.08; }
+    d.lx = x; d.ly = y;
+    const dl = Math.hypot(d.x, d.y) || 1;
+    const dir = Math.atan2(d.y / dl, d.x / dl);
+    // The rime's floor: a cold sheen, densest in the middle, and a faint shadow ring outside the rim.
+    g.fillStyle(0x0c1a2c, 0.18).fillCircle(x, y + 3, r * 1.04);
+    for (let k = 0; k < 4; k++) g.fillStyle(0xe6f5ff, 0.07 + k * 0.025).fillCircle(x, y, r * (1 - k * 0.2));
+    // Hoarfrost fingers: fixed angles and lengths (so the pattern holds still as it moves), longer toward where it creeps.
+    const N = this.lowFx ? 16 : 26;
+    const tk = Math.max(1, this.textK);
+    for (let i = 0; i < N; i++) {
+      const h = Math.sin(i * 12.9898) * 43758.5453;
+      const rnd = h - Math.floor(h);
+      const a = (i / N) * Math.PI * 2 + rnd * 0.3;
+      const lead = Math.cos(a - dir);
+      const len = r * (0.72 + rnd * 0.22) * (lead > 0 ? 1 + 0.18 * lead : 1 + 0.12 * lead);
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const x0 = x + ca * r * 0.06, y0 = y + sa * r * 0.06;
+      const x1 = x + ca * len, y1 = y + sa * len;
+      const wv = (1.2 + rnd * 0.9) * tk;
+      const al = 0.42 + 0.3 * Math.max(0, lead);
+      // A tapered blade: wide at the root, a point at the tip.
+      g.fillStyle(0xf6fcff, al).fillTriangle(x0 - sa * wv, y0 + ca * wv, x0 + sa * wv, y0 - ca * wv, x1, y1);
+      // Two side branches at about 55%, and on the leading side a third further out.
+      for (const [at, side, bl] of [[0.35, 1, 0.22], [0.5, -1, 0.26], [0.65, 1, 0.24], [0.8, -1, lead > 0.3 ? 0.2 : 0.12]] as const) {
+        if (!bl) continue;
+        const bx = x + ca * len * at, by = y + sa * len * at;
+        const ba = a + side * (0.6 + rnd * 0.25);
+        const bw = wv * 0.6;
+        g.fillStyle(0xeaf7ff, al * 0.85).fillTriangle(bx - sa * bw, by + ca * bw, bx + sa * bw, by - ca * bw, bx + Math.cos(ba) * len * bl, by + Math.sin(ba) * len * bl);
+      }
+    }
+    // Crystals that catch the light, a few at a time.
+    for (let i = 0; i < 9; i++) {
+      const h = Math.sin(i * 78.233 + 1.7) * 24634.6345;
+      const rnd = h - Math.floor(h);
+      const a = rnd * Math.PI * 2, rr = r * (0.25 + 0.6 * ((rnd * 7.3) % 1));
+      const tw = Math.max(0, Math.sin(now / 260 + i * 2.1));
+      if (tw < 0.4) continue;
+      const cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr, cs = (2 + 2.5 * tw) * tk;
+      g.fillStyle(0xffffff, 0.5 + 0.5 * tw);
+      g.fillTriangle(cx - cs, cy, cx, cy - cs * 1.6, cx + cs, cy);
+      g.fillTriangle(cx - cs, cy, cx, cy + cs * 1.6, cx + cs, cy);
+    }
+    // Cold mist rolling round the rim: soft puffs that drift round and swell, thicker on the leading side.
+    const P = this.lowFx ? 8 : 12;
+    for (let i = 0; i < P; i++) {
+      const a = (i / P) * Math.PI * 2 + now / 5200 * (i % 2 ? 1 : -1);
+      const lead = Math.max(0, Math.cos(a - dir));
+      const sw = 0.5 + 0.5 * Math.sin(now / 700 + i * 1.9);
+      g.fillStyle(0xdcefff, 0.04 + 0.04 * sw + 0.05 * lead).fillCircle(x + Math.cos(a) * r * 1.0, y + Math.sin(a) * r * 1.0, r * (0.12 + 0.06 * sw + 0.05 * lead));
+    }
+    // The rim: a crisp frost line, ragged by a few px, brightest where it is creeping.
+    const pts: Phaser.Math.Vector2[] = [];
+    const M = 40;
+    for (let k = 0; k <= M; k++) {
+      const a = (k / M) * Math.PI * 2;
+      const j = k % M;
+      const h = Math.sin(j * 4.1 + 0.3) * 9631.17;
+      const rr = r * (0.985 + 0.03 * (h - Math.floor(h)));
+      pts.push(new Phaser.Math.Vector2(x + Math.cos(a) * rr, y + Math.sin(a) * rr));
+    }
+    g.lineStyle(2.4 * tk, 0xd4ecff, 0.8).strokePoints(pts, true);
+    const lx = x + Math.cos(dir) * r, ly = y + Math.sin(dir) * r;
+    g.lineStyle(3.2 * tk, 0xffffff, 0.55 + 0.25 * Math.sin(now / 160)).beginPath();
+    g.arc(x, y, r, dir - 0.7, dir + 0.7).strokePath();
+    g.fillStyle(0xffffff, 0.35).fillCircle(lx, ly, 3 * tk);
+  }
+
   private turnDraw(now: number): void {
     const w = this.world;
     const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
