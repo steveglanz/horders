@@ -1357,3 +1357,21 @@ Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
 Every class is within 4 wins of echoes off.
 
 **Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
+
+## Phase 16 U1: Ysmeret's and Oskel's echoes
+
+These follow the same rule as Ondrel: from tier 8 and `GROUP_ECHO.below` (25%) health, every other signature on the boss's timer is the echo's, the first one first.
+
+- **Ysmeret:** each set of vents runs the way of `World.ventMove`, which is her version or her echo's: Twin, Wandering or Rolling Vents. The vents' cast name follows it. The Wandering Vents drawing and the Scatter-during-the-roll rule read `ventMove` too.
+- **Oskel:** his Rivets timer gives Rivets, Die Cut or Punch Line, with the echo on every other turn.
+
+Base party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, wins out of 80, and how many runs saw an echo:
+
+| Boss | Setup | Echo on | Echo off | Saw an echo |
+|---|---|---|---|---|
+| Ysmeret, Ashvents t8 | Base, seeds 1 to 80 | 49 | 54 | 69 |
+| Ysmeret, Ashvents t8 | Half skill, seeds 41 to 120 | 47 | 49 | 68 |
+| Oskel, Pressworks t10 | Base, seeds 1 to 80 | 58 | 58 | 76 |
+
+- Ysmeret's runs stay inside the 55 to 70% band (59 to 61%).
+- The Pressworks base party was already over the band (73%) before echoes, and the echo doesn't move it.

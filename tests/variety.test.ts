@@ -1576,3 +1576,49 @@ describe('Phase 16 U1: Ondrel\'s echo', () => {
     expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
   });
 });
+
+describe('Phase 16 U1: Ysmeret\'s echo', () => {
+  type Y = { ysmeretClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; twinVentT: number; scatterT: number; bellowT: number; rollLeft: number };
+  function ysmeret(variant: string, echo: string, hp: number): { w: World; q: Y } {
+    const w = new World({ seed: 3, dungeon: 'ashvents', tier: 8, omens: [], cls: 'bulwark' });
+    const q = w as unknown as Y;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ysmeret', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.scatterT = 99; q.bellowT = 99;
+    return { w, q };
+  }
+  /** Open the next set of vents and say how they were named. */
+  const open = (w: World, q: Y) => {
+    for (const t of w.telegraphs) t.alive = false;
+    q.twinVentT = 0; q.rollLeft = 0; w.events.length = 0;
+    q.ysmeretClock(0.01);
+    const c = w.events.find((x) => x.type === 'castStart' && x.id === 'twinVents') as { name: string } | undefined;
+    return { name: c?.name, echo: w.events.some((x) => x.type === 'echo'), move: w.ventMove };
+  };
+
+  it('from 25% health every other set of vents is the echo, the first one first', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below - 0.05);
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+  });
+
+  it('Wandering Vents as an echo circle her like the version does', () => {
+    const { w, q } = ysmeret('roll', 'wander', GROUP_ECHO.below - 0.05);
+    expect(open(w, q).name).toBe('Wandering Vents');
+    const before = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    q.ysmeretClock(0.5);
+    const after = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    expect(after).not.toEqual(before);
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below + 0.1);
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+  });
+});

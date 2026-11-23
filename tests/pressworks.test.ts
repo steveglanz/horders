@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, OSKEL, OSKEL_VARIANTS, DIECUT, PUNCH } from '../sim/world';
+import { World, OSKEL, OSKEL_VARIANTS, DIECUT, PUNCH, GROUP_ECHO } from '../sim/world';
 import { BOUNTY_DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS, WEEKLY_DUNGEON_IDS, partyBlocker } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { botInput, downstrokeTaker } from '../sim/bot';
@@ -192,5 +192,33 @@ describe('Phase 12 W2: the Pressworks and Oskel\'s Die Cut', () => {
     place(w, inner, 0, e.x + 120, e.y + 200);
     const ins = botInput(w);
     expect(ins.x).toBeLessThan(0);
+  });
+});
+
+describe('Phase 16 U1: Oskel\'s echo', () => {
+  /** Fire his Rivets timer once and say what came out. */
+  const fire = (w: World, inner: Inner) => {
+    for (const t of w.telegraphs) t.alive = false;
+    inner.rivetT = 0; inner.downT = 99; inner.stampT = 99; w.events.length = 0;
+    inner.oskelClock(0.01);
+    const c = w.events.find((x) => x.type === 'castStart' && ['rivets', 'dieCut', 'punchLine'].includes(x.id)) as { id: string } | undefined;
+    return { id: c?.id, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('from 25% health every other one on his Rivets timer is the echo, the first one first', () => {
+    const { w, inner, b } = pair();
+    w.bossVariant = 'rivets'; w.bossEcho = 'punch'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (GROUP_ECHO.below - 0.05);
+    expect(fire(w, inner)).toEqual({ id: 'punchLine', echo: true });
+    expect(fire(w, inner)).toEqual({ id: 'rivets', echo: false });
+    expect(fire(w, inner)).toEqual({ id: 'punchLine', echo: true });
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, inner, b } = pair();
+    w.bossVariant = 'cut'; w.bossEcho = 'rivets'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (GROUP_ECHO.below + 0.1);
+    expect(fire(w, inner)).toEqual({ id: 'dieCut', echo: false });
+    expect(fire(w, inner)).toEqual({ id: 'dieCut', echo: false });
   });
 });
