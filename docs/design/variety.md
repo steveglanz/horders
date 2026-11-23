@@ -1287,3 +1287,26 @@ Solo Drowned Foundry at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 
 | Slagbinder | 66 | 64 |
 
 Every class is within 2 wins of echoes off.
+
+## Phase 16 U1: the Lensmother's echo
+
+From tier 8, the Lensmother's last phase also uses the version this run didn't roll. Her first echo-able cast in phase 3 is the echo, then her own and the echo alternate.
+
+- **A Twin Brand or Glintfall echo** takes every other turn of her brand timer (`GLARE.bossBrandEvery`).
+  - On a Twin Brand or Glintfall run, the timer alternates her own cast and the echo.
+  - A Carried Light run has nothing of its own on that timer. In phase 3 the timer runs, and every other turn casts the echo.
+- **A Carried Light echo** carries every other Glare: the light moves to her as the warning starts. On the Glares between, the light goes back to the middle of the room (with a `lightMove` event to 0, 0).
+- Each echo cast fires `{type:'echo', id}`. The client draws the carried-light beams for a Carried Light echo too. The phase-3 banner reads "She cracks a pillar every so often, and echoes Glintfall" (or whichever echo it is).
+
+Solo Glarewell at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80. Wins out of 80, and how many runs reached phase 3 and saw an echo:
+
+| Class | Echo on | Echo off | Phase 3 | Saw an echo |
+|---|---|---|---|---|
+| Bulwark | 72 | 73 | 74 | 71 |
+| Duskblade | 64 | 67 | 70 | 64 |
+| Emberwright | 75 | 73 | 77 | 71 |
+| Lumen | 79 | 79 | 79 | 78 |
+| Slagbinder | 80 | 80 | 80 | 80 |
+
+- **Echo first:** with her own cast first, phase 3 often ended before the echo came, and wins were unchanged in every class. So the echo comes first.
+- **The Kiln Mother keeps her own signature first.** With her echo first, solo Bulwark at Kiln t8 fell to 42 from 50, against 48 with her own first (#583). The other classes stayed within 2. 14 seeds changed outcome: 5 of the new losses had a Kiln Draw echo and 4 a Molten Cataclysm echo.

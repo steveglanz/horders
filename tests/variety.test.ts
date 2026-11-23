@@ -1373,3 +1373,63 @@ describe('Phase 16 U1: Maelra\'s echo', () => {
     expect(w.echoLive).toBe(false);
   });
 });
+
+describe('Phase 16 U1: the Lensmother\'s echo', () => {
+  type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; markT: number; bossBrandT: number; glareT: number };
+  function lens(variant: 'brand' | 'glint' | 'walk', echo: string): { w: World; q: G; b: number } {
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoNext = false;
+    q.bossPhase = 3; q.markT = 0; q.bossBrandT = 99; q.glareT = 99;
+    w.enemies[b].abilityT = 99;
+    return { w, q, b };
+  }
+  /** Fire her brand timer once and say what she cast. */
+  const brand = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.bossBrandT = 0; w.events.length = 0;
+    q.runLensmother(b, 0.01);
+    return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+  };
+  /** Fire her Glare once and say whether the light was carried. */
+  const glare = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.glareT = 0; w.events.length = 0;
+    e.x = 120; e.y = 40;
+    q.runLensmother(b, 0.01);
+    return { carried: w.lightX === 120 && w.lightY === 40, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('a Glintfall echo on a Twin Brand run takes every other turn', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'glintfall', echo: true });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+
+  it('a Carried Light run gets its Twin Brand echo every other turn, and nothing on the others', () => {
+    const { w, q, b } = lens('walk', 'brand');
+    expect(brand(w, q, b).id).not.toBe('twinBrand');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: true });
+  });
+
+  it('a Carried Light echo carries every other Glare, and the light goes back to the middle between', () => {
+    const { w, q, b } = lens('glint', 'walk');
+    expect(glare(w, q, b)).toEqual({ carried: false, echo: false });
+    expect(glare(w, q, b)).toEqual({ carried: true, echo: true });
+    const back = glare(w, q, b);
+    expect(back.carried).toBe(false);
+    expect([w.lightX, w.lightY]).toEqual([0, 0]);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    q.bossPhase = 2;
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+});
