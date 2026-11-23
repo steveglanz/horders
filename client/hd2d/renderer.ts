@@ -857,6 +857,13 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
   // Old Vorhulm's Inhale (the Hoard, phase 3): his maw glows and air, ash and embers stream in to it from all round.
   // The floor ring of his bite and the 2D streaks still come through the bridge.
+  // The Cinder Colossus's Millstone (the Smeltery, phase 2): as he grinds round, molten slag is flung off his sides and
+  // front in arcs (never off his open back, MILL.arc of colFacing), and sparks race round his base the way he turns.
+  const MLN = 120;
+  const millPos = new Float32Array(MLN * 3);
+  const millGeo = new THREE.BufferGeometry(); millGeo.setAttribute('position', new THREE.BufferAttribute(millPos, 3));
+  const millMat = new THREE.PointsMaterial({ map: canvasTex(dotCanvas('rgba(255,240,190,1)', 'rgba(255,110,30,0)')), color: new THREE.Color(2.2, 1.1, 0.45), size: 0.42, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const mill = new THREE.Points(millGeo, millMat); mill.frustumCulled = false; mill.visible = false; scene.add(mill);
   const INH = 80;
   const inhPos = new Float32Array(INH * 3);
   const inhGeo = new THREE.BufferGeometry(); inhGeo.setAttribute('position', new THREE.BufferAttribute(inhPos, 3));
@@ -1078,7 +1085,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
 
     // Foes.
-    let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0;
+    let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0, bossR = 0;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1109,13 +1116,35 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit), ht * rise * (1 - hit), 1);
       f.mesh.position.set(x, FLOOR, z);
-      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; }
+      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; }
       f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : 0;
       f.mesh.visible = true;
       f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
     }
     for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
+    const milling = w.millT > 0 && bossH > 0;
+    mill.visible = milling;
+    if (milling) {
+      const reach = 200 * S, arc = 2.1, face = w.colFacing; // MILL.range, MILL.arc
+      for (let k = 0; k < MLN; k++) {
+        const h = Math.sin(k * 12.9898 + 4.1) * 43758.5453, rr = h - Math.floor(h);
+        if (k < 90) {
+          // Slag: each blob is flung from his edge out to his reach on a low arc, then lands and starts again.
+          const ph = (t * (0.9 + 0.5 * rr) + rr * 7) % 1;
+          const a = face + (rr * 2 - 1) * arc * 0.97;
+          const r = bossR * 0.9 + reach * ph * (0.55 + 0.45 * ((k * 0.618) % 1));
+          millPos[k * 3] = bossX + Math.cos(a) * r;
+          millPos[k * 3 + 1] = FLOOR + 0.05 + Math.sin(ph * Math.PI) * (0.5 + 0.6 * rr) + 0.35 * (1 - ph);
+          millPos[k * 3 + 2] = bossZ + Math.sin(a) * r;
+        } else {
+          // Grinding sparks round his base, racing the way he turns (millDir).
+          const a = w.millDir * t * 2.7 + ((k - 90) / (MLN - 90)) * Math.PI * 2;
+          millPos[k * 3] = bossX + Math.cos(a) * bossR; millPos[k * 3 + 1] = FLOOR + 0.12 + 0.1 * rr; millPos[k * 3 + 2] = bossZ + Math.sin(a) * bossR;
+        }
+      }
+      millGeo.attributes.position.needsUpdate = true;
+    }
     const inh = w.bossVariant === 'inhale' && w.inhaleStage > 0 && bossH > 0 ? w.inhaleStage : 0;
     inhale.visible = maw.visible = inh > 0;
     if (inh) {
