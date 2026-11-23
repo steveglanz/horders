@@ -555,6 +555,8 @@ export type SimEvent =
   | { type: 'wheel'; hero: number }
   /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
   | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
+  /** Phase 16 U1: the boss uses her echo's move (`id`, a version id) in her last phase. */
+  | { type: 'echo'; id: string }
   /** Phase 15 Y3 Tithe: the Regent's gold circle landed with `n` heroes in it; `ok` when that was enough. */
   | { type: 'tithe'; ok: boolean; n: number }
   | { type: 'meltPulse'; n: number }
@@ -856,6 +858,16 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
+  /**
+   * Phase 16 U1: this run's echo, a second version of the same boss (never the rolled one) whose move she also uses in her
+   * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
+   */
+  bossEcho: string = '';
+  /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
+  echoNext = false;
+  /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
+  echoLive = false;
+  echoT = 0;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
@@ -1946,6 +1958,8 @@ export class World {
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
           this.bossVariant = this.rollKilnVariant();
+          this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
+          this.echoNext = false;
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -1955,6 +1969,9 @@ export class World {
           this.bossIndex = i;
           this.startMaelra();
           this.bossVariant = this.rollMaelraVariant();
+          // Rising water is already in every version but the Sluicetide, so only the other two echo.
+          this.bossEcho = this.rollEcho(MAELRA_ECHOES, this.bossVariant);
+          this.echoLive = false; this.echoT = MAELRA_ECHO.first;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensmother') {
@@ -2191,6 +2208,20 @@ export class World {
    * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
    * delve stay open.
    */
+  /**
+   * Phase 16 U1: from ECHO.minTier, a boss also echoes one of her other versions in her last phase. Hashed from the seed
+   * (no run-rng draws), never the rolled version, and none on the first delve or in stress runs.
+   */
+  private rollEcho<V extends string>(all: readonly V[], rolled: string): V | '' {
+    if (this.firstDelve || this.stress || this.tier < ECHO.minTier || ECHO.off) return '';
+    const others = all.filter((v) => v !== rolled);
+    if (!others.length) return '';
+    if (ECHO.force && (others as string[]).includes(ECHO.force)) return ECHO.force as V;
+    let h = Math.imul(this.seed ^ 0x6c8e9cf5, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+    return others[(h >>> 4) % others.length];
+  }
+
   /** V3: which signature the Kiln Mother uses from phase 2, hashed from the seed (no run-rng draws). The first delve keeps Molten Cataclysm. */
   private rollKilnVariant(): KilnVariant {
     if (this.firstDelve || this.stress) return 'cataclysm';
@@ -5360,7 +5391,13 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
-      if (phase >= 2 && this.bossVariant === 'turning') {
+      // Phase 16 U1: in her last phase every other signature is her echo's.
+      let move: string = this.bossVariant;
+      if (phase === 3 && this.bossEcho) {
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      if (phase >= 2 && move === 'turning') {
         this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
         // She's busy pouring: nothing else from her until the last cone lands.
         const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
@@ -5375,7 +5412,7 @@ export class World {
         }
         return;
       }
-      if (phase >= 2 && this.bossVariant === 'draw') {
+      if (phase >= 2 && move === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
         this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
@@ -7394,15 +7431,31 @@ export class World {
       this.bossPhase = phase;
       this.events.push({ type: 'phase', phase });
     }
+    // Phase 16 U1: in her last phase her echo comes and goes, `on` s at a time.
+    if (phase >= 3 && this.bossEcho) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? MAELRA_ECHO.on : MAELRA_ECHO.off;
+        if (this.echoLive) {
+          this.events.push({ type: 'echo', id: this.bossEcho });
+          if (this.bossEcho === 'tide') this.sluiceT = 0;
+        } else if (this.bossEcho === 'seal') {
+          // The steam lets go: every vent is open again until the next echo.
+          this.openVent = -1; this.nextVent = -1;
+        }
+      }
+    }
+    const has = (v: MaelraVariant) => versionLive(this, v);
     // Temper builds over time; dragging her through a vent boils it away.
     // Y3 Sealed Vents: with one vent open, her Temper builds `temperSlow` times slower from phase 2.
-    this.temperT -= dt / (phase >= 2 && this.bossVariant === 'seal' ? MAELRA_SEAL.temperSlow : 1);
+    this.temperT -= dt / (phase >= 2 && has('seal') ? MAELRA_SEAL.temperSlow : 1);
     if (this.temperT <= 0) {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
     // Y3 Sealed Vents: one vent open at a time, the steam moving round.
-    const sealed = phase >= 2 && this.bossVariant === 'seal' && this.vents.length > 1;
+    const sealed = phase >= 2 && has('seal') && this.vents.length > 1;
     if (sealed) {
       if (this.openVent < 0) {
         this.openVent = this.pickVent(-1, e);
@@ -7439,7 +7492,7 @@ export class World {
       }
     }
     // V8 Sluicetide (some runs): instead of rising, the water runs across the room and turns now and then.
-    if (phase >= 2 && this.bossVariant === 'tide') {
+    if (phase >= 2 && has('tide')) {
       this.sluiceT -= dt;
       if (this.sluiceT <= 0) {
         this.sluiceT = SLUICETIDE.turnEvery;
@@ -8275,6 +8328,11 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
+/**
+ * Phase 16 U1 echoes: from `minTier`, a boss's last phase also uses one of her other versions' moves, every other time her
+ * signature comes round. `off` and `force` (a version id) are for measuring.
+ */
+export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
 /**
@@ -8314,6 +8372,13 @@ export type MaelraVariant = 'water' | 'tide' | 'seal';
 export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+/** Phase 16 U1: Maelra's echo windows in her last phase: the first `first` s in, then `on` s on and `off` s off. */
+export const MAELRA_ECHO = { first: 2, on: 12, off: 10 };
+/** Maelra's versions that can echo: rising water is in every version but the Sluicetide already. */
+export const MAELRA_ECHOES: MaelraVariant[] = ['tide', 'seal'];
+/** Phase 16 U1: is this version in effect now, rolled or as a live echo? (For bosses whose echo runs in windows.) */
+export const versionLive = (w: { bossVariant: string; bossEcho: string; echoLive: boolean }, v: string): boolean =>
+  w.bossVariant === v || (w.echoLive && w.bossEcho === v);
 /**
  * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
  * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.

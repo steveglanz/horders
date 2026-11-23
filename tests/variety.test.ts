@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1230,5 +1230,146 @@ describe('Phase 14 X3: arena events', () => {
   it('a forced event that the dungeon has no use for never comes', () => {
     ARENA_EVENTS.force = 'coldSnap';
     try { expect(make('kiln').arenaEventAt(1, 'pack')).toBe(''); } finally { ARENA_EVENTS.force = ''; }
+  });
+});
+
+describe('Phase 16 U1: the Kiln Mother\'s echo', () => {
+  type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; rollEcho(all: readonly string[], rolled: string): string; runBoss(i: number, dt: number): void };
+  const make = (seed: number, tier: number) =>
+    new World({ seed, dungeon: 'kiln', tier, omens: [], cls: 'emberwright' });
+  const inner = (w: World) => w as unknown as B;
+
+  it('no echo below tier 8 (the first delve is tier 1); from tier 8 it is seeded and never the rolled version', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      expect(inner(make(seed, ECHO.minTier - 1)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      for (const rolled of KILN_VARIANTS) {
+        const a = inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled);
+        expect(a).not.toBe('');
+        expect(a).not.toBe(rolled);
+        expect(KILN_VARIANTS).toContain(a);
+        expect(inner(make(seed, ECHO.minTier)).rollEcho(KILN_VARIANTS, rolled)).toBe(a);
+        if (rolled === 'cataclysm') seen.add(a);
+      }
+    }
+    expect([...seen].sort()).toEqual(['draw', 'turning']);
+  });
+
+  it('ECHO.off turns it off and ECHO.force picks one (for the tools)', () => {
+    try {
+      ECHO.off = true;
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('');
+      ECHO.off = false;
+      ECHO.force = 'turning';
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'draw')).toBe('turning');
+      // Forcing the rolled version gives the seeded pick instead.
+      expect(inner(make(5, 10)).rollEcho(KILN_VARIANTS, 'turning')).not.toBe('turning');
+    } finally { ECHO.off = false; ECHO.force = ''; }
+  });
+
+  it('a spawned Kiln Mother at tier 8 gets an echo other than her version', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = make(seed, ECHO.minTier);
+      w.bossVariant = inner(w).rollKilnVariant() as never;
+      const echo = inner(w).rollEcho(KILN_VARIANTS, w.bossVariant);
+      expect(echo).not.toBe(w.bossVariant);
+    }
+  });
+
+  it('in phase 3 her signatures alternate: her own, then the echo with an echo event', () => {
+    const w = make(3, ECHO.minTier);
+    const q = w as unknown as B;
+    for (const e of w.enemies) e.alive = false;
+    w.player.x = 200; w.player.y = 0;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'draw';
+    w.bossEcho = 'turning';
+    w.echoNext = false;
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.2;
+    q.bossPhase = 3;
+    const cast = () => {
+      e.castId = ''; e.aux = 0; e.abilityT = 0;
+      w.events.length = 0;
+      q.runBoss(b, 0.01);
+      return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+    };
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    expect(cast()).toEqual({ id: 'turningFire', echo: true });
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+    // Phase 2 never echoes.
+    e.hp = e.maxHp * 0.5; q.bossPhase = 2; w.echoNext = true;
+    expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Maelra\'s echo', () => {
+  type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
+    rollEcho(all: readonly string[], rolled: string): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
+  function maelra(variant: 'water' | 'tide' | 'seal', echo: string): { w: World; q: M; b: number } {
+    const w = new World({ seed: 9, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as M;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('maelra', 300, 300);
+    q.bossIndex = b; q.bossSpawned = true;
+    q.startMaelra();
+    w.bossVariant = variant;
+    w.bossEcho = echo;
+    w.echoLive = false; w.echoT = MAELRA_ECHO.first;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2; // phase 3
+    q.bossPhase = 3;
+    w.enemies[b].abilityT = 99;
+    w.player.x = 0; w.player.y = 0;
+    return { w, q, b };
+  }
+
+  it('only the Sluicetide and Sealed Vents echo, never the rolled version', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const q = new World({ seed, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' }) as unknown as M;
+      expect(q.rollEcho(MAELRA_ECHOES, 'water')).not.toBe('water');
+      expect(q.rollEcho(MAELRA_ECHOES, 'tide')).toBe('seal');
+      expect(q.rollEcho(MAELRA_ECHOES, 'seal')).toBe('tide');
+    }
+  });
+
+  it('a Sealed Vents echo comes on with an echo event, seals the vents, then lets them all go', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    q.runMaelra(b, 0.01);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    w.events.length = 0;
+    q.runMaelra(b, MAELRA_ECHO.first);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.filter((x) => x.type === 'echo')).toEqual([{ type: 'echo', id: 'seal' }]);
+    expect(w.openVent).toBeGreaterThanOrEqual(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    q.runMaelra(b, MAELRA_ECHO.off);
+    expect(w.echoLive).toBe(true);
+  });
+
+  it('a Sluicetide echo only pushes you while it is on', () => {
+    const { w, q, b } = maelra('seal', 'tide');
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(0);
+    expect(w.player.y).toBe(0);
+    q.runMaelra(b, MAELRA_ECHO.first);
+    q.runMaelra(b, 1);
+    expect(Math.hypot(w.player.x, w.player.y)).toBeGreaterThan(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    const x = w.player.x, y = w.player.y;
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(x);
+    expect(w.player.y).toBe(y);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; q.bossPhase = 2;
+    q.runMaelra(b, MAELRA_ECHO.first + 1);
+    expect(w.echoLive).toBe(false);
   });
 });
