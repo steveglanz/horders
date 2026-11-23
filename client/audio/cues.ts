@@ -66,6 +66,8 @@ export interface CueContext {
   t?: number;
   /** The dungeon (World.dungeonId), where a shared hazard sounds different (the Foundry's vents steam). */
   dungeon?: string;
+  /** Phase 14 X2: this run's named foe's affix (World.namedPlan), so its death can sound like it. */
+  namedAffix?: string;
   /** Today's Heat for this run (World.heat), '' or unset for none. */
   heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
@@ -316,7 +318,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
     case 'namedSpawn': return { id: AFFIX_SPAWN[ev.affix] ?? 'namedSpawn' };
-    case 'namedKill': return { id: 'namedKill' };
+    case 'namedKill': return { id: c.namedAffix === 'Brood' ? 'namedKillBrood' : 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
     case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
     case 'explode':
