@@ -1178,6 +1178,20 @@ export const SOUNDS = {
   /** The Pressworks' vent surge: every steam press blows its valves at once. */
   surgePress: join(clang(165, 0.2, 0.4), clang(196, 0.16, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.08 })),
     whoosh(2500, 8000, 0.7, 0.3), boom(55, 0.3, 0.3)),
+  /** Phase 15 Y1 wave shapes (WAVE_SOUNDS in cues.ts). A pincer: two calls answer each other from either side. */
+  wavePincer: join(horn(note(-14), 0.35, 0.28), horn(note(-7), 0.4, 0.26).map((v) => ({ ...v, delay: 0.3 })),
+    [{ wave: 'saw', f: note(-2), dur: 0.3, vol: 0.08, a: 0.02, lp: 2400, curve: 1.5 }, { wave: 'saw', f: note(5), dur: 0.35, delay: 0.3, vol: 0.08, a: 0.02, lp: 2400, curve: 1.5 }]),
+  /** A ring: a whoosh circles you while a low drum rolls, closing in. */
+  waveRing: join(
+    [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.18, a: 0.3, lp: 1500, lp2: 5000, hp: 450, curve: 1, trem: [5, 0.6] as [number, number] }],
+    ...[0, 0.12, 0.22, 0.31, 0.39, 0.46, 0.52].map((d, k) => [{ wave: 'tri' as const, f: 140, f2: 90, dur: 0.1, delay: d + 0.2, vol: 0.12 + k * 0.015, curve: 3 }, { wave: 'noise' as const, f: 0, dur: 0.04, delay: d + 0.2, vol: 0.08, lp: 2500, hp: 500, curve: 3 }])),
+  /** Reinforcements are coming (2 s before they arrive, panned to their flank): a distant war horn swells. */
+  reinforceWarn: join(horn(note(-9), 1.2, 0.34).map((v) => ({ ...v, a: 0.35 })),
+    [{ wave: 'saw', f: note(3), f2: note(5), dur: 1.0, delay: 0.15, vol: 0.1, a: 0.3, lp: 2600, curve: 1, vib: [5, 0.01] as [number, number] }],
+    ...[0.9, 1.05, 1.2].map((d) => [{ wave: 'tri' as const, f: 160, f2: 110, dur: 0.09, delay: d, vol: 0.14, curve: 3 }])),
+  /** They arrive: a rush of feet and claws, and a thump as they hit the floor. */
+  reinforceLand: join(boom(70, 0.35, 0.3),
+    ...[0, 0.04, 0.09, 0.13, 0.18, 0.22, 0.27, 0.32].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.12, lp: 4000 + (k % 3) * 1500, hp: 800, curve: 3 }])),
   /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
   coldSnapWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
@@ -1510,6 +1524,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  // Phase 15 Y1 waves: the warning 1.5 dB over the floor (landing slams mask it: busycheck WHO), 6.8 dB over the Foundry and Pressworks mix; the start calls and landing about -28 dB, over a layout sting.
+  reinforceWarn: 4.8, wavePincer: 3.7, waveRing: 6.0, reinforceLand: 2.8,
   seenNew: 1.7, // level with unlock (-23.8 dB)
   // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
   caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
