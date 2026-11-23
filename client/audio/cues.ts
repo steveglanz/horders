@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, MILL, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -69,7 +69,7 @@ export interface CueContext {
    * The Smeltery, phases 1-2: where the Cinder Colossus stands and the damage side this screen's hero hits him
    * from (World.colossusSide: 0.5 plated front, 1.5 open back, 1 the flanks). Unset once Meltdown cracks the plate.
    */
-  colossus?: { x: number; y: number; side: number };
+  colossus?: { x: number; y: number; side: number; /** Millstone: grinding now, and the floor point his front (the pour) faces. */ mill?: { x: number; y: number } };
   /** Game time (World.time), so a delayed cue (Cue.after) lands with its telegraph. */
   t?: number;
   /** The dungeon (World.dungeonId), where a shared hazard sounds different (the Foundry's vents steam). */
@@ -217,6 +217,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  millstone: { start: 'millWarn' }, // Millstone (Y3): its end is the millstone event's start, so no castDone
   // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
   plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
   // The Furnace Regent's court version: come before the throne in 2.5 s, or be struck (it lands with a slam r SUMMONS.radius).
@@ -276,13 +277,27 @@ interface ColossusView<E extends { kind: string; x: number; y: number; alive: bo
   enemies: readonly E[];
   player: { x: number; y: number };
   colossusSide(e: E, x: number, y: number): number;
+  millT?: number;
+  colFacing?: number;
 }
 
 /** CueContext.colossus for this tick: set only while the Cinder Colossus lives and his plate still holds (phases 1-2). */
 export function colossusCue<E extends { kind: string; x: number; y: number; alive: boolean }>(w: ColossusView<E>): CueContext['colossus'] {
   const e = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
   if (!e || !e.alive || e.kind !== 'colossus' || w.bossPhase >= 3) return undefined;
-  return { x: e.x, y: e.y, side: w.colossusSide(e, w.player.x, w.player.y) };
+  const side = w.colossusSide(e, w.player.x, w.player.y);
+  if (!((w.millT ?? 0) > 0)) return { x: e.x, y: e.y, side };
+  // Halfway out along the slag's reach in front of him.
+  const f = w.colFacing ?? 0, d = MILL.range / 2;
+  return { x: e.x, y: e.y, side, mill: { x: e.x + Math.cos(f) * d, y: e.y + Math.sin(f) * d } };
+}
+
+/** Millstone's grind while he turns, panned to where his front faces (CueContext.colossus.mill). Throttled to MILL.tick. */
+export function millCue(c: Pick<CueContext, 'colossus' | 'listen'>): Cue | null {
+  const m = c.colossus?.mill;
+  if (!m) return null;
+  const o = offsetAt(c.listen, m.x, m.y);
+  return { id: 'millGrind', jitter: 0.05, pan: o === null ? undefined : o * PAN_MAX };
 }
 
 export function phaseSting(boss: string | undefined, phase: number): SoundId {
@@ -404,7 +419,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone':
-      if (ev.id === 'wheel') return null;
+      if (ev.id === 'wheel' || ev.id === 'millstone') return null;
       if (ev.id === 'churn') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
@@ -454,7 +469,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
     case 'tithe': return null; // Y3 Tithe: cue to come from sound
-    case 'millstone': return null; // Y3 Millstone: cue to come from sound
+    case 'millstone': return { id: ev.stage === 'start' ? 'millStart' : 'millEnd' };
     case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };
     // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
     case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
@@ -716,6 +731,18 @@ export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [nu
   glarewell: [[[Math.PI, 9.6]], []],
   // Three fumaroles; the cairns are at the same seeded random spots as the Glarewell's shards, so they keep the random side.
   ashvents: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The giant ladle at the back wall centre (z -9.3), and the two slag pots either side.
+  crucible: [[[Math.PI, 9.3]], [[Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]]],
+  // The three gold mounds (radius 9.4 + r * 0.25 for r 3.4 and 2.0); the bone heaps are at seeded random spots.
+  hoard: [[[Math.PI, 10.25], [Math.PI - 0.85, 9.9], [Math.PI + 0.85, 9.9]], []],
+  // The three frosted arches; the frost (ice shards) is at seeded random spots.
+  coldmarrow: [[[Math.PI, 9.6], [Math.PI - 0.8, 9.6], [Math.PI + 0.8, 9.6]], []],
+  // The three press frames; the plate stacks are at seeded random spots.
+  pressworks: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The four ore carts on the rail; the ingots are at seeded random spots.
+  smeltery: [[[Math.PI - 0.55, 9.9], [Math.PI - 0.95, 9.9], [Math.PI + 0.6, 9.9], [Math.PI + 1.0, 9.9]], []],
+  // The wrecked hull at the back wall centre (z -9.6), and the six mooring posts.
+  wrackline: [[[Math.PI, 9.6]], [0.7, 1.0, 1.3].flatMap((d) => [[Math.PI - d, 8.9], [Math.PI + d, 8.9]] as const)],
 };
 /** Where a 3D room spot is on the floor, in world units (the room is centred on the arena and scaled to arenaR). */
 export const edgeSpotAt = ([a, r]: readonly [number, number], arenaR: number) => ({ x: Math.sin(a) * r * arenaR / HD2D_ROOM_R, y: Math.cos(a) * r * arenaR / HD2D_ROOM_R });
@@ -852,6 +879,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // Punch Line: each step of the march lands on all three rows in one tick; one thunk per step (0.25 s apart).
   punchHit: 0.1,
   rimeCrackle: 0.35,
+  millGrind: 0.45, // one per MILL.tick (0.5 s); a frame's slack under it so none is skipped
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.
