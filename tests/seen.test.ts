@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { World, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, ARENA_EVENTS } from '../sim/world';
+import { World, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, ARENA_EVENTS, WAVE_BIT, WAVES } from '../sim/world';
+import { DUNGEONS } from '../sim/content/dungeon';
+import { runShape } from '../sim/runshape';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_POOLS } from '../sim/content/heat';
 import { AFFIXES, NAMED } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import { newHero } from '../sim/hero';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
-import { BOSS_VERSIONS, metIn, recordSeen, seenIn, seenKey, seenPool } from '../sim/seen';
+import { BOSS_VERSIONS, metIn, recordSeen, seenIn, seenKey, seenPool, wavesPossible } from '../sim/seen';
 import { applySnapshot, snapshot } from '../sim/netsync';
 
 type Q = { encounter: number; rollLayout(id: string): void; rollArenaEvent(id: string): void; arenaEventClock(dt: number): void };
@@ -33,8 +35,8 @@ describe('Phase 15 Y4: the Seen log', () => {
       }
       for (const v of BOSS_VERSIONS[d]) expect(BOSS_VERSION_NAME[v], v).toBeTruthy();
     }
-    // The Kiln: 2 boss versions, 5 traits, 2 events, 4 Heats.
-    expect(seenPool('kiln')).toHaveLength(13);
+    // The Kiln: 2 boss versions, 3 wave shapes, 5 traits, 2 events, 4 Heats.
+    expect(seenPool('kiln')).toHaveLength(16);
   });
 
   it('a run counts the boss version only once the boss has rolled it, and never changes the run', () => {
@@ -93,7 +95,7 @@ describe('Phase 15 Y4: the Seen log', () => {
     expect(h.seen).toEqual(['kiln:boss:draw', 'kiln:heat:richHaul', 'kiln:mark:Swift']);
     const kiln = seenIn(h, 'kiln');
     expect(kiln.seen).toBe(3);
-    expect(kiln.total).toBe(13);
+    expect(kiln.total).toBe(16);
     expect(kiln.entries.find((e) => e.id === 'draw')?.seen).toBe(true);
     expect(kiln.entries.find((e) => e.id === 'cataclysm')?.seen).toBe(false);
     expect(seenIn(h, 'foundry').seen).toBe(0);
@@ -110,5 +112,35 @@ describe('Phase 15 Y4: the Seen log', () => {
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(metIn(g).sort()).toEqual(metIn(w).sort());
     expect(metIn(g)).toEqual(expect.arrayContaining(['kiln:boss:cataclysm', 'kiln:mark:Smoldering', 'kiln:event:caveIn']));
+  });
+
+  it('wave shapes: none in raids; every shape a dungeon lists can roll there, and a run counts what it met', () => {
+    for (const d of DUNGEON_IDS) {
+      const can = wavesPossible(d);
+      if (DUNGEONS[d].raid) { expect(can, d).toEqual([]); continue; }
+      // Every listed shape turns up on some seed (a pincer or ring on any trash fight, reinforcements where packs can be held).
+      const rolled = new Set<string>();
+      for (let seed = 1; seed <= 400 && rolled.size < can.length; seed++) {
+        const w = new World({ seed, dungeon: d, tier: Math.max(DUNGEONS[d].unlockTier, 2), omens: [], cls: 'emberwright' });
+        w.route.forEach((id, k) => { const v = w.waveShapeAt(k, id); if (v !== 'arc') rolled.add(v); });
+      }
+      expect([...rolled].sort(), d).toEqual([...can].sort());
+    }
+    const w = new World({ seed: 4, dungeon: 'kiln', tier: 3, omens: [], cls: 'emberwright' });
+    expect(metIn(w).some((k) => k.includes(':wave:'))).toBe(false);
+    w.wavesMet = WAVE_BIT.ring | WAVE_BIT.reinforce;
+    expect(metIn(w)).toEqual(expect.arrayContaining(['kiln:wave:ring', 'kiln:wave:reinforce']));
+    expect(metIn(w)).not.toContain('kiln:wave:pincer');
+  });
+
+  it('the end screen\'s run shape lists the route\'s wave shapes', () => {
+    WAVES.force = 'pincer';
+    try {
+      const w = new World({ seed: 6, dungeon: 'kiln', tier: 3, omens: [], cls: 'emberwright' });
+      const chip = runShape(w).find((c) => c.kind === 'wave');
+      expect(chip?.label).toMatch(/^Waves: Pincer( x\d)?$/);
+    } finally {
+      WAVES.force = '';
+    }
   });
 });

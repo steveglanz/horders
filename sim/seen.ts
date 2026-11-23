@@ -1,6 +1,6 @@
 /**
  * Phase 15 Y4 (docs/design/roadmap.md, "Seen log"): what a hero has met in each dungeon. That covers the
- * boss's versions, the named foe's traits, the arena events and the day's Heats. It is kept on the hero
+ * boss's versions, the wave shapes, the named foe's traits, the arena events and the day's Heats. It is kept on the hero
  * save, shared by every class like the collection book. The end screen marks what a run met for the
  * first time, and the hub lists what each dungeon still has to show.
  *
@@ -9,8 +9,8 @@
  * warning has gone off. The Heat counts once the run has started with it. Read-only on the World, so a
  * co-op guest reads the same from the host's snapshot.
  *
- * Y1 (wave shapes) and Y3 (third boss versions) add ids: a new boss version goes in its *_VARIANTS list
- * and shows up here by itself, and a wave shape needs a 'wave' entry in POOLS below.
+ * Wave shapes (Y1) count from World.wavesMet: a pincer or ring when its fight starts, reinforcements when they
+ * warn. Y3's third boss versions show up here by themselves once they are in their *_VARIANTS list.
  */
 import { DUNGEONS, ENCOUNTERS, type DungeonId } from './content/dungeon';
 import { HEATS, HEAT_POOLS, type HeatId } from './content/heat';
@@ -18,12 +18,12 @@ import { AFFIXES, AFFIX_TIP } from './content/named';
 import type { HeroProfile } from './hero';
 import { BOSS_VERSION_NAME } from './runshape';
 import {
-  ARENA_EVENT_INFO, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, type World,
+  ARENA_EVENT_INFO, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, type World, WAVE_SHAPE_INFO, reinforceCount, wavesIn, type WaveShape,
   KILN_VARIANTS, MAELRA_VARIANTS, LENS_VARIANTS, NHEVRA_VARIANTS, HESSA_VARIANTS, ONDREL_VARIANTS, YSMERET_VARIANTS,
   OSKEL_VARIANTS, SLAG_VARIANTS, VORHULM_VARIANTS, COLOSSUS_VARIANTS, REGENT_VARIANTS,
 } from './world';
 
-export type SeenKind = 'boss' | 'mark' | 'event' | 'heat';
+export type SeenKind = 'boss' | 'wave' | 'mark' | 'event' | 'heat';
 export type SeenKey = string;
 
 export interface SeenEntry {
@@ -43,7 +43,7 @@ export const BOSS_VERSIONS: Record<DungeonId, readonly string[]> = {
 };
 
 /** The section names, in the order the hub lists them. */
-export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', mark: 'Named foe traits', event: 'Arena events', heat: 'Heats' };
+export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', heat: 'Heats' };
 
 export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey => `${dungeon}:${kind}:${id}`;
 
@@ -51,9 +51,25 @@ export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey
 export function seenPool(dungeon: DungeonId): SeenEntry[] {
   const boss = DUNGEONS[dungeon].boss;
   const out: SeenEntry[] = BOSS_VERSIONS[dungeon].map((id) => ({ kind: 'boss' as const, id, name: BOSS_VERSION_NAME[id] ?? id, tip: `How ${ENCOUNTERS[boss].name.split(',')[0]} fights in this version` }));
+  for (const v of wavesPossible(dungeon)) out.push({ kind: 'wave', id: v, name: WAVE_SHAPE_INFO[v].name, tip: WAVE_SHAPE_INFO[v].tip });
   for (const a of AFFIXES) out.push({ kind: 'mark', id: a, name: a, tip: AFFIX_TIP[a] });
   for (const e of ARENA_EVENT_POOLS[dungeon] ?? []) out.push({ kind: 'event', id: e, name: ARENA_EVENT_INFO[e].name, tip: ARENA_EVENT_INFO[e].tip });
   for (const h of HEAT_POOLS[dungeon] ?? []) out.push({ kind: 'heat', id: h, name: HEATS[h].name, tip: HEATS[h].text });
+  return out;
+}
+
+/**
+ * Y1's wave shapes `dungeon` can roll (World.waveShapeAt): none in a raid; a pincer or ring where a trash fight on
+ * its route has two or more foes and no Twin Lamps; reinforcements where one has pack foes to hold back.
+ */
+export function wavesPossible(dungeon: DungeonId): Exclude<WaveShape, 'arc'>[] {
+  const d = DUNGEONS[dungeon];
+  if (d.raid) return [];
+  const fights = [...new Set([...d.openers, ...d.named, ...d.hard])].filter((id) => id !== d.boss && id !== 'shrine' && id !== 'worldShadow');
+  const defs = fights.map((id) => ENCOUNTERS[id]).filter((e) => !!e);
+  const out: Exclude<WaveShape, 'arc'>[] = [];
+  if (defs.some((e) => e.spawns.reduce((a, x) => a + x.n, 0) >= 2 && !e.spawns.some((x) => x.kind === 'twinLamp'))) out.push('pincer', 'ring');
+  if (defs.some((e) => reinforceCount(e.spawns) > 0)) out.push('reinforce');
   return out;
 }
 
@@ -62,6 +78,7 @@ export function metIn(w: World): SeenKey[] {
   const d = w.dungeonId;
   const out: SeenKey[] = [];
   if (w.bossVariant) out.push(seenKey(d, 'boss', w.bossVariant));
+  for (const v of wavesIn(w.wavesMet)) out.push(seenKey(d, 'wave', v));
   if (w.namedMet >= 0 && AFFIXES[w.namedMet]) out.push(seenKey(d, 'mark', AFFIXES[w.namedMet]));
   ARENA_EVENT_ORDER.forEach((e, k) => { if (w.arenaEventsMet & (1 << k)) out.push(seenKey(d, 'event', e)); });
   if (w.heat && w.heat in HEATS) out.push(seenKey(d, 'heat', w.heat as HeatId));
