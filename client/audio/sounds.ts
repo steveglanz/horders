@@ -847,6 +847,19 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 0.5, vol: 0.14, a: 0.25, lp: 2500, lp2: 6000, hp: 900, curve: 1.2 },
      { wave: 'noise', f: 0, dur: 0.08, delay: 0.5, vol: 0.3, lp: 4000, hp: 700, curve: 3 }],
   ),
+  /** Phase 16 U2: the Ashwall winds up its Shield Bash (a cone off its front, ASHWALL.bashCast 0.8 s): iron scraping on
+   *  stone as the shield draws back, and a short rising grunt of effort. Ends before the bash lands. */
+  bashWarn: join(
+    [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.2, a: 0.15, lp: 3000, lp2: 6500, hp: 800, curve: 1.3, trem: [30, 0.5] },
+     { wave: 'saw', f: 110, f2: 190, dur: 0.45, vol: 0.12, a: 0.1, lp: 900, lp2: 1600, curve: 1.2 }],
+    clang(note(-7), 0.16, 0.25).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
+  ),
+  /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
+   *  so "that did little" is heard without looking. Takes the place of the hit sound. */
+  glance: [
+    { wave: 'tri', f: 210, f2: 150, dur: 0.07, vol: 0.2, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.14, lp: 1800, hp: 400, curve: 3 },
+  ],
   /** The Charger dashes: a fast thudding rush past you. */
   chargeDash: join(
     whoosh(800, 7000, 0.35, 0.3),
@@ -1769,6 +1782,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  bashWarn: 7.2, glance: 4.0, // U2 Ashwall: the wind-up 6.1 dB over the Kiln mix (busycheck t8 heroes, SEEDS=1-16, n=9), level with chargeWindup; the glance a little over plateHit, under the plain hit
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it

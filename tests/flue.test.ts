@@ -364,6 +364,23 @@ describe('Phase 16 U1: the Furnace Regent\'s echo', () => {
     expect(fire(w, inner)).toEqual({ tithe: true, summons: false, ash: false, echo: true });
   });
 
+  it('the bots\' Summons lead follows his next move: no walk to the throne before a Tithe echo, and one before a Summons echo', () => {
+    const { w, inner, b } = flue();
+    (w as unknown as { bossPhase: number }).bossPhase = 2;
+    w.bossVariant = 'court'; w.bossEcho = 'tithe'; w.echoNext = true;
+    inner.ashT = 3;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent + 0.05);
+    expect(w.regentNextMove()).toBe('court');
+    expect(w.summonsDue()).toBe(3);
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent - 0.05);
+    expect(w.regentNextMove()).toBe('tithe');
+    expect(w.summonsDue()).toBe(Infinity);
+    w.echoNext = false;
+    expect(w.summonsDue()).toBe(3);
+    w.bossVariant = 'tithe'; w.bossEcho = 'court'; w.echoNext = true;
+    expect(w.summonsDue()).toBe(3);
+  });
+
   it('a Summons echo on a Tithe run, and nothing above the threshold', () => {
     const { w, inner, b } = flue();
     w.bossVariant = 'tithe'; w.bossEcho = 'court'; w.echoNext = true;

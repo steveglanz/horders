@@ -187,6 +187,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
   charge: { start: 'chargeWindup' }, // Charge
+  shieldBash: { start: 'bashWarn' }, // Phase 16 U2: the Ashwall's Shield Bash (each wind-up is the dodge warning)
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
@@ -344,6 +345,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (col && col.side !== 1 && mine(ev.hero) && Math.abs(ev.x - col.x) < 1 && Math.abs(ev.y - col.y) < 1) {
         return col.side < 1 ? { id: 'plateHit', jitter: 0.08 } : { id: 'backHit', jitter: 0.1, vol: ev.crit ? 1.2 : 1 };
       }
+      // Phase 16 U2: a hit the Ashwall's shield cut (its front, or a foe sheltered behind it) glances off instead.
+      if (ev.glance) return { id: 'glance', jitter: 0.1 };
       return ev.crit ? { id: 'crit', jitter: 0.08 } : { id: 'hit', jitter: 0.15 };
     }
     case 'kill': {
@@ -883,6 +886,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // Punch Line: each step of the march lands on all three rows in one tick; one thunk per step (0.25 s apart).
   punchHit: 0.1,
   rimeCrackle: 0.35,
+  glance: 0.12, // a blade flurry on the shield: a few thunks a second, not every hit
   millGrind: 0.45, // one per MILL.tick (0.5 s); a frame's slack under it so none is skipped
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
