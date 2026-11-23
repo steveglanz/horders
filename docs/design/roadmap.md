@@ -245,7 +245,7 @@ Phase 15 changes how waves arrive, gives bosses a third version, and lets player
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| Y1 | **Wave shapes:** each trash fight's foes arrive in a seeded shape: today's arc; a pincer from two sides; a ring round the party; or half now and reinforcements a few seconds later, with a warning | design | ⏭ Solo and group trash, then raids; measured against each band on 120 to 160 seeds |
+| Y1 | **Wave shapes:** each trash fight's foes arrive in a seeded shape: today's arc; a pincer from two sides; a ring round the party; or half now and reinforcements a few seconds later, with a warning | design | ✅ Y1 PR: solo and group trash after the opener (pincer 20%, ring 15%, reinforcements 20%); natural rates within 3 of waves off in every solo dungeon ([variety.md](variety.md)). Raids later, with Y2 |
 | Y2 | **Raid trash events:** Cave-in and Vent Surge in raid openers and named fights (never the boss), as the group dungeons got in #494 | design | ⏭ Raids stay 55 to 70% at their unlock tier |
 | Y3 | **Third boss versions:** a third phase-2 version for each solo boss, the Kiln Mother first, then Maelra, the Lensmother, Nhevra and Hessa; group and raid bosses after | design | ⏭ One boss per PR, every version within the band; names searched for WoW matches |
 | Y4 | **Seen log:** each hero keeps a record of the boss versions, named-foe traits, arena events, wave shapes and Heats they have met. The end screen marks what's new, and the hub shows what's still unseen in each dungeon | engineering | ⏭ Reads runShape (sim/runshape.ts); saved with the hero |
@@ -254,6 +254,7 @@ Phase 15 changes how waves arrive, gives bosses a third version, and lets player
 | Y7 | **Sound:** a cue for reinforcements arriving and for a wave from behind, and each third version's cues | sound | ⏭ After Y1 and Y3 ids |
 | Y8 | **QA:** contentcheck forces each wave shape and third version (0 stuck); variety.ts counts wave shapes | QA | ⏭ |
 | Y9 | **Phones:** foes coming in from off screen get an edge marker at 320 px; the Seen log fits a phone | phones | ⏭ After Y1, Y4 and Y6 |
+| Y10 | **The dungeon stirs:** Steve, 23 Nov: "It would be cool if the dungeons sort of adapted or adjusted difficulty as you played, if you were doing really well they like added an extra monster or something." A fast, healthy trash clear builds a hidden count; when it fills, the next fight gets one reaction (an extra elite, a named foe, an arena event or a harder wave shape) with extra loot. A run going badly never gets harder. At most two per run, never the boss, off on the first delve and tiers 1 to 3; bots don't count in group runs, and the loot follows the bot loot rules | design | ⏭ After Y1; then skills, visuals, sound, QA, phones and engineering (Seen log) items |
 
 ## R2. The Forge
 
