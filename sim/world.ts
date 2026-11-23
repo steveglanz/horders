@@ -535,7 +535,7 @@ export interface Player {
 
 export type SimEvent =
   /** `hero`: who landed it (World.acting), so a screen can tell its own hits from an ally's. */
-  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number }
+  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number; /** Phase 16 U2: an Ashwall's shield cut this hit (its front, or a foe sheltering behind it). */ glance?: true }
   | { type: 'kill'; x: number; y: number; kind: EnemyKind }
   | { type: 'playerHurt'; amount: number; hero?: number }
   | { type: 'levelUp'; level: number; hero?: number }
@@ -5574,9 +5574,12 @@ export class World {
       dmg *= this.colossusSide(e, by.x, by.y);
     }
     // Phase 16 U2: an Ashwall's shield takes the hits on its front, and on the foes sheltering behind it.
+    let glance = false;
     if (this.ashwallUp()) {
       const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
-      dmg *= this.ashwallTaken(i, by.x, by.y);
+      const m = this.ashwallTaken(i, by.x, by.y);
+      dmg *= m;
+      glance = m < 1;
     }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
@@ -5635,7 +5638,7 @@ export class World {
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
       e.flash = 0.08;
-      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting });
+      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting, ...(glance ? { glance: true as const } : {}) });
     }
     if (canCrit && this.hasMythic('splittingCinders')) {
       let other = -1;

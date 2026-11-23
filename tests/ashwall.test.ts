@@ -82,6 +82,19 @@ describe('Phase 16 U2: the Ashwall (the Kiln)', () => {
     expect(gap()).toBeLessThan(Math.min(40, g0 * 0.4));
   });
 
+  it('a hit its shield cut is a glance (for sound); a full hit is not', () => {
+    const { w, inner } = ashwallFight();
+    const a = inner.spawn('ashwall', 200, 0);
+    const glances = () => w.events.filter((ev) => ev.type === 'hit').map((ev) => !!(ev as { glance?: true }).glance);
+    w.events.length = 0;
+    hit(w, inner, a);
+    expect(glances()).toEqual([true]);
+    w.events.length = 0;
+    w.player.x = 200; w.player.y = 200;
+    hit(w, inner, a);
+    expect(glances()).toEqual([false]);
+  });
+
   it('Shield Bash is a cone off its front when the hero is close', () => {
     const { w, inner } = ashwallFight();
     const a = inner.spawn('ashwall', 80, 0);
