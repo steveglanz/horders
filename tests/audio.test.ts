@@ -6,14 +6,14 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, EDGE_SPOTS, edgeSpotAt, HD2D_ROOM_R, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, millCue, EDGE, EDGE_SOUNDS, EDGE_SPOTS, edgeSpotAt, HD2D_ROOM_R, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, REGENT, TITHE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -245,6 +245,8 @@ describe('audio', () => {
   it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
     // Seed 19 since Phase 15 Y2: raid trash events changed seed 3's run, which no longer reached Meltdown.
     const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    // Phase 15 Y3 added a third version (Millstone), so seed 19 no longer rolls the Wheel by itself: keep its Wheel run.
+    (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'wheel';
     const heard = new Set<string>();
     let phase3Side = false;
     while (w.state !== 'ended' && w.time < 900) {
@@ -641,6 +643,16 @@ describe('audio', () => {
     expect(src).toContain('Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5'); // anvils
     expect(src).toContain('Math.sin(a) * 9.7, 0, Math.cos(a) * 9.7'); // chimneys
     expect(src).toContain('lg.position.set(0, 6.2, -9.6)'); // the Glarewell's lens, at the back wall centre (z -9.6)
+    expect(src).toContain('lg.position.set(0, 0, -9.3)'); // the Crucible's ladle
+    expect(src).toContain('for (const a of [Math.PI - 0.8, Math.PI + 0.8]) {\n      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5);'); // its slag pots
+    expect(src).toContain('[[Math.PI, 3.4], [Math.PI - 0.85, 2.0], [Math.PI + 0.85, 2.0]]'); // the Hoard's mounds
+    expect(src).toContain('mound.position.set(Math.sin(a) * (9.4 + r * 0.25)');
+    expect(src).toMatch(/\[\[Math\.PI, 3\.2\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.6/); // the Coldmarrow's arches
+    expect(src).toMatch(/\[\[Math\.PI, 3\.0\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // the presses
+    expect(src).toContain('for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {\n      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.9'); // the ore carts
+    expect(src).toContain('wg.position.set(0, -0.2, -9.6)'); // the Wrackline's hull
+    expect(src).toContain('[Math.PI - 0.7, Math.PI - 1.0, Math.PI - 1.3, Math.PI + 0.7, Math.PI + 1.0, Math.PI + 1.3]'); // its posts
+    expect(src).toContain('new THREE.Vector3(Math.sin(a) * 8.9, 0.9, Math.cos(a) * 8.9)');
     expect(src).toMatch(/\[Math\.PI, 2\.2\], \[Math\.PI - 0\.8, 1\.6\], \[Math\.PI \+ 0\.8, 1\.6\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // fumaroles
     // Only dungeons with their own 3D room get spots (the rest share the Flue room, whose props aren't theirs). A new room
     // without spots yet just keeps the random side, so visuals' room PRs never wait on sound.
@@ -665,12 +677,14 @@ describe('audio', () => {
     expect(kiln?.pan).toBeLessThan(0); // drawn left, heard left, although the side roll said right
     // The middle kiln is straight up the screen from a hero at x 0: centred.
     expect(edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.5, 0]), room)?.pan).toBeCloseTo(0, 6);
-    // In 2D (no screen), or a sound with no spot (the Foundry's valve), or a dungeon in the shared Flue room, the random side stays.
+    // In 2D (no screen), or a sound with no spot (the Foundry's valve, the Hoard's bones), the random side stays.
     const twoD = edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.99]), { listen: { x: 0, half: 280 }, arenaR: 560 });
     expect(twoD?.pan).toBeCloseTo(EDGE.pan * (0.6 + 0.4 * 0.99), 6);
     expect(edgeCue({ next: 1 }, 'foundry', 1, false, seq([0.5, 0.9, 0.9, 0.5]), room)).toMatchObject({ id: 'edgeValve', pan: EDGE.pan * 0.8 });
-    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.1, 0.5]), room)?.pan).toBeCloseTo(-EDGE.pan * 0.8, 6);
-    expect(EDGE_SPOTS.hoard).toBeUndefined();
+    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.9, 0.5]), room)).toMatchObject({ id: 'edgeBones' });
+    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.9, 0.5]), room)?.pan).toBeCloseTo(-EDGE.pan * 0.8, 6);
+    // Every own 3D room so far (all twelve dungeons) has its big prop placed.
+    for (const d of ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard', 'coldmarrow', 'pressworks', 'smeltery', 'wrackline', 'flue']) expect(EDGE_SPOTS[d]?.[0].length, d).toBeGreaterThan(0);
   });
 
   it('sounds the Regent\'s Summons as a must-hear call, and the Brimming\'s Churn as a quiet stir (Phase 12 W3)', () => {
@@ -1207,6 +1221,75 @@ describe('audio', () => {
     // The warning is over before he breathes in, and the in-breath is over before the all-clear.
     expect(recipeLength(SOUNDS.inhaleWarn)).toBeLessThan(INHALE.warn);
     expect(recipeLength(SOUNDS.inhaleDraw)).toBeLessThan(INHALE.time);
+  });
+
+  it('warns of the Colossus\'s Millstone, grinds every slag tick panned round with his front, and settles at the end (Phase 15 Y3)', () => {
+    const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'mill';
+    const c = { cls: 'duskblade' as const, acting: 0, dungeon: 'smeltery', boss: 'colossus' as const };
+    const heard: string[] = [];
+    const pans: number[] = [];
+    let grinds = 0, lastGrind = -1;
+    while (w.state !== 'ended' && w.time < 900 && !heard.includes('end:millEnd')) {
+      if (w.state === 'draft') {
+        const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
+        w.use(h); const pick = botChoose(w); w.use(0); w.choose(pick, h);
+        continue;
+      }
+      const inputs = w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; });
+      w.step(inputs);
+      for (const ev of w.events) {
+        if ((ev.type === 'castStart' || ev.type === 'castDone') && ev.id === 'millstone') heard.push(`${ev.type}:${cueFor(ev, c)?.id ?? '-'}`);
+        if (ev.type === 'millstone') heard.push(`${ev.stage}:${cueFor(ev, c)?.id}`);
+      }
+      // The grind: only while he turns, panned by where his front faces from the hero (world x, as in 2D).
+      const g = millCue({ colossus: colossusCue(w), listen: { x: w.player.x, half: 280 } });
+      expect(!!g).toBe(w.millT > 0);
+      if (g && w.time - lastGrind >= THROTTLE.millGrind!) { grinds++; lastGrind = w.time; pans.push(g.pan ?? 0); }
+    }
+    expect(heard.slice(0, 4)).toEqual(['castStart:millWarn', 'start:millStart', 'castDone:-', 'end:millEnd']);
+    expect(PRIORITY.has('millWarn')).toBe(true);
+    for (const id of ['millStart', 'millGrind', 'millEnd'] as const) expect(PRIORITY.has(id), id).toBe(false);
+    // One grind per slag tick over the 6 s turn, and a turn of about 5 radians swings it from one side to the other.
+    expect(grinds).toBeGreaterThanOrEqual(11);
+    expect(Math.min(...pans)).toBeLessThan(-0.1);
+    expect(Math.max(...pans)).toBeGreaterThan(0.1);
+    expect(recipeLength(SOUNDS.millWarn)).toBeLessThan(2);
+    expect(THROTTLE.millGrind!).toBeLessThan(0.5);
+  }, 60000);
+
+  it('calls the Regent\'s Tithe, chimes when it is shared, and stamps hard when everyone pays (Phase 15 Y3)', () => {
+    type F = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; decreeT: number; ashT: number;
+      regentClock(dt: number): void; updatePartyTelegraphs(dt: number): void };
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'flue', boss: 'regent' as const };
+    const run = (shared: boolean) => {
+      const w = new World({ seed: 7, dungeon: 'flue', omens: [], cls: 'bulwark', worldBoss: 'The Furnace Regent',
+        party: [{ cls: 'lumen' }, { cls: 'duskblade' }, { cls: 'emberwright' }] });
+      const q = w as unknown as F;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('regent', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true; q.decreeT = 999; q.ashT = 0;
+      w.bossVariant = 'tithe';
+      w.enemies[b].hp = w.enemies[b].maxHp * (REGENT.phase2 - 0.01);
+      w.heroes.forEach((h, k) => { h.player.x = 60 + k * 200; h.player.y = 0; });
+      w.events.length = 0;
+      q.regentClock(0.01);
+      const heard = w.events.filter((ev) => ev.type === 'castStart' && ev.id === 'tithe').map((ev) => cueFor(ev, c)?.id);
+      const t = w.telegraphs.find((x) => x.alive && x.kind === 'soak' && x.owner === -5)!;
+      w.heroes.forEach((h, k) => { h.player.x = shared && k < TITHE.need ? t.x : -t.x * 0.5; h.player.y = shared && k < TITHE.need ? t.y : -t.y * 0.5 + k * 40; });
+      t.t = t.dur;
+      w.events.length = 0;
+      q.updatePartyTelegraphs(0.01);
+      // The soak event fires too, but the mix drops it for a Tithe: one landing sound, not two.
+      expect(w.events.some((ev) => ev.type === 'soak')).toBe(true);
+      for (const ev of withoutBankedSoaks(w.events)) { const k = cueFor(ev, c); if (k && ev.type !== 'playerHurt') heard.push(k.id); }
+      return heard;
+    };
+    expect(run(true)).toEqual(['titheWarn', 'titheShared']);
+    expect(run(false)).toEqual(['titheWarn', 'titheMissed']);
+    expect(PRIORITY.has('titheWarn') && PRIORITY.has('titheMissed')).toBe(true);
+    expect(PRIORITY.has('titheShared')).toBe(false);
+    expect(recipeLength(SOUNDS.titheWarn)).toBeLessThan(TITHE.fuse);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {

@@ -129,8 +129,12 @@ export const BRIMMING_TIP = 'Heal the Ladle burn off the tank. Later the pit fil
 export const INHALE_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end he breathes you in: when he Inhales, walk away from his mouth until he stops.';
 export const BANKED_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, stand on each hot coal as it lands, or he eats it.';
 /** Phase 12 W3: the Cinder Colossus's intro when this run's version shifts his plate instead of Wheeling. */
+/** Phase 15 Y3: the Cinder Colossus's intro when this run's version grinds round (Millstone). */
+export const MILLSTONE_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he grinds round, slag pours off him everywhere but his open back: walk round the way he turns to stay behind him, or step well clear.';
 export const PLATE_SHIFT_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, it moves to whoever hurt him most: find his open back again.';
 /** Phase 12 W3: the Furnace Regent's intro when this run's version calls a Summons with the Ash Fall. */
+/** Phase 15 Y3: the Furnace Regent's intro when this run's version demands a Tithe. */
+export const TITHE_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he demands a Tithe, at least two of you stand in the gold circle to share it, or everyone pays.';
 export const COURT_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he calls a Summons, step out of the ash and come close to him before it lands.';
 /** V3: the Kiln Mother's intro when this run's version breathes in (Kiln Draw) from phase 2. */
 export const KILN_DRAW_TIP = 'Quench her Cataclysm at first. Later she breathes in and pulls you to her fire: walk away from her.';

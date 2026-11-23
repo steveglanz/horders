@@ -553,6 +553,10 @@ export type SimEvent =
   | { type: 'digested'; hero: number }
   | { type: 'spatOut'; hero: number }
   | { type: 'wheel'; hero: number }
+  /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
+  | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
+  /** Phase 15 Y3 Tithe: the Regent's gold circle landed with `n` heroes in it; `ok` when that was enough. */
+  | { type: 'tithe'; ok: boolean; n: number }
   | { type: 'meltPulse'; n: number }
   /** Raid 4 (the Flue): a Decree landed on a hero, was passed (`from` to `hero`; `done`: its last pass, so it fades), or burst. */
   | { type: 'decree'; hero: number }
@@ -989,6 +993,10 @@ export class World {
   colFacing = 0;
   /** Phase 12 W3 (Plate Shift): how far his plate's middle is turned from his facing, radians. 0 in the Wheel version. */
   colPlate = 0;
+  /** Phase 15 Y3 Millstone: seconds left of his grind (0 when not grinding), its turn (+1 or -1), and the next heat tick. */
+  millT = 0;
+  millDir = 1;
+  millTickT = 0;
   /** Phase 12 W3 (the Regent's Summons): seconds until the Summons lands, 0 when none is called. */
   summonsT = 0;
   /**
@@ -2044,6 +2052,9 @@ export class World {
           const t = this.heroPlayer(this.targetOf(i, 0));
           this.colFacing = Math.atan2(t.y - e.y, t.x - e.x);
           this.colPlate = 0;
+          this.millT = 0;
+          this.millDir = 1;
+          this.millTickT = 0;
           this.bossVariant = this.rollColossusVariant();
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
@@ -5064,6 +5075,12 @@ export class World {
         this.colPlate = angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing);
         this.events.push({ type: 'wheel', hero: pick });
       }
+    } else if (id === 'millstone') {
+      // Phase 15 Y3: he starts to grind round.
+      this.millT = MILL.time;
+      this.millDir = this.rng.int(2) === 0 ? 1 : -1;
+      this.millTickT = MILL.tick;
+      this.events.push({ type: 'millstone', stage: 'start', dir: this.millDir });
     } else if (id === 'wheel') {
       // Raid 3: he turns on the non-tank who hurt him most in the last few seconds, and sweeps.
       let pick = -1;
@@ -6805,6 +6822,16 @@ export class World {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
+        if (this.bossVariant === 'tithe') {
+          // Phase 15 Y3: he demands a Tithe instead of the ash: a gold circle away from him that needs at least TITHE.need heroes.
+          const a = this.rng.next() * Math.PI * 2;
+          let x = e.x + Math.cos(a) * TITHE.dist, y = e.y + Math.sin(a) * TITHE.dist;
+          const lim = ARENA - TITHE.r - 20, m = Math.hypot(x, y);
+          if (m > lim) { x *= lim / m; y *= lim / m; }
+          this.addTelegraph('circle', x, y, TITHE.r, 0, 0, TITHE.fuse, 0, 'soak', -5);
+          this.events.push({ type: 'castStart', index: i, id: 'tithe', name: 'Tithe' });
+          return;
+        }
         if (this.bossVariant === 'court') {
           // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
           this.summonsT = SUMMONS.warn;
@@ -6920,8 +6947,32 @@ export class World {
         this.events.push({ type: 'meltPulse', n: this.meltPulses });
       }
     }
-    // He turns toward the hero he is fighting, but slowly, and not while he casts.
-    if (!e.castId) {
+    if (this.millT > 0) {
+      // Millstone: he grinds round, and slag pours off him onto any non-tank not at his back.
+      this.millT -= dt;
+      this.colFacing = angleDiff(this.colFacing + this.millDir * MILL.turn * dt, 0);
+      this.millTickT -= dt;
+      if (this.millTickT <= 0) {
+        this.millTickT += MILL.tick;
+        const at = this.acting;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || this.isTank(k)) continue;
+          const d = Math.hypot(q.x - e.x, q.y - e.y);
+          if (d > e.def.radius + MILL.range + PLAYER_RADIUS) continue;
+          if (Math.abs(angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing)) > MILL.arc) continue;
+          this.use(k);
+          this.hurtPlayer(q.maxHp * MILL.damage, i, true);
+        }
+        this.use(at);
+      }
+      if (this.millT <= 0) {
+        this.millT = 0;
+        this.events.push({ type: 'millstone', stage: 'end', dir: this.millDir });
+      }
+    }
+    // He turns toward the hero he is fighting, but slowly, and not while he casts or grinds.
+    if (!e.castId && this.millT <= 0) {
       const t = this.heroPlayer(this.targetOf(i, 0));
       const want = Math.atan2(t.y - e.y, t.x - e.x);
       const diff = angleDiff(want, this.colFacing);
@@ -6938,11 +6989,13 @@ export class World {
       this.startCast(i, 'pourOut', 'Pour Out', COLO.pourOutCast, false);
       return;
     }
+    if (this.millT > 0) return;
     this.sweepT -= dt;
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
       if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else if (this.bossVariant === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
       else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
@@ -7543,8 +7596,9 @@ export class World {
       t.alive = false;
       if (t.kind === 'soak') {
         const took = this.soakers(t);
-        const ok = took.length > 0;
-        this.relaySoak(took);
+        // The Regent's Tithe (owner -5) is only made with TITHE.need heroes in it: one alone gets no Relayer, no Ventwalker heal.
+        const ok = took.length >= (t.owner === -5 ? TITHE.need : 1);
+        if (ok) this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {
@@ -7552,6 +7606,17 @@ export class World {
             const q = this.player;
             if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
           });
+        }
+        if (t.owner === -5) {
+          // Y3 the Regent's Tithe: enough heroes share it, or everyone pays.
+          const boss = this.bossIndex;
+          if (took.length >= TITHE.need) {
+            const share = TITHE.cost / took.length;
+            for (const k of took) { this.use(k); this.hurtPlayer(this.player.maxHp * share, boss, true); }
+          } else this.eachHero(() => this.hurtPlayer(this.player.maxHp * TITHE.miss, boss, true));
+          this.use(0);
+          this.events.push({ type: 'tithe', ok: took.length >= TITHE.need, n: took.length });
+          continue;
         }
         if (t.owner === -4) {
           // A Banked Coal: smothered, or he eats it (the same as an ember he inhales).
@@ -8399,16 +8464,31 @@ export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1
  * (scaled by tier). The party has to gather on him, where a Decree's scorch (REGENT.scorchRadius) catches anyone close
  * to its holder, so holders stand at the edge and passes happen in the crowd.
  */
-export type RegentVariant = 'ash' | 'court';
-export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court'];
+export type RegentVariant = 'ash' | 'court' | 'tithe';
+export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court', 'tithe'];
+/**
+ * Phase 15 Y3 Tithe (his phase 2 in the `tithe` version, on Ash Fall's timer, in place of the ash): a gold circle of `r` lands
+ * `dist` px from him (a random side) after `fuse` s. If at least `need` heroes stand in it, they share the tithe: each takes
+ * `cost` of max health split between them. If fewer do, every hero pays `miss` of max health. Decrees still scorch anyone close
+ * to their holder, so a holder who joins the tithe burns the others.
+ */
+export const TITHE = { dist: 240, r: 80, fuse: 4, need: 2, cost: 0.65, miss: 0.35 };
 export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
 /**
  * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
  * `shift`: Plate Shift, on the Wheel's timer and cast: his plate slides round to face that hero instead, and stays
  * there (World.colPlate) while he keeps facing the tank, so his open back moves and the damage dealers have to find it again.
  */
-export type ColossusVariant = 'wheel' | 'shift';
-export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift'];
+export type ColossusVariant = 'wheel' | 'shift' | 'mill';
+export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift', 'mill'];
+/**
+ * Phase 15 Y3 Millstone (his phase 2 in the `mill` version, on the Wheel's timer and cast): he grinds round on the spot for `time` s,
+ * turning `turn` radians a second one way (chosen at random), ignoring the tank. Slag pours off him all round: every `tick` s a non-tank
+ * hero within `range` px of his edge and within `arc` radians of his facing (all but his open back) takes `damage` of max health. His open
+ * back turns with him, so the damage dealers have to walk round with it. No Slag Sweep while he grinds. (A front-only burn, arc pi/3,
+ * hit almost nobody: the bots already stood at his back.)
+ */
+export const MILL = { time: 6, turn: 0.9, arc: 2.1, range: 200, tick: 0.5, damage: 0.08 };
 /** Phase 12 W3 and Phase 15 Y3: Old Vorhulm's versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. `inhale`: he draws the raid in to bite. */
 export type VorhulmVariant = 'spill' | 'bank' | 'inhale';
 export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];

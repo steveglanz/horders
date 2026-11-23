@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, edgeCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -356,6 +356,7 @@ class AudioEngine {
     }
     if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
     if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
+    this.cue(millCue(ctx));
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
     this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge, !!ctx.whirl));
