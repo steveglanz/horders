@@ -19,7 +19,7 @@ export type EncounterId =
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
   | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
-  | 'ashwall' | 'ballast' | 'lampeye';
+  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -72,6 +72,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
   // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
+  dimhorn: { id: 'dimhorn', name: 'The Dimhorn', tip: 'Out in the dark it winds its horn and calls the pack. Keep it inside your coal\'s light, where it can\'t sound it.', spawns: [{ kind: 'dimhorn', n: 1 }, { kind: 'snuffer', n: 2 }] },
   lampeye: { id: 'lampeye', name: 'The Lampeye', tip: 'While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light.', spawns: [{ kind: 'lampeye', n: 1 }, { kind: 'shade', n: 3 }] },
   shades: { id: 'shades', name: 'Shades in the Dark', tip: 'Shades barely feel hits in shadow. Pull them into the light.', spawns: [{ kind: 'shade', n: 4 }] },
   lensbearer: { id: 'lensbearer', name: 'The Lensbearer', tip: 'When it raises the lens, hide behind a pillar, or Quench the Glare.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 2 }] },
@@ -196,7 +197,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   coldmarrow: {
     id: 'coldmarrow', name: 'The Coldmarrow', boss: 'nhevra', unlockTier: 10,
-    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
+    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers', 'dimhorn'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
     blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
   },
   wrackline: {

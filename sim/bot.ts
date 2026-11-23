@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -892,6 +892,18 @@ export function botInput(w: World, skill = 1): Input {
       const hl = Math.hypot(hx, hy) || 1;
       fx += (hx / hl) * 0.25 * skill;
       fy += (hy / hl) * 0.25 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: a Dimhorn out in the dark winds up its Dark Call, so once it is well on its way bring your coal's
+  // light over it (NODIMHORN=1 turns this off for measuring).
+  if (process.env.NODIMHORN !== '1' && p.coal !== undefined) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'dimhorn' || (e.aux < DIMHORN.callAt * 0.4 && e.castId !== 'darkCall')) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy) || 1;
+      if (d < (p.coalR ?? COLD.maxR) * 0.6) break;
+      fx += (dx / d) * 0.3 * skill;
+      fy += (dy / d) * 0.3 * skill;
       break;
     }
   }
