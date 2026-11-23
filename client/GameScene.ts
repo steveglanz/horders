@@ -1343,7 +1343,8 @@ export class GameScene extends Phaser.Scene {
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
-          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip);
+          // The warning wins over a fight's banner chain (stir, wave, named foe), which resumes after it.
+          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, false, this.hud.pendingBanner());
           else if (ev.stage === 'land' && ev.id === 'caveIn') {
             this.shakeBy(0.35);
             for (const c of w.caveInSpots()) {
