@@ -1007,6 +1007,38 @@ Each row lists the boss's three versions, with the new one last.
 - **The Hoard's Anvil party** has been at 67 to 73 of 80 (seeds 41-120) since before #341, so it isn't a regression. No single Slagbinder kit piece explains it: allyBrittle at 1.0 gives 66, and turning off plating, plateMend, party armour and Brittle together gives 62. Holding Vorhulm close doesn't remove it either (76 to 78). The other half is the Bulwark: it died 470 times in 480 base-party runs, mostly late, while another hero was Swallowed. Design tried softening Vorhulm's blows while a hero is Swallowed. It lifted every Bulwark party by about the same amount, so it didn't separate the parties and wasn't shipped.
 - **Known and accepted:** the Pressworks Anvil party at 36 of 80 (seeds 41-120) stays the hard way to tank there, as ruled in #308.
 
+## Echoes and new foes: class check (U4, 23 Nov 2026)
+
+Heroes are heroes-r2 hero-t8-0. Solo runs use seeds 41-200 and parties use the standard five (base, Anvil, Bellows, two-blade, two-ember). Wins are out of 160. Echoes are compared with `ECHO=off` against natural on the same seeds. Pre-boss outcomes are identical between the two, so the same-seed flips (win to loss / loss to win) show how much is real. About ±10 each way is boss-fight reshuffle. New foes are forced as the first fight (`FIGHT=`) against two or more other openers, since forcing an opener reshuffles the run (opener-to-opener spread is about ±12 of 160).
+
+**Solo echoes (off / natural).** Foundry, Glarewell and Wrackline are within 6 for every class. Coldmarrow is the exception: a Rime Nhevra with a Thin Ice echo boxes a melee hero between the cracks, the rime and her body (contact hits x14, Snuffs out of the 210 px interrupt reach, so Long Night hits harder). The Duskblade went 98 / 84 (74 with Thin Ice forced). Design's #601 makes a Rime Nhevra echo only the Emberdrift. A bot rule (take the near side of a crack while rime is up) and an oracle 420 px interrupt reach both failed first.
+
+**Group echoes (off / natural).** No party leaves the band. Two Duskblades in Hammerdeep 88 / 100 (9/21 flips), the base party in Ashvents 101 / 93 (15/7), and the Pressworks Bellows party 135 / 144 (2/11, already over: the #308 ranged-high item).
+
+**Raid echoes (off / natural).**
+- Smeltery Anvil 117 / 95 (30/8). Bots skipped anvilHold in a Plate Shift echo; #609 fixed it (118).
+- Hoard Bellows 86 / 75 and two-ember 81 / 68. The cost is spread over every version and echo pair (0-4 each), so it's a phase-3 cost for parties without a Duskblade, which are under the band anyway (Z5 / #324).
+- Crucible Anvil 124 / 134, already over.
+- Flue base 102 / 113 on main after #601, one over the band; watch item.
+
+**New foes (forced, vs controls).**
+
+| Foe | Bulwark | Duskblade | Emberwright | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| Ashwall, Kiln t8 (Pack / Wardens) | 82 (105 / 87) | 66 (68 / 64) | 90 (78 / 80) | 106 (118 / 109) | 93 (89 / 83) |
+| Ballast, Foundry t8 (Crawlers) | 125 of 320 (126) | 110 (112) | 133 (125) | 127 (other openers 115-140) | 140 (140) |
+| Lampeye, Glarewell t8, after #628 (Shades) | 140 (145) | 117 (127) | 139 (146) | 157 (159) | 160 (157) |
+| Dimhorn, Coldmarrow t10 (Snuffers) | 111 (115) | 100 (93) | 129 (126) | 133 (131) | 118 (117) |
+| Conchblower, Wrackline t10 (Lurkers / Haulers) | 84 (85 / 84) | 110 (113 / 102) | 116 (122 / 131) | 147 (119 / 144) | 158 (158 / 159) |
+
+- **Lampeye:** before #628, melee lost the Lampeye fight itself: the Duskblade 38 runs and the Bulwark 17, with hiding or without (NOLAMPEYE). Ranged heroes need to hide; the Emberwright gets 15 without it. #628 makes hiding ranged-only and adds LAMPEYE.under, and both melee classes now lose 0 in that fight.
+- **Ballast:** neither the Bulwark nor the Lumen is a watch item. Each sits inside its opener spread.
+- **Watch item (design, wrackline.md):** the Lumen loses 30 of 160 in a forced Lurkers opener. The two Cinderhounds reach it on a raft in the first Ebb. In natural runs it is 10 of 160, against 9 for the Emberwright.
+
+**Novice and average players.**
+- `GRIT_GUARD` (#630, see Novice aid) came out of this check.
+- A trash-only Steady Breath for average-skill Duskblades was tried and dropped. QA's laggedBot delays steering, which makes a melee hero rock in and out of contact. Delayed moves alone took the Kiln t8 Duskblade from 35 to 1 of 80, and delayed casts alone to 31. So treat laggedBot melee numbers as a pessimistic bound until QA's reaction-time proxy lands.
+
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 
 Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.
