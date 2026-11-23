@@ -39,7 +39,7 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 ## Novice aid (melee, tiers 1 to 3)
 
 A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
-- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1 and 70% at tiers 2 and 3 (`BLADE_GUARD`), and not at all from tier 4. Unlike the rest of the aid it doesn't fade through tiers 2 and 3. When it faded, a novice Duskblade won 0 of 40 ungeared at Kiln t2 and t3 (QA's playtest, 23 Nov). Most of the damage came from Cinder Brute hits.
+- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1, fading with the rest of the aid (`BLADE_GUARD` x the aid), and not at all from tier 4. #618 briefly kept it at 70% through tiers 2 and 3 from laggedBot numbers; that is undone (see the reactBot table below).
 - **Duskblade Sidestep:** heals up to 3% of max health.
 - **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
@@ -49,17 +49,15 @@ Tier-4 options tried for the novice Duskblade before Grit Guard (career tier-4 w
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
 
-Blade Guard at tiers 2 and 3, measured with the Kiln, ungeared, seeds 1 to 80, wins out of 80 (23 Nov):
+Blade Guard at tiers 2 and 3 with the reaction-time novice (`REACT=0.3 SKILL=0.5`, reactBot), Kiln, ungeared, seeds 1 to 80, wins out of 80 (design, 23 Nov):
 
-| Bot | Tier | Duskblade before | Duskblade after | Emberwright |
-|---|---|---|---|---|
-| Novice (`LAG=0.3 SKILL=0.5`) | 1 | 28 | 28 | - |
-| Novice | 2 | 0 | 23 | 25 |
-| Novice | 3 | 0 | 5 | 9 |
-| Full skill | 2 | 77 | 78 | 49 |
-| Full skill | 3 | 61 | 72 | 41 |
+| Tier | Duskblade, no Blade Guard | Duskblade, fading (now) | Duskblade, #618's 70% | Emberwright | Bulwark |
+|---|---|---|---|---|---|
+| 1 | 80 | 79 (full 50%) | 79 | - | - |
+| 2 | 74 | 77 | 80 | 55 | 78 |
+| 3 | 42 | 48 | 64 | 32 | 79 |
 
-The novice Duskblade now sits just under the novice Emberwright. A full-skill Duskblade was already well over the Emberwright at tiers 2 and 3, and at tier 3 it gains 11. Those are learning tiers, so the gap is accepted. It is a watch item for skills if real players find tier 3 too easy on a Duskblade.
+#618 kept Blade Guard at 70% through tiers 2 and 3 because the old novice proxy (`LAG=0.3`, laggedBot) had the Duskblade at 0 of 80 there. That proxy rocks melee heroes into contact (docs/design/variety.md, the lagged-bot section). With reactBot, the fading Blade Guard already puts the Duskblade above the Emberwright, so it is back to fading. The rest of this melee aid was also set from laggedBot numbers and is for skills to re-check with reactBot. So is the Emberwright, which is now the weakest novice at tier 3.
 
 ## Co-op threat hooks
 
