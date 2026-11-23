@@ -24,7 +24,7 @@ export const HEATS: Record<HeatId, HeatDef> = {
   thickSteam: { id: 'thickSteam', name: 'Thick Steam', text: 'Temper builds faster, and vents heal twice as much per stack.' },
   highSun: { id: 'highSun', name: 'High Sun', text: 'The Glare comes more often, and shadows reach farther.' },
   brightCoal: { id: 'brightCoal', name: 'Bright Coal', text: 'Your coal shines wider, and burns down faster.' },
-  slackWater: { id: 'slackWater', name: 'Slack Water', text: 'Rafts drift slower, and the Ebb comes more often.' },
+  slackWater: { id: 'slackWater', name: 'Slack Water', text: 'Rafts drift slower, so they are easier to stay on.' },
 };
 
 export const HEAT_IDS = Object.keys(HEATS) as HeatId[];
@@ -39,9 +39,9 @@ export const HEAT_TUNING = {
   /** High Sun (Glarewell): the Glare's timers (trash and boss) and pillar shadow length. */
   sunGlare: 0.8, sunShadow: 1.25,
   /** Bright Coal (Coldmarrow): the coal's full light radius and its drain. */
-  coalRadius: 1.25, coalDrain: 1.3,
-  /** Slack Water (Wrackline): raft drift and the trash Ebb's timer. */
-  slackDrift: 0.6, slackTide: 0.78,
+  coalRadius: 1.25, coalDrain: 1.15,
+  /** Slack Water (Wrackline): raft drift and the trash Ebb's timer (1: unchanged; 0.78 with the slower drift cost 15 of 160 at tier 13). */
+  slackDrift: 0.6, slackTide: 1,
 };
 
 /**

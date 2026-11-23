@@ -6965,7 +6965,8 @@ export class World {
         // The burst feeds any enemy caught in it.
         this.forEachNear(t.x, t.y, t.r + 40, (j) => {
           const o = this.enemies[j];
-          if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+          // Phase 14 X5: never a named foe (a Swift Sluice Crawler stood in its own Blooms and healed back to full).
+          if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
           const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
@@ -7032,7 +7033,7 @@ export class World {
         } else {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {
             const o = this.enemies[j];
-            if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+            if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
             const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
             if (amount <= 0) return;
             o.hp += amount;
@@ -7550,8 +7551,15 @@ export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,
   caveCount: 3, caveRing: 150, caveRadius: 30, caveWarn: 2.2, caveDamage: 26,
   surgeWarn: 1.8, surgeDamage: 20,
-  snapWarn: 2.5, snapCut: 0.3,
+  snapWarn: 2.5, snapCut: 0.2,
   force: '' as string, off: false,
+};
+/** Phase 14 X3: each event's name and warning line, for its banner. */
+export const ARENA_EVENT_INFO: Record<ArenaEventId, { name: string; tip: string }> = {
+  caveIn: { name: 'Cave-in', tip: 'Rock is falling. Get out from under the shadows.' },
+  ventSurge: { name: 'Vent Surge', tip: 'Every vent is about to blow. Get off them.' },
+  coldSnap: { name: 'Cold Snap', tip: 'The cold bites. Your coal will dim, so feed it.' },
+  highWater: { name: 'High Water', tip: 'The Ebb comes now. Get on a raft.' },
 };
 /** Phase 14 X3: each solo dungeon's events. Cave-in where its floors have stones, Vent Surge where they have vents. */
 export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
@@ -7955,3 +7963,5 @@ function segDist2(px: number, py: number, x1: number, y1: number, x2: number, y2
   const t = Math.max(0, Math.min(1, ((px - x1) * vx + (py - y1) * vy) / len2));
   return dist2(px, py, x1 + vx * t, y1 + vy * t);
 }
+export { HEAT_TUNING }; // tools' TUNE=HEAT_TUNING.x=y reaches the Heat numbers
+export { NAMED }; // tools' TUNE=NAMED.x=y reaches the named-foe numbers

@@ -475,7 +475,7 @@ export class Hub {
   /** Opens the sheet for one prep chip. */
   private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
     const titles = { heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
-    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on the Kiln at tiers 1 and 2, the same for everyone. It changes every day.</div>'
+    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on this dungeon, the same for everyone. Each solo dungeon has its own, and it changes every day.</div>'
       : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
       : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
