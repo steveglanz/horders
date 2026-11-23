@@ -48,7 +48,8 @@ const BOSS_ENRAGE_AFTER = 150;
  * through shields. `warn` s before, the HUD warns. `addCap`: a fight never holds
  * more than this many live foes (summons past it fizzle).
  */
-export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150 };
+/** `named`: Phase 14 X5, extra seconds for the fight that holds this delve's named foe (a 2x-health elite, often with a ward, outlasted ranged classes). */
+export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150, named: 60 };
 export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
@@ -1721,7 +1722,7 @@ export class World {
   private burnoutClock(dt: number): void {
     // The raid boss has her own hard enrage (Last Ember), so Burnout only backs it up.
     const bossLimit = this.dungeonDef.raid ? SLAG.hardEnrage + SLAG.lastEmberCast + BURNOUT.warn : BURNOUT.boss;
-    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight);
+    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight + (this.encounter === this.namedAt ? BURNOUT.named : 0));
     if (!this.burnoutWarned && this.time >= limit - BURNOUT.warn) {
       this.burnoutWarned = true;
       this.events.push({ type: 'burnout', warn: true });
@@ -5144,6 +5145,13 @@ export class World {
       dmg -= soak;
     }
     e.hp -= dmg;
+    // Phase 14 X5: a named foe in the Coldmarrow feeds the hitter's coal for each tenth of its health they take,
+    // so one long fight with a 2x elite (and nothing dying) doesn't run the coal dry.
+    if (e.named >= 0 && dmg > 0 && this.dungeonId === 'coldmarrow' && this.player.coal !== undefined) {
+      const tenths = (hp: number) => Math.floor(((e.maxHp - Math.max(0, hp)) / e.maxHp) * 10);
+      const steps = tenths(e.hp) - tenths(e.hp + dmg);
+      if (steps > 0) this.player.coal = Math.min(1, this.player.coal + steps * COLD.namedFeed);
+    }
     if (!e.warded && e.hp > 0 && e.hp < e.maxHp * 0.5 && this.hasOmen('warded') && !this.stress) {
       e.warded = true;
       e.ward = e.maxHp * OMEN_TUNING.wardShare;
@@ -7671,6 +7679,8 @@ export const FOUNDRY = {
 export const COLD = {
   /** Hearthcoal: warmth lost per second in a fight, and gained per frost-touched kill. Light radius from minR (out) to maxR (full). */
   drain: 0.01, feed: 0.07, minR: 70, maxR: 170,
+  /** Phase 14 X5: coal fed to a hero for each tenth of a named foe's health they take. */
+  namedFeed: 0.07,
   /** A Snuffer's touch takes this much warmth; killing one takes it back (it carries stolen light). */
   snufferDim: 0.15, snufferFeed: 0.15,
   /** Chill: a stack every `chillEvery` s while the coal is out, `chillDecay` stacks/s lost while it burns. Each stack slows `chillSlow`. Frozen at `frozenAt`: `frozenBurn` of max health per second. */
