@@ -38,9 +38,11 @@ describe('Phase 15 Y4: the Seen log', () => {
   });
 
   it('a run counts the boss version only once the boss has rolled it, and never changes the run', () => {
-    const w = new World({ seed: 5, dungeon: 'kiln', tier: 3, omens: [], cls: 'emberwright' });
+    // A boss-only route, so the boss comes up in seconds (two full delves ran past CI's 5 s test limit).
+    const opts = { seed: 5, dungeon: 'kiln' as const, tier: 3, omens: [], cls: 'emberwright' as const, route: ['kilnMother' as const] };
+    const w = new World(opts);
     expect(metIn(w).some((k) => k.startsWith('kiln:boss:'))).toBe(false);
-    const ref = new World({ seed: 5, dungeon: 'kiln', tier: 3, omens: [], cls: 'emberwright' });
+    const ref = new World(opts);
     play(w, () => !!w.bossVariant);
     play(ref, () => !!ref.bossVariant);
     expect(w.bossVariant).not.toBe('');
