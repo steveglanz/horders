@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1515,7 +1515,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'lensmother' && w.bossVariant === 'walk' ? CARRIED_LIGHT_TIP : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'rime' ? CREEPING_RIME_TIP : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'whirl' ? WHIRL_TIP : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
-            : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
+            : ev.id === 'ondrel' && w.bossVariant === 'home' ? HOMEWARD_TIP : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
             : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
             : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP

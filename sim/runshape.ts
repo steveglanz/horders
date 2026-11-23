@@ -25,7 +25,7 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   brand: 'Twin Brand', glint: 'Glintfall', walk: 'Carried Light',
   ice: 'Thin Ice', drift: 'Emberdrift', rime: 'Creeping Rime',
   riptide: 'Riptide', outsurge: 'The Outsurge', whirl: 'The Whirl',
-  choir: 'Choir of Iron', load: 'Ironload',
+  choir: 'Choir of Iron', load: 'Ironload', home: 'Homeward Hammer',
   still: 'Twin Vents', wander: 'Wandering Vents',
   rivets: 'Rivets', cut: 'Die Cut',
   pour: 'The Pour', brim: 'The Brimming',
