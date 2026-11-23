@@ -2284,7 +2284,7 @@ export class World {
   /** Phase 14 X3: the event the fight `id` at route position `k` gets, if any (solo trash fights only). */
   arenaEventAt(k: number, id: EncounterId): ArenaEventId | '' {
     const pool = ARENA_EVENT_POOLS[this.dungeonId];
-    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || this.dungeonDef.style !== 'solo' || !this.layoutRolls(id)) return '';
+    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id)) return '';
     const forced = ARENA_EVENTS.force as ArenaEventId | '';
     if (forced) return pool.includes(forced) ? forced : '';
     const h = this.arenaEventHash(k);
@@ -5145,6 +5145,13 @@ export class World {
       dmg -= soak;
     }
     e.hp -= dmg;
+    // Phase 14 X5: a named foe in the Coldmarrow feeds the hitter's coal for each tenth of its health they take,
+    // so one long fight with a 2x elite (and nothing dying) doesn't run the coal dry.
+    if (e.named >= 0 && dmg > 0 && this.dungeonId === 'coldmarrow' && this.player.coal !== undefined) {
+      const tenths = (hp: number) => Math.floor(((e.maxHp - Math.max(0, hp)) / e.maxHp) * 10);
+      const steps = tenths(e.hp) - tenths(e.hp + dmg);
+      if (steps > 0) this.player.coal = Math.min(1, this.player.coal + steps * COLD.namedFeed);
+    }
     if (!e.warded && e.hp > 0 && e.hp < e.maxHp * 0.5 && this.hasOmen('warded') && !this.stress) {
       e.warded = true;
       e.ward = e.maxHp * OMEN_TUNING.wardShare;
@@ -7569,6 +7576,10 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   glarewell: ['ventSurge'],
   coldmarrow: ['caveIn', 'coldSnap'],
   wrackline: ['highWater'],
+  // Phase 14 X3, part 2: the group dungeons' trash, which has had stones and vents since Phase 12 W2. Raids not yet.
+  hammerdeep: ['caveIn', 'ventSurge'],
+  ashvents: ['caveIn', 'ventSurge'],
+  pressworks: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
 export type KilnVariant = 'cataclysm' | 'draw';
@@ -7672,6 +7683,8 @@ export const FOUNDRY = {
 export const COLD = {
   /** Hearthcoal: warmth lost per second in a fight, and gained per frost-touched kill. Light radius from minR (out) to maxR (full). */
   drain: 0.01, feed: 0.07, minR: 70, maxR: 170,
+  /** Phase 14 X5: coal fed to a hero for each tenth of a named foe's health they take. */
+  namedFeed: 0.07,
   /** A Snuffer's touch takes this much warmth; killing one takes it back (it carries stolen light). */
   snufferDim: 0.15, snufferFeed: 0.15,
   /** Chill: a stack every `chillEvery` s while the coal is out, `chillDecay` stacks/s lost while it burns. Each stack slows `chillSlow`. Frozen at `frozenAt`: `frozenBurn` of max health per second. */
