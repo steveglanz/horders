@@ -9,7 +9,7 @@ export const NAMED = {
   /** Health multiplier. */
   hp: 2,
   /** Swift: move speed multiplier. Warded: a shield worth this share of max health. */
-  swift: 1.45, ward: 0.35,
+  swift: 1.45, ward: 0.2,
   /** Vengeful: on death it bursts, a red circle that lands after `burstDelay` s. */
   burstR: 110, burstDmg: 32, burstDelay: 1.2,
   /** Its loot: one item, Rare or better, Epic with this chance. */
