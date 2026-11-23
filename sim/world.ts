@@ -2354,6 +2354,9 @@ export class World {
     this.events.push({ type: 'layout', id: this.layout });
   }
 
+  /** Phase 15 Y3: which way this Turning Fire turns (1 anticlockwise, -1 clockwise). */
+  turnDir = 1;
+
   /** Phase 15 Y10: whether this run can stir at all. */
   get stirOn(): boolean {
     return !STIR.off && !this.firstDelve && !this.stress && !this.dungeonDef.raid && this.tier >= STIR.minTier && this.fillBots === 0;
@@ -5223,7 +5226,7 @@ export class World {
       if (phase >= 2 && this.bossVariant === 'turning') {
         this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
         // Clockwise or not, in turn, so a player can't learn one way round.
-        const dir = (e.aux2 = e.aux2 > 0 ? -1 : 1);
+        const dir = (this.turnDir = e.aux2 = e.aux2 > 0 ? -1 : 1);
         const a0 = Math.atan2(p.y - e.y, p.x - e.x);
         for (let k = 0; k < KILN_TURN.cones; k++) {
           this.addTelegraph('cone', e.x, e.y, KILN_TURN.reach, a0 + dir * k * KILN_TURN.arc, KILN_TURN.arc, KILN_TURN.first + k * KILN_TURN.step, KILN_TURN.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
