@@ -28,6 +28,8 @@ const CASES = [
   { name: 'dimhorn-dark', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'dark', tier: 6, hp: 0.9 },
   { name: 'dimhorn-call', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'call', tier: 6, hp: 0.9 },
   { name: 'conch-call', dungeon: 'wrackline', boss: 'conch', kind: 'conchblower', until: 'conch', tier: 13, hp: 0.9 },
+  { name: 'flow-warn', dungeon: 'crucible', boss: 'grandmotherSlag', variant: 'flow', party: true, until: 'flowWarn', tier: 8, hp: 0.55 },
+  { name: 'flow-rise', dungeon: 'crucible', boss: 'grandmotherSlag', variant: 'flow', party: true, until: 'flowRise', tier: 8, hp: 0.55 },
   { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
   { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
   { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
@@ -94,6 +96,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
           const e = w.enemies[i]; e.x = e.px = w.player.x + 140; e.y = e.py = w.player.y - 70; if (!e.castId) w.startCast(i, 'conchCall', 'Conch Call', 1.8, true);
           e.castT = Math.max(e.castT, 0.9); return e.castId === 'conchCall';
         })()
+        : c.until === 'flowWarn' ? w.flowStage === 1 && w.flowT < 1.3
+        : c.until === 'flowRise' ? w.flowStage === 2 && w.flowT < 3.2
         : c.until === 'cast' ? w.enemies.some((e) => e.alive && e.castId && e.castT / e.castDur > 0.45)
         : c.until === 'boss' ? true
         : w.nextVent >= 0;

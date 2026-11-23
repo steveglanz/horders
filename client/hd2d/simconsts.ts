@@ -10,4 +10,8 @@ export const SIM = {
   lampeyeFull: 6,
   /** DIMHORN.callAt: seconds in the dark before the Dimhorn sounds its Dark Call. */
   dimhornCall: 7,
+  /** OVERFLOW.safeR: how far from Grandmother Slag the Overflow leaves dry floor. */
+  overflowSafeR: 190,
+  /** OVERFLOW.warn: seconds the Overflow warns before it rises. */
+  overflowWarn: 2.5,
 } as const;
