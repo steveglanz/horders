@@ -6310,8 +6310,8 @@ export class World {
     if (e.abilityT > 0) return;
     e.abilityT = this.bossEnraged ? GLARE.sweepEveryEnraged : GLARE.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
-    this.startCast(i, 'lensSweep', 'Lens Sweep', 1.1, false);
-    this.addTelegraph('cone', e.x, e.y, 300, ang, (60 * Math.PI) / 180, 1.1, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+    this.startCast(i, 'lensSweep', 'Lens Sweep', GLARE.sweepCast, false);
+    this.addTelegraph('cone', e.x, e.y, GLARE.sweepRange, ang, (GLARE.sweepArc * Math.PI) / 180, GLARE.sweepCast, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
   }
 
   // ---------------------------------------------------------------- the Hammerdeep
@@ -8559,6 +8559,8 @@ export const GLARE = {
   sweepEvery: 1.7,
   sweepEveryEnraged: 1,
   sweepDamage: 26,
+  /** The cone: its warning (s), reach (px) and full width (degrees). */
+  sweepCast: 1.1, sweepRange: 300, sweepArc: 60,
 };
 
 /** Drowned Foundry tuning. */
