@@ -22,6 +22,7 @@ const CASES = [
   { name: 'whirl-warn', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlWarn', tier: 13 },
   { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'home-fly', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeFly', tier: 8 },
+  { name: 'home-out', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeOut', tier: 8 },
   { name: 'home-lie', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeLie', tier: 8 },
   { name: 'home-back', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeBack', tier: 8 },
   // Room shots: the boss in, nothing forced (until 'boss': as soon as it's up).
@@ -60,6 +61,7 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'whirlWarn' ? w.whirl && w.ebbWarnT > 0 && w.ebbWarnT < 2.2
         : c.until === 'whirlPull' ? w.whirl && w.ebbT > 0.4
         : c.until === 'homeFly' ? w.homeStage === 1 && w.homeT < 0.9
+        : c.until === 'homeOut' ? w.homeStage === 1 && w.homeT < 0.9
         : c.until === 'homeLie' ? w.homeStage === 2 && w.homeT < 0.7
         : c.until === 'homeBack' ? w.homeStage === 2 && w.homeT < 0.14
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200

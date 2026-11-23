@@ -873,6 +873,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /* Decrees: a molten scorch ring round the holder and a burning crown over them. */
   const scorchMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.9, 0.25), transparent: true, opacity: 0.55, depthWrite: false });
   const crownMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.2, 0.8) });
+  // Ondrel's Homeward Hammer (Hammerdeep): a real hammer that wheels through the air, lies head-down rattling as it is
+  // called home, then streaks back to him. The 2D one is drawn above the floor layer, so the bridge never carried it.
+  const hammer = new THREE.Group();
+  const hamHeadMat = new THREE.MeshStandardMaterial({ color: '#5a524c', roughness: 0.45, metalness: 0.7, emissive: new THREE.Color('#ff9a40'), emissiveIntensity: 0 });
+  const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.32), hamHeadMat); hamHead.castShadow = !saver; hammer.add(hamHead);
+  const hamHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.95, 8), new THREE.MeshStandardMaterial({ color: '#6a4426', roughness: 0.9 }));
+  hamHandle.position.y = 0.62; hamHandle.castShadow = !saver; hammer.add(hamHandle);
+  const hamBand = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 8), hamHeadMat); hamBand.position.y = 0.22; hammer.add(hamBand);
+  hammer.visible = false; scene.add(hammer);
   const decrees: { ring: THREE.Mesh; crown: THREE.Mesh }[] = [];
   const decree = (i: number) => {
     let d = decrees[i];
@@ -1123,6 +1132,35 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       o.crown.position.set(x, FLOOR + 1.35 + Math.sin(t * 4) * 0.04, z); o.crown.rotation.set(Math.PI, t * 2, 0);
     }
     for (let i = di; i < decrees.length; i++) { decrees[i].ring.visible = false; decrees[i].crown.visible = false; }
+
+    // The Homeward Hammer (mirrors GameScene.homeDraw's timing: HOMEWARD.fall 1.8 s out, HOMEWARD.back 1.2 s home).
+    const hb = w.bossVariant === 'home' && w.homeStage > 0 && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    hammer.visible = !!hb;
+    if (hb) {
+      const bx = L(hb.px, hb.x) * S, bz = L(hb.py, hb.y) * S, hx = w.homeX * S, hz = w.homeY * S;
+      const yaw = Math.atan2(hz - bz, hx - bx);
+      if (w.homeStage === 1) {
+        const f = Math.min(1, Math.max(0, 1 - w.homeT / 1.8));
+        const lift = Math.sin(Math.PI * f) * 150 * S * (1 - 0.3 * f);
+        hammer.position.set(bx + (hx - bx) * f, FLOOR + 0.6 * (1 - f) + 0.2 + lift, bz + (hz - bz) * f);
+        hammer.rotation.set(0, -yaw, -t * 14, 'YXZ');
+        hamHeadMat.emissiveIntensity = 0.15;
+      } else {
+        const left = Math.max(0, w.homeT), pull = 1 - left / 1.2;
+        if (left > 0.25) {
+          // Head-down in the crater, rattling harder as it is called home, glowing hotter.
+          const jig = Math.sin(t * (pull > 0.6 ? 40 : 18)) * (0.04 + 0.1 * pull);
+          hammer.position.set(hx, FLOOR + 0.12, hz);
+          hammer.rotation.set(0, -yaw, jig + 0.25 * pull, 'YXZ');
+          hamHeadMat.emissiveIntensity = 0.1 + 0.9 * pull;
+        } else {
+          const f = 1 - left / 0.25;
+          hammer.position.set(hx + (bx - hx) * f, FLOOR + 0.12 + 0.6 * f, hz + (bz - hz) * f);
+          hammer.rotation.set(0, -yaw, t * 25, 'YXZ');
+          hamHeadMat.emissiveIntensity = 1;
+        }
+      }
+    }
 
     // Bolts, gems, drops, strikes, zones.
     let n = 0;
