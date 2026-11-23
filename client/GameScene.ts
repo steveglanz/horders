@@ -319,6 +319,9 @@ export class GameScene extends Phaser.Scene {
   private summonsGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 15 Y6: wave marks on the floor (depth 1.95): a ring closing, pincer chevrons, the reinforcement gate and its burst. */
   private waveGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Y6: the Kiln Mother's Turning Fire sweep arrow (depth 2.1, over the cones), and Maelra's sealed-vent plates (depth 1.42, over the grates). */
+  private turnGfx: Phaser.GameObjects.Graphics | null = null;
+  private sealGfx: Phaser.GameObjects.Graphics | null = null;
   private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
   /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
   private stirElite: { i: number; at: number } | null = null;
@@ -430,6 +433,8 @@ export class GameScene extends Phaser.Scene {
     this.arenaGfx = null;
     this.footGfx = null;
     this.waveGfx = null;
+    this.turnGfx = null;
+    this.sealGfx = null;
     this.waveFx = [];
     this.stirElite = null;
     this.stirAt = -1;
@@ -2058,9 +2063,11 @@ export class GameScene extends Phaser.Scene {
     this.bankDraw(now);
     this.dieCutDraw(now);
     this.kilnDrawTell(g, now);
+    this.turnDraw(now);
     this.tideDraw(now);
     this.glintDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
+    let sealedDrawn = false;
     this.ventSprites.forEach((vs, k) => {
       const v = w.vents[k];
       if (!v) { if (vs.visible) vs.setVisible(false); return; }
@@ -2069,11 +2076,34 @@ export class GameScene extends Phaser.Scene {
       // Y3 Sealed Vents: a sealed vent goes dark; the open one glows; the next one pulses before the steam moves.
       const sealed = w.openVent >= 0 && w.bossVariant === 'seal' && k !== w.openVent;
       const next = sealed && k === w.nextVent;
-      vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(sealed && !next ? 0.35 : 0.88);
-      if (next) g.lineStyle(3, 0xbfe6ff, 0.35 + 0.3 * Math.sin(now / 90)).strokeCircle(v.x, v.y, v.r + 6);
-      else if (!sealed && w.openVent >= 0 && w.bossVariant === 'seal') g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
-      else g.lineStyle(2, 0xbfe6ff, sealed ? 0.12 : 0.35).strokeCircle(v.x, v.y, v.r);
+      vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(0.88);
+      if (sealed) {
+        // Y6: a sealed vent is capped with a riveted iron plate. The next one's plate rattles, its seam glows and steam
+        // leaks round its rim in the 2.5 s before the steam moves there.
+        if (!this.sealGfx) this.sealGfx = this.add.graphics().setDepth(1.42);
+        const sg = this.sealGfx;
+        if (!sealedDrawn) { sg.clear(); sealedDrawn = true; }
+        const jig = next ? Math.sin(now / 35) * 1.5 : 0;
+        const x = v.x + jig, y = v.y, r = v.r * 1.02;
+        sg.fillStyle(0x000000, 0.35).fillCircle(v.x, v.y + 3, r + 2);
+        sg.fillStyle(0x3b3431, 1).fillCircle(x, y, r);
+        sg.fillStyle(0x534945, 1).fillCircle(x - r * 0.12, y - r * 0.14, r * 0.8);
+        sg.fillStyle(0x3b3431, 1).fillCircle(x, y, r * 0.62);
+        sg.lineStyle(Math.max(3, r * 0.14), 0x2a2422, 1).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
+        for (let j = 0; j < 6; j++) {
+          const a = (j / 6) * Math.PI * 2 + 0.5;
+          sg.fillStyle(0x8a7f78, 1).fillCircle(x + Math.cos(a) * r * 0.82, y + Math.sin(a) * r * 0.82, Math.max(1.6, r * 0.07));
+        }
+        if (next) {
+          const p = 0.5 + 0.5 * Math.sin(now / 90);
+          sg.lineStyle(3, 0xbfe6ff, 0.45 + 0.4 * p).strokeCircle(x, y, r + 1);
+          sg.lineStyle(2, 0xffffff, 0.25 + 0.35 * p).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
+          if (!this.lowFx && Math.random() < 0.25) { const a = Math.random() * Math.PI * 2; this.steam(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8 - 4, 0.35); }
+        }
+      } else if (w.openVent >= 0 && w.bossVariant === 'seal') g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
+      else g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
     });
+    if (!sealedDrawn) this.sealGfx?.clear();
     if (w.vents.length && now > this.steamAt && !this.lowFx) {
       this.steamAt = now + 140;
       const v = w.openVent >= 0 && w.bossVariant === 'seal' && w.vents[w.openVent] ? w.vents[w.openVent] : w.vents[Math.floor(Math.random() * w.vents.length)];
@@ -2942,6 +2972,57 @@ export class GameScene extends Phaser.Scene {
    * - her furnace mouth swells with light until the 150-radius burst lands.
    * The burst itself is the sim's ordinary red circle telegraph; this only adds the inward motion.
    */
+  /**
+   * Y6: the Kiln Mother's Turning Fire. Her four cones land one after another, turning one cone each time (w.turnDir).
+   * A molten arrow curves round her through the cones in the order they land, the next cone to land shows a bright
+   * leading edge, and small pips count 1 to 4 along each cone, so the way the sweep turns reads at a glance.
+   */
+  private turnDraw(now: number): void {
+    const w = this.world;
+    const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const cones = boss?.alive && boss.kind === 'kilnMother' && w.bossVariant === 'turning'
+      ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).sort((a, b) => (a.dur - a.t) - (b.dur - b.t))
+      : [];
+    if (!cones.length) { this.turnGfx?.clear(); return; }
+    if (!this.turnGfx) this.turnGfx = this.add.graphics().setDepth(2.1);
+    const g = this.turnGfx.clear();
+    const dir = w.turnDir;
+    const cx = boss!.x, cy = boss!.y;
+    const R = boss!.def.radius + 70;
+    const first = cones[0].angle, last = cones[cones.length - 1].angle;
+    // The arrow: from the next cone to land round to the last, ending in a head that points the way it turns.
+    const a0 = first - dir * cones[0].arc * 0.25, a1 = last + dir * cones[0].arc * 0.2;
+    const steps = 24;
+    g.lineStyle(10, 0x000000, 0.35).beginPath();
+    for (let j = 0; j <= steps; j++) { const a = a0 + (a1 - a0) * (j / steps); const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R; if (j) g.lineTo(x, y); else g.moveTo(x, y); }
+    g.strokePath();
+    const flow = (now / 400) % 1;
+    for (let j = 0; j < steps; j++) {
+      const u = j / steps, a = a0 + (a1 - a0) * u, b = a0 + (a1 - a0) * ((j + 1) / steps);
+      const lit = 0.55 + 0.45 * Math.max(0, Math.cos((u - flow) * Math.PI * 2));
+      g.lineStyle(6, MOLTEN, lit).beginPath().moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R).lineTo(cx + Math.cos(b) * R, cy + Math.sin(b) * R).strokePath();
+    }
+    const hx = cx + Math.cos(a1) * R, hy = cy + Math.sin(a1) * R;
+    const ta = a1 + dir * Math.PI / 2; // the tangent, the way it turns
+    const back = 22, half = 14;
+    g.fillStyle(MOLTEN, 1).fillTriangle(
+      hx + Math.cos(ta) * 16, hy + Math.sin(ta) * 16,
+      hx - Math.cos(ta) * back + Math.cos(a1) * half, hy - Math.sin(ta) * back + Math.sin(a1) * half,
+      hx - Math.cos(ta) * back - Math.cos(a1) * half, hy - Math.sin(ta) * back - Math.sin(a1) * half,
+    );
+    // The next cone's leading edge (the side the sweep turns toward), brightening as it lands.
+    const nx = cones[0], k = Math.max(0, Math.min(1, nx.t / nx.dur));
+    const ea = nx.angle + dir * nx.arc / 2;
+    g.lineStyle(4, 0xffe2a0, 0.4 + 0.5 * k).lineBetween(cx + Math.cos(ea) * boss!.def.radius, cy + Math.sin(ea) * boss!.def.radius, cx + Math.cos(ea) * Math.min(nx.r, 420), cy + Math.sin(ea) * Math.min(nx.r, 420));
+    // Order pips: 1 to 4 dots along each cone's middle.
+    cones.forEach((c, n) => {
+      for (let j = 0; j <= n; j++) {
+        const d = R + 46 + j * 16;
+        g.fillStyle(n === 0 ? 0xffe2a0 : MOLTEN, n === 0 ? 1 : 0.8).fillCircle(cx + Math.cos(c.angle) * d, cy + Math.sin(c.angle) * d, 4.5);
+      }
+    });
+  }
+
   private kilnDrawTell(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const i = w.enemies.findIndex((e) => e.alive && e.kind === 'kilnMother' && e.castId === 'kilnDraw');
