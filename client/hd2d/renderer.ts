@@ -115,6 +115,19 @@ function iceCanvas() {
   }
   return c;
 }
+/** The Wrackline's floor: grey-green harbour water with pale ripples; tiles seamlessly. */
+function harbourCanvas() {
+  const s = 256, c = mk(s, s), k = c.getContext('2d')!;
+  k.fillStyle = '#5a7a72'; k.fillRect(0, 0, s, s); k.lineCap = 'round';
+  for (let i = 0; i < 30; i++) {
+    const x = rnd(0, s), y = rnd(0, s), w = rnd(14, 40), a = rnd(0.08, 0.24);
+    for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+      k.strokeStyle = `rgba(190,230,220,${a})`; k.lineWidth = 1.5;
+      k.beginPath(); k.moveTo(x + ox - w / 2, y + oy); k.quadraticCurveTo(x + ox, y + oy - 4, x + ox + w / 2, y + oy); k.stroke();
+    }
+  }
+  return c;
+}
 /** The Glarewell's pit: a dark indigo void with a scatter of pale stars, lit faintly gold at its rim. */
 function voidCanvas() {
   const c = mk(512, 512), k = c.getContext('2d')!;
@@ -203,10 +216,12 @@ function nameCanvas(text: string, color: string) {
  *   Hearthcoals' warm pools are a mechanic, drawn by the 2D floor through the bridge).
  * - pressworks: oily olive brass, three press frames with their rams at the back, stacks of pressed plates.
  * - smeltery: sooty blue-grey cast iron, a great furnace mouth and ore carts on a rail at the back, ingot stacks.
+ * - wrackline: no tiles. The floor is grey-green harbour water (the 2D floor's 0x6e8a80), and the rafts and
+ *   the Whirl ride on it through the floor bridge. A wrecked hull and mooring posts at the back, grey sea light.
  * - kiln: the Kiln Depths, a potters' firing hall. Three brick beehive kilns with glowing mouths at the back,
  *   firebrick floor, pots and urns on shelves, stacked firewood, brick piers, a soot ring instead of brass.
  */
-export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents' | 'crucible' | 'hoard' | 'coldmarrow' | 'pressworks' | 'smeltery';
+export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents' | 'crucible' | 'hoard' | 'coldmarrow' | 'pressworks' | 'smeltery' | 'wrackline';
 interface RoomTheme {
   tile: string; wall: string; ground: string;
   /** Hemisphere sky and ground colours and intensity, the key light colour, the hero lamp colour. */
@@ -241,10 +256,12 @@ const ROOMS: Record<RoomId, RoomTheme> = {
   pressworks: { tile: '#6a6e4c', wall: '#bab890', ground: '#0e0e08', hemi: ['#e0dcb0', '#262414', 1.35], key: '#fff0c8', lamp: '#ffd090', backLight: '#ffb050', frontLight: '#ff9a48', bg: '#080806', fog: '#12110a', mote: [2.8, 2.2, 0.9], pit: 'lava', flame: 'fire', rough: 0.5, pitGlow: 0.7 },
   // Sooty blue-grey cast iron (0x606878), so the Colossus's hot back and the Sweep read warm.
   smeltery: { tile: '#4e5462', wall: '#9aa0b0', ground: '#0a0b0e', hemi: ['#c0c8d8', '#1c1e26', 1.35], key: '#e8ecf8', lamp: '#ffc890', backLight: '#ff7a2a', frontLight: '#ffa050', bg: '#060608', fog: '#0e0f14', mote: [3, 1.4, 0.5], pit: 'lava', flame: 'fire', rough: 0.6, pitGlow: 0.9 },
+  // Grey-green harbour water (0x6e8a80) for a floor, so the pale rafts and the drain read on it.
+  wrackline: { tile: '#4a6a62', wall: '#98aca4', ground: '#081010', hemi: ['#c0d4d0', '#18262a', 1.4], key: '#e4f0f0', lamp: '#ffd8b0', backLight: '#9ad0d0', frontLight: '#ffb070', bg: '#050909', fog: '#0a1414', mote: [1.6, 2.2, 2.1], pit: 'water', flame: 'fire', rough: 0.3, pitGlow: 0.8 },
   hammerdeep: { tile: '#5c5a66', wall: '#aaa6ba', ground: '#0e0d12', hemi: ['#bcbcd4', '#24222c', 1.4], key: '#e6e6f6', lamp: '#ffd2a0', backLight: '#c4ccff', frontLight: '#ff9a58', bg: '#070709', fog: '#0d0c12', mote: [1.5, 1.6, 2.2], pit: 'lava', flame: 'pale', rough: 0.55, pitGlow: 0.42 },
 };
 /** Which room a dungeon gets. */
-const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard', 'coldmarrow', 'pressworks', 'smeltery'];
+const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard', 'coldmarrow', 'pressworks', 'smeltery', 'wrackline'];
 export const roomOf = (dungeonId: string | undefined): RoomId => (dungeonId && OWN_ROOMS.includes(dungeonId) ? (dungeonId as RoomId) : 'flue');
 
 /**
@@ -277,6 +294,8 @@ function archCanvas() {
 function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: number, d: number, p: THREE.Vector3, s?: number) => void, id: RoomId = 'flue') {
   const th = ROOMS[id];
   const glows: THREE.MeshBasicMaterial[] = [];
+  /** Textures whose offset drifts each frame (the Wrackline's water). */
+  const drift: THREE.Texture[] = [];
   const room = new THREE.Group(); scene.add(room);
   const grain = canvasTex(grainCanvas(), { repeat: [1, 1] });
   const tileMat = new THREE.MeshStandardMaterial({ map: grain, roughness: th.rough, metalness: id === 'foundry' ? 0.12 : id === 'hammerdeep' ? 0.35 : 0.02 });
@@ -295,7 +314,14 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     m4.compose(new THREE.Vector3(px, rnd(-0.03, 0.02), z), q, one); tiles.setMatrixAt(i, m4);
     col.set(th.tile).multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
   });
-  tiles.receiveShadow = true; room.add(tiles);
+  tiles.receiveShadow = true;
+  if (id === 'wrackline') {
+    // The Wrackline's floor is water: a sheet of harbour at floor height, its ripples drifting (frame()).
+    const hw = canvasTex(harbourCanvas(), { repeat: [7, 7] });
+    const sea = new THREE.Mesh(new THREE.CircleGeometry(ROOM_R + 0.3, 64), new THREE.MeshStandardMaterial({ map: hw, color: '#d8ece6', roughness: th.rough, metalness: 0.05 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.y = FLOOR - 0.01; sea.receiveShadow = true; sea.userData.drift = hw; room.add(sea);
+    drift.push(hw);
+  } else room.add(tiles);
   const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : th.pit === 'void' ? voidCanvas() : th.pit === 'ice' ? iceCanvas() : lavaCanvas()), color: new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(th.pitGlow) }));
   lava.rotation.x = -Math.PI / 2; lava.position.y = -0.1; room.add(lava);
   const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : th.pit === 'void' || th.pit === 'ice' ? paleRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: th.pit === 'lava' ? new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(1.5 * th.pitGlow) : new THREE.Color().setScalar(0.9) }));
@@ -457,6 +483,19 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
       room.add(g);
     }
+  } else if (id === 'wrackline') {
+    // A wrecked hull against the back wall (wrackWreck): a keel and ribs of dark wet timber, a broken mast; and
+    // mooring posts either side (wrackPost), all standing in the water outside the floor.
+    const timber = new THREE.MeshStandardMaterial({ color: '#4a3a2c', roughness: 0.75, map: grain });
+    const wg = new THREE.Group(); wg.position.set(0, -0.2, -9.6); wg.rotation.y = 0.2;
+    const keel = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 0.5), timber); keel.position.y = 0.2; wg.add(keel);
+    for (let k = 0; k < 7; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(1.5 - Math.abs(k - 3) * 0.12, 0.1, 6, 14, Math.PI), timber); rib.position.set(-2.7 + k * 0.9, 0.2, 0); rib.rotation.y = Math.PI / 2; rib.rotation.z = 0; wg.add(rib); }
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 5.5, 8), timber); mast.position.set(0.6, 2.4, 0); mast.rotation.z = 0.35; wg.add(mast);
+    wg.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+    room.add(wg);
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.24, 2.4, 8), timber, 6);
+    [Math.PI - 0.7, Math.PI - 1.0, Math.PI - 1.3, Math.PI + 0.7, Math.PI + 1.0, Math.PI + 1.3].forEach((a, k) => { e.set(0.06 * (k % 2 ? 1 : -1), 0, 0.05); q.setFromEuler(e); m4.compose(new THREE.Vector3(Math.sin(a) * 8.9, 0.9, Math.cos(a) * 8.9), q, one); posts.setMatrixAt(k, m4); });
+    posts.castShadow = true; room.add(posts);
   } else if (id === 'hammerdeep') {
     // Three great anvils on stone plinths against the back wall, and a giant hammer resting head-down
     // beside the middle one. Cold iron, a little lit by the slag. Outside the floor.
@@ -519,7 +558,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // Only the back braziers: the handoff's two front ones stood between this camera and the fight, and side ones
   // (PI ± 1.55) came within a metre of the camera when your hero stood at that side (mobile's 568x320 check, 23 Nov).
   // The Foundry is drowned: no braziers, its teal lamps and gauges light it.
-  for (const a of id === 'foundry' || id === 'hammerdeep' || id === 'glarewell' || id === 'coldmarrow' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
+  for (const a of id === 'foundry' || id === 'hammerdeep' || id === 'glarewell' || id === 'coldmarrow' || id === 'wrackline' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
     const g = new THREE.Group(); g.position.set(Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62);
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
@@ -665,10 +704,10 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     const soot = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(10,4,2,0)', 'rgba(10,4,2,0.55)')), transparent: true, depthWrite: false });
     const sootRing = new THREE.Mesh(new THREE.RingGeometry(5.4, 7.5, 64), soot); sootRing.rotation.x = -Math.PI / 2; sootRing.position.y = FLOOR + 0.004; room.add(sootRing);
   }
-  if (id !== 'kiln' && id !== 'ashvents') for (const [r0, r1] of [[2.55, 2.68], [5.75, 5.9]]) { const ring = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 96), inlay); ring.rotation.x = -Math.PI / 2; ring.position.y = FLOOR + 0.004; ring.receiveShadow = true; room.add(ring); }
+  if (id !== 'kiln' && id !== 'ashvents' && id !== 'wrackline') for (const [r0, r1] of [[2.55, 2.68], [5.75, 5.9]]) { const ring = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 96), inlay); ring.rotation.x = -Math.PI / 2; ring.position.y = FLOOR + 0.004; ring.receiveShadow = true; room.add(ring); }
   const spokes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.01, 3.07), inlay, 8);
   for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; put(spokes, k, Math.sin(a) * 4.215, FLOOR + 0.004, Math.cos(a) * 4.215, a, 1); }
-  spokes.receiveShadow = true; if (id !== 'kiln' && id !== 'ashvents') room.add(spokes);
+  spokes.receiveShadow = true; if (id !== 'kiln' && id !== 'ashvents' && id !== 'wrackline') room.add(spokes);
   // Ember cracks: a few faint seams in the floor tiles (dim, so they never read as a fire telegraph).
   const cc = document.createElement('canvas'); cc.width = cc.height = 128;
   { const k = cc.getContext('2d')!; k.strokeStyle = 'rgba(255,140,50,1)'; k.lineCap = 'round'; k.shadowColor = '#ff6a1f'; k.shadowBlur = 6;
@@ -680,14 +719,15 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // Rubble and coal along the floor's edge and outside it, low enough never to hide a telegraph.
   const RB = saver ? 40 : 90;
   const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), basalt, RB);
-  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' || id === 'glarewell' || id === 'coldmarrow' ? '#000000' : id === 'hammerdeep' ? '#2a0a02' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
-  for (let k = 0; k < RB; k++) { const a = sr(0, Math.PI * 2), r = k % 3 ? sr(6.7, 7.4) : sr(9.0, 10.3), sz = sr(0.04, k % 3 ? 0.1 : 0.22); put(rubble, k, Math.sin(a) * r, FLOOR + sz * 0.4 - (r > 8 ? 0.15 : 0), Math.cos(a) * r, sr(0, 6), sz, sz * sr(0.5, 0.9), sz, sr(0, 3)); }
+  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' || id === 'glarewell' || id === 'coldmarrow' || id === 'wrackline' ? '#000000' : id === 'hammerdeep' ? '#2a0a02' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
+  // The Wrackline's floor is water: no rubble floating on it, and no coal.
+  for (let k = 0; k < RB; k++) { const a = sr(0, Math.PI * 2), r = k % 3 && id !== 'wrackline' ? sr(6.7, 7.4) : sr(9.0, 10.3), sz = sr(0.04, k % 3 ? 0.1 : 0.22); put(rubble, k, Math.sin(a) * r, FLOOR + sz * 0.4 - (r > 8 ? 0.15 : 0), Math.cos(a) * r, sr(0, 6), sz, sz * sr(0.5, 0.9), sz, sr(0, 3)); }
   for (let k = 0; k < coal.count; k++) { const a = sr(0, Math.PI * 2), r = sr(6.4, 7.4), sz = sr(0.04, 0.08); put(coal, k, Math.sin(a) * r, FLOOR + sz * 0.4, Math.cos(a) * r, sr(0, 6), sz); }
-  rubble.receiveShadow = true; room.add(rubble, coal);
+  rubble.receiveShadow = true; room.add(rubble); if (id !== 'wrackline') room.add(coal);
   // v2's phone budget: two shared warm lights instead of nine (one at the back wall, one at the front braziers).
   addLight(th.backLight, id === 'kiln' ? 38 : 34, 22, new THREE.Vector3(0, 2.4, -8.2), 1.4);
   if (!saver) addLight(th.frontLight, 14, 14, new THREE.Vector3(0, 2.2, 7.6), 2.0);
-  return { room, flames, basalt, glows, th };
+  return { room, flames, basalt, glows, th, drift };
 }
 
 /* ---------- sprites ---------- */
@@ -747,7 +787,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
-  const { room, flames, basalt, glows } = buildRoom(scene, saver, addLight, rid);
+  const { room, flames, basalt, glows, drift } = buildRoom(scene, saver, addLight, rid);
   let roomFor = -1;
 
   const flat = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + y; m.renderOrder = 2; scene.add(m); return m; };
@@ -1088,6 +1128,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     // Room life.
     for (const f of flick) f.l.intensity = f.base * (0.84 + 0.1 * Math.sin(t * 7 * f.speed + f.seed) + 0.06 * Math.sin(t * 17 * f.speed + f.seed * 2));
     flames.forEach((fl, i) => fl.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(t * 9 + i * 1.7)), 1));
+    for (const d of drift) { d.offset.x = (t * 0.012) % 1; d.offset.y = (t * 0.007) % 1; }
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
