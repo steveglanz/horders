@@ -915,7 +915,14 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh };
+  // Phase 16 U2, the Ashwall: a real slab of cooled slag carried before it, glowing in its cracks, turned to Enemy.aux
+  // (its shield facing). The front arc and the shelter wedge are 2D floor marks the bridge already carries.
+  const slagCracks = (() => { const c = mk(64, 64), k = c.getContext('2d')!; k.fillStyle = '#000'; k.fillRect(0, 0, 64, 64); k.strokeStyle = '#ffffff'; k.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { k.beginPath(); let x = Math.random() * 64, y = Math.random() * 64; k.moveTo(x, y); for (let j = 0; j < 4; j++) { x += (Math.random() - 0.5) * 26; y += (Math.random() - 0.5) * 26; k.lineTo(x, y); } k.stroke(); }
+    return canvasTex(c); })();
+  const shieldMat = new THREE.MeshStandardMaterial({ color: '#4a3e38', roughness: 0.85, metalness: 0.15, emissive: new THREE.Color('#ff7a30'), emissiveMap: slagCracks, emissiveIntensity: 1.1 });
+  const shieldGeo = new THREE.BoxGeometry(1, 1, 0.14).translate(0, 0.5, 0);
   // Steve, 23 Nov: "Can't see the enemies... Green = good, red = bad". Every foe gets a faint red outline and a red
   // ring the size of its hit box at its feet; every hero (you and allies) a green outline and a green ring.
   const GOOD = new THREE.Color('#5dff8a'), BAD = new THREE.Color('#ff3b3b');
@@ -1257,7 +1264,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1272,9 +1279,18 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       f.mesh.visible = true;
       f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
       f.ring.visible = true; f.ring.position.set(x, FLOOR + 0.031, z); f.ring.scale.setScalar(e.def.radius * S * rise);
+      if (e.kind === 'ashwall') {
+        if (!f.shield) { f.shield = new THREE.Mesh(shieldGeo, shieldMat); f.shield.castShadow = !saver; scene.add(f.shield); }
+        const r = e.def.radius * S, fx = Math.cos(e.aux), fz = Math.sin(e.aux);
+        f.shield.visible = true;
+        f.shield.position.set(x + fa.dx * reach + fx * r * 1.1, FLOOR, z + fa.dz * reach + fz * r * 1.1);
+        f.shield.rotation.set(-0.08 - 0.25 * ak, Math.atan2(fx, fz), 0, 'YXZ');
+        f.shield.scale.set(r * 2.6, ht * rise * 0.8, 1);
+        shieldMat.emissiveIntensity = (e.castId ? 1.8 + 0.6 * Math.sin(t * 14) : 1.1) * (e.flash > 0 ? 1.4 : 1);
+      } else if (f.shield) f.shield.visible = false;
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
