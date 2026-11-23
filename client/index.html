@@ -912,6 +912,8 @@
   #tabbar .badge { position: absolute; top: 7px; left: calc(50% + 8px); width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
   #tabbar .badge.num { width: auto; height: 16px; min-width: 16px; padding: 0 4px; border-radius: 8px; font: 700 10px/16px var(--sans); color: #1a0e08; text-align: center; font-style: normal; }
   #tabbar .badge[hidden] { display: none; }
+  /* An unseen upgrade in the bags: green (good) with its gear score gain, not the gold count. */
+  #tabbar .badge.num.up { background: #6fe39a; box-shadow: 0 0 8px rgba(111,227,154,0.8); color: #08200f; }
   /* Tab mode: only the open tab's pane shows; the Delve button sits right above the tab bar. */
   body.tabs .hub { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom)); }
   body.tabs .hub-grid { display: block; margin-top: 8px; }
