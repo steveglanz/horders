@@ -38,6 +38,9 @@ if (process.env.AFFIX) NAMED.forceAffix = AFFIXES.indexOf(process.env.AFFIX as n
 if (process.env.NAMEDALL === '1') NAMED.forceNamed = 1;
 if (process.env.ARENA === 'off') WORLD.ARENA_EVENTS.off = true;
 else if (process.env.ARENA) WORLD.ARENA_EVENTS.force = process.env.ARENA;
+// Phase 15 Y1: WAVE=off keeps every wave an arc; WAVE=pincer|ring|reinforce forces one.
+if (process.env.WAVE === 'off') WORLD.WAVES.off = true;
+else if (process.env.WAVE) WORLD.WAVES.force = process.env.WAVE;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {

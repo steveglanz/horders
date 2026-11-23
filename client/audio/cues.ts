@@ -400,6 +400,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       const land = ARENA_LAND[`${ev.id}.${c.dungeon ?? ''}`] ?? set.land;
       return land ? { id: land } : null;
     }
+    // Phase 15 Y1: placeholder until sound's Y7 cues.
+    case 'waveShape': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
