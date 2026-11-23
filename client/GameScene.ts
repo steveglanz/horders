@@ -1329,8 +1329,9 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case 'waveShape':
-          // Phase 15 Y1: a banner as a new-shape wave starts, and again as a held pack is about to come (visuals' Y6 draws the rest).
-          if (ev.stage === 'warn' || (ev.stage === 'start' && ev.id !== 'reinforce')) this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
+          // own banner (encounterStart), which comes after 'start' and would replace a banner here.
+          if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
           break;
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
@@ -1371,7 +1372,9 @@ export class GameScene extends Phaser.Scene {
           const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
           const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
-          const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          const floor = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          // Phase 15 Y1: a pincer or ring wave says so in the fight banner (a banner of its own would be replaced by this one).
+          const ground = floor + (w.waveShape === 'pincer' || w.waveShape === 'ring' ? ` ${WAVE_SHAPE_INFO[w.waveShape].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP

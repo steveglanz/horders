@@ -7,9 +7,9 @@
 import { ENCOUNTERS, type EncounterId } from './content/dungeon';
 import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
-import type { ArenaEventId, LayoutId, World } from './world';
+import { WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'boss' | 'heat';
+export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'boss' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -87,6 +87,20 @@ export function runShape(w: World): ShapeChip[] {
   const ids = Object.keys(n) as ArenaEventId[];
   if (ids.length) {
     out.push({ kind: 'event', label: `Events: ${ids.map((e) => `${EVENT_NAME[e]}${n[e]! > 1 ? ` x${n[e]}` : ''}`).join(', ')}`, tip: evs.join('. ') });
+  }
+
+  // Phase 15 Y1: wave shapes other than the usual arc, as the route rolls them (like the events above).
+  const ws: string[] = [];
+  const wn: Partial<Record<Exclude<WaveShape, 'arc'>, number>> = {};
+  for (const f of fights) {
+    const v = w.waveShapeAt(f.k, f.id);
+    if (v === 'arc') continue;
+    wn[v] = (wn[v] ?? 0) + 1;
+    ws.push(`${name(f.id)}: ${WAVE_SHAPE_INFO[v].name.toLowerCase()}`);
+  }
+  const wids = Object.keys(wn) as Exclude<WaveShape, 'arc'>[];
+  if (wids.length) {
+    out.push({ kind: 'wave', label: `Waves: ${wids.map((v) => `${WAVE_SHAPE_INFO[v].name}${wn[v]! > 1 ? ` x${wn[v]}` : ''}`).join(', ')}`, tip: ws.join('. ') });
   }
 
   // The boss's version is rolled when it appears, so a run that never reached it shows none.
