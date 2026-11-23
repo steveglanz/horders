@@ -23,7 +23,7 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   cataclysm: 'Molten Cataclysm', draw: 'Kiln Draw', turning: 'Turning Fire',
   water: 'Rising Water', tide: 'Sluicetide', seal: 'Sealed Vents',
   brand: 'Twin Brand', glint: 'Glintfall', walk: 'Carried Light',
-  ice: 'Thin Ice', drift: 'Emberdrift',
+  ice: 'Thin Ice', drift: 'Emberdrift', rime: 'Creeping Rime',
   riptide: 'Riptide', outsurge: 'The Outsurge',
   choir: 'Choir of Iron', load: 'Ironload',
   still: 'Twin Vents', wander: 'Wandering Vents',
