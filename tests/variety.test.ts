@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -687,7 +687,7 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
 describe('Phase 12 W1: Hessa\'s Outsurge', () => {
   type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; rollHessaVariant(): string;
     bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; rafts: unknown[] };
-  function hessa(variant: 'riptide' | 'outsurge', phase = 2): { w: World; q: H } {
+  function hessa(variant: 'riptide' | 'outsurge' | 'whirl', phase = 2): { w: World; q: H } {
     const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
     const q = w as unknown as H;
     for (const e of w.enemies) e.alive = false;
@@ -732,6 +732,26 @@ describe('Phase 12 W1: Hessa\'s Outsurge', () => {
     mid.q.wrackClock(0.5);
     expect(lost).toBeGreaterThan((hp2 - mid.w.player.hp) * 1.5);
     expect(OUTSURGE.rimBurn).toBeGreaterThan(0);
+  });
+
+  it('Y3 the Whirl: in phase 2 the Ebb carries a hero round the drain, drawing in more gently, and turns the other way each Ebb', () => {
+    const { w, q } = hessa('whirl');
+    expect(w.whirl).toBe(true);
+    const dir = w.whirlDir;
+    q.wrackClock(0.5);
+    // Carried round: the hero (at +x) moves along y in the whirl's direction, and in less than Riptide would pull.
+    expect(Math.sign(w.player.y)).toBe(dir);
+    const rip = hessa('riptide');
+    rip.q.wrackClock(0.5);
+    expect(300 - Math.hypot(w.player.x, w.player.y)).toBeLessThan(300 - Math.hypot(rip.w.player.x, rip.w.player.y));
+    // The next Ebb turns the other way.
+    const n = hessa('whirl');
+    const q2 = n.q as unknown as { ebbT: number; ebbWarnT: number; tideClockT: number };
+    q2.ebbT = 0; q2.ebbWarnT = 0; q2.tideClockT = 0;
+    n.q.wrackClock(0.01);
+    expect(n.w.whirlDir).toBe(-dir);
+    expect(n.w.events.some((e) => e.type === 'castStart' && e.name === 'The Whirl')).toBe(true);
+    expect(WHIRL.spin).toBeGreaterThan(0);
   });
 
   it('phase 1 pulls in for both versions', () => {

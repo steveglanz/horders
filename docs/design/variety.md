@@ -960,3 +960,26 @@ Nhevra had two phase-2 versions, Thin Ice and Emberdrift. The third is **Creepin
 - Creeping Rime sits between the other two. Thin Ice stays the hardest.
 - **Name:** "Creeping Rime" had no WoW match in a search on 23 Nov ("Rime" alone is a WoW page, but it's a single plain word).
 
+### Y3 Hessa: the Whirl (built 23 Nov 2026)
+
+Hessa had two phase-2 versions, Riptide and the Outsurge. The third is **the Whirl** (`whirl`).
+- From phase 2, each Ebb swirls round the drain instead of only pulling in.
+- A hero off a raft is carried round at 0.6x their class speed and pulled in at half the usual rate.
+- The direction flips every Ebb (`w.whirlDir`), so the safe way to wade to a raft changes each time. The Ebb's cast is named "The Whirl".
+- Foes in the water swirl too.
+- Anvil Skin still anchors the Bulwark.
+- Rafts drift at their normal speed. Riptide's faster drift doesn't apply in this version.
+- Tuning is `WHIRL` in sim/world.ts.
+- The client has a placeholder: streaks run round the drain in the direction of the turn.
+
+**Measured** with tools/foundry.ts, hero-t8, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Riptide | Outsurge | The Whirl |
+|---|---|---|---|
+| Wrackline t10 | 144 | 144 | 143 |
+| Wrackline t13 | 21 | 25 | 27 |
+
+- At tier 10, one run of 160 was lost to Hessa (Whirl). The other losses came before her. Tier 13 is only a relative check, because the reference heroes stop at hero-t8, and with hero-t6 every version won 0.
+- As with the Outsurge, the bots ride a raft through every Ebb, so the bot numbers barely tell the versions apart. For a person, the Whirl changes which way to wade.
+- **Name:** a search on 23 Nov found no WoW spell named just "Whirl". WoW has compounds such as Fire Whirl, Grievous Whirl and Whirlwind, so "Whirl" falls under the single-plain-word rule.
+

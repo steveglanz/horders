@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1499,7 +1499,7 @@ export class GameScene extends Phaser.Scene {
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'walk' ? CARRIED_LIGHT_TIP : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'rime' ? CREEPING_RIME_TIP : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
-            : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
+            : ev.id === 'hessa' && w.bossVariant === 'whirl' ? WHIRL_TIP : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
             : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
             : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
@@ -4367,6 +4367,16 @@ export class GameScene extends Phaser.Scene {
         const t = (now / (pulling ? 500 : 900) + k * 0.37) % 1;
         // Phase 12 W1: Hessa's Outsurge runs the other way, from the drain out to the rim (placeholder until visuals).
         const outward = w.outsurge;
+        if (w.whirl) {
+          // Y3 the Whirl: streaks run round the drain the way it turns (placeholder until visuals).
+          const rr = WRACK.drainR + 60 + ((k * 97) % (ARENA - WRACK.drainR - 90));
+          const a0 = a + w.whirlDir * t * 1.4;
+          const a1 = a0 - w.whirlDir * (pulling ? 0.22 : 0.12);
+          const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
+          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(Math.cos(a1) * rr, Math.sin(a1) * rr, Math.cos(a0) * rr, Math.sin(a0) * rr);
+          g.fillStyle(0xeafaff, al).fillCircle(Math.cos(a0) * rr, Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
+          continue;
+        }
         const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
         const len = pulling ? 80 : 44;
         const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
