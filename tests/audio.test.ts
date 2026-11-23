@@ -6,14 +6,14 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { GLARE, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -926,6 +926,49 @@ describe('audio', () => {
     w.events.length = 0; q.bossPhase = 1; q.glareT = 0; w.enemies[b].castId = '';
     q.runLensmother(b, 0.01);
     expect(w.events.some((e) => e.type === 'lightMove')).toBe(false);
+  });
+
+  it('swells as Nhevra\'s Creeping Rime rises, after her phase sting, and crackles while you stand in it (Phase 15 Y3)', () => {
+    type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void; bossIndex: number; bossSpawned: boolean;
+      coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
+    const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as N;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('nhevra', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'rime';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.4;
+    q.coldPhase = 2; q.driftT = 0; q.iceT = 0; q.snuffT = 99; q.tideT = 99; q.nightT = 99;
+    w.player.x = 500; w.player.y = 500;
+    w.events.length = 0;
+    q.coldClock(0.01);
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'coldmarrow' };
+    const rise = w.events.find((e) => e.type === 'rimeRise');
+    expect(rise && cueFor(rise, c)?.id).toBe('rimeRise');
+    // It waits for Nhevra's phase sting (priority, so it ducks everything else) to end.
+    expect(Math.min(...SOUNDS.rimeRise.map((v) => v.delay ?? 0))).toBeGreaterThanOrEqual(recipeLength(SOUNDS[PHASE_STING.nhevra as SoundId]));
+    expect(PRIORITY.has('rimeRise')).toBe(false);
+    // The crackle follows the sim's own chill test: outside, then just inside, then just past the edge.
+    expect(inRimeNow(w)).toBe(false);
+    w.player.x = w.rimeX + CREEPING_RIME.r - 1; w.player.y = w.rimeY;
+    expect(inRimeNow(w)).toBe(true);
+    w.player.chill = 0; q.coldClock(0.1);
+    expect(w.player.chill).toBeGreaterThan(0);
+    w.player.x = w.rimeX + CREEPING_RIME.r + 1; w.player.y = w.rimeY;
+    expect(inRimeNow(w)).toBe(false);
+    const hp = w.player.hp; w.player.x = w.rimeX; w.player.y = w.rimeY; w.player.hp = 0;
+    expect(inRimeNow(w)).toBe(false);
+    w.player.hp = hp;
+    // Off on any other version.
+    w.rimeOn = false;
+    expect(inRimeNow(w)).toBe(false);
+    // Throttled like the lava sizzle, and wired from the scene to the mixer.
+    expect(THROTTLE.rimeCrackle).toBe(THROTTLE.lavaSizzle);
+    expect(recipeLength(SOUNDS.rimeCrackle)).toBeLessThan(THROTTLE.rimeCrackle ?? 0);
+    const mixer = readFileSync(new URL('../client/audio/index.ts', import.meta.url), 'utf8');
+    expect(mixer).toMatch(/if \(ctx\.inRime\) this\.cue\(\{ id: 'rimeCrackle'/);
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toMatch(/inRime: inRimeNow\(w\)/);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
