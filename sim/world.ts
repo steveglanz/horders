@@ -863,6 +863,8 @@ export class World {
    * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
    */
   bossEcho: string = '';
+  /** Phase 16 U3: true once this run's echo has actually gone off (its first 'echo' event), for the Seen log and run summary. */
+  echoMet = false;
   /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
   echoNext = false;
   /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
@@ -1551,6 +1553,7 @@ export class World {
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
+      this.noteEcho();
       this.checkEnd();
       return;
     }
@@ -1573,7 +1576,14 @@ export class World {
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
     this.updateRevives(dt);
+    this.noteEcho();
     this.checkEnd();
+  }
+
+  /** Phase 16 U3: marks the echo met the first step it goes off. Reads this step's events only; no rng. */
+  private noteEcho(): void {
+    if (this.echoMet || !this.bossEcho) return;
+    for (const e of this.events) if (e.type === 'echo') { this.echoMet = true; return; }
   }
 
   /** True while a boss is spawned and still standing (G6 boss revive rules apply). */
