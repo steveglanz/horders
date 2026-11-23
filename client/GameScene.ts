@@ -858,6 +858,7 @@ export class GameScene extends Phaser.Scene {
       colossus: colossusCue(w),
       t: w.time,
       dungeon: w.dungeonId,
+      namedAffix: w.namedPlan()?.affix,
       heat: w.heat || undefined,
       inLava: w.lava.length > 0 && inLavaNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, TICK } from '../sim/world';
+import { World, TICK, COLD } from '../sim/world';
 import { NAMED, NAMED_TITLES, AFFIXES, AFFIX_TIP } from '../sim/content/named';
 
 type Inner = {
@@ -126,5 +126,18 @@ describe('named elites (C2)', () => {
     const i = inner.spawn('cinderBrute', 200, 0);
     expect(w.enemies[i].named).toBe(-1);
     expect(w.namedName(i)).toBe('Cinder Brute');
+  });
+});
+
+describe('Phase 14 X5: a named foe feeds coal in the Coldmarrow', () => {
+  it('each tenth of its health taken feeds the hitter COLD.namedFeed', () => {
+    const w = new World({ seed: 5, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    const inner = w as unknown as { spawn(kind: string, x: number, y: number): number; damageEnemy(i: number, a: number, c: boolean): void };
+    const i = inner.spawn('hoarfrostWeaver', 200, 0);
+    const e = w.enemies[i];
+    e.named = 0;
+    w.player.coal = 0.2;
+    inner.damageEnemy(i, e.maxHp * 0.25, false);
+    expect(w.player.coal).toBeCloseTo(0.2 + 2 * COLD.namedFeed, 2);
   });
 });
