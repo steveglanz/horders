@@ -1575,7 +1575,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   seenNew: 1.7, // level with unlock (-23.8 dB)
   // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
   caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
-  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
+  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 2.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 6.0, // cave-in +1.5 and surge +1.0 for raid trash (Y2): party sounds held them near 6 dB over the mix
   phase: 2.2,
   phaseIce: 5.9,
   phaseMaelra: 0.7,
