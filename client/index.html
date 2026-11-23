@@ -572,6 +572,9 @@
   #endShape:empty { display: none; }
   #endShape .shape { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0,0,0,0.22); color: var(--muted); font-size: 12px; }
   #endShape .shape b { color: var(--text); font-weight: 600; }
+  /* X6: each chip kind's accent (--sc, set in ui.ts) tints its border and key; same size as before. */
+  #endShape .shape { border-color: color-mix(in srgb, var(--sc, var(--muted)) 55%, transparent); }
+  #endShape .shape i { font-style: normal; color: var(--sc, var(--muted)); }
   .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--branch); color: var(--branch); font-size: 12px; }
   .end-foot { display: flex; gap: 10px; justify-content: center; }
   .end-foot button { margin: 0; flex: 1; max-width: 260px; min-height: 52px; }
