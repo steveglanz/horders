@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1424,7 +1424,7 @@ export class GameScene extends Phaser.Scene {
           const stirLine = w.stir ? ` The dungeon stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
           const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
-          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
+          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
