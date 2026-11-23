@@ -190,6 +190,11 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   emberLob: { start: 'spitLob' }, // Ember Lob
   charge: { start: 'chargeWindup' }, // Charge
   shieldBash: { start: 'bashWarn' }, // Phase 16 U2: the Ashwall's Shield Bash (each wind-up is the dodge warning)
+  // Phase 16 U2: the Ballast (the Foundry). Anchor Slam's wind-up is the step-out warning; dropping and weighing anchor
+  // are its two castDone moments (BALLAST.plantDelay / unplant), heard as a chain running out and a chain hauled in.
+  anchorSlam: { start: 'anchorWarn' }, // Anchor Slam
+  anchor: { done: 'anchorDrop' }, // Drops Anchor
+  unanchor: { done: 'anchorWeigh' }, // Weighs Anchor
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
