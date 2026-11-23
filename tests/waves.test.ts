@@ -122,6 +122,9 @@ describe('Phase 15 Y1: wave shapes', () => {
     expect(fight('wardens', 'reinforce').waveShape).toBe('arc');
     expect(fight('lamps', 'ring', 'glarewell').waveShape).toBe('arc');
     expect(fight('lamps', 'pincer', 'glarewell').waveShape).toBe('arc');
+    // Skills' Y5: a pack of 3+ Rimehounds doesn't ring (a pincer still can).
+    expect(fight('weaver', 'ring', 'coldmarrow').waveShape).toBe('arc');
+    expect(fight('weaver', 'pincer', 'coldmarrow').waveShape).toBe('pincer');
     for (const s of ['pincer', 'ring', 'reinforce'] as const) expect(WAVE_SHAPE_INFO[s].tip.length).toBeGreaterThan(10);
   });
 });
