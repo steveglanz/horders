@@ -317,6 +317,12 @@ export class GameScene extends Phaser.Scene {
   private brimStart = 0;
   /** Phase 12 W3: the Regent's Summons tell (depth 1.9). */
   private summonsGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 15 Y6: wave marks on the floor (depth 1.95): a ring closing, pincer chevrons, the reinforcement gate and its burst. */
+  private waveGfx: Phaser.GameObjects.Graphics | null = null;
+  private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
+  /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
+  private stirElite: { i: number; at: number } | null = null;
+  private stirAt = -1;
   /** Phase 14 X6: the arena events' floor marks (depth 1.9); falling rock goes on overFx. */
   private arenaGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 14 X6: just above enemy bodies and under heroes (Brood egg sacs at a foe's feet). */
@@ -423,6 +429,10 @@ export class GameScene extends Phaser.Scene {
     this.summonsGfx = null;
     this.arenaGfx = null;
     this.footGfx = null;
+    this.waveGfx = null;
+    this.waveFx = [];
+    this.stirElite = null;
+    this.stirAt = -1;
     this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
@@ -1382,7 +1392,32 @@ export class GameScene extends Phaser.Scene {
           // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
           // own banner (encounterStart), which comes after 'start' and would replace a banner here.
           if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          {
+            // Y6: a ring closing in round the hero, chevrons squeezing in from both flanks, or the gate the held pack
+            // comes through (pulsing for its 2 s warning) and a burst as it arrives.
+            const now = this.time.now;
+            if (ev.stage === 'start' && (ev.id === 'ring' || ev.id === 'pincer')) this.waveFx.push({ kind: ev.id, x: w.player.x, y: w.player.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: 1500 });
+            else if (ev.stage === 'warn') this.waveFx.push({ kind: 'gate', x: ev.x, y: ev.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: WAVES.reinforceWarn * 1000 + 300 });
+            else if (ev.stage === 'land') {
+              this.waveFx = this.waveFx.filter((f) => f.kind !== 'gate');
+              this.waveFx.push({ kind: 'burst', x: ev.x, y: ev.y, a: Math.atan2(ev.y, ev.x), t0: now, dur: 600 });
+              this.shakeBy(0.08);
+            }
+          }
           break;
+        case 'stir': {
+          // Y10: the dungeon notices. The screen's edges darken and warm for a moment, grit falls, and the ground shudders.
+          this.stirAt = this.time.now;
+          this.shakeBy(0.12);
+          if (this.vignette) { this.vignette.classList.remove('stir'); void this.vignette.offsetWidth; this.vignette.classList.add('stir'); }
+          if (ev.id === 'elite') {
+            // The extra elite is the newest elite (it spawns after the fight's own pack).
+            let best = -1;
+            w.enemies.forEach((e, i) => { if (e.alive && e.def.rank === 'elite' && (best < 0 || e.spawnedAt >= w.enemies[best].spawnedAt)) best = i; });
+            this.stirElite = best >= 0 ? { i: best, at: w.enemies[best].spawnedAt } : null;
+          }
+          break;
+        }
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
@@ -1813,6 +1848,7 @@ export class GameScene extends Phaser.Scene {
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     this.summonsDraw(now);
     this.arenaEventDraw(now);
+    this.waveDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -4308,6 +4344,86 @@ export class GameScene extends Phaser.Scene {
   private stoneKey(): string {
     const id = this.world.dungeonId;
     return id === 'foundry' ? 'foundryStone' : id === 'coldmarrow' ? 'iceStone' : id === 'hammerdeep' ? 'deepStone' : id === 'pressworks' ? 'pressStone' : RAID_STONE[id] ?? 'kilnStone';
+  }
+
+  /** Phase 15 Y6 and Y10: the wave marks (waveFx), the stir beat's falling grit, and the stirred elite's mark. */
+  private waveDraw(now: number): void {
+    const w = this.world;
+    this.waveFx = this.waveFx.filter((f) => now - f.t0 < f.dur);
+    const se = this.stirElite;
+    const elite = se && w.enemies[se.i]?.alive && w.enemies[se.i].spawnedAt === se.at ? w.enemies[se.i] : null;
+    if (!elite) this.stirElite = null;
+    const stirring = this.stirAt >= 0 && now - this.stirAt < 1400;
+    if (!this.waveFx.length && !elite && !stirring) { this.waveGfx?.clear(); return; }
+    if (!this.waveGfx) this.waveGfx = this.add.graphics().setDepth(1.95);
+    const g = this.waveGfx.clear();
+    const AMBER = 0xffb35c, DEEP = 0xff6a1f;
+    const chevron = (x: number, y: number, a: number, size: number, col: number, alpha: number, width = 4) => {
+      // Points along a.
+      const bx = x - Math.cos(a) * size, by = y - Math.sin(a) * size;
+      const px = -Math.sin(a) * size * 0.8, py = Math.cos(a) * size * 0.8;
+      g.lineStyle(width, col, alpha).beginPath().moveTo(bx + px, by + py).lineTo(x, y).lineTo(bx - px, by - py).strokePath();
+    };
+    for (const f of this.waveFx) {
+      const k = (now - f.t0) / f.dur;
+      const fade = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4);
+      if (f.kind === 'ring') {
+        // A dashed ring round where the hero stood, drawing in from where the wave forms (WAVES.ringR) as it fades.
+        const r = WAVES.ringR * (1 - 0.6 * (1 - (1 - k) * (1 - k)));
+        const n = 28, turn = k * 0.6;
+        for (let j = 0; j < n; j++) {
+          const a0 = turn + (j / n) * Math.PI * 2;
+          g.lineStyle(5, AMBER, 0.75 * fade).beginPath().arc(f.x, f.y, r, a0, a0 + (Math.PI * 2) / n * 0.55).strokePath();
+        }
+        for (let j = 0; j < 8; j++) {
+          const a = (j / 8) * Math.PI * 2 + turn;
+          chevron(f.x + Math.cos(a) * (r - 26), f.y + Math.sin(a) * (r - 26), a + Math.PI, 12, AMBER, 0.85 * fade);
+        }
+      } else if (f.kind === 'pincer') {
+        // Two columns of chevrons squeezing in on the hero from both flanks (a quarter turn either side of the far side).
+        for (const side of [1, -1]) {
+          const a = f.a + side * (Math.PI / 2);
+          for (let j = 0; j < 3; j++) {
+            const d = 250 - 150 * ((k * 1.4 + j * 0.18) % 1);
+            chevron(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, a + Math.PI, 20, AMBER, 0.9 * fade * (1 - j * 0.2), 6);
+          }
+        }
+      } else if (f.kind === 'gate') {
+        // The held pack's gate: a glowing stretch of the arena wall and chevrons marching in from it, pulsing faster as it nears.
+        const R = w.arenaR - 18, pulse = 0.65 + 0.35 * Math.sin(now / (110 - 50 * k));
+        g.lineStyle(14, DEEP, 0.22 * fade).beginPath().arc(0, 0, R, f.a - 0.55, f.a + 0.55).strokePath();
+        g.lineStyle(5, AMBER, 0.9 * fade * pulse).beginPath().arc(0, 0, R, f.a - 0.5, f.a + 0.5).strokePath();
+        g.fillStyle(DEEP, 0.18 * fade * pulse).fillCircle(f.x, f.y, 70 + 20 * k);
+        for (let j = 0; j < 3; j++) {
+          const d = (now / 9 + j * 45) % 135;
+          chevron(f.x - Math.cos(f.a) * (30 + d), f.y - Math.sin(f.a) * (30 + d), f.a + Math.PI, 16, AMBER, 0.9 * fade * (1 - d / 135), 5);
+        }
+      } else {
+        // The pack bursts through: a ring of dust thrown out from the gate.
+        g.lineStyle(6 * (1 - k) + 1, AMBER, 0.8 * (1 - k)).strokeCircle(f.x, f.y, 30 + 110 * k);
+        g.fillStyle(0xb8aca4, 0.35 * (1 - k)).fillCircle(f.x, f.y, 30 + 70 * k);
+      }
+    }
+    if (stirring && !this.lowFx) {
+      // Grit shaken loose from the dark above, over the whole view.
+      const v = this.cameras.main.worldView, k = (now - this.stirAt) / 1400;
+      for (let j = 0; j < 26; j++) {
+        const u = ((k * 1.6 + j * 0.137) % 1);
+        const x = v.x + ((j * 97.31) % 1) * v.width + (j % 2 ? 6 : -6) * u;
+        this.overFx.fillStyle(0xb8aca4, 0.55 * (1 - k)).fillCircle(x, v.y + u * v.height, 1.4 + (j % 3) * 0.6);
+      }
+    }
+    if (elite) {
+      // The stirred elite: an amber rune ring turning under it, with three notches, so the extra one reads as the dungeon's.
+      const r = elite.def.radius * 1.35, a0 = now / 700;
+      const x = elite.x, y = elite.y + elite.def.radius * 0.55;
+      g.lineStyle(3, AMBER, 0.75).strokeEllipse(x, y, r * 2, r * 0.9);
+      g.lineStyle(2, DEEP, 0.5).strokeEllipse(x, y, r * 2.3, r * 1.05);
+      for (let j = 0; j < 3; j++) {
+        const a = a0 + (j / 3) * Math.PI * 2;
+        g.fillStyle(AMBER, 0.9).fillCircle(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.45, 4);
+      }
+    }
   }
 
   private arenaEventDraw(now: number): void {

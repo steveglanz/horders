@@ -80,6 +80,27 @@ export const EVENT_ICON: Record<string, { color: string; d: string }> = {
   highWater: { color: '#6fd0c8', d: 'M3 8c3-2 6 2 9 0s6-2 9 0 M3 13c3-2 6 2 9 0s6-2 9 0 M3 18c3-2 6 2 9 0s6-2 9 0' },
 };
 
+/** Phase 15 Y6: the wave shapes, in the amber of their floor marks (GameScene waveDraw). */
+export const WAVE_ICON: Record<string, { color: string; d: string }> = {
+  // Pincer: chevrons pressing in from both sides.
+  pincer: { color: '#ffb35c', d: 'M3 7l5 5-5 5 M8 7l5 5-5 5 M21 7l-5 5 5 5' },
+  // Surrounded: a dashed ring closing on a point.
+  ring: { color: '#ffb35c', d: 'M12 3a9 9 0 0 1 4.5 1.2 M19.8 7.5A9 9 0 0 1 21 12 M19.8 16.5A9 9 0 0 1 16.5 19.8 M12 21a9 9 0 0 1-4.5-1.2 M4.2 16.5A9 9 0 0 1 3 12 M4.2 7.5A9 9 0 0 1 7.5 4.2 M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z' },
+  // More Coming: a gate in the wall with a chevron coming through.
+  reinforce: { color: '#ffb35c', d: 'M4 20V9a8 8 0 0 1 16 0v11 M4 20h16 M10 11l3 3-3 3' },
+};
+/** Phase 15 Y10: the dungeon's reactions, in its deep amber (the stirred elite's rune ring). */
+export const STIR_ICON: Record<string, { color: string; d: string }> = {
+  // Another joins: a figure with a plus.
+  elite: { color: '#ff8a3d', d: 'M9 7a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M3 21c0-4 3-6 6-6s6 2 6 6 M18 8v6 M15 11h6' },
+  // A named foe: the named-foe blue diamond.
+  named: { color: '#5aa9ff', d: 'M12 3l7 9-7 9-7-9Z M12 8l3 4-3 4-3-4Z' },
+  // The ground answers: a cracked floor.
+  event: { color: '#ff8a3d', d: 'M3 19h18 M6 19l3-6 3 3 2-5 3 8 M12 3v3 M7 5l1.5 2.5 M17 5l-1.5 2.5' },
+  // They close in: the pincer's chevrons.
+  wave: { color: '#ff8a3d', d: 'M3 7l5 5-5 5 M21 7l-5 5 5 5 M10.5 12h3' },
+};
+
 /** Phase 15 Y6: a boss version (a crown), and the Seen log itself (an open eye) for its hub chip. */
 export const BOSS_VERSION_ICON = { color: '#ffc861', d: 'M4 18h16 M4 18 3 8l5 4 4-6 4 6 5-4-1 10' };
 export const SEEN_GLYPH = 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z M12 9.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5Z';
@@ -89,6 +110,8 @@ export function seenIcon(kind: string, id: string): { color: string; d: string }
   if (kind === 'boss') return BOSS_VERSION_ICON;
   if (kind === 'mark') return AFFIX_ICON[id] ?? null;
   if (kind === 'event') return EVENT_ICON[id] ?? null;
+  if (kind === 'wave') return WAVE_ICON[id] ?? null;
+  if (kind === 'stir') return STIR_ICON[id] ?? null;
   if (kind === 'heat') return (HEAT_ICON as Record<string, { color: string; d: string }>)[id] ?? null;
   return null;
 }
