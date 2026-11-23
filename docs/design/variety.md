@@ -692,3 +692,16 @@ The event is `{ type: 'arenaEvent', id, stage: 'warn' | 'land' }`, and the scala
 | Wrackline t13, hero-t8, 160 | 24 | | | High Water 24 |
 
 Live, an event is in about 40% of trash fights, split across the dungeon's pool. So the forced numbers are the worst case.
+
+### X5 follow-up (23 Nov 2026): named foes for ranged classes
+Skills' re-screen (heroes-r2, every named foe forced to Warded, seeds 41 to 200) still found two gaps. Each has a fight-side fix that matches its cause:
+- **Foundry, Slagbinder (Burnout):** the 2x-health named foe outlasted the 240 s fight limit. `BURNOUT.named` = 60 gives the fight that holds the named foe 60 s more. Slagbinder 105 → 126 of 160, base 125.
+- **Coldmarrow, ranged (the cold, not Burnout):** in a long fight against one 2x Weaver nothing dies, so the coal runs dry (COLD.drain 1%/s, fed only by kills) and the frozen burn kills. `COLD.namedFeed` = 0.07 feeds the hitter's coal for each tenth of a named foe's health they take, the same as a frost-touched kill. The extra Burnout time alone changed nothing here (83 → 83). Wins of 160, before → after, against base:
+
+| Class | Before | After | Base |
+|---|---|---|---|
+| Emberwright | 83 | 128 | 131 |
+| Slagbinder | 81 | 109 | 103 |
+| Lumen | 116 | 125 | 125 |
+
+My own check, good bot, hero-t8, Coldmarrow t10: `BURNOUT.named` 0 against 60 gave 93 and 93 of 120 on the same seeds.
