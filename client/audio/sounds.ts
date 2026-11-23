@@ -521,6 +521,22 @@ export const SOUNDS = {
     ...[E5, G5, B5(), G5, E5].map((f, k) => chime(f, 0.5 + k * 0.14, 0.2, 0.4)),
     whoosh(1800, 900, 1.0, 0.18).map((v) => ({ ...v, delay: 0.9 })),
   ),
+  /** Rolling Vents (Ysmeret's third version, Phase 15 Y3): one vent opens, and two more will follow round her one at a time.
+   *  The vent's whoosh, then three rising chimes that count the roll ("one, two, three"). */
+  rollVentWarn: join(
+    whoosh(400, 3500, 0.55, 0.35),
+    ...[E5, G5, B5()].map((f, k) => chime(f, 0.35 + k * 0.2, 0.2, 0.45)),
+  ),
+  /** Rolling Vents: the next vent opens round her as the last closes. A short whoosh and the next step of the count. */
+  ventRollNext: join(
+    whoosh(500, 3200, 0.35, 0.3),
+    chime(G5, 0.08, 0.22, 0.5),
+  ),
+  /** Rolling Vents: the last of the three. The same step a note higher, with a closing ring so the soakers know it ends here. */
+  ventRollLast: join(
+    whoosh(500, 3200, 0.35, 0.3),
+    chime(B5(), 0.08, 0.22, 0.5), chime(E6, 0.22, 0.14, 0.7),
+  ),
   /** Scatter Embers (and the raid's Cinder Marks): a crackling sparkle that says "get apart". */
   scatterWarn: [
     { wave: 'noise', f: 0, dur: 1.2, vol: 0.25, a: 0.9, curve: 0.7, lp: 3000, lp2: 9000, hp: 1200, trem: [14, 0.7] },
@@ -1643,6 +1659,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  rollVentWarn: 4.0, ventRollNext: 2.7, ventRollLast: 2.4, // Y3 Rolling Vents: the opening level with wanderVentWarn, each next vent a little under it
   homeOut: 7.0, homeBack: 4.2, // Y3 Homeward Hammer: the throw near slam, the ring-and-return (priority) lands with the circle's slam, so it sits 6.6 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=11)
   rimeRise: 2.0, rimeCrackle: 7.0, // Y3 Creeping Rime: the swell (after its 1.4 s wait) near slam, the crackle a little under lavaSizzle
   steamMoveWarn: 3.0, steamMoveOpen: 0.4, // Y3 Sealed Vents: the warning level with tideTurn, the burst level with slam
