@@ -1242,3 +1242,4 @@ Flue tier 11, heroes-r2 hero-t8-0, each version forced:
 - **Tuning steps** (base / half skill / Anvil): a 60% tithe won 59 / 58 / 53, and 65% (kept) 55 / 50 / 48. It is steep above that: 80% won 27 and 100% won 6.
 - Without the bots answering it (`NOTITHE=1`, measured at 60%) it won 0 of 80.
 - **Name:** "Tithe" turns up in WoW (a warcraft.wiki.gg page called Tithe, and a spell called "Scouring Tithe"). It is a single plain word, which Steve's rule allows (21 Nov).
+- **Fix (QA on #579):** a hero alone in the gold circle used to read as a made soak. The client showed the gold blast and played the made-soak sound, and that hero got the Relayer buff and the Ventwalker 3-piece heal, while everyone paid 35%. A Tithe now only counts as made with `TITHE.need` heroes in it, and a missed one reads "Tithe unpaid!".

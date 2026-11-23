@@ -333,4 +333,14 @@ describe('Phase 15 Y3: the Furnace Regent\'s Tithe', () => {
     z.w.heroes.forEach((h, k) => expect(h.player.hp).toBeLessThan(before[k]));
     expect(z.w.events.some((ev) => ev.type === 'tithe' && !ev.ok && ev.n === 0)).toBe(true);
   });
+
+  it('one hero alone is not a paid Tithe: the soak reads as missed, so no gold blast, Relayer or Ventwalker heal (QA on #579)', () => {
+    const a = tithe();
+    const t = a.gold[0];
+    a.w.heroes.forEach((h, k) => { h.player.x = k === 0 ? t.x : -t.x * 0.5; h.player.y = k === 0 ? t.y : -t.y * 0.5 + k * 40; });
+    t.t = t.dur;
+    a.inner.updatePartyTelegraphs(0.01);
+    expect(a.w.events.some((ev) => ev.type === 'soak' && ev.owner === -5 && !ev.ok)).toBe(true);
+    expect(a.w.events.some((ev) => ev.type === 'tithe' && !ev.ok && ev.n === 1)).toBe(true);
+  });
 });

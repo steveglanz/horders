@@ -1447,7 +1447,7 @@ export class GameScene extends Phaser.Scene {
           // A Banked Coal (owner -4) has its own ember effects, and a missed one blasts nobody.
           if (ev.owner === -4) break;
           this.blast(ev.x, ev.y, 70, ev.ok ? SOAK : DANGER);
-          if (!ev.ok) this.floatText(ev.x, ev.y, 'Brand missed!', '#ff8aa5', 16);
+          if (!ev.ok) this.floatText(ev.x, ev.y, ev.owner === -5 ? 'Tithe unpaid!' : 'Brand missed!', '#ff8aa5', 16);
           break;
         case 'eliteSpawn':
           this.hud.banner('A Cinder Brute approaches', 'Interrupt its Ground Pound. Its death grants a bonus talent');

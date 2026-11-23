@@ -7596,8 +7596,9 @@ export class World {
       t.alive = false;
       if (t.kind === 'soak') {
         const took = this.soakers(t);
-        const ok = took.length > 0;
-        this.relaySoak(took);
+        // The Regent's Tithe (owner -5) is only made with TITHE.need heroes in it: one alone gets no Relayer, no Ventwalker heal.
+        const ok = took.length >= (t.owner === -5 ? TITHE.need : 1);
+        if (ok) this.relaySoak(took);
         this.events.push({ type: 'soak', ok, x: t.x, y: t.y, owner: t.owner });
         // Ventwalker (3): every wearer standing in the gold circle heals.
         if (ok) {
