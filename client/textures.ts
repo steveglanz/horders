@@ -799,6 +799,163 @@ function drawSnuffer(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[22.5, 12.5], [26.5, 12.5]], 0.9, '#cfeaff');
 }
 
+// ---- Phase 16 U2 foes (design #603, #606, #612, #621, #623). Bodies only where the 3D view adds the prop itself
+// (the Ashwall's slab, the Ballast's anchor, the Dimhorn's horn, the Conchblower's shell): 3D is the baseline look,
+// and 2D shows those tells on the floor. All face right, like the other sheets.
+
+/** Ashwall: a hunched heap of cooled slag, broad as a door, its cracks still glowing; one arm braced forward. */
+function drawAshwall(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -0.8, 0, -0.8][f];
+  const step = [1.4, 0, -1.4, 0][f];
+  ell(ctx, 28, 51, 18, 3.4); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+  // Stumpy legs.
+  ctx.fillStyle = '#2c2522';
+  ell(ctx, 20 - step, 47, 7, 5); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke();
+  ell(ctx, 36 + step, 47, 7, 5); ctx.fill(); ctx.stroke();
+  // Back arm, hanging.
+  limb(ctx, 13, 24 + bob, 9, 38 + bob, 7, '#3b302b');
+  // The body: a lumpy boulder, wider at the shoulders.
+  ctx.beginPath();
+  ctx.moveTo(12, 22 + bob); ctx.quadraticCurveTo(14, 10 + bob, 26, 9 + bob); ctx.quadraticCurveTo(42, 8 + bob, 45, 21 + bob);
+  ctx.quadraticCurveTo(48, 34 + bob, 41, 44 + bob); ctx.lineTo(16, 44 + bob); ctx.quadraticCurveTo(9, 34 + bob, 12, 22 + bob); ctx.closePath();
+  shade(ctx, '#6a5a50', '#241d1a', 9, 44, 1.8);
+  // Ash-grey crust on top.
+  ell(ctx, 28, 13 + bob, 13, 4); ctx.fillStyle = 'rgba(170,160,150,0.35)'; ctx.fill();
+  cracks(ctx, [[[18, 20 + bob], [22, 27 + bob], [20, 34 + bob]], [[30, 15 + bob], [33, 24 + bob], [38, 28 + bob], [37, 38 + bob]], [[25, 30 + bob], [29, 36 + bob]]], '#ff8a3a', 1.3);
+  // Sunken head under the shoulder line, two coal eyes.
+  ell(ctx, 36, 17 + bob, 6.5, 5); shade(ctx, '#5a4a42', '#2a221e', 12, 22, 1.3);
+  eyes(ctx, [[35, 17 + bob], [39, 17 + bob]], 1.1, '#ffb050');
+  // Front arm braced forward, a great slag fist.
+  limb(ctx, 41, 24 + bob, 50, 31 + bob - step * 0.3, 8, '#4a3d36');
+  ell(ctx, 50, 32 + bob, 5, 4.6); shade(ctx, '#5e4e45', '#2a221e', 28, 37, 1.3);
+  cracks(ctx, [[[48, 31 + bob], [52, 33 + bob]]], '#ff8a3a', 1);
+}
+
+/** Ballast: a squat iron hulk in a riveted diving shell, a round porthole for a face, a chain over its shoulder. */
+function drawBallast(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -0.7, 0, -0.7][f];
+  const step = [1.5, 0, -1.5, 0][f];
+  ell(ctx, 28, 51, 17, 3.2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+  // Lead boots.
+  ctx.fillStyle = '#2a3036';
+  ell(ctx, 20 - step, 48, 7, 4); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke();
+  ell(ctx, 36 + step, 48, 7, 4); ctx.fill(); ctx.stroke();
+  // Arms: thick iron sleeves.
+  limb(ctx, 12, 25 + bob, 9, 39 + bob, 7, '#4c5660');
+  // The barrel body.
+  ctx.beginPath(); ctx.ellipse(28, 31 + bob, 17, 15, 0, 0, Math.PI * 2);
+  shade(ctx, '#7a8692', '#2a3038', 16, 46, 1.8);
+  // Rivet bands.
+  ctx.strokeStyle = 'rgba(20,24,30,0.7)'; ctx.lineWidth = 1.4;
+  for (const y of [26, 36]) { ctx.beginPath(); ctx.ellipse(28, y + bob, 16.4, 3, 0, 0, Math.PI); ctx.stroke(); }
+  ctx.fillStyle = '#c0c8d0';
+  for (let k = 0; k < 6; k++) { const a = 0.35 + k * 0.45; ctx.fillRect(28 + Math.cos(a) * 15 - 0.8, 26 + bob + Math.sin(a) * 2.8 - 0.8, 1.6, 1.6); }
+  // Domed helmet with a glowing porthole.
+  ell(ctx, 30, 13 + bob, 9, 8); shade(ctx, '#8a96a2', '#3a424c', 5, 21, 1.6);
+  ell(ctx, 33, 13 + bob, 4.8, 4.8); ctx.fillStyle = '#c9a050'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
+  softGlow(ctx, 33, 13 + bob, 6, 'rgba(255,190,90,0.5)');
+  ell(ctx, 33, 13 + bob, 3.2, 3.2); ctx.fillStyle = '#ffd890'; ctx.fill();
+  // A loop of chain over the front shoulder.
+  ctx.save(); ctx.strokeStyle = '#9aa4ae'; ctx.lineWidth = 1.6;
+  for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.ellipse(40 + k * 0.6, 20 + bob + k * 3.4, 1.8, 2.4, 0.4, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+  // Front arm, fist low and heavy.
+  limb(ctx, 42, 26 + bob, 47, 38 + bob - step * 0.3, 7, '#5a6670');
+  ell(ctx, 47, 40 + bob, 4.6, 4.2); shade(ctx, '#6a7682', '#2e3640', 36, 44, 1.3);
+}
+
+/** Lampeye: a brass lantern cage hanging in the air with a great eye where the flame should be, a glow beneath. */
+function drawLampeye(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, -1.6, -1][f];
+  softGlow(ctx, 22, 40, 12, 'rgba(255,230,140,0.25)');
+  softGlow(ctx, 22, 22 + bob, 16, 'rgba(255,224,140,0.35)');
+  // The hanging ring and cap.
+  ctx.strokeStyle = '#7a5a28'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(22, 4 + bob, 2.6, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(13, 10 + bob); ctx.lineTo(22, 6 + bob); ctx.lineTo(31, 10 + bob); ctx.closePath(); shade(ctx, '#e0b050', '#7a5420', 6, 10, 1.2);
+  // Glass, faintly gold.
+  ctx.beginPath(); ctx.rect(13, 10 + bob, 18, 22); ctx.fillStyle = 'rgba(255,236,170,0.28)'; ctx.fill();
+  // The eye.
+  ell(ctx, 22, 21 + bob, 7.5, 7); ctx.fillStyle = '#f4ead6'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
+  const look = [1.4, 1.8, 1.4, 1][f];
+  ell(ctx, 22 + look, 21 + bob, 4, 4); ctx.fillStyle = '#e0861a'; ctx.fill();
+  ell(ctx, 22 + look, 21 + bob, 1.8, 2.2); ctx.fillStyle = '#120804'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(22 + look - 2.4, 18.6 + bob, 1.4, 1.4);
+  ctx.strokeStyle = 'rgba(190,60,50,0.5)'; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.moveTo(15.5, 22 + bob); ctx.lineTo(18, 21 + bob); ctx.moveTo(16, 19 + bob); ctx.lineTo(18.4, 19.6 + bob); ctx.stroke();
+  // Brass cage bars and frame over the glass.
+  ctx.strokeStyle = '#a07a30'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.rect(13, 10 + bob, 18, 22); ctx.stroke();
+  ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(17.5, 10 + bob); ctx.lineTo(17.5, 14 + bob); ctx.moveTo(26.5, 10 + bob); ctx.lineTo(26.5, 14 + bob); ctx.moveTo(17.5, 28 + bob); ctx.lineTo(17.5, 32 + bob); ctx.moveTo(26.5, 28 + bob); ctx.lineTo(26.5, 32 + bob); ctx.stroke();
+  // Base, with a hanging drip of light.
+  ctx.beginPath(); ctx.moveTo(12, 32 + bob); ctx.lineTo(32, 32 + bob); ctx.lineTo(28, 36 + bob); ctx.lineTo(16, 36 + bob); ctx.closePath(); shade(ctx, '#d0a040', '#6a4818', 32, 36, 1.2);
+  ell(ctx, 22, 39 + bob, 1.4, 2); ctx.fillStyle = '#fff0b0'; ctx.fill();
+}
+
+/** Dimhorn: a thin, stooped thing of the dark on long spindly legs, a pale bone mask and long fingers. */
+function drawDimhorn(ctx: Ctx, _s: number, f: number): void {
+  const stride = [3, 0, -3, 0][f];
+  const bob = [0, -1, 0, -1][f];
+  ell(ctx, 22, 42, 10, 2.4); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+  softGlow(ctx, 22, 20, 16, 'rgba(20,30,60,0.35)');
+  // Long jointed legs.
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const [sx, k] of [[-1, stride], [1, -stride]] as [number, number][]) {
+    ctx.strokeStyle = INK; ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(22 + sx * 2, 26 + bob); ctx.lineTo(22 + sx * 5 + k * 0.4, 33 + bob); ctx.lineTo(22 + sx * 3 + k, 41); ctx.stroke();
+    ctx.strokeStyle = '#2a3048'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(22 + sx * 2, 26 + bob); ctx.lineTo(22 + sx * 5 + k * 0.4, 33 + bob); ctx.lineTo(22 + sx * 3 + k, 41); ctx.stroke();
+  }
+  ctx.restore();
+  // A narrow, ragged body, hunched forward.
+  ctx.beginPath();
+  ctx.moveTo(17, 27 + bob); ctx.quadraticCurveTo(14, 16 + bob, 22, 9 + bob); ctx.quadraticCurveTo(30, 10 + bob, 28, 20 + bob);
+  ctx.lineTo(27, 27 + bob); ctx.lineTo(24, 25 + bob); ctx.lineTo(21, 28 + bob); ctx.lineTo(19, 25 + bob); ctx.closePath();
+  shade(ctx, '#3c4462', '#141826', 9, 28, 1.4);
+  // Long arm and fingers reaching forward.
+  ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#1c2236'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(27, 15 + bob); ctx.lineTo(34, 21 + bob); ctx.lineTo(37, 27 + bob); ctx.stroke();
+  ctx.lineWidth = 1; for (const d of [-1.5, 0, 1.5]) { ctx.beginPath(); ctx.moveTo(37, 27 + bob); ctx.lineTo(39 + d * 0.4, 31 + bob + d * 0.3); ctx.stroke(); }
+  ctx.restore();
+  // Pale bone mask, pushed forward, with cold pin eyes.
+  ctx.beginPath(); ctx.moveTo(22, 7 + bob); ctx.quadraticCurveTo(31, 6 + bob, 32, 12 + bob); ctx.quadraticCurveTo(30, 17 + bob, 25, 16 + bob); ctx.quadraticCurveTo(21, 13 + bob, 22, 7 + bob); ctx.closePath();
+  shade(ctx, '#e6e0d0', '#9a9486', 6, 17, 1.2);
+  eyes(ctx, [[27, 11 + bob], [30, 11 + bob]], 0.8, '#bfe0ff');
+}
+
+/** Conchblower: a fish-folk caller of the quay, scaled teal and finned, crest up, webbed hands, a sash of net. */
+function drawConchblower(ctx: Ctx, _s: number, f: number): void {
+  const bob = [0, -1, 0, -1][f];
+  const step = [1.4, 0, -1.4, 0][f];
+  ell(ctx, 24, 45, 12, 2.6); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  // Webbed feet.
+  ctx.fillStyle = '#2e6a62';
+  ell(ctx, 18 - step, 43, 5.4, 2.6); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
+  ell(ctx, 30 + step, 43, 5.4, 2.6); ctx.fill(); ctx.stroke();
+  // Tail fin behind.
+  ctx.beginPath(); ctx.moveTo(13, 34 + bob); ctx.lineTo(4, 30 + bob); ctx.lineTo(6, 39 + bob); ctx.closePath(); shade(ctx, '#5ab0a0', '#22605a', 30, 39, 1.1);
+  // Back arm.
+  limb(ctx, 14, 22 + bob, 11, 33 + bob, 4.4, '#2e7a70');
+  // Body: a rounded, scaly torso.
+  ctx.beginPath(); ctx.ellipse(23, 29 + bob, 10, 12, 0, 0, Math.PI * 2); shade(ctx, '#4aa898', '#1e5a52', 17, 41, 1.5);
+  ctx.strokeStyle = 'rgba(200,255,240,0.3)'; ctx.lineWidth = 0.8;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) { ctx.beginPath(); ctx.arc(18 + c * 4 + (r % 2) * 2, 23 + r * 4 + bob, 1.8, 0, Math.PI); ctx.stroke(); }
+  // Pale belly.
+  ell(ctx, 26, 31 + bob, 4.5, 7.5); ctx.fillStyle = 'rgba(220,240,210,0.55)'; ctx.fill();
+  // Sash of net.
+  ctx.strokeStyle = '#c8b07a'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(15, 20 + bob); ctx.lineTo(31, 35 + bob); ctx.stroke();
+  // Head: wide fish face, crest fin, round eye.
+  ell(ctx, 26, 13 + bob, 8, 6.5); shade(ctx, '#5abcaa', '#22685e', 7, 20, 1.4);
+  ctx.beginPath(); ctx.moveTo(20, 9 + bob); ctx.lineTo(22, 1 + bob); ctx.lineTo(25, 6 + bob); ctx.lineTo(28, 0 + bob); ctx.lineTo(30, 8 + bob); ctx.closePath(); shade(ctx, '#ff9a70', '#b04a36', 0, 9, 1.1);
+  ell(ctx, 29, 12 + bob, 2.4, 2.4); ctx.fillStyle = '#ffe9a8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.stroke();
+  ell(ctx, 29.6, 12 + bob, 1, 1.2); ctx.fillStyle = '#101010'; ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(30, 16.5 + bob); ctx.lineTo(34, 16 + bob); ctx.stroke();
+  // Gill slits.
+  ctx.strokeStyle = 'rgba(10,40,36,0.8)'; ctx.lineWidth = 0.8; for (const d of [0, 2]) { ctx.beginPath(); ctx.moveTo(21 + d, 14 + bob); ctx.lineTo(22 + d, 17 + bob); ctx.stroke(); }
+  // Front arm, webbed hand forward.
+  limb(ctx, 31, 23 + bob, 37, 29 + bob - step * 0.3, 4.4, '#3a8e82');
+  ell(ctx, 38, 30 + bob, 2.8, 2.4); shade(ctx, '#5abcaa', '#22685e', 28, 33, 1);
+}
+
 /** Frost Warden: a blocky guard clad in ice plates over dark stone; the ice cracks orange when warmed. */
 function drawFrostWarden(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
@@ -2774,6 +2931,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'slagling', 26, 4, drawSlagling);
   sheet(scene, 'cinderhound', 36, 4, drawHound);
   sheet(scene, 'husk', 56, 4, drawWarden);
+  sheet(scene, 'ashwall', 56, 4, drawAshwall);
   sheet(scene, 'cinderBrute', 64, 4, drawBrute);
   sheet(scene, 'ashmaw', 60, 4, drawAshmaw);
   sheet(scene, 'kilnMother', 112, 4, drawKiln);
@@ -2786,6 +2944,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'emberTwin', 40, 4, twin('#fff2c0', '#ff8a3d', 'rgba(255,140,60,0.55)', '#5a4a48'));
   sheet(scene, 'emberTwinB', 40, 4, twin('#e8fbff', '#5fd0ff', 'rgba(90,200,255,0.5)', '#4a5058'));
   sheet(scene, 'sluiceCrawler', 48, 4, drawCrawler);
+  sheet(scene, 'ballast', 56, 4, drawBallast);
   sheet(scene, 'maelra', 120, 4, drawMaelra);
   sheet(scene, 'vent', 64, 4, drawVent);
   make(scene, 'steam', 48, drawSteam);
@@ -2805,6 +2964,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   // The Glarewell.
   sheet(scene, 'lensbearer', 54, 4, drawLensbearer);
   sheet(scene, 'shade', 36, 4, drawShade);
+  sheet(scene, 'lampeye', 44, 4, drawLampeye);
   sheet(scene, 'brandkeeper', 52, 4, drawBrandkeeper);
   sheet(scene, 'twinLamp', 44, 4, drawTwinLamp);
   sheet(scene, 'lensmother', 116, 4, drawLensmother);
@@ -2819,6 +2979,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   // The Coldmarrow (drawn ahead of its sim; keys match design's EnemyKind ids).
   sheet(scene, 'rimehound', 36, 4, drawRimehound);
   sheet(scene, 'snuffer', 36, 4, drawSnuffer);
+  sheet(scene, 'dimhorn', 44, 4, drawDimhorn);
   sheet(scene, 'frostWarden', 56, 4, drawFrostWarden);
   sheet(scene, 'hoarfrostWeaver', 48, 4, drawHoarfrostWeaver);
   sheet(scene, 'nhevra', 120, 4, drawNhevra);
@@ -2826,6 +2987,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   // The Wrackline (keys match design's EnemyKind ids).
   sheet(scene, 'shoalLurker', 36, 4, drawShoalLurker);
   sheet(scene, 'bargeHauler', 56, 4, drawBargeHauler);
+  sheet(scene, 'conchblower', 48, 4, drawConchblower);
   sheet(scene, 'hessa', 120, 4, drawHessa);
   sheet(scene, 'oskel', 120, 4, drawOskel);
   // Raid 2, the Hoard.
