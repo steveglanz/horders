@@ -58,7 +58,8 @@ describe('the raid: Grandmother Slag in the Crucible (C3)', () => {
     const { w, inner, b } = raid();
     const hit = (stacks: number) => {
       inner.use(1);
-      Object.assign(w.player, { hp: w.player.maxHp, slag: stacks, shieldT: 0, sunderT: 0 });
+      // windUsed: keep the Emberwright's novice Steady Breath out of the measurement.
+      Object.assign(w.player, { hp: w.player.maxHp, slag: stacks, shieldT: 0, sunderT: 0, windUsed: true });
       inner.use(0);
       inner.ladleTarget = 1;
       inner.startCast(b, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);

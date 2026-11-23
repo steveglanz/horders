@@ -3210,13 +3210,14 @@ export class World {
     p.stirHurt = (p.stirHurt ?? 0) + amount / p.maxHp;
     if (p.hp <= 0) this.fightDown = true;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
-    // Steady Breath: once per fight, a melee hero knocked low catches its breath.
+    // Steady Breath: once per fight, a melee hero knocked low catches its breath. The Emberwright gets it too: a novice
+    // one lost every tier-3 career run at the Kiln Mother, to many different hits rather than one (skills, 23 Nov).
     // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
     if (this.cls === 'slagbinder' && this.rank('clinkerHeart') > 0 && p.hp > 0 && p.hp < p.maxHp * SLAG_KIT.heartAt && this.time >= (p.heartReadyAt ?? 0)) {
       p.heartReadyAt = this.time + SLAG_KIT.heartEvery;
       this.plate(this.acting, p.maxHp * SLAG_KIT.heartShare);
     }
-    if ((this.cls === 'duskblade' || this.cls === 'bulwark' || this.cls === 'slagbinder') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
+    if ((this.cls === 'duskblade' || this.cls === 'bulwark' || this.cls === 'slagbinder' || this.cls === 'emberwright') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
       p.windUsed = true;
       const healed = this.healPlayer(p.maxHp * SECOND_WIND * this.noviceAid);
       if (healed > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount: healed });
