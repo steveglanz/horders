@@ -327,6 +327,10 @@ export class GameScene extends Phaser.Scene {
   private rimeGfx: Phaser.GameObjects.Graphics | null = null;
   private rimeBorn = 0;
   private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
+  /** Y6 the Whirl: the way it last turned, and when that flipped (whirlDraw grows the arrows in fresh). */
+  private whirlSeen = 0;
+  private whirlGfx: Phaser.GameObjects.Graphics | null = null;
+  private whirlFlip = 0;
   private sealGfx: Phaser.GameObjects.Graphics | null = null;
   private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
   /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
@@ -443,6 +447,8 @@ export class GameScene extends Phaser.Scene {
     this.lightAnim = null;
     this.rimeGfx = null;
     this.rimeBorn = 0;
+    this.whirlSeen = 0;
+    this.whirlGfx = null;
     this.lightLast = { x: 0, y: 0 };
     this.sealGfx = null;
     this.waveFx = [];
@@ -4452,6 +4458,45 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Y6 Hessa's Whirl: which way the water turns this Ebb, readable at a glance on a phone. Curved arrows circle the drain
+   * on two rings (one near the drain, one out where the heroes stand), turning the way whirlDir carries you. The way flips
+   * every Ebb as the warning starts, so the arrows grow in fresh with a white flash then, and go bold and fast in the pull.
+   */
+  private whirlDraw(g: Phaser.GameObjects.Graphics, now: number, pulling: boolean): void {
+    const w = this.world;
+    const dir = w.whirlDir;
+    if (dir !== this.whirlSeen) { this.whirlSeen = dir; this.whirlFlip = now; }
+    const age = (now - this.whirlFlip) / 450;
+    const grow = Math.min(1, age);
+    const flash = Math.max(0, 1 - age);
+    const tk = Math.max(1, this.textK);
+    const turn = dir * (now / 1000) * (pulling ? 0.9 : 0.35);
+    const rings: [number, number][] = [[WRACK.drainR + 70, 3], [Math.min(ARENA - 70, WRACK.drainR + 210), 4]];
+    for (const [R, n] of rings) {
+      const span = (pulling ? 1.15 : 0.95) * grow;
+      for (let k = 0; k < n; k++) {
+        const a0 = turn + (k / n) * Math.PI * 2;
+        const a1 = a0 + dir * span;
+        const hw = (pulling ? 12 : 9) * tk;
+        const thick = (pulling ? 6 : 4.5) * tk;
+        const al = pulling ? 0.9 : 0.7 + 0.2 * Math.sin(now / 140);
+        const lo = Math.min(a0, a1), hi = Math.max(a0, a1);
+        // A dark under-stroke so the arrow reads on bright water, then the water-blue body and a pale crest.
+        g.lineStyle(thick + 3 * tk, 0x07202a, 0.55 * al).beginPath().arc(0, 0, R, lo, hi).strokePath();
+        g.lineStyle(thick, 0x7fd0e0, al).beginPath().arc(0, 0, R, lo, hi).strokePath();
+        g.lineStyle(thick * 0.35, 0xeafaff, al * (0.6 + 0.4 * flash)).beginPath().arc(0, 0, R - thick * 0.15, lo + (hi - lo) * 0.25, hi).strokePath();
+        // The head: a point ahead of the arc's end, along the way it turns.
+        const tipA = a1 + (dir * hw * 1.6) / R;
+        const tx = Math.cos(tipA) * R, ty = Math.sin(tipA) * R;
+        const bx0 = Math.cos(a1) * (R - hw), by0 = Math.sin(a1) * (R - hw);
+        const bx1 = Math.cos(a1) * (R + hw), by1 = Math.sin(a1) * (R + hw);
+        g.fillStyle(0x07202a, 0.55 * al).fillTriangle(tx, ty, bx0 - Math.cos(a1) * 2, by0 - Math.sin(a1) * 2, bx1 + Math.cos(a1) * 2, by1 + Math.sin(a1) * 2);
+        g.fillStyle(flash > 0 ? 0xffffff : 0xbfe9ff, Math.min(1, al + 0.15)).fillTriangle(tx, ty, bx0, by0, bx1, by1);
+      }
+    }
+  }
+
   private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const pulling = w.ebbT > 0;
@@ -4460,11 +4505,13 @@ export class GameScene extends Phaser.Scene {
     // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
     // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
     if (!this.drainImg) this.drainImg = this.add.image(0, 0, 'drain').setDepth(0.8);
-    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(-(now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
+    // Y6 the Whirl: the drain turns the way the water will carry you (whirlDir 1 is clockwise on screen).
+    const spinDir = w.whirl ? w.whirlDir : -1;
+    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
     if (pulling && !this.lowFx) {
       // Foam spun off the drain's rim.
       for (let k = 0; k < 3; k++) {
-        const a = -(now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
+        const a = spinDir * (now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
         g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(0, 0, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
       }
     }
@@ -4478,7 +4525,7 @@ export class GameScene extends Phaser.Scene {
         // Phase 12 W1: Hessa's Outsurge runs the other way, from the drain out to the rim (placeholder until visuals).
         const outward = w.outsurge;
         if (w.whirl) {
-          // Y3 the Whirl: streaks run round the drain the way it turns (placeholder until visuals).
+          // Y3 the Whirl: streaks run round the drain the way it turns (the arrowed eddies are drawn below, whirlDraw).
           const rr = WRACK.drainR + 60 + ((k * 97) % (ARENA - WRACK.drainR - 90));
           const a0 = a + w.whirlDir * t * 1.4;
           const a1 = a0 - w.whirlDir * (pulling ? 0.22 : 0.12);
@@ -4497,6 +4544,10 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
       }
     }
+    // Y6: the Whirl's eddies lie on the water under the rafts (0.85; rafts 0.9), so a raft, which the water can't carry, stays clear.
+    if (!this.whirlGfx && w.whirl) this.whirlGfx = this.add.graphics().setDepth(0.85);
+    this.whirlGfx?.clear();
+    if (w.whirl && (warn || pulling) && this.whirlGfx) this.whirlDraw(this.whirlGfx, now, pulling);
     if (!this.surfGfx) this.surfGfx = this.add.graphics().setDepth(1.35);
     const sg = this.surfGfx.clear();
     if (w.outsurge && (warn || pulling)) this.outsurgeDraw(sg, now, pulling);

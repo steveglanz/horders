@@ -1,7 +1,7 @@
 // Phase 15 Y6 art for the Y3 third boss versions, in 2D: the Kiln Mother's Turning Fire (the sweep arrow, the next
 // cone's edge and order pips) and Maelra's Sealed Vents (iron-capped grates, the next vent's rattling plate).
 // Forces each version and phase 2 (her health set to 60% by hand), freezes the sim at the moment, and shoots.
-// Nhevra's Creeping Rime (frost fingers reaching where it creeps, a mist rim) and Sealed Vents' open vent reach.
+// Hessa's Whirl (arrowed eddies round the drain, the way it turns), Nhevra's Creeping Rime (frost fingers reaching where it creeps, a mist rim) and Sealed Vents' open vent reach.
 // Also the Lensmother's Carried Light (the light gliding onto her, then beams to each pillar while her Glare comes).
 // Usage: npm run build && node tools/y3artshots.cjs <outDir> [p360|land|desk]
 const { chromium } = require('playwright');
@@ -17,6 +17,8 @@ const CASES = [
   { name: 'seal-next', dungeon: 'foundry', boss: 'maelra', variant: 'seal', until: 'next' },
   { name: 'rime', dungeon: 'coldmarrow', boss: 'nhevra', variant: 'rime', until: 'rime', at: [300, 1400] },
   { name: 'seal-open', dungeon: 'foundry', boss: 'maelra', variant: 'seal', until: 'open' },
+  { name: 'whirl-warn', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlWarn', tier: 13 },
+  { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'carried', dungeon: 'glarewell', boss: 'lensmother', variant: 'walk', until: 'light', at: [250, 1100] },
 ];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
@@ -33,7 +35,7 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
   await page.evaluate(() => document.getElementById('startBtn').click());
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 30000 });
   for (const c of CASES.filter((c) => !ONLY || ONLY.includes(c.name))) {
-    await page.evaluate((c) => { const s = window.__ember.scene(); s.scene.restart({ opts: { seed: 13, cls: 'bulwark', dungeon: c.dungeon, route: [c.boss], tier: 6, invulnerable: true }, hud: s.hud, onEnd: () => {} }); }, c);
+    await page.evaluate((c) => { const s = window.__ember.scene(); s.scene.restart({ opts: { seed: 13, cls: 'bulwark', dungeon: c.dungeon, route: [c.boss], tier: c.tier || 6, invulnerable: true }, hud: s.hud, onEnd: () => {} }); }, c);
     await page.waitForTimeout(600);
     await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
     await page.waitForFunction((c) => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === c.boss), c, { timeout: 60000, polling: 30 });
@@ -43,6 +45,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
       const ok = c.until === 'cones' ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).length >= 4 && w.telegraphs.some((t) => t.alive && t.t > 0.5)
         : c.until === 'light' ? !!s.lightAnim
         : c.until === 'rime' ? w.rimeOn && Math.hypot(w.rimeX - w.player.x, w.rimeY - w.player.y) < 260 && (s.rimeBorn === undefined || s.time.now - s.rimeBorn > 1500)
+        : c.until === 'whirlWarn' ? w.whirl && w.ebbWarnT > 0 && w.ebbWarnT < 2.2
+        : c.until === 'whirlPull' ? w.whirl && w.ebbT > 0.4
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200
         : w.nextVent >= 0;
       if (ok) s.warp = 0;
