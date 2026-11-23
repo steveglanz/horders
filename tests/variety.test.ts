@@ -1690,3 +1690,22 @@ describe('Phase 16 U1: Grandmother Slag\'s echo', () => {
     expect(w.echoLive).toBe(false);
   });
 });
+
+describe('routes never repeat a fight (playtest must-fix, 23 Nov)', () => {
+  it('no dungeon rolls the same fight twice in one route, over 3000 rolls each', () => {
+    for (const id of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) {
+      let s = 7;
+      const pick = (n: number) => { s = (s * 1103515245 + 12345) % 2147483648; return Math.floor((s / 2147483648) * n); };
+      for (let k = 0; k < 3000; k++) {
+        const r = rollRoute(pick, id);
+        expect(new Set(r).size, `${id}: ${r.join(', ')}`).toBe(r.length);
+        expect(r.every((e) => !!e), `${id}: ${r.join(', ')}`).toBe(true);
+      }
+    }
+  });
+
+  it('the Wrackline seed 11 route the playtest caught no longer has the Warden Shoal twice', () => {
+    const w = new World({ seed: 11, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    expect(new Set(w.route).size).toBe(w.route.length);
+  });
+});
