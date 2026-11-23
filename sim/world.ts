@@ -4905,6 +4905,19 @@ export class World {
           my = gd > 8 ? (gy / gd) * speed : 0;
         }
       }
+      // Phase 16 U2: the Ballast drops anchor after `plantDelay` s with its hero in reach, and pulls it up `unplant`
+      // s after they leave it. `aux` counts toward planting (>= plantDelay is planted); `aux2` counts the time out of reach.
+      if (e.kind === 'ballast') {
+        const inReach = d < BALLAST.reach + e.def.radius;
+        if (e.aux >= BALLAST.plantDelay) {
+          e.aux2 = inReach ? 0 : e.aux2 + dt;
+          if (e.aux2 >= BALLAST.unplant) { e.aux = 0; e.aux2 = 0; this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'unanchor', name: 'Weighs Anchor' }); }
+        } else if (inReach) {
+          e.aux += dt;
+          if (e.aux >= BALLAST.plantDelay) { e.aux2 = 0; e.abilityT = Math.min(e.abilityT, BALLAST.slamFirst); this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'anchor', name: 'Drops Anchor' }); }
+        } else e.aux = Math.max(0, e.aux - dt);
+        if (e.aux >= BALLAST.plantDelay) { mx = 0; my = 0; }
+      }
       // V1: an Ashbuck mid-charge runs straight down its lane, fast, and doesn't steer.
       if (e.kind === 'ashbuck' && e.aux2 > 0) {
         e.aux2 -= dt;
@@ -5332,6 +5345,15 @@ export class World {
       }
       return;
     }
+    if (e.kind === 'ballast') {
+      // Anchor Slam: only while planted, a ring round it. Being in its reach is what plants it, so step out.
+      if (e.aux >= BALLAST.plantDelay && e.abilityT <= 0) {
+        e.abilityT = BALLAST.slamEvery;
+        this.startCast(i, 'anchorSlam', 'Anchor Slam', BALLAST.slamCast, false);
+        this.addTelegraph('circle', e.x, e.y, BALLAST.slamR + e.def.radius, 0, 0, BALLAST.slamCast, BALLAST.slamDamage, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'ashwall') {
       // Shield Bash: a short cone off the front of its shield. Its front is also where it is hard to hurt, so get round it.
       if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < (ASHWALL.bashRange + e.def.radius) ** 2) {
@@ -5577,8 +5599,10 @@ export class World {
       const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
       dmg *= this.colossusSide(e, by.x, by.y);
     }
-    // Phase 16 U2: an Ashwall's shield takes the hits on its front, and on the foes sheltering behind it.
+    // Phase 16 U2: a planted Ballast barely feels hits (its glance sounds like the Ashwall's).
     let glance = false;
+    if (e.kind === 'ballast' && e.aux >= BALLAST.plantDelay) { dmg *= BALLAST.planted; glance = true; }
+    // Phase 16 U2: an Ashwall's shield takes the hits on its front, and on the foes sheltering behind it.
     if (this.ashwallUp()) {
       const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
       const m = this.ashwallTaken(i, by.x, by.y);
@@ -8570,7 +8594,7 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
  * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
  */
-export const NEW_FOES: readonly EnemyKind[] = ['ashwall'];
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast'];
 export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
@@ -8682,6 +8706,16 @@ export const VARIETY = {
  * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
  * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
  */
+/**
+ * Phase 16 U2: the Ballast (the Foundry). With its hero within `reach` (past its own radius) for `plantDelay` s it
+ * drops anchor: it stops, takes `planted` damage, and Anchor Slams a `slamR` ring every `slamEvery` s (the first
+ * `slamFirst` s after planting). `unplant` s after its hero leaves its reach it weighs anchor and walks again.
+ */
+export const BALLAST = {
+  reach: 90, plantDelay: 0.8, unplant: 0.6, planted: 0.3,
+  slamFirst: 1.0, slamEvery: 2.6, slamCast: 0.9, slamR: 95, slamDamage: 16,
+};
+
 export const ASHWALL = {
   turn: 0.5, frontArc: Math.PI / 3, front: 0.5, shelterR: 150, shelterArc: 0.9, sheltered: 0.35,
   guardGap: 55, guardRange: 320,

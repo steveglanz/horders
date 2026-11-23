@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -1743,7 +1743,8 @@ export class GameScene extends Phaser.Scene {
       : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
       : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound'
       // Phase 16 U2: the Ashwall wears the Hollow Warden until visuals draw it.
-      : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk' : e.kind;
+      : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk'
+      : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler' : e.kind;
   }
 
   /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
@@ -2459,6 +2460,18 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0xff9a50, 0.07).slice(e.x, e.y, ASHWALL.shelterR, fa + Math.PI - ASHWALL.shelterArc, fa + Math.PI + ASHWALL.shelterArc, false).fillPath();
         g.lineStyle(7, 0x6e6258, 0.95).beginPath().arc(e.x, e.y, e.def.radius + 9, fa - ASHWALL.frontArc, fa + ASHWALL.frontArc, false).strokePath();
         g.lineStyle(2, 0xffb070, 0.8).beginPath().arc(e.x, e.y, e.def.radius + 13, fa - ASHWALL.frontArc, fa + ASHWALL.frontArc, false).strokePath();
+      }
+      // Phase 16 U2: the Ballast. A ring fills as it gets ready to drop anchor; planted, a heavy iron ring holds it
+      // and its reach shows, so you know to step out and make it walk.
+      if (e.kind === 'ballast') {
+        const r0 = e.def.radius + 8;
+        if (e.aux >= BALLAST.plantDelay) {
+          g.lineStyle(6, 0x4a5260, 0.95).strokeCircle(e.x, e.y, r0);
+          g.lineStyle(2, 0x9fb0c8, 0.35).strokeCircle(e.x, e.y, BALLAST.reach + e.def.radius);
+        } else if (e.aux > 0) {
+          const k = e.aux / BALLAST.plantDelay;
+          g.lineStyle(4, 0x8fa0b8, 0.8).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+        }
       }
       // Mirror Ward: a glassy shell that flickers while it reflects damage.
       if (e.kind === 'glassWarden' && e.aux2 > 0) {

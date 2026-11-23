@@ -1439,3 +1439,25 @@ Kiln t8, heroes-r2 hero-t8-0, seeds 1 to 80, with the first fight forced (`FIGHT
 - **Whole-run wins from a forced first fight are chaotic.** The Lumen on seeds 81 to 160 won anywhere from 54 to 68 depending only on which old opener came first (Spitters 68, Spitter Brute 68, Warden and Hounds 60, Hollow Wardens 54, Ashbucks 54). It won 50 with the Ashwall, and 53 with the Ashwall's shield turned off, so the gap comes from the fight's make-up, not the shield. Natural runs (below) are the check.
 
 Natural Kiln t8 runs (the Ashwall is one of 7 openers, and it came up in 16 of seeds 1 to 80), seeds 1 to 160, wins before / after: Bulwark 99 / 96, Duskblade 62 / 67, Emberwright 92 / 91, Lumen 114 / 114, Slagbinder 99 / 92. Adding an opener re-rolls every Kiln route, so these move by reshuffle as well as by the Ashwall. Every class is within 7.
+
+## Phase 16 U2: the Foundry's new elite, the Ballast
+
+The Drowned Foundry already asks you to kite Maelra over its vents, so its new elite asks the same thing. The **Ballast** (`ballast`, 950 hp, elite, title "Keep it moving") drops anchor when you stand in its reach, and while it's planted it barely feels hits. It comes in the new opener **The Ballast** (`ballast`): one Ballast and two Cinderhounds. Tip: "When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks." The name was searched: no World of Warcraft match.
+
+- **Anchor:** with its hero within `BALLAST.reach` (90 px past its radius) for `plantDelay` (0.8 s), it drops anchor (`Enemy.aux` counts toward it, and a ring fills on the client). Planted, it stops, takes `planted` (30%) damage, and each hit is a `glance` for sound. It weighs anchor `unplant` (0.6 s) after its hero leaves its reach. Each change fires `castDone` with id `anchor` or `unanchor`.
+- **Anchor Slam:** only while planted, a ring `slamR` (95 px past its radius) round it, `slamFirst` (1 s) after it plants and then every `slamEvery` (2.6 s). It is not interruptible.
+- **Bots:** any hero near a planted Ballast steps out of its reach (`NOBALLAST=1` turns that off). Ranged heroes never let it plant, so for them it is a plain chaser.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version slammed 0.6 s after planting, for 20 damage. Bulwarks then died in the fight after it, and their runs fell further. With 1 s and 16, at Foundry t8 forced first fight, seeds 1 to 80: Bulwark 25 to 28, Duskblade 52 to 59.
+
+Foundry t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`), median fight seconds and wins (first version):
+
+| Class | Ballast | Ballast, no stepping out | Sluice Crawler and Hounds |
+|---|---|---|---|
+| Bulwark | 88 s, 25 | 82 s, 27 | 59 s, 33 |
+| Duskblade | 60 s, 52 | 76 s, 49 | 41 s, 53 |
+| Emberwright | 71 s, 64 | 71 s, 64 | 102 s, 67 |
+| Lumen | 52 s, 71 | 52 s, 71 | 77 s, 65 |
+| Slagbinder | 67 s, 73 | 67 s, 73 | 96 s, 65 |
+
+Natural Foundry t8 runs, seeds 1 to 160 (first version), wins before / after: Bulwark 72 / 62, Duskblade 112 / 110, Emberwright 125 / 121, Lumen 133 / 126, Slagbinder 125 / 119. With the tuned slam the Bulwark gets 61. Of the Bulwark's 160 runs, 24 met the Ballast and won 7 of them (29%). Its other runs won 54 of 136 (40%), against 45% before, so most of its drop is the re-rolled routes. **The Bulwark against the Ballast is a watch item for skills:** it is the Foundry's weakest class already, and it has to step out of reach the most.
