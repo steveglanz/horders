@@ -125,6 +125,8 @@ export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and kee
 export const OVERFLOW_TIP = 'Heal the Ladle burn off the tank. Later the pit overflows from the rim: when it rises, gather in close to her until it ebbs. Then fill the vents and spread for the Cinder Marks.';
 export const BRIMMING_TIP = 'Heal the Ladle burn off the tank. Later the pit fills: stand on the cooling islands and move before they sink. Then fill the vents and spread for the Cinder Marks.';
 /** Phase 12 W3: Old Vorhulm's intro when this run's version lays Banked Coals instead of spilling embers. */
+/** Phase 15 Y3: Old Vorhulm's intro when this run's version breathes the raid in (Inhale) in place of Ember Feast. */
+export const INHALE_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end he breathes you in: when he Inhales, walk away from his mouth until he stops.';
 export const BANKED_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, stand on each hot coal as it lands, or he eats it.';
 /** Phase 12 W3: the Cinder Colossus's intro when this run's version shifts his plate instead of Wheeling. */
 export const PLATE_SHIFT_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, it moves to whoever hurt him most: find his open back again.';

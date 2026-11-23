@@ -587,6 +587,7 @@ export type SimEvent =
   | { type: 'homeward'; stage: 'out' | 'back'; x: number; y: number }
   | { type: 'ventRoll'; x: number; y: number; left: number }
   | { type: 'overflow'; stage: 'warn' | 'rise' | 'ebb' }
+  | { type: 'inhale'; stage: 'warn' | 'draw' | 'end' }
   /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
   | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
@@ -1009,6 +1010,10 @@ export class World {
   private officePulses = 0;
   private swallowT = 0;
   private spillT = 0;
+  /** Phase 15 Y3 Inhale: 0 still, 1 warning, 2 breathing in; time left on this stage. */
+  inhaleStage = 0;
+  inhaleT = 0;
+  private inhaleTickT = 0;
   private swallowed = -1;
   private crawIndex = -1;
   /** The Hoard's Craw while it is up (for the bot), or -1. */
@@ -2058,6 +2063,8 @@ export class World {
           this.lastEmberCast = false;
           this.bossVariant = this.rollVorhulmVariant();
           this.bankN = 0;
+          this.inhaleStage = 0;
+          this.inhaleT = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
@@ -7006,7 +7013,51 @@ export class World {
         this.feedVorhulm(m.x, m.y);
       }
     }
-    if (phase === 3 && this.bossVariant === 'bank') {
+    if (phase === 3 && this.bossVariant === 'inhale') {
+      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten and feeds him.
+      this.spillT -= dt;
+      if (this.inhaleStage === 0 && this.spillT <= 0) {
+        this.spillT = COAL.spillEvery;
+        this.inhaleStage = 1;
+        this.inhaleT = INHALE.warn;
+        this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
+        this.events.push({ type: 'inhale', stage: 'warn' });
+      } else if (this.inhaleStage > 0) {
+        this.inhaleT -= dt;
+        if (this.inhaleT <= 0 && this.inhaleStage === 1) {
+          this.inhaleStage = 2;
+          this.inhaleT = INHALE.time;
+          this.inhaleTickT = INHALE.tick;
+          this.events.push({ type: 'inhale', stage: 'draw' });
+        } else if (this.inhaleT <= 0) {
+          this.inhaleStage = 0;
+          this.events.push({ type: 'inhale', stage: 'end' });
+        }
+      }
+      if (this.inhaleStage === 2) {
+        const mouth = e.def.radius + INHALE.bite;
+        this.inhaleTickT -= dt;
+        const bite = this.inhaleTickT <= 0;
+        if (bite) this.inhaleTickT += INHALE.tick;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || (q.swallowT ?? 0) > 0) continue;
+          const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy) || 1;
+          if (!this.anchored(q)) {
+            const step = Math.min(Math.max(0, d - e.def.radius - PLAYER_RADIUS), INHALE.pull * CLASSES[this.heroes[k].cls].speed * dt);
+            q.x += (dx / d) * step;
+            q.y += (dy / d) * step;
+          }
+          if (bite && d <= mouth + PLAYER_RADIUS) {
+            this.use(k);
+            this.hurtPlayer(q.maxHp * INHALE.damage, i, true);
+            e.hp = Math.min(e.maxHp, e.hp + e.maxHp * INHALE.heal);
+            this.events.push({ type: 'slam', x: q.x, y: q.y, r: 40 });
+          }
+        }
+        this.use(at);
+      }
+    } else if (phase === 3 && this.bossVariant === 'bank') {
       this.spillT -= dt;
       if (this.spillT <= 0) {
         // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
@@ -8359,9 +8410,15 @@ export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
  */
 export type ColossusVariant = 'wheel' | 'shift';
 export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift'];
-/** Phase 12 W3: Old Vorhulm's two versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. */
-export type VorhulmVariant = 'spill' | 'bank';
-export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
+/** Phase 12 W3 and Phase 15 Y3: Old Vorhulm's versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. `inhale`: he draws the raid in to bite. */
+export type VorhulmVariant = 'spill' | 'bank' | 'inhale';
+export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];
+/**
+ * Phase 15 Y3 Inhale (his phase 3 in the `inhale` version, on Ember Spill's timer, in place of the embers): after a `warn` s
+ * warning he breathes in for `time` s, drawing every hero toward him at `pull` of their class speed (Anvil Skin holds a Bulwark).
+ * Anyone within `bite` px of his edge is bitten every `tick` s for `damage` of max health, and each bite heals him `heal`.
+ */
+export const INHALE = { warn: 1.5, time: 3, pull: 0.38, bite: 40, tick: 0.5, damage: 0.06, heal: 0.01 };
 /**
  * Banked Coals (his phase 3 in the `bank` version, on Ember Spill's timer, in place of the embers): `count` gold circles of
  * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats

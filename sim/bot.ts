@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, OVERFLOW, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -762,6 +762,12 @@ export function botInput(w: World, skill = 1): Input {
   // The Crucible's Brimming: stand on a cooling island that isn't about to sink (NOISLAND=1 turns this off for measuring).
   const isle = islandStep(w);
   if (isle) return { x: isle.dx, y: isle.dy, cast: botCast(w, skill) };
+  // Y3 Inhale: while Vorhulm warns or breathes in, keep back from his mouth and walk out against the pull (NOINHALE=1 turns this off).
+  if (w.inhaleStage > 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && process.env.NOINHALE !== '1') {
+    const b = w.enemies[w.bossIndex];
+    const dx = p.x - b.x, dy = p.y - b.y, d = Math.hypot(dx, dy) || 1;
+    if (d < b.def.radius + INHALE.bite + 90) return { x: (dx / d) * skill, y: (dy / d) * skill, cast: botCast(w, skill) };
+  }
   // Y3 the Overflow: when the pit floods in from the rim, get in close to her (NOFLOW=1 turns this off for measuring).
   if (w.flowStage > 0 && w.bossIndex >= 0 && w.enemies[w.bossIndex].alive && process.env.NOFLOW !== '1') {
     const b = w.enemies[w.bossIndex];
