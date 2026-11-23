@@ -1161,6 +1161,8 @@ export class World {
   ebbT = 0;
   /** Hessa: phase 2 (Riptide) from WRACK.phase2, and her clocks. */
   wrackPhase = 1;
+  /** Phase 16 U1: this Ebb runs Hessa's echo instead of her own version. */
+  ebbEcho = false;
   private sinkT = 0;
   private shoalT = 0;
   events: SimEvent[] = [];
@@ -2009,6 +2011,8 @@ export class World {
           this.bossIndex = i;
           this.wrackPhase = 1;
           this.bossVariant = this.rollHessaVariant();
+          this.bossEcho = this.rollEcho(HESSA_VARIANTS, this.bossVariant);
+          this.echoNext = true; this.ebbEcho = false;
           this.sinkT = WRACK.firstSink;
           this.shoalT = WRACK.firstShoal;
           this.events.push({ type: 'bossSpawn' });
@@ -2323,14 +2327,19 @@ export class World {
     return HESSA_VARIANTS[(h >>> 4) % HESSA_VARIANTS.length];
   }
 
+  /** Phase 16 U1: the version this Ebb runs: her echo's on an echoed Ebb, else her own. */
+  private hessaEbb(): string {
+    return this.ebbEcho && this.bossEcho ? this.bossEcho : this.bossVariant;
+  }
+
   /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
   /** Phase 15 Y3: Hessa's Whirl version, in phase 2 while she lives. */
   get whirl(): boolean {
-    return this.bossVariant === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+    return this.hessaEbb() === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
 
   get outsurge(): boolean {
-    return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+    return this.hessaEbb() === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
 
   /** V8: Nhevra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
@@ -6427,8 +6436,16 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
-        if (whirl) this.whirlDir = -this.whirlDir;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : whirl ? 'The Whirl' : 'The Ebb' });
+        // Phase 16 U1: from `HESSA_ECHO.below` health, every other Ebb runs her echo's way (the first one does).
+        this.ebbEcho = false;
+        if (boss && this.wrackPhase >= 2 && this.bossEcho && boss.hp <= boss.maxHp * HESSA_ECHO.below) {
+          this.ebbEcho = this.echoNext;
+          this.echoNext = !this.echoNext;
+          if (this.ebbEcho) this.events.push({ type: 'echo', id: this.bossEcho });
+        }
+        const nowOut = this.outsurge, nowWhirl = this.whirl;
+        if (nowWhirl) this.whirlDir = -this.whirlDir;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: nowOut ? 'The Outsurge' : nowWhirl ? 'The Whirl' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -8684,6 +8701,8 @@ export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
  * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
  */
 export const WHIRL = { spin: 0.6, inward: 0.5 };
+/** Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers. */
+export const HESSA_ECHO = { below: 0.25 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
