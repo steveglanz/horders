@@ -283,6 +283,8 @@ export const PAN_MAX = 0.5;
 
 /** Stereo position for an event that has a place, relative to the listening hero (undefined: centred). */
 export function panFor(ev: SimEvent, c: CueContext): number | undefined {
+  // A pincer or ring comes from all round you, so its call stays centred (only the reinforcements' flank pans).
+  if (ev.type === 'waveShape' && ev.stage === 'start') return undefined;
   const x = (ev as { x?: unknown }).x;
   if (!c.listen || typeof x !== 'number' || !(c.listen.half > 0)) return undefined;
   const p = Math.max(-1, Math.min(1, (x - c.listen.x) / c.listen.half)) * PAN_MAX;
@@ -401,7 +403,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       return land ? { id: land } : null;
     }
     // Phase 15 Y1: placeholder until sound's Y7 cues.
-    case 'waveShape': return null;
+    case 'waveShape': {
+      // Phase 15 Y1: a pincer or ring calls as the fight starts; reinforcements warn from their flank (pan follows x), then land.
+      const id = ev.stage === 'start' ? WAVE_SOUNDS[ev.id]?.start : ev.stage === 'warn' ? WAVE_SOUNDS[ev.id]?.warn : WAVE_SOUNDS[ev.id]?.land;
+      return id ? { id } : null;
+    }
     // Phase 15 Y10: placeholder until sound's cue.
     case 'stir': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
@@ -453,6 +459,12 @@ export const ARENA_LAND: Record<string, SoundId> = {
 };
 /** Arena-event warnings that must be heard: the ones you dodge or answer (not High Water's swell). */
 export const ARENA_WARN_PRIORITY: readonly SoundId[] = ['caveInWarn', 'ventSurgeWarn', 'coldSnapWarn'];
+/** Phase 15 Y1: wave shapes. A reinforce wave's 'start' is silent: its warning comes 2 s before they arrive. */
+export const WAVE_SOUNDS: Record<string, { start?: SoundId; warn?: SoundId; land?: SoundId }> = {
+  pincer: { start: 'wavePincer' },
+  ring: { start: 'waveRing' },
+  reinforce: { warn: 'reinforceWarn', land: 'reinforceLand' },
+};
 /** Phase 14 X2: a marked named foe's arrival call, by affix (a foe with none keeps namedSpawn). */
 export const AFFIX_SPAWN: Record<string, SoundId> = { Brood: 'namedBrood', Smoldering: 'namedSmolder' };
 
@@ -703,7 +715,7 @@ export const WANDERING_VENTS = 'Wandering Vents';
 
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
