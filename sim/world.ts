@@ -8525,7 +8525,7 @@ export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]
   return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
 }
 /** Phase 15 Y5 fix: a Rimehound pack that is 3 or more with its Hoarfrost Weavers never forms a ring (it stays an arc). */
-function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
+export function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
   // Hoarfrost Weavers count too: their Frost Lace pins a hero while the hounds close (skills' Y5, the Two Weavers).
   const n = (k: EnemyKind) => spawns.filter((s) => s.kind === k).reduce((a, s) => a + s.n, 0);
   const hounds = n('rimehound');
