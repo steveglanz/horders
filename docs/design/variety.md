@@ -1191,3 +1191,30 @@ Hoard tier 9, heroes-r2 hero-t8-0, each version forced:
 - Without the bots walking out (`NOINHALE=1`) it wins 24 of 80, so the walk-out is the real check.
 - **Name:** WoW has a spell called "Inhale" (wowhead spell 153721). It is a single plain word, which Steve's rule allows (21 Nov). The cast is shown as "Inhale".
 - **Overflow timing fix (QA's nit on #558):** the Overflow's stage changes now add to `flowT` instead of setting it, so each stage keeps the leftover part of the tick. Warnings were 14.07 s apart and are now 14 s. Inhale's warning-to-draw step does the same. The Overflow's base result is unchanged at 45 of 80.
+
+### Y3 the Cinder Colossus: Millstone (built 23 Nov 2026)
+
+The Cinder Colossus (the Smeltery, raid 3) had two phase-2 versions on the Wheel's timer: the Wheel (he turns on whoever hurts him most and sweeps) and Plate Shift (his plate slides round to them). The third is **Millstone** (`mill`, tuning in `MILL`, sim/world.ts). Both older versions move his open back once. Millstone keeps it moving.
+
+- On the Wheel's timer (COLO.wheelEvery 16 s, the same 2 s cast) he casts Millstone. Then he grinds round on the spot for `time` 6 s, turning `turn` 0.9 radians a second one way, picked at random, and ignoring the tank.
+- Slag pours off him all round. Every `tick` 0.5 s, a non-tank hero within `range` 200 px of his edge and within `arc` 2.1 radians of his facing takes `damage` 8% of max health. That covers everything but his open back.
+- His open back turns with him, so the damage dealers walk round with it, or step well clear. There is no Slag Sweep while he grinds, and he turns back toward his target when it ends.
+- New state: `World.millT`, `millDir` (+1 or -1) and `millTickT`. New event `{type:'millstone', stage:'start'|'end', dir}`.
+- Bot: a non-tank in the burn, or just ahead of it, gets clear. Close in, it walks round the way he turns. Further out, where his edge turns faster than a hero walks, it steps out of reach. `NOMILL=1` turns this off for measuring.
+- Client: `MILLSTONE_TIP`, a phase-2 banner, `BOSS_VERSION_NAME.mill`, and a placeholder wedge of slag round him while he grinds (2D floor layer, `flowGfx`).
+
+Smeltery tier 10, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Wheel | Plate Shift | Millstone |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 54 | 58 | 57 |
+| Half-skill bots, seeds 41 to 120 | 58 | 53 | 51 |
+| Anvil party, seeds 41 to 120 | 60 | 54 | 57 |
+
+- **Tuning steps:**
+  - The first build burned only his front (arc pi/3, 4%). It won 59, and 60 without the bots dodging. The flanking bots already stood at his back, so it hit almost nobody, even at 10%.
+  - The bot's walk-round also couldn't keep a ranged hero ahead of his edge at 230 px. Stepping out of reach fixed that.
+  - Burning everything but his back (arc 2.1): 4% won 61 (54 without the dodge), 6% 58, 8% (kept) 57, 10% 55. A faster turn (1.2) didn't change it.
+- Without the bots getting clear (`NOMILL=1`) it wins 42 of 80.
+- **Name:** a search on 23 Nov found no WoW spell called "Millstone". It is a single plain word.
+- tests/audio.test.ts: the Smeltery fight test's seed 19 now rolls Millstone, so the test pins its Wheel run.

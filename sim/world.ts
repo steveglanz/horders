@@ -553,6 +553,8 @@ export type SimEvent =
   | { type: 'digested'; hero: number }
   | { type: 'spatOut'; hero: number }
   | { type: 'wheel'; hero: number }
+  /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
+  | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
   | { type: 'meltPulse'; n: number }
   /** Raid 4 (the Flue): a Decree landed on a hero, was passed (`from` to `hero`; `done`: its last pass, so it fades), or burst. */
   | { type: 'decree'; hero: number }
@@ -989,6 +991,10 @@ export class World {
   colFacing = 0;
   /** Phase 12 W3 (Plate Shift): how far his plate's middle is turned from his facing, radians. 0 in the Wheel version. */
   colPlate = 0;
+  /** Phase 15 Y3 Millstone: seconds left of his grind (0 when not grinding), its turn (+1 or -1), and the next heat tick. */
+  millT = 0;
+  millDir = 1;
+  millTickT = 0;
   /** Phase 12 W3 (the Regent's Summons): seconds until the Summons lands, 0 when none is called. */
   summonsT = 0;
   /**
@@ -2044,6 +2050,9 @@ export class World {
           const t = this.heroPlayer(this.targetOf(i, 0));
           this.colFacing = Math.atan2(t.y - e.y, t.x - e.x);
           this.colPlate = 0;
+          this.millT = 0;
+          this.millDir = 1;
+          this.millTickT = 0;
           this.bossVariant = this.rollColossusVariant();
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
@@ -5064,6 +5073,12 @@ export class World {
         this.colPlate = angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing);
         this.events.push({ type: 'wheel', hero: pick });
       }
+    } else if (id === 'millstone') {
+      // Phase 15 Y3: he starts to grind round.
+      this.millT = MILL.time;
+      this.millDir = this.rng.int(2) === 0 ? 1 : -1;
+      this.millTickT = MILL.tick;
+      this.events.push({ type: 'millstone', stage: 'start', dir: this.millDir });
     } else if (id === 'wheel') {
       // Raid 3: he turns on the non-tank who hurt him most in the last few seconds, and sweeps.
       let pick = -1;
@@ -6920,8 +6935,32 @@ export class World {
         this.events.push({ type: 'meltPulse', n: this.meltPulses });
       }
     }
-    // He turns toward the hero he is fighting, but slowly, and not while he casts.
-    if (!e.castId) {
+    if (this.millT > 0) {
+      // Millstone: he grinds round, and slag pours off him onto any non-tank not at his back.
+      this.millT -= dt;
+      this.colFacing = angleDiff(this.colFacing + this.millDir * MILL.turn * dt, 0);
+      this.millTickT -= dt;
+      if (this.millTickT <= 0) {
+        this.millTickT += MILL.tick;
+        const at = this.acting;
+        for (let k = 0; k < this.heroes.length; k++) {
+          const q = this.heroPlayer(k);
+          if (q.hp <= 0 || this.isTank(k)) continue;
+          const d = Math.hypot(q.x - e.x, q.y - e.y);
+          if (d > e.def.radius + MILL.range + PLAYER_RADIUS) continue;
+          if (Math.abs(angleDiff(Math.atan2(q.y - e.y, q.x - e.x), this.colFacing)) > MILL.arc) continue;
+          this.use(k);
+          this.hurtPlayer(q.maxHp * MILL.damage, i, true);
+        }
+        this.use(at);
+      }
+      if (this.millT <= 0) {
+        this.millT = 0;
+        this.events.push({ type: 'millstone', stage: 'end', dir: this.millDir });
+      }
+    }
+    // He turns toward the hero he is fighting, but slowly, and not while he casts or grinds.
+    if (!e.castId && this.millT <= 0) {
       const t = this.heroPlayer(this.targetOf(i, 0));
       const want = Math.atan2(t.y - e.y, t.x - e.x);
       const diff = angleDiff(want, this.colFacing);
@@ -6938,11 +6977,13 @@ export class World {
       this.startCast(i, 'pourOut', 'Pour Out', COLO.pourOutCast, false);
       return;
     }
+    if (this.millT > 0) return;
     this.sweepT -= dt;
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
       if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else if (this.bossVariant === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
       else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
@@ -8407,8 +8448,16 @@ export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
  * `shift`: Plate Shift, on the Wheel's timer and cast: his plate slides round to face that hero instead, and stays
  * there (World.colPlate) while he keeps facing the tank, so his open back moves and the damage dealers have to find it again.
  */
-export type ColossusVariant = 'wheel' | 'shift';
-export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift'];
+export type ColossusVariant = 'wheel' | 'shift' | 'mill';
+export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift', 'mill'];
+/**
+ * Phase 15 Y3 Millstone (his phase 2 in the `mill` version, on the Wheel's timer and cast): he grinds round on the spot for `time` s,
+ * turning `turn` radians a second one way (chosen at random), ignoring the tank. Slag pours off him all round: every `tick` s a non-tank
+ * hero within `range` px of his edge and within `arc` radians of his facing (all but his open back) takes `damage` of max health. His open
+ * back turns with him, so the damage dealers have to walk round with it. No Slag Sweep while he grinds. (A front-only burn, arc pi/3,
+ * hit almost nobody: the bots already stood at his back.)
+ */
+export const MILL = { time: 6, turn: 0.9, arc: 2.1, range: 200, tick: 0.5, damage: 0.08 };
 /** Phase 12 W3 and Phase 15 Y3: Old Vorhulm's versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. `inhale`: he draws the raid in to bite. */
 export type VorhulmVariant = 'spill' | 'bank' | 'inhale';
 export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];

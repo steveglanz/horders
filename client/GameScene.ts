@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1425,6 +1425,7 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
+            else if (ev.phase === 2 && w.bossVariant === 'mill') this.hud.banner('Phase 2: Millstone', 'He grinds round, pouring slag everywhere but his back. Walk round with him');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
@@ -1641,7 +1642,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'oskel' && w.bossVariant === 'punch' ? PUNCH_TIP : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
             : ev.id === 'grandmotherSlag' && w.bossVariant === 'flow' ? OVERFLOW_TIP : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
             : ev.id === 'vorhulm' && w.bossVariant === 'inhale' ? INHALE_TIP : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
-            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
+            : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP : ev.id === 'colossus' && w.bossVariant === 'mill' ? MILLSTONE_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
           const named = events.find((e) => e.type === 'namedSpawn');
@@ -3212,10 +3213,18 @@ export class GameScene extends Phaser.Scene {
   private overflowDraw(now: number): void {
     const w = this.world;
     const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
-    if ((!w.flowStage && !w.inhaleStage) || !b?.alive) { this.flowGfx?.clear(); return; }
+    if ((!w.flowStage && !w.inhaleStage && !(w.millT > 0)) || !b?.alive) { this.flowGfx?.clear(); return; }
     if (!this.flowGfx) this.flowGfx = this.add.graphics().setDepth(1.43);
     const g = this.flowGfx;
     g.clear();
+    if (w.millT > 0) {
+      // Y3 Millstone (the Cinder Colossus), a placeholder: the slag pouring off him (all but his open back) as he grinds round.
+      const R = b.def.radius + MILL.range;
+      const flick = 0.25 + 0.1 * Math.sin(now / 90);
+      g.fillStyle(0xff6020, flick).slice(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).fillPath();
+      g.lineStyle(2, 0xffb060, 0.7).beginPath().arc(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).strokePath();
+      return;
+    }
     if (w.inhaleStage) {
       // Y3 Inhale (Old Vorhulm), also a placeholder: his mouth's reach, and streaks drawn in toward him while he breathes in.
       const m = b.def.radius + INHALE.bite;
