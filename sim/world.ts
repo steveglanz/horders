@@ -4905,6 +4905,17 @@ export class World {
           my = gd > 8 ? (gy / gd) * speed : 0;
         }
       }
+      // Phase 16 U2: the Lampeye's gaze (aux) builds while it can see its hero and fades while a pillar is between
+      // them. Full, it starts its Searing Look (a cast, so a hero can still step behind a pillar).
+      if (e.kind === 'lampeye' && !e.castId) {
+        if (this.lampeyeSees(e, p.x, p.y)) e.aux = Math.min(LAMPEYE.full, e.aux + dt);
+        else e.aux = Math.max(0, e.aux - dt * LAMPEYE.fade);
+        if (e.aux >= LAMPEYE.full) {
+          this.startCast(i, 'searingLook', 'Searing Look', LAMPEYE.lookCast, false);
+        }
+        // It keeps its distance, so its gaze crosses the room.
+        if (d < LAMPEYE.keep) { mx = -mx; my = -my; }
+      }
       // Phase 16 U2: the Ballast drops anchor after `plantDelay` s with its hero in reach, and pulls it up `unplant`
       // s after they leave it. `aux` counts toward planting (>= plantDelay is planted); `aux2` counts the time out of reach.
       if (e.kind === 'ballast') {
@@ -5071,6 +5082,18 @@ export class World {
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+    } else if (id === 'searingLook') {
+      // Phase 16 U2: the Lampeye sears a hero it can still see; a pillar in the way blocks it. Either way its gaze resets.
+      const at = this.acting;
+      this.eachHero(() => {
+        const p = this.player;
+        if (p.hp > 0 && this.lampeyeSees(e, p.x, p.y)) {
+          this.hurtPlayer(LAMPEYE.lookDamage * this.tierDamage, i);
+          this.events.push({ type: 'slam', x: p.x, y: p.y, r: 40 });
+        }
+      });
+      this.use(at);
+      e.aux = 0;
     } else if (id === 'glare') {
       // The lens flares: anyone in the light is burned, anyone in a pillar's shadow is safe.
       const dmg = GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage;
@@ -7263,6 +7286,17 @@ export class World {
 
   /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
   /** True when (x, y) is in the Colossus's back arc, the same arc that takes COLO.backMult. Meltdown doesn't change where his back is. */
+  /** Phase 16 U2: whether the Lampeye at `e` can see (x, y): no standing pillar crosses the line between them. */
+  lampeyeSees(e: Enemy, x: number, y: number): boolean {
+    const dx = x - e.x, dy = y - e.y, L2 = dx * dx + dy * dy || 1;
+    for (const c of this.pillars) {
+      if (c.cracked) continue;
+      const k = Math.max(0, Math.min(1, ((c.x - e.x) * dx + (c.y - e.y) * dy) / L2));
+      if (dist2(e.x + dx * k, e.y + dy * k, c.x, c.y) < c.r * c.r) return false;
+    }
+    return true;
+  }
+
   /** Phase 16 U2: whether this fight has an Ashwall in it (cheap, so damage checks skip the rest otherwise). */
   ashwallUp(): boolean {
     return this.encounterDef.spawns.some((s) => s.kind === 'ashwall');
@@ -8594,7 +8628,7 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
  * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
  */
-export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast'];
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye'];
 export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
@@ -8706,6 +8740,13 @@ export const VARIETY = {
  * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
  * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
  */
+/**
+ * Phase 16 U2: the Lampeye (the Glarewell). Its gaze (`Enemy.aux`, seconds) builds while it can see its hero and
+ * fades `fade` times as fast behind a pillar. At `full` it casts Searing Look for `lookCast` s: every hero it can
+ * still see takes `lookDamage`. It backs off inside `keep` px.
+ */
+export const LAMPEYE = { full: 6, fade: 2, lookCast: 1.0, lookDamage: 34, keep: 220 };
+
 /**
  * Phase 16 U2: the Ballast (the Foundry). With its hero within `reach` (past its own radius) for `plantDelay` s it
  * drops anchor: it stops, takes `planted` damage, and Anchor Slams a `slamR` ring every `slamEvery` s (the first

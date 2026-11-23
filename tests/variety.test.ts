@@ -487,9 +487,9 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
 
 describe('V8 variety: the Glarewell', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
+  it('draws from 7 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
     const d = DUNGEONS.glarewell;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
