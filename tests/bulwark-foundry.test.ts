@@ -154,4 +154,24 @@ describe('Novice aid for melee heroes', () => {
     expect(w.player.windUsed).toBe(true);
     expect(w.player.hp).toBeGreaterThan(w.player.maxHp * 0.4);
   });
+
+  it('Steady Breath catches a low Emberwright once per fight at tier 1, fades by tier 3, and is gone from tier 4', () => {
+    const caught = (tier: number) => {
+      const w = new World({ seed: 2, cls: 'emberwright', tier });
+      const hurt = (w as unknown as { hurtPlayer(amount: number, src: number): void }).hurtPlayer.bind(w);
+      w.player.hp = w.player.maxHp * 0.35;
+      hurt(w.player.maxHp * 0.1, -1);
+      const after = w.player.hp / w.player.maxHp;
+      hurt(w.player.maxHp * 0.01, -1);
+      return { used: !!w.player.windUsed, after, again: w.player.hp / w.player.maxHp };
+    };
+    const t1 = caught(1), t3 = caught(3), t4 = caught(4);
+    expect(t1.used).toBe(true);
+    expect(t1.after).toBeCloseTo(0.45, 2);
+    // Once per fight: a second low hit isn't caught.
+    expect(t1.again).toBeCloseTo(0.44, 2);
+    expect(t3.after).toBeCloseTo(0.25 + 0.2 / 3, 2);
+    expect(t4.used).toBe(false);
+    expect(t4.after).toBeCloseTo(0.25, 2);
+  });
 });
