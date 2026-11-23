@@ -877,6 +877,29 @@ export const SOUNDS = {
     ...[0.2, 0.45, 0.62, 0.8, 0.95, 1.08, 1.2].map((d, k) => [{ wave: 'sine' as const, f: 500 + k * 70, f2: 1100 + k * 90, dur: 0.05, delay: d, vol: 0.12, curve: 2 }]),
     clang(196, 0.18, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.25 })),
   ),
+  /** The Overflow (Grandmother Slag's third version, phase 2): the pit is about to flood in from the rim. A deep molten swell
+   *  that builds from the edges, and a two-note horn that rises "come in to her". Ends before it rises (OVERFLOW.warn 2.5 s). */
+  overflowWarn: join(
+    [{ wave: 'saw', f: 45, f2: 90, dur: 2.2, vol: 0.2, a: 1.6, lp: 500, lp2: 1400, curve: 0.7, trem: [3, 0.4] },
+     { wave: 'noise', f: 0, dur: 2.2, vol: 0.18, a: 1.7, lp: 1200, lp2: 5000, hp: 400, curve: 0.7, trem: [3, 0.4] }],
+    horn(note(-7), 0.5, 0.34).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.7 })),
+    horn(note(0), 0.8, 0.36).map((v) => ({ ...v, delay: (v.delay ?? 0) + 1.25 })),
+    // Slag bubbling up through it, quickening: the phone band carries the warning under a busy raid.
+    ...[0.3, 0.6, 0.85, 1.05, 1.25, 1.4, 1.55, 1.7, 1.82, 1.94].map((d, k) => [{ wave: 'sine' as const, f: 600 + k * 60, f2: 1300 + k * 80, dur: 0.05, delay: d, vol: 0.12, curve: 2 }]),
+  ),
+  /** The Overflow rises: molten slag pours over the rim and burns anyone far out. A heavy crash with a long sizzle. */
+  overflowRise: join(
+    boom(55, 0.6, 0.55),
+    [{ wave: 'noise', f: 0, dur: 1.0, vol: 0.3, a: 0.04, lp: 9000, lp2: 3000, hp: 1500, curve: 1.2, trem: [14, 0.4] },
+     { wave: 'saw', f: 120, f2: 70, dur: 0.8, vol: 0.1, a: 0.05, lp: 1200, curve: 1.4 },
+     // A bright hiss as it meets the stone, for phone speakers.
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.18, a: 0.02, lp: 10000, hp: 3500, curve: 1.6, trem: [22, 0.5] }],
+  ),
+  /** The Overflow ebbs: the slag drains back into the pit. A falling hiss and a sinking tone (safe to spread again). */
+  overflowEbb: [
+    { wave: 'noise', f: 0, dur: 0.9, vol: 0.18, a: 0.1, lp: 6000, lp2: 1200, hp: 600, curve: 1.2 },
+    { wave: 'sine', f: 700, f2: 300, dur: 0.8, vol: 0.08, a: 0.08, curve: 1.3 },
+  ],
   /** A cooling island starts to sink (its last BRIM.warn s): a long hiss of slag closing over stone, falling. */
   islandSink: [
     { wave: 'noise', f: 0, dur: 1.3, vol: 0.2, a: 0.15, lp: 8000, lp2: 2500, hp: 1200, curve: 0.9, trem: [7, 0.3] },
@@ -1671,6 +1694,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  overflowWarn: 4.1, overflowRise: 2.4, overflowEbb: 2.0, // Y3 the Overflow: warn 6.5 dB and rise 7.1 dB over the Crucible raid mix (busycheck t8 heroes, SEEDS=1-6, n=37); the ebb a quieter all-clear
   punchLineWarn: 3.5, punchHit: 1.5, // Y3 Punch Line: the wind-up level with dieCutWarn, each punch level with slam
   rollVentWarn: 4.0, ventRollNext: 2.7, ventRollLast: 2.4, // Y3 Rolling Vents: the opening level with wanderVentWarn, each next vent a little under it
   homeOut: 7.0, homeBack: 4.2, // Y3 Homeward Hammer: the throw near slam, the ring-and-return (priority) lands with the circle's slam, so it sits 6.6 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=11)
