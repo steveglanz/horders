@@ -1114,6 +1114,22 @@ Pressworks tier 10, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each ver
 - The bots step out of the punches, so the sim mostly measures the time spent moving. Up to 18 circles fit in the 24-telegraph pool, beside the plate.
 - **Name:** searches on 23 Nov found no WoW ability called "Punch Line".
 
+### Punch Line fix (23 Nov 2026): wider punches further out
+
+Skills' sweep on #554 (seeds 41 to 200, out of 160, band 88 to 112) found Punch Line split by range. Two Emberwrights won 150 and Bellows 141, but Two Duskblades won only 78. Melee heroes under Oskel lost uptime stepping out of the first punches, while ranged heroes stood off.
+
+- **The fix:** the nth punch out now has radius `r` 55 + `grow` 6 x n, so 55 at his feet and 85 at the far end. Before, every punch had radius 65.
+- Pressworks t10, heroes-r2 hero-t8-0, seeds 41 to 120, BOSSV=punch, wins out of 80:
+
+| Party | Before (r 65) | r 50 + 8 x n | r 55 + 6 x n (kept) | Kept, plus 7 punches, 0.18 s step |
+|---|---|---|---|---|
+| Base | 56 | 58 | 57 | 56 |
+| Two Duskblades | 32 | 47 | 50 | 41 |
+| Two Emberwrights | 76 | 78 | 77 | 76 |
+| Bellows | 71 | 77 | 75 | 76 |
+
+- Wider punches far out didn't touch the ranged parties: the bots dodge them, and a faster, longer march only hurt the melee party. Ranged parties are high across the Pressworks (skills had them at 129 to 132 of 160 on Rivets too), so that is a dungeon-wide watch item, not Punch Line's.
+
 ### Creeping Rime fix 2 (23 Nov 2026): no jump when she walks into it
 
 QA on #550 found that Nhevra could walk into the held rime (as close as 90 px). On the next tick it snapped to the hero's side, a jump of 110 to 173 px (51 to 103 degrees round her), 8 times in 16 solo runs.

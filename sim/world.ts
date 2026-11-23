@@ -6510,7 +6510,7 @@ export class World {
           const d = PUNCH.gap * (n + 0.5);
           const x = e.x + Math.cos(a + s) * d, y = e.y + Math.sin(a + s) * d;
           if (x * x + y * y > (ARENA - PUNCH.r * 0.5) ** 2) break;
-          this.addTelegraph('circle', x, y, PUNCH.r, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', -1); // scaled by tier as it lands
+          this.addTelegraph('circle', x, y, PUNCH.r + PUNCH.grow * n, 0, 0, PUNCH.first + PUNCH.step * n, PUNCH.damage, 'hit', -1); // scaled by tier as it lands
         }
       }
       this.events.push({ type: 'castStart', index: i, id: 'punchLine', name: 'Punch Line' });
@@ -8446,9 +8446,10 @@ export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
 /**
  * Phase 15 Y3 Punch Line, on the Rivets timer: `rows` rows of punches run out from Oskel's feet, evenly spaced round him, one through a
  * hero (or, while a Downstroke plate is open, with the plate midway between two rows, so its taker is safe). Each row is `n` circles of `r`, `gap` apart;
- * the nearest lands after `first` s and each one further out `step` s later, so the punches march out across the floor.
+ * the nearest lands after `first` s and each one further out `step` s later, so the punches march out across the floor. The nth punch out
+ * has radius `r` + `grow` x n (55 at his feet to 85 at the far end), so melee under him lose less uptime than heroes standing off.
  */
-export const PUNCH = { every: 7, rows: 3, n: 6, r: 65, gap: 90, first: 1.4, step: 0.25, damage: 35 };
+export const PUNCH = { every: 7, rows: 3, n: 6, r: 55, grow: 6, gap: 90, first: 1.4, step: 0.25, damage: 35 };
 /** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
 export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
 /** Phase 12 W2 and Phase 15 Y3: Ysmeret's versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. `roll`: Rolling Vents, one at a time round her. */
