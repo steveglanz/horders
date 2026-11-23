@@ -416,9 +416,10 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
-    // Y3 Sealed Vents: silent until sound adds its cue.
     // Y3 Sealed Vents: a building hiss as the steam is about to move, a burst as it opens at the new vent.
     case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
+    // Y3 Carried Light: silent until sound adds its cue (the Glare's own warning already plays).
+    case 'lightMove': return null;
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
