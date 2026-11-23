@@ -26,9 +26,13 @@ const srv = http.createServer((q, r) => {
   await page.waitForTimeout(20);
   const title = await page.evaluate(() => { const s = document.getElementById('hd2dLoad'); return s.hidden ? null : s.querySelector('.hl-title').textContent; });
   console.log('loading title:', title);
-  if (title !== null) await page.screenshot({ path: path.join(out, 'p320-loading.png') });
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 60000 });
-  await page.waitForFunction(() => window.__ember.scene().world.time > 4, null, { timeout: 240000 });
+  await page.waitForFunction(() => window.__ember.scene().world.time > 4, null, { timeout: 480000 });
+  // Frames the page drew in 4 s of play (a software GPU here, so compare builds, not absolute numbers).
+  const fps = await page.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 4000) requestAnimationFrame(f); else res(+(n / ((performance.now() - t0) / 1000)).toFixed(1)); }; requestAnimationFrame(f); }));
+  console.log('frames per second over 4 s (software GPU):', fps);
+  const st0 = await page.evaluate(() => window.__ember.scene().hd2d?.stats());
+  console.log('stats while playing (calls, triangles, ms per frame, attacks your hero started):', JSON.stringify(st0));
   await page.evaluate(() => { window.__ember.scene().warp = 0; });
   await page.waitForTimeout(1500);
   const proj = await page.evaluate(() => {
@@ -39,6 +43,10 @@ const srv = http.createServer((q, r) => {
   });
   console.log('project:', JSON.stringify(proj));
   await page.screenshot({ path: path.join(out, 'p320-fight.png') });
+  // Near the arena's edge, where the room's walls and props come into view.
+  await page.evaluate(() => { const p = window.__ember.scene().world.player; p.x = p.px = -360; p.y = p.py = -230; });
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: path.join(out, 'p320-edge.png') });
   console.log('errors:', errs.length ? errs : 'none');
   await b.close(); srv.close();
 })();

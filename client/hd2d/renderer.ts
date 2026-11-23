@@ -150,7 +150,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   cells.forEach(([px, z, d], i) => {
     e.set(rnd(-0.025, 0.025), rnd(-0.04, 0.04), rnd(-0.025, 0.025)); q.setFromEuler(e);
     m4.compose(new THREE.Vector3(px, rnd(-0.03, 0.02), z), q, one); tiles.setMatrixAt(i, m4);
-    col.set('#4e3e36').multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
+    col.set('#6a5548').multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
   });
   tiles.receiveShadow = true; room.add(tiles);
   const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(lavaCanvas()), color: new THREE.Color(0.8, 0.8, 0.8) }));
@@ -170,8 +170,9 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // The wall wraps all the way round here (the handoff's fixed camera only ever saw the back half).
   const wall = new THREE.Mesh(new THREE.CylinderGeometry(10.6, 10.6, 11, 72, 1, true), new THREE.MeshStandardMaterial({ map: canvasTex(brick, { repeat: [28, 5] }), roughness: 0.92, side: THREE.BackSide }));
   wall.position.y = 5.2; wall.receiveShadow = true; room.add(wall);
-  const chimMouth = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 1.25, 0.35) });
-  const chimInner = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.0, 1.7, 0.6) });
+  // Dimmer than the handoff's (3.2, 1.25, 0.35): at the brighter exposure, colours over about 1.2 tone-map to white.
+  const chimMouth = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, 0.42, 0.1) });
+  const chimInner = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.15, 0.6, 0.18) });
   for (const [a, w] of [[Math.PI, 3.4], [Math.PI - 0.78, 2.2], [Math.PI + 0.78, 2.2]] as const) {
     const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.7, 0, Math.cos(a) * 9.7); g.lookAt(0, 0, 0);
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, 13, 1.9), new THREE.MeshStandardMaterial({ map: canvasTex(brick, { repeat: [w / 1.5, 7] }), roughness: 0.9 }));
@@ -199,11 +200,104 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
     const coals = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 10), chimMouth); coals.position.y = 0.95; g.add(coals);
-    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.0, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 0.8, 0.28), transparent: true, opacity: 0.92 }));
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.0, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.58, 0.18), transparent: true, opacity: 0.92 }));
     fl.position.y = 1.45; g.add(fl); flames.push(fl);
     bowl.castShadow = stem.castShadow = true;
     room.add(g);
   }
+  // Steve, 23 Nov: "the environment still seems empty and very dark". Props and floor detail, every set one
+  // instanced batch (one draw call each), placed from a fixed seed so the room looks the same every run.
+  let seed = 9;
+  const sr = (a: number, b: number) => { seed = (seed * 16807) % 2147483647; return a + ((seed - 1) / 2147483646) * (b - a); };
+  const back = (a: number) => Math.abs(((a - Math.PI + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 1.0; // the chimneys and throne
+  // The camera looks in from +z, so anything tall on the near side would stand between it and the fight.
+  const near = (a: number) => Math.cos(a) > 0.15;
+  const put = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, ry: number, sx: number, sy = sx, sz = sx, rx = 0, rz = 0) => {
+    e.set(rx, ry, rz); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sx, sy, sz)); im.setMatrixAt(n, m4);
+  };
+  const wood = new THREE.MeshStandardMaterial({ color: '#7a4e2c', roughness: 0.85, map: grain });
+  const hoop = new THREE.MeshStandardMaterial({ color: '#4a4048', roughness: 0.45, metalness: 0.7 });
+  // Barrels and crates in clusters outside the curb, against the wall (never on the fight floor).
+  const spots: number[] = [];
+  // Spread round the open part of the wall (at most 200 tries each, so a crowded wall can never hang the build).
+  for (let k = 0; k < 8; k++) { for (let tries = 0; tries < 200; tries++) { const a = sr(0, Math.PI * 2); if (!back(a) && !spots.some((b) => Math.abs(b - a) < 0.4)) { spots.push(a); break; } } }
+  const barrels = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12), wood, 24);
+  const bands = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.355, 0.355, 0.08, 12, 1, true), hoop, 48);
+  const crates = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 0.75, 0.75), wood, 20);
+  let nb = 0, nc = 0;
+  for (const a of spots) {
+    const r0 = sr(9.4, 9.9);
+    const cxs = Math.sin(a) * r0, czs = Math.cos(a) * r0;
+    const nB = Math.round(sr(1, 3)), nC = Math.round(sr(1, 2));
+    for (let j = 0; j < nB && nb < 24; j++) {
+      const bx = cxs + sr(-0.6, 0.6), bz = czs + sr(-0.6, 0.6), tip = sr(0, 1) < 0.2;
+      const y = tip ? 0.3 : 0.45 - 0.08;
+      put(barrels, nb, bx, y, bz, sr(0, 6), 1, 1, 1, tip ? Math.PI / 2 : 0);
+      [-0.28, 0.28].forEach((dy, j2) => put(bands, 2 * nb + j2, bx, tip ? y : y + dy, tip ? bz + dy : bz, 0, 1, 1, 1, tip ? Math.PI / 2 : 0));
+      nb++;
+    }
+    for (let j = 0; j < nC && nc < 20; j++) {
+      const s2 = sr(0.7, 1.05);
+      put(crates, nc++, cxs + sr(-0.7, 0.7), 0.375 * s2 - 0.05, czs + sr(-0.7, 0.7), sr(0, 6), s2);
+      if (sr(0, 1) < 0.4 && nc < 20) put(crates, nc++, cxs + sr(-0.2, 0.2), 0.75 * s2 + 0.3, czs + sr(-0.2, 0.2), sr(0, 6), 0.7);
+    }
+  }
+  barrels.count = nb; crates.count = nc; bands.count = Math.min(48, nb * 2);
+  for (const im of [barrels, crates]) { im.castShadow = im.receiveShadow = true; room.add(im); }
+  room.add(bands);
+  // Broken basalt columns round the wall, for a skyline at the edge of view.
+  const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.42, 0.5, 1, 10), basalt, 8);
+  for (let k = 0; k < 8; k++) {
+    const a = Math.PI + (k < 4 ? -1 : 1) * (1.05 + (k % 4) * 0.2), h = sr(1.4, 4.2);
+    put(cols, k, Math.sin(a) * 10.05, h / 2 - 0.1, Math.cos(a) * 10.05, sr(0, 6), 1, h, 1, sr(-0.04, 0.04), sr(-0.04, 0.04));
+  }
+  cols.castShadow = cols.receiveShadow = true; room.add(cols);
+  // Wall sconces: an iron bracket and a flame that glows on its own (no light each: the phone budget keeps two).
+  const SC = saver ? 6 : 12;
+  const bracket = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.5, 0.4), iron, SC);
+  const scFlame = new THREE.InstancedMesh(new THREE.ConeGeometry(0.16, 0.5, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 0.62, 0.2) }), SC);
+  for (let k = 0; k < SC; k++) {
+    const a = (k / SC) * Math.PI * 2 + 0.26, r = 10.45;
+    if (near(a)) { put(bracket, k, 0, -50, 0, 0, 0.001); put(scFlame, k, 0, -50, 0, 0, 0.001); continue; }
+    put(bracket, k, Math.sin(a) * r, 2.6, Math.cos(a) * r, a, 1);
+    put(scFlame, k, Math.sin(a) * (r - 0.25), 3.05, Math.cos(a) * (r - 0.25), 0, 1);
+  }
+  room.add(bracket, scFlame);
+  // Banners between the sconces: dark red cloth with a pale anvil mark.
+  const bc = document.createElement('canvas'); bc.width = 64; bc.height = 160;
+  { const k = bc.getContext('2d')!; const g = k.createLinearGradient(0, 0, 0, 160); g.addColorStop(0, '#5a1414'); g.addColorStop(1, '#2e0a0c'); k.fillStyle = g; k.fillRect(0, 0, 64, 140);
+    k.beginPath(); k.moveTo(0, 140); k.lineTo(32, 160); k.lineTo(64, 140); k.fill(); k.fillStyle = '#c99a3e'; k.fillRect(0, 6, 64, 5); k.fillRect(0, 128, 64, 4);
+    k.fillStyle = '#d9b46a'; k.fillRect(16, 60, 32, 10); k.fillRect(26, 70, 12, 14); k.fillRect(18, 84, 28, 8); }
+  const BN = saver ? 4 : 8;
+  const banners = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.9, 2.3), new THREE.MeshStandardMaterial({ map: canvasTex(bc), roughness: 0.95, side: THREE.DoubleSide }), BN);
+  for (let k = 0; k < BN; k++) { const a = (k / BN) * Math.PI * 2 + 0.26 + Math.PI / SC * 1.0; if (back(a) || near(a)) { put(banners, k, 0, -50, 0, 0, 0.001); continue; } put(banners, k, Math.sin(a) * 10.5, 4.3, Math.cos(a) * 10.5, a + Math.PI, 1); }
+  room.add(banners);
+  // Chains hanging from the dark above, at the edge of the room.
+  const chains = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 5), hoop, 10);
+  // Only on the far half: on the near half they hung between the camera and the floor.
+  for (let k = 0; k < 10; k++) { const a = Math.PI + sr(-1.3, 1.3), len = sr(4, 7.5); put(chains, k, Math.sin(a) * 9.3, 12 - len / 2, Math.cos(a) * 9.3, 0, 1, len, 1); }
+  room.add(chains);
+  // The floor: a brass inlay (two rings and eight spokes), worn and dull so telegraphs stay the brightest thing on it.
+  const inlay = new THREE.MeshStandardMaterial({ color: '#8a6a34', roughness: 0.4, metalness: 0.8, emissive: new THREE.Color('#2a1606') });
+  for (const [r0, r1] of [[2.55, 2.68], [5.75, 5.9]]) { const ring = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 96), inlay); ring.rotation.x = -Math.PI / 2; ring.position.y = FLOOR + 0.004; ring.receiveShadow = true; room.add(ring); }
+  const spokes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.01, 3.07), inlay, 8);
+  for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; put(spokes, k, Math.sin(a) * 4.215, FLOOR + 0.004, Math.cos(a) * 4.215, a, 1); }
+  spokes.receiveShadow = true; room.add(spokes);
+  // Ember cracks: a few faint seams in the floor tiles (dim, so they never read as a fire telegraph).
+  const cc = document.createElement('canvas'); cc.width = cc.height = 128;
+  { const k = cc.getContext('2d')!; k.strokeStyle = 'rgba(255,140,50,1)'; k.lineCap = 'round'; k.shadowColor = '#ff6a1f'; k.shadowBlur = 6;
+    for (let j = 0; j < 3; j++) { k.lineWidth = 3 - j; k.beginPath(); let x = 64, y = 64; k.moveTo(x, y); for (let n = 0; n < 6; n++) { x += Math.cos(j * 2.1 + n * 0.7) * 10; y += Math.sin(j * 2.1 + n * 0.5) * 10; k.lineTo(x, y); } k.stroke(); } }
+  const CR = saver ? 4 : 8;
+  const cracks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: canvasTex(cc), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }), CR);
+  for (let k = 0; k < CR; k++) { const a = sr(0, Math.PI * 2), r = sr(1.2, 7.0); put(cracks, k, Math.sin(a) * r, FLOOR + 0.006, Math.cos(a) * r, 0, sr(0.7, 1.3), sr(0.7, 1.3), 1, -Math.PI / 2, sr(0, 6)); }
+  room.add(cracks);
+  // Rubble and coal along the floor's edge and outside it, low enough never to hide a telegraph.
+  const RB = saver ? 40 : 90;
+  const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), basalt, RB);
+  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color('#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
+  for (let k = 0; k < RB; k++) { const a = sr(0, Math.PI * 2), r = k % 3 ? sr(6.7, 7.4) : sr(9.0, 10.3), sz = sr(0.04, k % 3 ? 0.1 : 0.22); put(rubble, k, Math.sin(a) * r, FLOOR + sz * 0.4 - (r > 8 ? 0.15 : 0), Math.cos(a) * r, sr(0, 6), sz, sz * sr(0.5, 0.9), sz, sr(0, 3)); }
+  for (let k = 0; k < coal.count; k++) { const a = sr(0, Math.PI * 2), r = sr(6.4, 7.4), sz = sr(0.04, 0.08); put(coal, k, Math.sin(a) * r, FLOOR + sz * 0.4, Math.cos(a) * r, sr(0, 6), sz); }
+  rubble.receiveShadow = true; room.add(rubble, coal);
   // v2's phone budget: two shared warm lights instead of nine (one at the back wall, one at the front braziers).
   addLight('#ff7a30', 34, 22, new THREE.Vector3(0, 2.4, -8.2), 1.4);
   if (!saver) addLight('#ff8a3d', 14, 14, new THREE.Vector3(0, 2.2, 7.6), 2.0);
@@ -232,10 +326,11 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   // Phones: at most 1.5x (2x tripled the bloom's cost for little gain at this pixel-art scale); saver 1x.
   const pr = saver ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
   renderer.setPixelRatio(pr);
+  renderer.info.autoReset = false;
   renderer.shadowMap.enabled = !saver; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
-  // Darker than the handoff's 1.0: its camera stood back from the room, while this one sits over the floor near the lights.
-  renderer.toneMappingExposure = 0.78;
+  // A touch over the handoff's 1.0. Steve, 23 Nov: 0.78 read "very dark".
+  renderer.toneMappingExposure = 1.05;
   const cv = renderer.domElement;
   cv.className = 'hd2d-canvas';
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1';
@@ -255,11 +350,13 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /** The handoff's camera angle: up 15.5 and back 13.6 from what it looks at. */
   const camDir = new THREE.Vector3(0, 15.5, 13.6).normalize();
 
-  scene.add(new THREE.HemisphereLight('#7a5a78', '#1a0d08', 0.75));
-  const key = new THREE.DirectionalLight('#ffc89a', 0.9);
+  scene.add(new THREE.HemisphereLight('#c09a8a', '#3a2418', 1.25));
+  const key = new THREE.DirectionalLight('#ffd0a8', 1.3);
   key.castShadow = !saver; key.shadow.mapSize.set(512, 512);
   Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 40 });
   key.shadow.bias = -0.0008; scene.add(key); scene.add(key.target);
+  // A warm lamp over your own hero, so the ground you fight on is always lit (the room's other lights sit at its edges).
+  const lamp = new THREE.PointLight('#ffb27a', saver ? 0 : 5, 6.5, 2); lamp.position.set(0, 2.4, 0); if (!saver) scene.add(lamp);
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
@@ -274,7 +371,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /* heroes */
   const F = artFrames(true) as Record<string, Record<string, Frame>>;
   const heroGeo = standGeo(HERO.pad / HERO.H);
-  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string };
+  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string;
+    /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
+    atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[] };
   const heroes: HeroS[] = [];
   const heroSprite = (i: number, cls: string): HeroS => {
     const set = F[ART[cls] ?? 'ew'];
@@ -286,7 +385,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
     const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
     const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
-    const h: HeroS = { cls, mesh, mats, blob, ring, disc, name: null, nameText: '' };
+    const h: HeroS = { cls, mesh, mats, blob, ring, disc, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
     heroes[i] = h; return h;
   };
   const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name]) if (o) scene.remove(o); };
@@ -389,6 +488,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   }
 
   let W = 0, H = 0, dist = 20;
+  /** How many attacks your hero has started (stats(), so a test can see the pose fire). */
+  let attacks = 0;
   const resize = () => {
     const w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
     if (w === W && h === H) return;
@@ -413,6 +514,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, s: number) => { v3.set(x, y, z); sc.set(s, s, s); m4.compose(v3, q0, sc); im.setMatrixAt(n, m4); };
 
   const frame = (dtIn: number) => {
+    // Counted over the whole frame (bloom and tilt-shift passes too), so stats() reports real draw calls.
+    renderer.info.reset();
     resize();
     const dt = Math.min(0.05, Math.max(0, dtIn));
     t += dt;
@@ -445,15 +548,26 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const x = L(p.px, p.x) * S, z = L(p.py, p.y) * S;
       if (i === 0) { cx = x; cz = z; }
       const dead = p.hp <= 0;
-      const swing = p.lastSwingAt !== undefined && w.time - p.lastSwingAt < 0.18;
-      const pose = p.hurtFlash > 0 ? 'hit' : swing ? 'atk' : 'idle';
+      // An attack starts when the auto-attack timer resets (volleyT jumps up: every class's basic attack), a melee
+      // swing lands (swings counts up), or an ability goes on cooldown. Steve, 23 Nov: his hero never animated, because
+      // this read p.lastSwingAt, which only the Killing Rhythm talent sets.
+      const cds = p.cds ?? [];
+      if (p.volleyT > h.lastVolley + 0.05 || p.swings > h.lastSwings || cds.some((c, k) => c > (h.lastCds[k] ?? 0) + 0.05)) { h.atkAt = w.time; if (i === 0) attacks++; }
+      h.lastVolley = p.volleyT; h.lastSwings = p.swings; h.lastCds = cds.slice();
+      const since = w.time - h.atkAt;
+      const swing = !dead && since >= 0 && since < 0.24;
+      const pose = swing ? 'atk' : p.hurtFlash > 0 ? 'hit' : 'idle';
       h.mesh.material = h.mats[pose] ?? h.mats.idle;
       const moving = (p.x - p.px) ** 2 + (p.y - p.py) ** 2 > 0.01;
       const bob = moving ? Math.abs(Math.sin(t * 11 + i)) * 0.05 : 0;
       const face = p.x - p.px < -0.05 ? -1 : p.x - p.px > 0.05 ? 1 : Math.sign(h.mesh.scale.x) || 1;
-      h.mesh.scale.set(face * HERO.W * HERO_PX, HERO.H * HERO_PX * (1 + (moving ? 0 : 0.03 * Math.sin(t * 2.4 + i))) * (dead ? 0.35 : 1), 1);
+      // While attacking: face the target (p.facing), lunge a little toward it and punch out, then settle back.
+      const k = swing ? Math.sin(Math.min(1, since / 0.24) * Math.PI) : 0;
+      const fx = Math.cos(p.facing ?? 0), fz = Math.sin(p.facing ?? 0);
+      const faceNow = swing && Math.abs(fx) > 0.2 ? Math.sign(fx) : face;
+      h.mesh.scale.set(faceNow * HERO.W * HERO_PX * (1 + 0.08 * k), HERO.H * HERO_PX * (1 + (moving ? 0 : 0.03 * Math.sin(t * 2.4 + i)) - 0.05 * k) * (dead ? 0.35 : 1), 1);
       // Your own hero a hair nearer the camera, so an ally standing on the same spot never hides it.
-      h.mesh.position.set(x, FLOOR + bob, z + (i === 0 ? 0.02 : 0));
+      h.mesh.position.set(x + fx * 0.12 * k, FLOOR + bob, z + fz * 0.12 * k + (i === 0 ? 0.02 : 0));
       h.mesh.visible = true;
       (h.mats.idle as THREE.MeshStandardMaterial).opacity = 1;
       h.blob.position.set(x, FLOOR + 0.006, z);
@@ -583,6 +697,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     camera.position.copy(camDir).multiplyScalar(dist).add(look);
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);
+    lamp.position.set(cx, 2.4, cz + 0.6);
 
     const t0 = performance.now();
     if (composer) composer.render(); else renderer.render(scene, camera);
@@ -617,7 +732,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     },
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;
-      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr };
+      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks };
     },
   };
 }
