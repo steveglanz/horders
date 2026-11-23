@@ -182,10 +182,12 @@ function nameCanvas(text: string, color: string) {
  * - glarewell: a sunken observatory. Cool slate floor (the 2D floor's tint), a starry void round it instead of
  *   lava, a great lens in a brass ring high at the back, crystal shards, pale gold light from above.
  * - ashvents: pale ash floor, three smoking fumaroles at the back, ash cairns, rose embers.
+ * - crucible: rosy slag-stone, a giant tilted ladle pouring a molten stream at the back, slag pots, a bright pit.
+ * - hoard: dark bone-stone, Old Vorhulm's great mound of gold and bones at the back, a coal-red pit, coin heaps.
  * - kiln: the Kiln Depths, a potters' firing hall. Three brick beehive kilns with glowing mouths at the back,
  *   firebrick floor, pots and urns on shelves, stacked firewood, brick piers, a soot ring instead of brass.
  */
-export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents';
+export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents' | 'crucible' | 'hoard';
 interface RoomTheme {
   tile: string; wall: string; ground: string;
   /** Hemisphere sky and ground colours and intensity, the key light colour, the hero lamp colour. */
@@ -196,6 +198,8 @@ interface RoomTheme {
   bg: string; fog: string; mote: [number, number, number]; pit: 'lava' | 'water' | 'void'; flame: 'fire' | 'teal' | 'pale'; rough: number;
   /** How bright the pit glows (the lava's colour multiplier). */
   pitGlow: number;
+  /** Optional per-channel tint on the lava (the Hoard's coal red). */
+  pitTint?: [number, number, number];
 }
 const ROOMS: Record<RoomId, RoomTheme> = {
   flue: { tile: '#6a5548', wall: '#ffffff', ground: '#1a100c', hemi: ['#c09a8a', '#3a2418', 1.25], key: '#ffd0a8', lamp: '#ffb27a', backLight: '#ff7a30', frontLight: '#ff8a3d', bg: '#0a0504', fog: '#120705', mote: [3, 1.35, 0.45], pit: 'lava', flame: 'fire', rough: 0.88, pitGlow: 0.8 },
@@ -208,10 +212,14 @@ const ROOMS: Record<RoomId, RoomTheme> = {
   glarewell: { tile: '#5c5874', wall: '#9a94c4', ground: '#07060d', hemi: ['#c8c0f0', '#1a1630', 1.4], key: '#ffe6b0', lamp: '#ffe2a8', backLight: '#ffd890', frontLight: '#9a8cff', bg: '#05040a', fog: '#0a0818', mote: [2.4, 2.1, 1.1], pit: 'void', flame: 'pale', rough: 0.6, pitGlow: 0.8 },
   // Pale ash (the 2D floor's 0xb8a49a tint), gold vents and rose embers.
   ashvents: { tile: '#a89a92', wall: '#c4aaa2', ground: '#141010', hemi: ['#f0dcd4', '#3a2420', 1.45], key: '#ffdcc4', lamp: '#ffb890', backLight: '#ff7058', frontLight: '#ffb060', bg: '#0a0606', fog: '#170c0a', mote: [3, 1.15, 1.05], pit: 'lava', flame: 'fire', rough: 0.95, pitGlow: 0.8 },
+  // Rosy slag-stone (the 2D floor's 0xb88a7c tint) round a molten pit (MOLTEN 0xff6a1f).
+  crucible: { tile: '#8a6458', wall: '#d8a898', ground: '#160c08', hemi: ['#f0c4b0', '#3a1c10', 1.35], key: '#ffd4b0', lamp: '#ffb27a', backLight: '#ff6a1f', frontLight: '#ff9a48', bg: '#0b0503', fog: '#180904', mote: [3.2, 1.3, 0.4], pit: 'lava', flame: 'fire', rough: 0.8, pitGlow: 1.0 },
+  // Dark bone-stone (the 2D floor's 0x70584e tint), a coal-red pit (HOARD_RIM 0xd8382a), gold everywhere.
+  hoard: { tile: '#5e4a42', wall: '#a88a80', ground: '#100806', hemi: ['#d8b8a8', '#2a1410', 1.4], key: '#ffe0b8', lamp: '#ffc88a', backLight: '#e09040', frontLight: '#ff6a48', bg: '#080403', fog: '#120605', mote: [3, 1.0, 0.7], pit: 'lava', flame: 'fire', rough: 0.85, pitGlow: 0.75, pitTint: [1.1, 0.55, 0.5] },
   hammerdeep: { tile: '#5c5a66', wall: '#aaa6ba', ground: '#0e0d12', hemi: ['#bcbcd4', '#24222c', 1.4], key: '#e6e6f6', lamp: '#ffd2a0', backLight: '#c4ccff', frontLight: '#ff9a58', bg: '#070709', fog: '#0d0c12', mote: [1.5, 1.6, 2.2], pit: 'lava', flame: 'pale', rough: 0.55, pitGlow: 0.42 },
 };
 /** Which room a dungeon gets. */
-const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents'];
+const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard'];
 export const roomOf = (dungeonId: string | undefined): RoomId => (dungeonId && OWN_ROOMS.includes(dungeonId) ? (dungeonId as RoomId) : 'flue');
 
 /**
@@ -263,9 +271,9 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     col.set(th.tile).multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
   });
   tiles.receiveShadow = true; room.add(tiles);
-  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : th.pit === 'void' ? voidCanvas() : lavaCanvas()), color: new THREE.Color(th.pitGlow, th.pitGlow, th.pitGlow) }));
+  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : th.pit === 'void' ? voidCanvas() : lavaCanvas()), color: new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(th.pitGlow) }));
   lava.rotation.x = -Math.PI / 2; lava.position.y = -0.1; room.add(lava);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : th.pit === 'void' ? paleRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: new THREE.Color().setScalar(th.pit === 'lava' ? 1.5 * th.pitGlow : 0.9) }));
+  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : th.pit === 'void' ? paleRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: th.pit === 'lava' ? new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(1.5 * th.pitGlow) : new THREE.Color().setScalar(0.9) }));
   rim.rotation.x = -Math.PI / 2; rim.position.y = -0.12; room.add(rim);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: th.ground, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.35; ground.receiveShadow = true; room.add(ground);
@@ -334,6 +342,42 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       cone.castShadow = cone.receiveShadow = true;
       room.add(g);
     }
+  } else if (id === 'crucible') {
+    // A giant ladle tilted on a frame at the back, pouring a molten stream into the pit, with two great
+    // crucibles banked either side, glowing at the lip. Outside the floor.
+    const ironC = new THREE.MeshStandardMaterial({ color: '#3a302c', roughness: 0.55, metalness: 0.7 });
+    const molten = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.1, 0.5, 0.14) }); molten.userData.base = molten.color.clone(); glows.push(molten);
+    const lg = new THREE.Group(); lg.position.set(0, 0, -9.3);
+    for (const x of [-2.4, 2.4]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 6, 0.4), ironC); post.position.set(x, 3, 0); lg.add(post); }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.4, 0.4), ironC); beam.position.y = 6; lg.add(beam);
+    const bowl = new THREE.Mesh(new THREE.SphereGeometry(1.5, 20, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), ironC); bowl.position.set(0, 4.2, 0); bowl.rotation.x = -0.7; lg.add(bowl);
+    const melt = new THREE.Mesh(new THREE.CircleGeometry(1.42, 20), molten); melt.position.set(0, 4.2, 0); melt.rotation.x = -Math.PI / 2 - 0.7; lg.add(melt);
+    const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 4.4, 8), molten); stream.position.set(0, 2.0, 1.25); lg.add(stream);
+    lg.traverse((o) => { if ((o as THREE.Mesh).isMesh && (o as THREE.Mesh).material !== molten) o.castShadow = o.receiveShadow = true; });
+    room.add(lg);
+    for (const a of [Math.PI - 0.8, Math.PI + 0.8]) {
+      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5);
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 0.9, 2.2, 16), ironC); pot.position.y = 1.0; g.add(pot);
+      const lip = new THREE.Mesh(new THREE.CircleGeometry(1.2, 16), molten); lip.rotation.x = -Math.PI / 2; lip.position.y = 2.05; g.add(lip);
+      pot.castShadow = pot.receiveShadow = true;
+      room.add(g);
+    }
+  } else if (id === 'hoard') {
+    // Old Vorhulm's hoard: a great mound of gold at the back with bones and a few ribs sticking out of it, two
+    // smaller heaps beside it. Outside the floor.
+    const gold = new THREE.MeshStandardMaterial({ color: '#c09038', roughness: 0.5, metalness: 0.65, emissive: new THREE.Color('#140a02') });
+    const bone = new THREE.MeshStandardMaterial({ color: '#d8ccb4', roughness: 0.8 });
+    for (const [a, r] of [[Math.PI, 3.4], [Math.PI - 0.85, 2.0], [Math.PI + 0.85, 2.0]] as const) {
+      const mound = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), gold);
+      mound.scale.y = 0.55; mound.position.set(Math.sin(a) * (9.4 + r * 0.25), -0.1, Math.cos(a) * (9.4 + r * 0.25)); mound.castShadow = mound.receiveShadow = true; room.add(mound);
+    }
+    // A ribcage half-buried in the big mound: arcs of bone, one draw call.
+    const ribs = new THREE.InstancedMesh(new THREE.TorusGeometry(0.9, 0.07, 6, 16, Math.PI), bone, 8);
+    for (let k = 0; k < 8; k++) {
+      const a = Math.PI + (k - 3.5) * 0.11; e.set(0.25, a + Math.PI / 2, 0); q.setFromEuler(e);
+      m4.compose(new THREE.Vector3(Math.sin(a) * 10.4, 1.25 - Math.abs(k - 3.5) * 0.09, Math.cos(a) * 10.4), q, one); ribs.setMatrixAt(k, m4);
+    }
+    ribs.castShadow = true; room.add(ribs);
   } else if (id === 'hammerdeep') {
     // Three great anvils on stone plinths against the back wall, and a giant hammer resting head-down
     // beside the middle one. Cold iron, a little lit by the slag. Outside the floor.
@@ -422,16 +466,18 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   const spots: number[] = [];
   // Spread round the open part of the wall (at most 200 tries each, so a crowded wall can never hang the build).
   for (let k = 0; k < 8; k++) { for (let tries = 0; tries < 200; tries++) { const a = sr(0, Math.PI * 2); if (!back(a) && !spots.some((b) => Math.abs(b - a) < 0.4)) { spots.push(a); break; } } }
-  if (id === 'glarewell' || id === 'ashvents') {
+  if (id === 'glarewell' || id === 'ashvents' || id === 'hoard') {
     // The Glarewell: clusters of pale crystal shards (glareShards). The Ashvents: cairns of flat ash stones (ashCairn).
-    const glare = id === 'glarewell';
-    const mat = glare ? new THREE.MeshStandardMaterial({ color: '#d8d0ff', roughness: 0.15, metalness: 0.1, emissive: new THREE.Color('#2a2050'), transparent: true, opacity: 0.85 }) : new THREE.MeshStandardMaterial({ color: '#8a7a74', roughness: 1, map: grain });
-    const bits = new THREE.InstancedMesh(glare ? new THREE.OctahedronGeometry(0.3, 0) : new THREE.CylinderGeometry(0.42, 0.5, 0.18, 7), mat, 64);
+    // The Hoard: heaps of coin (hoardPile).
+    const glare = id === 'glarewell', hoard = id === 'hoard';
+    const mat = hoard ? new THREE.MeshStandardMaterial({ color: '#c09038', roughness: 0.5, metalness: 0.65, emissive: new THREE.Color('#140a02') }) : glare ? new THREE.MeshStandardMaterial({ color: '#d8d0ff', roughness: 0.15, metalness: 0.1, emissive: new THREE.Color('#2a2050'), transparent: true, opacity: 0.85 }) : new THREE.MeshStandardMaterial({ color: '#8a7a74', roughness: 1, map: grain });
+    const bits = new THREE.InstancedMesh(hoard ? new THREE.SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2) : glare ? new THREE.OctahedronGeometry(0.3, 0) : new THREE.CylinderGeometry(0.42, 0.5, 0.18, 7), mat, 64);
     let nbt = 0;
     for (const a of spots) {
       const r0 = sr(9.4, 9.9), cx = Math.sin(a) * r0, cz = Math.cos(a) * r0;
       for (let j = 0; j < 7 && nbt < 64; j++) {
-        if (glare) { const sc = sr(0.6, 1.8); put(bits, nbt++, cx + sr(-0.7, 0.7), sc * 0.3, cz + sr(-0.7, 0.7), sr(0, 6), sc * 0.7, sc * 1.6, sc * 0.7, sr(-0.3, 0.3), sr(-0.3, 0.3)); }
+        if (hoard) { if (j < 3) { const sc = sr(0.6, 1.3); put(bits, nbt++, cx + sr(-0.7, 0.7), -0.06, cz + sr(-0.7, 0.7), sr(0, 6), sc, sc * 0.45, sc); } }
+        else if (glare) { const sc = sr(0.6, 1.8); put(bits, nbt++, cx + sr(-0.7, 0.7), sc * 0.3, cz + sr(-0.7, 0.7), sr(0, 6), sc * 0.7, sc * 1.6, sc * 0.7, sr(-0.3, 0.3), sr(-0.3, 0.3)); }
         else { const sc = 1 - j * 0.11; put(bits, nbt++, cx + sr(-0.08, 0.08), 0.05 + j * 0.17, cz + sr(-0.08, 0.08), sr(0, 6), sc); }
       }
     }

@@ -26,6 +26,8 @@ const CASES = [
   { name: 'home-back', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeBack', tier: 8 },
   // Room shots: the boss in, nothing forced (until 'boss': as soon as it's up).
   { name: 'ash-boss', dungeon: 'ashvents', boss: 'ysmeret', variant: undefined, until: 'boss', tier: 7, at: [1500] },
+  { name: 'cru-boss', dungeon: 'crucible', boss: 'grandmotherSlag', until: 'boss', tier: 8, party: true, at: [1500] },
+  { name: 'hoard-boss', dungeon: 'hoard', boss: 'vorhulm', until: 'boss', tier: 9, party: true, at: [1500] },
   { name: 'carried', dungeon: 'glarewell', boss: 'lensmother', variant: 'walk', until: 'light', at: [250, 1100] },
 ];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
