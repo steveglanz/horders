@@ -34,6 +34,13 @@ describe('Phase 16 U2: the Lampeye (the Glarewell)', () => {
     expect(w.lampeyeSees(e, 0, 0)).toBe(true);
   });
 
+  it('cannot see a hero right under it', () => {
+    const { w, inner } = fight();
+    const e = w.enemies[inner.spawn('lampeye', 400, 400)];
+    expect(w.lampeyeSees(e, 400 + e.def.radius + LAMPEYE.under - 5, 400)).toBe(false);
+    expect(w.lampeyeSees(e, 400 + e.def.radius + LAMPEYE.under + 5, 400)).toBe(true);
+  });
+
   it('its gaze builds in the open, then Searing Look hurts a hero it still sees and resets', () => {
     const { w, inner } = fight();
     w.player.y = 300;
