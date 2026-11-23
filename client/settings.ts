@@ -12,6 +12,8 @@ export type HandSetting = 'right' | 'left';
 export type GraphicsSetting = 'auto' | 'saver' | 'full';
 /** Text size (L3): Large grows combat text, the fight HUD's words and the menus' small print. */
 export type TextSetting = 'normal' | 'large';
+/** The 3D look (the default) or the 2D look, which saves battery (client/hd2d/api.ts hd2dWanted). */
+export type LookSetting = '3d' | '2d';
 
 export interface DisplaySettings {
   shake: ShakeSetting;
@@ -19,6 +21,7 @@ export interface DisplaySettings {
   hand: HandSetting;
   graphics: GraphicsSetting;
   text: TextSetting;
+  look: LookSetting;
 }
 
 const KEY = 'horders.display.v1';
@@ -29,7 +32,7 @@ function osReducedMotion(): boolean {
 }
 
 function load(): DisplaySettings {
-  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto', text: 'normal' };
+  const base: DisplaySettings = { shake: osReducedMotion() ? 'reduced' : 'full', palette: 'standard', hand: 'right', graphics: 'auto', text: 'normal', look: '3d' };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;
@@ -40,6 +43,7 @@ function load(): DisplaySettings {
       hand: v.hand === 'left' ? 'left' : 'right',
       graphics: v.graphics === 'saver' || v.graphics === 'full' ? v.graphics : 'auto',
       text: v.text === 'large' ? 'large' : 'normal',
+      look: v.look === '2d' ? '2d' : '3d',
     };
   } catch {
     return base;
@@ -118,7 +122,9 @@ export function mountDisplayOptions(box: HTMLElement): void {
   gfx.el.setAttribute('data-tip', 'Auto trims effects when the frame rate dips. Battery saver always does, caps at 30 fps and renders at 1x. Full never trims.');
   const text = segmented<TextSetting>('Text size', () => display.text, [['normal', 'Normal'], ['large', 'Large']], (v) => { display.text = v; });
   text.el.setAttribute('data-tip', 'Large grows nameplates, damage numbers, the fight HUD and the small print in menus.');
-  const rows = [shake, pal, text, gfx];
+  const look = segmented<LookSetting>('Look', () => display.look, [['3d', '3D'], ['2d', '2D (saves battery)']], (v) => { display.look = v; });
+  look.el.setAttribute('data-tip', 'The 3D look is the full game. The 2D look draws the same fights flat, which is lighter on the battery. Switching restarts the game screen from the main menu.');
+  const rows = [shake, pal, text, gfx, look];
   // Only touch screens have on-screen ability buttons to move.
   if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) {
     const hand = segmented<HandSetting>('Ability buttons', () => display.hand, [['right', 'Right'], ['left', 'Left']], (v) => { display.hand = v; });

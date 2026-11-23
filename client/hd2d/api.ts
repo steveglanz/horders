@@ -1,8 +1,9 @@
 /**
- * HD-2D look test (Steve picked it 23 Nov 2026: "3d just looks so much better"), behind ?hd2d=1.
+ * The 3D (HD-2D) look (Steve picked it 23 Nov 2026: "3d just looks so much better"), the default since then;
+ * the 2D look stays as a battery-saving setting and the fallback (hd2dWanted).
  *
  * The 3D renderer and three.js are their own file, dist/hd2d.js, built by vite.hd2d.config.ts. The first page
- * load never fetches it: pressing Delve with HD-2D on shows a short loading screen while the browser fetches
+ * load never fetches it: pressing Delve with the 3D look on shows a short loading screen while the browser fetches
  * ./hd2d.js, and then the run starts. If the file can't load, the run starts in the normal 2D look.
  *
  * This file is in the main bundle, so it stays tiny and imports nothing from three.js: only the types the
@@ -52,8 +53,49 @@ export interface Hd2dModule {
 }
 
 const params = new URLSearchParams(location.search);
-/** The test is on with ?hd2d=1 (or ?hd2d), off by default. */
-export const hd2dWanted = (): boolean => params.has('hd2d') && params.get('hd2d') !== '0';
+/** Whether this browser can make a WebGL context at all (asked once). Without one the 3D look can't run. */
+let gl: boolean | undefined;
+export function webglAvailable(): boolean {
+  if (gl === undefined) {
+    try {
+      const c = document.createElement('canvas');
+      gl = !!(c.getContext('webgl2') || c.getContext('webgl'));
+    } catch {
+      gl = false;
+    }
+  }
+  return gl;
+}
+
+/**
+ * The 3D look is the baseline (Steve, 23 Nov 2026: "You can ditch non 3d, that should be our baseline").
+ * It is off only when the player picked the 2D look (Settings, saves battery), with ?hd2d=0, or when the browser has
+ * no WebGL. ?hd2d=1 turns it on whatever the setting says. If hd2d.js fails to load, the run plays in 2D (loadHd2d).
+ * `look` is the saved setting (settings.ts display.look), read from storage so this file stays free of imports.
+ */
+export function lookWanted(look: '3d' | '2d' = lookSetting()): boolean {
+  if (params.get('hd2d') === '0') return false;
+  if (!webglAvailable()) return false;
+  if (params.has('hd2d')) return true;
+  return look === '3d';
+}
+
+/**
+ * The look this page load uses, decided once: the game canvas is made see-through for the 3D look at boot
+ * (client/main.ts) and can't change after, so a new choice in Settings applies when the page reloads.
+ */
+let decided: boolean | undefined;
+export const hd2dWanted = (): boolean => (decided ??= lookWanted());
+
+/** The saved look, read straight from storage (settings.ts owns it; this avoids importing it here). */
+function lookSetting(): '3d' | '2d' {
+  try {
+    const v = JSON.parse(localStorage.getItem('horders.display.v1') ?? '{}') as { look?: string };
+    return v.look === '2d' ? '2d' : '3d';
+  } catch {
+    return '3d';
+  }
+}
 /** ?hd2dfx=0 turns off bloom and tilt-shift (a cheaper frame, for comparing on phones). */
 export const hd2dFx = (): boolean => params.get('hd2dfx') !== '0';
 
