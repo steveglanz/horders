@@ -430,7 +430,7 @@ export class Hub {
   private prepChips(omens: OmenId[]): string {
     const h = this.hero();
     const chips: string[] = [];
-    // V4: today's Heat (the Kiln at tiers 1 and 2) gets a chip too; on phones the full line is folded away.
+    // V4: today's Heat (every solo dungeon since Phase 14 X1) gets a chip too; on phones the full line is folded away.
     const heat = this.heatToday();
     if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}"><span class="star" aria-hidden="true">✺</span><span>${heat.name}</span></button>`);
     if (omens.length) {
@@ -475,7 +475,7 @@ export class Hub {
   /** Opens the sheet for one prep chip. */
   private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
     const titles = { heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
-    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on the Kiln at tiers 1 and 2, the same for everyone. It changes every day.</div>'
+    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on this dungeon, the same for everyone. Each solo dungeon has its own, and it changes every day.</div>'
       : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
       : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
@@ -831,10 +831,10 @@ export class Hub {
   private heatToday(): (typeof HEATS)[keyof typeof HEATS] | null {
     // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
     if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return null;
-    return HEATS[heatFor(dayOf(Date.now()))];
+    return HEATS[heatFor(dayOf(Date.now()), this.dungeon)];
   }
 
-  /** V4: today's Heat, on the Kiln below the first Omen tier. */
+  /** V4: today's Heat in the picked solo dungeon (Phase 14 X1: every solo dungeon, every tier). */
   private heatLine(): string {
     const h = this.heatToday();
     if (!h) return '';
