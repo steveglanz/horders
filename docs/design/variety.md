@@ -801,3 +801,20 @@ Steve, 23 Nov: "It would be cool if the dungeons sort of adapted or adjusted dif
 - The bot takes almost no damage in most trash fights (its median is 0% of its health), so it stirs about once a run. Players who take more hits will see it less, which is the point.
 - **Loot:** tools/lootrate.ts, Emberwright, hero-t6, Glarewell t7, 40 seeds: items a minute 0.92 with stir off and 1.02 on, Rare or better 0.52 and 0.62. Fill with bots runs don't change, since stirring is off there.
 - **Name:** "The dungeon stirs" had no WoW-branded match in a search on 23 Nov.
+
+## Phase 15 Y2 (built 23 Nov 2026): arena events in raid trash
+
+The raids' trash fights (openers and named fights, never the boss) now roll Cave-in and Vent Surge, as the group dungeons have since #494: 40% of trash fights, from `ARENA_EVENT_POOLS` crucible, hoard, smeltery and flue. Their trash has had stones and vents since Phase 13 E1. Each raid has its own landing sounds (#513).
+
+**Measured** with tools/group.ts, the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 1 to 160, at each raid's unlock tier. The band is 55 to 70%:
+
+| Raid, tier | Events off | Events on (natural) |
+|---|---|---|
+| Crucible t8 | 94 (59%) | 88 (55%) |
+| Hoard t9 | 97 (61%) | 103 (64%) |
+| Smeltery t10 | 108 (68%) | 111 (69%) |
+| Flue t11 | 99 (62%) | 108 (68%) |
+
+- Every raid stays in the band. Any change to the trash reshuffles the run rng before the boss, and paired-seed swings this size are luck (horders-raid-measuring), so I read these as no change.
+- The Crucible is at the bottom edge (88 of 160). If later work takes it lower, it's the first raid to retune.
+- tests/audio.test.ts's real Smeltery run moved from seed 3 to seed 19. Seed 3's run changed and no longer reached Meltdown; seed 19 hears every cue the test lists.

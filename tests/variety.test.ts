@@ -901,7 +901,7 @@ describe('Phase 14 X3: arena events', () => {
   const make = (dungeon: 'kiln' | 'foundry' | 'glarewell' | 'coldmarrow' | 'wrackline' | 'hammerdeep' | 'ashvents' | 'pressworks' | 'crucible', seed = 1) =>
     new World({ seed, dungeon, tier: { kiln: 2, foundry: 4, glarewell: 7, coldmarrow: 10, wrackline: 13, hammerdeep: 4, ashvents: 7, pressworks: 10, crucible: 8 }[dungeon], omens: [], cls: 'emberwright' });
 
-  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss, never a raid', () => {
+  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss', () => {
     for (const dg of Object.keys(ARENA_EVENT_POOLS) as (keyof typeof ARENA_EVENT_POOLS)[]) {
       let hits = 0, n = 0;
       const seen = new Set<string>();
@@ -919,10 +919,11 @@ describe('Phase 14 X3: arena events', () => {
       expect(hits / n, dg).toBeLessThan(ARENA_EVENTS.chance + 0.08);
       expect([...seen].sort(), dg).toEqual([...ARENA_EVENT_POOLS[dg]!].sort());
     }
-    // X3 part 2: the group dungeons have them too; raids don't yet.
+    // X3 part 2: the group dungeons have them too, and (Phase 15 Y2) the raids' trash, never a raid boss.
     expect(ARENA_EVENT_POOLS.hammerdeep).toBeDefined();
+    expect(ARENA_EVENT_POOLS.crucible).toBeDefined();
     const g = make('crucible');
-    for (let k = 0; k < g.route.length; k++) expect(g.arenaEventAt(k, g.route[k])).toBe('');
+    expect(g.arenaEventAt(g.route.length - 1, g.route[g.route.length - 1])).toBe('');
     expect(new World({ seed: 1, omens: [], firstDelve: true }).arenaEventAt(0, 'pack')).toBe('');
   });
 
