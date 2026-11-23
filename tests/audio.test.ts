@@ -643,6 +643,16 @@ describe('audio', () => {
     expect(src).toContain('Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5'); // anvils
     expect(src).toContain('Math.sin(a) * 9.7, 0, Math.cos(a) * 9.7'); // chimneys
     expect(src).toContain('lg.position.set(0, 6.2, -9.6)'); // the Glarewell's lens, at the back wall centre (z -9.6)
+    expect(src).toContain('lg.position.set(0, 0, -9.3)'); // the Crucible's ladle
+    expect(src).toContain('for (const a of [Math.PI - 0.8, Math.PI + 0.8]) {\n      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5);'); // its slag pots
+    expect(src).toContain('[[Math.PI, 3.4], [Math.PI - 0.85, 2.0], [Math.PI + 0.85, 2.0]]'); // the Hoard's mounds
+    expect(src).toContain('mound.position.set(Math.sin(a) * (9.4 + r * 0.25)');
+    expect(src).toMatch(/\[\[Math\.PI, 3\.2\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.6/); // the Coldmarrow's arches
+    expect(src).toMatch(/\[\[Math\.PI, 3\.0\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // the presses
+    expect(src).toContain('for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {\n      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.9'); // the ore carts
+    expect(src).toContain('wg.position.set(0, -0.2, -9.6)'); // the Wrackline's hull
+    expect(src).toContain('[Math.PI - 0.7, Math.PI - 1.0, Math.PI - 1.3, Math.PI + 0.7, Math.PI + 1.0, Math.PI + 1.3]'); // its posts
+    expect(src).toContain('new THREE.Vector3(Math.sin(a) * 8.9, 0.9, Math.cos(a) * 8.9)');
     expect(src).toMatch(/\[Math\.PI, 2\.2\], \[Math\.PI - 0\.8, 1\.6\], \[Math\.PI \+ 0\.8, 1\.6\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // fumaroles
     // Only dungeons with their own 3D room get spots (the rest share the Flue room, whose props aren't theirs). A new room
     // without spots yet just keeps the random side, so visuals' room PRs never wait on sound.
@@ -667,12 +677,14 @@ describe('audio', () => {
     expect(kiln?.pan).toBeLessThan(0); // drawn left, heard left, although the side roll said right
     // The middle kiln is straight up the screen from a hero at x 0: centred.
     expect(edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.5, 0]), room)?.pan).toBeCloseTo(0, 6);
-    // In 2D (no screen), or a sound with no spot (the Foundry's valve), or a dungeon in the shared Flue room, the random side stays.
+    // In 2D (no screen), or a sound with no spot (the Foundry's valve, the Hoard's bones), the random side stays.
     const twoD = edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.99]), { listen: { x: 0, half: 280 }, arenaR: 560 });
     expect(twoD?.pan).toBeCloseTo(EDGE.pan * (0.6 + 0.4 * 0.99), 6);
     expect(edgeCue({ next: 1 }, 'foundry', 1, false, seq([0.5, 0.9, 0.9, 0.5]), room)).toMatchObject({ id: 'edgeValve', pan: EDGE.pan * 0.8 });
-    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.1, 0.5]), room)?.pan).toBeCloseTo(-EDGE.pan * 0.8, 6);
-    expect(EDGE_SPOTS.hoard).toBeUndefined();
+    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.9, 0.5]), room)).toMatchObject({ id: 'edgeBones' });
+    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.9, 0.5]), room)?.pan).toBeCloseTo(-EDGE.pan * 0.8, 6);
+    // Every own 3D room so far (all twelve dungeons) has its big prop placed.
+    for (const d of ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard', 'coldmarrow', 'pressworks', 'smeltery', 'wrackline', 'flue']) expect(EDGE_SPOTS[d]?.[0].length, d).toBeGreaterThan(0);
   });
 
   it('sounds the Regent\'s Summons as a must-hear call, and the Brimming\'s Churn as a quiet stir (Phase 12 W3)', () => {
