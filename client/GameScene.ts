@@ -1483,6 +1483,10 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'echo':
+          // Phase 16 U1: the boss borrows another version's move. Name it, so a phone shows what's coming.
+          this.hud.ding(`Echo: ${BOSS_VERSION_NAME[ev.id] ?? ev.id}`);
+          break;
         case 'emberDrift':
           // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
           this.driftFallAt = this.time.now;

@@ -1310,3 +1310,29 @@ Solo Glarewell at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80. Wins out of 80, an
 
 - **Echo first:** with her own cast first, phase 3 often ended before the echo came, and wins were unchanged in every class. So the echo comes first.
 - **The Kiln Mother keeps her own signature first.** With her echo first, solo Bulwark at Kiln t8 fell to 42 from 50, against 48 with her own first (#583). The other classes stayed within 2. 14 seeds changed outcome: 5 of the new losses had a Kiln Draw echo and 4 a Molten Cataclysm echo.
+
+## Phase 16 U1: Nhevra's echo
+
+Nhevra has two phases, so her echo starts deeper into her second phase. From tier 8, once she is at `NHEVRA_ECHO.below` (25%) health, the version this run didn't roll comes and goes on top of her own. It is on for `on` 12 s and off for `off` 10 s, starting at once.
+
+- **Thin Ice echo:** the river cracks as the window opens, and again every `COLD.crackEvery` while it is on.
+- **Emberdrift echo:** the ember ring drops as the window opens. Coals drain faster while it is on, and the embers are cleared when it ends.
+- **Creeping Rime echo:** the rime rises under her and creeps while it is on, and fades when it ends.
+- Each window that opens fires `{type:'echo', id}`. The client now dings "Echo: <version name>" on every echo event, for every boss.
+
+Solo Coldmarrow at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off | Saw an echo |
+|---|---|---|---|
+| Bulwark | 56 | 56 | 64 |
+| Duskblade | 43 | 49 | 57 |
+| Emberwright | 65 | 65 | 68 |
+| Lumen | 61 | 61 | 66 |
+| Slagbinder | 51 | 51 | 63 |
+
+- **The Duskblade** loses ground: 43 against 49 on seeds 1 to 80, and 44 against 49 on seeds 81 to 160. On the seeds that flipped, the Duskblade took more damage in the last 25% (for example 420 hurt against 303 on seed 6). Forcing one echo gave 39 with Thin Ice and 40 with Creeping Rime.
+  - Each fix I tried did worse:
+    - a later start at 15% health: 40;
+    - 8 s windows: 42;
+    - the echo replacing her own version instead of stacking on it: 41 and 42, with every other class down 1 to 3.
+  - Kept as is: 43 to 44 of 80 (54 to 55%) sits inside the tier-10 wall band of 40 to 60% (coldmarrow.md). It's a watch item for skills' class check (U4).
