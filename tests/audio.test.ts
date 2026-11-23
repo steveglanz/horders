@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
-import { DUNGEON_IDS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
+import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -791,6 +791,23 @@ describe('audio', () => {
     expect(typeof w.namedPlan).toBe('function');
     for (const f of ['../client/GameScene.ts', '../tools/busycheck.ts']) {
       expect(readFileSync(new URL(f, import.meta.url), 'utf8'), f).toContain('namedAffix: w.namedPlan()?.affix');
+    }
+  });
+
+  it('has the raids\' own cave-in and vent-surge landings ready for their trash fights (Phase 15 Y2)', () => {
+    const raids = (Object.keys(DUNGEONS) as DungeonId[]).filter((d) => DUNGEONS[d].raid);
+    expect(raids.sort()).toEqual(['crucible', 'flue', 'hoard', 'smeltery']);
+    const base = { caveIn: phoneDb(render(SOUNDS.caveInLand, 22050), 22050), ventSurge: phoneDb(render(SOUNDS.ventSurgeLand, 22050), 22050) };
+    for (const ev of ['caveIn', 'ventSurge'] as const) {
+      const all = Object.entries(ARENA_LAND).filter(([k]) => k.startsWith(`${ev}.`)).map(([, v]) => v);
+      expect(new Set(all).size, ev).toBe(all.length);
+      for (const d of raids) {
+        const id = cueFor({ type: 'arenaEvent', id: ev, stage: 'land' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: d })?.id;
+        expect(id, `${ev}.${d}`).toBe(ARENA_LAND[`${ev}.${d}`]);
+        expect(id).not.toBe(ARENA_EVENT_SOUNDS[ev].land);
+        expect(recipeLength(SOUNDS[id!]), id).toBeLessThan(1);
+        expect(Math.abs(phoneDb(render(SOUNDS[id!], 22050), 22050) - base[ev]), id).toBeLessThan(3.5);
+      }
     }
   });
 

@@ -1192,6 +1192,42 @@ export const SOUNDS = {
   /** They arrive: a rush of feet and claws, and a thump as they hit the floor. */
   reinforceLand: join(boom(70, 0.35, 0.3),
     ...[0, 0.04, 0.09, 0.13, 0.18, 0.22, 0.27, 0.32].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.12, lp: 4000 + (k % 3) * 1500, hp: 800, curve: 3 }])),
+  /** Phase 15 Y2, raid trash (matched to the raids' stones and vents, #464). The Crucible's cave-in: crusted slag
+   *  drops and cracks, molten drips hissing. */
+  caveInSlag: join(boom(55, 0.6, 0.45),
+    ...[0.05, 0.14].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }]),
+    ...[0.22, 0.3, 0.41].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 9000, hp: 3000, curve: 3 }]),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.3, vol: 0.1, a: 0.08, lp: 7000, hp: 2500, curve: 1.6 }]),
+  /** The Hoard's cave-in: coal and old bones tumble down, loose coins chiming. */
+  caveInBone: join(boom(60, 0.5, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.12, delay: 0.04, vol: 0.18, lp: 1800, hp: 300, curve: 2.5 }],
+    ...[0.15, 0.24, 0.3, 0.39].map((d, k) => [{ wave: 'tri' as const, f: [900, 760, 1040, 820][k], f2: [800, 700, 950, 760][k], dur: 0.06, delay: d, vol: 0.13, curve: 3.5 }]),
+    chime(2900, 0.45, 0.08, 0.25), chime(3300, 0.52, 0.07, 0.25)),
+  /** The Smeltery's cave-in: ore and copper ingots crash down onto iron. */
+  caveInIngot: join(boom(60, 0.5, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.12, delay: 0.04, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }],
+    clang(294, 0.16, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.12 })), clang(247, 0.14, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.26 }))),
+  /** The Flue's cave-in: old brickwork gives way, mortar crumbling after it. */
+  caveInBrick: join(boom(60, 0.5, 0.4),
+    ...[0.03, 0.13, 0.22].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.07, delay: d, vol: 0.22, lp: 1600, hp: 450, curve: 3 }, { wave: 'tri' as const, f: 320, f2: 250, dur: 0.08, delay: d, vol: 0.1, curve: 3 }]),
+    ...[0.32, 0.38, 0.45, 0.5, 0.58, 0.66].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.08, lp: 6000, hp: 1500, curve: 3 }])),
+  /** The Crucible's vent surge: every slag pool spits at once, a thick molten splash. */
+  surgeSlag: join(boom(60, 0.6, 0.35),
+    ...[0.02, 0.12, 0.2].map((d, k) => [{ wave: 'sine' as const, f: 260 - k * 30, f2: 560 - k * 50, dur: 0.12, delay: d, vol: 0.14, curve: 2 }]),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.2, a: 0.02, lp: 3500, lp2: 1000, hp: 400, curve: 1.6 }]),
+  /** The Hoard's vent surge: every ember bed belches at once, sparks and coins scattering. */
+  surgeHoard: join(boom(65, 0.5, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.2, a: 0.02, lp: 4000, lp2: 1200, hp: 450, curve: 1.6 }],
+    ...[0.1, 0.16, 0.23, 0.3].map((d, k) => chime(2600 + (k % 3) * 350, d, 0.07, 0.22))),
+  /** The Smeltery's vent surge: every tuyere blasts together, a roar and a shower of sparks. */
+  surgeTuyere: join(boom(60, 0.5, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.24, a: 0.02, lp: 6000, lp2: 1500, hp: 450, curve: 1.4 },
+     { wave: 'saw', f: 150, f2: 90, dur: 0.6, vol: 0.08, lp: 2000, curve: 1.6 }],
+    ...[0.15, 0.22, 0.3, 0.37, 0.45].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.12, lp: 10000, hp: 3500, curve: 3 }])),
+  /** The Flue's vent surge: every ash bed blows at once, a chimney's cough and grey ash. */
+  surgeFlue: join(boom(65, 0.45, 0.3),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 3000, lp2: 900, hp: 400, curve: 1.6 },
+     { wave: 'sine', f: 330, f2: 220, dur: 0.6, vol: 0.08, curve: 1.6 }]),
   /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
   coldSnapWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
@@ -1524,6 +1560,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  // Phase 15 Y2 raid landings, level with the others (cave-ins about -28.5, surges about -26 dB).
+  caveInSlag: 1.6, caveInBone: 1.5, caveInIngot: 1.8, caveInBrick: 2.5, surgeSlag: 2.2, surgeHoard: 1.5, surgeTuyere: 0.6, surgeFlue: 3.5,
   // Phase 15 Y1 waves: the warning 1.5 dB over the floor (landing slams mask it: busycheck WHO), 6.8 dB over the Foundry and Pressworks mix; the start calls and landing about -28 dB, over a layout sting.
   reinforceWarn: 4.8, wavePincer: 3.7, waveRing: 6.0, reinforceLand: 2.8,
   seenNew: 1.7, // level with unlock (-23.8 dB)

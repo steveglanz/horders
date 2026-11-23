@@ -21,6 +21,19 @@
   /* main.ts renders the canvas at device resolution (capped at 2x) and shows it at CSS size. */
   #game canvas { width: 100% !important; height: 100% !important; }
   #game canvas { display: block; }
+  /* HD-2D look test: the short loading screen while dist/hd2d.js comes in after Delve. */
+  #hd2dLoad { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 60%, #2a1208 0%, #120b0a 70%); padding: 16px; }
+  #hd2dLoad[hidden] { display: none; }
+  #hd2dLoad .hl-card { width: min(280px, 100%); text-align: center; }
+  #hd2dLoad .hl-title { font-family: var(--serif); font-size: 22px; color: var(--gold); text-shadow: 0 0 18px rgba(255,138,61,0.55); }
+  #hd2dLoad .hl-bar { height: 6px; margin: 14px 0 10px; border-radius: 3px; background: rgba(255,200,97,0.14); overflow: hidden; }
+  #hd2dLoad .hl-bar i { display: block; width: 40%; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ff6a1f, #ffc861); animation: hlSweep 1.1s ease-in-out infinite; }
+  @keyframes hlSweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  #hd2dLoad .hl-note { font-size: 13px; color: var(--muted); }
+  #hd2dLoad .hl-fail { display: none; font-size: 13px; color: var(--ink); }
+  #hd2dLoad.failed .hl-note { display: none; }
+  #hd2dLoad.failed .hl-fail { display: block; }
+  #hd2dLoad.failed .hl-bar i { animation: none; width: 100%; background: var(--muted); }
   [hidden] { display: none !important; }
   button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -1378,6 +1391,15 @@
 </head>
 <body>
 <div id="game"></div>
+<!-- HD-2D look test (?hd2d=1): shown while the 3D file loads after Delve (client/hd2d/api.ts). -->
+<div id="hd2dLoad" hidden role="status" aria-live="polite">
+  <div class="hl-card">
+    <div class="hl-title">Lighting the Flue</div>
+    <div class="hl-bar"><i></i></div>
+    <div class="hl-note">Loading the 3D look, once</div>
+    <div class="hl-fail">The 3D look didn&rsquo;t load. Starting in 2D.</div>
+  </div>
+</div>
 <div id="vignette"></div>
 <div id="frost"></div>
 <div id="touch"></div>

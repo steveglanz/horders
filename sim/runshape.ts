@@ -7,9 +7,9 @@
 import { ENCOUNTERS, type EncounterId } from './content/dungeon';
 import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
-import { WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
+import { STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'boss' | 'heat';
+export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'boss' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -101,6 +101,12 @@ export function runShape(w: World): ShapeChip[] {
   const wids = Object.keys(wn) as Exclude<WaveShape, 'arc'>[];
   if (wids.length) {
     out.push({ kind: 'wave', label: `Waves: ${wids.map((v) => `${WAVE_SHAPE_INFO[v].name}${wn[v]! > 1 ? ` x${wn[v]}` : ''}`).join(', ')}`, tip: ws.join('. ') });
+  }
+
+  // Phase 15 Y10: how the dungeon stirred this run, after clean fights (decided as the run goes, so it reads what happened).
+  const stirred = STIR_IDS.filter((v) => w.stirsMet & STIR_BIT[v]);
+  if (stirred.length) {
+    out.push({ kind: 'stir', label: `Stirred: ${stirred.map((v) => STIR_INFO[v].name).join(', ')}`, tip: `Clean fights stirred the dungeon. ${stirred.map((v) => STIR_INFO[v].tip).join(' ')}` });
   }
 
   // The boss's version is rolled when it appears, so a run that never reached it shows none.
