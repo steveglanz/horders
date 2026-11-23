@@ -1148,6 +1148,31 @@ export const SOUNDS = {
   surgeLens: join(boom(80, 0.4, 0.25),
     [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.28, lp: 12000, hp: 3000, curve: 3 }],
     chime(E6 * 1.5, 0, 0.18, 0.7), chime(B5() * 2, 0.04, 0.14, 0.7), chime(G6 * 1.5, 0.08, 0.12, 0.7)),
+  /** Group dungeons (X3 part 2). The Hammerdeep's cave-in: dead-forge rock and iron slag clatter down. */
+  caveInDeep: join(boom(55, 0.6, 0.45),
+    ...[0.05, 0.15].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2400, hp: 450, curve: 2.5 }]),
+    clang(220, 0.14, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.25 })),
+    clang(165, 0.12, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.4 }))),
+  /** The Ashvents' cave-in: pumice drops in soft crunches and the ash it sheds hangs in the air. */
+  caveInAsh: join(boom(60, 0.5, 0.35),
+    ...[0.04, 0.13, 0.2].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.1, delay: d, vol: 0.22, lp: 3200, hp: 500, curve: 2.5 }]),
+    [{ wave: 'noise', f: 0, dur: 0.7, delay: 0.2, vol: 0.1, a: 0.15, lp: 10000, hp: 3500, curve: 1.4 }]),
+  /** The Pressworks' cave-in: rock lands on sheet steel, a dull ring under the crash. */
+  caveInPress: join(boom(60, 0.5, 0.4),
+    ...[0.05, 0.14].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2600, hp: 500, curve: 2.5 }]),
+    clang(131, 0.2, 0.6).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.06 }))),
+  /** The Hammerdeep's vent surge: every forge vent roars back to life at once. */
+  surgeDeep: join(boom(60, 0.6, 0.35),
+    [{ wave: 'saw', f: 110, f2: 70, dur: 0.6, vol: 0.12, lp: 1800, lp2: 600, curve: 1.6 },
+     { wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 4000, lp2: 1200, hp: 450, curve: 1.6 }],
+    ...[0.15, 0.24, 0.36].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
+  /** The Ashvents' vent surge: every fumarole coughs ash and embers together. */
+  surgeAsh: join(boom(70, 0.4, 0.3),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 5000, lp2: 1500, hp: 450, curve: 1.6 }],
+    ...[0.12, 0.2, 0.27, 0.38, 0.47].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.13, lp: 9000, hp: 3000, curve: 3 }])),
+  /** The Pressworks' vent surge: every steam press blows its valves at once. */
+  surgePress: join(clang(165, 0.2, 0.4), clang(196, 0.16, 0.35).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.08 })),
+    whoosh(2500, 8000, 0.7, 0.3), boom(55, 0.3, 0.3)),
   /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
   coldSnapWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
@@ -1480,6 +1505,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
+  caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
   namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
   phase: 2.2,
   phaseIce: 5.9,
