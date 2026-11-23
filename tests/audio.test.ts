@@ -971,6 +971,46 @@ describe('audio', () => {
     expect(scene).toMatch(/inRime: inRimeNow\(w\)/);
   });
 
+  it('gives Hessa\'s Whirl its own swirling wind-up and pull, apart from the Ebb and the Outsurge (Phase 15 Y3)', () => {
+    type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; bossIndex: number; bossSpawned: boolean;
+      wrackPhase: number; ebbT: number; ebbWarnT: number; tideClockT: number; rafts: unknown[] };
+    const make = (variant: string, phase = 2) => {
+      const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+      const q = w as unknown as H;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('hessa', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true; q.wrackPhase = phase;
+      w.bossVariant = variant as never;
+      w.enemies[b].abilityT = 99;
+      q.rafts = []; q.ebbT = 0; q.ebbWarnT = 0; q.tideClockT = 0;
+      w.player.x = 300; w.player.y = 0;
+      w.events.length = 0;
+      q.wrackClock(0.01);
+      // The context exactly as GameScene builds it.
+      const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'wrackline', outsurge: w.outsurge, whirl: w.whirl };
+      const start = w.events.find((e) => e.type === 'castStart' && e.id === 'ebb');
+      return { w, c, warn: start ? cueFor(start, c)?.id : undefined };
+    };
+    const whirl = make('whirl');
+    expect(whirl.c.whirl).toBe(true);
+    expect(whirl.warn).toBe('whirlWarn');
+    expect(ebbCue({ on: false }, true, whirl.c.outsurge, whirl.c.whirl)?.id).toBe('whirlPull');
+    expect(PRIORITY.has('whirlWarn') && PRIORITY.has('whirlPull')).toBe(true);
+    expect(recipeLength(SOUNDS.whirlWarn)).toBe(recipeLength(SOUNDS.ebbWarn));
+    // Phase 1 of a whirl run, and the other versions, keep their own sounds.
+    const early = make('whirl', 1);
+    expect(early.c.whirl).toBe(false);
+    expect(early.warn).toBe('ebbWarn');
+    expect(make('riptide').warn).toBe('ebbWarn');
+    expect(make('outsurge').warn).toBe('outsurgeWarn');
+    expect(ebbCue({ on: false }, true, false, false)?.id).toBe('ebbPull');
+    // Wired from the scene, the mixer and busycheck.
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toMatch(/whirl: w\.dungeonId === 'wrackline' && w\.whirl/);
+    const mixer = readFileSync(new URL('../client/audio/index.ts', import.meta.url), 'utf8');
+    expect(mixer).toMatch(/ebbCue\(this\.ebbing, !!ctx\.ebbPull, !!ctx\.outsurge, !!ctx\.whirl\)/);
+  });
+
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
     type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
     const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });

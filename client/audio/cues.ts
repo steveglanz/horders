@@ -39,6 +39,8 @@ export interface CueContext {
   ebbPull?: boolean;
   /** The Wrackline: Hessa's Outsurge version is live (World.outsurge), so the Ebb runs outward and sounds different. */
   outsurge?: boolean;
+  /** The Wrackline: Hessa's Whirl version is live (World.whirl), so the Ebb swirls round the drain and sounds different. */
+  whirl?: boolean;
   /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
@@ -364,7 +366,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
       // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
-      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
+      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
@@ -715,10 +717,10 @@ export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
 }
 
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
-export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false): Cue | null {
+export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false, whirl = false): Cue | null {
   const fire = pulling && !state.on;
   state.on = pulling;
-  return fire ? { id: outsurge ? 'outsurgePull' : 'ebbPull' } : null;
+  return fire ? { id: outsurge ? 'outsurgePull' : whirl ? 'whirlPull' : 'ebbPull' } : null;
 }
 
 /** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
@@ -740,7 +742,7 @@ export const WANDERING_VENTS = 'Wandering Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
