@@ -2473,7 +2473,7 @@ export class World {
   /** Phase 14 X3: the event the fight `id` at route position `k` gets, if any (solo and group trash fights; never a raid). */
   arenaEventAt(k: number, id: EncounterId): ArenaEventId | '' {
     const pool = ARENA_EVENT_POOLS[this.dungeonId];
-    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id)) return '';
+    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || !this.layoutRolls(id)) return '';
     const forced = ARENA_EVENTS.force as ArenaEventId | '';
     if (forced) return pool.includes(forced) ? forced : '';
     const h = this.arenaEventHash(k);
@@ -7837,10 +7837,15 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   glarewell: ['ventSurge'],
   coldmarrow: ['caveIn', 'coldSnap'],
   wrackline: ['highWater'],
-  // Phase 14 X3, part 2: the group dungeons' trash, which has had stones and vents since Phase 12 W2. Raids not yet.
+  // Phase 14 X3, part 2: the group dungeons' trash, which has had stones and vents since Phase 12 W2.
   hammerdeep: ['caveIn', 'ventSurge'],
   ashvents: ['caveIn', 'ventSurge'],
   pressworks: ['caveIn', 'ventSurge'],
+  // Phase 15 Y2: raid trash (openers and named fights, never the boss), which has had stones and vents since Phase 13 E1.
+  crucible: ['caveIn', 'ventSurge'],
+  hoard: ['caveIn', 'ventSurge'],
+  smeltery: ['caveIn', 'ventSurge'],
+  flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
 export type KilnVariant = 'cataclysm' | 'draw';
