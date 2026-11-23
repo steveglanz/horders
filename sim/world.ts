@@ -584,6 +584,8 @@ export type SimEvent =
   | { type: 'tideTurn'; angle: number }
   /** Y3 Carried Light: the Glarewell's light now comes from here. */
   | { type: 'lightMove'; x: number; y: number }
+  /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
+  | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
   | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
@@ -856,6 +858,10 @@ export class World {
   cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
+  /** Y3 Creeping Rime: whether it's up, and where. */
+  rimeOn = false;
+  rimeX = 0;
+  rimeY = 0;
   private driftT = 0;
   private driftN = 0;
   /** V8 Sluicetide: the way the water flows (radians), while it runs. */
@@ -2271,6 +2277,12 @@ export class World {
       if (k !== not && dist2(e.x, e.y, v.x, v.y) > (v.r + e.def.radius) ** 2) free.push(k);
     }
     if (!free.length) for (let k = 0; k < n; k++) if (k !== not) free.push(k);
+    if (MAELRA_SEAL.near) {
+      // The free vent nearest her, so a slow melee lead can reach it.
+      let best = free[0], bd = Infinity;
+      for (const k of free) { const d = dist2(e.x, e.y, this.vents[k].x, this.vents[k].y); if (d < bd) { bd = d; best = k; } }
+      return best;
+    }
     return free[h % free.length];
   }
 
@@ -6042,6 +6054,11 @@ export class World {
         this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
         this.use(at);
       }
+      if (this.rimeOn && q.hp > 0 && dist2(q.x, q.y, this.rimeX, this.rimeY) <= CREEPING_RIME.r ** 2) {
+        // Y3 Creeping Rime: it soaks the coal and chills, but doesn't burn.
+        q.coal = Math.max(0, q.coal - CREEPING_RIME.drain * dt);
+        q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + CREEPING_RIME.chill * dt);
+      }
       if (this.coldPhase >= 2 && q.hp > 0 && this.inWater(q.x, q.y)) {
         // Thin Ice: open water soaks the coal, chills fast, and hurts.
         q.coal = Math.max(0, q.coal - COLD.waterDrain * dt);
@@ -6086,6 +6103,27 @@ export class World {
           this.driftEmbers.push({ x: Math.cos(a) * EMBERDRIFT.ring, y: Math.sin(a) * EMBERDRIFT.ring });
         }
         this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
+      }
+    } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
+      // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
+      if (!this.rimeOn) {
+        this.rimeOn = true;
+        this.rimeX = e.x;
+        this.rimeY = e.y;
+        this.events.push({ type: 'rimeRise', x: e.x, y: e.y });
+      }
+      let tx = this.rimeX, ty = this.rimeY, best = Infinity;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0) continue;
+        const d = dist2(q.x, q.y, this.rimeX, this.rimeY);
+        if (d < best) { best = d; tx = q.x; ty = q.y; }
+      }
+      const dx = tx - this.rimeX, dy = ty - this.rimeY, d = Math.hypot(dx, dy);
+      if (d > 1) {
+        const step = Math.min(d, CREEPING_RIME.speed * dt);
+        this.rimeX += (dx / d) * step;
+        this.rimeY += (dy / d) * step;
       }
     } else if (this.coldPhase >= 2) {
       this.iceT -= dt;
@@ -7086,7 +7124,8 @@ export class World {
       this.events.push({ type: 'phase', phase });
     }
     // Temper builds over time; dragging her through a vent boils it away.
-    this.temperT -= dt;
+    // Y3 Sealed Vents: with one vent open, her Temper builds `temperSlow` times slower from phase 2.
+    this.temperT -= dt / (phase >= 2 && this.bossVariant === 'seal' ? MAELRA_SEAL.temperSlow : 1);
     if (this.temperT <= 0) {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
@@ -7115,7 +7154,7 @@ export class World {
       for (let vi = 0; vi < this.vents.length; vi++) {
         const v = this.vents[vi];
         if (sealed && vi !== this.openVent) continue;
-        if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
+        if (dist2(e.x, e.y, v.x, v.y) <= (v.r * (sealed ? MAELRA_SEAL.wide : 1) + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
           const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * (sealed ? MAELRA_SEAL.healMult : 1) * this.temper);
           if (heal > 0) {
@@ -7965,8 +8004,13 @@ export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
-export type NhevraVariant = 'ice' | 'drift';
-export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift'];
+export type NhevraVariant = 'ice' | 'drift' | 'rime';
+export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
+/**
+ * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
+ * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.
+ */
+export const CREEPING_RIME = { r: 85, speed: 48, drain: 0.05, chill: 1.5 };
 /** V8 Emberdrift: from phase 2 coals drain `drainMult` times faster; every `every` s, `n` embers fall on a `ring` px ring, each refilling `refill` of a coal when touched (within `pickR`). */
 export const EMBERDRIFT = { every: 12, n: 3, ring: 280, pickR: 34, refill: 0.45, drainMult: 2.5 };
 
@@ -7990,8 +8034,11 @@ export const SLUICETIDE = { drift: 45, turnEvery: 8 };
 /**
  * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
  * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
+ * Skills' Y5 fix (the Bulwark fell to 49 of 160 at t6): the open vent boils her from `wide` times its radius, the steam moves
+ * to the free vent nearest her when `near` is 1, and her Temper builds `temperSlow` times slower. The clock runs in runMaelra,
+ * so it pauses while she casts.
  */
-export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5 };
+export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5, wide: 1.6, near: 1, temperSlow: 1.5 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
