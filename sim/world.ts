@@ -23,7 +23,7 @@ import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/set
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
-import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
+import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -75,6 +75,13 @@ const RINGWALL_BLOCK = 0.2;
  * hits (QA's playtest, 23 Nov). See docs/skills.md.
  */
 export const BLADE_GUARD: readonly number[] = [0.5, 0.7, 0.7];
+/**
+ * Grit Guard (aid from tier 4, where Blade Guard ends): each Grit stack (a loss in a row on this tier, see GRIT) gives the
+ * Duskblade `perStack` Blade Guard against the foe it is swinging at, up to `cap`. A win clears Grit, so a player who wins
+ * never has it. In QA's career sim (LAG 0.5 SKILL 0.3, 190 t4 runs) it took the novice Duskblade from 0 to 26 t4 wins and its
+ * worst losing streak from 21 to 13, with every career breaking through (skills, 23 Nov). See docs/skills.md.
+ */
+export const GRIT_GUARD = { perStack: 0.2, cap: 0.7, fromTier: 4 };
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -3134,7 +3141,7 @@ export class World {
     // Kinbound: an ally's heal leaves you Covered.
     if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
-    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (BLADE_GUARD[this.tier - 1] ?? 0);
+    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (BLADE_GUARD[this.tier - 1] ?? this.gritGuard);
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
@@ -4218,6 +4225,12 @@ export class World {
    */
   get noviceAid(): number {
     return Math.max(0, 1 - (this.tier - 1) / 3);
+  }
+
+  /** Grit Guard: the extra block a run on Grit gets from GRIT_GUARD.fromTier (0 below it or with no Grit). */
+  get gritGuard(): number {
+    if (this.tier < GRIT_GUARD.fromTier) return 0;
+    return Math.min(GRIT_GUARD.cap, GRIT_GUARD.perStack * Math.min(GRIT.maxStacks, this.grit));
   }
 
   /** Whether enemy `i` is a big foe in front of the Bulwark's shield (within 75 degrees of its last sweep). */
