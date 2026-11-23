@@ -42,6 +42,8 @@ const VIEW = 560 * S;
 const SELF_LIFT = 1.6;
 /** BALLAST.plantDelay (sim/world.ts): seconds in reach before the Ballast drops anchor. */
 const BALLAST_PLANT = 0.8;
+/** LAMPEYE.full (sim/world.ts): the Lampeye's gaze at which it starts its Searing Look. */
+const LAMPEYE_FULL = 6;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
@@ -932,7 +934,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS };
   // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
   // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
   const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
@@ -946,6 +948,40 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 5).translate(0, 0.5, 0), anchorIron); chain.position.y = 0.82; chain.name = 'chain'; g.add(chain);
     g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; });
     scene.add(g); return g;
+  };
+  // Phase 16 U2, the Lampeye (design #612): a floating eye in 3D, not a sprite. Its iris turns to your hero, glows
+  // brighter and its pupil narrows as the gaze (Enemy.aux) builds; while it can see you a pale beam joins you, which
+  // flares through Searing Look. A pillar between you breaks the beam, as it breaks the gaze. A red shell behind the eye
+  // shows through anything in front of it, like every foe's red outline.
+  type EyeS = { g: THREE.Group; ball: THREE.Mesh; iris: THREE.Mesh; pupil: THREE.Mesh; lid: THREE.Mesh; hull: THREE.Mesh; beam: THREE.Mesh; irisMat: THREE.MeshStandardMaterial; beamMat: THREE.MeshBasicMaterial };
+  const eyeVeins = (() => { const c = mk(128, 64), k = c.getContext('2d')!; k.fillStyle = '#f2e8d6'; k.fillRect(0, 0, 128, 64); k.strokeStyle = 'rgba(190,60,50,0.55)'; k.lineWidth = 1;
+    for (let i = 0; i < 22; i++) { k.beginPath(); let x = Math.random() * 128, y = 64; k.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (Math.random() - 0.5) * 14; y -= 4 + Math.random() * 5; k.lineTo(x, y); } k.stroke(); }
+    return canvasTex(c); })();
+  const eyeBallGeo = new THREE.SphereGeometry(1, 24, 16);
+  const eyeLidGeo = new THREE.SphereGeometry(1.08, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+  const eyeIrisGeo = new THREE.CircleGeometry(0.62, 24);
+  const eyePupilGeo = new THREE.CircleGeometry(0.26, 18);
+  const eyeBeamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);
+  const makeEye = (): EyeS => {
+    const g = new THREE.Group();
+    const ball = new THREE.Mesh(eyeBallGeo, new THREE.MeshStandardMaterial({ map: eyeVeins, roughness: 0.35, metalness: 0, emissive: new THREE.Color('#fff2d8'), emissiveMap: eyeVeins, emissiveIntensity: 0.3 }));
+    const irisMat = new THREE.MeshStandardMaterial({ color: '#e07a10', roughness: 0.4, emissive: new THREE.Color('#ff9a20'), emissiveIntensity: 0.6 });
+    const iris = new THREE.Mesh(eyeIrisGeo, irisMat); iris.position.z = 1.001;
+    const pupil = new THREE.Mesh(eyePupilGeo, new THREE.MeshBasicMaterial({ color: '#0a0604' })); pupil.position.z = 1.003;
+    const lid = new THREE.Mesh(eyeLidGeo, new THREE.MeshStandardMaterial({ color: '#2e2a33', roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide }));
+    lid.rotation.x = -Math.PI / 2 + 0.35; // a dark hood over the back and top, open toward the front
+    lid.position.z = -0.12;
+    const hull = new THREE.Mesh(eyeBallGeo, new THREE.MeshBasicMaterial({ color: BAD, transparent: true, opacity: 0.5, side: THREE.BackSide, depthTest: false, depthWrite: false, toneMapped: false }));
+    hull.scale.setScalar(1.14); hull.renderOrder = 6;
+    // The eye draws in the transparent pass after its hull (three.js draws every opaque mesh first, so an opaque eye
+    // was painted over by the depth-ignoring hull and showed as a plain red ball).
+    for (const m of [ball, iris, pupil, lid]) { m.renderOrder = 7; const mm = m.material as THREE.Material; mm.transparent = true; mm.opacity = 1; }
+    g.add(hull, ball, lid, iris, pupil);
+    ball.castShadow = lid.castShadow = !saver;
+    scene.add(g);
+    const beamMat = new THREE.MeshBasicMaterial({ color: '#fff4c0', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const beam = new THREE.Mesh(eyeBeamGeo, beamMat); beam.renderOrder = 5; scene.add(beam);
+    return { g, ball, iris, pupil, lid, hull, beam, irisMat, beamMat };
   };
   // Phase 16 U2, the Ashwall: a real slab of cooled slag carried before it, glowing in its cracks, turned to Enemy.aux
   // (its shield facing). The front arc and the shelter wedge are 2D floor marks the bridge already carries.
@@ -1302,7 +1338,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1342,9 +1378,37 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         chain.scale.y = Math.max(0.05, ht * rise * 0.55 - (y - FLOOR) * 0.2 + (1 - plant) * 0.2);
         anchorIron.emissiveIntensity = e.castId ? 0.9 + 0.5 * Math.sin(t * 14) : planted ? 0.25 : 0;
       } else if (f.anchor) f.anchor.visible = false;
+      if (e.kind === 'lampeye') {
+        if (!f.eye) f.eye = makeEye();
+        const E = f.eye, k = Math.min(1, e.aux / LAMPEYE_FULL), looking = e.castId === 'searingLook';
+        const R = 0.36 * rise * (1 + hit * 0.6), ey = FLOOR + 0.95 + Math.sin(t * 1.7 + i) * 0.08;
+        E.g.visible = true; E.g.position.set(x + fa.dx * reach, ey, z + fa.dz * reach); E.g.scale.setScalar(R);
+        const me = w.heroData(0).player;
+        const tx = me.x * S, tz = me.y * S, ty = FLOOR + 0.75;
+        // It looks at you, but turned half toward the camera, so you can see the iris (and which way it is looking)
+        // from above instead of the back of its hood.
+        {
+          const hx = tx - E.g.position.x, hz = tz - E.g.position.z, hl = Math.hypot(hx, hz) || 1;
+          pv.copy(E.g.position).addScaledVector(camDir, 1).add(v3.set((hx / hl) * 0.5, 0, (hz / hl) * 0.5));
+          E.g.lookAt(pv);
+        }
+        E.irisMat.emissiveIntensity = (looking ? 2.4 + 0.8 * Math.sin(t * 22) : 0.5 + 1.6 * k) * (e.flash > 0 ? 1.3 : 1);
+        E.pupil.scale.setScalar(looking ? 0.35 : 1 - 0.55 * k);
+        const sees = me.hp > 0 && w.lampeyeSees(e, me.x, me.y);
+        E.beam.visible = sees && (k > 0.02 || looking);
+        if (E.beam.visible) {
+          const dx = tx - E.g.position.x, dy = ty - ey, dz = tz - E.g.position.z, len = Math.hypot(dx, dy, dz);
+          const th = looking ? 0.07 + 0.02 * Math.sin(t * 30) : 0.012 + 0.02 * k;
+          E.beam.position.copy(E.g.position); E.beam.lookAt(tx, ty, tz); E.beam.scale.set(th, th, len);
+          E.beamMat.opacity = looking ? 0.75 : 0.12 + 0.4 * k;
+        }
+        // The eye stands in for the sprite: hide the placeholder body and its outline, and hang the bar over the eye.
+        f.mesh.visible = false;
+        foeHeads[i].h = ey + R * 1.1;
+      } else if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; }
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;

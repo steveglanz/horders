@@ -23,6 +23,8 @@ const CASES = [
   { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'home-fly', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeFly', tier: 8 },
   { name: 'brute-cast', dungeon: 'kiln', boss: 'brute', kind: 'cinderBrute', until: 'cast', tier: 1, hp: 0.9 },
+  { name: 'lampeye-gaze', dungeon: 'glarewell', boss: 'lampeye', until: 'gaze', tier: 6, hp: 0.9 },
+  { name: 'lampeye-look', dungeon: 'glarewell', boss: 'lampeye', until: 'look', tier: 6, hp: 0.9 },
   { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
   { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
   { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
@@ -72,6 +74,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'homeLie' ? w.homeStage === 2 && w.homeT < 0.7
         : c.until === 'homeBack' ? w.homeStage === 2 && w.homeT < 0.14
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200
+        : c.until === 'gaze' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.aux > 3.5 && !e.castId && w.lampeyeSees(e, w.player.x, w.player.y))
+        : c.until === 'look' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.castId === 'searingLook' && e.castT > 0.3)
         : c.until === 'cast' ? w.enemies.some((e) => e.alive && e.castId && e.castT / e.castDur > 0.45)
         : c.until === 'boss' ? true
         : w.nextVent >= 0;
