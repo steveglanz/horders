@@ -25,6 +25,12 @@ export interface Hd2dAdapter {
   texScale: number;
   /** The name shown over hero `i` (allies only). */
   heroName(i: number): string;
+  /**
+   * The floor bridge: the 2D scene's floor layer (every floor tell the 3D view doesn't draw yet: rafts, vents, the
+   * Glarewell's light, coals, wave marks, boss tells), drawn top-down into a square canvas `span` world units across,
+   * centred on (0, 0). The renderer lays it on its floor. `stamp` changes whenever the canvas was redrawn.
+   */
+  floor?(): { canvas: HTMLCanvasElement; span: number; stamp: number } | null;
 }
 
 export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number }

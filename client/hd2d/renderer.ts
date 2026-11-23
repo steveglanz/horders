@@ -490,6 +490,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   let W = 0, H = 0, dist = 20;
   /** How many attacks your hero has started (stats(), so a test can see the pose fire). */
   let attacks = 0;
+  let bridge: { mesh: THREE.Mesh; tex: THREE.CanvasTexture; stamp: number } | null = null;
   const resize = () => {
     const w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
     if (w === W && h === H) return;
@@ -526,6 +527,20 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     if (roomFor !== w.arenaR) {
       roomFor = w.arenaR;
       room.scale.setScalar((w.arenaR * S) / ROOM_R);
+    }
+    // The floor bridge: the 2D scene's floor layer, laid flat just over the tiles and under the 3D telegraphs.
+    const fl = A.floor?.();
+    if (fl) {
+      if (!bridge || bridge.tex.image !== fl.canvas) {
+        if (bridge) { scene.remove(bridge.mesh); bridge.tex.dispose(); (bridge.mesh.material as THREE.Material).dispose(); }
+        const tex = new THREE.CanvasTexture(fl.canvas); tex.colorSpace = THREE.SRGBColorSpace;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
+        mesh.rotation.x = -Math.PI / 2; mesh.renderOrder = 1; scene.add(mesh);
+        bridge = { mesh, tex, stamp: -1 };
+      }
+      bridge.mesh.scale.set(fl.span * S, fl.span * S, 1);
+      bridge.mesh.position.set(0, FLOOR + 0.026, 0); // tiles reach FLOOR + 0.02 (rnd jitter), so lie above the highest
+      if (fl.stamp !== bridge.stamp) { bridge.stamp = fl.stamp; bridge.tex.needsUpdate = true; }
     }
     // Pillars.
     const sig = w.pillars.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';');
