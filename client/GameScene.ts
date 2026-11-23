@@ -3720,7 +3720,7 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1 };
+  private hudCover: { px: number; at: number; row: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0 };
 
   /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
   private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
@@ -3891,7 +3891,7 @@ export class GameScene extends Phaser.Scene {
     // The clear view: below a full-width boss or quest panel (clearView's cache, in viewport px), at most 40% down.
     this.clearView();
     const top = Math.min(0.4 * H, Math.max(0, this.hudCover.px - hr.top));
-    this.drawLabels3d(g, view, top, W, H);
+    this.drawLabels3d(g, view, Math.max(top, this.hudCover.row - hr.top), W, H);
     const inset = 10;
     const cx = W / 2, cy = (top + H) / 2;
     const SECTORS = 16;
@@ -3998,6 +3998,8 @@ export class GameScene extends Phaser.Scene {
       const p = view.project(r.x, r.y);
       if (!p || !onScreen(p)) continue;
       const bw = r.bw * z, x = p.x - bw / 2, y = p.y + (r.top - r.y) * z * LIFT;
+      // Under the top row or a full-width panel the bar goes with its name (below), so neither clutters the HUD.
+      if (y < top) continue;
       g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * z);
       g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * z);
       if (r.cast >= 0) {
@@ -4026,7 +4028,7 @@ export class GameScene extends Phaser.Scene {
         p = bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
       } else p = view.project(t.x, t.y);
       if (!p || !onScreen(p)) continue;
-      // A name under the boss or quest panel stays hidden, as in 2D.
+      // A name under the top row, or the boss or quest panel, stays hidden.
       if (head && p.y < top) continue;
       const st = t.style;
       const size = parseFloat(String(st.fontSize)) * z * t.scaleY;
@@ -4069,6 +4071,9 @@ export class GameScene extends Phaser.Scene {
         if (r.height > 0 && r.width > window.innerWidth * 0.5) px = Math.max(px, r.bottom);
       }
       this.hudCover.px = px;
+      // The top row (level, health, clock): the 3D overlay keeps names and bars out of it (see drawLabels3d).
+      const row = document.querySelector('#hud > .row');
+      this.hudCover.row = row ? row.getBoundingClientRect().bottom : 0;
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
