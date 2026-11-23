@@ -888,6 +888,19 @@ describe('audio', () => {
     expect(Math.max(...big.map((c) => c.at))).toBeLessThan(1.8);
   });
 
+  it('chimes once when the run put anything new in the Seen log, after the unlocks, level with unlock (Phase 15 Y4)', () => {
+    const base = { heroXp: 0, items: [], levelsGained: 0 } as never;
+    expect(rewardCues({ ...(base as object), seenNew: [] } as never)).toEqual([]);
+    expect(rewardCues({ ...(base as object), seenNew: ['kiln:arena:caveIn', 'kiln:affix:Brood', 'kiln:heat:richHaul'] } as never).map((c) => c.id)).toEqual(['seenNew']);
+    expect(rewardCues({ ...(base as object), title: 'The Bold', seenNew: ['kiln:affix:Brood'] } as never).map((c) => c.id)).toEqual(['unlock', 'seenNew']);
+    expect(recipeLength(SOUNDS.seenNew)).toBeLessThan(1.5);
+    expect(Math.abs(phoneDb(render(SOUNDS.seenNew, 22050), 22050) - phoneDb(render(SOUNDS.unlock, 22050), 22050))).toBeLessThan(1);
+    // main.ts fills seenNew before the end screen plays the chimes.
+    const main = readFileSync(new URL('../client/main.ts', import.meta.url), 'utf8');
+    expect(main.indexOf('rewards.seenNew = recordSeen(')).toBeGreaterThan(-1);
+    expect(main.indexOf('rewards.seenNew = recordSeen(')).toBeLessThan(main.indexOf('audio.rewards(rewards)'));
+  });
+
   it('chimes for what a run unlocked, after the end sting, at most three times', () => {
     expect(rewardCues(undefined)).toEqual([]);
     const base = { heroXp: 0, items: [], levelsGained: 0 } as never;

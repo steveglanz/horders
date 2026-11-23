@@ -306,6 +306,11 @@ export const SOUNDS = {
   bellowsPick: join(whoosh(300, 3200, 0.4, 0.3), chime(E5 * 2, 0.25, 0.12, 0.3)),
   /** A title or reward unlocked: a smaller three-note chime. */
   unlock: join(chime(E5, 0, 0.22, 0.4), chime(A5, 0.08, 0.22, 0.4), chime(E6, 0.16, 0.24, 0.8)),
+  /** Phase 15 Y4: something new went into your Seen log this run. A page turns, then a soft questioning figure that
+   *  answers itself (a fourth up and back to the fifth), apart from unlock's straight rise. */
+  seenNew: join(
+    [{ wave: 'noise', f: 0, dur: 0.12, vol: 0.12, a: 0.03, lp: 7000, lp2: 3000, hp: 1200, curve: 2 }],
+    chime(D5 * 2, 0.12, 0.2, 0.4), chime(G5 * 2, 0.24, 0.18, 0.4), chime(A5 * 2, 0.4, 0.2, 0.8)),
   quest: join(chime(G5, 0, 0.25, 0.4), chime(D5 * 2, 0.1, 0.25, 0.7)),
   victory: join(
     horn(note(-9), 0.5, 0.25), chime(C5, 0, 0.25, 0.4), chime(E5, 0.15, 0.25, 0.4), chime(G5, 0.3, 0.28, 0.4),
@@ -1505,6 +1510,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  seenNew: 1.7, // level with unlock (-23.8 dB)
   // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
   caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
   namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
