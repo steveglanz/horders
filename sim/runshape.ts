@@ -1,14 +1,13 @@
 /**
  * Phase 14 X4 (docs/design/roadmap.md, "This run's shape"): what this run rolled, for the run
- * summary and the co-op dungeon card. It only reads the World (no rng, no state changes), so it
- * is safe to call at any time on the host or a guest.
- *
- * Marks (X2) and arena events (X3) come from design's World.namedPlan() and World.arenaEventAt().
- * Until those land, the chips for them are simply left out.
+ * summary (host and guests). It only reads the World (no rng, no state changes), so it is safe
+ * to call at any time on the host or a guest. Marks (X2) come from World.namedPlan() and arena
+ * events (X3) from World.arenaEventAt().
  */
 import { ENCOUNTERS, type EncounterId } from './content/dungeon';
 import { HEATS, type HeatId } from './content/heat';
-import type { LayoutId, World } from './world';
+import { AFFIX_TIP } from './content/named';
+import type { ArenaEventId, LayoutId, World } from './world';
 
 export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'boss' | 'heat';
 export interface ShapeChip {
@@ -41,20 +40,13 @@ const FLOOR_NAME: Record<Exclude<LayoutId, 'open'>, [string, string, string]> = 
   vents: ['vent floor', 'vent floors', 'Vents that flare in turn'],
 };
 
-export const EVENT_NAME: Record<string, string> = {
+export const EVENT_NAME: Record<ArenaEventId, string> = {
   caveIn: 'Cave-in', ventSurge: 'Vent surge', coldSnap: 'Cold snap', highWater: 'High water',
-};
-
-/** Design's X2/X3 reads, optional until their PR lands. */
-type Planned = World & {
-  namedPlan?: () => { at: number; affix: string } | null;
-  arenaEventAt?: (k: number, id: EncounterId) => string;
 };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function runShape(w: World, opts: { tips?: Record<string, string> } = {}): ShapeChip[] {
-  const p = w as Planned;
+export function runShape(w: World): ShapeChip[] {
   const out: ShapeChip[] = [];
   // The world boss's shadow is a bonus fight after the delve, not part of its route.
   const fights = w.route.map((id, k) => ({ id, k })).filter((f) => f.id !== 'worldShadow');
@@ -77,25 +69,23 @@ export function runShape(w: World, opts: { tips?: Record<string, string> } = {})
     out.push({ kind: 'floor', label: `Floors: ${kinds.map((l) => plural(count[l]!, FLOOR_NAME[l][0], FLOOR_NAME[l][1])).join(', ')}`, tip: floors.join('. ') });
   }
 
-  const plan = typeof p.namedPlan === 'function' ? p.namedPlan() : null;
-  if (plan?.affix) {
+  const plan = w.namedPlan();
+  if (plan) {
     const at = w.route[plan.at];
-    out.push({ kind: 'mark', label: `Marked: ${plan.affix}`, tip: `${opts.tips?.[plan.affix] ?? plan.affix}${at ? ` (${name(at)})` : ''}` });
+    out.push({ kind: 'mark', label: `Marked: ${plan.affix}`, tip: `${at ? `${name(at)}: ` : ''}${AFFIX_TIP[plan.affix]}` });
   }
 
-  if (typeof p.arenaEventAt === 'function') {
-    const evs: string[] = [];
-    const n: Record<string, number> = {};
-    for (const f of fights) {
-      const e = p.arenaEventAt(f.k, f.id);
-      if (!e) continue;
-      n[e] = (n[e] ?? 0) + 1;
-      evs.push(`${name(f.id)}: ${(EVENT_NAME[e] ?? e).toLowerCase()}`);
-    }
-    const ids = Object.keys(n);
-    if (ids.length) {
-      out.push({ kind: 'event', label: `Events: ${ids.map((e) => `${EVENT_NAME[e] ?? e}${n[e] > 1 ? ` x${n[e]}` : ''}`).join(', ')}`, tip: evs.join('. ') });
-    }
+  const evs: string[] = [];
+  const n: Partial<Record<ArenaEventId, number>> = {};
+  for (const f of fights) {
+    const e = w.arenaEventAt(f.k, f.id);
+    if (!e) continue;
+    n[e] = (n[e] ?? 0) + 1;
+    evs.push(`${name(f.id)}: ${EVENT_NAME[e].toLowerCase()}`);
+  }
+  const ids = Object.keys(n) as ArenaEventId[];
+  if (ids.length) {
+    out.push({ kind: 'event', label: `Events: ${ids.map((e) => `${EVENT_NAME[e]}${n[e]! > 1 ? ` x${n[e]}` : ''}`).join(', ')}`, tip: evs.join('. ') });
   }
 
   // The boss's version is rolled when it appears, so a run that never reached it shows none.
