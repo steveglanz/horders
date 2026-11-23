@@ -6,8 +6,8 @@ import { DUNGEONS, ENCOUNTERS } from '../sim/content/dungeon';
 type Inner = { spawn(kind: string, x: number, y: number): number; route: string[] };
 
 /** A Glarewell run already in its first fight, every foe cleared, with one pillar at (200, 0) that a test can hide behind. */
-function fight(): { w: World; inner: Inner } {
-  const w = new World({ seed: 3, dungeon: 'glarewell', tier: 4, omens: [], cls: 'emberwright' });
+function fight(cls: 'emberwright' | 'duskblade' = 'emberwright'): { w: World; inner: Inner } {
+  const w = new World({ seed: 3, dungeon: 'glarewell', tier: 4, omens: [], cls });
   const inner = w as unknown as Inner;
   inner.route[0] = 'lampeye';
   for (const e of w.enemies) e.alive = false;
@@ -32,6 +32,13 @@ describe('Phase 16 U2: the Lampeye (the Glarewell)', () => {
     expect(w.lampeyeSees(e, 0, 200)).toBe(true);
     w.pillars[0].cracked = true;
     expect(w.lampeyeSees(e, 0, 0)).toBe(true);
+  });
+
+  it('cannot see a hero right under it', () => {
+    const { w, inner } = fight();
+    const e = w.enemies[inner.spawn('lampeye', 400, 400)];
+    expect(w.lampeyeSees(e, 400 + e.def.radius + LAMPEYE.under - 5, 400)).toBe(false);
+    expect(w.lampeyeSees(e, 400 + e.def.radius + LAMPEYE.under + 5, 400)).toBe(true);
   });
 
   it('its gaze builds in the open, then Searing Look hurts a hero it still sees and resets', () => {
@@ -79,5 +86,17 @@ describe('Phase 16 U2: the Lampeye (the Glarewell)', () => {
     const toHide = Math.atan2(-58 - 150, 229);
     const turn = (v: { x: number; y: number }) => Math.abs(Math.atan2(Math.sin(Math.atan2(v.y, v.x) - toHide), Math.cos(Math.atan2(v.y, v.x) - toHide)));
     expect(turn(hide)).toBeLessThan(turn(calm) - 0.2);
+  });
+
+  it('a melee bot stays on the eye instead of hiding', () => {
+    const { w, inner } = fight('duskblade');
+    w.player.y = 150;
+    const e = w.enemies[inner.spawn('lampeye', 0, 400)];
+    e.abilityT = 99;
+    const calm = botInput(w, 1);
+    e.aux = LAMPEYE.full * 0.6;
+    const hide = botInput(w, 1);
+    expect(hide.x).toBeCloseTo(calm.x, 6);
+    expect(hide.y).toBeCloseTo(calm.y, 6);
   });
 });
