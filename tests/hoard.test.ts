@@ -250,3 +250,31 @@ describe('Phase 12 W3: Old Vorhulm\'s Banked Coals', () => {
     expect(w.inhaleStage).toBe(0);
   });
 });
+
+describe('Phase 16 U1: Old Vorhulm\'s echo', () => {
+  const spill = (w: World, inner: Inner) => {
+    for (const t of w.telegraphs) t.alive = false;
+    w.inhaleStage = 0; inner.spillT = 0; w.events.length = 0;
+    inner.coalClock(0.01);
+    const c = w.events.find((x) => x.type === 'castStart' && ['inhale', 'bankedCoals', 'emberSpill'].includes((x as { id: string }).id)) as { id: string } | undefined;
+    return { id: c?.id, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('in his last phase every other spill is his echo, the first one first', () => {
+    const { w, inner, b } = hoard();
+    w.bossVariant = 'spill'; w.bossEcho = 'inhale'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2;
+    expect(spill(w, inner)).toEqual({ id: 'inhale', echo: true });
+    expect(spill(w, inner)).toEqual({ id: 'emberSpill', echo: false });
+    expect(spill(w, inner)).toEqual({ id: 'inhale', echo: true });
+  });
+
+  it('a Banked Coals echo on an Inhale run', () => {
+    const { w, inner, b } = hoard();
+    w.bossVariant = 'inhale'; w.bossEcho = 'bank'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2;
+    expect(spill(w, inner)).toEqual({ id: 'bankedCoals', echo: true });
+    expect(w.telegraphs.some((t) => t.alive && t.owner === -4)).toBe(true);
+    expect(spill(w, inner)).toEqual({ id: 'inhale', echo: false });
+  });
+});

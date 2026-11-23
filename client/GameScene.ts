@@ -1325,7 +1325,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankEaten(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankEaten(ev.x, ev.y);
           break;
         // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
         case 'wheel': {
@@ -1366,7 +1366,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankSmothered(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankSmothered(ev.x, ev.y);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -5015,7 +5015,7 @@ export class GameScene extends Phaser.Scene {
    */
   private bankDraw(now: number): void {
     const w = this.world;
-    const coals = w.dungeonId === 'hoard' && w.bossVariant === 'bank' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
+    const coals = w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank') ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
     // The ash a smothered coal leaves, fading over 2.5 s.
     this.bankAsh = this.bankAsh.filter((a) => {
       const u = (now - a.at) / 2500;
