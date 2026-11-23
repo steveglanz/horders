@@ -581,6 +581,10 @@
   #rewards .top span { font-size: 12px; color: var(--muted); }
   #rewards .item { background: rgba(0,0,0,0.22); }
   #rewards .item + .item { margin-top: 6px; }
+  /* "Equip upgrade": one small button under the loot when a piece beats what you wear (ui.ts upgradeButton). */
+  #rewards .eqUp { display: block; margin: 8px 0 0 auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--gold); background: rgba(255,200,97,0.12); color: #ffe2a6; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+  #rewards .eqUp:active { background: rgba(255,200,97,0.24); }
+  #rewards .eqDone { margin-top: 8px; text-align: right; font-size: 12px; color: #9fe3b0; }
   .wbcard { border-color: rgba(255,59,107,0.35); font-size: 13px; color: var(--muted); line-height: 1.45; }
   .wbcard .top span { color: var(--danger); font-weight: 700; }
   .wbcard:empty, #endXp:empty, #rewards:empty { display: none; }
