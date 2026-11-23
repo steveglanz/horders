@@ -82,6 +82,12 @@ export const BLADE_GUARD = 0.5;
  * worst losing streak from 21 to 13, with every career breaking through (skills, 23 Nov). See docs/skills.md.
  */
 export const GRIT_GUARD = { perStack: 0.2, cap: 0.7, fromTier: 4 };
+/**
+ * Grit Cut (aid from tier 4 for every class but the Duskblade, which has Grit Guard instead): each Grit stack cuts all
+ * damage the hero takes by `perStack`, up to GRIT.maxStacks stacks. Like Grit Guard it only exists after losses in a row on
+ * that tier, so first tries and players who win are untouched (design, 23 Nov). See docs/skills.md.
+ */
+export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -3171,6 +3177,8 @@ export class World {
     if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
     if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (this.noviceAid > 0 ? BLADE_GUARD * this.noviceAid : this.gritGuard);
+    // Grit Cut: every other class shrugs off part of each hit after losses in a row from tier 4 (0 for the Duskblade).
+    amount *= 1 - this.gritCut;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
@@ -4261,6 +4269,12 @@ export class World {
   get gritGuard(): number {
     if (this.tier < GRIT_GUARD.fromTier) return 0;
     return Math.min(GRIT_GUARD.cap, GRIT_GUARD.perStack * Math.min(GRIT.maxStacks, this.grit));
+  }
+
+  /** Grit Cut: the share of each hit a non-Duskblade run on Grit sheds from GRIT_CUT.fromTier (0 below it or with no Grit). */
+  get gritCut(): number {
+    if (this.tier < GRIT_CUT.fromTier || this.cls === 'duskblade') return 0;
+    return GRIT_CUT.perStack * Math.min(GRIT.maxStacks, this.grit);
   }
 
   /** True while bulwarkMitigate is turning a hit back (see there). */
