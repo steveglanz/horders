@@ -25,7 +25,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
+import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -329,6 +329,11 @@ export class GameScene extends Phaser.Scene {
   private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
   /** Y6 the Whirl: the way it last turned, and when that flipped (whirlDraw grows the arrows in fresh). */
   private whirlSeen = 0;
+  /** Y6 the Homeward Hammer: the throw (from him to where it lands, when), its floor layer and its lying layer, the last stage seen. */
+  private homeThrow: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
+  private homeFloor: Phaser.GameObjects.Graphics | null = null;
+  private homeLie: Phaser.GameObjects.Graphics | null = null;
+  private homeLast = 0;
   private whirlGfx: Phaser.GameObjects.Graphics | null = null;
   private whirlFlip = 0;
   private sealGfx: Phaser.GameObjects.Graphics | null = null;
@@ -448,6 +453,10 @@ export class GameScene extends Phaser.Scene {
     this.rimeGfx = null;
     this.rimeBorn = 0;
     this.whirlSeen = 0;
+    this.homeThrow = null;
+    this.homeFloor = null;
+    this.homeLie = null;
+    this.homeLast = 0;
     this.whirlGfx = null;
     this.lightLast = { x: 0, y: 0 };
     this.sealGfx = null;
@@ -683,6 +692,13 @@ export class GameScene extends Phaser.Scene {
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
     this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
+  }
+
+  /** Where sound pans from: in 3D, by where things show on screen (client/audio/cues.ts panFor), else the 2D camera's width. */
+  private listenFrom(w: World): NonNullable<CueContext['listen']> {
+    const l = { x: w.player.x, y: w.player.y, half: this.cameras.main.worldView.width / 2 };
+    const view = this.hd2d, width = this.game.canvas.parentElement?.clientWidth ?? 0;
+    return view && width > 0 ? { ...l, screen: (x, y) => view.project(x, y), screenHalf: width / 2 } : l;
   }
 
   private layout(): void {
@@ -945,7 +961,7 @@ export class GameScene extends Phaser.Scene {
       inLava: w.lava.length > 0 && inLavaNow(w),
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
-      listen: { x: w.player.x, half: this.cameras.main.worldView.width / 2 },
+      listen: this.listenFrom(w),
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -1313,17 +1329,24 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'phase':
           if (w.dungeonId === 'glarewell') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
+            if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
+            else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
             else if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
             else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
-            if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            if (ev.phase === 2 && w.bossVariant === 'tide') this.hud.banner('Phase 2: Sluicetide', 'The water runs across the room and pushes you. Lean into it, and watch for it to turn');
+            else if (ev.phase === 2 && w.bossVariant === 'seal') this.hud.banner('Phase 2: Sealed Vents', 'Only one vent steams now. Drag her to it, and watch for the steam to move');
+            else if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
-            this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
+            if (w.bossVariant === 'outsurge') this.hud.banner('Phase 2: The Outsurge', 'The water throws you out to the rim, and the rim burns. Stay on a raft');
+            else if (w.bossVariant === 'whirl') this.hud.banner('Phase 2: The Whirl', 'The water swirls round the drain and carries you. It turns the other way each time');
+            else this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
@@ -1391,6 +1414,21 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           this.tideBeat = 1;
           break;
+        case 'homeward': {
+          // Y6 the Homeward Hammer: 'out' as he throws it (homeDraw flies it there for the circle's 1.8 s), 'back' as it lands.
+          const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+          if (ev.stage === 'out') this.homeThrow = { fx: b?.x ?? ev.x, fy: (b?.y ?? ev.y) - 30, tx: ev.x, ty: ev.y, t0: this.time.now };
+          else {
+            this.homeThrow = null;
+            this.shakeBy(6);
+            this.emit(this.fx, 'ring', undefined, ev.x, ev.y + 6, 0.4, { tint: 0xffc27a, sx0: 0.5, sx1: 1.3 });
+            for (let m = 0; m < (this.lowFx ? 5 : 12); m++) {
+              const a2 = (m / 12) * Math.PI * 2;
+              this.emit(this.fx, 'spark', undefined, ev.x + Math.cos(a2) * 14, ev.y + Math.sin(a2) * 6, 0.45, { tint: 0xffd08a, vx: Math.cos(a2) * 160, vy: Math.sin(a2) * 70 - 60, drag: 0.92, sx0: 1.6, sx1: 0.3 });
+            }
+          }
+          break;
+        }
         case 'lightMove':
           // Y3 Carried Light: the shadows swing to point away from her.
           this.hud.ding('The light moves');
@@ -2135,6 +2173,7 @@ export class GameScene extends Phaser.Scene {
     this.tideDraw(now);
     this.glintDraw(now);
     this.rimeDraw(now);
+    this.homeDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     let sealedDrawn = false;
     this.ventSprites.forEach((vs, k) => {
@@ -3160,6 +3199,84 @@ export class GameScene extends Phaser.Scene {
     g.lineStyle(3.2 * tk, 0xffffff, 0.55 + 0.25 * Math.sin(now / 160)).beginPath();
     g.arc(x, y, r, dir - 0.7, dir + 0.7).strokePath();
     g.fillStyle(0xffffff, 0.35).fillCircle(lx, ly, 3 * tk);
+  }
+
+  /** Points of Ondrel's thrown hammer (a long haft and an iron head), turned by `ang`, at (x, y), `k` times life size. */
+  private hammerShape(g: Phaser.GameObjects.Graphics, x: number, y: number, ang: number, k: number, glow = 0): void {
+    const c = Math.cos(ang), sn = Math.sin(ang);
+    const P = (pts: number[][]) => pts.map(([px, py]) => new Phaser.Math.Vector2(x + (px * c - py * sn) * k, y + (px * sn + py * c) * k));
+    // The haft runs along +x from the grip; the head sits across its far end.
+    const haft = P([[-30, -3], [16, -3], [16, 3], [-30, 3]]);
+    const head = P([[12, -15], [30, -13], [30, 13], [12, 15]]);
+    const face = P([[26, -12], [30, -11], [30, 11], [26, 12]]);
+    g.fillStyle(0x5a3a22, 1).fillPoints(haft, true);
+    g.lineStyle(1.5, 0x1a0e08, 1).strokePoints(haft, true);
+    g.fillStyle(0x4a4650, 1).fillPoints(head, true);
+    g.fillStyle(glow > 0 ? 0xffc27a : 0x8a8694, glow > 0 ? 0.6 + 0.4 * glow : 1).fillPoints(face, true);
+    g.lineStyle(2, 0x0c0506, 1).strokePoints(head, true);
+  }
+
+  /**
+   * Y6 the Homeward Hammer (Ondrel's third version). Stage 1: the hammer wheels end over end through the air from him to
+   * the farthest hero, its shadow racing ahead and swelling, and lands as the circle does. Stage 2: it lies in a cracked
+   * crater, rattling harder as it is called home, with a tug line drawn back to him; in the last 0.25 s it streaks back
+   * along the line, the moment that line strikes. While it is out he has no hammer, so this is the only one on screen.
+   */
+  private homeDraw(now: number): void {
+    const w = this.world;
+    const st = w.bossVariant === 'home' ? w.homeStage : 0;
+    const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (!st || !b) {
+      if (this.homeLast === 2 && b?.alive) this.emit(this.fx, 'ring', undefined, b.x, b.y - 20, 0.3, { tint: 0xffd08a, sx0: 0.6, sx1: 0.2 });
+      this.homeLast = st;
+      this.homeFloor?.clear(); this.homeLie?.clear();
+      return;
+    }
+    this.homeLast = st;
+    if (!this.homeFloor) this.homeFloor = this.add.graphics().setDepth(1.44);
+    if (!this.homeLie) this.homeLie = this.add.graphics().setDepth(2.55);
+    const fl = this.homeFloor, lie = this.homeLie, o = this.overFx;
+    fl.clear(); lie.clear();
+    const hx = w.homeX, hy = w.homeY;
+    if (st === 1) {
+      // In flight: from his hand to where it lands, timed to land as the circle does (HOMEWARD.fall).
+      const th = this.homeThrow ?? { fx: b.x, fy: b.y - 30, tx: hx, ty: hy, t0: now - (1 - w.homeT / 1.8) * 1800 };
+      const f = Math.min(1, (now - th.t0) / 1800);
+      const gx = th.fx + (th.tx - th.fx) * f, gy = th.fy + 30 * f + (th.ty - th.fy - 30) * f;
+      const lift = Math.sin(Math.PI * f) * 150 * (1 - 0.3 * f);
+      fl.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(gx, gy + 8, 26 + 30 * f, 9 + 10 * f);
+      this.hammerShape(o, gx, gy - lift - 10, now / 70, 1.1);
+      // A faint arc of where it's going, so the farthest hero sees it's for them.
+      o.lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
+      return;
+    }
+    // Landed: a cracked crater with the hammer head-down in it.
+    const left = Math.max(0, w.homeT);
+    const pull = 1 - left / 1.2;
+    fl.fillStyle(0x000000, 0.35).fillEllipse(hx, hy + 6, 70, 26);
+    fl.lineStyle(2, 0x1a1210, 0.9);
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.05 + 0.3;
+      fl.beginPath().moveTo(hx + Math.cos(a) * 12, hy + 4 + Math.sin(a) * 5).lineTo(hx + Math.cos(a + 0.2) * 30, hy + 4 + Math.sin(a + 0.2) * 12).lineTo(hx + Math.cos(a) * 44, hy + 4 + Math.sin(a) * 17).strokePath();
+    }
+    const ang = Math.atan2(b.y - hy, b.x - hx);
+    if (left > 0.25) {
+      // The tug line back to him, brightening as it's called home, and the hammer rattling in the crater.
+      const dash = 14, len = Math.hypot(b.x - hx, b.y - hy);
+      const ux = (b.x - hx) / (len || 1), uy = (b.y - hy) / (len || 1);
+      const run = (now / 12) % (dash * 2);
+      fl.lineStyle(3, 0xffc27a, 0.25 + 0.45 * pull);
+      for (let d = run; d < len - 20; d += dash * 2) fl.lineBetween(hx + ux * d, hy + uy * d, hx + ux * Math.min(len, d + dash), hy + uy * Math.min(len, d + dash));
+      const jig = Math.sin(now / (pull > 0.6 ? 25 : 55)) * (2 + 4 * pull);
+      this.hammerShape(lie, hx + Math.cos(ang) * jig * 0.5, hy - 8, Math.PI / 2 + jig * 0.04 + ang * 0.15 * pull, 1.1, pull);
+    } else {
+      // Home: it streaks back along the line with a hot trail.
+      const f = 1 - left / 0.25;
+      const x = hx + (b.x - hx) * f, y = hy - 8 + (b.y - 30 - hy + 8) * f;
+      o.lineStyle(10, 0xffc27a, 0.25).lineBetween(hx, hy - 8, x, y);
+      o.lineStyle(4, 0xfff0c0, 0.6).lineBetween(hx + (x - hx) * 0.4, hy - 8 + (y - hy + 8) * 0.4, x, y);
+      this.hammerShape(o, x, y, ang + Math.PI + now / 40, 1.1, 1);
+    }
   }
 
   private turnDraw(now: number): void {

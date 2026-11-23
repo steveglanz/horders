@@ -1348,6 +1348,9 @@
     #hud.tgt .stat { font-size: 0; }
     #hud.tgt .stat b { font-size: 16px; }
     #hud:not([hidden]):has(#party:not([hidden])) ~ #banner { margin-left: 212px; margin-right: 14px; max-width: none; }
+    /* Too narrow for the banner and the quest chip side by side: the chip steps aside while a banner shows. */
+    #quests { transition: opacity 0.35s; }
+    #hud:has(~ #banner.show) #quests { opacity: 0; }
   }
   /* Motion polish (phones first): every tap target gives under the finger, a new hub tab eases in, the bag
      slides up, and a piece you equip settles into its slot. Uses the scale property, so it never fights an

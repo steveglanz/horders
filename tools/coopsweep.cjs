@@ -126,8 +126,13 @@ const world = (p, f, a) => p.evaluate(([src, arg]) => (new Function('w', 'a', sr
   if (RAID) {
     const { P, ctx } = await party(['bulwark', 'bulwark', 'lumen', 'emberwright'], 'crucible', 8);
     let swap = false;
-    await play(P, { each: async (A, P) => { if (!swap) swap = await P[1].evaluate(() => document.getElementById('banner').classList.contains('show') && document.getElementById('bannerTitle').textContent === 'Swap tanks!'); } });
-    ok(swap, 'raid: "Swap tanks!" shows on the guest tank (needs the party to reach Grandmother Slag before Burnout; rerun if it wiped in the openers)');
+    // Guests stand still, so tier 8 trash can outlast Burnout before Grandmother Slag (23 Nov: Warden of the Bell
+    // burned the party out at 378 s on seed 9). Trash is set to 1 hp until she's up, as the Pressworks case does.
+    await play(P, { each: async (A, P) => {
+      await world(A, 'if (!w.bossUp) for (const e of w.enemies) if (e.alive && e.def.rank !== "boss") e.hp = Math.min(e.hp, 1);');
+      if (!swap) swap = await P[1].evaluate(() => document.getElementById('banner').classList.contains('show') && document.getElementById('bannerTitle').textContent === 'Swap tanks!');
+    } });
+    ok(swap, 'raid: "Swap tanks!" shows on the guest tank after Ladle Pour');
     await ctx.close();
   }
   // 6. The Pressworks: a guest drops mid-Downstroke (the shared soak telegraph, owner -3).

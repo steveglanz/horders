@@ -1006,6 +1006,21 @@ Hammerdeep tier 8, heroes-r2 hero-t8-0, the base party (Bulwark, Lumen, Duskblad
 - The bots step out of every throw and line: with the circle or the line set to 2000 damage, no hero died to either (25 and 27 of 40, the same as normal). So the sim only measures the ring and the lost Sweeps. For a person, the throw and the line are the new part.
 - **Name:** searches on 23 Nov found WoW NPC spells named Hammer Throw and Throw Hammer, so those were avoided. "Homeward Hammer" found no WoW match.
 
+### Y10 follow-up 2 (23 Nov 2026): Anvil parties stir more, and that is kept
+
+Skills' re-run of #532 found that a party with an Anvil Slagbinder tank stirs 2 to 3 times as often as one with a Bulwark (Hammerdeep / Ashvents / Pressworks: 76 / 76 / 67 of 80, against 54 / 29 / 29). `STIRHURT=1` in tools/group.ts now also tallies which hero was worst off in each cleared fight (`World.fightWorst`), to trace it. Seeds 41 to 120, heroes-r2 hero-t8-0; Hammerdeep t8, Ashvents t6, Pressworks t10:
+
+| Party | Fights where nobody was hurt | Worst hero (most often) | Runs that stirred |
+|---|---|---|---|
+| Bulwark tank, Hammerdeep | 138 of 320 | Bulwark 131 | 54 |
+| Anvil tank, Hammerdeep | 227 of 320 | Duskblade 62 (Anvil 4) | 76 |
+| Bulwark tank, Pressworks | 115 of 320 | Bulwark 154 | 29 |
+| Anvil tank, Pressworks | 209 of 320 | Duskblade 72 (Anvil 3) | 67 |
+
+- A tank bar for the Anvil would change nothing: the Anvil is almost never the worst hero. In most Anvil fights no hero loses any health at all.
+- Counting health that the Anvil's plating soaks as damage was tried. It only moved Hammerdeep 76 to 73 and Pressworks 67 to 65, so it was dropped.
+- The extra stirs do not cost the Anvil party wins. With the stir off, Anvil parties won 45 (Hammerdeep) and 36 (Pressworks), against 48 and 39 with it on. Bulwark parties won 47 and 63 with it off, against 48 and 63 on.
+- **Kept as it is.** The Anvil party does clear trash cleanly, which is what the stir answers. The Pressworks win gap between the Anvil and the Bulwark (36 and 63 with the stir off) is a class question, so it went to skills.
 ### Y3 Ysmeret: Rolling Vents (built 23 Nov 2026)
 
 Ysmeret (the Ashvents) had Twin Vents (two circles to split for) and Wandering Vents (the two circles drift round her). The third is **Rolling Vents** (`roll`, tuning in `ROLLING`, sim/world.ts).
