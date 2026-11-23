@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, REGENT, TITHE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1257,6 +1257,40 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.millWarn)).toBeLessThan(2);
     expect(THROTTLE.millGrind!).toBeLessThan(0.5);
   }, 60000);
+
+  it('calls the Regent\'s Tithe, chimes when it is shared, and stamps hard when everyone pays (Phase 15 Y3)', () => {
+    type F = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; decreeT: number; ashT: number;
+      regentClock(dt: number): void; updatePartyTelegraphs(dt: number): void };
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'flue', boss: 'regent' as const };
+    const run = (shared: boolean) => {
+      const w = new World({ seed: 7, dungeon: 'flue', omens: [], cls: 'bulwark', worldBoss: 'The Furnace Regent',
+        party: [{ cls: 'lumen' }, { cls: 'duskblade' }, { cls: 'emberwright' }] });
+      const q = w as unknown as F;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('regent', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true; q.decreeT = 999; q.ashT = 0;
+      w.bossVariant = 'tithe';
+      w.enemies[b].hp = w.enemies[b].maxHp * (REGENT.phase2 - 0.01);
+      w.heroes.forEach((h, k) => { h.player.x = 60 + k * 200; h.player.y = 0; });
+      w.events.length = 0;
+      q.regentClock(0.01);
+      const heard = w.events.filter((ev) => ev.type === 'castStart' && ev.id === 'tithe').map((ev) => cueFor(ev, c)?.id);
+      const t = w.telegraphs.find((x) => x.alive && x.kind === 'soak' && x.owner === -5)!;
+      w.heroes.forEach((h, k) => { h.player.x = shared && k < TITHE.need ? t.x : -t.x * 0.5; h.player.y = shared && k < TITHE.need ? t.y : -t.y * 0.5 + k * 40; });
+      t.t = t.dur;
+      w.events.length = 0;
+      q.updatePartyTelegraphs(0.01);
+      // The soak event fires too, but the mix drops it for a Tithe: one landing sound, not two.
+      expect(w.events.some((ev) => ev.type === 'soak')).toBe(true);
+      for (const ev of withoutBankedSoaks(w.events)) { const k = cueFor(ev, c); if (k && ev.type !== 'playerHurt') heard.push(k.id); }
+      return heard;
+    };
+    expect(run(true)).toEqual(['titheWarn', 'titheShared']);
+    expect(run(false)).toEqual(['titheWarn', 'titheMissed']);
+    expect(PRIORITY.has('titheWarn') && PRIORITY.has('titheMissed')).toBe(true);
+    expect(PRIORITY.has('titheShared')).toBe(false);
+    expect(recipeLength(SOUNDS.titheWarn)).toBeLessThan(TITHE.fuse);
+  });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
     type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
