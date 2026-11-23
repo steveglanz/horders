@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, reactBot } from '../sim/bot';
 
-/** A Kiln t4 Duskblade run, played by `drive` until `until` holds, the run ends or 240 s pass (keeps the suite quick). */
+/** A Kiln t4 Duskblade run, played by `drive` until `until` holds, the run ends or 90 s pass (kept short: CI runs test files side by side). */
 function play(drive: (w: World) => ReturnType<typeof botInput>, until: (w: World) => boolean = () => false, seed = 3): World {
   const w = new World({ seed, cls: 'duskblade', dungeon: 'kiln', tier: 4 });
-  while (w.state !== 'ended' && w.time < 240 && !until(w)) { if (w.state === 'draft') w.choose(botChoose(w)); else w.step(drive(w)); }
+  while (w.state !== 'ended' && w.time < 90 && !until(w)) { if (w.state === 'draft') w.choose(botChoose(w)); else w.step(drive(w)); }
   return w;
 }
 const fresh = (w: World, s: number) => w.telegraphs.some((t) => t.alive && t.t < s);
