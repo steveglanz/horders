@@ -268,7 +268,7 @@ Phase 15 gave every boss three versions, but a run still meets only one of them,
 | U5 | **Art** (3D, with the 2D fallback): each echo's tell and each new foe | visuals | ⏭ After U1 and U2 ids |
 | U6 | **Sound:** each echo's warning and each new foe's cue | sound | ⏭ After U1 and U2 ids |
 | U7 | **QA:** contentcheck forces each echo and new foe (0 stuck); variety.ts counts boss version plus echo pairs | QA | ⏭ |
-| U8 | **Phones:** the new foes' tells read at 320 px | phones | ⏭ |
+| U8 | **Phones:** the new foes' tells read at 320 px | phones | ✅ All five checked at 320x568 and 568x320, in 3D and 2D (`tools/newfoeshots.cjs`): the Ashwall's bash cone, the Ballast's slam ring, the Lampeye's eye and gaze, the Dimhorn's Dark Call and the Conchblower's Conch Call all read, with their cast bars on the foe panel. Their fight tips ran 4 lines at 320 wide, which kept the banner over the hero and the foe for 5 s as the first tell landed, so phones get shorter ones (PHONE_TIP): 2 lines, or 3 with a floor line. Shots in docs/ux/new-foes/ |
 
 ### Phase 17: the Arena, ranked one-on-one (asked for by Steve, 23 Nov 2026; not started)
 Steve (23 Nov 2026, 15:46Z): "add the option from the home menu for a different game mode (arena) where you match up someone your level if possible and fight against them. Winner gets points towards their ranking similar to how wow does PvP. And at intervals of points you get a title or some achievement or something (we can add rewards later)". He said not to build it now. It comes after Phase 16.

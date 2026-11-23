@@ -82,6 +82,13 @@ const PHONE_TIP: Record<string, string> = {
   [OVERFLOW_TIP]: 'Heal the Ladle burn off the tank. When the pit overflows, gather close to her until it ebbs. Then fill the vents and spread for the Cinder Marks.',
   [WHIRL_TIP]: 'Hit her between pulls and keep a raft afloat. Later the water swirls and carries you, turning the other way each time: wade across it to a raft.',
   [ROLLING_TIP]: 'Her vents open one at a time, each further round her: spread so someone is near the next. Never stand together when the Embers mark you.',
+  // Phase 16 U8: the new elites. Their full tips run 4 lines at 320 wide, which holds the banner over the middle of the
+  // fight for 5 s, right as their first tell lands (the Ballast's slam, the Ashwall's bash). Same answer, about half the words.
+  [ENCOUNTERS.ashwall.tip]: 'Its shield guards its front and the foes behind it. Walk round it.',
+  [ENCOUNTERS.ballast.tip]: 'In its reach it drops anchor and shrugs off hits. Step back, hit it as it walks.',
+  [ENCOUNTERS.lampeye.tip]: 'Hide behind a pillar to break its gaze. Fight the Shades in the light.',
+  [ENCOUNTERS.dimhorn.tip]: 'Out in the dark it calls the pack. Keep it in your coal\'s light.',
+  [ENCOUNTERS.conch.tip]: 'Its conch brings the next Ebb sooner. Quench it, and stay near a raft.',
 };
 const SLAG_COOL = 0xbcd6e6;
 // Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
