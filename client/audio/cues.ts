@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, IRONLOAD, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, IRONLOAD, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -178,6 +178,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  turningFire: { start: 'turnFireWarn' }, // Turning Fire (Y3): each cone's landing is a slam the size of KILN_TURN.reach
   // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
   glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
   // The Ashvents: Ysmeret, the Twofold Flame.
@@ -330,6 +331,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius) return { id: 'ironload' };
       // Die Cut's half-floor cone is the only slam the size of the whole arena twice over.
       if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
+      // Turning Fire's cones are the only Kiln telegraphs as long as KILN_TURN.reach (Kiln Draw's ring is KILN_DRAW.radius).
+      if (c.dungeon === 'kiln' && ev.r === KILN_TURN.reach) return { id: 'turnCone' };
       return { id: 'slam' };
     case 'glare': return { id: ev.hit ? 'glareHit' : 'glare' };
     case 'brandBurst': return { id: 'brand' };
@@ -413,6 +416,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
+    // Y3 Sealed Vents: silent until sound adds its cue.
+    case 'ventShift': return null;
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };

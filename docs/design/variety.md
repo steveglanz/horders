@@ -820,3 +820,38 @@ The raids' trash fights (openers and named fights, never the boss) now roll Cave
 - tests/audio.test.ts's real Smeltery run moved from seed 3 to seed 19. Seed 3's run changed and no longer reached Meltdown; seed 19 hears every cue the test lists.
 
 **Y5 follow-up (23 Nov 2026): no ring of Rimehounds.** Skills' class check (seeds 41 to 200) found the ring's Coldmarrow cost was the Hoarfrost Weaver fight. On a ring, its 3 Rimehounds reached the hero from 2 or 3 sides within a second and took 405 health in 3.5 s. The Emberwright won 97 of 160 with a forced ring, against 134 with waves off, and the Duskblade 82 against 107. Healers lived through it. A bot rule to step out through the widest gap didn't help. Now a fight with 3 or more Rimehounds never forms a ring: a rolled or forced ring stays an arc, and a stir's wave reaction there is a pincer. Emberwright, hero-t8, Coldmarrow t10, seeds 1 to 120: forced ring 95 → 111, natural 111 → 112 (waves off 114).
+
+## Phase 15 Y3 (built 23 Nov 2026): the Kiln Mother's third version, Turning Fire
+
+The Kiln Mother had two phase-2 versions (Cataclysm and the Draw). The third is **Turning Fire** (`turning`, cast `turningFire`). In phase 2 she pours four fire cones round herself, one after another, each turned 70° from the last, the first aimed at the hero. The direction flips every pour (`w.turnDir`). The first cone lands after 2.2 s and the next ones 0.7 s apart, 40 damage each before tier scaling, 1.5x when she's enraged. While she pours, her other abilities and the Kiln Brand wait. Tuning is `KILN_TURN` in sim/world.ts. The tip says: step back against the turn.
+
+- The Seen log picks it up from `KILN_VARIANTS` and `BOSS_VERSION_NAME`, so tests/seen.test.ts's Kiln pool went from 20 to 21.
+- The bot steps sideways against the turn when it stands inside a Turning Fire cone (sim/bot.ts), the way a player reads the tell.
+
+**Measured** with tools/foundry.ts, seeds 1 to 160, forcing each version with `BOSSV`:
+
+| Kiln, setup | Cataclysm | The Draw | Turning Fire |
+|---|---|---|---|
+| t2, no gear | 107 | 106 | 105 |
+| t4, hero-t4 | 156 | 155 | 152 |
+
+- Natural rolls at t2 (all three versions): 109 of 160.
+- The first build (first cone at 1.2 s, 50° cones) won 32 of 160 at t2. The cones landed before a hero could leave them. A 2.2 s lead and 70° cones brought it into line.
+- **Name:** "Turning Fire" had no WoW-branded match in a search on 23 Nov.
+
+### Y3 Maelra: Sealed Vents (built 23 Nov 2026)
+
+Maelra had two phase-2 versions (Rising Water and the Sluicetide). The third is **Sealed Vents** (`seal`). From phase 2 only one steam vent is open, and only it boils off her Temper. Every 16 s the steam moves to another vent, never the one she stands on when another is free. The next vent pulses 2.5 s ahead, with a "The steam moves" ding. Boiling her Temper at the open vent heals 1.5x as much as a normal vent. The arena keeps its size and nothing pushes the hero. Tuning is `MAELRA_SEAL` in sim/world.ts. Events: `{type:'ventShift', stage:'warn'|'open', vent}`. Fields `w.openVent` and `w.nextVent` (-1 when off). The bot leads her to the open vent.
+
+**Measured** with tools/foundry.ts, Foundry t4, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Rising Water | Sluicetide | Sealed Vents |
+|---|---|---|---|
+| hero-t4 | 157 | 159 | 156 |
+| no gear | 59 | 52 | 61 |
+
+- Natural rolls with hero-t4: 155 of 160.
+- With the steam moving every 12 s, no gear won 45 and hero-t4 153. With 16 s it sits with the other two.
+- Raising the heal to 2.5x changed nothing (46), so the time between moves is the knob.
+- **Name:** "Sealed Vents" had no WoW-branded match in a search on 23 Nov.
+

@@ -1093,6 +1093,17 @@ export const SOUNDS = {
      { wave: 'saw', f: note(-14), f2: note(-9), dur: 2.2, vol: 0.12, a: 1.4, lp: 1600, curve: 0.8, vib: [3, 0.01] },
      { wave: 'sine', f: 220, f2: 440, dur: 2.2, vol: 0.1, a: 1.4, curve: 0.8 }],
   ),
+  /** Phase 15 Y3: the Kiln Mother's Turning Fire (her third phase-2 version). She draws breath and the fire starts to
+   *  turn: a roar swelling under a swirl (tremolo speeding up), with four rising pips, one for each cone to come. */
+  turnFireWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.4, vol: 0.24, a: 0.9, lp: 900, lp2: 5000, hp: 380, curve: 0.8, trem: [4, 0.5] as [number, number] },
+     { wave: 'saw', f: note(-12), f2: note(-7), dur: 1.4, vol: 0.1, a: 0.9, lp: 1800, curve: 0.8, trem: [6, 0.4] as [number, number] }],
+    ...[0.5, 0.7, 0.9, 1.1].map((d, k) => [{ wave: 'sine' as const, f: note(10 + k * 2) * 2, dur: 0.12, delay: d, vol: 0.09, curve: 3 }])),
+  /** Each Turning Fire cone lands (0.7 s apart): a short fire whoosh that cuts off clean, so four in a row stay four. */
+  turnCone: join(
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.24, a: 0.01, lp: 6000, lp2: 1400, hp: 400, curve: 2 },
+     { wave: 'saw', f: 160, f2: 90, dur: 0.3, vol: 0.1, lp: 1500, curve: 2 }],
+    ...[0.08, 0.16].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
   /** Kiln Draw lands: the 150-radius fire circle around the Kiln Mother snaps shut with a roar (played as the cast ends). */
   ringClose: join(
     [{ wave: 'noise', f: 0, dur: 0.1, vol: 0.35, lp: 5000, hp: 600, curve: 3 }],
@@ -1567,6 +1578,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  turnFireWarn: 5.5, turnCone: 2.1, // Y3 Turning Fire: the warning near the Kiln's other boss calls, each cone level with slam
   // Phase 15 Y2 raid landings, level with the others (cave-ins about -28.5, surges about -26 dB).
   caveInSlag: 1.6, caveInBone: 1.5, caveInIngot: 1.8, caveInBrick: 2.5, surgeSlag: 2.2, surgeHoard: 1.5, surgeTuyere: 0.6, surgeFlue: 3.5,
   dungeonStir: 4.5, // about -30.5 dB counting its 0.6 s lead-in, level with layoutPillars
@@ -1575,7 +1587,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   seenNew: 1.7, // level with unlock (-23.8 dB)
   // X3 part 2 landings, level with the solo dungeons' (cave-ins about -28.5, surges about -26 dB).
   caveInDeep: 1.8, caveInAsh: 3.0, caveInPress: 2.2, surgeDeep: 2.0, surgeAsh: 2.3,
-  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
+  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 2.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 6.0, // cave-in +1.5 and surge +1.0 for raid trash (Y2): party sounds held them near 6 dB over the mix
   phase: 2.2,
   phaseIce: 5.9,
   phaseMaelra: 0.7,

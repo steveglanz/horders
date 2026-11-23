@@ -8,7 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1362,6 +1362,13 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           this.tideBeat = 1;
           break;
+        case 'ventShift': {
+          // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
+          const v = w.vents[ev.vent];
+          if (ev.stage === 'warn') this.hud.ding('The steam moves');
+          if (v) this.ring(v.x, v.y, v.r + 16, 0xbfe6ff, ev.stage === 'open' ? 0.7 : 0.4);
+          break;
+        }
         case 'bossSpawn':
           this.shake = 0.6;
           break;
@@ -1459,7 +1466,7 @@ export class GameScene extends Phaser.Scene {
           const stirLine = w.stir ? ` The dungeon stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
           const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
-          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
+          const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
             : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
@@ -2059,12 +2066,17 @@ export class GameScene extends Phaser.Scene {
       if (!v) { if (vs.visible) vs.setVisible(false); return; }
       const fr = String(Math.floor(now / 160 + k) % 4);
       if (vs.frame.name !== fr) vs.setFrame(fr);
-      vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(0.88);
-      g.lineStyle(2, 0xbfe6ff, 0.35).strokeCircle(v.x, v.y, v.r);
+      // Y3 Sealed Vents: a sealed vent goes dark; the open one glows; the next one pulses before the steam moves.
+      const sealed = w.openVent >= 0 && w.bossVariant === 'seal' && k !== w.openVent;
+      const next = sealed && k === w.nextVent;
+      vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(sealed && !next ? 0.35 : 0.88);
+      if (next) g.lineStyle(3, 0xbfe6ff, 0.35 + 0.3 * Math.sin(now / 90)).strokeCircle(v.x, v.y, v.r + 6);
+      else if (!sealed && w.openVent >= 0 && w.bossVariant === 'seal') g.lineStyle(3, 0xbfe6ff, 0.75).strokeCircle(v.x, v.y, v.r + 4);
+      else g.lineStyle(2, 0xbfe6ff, sealed ? 0.12 : 0.35).strokeCircle(v.x, v.y, v.r);
     });
     if (w.vents.length && now > this.steamAt && !this.lowFx) {
       this.steamAt = now + 140;
-      const v = w.vents[Math.floor(Math.random() * w.vents.length)];
+      const v = w.openVent >= 0 && w.bossVariant === 'seal' && w.vents[w.openVent] ? w.vents[w.openVent] : w.vents[Math.floor(Math.random() * w.vents.length)];
       this.steam(v.x + (Math.random() - 0.5) * v.r * 0.6, v.y - 4, 0.5 + Math.random() * 0.4);
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.

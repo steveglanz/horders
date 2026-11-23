@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { KILN_DRAW, KILN_TURN, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -874,6 +874,40 @@ describe('audio', () => {
     expect(firstVoice).toBeGreaterThanOrEqual(0.6);
     expect(recipeLength(SOUNDS.dungeonStir)).toBeLessThan(2);
     expect(Math.abs(phoneDb(render(SOUNDS.dungeonStir, 22050), 22050) - phoneDb(render(SOUNDS.layoutPillars, 22050), 22050))).toBeLessThan(1);
+  });
+
+  it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
+    type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
+    const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    const q = w as unknown as B;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 2;
+    w.bossVariant = 'turning';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; w.enemies[b].aux = 0;
+    w.player.x = 200; w.player.y = 0;
+    w.events.length = 0;
+    q.runBoss(b, 0.01);
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' };
+    const start = w.events.find((e) => e.type === 'castStart');
+    expect(start && cueFor(start, c)?.id).toBe('turnFireWarn');
+    expect(PRIORITY.has('turnFireWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.turnFireWarn)).toBeLessThan(KILN_TURN.first);
+    // Step through the pour: four slams of KILN_TURN.reach, each heard as a cone.
+    const heard: { t: number; id: string | null }[] = [];
+    for (let k = 0; k < 60 * (KILN_TURN.first + KILN_TURN.cones * KILN_TURN.step); k++) {
+      w.step({ mx: 0, my: 0 } as never);
+      for (const e of w.events) if (e.type === 'slam' && e.r === KILN_TURN.reach) heard.push({ t: w.time, id: cueFor(e, c)?.id ?? null });
+      if (w.player.hp <= 0) w.player.hp = w.player.maxHp;
+    }
+    expect(heard.map((h) => h.id)).toEqual(Array(KILN_TURN.cones).fill('turnCone'));
+    // Each cone's sound ends before the next lands, so four stay four.
+    expect(recipeLength(SOUNDS.turnCone)).toBeLessThan(KILN_TURN.step);
+    expect(PRIORITY.has('turnCone')).toBe(false);
+    // Nothing else in the Kiln makes a slam that big (Kiln Draw's ring is KILN_DRAW.radius).
+    const world = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    expect([...world.matchAll(/KILN_TURN\.reach/g)].length).toBe(1);
+    expect(KILN_DRAW.radius).not.toBe(KILN_TURN.reach);
   });
 
   it('lists exactly the Heats that lay a floor in FLOOR_HEATS, so no Heat stings twice or goes silent (Phase 14 X1)', () => {

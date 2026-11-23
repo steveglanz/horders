@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -167,7 +167,7 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
   type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; runBoss(i: number, dt: number): void };
 
   /** A Kiln fight with only the Kiln Mother up, in phase 2, Cataclysm due now. */
-  function mother(variant: 'cataclysm' | 'draw'): { w: World; q: B; b: number } {
+  function mother(variant: 'cataclysm' | 'draw' | 'turning'): { w: World; q: B; b: number } {
     const { w, inner } = kiln();
     const q = inner as B;
     const b = q.spawn('kilnMother', 0, 0);
@@ -237,6 +237,27 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
     const { w, q, b } = mother('cataclysm');
     q.runBoss(b, 0.01);
     expect(w.enemies[b].castId).toBe('cataclysm');
+  });
+
+  it('Y3: Turning Fire pours four cones that turn from the hero, flipping way each pour, and holds her other abilities', () => {
+    const { w, q, b } = mother('turning');
+    q.runBoss(b, 0.01);
+    expect(w.enemies[b].castId).toBe('turningFire');
+    const cones = w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.r === KILN_TURN.reach);
+    expect(cones.length).toBe(KILN_TURN.cones);
+    const dir = w.turnDir;
+    cones.forEach((t, k) => {
+      // The first cone points at the hero (at +x), each next one turned by one arc.
+      const want = dir * k * KILN_TURN.arc;
+      expect(Math.abs(Math.atan2(Math.sin(t.angle - want), Math.cos(t.angle - want)))).toBeLessThan(1e-6);
+      expect(t.dur).toBeCloseTo(KILN_TURN.first + k * KILN_TURN.step, 6);
+    });
+    const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+    expect(w.enemies[b].abilityT).toBeGreaterThanOrEqual(pour);
+    for (const t of cones) t.alive = false;
+    w.enemies[b].castId = ''; w.enemies[b].aux = 0;
+    q.runBoss(b, 0.01);
+    expect(w.turnDir).toBe(-dir);
   });
 
   it('online co-op: a guest sees the same version', () => {
@@ -365,8 +386,8 @@ describe('V8 variety: the Drowned Foundry', () => {
 
 describe('V8 variety: Maelra\'s Sluicetide', () => {
   type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
-    rollMaelraVariant(): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
-  function maelra(variant: 'water' | 'tide'): { w: World; q: M; b: number } {
+    rollMaelraVariant(): string; bossIndex: number; bossSpawned: boolean; bossPhase: number; temper: number };
+  function maelra(variant: 'water' | 'tide' | 'seal'): { w: World; q: M; b: number } {
     const w = new World({ seed: 9, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
     const q = w as unknown as M;
     for (const e of w.enemies) e.alive = false;
@@ -409,6 +430,41 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
     q.runMaelra(b, SLUICETIDE.turnEvery);
     expect(w.events.filter((e) => e.type === 'tideTurn')).toHaveLength(2);
     expect(Math.abs(Math.cos(w.tideAngle - a0) + 1)).toBeGreaterThan(0.01); // never straight back
+  });
+
+  it('Y3 Sealed Vents: one vent open, a warning, then the steam moves; only the open vent boils her Temper', () => {
+    const { w, q, b } = maelra('seal');
+    expect(w.vents.length).toBeGreaterThan(1);
+    q.runMaelra(b, 0.01);
+    const first = w.openVent;
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(w.events.filter((e) => e.type === 'ventShift' && e.stage === 'open')).toHaveLength(1);
+    q.runMaelra(b, MAELRA_SEAL.every - MAELRA_SEAL.warn);
+    expect(w.nextVent).toBeGreaterThanOrEqual(0);
+    expect(w.nextVent).not.toBe(first);
+    const next = w.nextVent;
+    expect(w.events.some((e) => e.type === 'ventShift' && e.stage === 'warn' && e.vent === next)).toBe(true);
+    q.runMaelra(b, MAELRA_SEAL.warn);
+    expect(w.openVent).toBe(next);
+    expect(w.nextVent).toBe(-1);
+    // A sealed vent keeps her Temper; the open one boils it off.
+    const e = w.enemies[b];
+    const shut = w.vents.findIndex((_, k) => k !== w.openVent);
+    q.temper = 3;
+    e.x = w.vents[shut].x; e.y = w.vents[shut].y;
+    q.runMaelra(b, 0.01);
+    expect(q.temper).toBe(3);
+    e.x = w.vents[w.openVent].x; e.y = w.vents[w.openVent].y;
+    q.runMaelra(b, 0.01);
+    expect(q.temper).toBe(0);
+  });
+
+  it('Rising Water and the Sluicetide leave every vent open', () => {
+    for (const v of ['water', 'tide'] as const) {
+      const { w, q, b } = maelra(v);
+      q.runMaelra(b, 1);
+      expect(w.openVent).toBe(-1);
+    }
   });
 
   it('phase 1 has no tide', () => {

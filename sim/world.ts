@@ -580,6 +580,8 @@ export type SimEvent =
   | { type: 'emberPick'; x: number; y: number; hero: number }
   /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
   | { type: 'tideTurn'; angle: number }
+  /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
+  | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
   | { type: 'revive'; hero?: number; /** Co-op: the ally who picked them up (absent for a Phoenix Feather). */ by?: number }
   | { type: 'potion'; id: PotionId; x: number; y: number }
@@ -856,6 +858,11 @@ export class World {
   tideAngle = 0;
   private sluiceT = 0;
   private tideTurns = 0;
+  /** Y3 Sealed Vents: the one open vent (-1 before it starts), the vent the steam moves to next (-1 until warned), and its clock. */
+  openVent = -1;
+  nextVent = -1;
+  private sealT = 0;
+  private sealMoves = 0;
   /** V4: the Day's Heat on this run, or '' for none. */
   heat: HeatId | '' = '';
   /** Standing stones: they block heroes and foes alike. */
@@ -2246,6 +2253,20 @@ export class World {
   }
 
   /** V8: Maelra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
+  /** Y3 Sealed Vents: the next open vent, never `not`, from the seed; the one under Maelra is skipped when another is free. */
+  private pickVent(not: number, e: Enemy): number {
+    const n = this.vents.length;
+    let h = Math.imul(this.seed ^ 0x2c1b3c6d, 0x9e3779b1) + Math.imul(++this.sealMoves, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0xc2b2ae35) >>> 0;
+    const free: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const v = this.vents[k];
+      if (k !== not && dist2(e.x, e.y, v.x, v.y) > (v.r + e.def.radius) ** 2) free.push(k);
+    }
+    if (!free.length) for (let k = 0; k < n; k++) if (k !== not) free.push(k);
+    return free[h % free.length];
+  }
+
   private rollMaelraVariant(): MaelraVariant {
     if (this.stress) return 'water';
     let h = Math.imul(this.seed ^ 0x1b873593, 0x7feb352d) >>> 0;
@@ -2353,6 +2374,9 @@ export class World {
     }
     this.events.push({ type: 'layout', id: this.layout });
   }
+
+  /** Phase 15 Y3: which way this Turning Fire turns (1 anticlockwise, -1 clockwise). */
+  turnDir = 1;
 
   /** Phase 15 Y10: whether this run can stir at all. */
   get stirOn(): boolean {
@@ -5221,6 +5245,21 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
+      if (phase >= 2 && this.bossVariant === 'turning') {
+        this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
+        // She's busy pouring: nothing else from her until the last cone lands.
+        const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+        e.abilityT = Math.max(e.abilityT, pour + 0.5);
+        // And no Kiln Brand to soak while the fire turns: one job at a time.
+        this.brandT = Math.max(this.brandT, pour + 1);
+        // Clockwise or not, in turn, so a player can't learn one way round.
+        const dir = (this.turnDir = e.aux2 = e.aux2 > 0 ? -1 : 1);
+        const a0 = Math.atan2(p.y - e.y, p.x - e.x);
+        for (let k = 0; k < KILN_TURN.cones; k++) {
+          this.addTelegraph('cone', e.x, e.y, KILN_TURN.reach, a0 + dir * k * KILN_TURN.arc, KILN_TURN.arc, KILN_TURN.first + k * KILN_TURN.step, KILN_TURN.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        }
+        return;
+      }
       if (phase >= 2 && this.bossVariant === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
@@ -7022,11 +7061,33 @@ export class World {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
+    // Y3 Sealed Vents: one vent open at a time, the steam moving round.
+    const sealed = phase >= 2 && this.bossVariant === 'seal' && this.vents.length > 1;
+    if (sealed) {
+      if (this.openVent < 0) {
+        this.openVent = this.pickVent(-1, e);
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+      this.sealT -= dt;
+      if (this.nextVent < 0 && this.sealT <= MAELRA_SEAL.warn) {
+        this.nextVent = this.pickVent(this.openVent, e);
+        this.events.push({ type: 'ventShift', stage: 'warn', vent: this.nextVent });
+      }
+      if (this.sealT <= 0) {
+        this.openVent = this.nextVent >= 0 ? this.nextVent : this.pickVent(this.openVent, e);
+        this.nextVent = -1;
+        this.sealT = MAELRA_SEAL.every;
+        this.events.push({ type: 'ventShift', stage: 'open', vent: this.openVent });
+      }
+    }
     if (this.temper > 0) {
-      for (const v of this.vents) {
+      for (let vi = 0; vi < this.vents.length; vi++) {
+        const v = this.vents[vi];
+        if (sealed && vi !== this.openVent) continue;
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * (sealed ? MAELRA_SEAL.healMult : 1) * this.temper);
           if (heal > 0) {
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
@@ -7853,8 +7914,14 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
-export type KilnVariant = 'cataclysm' | 'draw';
-export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
+export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
+export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
+/**
+ * Phase 15 Y3 Turning Fire: from phase 2, in place of Molten Cataclysm, she pours `cones` cones of fire around herself,
+ * each `arc` wide, the first on the hero, each next one a turn further on and landing `step` s after the last (the first
+ * at `first` s). Not interruptible: follow the fire round her, into the ground the last cone already burned.
+ */
+export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step: 0.7, reach: 900, damage: 40 };
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 
@@ -7871,10 +7938,15 @@ export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint'];
 export const GLINTFALL = { cast: 1.8, radius: 80, damage: 24 };
 
 /** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
-export type MaelraVariant = 'water' | 'tide';
-export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide'];
+export type MaelraVariant = 'water' | 'tide' | 'seal';
+export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+/**
+ * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
+ * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
+ */
+export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
