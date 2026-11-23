@@ -1628,6 +1628,12 @@ export class GameScene extends Phaser.Scene {
       sy = (Math.random() - 0.5) * m;
     }
     cam.centerOn(px + sx, py + sy);
+    // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
+    // Name plates, bars and edge marks all cull against worldView, so keep it current by hand.
+    if (!cam.visible) {
+      const dw = cam.width / cam.zoom, dh = cam.height / cam.zoom;
+      cam.worldView.setTo(cam.midPoint.x - dw / 2, cam.midPoint.y - dh / 2, dw, dh);
+    }
     this.ground.setTilePosition(cam.worldView.x, cam.worldView.y);
     this.ground.setTileScale(1);
 
@@ -2425,8 +2431,11 @@ export class GameScene extends Phaser.Scene {
     const packs = [...byRoot.values()];
     // Where enemy bars and names sit this frame, so an ally's name over one can step back (below).
     const foeBoxes: { l: number; r: number; t: number; b: number }[] = [];
+    this.barRecs.length = 0;
     const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
       const bw = e.def.rank === 'rare' ? 70 : 56;
+      // HD-2D: the overlay redraws these bars over the 3D view (foeEdgeMarks3d), at the foe's projected place.
+      if (this.hd2d) this.barRecs.push({ x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (cast.interruptible ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
       foeBoxes.push({ l: x - bw / 2, r: x + bw / 2, t: top - 3, b: top + (cast ? 13 : 6) });
       b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
       b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
@@ -3478,6 +3487,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** HD-2D: this frame's foe health and cast bars, for the overlay (world units, as drawBar draws them in 2D). */
+  private barRecs: { x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
   /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
   private edgeCanvas: HTMLCanvasElement | null = null;
   /**
@@ -3491,7 +3502,8 @@ export class GameScene extends Phaser.Scene {
     let cv = this.edgeCanvas;
     const foes = this.hud.compact && this.world.phase === 'fight';
     // Co-op: an ally off screen gets its class-coloured arrow at every size, as in 2D (the 3D view hides those too).
-    const on = foes || this.allies.length > 0;
+    // Bars, names and combat text are flat UI the 3D view leaves to this overlay too (see drawLabels3d).
+    const on = true;
     if (!cv) {
       if (!on) return;
       cv = this.edgeCanvas = document.createElement('canvas');
@@ -3512,6 +3524,7 @@ export class GameScene extends Phaser.Scene {
     // The clear view: below a full-width boss or quest panel (clearView's cache, in viewport px), at most 40% down.
     this.clearView();
     const top = Math.min(0.4 * H, Math.max(0, this.hudCover.px - hr.top));
+    this.drawLabels3d(g, view, top);
     const inset = 10;
     const cx = W / 2, cy = (top + H) / 2;
     const SECTORS = 16;
@@ -3597,6 +3610,73 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8);
       g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
       g.closePath(); g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+
+  /**
+   * HD-2D: foe health and cast bars, foe names, damage numbers and the soak, revive and gate texts, which the 2D
+   * scene draws on its own (hidden) camera. Each goes at its projected floor point, at the same on-screen size as
+   * in 2D. Over-the-head items (bars, names) get lifted by the 2D offset times LIFT, since the 3D sprites stand up.
+   */
+  private drawLabels3d(g: CanvasRenderingContext2D, view: Hd2dView, top: number): void {
+    const z = this.cameras.main.zoom;
+    const LIFT = 1.6;
+    for (const r of this.barRecs) {
+      const p = view.project(r.x, r.y);
+      if (!p) continue;
+      const bw = r.bw * z, x = p.x - bw / 2, y = p.y + (r.top - r.y) * z * LIFT;
+      g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * z);
+      g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * z);
+      if (r.cast >= 0) {
+        g.globalAlpha = 0.7; g.fillStyle = '#000000'; g.fillRect(x, y + 8 * z, bw, 5 * z);
+        g.globalAlpha = 1; g.fillStyle = r.castCol; g.fillRect(x, y + 8 * z, bw * r.cast, 5 * z);
+      }
+      if (r.ward > 0) { g.globalAlpha = 0.95; g.fillStyle = '#e8f4ff'; g.fillRect(x, y - 3 * z, bw * r.ward, 3 * z); }
+    }
+    g.globalAlpha = 1;
+    const texts: { t: Phaser.GameObjects.Text; head: boolean }[] = [
+      ...this.plates.map((t) => ({ t, head: true })),
+      ...this.floats.filter((f) => f.life > 0).map((f) => ({ t: f.txt, head: false })),
+      ...this.gateTexts.map((t) => ({ t, head: false })),
+      { t: this.soakText, head: false },
+      { t: this.reviveText, head: false },
+    ];
+    const heads: { l: number; r: number; t: number; b: number; text: string }[] = [];
+    for (const { t, head } of texts) {
+      if (!t || !t.visible || !t.text || t.alpha <= 0) continue;
+      // A name sits on its foe's bar: project the foe's own floor point (the bar record just below it) and lift.
+      let p: { x: number; y: number } | null;
+      if (head) {
+        const bar = this.barRecs.find((r) => Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
+        const q = bar ? view.project(bar.x, bar.y) : view.project(t.x, t.y);
+        p = q && bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
+      } else p = view.project(t.x, t.y);
+      if (!p) continue;
+      // A name under the boss or quest panel stays hidden, as in 2D.
+      if (head && p.y < top) continue;
+      const st = t.style;
+      const size = parseFloat(String(st.fontSize)) * z * t.scaleY;
+      g.font = `${st.fontStyle || ''} ${size}px ${st.fontFamily}`;
+      g.textAlign = 'center';
+      g.textBaseline = t.originY >= 1 ? 'bottom' : t.originY <= 0 ? 'top' : 'middle';
+      g.globalAlpha = t.alpha;
+      // Two of a kind whose names the 3D view's foreshortening pushes together: the second is dropped, as 2D drops
+      // a name within 110 x 70 of the same one.
+      if (head) {
+        const tw = g.measureText(t.text).width;
+        const box = { l: p.x - tw / 2, r: p.x + tw / 2, t: p.y - size, b: p.y };
+        if (heads.some((q) => q.text === t.text && q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b)) continue;
+        heads.push({ ...box, text: t.text });
+      }
+      const lines = t.text.split('\n');
+      const lh = size * 1.15;
+      lines.forEach((line, i) => {
+        const ly = p!.y - (lines.length - 1 - i) * lh * (t.originY >= 1 ? 1 : 0) + i * lh * (t.originY >= 1 ? 0 : 1);
+        if (st.strokeThickness) { g.lineJoin = 'round'; g.lineWidth = st.strokeThickness * z; g.strokeStyle = st.stroke; g.strokeText(line, p!.x, ly); }
+        g.fillStyle = st.color as string;
+        g.fillText(line, p!.x, ly);
+      });
     }
     g.globalAlpha = 1;
   }
