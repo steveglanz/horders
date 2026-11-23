@@ -1827,7 +1827,7 @@ export class World {
     const all = def.spawns.reduce((a, s) => a + s.n, 0);
     // Phase 15 Y1: how this wave comes in (a hash, so the run rng above is untouched).
     this.waveShape = this.waveShapeAt(this.encounter, def.id);
-    if (this.stir === 'wave') this.waveShape = (this.stirHash() >>> 12) & 1 ? 'ring' : 'pincer';
+    if (this.stir === 'wave') this.waveShape = (this.stirHash() >>> 12) & 1 && !ringless(def.spawns) ? 'ring' : 'pincer';
     this.reinforceN = this.waveShape === 'reinforce' ? reinforceCount(def.spawns) : 0;
     this.reinforceT = WAVES.reinforceAt;
     this.reinforceA = base - Math.PI / 2; // a flank, never the hero's own side
@@ -2452,14 +2452,15 @@ export class World {
     if (WAVES.force) {
       const f = WAVES.force as WaveShape;
       if (f === 'reinforce') return def && reinforceCount(def.spawns) > 0 ? f : 'arc';
-      return n >= 2 && !def!.spawns.some((x) => x.kind === 'twinLamp') ? f : 'arc';
+      return n >= 2 && !def!.spawns.some((x) => x.kind === 'twinLamp') && !(f === 'ring' && ringless(def!.spawns)) ? f : 'arc';
     }
     if (n < 2) return 'arc';
     // The Twin Lamps' beam runs between them, so split lamps would sweep the whole arena: they keep the arc.
     const lamps = def!.spawns.some((x) => x.kind === 'twinLamp');
     const u = (h % 1000) / 1000;
     if (u < WAVES.pincer) return lamps ? 'arc' : 'pincer';
-    if (u < WAVES.pincer + WAVES.ring) return lamps ? 'arc' : 'ring';
+    // Skills' Y5: three or more Rimehounds closing from every side at once took 405 health in 3.5 s, and only healers lived.
+    if (u < WAVES.pincer + WAVES.ring) return lamps || ringless(def!.spawns) ? 'arc' : 'ring';
     if (u < WAVES.pincer + WAVES.ring + WAVES.reinforce && reinforceCount(def!.spawns) > 0) return 'reinforce';
     return 'arc';
   }
@@ -7773,6 +7774,10 @@ export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]
   const all = spawns.reduce((a, s) => a + s.n, 0);
   const pack = spawns.reduce((a, s) => a + (REINFORCE_KINDS.includes(s.kind) ? s.n : 0), 0);
   return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
+}
+/** Phase 15 Y5 fix: a Rimehound pack of 3 or more never forms a ring (it stays an arc). */
+function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
+  return spawns.some((s) => s.kind === 'rimehound' && s.n >= 3);
 }
 /** Which flat spawn slots are held back: the last `m` pack foes. */
 function heldMask(spawns: readonly { kind: EnemyKind; n: number }[], m: number): boolean[] {
