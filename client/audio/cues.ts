@@ -443,6 +443,9 @@ export const ARENA_EVENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId |
 export const ARENA_LAND: Record<string, SoundId> = {
   'caveIn.foundry': 'caveInWet', 'caveIn.coldmarrow': 'caveInIce',
   'ventSurge.foundry': 'surgeSteam', 'ventSurge.glarewell': 'surgeLens',
+  // X3 part 2, group-dungeon trash: dead-forge iron, ash and pumice, sheet steel.
+  'caveIn.hammerdeep': 'caveInDeep', 'caveIn.ashvents': 'caveInAsh', 'caveIn.pressworks': 'caveInPress',
+  'ventSurge.hammerdeep': 'surgeDeep', 'ventSurge.ashvents': 'surgeAsh', 'ventSurge.pressworks': 'surgePress',
 };
 /** Arena-event warnings that must be heard: the ones you dodge or answer (not High Water's swell). */
 export const ARENA_WARN_PRIORITY: readonly SoundId[] = ['caveInWarn', 'ventSurgeWarn', 'coldSnapWarn'];
