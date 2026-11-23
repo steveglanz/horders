@@ -855,6 +855,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     return f;
   };
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
+  // Old Vorhulm's Inhale (the Hoard, phase 3): his maw glows and air, ash and embers stream in to it from all round.
+  // The floor ring of his bite and the 2D streaks still come through the bridge.
+  const INH = 80;
+  const inhPos = new Float32Array(INH * 3);
+  const inhGeo = new THREE.BufferGeometry(); inhGeo.setAttribute('position', new THREE.BufferAttribute(inhPos, 3));
+  const inhMat = new THREE.PointsMaterial({ map: canvasTex(dotCanvas('rgba(255,236,200,1)', 'rgba(255,140,60,0)')), color: new THREE.Color(1.8, 1.2, 0.8), size: 0.32, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const inhale = new THREE.Points(inhGeo, inhMat); inhale.frustumCulled = false; inhale.visible = false; scene.add(inhale);
+  const maw = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(dotCanvas('rgba(255,240,200,1)', 'rgba(255,90,30,0)')), color: new THREE.Color(2.2, 1.2, 0.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  maw.visible = false; scene.add(maw);
 
   /* telegraphs */
   const telTex = { hit: canvasTex(circleTel('hit')), soak: canvasTex(circleTel('soak')) };
@@ -1053,7 +1062,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
 
     // Foes.
-    let fi = 0, bossOn = false;
+    let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1084,12 +1093,34 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit), ht * rise * (1 - hit), 1);
       f.mesh.position.set(x, FLOOR, z);
+      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; }
       f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : 0;
       f.mesh.visible = true;
       f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
     }
     for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
+    const inh = w.bossVariant === 'inhale' && w.inhaleStage > 0 && bossH > 0 ? w.inhaleStage : 0;
+    inhale.visible = maw.visible = inh > 0;
+    if (inh) {
+      const my = FLOOR + bossH * 0.55, mz = bossZ + 0.08;
+      const glow = inh === 2 ? 1 : 0.45 + 0.35 * Math.sin(t * 9);
+      maw.position.set(bossX, my, mz); maw.scale.setScalar(0.7 + 0.6 * glow);
+      bossLight.position.set(bossX, my, bossZ + 0.7); bossLight.intensity = 4 + 10 * glow;
+      // Each mote spirals in from 3-6 units out, rising to his maw; faster and denser while he breathes in.
+      const n = inh === 2 ? INH : 14, speed = inh === 2 ? 0.9 : 0.25;
+      for (let k = 0; k < INH; k++) {
+        if (k >= n) { inhPos[k * 3 + 1] = -50; continue; }
+        const h = Math.sin(k * 78.233) * 43758.5453, rr = h - Math.floor(h);
+        const ph = (t * speed + rr) % 1, a = k * 2.399 + ph * 1.4;
+        const r = (3 + 3 * rr) * (1 - ph) ** 1.4 + 0.15;
+        inhPos[k * 3] = bossX + Math.cos(a) * r;
+        inhPos[k * 3 + 1] = FLOOR + 0.25 + (my - FLOOR - 0.25) * ph * ph + 0.3 * rr * (1 - ph);
+        inhPos[k * 3 + 2] = mz + Math.sin(a) * r;
+      }
+      inhGeo.attributes.position.needsUpdate = true;
+      inhMat.opacity = inh === 2 ? 0.95 : 0.6;
+    }
 
     // Telegraphs.
     let ti = 0;
