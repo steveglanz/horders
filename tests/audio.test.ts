@@ -6,7 +6,7 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, EDGE_SPOTS, edgeSpotAt, HD2D_ROOM_R, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
@@ -627,6 +627,42 @@ describe('audio', () => {
     const back = { next: 500 };
     expect(edgeCue(back, 'kiln', 2, false, rnd)).toBeNull();
     expect(back.next).toBeLessThan(2 + EDGE.max + 0.001);
+  });
+
+  it('plays the 3D rooms\' edge sounds from the props you can see, and keeps the random side in 2D', () => {
+    // The spots match client/hd2d/renderer.ts: its room radius, and each prop's placement radius.
+    const src = readFileSync('client/hd2d/renderer.ts', 'utf8');
+    expect(src).toContain(`const ROOM_R = ${HD2D_ROOM_R};`);
+    expect(src).toContain('Math.sin(a) * (9.2 + r * 0.25)'); // kilns, r 2.3 and 1.65
+    expect(src).toMatch(/\[Math\.PI, 2\.3\], \[Math\.PI - 0\.8, 1\.65\]/);
+    expect(src).toContain('Math.sin(a) * 8.62, 0.22'); // braziers
+    expect(src).toContain('[Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]');
+    expect(src).toContain('Math.sin(a) * 9.4, 0, Math.cos(a) * 9.4'); // boilers
+    expect(src).toContain('Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5'); // anvils
+    expect(src).toContain('Math.sin(a) * 9.7, 0, Math.cos(a) * 9.7'); // chimneys
+    [2.3, 1.65, 1.65].forEach((r, k) => expect(EDGE_SPOTS.kiln?.[0][k][1]).toBeCloseTo(9.2 + r * 0.25, 9));
+    // The back wall is world -y, scaled to the arena.
+    const back = edgeSpotAt([Math.PI, HD2D_ROOM_R], 560);
+    expect(back.x).toBeCloseTo(0, 6); expect(back.y).toBeCloseTo(-560, 6);
+    // A stand-in 3D view: screen x = 400 + world x / 2, half-width 200 px; the hero at x 0.
+    const listen = { x: 0, y: 0, half: 280, screen: (x: number, y: number) => ({ x: 400 + x / 2, y: 300 + y / 2 }), screenHalf: 200 };
+    const room = { listen, arenaR: 560 };
+    const seq = (vals: number[]) => { let i = 0; return () => vals[i++ % vals.length]; };
+    // rnd order: the next gap, side, which prop, the side's spread, then (3D) the spot. The kiln at PI + 0.8 is on the left.
+    const kiln = edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.99, 0.99]), room);
+    const at = edgeSpotAt(EDGE_SPOTS.kiln![0][2], 560);
+    expect(at.x).toBeLessThan(0);
+    expect(kiln?.id).toBe('edgeFurnace');
+    expect(kiln?.pan).toBeCloseTo(Math.max(-1, (at.x / 2) / 200) * EDGE.pan, 6);
+    expect(kiln?.pan).toBeLessThan(0); // drawn left, heard left, although the side roll said right
+    // The middle kiln is straight up the screen from a hero at x 0: centred.
+    expect(edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.5, 0]), room)?.pan).toBeCloseTo(0, 6);
+    // In 2D (no screen), or a sound with no spot (the Foundry's valve), or a dungeon in the shared Flue room, the random side stays.
+    const twoD = edgeCue({ next: 1 }, 'kiln', 1, false, seq([0.5, 0.9, 0.1, 0.99]), { listen: { x: 0, half: 280 }, arenaR: 560 });
+    expect(twoD?.pan).toBeCloseTo(EDGE.pan * (0.6 + 0.4 * 0.99), 6);
+    expect(edgeCue({ next: 1 }, 'foundry', 1, false, seq([0.5, 0.9, 0.9, 0.5]), room)).toMatchObject({ id: 'edgeValve', pan: EDGE.pan * 0.8 });
+    expect(edgeCue({ next: 1 }, 'hoard', 1, false, seq([0.5, 0.1, 0.1, 0.5]), room)?.pan).toBeCloseTo(-EDGE.pan * 0.8, 6);
+    expect(EDGE_SPOTS.hoard).toBeUndefined();
   });
 
   it('sounds the Regent\'s Summons as a must-hear call, and the Brimming\'s Churn as a quiet stir (Phase 12 W3)', () => {
