@@ -402,6 +402,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     // Phase 15 Y1: placeholder until sound's Y7 cues.
     case 'waveShape': return null;
+    // Phase 15 Y10: placeholder until sound's cue.
+    case 'stir': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
