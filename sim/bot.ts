@@ -1092,7 +1092,7 @@ export function botInput(w: World, skill = 1): Input {
       let bd = Infinity;
       for (const c of w.pillars) {
         if (c.cracked) continue;
-        // The shade spot lies past the pillar, away from the light (the centre, or the Lensmother's Walking Light).
+        // The shade spot lies past the pillar, away from the light (the centre, or the Lensmother's Carried Light).
         const cx = c.x - w.lightX, cy = c.y - w.lightY;
         const d = Math.hypot(cx, cy) || 1;
         const sx = w.lightX + (cx / d) * (d + c.r + 45);

@@ -580,7 +580,7 @@ export type SimEvent =
   | { type: 'emberPick'; x: number; y: number; hero: number }
   /** V8: Maelra's Sluicetide turns; `angle` is the way the water now flows. */
   | { type: 'tideTurn'; angle: number }
-  /** Y3 Walking Light: the Glarewell's light now comes from here. */
+  /** Y3 Carried Light: the Glarewell's light now comes from here. */
   | { type: 'lightMove'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
   | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
@@ -907,7 +907,7 @@ export class World {
   temper = 0;
   /** Glarewell stone pillars around the central lens; each casts a shadow wedge outward. Empty elsewhere. */
   pillars: { x: number; y: number; r: number; cracked: boolean }[] = [];
-  /** Where the Glarewell's light comes from: the centre lens, or (Y3 Walking Light) where the Lensmother last began a Glare. */
+  /** Where the Glarewell's light comes from: the centre lens, or (Y3 Carried Light) where the Lensmother last began a Glare. */
   lightX = 0;
   lightY = 0;
   /** Seconds until the Brand on the hero bursts (0 when there's none). */
@@ -2656,7 +2656,7 @@ export class World {
       if (c.cracked) continue;
       const cx = c.x - this.lightX, cy = c.y - this.lightY;
       const d = Math.hypot(cx, cy);
-      if (d < WALKING_LIGHT.minD) continue;
+      if (d < CARRIED_LIGHT.minD) continue;
       const ux = cx / d;
       const uy = cy / d;
       const px = x - this.lightX, py = y - this.lightY;
@@ -5894,7 +5894,7 @@ export class World {
     if (this.glareT <= 0) {
       this.glareT = (this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery) * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
-      // Y3 Walking Light: from phase 2 she carries the light; the shadows swing as the warning starts.
+      // Y3 Carried Light: from phase 2 she carries the light; the shadows swing as the warning starts.
       if (this.bossPhase >= 2 && this.bossVariant === 'walk') {
         this.lightX = e.x;
         this.lightY = e.y;
@@ -7951,11 +7951,11 @@ export const LENS_VARIANTS: LensVariant[] = ['brand', 'glint', 'walk'];
 /** V8 Glintfall: on the Twin Brand timer, a `cast` s warning, then a `radius` circle of falling light on every standing pillar. */
 export const GLINTFALL = { cast: 1.8, radius: 80, damage: 24 };
 /**
- * Phase 15 Y3 Walking Light: from phase 2 the light comes from her, not the centre lens.
+ * Phase 15 Y3 Carried Light: from phase 2 the light comes from her, not the centre lens.
  * Each Glare moves it to where she stands as the warning starts (so shadows swing then, `glareWarn` s before the burn),
  * and she has no Twin Brand. A pillar closer than `minD` to the light casts no shadow.
  */
-export const WALKING_LIGHT = { minD: 40 };
+export const CARRIED_LIGHT = { minD: 40 };
 
 /** V8: Maelra's phase-2 signature this run: Rising Water (the arena shrinks) or the Sluicetide. */
 export type MaelraVariant = 'water' | 'tide' | 'seal';

@@ -855,3 +855,18 @@ Maelra had two phase-2 versions (Rising Water and the Sluicetide). The third is 
 - Raising the heal to 2.5x changed nothing (46), so the time between moves is the knob.
 - **Name:** "Sealed Vents" had no WoW-branded match in a search on 23 Nov.
 
+### Y3 the Lensmother: Carried Light (built 23 Nov 2026)
+
+The Lensmother had two phase-2 versions (Twin Brand and Glintfall). The third is **Carried Light** (`walk`). From phase 2 the light comes from her, not the centre lens. Each Glare moves the light to where she stands as its 2.6 s warning starts, so the shadows swing then and the hero has the whole warning to put a pillar between them and her. She casts no Twin Brand in this version. A pillar within 40 px of the light casts no shadow (`CARRIED_LIGHT.minD`). Fields `w.lightX` and `w.lightY` (0, 0 is the centre lens), event `{type:'lightMove', x, y}`. `World.shadowed`, the drawn wedges and the bot's shade spot all use the light's position.
+
+**Measured** with tools/foundry.ts, Glarewell t7, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Twin Brand | Glintfall | Carried Light |
+|---|---|---|---|
+| hero-t6 | 152 | 159 | 159 |
+| hero-t4 | 122 | 149 | 147 |
+
+- Natural rolls: 157 of 160 with hero-t6, 138 with hero-t4.
+- Carried Light sits with Glintfall. Twin Brand stays the hardest of the three, as before.
+- **Name:** first called Walking Light, which is too close to WoW's "Walk in the Light" and "Walk Into Light", so renamed. "Carried Light" had no WoW match in a search on 23 Nov.
+

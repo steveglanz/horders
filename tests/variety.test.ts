@@ -548,7 +548,7 @@ describe('V8 variety: the Lensmother\'s Glintfall', () => {
     }
   });
 
-  it('Y3 Walking Light: from phase 2 each Glare moves the light to her, the shadows point away from her, and no Twin Brand', () => {
+  it('Y3 Carried Light: from phase 2 each Glare moves the light to her, the shadows point away from her, and no Twin Brand', () => {
     const { w, q, b } = lens('walk');
     w.pillars = [{ x: 200, y: 0, r: 26, cracked: false }];
     // At the centre, the shade is past the pillar on the far side from the centre.

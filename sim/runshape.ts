@@ -22,7 +22,7 @@ export interface ShapeChip {
 export const BOSS_VERSION_NAME: Record<string, string> = {
   cataclysm: 'Molten Cataclysm', draw: 'Kiln Draw', turning: 'Turning Fire',
   water: 'Rising Water', tide: 'Sluicetide', seal: 'Sealed Vents',
-  brand: 'Twin Brand', glint: 'Glintfall', walk: 'Walking Light',
+  brand: 'Twin Brand', glint: 'Glintfall', walk: 'Carried Light',
   ice: 'Thin Ice', drift: 'Emberdrift',
   riptide: 'Riptide', outsurge: 'The Outsurge',
   choir: 'Choir of Iron', load: 'Ironload',
