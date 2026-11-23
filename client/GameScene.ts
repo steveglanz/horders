@@ -627,6 +627,8 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.hd2d?.destroy();
       this.hd2d = null;
+      this.edgeCanvas?.remove();
+      this.edgeCanvas = null;
       this.scale.off('resize', this.layout, this);
       if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
     });
@@ -862,7 +864,11 @@ export class GameScene extends Phaser.Scene {
       ? Math.min(1, this.snapAge / SNAP_SECONDS)
       : w.state === 'running' && (!this.paused || this.coop) ? this.acc / TICK : 1;
     this.render(alpha, deltaMs / 1000);
-    if (this.hd2d) { this.hd2dAlpha = alpha; this.hd2d.frame(deltaMs / 1000); }
+    if (this.hd2d) {
+      this.hd2dAlpha = alpha;
+      this.hd2d.frame(deltaMs / 1000);
+      this.foeEdgeMarks3d(this.time.now);
+    }
     this.hud.tick(w, this.fps());
   }
 
@@ -3481,6 +3487,129 @@ export class GameScene extends Phaser.Scene {
       if (big[k]) b.fillStyle(0xffc861, pk).fillTriangle(...tri(sz * 1.25));
       b.fillStyle(0xff4d3d, pk).fillTriangle(...tri(sz));
     }
+  }
+
+  /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
+  private edgeCanvas: HTMLCanvasElement | null = null;
+  /**
+   * Y9 in the HD-2D test: the same chevrons as foeEdgeMarks, placed with the 3D camera (Hd2dView.project) and
+   * drawn on a 2D canvas above the 3D one (z-index 2: over its canvas and top shade, under the HUD).
+   */
+  private foeEdgeMarks3d(now: number): void {
+    const view = this.hd2d;
+    const host = this.game.canvas.parentElement;
+    if (!view || !host) return;
+    let cv = this.edgeCanvas;
+    const foes = this.hud.compact && this.world.phase === 'fight';
+    // Co-op: an ally off screen gets its class-coloured arrow at every size, as in 2D (the 3D view hides those too).
+    const on = foes || this.allies.length > 0;
+    if (!cv) {
+      if (!on) return;
+      cv = this.edgeCanvas = document.createElement('canvas');
+      cv.className = 'hd2d-edge';
+      cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:2';
+      host.appendChild(cv);
+    }
+    const hr = host.getBoundingClientRect();
+    const W = hr.width, H = hr.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d');
+    if (!g) return;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (!on || !W || !H) return;
+    const w = this.world;
+    // The clear view: below a full-width boss or quest panel (clearView's cache, in viewport px), at most 40% down.
+    this.clearView();
+    const top = Math.min(0.4 * H, Math.max(0, this.hudCover.px - hr.top));
+    const inset = 10;
+    const cx = W / 2, cy = (top + H) / 2;
+    const SECTORS = 16;
+    const count = new Array<number>(SECTORS).fill(0);
+    const big = new Array<boolean>(SECTORS).fill(false);
+    const fast = new Array<boolean>(SECTORS).fill(false);
+    const sx = new Array<number>(SECTORS).fill(0);
+    const sy = new Array<number>(SECTORS).fill(0);
+    const add = (x: number, y: number, n: number, isBig: boolean, isFast: boolean) => {
+      const p = view.project(x, y);
+      // Behind the camera: point straight away from it (down the screen is toward the camera, so up).
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      if (p && px > inset && px < W - inset && py > top + inset && py < H - inset) return;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+      count[k] += n;
+      sx[k] += (px - cx) * n;
+      sy[k] += (py - cy) * n;
+      if (isBig) big[k] = true;
+      if (isFast) fast[k] = true;
+    };
+    if (foes) for (const e of w.enemies) if (e.alive && !e.def.stationary) add(e.x, e.y, 1, e.def.rank !== 'normal', false);
+    if (foes && w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+      const rr = w.arenaR - 60;
+      add(Math.cos(w.reinforceA) * rr, Math.sin(w.reinforceA) * rr, w.reinforceN, false, true);
+    }
+    const pad = 20;
+    const hw = W / 2 - pad, hh = (H - top) / 2 - pad;
+    const rel = (id: string) => {
+      const el = document.getElementById(id);
+      const r = el && !el.hidden ? el.getBoundingClientRect() : undefined;
+      return r && r.width > 0 ? { left: r.left - hr.left, top: r.top - hr.top, right: r.right - hr.left, bottom: r.bottom - hr.top } : undefined;
+    };
+    const bar = rel('actionbar');
+    const party = rel('party');
+    const pulse = 0.8 + 0.2 * Math.sin(now / 160);
+    const tri = (ex: number, ey: number, a: number, s: number, col: string, alpha: number) => {
+      g.globalAlpha = alpha;
+      g.fillStyle = col;
+      g.beginPath();
+      g.moveTo(ex + Math.cos(a) * s, ey + Math.sin(a) * s);
+      g.lineTo(ex + Math.cos(a + 2.5) * s * 0.85, ey + Math.sin(a + 2.5) * s * 0.85);
+      g.lineTo(ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85);
+      g.closePath();
+      g.fill();
+    };
+    for (let k = 0; k < SECTORS; k++) {
+      if (!count[k]) continue;
+      const a = Math.atan2(sy[k], sx[k]);
+      const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+      let ex = cx + Math.cos(a) * r;
+      let ey = cy + Math.sin(a) * r;
+      // Clear of the action bar (slide along the edge) and below the co-op party frames, as in 2D.
+      if (bar && ex > bar.left - pad && ey > bar.top - pad) {
+        if (ey >= H - pad - 1) ex = bar.left - pad;
+        else ey = bar.top - pad;
+      }
+      if (party && ex < party.right + pad && ey > party.top - pad && ey < party.bottom + pad) ey = party.bottom + pad;
+      const sz = count[k] >= 5 ? 14 : count[k] >= 2 ? 12 : 10;
+      const pk = fast[k] ? 0.7 + 0.3 * Math.sin(now / 70) : pulse;
+      tri(ex, ey, a, sz * 1.45, '#000000', 0.55);
+      if (big[k]) tri(ex, ey, a, sz * 1.25, '#ffc861', pk);
+      tri(ex, ey, a, sz, '#ff4d3d', pk);
+    }
+    // Allies off screen or under the top panels: a class-coloured arrow on a dark disc (grey when down), as in 2D.
+    for (const al of this.allies) {
+      const q = w.heroData(al.hero).player;
+      const p = view.project(q.x, q.y);
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      const ins = 20, pd = 26;
+      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      const sz = 12;
+      g.globalAlpha = 0.55;
+      g.fillStyle = '#000000';
+      g.beginPath(); g.arc(ex, ey, sz * 1.2, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1;
+      g.fillStyle = q.hp <= 0 ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color;
+      g.beginPath();
+      g.moveTo(ex + Math.cos(a) * sz, ey + Math.sin(a) * sz);
+      g.lineTo(ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8);
+      g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
+      g.closePath(); g.fill();
+    }
+    g.globalAlpha = 1;
   }
 
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
