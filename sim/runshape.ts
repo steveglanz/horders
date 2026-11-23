@@ -28,7 +28,7 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   choir: 'Choir of Iron', load: 'Ironload', home: 'Homeward Hammer',
   still: 'Twin Vents', wander: 'Wandering Vents', roll: 'Rolling Vents',
   rivets: 'Rivets', cut: 'Die Cut', punch: 'Punch Line',
-  pour: 'The Pour', brim: 'The Brimming',
+  pour: 'The Pour', brim: 'The Brimming', flow: 'The Overflow',
   spill: 'Ember Feast', bank: 'Banked Coals',
   wheel: 'Wheel', shift: 'Plate Shift',
   ash: 'Ash Fall', court: 'Summons',
