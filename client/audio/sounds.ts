@@ -56,6 +56,16 @@ const phaseShadow = (): Recipe => [
 ];
 const B5 = () => note(14);
 
+/** A named elite joins the fight: a short minor fanfare (low, then a minor third and a fifth up) under a cold bell. */
+const namedCall = (): Recipe => join(
+    horn(note(-21), 0.35, 0.3),
+    horn(note(-18), 0.35, 0.3).map((v) => ({ ...v, delay: 0.22 })),
+    horn(note(-14), 0.9, 0.34).map((v) => ({ ...v, delay: 0.44 })),
+    clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.44 })),
+    // A brassy edge on the three-step call, so a phone hears a named elite arrive mid-fight.
+    [0, 0.22, 0.44].map((delay, i) => ({ wave: 'saw' as const, f: note([-9, -6, -2][i]), dur: i === 2 ? 0.7 : 0.3, delay, vol: 0.12, a: 0.02, lp: 2400, curve: 1.5 })),
+);
+
 export const SOUNDS = {
   // ---- combat, frequent (keep these tiny)
   hit: [
@@ -331,14 +341,15 @@ export const SOUNDS = {
   bossSpawn: join(horn(note(-28) * 2, 1.6, 0.4), horn(note(-28), 1.6, 0.25), horn(note(-21), 1.4, 0.3).map((v) => ({ ...v, delay: 0.25 })), boom(40, 1.2, 0.5)),
   eliteSpawn: horn(note(-21), 0.8, 0.35),
   /** A named elite joins the fight: a short minor fanfare (low, then a minor third and a fifth up) under a cold bell. */
-  namedSpawn: join(
-    horn(note(-21), 0.35, 0.3),
-    horn(note(-18), 0.35, 0.3).map((v) => ({ ...v, delay: 0.22 })),
-    horn(note(-14), 0.9, 0.34).map((v) => ({ ...v, delay: 0.44 })),
-    clang(note(15), 0.2, 0.9).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.44 })),
-    // A brassy edge on the three-step call, so a phone hears a named elite arrive mid-fight.
-    [0, 0.22, 0.44].map((delay, i) => ({ wave: 'saw' as const, f: note([-9, -6, -2][i]), dur: i === 2 ? 0.7 : 0.3, delay, vol: 0.12, a: 0.02, lp: 2400, curve: 1.5 })),
-  ),
+  namedSpawn: namedCall(),
+  /** Phase 14 X2: a Brood named foe (its pack comes out when it dies) arrives: the same call, with a brood skittering under it. */
+  namedBrood: join(namedCall(),
+    ...[0.5, 0.56, 0.63, 0.69, 0.78, 0.84, 0.93, 1.0, 1.08, 1.15].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.018, delay: d, vol: 0.12, lp: 7000 + (k % 3) * 1200, hp: 2200, curve: 3 }]),
+    [{ wave: 'tri', f: 1300, f2: 1700, dur: 0.06, delay: 1.2, vol: 0.06, curve: 3 }, { wave: 'tri', f: 1500, f2: 2000, dur: 0.06, delay: 1.27, vol: 0.05, curve: 3 }]),
+  /** Phase 14 X2: a Smoldering named foe (drops a fire circle every 4 s) arrives: the same call, with embers catching under it. */
+  namedSmolder: join(namedCall(),
+    [{ wave: 'noise', f: 0, dur: 0.9, delay: 0.5, vol: 0.12, a: 0.3, lp: 1500, lp2: 3800, hp: 400, curve: 1.2 }],
+    ...[0.62, 0.75, 0.83, 0.99, 1.1, 1.24].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.12, lp: 9000, hp: 3000, curve: 3 }])),
   /** A named elite falls: a heavy thud, then a rising sparkle for the loot it drops. */
   namedKill: join(boom(60, 0.6, 0.45), chime(E5, 0.15, 0.22, 0.5), chime(B5(), 0.25, 0.22, 0.5), chime(E6, 0.35, 0.26, 0.9)),
   rareSpawn: join(horn(note(-16), 0.8, 0.3), chime(E6, 0.3, 0.15, 0.6)),
@@ -1081,6 +1092,70 @@ export const SOUNDS = {
   /** Today's Heat (Quick Study, Rich Haul): a small warm rising figure as the first Kiln fight starts. The floor Heats sound their layout sting instead. */
   heatSting: join(chime(C6, 0, 0.18, 0.4), chime(E6, 0.1, 0.16, 0.4), chime(G6, 0.2, 0.15, 0.6),
     [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.05, a: 0.1, lp: 6000, hp: 2000, curve: 2 }]),
+  /** Phase 14 X1/X7: Today's Heat in the other solo dungeons. The same rising C-E-G figure, so it reads as the Heat,
+   *  over each dungeon's own texture (HEAT_STING in cues.ts). The Foundry: a steam hiss settles under it. */
+  heatFoundry: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.1, a: 0.08, lp: 9000, lp2: 3500, hp: 1800, curve: 1.6 }]),
+  /** The Glarewell: the figure catches the light, a glass shimmer an octave up. */
+  heatGlarewell: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    ...[0.24, 0.31, 0.38].map((d, k) => [{ wave: 'sine' as const, f: [C6, E6, G6][k] * 2, dur: 0.35, delay: d, vol: 0.05, curve: 3, vib: [7, 0.004] as [number, number] }])),
+  /** The Coldmarrow: the figure in the cold, with ice tinkling after it. */
+  heatColdmarrow: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    ...[0.36, 0.42, 0.5].map((d, k) => [{ wave: 'tri' as const, f: [3600, 4300, 3900][k], dur: 0.06, delay: d, vol: 0.05, curve: 4 }])),
+  /** The Wrackline: the figure over a slow wash of water. */
+  heatWrackline: join(chime(C6, 0, 0.17, 0.4), chime(E6, 0.1, 0.15, 0.4), chime(G6, 0.2, 0.14, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.8, vol: 0.12, a: 0.3, lp: 1400, lp2: 3200, hp: 400, curve: 1.2, trem: [3, 0.5] as [number, number] }]),
+  /** Phase 14 X3 arena events (ARENA_EVENT_SOUNDS in cues.ts): a warning as it starts, and a landing. */
+  /** Cave-in: the roof groans and grit trickles down where the rocks will fall. */
+  caveInWarn: join(
+    [{ wave: 'saw', f: 55, f2: 70, dur: 1.0, vol: 0.14, a: 0.4, lp: 700, curve: 1, trem: [7, 0.5] as [number, number] },
+     // The groan itself sits at 220-330 Hz and up, where a phone can play it.
+     { wave: 'saw', f: 220, f2: 280, dur: 1.0, vol: 0.12, a: 0.4, lp: 1800, curve: 1, trem: [7, 0.5] as [number, number] },
+     { wave: 'noise', f: 0, dur: 1.0, vol: 0.22, a: 0.5, lp: 2200, hp: 450, curve: 1, trem: [7, 0.5] as [number, number] }],
+    ...[0.3, 0.42, 0.5, 0.63, 0.7, 0.81, 0.9].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.18, lp: 7000, hp: 2500, curve: 3 }])),
+  /** Cave-in lands: rocks crash down, then settle as the new stones. */
+  caveInLand: join(boom(60, 0.6, 0.45),
+    ...[0.05, 0.14, 0.22].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.2, lp: 2600, hp: 500, curve: 2.5 }]),
+    ...[0.35, 0.44, 0.56].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.09, lp: 6000, hp: 2000, curve: 3 }])),
+  /** Vent surge: every vent draws breath together, a wide rising roar. */
+  ventSurgeWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.22, a: 0.95, lp: 900, lp2: 7000, hp: 450, curve: 0.7 },
+     { wave: 'saw', f: 90, f2: 180, dur: 1.1, vol: 0.08, a: 0.9, lp: 2200, curve: 0.7 },
+     { wave: 'saw', f: 135, f2: 270, dur: 1.1, vol: 0.06, a: 0.9, lp: 2600, curve: 0.7 }]),
+  /** Vent surge lands: every vent erupts at once. */
+  ventSurgeLand: join(boom(70, 0.7, 0.4),
+    [{ wave: 'noise', f: 0, dur: 0.6, vol: 0.24, a: 0.01, lp: 8000, lp2: 2000, hp: 600, curve: 1.8 }],
+    ...[0.1, 0.2, 0.28].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.15, delay: d, vol: 0.14, lp: 5000, lp2: 1500, hp: 500, curve: 2 }])),
+  /** Each dungeon's own landing (ARENA_LAND in cues.ts). The Foundry's cave-in: rocks crash into the flooded floor. */
+  caveInWet: join(boom(60, 0.5, 0.4),
+    ...[0.05, 0.15].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.18, lp: 2600, hp: 500, curve: 2.5 }]),
+    [{ wave: 'noise', f: 0, dur: 0.5, delay: 0.12, vol: 0.18, a: 0.02, lp: 6000, lp2: 1500, hp: 700, curve: 1.6 }],
+    ...[0.4, 0.5, 0.62].map((d, k) => [{ wave: 'sine' as const, f: 900 - k * 120, f2: 1400 - k * 150, dur: 0.06, delay: d, vol: 0.07, curve: 2 }])),
+  /** The Coldmarrow's cave-in: ice breaks off the roof and shatters. */
+  caveInIce: join(boom(65, 0.45, 0.35),
+    [{ wave: 'noise', f: 0, dur: 0.25, delay: 0.04, vol: 0.2, lp: 12000, hp: 3000, curve: 2.5 }],
+    chime(E6 * 2, 0.06, 0.1, 0.5), chime(B5() * 2, 0.12, 0.09, 0.5), chime(G6 * 2, 0.2, 0.08, 0.5)),
+  /** The Foundry's vent surge: every steam vent blows at once. */
+  surgeSteam: join(boom(70, 0.5, 0.3),
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.3, lp: 7000, hp: 900, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.8, vol: 0.26, a: 0.01, lp: 10000, lp2: 3000, hp: 1600, curve: 1.4 }]),
+  /** The Glarewell's vent surge: every lens flares together, a bright glassy burst. */
+  surgeLens: join(boom(80, 0.4, 0.25),
+    [{ wave: 'noise', f: 0, dur: 0.08, vol: 0.28, lp: 12000, hp: 3000, curve: 3 }],
+    chime(E6 * 1.5, 0, 0.18, 0.7), chime(B5() * 2, 0.04, 0.14, 0.7), chime(G6 * 1.5, 0.08, 0.12, 0.7)),
+  /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
+  coldSnapWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
+    chime(E6 * 2, 0, 0.08, 0.5), chime(B5() * 2, 0.25, 0.08, 0.5), chime(G6, 0.5, 0.08, 0.6),
+    ...[0.4, 0.55, 0.62, 0.78, 0.9].map((d) => [{ wave: 'tri' as const, f: 4200, dur: 0.03, delay: d, vol: 0.05, curve: 4 }])),
+  /** Cold snap lands: every coal dims, a sinking fizzle. */
+  coldSnapLand: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.16, a: 0.02, lp: 6000, lp2: 800, hp: 400, curve: 1.6 },
+     { wave: 'sine', f: 520, f2: 260, dur: 0.7, vol: 0.12, curve: 1.6 }]),
+  /** High water (the Wrackline): a swell builds out past the quay. An ordinary cue: the Ebb's own call (ebbPull) is the warning. */
+  highWaterWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 600, lp2: 3500, hp: 380, curve: 0.8, trem: [2.5, 0.35] as [number, number] },
+     { wave: 'sine', f: 330, f2: 440, dur: 1.1, vol: 0.06, a: 0.8, curve: 0.8 }]),
 
   /** End screen: a loot card dealt onto the list, a soft quick flick (it sits under the victory fanfare). */
   lootDeal: [
@@ -1398,6 +1473,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   ladleWarn: 3.4,
   lastEmberWarn: 2.5,
   namedSpawn: 2.1,
+  // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
+  namedBrood: 2.1, namedSmolder: 2.1, ventSurgeWarn: 1.0, coldSnapWarn: 2.8, highWaterWarn: 5.9, caveInWarn: 4.5,
   phase: 2.2,
   phaseIce: 5.9,
   phaseMaelra: 0.7,

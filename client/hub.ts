@@ -27,7 +27,7 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -430,9 +430,9 @@ export class Hub {
   private prepChips(omens: OmenId[]): string {
     const h = this.hero();
     const chips: string[] = [];
-    // V4: today's Heat (the Kiln at tiers 1 and 2) gets a chip too; on phones the full line is folded away.
+    // V4: today's Heat (every solo dungeon since Phase 14 X1) gets a chip too; on phones the full line is folded away.
     const heat = this.heatToday();
-    if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}"><span class="star" aria-hidden="true">✺</span><span>${heat.name}</span></button>`);
+    if (heat) chips.push(`<button class="prep-chip" data-prep="heat" data-sfx="open" aria-label="Today's Heat: ${heat.name}">${heatTile(heat.id, 22)}<span>${heat.name}</span></button>`);
     if (omens.length) {
       chips.push(`<button class="prep-chip" data-prep="omens" data-sfx="open">${omenTile(omens[0], 22)}<span>${omens.length} ${omens.length === 1 ? 'Omen' : 'Omens'}</span></button>`);
     }
@@ -475,7 +475,7 @@ export class Hub {
   /** Opens the sheet for one prep chip. */
   private openPrep(kind: 'heat' | 'omens' | 'potion' | 'bounty' | 'weekly' | 'key' | 'season', omens: OmenId[]): void {
     const titles = { heat: "Today's Heat", omens: "This week's Omens", potion: 'Potion', bounty: 'Daily bounty', weekly: 'Weekly quests', key: "Delver's Key", season: this.seasonTitle() };
-    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on the Kiln at tiers 1 and 2, the same for everyone. It changes every day.</div>'
+    const body = kind === 'heat' ? this.heatLine().replace(/^<div class="sec-h">.*?<\/div>/, '') + '<div class="hint">A twist on this dungeon, the same for everyone. Each solo dungeon has its own, and it changes every day.</div>'
       : kind === 'omens'
       ? `<div class="omens">${(omens.length ? omens : omensFor(this.tier, weekOf(Date.now()))).map((o) => this.omenRow(o)).join('')}</div><div class="hint">Each Omen adds loot. They change every week.</div>`
       : kind === 'potion' ? this.potionLine() : kind === 'weekly' ? this.weeklyLine() : kind === 'season' ? this.seasonLine() : kind === 'key' ? this.keyLine() : this.bountyLine();
@@ -831,14 +831,14 @@ export class Hub {
   private heatToday(): (typeof HEATS)[keyof typeof HEATS] | null {
     // A hero's first delve is the fixed tutorial run, which leaves the Heat out (World.firstDelve).
     if (!heatApplies(this.dungeon, this.tier) || (this.hero().runs ?? 0) === 0) return null;
-    return HEATS[heatFor(dayOf(Date.now()))];
+    return HEATS[heatFor(dayOf(Date.now()), this.dungeon)];
   }
 
-  /** V4: today's Heat, on the Kiln below the first Omen tier. */
+  /** V4: today's Heat in the picked solo dungeon (Phase 14 X1: every solo dungeon, every tier). */
   private heatLine(): string {
     const h = this.heatToday();
     if (!h) return '';
-    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen"><div><b>${h.name}</b><div>${h.text}</div></div></div>`;
+    return `<div class="sec-h"><span>Today's Heat</span><span class="muted">New each day</span></div><div class="box omen">${heatTile(h.id)}<div><b>${h.name}</b><div>${h.text}</div></div></div>`;
   }
 
   /** This week's Omens for the picked tier, or a hint about when they start. */

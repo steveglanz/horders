@@ -8,7 +8,7 @@
  */
 import { Rng } from './rng';
 import { fillLootShare } from './content/botfill';
-import { NAMED, NAMED_TITLES, AFFIXES, Affix } from './content/named';
+import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './content/named';
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
@@ -22,7 +22,7 @@ import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
 import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
-import { HEATS, HEAT_TUNING, HeatId, heatApplies } from './content/heat';
+import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, MAX_PARTY } from './content/scaling';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
@@ -568,6 +568,7 @@ export type SimEvent =
   | { type: 'charge'; index: number }
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
+  | { type: 'arenaEvent'; id: ArenaEventId; stage: 'warn' | 'land' }
   | { type: 'ventFlare'; x: number; y: number }
   /** V8: Nhevra's Emberdrift drops `n` embers; a hero picks one up. */
   | { type: 'emberDrift'; n: number }
@@ -709,7 +710,7 @@ export interface WorldOptions {
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
   day?: number;
-  /** V4: today's Heat (heatFor in content/heat.ts). The sim keeps it only where it applies (heatApplies, not the first delve, a bounty or a key run). */
+  /** V4: today's Heat (heatFor in content/heat.ts). The sim keeps it only where it fits (heatFits: a solo dungeon whose pool has it; not the first delve, a bounty or a key run). */
   heat?: HeatId;
   /** Fixed Omens, overriding the weekly rotation (tests and tools). */
   omens?: OmenId[];
@@ -860,6 +861,10 @@ export class World {
   flareVents: { x: number; y: number }[] = [];
   private flareT = 0;
   private flareK = 0;
+  /** Phase 14 X3: this fight's arena event ('' for none), its clock, and its stage (0 waiting, 1 warned, 2 landed). */
+  arenaEvent: ArenaEventId | '' = '';
+  arenaEventT = 0;
+  arenaEventStage = 0;
   /** Maelra's steam vents (empty in other fights). */
   vents: { x: number; y: number; r: number }[] = [];
   /** Maelra's Temper stacks: each cuts her damage taken. */
@@ -967,6 +972,12 @@ export class World {
   private addsT = 0;
   private pourT = 0;
   private heatT = 0;
+  /** Phase 14 X1 High Sun: how far a pillar's shadow reaches this run. */
+  get shadowLen(): number { return GLARE.shadowLength * (this.heat === 'highSun' ? HEAT_TUNING.sunShadow : 1); }
+  /** Phase 14 X1 Bright Coal: a full coal's light radius this run. */
+  get coalMaxR(): number { return COLD.maxR * (this.heat === 'brightCoal' ? HEAT_TUNING.coalRadius : 1); }
+  /** Phase 14 X1 Thick Steam: seconds between Temper stacks this run. */
+  get temperEvery(): number { return FOUNDRY.temperEvery * (this.heat === 'thickSteam' ? HEAT_TUNING.steamTemper : 1); }
   private raidVentT = 0;
   private marksT = 0;
   private raidBurnT = 0;
@@ -1103,7 +1114,7 @@ export class World {
       this.keyDmg *= FIRST_DELVE.dmg;
     }
     this.grit = Math.max(0, Math.floor(opts.grit ?? 0));
-    this.heat = opts.heat && HEATS[opts.heat] && heatApplies(this.dungeonId, this.tier) && !this.firstDelve && !this.stress
+    this.heat = opts.heat && HEATS[opts.heat] && heatFits(this.dungeonId, opts.heat) && !this.firstDelve && !this.stress
       && opts.bounty === undefined && !opts.keyLevel ? opts.heat : '';
     const omens = opts.omens ?? (this.stress ? [] : omensFor(this.tier, opts.week ?? 0));
     const bossOmen = opts.bossOmen && OMENS[opts.bossOmen] && !this.stress ? opts.bossOmen : undefined;
@@ -1624,6 +1635,7 @@ export class World {
     if (this.phase === 'fight') this.runOmens(dt);
     if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
+    if (this.phase === 'fight' && this.arenaEvent) this.arenaEventClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
@@ -1649,19 +1661,38 @@ export class World {
     return this.shadowStart >= 0 ? Math.max(0, SHADOW_TIME - (this.time - this.shadowStart)) : SHADOW_TIME;
   }
 
+  /** C2's draws, made once per delve (the same whenever they are made, so namedPlan can ask early). */
+  private planNamed(): void {
+    if (this.namedAt === -2) {
+      const r = new Rng((this.seed ^ 0x6e616d65) >>> 0);
+      const fights = this.route.length - 1; // never the boss fight
+      this.namedAt = r.chance(NAMED.chance) ? r.int(fights) : -1;
+      this.namedTitle = r.int(NAMED_TITLES.length);
+      this.namedAffix = r.int(C2_AFFIXES);
+      // Phase 14 X2: an extra draw after the C2 ones, so the route pick and title don't move.
+      if (r.chance(NAMED.newAffixChance)) this.namedAffix = C2_AFFIXES + r.int(AFFIXES.length - C2_AFFIXES);
+      if (NAMED.forceAffix >= 0) this.namedAffix = NAMED.forceAffix;
+      if (NAMED.forceNamed && this.namedAt < 0) this.namedAt = 1;
+    }
+  }
+
+  /**
+   * Phase 14 X4: this delve's named foe as it stands: the route position of its fight (a shrine there moves
+   * it one on) and its affix, or null when the delve has none. Never in stress runs.
+   */
+  namedPlan(): { at: number; affix: Affix } | null {
+    if (this.stress || this.route.length < 2) return null;
+    this.planNamed();
+    return this.namedAt >= 0 ? { at: this.namedAt, affix: AFFIXES[this.namedAffix] } : null;
+  }
+
   /**
    * C2: about half of all delves hide one named elite in a fight before the boss.
    * Rolled on its own stream, so a delve's other rolls don't move.
    */
   private rollNamed(elite: number): void {
     if (this.stress || this.route.length < 2) return;
-    if (this.namedAt === -2) {
-      const r = new Rng((this.seed ^ 0x6e616d65) >>> 0);
-      const fights = this.route.length - 1; // never the boss fight
-      this.namedAt = r.chance(NAMED.chance) ? r.int(fights) : -1;
-      this.namedTitle = r.int(NAMED_TITLES.length);
-      this.namedAffix = r.int(AFFIXES.length);
-    }
+    this.planNamed();
     if (this.encounter !== this.namedAt) return;
     if (elite < 0) {
       // A fight with no elite in it (a shrine): the next fight before the boss gets it.
@@ -1723,7 +1754,7 @@ export class World {
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         q.coal = 1;
-        q.coalR = COLD.maxR;
+        q.coalR = this.coalMaxR;
         q.chill = 0;
         q.chillT = 0;
       }
@@ -1757,6 +1788,7 @@ export class World {
       })
       : [];
     this.rollLayout(def.id);
+    this.rollArenaEvent(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
@@ -2242,6 +2274,91 @@ export class World {
     this.events.push({ type: 'layout', id: this.layout });
   }
 
+  /** Phase 14 X3: the arena event hash for route position `k` (its own salt, no run-rng draws). */
+  private arenaEventHash(k: number): number {
+    const h = (Math.imul(this.seed ^ 0x2f8a6b1d, 0x9e3779b1) + Math.imul(k + 1, 0x85ebca6b)) >>> 0;
+    return Math.imul(h ^ (h >>> 15), 0xc2b2ae35) >>> 0;
+  }
+
+  /** Phase 14 X3: the event the fight `id` at route position `k` gets, if any (solo trash fights only). */
+  arenaEventAt(k: number, id: EncounterId): ArenaEventId | '' {
+    const pool = ARENA_EVENT_POOLS[this.dungeonId];
+    if (!pool || ARENA_EVENTS.off || this.firstDelve || this.stress || this.dungeonDef.style !== 'solo' || !this.layoutRolls(id)) return '';
+    const forced = ARENA_EVENTS.force as ArenaEventId | '';
+    if (forced) return pool.includes(forced) ? forced : '';
+    const h = this.arenaEventHash(k);
+    if ((h % 1000) >= ARENA_EVENTS.chance * 1000) return '';
+    return pool[(h >>> 10) % pool.length];
+  }
+
+  private rollArenaEvent(id: EncounterId): void {
+    this.arenaEvent = this.arenaEventAt(this.encounter, id);
+    this.arenaEventStage = 0;
+    this.arenaEventT = this.arenaEvent ? ARENA_EVENTS.at + ((this.arenaEventHash(this.encounter) >>> 20) % (ARENA_EVENTS.spread + 1)) : 0;
+  }
+
+  /** Phase 14 X3: where a Cave-in's stones fall (fixed by the hash, so warn and land agree and co-op guests can draw them). */
+  caveInSpots(): { x: number; y: number }[] {
+    const h = this.arenaEventHash(this.encounter);
+    const turn = ((h >>> 4) % 360) * (Math.PI / 180);
+    const out: { x: number; y: number }[] = [];
+    for (let k = 0; k < ARENA_EVENTS.caveCount; k++) {
+      const a = turn + (k * 2 * Math.PI) / ARENA_EVENTS.caveCount;
+      out.push({ x: Math.cos(a) * ARENA_EVENTS.caveRing, y: Math.sin(a) * ARENA_EVENTS.caveRing });
+    }
+    return out;
+  }
+
+  /** Phase 14 X3: where a Vent Surge erupts: the fight's own vents, or a ring of them on any other floor. */
+  surgeSpots(): { x: number; y: number }[] {
+    if (this.flareVents.length) return this.flareVents;
+    const h = this.arenaEventHash(this.encounter);
+    const turn = ((h >>> 4) % 360) * (Math.PI / 180);
+    const out: { x: number; y: number }[] = [];
+    for (let k = 0; k < LAYOUT.ventCount; k++) {
+      const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
+      out.push({ x: Math.cos(a) * LAYOUT.ventRing, y: Math.sin(a) * LAYOUT.ventRing });
+    }
+    return out;
+  }
+
+  /** Phase 14 X3: the arena event's clock: a warning, then it lands. */
+  private arenaEventClock(dt: number): void {
+    if (this.arenaEventStage >= 2) return;
+    this.arenaEventT -= dt;
+    if (this.arenaEventT > 0) return;
+    const ev = this.arenaEvent as ArenaEventId;
+    const A = ARENA_EVENTS;
+    if (this.arenaEventStage === 0) {
+      this.arenaEventStage = 1;
+      this.events.push({ type: 'arenaEvent', id: ev, stage: 'warn' });
+      if (ev === 'caveIn') {
+        for (const c of this.caveInSpots()) this.addTelegraph('circle', c.x, c.y, A.caveRadius + PLAYER_RADIUS, 0, 0, A.caveWarn, A.caveDamage); // scaled by tier as it lands
+        this.arenaEventT = A.caveWarn;
+      } else if (ev === 'ventSurge') {
+        for (const v of this.surgeSpots()) this.addTelegraph('circle', v.x, v.y, LAYOUT.ventRadius, 0, 0, A.surgeWarn, A.surgeDamage);
+        this.arenaEventT = A.surgeWarn;
+      } else if (ev === 'coldSnap') {
+        this.arenaEventT = A.snapWarn;
+      } else {
+        // High Water: the Ebb comes now (its own warning follows), whatever its clock said.
+        if (this.ebbT <= 0 && this.ebbWarnT <= 0) this.tideClockT = 0;
+        this.arenaEventT = 0;
+      }
+      return;
+    }
+    this.arenaEventStage = 2;
+    this.events.push({ type: 'arenaEvent', id: ev, stage: 'land' });
+    if (ev === 'caveIn') for (const c of this.caveInSpots()) this.stones.push({ x: c.x, y: c.y, r: A.caveRadius });
+    if (ev === 'coldSnap') {
+      // Every living hero's coal dims at once; kills feed it back as usual.
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp > 0 && q.coal !== undefined) q.coal = Math.max(0, q.coal - A.snapCut);
+      }
+    }
+  }
+
   /** V2: lava burns whoever stands in it; Kiln vents flare in turn. */
   private layoutClock(dt: number): void {
     const at = this.acting;
@@ -2320,7 +2437,7 @@ export class World {
       const ux = c.x / d;
       const uy = c.y / d;
       const along = x * ux + y * uy - d;
-      if (along <= 0 || along > GLARE.shadowLength) continue;
+      if (along <= 0 || along > this.shadowLen) continue;
       const across = Math.abs(x * uy - y * ux);
       if (across <= c.r + along * GLARE.shadowWiden) return true;
     }
@@ -4357,6 +4474,13 @@ export class World {
         continue;
       }
 
+      // Phase 14 X2 Smoldering: a fire circle where it stands every NAMED.smolderEvery s (timed from its spawn, so no new state).
+      if (e.named >= 0 && AFFIXES[e.affix] === 'Smoldering') {
+        const age = this.time - e.spawnedAt;
+        if (Math.floor(age / NAMED.smolderEvery) > Math.floor((age - dt) / NAMED.smolderEvery) && age > dt) {
+          this.addTelegraph('circle', e.x, e.y, NAMED.smolderR, 0, 0, NAMED.smolderDelay, NAMED.smolderDmg);
+        }
+      }
       let speed = e.castId ? 0 : e.def.speed * (e.named >= 0 && AFFIXES[e.affix] === 'Swift' ? NAMED.swift : 1);
       if (e.def.rank === 'boss' && this.bossEnraged) speed *= 1.6;
       if ((e.slowUntil ?? 0) > this.time) speed *= 1 - (e.slowMult ?? 0);
@@ -5254,6 +5378,14 @@ export class World {
       const r = new Rng((this.seed ^ 0x6c6f6f74) + this.kills);
       this.dropLoot(e.x, e.y, r.chance(NAMED.epicChance) ? 'epic' : 'rare');
       if (AFFIXES[e.affix] === 'Vengeful') this.addTelegraph('circle', e.x, e.y, NAMED.burstR, 0, 0, NAMED.burstDelay, NAMED.burstDmg);
+      // Phase 14 X2 Brood: its pack comes out of it.
+      if (AFFIXES[e.affix] === 'Brood') {
+        const kind = BROOD_KIND[this.dungeonId] ?? 'cinderhound';
+        for (let k = 0; k < NAMED.broodN; k++) {
+          const a = (k / NAMED.broodN) * Math.PI * 2 + 0.6;
+          this.spawn(kind, e.x + Math.cos(a) * 36, e.y + Math.sin(a) * 36);
+        }
+      }
       this.namedKills++;
       this.events.push({ type: 'namedKill', x: e.x, y: e.y, name: this.namedName(i) });
     }
@@ -5362,7 +5494,7 @@ export class World {
     const e = this.enemies[i];
     if (e.abilityT > 0) return;
     if (e.kind === 'lensbearer') {
-      e.abilityT = GLARE.glareEvery;
+      e.abilityT = GLARE.glareEvery * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, true);
     } else if (e.kind === 'brandkeeper') {
       // One Brand at a time, and a breather after each burst.
@@ -5512,7 +5644,7 @@ export class World {
     const p = this.player;
     this.glareT -= dt;
     if (this.glareT <= 0) {
-      this.glareT = this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery;
+      this.glareT = (this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery) * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
       return;
     }
@@ -5567,7 +5699,7 @@ export class World {
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.hp <= 0 || !q.coal) continue;
-      const r = (q.coalR ?? COLD.maxR) + r0;
+      const r = (q.coalR ?? this.coalMaxR) + r0;
       if (dist2(q.x, q.y, x, y) <= r * r) best = Math.max(best, q.coal);
     }
     return best;
@@ -5611,7 +5743,7 @@ export class World {
       if (q.coal === undefined) { q.coal = 1; q.chill = 0; q.chillT = 0; }
       // V8 Emberdrift: in phase 2 the cold eats coals faster, and fallen embers refill them.
       const drift = this.coldPhase >= 2 && this.bossVariant === 'drift';
-      q.coal = Math.max(0, q.coal - COLD.drain * (drift ? EMBERDRIFT.drainMult : 1) * dt);
+      q.coal = Math.max(0, q.coal - COLD.drain * (drift ? EMBERDRIFT.drainMult : 1) * (this.heat === 'brightCoal' ? HEAT_TUNING.coalDrain : 1) * dt);
       if (drift) {
         for (let n = this.driftEmbers.length - 1; n >= 0; n--) {
           const m = this.driftEmbers[n];
@@ -5621,7 +5753,7 @@ export class World {
           this.events.push({ type: 'emberPick', x: m.x, y: m.y, hero: k });
         }
       }
-      q.coalR = COLD.minR + (COLD.maxR - COLD.minR) * q.coal;
+      q.coalR = COLD.minR + (this.coalMaxR - COLD.minR) * q.coal;
       if (q.coal <= 0) {
         // Out: the cold creeps in a stack at a time.
         q.chillT = (q.chillT ?? 0) + dt;
@@ -5748,7 +5880,7 @@ export class World {
     // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
     const out = this.outsurge;
     const riptide = this.wrackPhase >= 2 && !out;
-    const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1);
+    const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
       r.x = Math.cos(r.a) * r.ring;
@@ -5792,7 +5924,7 @@ export class World {
     } else {
       this.tideClockT -= dt;
       if (this.tideClockT <= 0) {
-        this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery;
+        this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
         this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
       }
@@ -6660,7 +6792,7 @@ export class World {
 
   private startMaelra(): void {
     this.temper = 0;
-    this.temperT = FOUNDRY.temperEvery;
+    this.temperT = this.temperEvery;
     this.undertowT = 10;
     this.ventT = FOUNDRY.ventEvery;
     this.waterT = 0;
@@ -6686,19 +6818,19 @@ export class World {
     // Temper builds over time; dragging her through a vent boils it away.
     this.temperT -= dt;
     if (this.temperT <= 0) {
-      this.temperT = FOUNDRY.temperEvery;
+      this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
     if (this.temper > 0) {
       for (const v of this.vents) {
         if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
-          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * this.temper);
+          const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * this.temper);
           if (heal > 0) {
             this.events.push({ type: 'heal', x: p.x, y: p.y, amount: heal });
           }
           this.temper = 0;
-          this.temperT = FOUNDRY.temperEvery;
+          this.temperT = this.temperEvery;
           this.events.push({ type: 'explode', x: v.x, y: v.y, r: v.r + 20 });
           break;
         }
@@ -6833,7 +6965,8 @@ export class World {
         // The burst feeds any enemy caught in it.
         this.forEachNear(t.x, t.y, t.r + 40, (j) => {
           const o = this.enemies[j];
-          if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+          // Phase 14 X5: never a named foe (a Swift Sluice Crawler stood in its own Blooms and healed back to full).
+          if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
           const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
@@ -6900,7 +7033,7 @@ export class World {
         } else {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {
             const o = this.enemies[j];
-            if (!o.alive || o.def.rank === 'normal' || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
+            if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
             const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
             if (amount <= 0) return;
             o.hp += amount;
@@ -7404,6 +7537,38 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
   flue: ['open', 'open', 'pillars', 'vents'],
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
+/**
+ * Phase 14 X3: arena events, one thing that happens partway through a solo trash fight.
+ * `chance` of trash fights get one, `at` + 0..`spread` s in (a hash, so co-op agrees).
+ * Cave-in: `caveCount` stones fall on a ring of `caveRing`; under one as it lands takes `caveDamage`, then it stands.
+ * Vent Surge: every vent (or a ring of them on another floor) erupts at once after `surgeWarn` s.
+ * Cold Snap (the Coldmarrow): after `snapWarn` s every hero's coal loses `snapCut` warmth.
+ * High Water (the Wrackline): the Ebb comes at once. `force` (tools) forces one; `off` turns them off.
+ * Damage numbers are before tierDamage.
+ */
+export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
+export const ARENA_EVENTS = {
+  chance: 0.4, at: 9, spread: 5,
+  caveCount: 3, caveRing: 150, caveRadius: 30, caveWarn: 2.2, caveDamage: 26,
+  surgeWarn: 1.8, surgeDamage: 20,
+  snapWarn: 2.5, snapCut: 0.2,
+  force: '' as string, off: false,
+};
+/** Phase 14 X3: each event's name and warning line, for its banner. */
+export const ARENA_EVENT_INFO: Record<ArenaEventId, { name: string; tip: string }> = {
+  caveIn: { name: 'Cave-in', tip: 'Rock is falling. Get out from under the shadows.' },
+  ventSurge: { name: 'Vent Surge', tip: 'Every vent is about to blow. Get off them.' },
+  coldSnap: { name: 'Cold Snap', tip: 'The cold bites. Your coal will dim, so feed it.' },
+  highWater: { name: 'High Water', tip: 'The Ebb comes now. Get on a raft.' },
+};
+/** Phase 14 X3: each solo dungeon's events. Cave-in where its floors have stones, Vent Surge where they have vents. */
+export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
+  kiln: ['caveIn', 'ventSurge'],
+  foundry: ['caveIn', 'ventSurge'],
+  glarewell: ['ventSurge'],
+  coldmarrow: ['caveIn', 'coldSnap'],
+  wrackline: ['highWater'],
+};
 /** V3: the Kiln Mother's phase-2 signature this run. */
 export type KilnVariant = 'cataclysm' | 'draw';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
@@ -7798,3 +7963,5 @@ function segDist2(px: number, py: number, x1: number, y1: number, x2: number, y2
   const t = Math.max(0, Math.min(1, ((px - x1) * vx + (py - y1) * vy) / len2));
   return dist2(px, py, x1 + vx * t, y1 + vy * t);
 }
+export { HEAT_TUNING }; // tools' TUNE=HEAT_TUNING.x=y reaches the Heat numbers
+export { NAMED }; // tools' TUNE=NAMED.x=y reaches the named-foe numbers

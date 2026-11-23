@@ -315,7 +315,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'eliteSpawn': return { id: 'eliteSpawn' };
     case 'bossSpawn': return { id: 'bossSpawn' };
     case 'rareSpawn': return { id: 'rareSpawn' };
-    case 'namedSpawn': return { id: 'namedSpawn' };
+    case 'namedSpawn': return { id: AFFIX_SPAWN[ev.affix] ?? 'namedSpawn' };
     case 'namedKill': return { id: 'namedKill' };
     case 'bossEnrage': return { id: 'enrage' };
     case 'phase': return { id: (c.boss === 'worldShadow' && c.worldBoss && SHADOW_STING[c.worldBoss]) || phaseSting(c.boss, ev.phase), vol: ev.phase >= 3 ? 1.15 : 1 };
@@ -390,6 +390,14 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'riftSpawn': return { id: 'riftSpit', jitter: 0.06 };
     // The cast start plays the lob's cough; the circle catches fire where it lands (landCueFor).
     case 'spitLob': return null;
+    case 'arenaEvent': {
+      // Phase 14 X3/X7: a warning as it starts, then a landing that sounds like this dungeon.
+      const set = ARENA_EVENT_SOUNDS[ev.id];
+      if (!set) return null;
+      if (ev.stage === 'warn') return { id: set.warn };
+      const land = ARENA_LAND[`${ev.id}.${c.dungeon ?? ''}`] ?? set.land;
+      return land ? { id: land } : null;
+    }
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
@@ -409,12 +417,35 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'dodge': return { id: 'dodged' };
     case 'burnout': return { id: ev.warn ? 'burnoutWarn' : 'burnout' };
     // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
-    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: 'heatSting' } : null;
+    case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: HEAT_STING[c.dungeon ?? ''] ?? 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;
 }
+
+/** Today's Heat sting in each solo dungeon (Phase 14 X1): the Kiln's figure over that dungeon's own texture. */
+export const HEAT_STING: Record<string, SoundId> = {
+  kiln: 'heatSting', foundry: 'heatFoundry', glarewell: 'heatGlarewell', coldmarrow: 'heatColdmarrow', wrackline: 'heatWrackline',
+};
+
+/** Phase 14 X3: each arena event's warning (as it starts; must-hear) and landing, by ARENA_EVENT_POOLS. High Water's
+ *  warn and land come together, and the Ebb's own call (ebbPull) is its real warning, so it plays one ordinary swell. */
+export const ARENA_EVENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId | null }> = {
+  caveIn: { warn: 'caveInWarn', land: 'caveInLand' },
+  ventSurge: { warn: 'ventSurgeWarn', land: 'ventSurgeLand' },
+  coldSnap: { warn: 'coldSnapWarn', land: 'coldSnapLand' },
+  highWater: { warn: 'highWaterWarn', land: null },
+};
+/** A landing that sounds like the dungeon it lands in: the Kiln keeps the base set (fire and rock). */
+export const ARENA_LAND: Record<string, SoundId> = {
+  'caveIn.foundry': 'caveInWet', 'caveIn.coldmarrow': 'caveInIce',
+  'ventSurge.foundry': 'surgeSteam', 'ventSurge.glarewell': 'surgeLens',
+};
+/** Arena-event warnings that must be heard: the ones you dodge or answer (not High Water's swell). */
+export const ARENA_WARN_PRIORITY: readonly SoundId[] = ['caveInWarn', 'ventSurgeWarn', 'coldSnapWarn'];
+/** Phase 14 X2: a marked named foe's arrival call, by affix (a foe with none keeps namedSpawn). */
+export const AFFIX_SPAWN: Record<string, SoundId> = { Brood: 'namedBrood', Smoldering: 'namedSmolder' };
 
 /** Heats that change the floor, so every fight's layout event already plays a sting. */
 export const FLOOR_HEATS: ReadonlySet<string> = new Set(['stoneFloor', 'ventFloor']);
@@ -663,7 +694,7 @@ export const WANDERING_VENTS = 'Wandering Vents';
 
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'wanderVentWarn', 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),

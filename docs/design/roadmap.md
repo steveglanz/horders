@@ -218,7 +218,7 @@ Steve, 22 Nov: "the environments need better designs". Phases 11 and 12 gave the
 | E2 | **The Ashvents' layouts** (held back from W2 because they cost 11/80 with the new fights) and its full-party band (53% at tier 8, just under 55%) | design | ✅ Layouts plus Ysmeret 5800 health: 61% full party, no healer 13% (variety.md, Phase 13 E2) |
 | E3 | **Art** for raid-floor stones and vents (the Crucible's, the Hoard's, the Smeltery's and the Flue's own look) and the Ashvents' | visuals | ⏭ After E1/E2 ids |
 | E4 | **Sound** for raid-floor vents | sound | ✅ Each raid's own vent warn, burst and sting #463, the Ashvents' #466; each raid's and the Ashvents' own stones sting (PILLAR_STING), matched to the E2/E3 art. Busy-fight margins unchanged (busycheck, heroes-r2 t8) |
-| E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ⏭ |
+| E5 | **QA:** contentcheck plays every raid layout (0 stuck) | QA | ✅ #470: the first 4 pillars and 4 vents seeds per raid, with four heroes, no tank and a drop-in guest; 216 runs with the Ashvents, 0 stuck |
 | E6 | **Class check:** each class's answer on the new floors (melee pathing round stones, ranged lines of fire) | skills | ✅ No class change needed: stones block movement only, every class is held up under 1% of its moving time on pillars, trash fights are no longer or deadlier (skills.md, "Raid trash floors") |
 
 ### Phase 14: runs that surprise (planned by game design, 22 Nov 2026)
@@ -226,15 +226,15 @@ Steve, 22 Nov: "People aren't going to want to play the same dungeon multiple ti
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| X1 | **Today's Heat everywhere solo:** the daily Heat (heatFor, content/heat.ts) reaches every solo dungeon, not only the Kiln tiers 1 to 2, with one or two heats of each dungeon's own | design | ⏭ Measured against the solo band on 320 seeds per dungeon; never on the first delve, a bounty or a key run (as now) |
-| X2 | **Marked foes:** one named foe per run gets a seeded mark (for example faster, shielded, or splits on death), shown on its name plate | design | ⏭ Every mark name searched for a WoW match first; the named fight stays in its band with each mark forced |
-| X3 | **Arena events:** each dungeon has one or two mid-fight events in trash fights (a cave-in that drops new stones, a vent surge, a flood line), never in the boss fight | design | ⏭ Seeded per encounter like layouts; at most one event per fight |
-| X4 | **This run's shape:** the run summary (and the dungeon card for co-op) lists what this run rolled: route, floors, mark, events, boss version, Heat | engineering | ⏭ After X1 to X3 ids. Engineering also runs the next big deploy (about 03:40Z) after QA's final pass |
+| X1 | **Today's Heat everywhere solo:** the daily Heat (heatFor, content/heat.ts) reaches every solo dungeon, not only the Kiln tiers 1 to 2, with one heat of each dungeon's own | design | ✅ #477: HEAT_POOLS, plus Thick Steam, High Sun, Bright Coal, Slack Water; all within a few wins of no Heat (variety.md, Phase 14) |
+| X2 | **Marked foes:** the C2 named elites (Swift, Warded, Vengeful) get two more affixes, shown on the banner | design | ✅ #477: Brood and Smoldering; Warded's shield 0.35 → 0.2, and Blooms no longer heal a named foe, after skills' X5 screen |
+| X3 | **Arena events:** each solo dungeon has one or two mid-fight events in trash fights, never in the boss fight | design | ✅ #477: Cave-in, Vent Surge, Cold Snap (Coldmarrow), High Water (Wrackline) in 40% of solo trash fights. Group dungeons and raids later, after their tables are re-measured |
+| X4 | **This run's shape:** the run summary (host and guests) lists what this run rolled: route, floors, named foe, events, boss version, Heat. Nothing before the run beyond Today's Heat, so nothing is spoiled | engineering | ✅ Part 1 #478; part 2 (named foe and events) after #477. Engineering also runs the next big deploy (about 03:40Z) after QA's final pass |
 | X5 | **Class check:** each class's answer to every mark and event; talents that answer them if a class falls out of the band | skills | ⏭ After X2/X3 |
 | X6 | **Art** for marks (a name-plate badge and a foe tint), each event's warning and effect, and the run-shape chips, in the current lit 2D style | visuals | ⏭ After X2 to X4 ids |
 | X7 | **Sound:** a cue for each mark when its foe appears and for each event's warning and landing, each dungeon's events with their own sound | sound | ⏭ After X2/X3 ids |
 | X8 | **QA:** contentcheck plays every mark and event (0 stuck); variety.ts counts the distinct run shapes per dungeon | QA | ⏭ |
-| X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ⏭ After X4/X6 |
+| X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ✅ #479 (end-screen chips made compact: one line each at 320 and 568 with every chip a run can roll). Checked with no change needed on 23 Nov: every named-foe banner (AFFIX_TIP) and arena-event warning stays whole at 320, 360, 568 and 667, solo and with party frames; the trait badge sits on the foe's plate and Vent Surge's warning clears the HUD at 320 and 568; the Heat chip shows on every solo dungeon card with no cut or sideways scroll. Screenshots in docs/ux/phase14/. The co-op dungeon card's run shape isn't built yet: check it when it is |
 
 ## R2. The Forge
 

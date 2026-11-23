@@ -7,12 +7,12 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
-import { AFFIXES } from '../sim/content/named';
+import { AFFIXES, AFFIX_TIP, NAMED as NAMED_TUNE } from '../sim/content/named';
 import { SET_TUNING } from '../sim/content/sets';
 import { GLOWS, TRAILS } from '../sim/content/season';
 import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
@@ -40,6 +40,8 @@ const COLD_FLOOR = 0x7e98c4;
 const NAMED = 0x5aa9ff;
 /** The Crucible (raid): molten slag. */
 const MOLTEN = 0xff6a1f;
+/** Phase 14 X6: each named-foe trait's body tint (multiplied, so it stays subtle). */
+const AFFIX_TINT: Record<string, number> = { Swift: 0xe0f0ff, Warded: 0xd8e8ff, Vengeful: 0xffc4c4, Brood: 0xe6f0c4, Smoldering: 0xffd2aa };
 /** Phase 13 E3 (raids) and E2 (the Ashvents): each one's own stones and vents for its trash-fight layouts (the boss fight is always open). */
 const RAID_STONE: Record<string, string> = { ashvents: 'pumiceStone', crucible: 'slagStone', hoard: 'boneStone', smeltery: 'ingotStone', flue: 'brickStone' };
 const RAID_VENT: Record<string, string> = { ashvents: 'fumaroleVent', crucible: 'slagVent', hoard: 'emberVent', smeltery: 'tuyereVent', flue: 'ashVent' };
@@ -302,6 +304,10 @@ export class GameScene extends Phaser.Scene {
   private brimStart = 0;
   /** Phase 12 W3: the Regent's Summons tell (depth 1.9). */
   private summonsGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 14 X6: the arena events' floor marks (depth 1.9); falling rock goes on overFx. */
+  private arenaGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Phase 14 X6: just above enemy bodies and under heroes (Brood egg sacs at a foe's feet). */
+  private footGfx: Phaser.GameObjects.Graphics | null = null;
   /** Phase 12 W3 (Plate Shift): the Colossus's plate turn as drawn, easing to World.colPlate, and when it was last eased. */
   private plateShown: number | null = null;
   private plateAt = 0;
@@ -401,6 +407,8 @@ export class GameScene extends Phaser.Scene {
     this.brimImgs = [];
     this.brimStart = 0;
     this.summonsGfx = null;
+    this.arenaGfx = null;
+    this.footGfx = null;
     this.plateShown = null;
     this.bankGfx = null;
     this.bankImgs = [];
@@ -1050,7 +1058,7 @@ export class GameScene extends Phaser.Scene {
             for (let k = 0; k < w.heroes.length; k++) {
               const q = w.heroData(k).player;
               if (q.hp <= 0) continue;
-              this.ring(q.x, q.y, (q.coalR ?? COLD.maxR) * 0.9, 0x6a86b8, 0.45);
+              this.ring(q.x, q.y, (q.coalR ?? w.coalMaxR) * 0.9, 0x6a86b8, 0.45);
               for (let n = 0; n < 8; n++) {
                 const a = (n / 8) * Math.PI * 2;
                 this.emit(this.fx, 'spark', undefined, q.x + Math.cos(a) * 20, q.y + Math.sin(a) * 12, 0.7, { tint: 0x8fb0e8, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30 - 40, drag: 0.92, sx0: 1.6, sx1: 3 });
@@ -1305,7 +1313,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           break;
         case 'namedSpawn': {
-          this.hud.banner(ev.name, `A named foe (${ev.affix}). It carries its own loot.`);
+          this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
           // It steps out of the pack: a blue flare, rings and a little shake.
           const ne = w.enemies[ev.index];
           if (ne) {
@@ -1316,6 +1324,22 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         }
+        case 'arenaEvent':
+          // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
+          // each frame in arenaEventDraw).
+          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip);
+          else if (ev.stage === 'land' && ev.id === 'caveIn') {
+            this.shakeBy(0.35);
+            for (const c of w.caveInSpots()) {
+              this.ring(c.x, c.y, ARENA_EVENTS.caveRadius + 50, 0xb8aca4, 0.5);
+              for (let m = 0; m < (this.lowFx ? 3 : 7); m++) this.emit(this.smoke, 'puff', undefined, c.x + (Math.random() - 0.5) * 50, c.y + (Math.random() - 0.5) * 24, 0.9 + Math.random() * 0.4, { tint: 0x9a8e88, vy: -30 - Math.random() * 30, vx: (Math.random() - 0.5) * 60, spin: 1, rot: Math.random() * 6, sx0: 1, sx1: 2.4 });
+              if (!this.lowFx) for (let m = 0; m < 8; m++) { const a = Math.random() * Math.PI * 2; this.spark(c.x, c.y, Math.cos(a) * 140, Math.sin(a) * 90 - 60, 0.5, 1.6); }
+            }
+          } else if (ev.stage === 'land' && ev.id === 'coldSnap') {
+            this.shakeBy(0.15);
+            this.ring(w.player.x, w.player.y, 260, FROST, 0.6);
+          } else if (ev.stage === 'land' && ev.id === 'ventSurge') this.shakeBy(0.25);
+          break;
         case 'namedKill':
           this.hud.ding(`${ev.name.split(',')[0]} falls!`);
           // A crown of blue and gold sparks where it fell.
@@ -1608,6 +1632,8 @@ export class GameScene extends Phaser.Scene {
       else if (e.burnT > 0) s.setTint(0xffa060).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'frostWarden' && this.coalWarmth(e.x, e.y, r) > 0) s.setTint(0xffc49a).setTintMode(Phaser.TintModes.MULTIPLY);
       else if (e.kind === 'worldShadow') s.setTint(0x8a6cff).setTintMode(Phaser.TintModes.MULTIPLY);
+      // Phase 14 X6: a named foe's trait tints its body a little (Swift and Warded cool, Vengeful red, Brood sickly, Smoldering warm).
+      else if (e.named >= 0 && AFFIX_TINT[AFFIXES[e.affix]]) s.setTint(AFFIX_TINT[AFFIXES[e.affix]]).setTintMode(Phaser.TintModes.MULTIPLY);
       else s.clearTint();
     }
 
@@ -1677,6 +1703,7 @@ export class GameScene extends Phaser.Scene {
     // Telegraphs, lances, beams and health bars are redrawn each frame.
     const g = this.gfx;
     g.clear();
+    this.footGfx?.clear();
     this.overFx.clear();
     if (this.world.dungeonId === 'hoard') this.hoardHeroes(g, now);
     if (this.world.dungeonId === 'flue') this.flueMarks(now);
@@ -1684,6 +1711,7 @@ export class GameScene extends Phaser.Scene {
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     this.summonsDraw(now);
+    this.arenaEventDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
     const hk = w.setCount('hearthkeeper');
     const warm = hk >= 2 ? w.player.warmth ?? 0 : 0;
@@ -1833,7 +1861,7 @@ export class GameScene extends Phaser.Scene {
         const d = Math.hypot(c.x, c.y) || 1;
         const ux = c.x / d;
         const uy = c.y / d;
-        const L = GLARE.shadowLength;
+        const L = w.shadowLen;
         const w0 = c.r;
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
@@ -3424,6 +3452,56 @@ export class GameScene extends Phaser.Scene {
       const pulse = 0.5 + 0.5 * Math.sin(now / (70 + 260 * hpF));
       g.lineStyle(3, DANGER, 0.3 + 0.5 * pulse * (1.2 - hpF)).strokeCircle(e.x, e.y, r + 5);
       if (!this.lowFx && Math.random() < 0.08 + 0.2 * (1 - hpF)) this.spark(e.x + (Math.random() - 0.5) * r, e.y - r * 0.3, (Math.random() - 0.5) * 30, -60, 0.5, 1.2);
+    } else if (affix === 'Brood') {
+      // Phase 14 X6: egg sacs clinging round its feet, swelling and twitching; its pack comes out of them when it dies.
+      const hpF = Math.max(0, e.hp) / e.maxHp;
+      if (!this.footGfx) this.footGfx = this.add.graphics().setDepth(4.5);
+      const fg = this.footGfx;
+      for (let k = 0; k < 3; k++) {
+        const a = Math.PI * (0.27 + k * 0.23);
+        const sw = 1 + 0.08 * Math.sin(now / (160 + 120 * hpF) + k * 2) + 0.15 * (1 - hpF);
+        const ex = e.x + Math.cos(a) * (r - 2), ey = e.y + r * 0.3 + Math.sin(a) * (r - 2); // round its feet, over the body sprite (footGfx) and under any hero
+        fg.fillStyle(0xd8c89a, 0.95).fillEllipse(ex, ey, 13 * sw, 16 * sw);
+        fg.lineStyle(2, 0x1a1010, 0.9).strokeEllipse(ex, ey, 13 * sw, 16 * sw);
+        fg.fillStyle(0x8a9a3a, 0.7).fillEllipse(ex + 1, ey + 2, 6 * sw, 8 * sw);
+        fg.fillStyle(0xfff6d8, 0.8).fillCircle(ex - 2.5, ey - 4, 1.8);
+      }
+    } else if (affix === 'Smoldering') {
+      // Phase 14 X6: a ring of embers under it fills toward its next fire circle (every NAMED.smolderEvery s from its
+      // spawn), and smoke curls off it.
+      const age = this.world.time - e.spawnedAt;
+      const f = (age % NAMED_TUNE.smolderEvery) / NAMED_TUNE.smolderEvery;
+      g.lineStyle(4, 0x1a0804, 0.55).strokeCircle(e.x, e.y + r * 0.3, r + 8);
+      g.lineStyle(3, MOLTEN, 0.45 + 0.5 * f).beginPath().arc(e.x, e.y + r * 0.3, r + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f, false).strokePath();
+      if (!this.lowFx && Math.random() < 0.12) this.emit(this.smoke, 'puff', undefined, e.x + (Math.random() - 0.5) * r, e.y - r * 0.5, 0.9, { tint: 0x5a4a44, vy: -36, vx: (Math.random() - 0.5) * 10, spin: 1, rot: Math.random() * 6, sx0: 0.4, sx1: 1.1 });
+      if (!this.lowFx && Math.random() < 0.15) this.spark(e.x + (Math.random() - 0.5) * r, e.y, (Math.random() - 0.5) * 20, -50, 0.6, 1.3);
+    }
+    this.affixBadge(b, affix, cx + 19, cy + 1, now);
+  }
+
+  /**
+   * Phase 14 X6: the named foe's trait as a small round badge right of its crown, so the plate says which one it is
+   * at a glance on a phone (the banner names it once when it steps out). Swift: chevrons; Warded: a shield; Vengeful:
+   * a red burst; Brood: three eggs; Smoldering: a flame.
+   */
+  private affixBadge(b: Phaser.GameObjects.Graphics, affix: string, x: number, y: number, now: number): void {
+    const AFFIX_COL: Record<string, number> = { Swift: 0xe8f4ff, Warded: 0xcfe6ff, Vengeful: DANGER, Brood: 0xd8c89a, Smoldering: MOLTEN };
+    const col = AFFIX_COL[affix] ?? 0xffffff;
+    b.fillStyle(0x000000, 0.75).fillCircle(x, y, 8.5);
+    b.lineStyle(1.5, col, 0.9).strokeCircle(x, y, 8.5);
+    b.fillStyle(col, 1);
+    if (affix === 'Swift') {
+      b.lineStyle(2, col, 1);
+      for (const dx of [-3, 2]) b.beginPath().moveTo(x + dx - 2, y - 4).lineTo(x + dx + 2, y).lineTo(x + dx - 2, y + 4).strokePath();
+    } else if (affix === 'Warded') {
+      b.fillTriangle(x - 5, y - 4, x + 5, y - 4, x, y + 6).fillRect(x - 5, y - 5, 10, 3);
+    } else if (affix === 'Vengeful') {
+      for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI + now / 900; b.fillTriangle(x + Math.cos(a) * 6, y + Math.sin(a) * 6, x + Math.cos(a + 1.9) * 2, y + Math.sin(a + 1.9) * 2, x - Math.cos(a) * 6, y - Math.sin(a) * 6); }
+    } else if (affix === 'Brood') {
+      for (const [dx, dy] of [[-3, 2], [3, 2], [0, -3]]) b.fillEllipse(x + dx, y + dy, 4.5, 5.5);
+    } else if (affix === 'Smoldering') {
+      b.fillTriangle(x - 4, y + 4, x + 4, y + 4, x, y - 6);
+      b.fillStyle(0xffe2a0, 1).fillTriangle(x - 2, y + 4, x + 2, y + 4, x, y - 1);
     }
   }
 
@@ -3434,7 +3512,7 @@ export class GameScene extends Phaser.Scene {
     for (let k = 0; k < w.heroes.length; k++) {
       const q = w.heroData(k).player;
       if (q.hp <= 0 || !q.coal) continue;
-      const r = (q.coalR ?? COLD.maxR) + r0;
+      const r = (q.coalR ?? w.coalMaxR) + r0;
       if ((q.x - x) ** 2 + (q.y - y) ** 2 <= r * r) best = Math.max(best, q.coal);
     }
     return best;
@@ -4020,6 +4098,73 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Phase 14 X6: each arena event's warning, drawn while it is warned (World.arenaEventStage 1).
+   * - Cave-in: dust trickles down over each of its spots, a shadow grows under it, and a rock drops in the last moment
+   *   (the warned circle is the usual danger circle; the rock is a stone of the dungeon's look once it lands).
+   * - Vent Surge: every vent already brightens under its circle; on an open floor (no vent there) the spot cracks and glows.
+   * - Cold Snap: frost creeps in from the arena edge and snow falls; when it lands the coals dim (the sim) with a frost ring.
+   * - High Water: the Ebb's own warning shows it, so there is nothing more to draw.
+   */
+  private arenaEventDraw(now: number): void {
+    const w = this.world;
+    const ev = w.arenaEvent;
+    if (!ev || w.arenaEventStage !== 1 || ev === 'highWater') { this.arenaGfx?.clear(); return; }
+    if (!this.arenaGfx) this.arenaGfx = this.add.graphics().setDepth(1.9);
+    const g = this.arenaGfx.clear();
+    const o = this.overFx;
+    const A = ARENA_EVENTS;
+    if (ev === 'caveIn') {
+      const k = Math.max(0, Math.min(1, 1 - w.arenaEventT / A.caveWarn));
+      for (const [n, c] of w.caveInSpots().entries()) {
+        g.fillStyle(0x000000, 0.18 + 0.32 * k).fillEllipse(c.x, c.y + 4, A.caveRadius * 2 * (0.4 + 0.8 * k), A.caveRadius * 1.2 * (0.4 + 0.8 * k));
+        // Dust and grit trickling down from the dark above.
+        for (let m = 0; m < (this.lowFx ? 3 : 6); m++) {
+          const u = ((now / 700) + m / 6 + n * 0.31) % 1;
+          o.fillStyle(0xb8aca4, 0.6 * (1 - u)).fillCircle(c.x + Math.sin(m * 2.3 + n) * 18, c.y - 220 + 220 * u, 1.6 + m % 2);
+        }
+        // The rock: it falls in the last 40% of the warning, a seeded lump the size of the stone it becomes.
+        if (k > 0.6) {
+          const f = (k - 0.6) / 0.4;
+          const y = c.y - 260 * (1 - f * f);
+          const r = A.caveRadius * 1.15;
+          const pts: Phaser.Math.Vector2[] = [];
+          for (let q = 0; q < 7; q++) { const a = (q / 7) * Math.PI * 2 + n; const rr = r * (0.8 + 0.25 * Math.sin(q * 3.1 + n * 1.7)); pts.push(new Phaser.Math.Vector2(c.x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8)); }
+          o.fillStyle(0x5a4e48, 1).fillPoints(pts, true);
+          o.lineStyle(3, 0x1a1010, 1).strokePoints(pts, true);
+          o.fillStyle(0x8a7c74, 1).fillCircle(c.x - r * 0.3, y - r * 0.3, r * 0.25);
+        }
+      }
+    } else if (ev === 'ventSurge') {
+      const k = Math.max(0, Math.min(1, 1 - w.arenaEventT / A.surgeWarn));
+      if (w.flareVents.length) return; // the vents themselves flare under their circles
+      for (const [n, c] of w.surgeSpots().entries()) {
+        const glow = 0.25 + 0.45 * k + 0.15 * Math.sin(now / 60 + n);
+        g.fillStyle(MOLTEN, 0.12 + 0.18 * k).fillCircle(c.x, c.y, 26 + 14 * k);
+        g.lineStyle(3, 0xffb060, glow);
+        for (let q = 0; q < 5; q++) {
+          const a = q * 1.256 + n;
+          const l1 = 10 + 22 * k;
+          g.beginPath().moveTo(c.x, c.y).lineTo(c.x + Math.cos(a) * l1 * 0.6, c.y + Math.sin(a + 0.3) * l1 * 0.6).lineTo(c.x + Math.cos(a + 0.2) * l1, c.y + Math.sin(a + 0.2) * l1).strokePath();
+        }
+        if (!this.lowFx && Math.random() < 0.2 + 0.3 * k) this.spark(c.x + (Math.random() - 0.5) * 20, c.y, (Math.random() - 0.5) * 30, -80 - 60 * k, 0.5, 1.4);
+      }
+    } else if (ev === 'coldSnap') {
+      const k = Math.max(0, Math.min(1, 1 - w.arenaEventT / A.snapWarn));
+      const R = w.arenaR ?? ARENA;
+      const band = 40 + 240 * k;
+      g.lineStyle(band, FROST, 0.1 + 0.18 * k).strokeCircle(0, 0, R - band / 2);
+      g.lineStyle(3, 0xffffff, 0.35 + 0.4 * k).strokeCircle(0, 0, R - band);
+      // Snow drifting down through the view.
+      const cam = this.cameras.main.worldView;
+      const N = this.lowFx ? 10 : 24;
+      for (let m = 0; m < N; m++) {
+        const u = ((now / 2600) + m * 0.137) % 1;
+        o.fillStyle(0xf2fbff, 0.7 * k).fillCircle(cam.x + ((m + 0.5) / N) * cam.width + Math.sin(now / 900 + m) * 12, cam.y + u * cam.height, 1.6 + (m % 3) * 0.6);
+      }
+    }
+  }
+
   private wanderDraw(now: number): void {
     const w = this.world;
     const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
@@ -4262,7 +4407,7 @@ export class GameScene extends Phaser.Scene {
       const al = k === w.acting ? undefined : this.allies.find((a) => a.hero === k);
       const x = al ? al.img.x : this.player.x;
       const y = al ? al.img.y : this.player.y;
-      const r = q.coalR ?? COLD.maxR;
+      const r = q.coalR ?? w.coalMaxR;
       if (q.coal > 0) {
         const flick = 1 + 0.025 * Math.sin(now / 90 + k * 2) + 0.015 * Math.sin(now / 37 + k);
         // Brighter while the coal is full, and brighter still against the Long Night.
@@ -4403,7 +4548,7 @@ export class GameScene extends Phaser.Scene {
           g.strokePath();
         }
         if (q.coal) {
-          const after = COLD.minR + (COLD.maxR - COLD.minR) * Math.max(0, q.coal - COLD.snuffCut);
+          const after = COLD.minR + (w.coalMaxR - COLD.minR) * Math.max(0, q.coal - COLD.snuffCut);
           g.lineStyle(2, 0x6a86b8, 0.4 + 0.5 * f).strokeCircle(q.x, q.y, after);
         }
       }

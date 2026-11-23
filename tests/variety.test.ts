@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
-import { HEAT_IDS, HEAT_TUNING, heatFor } from '../sim/content/heat';
+import { HEAT_IDS, HEAT_POOLS, HEAT_TUNING, heatFits, heatFor } from '../sim/content/heat';
 
 type Inner = {
   spawn(kind: string, x: number, y: number): number;
@@ -252,18 +252,57 @@ describe('V4 variety: the Day\'s Heat', () => {
   type H = { rollLayout(id: string): void; encounter: number; gainXp(v: number): void };
   const opts = { seed: 5, dungeon: 'kiln' as const, tier: 1, omens: [], cls: 'emberwright' as const };
 
-  it('is the same all day for everyone, uses every Heat, and only the Kiln below tier 3 keeps it', () => {
+  it('is the same all day for everyone, uses every Heat, and a solo dungeon keeps it at any tier', () => {
     expect(heatFor(20414)).toBe(heatFor(20414));
     const seen = new Set<string>();
     for (let d = 20000; d < 20060; d++) seen.add(heatFor(d));
-    expect([...seen].sort()).toEqual([...HEAT_IDS].sort());
+    expect([...seen].sort()).toEqual([...HEAT_POOLS.kiln!].sort());
     expect(new World({ ...opts, heat: 'quickStudy' }).heat).toBe('quickStudy');
     expect(new World({ ...opts, tier: 2, heat: 'quickStudy' }).heat).toBe('quickStudy');
-    expect(new World({ ...opts, tier: 3, heat: 'quickStudy' }).heat).toBe('');
-    expect(new World({ ...opts, dungeon: 'foundry', tier: 1, heat: 'quickStudy' }).heat).toBe('');
+    // Phase 14 X1: every solo dungeon, every tier; never a group dungeon or a raid.
+    expect(new World({ ...opts, tier: 3, heat: 'quickStudy' }).heat).toBe('quickStudy');
+    expect(new World({ ...opts, dungeon: 'foundry', tier: 4, heat: 'quickStudy' }).heat).toBe('quickStudy');
+    expect(new World({ ...opts, dungeon: 'hammerdeep', tier: 4, heat: 'quickStudy' }).heat).toBe('');
+    expect(new World({ ...opts, dungeon: 'crucible', tier: 8, heat: 'richHaul' }).heat).toBe('');
     expect(new World({ ...opts, heat: 'quickStudy', firstDelve: true }).heat).toBe('');
     expect(new World({ ...opts, heat: 'quickStudy', bounty: 20414 }).heat).toBe('');
     expect(new World({ ...opts }).heat).toBe('');
+  });
+
+  it('Phase 14 X1: each solo dungeon picks from its own pool, and a floor it has no layout for never comes', () => {
+    for (const dg of Object.keys(HEAT_POOLS) as (keyof typeof HEAT_POOLS)[]) {
+      const pool = HEAT_POOLS[dg]!;
+      const seen = new Set<string>();
+      for (let d = 20000; d < 20120; d++) seen.add(heatFor(d, dg));
+      expect([...seen].sort(), dg).toEqual([...pool].sort());
+      const floors = LAYOUTS[dg] ?? [];
+      if (pool.includes('stoneFloor')) expect(floors, dg).toContain('pillars');
+      else expect(floors, dg).not.toContain('pillars');
+      if (pool.includes('ventFloor')) expect(floors, dg).toContain('vents');
+      else expect(floors, dg).not.toContain('vents');
+      for (const h of HEAT_IDS) expect(heatFits(dg, h), `${dg} ${h}`).toBe(pool.includes(h));
+    }
+    // The Kiln's Heat on any day is the V4 pick.
+    for (let d = 20000; d < 20060; d++) expect(heatFor(d, 'kiln')).toBe(heatFor(d));
+    // Stone Floor can't come to the Glarewell, so the sim drops it; Vent Floor stays.
+    expect(new World({ ...opts, dungeon: 'glarewell', tier: 7, heat: 'stoneFloor' }).heat).toBe('');
+    expect(new World({ ...opts, dungeon: 'glarewell', tier: 7, heat: 'ventFloor' }).heat).toBe('ventFloor');
+    expect(new World({ ...opts, dungeon: 'wrackline', tier: 13, heat: 'ventFloor' }).heat).toBe('');
+    // Each dungeon's own Heat comes only there.
+    expect(new World({ ...opts, dungeon: 'kiln', tier: 1, heat: 'thickSteam' }).heat).toBe('');
+    expect(new World({ ...opts, dungeon: 'foundry', tier: 4, heat: 'thickSteam' }).heat).toBe('thickSteam');
+  });
+
+  it('Phase 14 X1: the dungeons\' own Heats change their signature mechanic', () => {
+    const base = { seed: 3, omens: [], cls: 'emberwright' as const };
+    const sun = new World({ ...base, dungeon: 'glarewell', tier: 7, heat: 'highSun' });
+    expect(sun.shadowLen).toBeCloseTo(new World({ ...base, dungeon: 'glarewell', tier: 7 }).shadowLen * HEAT_TUNING.sunShadow, 9);
+    const coal = new World({ ...base, dungeon: 'coldmarrow', tier: 10, heat: 'brightCoal' });
+    expect(coal.coalMaxR).toBeCloseTo(new World({ ...base, dungeon: 'coldmarrow', tier: 10 }).coalMaxR * HEAT_TUNING.coalRadius, 9);
+    const steam = new World({ ...base, dungeon: 'foundry', tier: 4, heat: 'thickSteam' });
+    expect(steam.temperEvery).toBeCloseTo(new World({ ...base, dungeon: 'foundry', tier: 4 }).temperEvery * HEAT_TUNING.steamTemper, 9);
+    // The getters fall back to the plain tuning on a day without them.
+    expect(new World({ ...base, dungeon: 'foundry', tier: 4, heat: 'quickStudy' }).temperEvery).toBe(new World({ ...base, dungeon: 'foundry', tier: 4 }).temperEvery);
   });
 
   it('a floor Heat fixes every non-boss layout; the boss stays open', () => {
@@ -854,5 +893,85 @@ describe('Phase 13 E1 and E2: raid and Ashvents trash layouts', () => {
       }
       expect([...seen].sort()).toEqual(['open', 'pillars', 'vents']);
     }
+  });
+});
+
+describe('Phase 14 X3: arena events', () => {
+  type Q = { rollLayout(id: string): void; rollArenaEvent(id: string): void; arenaEventClock(dt: number): void; encounter: number; tideClockT: number; ebbT: number; ebbWarnT: number };
+  const make = (dungeon: 'kiln' | 'foundry' | 'glarewell' | 'coldmarrow' | 'wrackline' | 'hammerdeep', seed = 1) =>
+    new World({ seed, dungeon, tier: { kiln: 2, foundry: 4, glarewell: 7, coldmarrow: 10, wrackline: 13, hammerdeep: 4 }[dungeon], omens: [], cls: 'emberwright' });
+
+  it('about 40% of solo trash fights get one from the dungeon\'s own pool, never the boss, never a group dungeon', () => {
+    for (const dg of Object.keys(ARENA_EVENT_POOLS) as (keyof typeof ARENA_EVENT_POOLS)[]) {
+      let hits = 0, n = 0;
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 200; seed++) {
+        const w = make(dg as 'kiln', seed);
+        for (let k = 0; k < w.route.length; k++) {
+          const ev = w.arenaEventAt(k, w.route[k]);
+          if (w.route[k] === w.dungeonDef.boss) { expect(ev).toBe(''); continue; }
+          n++;
+          if (ev) { hits++; seen.add(ev); expect(ARENA_EVENT_POOLS[dg]).toContain(ev); }
+          expect(w.arenaEventAt(k, w.route[k])).toBe(ev);
+        }
+      }
+      expect(hits / n, dg).toBeGreaterThan(ARENA_EVENTS.chance - 0.08);
+      expect(hits / n, dg).toBeLessThan(ARENA_EVENTS.chance + 0.08);
+      expect([...seen].sort(), dg).toEqual([...ARENA_EVENT_POOLS[dg]!].sort());
+    }
+    const g = make('hammerdeep');
+    for (let k = 0; k < g.route.length; k++) expect(g.arenaEventAt(k, g.route[k])).toBe('');
+    expect(new World({ seed: 1, omens: [], firstDelve: true }).arenaEventAt(0, 'pack')).toBe('');
+  });
+
+  it('a Cave-in warns over its spots, then leaves stones there', () => {
+    const w = make('kiln');
+    const q = w as unknown as Q;
+    ARENA_EVENTS.force = 'caveIn';
+    try { q.encounter = 1; q.rollLayout('pack'); q.rollArenaEvent('pack'); } finally { ARENA_EVENTS.force = ''; }
+    expect(w.arenaEvent).toBe('caveIn');
+    const stones = w.stones.length;
+    w.events.length = 0;
+    q.arenaEventClock(w.arenaEventT + 0.01);
+    expect(w.events).toContainEqual({ type: 'arenaEvent', id: 'caveIn', stage: 'warn' });
+    const spots = w.caveInSpots();
+    for (const c of spots) expect(w.telegraphs.some((t) => t.alive && t.x === c.x && t.y === c.y)).toBe(true);
+    q.arenaEventClock(ARENA_EVENTS.caveWarn + 0.01);
+    expect(w.events).toContainEqual({ type: 'arenaEvent', id: 'caveIn', stage: 'land' });
+    expect(w.stones.length).toBe(stones + ARENA_EVENTS.caveCount);
+    q.arenaEventClock(100);
+    expect(w.stones.length).toBe(stones + ARENA_EVENTS.caveCount);
+  });
+
+  it('a Vent Surge erupts every vent at once; a Cold Snap dims the coal; High Water brings the Ebb now', () => {
+    const k = make('kiln');
+    const qk = k as unknown as Q;
+    ARENA_EVENTS.force = 'ventSurge';
+    try { qk.encounter = 1; qk.rollLayout('pack'); qk.rollArenaEvent('pack'); } finally { ARENA_EVENTS.force = ''; }
+    const before = k.telegraphs.filter((t) => t.alive).length;
+    qk.arenaEventClock(k.arenaEventT + 0.01);
+    expect(k.telegraphs.filter((t) => t.alive).length).toBe(before + k.surgeSpots().length);
+
+    const c = make('coldmarrow');
+    const qc = c as unknown as Q;
+    ARENA_EVENTS.force = 'coldSnap';
+    try { qc.encounter = 1; qc.rollLayout('rimepack'); qc.rollArenaEvent('rimepack'); } finally { ARENA_EVENTS.force = ''; }
+    c.player.coal = 0.8;
+    qc.arenaEventClock(c.arenaEventT + 0.01);
+    qc.arenaEventClock(ARENA_EVENTS.snapWarn + 0.01);
+    expect(c.player.coal).toBeCloseTo(0.8 - ARENA_EVENTS.snapCut, 9);
+
+    const r = make('wrackline');
+    const qr = r as unknown as Q;
+    ARENA_EVENTS.force = 'highWater';
+    try { qr.encounter = 1; qr.rollLayout('lurkers'); qr.rollArenaEvent('lurkers'); } finally { ARENA_EVENTS.force = ''; }
+    qr.ebbT = 0; qr.ebbWarnT = 0; qr.tideClockT = 10;
+    qr.arenaEventClock(r.arenaEventT + 0.01);
+    expect(qr.tideClockT).toBe(0);
+  });
+
+  it('a forced event that the dungeon has no use for never comes', () => {
+    ARENA_EVENTS.force = 'coldSnap';
+    try { expect(make('kiln').arenaEventAt(1, 'pack')).toBe(''); } finally { ARENA_EVENTS.force = ''; }
   });
 });
