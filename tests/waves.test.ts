@@ -125,6 +125,8 @@ describe('Phase 15 Y1: wave shapes', () => {
     // Skills' Y5: a pack of 3+ Rimehounds doesn't ring (a pincer still can).
     expect(fight('weaver', 'ring', 'coldmarrow').waveShape).toBe('arc');
     expect(fight('weaver', 'pincer', 'coldmarrow').waveShape).toBe('pincer');
+    // The Two Weavers: two hounds, but the Weavers' Frost Lace counts toward the pack.
+    expect(fight('twoWeavers', 'ring', 'coldmarrow').waveShape).toBe('arc');
     for (const s of ['pincer', 'ring', 'reinforce'] as const) expect(WAVE_SHAPE_INFO[s].tip.length).toBeGreaterThan(10);
   });
 });

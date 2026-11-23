@@ -870,3 +870,50 @@ The Lensmother had two phase-2 versions (Twin Brand and Glintfall). The third is
 - Carried Light sits with Glintfall. Twin Brand stays the hardest of the three, as before.
 - **Name:** first called Walking Light, which is too close to WoW's "Walk in the Light" and "Walk Into Light", so renamed. "Carried Light" had no WoW match in a search on 23 Nov.
 
+### Y10 follow-up (23 Nov 2026): a fair stir for melee classes, and parties judged by their worst hero
+
+Skills' Y10 check found two problems. In the Foundry the melee classes almost never stirred (Bulwark 13 of 80, Duskblade 23, against 49 to 60 for the others). In group dungeons nearly every run stirred, whatever the party (74 to 80 of 80).
+
+**Changes**
+- Each hero's loss in a fight is tracked on its own (`Player.stirHurt`). The fight is judged by the worst-off hero.
+- Each hero is judged against their own class bar, `STIR_CLASS`. The Bulwark and the Duskblade trade hits in melee, so their clean and rough bars are 2x. The loosened rough bar never goes past 80% of max health (`STIR.roughMax`).
+- A party fight is clean only under 0.15 x 0.35, which is about 5% of a hero's health (`STIR.groupClean`). Even half-skill bot parties stayed under 0.15 in almost every trash fight.
+- tools/foundry.ts and tools/group.ts take `STIRHURT=1`, which prints the judged cost of each trash fight as percentiles.
+
+**Per-fight cost** (`STIRHURT=1`, heroes-r2, seeds 41 to 120). This is the share of trash fights after the opener with at most 0.15 lost, before the change:
+
+| Class | Kiln t6 | Foundry t6 | Glarewell t8 | Coldmarrow t10 |
+|---|---|---|---|---|
+| Emberwright | 214/240 | 151/228 | 151/228 | 205/230 |
+| Duskblade | 155/237 | 70/228 | 103/234 | 181/232 |
+| Bulwark | 137/240 | 60/226 | 133/222 | 148/229 |
+| Lumen | 198/237 | 157/237 | 135/238 | 207/231 |
+| Slagbinder | 211/240 | 166/195 | 181/240 | 185/240 |
+
+**Runs that stirred, out of 80** (same seeds), before and after:
+
+| Class | Kiln t6 | Foundry t6 | Glarewell t8 | Coldmarrow t10 |
+|---|---|---|---|---|
+| Emberwright | 74 / 74 | 49 / 49 | 61 / 61 | 75 / 76 |
+| Duskblade | 63 / 73 | 23 / 50 | 37 / 64 | 77 / 77 |
+| Bulwark | 62 / 80 | 13 / 48 | 46 / 72 | 62 / 73 |
+| Lumen | 73 / 73 | 49 / 49 | 39 / 39 | 72 / 73 |
+| Slagbinder | 76 / 76 | 60 / 60 | 76 / 76 | 72 / 72 |
+
+Win rates moved by at most 5 of 80 in any cell (Glarewell Duskblade 70 to 65). The Lumen still trails in the Glarewell (39). Its trash fights cost little most of the time but a lot when they go wrong (75th percentile 57% of health), so a class multiplier doesn't fit it. I've left it as a watch item.
+
+**Groups**, with the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 41 to 120. Each cell gives the runs that stirred and the wins, out of 80:
+
+| Dungeon | Before | Worst hero only | Plus groupClean 0.35 | Half-skill bots (SKILL=0.5), before / after |
+|---|---|---|---|---|
+| Hammerdeep t8 | skills: 74 to 80 | 79, 50 wins | 54, 48 wins | 76 / 46 |
+| Ashvents t8 | skills: 74 to 80 | 74, 52 wins | 29, 54 wins | - |
+| Pressworks t10 | skills: 74 to 80 | 73, 55 wins | 29, 63 wins | 66 / 20 |
+
+- Judging by the worst hero alone changed little, because a bot party's tank and healer keep everyone's trash cost low. Worst-hero cost on Hammerdeep (seeds 41 to 70): median 0, 90th percentile 9%. The tighter group bar is what makes a stir depend on how well the party plays.
+- The Pressworks went from 55 to 63 wins, since fewer stirred fights mean fewer extra elites. That's a watch item for its next retune.
+
+**Y5 ring follow-up: the Two Weavers.** Skills found that the Emberwright's ring deaths in the Coldmarrow had moved to the Two Weavers fight (two Weavers, two Rimehounds). Weavers now count toward the threshold: a fight with at least one Rimehound, and 3 or more Rimehounds and Hoarfrost Weavers together, never forms a ring. Emberwright, heroes-r2 hero-t8-0, Coldmarrow t10, seeds 41 to 200: forced ring went from 103 to 113 (skills' number before, mine after), and natural is 114 both times. So the rest of the natural gap to waves off (126 in skills' run) doesn't come from the ring.
+
+**Acolytes stay inside the wall** (QA's note). A ward near the wall swung its acolytes outside the arena, out of reach. Their circling position is now clamped inside. Kiln t6, heroes-r2, seeds 41 to 120, with the new stir rules, wins before and after the clamp: Emberwright 52 / 51, Duskblade 44 / 46, Bulwark 63 / 62, Lumen 78 / 79, Slagbinder 52 / 52.
+
