@@ -1777,8 +1777,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   sinkWarn: 5.7,
   snufferTide: 4.0,
   stampWarn: 1.6,
-  wheelWarn: 2.8,
-  phaseWheel: 2.3,
+  wheelWarn: 3.6, // was 2.8 (5.6 dB over the Smeltery raid mix, crit and bulwarkSlam over it); now 6.4 dB (busycheck t8 heroes, SEEDS=1-12, n=17)
+  phaseWheel: 3.8, // was 2.3 (4.9 dB); now 6.3 dB over the Smeltery raid mix (same check, n=12)
   allyDown: 4.8,
   anvilWarn: 1.2,
   enrage: 1.9,
