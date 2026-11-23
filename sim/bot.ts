@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -842,6 +842,24 @@ export function botInput(w: World, skill = 1): Input {
       }
     }
   }
+  // Phase 16 U2: an Ashwall that faces this hero shelters its foes and its own front, so a melee hero walks round
+  // it (the shield turns slower than a hero circles close in). NOASHWALL=1 turns this off for measuring.
+  // Ranged heroes don't: at Kiln t8, seeds 1-160, circling took the Emberwright from 93 to 76 wins (and it
+  // shortened its Ashwall fight from 120 to 81 s). Melee circling cuts the fight by a quarter, wins within 5.
+  if (melee && process.env.NOASHWALL !== '1') {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'ashwall') continue;
+      const at = Math.atan2(p.y - e.y, p.x - e.x);
+      const off = angleOff(at, e.aux);
+      const d = Math.hypot(p.x - e.x, p.y - e.y) || 1;
+      if (Math.abs(off) >= ASHWALL.frontArc || d > 420) continue;
+      // Keep going round the way we are already off its front.
+      const sgn = off >= 0 ? 1 : -1;
+      fx += -Math.sin(at) * sgn * 0.12 * skill;
+      fy += Math.cos(at) * sgn * 0.12 * skill;
+      break;
+    }
+  }
   // V1: a Hollow Rift keeps spitting Ashlings, so every hero works its way to it (the tip: break the Rift first).
   // Melee heroes already reach it through bladeTarget; a ranged hero closes to orb range of it.
   if (!melee) {
@@ -1280,4 +1298,9 @@ export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
     const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
     return out;
   };
+}
+
+/** a - b, wrapped to -PI..PI. */
+function angleOff(a: number, b: number): number {
+  return ((a - b + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 }

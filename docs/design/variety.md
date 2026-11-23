@@ -1412,3 +1412,30 @@ Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party i
 - **The Colossus Anvil party** drops the most, 60 to 48 (75% to 60%), and is still inside the band. The Anvil party was over the band before echoes.
 - **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
 - **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.
+
+## Phase 16 U2: the Kiln's new elite, the Ashwall
+
+U2 gives each solo dungeon one new elite whose answer isn't "kill it or step out". The Kiln's is the **Ashwall** (`ashwall`, 900 hp, elite, title "Shields those behind it"), a slab of cooled slag carried as a shield. It comes in the new opener **The Ashwall** (`ashwall`): one Ashwall and two Ember Spitters. Tip: "It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it." The name was searched: no World of Warcraft match.
+
+- **The shield** faces its hero (`Enemy.aux`) and turns toward them at `ASHWALL.turn` (0.5 rad/s), slower than a hero circles close in. A hit from inside its front arc (`frontArc`, 60 degrees either side) does `front` (50%) to the Ashwall, and `sheltered` (35%) to any foe within `shelterR` (150 px) behind it, inside `shelterArc` of its back. From its side or back, every hit lands in full. Bosses are never sheltered. Burn ticks are judged from the hero who lit them.
+- **Guarding:** it walks to `guardGap` (55 px) in front of the nearest foe within `guardRange` (320 px), on the hero's side, so it keeps putting itself between you and the Spitters.
+- **Shield Bash:** a `bashArc` cone off its front, every `bashEvery` (5 s) while the hero is within reach. It is not interruptible. It punishes standing in front of it.
+- **Glance:** a hit its shield cut carries `glance: true` on its `hit` event, so sound can play a dull thunk instead.
+- **Client:** a heavy arc across its front and a faint wedge behind it where foes shelter. It wears the Hollow Warden until visuals draw it.
+- **Bots:** a melee hero in front of an Ashwall walks round it (`NOASHWALL=1` turns that off). Ranged heroes don't circle. With circling, the Emberwright's Ashwall fight got shorter (120 s to 81 s), but its wins at Kiln t8 over seeds 1 to 160 went from 93 to 76, while its Spitters fight gave 91.
+- **Tools:** `FIGHT=<encounter id>` in tools/foundry.ts makes that the first fight of every run, and counts `fightT` (its length) and `fightHurt`.
+
+Kiln t8, heroes-r2 hero-t8-0, seeds 1 to 80, with the first fight forced (`FIGHT=`). Median fight seconds:
+
+| Class | Ashwall | Ashwall, no circling | Ember Spitters |
+|---|---|---|---|
+| Bulwark | 60 | 77 | 37 |
+| Duskblade | 47 | 61 | 33 |
+| Emberwright | (ranged: no circling) | 120 | 55 |
+| Lumen | (ranged: no circling) | 108 | 49 |
+| Slagbinder | (ranged: no circling) | 129 | 64 |
+
+- Walking round it cuts a melee hero's fight by a fifth to a quarter. It is still the longest Kiln opener: a ranged hero takes about twice as long as against the Spitters, because a bot doesn't draw the Spitters out of the wedge the way a player can. That's a watch item for QA's playtest.
+- **Whole-run wins from a forced first fight are chaotic.** The Lumen on seeds 81 to 160 won anywhere from 54 to 68 depending only on which old opener came first (Spitters 68, Spitter Brute 68, Warden and Hounds 60, Hollow Wardens 54, Ashbucks 54). It won 50 with the Ashwall, and 53 with the Ashwall's shield turned off, so the gap comes from the fight's make-up, not the shield. Natural runs (below) are the check.
+
+Natural Kiln t8 runs (the Ashwall is one of 7 openers, and it came up in 16 of seeds 1 to 80), seeds 1 to 160, wins before / after: Bulwark 99 / 96, Duskblade 62 / 67, Emberwright 92 / 91, Lumen 114 / 114, Slagbinder 99 / 92. Adding an opener re-rolls every Kiln route, so these move by reshuffle as well as by the Ashwall. Every class is within 7.

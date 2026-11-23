@@ -18,7 +18,8 @@ export type EncounterId =
   | 'glassSpitters' | 'crawlerCharge'
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
-  | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters';
+  | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
+  | 'ashwall';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -38,6 +39,8 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   // V1 (variety): Kiln fights that move and hit differently: range, a swarm source, and a charge down a lane.
   spitters: { id: 'spitters', name: 'Ember Spitters', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
   riftfall: { id: 'riftfall', name: 'The Hollow Rift', tip: 'The Rift spits Ashlings until it breaks. Break the Rift first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  // Phase 16 U2: the Kiln's new elite. The answer is where you stand, not how fast you kill.
+  ashwall: { id: 'ashwall', name: 'The Ashwall', tip: 'It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it.', spawns: [{ kind: 'ashwall', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbucks: { id: 'ashbucks', name: 'The Ashbucks', tip: 'An Ashbuck shows its lane, then charges down it. Step to the side, not back.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'cinderhound', n: 1 }] },
   spitterBrute: { id: 'spitterBrute', name: 'Brute and Spitters', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
@@ -174,7 +177,7 @@ export interface DungeonDef {
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   kiln: {
     id: 'kiln', name: 'The Kiln Depths', boss: 'kilnMother', unlockTier: 1,
-    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
+    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks', 'ashwall'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
     blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.', style: 'solo', minParty: 1,
   },
   foundry: {

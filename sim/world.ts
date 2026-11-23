@@ -535,7 +535,7 @@ export interface Player {
 
 export type SimEvent =
   /** `hero`: who landed it (World.acting), so a screen can tell its own hits from an ally's. */
-  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number }
+  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number; /** Phase 16 U2: an Ashwall's shield cut this hit (its front, or a foe sheltering behind it). */ glance?: true }
   | { type: 'kill'; x: number; y: number; kind: EnemyKind }
   | { type: 'playerHurt'; amount: number; hero?: number }
   | { type: 'levelUp'; level: number; hero?: number }
@@ -2929,7 +2929,8 @@ export class World {
     e.castDur = 0;
     e.interruptible = false;
     e.stunT = 0;
-    e.aux = 0;
+    // Phase 16 U2: an Ashwall comes in with its shield already toward the hero (aux is its facing).
+    e.aux = kind === 'ashwall' ? Math.atan2(this.player.y - y, this.player.x - x) : 0;
     e.aux2 = 0;
     e.ward = 0;
     e.warded = false;
@@ -4884,6 +4885,22 @@ export class World {
         if (d < VARIETY.spitterNear) { mx = -mx; my = -my; }
         else if (d < VARIETY.spitterFar) { const s = i % 2 ? 0.5 : -0.5; const tx = -my * s; my = mx * s; mx = tx; }
       }
+      // Phase 16 U2: the Ashwall turns its shield to the hero (slowly) and plants itself in front of the nearest foe it guards.
+      if (e.kind === 'ashwall') {
+        const want = Math.atan2(dy, dx);
+        const step = ASHWALL.turn * dt;
+        const diff = angleDiff(want, e.aux);
+        e.aux = angleDiff(e.aux + Math.max(-step, Math.min(step, diff)), 0);
+        const g = this.ashwallWard(i);
+        if (g >= 0) {
+          const o = this.enemies[g];
+          const ox = p.x - o.x, oy = p.y - o.y, od = Math.hypot(ox, oy) || 1;
+          const gx = o.x + (ox / od) * ASHWALL.guardGap - e.x, gy = o.y + (oy / od) * ASHWALL.guardGap - e.y;
+          const gd = Math.hypot(gx, gy);
+          mx = gd > 8 ? (gx / gd) * speed : 0;
+          my = gd > 8 ? (gy / gd) * speed : 0;
+        }
+      }
       // V1: an Ashbuck mid-charge runs straight down its lane, fast, and doesn't steer.
       if (e.kind === 'ashbuck' && e.aux2 > 0) {
         e.aux2 -= dt;
@@ -5311,6 +5328,15 @@ export class World {
       }
       return;
     }
+    if (e.kind === 'ashwall') {
+      // Shield Bash: a short cone off the front of its shield. Its front is also where it is hard to hurt, so get round it.
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < (ASHWALL.bashRange + e.def.radius) ** 2) {
+        e.abilityT = ASHWALL.bashEvery;
+        this.startCast(i, 'shieldBash', 'Shield Bash', ASHWALL.bashCast, false);
+        this.addTelegraph('cone', e.x, e.y, ASHWALL.bashRange + e.def.radius, e.aux, ASHWALL.bashArc, ASHWALL.bashCast, ASHWALL.bashDamage, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'ashbuck') {
       // Charge: it lines up on you and runs the lane. Step out of the line, not away.
       const dd = dist2(p.x, p.y, e.x, e.y);
@@ -5547,6 +5573,14 @@ export class World {
       const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
       dmg *= this.colossusSide(e, by.x, by.y);
     }
+    // Phase 16 U2: an Ashwall's shield takes the hits on its front, and on the foes sheltering behind it.
+    let glance = false;
+    if (this.ashwallUp()) {
+      const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
+      const m = this.ashwallTaken(i, by.x, by.y);
+      dmg *= m;
+      glance = m < 1;
+    }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
@@ -5604,7 +5638,7 @@ export class World {
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
       e.flash = 0.08;
-      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting });
+      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting, ...(glance ? { glance: true as const } : {}) });
     }
     if (canCrit && this.hasMythic('splittingCinders')) {
       let other = -1;
@@ -7201,6 +7235,44 @@ export class World {
 
   /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
   /** True when (x, y) is in the Colossus's back arc, the same arc that takes COLO.backMult. Meltdown doesn't change where his back is. */
+  /** Phase 16 U2: whether this fight has an Ashwall in it (cheap, so damage checks skip the rest otherwise). */
+  ashwallUp(): boolean {
+    return this.encounterDef.spawns.some((s) => s.kind === 'ashwall');
+  }
+
+  /** The foe Ashwall `i` guards: the nearest living foe that isn't an Ashwall or a boss, within `guardRange`; -1 for none. */
+  ashwallWard(i: number): number {
+    const a = this.enemies[i];
+    let best = -1, bd = ASHWALL.guardRange ** 2;
+    for (let j = 0; j < this.enemies.length; j++) {
+      const o = this.enemies[j];
+      if (j === i || !o.alive || o.kind === 'ashwall' || o.def.rank === 'boss') continue;
+      const d = dist2(a.x, a.y, o.x, o.y);
+      if (d < bd) { bd = d; best = j; }
+    }
+    return best;
+  }
+
+  /**
+   * Phase 16 U2: the damage multiplier foe `i` takes from a hero at (x, y) because of Ashwalls. An Ashwall's
+   * shield faces `aux`. Hit from inside its front arc, the Ashwall takes `front`, and any foe within
+   * `shelterR` behind it (inside `shelterArc` of its back) takes `sheltered`. From its side or back, nothing.
+   */
+  ashwallTaken(i: number, x: number, y: number): number {
+    const e = this.enemies[i];
+    if (e.def.rank === 'boss') return 1;
+    let m = 1;
+    for (let k = 0; k < this.enemies.length; k++) {
+      const a = this.enemies[k];
+      if (!a.alive || a.kind !== 'ashwall') continue;
+      if (Math.abs(angleDiff(Math.atan2(y - a.y, x - a.x), a.aux)) >= ASHWALL.frontArc) continue;
+      if (k === i) { m = Math.min(m, ASHWALL.front); continue; }
+      if (dist2(a.x, a.y, e.x, e.y) > ASHWALL.shelterR ** 2) continue;
+      if (Math.abs(angleDiff(Math.atan2(e.y - a.y, e.x - a.x), a.aux + Math.PI)) < ASHWALL.shelterArc) m = Math.min(m, ASHWALL.sheltered);
+    }
+    return m;
+  }
+
   behindColossus(e: Enemy, x: number, y: number): boolean {
     return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing + this.colPlate)) >= COLO.backArc;
   }
@@ -8592,6 +8664,18 @@ export const VARIETY = {
   chargeMin: 110, chargeLen: 360, chargeArc: 0.24, chargeCast: 1.0, chargeEvery: 5, chargeSpeed: 720, chargeDamage: 22,
   /** Hollow Rift in a dungeon fight: Ashlings out at once. */
   riftCap: 8,
+};
+
+/**
+ * Phase 16 U2: the Ashwall (the Kiln). Its shield turns toward its hero at `turn` rad/s. Hit inside `frontArc`
+ * (half-angle) of it, the Ashwall takes `front`, and a foe within `shelterR` behind it (inside `shelterArc` of its
+ * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
+ * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
+ */
+export const ASHWALL = {
+  turn: 0.5, frontArc: Math.PI / 3, front: 0.5, shelterR: 150, shelterArc: 0.9, sheltered: 0.35,
+  guardGap: 55, guardRange: 320,
+  bashRange: 80, bashArc: 1.4, bashCast: 0.8, bashEvery: 5, bashDamage: 14,
 };
 
 export const FOUNDRY = {
