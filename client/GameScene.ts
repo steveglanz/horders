@@ -1752,7 +1752,8 @@ export class GameScene extends Phaser.Scene {
       : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk'
       : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler'
       : e.kind === 'lampeye' && !this.textures.exists('lampeye') ? 'shade'
-      : e.kind === 'dimhorn' && !this.textures.exists('dimhorn') ? 'snuffer' : e.kind;
+      : e.kind === 'dimhorn' && !this.textures.exists('dimhorn') ? 'snuffer'
+      : e.kind === 'conchblower' && !this.textures.exists('conchblower') ? 'bargeHauler' : e.kind;
   }
 
   /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
