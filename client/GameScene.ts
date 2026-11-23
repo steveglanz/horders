@@ -256,6 +256,9 @@ export class GameScene extends Phaser.Scene {
   /** HD-2D look test (?hd2d=1): the 3D view drawn over this scene, when its module has loaded (client/hd2d/api.ts). */
   private hd2d: Hd2dView | null = null;
   private hd2dAlpha = 1;
+  /** The floor bridge (3D look): a second camera drawing the floor layer top-down into the canvas's corner, copied each frame. */
+  private bridge: { cam: Phaser.Cameras.Scene2D.Camera; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; n: number; span: number; stamp: number; blank: boolean } | null = null;
+  private hd2dDt = 0;
   /** How long the 3D view took to build and to draw its first frame, in ms (tools/hd2dload.cjs). */
   hd2dTimes: { mount: number; firstFrame: number } | null = null;
   private player!: Phaser.GameObjects.Image;
@@ -648,6 +651,7 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.hd2d?.destroy();
       this.hd2d = null;
+      this.bridgeStop();
       this.edgeCanvas?.remove();
       this.edgeCanvas = null;
       this.scale.off('resize', this.layout, this);
@@ -668,8 +672,10 @@ export class GameScene extends Phaser.Scene {
           frames: (key) => FRAMES[key] ?? 1,
           texScale: BASE,
           heroName: (i) => this.world.heroes[i]?.name ?? '',
+          floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
+        this.bridgeStart();
         const t1 = performance.now();
         // The first frame builds and compiles everything while the loading screen is still up.
         this.hd2d.frame(0);
@@ -678,6 +684,7 @@ export class GameScene extends Phaser.Scene {
         console.warn('HD-2D view failed, drawing in 2D', err);
         this.hd2d?.destroy();
         this.hd2d = null;
+        this.bridgeStop();
         this.cameras.main.setVisible(true);
       }
       hideHd2dLoading();
@@ -692,6 +699,69 @@ export class GameScene extends Phaser.Scene {
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
     this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
+  }
+
+  /**
+   * The floor bridge (3D look, step 2 of the 3D plan): every floor tell drawn in 2D (rafts, vents, the Glarewell's light,
+   * coals, wave marks, boss tells) shows on the 3D floor without porting each one. A second camera draws the whole arena
+   * top-down into an n x n corner of this canvas, skipping the ground, the edge props and everything standing (depth 2.3
+   * and up: heroes, foes, stones, names, bars, effects), which the 3D view draws itself. After Phaser renders, that corner
+   * is copied into a small canvas the renderer lays on its floor (bridgeCopy). The main camera stays as it was, hidden.
+   */
+  private bridgeStart(): void {
+    const cv = this.game.canvas;
+    const n = Math.floor(Math.min(512, cv.width, cv.height));
+    if (n < 128) return;
+    const span = 2 * ((this.world.arenaR ?? ARENA) + 80);
+    const cam = this.cameras.add(0, 0, n, n, false, 'bridge');
+    cam.setZoom(n / span).centerOn(0, 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = n;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { this.cameras.remove(cam); return; }
+    this.bridge = { cam, canvas, ctx, n, span, stamp: 0, blank: true };
+    this.bridgeFilter();
+    this.game.events.on('postrender', this.bridgeCopy, this);
+  }
+
+  private bridgeStop(): void {
+    if (!this.bridge) return;
+    this.game.events.off('postrender', this.bridgeCopy, this);
+    this.cameras.remove(this.bridge.cam);
+    this.bridge = null;
+  }
+
+  /** Keeps the bridge camera to the floor layer: new objects appear all run, so each frame checks for unfiltered ones. */
+  private bridgeFilter(): void {
+    const b = this.bridge;
+    if (!b) return;
+    const id = b.cam.id;
+    const props = new Set<Phaser.GameObjects.GameObject>();
+    for (const p of this.edgeProps) { props.add(p.img); if (p.light) props.add(p.light); }
+    for (const o of this.children.list) {
+      const d = (o as Phaser.GameObjects.Image).depth ?? 0;
+      if ((o.cameraFilter & id) !== 0) continue;
+      if (d >= 2.3 || d < 0 || d === 1.95 || d === 1.97 || props.has(o)) b.cam.ignore(o);
+    }
+  }
+
+  /** After Phaser has drawn the bridge camera's corner: copy it out, then draw the 3D frame over it. */
+  private bridgeCopy(): void {
+    const b = this.bridge;
+    if (!b || !this.hd2d) return;
+    // Copy (a GPU readback plus a texture upload) only when the bridge camera drew something, or once to clear it after.
+    // A Graphics cleared this frame still renders, so it counts only if its buffer holds a fill or stroke (Phaser's
+    // Graphics Commands 3 and 8 to 11; an argument can match too, which only costs a copy).
+    const drew = b.cam.renderList.some((o) => !(o instanceof Phaser.GameObjects.Graphics) || o.commandBuffer.some((c) => c === 3 || (c >= 8 && c <= 11)));
+    if (drew || !b.blank) {
+      b.ctx.clearRect(0, 0, b.n, b.n);
+      if (drew) b.ctx.drawImage(this.game.canvas, 0, 0, b.n, b.n, 0, 0, b.n, b.n);
+      b.blank = !drew;
+      b.stamp++;
+    }
+    this.hd2d.frame(this.hd2dDt);
+    this.hd2dDt = 0;
+    this.foeEdgeMarks3d(this.time.now);
   }
 
   /** Where sound pans from: in 3D, by where things show on screen (client/audio/cues.ts panFor), else the 2D camera's width. */
@@ -894,8 +964,10 @@ export class GameScene extends Phaser.Scene {
     this.render(alpha, deltaMs / 1000);
     if (this.hd2d) {
       this.hd2dAlpha = alpha;
-      this.hd2d.frame(deltaMs / 1000);
-      this.foeEdgeMarks3d(this.time.now);
+      this.hd2dDt += deltaMs / 1000;
+      this.bridgeFilter();
+      // With the floor bridge, the 3D frame is drawn after Phaser renders (bridgeCopy), so the floor it lays is this frame's.
+      if (!this.bridge) { this.hd2d.frame(this.hd2dDt); this.hd2dDt = 0; this.foeEdgeMarks3d(this.time.now); }
     }
     this.hud.tick(w, this.fps());
   }
@@ -1961,7 +2033,7 @@ export class GameScene extends Phaser.Scene {
     this.slagDraw(g, now);
     this.altDraw(g, now);
     // Co-op: each ally stands on a ring in their class colour, so you can find them in a crowd.
-    for (const al of this.allies) {
+    for (const al of this.bridge ? [] : this.allies) {
       const down = w.heroData(al.hero).player.hp <= 0;
       g.lineStyle(2, down ? 0x6a5a54 : hex(CLASS_ICON[w.heroes[al.hero].cls].color), down ? 0.5 : 0.85).strokeEllipse(al.img.x, al.img.y + 22, 44, 16);
     }
@@ -2077,10 +2149,13 @@ export class GameScene extends Phaser.Scene {
         }
         g.lineStyle(6, 0xd8f6ff, 0.18 + 0.08 * Math.sin(now / 400)).strokeCircle(0, 0, R + 4);
       }
-      g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
-      g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      // In 3D the room's own edge marks a full-size arena, so the floor bridge carries the rim only once it has moved in.
+      if (!this.bridge || R < ARENA) {
+        g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
+        g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
+      }
       // The Crucible: the arena is a crucible's rim, molten slag slowly breathing just beyond it.
-      if (w.dungeonId === 'crucible') g.lineStyle(40, MOLTEN, 0.12 + 0.06 * Math.sin(now / 700)).strokeCircle(0, 0, R + 30);
+      if (w.dungeonId === 'crucible' && !this.bridge) g.lineStyle(40, MOLTEN, 0.12 + 0.06 * Math.sin(now / 700)).strokeCircle(0, 0, R + 30);
     }
     // The Glarewell: the floor is lit pale gold, and pillars cast shadow wedges
     // away from the centre lens. The wedges match World.shadowed(), so what you
@@ -2255,6 +2330,8 @@ export class GameScene extends Phaser.Scene {
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
     const lk = this.textK;
     this.emptyVents.length = 0;
+    // In 3D the view draws the plain circles and cones itself, so the floor bridge keeps only the marks drawn over them.
+    const plain = !this.bridge;
     for (const t of w.telegraphs) {
       // Once the boss has fallen its last wind-up never lands, so stop drawing it.
       if (!t.alive || this.bossFell) continue;
@@ -2263,19 +2340,21 @@ export class GameScene extends Phaser.Scene {
       // The edge glows and flickers faster as the strike gets close.
       const flick = f > 0.7 ? 0.5 + 0.5 * Math.sin(now / (f > 0.9 ? 30 : 60)) : 1;
       if (t.shape === 'circle') {
-        g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
-        g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
-        g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
-        g.lineStyle((t.kind === 'soak' ? 3 : 2) * lk, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
-        g.lineStyle(1.5 * lk, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
-        // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
-        if (HATCH && t.kind === 'hit') {
-          g.lineStyle(2, col, 0.45);
-          for (let d = -t.r + 14; d < t.r; d += 16) {
-            // Diagonal chords across the circle.
-            const h = Math.sqrt(t.r * t.r - d * d);
-            const c = Math.SQRT1_2;
-            g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+        if (plain) {
+          g.fillStyle(col, t.kind === 'soak' ? 0.22 : 0.14).fillCircle(t.x, t.y, t.r);
+          g.fillStyle(col, 0.3).fillCircle(t.x, t.y, t.r * f);
+          g.lineStyle(10, col, 0.12 * flick).strokeCircle(t.x, t.y, t.r + 3);
+          g.lineStyle((t.kind === 'soak' ? 3 : 2) * lk, col, 0.9 * (0.6 + 0.4 * flick)).strokeCircle(t.x, t.y, t.r);
+          g.lineStyle(1.5 * lk, 0xffffff, 0.5 * f).strokeCircle(t.x, t.y, t.r * f);
+          // Colour-blind palette: attack zones are hatched, so shape tells them apart, not just colour.
+          if (HATCH && t.kind === 'hit') {
+            g.lineStyle(2, col, 0.45);
+            for (let d = -t.r + 14; d < t.r; d += 16) {
+              // Diagonal chords across the circle.
+              const h = Math.sqrt(t.r * t.r - d * d);
+              const c = Math.SQRT1_2;
+              g.lineBetween(t.x + d * c - h * c, t.y + d * c + h * c, t.x + d * c + h * c, t.y + d * c - h * c);
+            }
           }
         }
         if (t.kind === 'soak' && t.owner === -2 && (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible')) this.ventMark(g, t, f, now);
@@ -2290,17 +2369,19 @@ export class GameScene extends Phaser.Scene {
       } else {
         const a0 = t.angle - t.arc / 2;
         const a1 = t.angle + t.arc / 2;
-        g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
-        g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
-        g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
-        g.lineStyle(2 * lk, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
-        if (HATCH && t.kind === 'hit') {
-          // Hatched cones: spokes every few degrees and arcs across them.
-          g.lineStyle(2, col, 0.45);
-          const n = Math.max(3, Math.round(t.arc / 0.14));
-          for (let k = 1; k < n; k++) {
-            const a = a0 + (t.arc * k) / n;
-            g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+        if (plain) {
+          g.fillStyle(col, 0.14).slice(t.x, t.y, t.r, a0, a1, false).fillPath();
+          g.fillStyle(col, 0.3).slice(t.x, t.y, t.r * f, a0, a1, false).fillPath();
+          g.lineStyle(10, col, 0.12 * flick).slice(t.x, t.y, t.r + 3, a0, a1, false).strokePath();
+          g.lineStyle(2 * lk, col, 0.9 * (0.6 + 0.4 * flick)).slice(t.x, t.y, t.r, a0, a1, false).strokePath();
+          if (HATCH && t.kind === 'hit') {
+            // Hatched cones: spokes every few degrees and arcs across them.
+            g.lineStyle(2, col, 0.45);
+            const n = Math.max(3, Math.round(t.arc / 0.14));
+            for (let k = 1; k < n; k++) {
+              const a = a0 + (t.arc * k) / n;
+              g.lineBetween(t.x + Math.cos(a) * 30, t.y + Math.sin(a) * 30, t.x + Math.cos(a) * t.r, t.y + Math.sin(a) * t.r);
+            }
           }
         }
         if (t.owner >= 0 && w.enemies[t.owner]?.kind === 'grandmotherSlag') this.pourLane(g, t, f, now);
@@ -3393,10 +3474,12 @@ export class GameScene extends Phaser.Scene {
       const q = this.heroXY(d.hero);
       const late = d.t < 3;
       const pulse = 0.5 + 0.5 * Math.sin(now / (late ? 90 : 220));
-      // Scorch: a hot dashed ring on the floor round the holder.
-      g.fillStyle(0xff5a2a, 0.07 + 0.05 * pulse).fillCircle(q.x, q.y, REGENT.scorchRadius);
-      g.lineStyle(3, 0xff7a3a, 0.55 + 0.3 * pulse);
-      this.dashedCircle(g, q.x, q.y, REGENT.scorchRadius, now);
+      // Scorch: a hot dashed ring on the floor round the holder (the 3D view draws its own).
+      if (!this.bridge) {
+        g.fillStyle(0xff5a2a, 0.07 + 0.05 * pulse).fillCircle(q.x, q.y, REGENT.scorchRadius);
+        g.lineStyle(3, 0xff7a3a, 0.55 + 0.3 * pulse);
+        this.dashedCircle(g, q.x, q.y, REGENT.scorchRadius, now);
+      }
       const img = this.decreeImgs[di++];
       const sy = q.y - lift * k;
       if (img) img.setVisible(true).setPosition(q.x, sy).setScale(0.62 * k * (late ? 1 + 0.08 * pulse : 1));

@@ -1,6 +1,6 @@
 // HD-2D test (?hd2d=1) phone check: the Kiln at 320x568 (portrait), the loading screen and the top HUD over the 3D room.
 // Also checks the 3D view's project(x, y): your hero should land near the middle of the screen.
-// Usage: npm run build && node tools/hd2dqa.cjs <outDir> [distDir]
+// Usage: npm run build && node tools/hd2dqa.cjs <outDir> [distDir]   (LAND=1 for 568x320, SEED=<n> for another seed)
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
@@ -14,13 +14,13 @@ const srv = http.createServer((q, r) => {
 }).listen(0);
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const ctx = await b.newContext({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const ctx = await b.newContext({ viewport: process.env.LAND ? { width: 568, height: 320 } : { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await ctx.route('https://*.supabase.co/**', (r) => r.abort());
   await ctx.addInitScript(() => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'full' })));
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
-  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=9&god=1&hd2d=1`);
+  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=${process.env.SEED || 9}&god=1&hd2d=1`);
   await page.waitForTimeout(600);
   await page.evaluate(() => document.getElementById('startBtn').click());
   await page.waitForTimeout(20);
