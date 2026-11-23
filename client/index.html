@@ -1209,6 +1209,10 @@
   .sheet .omens { margin-top: 10px; }
   body.tabs .dungeons { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
   body.tabs .dungeons::-webkit-scrollbar { display: none; }
+  .dg-dots { display: none; }
+  body.tabs .dg-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+  body.tabs .dg-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,235,210,0.28); transition: width 0.2s, background 0.2s; }
+  body.tabs .dg-dots i.on { width: 16px; background: var(--gold); }
   body.tabs .dg { flex: 0 0 min(72%, 300px); scroll-snap-align: start; min-height: 128px; }
   body.tabs .dg:disabled { flex-basis: min(46%, 180px); min-height: 128px; }
   body.tabs .tierrow button { min-height: 44px; }
