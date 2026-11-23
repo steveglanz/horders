@@ -1374,7 +1374,8 @@ export class GameScene extends Phaser.Scene {
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const floor = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // Phase 15 Y1: a pincer or ring wave says so in the fight banner (a banner of its own would be replaced by this one).
-          const ground = floor + (w.waveShape === 'pincer' || w.waveShape === 'ring' ? ` ${WAVE_SHAPE_INFO[w.waveShape].tip}` : '');
+          const shaped = w.waveShape === 'pincer' || w.waveShape === 'ring' ? w.waveShape : undefined;
+          const ground = floor + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
@@ -1396,6 +1397,10 @@ export class GameScene extends Phaser.Scene {
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
             this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, next);
+          } else if (this.hud.compact && !coach && shaped) {
+            // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
+            // in the Dark: 198 characters), and the wave line is the part cut off. It gets its own banner right after.
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip });
           } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach);
           break;
         }
