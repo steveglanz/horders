@@ -29,7 +29,7 @@ export type EnemyKind =
   | 'regent'
   | 'shoalLurker' | 'bargeHauler' | 'hessa'
   | 'emberSpitter' | 'ashbuck'
-  | 'ashwall' | 'ballast';
+  | 'ashwall' | 'ballast' | 'lampeye';
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashling: { id: 'ashling', name: 'Ashling', hp: 10, speed: 52, damage: 5, radius: 9, xp: 1, rank: 'normal' },
@@ -40,6 +40,8 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   ashwall: { id: 'ashwall', name: 'Ashwall', hp: 900, speed: 40, damage: 12, radius: 22, xp: 6, rank: 'elite', title: 'Shields those behind it' },
   // Phase 16 U2 (the Foundry): it drops anchor when you stand in its reach, and planted it shrugs off hits. Keep it walking.
   ballast: { id: 'ballast', name: 'Ballast', hp: 950, speed: 46, damage: 14, radius: 21, xp: 6, rank: 'elite', title: 'Keep it moving' },
+  // Phase 16 U2 (the Glarewell): a lamp with an eye in it. While it can see you its gaze builds, and when it is full it sears you. Look away behind a pillar.
+  lampeye: { id: 'lampeye', name: 'Lampeye', hp: 800, speed: 28, damage: 10, radius: 18, xp: 6, rank: 'elite', title: 'Break its gaze' },
   cinderhound: { id: 'cinderhound', name: 'Cinderhound', hp: 150, speed: 100, damage: 7, radius: 11, xp: 1, rank: 'elite', title: 'Pack hunter' },
   husk: { id: 'husk', name: 'Hollow Warden', hp: 700, speed: 40, damage: 14, radius: 20, xp: 4, rank: 'elite', title: 'Guardian' },
   rift: { id: 'rift', name: 'Hollow Rift', hp: 420, speed: 0, damage: 0, radius: 22, xp: 12, rank: 'normal', stationary: true },
