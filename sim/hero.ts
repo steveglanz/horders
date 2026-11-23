@@ -655,6 +655,26 @@ export function salvageAllPlan(hero: HeroProfile): { items: Item[]; embers: numb
   return { items, embers: items.reduce((a, it) => a + RARITY[it.rarity].salvage, 0), kept };
 }
 
+/**
+ * The end screen's "Equip upgrade" (design, 23 Nov: players who never open Bags left the run's chest item unworn and
+ * lost more delves at tiers 3 and 4). Of `items` (a run's loot), the best one per slot that beats what you wear there
+ * by the same gear score Bags shows (itemScore), or fills a slot you have empty. Items already worn are skipped.
+ */
+export function lootUpgrades(hero: HeroProfile, items: Item[]): { item: Item; gain: number }[] {
+  const worn = new Set(Object.values(hero.equipped));
+  const best = new Map<string, { item: Item; gain: number }>();
+  for (const it of items) {
+    if (worn.has(it.id) || !hero.inventory.some((i) => i.id === it.id)) continue;
+    const curId = hero.equipped[it.slot];
+    const cur = curId ? hero.inventory.find((i) => i.id === curId) : undefined;
+    const gain = itemScore(it) - (cur ? itemScore(cur) : 0);
+    if (gain <= 0) continue;
+    const had = best.get(it.slot);
+    if (!had || gain > had.gain) best.set(it.slot, { item: it, gain });
+  }
+  return [...best.values()];
+}
+
 /** Breaks down everything salvageAllPlan picks. Returns the items broken down and the embers gained. */
 export function salvageAll(hero: HeroProfile): { count: number; embers: number } {
   const plan = salvageAllPlan(hero);
