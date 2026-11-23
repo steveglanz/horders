@@ -77,6 +77,11 @@ const PHONE_TIP: Record<string, string> = {
   [ENCOUNTERS.regent.tip]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. It never lands on the tank, but the tank can take one.',
   [COURT_TIP]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. On a Summons, get inside his gold ring.',
   [PLATE_SHIFT_TIP]: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, find his open back again.',
+  [MILLSTONE_TIP]: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he grinds round, walk round with him.',
+  [TITHE_TIP]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. On a Tithe, two or more of you share the gold circle.',
+  [OVERFLOW_TIP]: 'Heal the Ladle burn off the tank. When the pit overflows, gather close to her until it ebbs. Then fill the vents and spread for the Cinder Marks.',
+  [WHIRL_TIP]: 'Hit her between pulls and keep a raft afloat. Later the water swirls and carries you, turning the other way each time: wade across it to a raft.',
+  [ROLLING_TIP]: 'Her vents open one at a time, each further round her: spread so someone is near the next. Never stand together when the Embers mark you.',
 };
 const SLAG_COOL = 0xbcd6e6;
 // Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
