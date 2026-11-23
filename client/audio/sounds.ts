@@ -909,6 +909,21 @@ export const SOUNDS = {
      { wave: 'sine', f: note(0), f2: note(-6), dur: 0.16, vol: 0.1, curve: 3 },
      { wave: 'noise', f: 0, dur: 0.08, delay: 0.17, vol: 0.14, lp: 1200, hp: 350, curve: 3 }],
   ),
+  /** Phase 16 U2: the Conchblower raises its shell (Conch Call, CONCH.cast 1.8 s, can be interrupted): a deep, breathy
+   *  shell note that bends up into pitch and buzzes, with the sea's hiss behind it. Kick it before it ends, or the Ebb
+   *  comes sooner. Ends before the cast does. */
+  conchWarn: join(
+    [{ wave: 'saw', f: note(-19), f2: note(-17), dur: 1.35, vol: 0.28, a: 0.25, lp: 900, lp2: 2400, curve: 1.1, vib: [4.5, 0.008] },
+     { wave: 'square', f: note(-5), f2: note(-5) * 1.004, dur: 1.2, delay: 0.1, vol: 0.1, a: 0.3, lp: 2600, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 1.3, vol: 0.09, a: 0.2, lp: 3500, hp: 900, curve: 1.2, trem: [7, 0.4] }],
+  ),
+  /** The blast lands (castDone 'conchBlown': the next Ebb comes sooner, or the one running holds longer): a low swell of
+   *  water rising and drawing back. */
+  conchSwell: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.24, a: 0.45, lp: 900, lp2: 3500, hp: 380, curve: 1.3 },
+     { wave: 'sine', f: 70, f2: 95, dur: 1.0, vol: 0.12, a: 0.4, curve: 1.4 },
+     { wave: 'tri', f: note(-17), f2: note(-19), dur: 0.7, delay: 0.25, vol: 0.06, a: 0.2, lp: 1500, curve: 1.5 }],
+  ),
   /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
    *  so "that did little" is heard without looking. Takes the place of the hit sound. */
   glance: [
@@ -1855,6 +1870,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   anchorWarn: 4.5, anchorDrop: 3.0, anchorWeigh: 3.0, // U2 Ballast: the wind-up ~8 dB over the Foundry mix (busycheck t8 heroes, SEEDS=1-24); drop and weigh ordinary
   gaze1: 3.0, gaze2: 3.0, gaze3: 3.0, gaze4: 3.0, gaze5: 3.0, searingWarn: 3.0, // U2 Lampeye: see busycheck in the PR
   dimhornCall: 4.5, dimhornSilenced: 2.0, // U2 Dimhorn: the call 7.8 dB over the Coldmarrow party mix (t8 heroes, forced, callAt 2, n=14), 20.2 solo
+  conchWarn: 4.0, conchSwell: 2.0, // U2 Conchblower: the shell note 10.9 dB over the Wrackline party mix (t8 heroes, forced, n=161), 17.0 solo
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
