@@ -149,3 +149,7 @@ Each was searched on wowhead.com, warcraft.wiki.gg and wowpedia, and the bigger 
   - A molten "Pour" theme: the raid already has the Ladle Pour and The Pour.
   - "Undertow" for the mechanic: Maelra already casts Undertow.
   - "Brinecutter": too close to The Briny Cutter.
+
+## Watch item: the Lumen in the Lurkers opener (23 Nov 2026)
+
+Skills' U4 check: in a forced Lurkers opener at t10 (hero-t8-0, seeds 41 to 200) the Lumen loses 30 of 160 in the first fight, and no other class loses more than 4. The two Cinderhounds board a raft with it in the first Ebb while the pack is still up, because its damage is short range. Lurkers can't board. A later first Ebb (`WRACK.firstTide` 20) only moves the deaths later. In natural runs it is mild: the Lumen loses 10 of 160 in its first fight, against 9 for the Emberwright. So nothing changes for now. If real player data shows it, the first lever to try is swapping the opener's two hounds for lurkers.
