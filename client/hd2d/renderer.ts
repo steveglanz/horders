@@ -194,13 +194,14 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   }
   throne.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; }); room.add(throne);
   const flames: THREE.Mesh[] = [];
-  // Only the back and side braziers: the handoff's two front ones stood between this camera and the fight.
-  for (const a of [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.55, Math.PI + 1.55]) {
+  // Only the back braziers: the handoff's two front ones stood between this camera and the fight, and side ones
+  // (PI ± 1.55) came within a metre of the camera when your hero stood at that side (mobile's 568x320 check, 23 Nov).
+  for (const a of [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
     const g = new THREE.Group(); g.position.set(Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62);
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
     const coals = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 10), chimMouth); coals.position.y = 0.95; g.add(coals);
-    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.0, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.58, 0.18), transparent: true, opacity: 0.92 }));
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.0, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.38, 0.1), transparent: true, opacity: 0.92 }));
     fl.position.y = 1.45; g.add(fl); flames.push(fl);
     bowl.castShadow = stem.castShadow = true;
     room.add(g);
@@ -255,7 +256,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // Wall sconces: an iron bracket and a flame that glows on its own (no light each: the phone budget keeps two).
   const SC = saver ? 6 : 12;
   const bracket = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.5, 0.4), iron, SC);
-  const scFlame = new THREE.InstancedMesh(new THREE.ConeGeometry(0.16, 0.5, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 0.62, 0.2) }), SC);
+  const scFlame = new THREE.InstancedMesh(new THREE.ConeGeometry(0.16, 0.5, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.38, 0.1) }), SC);
   for (let k = 0; k < SC; k++) {
     const a = (k / SC) * Math.PI * 2 + 0.26, r = 10.45;
     if (near(a)) { put(bracket, k, 0, -50, 0, 0, 0.001); put(scFlame, k, 0, -50, 0, 0, 0.001); continue; }
