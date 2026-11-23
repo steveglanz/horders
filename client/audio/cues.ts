@@ -217,6 +217,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // The Smeltery (raid 3): the Cinder Colossus. Wheel's end is carried by the wheel event and the Sweep it starts.
   slagSweep: { start: 'sweepWarn', done: 'slagSweep' }, // Slag Sweep
   wheel: { start: 'wheelWarn' }, // Wheel
+  tithe: { start: 'titheWarn' }, // The Regent's Tithe (Y3): the gold circle appears (TITHE.fuse 4 s); its landing is the tithe event
   millstone: { start: 'millWarn' }, // Millstone (Y3): its end is the millstone event's start, so no castDone
   // The Colossus's Plate Shift version: his plate slides round to face a hero (the same 'wheel' event marks them).
   plateShift: { start: 'plateShiftWarn', done: 'plateLock' }, // Plate Shift
@@ -468,7 +469,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
-    case 'tithe': return null; // Y3 Tithe: cue to come from sound
+    case 'tithe': return { id: ev.ok ? 'titheShared' : 'titheMissed' };
     case 'millstone': return { id: ev.stage === 'start' ? 'millStart' : 'millEnd' };
     case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };
     // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
@@ -681,7 +682,8 @@ export function pressedCue(state: { on: boolean }, pressed: boolean): Cue | null
  */
 export function withoutBankedSoaks<E extends SimEvent>(evs: readonly E[]): E[] {
   // The soak event names its telegraph's owner now (#432): -4 is a Banked Coal. The same-spot match stays for older events.
-  evs = evs.filter((ev) => ev.type !== 'soak' || ev.owner !== -4);
+  // -5 is the Furnace Regent's Tithe (Y3): its own tithe event, in the same tick, says shared or missed.
+  evs = evs.filter((ev) => ev.type !== 'soak' || (ev.owner !== -4 && ev.owner !== -5));
   const at = new Set<string>();
   for (const ev of evs) if (ev.type === 'emberTaken' || ev.type === 'emberEaten') at.add(`${ev.x},${ev.y}`);
   if (!at.size) return evs as E[];
@@ -841,7 +843,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
