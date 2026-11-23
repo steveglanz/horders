@@ -1539,3 +1539,29 @@ Coldmarrow t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`
 | Slagbinder | 83 s, 55 | 138 s, 57 | 64 s, 59 |
 
 With their rule, the bots never let it call. Without the rule, the Emberwright, Lumen and Slagbinder met a call in all 80 runs, the Duskblade in 51 and the Bulwark in 33. Natural Coldmarrow t10 runs, seeds 1 to 160, wins before / after: Bulwark 116 / 117, Duskblade 90 / 89, Emberwright 121 / 121, Lumen 123 / 121, Slagbinder 116 / 122. The cap doesn't change these, because with the rule no call happens.
+
+## Phase 16 U2: the Wrackline's new elite, the Conchblower
+
+The Wrackline is a fight against the Ebb's clock, so its new elite plays with that clock. The **Conchblower** (`conchblower`, 560 hp, elite, title "Calls the Ebb") swims the quay with a great shell. It comes in the new opener **The Conchblower** (`conch`): one Conchblower and two Shoal Lurkers, which surge in the Ebb. Tip: "Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns." The name was searched: no World of Warcraft match.
+
+- **Conch Call:** `CONCH.first` (4 s) after it spawns, then every `every` (8 s), it casts Conch Call for `cast` (1.8 s). The cast is Quenchable, like the Hauler's Haul. When a blast lands, the next Ebb comes `hasten` (6 s) sooner, but never less than `floor` (1 s) away. During an Ebb, a blast holds the water `hold` (1.5 s) longer. Each landed blast fires `castDone` id `conchBlown`.
+- **It swims the Ebb:** like a Shoal Lurker, the water doesn't drag it.
+- **The answer:** keep your Quench for the conch, and fight near a raft, because blasts you miss bring the water early.
+- **Bots:** the usual interrupt rule covers it. Even at half skill the bots Quench nearly every blast.
+- **Client:** the cast bar shows the blast. It wears the Barge Hauler's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version had 700 hp and three Lurkers. Ranged heroes then spent about 94 s in the fight. With 560 hp and two Lurkers it takes 61 to 79 s.
+
+Wrackline t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`). Each cell is the median fight time, then whole-run wins. The Lurkers column is the first version's control run.
+
+| Class | Conchblower | The Lurkers | Blasts Quenched / landed |
+|---|---|---|---|
+| Bulwark | 45 s, 44 | 27 s, 46 | 377 / 2 |
+| Duskblade | 42 s, 56 | 29 s, 57 | 293 / 40 |
+| Emberwright | 72 s, 53 | 59 s, 63 | 572 / 17 |
+| Lumen | 61 s, 74 | 53 s, 55 | 484 / 30 |
+| Slagbinder | 79 s, 79 | 55 s, 79 | 572 / 105 |
+
+Natural Wrackline t10 runs, seeds 1 to 160, wins before / after: Bulwark 92 / 92, Duskblade 110 / 107, Emberwright 122 / 113, Lumen 136 / 140, Slagbinder 158 / 157.
+
+The Emberwright's drop is not the Conchblower. It won 13 of the 19 runs that met it (68%). In its other 141 runs it won 100 (71%), against 76% over all 160 before, so most of the drop is re-rolled routes. **Watch item for skills:** the Emberwright's forced first fight, 53 against 63.

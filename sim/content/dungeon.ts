@@ -19,7 +19,7 @@ export type EncounterId =
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
   | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
-  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn';
+  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn' | 'conch';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -72,6 +72,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
   // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
+  conch: { id: 'conch', name: 'The Conchblower', tip: 'Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns.', spawns: [{ kind: 'conchblower', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
   dimhorn: { id: 'dimhorn', name: 'The Dimhorn', tip: 'Out in the dark it winds its horn and calls the pack. Keep it inside your coal\'s light, where it can\'t sound it.', spawns: [{ kind: 'dimhorn', n: 1 }, { kind: 'snuffer', n: 2 }] },
   lampeye: { id: 'lampeye', name: 'The Lampeye', tip: 'While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light.', spawns: [{ kind: 'lampeye', n: 1 }, { kind: 'shade', n: 3 }] },
   shades: { id: 'shades', name: 'Shades in the Dark', tip: 'Shades barely feel hits in shadow. Pull them into the light.', spawns: [{ kind: 'shade', n: 4 }] },
@@ -202,7 +203,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   wrackline: {
     id: 'wrackline', name: 'The Wrackline', boss: 'hessa', unlockTier: 13,
-    openers: ['lurkers', 'haulers', 'wardenShoal', 'quaySpitters', 'quayCharge', 'shoalRift'], named: ['twoHaulers', 'wardenShoal', 'haulerSpitters'], hard: ['haulerWarden', 'twoHaulers'],
+    openers: ['lurkers', 'haulers', 'wardenShoal', 'quaySpitters', 'quayCharge', 'shoalRift', 'conch'], named: ['twoHaulers', 'wardenShoal', 'haulerSpitters'], hard: ['haulerWarden', 'twoHaulers'],
     blurb: 'A wrecked quay where the Ebb drags everything to the drain. Ride the rafts when the water pulls.', style: 'solo', minParty: 1,
   },
   hammerdeep: {

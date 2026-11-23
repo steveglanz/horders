@@ -2142,6 +2142,7 @@ export class World {
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
+        if (sp.kind === 'conchblower') e.abilityT = CONCH.first;
         if (sp.kind === 'ysmeret') {
           this.bossSpawned = true;
           this.bossIndex = i;
@@ -5099,6 +5100,11 @@ export class World {
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+    } else if (id === 'conchCall') {
+      // Phase 16 U2: the next Ebb comes `hasten` s sooner (never sooner than `floor` s off). Mid-Ebb it holds the water.
+      if (this.ebbT > 0) this.ebbT += CONCH.hold;
+      else if (this.ebbWarnT <= 0) this.tideClockT = Math.max(CONCH.floor, this.tideClockT - CONCH.hasten);
+      this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'conchBlown', name: 'The Ebb Comes Sooner' });
     } else if (id === 'darkCall') {
       // Phase 16 U2: the Dimhorn's horn calls the pack in from the dark edge behind it. A Dimhorn dragged into a coal's
       // light before the call ends is silenced, and the call is lost.
@@ -5478,6 +5484,14 @@ export class World {
     }
     if (e.kind === 'nhevra') return; // all on coldClock
     if (e.kind === 'hessa') return; // all on wrackClock
+    if (e.kind === 'conchblower') {
+      // Phase 16 U2: the conch calls the Ebb sooner. Quench the blast.
+      if (e.abilityT <= 0) {
+        e.abilityT = CONCH.every;
+        this.startCast(i, 'conchCall', 'Conch Call', CONCH.cast, true);
+      }
+      return;
+    }
     if (e.kind === 'bargeHauler') {
       if (e.abilityT <= 0) {
         // Haul: a hook line at its target. Quench it, or get yanked toward the Hauler.
@@ -6569,7 +6583,7 @@ export class World {
       // The water takes foes too: all but Lurkers and bosses drift in, and the drain hurts them.
       for (let i = 0; i < this.enemies.length; i++) {
         const e = this.enemies[i];
-        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
+        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.kind === 'conchblower' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
@@ -8657,7 +8671,7 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
  * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
  */
-export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye', 'dimhorn'];
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye', 'dimhorn', 'conchblower'];
 export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
@@ -8769,6 +8783,13 @@ export const VARIETY = {
  * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
  * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
  */
+/**
+ * Phase 16 U2: the Conchblower (the Wrackline). Every `every` s (first after `first`) it casts Conch Call for `cast` s,
+ * Quenchable. A blast that lands brings the next Ebb `hasten` s sooner, but never to under `floor` s away; during an
+ * Ebb it holds the water `hold` s longer. It swims the Ebb like a Shoal Lurker rather than drifting.
+ */
+export const CONCH = { first: 4, every: 8, cast: 1.8, hasten: 6, floor: 1, hold: 1.5 };
+
 /**
  * Phase 16 U2: the Dimhorn (the Coldmarrow). It hangs `hang` px outside its hero's coal light (circling in a `band`
  * px wide ring). `Enemy.aux` counts its seconds out of every coal's light, draining `drain` times as fast inside one.

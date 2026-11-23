@@ -892,6 +892,23 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 0.75, vol: 0.16, a: 0.45, lp: 9000, hp: 3000, curve: 1.2 }],
     chime(note(24), 0.78, 0.14, 0.15),
   ),
+  /** Phase 16 U2: the Dimhorn's Dark Call (DIMHORN.callCast 2 s, can't be interrupted; drag it into a coal's light to
+   *  silence it): a hollow horn far off in the dark, two falling notes, each answered by a fainter echo off the ice.
+   *  Unlike the war horn of reinforceWarn it falls, and it's colder. Ends before the cast does. */
+  dimhornCall: join(
+    horn(note(-12), 0.85, 0.42).map((v) => ({ ...v, a: 0.22 })),
+    horn(note(-17), 0.8, 0.4).map((v) => ({ ...v, a: 0.18, delay: (v.delay ?? 0) + 0.8 })),
+    horn(note(-12), 0.5, 0.09).map((v) => ({ ...v, a: 0.15, delay: (v.delay ?? 0) + 0.38 })),
+    horn(note(-17), 0.5, 0.08).map((v) => ({ ...v, a: 0.15, delay: (v.delay ?? 0) + 1.2 })),
+    [{ wave: 'noise', f: 0, dur: 1.5, vol: 0.05, a: 0.6, lp: 9000, hp: 4500, curve: 1.2 }],
+  ),
+  /** The Dimhorn is silenced (in a coal's light as its call ends, castDone 'darkCallLost'): the horn starts and chokes
+   *  off, a short strangled note and a muffled gulp. Good news, so ordinary. */
+  dimhornSilenced: join(
+    [{ wave: 'saw', f: note(-12), f2: note(-15), dur: 0.2, vol: 0.18, a: 0.03, lp: 1800, lp2: 500, curve: 3 },
+     { wave: 'sine', f: note(0), f2: note(-6), dur: 0.16, vol: 0.1, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.08, delay: 0.17, vol: 0.14, lp: 1200, hp: 350, curve: 3 }],
+  ),
   /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
    *  so "that did little" is heard without looking. Takes the place of the hit sound. */
   glance: [
@@ -1837,6 +1854,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   bashWarn: 7.2, glance: 4.0, // U2 Ashwall: the wind-up 6.1 dB over the Kiln mix (busycheck t8 heroes, SEEDS=1-16, n=9), level with chargeWindup; the glance a little over plateHit, under the plain hit
   anchorWarn: 4.5, anchorDrop: 3.0, anchorWeigh: 3.0, // U2 Ballast: the wind-up ~8 dB over the Foundry mix (busycheck t8 heroes, SEEDS=1-24); drop and weigh ordinary
   gaze1: 3.0, gaze2: 3.0, gaze3: 3.0, gaze4: 3.0, gaze5: 3.0, searingWarn: 3.0, // U2 Lampeye: see busycheck in the PR
+  dimhornCall: 4.5, dimhornSilenced: 2.0, // U2 Dimhorn: the call 7.8 dB over the Coldmarrow party mix (t8 heroes, forced, callAt 2, n=14), 20.2 solo
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
