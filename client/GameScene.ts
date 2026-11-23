@@ -929,6 +929,7 @@ export class GameScene extends Phaser.Scene {
       anvilOnMe: w.dungeonId === 'hammerdeep' && (w.anvilOnMe || (w.loadHero === w.acting && w.loadT > 0)),
       ebbPull: w.dungeonId === 'wrackline' && w.ebbT > 0,
       outsurge: w.dungeonId === 'wrackline' && w.outsurge,
+      whirl: w.dungeonId === 'wrackline' && w.whirl,
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,

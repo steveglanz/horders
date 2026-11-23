@@ -358,7 +358,7 @@ class AudioEngine {
     if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
-    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge));
+    this.cue(ebbCue(this.ebbing, !!ctx.ebbPull, !!ctx.outsurge, !!ctx.whirl));
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
