@@ -59,7 +59,8 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   shade: { id: 'shade', name: 'Shade', hp: 300, speed: 70, damage: 8, radius: 13, xp: 2, rank: 'elite', title: 'Shadowborn' },
   brandkeeper: { id: 'brandkeeper', name: 'Brandkeeper', hp: 900, speed: 44, damage: 12, radius: 19, xp: 6, rank: 'elite', title: 'Brand' },
   twinLamp: { id: 'twinLamp', name: 'Twin Lamp', hp: 760, speed: 30, damage: 10, radius: 17, xp: 5, rank: 'elite', title: 'Lamp' },
-  lensmother: { id: 'lensmother', name: 'The Lensmother', hp: 6200, speed: 32, damage: 22, radius: 40, xp: 0, rank: 'boss', title: 'Boss' },
+  // Touch damage 16 (was 22, playtest follow-up 23 Nov): about three quarters of a melee hero's boss-fight damage is her touch.
+  lensmother: { id: 'lensmother', name: 'The Lensmother', hp: 6200, speed: 32, damage: 16, radius: 40, xp: 0, rank: 'boss', title: 'Boss' },
   // A shadow of the shared world boss: it can't be killed, only hurt for 60 seconds.
   worldShadow: { id: 'worldShadow', name: 'Shadow of the World Boss', hp: 1e9, speed: 34, damage: 22, radius: 48, xp: 0, rank: 'boss', title: 'World boss' },
   // The Hammerdeep's group boss: role checks rather than dodge checks.
