@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -1419,6 +1419,7 @@ export class GameScene extends Phaser.Scene {
             if (ev.phase === 2 && w.bossVariant === 'tide') this.hud.banner('Phase 2: Sluicetide', 'The water runs across the room and pushes you. Lean into it, and watch for it to turn');
             else if (ev.phase === 2 && w.bossVariant === 'seal') this.hud.banner('Phase 2: Sealed Vents', 'Only one vent steams now. Drag her to it, and watch for the steam to move');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Rising Water', `The arena shrinks. ${w.abilities[3].name} her Undertow`);
+            else if (w.bossEcho) this.hud.banner('Phase 3: Overpressure', `The vents erupt on their own, and ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho} comes and goes`);
             else this.hud.banner('Phase 3: Overpressure', 'The vents erupt on their own. Time your kiting');
           } else if (w.dungeonId === 'wrackline') {
             if (w.bossVariant === 'outsurge') this.hud.banner('Phase 2: The Outsurge', 'The water throws you out to the rim, and the rim burns. Stay on a raft');
@@ -2267,7 +2268,7 @@ export class GameScene extends Phaser.Scene {
       const fr = String(Math.floor(now / 160 + k) % 4);
       if (vs.frame.name !== fr) vs.setFrame(fr);
       // Y3 Sealed Vents: a sealed vent goes dark; the open one glows; the next one pulses before the steam moves.
-      const sealed = w.openVent >= 0 && w.bossVariant === 'seal' && k !== w.openVent;
+      const sealed = w.openVent >= 0 && versionLive(w, 'seal') && k !== w.openVent;
       const next = sealed && k === w.nextVent;
       vs.setVisible(true).setPosition(v.x, v.y).setScale((v.r * 2.25) / (64 * SPRITE_RES)).setAlpha(0.88);
       if (sealed) {
@@ -2293,7 +2294,7 @@ export class GameScene extends Phaser.Scene {
           sg.lineStyle(2, 0xffffff, 0.25 + 0.35 * p).lineBetween(x - r * 0.9, y, x + r * 0.9, y);
           if (!this.lowFx && Math.random() < 0.25) { const a = Math.random() * Math.PI * 2; this.steam(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8 - 4, 0.35); }
         }
-      } else if (w.openVent >= 0 && w.bossVariant === 'seal') {
+      } else if (w.openVent >= 0 && versionLive(w, 'seal')) {
         // Y6: the open vent boils her from MAELRA_SEAL.wide times its radius (skills' Y5 fix), so its reach is drawn
         // there: a faint steam pool and a ring of dashes turning slowly, round the grate's own ring.
         const tk = Math.max(1, this.textK);
@@ -2312,7 +2313,7 @@ export class GameScene extends Phaser.Scene {
     if (!sealedDrawn) this.sealGfx?.clear();
     if (w.vents.length && now > this.steamAt && !this.lowFx) {
       this.steamAt = now + 140;
-      const v = w.openVent >= 0 && w.bossVariant === 'seal' && w.vents[w.openVent] ? w.vents[w.openVent] : w.vents[Math.floor(Math.random() * w.vents.length)];
+      const v = w.openVent >= 0 && versionLive(w, 'seal') && w.vents[w.openVent] ? w.vents[w.openVent] : w.vents[Math.floor(Math.random() * w.vents.length)];
       this.steam(v.x + (Math.random() - 0.5) * v.r * 0.6, v.y - 4, 0.5 + Math.random() * 0.4);
     }
     // Fork gates: gold for the named path, teal for a shrine, pale for the steady fight.
@@ -3102,7 +3103,7 @@ export class GameScene extends Phaser.Scene {
    */
   private tideDraw(now: number): void {
     const w = this.world;
-    const m = w.bossVariant === 'tide' ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
+    const m = versionLive(w, 'tide') ? w.enemies.find((e) => e.alive && e.kind === 'maelra') : undefined;
     if (!m || m.hp > m.maxHp * 0.6) { this.tideGfx?.clear(); this.tideOn = false; return; }
     if (!this.tideGfx) this.tideGfx = this.add.graphics().setDepth(1.3);
     const g = this.tideGfx;

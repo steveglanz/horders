@@ -862,9 +862,12 @@ export class World {
    * Phase 16 U1: this run's echo, a second version of the same boss (never the rolled one) whose move she also uses in her
    * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
    */
-  bossEcho: KilnVariant | '' = '';
+  bossEcho: string = '';
   /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
   echoNext = false;
+  /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
+  echoLive = false;
+  echoT = 0;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
@@ -1966,6 +1969,9 @@ export class World {
           this.bossIndex = i;
           this.startMaelra();
           this.bossVariant = this.rollMaelraVariant();
+          // Rising water is already in every version but the Sluicetide, so only the other two echo.
+          this.bossEcho = this.rollEcho(MAELRA_ECHOES, this.bossVariant);
+          this.echoLive = false; this.echoT = MAELRA_ECHO.first;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensmother') {
@@ -7425,15 +7431,31 @@ export class World {
       this.bossPhase = phase;
       this.events.push({ type: 'phase', phase });
     }
+    // Phase 16 U1: in her last phase her echo comes and goes, `on` s at a time.
+    if (phase >= 3 && this.bossEcho) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? MAELRA_ECHO.on : MAELRA_ECHO.off;
+        if (this.echoLive) {
+          this.events.push({ type: 'echo', id: this.bossEcho });
+          if (this.bossEcho === 'tide') this.sluiceT = 0;
+        } else if (this.bossEcho === 'seal') {
+          // The steam lets go: every vent is open again until the next echo.
+          this.openVent = -1; this.nextVent = -1;
+        }
+      }
+    }
+    const has = (v: MaelraVariant) => versionLive(this, v);
     // Temper builds over time; dragging her through a vent boils it away.
     // Y3 Sealed Vents: with one vent open, her Temper builds `temperSlow` times slower from phase 2.
-    this.temperT -= dt / (phase >= 2 && this.bossVariant === 'seal' ? MAELRA_SEAL.temperSlow : 1);
+    this.temperT -= dt / (phase >= 2 && has('seal') ? MAELRA_SEAL.temperSlow : 1);
     if (this.temperT <= 0) {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
     }
     // Y3 Sealed Vents: one vent open at a time, the steam moving round.
-    const sealed = phase >= 2 && this.bossVariant === 'seal' && this.vents.length > 1;
+    const sealed = phase >= 2 && has('seal') && this.vents.length > 1;
     if (sealed) {
       if (this.openVent < 0) {
         this.openVent = this.pickVent(-1, e);
@@ -7470,7 +7492,7 @@ export class World {
       }
     }
     // V8 Sluicetide (some runs): instead of rising, the water runs across the room and turns now and then.
-    if (phase >= 2 && this.bossVariant === 'tide') {
+    if (phase >= 2 && has('tide')) {
       this.sluiceT -= dt;
       if (this.sluiceT <= 0) {
         this.sluiceT = SLUICETIDE.turnEvery;
@@ -8350,6 +8372,13 @@ export type MaelraVariant = 'water' | 'tide' | 'seal';
 export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
+/** Phase 16 U1: Maelra's echo windows in her last phase: the first `first` s in, then `on` s on and `off` s off. */
+export const MAELRA_ECHO = { first: 2, on: 12, off: 10 };
+/** Maelra's versions that can echo: rising water is in every version but the Sluicetide already. */
+export const MAELRA_ECHOES: MaelraVariant[] = ['tide', 'seal'];
+/** Phase 16 U1: is this version in effect now, rolled or as a live echo? (For bosses whose echo runs in windows.) */
+export const versionLive = (w: { bossVariant: string; bossEcho: string; echoLive: boolean }, v: string): boolean =>
+  w.bossVariant === v || (w.echoLive && w.bossEcho === v);
 /**
  * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
  * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
