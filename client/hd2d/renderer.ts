@@ -24,6 +24,7 @@ import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltSh
 import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js';
 import { frames as artFrames, HERO, BOSS } from './art';
 import type { Hd2dAdapter, Hd2dView } from './api';
+import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
@@ -733,6 +734,8 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // that every room has, ticked by frame(): faint shafts of light swaying down from above, low mist drifting over the
   // floor, and per room chains swaying on the walls (forges) or drips falling and ringing on the floor (wet rooms).
   const life: ((t: number) => void)[] = [];
+  // What sound can follow (Hd2dView.sounds): a drip landing, a chain at the end of its sway. Room units.
+  const heard: { kind: 'drip' | 'chain'; x: number; z: number }[] = [];
   {
     const keyC = new THREE.Color(th.key);
     // Shafts of light: tall soft cones from the dark above, each with a pool on the floor, swaying slowly.
@@ -770,7 +773,14 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
         for (let j = 0; j < n; j++) { const l = new THREE.Mesh(link, iron); l.position.y = -j * 0.15; l.rotation.y = j % 2 ? Math.PI / 2 : 0; g.add(l); }
         const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3), iron); hook.position.y = -n * 0.15 - 0.12; g.add(hook);
         room.add(g);
-        life.push((t) => { g.rotation.z = Math.sin(t * 0.7 + k * 1.3) * 0.045; g.rotation.x = Math.sin(t * 0.5 + k) * 0.03; });
+        let swing = 0;
+        life.push((t) => {
+          g.rotation.z = Math.sin(t * 0.7 + k * 1.3) * 0.045; g.rotation.x = Math.sin(t * 0.5 + k) * 0.03;
+          // The end of a sway, where the links knock.
+          const dir = Math.sign(Math.cos(t * 0.7 + k * 1.3));
+          if (swing && dir && dir !== swing && heard.length < 16) heard.push({ kind: 'chain', x: g.position.x, z: g.position.z });
+          if (dir) swing = dir;
+        });
       }
     }
     if (wet) {
@@ -785,8 +795,12 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
         const ringM = ringMat.clone();
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), ringM); ring.rotation.x = -Math.PI / 2; ring.position.set(x, FLOOR + 0.015, z); room.add(ring);
         const per = 2.2 + (k % 4) * 0.7, off = k * 0.61;
+        let was = -1;
         life.push((t) => {
           const ph = ((t + off) % per) / per, fall = 0.45; // 45% of the cycle falling, then the ring spreads
+          // It lands as the ring starts.
+          if (was >= 0 && was < fall && ph >= fall && heard.length < 16) heard.push({ kind: 'drip', x, z });
+          was = ph;
           drop.visible = ph < fall;
           if (ph < fall) { const f = ph / fall; drop.position.set(x, FLOOR + 6 * (1 - f * f), z); }
           const rp = ph < fall ? -1 : (ph - fall) / 0.35;
@@ -796,7 +810,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       }
     }
   }
-  return { room, flames, basalt, glows, th, drift, life };
+  return { room, flames, basalt, glows, th, drift, life, heard };
 }
 
 /* ---------- sprites ---------- */
@@ -856,7 +870,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
-  const { room, flames, basalt, glows, drift, life } = buildRoom(scene, saver, addLight, rid);
+  const { room, flames, basalt, glows, drift, life, heard } = buildRoom(scene, saver, addLight, rid);
   let roomFor = -1;
 
   const flat = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + y; m.renderOrder = 2; scene.add(m); return m; };
@@ -1104,6 +1118,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   let attacks = 0;
   /** How many foe attacks (lunges) have started, for stats(). */
   let foeAttacks = 0;
+  /** Sounds for Hd2dView.sounds since it was last asked, in world units (capped, in case nobody asks). */
+  const sfx: RoomSound[] = [];
   let bridge: { mesh: THREE.Mesh; tex: THREE.CanvasTexture; stamp: number } | null = null;
   const resize = () => {
     const w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
@@ -1244,6 +1260,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       let fa = foeAtk[i];
       if (!fa || fa.born !== e.spawnedAt) fa = foeAtk[i] = { born: e.spawnedAt, touch: e.touchCd, abil: e.abilityT, at: -9, dx: 0, dz: 1 };
       if (e.touchCd > fa.touch + 0.05 || e.abilityT > fa.abil + 0.05) {
+        if (sfx.length < 32) sfx.push({ kind: 'lunge', x: e.x, y: e.y, melee: e.touchCd > fa.touch + 0.05, rank: e.def.rank });
         fa.at = w.time; foeAttacks++;
         let best = Infinity;
         for (const q of heroPts) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < best) { best = d; const l = Math.sqrt(d) || 1; fa.dx = (q.x - e.x) / l; fa.dz = (q.y - e.y) / l; } }
@@ -1459,6 +1476,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     flames.forEach((fl, i) => fl.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(t * 9 + i * 1.7)), 1));
     for (const d of drift) { d.offset.x = (t * 0.012) % 1; d.offset.y = (t * 0.007) % 1; }
     for (const f of life) f(t);
+    // Room units to world: the room is centred on the arena and scaled so ROOM_R is World.arenaR.
+    for (const h of heard.splice(0)) if (sfx.length < 32) sfx.push({ kind: h.kind, x: (h.x * w.arenaR) / ROOM_R, y: (h.z * w.arenaR) / ROOM_R });
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
@@ -1503,6 +1522,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const p = pv.set(x * S, FLOOR, y * S).project(camera);
       if (p.z > 1 || !W || !H) return null;
       return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
+    },
+    sounds() {
+      return sfx.splice(0);
     },
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;

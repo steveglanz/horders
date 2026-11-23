@@ -362,9 +362,9 @@ describe('V4 variety: the Day\'s Heat', () => {
 
 describe('V8 variety: the Drowned Foundry', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, all defined', () => {
+  it('draws from 7 openers and 3 named fights, all defined', () => {
     const d = DUNGEONS.foundry;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
   });

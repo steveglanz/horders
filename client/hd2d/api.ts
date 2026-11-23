@@ -10,6 +10,7 @@
  * renderer and GameScene share.
  */
 import type { World } from '../../sim/world';
+import type { RoomSound } from '../audio/cues';
 
 /** What GameScene hands the renderer each run. */
 export interface Hd2dAdapter {
@@ -48,6 +49,11 @@ export interface Hd2dView {
    * or null when it is behind the camera. For overlays drawn over the 3D view (the phone edge chevrons).
    */
   project(x: number, y: number): { x: number; y: number } | null;
+  /**
+   * What the room did since the last call that sound can follow (client/audio/cues.ts roomCues): drips landing,
+   * forge chains at the end of a sway, and foe lunges starting. Drains the list.
+   */
+  sounds?(): RoomSound[];
 }
 
 export interface Hd2dModule {
