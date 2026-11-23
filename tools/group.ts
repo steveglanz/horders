@@ -73,6 +73,8 @@ const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).
 let wins = 0;
 /** STIRHURT=1: Phase 15 Y10's judged cost of each trash clear (the worst hero against their class bar), as percentiles. */
 const fightHurts: number[] = [];
+/** STIRHURT=1: how often each class was the worst-off hero of a cleared fight. */
+const worstBy: Record<string, number> = {};
 for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
@@ -141,7 +143,12 @@ for (const seed of seeds) {
       }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'stir') bump('stir:' + ev.id);
-      if (ev.type === 'encounterClear') fightHurts.push(w.fightHurt);
+      if (ev.type === 'encounterClear') {
+        fightHurts.push(w.fightHurt);
+        const k = w.fightWorst;
+        const who = k < 0 ? 'none' : `${w.heroes[k].cls}${w.heroData(k).player.stance === 'anvil' ? '(anvil)' : ''}`;
+        worstBy[who] = (worstBy[who] ?? 0) + 1;
+      }
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');
       if (ev.type === 'revive') bump('revive');
@@ -160,6 +167,6 @@ for (const seed of seeds) {
 if (process.env.STIRHURT === '1' && fightHurts.length) {
   const q = [...fightHurts].sort((x, y) => x - y);
   const at = (f: number) => q[Math.min(q.length - 1, Math.floor(f * q.length))].toFixed(3);
-  console.log(`stirhurt n=${q.length} p25=${at(0.25)} p50=${at(0.5)} p75=${at(0.75)} p90=${at(0.9)}`);
+  console.log(`stirhurt n=${q.length} p25=${at(0.25)} p50=${at(0.5)} p75=${at(0.75)} p90=${at(0.9)} worst=${JSON.stringify(worstBy)}`);
 }
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);
