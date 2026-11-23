@@ -418,6 +418,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'tideTurn': return { id: 'tideTurn' };
     // Y3 Sealed Vents: silent until sound adds its cue.
     case 'ventShift': return null;
+    // Y3 Walking Light: silent until sound adds its cue (the Glare's own warning already plays).
+    case 'lightMove': return null;
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };

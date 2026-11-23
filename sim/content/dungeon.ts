@@ -100,6 +100,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
 export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the cold eats your coal fast, but embers fall: walk over them to keep your coal bright for the Long Night.';
 /** V8: the Lensmother's intro when this run's version brings Glintfall from phase 2. */
+export const WALKING_LIGHT_TIP = 'Hide from her Glare behind a pillar. Later she carries the light herself: when a Glare starts, put a pillar between you and her.';
 export const GLINTFALL_TIP = 'Hide from her Glare behind a pillar. Later her Glintfall drops light on every pillar: step off your cover until it lands.';
 /** V8: Maelra's intro when this run's version brings the Sluicetide from phase 2. */
 export const SLUICETIDE_TIP = 'Kite her over the steam vents to boil off her Temper. Later the Sluicetide runs across the room and pushes you: lean into it, and watch for it to turn.';

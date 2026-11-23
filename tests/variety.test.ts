@@ -509,7 +509,7 @@ describe('V8 variety: the Glarewell', () => {
 describe('V8 variety: the Lensmother\'s Glintfall', () => {
   type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void; rollLensVariant(): string;
     bossIndex: number; bossSpawned: boolean; bossPhase: number; bossBrandT: number; glareT: number; markT: number };
-  function lens(variant: 'brand' | 'glint'): { w: World; q: G; b: number } {
+  function lens(variant: 'brand' | 'glint' | 'walk'): { w: World; q: G; b: number } {
     const w = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
     const q = w as unknown as G;
     for (const e of w.enemies) e.alive = false;
@@ -546,6 +546,32 @@ describe('V8 variety: the Lensmother\'s Glintfall', () => {
       expect(t.r).toBe(GLINTFALL.radius);
       expect(w.pillars.some((p) => p.x === t.x && p.y === t.y && !p.cracked)).toBe(true);
     }
+  });
+
+  it('Y3 Walking Light: from phase 2 each Glare moves the light to her, the shadows point away from her, and no Twin Brand', () => {
+    const { w, q, b } = lens('walk');
+    w.pillars = [{ x: 200, y: 0, r: 26, cracked: false }];
+    // At the centre, the shade is past the pillar on the far side from the centre.
+    expect(w.shadowed(260, 0)).toBe(true);
+    expect(w.shadowed(140, 0)).toBe(false);
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).not.toBe('twinBrand');
+    // Her next Glare starts with her at (400, 0): the light moves there, and the shade flips side.
+    w.enemies[b].castId = '';
+    w.enemies[b].x = 400; w.enemies[b].y = 0;
+    q.glareT = 0;
+    q.runLensmother(b, 0.01);
+    expect(w.enemies[b].castId).toBe('glare');
+    expect(w.lightX).toBe(400);
+    expect(w.events.some((e) => e.type === 'lightMove')).toBe(true);
+    expect(w.shadowed(140, 0)).toBe(true);
+    expect(w.shadowed(260, 0)).toBe(false);
+    // Phase 1 keeps the centre lens.
+    const one = lens('walk');
+    one.q.bossPhase = 1; one.q.glareT = 0;
+    one.w.enemies[one.b].x = 400;
+    one.q.runLensmother(one.b, 0.01);
+    expect(one.w.lightX).toBe(0);
   });
 
   it('online co-op: a guest sees the same version', () => {
