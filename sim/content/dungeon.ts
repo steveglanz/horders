@@ -19,7 +19,7 @@ export type EncounterId =
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
   | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
-  | 'ashwall';
+  | 'ashwall' | 'ballast';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -62,6 +62,8 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spitters', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
+  // Phase 16 U2: the Foundry's new elite. Its answer is to keep it walking after you, the same kiting Maelra asks for.
+  ballast: { id: 'ballast', name: 'The Ballast', tip: 'When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks.', spawns: [{ kind: 'ballast', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
   glass: { id: 'glass', name: 'Glass Warden and Hounds', tip: 'Quench Mirror Ward, or your damage comes back at you.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   crawlers: { id: 'crawlers', name: 'Sluice Crawler and Hounds', tip: 'Drag the blue ring away from the hounds before it bursts.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'cinderhound', n: 2 }] },
@@ -182,7 +184,7 @@ export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
-    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
+    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge', 'ballast'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {

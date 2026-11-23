@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -857,6 +857,18 @@ export function botInput(w: World, skill = 1): Input {
       const sgn = off >= 0 ? 1 : -1;
       fx += -Math.sin(at) * sgn * 0.12 * skill;
       fy += Math.cos(at) * sgn * 0.12 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: a planted Ballast barely feels hits and slams round itself, so step out of its reach and let it
+  // walk after you (NOBALLAST=1 turns this off for measuring). A melee hero comes back in once it walks.
+  if (process.env.NOBALLAST !== '1') {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'ballast' || e.aux < BALLAST.plantDelay) continue;
+      const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+      if (d > BALLAST.reach + e.def.radius + 30) continue;
+      fx += (dx / d) * 0.2 * skill;
+      fy += (dy / d) * 0.2 * skill;
       break;
     }
   }
