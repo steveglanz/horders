@@ -28,7 +28,7 @@ import { canTemper, canUpgrade, temperItem, upgradeItem } from '../sim/forge';
 import { setTip } from './tips';
 import { drawWorldBossPortrait } from './textures';
 import { HELP } from '../sim/content/help';
-import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile } from './icons';
+import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile, seenIcon, SEEN_GLYPH } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** "+3% damage per point" at rank 4 reads "+12% damage". */
@@ -463,7 +463,7 @@ export class Hub {
     // Phase 15 Y4: the Seen log for the picked dungeon, after the first delve like the weekly quests.
     if (h.runs > 0) {
       const sn = seenIn(h, this.dungeon);
-      chips.push(`<button class="prep-chip ${sn.seen === sn.total ? 'on' : ''}" data-prep="seen" data-sfx="open" aria-label="Seen log: ${sn.seen} of ${sn.total} met"><span class="star" aria-hidden="true">◉</span>`
+      chips.push(`<button class="prep-chip ${sn.seen === sn.total ? 'on' : ''}" data-prep="seen" data-sfx="open" aria-label="Seen log: ${sn.seen} of ${sn.total} met"><span class="star seen-eye" aria-hidden="true">${glyph(SEEN_GLYPH, 18)}</span>`
         + `<span>Seen <b>${sn.seen}/${sn.total}</b></span></button>`);
     }
     // P2: the season track, after the first delve like the weekly quests.
@@ -856,7 +856,11 @@ export class Hub {
     const sn = seenIn(h, this.dungeon);
     const kinds = (Object.keys(SEEN_KIND_NAME) as SeenKind[]).filter((k) => sn.entries.some((e) => e.kind === k));
     const rows = kinds.map((k) => `<div class="seen-k">${SEEN_KIND_NAME[k]}</div><div class="seen-row">`
-      + sn.entries.filter((e) => e.kind === k).map((e) => `<span class="seen-e ${e.seen ? 'met' : ''}" title="${e.seen ? e.tip : 'Not met yet'}">${e.seen ? '' : '<i aria-hidden="true">?</i>'}${e.name}</span>`).join('')
+      + sn.entries.filter((e) => e.kind === k).map((e) => {
+        // Y6: a met entry carries its own glyph (the trait's badge, the event's mark, the Heat's glyph, a crown for a boss version).
+        const ic = e.seen ? seenIcon(e.kind, e.id) : null;
+        return `<span class="seen-e ${e.seen ? 'met' : ''}" title="${e.seen ? e.tip : 'Not met yet'}"${ic ? ` style="--gc:${ic.color}"` : ''}>${ic ? glyph(ic.d, 14) : e.seen ? '' : '<i aria-hidden="true">?</i>'}${e.name}</span>`;
+      }).join('')
       + '</div>').join('');
     return (heading ? `<div class="sec-h"><span>Seen log</span><span class="muted">${sn.seen} of ${sn.total} met</span></div>` : '')
       + `<div class="seen">${rows}</div>`
