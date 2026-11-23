@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -3154,6 +3154,21 @@ export class GameScene extends Phaser.Scene {
       sy[k] += e.y - cy;
       if (e.def.rank !== 'normal') big[k] = true;
     }
+    // Phase 15 Y1: a held pack about to come in (the 2 s "More Coming" warning) has not spawned yet, so point at the
+    // flank it comes from, sized by how many are coming and pulsing faster than the foes already here.
+    const fast = new Array<boolean>(SECTORS).fill(false);
+    if (w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+      const rr = w.arenaR - 60;
+      const ix = Math.cos(w.reinforceA) * rr, iy = Math.sin(w.reinforceA) * rr;
+      if (!(ix > v.x + inset && ix < v.right - inset && iy > v.y + inset && iy < v.bottom - inset)) {
+        const a = Math.atan2(iy - cy, ix - cx);
+        const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+        count[k] += w.reinforceN;
+        sx[k] += (ix - cx) * w.reinforceN;
+        sy[k] += (iy - cy) * w.reinforceN;
+        fast[k] = true;
+      }
+    }
     const pad = 20 / cam.zoom;
     const hw = v.width / 2 - pad;
     const hh = v.height / 2 - pad;
@@ -3197,8 +3212,9 @@ export class GameScene extends Phaser.Scene {
         ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85,
       ] as const;
       b.fillStyle(0x000000, 0.55).fillTriangle(...tri(sz * 1.45));
-      if (big[k]) b.fillStyle(0xffc861, pulse).fillTriangle(...tri(sz * 1.25));
-      b.fillStyle(0xff4d3d, pulse).fillTriangle(...tri(sz));
+      const pk = fast[k] ? 0.7 + 0.3 * Math.sin(now / 70) : pulse;
+      if (big[k]) b.fillStyle(0xffc861, pk).fillTriangle(...tri(sz * 1.25));
+      b.fillStyle(0xff4d3d, pk).fillTriangle(...tri(sz));
     }
   }
 
