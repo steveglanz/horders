@@ -11,7 +11,7 @@ All numbers come from the autopilot (`sim/bot.ts`), which plays worse than a goo
 | Named or hard fight | 30 to 70 s | Long enough to see every mechanic twice |
 | Boss fight | 45 to 120 s | Raid-boss feel without dragging |
 | Tier 1 win rate, good bot | 70% or more | A skilled player shouldn't lose on day one. noviceAid (tiers 1 to 3) is meant to lift this, so there is no upper bound (changed 21 Nov 2026) |
-| Tier 1 win rate, novice reference (`LAG=0.3 SKILL=0.5`) | 40 to 65% | A new player loses some early runs. Plain `SKILL=0.5` without LAG is no longer the novice row, because it barely weakens the bot |
+| Tier 1 win rate, novice reference | No band for now (changed 23 Nov 2026) | The old `LAG=0.3 SKILL=0.5` reference overstated melee difficulty. reactBot can't be tuned into 40 to 65% for most classes (below), so until real player data exists, novice runs are only used to compare classes and changes, never as a target |
 | Tier climb | Win rate settles near 40 to 50% at the hero's "wall" tier | Always a tier that pushes back |
 | Hero level 20 | About 40 to 60 runs | From the original plan |
 | Forge | Worn gear trails the Forge cap by 2 to 4 levels; over 10 days the Forge is worth about 1 tier against hoarding; embers don't pile up (changed 21 Nov 2026 from "about 1 upgrade per run", see economy.md) | A sink that feels like steady progress, not a power spike |
@@ -436,3 +436,22 @@ Every cell passes. The novice Lumen (+13) is the accepted exception, and the nov
 | Slagbinder, Kiln 1 novice | 36 | 35 |
 
 Every cell still passes. The largest gaps are the Bulwark at Foundry 8 (-9.4) and the novice Bulwark at tier 1 (16 against 26, exactly the -10 bar). Seeds 1 to 40 were an unlucky sample for the novice Bulwark: over seeds 1 to 160 it wins 81/160 (20.3 per 40) against the Emberwright's 91/160 (22.8), a gap of 2.5. Tier 1 novice cells are now gated on 160 seeds.
+
+## The novice reference after reactBot (23 Nov 2026)
+
+The old novice reference, `laggedBot` at `LAG=0.3 SKILL=0.5`, delayed the bot's steering, which rocked melee heroes into contact (variety.md, the lagged-bot section). reactBot (#639) notices things late but steers on time. I looked for a reactBot setting that puts tier 1 in the old 40 to 65% band. Kiln, tier 1, ungeared, seeds 1 to 80, wins out of 80:
+
+| REACT, SKILL | Emberwright | Duskblade | Bulwark | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| 0.3 s, 0.5 | 63 | 79 | 80 | 78 | 79 |
+| 0.3 s, 0.3 | 54 | 80 | 80 | 77 | 79 |
+| 0.5 s, 0.5 | 55 | 80 | 80 | 77 | 80 |
+| 0.5 s, 0.3 | 50 | 80 | 77 | 80 | 80 |
+| 0.7 s, 0.5 | 24 | 77 | 63 | 77 | 79 |
+| 0.7 s, 0.3 | 39 | 78 | 65 | 79 | 79 |
+
+No setting gets there. Four classes stay at 77 to 80 even with a 0.7 s reaction, and only the Emberwright falls. Skills traced the Emberwright's drop to the bot (its sideways step out of a cone is weighted 0.2 for ranged), and that's being fixed in the bot, not the class. The bot's skill setting barely weakens it, so it can't stand in for a new player's skill level. Tier 1 with the novice aid is easy for a bot that reacts late, and that is fine for a first tier.
+
+- So the novice row has no band until real player data exists. `REACT=0.3 SKILL=0.5` stays the standard novice setting, used only to compare classes and changes.
+- No aid is trimmed on these numbers (skills' reactBot aid pass, 23 Nov). The one exception is the Bulwark's wide Shield Block, which moved nothing (79 against 78 at t3).
+
