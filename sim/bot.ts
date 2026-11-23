@@ -1088,6 +1088,17 @@ export function botInput(w: World, skill = 1): Input {
     const dx = p.x - w.rimeX, dy = p.y - w.rimeY, d = Math.hypot(dx, dy) || 1;
     const reach = CREEPING_RIME.r + 70;
     if (d < reach) { fx += (dx / d) * 0.6 * skill * (1 - d / reach + 0.3); fy += (dy / d) * 0.6 * skill * (1 - d / reach + 0.3); }
+    // Held off her body, it slides round her: a hero close in steps on round her, away from it (RIMEROUND=0 to measure without).
+    const nh = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (nh?.alive && d < reach && process.env.RIMEROUND !== '0') {
+      const bx = p.x - nh.x, by = p.y - nh.y, bd = Math.hypot(bx, by) || 1;
+      if (bd < nh.def.radius + 120) {
+        const side = Math.sign(bx * (w.rimeY - nh.y) - by * (w.rimeX - nh.x)) || 1;
+        const k = Number(process.env.RIMEROUND ?? 0.5) * skill;
+        fx += (by / bd) * side * k;
+        fy += (-bx / bd) * side * k;
+      }
+    }
   }
   // Glarewell: hide from a Glare, burst a Brand in the open, stay out of the lamps' beam.
   if (w.pillars.length) {

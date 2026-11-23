@@ -585,6 +585,7 @@ export type SimEvent =
   /** Y3 Carried Light: the Glarewell's light now comes from here. */
   | { type: 'lightMove'; x: number; y: number }
   | { type: 'homeward'; stage: 'out' | 'back'; x: number; y: number }
+  | { type: 'ventRoll'; x: number; y: number; left: number }
   /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
   | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
@@ -1044,6 +1045,10 @@ export class World {
   private temperT = 0;
   private undertowT = 0;
   private twinVentT = 0;
+  /** Phase 15 Y3 Rolling Vents: vents still to open in this roll, the last one's angle round her, and the way round (1 or -1). */
+  rollLeft = 0;
+  rollAng = 0;
+  rollDir = -1;
   /** C2: the fight (encounter index) that hides this delve's named elite; -2 until rolled, -1 for none. */
   private namedAt = -2;
   /** Named elites felled this run (the whole party's). */
@@ -2051,6 +2056,8 @@ export class World {
           this.bossSpawned = true;
           this.bossIndex = i;
           this.twinVentT = YSMERET.firstVents;
+          this.rollLeft = 0;
+          this.rollDir = -1;
           this.bossVariant = this.rollYsmeretVariant();
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
@@ -6158,10 +6165,23 @@ export class World {
         if (d < best) { best = d; tx = q.x; ty = q.y; }
       }
       const dx = tx - this.rimeX, dy = ty - this.rimeY, d = Math.hypot(dx, dy);
-      if (d > 1) {
-        const step = Math.min(d, CREEPING_RIME.speed * dt);
-        this.rimeX += (dx / d) * step;
-        this.rimeY += (dy / d) * step;
+      const step = Math.min(d, CREEPING_RIME.speed * dt);
+      const min = e.def.radius + CREEPING_RIME.hold;
+      const nx = d > 1 ? this.rimeX + (dx / d) * step : this.rimeX, ny = d > 1 ? this.rimeY + (dy / d) * step : this.rimeY;
+      if (CREEPING_RIME.hold > 0 && Math.hypot(nx - e.x, ny - e.y) < min) {
+        // Her own body holds the rime off (`hold`, px past her edge): it creeps round her toward the hero, not through her.
+        // (Just risen under her, it first comes out on the hero's side.)
+        const inside = Math.hypot(this.rimeX - e.x, this.rimeY - e.y) < min - 1;
+        const a0 = inside ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
+        let da = Math.atan2(ty - e.y, tx - e.x) - a0;
+        while (da > Math.PI) da -= 2 * Math.PI;
+        while (da < -Math.PI) da += 2 * Math.PI;
+        const turn = Math.sign(da || 1) * Math.min(Math.abs(da), (CREEPING_RIME.speed * CREEPING_RIME.orbit * dt) / min);
+        this.rimeX = e.x + Math.cos(a0 + turn) * min;
+        this.rimeY = e.y + Math.sin(a0 + turn) * min;
+      } else {
+        this.rimeX = nx;
+        this.rimeY = ny;
       }
     } else if (this.coldPhase >= 2) {
       this.iceT -= dt;
@@ -6358,11 +6378,18 @@ export class World {
     this.scatterT -= dt;
     this.bellowT -= dt;
     const ventsOpen = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
-    if (this.twinVentT <= 0 && !ventsOpen) {
+    if (this.twinVentT <= 0 && !ventsOpen && this.rollLeft === 0) {
       this.twinVentT = late ? YSMERET.ventEnraged : YSMERET.ventEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
-      for (const s of [1, -1]) {
+      const roll = this.bossVariant === 'roll';
+      if (roll) {
+        // Rolling Vents: only the first opens now; the rest follow round her (below).
+        this.rollLeft = ROLLING.count - 1;
+        this.rollAng = a;
+        this.rollDir = -this.rollDir;
+      }
+      for (const s of roll ? [1] : [1, -1]) {
         const x = e.x + Math.cos(a) * YSMERET.ventDist * s;
         const y = e.y + Math.sin(a) * YSMERET.ventDist * s;
         const c = { x, y };
@@ -6370,7 +6397,15 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+    } else if (!ventsOpen && this.rollLeft > 0) {
+      // Rolling Vents: as one closes, the next opens further round her.
+      this.rollLeft--;
+      this.rollAng += this.rollDir * (ROLLING.step * Math.PI) / 180;
+      const c = { x: e.x + Math.cos(this.rollAng) * YSMERET.ventDist, y: e.y + Math.sin(this.rollAng) * YSMERET.ventDist };
+      this.clampArena(c, YSMERET.ventRadius + 10);
+      this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, ROLLING.fuse, YSMERET.ventBlast, 'soak', -2);
+      this.events.push({ type: 'ventRoll', x: c.x, y: c.y, left: this.rollLeft });
     } else if (ventsOpen && this.bossVariant === 'wander') {
       // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
       const turn = (WANDER.speed / YSMERET.ventDist) * dt;
@@ -6388,7 +6423,7 @@ export class World {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
-    } else if (this.scatterT <= 0 && !ventsOpen && this.twinVentT > YSMERET.scatterCast + 0.5) {
+    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.bossVariant === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
       this.scatterT = YSMERET.scatterEvery;
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
     }
@@ -8087,7 +8122,7 @@ export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
  * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
  * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.
  */
-export const CREEPING_RIME = { r: 85, speed: 48, drain: 0.05, chill: 1.5 };
+export const CREEPING_RIME = { r: 85, speed: 48, drain: 0.05, chill: 1.5, hold: 85, orbit: 1 };
 /** V8 Emberdrift: from phase 2 coals drain `drainMult` times faster; every `every` s, `n` embers fall on a `ring` px ring, each refilling `refill` of a coal when touched (within `pickR`). */
 export const EMBERDRIFT = { every: 12, n: 3, ring: 280, pickR: 34, refill: 0.45, drainMult: 2.5 };
 
@@ -8291,9 +8326,14 @@ export type OskelVariant = 'rivets' | 'cut';
 export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut'];
 /** Die Cut: on the Rivets timer, a half-floor cut through Oskel with a `fuse` s warning; everyone in it takes `damage` (scaled by tier as it lands). */
 export const DIECUT = { every: 9, fuse: 2.4, damage: 45 };
-/** Phase 12 W2: Ysmeret's two versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. */
-export type YsmeretVariant = 'still' | 'wander';
-export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander'];
+/** Phase 12 W2 and Phase 15 Y3: Ysmeret's versions. `still`: the Twin Vents stay where they open. `wander`: they circle her while they fuse. `roll`: Rolling Vents, one at a time round her. */
+export type YsmeretVariant = 'still' | 'wander' | 'roll';
+export const YSMERET_VARIANTS: YsmeretVariant[] = ['still', 'wander', 'roll'];
+/**
+ * Phase 15 Y3 Rolling Vents: one vent at a time, `count` in a row. The first opens where Twin Vents would (on its usual fuse);
+ * each next one opens `step` degrees further round her as the last one closes, on a shorter `fuse`. The way round flips every cast.
+ */
+export const ROLLING = { count: 3, step: 120, fuse: 3.4, scatterDuring: 1 };
 /** Wandering Vents: each circle moves `speed` px/s around Ysmeret (heroes run 128 to 152), about 70 degrees over a 4 s fuse. */
 export const WANDER = { speed: 70 };
 /** Phase 12 W2 and Phase 15 Y3: Ondrel's versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. `home`: the Homeward Hammer, thrown out and flying back. */

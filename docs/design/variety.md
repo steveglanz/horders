@@ -1005,3 +1005,53 @@ Hammerdeep tier 8, heroes-r2 hero-t8-0, the base party (Bulwark, Lumen, Duskblad
 - First build, with no ring: 77 of 80. A ring of 8% gave 49, 12% gave 44, 16% gave 37.
 - The bots step out of every throw and line: with the circle or the line set to 2000 damage, no hero died to either (25 and 27 of 40, the same as normal). So the sim only measures the ring and the lost Sweeps. For a person, the throw and the line are the new part.
 - **Name:** searches on 23 Nov found WoW NPC spells named Hammer Throw and Throw Hammer, so those were avoided. "Homeward Hammer" found no WoW match.
+
+### Y3 Ysmeret: Rolling Vents (built 23 Nov 2026)
+
+Ysmeret (the Ashvents) had Twin Vents (two circles to split for) and Wandering Vents (the two circles drift round her). The third is **Rolling Vents** (`roll`, tuning in `ROLLING`, sim/world.ts).
+
+- She opens one vent at a time, `count` 3 in a row. The first opens where a Twin Vent would, on the usual 4 s fuse.
+- As each closes, the next opens `step` 120 degrees further round her, on a shorter `fuse` of 3.4 s. The way round flips every cast (`World.rollDir`).
+- Scatter Embers can come while a vent is open (`scatterDuring`). In the other two versions it waits for the vents. So the party gathers in one circle, then has to spread out of it.
+- A missed vent blasts every hero and spawns ashlings, as before. Each new vent fires `{type:'ventRoll', x, y, left}`.
+
+Ashvents tier 8, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each version forced:
+
+| Setup | Twin Vents | Wandering Vents | Rolling Vents |
+|---|---|---|---|
+| Full-skill bots | 54 | 54 | 51 |
+| Half-skill bots | 52 | 53 | 47 |
+| No healer (Slagbinder for the Lumen), seeds 1 to 40 | 7 | — | 5 |
+
+- **Tuning steps:**
+  - With Scatter held back and a 2.8 s fuse it won 71: everyone ran to each vent together, and nobody had to spread.
+  - A 2.2 s fuse gave 72, and 4 vents gave 64.
+  - Letting Scatter come during the roll gave 46 at a 2.8 s fuse, 54 with 2 vents, and 51 at 3.4 s with 3 vents. The last one was kept.
+- **Name:** a search on 23 Nov found no WoW match for "Rolling Vents". WoW has a "Steam Vent", which is a different phrase.
+
+### Creeping Rime fix (23 Nov 2026): her body holds the rime off
+
+Skills' class check on #534 (seeds 41 to 200, out of 160) found Creeping Rime far too hard for melee. Ice / drift / rime: Duskblade 63 / 126 / 19, Bulwark 104 / 139 / 39. The rime rises under her and creeps after the nearest hero, and a melee hero is always nearest, standing at her side.
+
+- **The fix:** the rime is now held `hold` 85 px past her edge. When it would creep through her, it slides round her toward the hero instead, at its usual speed (`orbit` 1). When it first rises, it comes out on the hero's side.
+  - So a melee hero has to keep stepping round her, away from it.
+  - A ranged hero is chased across the floor as before.
+- **Bot:** a melee hero within 120 px of her edge, with the rime near, steps on round her away from it (weight 0.5; `RIMEROUND=0` turns it off for measuring).
+
+Coldmarrow tier 10, heroes-r2 `<class>/hero-t8-0`, seeds 41 to 120, out of 80:
+
+| Class | Thin Ice | Emberdrift | Rime before | Rime now |
+|---|---|---|---|---|
+| Duskblade | 34 | 65 | 11 | 54 |
+| Bulwark | 52 | 67 | 19 | 44 |
+| Slagbinder | 37 | 73 | — | 40 |
+| Emberwright | 54 | 66 | 66 | 66 |
+| Lumen | 48 | 69 | — | 60 |
+
+- **Tried and dropped:**
+  - A slower creep (30 px/s) took the Duskblade to 52 but the Bulwark only to 29.
+  - A smaller patch (r 70) gave the Duskblade 22 and the Bulwark 26.
+  - A plain radial push-out (it stalled when the hero stood straight across from it) gave the Bulwark 54, but only through that stall.
+  - A slower slide round her (`orbit` 0.5 or 0.7) changed nothing beyond noise.
+  - A wider gap (`hold` 130) made it worse: Bulwark 22, Duskblade 19.
+- Skills will re-run all five classes on 160 seeds.
