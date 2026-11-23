@@ -173,7 +173,11 @@ function finishRun(w: World) {
     ({ drops, equipped } = rekeyDrops(hero, drops, equipped));
     summary = { ...summary, tier: Math.min(summary.tier ?? 1, hero.maxTier) };
   }
+  const topBefore = hero.maxTier;
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
+  // A win that opens the next tier moves the delve up to it, when you were on your top tier (a playtester's new player
+  // replayed tier 1 five times: the tier was only picked at page load). A lower tier you chose to replay stays picked.
+  if (hero.maxTier > topBefore && hub.tier === topBefore) hub.tier = hero.maxTier;
   // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
   rewards.seenNew = recordSeen(hero, metIn(w));
   save();

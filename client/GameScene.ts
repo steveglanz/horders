@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -1745,7 +1745,8 @@ export class GameScene extends Phaser.Scene {
       : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound'
       // Phase 16 U2: the Ashwall wears the Hollow Warden until visuals draw it.
       : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk'
-      : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler' : e.kind;
+      : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler'
+      : e.kind === 'lampeye' && !this.textures.exists('lampeye') ? 'shade' : e.kind;
   }
 
   /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
@@ -2472,6 +2473,18 @@ export class GameScene extends Phaser.Scene {
         } else if (e.aux > 0) {
           const k = e.aux / BALLAST.plantDelay;
           g.lineStyle(4, 0x8fa0b8, 0.8).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+        }
+      }
+      // Phase 16 U2: the Lampeye. A ring fills as its gaze builds, and while it can see your hero a thin beam joins
+      // them, so you know to put a pillar in the way; it flares during Searing Look.
+      if (e.kind === 'lampeye') {
+        const r0 = e.def.radius + 8;
+        const k = Math.min(1, e.aux / LAMPEYE.full);
+        if (k > 0) g.lineStyle(4, 0xfff0a0, 0.85).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+        const p = w.player;
+        if (p.hp > 0 && w.lampeyeSees(e, p.x, p.y)) {
+          const looking = e.castId === 'searingLook';
+          g.lineStyle(looking ? 4 : 1.5, 0xfff4c0, looking ? 0.8 : 0.15 + 0.4 * k).lineBetween(e.x, e.y, p.x, p.y);
         }
       }
       // Mirror Ward: a glassy shell that flickers while it reflects damage.
