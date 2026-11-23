@@ -8471,7 +8471,7 @@ export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court', 'tithe'];
  * `cost` of max health split between them. If fewer do, every hero pays `miss` of max health. Decrees still scorch anyone close
  * to their holder, so a holder who joins the tithe burns the others.
  */
-export const TITHE = { dist: 240, r: 80, fuse: 4, need: 2, cost: 0.6, miss: 0.35 };
+export const TITHE = { dist: 240, r: 80, fuse: 4, need: 2, cost: 0.65, miss: 0.35 };
 export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
 /**
  * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
