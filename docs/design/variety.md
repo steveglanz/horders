@@ -1148,3 +1148,30 @@ Crucible tier 8, heroes-r2 hero-t8-0, each version forced:
 - Without the bots gathering in (`NOFLOW=1`) it won 13 of 80, so the flood is the real check.
 - The Anvil party is 8 to 11 above its other versions: a watch item for skills' raid sweep.
 - **Name:** a search on 23 Nov turned up WoW compounds such as "Sanguine Overflow", and no spell called just "Overflow" in its results. "The Overflow" is a single plain word.
+
+### Y3 Old Vorhulm: Inhale (built 23 Nov 2026)
+
+Old Vorhulm (the Hoard, raid 2) had two phase-3 versions: Ember Feast's embers to grab and Banked Coals' gold circles to stand on. The third is **Inhale** (`inhale`, tuning in `INHALE`, sim/world.ts). Both older versions send heroes out to something on the floor. Inhale pulls them in, and the job is to walk out.
+
+- In phase 3, on Ember Spill's timer (COAL.spillEvery 10 s), he casts Inhale in place of the embers. There are no embers.
+- After a `warn` 1.5 s warning he breathes in for `time` 3 s. Every hero is drawn toward him at `pull` 0.3 of their class speed. A Bulwark under Anvil Skin is anchored, as against the Ebb.
+- Anyone within `bite` 40 px of his edge is bitten every `tick` 0.5 s for `damage` 8% of max health. A swallowed hero is skipped.
+- New state: `World.inhaleStage` (0 quiet, 1 warning, 2 drawing), `inhaleT` and `inhaleTickT`. New event `{type:'inhale', stage:'warn'|'draw'|'end'}`.
+- Bot: while he warns or draws, a hero within his mouth plus 90 px walks straight away from him (`NOINHALE=1` turns this off for measuring).
+- Client: `INHALE_TIP`, a phase-3 banner, `BOSS_VERSION_NAME.inhale`, and a placeholder ring at his mouth's reach with streaks drawn in toward him (2D floor layer, `flowGfx`).
+
+Hoard tier 9, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | Ember Feast | Banked Coals | Inhale |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 58 | 50 | 56 |
+| Half-skill bots, seeds 41 to 120 | 43 | 38 | 38 |
+| Anvil party, seeds 41 to 120 | 73 | 74 | 74 |
+
+- **Tuning steps** (base / half skill):
+  - The first build had a bite that also healed him 1% of his health. At pull 0.45 and 6% bites it won 45 of 80. At pull 0.38 it won 51, but half-skill bots won only 14.
+  - The losses were a damage race in phase 3: he ended them at 2% to 23%. Without the heal, pull 0.38 gave 53 / 38. Pull 0.3 with 8% bites (kept) gave 56 / 38.
+  - A longer breath (4 s at pull 0.3) gave 44 / 5, so the breath stays at 3 s.
+- Without the bots walking out (`NOINHALE=1`) it wins 24 of 80, so the walk-out is the real check.
+- **Name:** WoW has a spell called "Inhale" (wowhead spell 153721). It is a single plain word, which Steve's rule allows (21 Nov). The cast is shown as "Inhale".
+- **Overflow timing fix (QA's nit on #558):** the Overflow's stage changes now add to `flowT` instead of setting it, so each stage keeps the leftover part of the tick. Warnings were 14.07 s apart and are now 14 s. Inhale's warning-to-draw step does the same. The Overflow's base result is unchanged at 45 of 80.
