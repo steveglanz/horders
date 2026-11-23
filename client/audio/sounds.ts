@@ -870,6 +870,27 @@ export const SOUNDS = {
     ...[0, 0.22, 0.44].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.18, delay: d, vol: 0.2, lp: 9000, lp2: 4000, hp: 1800, curve: 2 }]),
     horn(196, 0.5, 0.22).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.5 })),
   ),
+  /** Sealed Vents (Maelra, phase 2+ on seal runs): the steam is about to move. A hiss that builds over 2 s under a rising pipe whistle, so it is heard before the next vent opens (MAELRA_SEAL.warn 2.5 s). */
+  steamMoveWarn: join(
+    [{ wave: 'noise', f: 0, dur: 2.0, vol: 0.22, a: 1.6, lp: 2500, lp2: 9000, hp: 1400, curve: 0.7 },
+     { wave: 'sine', f: 600, f2: 1400, dur: 2.0, vol: 0.07, a: 1.4, curve: 0.7, vib: [6, 0.012] },
+     { wave: 'tri', f: 880, f2: 1320, dur: 0.6, delay: 1.4, vol: 0.06, a: 0.3, curve: 1.2 }],
+  ),
+  /** Sealed Vents: the steam arrives at the new vent. A valve knock, then a full blast of steam that thins out. */
+  steamMoveOpen: join(
+    clang(330, 0.18, 0.25),
+    [{ wave: 'noise', f: 0, dur: 0.06, vol: 0.34, lp: 8000, hp: 900, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.8, vol: 0.26, a: 0.02, lp: 10000, lp2: 2800, hp: 1600, curve: 1.4 }],
+    boom(65, 0.3, 0.25),
+  ),
+  /** Carried Light (the Lensmother, phase 2+ on walk runs): she takes the light with her and every shadow swings round.
+   *  Starts 0.45 s in, once the Glare's castWarn (0.4 s) has finished, so it isn't ducked under it: a glassy sweep that rises and falls, with a bright shimmer on top. */
+  lightSwing: join(
+    [{ wave: 'noise', f: 0, dur: 0.7, delay: 0.45, vol: 0.22, a: 0.3, lp: 1800, lp2: 7000, hp: 900, curve: 1.3 },
+     { wave: 'sine', f: 1200, f2: 2400, dur: 0.35, delay: 0.45, vol: 0.08, a: 0.2, curve: 1 },
+     { wave: 'sine', f: 2400, f2: 1600, dur: 0.35, delay: 0.8, vol: 0.08, curve: 1.4 }],
+    chime(E6, 0.6, 0.05, 0.4), chime(B5(), 0.75, 0.04, 0.4),
+  ),
   /** Sluicetide (Maelra, phase 2+ on tide runs): the current turns. A deep water rush swells and drains, with a bright splash on top for a phone. */
   tideTurn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.3, a: 0.35, lp: 500, lp2: 2600, hp: 350, curve: 1.2 },
@@ -1578,6 +1599,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  steamMoveWarn: 3.0, steamMoveOpen: 0.4, // Y3 Sealed Vents: the warning level with tideTurn, the burst level with slam
+  lightSwing: 3.2, // Y3 Carried Light: level with slam
   turnFireWarn: 5.5, turnCone: 2.1, // Y3 Turning Fire: the warning near the Kiln's other boss calls, each cone level with slam
   // Phase 15 Y2 raid landings, level with the others (cave-ins about -28.5, surges about -26 dB).
   caveInSlag: 1.6, caveInBone: 1.5, caveInIngot: 1.8, caveInBrick: 2.5, surgeSlag: 2.2, surgeHoard: 1.5, surgeTuyere: 0.6, surgeFlue: 3.5,
