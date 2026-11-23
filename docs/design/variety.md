@@ -718,5 +718,5 @@ The Hammerdeep, the Ashvents and the Pressworks trash fights now roll Cave-in an
 | Pressworks t10, 74 | 47 | 50 | 47 |
 
 - **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 6 with events off and 6 with Cave-in. That stays well under the 25% missing-role line.
-- **Why forced events don't cost a full party:** a party clears trash quickly, so an event often lands near the end of a fight. New stones also give cover from ranged foes.
 - **Sound:** each group dungeon has its own landing sounds (#493).
+- Forced events don't cost a full party anything here. I haven't traced why.
