@@ -1981,6 +1981,8 @@ export class World {
           this.bossBrandT = 4;
           this.crackT = GLARE.crackEvery;
           this.bossVariant = this.rollLensVariant();
+          this.bossEcho = this.rollEcho(LENS_VARIANTS, this.bossVariant);
+          this.echoNext = true; // her first brand-timer cast (or Glare, for a Carried Light echo) in phase 3 is the echo
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'ondrel') {
@@ -6039,27 +6041,48 @@ export class World {
       this.glareT = (this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery) * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
       // Y3 Carried Light: from phase 2 she carries the light; the shadows swing as the warning starts.
-      if (this.bossPhase >= 2 && this.bossVariant === 'walk') {
+      let carry = this.bossPhase >= 2 && this.bossVariant === 'walk';
+      // Phase 16 U1: a Carried Light echo carries every other Glare in her last phase; the others come from the middle again.
+      if (this.bossPhase >= 3 && this.bossEcho === 'walk') {
+        carry = this.echoNext;
+        this.echoNext = !this.echoNext;
+        if (carry) this.events.push({ type: 'echo', id: 'walk' });
+        else if (this.lightX !== 0 || this.lightY !== 0) {
+          this.lightX = 0; this.lightY = 0;
+          this.events.push({ type: 'lightMove', x: 0, y: 0 });
+        }
+      }
+      if (carry) {
         this.lightX = e.x;
         this.lightY = e.y;
         this.events.push({ type: 'lightMove', x: e.x, y: e.y });
       }
       return;
     }
-    if (this.bossPhase >= 2 && this.markT <= 0 && this.bossVariant !== 'walk') {
+    // Phase 16 U1: a Twin Brand or Glintfall echo takes every other turn of this timer in her last phase.
+    const brandEcho = this.bossPhase >= 3 && (this.bossEcho === 'brand' || this.bossEcho === 'glint');
+    if (this.bossPhase >= 2 && this.markT <= 0 && (this.bossVariant !== 'walk' || brandEcho)) {
       this.bossBrandT -= dt;
       if (this.bossBrandT <= 0) {
         this.bossBrandT = GLARE.bossBrandEvery;
-        if (this.bossVariant === 'glint') {
+        let move: string = this.bossVariant;
+        if (brandEcho) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'walk') {
+          // A Carried Light run has nothing of its own on this timer: only the echo.
+        } else if (move === 'glint') {
           // V8 Glintfall: light shards fall on every standing pillar. Step off your cover until they land.
           this.startCast(i, 'glintfall', 'Glintfall', GLINTFALL.cast, false);
           for (const q of this.pillars) {
             if (!q.cracked) this.addTelegraph('circle', q.x, q.y, GLINTFALL.radius, 0, 0, GLINTFALL.cast, GLINTFALL.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
           }
           return;
+        } else {
+          this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
+          return;
         }
-        this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
-        return;
       }
     }
     if (e.abilityT > 0) return;
