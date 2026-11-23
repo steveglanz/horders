@@ -1265,3 +1265,25 @@ Solo Kiln at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
 | Slagbinder | 51 | 48 |
 
 Every class is within 3 wins of echoes off. In the Bulwark logs all 80 runs reached her (every one shows her Molten Cataclysm).
+
+## Phase 16 U1: Maelra's echo
+
+Maelra's versions are lasting effects, not single casts, so her echo comes and goes in windows. From tier 8, in her last phase, the echo is on for `MAELRA_ECHO.on` 12 s, then off for `off` 10 s. The first window starts `first` 2 s into phase 3.
+
+- **Which versions echo:** only the Sluicetide and Sealed Vents (`MAELRA_ECHOES`). The water already rises in every version but the Sluicetide, so a Rising Water echo would change nothing. A Rising Water run echoes one of the two, picked from the seed. A Sluicetide run echoes Sealed Vents, and a Sealed Vents run echoes the Sluicetide.
+- **Sealed Vents echo:** while it is on, one vent is open and the steam moves as in that version. When it ends, every vent opens again.
+- **Sluicetide echo:** while it is on, the current runs and turns as in that version. It stops when the window ends.
+- `World.echoLive` is true while a window is on. `versionLive(w, id)` tells the bot and the client whether a version is in effect, rolled or echoed. Each window that opens fires `{type:'echo', id}`.
+- **Client:** the phase-3 banner reads "The vents erupt on their own, and Sealed Vents comes and goes" (or the Sluicetide).
+
+Solo Drowned Foundry at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off |
+|---|---|---|
+| Bulwark | 40 | 39 |
+| Duskblade | 53 | 54 |
+| Emberwright | 62 | 62 |
+| Lumen | 66 | 66 |
+| Slagbinder | 66 | 64 |
+
+Every class is within 2 wins of echoes off.

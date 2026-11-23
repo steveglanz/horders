@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1101,7 +1101,7 @@ export function botInput(w: World, skill = 1): Input {
       if (d < bd) { bd = d; best = v; }
     }
     // Y3 Sealed Vents: only the open vent works.
-    if (w.openVent >= 0 && w.bossVariant === 'seal' && w.vents[w.openVent]) best = w.vents[w.openVent];
+    if (w.openVent >= 0 && versionLive(w, 'seal') && w.vents[w.openVent]) best = w.vents[w.openVent];
     const vx = best.x - b.x;
     const vy = best.y - b.y;
     const vd = Math.hypot(vx, vy) || 1;

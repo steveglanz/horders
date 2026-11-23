@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1301,5 +1301,75 @@ describe('Phase 16 U1: the Kiln Mother\'s echo', () => {
     // Phase 2 never echoes.
     e.hp = e.maxHp * 0.5; q.bossPhase = 2; w.echoNext = true;
     expect(cast()).toEqual({ id: 'kilnDraw', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Maelra\'s echo', () => {
+  type M = { spawn(kind: string, x: number, y: number): number; runMaelra(i: number, dt: number): void; startMaelra(): void;
+    rollEcho(all: readonly string[], rolled: string): string; bossIndex: number; bossSpawned: boolean; bossPhase: number };
+  function maelra(variant: 'water' | 'tide' | 'seal', echo: string): { w: World; q: M; b: number } {
+    const w = new World({ seed: 9, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as M;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('maelra', 300, 300);
+    q.bossIndex = b; q.bossSpawned = true;
+    q.startMaelra();
+    w.bossVariant = variant;
+    w.bossEcho = echo;
+    w.echoLive = false; w.echoT = MAELRA_ECHO.first;
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2; // phase 3
+    q.bossPhase = 3;
+    w.enemies[b].abilityT = 99;
+    w.player.x = 0; w.player.y = 0;
+    return { w, q, b };
+  }
+
+  it('only the Sluicetide and Sealed Vents echo, never the rolled version', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const q = new World({ seed, dungeon: 'foundry', tier: ECHO.minTier, omens: [], cls: 'emberwright' }) as unknown as M;
+      expect(q.rollEcho(MAELRA_ECHOES, 'water')).not.toBe('water');
+      expect(q.rollEcho(MAELRA_ECHOES, 'tide')).toBe('seal');
+      expect(q.rollEcho(MAELRA_ECHOES, 'seal')).toBe('tide');
+    }
+  });
+
+  it('a Sealed Vents echo comes on with an echo event, seals the vents, then lets them all go', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    q.runMaelra(b, 0.01);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    w.events.length = 0;
+    q.runMaelra(b, MAELRA_ECHO.first);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.filter((x) => x.type === 'echo')).toEqual([{ type: 'echo', id: 'seal' }]);
+    expect(w.openVent).toBeGreaterThanOrEqual(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.openVent).toBe(-1);
+    q.runMaelra(b, MAELRA_ECHO.off);
+    expect(w.echoLive).toBe(true);
+  });
+
+  it('a Sluicetide echo only pushes you while it is on', () => {
+    const { w, q, b } = maelra('seal', 'tide');
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(0);
+    expect(w.player.y).toBe(0);
+    q.runMaelra(b, MAELRA_ECHO.first);
+    q.runMaelra(b, 1);
+    expect(Math.hypot(w.player.x, w.player.y)).toBeGreaterThan(0);
+    q.runMaelra(b, MAELRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    const x = w.player.x, y = w.player.y;
+    q.runMaelra(b, 1);
+    expect(w.player.x).toBe(x);
+    expect(w.player.y).toBe(y);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = maelra('water', 'seal');
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; q.bossPhase = 2;
+    q.runMaelra(b, MAELRA_ECHO.first + 1);
+    expect(w.echoLive).toBe(false);
   });
 });
