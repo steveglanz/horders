@@ -234,7 +234,7 @@ Steve, 22 Nov: "People aren't going to want to play the same dungeon multiple ti
 | X6 | **Art** for marks (a name-plate badge and a foe tint), each event's warning and effect, and the run-shape chips, in the current lit 2D style | visuals | ⏭ After X2 to X4 ids |
 | X7 | **Sound:** a cue for each mark when its foe appears and for each event's warning and landing, each dungeon's events with their own sound | sound | ⏭ After X2/X3 ids |
 | X8 | **QA:** contentcheck plays every mark and event (0 stuck); variety.ts counts the distinct run shapes per dungeon | QA | ⏭ |
-| X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ⏭ After X4/X6 |
+| X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ✅ #479 (end-screen chips made compact: one line each at 320 and 568 with every chip a run can roll). Checked with no change needed on 23 Nov: every named-foe banner (AFFIX_TIP) and arena-event warning stays whole at 320, 360, 568 and 667, solo and with party frames; the trait badge sits on the foe's plate and Vent Surge's warning clears the HUD at 320 and 568; the Heat chip shows on every solo dungeon card with no cut or sideways scroll. Screenshots in docs/ux/phase14/. The co-op dungeon card's run shape isn't built yet: check it when it is |
 
 ## R2. The Forge
 
