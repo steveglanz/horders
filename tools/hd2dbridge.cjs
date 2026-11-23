@@ -22,7 +22,16 @@ const CASES = [
   { name: 'whirl-warn', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlWarn', tier: 13 },
   { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'home-fly', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeFly', tier: 8 },
-  { name: 'home-out', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeOut', tier: 8 },
+  { name: 'brute-cast', dungeon: 'kiln', boss: 'brute', kind: 'cinderBrute', until: 'cast', tier: 1, hp: 0.9 },
+  { name: 'lampeye-gaze', dungeon: 'glarewell', boss: 'lampeye', until: 'gaze', tier: 6, hp: 0.9 },
+  { name: 'lampeye-look', dungeon: 'glarewell', boss: 'lampeye', until: 'look', tier: 6, hp: 0.9 },
+  { name: 'dimhorn-dark', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'dark', tier: 6, hp: 0.9 },
+  { name: 'dimhorn-call', dungeon: 'coldmarrow', boss: 'dimhorn', until: 'call', tier: 6, hp: 0.9 },
+  { name: 'conch-call', dungeon: 'wrackline', boss: 'conch', kind: 'conchblower', until: 'conch', tier: 13, hp: 0.9 },
+  { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
+  { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
+  { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
+  { name: 'inhale', dungeon: 'hoard', boss: 'vorhulm', variant: 'inhale', party: true, until: 'inhale', tier: 9, hp: 0.2 },
   { name: 'home-lie', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeLie', tier: 8 },
   { name: 'home-back', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeBack', tier: 8 },
   // Room shots: the boss in, nothing forced (until 'boss': as soon as it's up).
@@ -51,8 +60,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
     await page.evaluate((c) => { const s = window.__ember.scene(); s.scene.restart({ opts: { seed: 13, cls: 'bulwark', dungeon: c.dungeon, route: [c.boss], tier: c.tier || 6, invulnerable: true, ...(c.party ? { party: [{ cls: 'lumen', name: 'Lumen' }, { cls: 'emberwright', name: 'Emberwright' }] } : {}) }, hud: s.hud, onEnd: () => {} }); }, c);
     await page.waitForTimeout(3000);
     await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
-    await page.waitForFunction((c) => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === c.boss), c, { timeout: 300000, polling: 200 });
-    await page.evaluate((c) => { const w = window.__ember.scene().world; if (c.variant) w.bossVariant = c.variant; const e = w.enemies.find((o) => o.alive && o.kind === c.boss); e.hp = e.maxHp * 0.6; }, c);
+    await page.waitForFunction((c) => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === (c.kind || c.boss)), c, { timeout: 300000, polling: 200 });
+    await page.evaluate((c) => { const w = window.__ember.scene().world; if (c.variant) w.bossVariant = c.variant; const e = w.enemies.find((o) => o.alive && o.kind === (c.kind || c.boss)); e.hp = e.maxHp * (c.hp || 0.6); }, c);
     await page.waitForFunction((c) => {
       const s = window.__ember.scene(); const w = s.world;
       const ok = c.until === 'cones' ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).length >= 4 && w.telegraphs.some((t) => t.alive && t.t > 0.5)
@@ -61,10 +70,31 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'whirlWarn' ? w.whirl && w.ebbWarnT > 0 && w.ebbWarnT < 2.2
         : c.until === 'whirlPull' ? w.whirl && w.ebbT > 0.4
         : c.until === 'homeFly' ? w.homeStage === 1 && w.homeT < 0.9
-        : c.until === 'homeOut' ? w.homeStage === 1 && w.homeT < 0.9
+        : c.until === 'echo' ? w.time - s.echoAt < 0.4
+        : c.until === 'mill' ? w.millT > 0 && w.millT < 4.5
+        : c.until === 'tithe' ? w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -5 && t.t > 2.5)
+        : c.until === 'inhale' ? w.inhaleStage === 2 && w.inhaleT > 1.5
         : c.until === 'homeLie' ? w.homeStage === 2 && w.homeT < 0.7
         : c.until === 'homeBack' ? w.homeStage === 2 && w.homeT < 0.14
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200
+        : c.until === 'gaze' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.aux > 3.5 && !e.castId && w.lampeyeSees(e, w.player.x, w.player.y))
+        : c.until === 'look' ? w.enemies.some((e) => e.alive && e.kind === 'lampeye' && e.castId === 'searingLook' && e.castT > 0.3)
+        // The Dimhorn: forced, since an autopilot hero keeps it in the coal's light. Placed out in the dark beside you.
+        : c.until === 'dark' || c.until === 'call' ? (() => {
+          const i = w.enemies.findIndex((e) => e.alive && e.kind === 'dimhorn'); if (i < 0) return false;
+          const e = w.enemies[i]; e.x = e.px = w.player.x + 150; e.y = e.py = w.player.y - 90;
+          if (c.until === 'dark') { e.aux = 4.5; return true; }
+          if (!e.castId) w.startCast(i, 'darkCall', 'Dark Call', 2, false);
+          e.castT = Math.max(e.castT, 0.8);
+          return e.castId === 'darkCall';
+        })()
+        // The Conchblower: forced mid-call, since the autopilot Quenches it.
+        : c.until === 'conch' ? (() => {
+          const i = w.enemies.findIndex((e) => e.alive && e.kind === 'conchblower'); if (i < 0) return false;
+          const e = w.enemies[i]; e.x = e.px = w.player.x + 140; e.y = e.py = w.player.y - 70; if (!e.castId) w.startCast(i, 'conchCall', 'Conch Call', 1.8, true);
+          e.castT = Math.max(e.castT, 0.9); return e.castId === 'conchCall';
+        })()
+        : c.until === 'cast' ? w.enemies.some((e) => e.alive && e.castId && e.castT / e.castDur > 0.45)
         : c.until === 'boss' ? true
         : w.nextVent >= 0;
       if (ok) s.warp = 0;

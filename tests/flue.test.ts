@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, REGENT, SUMMONS, REGENT_VARIANTS, TITHE } from '../sim/world';
+import { World, REGENT, SUMMONS, REGENT_VARIANTS, TITHE, RAID_ECHO } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -342,5 +342,52 @@ describe('Phase 15 Y3: the Furnace Regent\'s Tithe', () => {
     a.inner.updatePartyTelegraphs(0.01);
     expect(a.w.events.some((ev) => ev.type === 'soak' && ev.owner === -5 && !ev.ok)).toBe(true);
     expect(a.w.events.some((ev) => ev.type === 'tithe' && !ev.ok && ev.n === 1)).toBe(true);
+  });
+});
+
+describe('Phase 16 U1: the Furnace Regent\'s echo', () => {
+  const fire = (w: World, inner: Inner) => {
+    for (const t of w.telegraphs) t.alive = false;
+    inner.ashT = 0; w.events.length = 0;
+    inner.regentClock(0.01);
+    const ids = w.events.filter((x) => x.type === 'castStart').map((x) => (x as { id: string }).id);
+    const ash = w.telegraphs.some((t) => t.alive && t.kind !== 'soak');
+    return { tithe: ids.includes('tithe'), summons: ids.includes('summons'), ash, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it(`from ${RAID_ECHO.regent * 100}% health every other Ash Fall turn is his echo, the first one first`, () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'ash'; w.bossEcho = 'tithe'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent - 0.05);
+    expect(fire(w, inner)).toEqual({ tithe: true, summons: false, ash: false, echo: true });
+    expect(fire(w, inner)).toEqual({ tithe: false, summons: false, ash: true, echo: false });
+    expect(fire(w, inner)).toEqual({ tithe: true, summons: false, ash: false, echo: true });
+  });
+
+  it('the bots\' Summons lead follows his next move: no walk to the throne before a Tithe echo, and one before a Summons echo', () => {
+    const { w, inner, b } = flue();
+    (w as unknown as { bossPhase: number }).bossPhase = 2;
+    w.bossVariant = 'court'; w.bossEcho = 'tithe'; w.echoNext = true;
+    inner.ashT = 3;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent + 0.05);
+    expect(w.regentNextMove()).toBe('court');
+    expect(w.summonsDue()).toBe(3);
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent - 0.05);
+    expect(w.regentNextMove()).toBe('tithe');
+    expect(w.summonsDue()).toBe(Infinity);
+    w.echoNext = false;
+    expect(w.summonsDue()).toBe(3);
+    w.bossVariant = 'tithe'; w.bossEcho = 'court'; w.echoNext = true;
+    expect(w.summonsDue()).toBe(3);
+  });
+
+  it('a Summons echo on a Tithe run, and nothing above the threshold', () => {
+    const { w, inner, b } = flue();
+    w.bossVariant = 'tithe'; w.bossEcho = 'court'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent + 0.05);
+    expect(fire(w, inner).tithe).toBe(true);
+    expect(fire(w, inner).echo).toBe(false);
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.regent - 0.05);
+    expect(fire(w, inner)).toEqual({ tithe: false, summons: true, ash: true, echo: true });
   });
 });

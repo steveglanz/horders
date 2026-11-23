@@ -68,8 +68,13 @@ const BULWARK_ARMOR = 0.2;
 /** Shield Block: share of each hit stopped from the foe the Bulwark is sweeping. */
 const BULWARK_BLOCK = 0.35;
 const RINGWALL_BLOCK = 0.2;
-/** Blade Guard: share of each hit the Duskblade stops from the foe it is swinging at. */
-const BLADE_GUARD = 0.5;
+/**
+ * Blade Guard (novice aid): share of each hit the Duskblade stops from the foe it is swinging at, by tier (1, 2, 3),
+ * and none from tier 4. It stays strong through tiers 2 and 3 instead of fading with the rest of the aid: with it
+ * fading, a novice Duskblade (LAG=0.3 SKILL=0.5, ungeared) won 0 of 40 at Kiln t2 and t3, mostly to Cinder Brute
+ * hits (QA's playtest, 23 Nov). See docs/skills.md.
+ */
+export const BLADE_GUARD: readonly number[] = [0.5, 0.7, 0.7];
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -535,7 +540,7 @@ export interface Player {
 
 export type SimEvent =
   /** `hero`: who landed it (World.acting), so a screen can tell its own hits from an ally's. */
-  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number }
+  | { type: 'hit'; x: number; y: number; amount: number; crit: boolean; hero?: number; /** Phase 16 U2: an Ashwall's shield cut this hit (its front, or a foe sheltering behind it). */ glance?: true }
   | { type: 'kill'; x: number; y: number; kind: EnemyKind }
   | { type: 'playerHurt'; amount: number; hero?: number }
   | { type: 'levelUp'; level: number; hero?: number }
@@ -863,10 +868,16 @@ export class World {
    * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
    */
   bossEcho: string = '';
+  /** Phase 16 U3: the U2 new foes this run has met (spawned), as bits of NEW_FOE_BIT. */
+  foesMet = 0;
+  /** Phase 16 U3: true once this run's echo has actually gone off (its first 'echo' event), for the Seen log and run summary. */
+  echoMet = false;
   /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
   echoNext = false;
   /** Phase 16 U1: a boss whose versions are lasting effects (Maelra) runs her echo in windows; true while one is on. */
   echoLive = false;
+  /** Phase 16 U1: the way Ysmeret's current vents run (her version, or her echo's). */
+  ventMove: string = '';
   echoT = 0;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
@@ -1016,8 +1027,17 @@ export class World {
    * court version), or Infinity when none is coming. Bots read it to walk in before the call.
    */
   summonsDue(): number {
-    if (this.bossVariant !== 'court' || this.bossPhase !== 2 || this.summonsT > 0 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return Infinity;
+    if (this.regentNextMove() !== 'court' || this.bossPhase !== 2 || this.summonsT > 0 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return Infinity;
     return this.ashT;
+  }
+  /**
+   * Phase 16 U1: the Furnace Regent's next Ash-timer move: his own version, or his echo when the next turn is the
+   * echo's (sound's check: with a Tithe echo in a court run, bots walked to the throne for a Summons that never came).
+   */
+  regentNextMove(): string {
+    const e = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    if (this.bossEcho && this.echoNext && e && e.hp <= e.maxHp * RAID_ECHO.regent) return this.bossEcho;
+    return this.bossVariant;
   }
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
@@ -1161,6 +1181,8 @@ export class World {
   ebbT = 0;
   /** Hessa: phase 2 (Riptide) from WRACK.phase2, and her clocks. */
   wrackPhase = 1;
+  /** Phase 16 U1: this Ebb runs Hessa's echo instead of her own version. */
+  ebbEcho = false;
   private sinkT = 0;
   private shoalT = 0;
   events: SimEvent[] = [];
@@ -1547,6 +1569,7 @@ export class World {
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
+      this.noteEcho();
       this.checkEnd();
       return;
     }
@@ -1569,7 +1592,14 @@ export class World {
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
     this.updateRevives(dt);
+    this.noteEcho();
     this.checkEnd();
+  }
+
+  /** Phase 16 U3: marks the echo met the first step it goes off. Reads this step's events only; no rng. */
+  private noteEcho(): void {
+    if (this.echoMet || !this.bossEcho) return;
+    for (const e of this.events) if (e.type === 'echo') { this.echoMet = true; return; }
   }
 
   /** True while a boss is spawned and still standing (G6 boss revive rules apply). */
@@ -1996,6 +2026,8 @@ export class World {
           this.homeStage = 0;
           this.homeT = 0;
           this.bossVariant = this.rollOndrelVariant();
+          this.bossEcho = this.rollEcho(ONDREL_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.gripT = 0;
           this.slagTickT = 1;
           e.abilityT = ONDREL.sweepEvery;
@@ -2009,6 +2041,8 @@ export class World {
           this.bossIndex = i;
           this.wrackPhase = 1;
           this.bossVariant = this.rollHessaVariant();
+          this.bossEcho = this.rollEcho(HESSA_VARIANTS, this.bossVariant);
+          this.echoNext = true; this.ebbEcho = false;
           this.sinkT = WRACK.firstSink;
           this.shoalT = WRACK.firstShoal;
           this.events.push({ type: 'bossSpawn' });
@@ -2020,6 +2054,8 @@ export class World {
           this.tideT = COLD.firstTide;
           this.nightT = COLD.firstNight;
           this.bossVariant = this.rollNhevraVariant();
+          this.bossEcho = this.rollNhevraEcho();
+          this.echoLive = false; this.echoT = 0;
           this.driftEmbers = [];
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2037,6 +2073,8 @@ export class World {
           this.raidBurnT = 1;
           this.lastEmberCast = false;
           this.bossVariant = this.rollSlagVariant();
+          this.bossEcho = this.rollEcho(SLAG_VARIANTS, this.bossVariant);
+          this.echoLive = false; this.echoT = 0;
           this.islands = [];
           this.islandN = 0;
           this.flowStage = 0;
@@ -2056,6 +2094,8 @@ export class World {
           this.lastEmberCast = false;
           this.summonsT = 0;
           this.bossVariant = this.rollRegentVariant();
+          this.bossEcho = this.rollEcho(REGENT_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'colossus') {
@@ -2075,6 +2115,8 @@ export class World {
           this.millDir = 1;
           this.millTickT = 0;
           this.bossVariant = this.rollColossusVariant();
+          this.bossEcho = this.rollEcho(COLOSSUS_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2092,12 +2134,15 @@ export class World {
           this.coalEmbers.length = 0;
           this.lastEmberCast = false;
           this.bossVariant = this.rollVorhulmVariant();
+          this.bossEcho = this.rollEcho(VORHULM_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.bankN = 0;
           this.inhaleStage = 0;
           this.inhaleT = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'hoarfrostWeaver') e.abilityT = 3;
+        if (sp.kind === 'conchblower') e.abilityT = CONCH.first;
         if (sp.kind === 'ysmeret') {
           this.bossSpawned = true;
           this.bossIndex = i;
@@ -2105,6 +2150,8 @@ export class World {
           this.rollLeft = 0;
           this.rollDir = -1;
           this.bossVariant = this.rollYsmeretVariant();
+          this.bossEcho = this.rollEcho(YSMERET_VARIANTS, this.bossVariant);
+          this.echoNext = true; this.ventMove = this.bossVariant;
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
           this.events.push({ type: 'bossSpawn' });
@@ -2116,6 +2163,8 @@ export class World {
           this.rivetT = OSKEL.firstRivets;
           this.stampT = OSKEL.firstStamp;
           this.bossVariant = this.rollOskelVariant();
+          this.bossEcho = this.rollEcho(OSKEL_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.cutCount = 0;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2214,6 +2263,11 @@ export class World {
    * Phase 16 U1: from ECHO.minTier, a boss also echoes one of her other versions in her last phase. Hashed from the seed
    * (no run-rng draws), never the rolled version, and none on the first delve or in stress runs.
    */
+  /** Phase 16 U1: Nhevra's echo, from her other versions; a Creeping Rime run only ever echoes the Emberdrift (NHEVRA_RIME_ECHOES). */
+  private rollNhevraEcho(): NhevraVariant | '' {
+    return this.rollEcho(this.bossVariant === 'rime' ? NHEVRA_RIME_ECHOES : NHEVRA_VARIANTS, this.bossVariant);
+  }
+
   private rollEcho<V extends string>(all: readonly V[], rolled: string): V | '' {
     if (this.firstDelve || this.stress || this.tier < ECHO.minTier || ECHO.off) return '';
     const others = all.filter((v) => v !== rolled);
@@ -2321,14 +2375,19 @@ export class World {
     return HESSA_VARIANTS[(h >>> 4) % HESSA_VARIANTS.length];
   }
 
+  /** Phase 16 U1: the version this Ebb runs: her echo's on an echoed Ebb, else her own. */
+  private hessaEbb(): string {
+    return this.ebbEcho && this.bossEcho ? this.bossEcho : this.bossVariant;
+  }
+
   /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
   /** Phase 15 Y3: Hessa's Whirl version, in phase 2 while she lives. */
   get whirl(): boolean {
-    return this.bossVariant === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+    return this.hessaEbb() === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
 
   get outsurge(): boolean {
-    return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+    return this.hessaEbb() === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
 
   /** V8: Nhevra's phase-2 signature this run, hashed from the seed (no run-rng draws). */
@@ -2858,6 +2917,8 @@ export class World {
     e.alive = true;
     e.kind = kind;
     e.def = def;
+    const nb = NEW_FOE_BIT[kind];
+    if (nb) this.foesMet |= nb;
     if (this.threat.length) this.threat[idx] = newThreat();
     e.x = e.px = x;
     e.y = e.py = y;
@@ -2878,7 +2939,8 @@ export class World {
     e.castDur = 0;
     e.interruptible = false;
     e.stunT = 0;
-    e.aux = 0;
+    // Phase 16 U2: an Ashwall comes in with its shield already toward the hero (aux is its facing).
+    e.aux = kind === 'ashwall' ? Math.atan2(this.player.y - y, this.player.x - x) : 0;
     e.aux2 = 0;
     e.ward = 0;
     e.warded = false;
@@ -3072,7 +3134,7 @@ export class World {
     // Kinbound: an ally's heal leaves you Covered.
     if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
-    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - BLADE_GUARD * this.noviceAid;
+    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (BLADE_GUARD[this.tier - 1] ?? 0);
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
@@ -4833,6 +4895,58 @@ export class World {
         if (d < VARIETY.spitterNear) { mx = -mx; my = -my; }
         else if (d < VARIETY.spitterFar) { const s = i % 2 ? 0.5 : -0.5; const tx = -my * s; my = mx * s; mx = tx; }
       }
+      // Phase 16 U2: the Ashwall turns its shield to the hero (slowly) and plants itself in front of the nearest foe it guards.
+      if (e.kind === 'ashwall') {
+        const want = Math.atan2(dy, dx);
+        const step = ASHWALL.turn * dt;
+        const diff = angleDiff(want, e.aux);
+        e.aux = angleDiff(e.aux + Math.max(-step, Math.min(step, diff)), 0);
+        const g = this.ashwallWard(i);
+        if (g >= 0) {
+          const o = this.enemies[g];
+          const ox = p.x - o.x, oy = p.y - o.y, od = Math.hypot(ox, oy) || 1;
+          const gx = o.x + (ox / od) * ASHWALL.guardGap - e.x, gy = o.y + (oy / od) * ASHWALL.guardGap - e.y;
+          const gd = Math.hypot(gx, gy);
+          mx = gd > 8 ? (gx / gd) * speed : 0;
+          my = gd > 8 ? (gy / gd) * speed : 0;
+        }
+      }
+      // Phase 16 U2: the Dimhorn shuns the light. It hangs just outside its hero's coal light; time out of every coal's
+      // light (aux) builds toward its Dark Call, and inside one it drains and the horn can't sound.
+      if (e.kind === 'dimhorn') {
+        const lit = this.warmthAt(e.x, e.y, e.def.radius) > 0;
+        if (!e.castId) {
+          e.aux = lit ? Math.max(0, e.aux - dt * DIMHORN.drain) : e.aux + dt;
+          if (!lit && e.aux >= DIMHORN.callAt && e.aux2 < DIMHORN.maxCalls) this.startCast(i, 'darkCall', 'Dark Call', DIMHORN.callCast, false);
+        }
+        const R = (p.coal ? p.coalR ?? this.coalMaxR : COLD.minR) + DIMHORN.hang;
+        if (d < R) { mx = -mx; my = -my; }
+        else if (d < R + DIMHORN.band) { const tx = -my * 0.6; my = mx * 0.6; mx = tx; }
+      }
+      // Phase 16 U2: the Lampeye's gaze (aux) builds while it can see its hero and fades while a pillar is between
+      // them. Full, it starts its Searing Look (a cast, so a hero can still step behind a pillar).
+      if (e.kind === 'lampeye' && !e.castId) {
+        if (this.lampeyeSees(e, p.x, p.y)) e.aux = Math.min(LAMPEYE.full, e.aux + dt);
+        else e.aux = Math.max(0, e.aux - dt * LAMPEYE.fade);
+        if (e.aux >= LAMPEYE.full) {
+          this.startCast(i, 'searingLook', 'Searing Look', LAMPEYE.lookCast, false);
+        }
+        // It keeps its distance, so its gaze crosses the room.
+        if (d < LAMPEYE.keep) { mx = -mx; my = -my; }
+      }
+      // Phase 16 U2: the Ballast drops anchor after `plantDelay` s with its hero in reach, and pulls it up `unplant`
+      // s after they leave it. `aux` counts toward planting (>= plantDelay is planted); `aux2` counts the time out of reach.
+      if (e.kind === 'ballast') {
+        const inReach = d < BALLAST.reach + e.def.radius;
+        if (e.aux >= BALLAST.plantDelay) {
+          e.aux2 = inReach ? 0 : e.aux2 + dt;
+          if (e.aux2 >= BALLAST.unplant) { e.aux = 0; e.aux2 = 0; this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'unanchor', name: 'Weighs Anchor' }); }
+        } else if (inReach) {
+          e.aux += dt;
+          if (e.aux >= BALLAST.plantDelay) { e.aux2 = 0; e.abilityT = Math.min(e.abilityT, BALLAST.slamFirst); this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'anchor', name: 'Drops Anchor' }); }
+        } else e.aux = Math.max(0, e.aux - dt);
+        if (e.aux >= BALLAST.plantDelay) { mx = 0; my = 0; }
+      }
       // V1: an Ashbuck mid-charge runs straight down its lane, fast, and doesn't steer.
       if (e.kind === 'ashbuck' && e.aux2 > 0) {
         e.aux2 -= dt;
@@ -4986,6 +5100,35 @@ export class World {
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
       this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
+    } else if (id === 'conchCall') {
+      // Phase 16 U2: the next Ebb comes `hasten` s sooner (never sooner than `floor` s off). Mid-Ebb it holds the water.
+      if (this.ebbT > 0) this.ebbT += CONCH.hold;
+      else if (this.ebbWarnT <= 0) this.tideClockT = Math.max(CONCH.floor, this.tideClockT - CONCH.hasten);
+      this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'conchBlown', name: 'The Ebb Comes Sooner' });
+    } else if (id === 'darkCall') {
+      // Phase 16 U2: the Dimhorn's horn calls the pack in from the dark edge behind it. A Dimhorn dragged into a coal's
+      // light before the call ends is silenced, and the call is lost.
+      e.aux = 0;
+      if (this.warmthAt(e.x, e.y, e.def.radius) > 0) { this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'darkCallLost', name: 'Silenced' }); return; }
+      e.aux2++;
+      const a = Math.atan2(e.y, e.x), r = this.arenaR - 60;
+      for (let k = 0; k < DIMHORN.calls; k++) {
+        const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;
+        this.spawn('rimehound', Math.cos(b) * r, Math.sin(b) * r);
+      }
+      this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x: Math.cos(a) * r, y: Math.sin(a) * r });
+    } else if (id === 'searingLook') {
+      // Phase 16 U2: the Lampeye sears a hero it can still see; a pillar in the way blocks it. Either way its gaze resets.
+      const at = this.acting;
+      this.eachHero(() => {
+        const p = this.player;
+        if (p.hp > 0 && this.lampeyeSees(e, p.x, p.y)) {
+          this.hurtPlayer(LAMPEYE.lookDamage * this.tierDamage, i);
+          this.events.push({ type: 'slam', x: p.x, y: p.y, r: 40 });
+        }
+      });
+      this.use(at);
+      e.aux = 0;
     } else if (id === 'glare') {
       // The lens flares: anyone in the light is burned, anyone in a pillar's shadow is safe.
       const dmg = GLARE.glareDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage;
@@ -5260,6 +5403,24 @@ export class World {
       }
       return;
     }
+    if (e.kind === 'ballast') {
+      // Anchor Slam: only while planted, a ring round it. Being in its reach is what plants it, so step out.
+      if (e.aux >= BALLAST.plantDelay && e.abilityT <= 0) {
+        e.abilityT = BALLAST.slamEvery;
+        this.startCast(i, 'anchorSlam', 'Anchor Slam', BALLAST.slamCast, false);
+        this.addTelegraph('circle', e.x, e.y, BALLAST.slamR + e.def.radius, 0, 0, BALLAST.slamCast, BALLAST.slamDamage, 'hit', i);
+      }
+      return;
+    }
+    if (e.kind === 'ashwall') {
+      // Shield Bash: a short cone off the front of its shield. Its front is also where it is hard to hurt, so get round it.
+      if (e.abilityT <= 0 && dist2(p.x, p.y, e.x, e.y) < (ASHWALL.bashRange + e.def.radius) ** 2) {
+        e.abilityT = ASHWALL.bashEvery;
+        this.startCast(i, 'shieldBash', 'Shield Bash', ASHWALL.bashCast, false);
+        this.addTelegraph('cone', e.x, e.y, ASHWALL.bashRange + e.def.radius, e.aux, ASHWALL.bashArc, ASHWALL.bashCast, ASHWALL.bashDamage, 'hit', i);
+      }
+      return;
+    }
     if (e.kind === 'ashbuck') {
       // Charge: it lines up on you and runs the lane. Step out of the line, not away.
       const dd = dist2(p.x, p.y, e.x, e.y);
@@ -5323,6 +5484,14 @@ export class World {
     }
     if (e.kind === 'nhevra') return; // all on coldClock
     if (e.kind === 'hessa') return; // all on wrackClock
+    if (e.kind === 'conchblower') {
+      // Phase 16 U2: the conch calls the Ebb sooner. Quench the blast.
+      if (e.abilityT <= 0) {
+        e.abilityT = CONCH.every;
+        this.startCast(i, 'conchCall', 'Conch Call', CONCH.cast, true);
+      }
+      return;
+    }
     if (e.kind === 'bargeHauler') {
       if (e.abilityT <= 0) {
         // Haul: a hook line at its target. Quench it, or get yanked toward the Hauler.
@@ -5496,6 +5665,16 @@ export class World {
       const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
       dmg *= this.colossusSide(e, by.x, by.y);
     }
+    // Phase 16 U2: a planted Ballast barely feels hits (its glance sounds like the Ashwall's).
+    let glance = false;
+    if (e.kind === 'ballast' && e.aux >= BALLAST.plantDelay) { dmg *= BALLAST.planted; glance = true; }
+    // Phase 16 U2: an Ashwall's shield takes the hits on its front, and on the foes sheltering behind it.
+    if (this.ashwallUp()) {
+      const by = this.burnTick && e.burnBy !== undefined && e.burnBy < this.heroes.length ? this.heroPlayer(e.burnBy) : this.player;
+      const m = this.ashwallTaken(i, by.x, by.y);
+      dmg *= m;
+      glance = m < 1;
+    }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
       dmg *= 2 + 0.1 * this.rank('brightWick');
       crit = true;
@@ -5553,7 +5732,7 @@ export class World {
     if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
     if (!silent) {
       e.flash = 0.08;
-      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting });
+      this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting, ...(glance ? { glance: true as const } : {}) });
     }
     if (canCrit && this.hasMythic('splittingCinders')) {
       let other = -1;
@@ -6163,7 +6342,7 @@ export class World {
       if (q.hp <= 0) continue;
       if (q.coal === undefined) { q.coal = 1; q.chill = 0; q.chillT = 0; }
       // V8 Emberdrift: in phase 2 the cold eats coals faster, and fallen embers refill them.
-      const drift = this.coldPhase >= 2 && this.bossVariant === 'drift';
+      const drift = this.coldPhase >= 2 && versionLive(this, 'drift');
       q.coal = Math.max(0, q.coal - COLD.drain * (drift ? EMBERDRIFT.drainMult : 1) * (this.heat === 'brightCoal' ? HEAT_TUNING.coalDrain : 1) * dt);
       if (drift) {
         for (let n = this.driftEmbers.length - 1; n >= 0; n--) {
@@ -6228,7 +6407,25 @@ export class World {
       this.iceT = COLD.firstCrack;
       this.events.push({ type: 'phase', phase: 2 });
     }
-    if (this.coldPhase >= 2 && this.bossVariant === 'drift') {
+    // Phase 16 U1: from `NHEVRA_ECHO.below` health, her echo comes and goes, `on` s at a time.
+    if (this.coldPhase >= 2 && this.bossEcho && e.hp <= e.maxHp * NHEVRA_ECHO.below) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? NHEVRA_ECHO.on : NHEVRA_ECHO.off;
+        if (this.echoLive) {
+          this.events.push({ type: 'echo', id: this.bossEcho });
+          if (this.bossEcho === 'drift') this.driftT = 0;
+          if (this.bossEcho === 'ice') this.iceT = 0;
+        } else if (this.bossEcho === 'drift') {
+          this.driftEmbers = [];
+        } else if (this.bossEcho === 'rime') {
+          this.rimeOn = false;
+        }
+      }
+    }
+    const has = (v: NhevraVariant) => this.coldPhase >= 2 && versionLive(this, v);
+    if (has('drift')) {
       // V8 Emberdrift: embers fall in a ring; the old ones gutter out.
       this.driftT -= dt;
       if (this.driftT <= 0) {
@@ -6243,7 +6440,8 @@ export class World {
         }
         this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
       }
-    } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
+    }
+    if (has('rime')) {
       // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
       const risen = !this.rimeOn;
       if (!this.rimeOn) {
@@ -6279,7 +6477,9 @@ export class World {
         this.rimeX = nx;
         this.rimeY = ny;
       }
-    } else if (this.coldPhase >= 2) {
+    }
+    // Thin Ice is her base version: any run that didn't roll the other two has it.
+    if (has('ice') || (this.coldPhase >= 2 && this.bossVariant !== 'drift' && this.bossVariant !== 'rime')) {
       this.iceT -= dt;
       if (this.iceT <= 0) {
         this.iceT = COLD.crackEvery;
@@ -6383,7 +6583,7 @@ export class World {
       // The water takes foes too: all but Lurkers and bosses drift in, and the drain hurts them.
       for (let i = 0; i < this.enemies.length; i++) {
         const e = this.enemies[i];
-        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
+        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.kind === 'conchblower' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
         e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
@@ -6404,8 +6604,16 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
-        if (whirl) this.whirlDir = -this.whirlDir;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : whirl ? 'The Whirl' : 'The Ebb' });
+        // Phase 16 U1: from `HESSA_ECHO.below` health, every other Ebb runs her echo's way (the first one does).
+        this.ebbEcho = false;
+        if (boss && this.wrackPhase >= 2 && this.bossEcho && boss.hp <= boss.maxHp * HESSA_ECHO.below) {
+          this.ebbEcho = this.echoNext;
+          this.echoNext = !this.echoNext;
+          if (this.ebbEcho) this.events.push({ type: 'echo', id: this.bossEcho });
+        }
+        const nowOut = this.outsurge, nowWhirl = this.whirl;
+        if (nowWhirl) this.whirlDir = -this.whirlDir;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: nowOut ? 'The Outsurge' : nowWhirl ? 'The Whirl' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -6478,7 +6686,13 @@ export class World {
       this.twinVentT = late ? YSMERET.ventEnraged : YSMERET.ventEvery;
       const tgt = this.heroPlayer(this.targetOf(i, 0));
       const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
-      const roll = this.bossVariant === 'roll';
+      // Phase 16 U1: from `GROUP_ECHO.below` health, every other set of vents is her echo's (the first one is).
+      this.ventMove = this.bossVariant;
+      if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+        if (this.echoNext) { this.ventMove = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      const roll = this.ventMove === 'roll';
       if (roll) {
         // Rolling Vents: only the first opens now; the rest follow round her (below).
         this.rollLeft = ROLLING.count - 1;
@@ -6493,7 +6707,7 @@ export class World {
         // owner -2: a boss mechanic no interrupt removes.
         this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, YSMERET.ventFuse, YSMERET.ventBlast, 'soak', -2);
       }
-      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.bossVariant === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
+      this.events.push({ type: 'castStart', index: i, id: 'twinVents', name: roll ? 'Rolling Vents' : this.ventMove === 'wander' ? 'Wandering Vents' : 'Twin Vents' });
     } else if (!ventsOpen && this.rollLeft > 0) {
       // Rolling Vents: as one closes, the next opens further round her.
       this.rollLeft--;
@@ -6502,7 +6716,7 @@ export class World {
       this.clampArena(c, YSMERET.ventRadius + 10);
       this.addTelegraph('circle', c.x, c.y, YSMERET.ventRadius, 0, 0, ROLLING.fuse, YSMERET.ventBlast, 'soak', -2);
       this.events.push({ type: 'ventRoll', x: c.x, y: c.y, left: this.rollLeft });
-    } else if (ventsOpen && this.bossVariant === 'wander') {
+    } else if (ventsOpen && this.ventMove === 'wander') {
       // Wandering Vents: the two circles circle Ysmeret while they fuse, so the soakers walk with them.
       const turn = (WANDER.speed / YSMERET.ventDist) * dt;
       for (const t of this.telegraphs) {
@@ -6519,7 +6733,7 @@ export class World {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
-    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.bossVariant === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
+    } else if (this.scatterT <= 0 && ((!ventsOpen && this.rollLeft === 0) || (this.ventMove === 'roll' && ROLLING.scatterDuring)) && this.twinVentT > YSMERET.scatterCast + 0.5) {
       this.scatterT = YSMERET.scatterEvery;
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
     }
@@ -6559,7 +6773,13 @@ export class World {
       this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
       this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
     }
-    if (this.rivetT <= 0 && this.bossVariant === 'cut') {
+    // Phase 16 U1: from `GROUP_ECHO.below` health, every other one on this timer is his echo's (the first one is).
+    let move: string = this.bossVariant;
+    if (this.rivetT <= 0 && this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+      if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+      this.echoNext = !this.echoNext;
+    }
+    if (this.rivetT <= 0 && move === 'cut') {
       // Die Cut: half the floor, split through Oskel. Away from an open plate, so its taker is safe;
       // otherwise the side turns a quarter each time.
       this.rivetT = DIECUT.every;
@@ -6568,7 +6788,7 @@ export class World {
       this.cutCount++;
       this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
-    } else if (this.rivetT <= 0 && this.bossVariant === 'punch') {
+    } else if (this.rivetT <= 0 && move === 'punch') {
       // Punch Line: marching rows of punches out from Oskel.
       this.rivetT = PUNCH.every;
       const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
@@ -6671,6 +6891,11 @@ export class World {
    * Phase 2 The Pour: molten lanes and a steady party burn. Phase 3 Last Ember: soak vents
    * and Cinder Marks. Ladle Burn ticks the whole fight. Last Ember ends it at `hardEnrage`.
    */
+  /** Phase 16 U1: Grandmother Slag's version in effect now: her echo while one is on, else her own. */
+  private slagMove(): string {
+    return this.echoLive && this.bossEcho ? this.bossEcho : this.bossVariant;
+  }
+
   private slagClock(dt: number): void {
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
@@ -6688,9 +6913,29 @@ export class World {
         this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
       }
       if (phase === 2 && this.bossVariant === 'flow') { this.flowStage = 0; this.flowT = OVERFLOW.first; }
-      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; }
+      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; this.echoLive = false; }
     }
-    if (phase === 2 && this.bossVariant === 'flow') {
+    // Phase 16 U1: from `RAID_ECHO.slag` health in phase 2, her echo takes her own version's place `SLAG_ECHO.on` s at a time.
+    if (phase === 2 && this.bossEcho && frac <= RAID_ECHO.slag) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? SLAG_ECHO.on : SLAG_ECHO.off;
+        if (this.echoLive) this.events.push({ type: 'echo', id: this.bossEcho });
+        // Clear what was running, then start the version that runs now.
+        this.islands = [];
+        if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' });
+        this.flowStage = 0;
+        const now = this.slagMove();
+        if (now === 'brim') {
+          for (let k = 0; k < BRIM.count; k++) this.islands.push(this.placeIsland(e, this.islandN++, BRIM.life * (k + 1) / BRIM.count));
+          this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
+        }
+        if (now === 'flow') this.flowT = OVERFLOW.first;
+      }
+    }
+    const move = this.slagMove();
+    if (phase === 2 && move === 'flow') {
       // The Overflow: warn, rise from the rim, burn anyone far from her, ebb.
       this.flowT -= dt;
       if (this.flowT <= 0) {
@@ -6738,9 +6983,9 @@ export class World {
       if (this.heatT <= 0) {
         this.heatT += SLAG.heatEvery;
         // The Brimming: off an island the slag burns harder, and on one it doesn't burn at all.
-        const brim = this.bossVariant === 'brim';
+        const brim = move === 'brim';
         this.eachHero(() => {
-          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : this.bossVariant === 'flow' ? OVERFLOW.heat : SLAG.heat;
+          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : move === 'flow' ? OVERFLOW.heat : SLAG.heat;
           if (share > 0) this.hurtPlayer(this.player.maxHp * share, i, true);
         });
         this.use(at);
@@ -6790,7 +7035,7 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0 && (this.bossVariant === 'brim' || this.bossVariant === 'flow')) {
+    } else if (phase === 2 && this.pourT <= 0 && (move === 'brim' || move === 'flow')) {
       // The Brimming: she churns the pit on the Pour's timer and cast, with no lanes. It keeps the Pour's
       // pause on the tank (skills' W7 trace: without it an Anvil Slagbinder tank won 4 of 32).
       this.pourT = SLAG.pourEvery;
@@ -6882,7 +7127,13 @@ export class World {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
-        if (this.bossVariant === 'tithe') {
+        // Phase 16 U1: from `RAID_ECHO.regent` health, every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.regent) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'tithe') {
           // Phase 15 Y3: he demands a Tithe instead of the ash: a gold circle away from him that needs at least TITHE.need heroes.
           const a = this.rng.next() * Math.PI * 2;
           let x = e.x + Math.cos(a) * TITHE.dist, y = e.y + Math.sin(a) * TITHE.dist;
@@ -6892,7 +7143,7 @@ export class World {
           this.events.push({ type: 'castStart', index: i, id: 'tithe', name: 'Tithe' });
           return;
         }
-        if (this.bossVariant === 'court') {
+        if (move === 'court') {
           // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
           this.summonsT = SUMMONS.warn;
           this.events.push({ type: 'castStart', index: i, id: 'summons', name: 'Summons' });
@@ -7054,8 +7305,14 @@ export class World {
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
-      if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
-      else if (this.bossVariant === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
+      // Phase 16 U1: from `RAID_ECHO.colossus` health, every other one is his echo's (the first one is).
+      let move: string = this.bossVariant;
+      if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.colossus) {
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      if (move === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else if (move === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
       else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
@@ -7072,6 +7329,57 @@ export class World {
 
   /** The Colossus's damage taken from a hero at (x, y): plated in front, open behind. */
   /** True when (x, y) is in the Colossus's back arc, the same arc that takes COLO.backMult. Meltdown doesn't change where his back is. */
+  /** Phase 16 U2: whether the Lampeye at `e` can see (x, y): no standing pillar crosses the line between them. */
+  lampeyeSees(e: Enemy, x: number, y: number): boolean {
+    const dx = x - e.x, dy = y - e.y, L2 = dx * dx + dy * dy || 1;
+    // Too close for it to focus: a hero right under the eye is out of its gaze.
+    if (L2 < (e.def.radius + LAMPEYE.under) ** 2) return false;
+    for (const c of this.pillars) {
+      if (c.cracked) continue;
+      const k = Math.max(0, Math.min(1, ((c.x - e.x) * dx + (c.y - e.y) * dy) / L2));
+      if (dist2(e.x + dx * k, e.y + dy * k, c.x, c.y) < c.r * c.r) return false;
+    }
+    return true;
+  }
+
+  /** Phase 16 U2: whether this fight has an Ashwall in it (cheap, so damage checks skip the rest otherwise). */
+  ashwallUp(): boolean {
+    return this.encounterDef.spawns.some((s) => s.kind === 'ashwall');
+  }
+
+  /** The foe Ashwall `i` guards: the nearest living foe that isn't an Ashwall or a boss, within `guardRange`; -1 for none. */
+  ashwallWard(i: number): number {
+    const a = this.enemies[i];
+    let best = -1, bd = ASHWALL.guardRange ** 2;
+    for (let j = 0; j < this.enemies.length; j++) {
+      const o = this.enemies[j];
+      if (j === i || !o.alive || o.kind === 'ashwall' || o.def.rank === 'boss') continue;
+      const d = dist2(a.x, a.y, o.x, o.y);
+      if (d < bd) { bd = d; best = j; }
+    }
+    return best;
+  }
+
+  /**
+   * Phase 16 U2: the damage multiplier foe `i` takes from a hero at (x, y) because of Ashwalls. An Ashwall's
+   * shield faces `aux`. Hit from inside its front arc, the Ashwall takes `front`, and any foe within
+   * `shelterR` behind it (inside `shelterArc` of its back) takes `sheltered`. From its side or back, nothing.
+   */
+  ashwallTaken(i: number, x: number, y: number): number {
+    const e = this.enemies[i];
+    if (e.def.rank === 'boss') return 1;
+    let m = 1;
+    for (let k = 0; k < this.enemies.length; k++) {
+      const a = this.enemies[k];
+      if (!a.alive || a.kind !== 'ashwall') continue;
+      if (Math.abs(angleDiff(Math.atan2(y - a.y, x - a.x), a.aux)) >= ASHWALL.frontArc) continue;
+      if (k === i) { m = Math.min(m, ASHWALL.front); continue; }
+      if (dist2(a.x, a.y, e.x, e.y) > ASHWALL.shelterR ** 2) continue;
+      if (Math.abs(angleDiff(Math.atan2(e.y - a.y, e.x - a.x), a.aux + Math.PI)) < ASHWALL.shelterArc) m = Math.min(m, ASHWALL.sheltered);
+    }
+    return m;
+  }
+
   behindColossus(e: Enemy, x: number, y: number): boolean {
     return Math.abs(angleDiff(Math.atan2(y - e.y, x - e.x), this.colFacing + this.colPlate)) >= COLO.backArc;
   }
@@ -7126,15 +7434,44 @@ export class World {
         this.feedVorhulm(m.x, m.y);
       }
     }
-    if (phase === 3 && this.bossVariant === 'inhale') {
-      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
+    if (phase === 3) {
       this.spillT -= dt;
-      if (this.inhaleStage === 0 && this.spillT <= 0) {
+      if (this.spillT <= 0 && this.inhaleStage === 0) {
         this.spillT = COAL.spillEvery;
-        this.inhaleStage = 1;
-        this.inhaleT = INHALE.warn;
-        this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
-        this.events.push({ type: 'inhale', stage: 'warn' });
+        // Phase 16 U1: in his last phase every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.vorhulm) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'inhale') {
+          // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
+          this.inhaleStage = 1;
+          this.inhaleT = INHALE.warn;
+          this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
+          this.events.push({ type: 'inhale', stage: 'warn' });
+        } else if (move === 'bank') {
+          // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
+          for (let k = 0; k < BANK.count; k++) {
+            const n = this.bankN++;
+            const a = n * 2.39996 + (this.seed & 7) * 0.785;
+            const r = n % 2 === 0 ? BANK.near : BANK.far;
+            const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+            this.clampArena(c, BANK.radius + 10);
+            // owner -4: a Banked Coal (no blast if missed: he eats it instead).
+            this.addTelegraph('circle', c.x, c.y, BANK.radius, 0, 0, BANK.fuse, 0, 'soak', -4);
+          }
+          this.events.push({ type: 'castStart', index: i, id: 'bankedCoals', name: 'Banked Coals' });
+        } else {
+          for (let k = 0; k < COAL.spillN; k++) {
+            const a = this.rng.range(0, Math.PI * 2);
+            const r = this.rng.range(COAL.spillMin, COAL.spillMax);
+            const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+            this.clampArena(c, 30);
+            this.coalEmbers.push({ x: c.x, y: c.y, t: COAL.emberLife });
+          }
+          this.events.push({ type: 'castStart', index: i, id: 'emberSpill', name: 'Ember Spill' });
+        }
       } else if (this.inhaleStage > 0) {
         this.inhaleT -= dt;
         if (this.inhaleT <= 0 && this.inhaleStage === 1) {
@@ -7168,35 +7505,6 @@ export class World {
           }
         }
         this.use(at);
-      }
-    } else if (phase === 3 && this.bossVariant === 'bank') {
-      this.spillT -= dt;
-      if (this.spillT <= 0) {
-        // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
-        this.spillT = COAL.spillEvery;
-        for (let k = 0; k < BANK.count; k++) {
-          const n = this.bankN++;
-          const a = n * 2.39996 + (this.seed & 7) * 0.785;
-          const r = n % 2 === 0 ? BANK.near : BANK.far;
-          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
-          this.clampArena(c, BANK.radius + 10);
-          // owner -4: a Banked Coal (no blast if missed: he eats it instead).
-          this.addTelegraph('circle', c.x, c.y, BANK.radius, 0, 0, BANK.fuse, 0, 'soak', -4);
-        }
-        this.events.push({ type: 'castStart', index: i, id: 'bankedCoals', name: 'Banked Coals' });
-      }
-    } else if (phase === 3) {
-      this.spillT -= dt;
-      if (this.spillT <= 0) {
-        this.spillT = COAL.spillEvery;
-        for (let k = 0; k < COAL.spillN; k++) {
-          const a = this.rng.range(0, Math.PI * 2);
-          const r = this.rng.range(COAL.spillMin, COAL.spillMax);
-          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
-          this.clampArena(c, 30);
-          this.coalEmbers.push({ x: c.x, y: c.y, t: COAL.emberLife });
-        }
-        this.events.push({ type: 'castStart', index: i, id: 'emberSpill', name: 'Ember Spill' });
       }
     }
     if (phase >= 2 && this.swallowed < 0) this.swallowT -= dt;
@@ -7320,8 +7628,14 @@ export class World {
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
         this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
-        if (this.bossVariant === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
-        else if (this.bossVariant === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
+        // Phase 16 U1: from `GROUP_ECHO.below` health, every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'load') this.startCast(i, 'ironload', 'Ironload', ONDREL.choirCast, false);
+        else if (move === 'home') { if (this.homeStage === 0) this.startCast(i, 'homeward', 'Homeward Hammer', ONDREL.choirCast, false); }
         else this.startCast(i, 'choir', 'Choir of Iron', ONDREL.choirCast, false);
       }
     }
@@ -8256,7 +8570,7 @@ export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]
   return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
 }
 /** Phase 15 Y5 fix: a Rimehound pack that is 3 or more with its Hoarfrost Weavers never forms a ring (it stays an arc). */
-function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
+export function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
   // Hoarfrost Weavers count too: their Frost Lace pins a hero while the hounds close (skills' Y5, the Two Weavers).
   const n = (k: EnemyKind) => spawns.filter((s) => s.kind === k).reduce((a, s) => a + s.n, 0);
   const hounds = n('rimehound');
@@ -8355,6 +8669,12 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U1 echoes: from `minTier`, a boss's last phase also uses one of her other versions' moves, every other time her
  * signature comes round. `off` and `force` (a version id) are for measuring.
  */
+/**
+ * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
+ * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
+ */
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye', 'dimhorn', 'conchblower'];
+export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
@@ -8370,6 +8690,13 @@ export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage:
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
 export type NhevraVariant = 'ice' | 'drift' | 'rime';
 export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
+/** Phase 16 U1: Nhevra has two phases, so her echo starts at `below` health, then runs `on` s on and `off` s off. */
+export const NHEVRA_ECHO = { below: 0.25, on: 12, off: 10 };
+/**
+ * Skills' U4 check (23 Nov): Creeping Rime with a Thin Ice echo boxes a melee hero in between the cracks, the rime
+ * and her body (Duskblade 41 -> 26 of 65 Rime runs, Coldmarrow t10), so a Rime Nhevra only ever echoes the Emberdrift.
+ */
+export const NHEVRA_RIME_ECHOES: NhevraVariant[] = ['drift'];
 /**
  * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
  * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.
@@ -8450,6 +8777,52 @@ export const VARIETY = {
   chargeMin: 110, chargeLen: 360, chargeArc: 0.24, chargeCast: 1.0, chargeEvery: 5, chargeSpeed: 720, chargeDamage: 22,
   /** Hollow Rift in a dungeon fight: Ashlings out at once. */
   riftCap: 8,
+};
+
+/**
+ * Phase 16 U2: the Ashwall (the Kiln). Its shield turns toward its hero at `turn` rad/s. Hit inside `frontArc`
+ * (half-angle) of it, the Ashwall takes `front`, and a foe within `shelterR` behind it (inside `shelterArc` of its
+ * back) takes `sheltered`. It plants itself `guardGap` in front of the nearest foe within `guardRange`.
+ * Shield Bash: a `bashArc` cone off its front, every `bashEvery` s while the hero is close.
+ */
+/**
+ * Phase 16 U2: the Conchblower (the Wrackline). Every `every` s (first after `first`) it casts Conch Call for `cast` s,
+ * Quenchable. A blast that lands brings the next Ebb `hasten` s sooner, but never to under `floor` s away; during an
+ * Ebb it holds the water `hold` s longer. It swims the Ebb like a Shoal Lurker rather than drifting.
+ */
+export const CONCH = { first: 4, every: 8, cast: 1.8, hasten: 6, floor: 1, hold: 1.5 };
+
+/**
+ * Phase 16 U2: the Dimhorn (the Coldmarrow). It hangs `hang` px outside its hero's coal light (circling in a `band`
+ * px wide ring). `Enemy.aux` counts its seconds out of every coal's light, draining `drain` times as fast inside one.
+ * At `callAt` it casts Dark Call for `callCast` s, not interruptible: `calls` Rimehounds come in from the arena edge
+ * behind it, unless it is inside a coal's light when the cast ends. After `maxCalls` calls (`Enemy.aux2` counts them) its
+ * horn is spent. Uncapped, a ranged hero who never brought the light over it faced 10 to 26 calls and died every time.
+ */
+export const DIMHORN = { hang: 40, band: 70, drain: 2, callAt: 7, callCast: 2, calls: 3, maxCalls: 2 };
+
+/**
+ * Phase 16 U2: the Lampeye (the Glarewell). Its gaze (`Enemy.aux`, seconds) builds while it can see its hero and
+ * fades `fade` times as fast behind a pillar. At `full` it casts Searing Look for `lookCast` s: every hero it can
+ * still see takes `lookDamage`. It backs off inside `keep` px. A hero within `under` px of its edge is too close for it
+ * to focus on, so out of its gaze: melee heroes beat it by getting right under it.
+ */
+export const LAMPEYE = { full: 6, fade: 2, lookCast: 1.0, lookDamage: 34, keep: 220, under: 70 };
+
+/**
+ * Phase 16 U2: the Ballast (the Foundry). With its hero within `reach` (past its own radius) for `plantDelay` s it
+ * drops anchor: it stops, takes `planted` damage, and Anchor Slams a `slamR` ring every `slamEvery` s (the first
+ * `slamFirst` s after planting). `unplant` s after its hero leaves its reach it weighs anchor and walks again.
+ */
+export const BALLAST = {
+  reach: 90, plantDelay: 0.8, unplant: 0.6, planted: 0.3,
+  slamFirst: 1.0, slamEvery: 2.6, slamCast: 0.9, slamR: 95, slamDamage: 16,
+};
+
+export const ASHWALL = {
+  turn: 0.5, frontArc: Math.PI / 3, front: 0.5, shelterR: 150, shelterArc: 0.9, sheltered: 0.35,
+  guardGap: 55, guardRange: 320,
+  bashRange: 80, bashArc: 1.4, bashCast: 0.8, bashEvery: 5, bashDamage: 14,
 };
 
 export const FOUNDRY = {
@@ -8638,6 +9011,15 @@ export const WANDER = { speed: 70 };
 /** Phase 12 W2 and Phase 15 Y3: Ondrel's versions. `choir`: Choir of Iron hurts every hero. `load`: Ironload marks one, and the party shares it. `home`: the Homeward Hammer, thrown out and flying back. */
 export type OndrelVariant = 'choir' | 'load' | 'home';
 export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
+/** Phase 16 U1: the group bosses have one phase, so their echo starts at `below` health: every other signature is the echo's, the first one first. */
+export const GROUP_ECHO = { below: 0.25 };
+/**
+ * Phase 16 U1: the raid bosses' signatures run in one phase, so each echo starts at that boss's health share here
+ * and alternates with the boss's own signature on the same timer, echo first.
+ */
+export const RAID_ECHO = { regent: 0.4, colossus: 0.45, vorhulm: 1, slag: 0.5 };
+/** Phase 16 U1: Grandmother Slag's echo windows in phase 2: `on` s on (one Overflow cycle), `off` s off. */
+export const SLAG_ECHO = { on: 14, off: 10 };
 /**
  * Phase 15 Y3 the Homeward Hammer, on the Choir's timer: he throws his hammer at the hero farthest from him. It lands
  * in a circle (`radius`, after `fall` s), then flies straight back to his hand along a line `width` px either side
@@ -8659,6 +9041,8 @@ export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
  * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
  */
 export const WHIRL = { spin: 0.6, inward: 0.5 };
+/** Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers. */
+export const HESSA_ECHO = { below: 0.25 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */

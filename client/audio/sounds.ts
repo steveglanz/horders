@@ -38,6 +38,13 @@ const whoosh = (from: number, to: number, dur: number, vol = 0.3): Recipe => [
   { wave: 'noise', f: 0, dur, vol, a: dur * 0.3, lp: from, lp2: to, curve: 1.5 },
 ];
 
+/** The Lampeye's gaze, step k of 5: a short glassy hum two semitones above the last, brighter as it climbs. */
+const gazeTone = (k: number): Recipe => [
+  { wave: 'sine', f: note(5 + 2 * k), dur: 0.55, vol: 0.12 + 0.02 * k, a: 0.06, curve: 1.6, vib: [6, 0.006] },
+  { wave: 'tri', f: note(17 + 2 * k), dur: 0.45, vol: 0.05 + 0.012 * k, a: 0.05, curve: 2 },
+  { wave: 'sine', f: note(24 + 2 * k) * 1.003, dur: 0.3, vol: 0.03 + 0.01 * k, a: 0.02, curve: 2.5 },
+];
+
 const horn = (f: number, dur: number, vol = 0.45): Recipe => [
   { wave: 'saw', f: f * 0.97, f2: f, dur, vol: vol * 0.5, a: 0.12, lp: 900, lp2: 2200, curve: 1.2, vib: [5, 0.006] },
   { wave: 'saw', f: f * 1.005, dur, vol: vol * 0.4, a: 0.15, lp: 1200, curve: 1.2, vib: [4.4, 0.008] },
@@ -847,6 +854,82 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 0.5, vol: 0.14, a: 0.25, lp: 2500, lp2: 6000, hp: 900, curve: 1.2 },
      { wave: 'noise', f: 0, dur: 0.08, delay: 0.5, vol: 0.3, lp: 4000, hp: 700, curve: 3 }],
   ),
+  /** Phase 16 U2: the Ashwall winds up its Shield Bash (a cone off its front, ASHWALL.bashCast 0.8 s): iron scraping on
+   *  stone as the shield draws back, and a short rising grunt of effort. Ends before the bash lands. */
+  bashWarn: join(
+    [{ wave: 'noise', f: 0, dur: 0.5, vol: 0.2, a: 0.15, lp: 3000, lp2: 6500, hp: 800, curve: 1.3, trem: [30, 0.5] },
+     { wave: 'saw', f: 110, f2: 190, dur: 0.45, vol: 0.12, a: 0.1, lp: 900, lp2: 1600, curve: 1.2 }],
+    clang(note(-7), 0.16, 0.25).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.45 })),
+  ),
+  /** Phase 16 U2: the Ballast winds up Anchor Slam (a ring round it, BALLAST.slamCast 0.9 s): its chain draws taut with
+   *  a rising rattle over a deep strain, and a bright ring of iron at the top. Ends before the slam lands. */
+  anchorWarn: join(
+    ...[0, 0.1, 0.19, 0.27, 0.34, 0.4, 0.46, 0.51, 0.56].map((d, k) => clang(1500 + k * 90, 0.09 + k * 0.012, 0.08).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'saw', f: 75, f2: 150, dur: 0.65, vol: 0.14, a: 0.25, lp: 700, lp2: 1500, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.55, vol: 0.1, a: 0.3, lp: 2500, lp2: 5000, hp: 1200, curve: 1.3 }],
+    clang(note(-5), 0.2, 0.2).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.62 })),
+  ),
+  /** The Ballast drops anchor (stops and plants, hits now glance): a short run of chain paying out, then a heavy thunk. */
+  anchorDrop: join(
+    ...[0, 0.04, 0.08, 0.115, 0.15].map((d, k) => clang(1700 - k * 120, 0.06, 0.06).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'sine', f: 130, f2: 55, dur: 0.2, delay: 0.19, vol: 0.2 },
+     { wave: 'noise', f: 0, dur: 0.1, delay: 0.19, vol: 0.24, lp: 2400, hp: 500, curve: 3 },
+     { wave: 'tri', f: 420, f2: 260, dur: 0.12, delay: 0.19, vol: 0.2, curve: 3 }],
+  ),
+  /** The Ballast weighs anchor (walks again, hits land in full): the chain hauled in, a few slow ratchet clicks rising. */
+  anchorWeigh: join(
+    ...[0, 0.11, 0.21, 0.3].map((d, k) => clang(1200 + k * 160, 0.07, 0.07).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
+    [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.07, a: 0.05, lp: 3000, lp2: 5000, hp: 900, curve: 1.5 }],
+  ),
+  /** Phase 16 U2: the Lampeye's gaze builds (Enemy.aux toward LAMPEYE.full 6 s) while it can see your hero. Each whole
+   *  second plays the next step of a rising glassy hum (gazeCues), so the climb itself says "get behind a pillar". */
+  gaze1: gazeTone(1), gaze2: gazeTone(2), gaze3: gazeTone(3), gaze4: gazeTone(4), gaze5: gazeTone(5),
+  /** Its gaze is full: Searing Look (LAMPEYE.lookCast 1 s, can't be interrupted). The hum flares into a bright,
+   *  rising searing hiss; a hero it can still see when it ends is burned. Ends before the cast does. */
+  searingWarn: join(
+    [{ wave: 'saw', f: note(17), f2: note(24), dur: 0.8, vol: 0.12, a: 0.1, lp: 2500, lp2: 7000, curve: 1.1, vib: [9, 0.01] },
+     { wave: 'sine', f: note(29), f2: note(31), dur: 0.8, vol: 0.12, a: 0.05, curve: 1.1, vib: [7, 0.012] },
+     { wave: 'noise', f: 0, dur: 0.75, vol: 0.16, a: 0.45, lp: 9000, hp: 3000, curve: 1.2 }],
+    chime(note(24), 0.78, 0.14, 0.15),
+  ),
+  /** Phase 16 U2: the Dimhorn's Dark Call (DIMHORN.callCast 2 s, can't be interrupted; drag it into a coal's light to
+   *  silence it): a hollow horn far off in the dark, two falling notes, each answered by a fainter echo off the ice.
+   *  Unlike the war horn of reinforceWarn it falls, and it's colder. Ends before the cast does. */
+  dimhornCall: join(
+    horn(note(-12), 0.85, 0.42).map((v) => ({ ...v, a: 0.22 })),
+    horn(note(-17), 0.8, 0.4).map((v) => ({ ...v, a: 0.18, delay: (v.delay ?? 0) + 0.8 })),
+    horn(note(-12), 0.5, 0.09).map((v) => ({ ...v, a: 0.15, delay: (v.delay ?? 0) + 0.38 })),
+    horn(note(-17), 0.5, 0.08).map((v) => ({ ...v, a: 0.15, delay: (v.delay ?? 0) + 1.2 })),
+    [{ wave: 'noise', f: 0, dur: 1.5, vol: 0.05, a: 0.6, lp: 9000, hp: 4500, curve: 1.2 }],
+  ),
+  /** The Dimhorn is silenced (in a coal's light as its call ends, castDone 'darkCallLost'): the horn starts and chokes
+   *  off, a short strangled note and a muffled gulp. Good news, so ordinary. */
+  dimhornSilenced: join(
+    [{ wave: 'saw', f: note(-12), f2: note(-15), dur: 0.2, vol: 0.18, a: 0.03, lp: 1800, lp2: 500, curve: 3 },
+     { wave: 'sine', f: note(0), f2: note(-6), dur: 0.16, vol: 0.1, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.08, delay: 0.17, vol: 0.14, lp: 1200, hp: 350, curve: 3 }],
+  ),
+  /** Phase 16 U2: the Conchblower raises its shell (Conch Call, CONCH.cast 1.8 s, can be interrupted): a deep, breathy
+   *  shell note that bends up into pitch and buzzes, with the sea's hiss behind it. Kick it before it ends, or the Ebb
+   *  comes sooner. Ends before the cast does. */
+  conchWarn: join(
+    [{ wave: 'saw', f: note(-19), f2: note(-17), dur: 1.35, vol: 0.28, a: 0.25, lp: 900, lp2: 2400, curve: 1.1, vib: [4.5, 0.008] },
+     { wave: 'square', f: note(-5), f2: note(-5) * 1.004, dur: 1.2, delay: 0.1, vol: 0.1, a: 0.3, lp: 2600, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 1.3, vol: 0.09, a: 0.2, lp: 3500, hp: 900, curve: 1.2, trem: [7, 0.4] }],
+  ),
+  /** The blast lands (castDone 'conchBlown': the next Ebb comes sooner, or the one running holds longer): a low swell of
+   *  water rising and drawing back. */
+  conchSwell: join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.24, a: 0.45, lp: 900, lp2: 3500, hp: 380, curve: 1.3 },
+     { wave: 'sine', f: 70, f2: 95, dur: 1.0, vol: 0.12, a: 0.4, curve: 1.4 },
+     { wave: 'tri', f: note(-17), f2: note(-19), dur: 0.7, delay: 0.25, vol: 0.06, a: 0.2, lp: 1500, curve: 1.5 }],
+  ),
+  /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
+   *  so "that did little" is heard without looking. Takes the place of the hit sound. */
+  glance: [
+    { wave: 'tri', f: 210, f2: 150, dur: 0.07, vol: 0.2, curve: 3 },
+    { wave: 'noise', f: 0, dur: 0.05, vol: 0.14, lp: 1800, hp: 400, curve: 3 },
+  ],
   /** The Charger dashes: a fast thudding rush past you. */
   chargeDash: join(
     whoosh(800, 7000, 0.35, 0.3),
@@ -1138,6 +1221,19 @@ export const SOUNDS = {
   edgeLadle: [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.14, a: 0.3, lp: 1600, lp2: 2600, hp: 350, curve: 1.2, trem: [8, 0.25] }],
   /** A brimming slag pot blurps. */
   edgeSlagPot: join(...[0, 0.18].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 90, f2: 520 + k * 120, dur: 0.09, delay: d, vol: 0.12, curve: 2 }])),
+  // ---- room life (3D, PR #602): the quiet motion visuals added to every room, heard now and then (cues.ts roomCues) ----
+  /** A drip lands on the floor of a wet room: a small falling plink and a fainter one off the walls. */
+  roomDrip: join(
+    [{ wave: 'sine', f: 1500, f2: 850, dur: 0.08, vol: 0.18, curve: 2.5 }, { wave: 'sine', f: 2900, f2: 2300, dur: 0.035, vol: 0.05, curve: 3 }],
+    [{ wave: 'sine', f: 1450, f2: 900, dur: 0.07, delay: 0.16, vol: 0.05, curve: 2.5 }],
+  ),
+  /** A chain on a forge wall swings to the end of its sway: two or three light links knocking. */
+  roomChain: join(...[0, 0.09, 0.17].map((d, k) => clang(2100 - k * 260, 0.11 - k * 0.03, 0.12).map((v) => ({ ...v, delay: (v.delay ?? 0) + d })))),
+  /** A foe's melee lunge (3D) lands: a short rush of air into a soft thud. Under the hero's own hurt sound when it is you. */
+  lungeHit: join(whoosh(2600, 900, 0.07, 0.12), [
+    { wave: 'noise', f: 0, dur: 0.06, delay: 0.05, vol: 0.2, lp: 1800, hp: 300, curve: 3 },
+    { wave: 'sine', f: 190, f2: 80, dur: 0.09, delay: 0.05, vol: 0.18 },
+  ]),
   // ---- raid trash-fight vents (Phase 13 E4): each raid's own warn (inside LAYOUT.ventCast 1.2 s), burst and layout sting ----
   /** The Crucible: a slag vent thickens, slow fat bubbles rising under a hot hiss. */
   slagVentWarn: join(
@@ -1725,7 +1821,8 @@ export const PHONE_FLOOR_DB = -26.5;
 const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Phase 11: the Ember Spitter's lob and the Ashbuck's charge are cast wind-ups, so they must clear the phone floor (measured -30.1 and -29.6 dB).
   spitLob: 4.5,
-  chargeWindup: 4.0,
+  // +2 (Phase 16): it was 4.0 dB over the Foundry mix, under the slams (busycheck t8 heroes, SEEDS=1-24, n=8).
+  chargeWindup: 6.0,
   // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
   bellowWarn: 3.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
@@ -1769,6 +1866,11 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  bashWarn: 7.2, glance: 4.0, // U2 Ashwall: the wind-up 6.1 dB over the Kiln mix (busycheck t8 heroes, SEEDS=1-16, n=9), level with chargeWindup; the glance a little over plateHit, under the plain hit
+  anchorWarn: 4.5, anchorDrop: 3.0, anchorWeigh: 3.0, // U2 Ballast: the wind-up ~8 dB over the Foundry mix (busycheck t8 heroes, SEEDS=1-24); drop and weigh ordinary
+  gaze1: 3.0, gaze2: 3.0, gaze3: 3.0, gaze4: 3.0, gaze5: 3.0, searingWarn: 3.0, // U2 Lampeye: see busycheck in the PR
+  dimhornCall: 4.5, dimhornSilenced: 2.0, // U2 Dimhorn: the call 7.8 dB over the Coldmarrow party mix (t8 heroes, forced, callAt 2, n=14), 20.2 solo
+  conchWarn: 4.0, conchSwell: 2.0, // U2 Conchblower: the shell note 10.9 dB over the Wrackline party mix (t8 heroes, forced, n=161), 17.0 solo
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it

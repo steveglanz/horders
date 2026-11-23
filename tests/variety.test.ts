@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, NHEVRA_RIME_ECHOES, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, SLAG_ECHO, RAID_ECHO, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -25,9 +25,9 @@ function kiln(): { w: World; inner: Inner } {
 const step = (w: World, n: number) => { for (let k = 0; k < n; k++) w.step({ mx: 0, my: 0 } as never); };
 
 describe('V1 variety: the Kiln\'s new foes', () => {
-  it('the Kiln draws from 6 openers and 4 named fights, and the first delve keeps its fixed route', () => {
+  it('the Kiln draws from 7 openers and 4 named fights, and the first delve keeps its fixed route', () => {
     const d = DUNGEONS.kiln;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(4);
     for (const id of [...d.openers, ...d.named]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
@@ -362,9 +362,9 @@ describe('V4 variety: the Day\'s Heat', () => {
 
 describe('V8 variety: the Drowned Foundry', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, all defined', () => {
+  it('draws from 7 openers and 3 named fights, all defined', () => {
     const d = DUNGEONS.foundry;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
   });
@@ -487,9 +487,9 @@ describe('V8 variety: Maelra\'s Sluicetide', () => {
 
 describe('V8 variety: the Glarewell', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
+  it('draws from 7 openers and 3 named fights, and rolls only vents (it has its own pillars); the Lensmother stays open', () => {
     const d = DUNGEONS.glarewell;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
@@ -584,9 +584,9 @@ describe('V8 variety: the Lensmother\'s Glintfall', () => {
 
 describe('V8 variety: the Coldmarrow', () => {
   type L = { rollLayout(id: string): void; encounter: number };
-  it('draws from 6 openers and 3 named fights, and rolls only pillars; Nhevra stays open', () => {
+  it('draws from 7 openers and 3 named fights, and rolls only pillars; Nhevra stays open', () => {
     const d = DUNGEONS.coldmarrow;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(3);
     for (const id of [...d.openers, ...d.named, ...d.hard]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
@@ -1431,5 +1431,281 @@ describe('Phase 16 U1: the Lensmother\'s echo', () => {
     q.bossPhase = 2;
     expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
     expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Nhevra\'s echo', () => {
+  type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void;
+    bossIndex: number; bossSpawned: boolean; coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
+  function nhevra(variant: 'ice' | 'drift' | 'rime', echo: string, hp: number): { w: World; q: N; b: number } {
+    const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as N;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('nhevra', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoLive = false; w.echoT = 0;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.coldPhase = 2; q.driftT = 99; q.iceT = 99; q.snuffT = 99; q.tideT = 99; q.nightT = 99;
+    w.player.x = 500; w.player.y = 500; w.player.coal = 0.5;
+    return { w, q, b };
+  }
+
+  it('nothing above the echo threshold', () => {
+    const { w, q } = nhevra('ice', 'drift', NHEVRA_ECHO.below + 0.05);
+    q.coldClock(1);
+    expect(w.echoLive).toBe(false);
+    expect(w.driftEmbers).toHaveLength(0);
+  });
+
+  it('an Emberdrift echo drops embers while on and clears them when it ends', () => {
+    const { w, q } = nhevra('ice', 'drift', NHEVRA_ECHO.below - 0.05);
+    w.events.length = 0;
+    q.coldClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.some((x) => x.type === 'echo' && x.id === 'drift')).toBe(true);
+    q.coldClock(0.01);
+    expect(w.driftEmbers.length).toBeGreaterThan(0);
+    q.coldClock(NHEVRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.driftEmbers).toHaveLength(0);
+  });
+
+  it('a Creeping Rime echo rises while on and fades when it ends', () => {
+    const { w, q } = nhevra('drift', 'rime', NHEVRA_ECHO.below - 0.05);
+    q.coldClock(0.01);
+    q.coldClock(0.01);
+    expect(w.rimeOn).toBe(true);
+    q.coldClock(NHEVRA_ECHO.on);
+    expect(w.rimeOn).toBe(false);
+  });
+
+  it('a Thin Ice echo cracks the river as it comes on', () => {
+    const { w, q } = nhevra('drift', 'ice', NHEVRA_ECHO.below - 0.05);
+    q.coldClock(0.01);
+    q.coldClock(0.01);
+    expect(w.cracks.some((c) => c.alive)).toBe(true);
+  });
+});
+
+describe('Phase 16 U1: Nhevra\'s echo by version (skills\' U4 check)', () => {
+  it('a Creeping Rime run only echoes the Emberdrift; the other versions echo both of theirs', () => {
+    const got: Record<string, Set<string>> = { ice: new Set(), drift: new Set(), rime: new Set() };
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = new World({ seed, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+      for (const v of NHEVRA_VARIANTS) {
+        w.bossVariant = v;
+        got[v].add((w as unknown as { rollNhevraEcho(): string }).rollNhevraEcho());
+      }
+    }
+    expect([...got.rime]).toEqual(NHEVRA_RIME_ECHOES);
+    expect([...got.ice].sort()).toEqual(['drift', 'rime']);
+    expect([...got.drift].sort()).toEqual(['ice', 'rime']);
+  });
+});
+
+describe('Phase 16 U1: Hessa\'s echo', () => {
+  type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void;
+    bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; ebbWarnT: number; tideClockT: number; rafts: unknown[] };
+  function hessa(variant: 'riptide' | 'outsurge' | 'whirl', echo: string, hp: number): { w: World; q: H; b: number } {
+    const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as H;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('hessa', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.wrackPhase = 2;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoNext = true; w.ebbEcho = false;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    w.enemies[b].abilityT = 99;
+    q.rafts = [];
+    q.ebbT = 0; q.ebbWarnT = 0; q.tideClockT = 0;
+    return { w, q, b };
+  }
+  /** Start the next Ebb's warning and say which way it runs. */
+  const ebb = (w: World, q: H) => {
+    q.ebbT = 0; q.ebbWarnT = 0; q.tideClockT = 0; w.events.length = 0;
+    q.wrackClock(0.01);
+    const cast = w.events.find((x) => x.type === 'castStart' && x.id === 'ebb') as { name: string } | undefined;
+    return { name: cast?.name, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('from 25% health every other Ebb runs the echo, the first one first', () => {
+    const { w, q } = hessa('riptide', 'whirl', HESSA_ECHO.below - 0.05);
+    expect(ebb(w, q)).toEqual({ name: 'The Whirl', echo: true });
+    expect(w.whirl).toBe(true);
+    expect(ebb(w, q)).toEqual({ name: 'The Ebb', echo: false });
+    expect(w.whirl).toBe(false);
+    expect(ebb(w, q)).toEqual({ name: 'The Whirl', echo: true });
+  });
+
+  it('an echoed Ebb on an Outsurge run is her echo, not the Outsurge', () => {
+    const { w, q } = hessa('outsurge', 'riptide', HESSA_ECHO.below - 0.05);
+    expect(ebb(w, q)).toEqual({ name: 'The Ebb', echo: true });
+    expect(w.outsurge).toBe(false);
+    expect(ebb(w, q)).toEqual({ name: 'The Outsurge', echo: false });
+    expect(w.outsurge).toBe(true);
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, q } = hessa('riptide', 'outsurge', HESSA_ECHO.below + 0.1);
+    expect(ebb(w, q)).toEqual({ name: 'The Ebb', echo: false });
+    expect(ebb(w, q)).toEqual({ name: 'The Ebb', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Ondrel\'s echo', () => {
+  type O = { ondrelClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; choirT: number; anvilT: number; homeStage: number };
+  const party = [{ cls: 'bulwark' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function ondrel(variant: string, echo: string, hp: number): { w: World; q: O; b: number } {
+    const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as O;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ondrel', 0, -200);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.anvilT = 99;
+    return { w, q, b };
+  }
+  const cast = (w: World, q: O, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.choirT = 0; q.homeStage = 0; w.events.length = 0;
+    q.ondrelClock(0.01);
+    return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('from 25% health every other signature is the echo, the first one first', () => {
+    const { w, q, b } = ondrel('choir', 'load', GROUP_ECHO.below - 0.05);
+    expect(cast(w, q, b)).toEqual({ id: 'ironload', echo: true });
+    expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
+    expect(cast(w, q, b)).toEqual({ id: 'ironload', echo: true });
+  });
+
+  it('a Homeward Hammer echo on an Ironload run', () => {
+    const { w, q, b } = ondrel('load', 'home', GROUP_ECHO.below - 0.05);
+    expect(cast(w, q, b)).toEqual({ id: 'homeward', echo: true });
+    expect(cast(w, q, b)).toEqual({ id: 'ironload', echo: false });
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, q, b } = ondrel('choir', 'load', GROUP_ECHO.below + 0.1);
+    expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
+    expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Ysmeret\'s echo', () => {
+  type Y = { ysmeretClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; twinVentT: number; scatterT: number; bellowT: number; rollLeft: number };
+  function ysmeret(variant: string, echo: string, hp: number): { w: World; q: Y } {
+    const w = new World({ seed: 3, dungeon: 'ashvents', tier: 8, omens: [], cls: 'bulwark' });
+    const q = w as unknown as Y;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ysmeret', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.scatterT = 99; q.bellowT = 99;
+    return { w, q };
+  }
+  /** Open the next set of vents and say how they were named. */
+  const open = (w: World, q: Y) => {
+    for (const t of w.telegraphs) t.alive = false;
+    q.twinVentT = 0; q.rollLeft = 0; w.events.length = 0;
+    q.ysmeretClock(0.01);
+    const c = w.events.find((x) => x.type === 'castStart' && x.id === 'twinVents') as { name: string } | undefined;
+    return { name: c?.name, echo: w.events.some((x) => x.type === 'echo'), move: w.ventMove };
+  };
+
+  it('from 25% health every other set of vents is the echo, the first one first', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below - 0.05);
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+  });
+
+  it('Wandering Vents as an echo circle her like the version does', () => {
+    const { w, q } = ysmeret('roll', 'wander', GROUP_ECHO.below - 0.05);
+    expect(open(w, q).name).toBe('Wandering Vents');
+    const before = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    q.ysmeretClock(0.5);
+    const after = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    expect(after).not.toEqual(before);
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below + 0.1);
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+  });
+});
+
+describe('Phase 16 U1: Grandmother Slag\'s echo', () => {
+  type G = { slagClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; heatT: number; pourT: number; ladleT: number };
+  const party = [{ cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function slag(variant: string, echo: string, hp: number): { w: World; q: G; b: number } {
+    const w = new World({ seed: 3, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('grandmotherSlag', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 2;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoLive = false; w.echoT = 0;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.ladleT = 99; q.pourT = 99; q.heatT = 99;
+    return { w, q, b };
+  }
+  const pour = (w: World, q: G, b: number) => {
+    w.enemies[b].castId = ''; q.pourT = 0; q.ladleT = 99;
+    q.slagClock(0.01);
+    return w.enemies[b].castId;
+  };
+
+  it(`from ${RAID_ECHO.slag * 100}% health a Brimming echo comes for ${SLAG_ECHO.on} s on a Pour run, then goes`, () => {
+    const { w, q, b } = slag('pour', 'brim', RAID_ECHO.slag - 0.05);
+    w.events.length = 0;
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.some((x) => x.type === 'echo' && x.id === 'brim')).toBe(true);
+    expect(w.islands.length).toBeGreaterThan(0);
+    expect(pour(w, q, b)).toBe('churn');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+  });
+
+  it('a Pour echo on a Brimming run sinks the islands while it is on, and they come back after', () => {
+    const { w, q, b } = slag('brim', 'pour', RAID_ECHO.slag - 0.05);
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.islands.length).toBeGreaterThan(0);
+  });
+
+  it('nothing above the threshold', () => {
+    const { w, q } = slag('pour', 'flow', RAID_ECHO.slag + 0.1);
+    q.slagClock(1);
+    expect(w.echoLive).toBe(false);
+  });
+});
+
+describe('routes never repeat a fight (playtest must-fix, 23 Nov)', () => {
+  it('no dungeon rolls the same fight twice in one route, over 3000 rolls each', () => {
+    for (const id of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) {
+      let s = 7;
+      const pick = (n: number) => { s = (s * 1103515245 + 12345) % 2147483648; return Math.floor((s / 2147483648) * n); };
+      for (let k = 0; k < 3000; k++) {
+        const r = rollRoute(pick, id);
+        expect(new Set(r).size, `${id}: ${r.join(', ')}`).toBe(r.length);
+        expect(r.every((e) => !!e), `${id}: ${r.join(', ')}`).toBe(true);
+      }
+    }
+  });
+
+  it('the Wrackline seed 11 route the playtest caught no longer has the Warden Shoal twice', () => {
+    const w = new World({ seed: 11, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
+    expect(new Set(w.route).size).toBe(w.route.length);
   });
 });

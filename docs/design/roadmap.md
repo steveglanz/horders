@@ -261,14 +261,30 @@ Phase 15 gave every boss three versions, but a run still meets only one of them,
 
 | # | Feature | Owner | Notes |
 |---|---|---|---|
-| U1 | **Echoes:** from tier 8, each boss's last phase also borrows one move from a version this run didn't roll (seeded), on a slower timer, so the same version can end two ways | design | 🔨 Kiln Mother (#583), Maelra (#584), the Lensmother (this PR), then Nhevra and Hessa, then group bosses, then raids; every boss stays within the band with its echo on, measured against echoes off |
-| U2 | **New foes:** one new elite for each solo dungeon whose answer is something other than "kill it or step out" (for example one that shields the foes behind it, a pair that must die close together, or one that calls a wave in from the edge if it lives too long) | design | ⏭ One dungeon per PR; names searched for WoW matches |
-| U3 | **Seen log:** echoes and the new foes join the Seen log and the run summary | engineering | ⏭ After U1 and U2 ids |
+| U1 | **Echoes:** from tier 8, each boss's last phase also borrows one move from a version this run didn't roll (seeded), on a slower timer, so the same version can end two ways | design | ✅ Kiln Mother (#583), Maelra (#584), the Lensmother (#587), Nhevra (#589), Hessa (#591): every solo boss done. Group: Ondrel (#594), Ysmeret and Oskel (#596): every group boss done. Raids: the Furnace Regent, the Cinder Colossus, Old Vorhulm and Grandmother Slag (this PR): every boss done; every boss stays within the band with its echo on, measured against echoes off |
+| U2 | **New foes:** one new elite for each solo dungeon whose answer is something other than "kill it or step out" (for example one that shields the foes behind it, a pair that must die close together, or one that calls a wave in from the edge if it lives too long) | design | ✅ The Kiln: the Ashwall, a shield that turns to face you and shelters the foes behind it (#603). The Foundry: the Ballast, which drops anchor in your reach and barely feels hits until you make it walk (#606). The Glarewell: the Lampeye, whose gaze sears you unless you break it behind a pillar, where the Shades grow tough (#612). The Coldmarrow: the Dimhorn, which calls Rimehounds from the dark unless you keep it in your coal's light (#621). The Wrackline: the Conchblower, whose conch brings the next Ebb sooner unless you Quench it (this PR). U2 is done. One dungeon per PR; names searched for WoW matches |
+| U3 | **Seen log:** echoes and the new foes join the Seen log and the run summary | engineering | ✅ Echoes (#600) and the new foes (#604, NEW_FOES): all 12 bosses' echoes and all 5 elites (Ashwall, Ballast, Lampeye, Dimhorn, Conchblower) show in the Seen log and the end-screen run shape |
 | U4 | **Class check:** each class against each echo and each new foe | skills | ⏭ After U1 and U2 |
 | U5 | **Art** (3D, with the 2D fallback): each echo's tell and each new foe | visuals | ⏭ After U1 and U2 ids |
 | U6 | **Sound:** each echo's warning and each new foe's cue | sound | ⏭ After U1 and U2 ids |
 | U7 | **QA:** contentcheck forces each echo and new foe (0 stuck); variety.ts counts boss version plus echo pairs | QA | ⏭ |
 | U8 | **Phones:** the new foes' tells read at 320 px | phones | ⏭ |
+
+### Phase 17: the Arena, ranked one-on-one (asked for by Steve, 23 Nov 2026; not started)
+Steve (23 Nov 2026, 15:46Z): "add the option from the home menu for a different game mode (arena) where you match up someone your level if possible and fight against them. Winner gets points towards their ranking similar to how wow does PvP. And at intervals of points you get a title or some achievement or something (we can add rewards later)". He said not to build it now. It comes after Phase 16.
+
+The idea: a second mode next to delving. Two heroes fight each other 1v1 in a small arena, matched by level where possible. The winner gains rating points and the loser drops some. At set rating marks a hero earns a title or an achievement. The ladder is in the spirit of ranked PvP, but every name (mode, rating, tiers, titles) is our own and gets checked against WoW before it ships, like every other name.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| V1 | **Design brief:** the duel rules (arena size, time limit, what happens at time-out, potions and set bonuses on or off, hero-vs-hero damage scale), the rating sums (start rating, gain and loss per win, a smaller loss at low rating), the title marks, and the original names | design | ⏭ First step once Phase 17 starts; nothing built until Steve reads the brief |
+| V2 | **Home menu entry and matchmaking:** an Arena button on the home menu. A queue matches two heroes of the same level band, then widens the band the longer a hero waits. Built on the co-op network code | engineering | ⏭ After V1 |
+| V3 | **Duel sim:** heroes can hit each other (abilities, telegraphs and crowd control on a hero), with no foes in the arena; deterministic like the rest of the sim so netsync and replays still work | engineering | ⏭ After V1 |
+| V4 | **Rating and titles:** a stored rating per hero, a season reset rule, titles or achievements at each mark (rewards later, as Steve said). Supabase table and migration, applied only after Steve says yes | engineering | ⏭ After V1 |
+| V5 | **Class balance in duels:** every class against every class, with a PvP-only damage and healing scale if a pairing is lopsided, so no dungeon numbers change | skills | ⏭ After V3 |
+| V6 | **Art and sound:** the arena floor, the duel start and end, the rating-up and title moments | visuals, sound | ⏭ After V2 |
+| V7 | **QA:** matchmaking edge cases (nobody in the band, a leaver, a disconnect counted as a loss or not), rating sums, and no dungeon run changed | QA | ⏭ |
+| V8 | **Phones:** the queue, the duel HUD and the rating screen at 320 px | phones | ⏭ |
 
 ## R2. The Forge
 

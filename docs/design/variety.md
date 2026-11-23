@@ -1310,3 +1310,258 @@ Solo Glarewell at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80. Wins out of 80, an
 
 - **Echo first:** with her own cast first, phase 3 often ended before the echo came, and wins were unchanged in every class. So the echo comes first.
 - **The Kiln Mother keeps her own signature first.** With her echo first, solo Bulwark at Kiln t8 fell to 42 from 50, against 48 with her own first (#583). The other classes stayed within 2. 14 seeds changed outcome: 5 of the new losses had a Kiln Draw echo and 4 a Molten Cataclysm echo.
+
+## Phase 16 U1: Nhevra's echo
+
+Nhevra has two phases, so her echo starts deeper into her second phase. From tier 8, once she is at `NHEVRA_ECHO.below` (25%) health, the version this run didn't roll comes and goes on top of her own. It is on for `on` 12 s and off for `off` 10 s, starting at once.
+
+- **Thin Ice echo:** the river cracks as the window opens, and again every `COLD.crackEvery` while it is on.
+- **Emberdrift echo:** the ember ring drops as the window opens. Coals drain faster while it is on, and the embers are cleared when it ends.
+- **Creeping Rime echo:** the rime rises under her and creeps while it is on, and fades when it ends.
+- Each window that opens fires `{type:'echo', id}`. The client now dings "Echo: <version name>" on every echo event, for every boss.
+
+Solo Coldmarrow at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off | Saw an echo |
+|---|---|---|---|
+| Bulwark | 56 | 56 | 64 |
+| Duskblade | 43 | 49 | 57 |
+| Emberwright | 65 | 65 | 68 |
+| Lumen | 61 | 61 | 66 |
+| Slagbinder | 51 | 51 | 63 |
+
+- **The Duskblade** loses ground: 43 against 49 on seeds 1 to 80, and 44 against 49 on seeds 81 to 160. On the seeds that flipped, the Duskblade took more damage in the last 25% (for example 420 hurt against 303 on seed 6). Forcing one echo gave 39 with Thin Ice and 40 with Creeping Rime.
+  - Each fix I tried did worse:
+    - a later start at 15% health: 40;
+    - 8 s windows: 42;
+    - the echo replacing her own version instead of stacking on it: 41 and 42, with every other class down 1 to 3.
+  - Kept as is: 43 to 44 of 80 (54 to 55%) sits inside the tier-10 wall band of 40 to 60% (coldmarrow.md). It's a watch item for skills' class check (U4).
+
+**Skills' U4 check (23 Nov): a Creeping Rime Nhevra only echoes the Emberdrift** (`NHEVRA_RIME_ECHOES`). On seeds 41 to 200 the Duskblade won 41 of 65 Rime runs with echoes off and 26 with Thin Ice forced. Thin Ice cracks, the rime and her body box a blade in: its contact damage from her went from 0.3 to 4.2 per second, and it drifted out of its Snuff interrupt reach. A wider interrupt reach and a bot rule for the cracks each won back at most 1 of 27 seeds. Forced Emberdrift on Rime runs gave 40 of 65 and hurt no other class. Ice and Drift runs still echo both of their other versions.
+
+Coldmarrow t10, seeds 1 to 80, natural echoes, before / after: Bulwark 56 / 56, Duskblade 43 / 48, Emberwright 65 / 66, Lumen 61 / 62, Slagbinder 51 / 57.
+
+## Phase 16 U1: Hessa's echo
+
+Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
+
+- `World.ebbEcho` is true from that Ebb's warning until the next one starts. The `whirl` and `outsurge` getters (sim, bot and client) read the echo's way while it is on. A Riptide echo is an Ebb that is neither of those.
+- The Ebb's cast name follows the way it runs ("The Whirl", "The Outsurge", "The Ebb"). Each echoed Ebb fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
+
+Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off | Saw an echo |
+|---|---|---|---|
+| Bulwark | 50 | 46 | 61 |
+| Duskblade | 48 | 49 | 52 |
+| Emberwright | 55 | 55 | 55 |
+| Lumen | 70 | 70 | 70 |
+| Slagbinder | 79 | 79 | 79 |
+
+Every class is within 4 wins of echoes off.
+
+**Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
+
+## Phase 16 U1: Ysmeret's and Oskel's echoes
+
+These follow the same rule as Ondrel: from tier 8 and `GROUP_ECHO.below` (25%) health, every other signature on the boss's timer is the echo's, the first one first.
+
+- **Ysmeret:** each set of vents runs the way of `World.ventMove`, which is her version or her echo's: Twin, Wandering or Rolling Vents. The vents' cast name follows it. The Wandering Vents drawing and the Scatter-during-the-roll rule read `ventMove` too.
+- **Oskel:** his Rivets timer gives Rivets, Die Cut or Punch Line, with the echo on every other turn.
+
+Base party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, wins out of 80, and how many runs saw an echo:
+
+| Boss | Setup | Echo on | Echo off | Saw an echo |
+|---|---|---|---|---|
+| Ysmeret, Ashvents t8 | Base, seeds 1 to 80 | 49 | 54 | 69 |
+| Ysmeret, Ashvents t8 | Half skill, seeds 41 to 120 | 47 | 49 | 68 |
+| Oskel, Pressworks t10 | Base, seeds 1 to 80 | 58 | 58 | 76 |
+
+- Ysmeret's runs stay inside the 55 to 70% band (59 to 61%).
+- The Pressworks base party was already over the band (73%) before echoes, and the echo doesn't move it.
+
+## Phase 16 U1: raid echoes
+
+Raid bosses have long fights with several phases, so each one's echo starts at its own health mark (`RAID_ECHO` in sim/world.ts) in its last phase, from tier 8 like every other echo.
+
+- **The Furnace Regent** (from 40%): his phase-2 Ash timer alternates the echo and his own move, echo first. Ash Fall, Summons or Tithe.
+- **The Cinder Colossus** (from 45%): his phase-2 Wheel timer alternates the echo and his own move, echo first. Wheel, Plate Shift or Millstone.
+- **Old Vorhulm** (all of phase 3): his phase-3 timer alternates the echo and his own move, echo first. Ember Feast, Banked Coals or Inhale. The Banked Coals drawing and the Inhale's 3D pull read `bossEcho` too.
+- **Grandmother Slag** (from 50%, in phase 2): the echo comes in windows, on `SLAG_ECHO.on` 14 s and off `off` 10 s, and takes her own version's place while it is on. Each change clears the islands and the overflow and sets up the version now running (the Brimming's islands, or the Overflow from its first beat). Her flow, heat share and churn read the running version. The windows stop when she goes into phase 3.
+- Each echo fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
+
+Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party is Bulwark, Lumen, Duskblade, Emberwright; Anvil is Slagbinder, Lumen, Duskblade, Emberwright with `STANCE=anvil`.
+
+| Boss | Setup | Echo on | Echo off | Saw an echo |
+|---|---|---|---|---|
+| Regent, Flue t11 | Base, seeds 1 to 80 | 59 | 56 | 78 |
+| Regent, Flue t11 | Half skill, seeds 41 to 120 | 55 | 48 | 79 |
+| Regent, Flue t11 | Anvil, seeds 41 to 120 | 50 | 53 | 76 |
+| Colossus, Smeltery t10 | Base, seeds 1 to 80 | 59 | 58 | 80 |
+| Colossus, Smeltery t10 | Half skill, seeds 41 to 120 | 57 | 50 | 80 |
+| Colossus, Smeltery t10 | Anvil, seeds 41 to 120 | 48 | 60 | 80 |
+| Vorhulm, Hoard t9 | Base, seeds 1 to 80 | 55 | 58 | 79 |
+| Vorhulm, Hoard t9 | Half skill, seeds 41 to 120 | 37 | 41 | 77 |
+| Vorhulm, Hoard t9 | Anvil, seeds 41 to 120 | 72 | 73 | 77 |
+| Grandmother Slag, Crucible t8 | Base, seeds 1 to 80 | 51 | 47 | 57 |
+| Grandmother Slag, Crucible t8 | Half skill, seeds 41 to 120 | 52 | 47 | 63 |
+| Grandmother Slag, Crucible t8 | Anvil, seeds 41 to 120 | 63 | 59 | 73 |
+
+- The base parties land at 64 to 74% with echoes on, against 59 to 73% with them off.
+- **Grandmother Slag** gets a little easier with her echo (4 to 5 wins in every setup). Each window change clears the islands or the overflow that was building, which may be why; I haven't measured that. Every setup stays inside the band, so it is kept. Fewer runs see her echo (57 to 73 of 80), because only a run that brings her to 50% in phase 2 gets a window.
+- **The Colossus Anvil party** drops the most, 60 to 48 (75% to 60%), and is still inside the band. The Anvil party was over the band before echoes.
+- **The Anvil bots and a Plate Shift echo (QA on #599, 23 Nov):** the drop was the bots, not the echo. The Anvil tank's hold (`anvilHold` in sim/bot.ts, which keeps him close so he doesn't walk off with his plates turned) only ran in his own Plate Shift version, so a Plate Shift echo found the tank wandering. The hold now also runs once a Plate Shift echo's turns have begun (`bossEcho === 'shift'` and his hp at or under `RAID_ECHO.colossus`). `NOSHIFTECHOHOLD=1` turns that off for measuring. Smeltery t10, Anvil party, wins out of 80:
+
+| Seeds | Hold in the echo | No hold in the echo | Echoes off |
+|---|---|---|---|
+| 41 to 120 | 59 | 48 | 60 |
+| 121 to 200 | 59 | 47 | 57 |
+
+  Of the 60 runs that drew a Plate Shift echo, 40 won with the hold and 17 without. With the hold the Anvil party is back level with echoes off (118 against 117 of 160).
+- **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
+- **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.
+
+## Phase 16 U2: the Kiln's new elite, the Ashwall
+
+U2 gives each solo dungeon one new elite whose answer isn't "kill it or step out". The Kiln's is the **Ashwall** (`ashwall`, 900 hp, elite, title "Shields those behind it"), a slab of cooled slag carried as a shield. It comes in the new opener **The Ashwall** (`ashwall`): one Ashwall and two Ember Spitters. Tip: "It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it." The name was searched: no World of Warcraft match.
+
+- **The shield** faces its hero (`Enemy.aux`) and turns toward them at `ASHWALL.turn` (0.5 rad/s), slower than a hero circles close in. A hit from inside its front arc (`frontArc`, 60 degrees either side) does `front` (50%) to the Ashwall, and `sheltered` (35%) to any foe within `shelterR` (150 px) behind it, inside `shelterArc` of its back. From its side or back, every hit lands in full. Bosses are never sheltered. Burn ticks are judged from the hero who lit them.
+- **Guarding:** it walks to `guardGap` (55 px) in front of the nearest foe within `guardRange` (320 px), on the hero's side, so it keeps putting itself between you and the Spitters.
+- **Shield Bash:** a `bashArc` cone off its front, every `bashEvery` (5 s) while the hero is within reach. It is not interruptible. It punishes standing in front of it.
+- **Glance:** a hit its shield cut carries `glance: true` on its `hit` event, so sound can play a dull thunk instead.
+- **Client:** a heavy arc across its front and a faint wedge behind it where foes shelter. It wears the Hollow Warden until visuals draw it.
+- **Bots:** a melee hero in front of an Ashwall walks round it (`NOASHWALL=1` turns that off). Ranged heroes don't circle. With circling, the Emberwright's Ashwall fight got shorter (120 s to 81 s), but its wins at Kiln t8 over seeds 1 to 160 went from 93 to 76, while its Spitters fight gave 91.
+- **Tools:** `FIGHT=<encounter id>` in tools/foundry.ts makes that the first fight of every run, and counts `fightT` (its length) and `fightHurt`.
+
+Kiln t8, heroes-r2 hero-t8-0, seeds 1 to 80, with the first fight forced (`FIGHT=`). Median fight seconds:
+
+| Class | Ashwall | Ashwall, no circling | Ember Spitters |
+|---|---|---|---|
+| Bulwark | 60 | 77 | 37 |
+| Duskblade | 47 | 61 | 33 |
+| Emberwright | (ranged: no circling) | 120 | 55 |
+| Lumen | (ranged: no circling) | 108 | 49 |
+| Slagbinder | (ranged: no circling) | 129 | 64 |
+
+- Walking round it cuts a melee hero's fight by a fifth to a quarter. It is still the longest Kiln opener: a ranged hero takes about twice as long as against the Spitters, because a bot doesn't draw the Spitters out of the wedge the way a player can. That's a watch item for QA's playtest.
+- **Whole-run wins from a forced first fight are chaotic.** The Lumen on seeds 81 to 160 won anywhere from 54 to 68 depending only on which old opener came first (Spitters 68, Spitter Brute 68, Warden and Hounds 60, Hollow Wardens 54, Ashbucks 54). It won 50 with the Ashwall, and 53 with the Ashwall's shield turned off, so the gap comes from the fight's make-up, not the shield. Natural runs (below) are the check.
+
+Natural Kiln t8 runs (the Ashwall is one of 7 openers, and it came up in 16 of seeds 1 to 80), seeds 1 to 160, wins before / after: Bulwark 99 / 96, Duskblade 62 / 67, Emberwright 92 / 91, Lumen 114 / 114, Slagbinder 99 / 92. Adding an opener re-rolls every Kiln route, so these move by reshuffle as well as by the Ashwall. Every class is within 7.
+
+## Phase 16 U2: the Foundry's new elite, the Ballast
+
+The Drowned Foundry already asks you to kite Maelra over its vents, so its new elite asks the same thing. The **Ballast** (`ballast`, 950 hp, elite, title "Keep it moving") drops anchor when you stand in its reach, and while it's planted it barely feels hits. It comes in the new opener **The Ballast** (`ballast`): one Ballast and two Cinderhounds. Tip: "When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks." The name was searched: no World of Warcraft match.
+
+- **Anchor:** with its hero within `BALLAST.reach` (90 px past its radius) for `plantDelay` (0.8 s), it drops anchor (`Enemy.aux` counts toward it, and a ring fills on the client). Out of reach the count drains at the same rate rather than resetting, so a hero who steps out and straight back in plants it sooner (QA saw 0.33 to 0.6 s in 84 of 811 plants). That is on purpose: dancing on the edge of its reach can't keep it walking for free. Planted, it stops, takes `planted` (30%) damage, and each hit is a `glance` for sound. It weighs anchor `unplant` (0.6 s) after its hero leaves its reach; that clock starts again if the hero comes back into reach first (`aux2` resets), which may explain the 16 of 807 QA saw take up to 0.9 s (not traced). Each change fires `castDone` with id `anchor` or `unanchor`.
+- **Anchor Slam:** only while planted, a ring `slamR` (95 px past its radius) round it, `slamFirst` (1 s) after it plants and then every `slamEvery` (2.6 s). It is not interruptible.
+- **Bots:** any hero near a planted Ballast steps out of its reach (`NOBALLAST=1` turns that off). Ranged heroes never let it plant, so for them it is a plain chaser.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version slammed 0.6 s after planting, for 20 damage. Bulwarks then died in the fight after it, and their runs fell further. With 1 s and 16, at Foundry t8 forced first fight, seeds 1 to 80: Bulwark 25 to 28, Duskblade 52 to 59.
+
+Foundry t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`), median fight seconds and wins (first version):
+
+| Class | Ballast | Ballast, no stepping out | Sluice Crawler and Hounds |
+|---|---|---|---|
+| Bulwark | 88 s, 25 | 82 s, 27 | 59 s, 33 |
+| Duskblade | 60 s, 52 | 76 s, 49 | 41 s, 53 |
+| Emberwright | 71 s, 64 | 71 s, 64 | 102 s, 67 |
+| Lumen | 52 s, 71 | 52 s, 71 | 77 s, 65 |
+| Slagbinder | 67 s, 73 | 67 s, 73 | 96 s, 65 |
+
+Natural Foundry t8 runs, seeds 1 to 160 (first version), wins before / after: Bulwark 72 / 62, Duskblade 112 / 110, Emberwright 125 / 121, Lumen 133 / 126, Slagbinder 125 / 119. With the tuned slam the Bulwark gets 61. Of the Bulwark's 160 runs, 24 met the Ballast and won 7 of them (29%). Its other runs won 54 of 136 (40%), against 45% before, so most of its drop is the re-rolled routes. **The Bulwark against the Ballast is a watch item for skills:** it is the Foundry's weakest class already, and it has to step out of reach the most.
+
+## Phase 16 U2: the Glarewell's new elite, the Lampeye
+
+The Glarewell already teaches you to hide behind pillars from the Lensmother's Glare, and its Shades grow tough in shadow. Its new elite plays those two against each other. The **Lampeye** (`lampeye`, 800 hp, elite, title "Break its gaze") is a slow floating eye that keeps its distance. It comes in the new opener **The Lampeye** (`lampeye`): one Lampeye and three Shades. Tip: "While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light." The name was searched: no World of Warcraft match ("Gazer" is used there, so it was avoided).
+
+- **Gaze** (`Enemy.aux`, seconds): it builds 1 a second while the Lampeye can see its hero, meaning no standing pillar crosses the line between them (`World.lampeyeSees`). Behind a pillar it fades `LAMPEYE.fade` (2) times as fast. A cracked pillar blocks nothing.
+- **Searing Look:** at `full` (6 s) it casts Searing Look for `lookCast` (1 s), not interruptible. When the cast ends, every hero it can still see takes `lookDamage` (34) times the tier's damage. A hero who gets behind a pillar during the cast takes nothing. Either way the gaze resets to 0.
+- **It keeps its distance:** inside `keep` (220 px) it backs away, so its gaze crosses the room. But a hero who closes to within `under` (70 px) of its edge is out of its gaze.
+- **The trade:** a pillar's shadow is where Shades take less damage (`GLARE.shadeShadowTaken`). Hide to break the gaze, then step back out and draw the Shades into the light.
+- **Bots:** once the gaze is half full and it can see them, a ranged bot heads for the far side of the nearest standing pillar (`NOLAMPEYE=1` turns that off). Melee bots stay on the eye.
+- **Client:** a ring round it fills as the gaze builds, and a thin beam joins it to your hero while it can see you. The beam flares during Searing Look. It wears the Shade's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+
+Glarewell t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`), median fight seconds and whole-run wins:
+
+| Class | Lampeye | Lampeye, bots don't hide | Shades |
+|---|---|---|---|
+| Bulwark | 95 s, 59 | 45 s, 69 | 22 s, 71 |
+| Duskblade | 53 s, 48 | 42 s, 44 | 28 s, 63 |
+| Emberwright | 83 s, 70 | 76 s, 8 | 39 s, 74 |
+| Lumen | 65 s, 78 | 75 s, 22 | 53 s, 79 |
+| Slagbinder | 80 s, 78 | 82 s, 80 | 44 s, 80 |
+
+The fight times count only fights that were cleared. Without hiding, the Emberwright cleared 9 of 80 and the Lumen 22, so the gaze is the fight for ranged heroes. Natural Glarewell t8 runs, seeds 1 to 160, wins before / after: Bulwark 139 / 139, Duskblade 118 / 116, Emberwright 143 / 144, Lumen 156 / 152, Slagbinder 160 / 157. **Melee bots don't hide (skills' U4, 23 Nov):** forced first fight, seeds 41 to 200, whole-run wins of 160, the Duskblade won 89 hiding against 127 for the Shades control, and the Bulwark 118 against 145; with `NOLAMPEYE=1` the Bulwark is back to 145. The Duskblade lost 38 runs in the Lampeye fight itself. So the pillar rule is now for ranged heroes only, and a melee hero stays on the eye. The Duskblade lost the fight either way (92 of 160 not hiding), so the fight gained an answer for melee too: **a hero within `LAMPEYE.under` (70 px) of its edge is too close for it to focus on** and is out of its gaze. Get right under it, or behind a pillar. Seeds 1 to 80, forced first fight, whole-run wins (runs lost in the Lampeye fight): Duskblade 48 (12) hiding, 44 (19) not hiding, 60 (0) with `under`; Bulwark 59 (6), 69 (1), 72 (0). Ranged heroes hide before they get that close: Emberwright 70 and Lumen 78 with or without it.
+
+## Routes never repeat a fight (playtest must-fix, 23 Nov)
+
+QA's playtest found that one route could hold the same fight twice. Some fights are in more than one of a dungeon's lists:
+- The Coldmarrow's Frost Wardens are an opener and a named fight, and its Snuffers are an opener and a hard fight.
+- The Wrackline's Warden Shoal is an opener and a named fight.
+
+`rollRoute` (sim/content/dungeon.ts) now leaves out fights already rolled when it picks the named and hard fights. It still takes one pick per slot, so a route that had no repeat rolls exactly as before.
+
+Over 2000 seeds, the repeat routes were 535 in the Coldmarrow and 220 in the Wrackline. Those are the only routes that change. No other dungeon had a repeat.
+
+Natural runs at t10, heroes-r2 hero-t8-0, seeds 1 to 160, wins before / after:
+
+| Class | Coldmarrow | Wrackline |
+|---|---|---|
+| Bulwark | 115 / 116 | 93 / 92 |
+| Duskblade | 95 / 90 | 112 / 110 |
+| Emberwright | 124 / 121 | 120 / 122 |
+| Lumen | 125 / 123 | 137 / 136 |
+| Slagbinder | 118 / 116 | 158 / 158 |
+
+## Phase 16 U2: the Coldmarrow's new elite, the Dimhorn
+
+In the Coldmarrow you carry your light with you, so its new elite is one you have to bring your light to. The **Dimhorn** (`dimhorn`, 750 hp, elite, title "Calls from the dark") is a quick, thin thing with a horn. It shuns the light and calls the pack from the dark. It comes in the new opener **The Dimhorn** (`dimhorn`): one Dimhorn and two Snuffers, which dim your coal and shrink its light. Tip: "Out in the dark it winds its horn and calls the pack. Keep it inside your coal's light, where it can't sound it."
+
+The name was searched and has no match. I passed on "Horncaller", because it was too close to WoW's "Wyrmcaller's Horn". The Ember Twins already cover the "pair that must die together" idea, so the Dimhorn takes the other roadmap example instead: a foe that calls a wave in if it lives too long.
+
+- **It shuns the light.** It hangs `DIMHORN.hang` (40 px) outside its hero's coal light. It backs off if it is inside, and circles in a `band` (70 px) ring just outside.
+- **Dark Call:** `Enemy.aux` counts its seconds outside every coal's light. Inside a light it drains `drain` (2) times as fast, and it can't start the call there. At `callAt` (7 s) it casts Dark Call for `callCast` (2 s). The call can't be interrupted. When it ends, `calls` (3) Rimehounds come in from the arena edge behind it, unless the Dimhorn is inside a coal's light by then. In that case the call is lost (`castDone` id `darkCallLost`). After `maxCalls` (2) calls its horn is spent (`Enemy.aux2` counts them).
+- **The trade:** Rimehound kills feed your coal, so a call isn't all loss. But the Snuffers shrink the light you need, and chasing it pulls a ranged hero into melee.
+- **Bots:** once its count is 40% of the way to a call, or it is calling, a bot moves toward it until it is well inside the light. `NODIMHORN=1` turns that off.
+- **Client:** a cold ring round it fills toward the call and pulses during the call. It wears the Snuffer's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version had no cap on calls. A ranged hero who never brought the light over it faced 10 to 26 calls and died every time (Emberwright, Lumen and Slagbinder 0 of 80). With two calls at most, an unhelped hero survives but the fight takes about twice as long.
+
+Coldmarrow t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`). Each cell is the median fight time, then whole-run wins:
+
+| Class | Dimhorn | Dimhorn, bots don't bring the light | The Snuffers |
+|---|---|---|---|
+| Bulwark | 50 s, 56 | 53 s, 49 | 28 s, 54 |
+| Duskblade | 45 s, 42 | 79 s, 44 | 33 s, 45 |
+| Emberwright | 90 s, 62 | 121 s, 53 | 55 s, 56 |
+| Lumen | 57 s, 74 | 151 s, 61 | 58 s, 57 |
+| Slagbinder | 83 s, 55 | 138 s, 57 | 64 s, 59 |
+
+With their rule, the bots never let it call. Without the rule, the Emberwright, Lumen and Slagbinder met a call in all 80 runs, the Duskblade in 51 and the Bulwark in 33. Natural Coldmarrow t10 runs, seeds 1 to 160, wins before / after: Bulwark 116 / 117, Duskblade 90 / 89, Emberwright 121 / 121, Lumen 123 / 121, Slagbinder 116 / 122. The cap doesn't change these, because with the rule no call happens.
+
+## Phase 16 U2: the Wrackline's new elite, the Conchblower
+
+The Wrackline is a fight against the Ebb's clock, so its new elite plays with that clock. The **Conchblower** (`conchblower`, 560 hp, elite, title "Calls the Ebb") swims the quay with a great shell. It comes in the new opener **The Conchblower** (`conch`): one Conchblower and two Shoal Lurkers, which surge in the Ebb. Tip: "Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns." The name was searched: no World of Warcraft match.
+
+- **Conch Call:** `CONCH.first` (4 s) after it spawns, then every `every` (8 s), it casts Conch Call for `cast` (1.8 s). The cast is Quenchable, like the Hauler's Haul. When a blast lands, the next Ebb comes `hasten` (6 s) sooner, but never less than `floor` (1 s) away. During an Ebb, a blast holds the water `hold` (1.5 s) longer. Each landed blast fires `castDone` id `conchBlown`.
+- **It swims the Ebb:** like a Shoal Lurker, the water doesn't drag it.
+- **The answer:** keep your Quench for the conch, and fight near a raft, because blasts you miss bring the water early.
+- **Bots:** the usual interrupt rule covers it. Even at half skill the bots Quench nearly every blast.
+- **Client:** the cast bar shows the blast. It wears the Barge Hauler's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version had 700 hp and three Lurkers. Ranged heroes then spent about 94 s in the fight. With 560 hp and two Lurkers it takes 61 to 79 s.
+
+Wrackline t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`). Each cell is the median fight time, then whole-run wins. The Lurkers column is the first version's control run.
+
+| Class | Conchblower | The Lurkers | Blasts Quenched / landed |
+|---|---|---|---|
+| Bulwark | 45 s, 44 | 27 s, 46 | 377 / 2 |
+| Duskblade | 42 s, 56 | 29 s, 57 | 293 / 40 |
+| Emberwright | 72 s, 53 | 59 s, 63 | 572 / 17 |
+| Lumen | 61 s, 74 | 53 s, 55 | 484 / 30 |
+| Slagbinder | 79 s, 79 | 55 s, 79 | 572 / 105 |
+
+Natural Wrackline t10 runs, seeds 1 to 160, wins before / after: Bulwark 92 / 92, Duskblade 110 / 107, Emberwright 122 / 113, Lumen 136 / 140, Slagbinder 158 / 157.
+
+The Emberwright's drop is not the Conchblower. It won 13 of the 19 runs that met it (68%). In its other 141 runs it won 100 (71%), against 76% over all 160 before, so most of the drop is re-rolled routes. **Watch item for skills:** the Emberwright's forced first fight, 53 against 63.

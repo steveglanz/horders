@@ -1,7 +1,7 @@
 /** HTML overlay: HUD, talent drafts, banners, menus and the touch joystick. */
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
-import { World, BOSS_PHASES, BRIM, SUMMONS } from '../sim/world';
+import { World, BOSS_PHASES, BRIM, SUMMONS, TITHE } from '../sim/world';
 import { runShape, type ShapeKind } from '../sim/runshape';
 import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
@@ -20,7 +20,7 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
-const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', boss: '#ffc861', heat: '#ff8a3d' };
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
@@ -244,7 +244,7 @@ export class Hud {
     let next = '';
     if (w.stress) next = 'Stress test';
     else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
-    else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} in ${Math.ceil(w.phaseT)}`;
+    else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} · ${Math.ceil(w.phaseT)}`; // a countdown, as "Choose a path · 6"
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
     else if (w.bossEnraged) next = 'Boss enraged!';
     else next = `Fight ${w.encounter + 1} of ${w.route.length}`;
@@ -476,7 +476,7 @@ export class Hud {
       if (mine) out.push(`<span class="buff debuff">Decree ${Math.ceil(mine.t)}s: touch an ally to pass it</span>`);
       else if ((p.spentT ?? 0) > 0) out.push(`<span class="buff">Spent ${Math.ceil(p.spentT ?? 0)}s: you can't take a Decree</span>`);
     }
-    if (soak) out.push(`<span class="buff debuff">${press || (soak.owner === -2 ? 'Vents open: someone in each gold circle!' : 'Kiln Brand: stand in the gold circle!')}</span>`);
+    if (soak) out.push(`<span class="buff debuff">${press || (soak.owner === -2 ? 'Vents open: someone in each gold circle!' : soak.owner === -5 ? `Tithe: ${TITHE.need} heroes in the gold circle!` : 'Kiln Brand: stand in the gold circle!')}</span>`);
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
     if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Anvil Skin</span>');

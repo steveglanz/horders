@@ -141,7 +141,8 @@ describe('the Glarewell', () => {
   });
 
   it('the Lensmother reaches phase 3 and cracks pillars, but always leaves one', () => {
-    const w = new World({ seed: 5, dungeon: 'glarewell', route: ['shades', 'shades', 'shades', 'shades', 'lensmother'], omens: [], invulnerable: true });
+    // A boss-only route: the four Shades fights before her ran this past CI's 5 s test limit once U2's content landed.
+    const w = new World({ seed: 5, dungeon: 'glarewell', route: ['lensmother'], omens: [], invulnerable: true });
     let crack = 0;
     let phase3 = false;
     play(w, (x) => {

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -664,9 +664,12 @@ export const ANVIL_SHIFT_HOLD = 200;
  * telegraphs is out, so the usual step-out still clears a Slag Sweep. NOANVILHOLD=1 turns it off.
  */
 export function anvilHold(w: World): { dx: number; dy: number } | null {
-  if (w.dungeonId !== 'smeltery' || w.bossVariant !== 'shift' || w.player.stance !== 'anvil' || !w.isTank(w.acting)) return null;
+  if (w.dungeonId !== 'smeltery' || w.player.stance !== 'anvil' || !w.isTank(w.acting)) return null;
   if (w.bossIndex < 0 || process.env.NOANVILHOLD === '1') return null;
   const e = w.enemies[w.bossIndex];
+  // Phase 16 U1 (QA on #599): a Plate Shift echo needs the hold too, once his echo turns have begun.
+  const shiftEcho = w.bossEcho === 'shift' && !!e && e.hp <= e.maxHp * RAID_ECHO.colossus && process.env.NOSHIFTECHOHOLD !== '1';
+  if (w.bossVariant !== 'shift' && !shiftEcho) return null;
   if (!e?.alive || w.telegraphs.some((t) => t.alive && t.owner === w.bossIndex)) return null;
   const p = w.player;
   const d = Math.hypot(e.x - p.x, e.y - p.y) || 1;
@@ -840,6 +843,70 @@ export function botInput(w: World, skill = 1): Input {
         fx -= (dx / d) * 0.1 * skill;
         fy -= (dy / d) * 0.1 * skill;
       }
+    }
+  }
+  // Phase 16 U2: an Ashwall that faces this hero shelters its foes and its own front, so a melee hero walks round
+  // it (the shield turns slower than a hero circles close in). NOASHWALL=1 turns this off for measuring.
+  // Ranged heroes don't: at Kiln t8, seeds 1-160, circling took the Emberwright from 93 to 76 wins (and it
+  // shortened its Ashwall fight from 120 to 81 s). Melee circling cuts the fight by a quarter, wins within 5.
+  if (melee && process.env.NOASHWALL !== '1') {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'ashwall') continue;
+      const at = Math.atan2(p.y - e.y, p.x - e.x);
+      const off = angleOff(at, e.aux);
+      const d = Math.hypot(p.x - e.x, p.y - e.y) || 1;
+      if (Math.abs(off) >= ASHWALL.frontArc || d > 420) continue;
+      // Keep going round the way we are already off its front.
+      const sgn = off >= 0 ? 1 : -1;
+      fx += -Math.sin(at) * sgn * 0.12 * skill;
+      fy += Math.cos(at) * sgn * 0.12 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: a planted Ballast barely feels hits and slams round itself, so step out of its reach and let it
+  // walk after you (NOBALLAST=1 turns this off for measuring). A melee hero comes back in once it walks.
+  if (process.env.NOBALLAST !== '1') {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'ballast' || e.aux < BALLAST.plantDelay) continue;
+      const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+      if (d > BALLAST.reach + e.def.radius + 30) continue;
+      fx += (dx / d) * 0.2 * skill;
+      fy += (dy / d) * 0.2 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: once a Lampeye's gaze is half full and it can still see you, put the nearest pillar between you and
+  // it (NOLAMPEYE=1 turns this off for measuring). Its gaze fades there and the hero steps back out once it has.
+  // Ranged heroes only: a melee hero does better to stay on the eye and finish it (skills' U4: the Duskblade won 89
+  // of 160 hiding against 127 for the Shades control, and the Bulwark 118 against 145, which not hiding restores).
+  if (process.env.NOLAMPEYE !== '1' && !melee && w.pillars.length) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'lampeye' || e.aux < LAMPEYE.full * 0.5 || !w.lampeyeSees(e, p.x, p.y)) continue;
+      let best: { x: number; y: number; r: number } | null = null, bd = Infinity;
+      for (const c of w.pillars) {
+        if (c.cracked) continue;
+        const dd = Math.hypot(c.x - p.x, c.y - p.y);
+        if (dd < bd) { bd = dd; best = c; }
+      }
+      if (!best) break;
+      const ux = best.x - e.x, uy = best.y - e.y, ul = Math.hypot(ux, uy) || 1;
+      const hx = best.x + (ux / ul) * (best.r + 25) - p.x, hy = best.y + (uy / ul) * (best.r + 25) - p.y;
+      const hl = Math.hypot(hx, hy) || 1;
+      fx += (hx / hl) * 0.25 * skill;
+      fy += (hy / hl) * 0.25 * skill;
+      break;
+    }
+  }
+  // Phase 16 U2: a Dimhorn out in the dark winds up its Dark Call, so once it is well on its way bring your coal's
+  // light over it (NODIMHORN=1 turns this off for measuring).
+  if (process.env.NODIMHORN !== '1' && p.coal !== undefined) {
+    for (const e of w.enemies) {
+      if (!e.alive || e.kind !== 'dimhorn' || (e.aux < DIMHORN.callAt * 0.4 && e.castId !== 'darkCall')) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy) || 1;
+      if (d < (p.coalR ?? COLD.maxR) * 0.6) break;
+      fx += (dx / d) * 0.3 * skill;
+      fy += (dy / d) * 0.3 * skill;
+      break;
     }
   }
   // V1: a Hollow Rift keeps spitting Ashlings, so every hero works its way to it (the tip: break the Rift first).
@@ -1280,4 +1347,9 @@ export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
     const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
     return out;
   };
+}
+
+/** a - b, wrapped to -PI..PI. */
+function angleOff(a: number, b: number): number {
+  return ((a - b + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 }

@@ -50,6 +50,10 @@ export interface CueContext {
    * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
    * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
    */
+  /** The Glarewell's Lampeyes: each one's gaze (Enemy.aux, s toward LAMPEYE.full) and whether it can see this screen's hero. */
+  gaze?: readonly { aux: number; sees: boolean }[];
+  /** The 3D view's room life and foe lunges since the last tick (Hd2dView.sounds), for roomCues. Absent in 2D. */
+  roomSounds?: readonly RoomSound[];
   /** The arena's radius (World.arenaR), so the 3D room's props can be placed for the edge sounds. */
   arenaR?: number;
   listen?: { x: number; half: number; y?: number; screen?: (x: number, y: number) => { x: number; y: number } | null; screenHalf?: number };
@@ -187,6 +191,22 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // Phase 11 variety foes: the Ember Spitter's lob and the Ashbuck's charge (each wind-up is the dodge warning).
   emberLob: { start: 'spitLob' }, // Ember Lob
   charge: { start: 'chargeWindup' }, // Charge
+  shieldBash: { start: 'bashWarn' }, // Phase 16 U2: the Ashwall's Shield Bash (each wind-up is the dodge warning)
+  // Phase 16 U2: the Ballast (the Foundry). Anchor Slam's wind-up is the step-out warning; dropping and weighing anchor
+  // are its two castDone moments (BALLAST.plantDelay / unplant), heard as a chain running out and a chain hauled in.
+  anchorSlam: { start: 'anchorWarn' }, // Anchor Slam
+  // Phase 16 U2: the Lampeye (the Glarewell). Its gaze climbs in steps (gazeCues); full, Searing Look's cast start is the last warning.
+  searingLook: { start: 'searingWarn' }, // Searing Look
+  // Phase 16 U2: the Dimhorn (the Coldmarrow). Dark Call's cast start is the warning; a call that lands is heard as the
+  // pack arriving (waveShape reinforce land), and one silenced in a coal's light ends on castDone 'darkCallLost'.
+  darkCall: { start: 'dimhornCall' }, // Dark Call
+  darkCallLost: { done: 'dimhornSilenced' }, // Silenced
+  // Phase 16 U2: the Conchblower (the Wrackline). Conch Call's cast start is the interrupt warning; a blast that lands
+  // fires castDone 'conchBlown' (the Ebb comes sooner), so the cast's own castDone is silent.
+  conchCall: { start: 'conchWarn' }, // Conch Call
+  conchBlown: { done: 'conchSwell' }, // The Ebb Comes Sooner
+  anchor: { done: 'anchorDrop' }, // Drops Anchor
+  unanchor: { done: 'anchorWeigh' }, // Weighs Anchor
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
   inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
@@ -335,6 +355,44 @@ function screenOffset(l: NonNullable<CueContext['listen']>, x: number, y: unknow
   return at && me ? (at.x - me.x) / l.screenHalf : null;
 }
 
+/**
+ * What the 3D view's room did that can be heard (client/hd2d/renderer.ts): a drip landing on a wet room's floor, a
+ * forge chain at the end of its sway, or a foe's lunge starting (`melee` when its touch hit, not a shot or boss move).
+ * World units.
+ */
+export interface RoomSound { kind: 'drip' | 'chain' | 'lunge'; x: number; y: number; melee?: boolean; rank?: string }
+
+/**
+ * Room life: the 3D rooms' drips and chains move all the time (Steve: "something", not busy), so only one now and
+ * then is heard, quiet, from where it shows on screen: a drip every `drip` s at most and a chain every `chain` s
+ * (each picked between the two numbers), never in a boss fight. Lunges are the foe attack animations: a melee one
+ * that landed gets a soft rush-and-thud from that foe, louder for bigger foes (shots and boss moves keep their own cues).
+ */
+export const ROOM_LIFE = { drip: [1.6, 4] as const, chain: [6, 13] as const, vol: 0.5, pan: 0.7, lunge: { normal: 0.45, elite: 0.7, rare: 0.8, boss: 0.9 } as Record<string, number> };
+
+export function roomCues(state: { drip: number; chain: number }, list: readonly RoomSound[] | undefined, c: Pick<CueContext, 't' | 'boss' | 'listen'>, rnd: () => number): Cue[] {
+  const out: Cue[] = [];
+  const t = c.t;
+  if (!list || !list.length || t === undefined) return out;
+  // A new run restarts the clock.
+  if (state.drip - t > 10) state.drip = 0;
+  if (state.chain - t > 20) state.chain = 0;
+  const pan = (x: number, y: number) => (offsetAt(c.listen, x, y) ?? 0) * ROOM_LIFE.pan;
+  for (const r of list) {
+    if (r.kind === 'lunge') {
+      if (r.melee) out.push({ id: 'lungeHit', vol: ROOM_LIFE.lunge[r.rank ?? 'normal'] ?? ROOM_LIFE.lunge.normal, jitter: 0.12, pan: pan(r.x, r.y) });
+      continue;
+    }
+    if (c.boss) continue;
+    const [lo, hi] = ROOM_LIFE[r.kind];
+    const key = r.kind;
+    if (t < state[key]) continue;
+    state[key] = t + lo + rnd() * (hi - lo);
+    out.push({ id: r.kind === 'drip' ? 'roomDrip' : 'roomChain', vol: ROOM_LIFE.vol, jitter: 0.15, pan: pan(r.x, r.y) });
+  }
+  return out;
+}
+
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
   const mine = (hero?: number) => hero === undefined || hero === c.acting;
   switch (ev.type) {
@@ -344,6 +402,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (col && col.side !== 1 && mine(ev.hero) && Math.abs(ev.x - col.x) < 1 && Math.abs(ev.y - col.y) < 1) {
         return col.side < 1 ? { id: 'plateHit', jitter: 0.08 } : { id: 'backHit', jitter: 0.1, vol: ev.crit ? 1.2 : 1 };
       }
+      // Phase 16 U2: a hit the Ashwall's shield cut (its front, or a foe sheltered behind it) glances off instead.
+      if (ev.glance) return { id: 'glance', jitter: 0.1 };
       return ev.crit ? { id: 'crit', jitter: 0.08 } : { id: 'hit', jitter: 0.15 };
     }
     case 'kill': {
@@ -422,6 +482,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castDone':
       if (ev.id === 'wheel' || ev.id === 'millstone') return null;
       if (ev.id === 'churn') return null;
+      // A Dark Call that lands is heard as the pack arriving (reinforceLand), a Conch Call as its swell (conchBlown), not a cast click.
+      if (ev.id === 'darkCall' || ev.id === 'conchCall') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
     case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
@@ -811,6 +873,33 @@ export function myIsland(w: { islands: readonly { x: number; y: number; t: numbe
  * The Flue (raid 4): Spent ends. A hero who just passed a Decree can't take it back for a while (Player.spentT);
  * a small tick when this screen's hero may take one again. Silent going in: the pass itself already sounded.
  */
+/** The gaze steps that sound (1..5); at LAMPEYE.full (6) Searing Look starts and its cast warning takes over. */
+export const GAZE_STEPS = ['gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5'] as const;
+/** How far (s) a gaze must fall below a step before that step can sound again, so a hero edging in and out of a pillar's cover doesn't retrigger it each tick. */
+export const GAZE_DROP = 0.5;
+/**
+ * The Lampeye (Phase 16 U2): while one can see this screen's hero, each whole second its gaze gains plays the next step
+ * of a rising hum, so the climb is the tell to step behind a pillar. Only the highest new step plays when several eyes
+ * climb at once; one that can't see you climbs in silence (it can't sear you). A gaze that falls back (a pillar in the
+ * way, or the look done) steps down silently, GAZE_DROP past a step, so climbing again is heard again.
+ */
+export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; sees: boolean }[] | undefined): Cue | null {
+  if (!eyes || !eyes.length) {
+    state.lv = [];
+    return null;
+  }
+  let best = 0;
+  eyes.forEach((e, k) => {
+    const lv = Math.min(GAZE_STEPS.length, Math.floor(e.aux + 1e-6)), was = state.lv[k] ?? 0;
+    if (lv > was) {
+      if (e.sees) best = Math.max(best, lv);
+      state.lv[k] = lv;
+    } else if (e.aux < was - GAZE_DROP) state.lv[k] = Math.min(GAZE_STEPS.length, Math.floor(e.aux + GAZE_DROP + 1e-6));
+  });
+  state.lv.length = eyes.length;
+  return best > 0 ? { id: GAZE_STEPS[best - 1] } : null;
+}
+
 export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
   const was = state.on;
   state.on = spent;
@@ -845,7 +934,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
@@ -868,6 +957,8 @@ export const DEEP_DUCK: Partial<Record<SoundId, number>> = { selfDown: 0.25 };
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  // Foe lunges (3D): a pack hitting at once is one rush, not a stack.
+  lungeHit: 0.18,
   // Several slams can land on one tick (Glintfall hits up to four pillars at once): one boom, not a stack.
   slam: 0.06,
   // The Hoard: six embers spill at once and a party can sweep them up together.
@@ -883,6 +974,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // Punch Line: each step of the march lands on all three rows in one tick; one thunk per step (0.25 s apart).
   punchHit: 0.1,
   rimeCrackle: 0.35,
+  glance: 0.12, // a blade flurry on the shield: a few thunks a second, not every hit
   millGrind: 0.45, // one per MILL.tick (0.5 s); a frame's slack under it so none is skipped
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,

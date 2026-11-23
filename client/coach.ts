@@ -125,7 +125,11 @@ export class Coach {
       const r = anchor.getBoundingClientRect();
       const b = el.getBoundingClientRect();
       el.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - b.width - 8, r.left + r.width / 2 - b.width / 2)))}px`;
-      el.style.top = `${Math.round(r.top - b.height - 12)}px`;
+      // Above the whole action bar, not just this button: over a bottom-row button it covered the names of the
+      // two buttons above it (QA, 23 Nov). The button itself is lit (.coach), so it still points the way.
+      const bar = anchor.closest('#actionbar');
+      const edge = bar ? Math.min(r.top, bar.getBoundingClientRect().top) : r.top;
+      el.style.top = `${Math.round(edge - b.height - 8)}px`;
       el.style.bottom = '';
     } else {
       el.style.left = '';

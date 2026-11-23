@@ -10,7 +10,8 @@
  * - the Furnace Regent as the handoff's sprite, every other foe as its 2D sheet standing upright;
  * - telegraphs (hatched danger, gold soaks) filling as they near landing, Decrees and their scorch;
  * - hero bolts, strikes, gems and drops, and rising embers.
- * Damage numbers, nameplates over foes and cast bars stay 2D-only for now (the HUD's boss frame still shows casts).
+ * Foe health and cast bars, foe names and damage numbers are drawn by the 2D scene on the overlay canvas over this view,
+ * at each foe's projected place (GameScene drawLabels3d, #540).
  *
  * The 2D scene keeps running the sim and the HUD underneath; it only stops drawing its own camera.
  */
@@ -24,7 +25,9 @@ import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltSh
 import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js';
 import { frames as artFrames, HERO, BOSS } from './art';
 import type { Hd2dAdapter, Hd2dView } from './api';
+import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
+import { SIM } from './simconsts';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
 const S = 1 / 70;
@@ -38,6 +41,9 @@ const BOSS_PX = 0.03;
 const VIEW = 560 * S;
 /** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
 const SELF_LIFT = 1.6;
+const BALLAST_PLANT = SIM.ballastPlant;
+const LAMPEYE_FULL = SIM.lampeyeFull;
+const DIMHORN_CALL = SIM.dimhornCall;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
@@ -729,7 +735,87 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // v2's phone budget: two shared warm lights instead of nine (one at the back wall, one at the front braziers).
   addLight(th.backLight, id === 'kiln' ? 38 : 34, 22, new THREE.Vector3(0, 2.4, -8.2), 1.4);
   if (!saver) addLight(th.frontLight, 14, 14, new THREE.Vector3(0, 2.2, 7.6), 2.0);
-  return { room, flames, basalt, glows, th, drift };
+  // Life (Steve, 23 Nov: "it's kind of dead. I don't want to make it busy, but I want to have something"): quiet motion
+  // that every room has, ticked by frame(): faint shafts of light swaying down from above, low mist drifting over the
+  // floor, and per room chains swaying on the walls (forges) or drips falling and ringing on the floor (wet rooms).
+  const life: ((t: number) => void)[] = [];
+  // What sound can follow (Hd2dView.sounds): a drip landing, a chain at the end of its sway. Room units.
+  const heard: { kind: 'drip' | 'chain'; x: number; z: number }[] = [];
+  {
+    const keyC = new THREE.Color(th.key);
+    // Shafts of light: tall soft cones from the dark above, each with a pool on the floor, swaying slowly.
+    const shaftTex = canvasTex((() => { const c = mk(16, 128), k = c.getContext('2d')!; const g = k.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.6, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(255,255,255,0.9)'); k.fillStyle = g; k.fillRect(0, 0, 16, 128); return c; })());
+    const shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, color: keyC.clone().multiplyScalar(0.045), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide, fog: false });
+    const poolMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.5)', 'rgba(255,255,255,0)')), color: keyC.clone().multiplyScalar(0.16), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const shaftGeo = new THREE.CylinderGeometry(0.3, 0.75, 9, 16, 1, true).translate(0, 4.5, 0);
+    const SH = [[2.2, -3.4], [-4.6, -1.2], [4.8, 2.6], [-1.8, 4.4], [0.6, 0.8]];
+    SH.forEach(([sx, sz], k) => {
+      const sh = new THREE.Mesh(shaftGeo, shaftMat); sh.position.set(sx, FLOOR, sz); room.add(sh);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(sx, FLOOR + 0.012, sz); room.add(pool);
+      life.push((t) => { const a = Math.sin(t * 0.21 + k * 1.7); sh.rotation.set(a * 0.05, 0, Math.cos(t * 0.17 + k) * 0.05); pool.scale.setScalar(1 + 0.08 * a); });
+    });
+    life.push((t) => { shaftMat.opacity = 0.85 + 0.15 * Math.sin(t * 0.5); });
+    // Low mist drifting over the floor, tinted by the room's fog, very faint so telegraphs stay clear.
+    if (id !== 'wrackline') {
+      const mc = new THREE.Color(th.wall).lerp(new THREE.Color(th.fog), 0.35);
+      const mistMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.55)', 'rgba(255,255,255,0)')), color: mc, transparent: true, opacity: 0.12, depthWrite: false });
+      for (let k = 0; k < 7; k++) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + 0.08 + k * 0.004; room.add(m);
+        const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
+        life.push((t) => { const a = a0 + t * sp * (k % 2 ? 1 : -1); m.position.x = Math.cos(a) * r0; m.position.z = Math.sin(a) * r0; m.rotation.z = a * 0.5; });
+      }
+    }
+    const forge = id === 'flue' || id === 'kiln' || id === 'hammerdeep' || id === 'pressworks' || id === 'smeltery' || id === 'crucible' || id === 'hoard';
+    const wet = id === 'foundry' || id === 'coldmarrow' || id === 'wrackline' || id === 'glarewell';
+    if (forge) {
+      // Chains hanging on the walls, swaying a little, a hook at the end.
+      const iron = new THREE.MeshStandardMaterial({ color: '#2a2422', roughness: 0.6, metalness: 0.8 });
+      const link = new THREE.TorusGeometry(0.09, 0.025, 4, 8);
+      for (let k = 0; k < 7; k++) {
+        const a = Math.PI + (k - 3) * 0.42, r = 8.6;
+        const g = new THREE.Group(); g.position.set(Math.sin(a) * r, 6.2, Math.cos(a) * r); g.rotation.y = a;
+        const n = 10 + (k * 3) % 7;
+        for (let j = 0; j < n; j++) { const l = new THREE.Mesh(link, iron); l.position.y = -j * 0.15; l.rotation.y = j % 2 ? Math.PI / 2 : 0; g.add(l); }
+        const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3), iron); hook.position.y = -n * 0.15 - 0.12; g.add(hook);
+        room.add(g);
+        let swing = 0;
+        life.push((t) => {
+          g.rotation.z = Math.sin(t * 0.7 + k * 1.3) * 0.045; g.rotation.x = Math.sin(t * 0.5 + k) * 0.03;
+          // The end of a sway, where the links knock.
+          const dir = Math.sign(Math.cos(t * 0.7 + k * 1.3));
+          if (swing && dir && dir !== swing && heard.length < 16) heard.push({ kind: 'chain', x: g.position.x, z: g.position.z });
+          if (dir) swing = dir;
+        });
+      }
+    }
+    if (wet) {
+      // Drips falling from the dark above near the walls and arena edge, each ringing out on the floor.
+      const dropC = new THREE.Color(id === 'coldmarrow' ? '#d8ecff' : id === 'glarewell' ? '#e0d8ff' : '#bfe8e0');
+      const dropMat = new THREE.MeshBasicMaterial({ color: dropC.clone().multiplyScalar(1.6) });
+      const ringMat = new THREE.MeshBasicMaterial({ color: dropC, transparent: true, depthWrite: false });
+      for (let k = 0; k < 9; k++) {
+        const a = k * 0.73 + 0.4, r = 3 + (k * 2.3) % 4.8;
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const drop = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), dropMat); drop.scale.y = 2.2; room.add(drop);
+        const ringM = ringMat.clone();
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), ringM); ring.rotation.x = -Math.PI / 2; ring.position.set(x, FLOOR + 0.015, z); room.add(ring);
+        const per = 2.2 + (k % 4) * 0.7, off = k * 0.61;
+        let was = -1;
+        life.push((t) => {
+          const ph = ((t + off) % per) / per, fall = 0.45; // 45% of the cycle falling, then the ring spreads
+          // It lands as the ring starts.
+          if (was >= 0 && was < fall && ph >= fall && heard.length < 16) heard.push({ kind: 'drip', x, z });
+          was = ph;
+          drop.visible = ph < fall;
+          if (ph < fall) { const f = ph / fall; drop.position.set(x, FLOOR + 6 * (1 - f * f), z); }
+          const rp = ph < fall ? -1 : (ph - fall) / 0.35;
+          ring.visible = rp >= 0 && rp < 1;
+          if (ring.visible) { ring.scale.setScalar(0.08 + 0.5 * rp); ringM.opacity = 0.7 * (1 - rp); }
+        });
+      }
+    }
+  }
+  return { room, flames, basalt, glows, th, drift, life, heard };
 }
 
 /* ---------- sprites ---------- */
@@ -758,7 +844,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   renderer.shadowMap.enabled = !saver; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
   // A touch over the handoff's 1.0. Steve, 23 Nov: 0.78 read "very dark".
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.65; // 1.05 read murky on Steve's phone (23 Nov)
   const cv = renderer.domElement;
   cv.className = 'hd2d-canvas';
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1';
@@ -779,17 +865,17 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /** The handoff's camera angle: up 15.5 and back 13.6 from what it looks at. */
   const camDir = new THREE.Vector3(0, 15.5, 13.6).normalize();
 
-  scene.add(new THREE.HemisphereLight(th0.hemi[0], th0.hemi[1], th0.hemi[2]));
-  const key = new THREE.DirectionalLight(th0.key, 1.3);
+  scene.add(new THREE.HemisphereLight(th0.hemi[0], th0.hemi[1], th0.hemi[2] * 1.6));
+  const key = new THREE.DirectionalLight(th0.key, 1.6);
   key.castShadow = !saver; key.shadow.mapSize.set(512, 512);
   Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 40 });
   key.shadow.bias = -0.0008; scene.add(key); scene.add(key.target);
   // A warm lamp over your own hero, so the ground you fight on is always lit (the room's other lights sit at its edges).
-  const lamp = new THREE.PointLight(th0.lamp, saver ? 0 : 5, 6.5, 2); lamp.position.set(0, 2.4, 0); if (!saver) scene.add(lamp);
+  const lamp = new THREE.PointLight(th0.lamp, saver ? 0 : 7, 8, 2); lamp.position.set(0, 2.4, 0); if (!saver) scene.add(lamp);
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
-  const { room, flames, basalt, glows, drift } = buildRoom(scene, saver, addLight, rid);
+  const { room, flames, basalt, glows, drift, life, heard } = buildRoom(scene, saver, addLight, rid);
   let roomFor = -1;
 
   const flat = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + y; m.renderOrder = 2; scene.add(m); return m; };
@@ -804,26 +890,31 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
     atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
     /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
-    twin?: THREE.Mesh };
+    twin?: THREE.Mesh;
+    /** The green outline (outline()). */
+    rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial> };
   const heroes: HeroS[] = [];
+  /** Per enemy slot: its attack timers last frame, when its last attack began, and which way it lunged. */
+  const foeAtk: ({ born: number; touch: number; abil: number; at: number; dx: number; dz: number } | undefined)[] = [];
   const heroSprite = (i: number, cls: string): HeroS => {
     const set = F[ART[cls] ?? 'ew'];
     const mats: Record<string, THREE.MeshStandardMaterial> = {};
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
     const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
     mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); scene.add(mesh);
-    const rc = new THREE.Color(RING[cls] ?? '#ffc861');
+    const rc = GOOD.clone(); // was the class colour (RING); Steve, 23 Nov: green = good
     const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
     const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
     const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
-    const h: HeroS = { cls, mesh, mats, blob, ring, disc, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
+    const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(heroGeo, rimMat(GOOD, false)); rim.renderOrder = 4; scene.add(rim);
+    const h: HeroS = { cls, mesh, mats, blob, ring, disc, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
     if (i === 0) {
       const tm = new THREE.MeshBasicMaterial({ map: mats.idle.map, alphaTest: 0.5, side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
       h.twin = new THREE.Mesh(heroGeo, tm); h.twin.castShadow = true; scene.add(h.twin);
     }
     heroes[i] = h; return h;
   };
-  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin]) if (o) scene.remove(o); };
+  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -843,18 +934,197 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS };
+  // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
+  // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
+  const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
+  const makeAnchor = () => {
+    const g = new THREE.Group();
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8).translate(0, 0.35, 0), anchorIron); g.add(shank);
+    const arms = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.05, 6, 16, Math.PI), anchorIron); arms.rotation.z = Math.PI; arms.position.y = 0.26; g.add(arms);
+    for (const sx of [-1, 1]) { const fluke = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.18, 4), anchorIron); fluke.position.set(sx * 0.26, 0.3, 0); g.add(fluke); }
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.06), anchorIron); stock.position.y = 0.62; g.add(stock);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 12), anchorIron); ring.position.y = 0.76; g.add(ring);
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 5).translate(0, 0.5, 0), anchorIron); chain.position.y = 0.82; chain.name = 'chain'; g.add(chain);
+    g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; });
+    scene.add(g); return g;
+  };
+  // Phase 16 U2, the Lampeye (design #612): a floating eye in 3D, not a sprite. Its iris turns to your hero, glows
+  // brighter and its pupil narrows as the gaze (Enemy.aux) builds; while it can see you a pale beam joins you, which
+  // flares through Searing Look. A pillar between you breaks the beam, as it breaks the gaze. A red shell behind the eye
+  // shows through anything in front of it, like every foe's red outline.
+  type EyeS = { g: THREE.Group; ball: THREE.Mesh; iris: THREE.Mesh; pupil: THREE.Mesh; lid: THREE.Mesh; hull: THREE.Mesh; beam: THREE.Mesh; irisMat: THREE.MeshStandardMaterial; beamMat: THREE.MeshBasicMaterial };
+  const eyeVeins = (() => { const c = mk(128, 64), k = c.getContext('2d')!; k.fillStyle = '#f2e8d6'; k.fillRect(0, 0, 128, 64); k.strokeStyle = 'rgba(190,60,50,0.55)'; k.lineWidth = 1;
+    for (let i = 0; i < 22; i++) { k.beginPath(); let x = Math.random() * 128, y = 64; k.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (Math.random() - 0.5) * 14; y -= 4 + Math.random() * 5; k.lineTo(x, y); } k.stroke(); }
+    return canvasTex(c); })();
+  const eyeBallGeo = new THREE.SphereGeometry(1, 24, 16);
+  const eyeLidGeo = new THREE.SphereGeometry(1.08, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+  const eyeIrisGeo = new THREE.CircleGeometry(0.62, 24);
+  const eyePupilGeo = new THREE.CircleGeometry(0.26, 18);
+  const eyeBeamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);
+  const makeEye = (): EyeS => {
+    const g = new THREE.Group();
+    const ball = new THREE.Mesh(eyeBallGeo, new THREE.MeshStandardMaterial({ map: eyeVeins, roughness: 0.35, metalness: 0, emissive: new THREE.Color('#fff2d8'), emissiveMap: eyeVeins, emissiveIntensity: 0.3 }));
+    const irisMat = new THREE.MeshStandardMaterial({ color: '#e07a10', roughness: 0.4, emissive: new THREE.Color('#ff9a20'), emissiveIntensity: 0.6 });
+    const iris = new THREE.Mesh(eyeIrisGeo, irisMat); iris.position.z = 1.001;
+    const pupil = new THREE.Mesh(eyePupilGeo, new THREE.MeshBasicMaterial({ color: '#0a0604' })); pupil.position.z = 1.003;
+    const lid = new THREE.Mesh(eyeLidGeo, new THREE.MeshStandardMaterial({ color: '#2e2a33', roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide }));
+    lid.rotation.x = -Math.PI / 2 + 0.35; // a dark hood over the back and top, open toward the front
+    lid.position.z = -0.12;
+    const hull = new THREE.Mesh(eyeBallGeo, new THREE.MeshBasicMaterial({ color: BAD, transparent: true, opacity: 0.5, side: THREE.BackSide, depthTest: false, depthWrite: false, toneMapped: false }));
+    hull.scale.setScalar(1.14); hull.renderOrder = 6;
+    // The eye draws in the transparent pass after its hull (three.js draws every opaque mesh first, so an opaque eye
+    // was painted over by the depth-ignoring hull and showed as a plain red ball).
+    for (const m of [ball, iris, pupil, lid]) { m.renderOrder = 7; const mm = m.material as THREE.Material; mm.transparent = true; mm.opacity = 1; }
+    g.add(hull, ball, lid, iris, pupil);
+    ball.castShadow = lid.castShadow = !saver;
+    scene.add(g);
+    const beamMat = new THREE.MeshBasicMaterial({ color: '#fff4c0', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const beam = new THREE.Mesh(eyeBeamGeo, beamMat); beam.renderOrder = 5; scene.add(beam);
+    return { g, ball, iris, pupil, lid, hull, beam, irisMat, beamMat };
+  };
+  // Phase 16 U2, the Dimhorn (design #621): a long curled horn on its head. The horn frosts over and glows cold blue as
+  // its time in the dark (Enemy.aux) fills toward the Dark Call; through the call it tips up and blue rings of sound
+  // roll off its bell, so you know to bring your coal's light over it.
+  type HornS = { g: THREE.Group; mat: THREE.MeshStandardMaterial; rings: THREE.Mesh[]; ringMat: THREE.MeshBasicMaterial };
+  const hornCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.05, 0.28, 0), new THREE.Vector3(0.22, 0.5, 0), new THREE.Vector3(0.48, 0.58, 0), new THREE.Vector3(0.7, 0.5, 0)]);
+  const hornGeo = (() => {
+    const g = new THREE.TubeGeometry(hornCurve, 24, 1, 8, false);
+    // Taper: thick at the root, flaring again into a small bell at the tip.
+    const pos = g.attributes.position as THREE.BufferAttribute, n = pos.count, ring = 9;
+    for (let v = 0; v < n; v++) {
+      const seg = Math.floor(v / ring) / 24, c = hornCurve.getPointAt(seg); // TubeGeometry lays rings by arc length
+      const r = seg < 0.85 ? 0.09 * (1 - seg * 0.75) : 0.035 + (seg - 0.85) * 0.5;
+      const x = pos.getX(v) - c.x, y = pos.getY(v) - c.y, z = pos.getZ(v) - c.z, l = Math.hypot(x, y, z) || 1;
+      pos.setXYZ(v, c.x + (x / l) * r, c.y + (y / l) * r, c.z + (z / l) * r);
+    }
+    g.computeVertexNormals();
+    return g;
+  })();
+  const hornTip = hornCurve.getPointAt(1);
+  const hornRingGeo = new THREE.TorusGeometry(1, 0.06, 6, 28);
+  const makeHorn = (): HornS => {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: '#d8d0bc', roughness: 0.45, metalness: 0.05, emissive: new THREE.Color('#7aa8ff'), emissiveIntensity: 0 });
+    const m = new THREE.Mesh(hornGeo, mat); m.castShadow = !saver; g.add(m);
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#9ab8ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    const rings: THREE.Mesh[] = [];
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(hornRingGeo, ringMat.clone()); r.position.copy(hornTip); r.rotation.y = Math.PI / 2; g.add(r); rings.push(r); }
+    scene.add(g);
+    return { g, mat, rings, ringMat };
+  };
+  // Phase 16 U2, the Conchblower (design #623): a great spiral shell carried at its side. Through its Conch Call
+  // (Quenchable; it hastens the Ebb) it lifts the shell to its mouth, the shell glows sea green, rings of sound roll
+  // off the mouth and a ripple runs out over the floor around it.
+  type ConchS = { g: THREE.Group; shell: THREE.Group; mat: THREE.MeshStandardMaterial; rings: THREE.Mesh[]; ripple: THREE.Mesh; rippleMat: THREE.MeshBasicMaterial };
+  const conchStripes = (() => { const c = mk(64, 64), k = c.getContext('2d')!; k.fillStyle = '#f1d9c4'; k.fillRect(0, 0, 64, 64); k.fillStyle = '#c98a6a';
+    for (let y = 0; y < 64; y += 8) { k.save(); k.translate(0, y); k.transform(1, 0.35, 0, 1, 0, 0); k.fillRect(0, 0, 64, 3); k.restore(); } return canvasTex(c); })();
+  const makeConch = (): ConchS => {
+    const g = new THREE.Group(), shell = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ map: conchStripes, roughness: 0.4, metalness: 0.05, emissive: new THREE.Color('#40ffc8'), emissiveIntensity: 0 });
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 12, 1), mat); body.rotation.z = -Math.PI / 2; body.position.x = -0.1; shell.add(body);
+    const whorl = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.07, 8, 16), mat); whorl.position.x = 0.12; whorl.rotation.y = Math.PI / 2; shell.add(whorl);
+    for (let k = 0; k < 5; k++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 5), mat); const a = (k / 5) * Math.PI * 2; sp.position.set(0.02 - k * 0.06, Math.cos(a) * 0.17, Math.sin(a) * 0.17); sp.rotation.x = a; shell.add(sp); }
+    shell.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; });
+    g.add(shell);
+    const rings: THREE.Mesh[] = [];
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(hornRingGeo, new THREE.MeshBasicMaterial({ color: '#7dffd8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); r.rotation.x = -0.6; g.add(r); rings.push(r); } // facing the camera, not edge-on
+    scene.add(g);
+    const rippleMat = new THREE.MeshBasicMaterial({ color: '#7dffd8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const ripple = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48), rippleMat); ripple.rotation.x = -Math.PI / 2; scene.add(ripple);
+    return { g, shell, mat, rings, ripple, rippleMat };
+  };
+  // Phase 16 U2, the Ashwall: a real slab of cooled slag carried before it, glowing in its cracks, turned to Enemy.aux
+  // (its shield facing). The front arc and the shelter wedge are 2D floor marks the bridge already carries.
+  const slagCracks = (() => { const c = mk(64, 64), k = c.getContext('2d')!; k.fillStyle = '#000'; k.fillRect(0, 0, 64, 64); k.strokeStyle = '#ffffff'; k.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { k.beginPath(); let x = Math.random() * 64, y = Math.random() * 64; k.moveTo(x, y); for (let j = 0; j < 4; j++) { x += (Math.random() - 0.5) * 26; y += (Math.random() - 0.5) * 26; k.lineTo(x, y); } k.stroke(); }
+    return canvasTex(c); })();
+  const shieldMat = new THREE.MeshStandardMaterial({ color: '#4a3e38', roughness: 0.85, metalness: 0.15, emissive: new THREE.Color('#ff7a30'), emissiveMap: slagCracks, emissiveIntensity: 1.1 });
+  const shieldGeo = new THREE.BoxGeometry(1, 1, 0.14).translate(0, 0.5, 0);
+  // Steve, 23 Nov: "Can't see the enemies... Green = good, red = bad". Every foe gets a faint red outline and a red
+  // ring the size of its hit box at its feet; every hero (you and allies) a green outline and a green ring.
+  const GOOD = new THREE.Color('#5dff8a'), BAD = new THREE.Color('#ff3b3b');
+  /**
+   * An outline of a sprite: a quad a little larger than it whose shader lights only the texels just outside the
+   * sprite's alpha edge, in one colour. A foe's outline ignores depth (`xray`), so a foe standing behind or under a hero
+   * still shows its red edge: melee foes crowd inside your hero's footprint, which hid them completely (23 Nov).
+   */
+  const rimMat = (tint: THREE.Color, xray: boolean) => new THREE.ShaderMaterial({
+    uniforms: { map: { value: null as THREE.Texture | null }, opacity: { value: 0.9 }, tint: { value: tint.clone() }, texel: { value: new THREE.Vector2(1 / 32, 1 / 32) }, k: { value: new THREE.Vector2(1, 1) } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D map; uniform float opacity; uniform vec3 tint; uniform vec2 texel; uniform vec2 k; varying vec2 vUv;
+      float A(vec2 u) { if (u.x < 0.0 || u.x > 1.0 || u.y < 0.0 || u.y > 1.0) return 0.0; return texture2D(map, u).a; }
+      void main() {
+        vec2 u = (vUv - vec2(0.5, 0.0)) * k + vec2(0.5, 0.0);
+        vec2 dx = vec2(texel.x * 1.5, 0.0), dy = vec2(0.0, texel.y * 1.5);
+        float n = max(max(max(A(u + dx), A(u - dx)), max(A(u + dy), A(u - dy))), max(max(A(u + dx + dy), A(u - dx - dy)), max(A(u + dx - dy), A(u - dx + dy))));
+        float e = step(0.5, n) * (1.0 - step(0.5, A(u)));
+        if (e * opacity < 0.01) discard;
+        gl_FragColor = vec4(tint, e * opacity);
+      }`,
+    transparent: true, depthWrite: false, depthTest: !xray, side: THREE.DoubleSide, toneMapped: false,
+  });
+  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge. */
+  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number) => {
+    rim.visible = m.visible;
+    if (!m.visible) return;
+    const map = (m.material as THREE.MeshStandardMaterial).map;
+    if (!map) { rim.visible = false; return; }
+    const u = rim.material.uniforms;
+    u.map.value = map;
+    const img = map.image as { width?: number; height?: number } | undefined;
+    u.texel.value.set(1 / (img?.width || 32), 1 / (img?.height || 32));
+    rim.geometry = m.geometry;
+    rim.position.copy(m.position).addScaledVector(camDir, 0.01);
+    rim.rotation.copy(m.rotation);
+    const sx = Math.abs(m.scale.x) || 1, sy = m.scale.y || 1;
+    const kx = 1 + (2 * grow) / sx, ky = 1 + grow / sy;
+    rim.scale.set(m.scale.x * kx, sy * ky, 1);
+    u.k.value.set(kx, ky);
+  };
+  const RIM_GROW = 0.05;
   const foes: FoeS[] = [];
   const foe = (i: number): FoeS => {
     let f = foes[i];
     if (!f) {
       const mesh = new THREE.Mesh(foeGeo, regentMat); mesh.castShadow = !saver; scene.add(mesh);
       const blob = flat(circle, blobMat, 0.005);
-      f = foes[i] = { mesh, blob };
+      const ring = flat(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: 0.6, depthWrite: false }), 0.031);
+      const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, rimMat(BAD, true)); rim.renderOrder = 6; scene.add(rim);
+      f = foes[i] = { mesh, blob, ring, rim };
     }
     return f;
   };
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
+  // Old Vorhulm's Inhale (the Hoard, phase 3): his maw glows and air, ash and embers stream in to it from all round.
+  // The floor ring of his bite and the 2D streaks still come through the bridge.
+  // The Cinder Colossus's Millstone (the Smeltery, phase 2): as he grinds round, molten slag is flung off his sides and
+  // front in arcs (never off his open back, MILL.arc of colFacing), and sparks race round his base the way he turns.
+  const MLN = 120;
+  const millPos = new Float32Array(MLN * 3);
+  const millGeo = new THREE.BufferGeometry(); millGeo.setAttribute('position', new THREE.BufferAttribute(millPos, 3));
+  const millMat = new THREE.PointsMaterial({ map: canvasTex(dotCanvas('rgba(255,240,190,1)', 'rgba(255,110,30,0)')), color: new THREE.Color(2.2, 1.1, 0.45), size: 0.42, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const mill = new THREE.Points(millGeo, millMat); mill.frustumCulled = false; mill.visible = false; scene.add(mill);
+  // An echoed cast (Phase 16 U1: the boss borrows another version's move): a pale, ghostly double of him swells out
+  // and fades for ECHO_GHOST s, with a cold ring at his feet, so the borrowed move reads as not his own.
+  const ECHO_GHOST = 1.6;
+  // A silhouette: the sprite's alpha only, filled with a cold colour (his own dark colours would add almost nothing).
+  const ghostMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: null as THREE.Texture | null }, opacity: { value: 0 }, tint: { value: new THREE.Color(0.45, 0.8, 1.5) } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D map; uniform float opacity; uniform vec3 tint; varying vec2 vUv; void main() { float a = texture2D(map, vUv).a * opacity; if (a < 0.01) discard; gl_FragColor = vec4(tint * a, a); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  const ghost = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, ghostMat); ghost.visible = false; ghost.renderOrder = 3; scene.add(ghost);
+  const ghostRing = flat(new THREE.RingGeometry(0.85, 1, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 0.9, 1.5), transparent: true, depthWrite: false }), 0.04);
+  ghostRing.visible = false;
+  const INH = 80;
+  const inhPos = new Float32Array(INH * 3);
+  const inhGeo = new THREE.BufferGeometry(); inhGeo.setAttribute('position', new THREE.BufferAttribute(inhPos, 3));
+  const inhMat = new THREE.PointsMaterial({ map: canvasTex(dotCanvas('rgba(255,236,200,1)', 'rgba(255,140,60,0)')), color: new THREE.Color(1.8, 1.2, 0.8), size: 0.32, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const inhale = new THREE.Points(inhGeo, inhMat); inhale.frustumCulled = false; inhale.visible = false; scene.add(inhale);
+  const maw = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(dotCanvas('rgba(255,240,200,1)', 'rgba(255,90,30,0)')), color: new THREE.Color(2.2, 1.2, 0.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  maw.visible = false; scene.add(maw);
 
   /* telegraphs */
   const telTex = { hit: canvasTex(circleTel('hit')), soak: canvasTex(circleTel('soak')) };
@@ -875,6 +1145,22 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const crownMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.2, 0.8) });
   // Ondrel's Homeward Hammer (Hammerdeep): a real hammer that wheels through the air, lies head-down rattling as it is
   // called home, then streaks back to him. The 2D one is drawn above the floor layer, so the bridge never carried it.
+  // The Regent's Tithe (the Flue, phase 2): a gold tribute dish round the soak circle, its coin stacks rising as the
+  // fuse runs, so it reads apart from the Ventwalker and Banked Coal soak circles.
+  const goldMat = new THREE.MeshStandardMaterial({ color: '#d8a640', roughness: 0.35, metalness: 0.8, emissive: new THREE.Color('#4a2c06') });
+  const coinGeo = new THREE.CylinderGeometry(0.11, 0.11, 1, 12).translate(0, 0.5, 0);
+  const dishRim = new THREE.TorusGeometry(1, 0.035, 6, 64).rotateX(Math.PI / 2);
+  const dishes: { g: THREE.Group; stacks: THREE.Mesh[] }[] = [];
+  const dish = (i: number) => {
+    let d = dishes[i];
+    if (!d) {
+      const g = new THREE.Group(); const rim = new THREE.Mesh(dishRim, goldMat); rim.position.y = 0.04; g.add(rim);
+      const stacks: THREE.Mesh[] = [];
+      for (let k = 0; k < 8; k++) { const c = new THREE.Mesh(coinGeo, goldMat); c.castShadow = !saver; stacks.push(c); g.add(c); }
+      scene.add(g); d = dishes[i] = { g, stacks };
+    }
+    return d;
+  };
   const hammer = new THREE.Group();
   const hamHeadMat = new THREE.MeshStandardMaterial({ color: '#5a524c', roughness: 0.45, metalness: 0.7, emissive: new THREE.Color('#ff9a40'), emissiveIntensity: 0 });
   const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.32), hamHeadMat); hamHead.castShadow = !saver; hammer.add(hamHead);
@@ -934,6 +1220,10 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   let W = 0, H = 0, dist = 20;
   /** How many attacks your hero has started (stats(), so a test can see the pose fire). */
   let attacks = 0;
+  /** How many foe attacks (lunges) have started, for stats(). */
+  let foeAttacks = 0;
+  /** Sounds for Hd2dView.sounds since it was last asked, in world units (capped, in case nobody asks). */
+  const sfx: RoomSound[] = [];
   let bridge: { mesh: THREE.Mesh; tex: THREE.CanvasTexture; stamp: number } | null = null;
   const resize = () => {
     const w = host.clientWidth || window.innerWidth, h = host.clientHeight || window.innerHeight;
@@ -955,6 +1245,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
 
   const times: number[] = [];
   const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3(), pv = new THREE.Vector3();
+  /** Per enemy index: where its sprite's head was drawn this frame (3D units), for view.foeHead. */
+  const foeHeads: { x: number; z: number; h: number; at: number }[] = [];
+  let frameNo = 0;
   let t = 0;
   const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, s: number) => { v3.set(x, y, z); sc.set(s, s, s); m4.compose(v3, q0, sc); im.setMatrixAt(n, m4); };
 
@@ -1040,6 +1333,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       h.blob.position.set(x, FLOOR + 0.006, z);
       h.ring.position.set(x, FLOOR + 0.03, z); h.disc.position.set(x, FLOOR + 0.028, z);
       h.ring.visible = h.disc.visible = !dead;
+      outline(h.rim, h.mesh, RIM_GROW); if (dead) h.rim.visible = false;
       if (i > 0) {
         const nm = A.heroName(i);
         if (nm !== h.nameText) {
@@ -1053,7 +1347,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
 
     // Foes.
-    let fi = 0, bossOn = false;
+    let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0, bossR = 0;
+    // Steve, 23 Nov: enemies had no attack animation. A foe attacks when its touch timer resets (a melee hit, the
+    // 0.6 s touchCd) or its ability timer jumps back up (a shot, a summon, a boss move): it lunges at the nearest hero
+    // and squashes, for FOE_ATK s. While casting it rears up and pulses.
+    const FOE_ATK = 0.3;
+    const heroPts: { x: number; y: number }[] = [];
+    for (let j = 0; j < w.heroes.length; j++) { const q = w.heroData(j).player; if (q.hp > 0) heroPts.push({ x: q.x, y: q.y }); }
+    let bossMesh: THREE.Mesh | null = null;
+    frameNo++;
     for (let i = 0; i < w.enemies.length; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1063,6 +1365,18 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const age = w.time - e.spawnedAt;
       const rise = age < 0.3 ? 0.3 + 0.7 * (age / 0.3) + Math.sin((age / 0.3) * Math.PI) * 0.25 : 1;
       const hit = e.flash > 0 ? 0.1 : 0;
+      let fa = foeAtk[i];
+      if (!fa || fa.born !== e.spawnedAt) fa = foeAtk[i] = { born: e.spawnedAt, touch: e.touchCd, abil: e.abilityT, at: -9, dx: 0, dz: 1 };
+      if (e.touchCd > fa.touch + 0.05 || e.abilityT > fa.abil + 0.05) {
+        if (sfx.length < 32) sfx.push({ kind: 'lunge', x: e.x, y: e.y, melee: e.touchCd > fa.touch + 0.05, rank: e.def.rank });
+        fa.at = w.time; foeAttacks++;
+        let best = Infinity;
+        for (const q of heroPts) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < best) { best = d; const l = Math.sqrt(d) || 1; fa.dx = (q.x - e.x) / l; fa.dz = (q.y - e.y) / l; } }
+      }
+      fa.touch = e.touchCd; fa.abil = e.abilityT;
+      const sinceAtk = w.time - fa.at;
+      const ak = sinceAtk >= 0 && sinceAtk < FOE_ATK ? Math.sin((sinceAtk / FOE_ATK) * Math.PI) : 0;
+      const rear = e.castId ? 0.06 + 0.04 * Math.sin(t * 12) : 0;
       let wd: number, ht: number;
       if (e.kind === 'regent') {
         f.mesh.geometry = bossGeo; f.mesh.material = regentMat;
@@ -1075,21 +1389,178 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = false; continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
-        m.emissiveIntensity = e.flash > 0 ? 0.7 : 0.22;
+        m.emissiveIntensity = e.flash > 0 ? 0.7 : 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
-      f.mesh.scale.set(flip * wd * rise * (1 + hit), ht * rise * (1 - hit), 1);
-      f.mesh.position.set(x, FLOOR, z);
-      f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : 0;
+      f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.14 * ak), ht * rise * (1 - hit - 0.1 * ak + rear), 1);
+      const reach = Math.min(0.35, (e.def.radius * S) * 0.6) * ak;
+      f.mesh.position.set(x + fa.dx * reach, FLOOR, z + fa.dz * reach);
+      // Where this foe's head is drawn, for its health and cast bar on the overlay (view.foeHead).
+      (foeHeads[i] ??= { x: 0, z: 0, h: 0, at: 0 });
+      foeHeads[i].x = f.mesh.position.x; foeHeads[i].z = f.mesh.position.z; foeHeads[i].h = FLOOR + ht * rise * (1 - 0.04); foeHeads[i].at = frameNo;
+      if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; bossMesh = f.mesh; }
+      f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak;
       f.mesh.visible = true;
       f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
+      f.ring.visible = true; f.ring.position.set(x, FLOOR + 0.031, z); f.ring.scale.setScalar(e.def.radius * S * rise);
+      if (e.kind === 'ashwall') {
+        if (!f.shield) { f.shield = new THREE.Mesh(shieldGeo, shieldMat); f.shield.castShadow = !saver; scene.add(f.shield); }
+        const r = e.def.radius * S, fx = Math.cos(e.aux), fz = Math.sin(e.aux);
+        f.shield.visible = true;
+        f.shield.position.set(x + fa.dx * reach + fx * r * 1.1, FLOOR, z + fa.dz * reach + fz * r * 1.1);
+        f.shield.rotation.set(-0.08 - 0.25 * ak, Math.atan2(fx, fz), 0, 'YXZ');
+        f.shield.scale.set(r * 2.6, ht * rise * 0.8, 1);
+        shieldMat.emissiveIntensity = (e.castId ? 1.8 + 0.6 * Math.sin(t * 14) : 1.1) * (e.flash > 0 ? 1.4 : 1);
+      } else if (f.shield) f.shield.visible = false;
+      if (e.kind === 'ballast') {
+        if (!f.anchor) f.anchor = makeAnchor();
+        const r = e.def.radius * S, plant = Math.min(1, Math.max(0, e.aux / BALLAST_PLANT));
+        const planted = e.aux >= BALLAST_PLANT, heave = e.castId ? 0.12 + 0.06 * Math.sin(t * 16) : 0;
+        const side = flip > 0 ? 1 : -1;
+        const ax = x + side * r * 1.15, az = z + r * 0.7; // a little in front, so a planted anchor isn't hidden by the body
+        const y = FLOOR + (1 - plant) * 0.9 - (planted ? 0.12 : 0) + heave;
+        f.anchor.visible = true; f.anchor.position.set(ax, y, az); f.anchor.scale.setScalar(1.35);
+        f.anchor.rotation.set(0, 0, planted ? side * 0.12 : Math.sin(t * 3 + i) * 0.15 * (1 - plant));
+        const chain = f.anchor.getObjectByName('chain')!;
+        chain.scale.y = Math.max(0.05, ht * rise * 0.55 - (y - FLOOR) * 0.2 + (1 - plant) * 0.2);
+        anchorIron.emissiveIntensity = e.castId ? 0.9 + 0.5 * Math.sin(t * 14) : planted ? 0.25 : 0;
+      } else if (f.anchor) f.anchor.visible = false;
+      if (e.kind === 'lampeye') {
+        if (!f.eye) f.eye = makeEye();
+        const E = f.eye, k = Math.min(1, e.aux / LAMPEYE_FULL), looking = e.castId === 'searingLook';
+        const R = 0.36 * rise * (1 + hit * 0.6), ey = FLOOR + 0.95 + Math.sin(t * 1.7 + i) * 0.08;
+        E.g.visible = true; E.g.position.set(x + fa.dx * reach, ey, z + fa.dz * reach); E.g.scale.setScalar(R);
+        const me = w.heroData(0).player;
+        const tx = me.x * S, tz = me.y * S, ty = FLOOR + 0.75;
+        // It looks at you, but turned half toward the camera, so you can see the iris (and which way it is looking)
+        // from above instead of the back of its hood.
+        {
+          const hx = tx - E.g.position.x, hz = tz - E.g.position.z, hl = Math.hypot(hx, hz) || 1;
+          pv.copy(E.g.position).addScaledVector(camDir, 1).add(v3.set((hx / hl) * 0.5, 0, (hz / hl) * 0.5));
+          E.g.lookAt(pv);
+        }
+        E.irisMat.emissiveIntensity = (looking ? 2.4 + 0.8 * Math.sin(t * 22) : 0.5 + 1.6 * k) * (e.flash > 0 ? 1.3 : 1);
+        E.pupil.scale.setScalar(looking ? 0.35 : 1 - 0.55 * k);
+        const sees = me.hp > 0 && w.lampeyeSees(e, me.x, me.y);
+        E.beam.visible = sees && (k > 0.02 || looking);
+        if (E.beam.visible) {
+          const dx = tx - E.g.position.x, dy = ty - ey, dz = tz - E.g.position.z, len = Math.hypot(dx, dy, dz);
+          const th = looking ? 0.07 + 0.02 * Math.sin(t * 30) : 0.012 + 0.02 * k;
+          E.beam.position.copy(E.g.position); E.beam.lookAt(tx, ty, tz); E.beam.scale.set(th, th, len);
+          E.beamMat.opacity = looking ? 0.75 : 0.12 + 0.4 * k;
+        }
+        // The eye stands in for the sprite: hide the placeholder body and its outline, and hang the bar over the eye.
+        f.mesh.visible = false;
+        foeHeads[i].h = ey + R * 1.1;
+      } else if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; }
+      if (e.kind === 'dimhorn') {
+        if (!f.horn) f.horn = makeHorn();
+        const H = f.horn, calling = e.castId === 'darkCall', k = calling ? 1 : Math.min(1, e.aux / DIMHORN_CALL);
+        const side = flip > 0 ? 1 : -1, sc = 1.4 * rise;
+        H.g.visible = true;
+        H.g.position.set(f.mesh.position.x - side * wd * 0.12, FLOOR + ht * rise * 0.72, f.mesh.position.z + 0.02);
+        H.g.scale.set(side * sc, sc, sc);
+        H.g.rotation.set(0, 0, calling ? side * (0.5 + 0.06 * Math.sin(t * 18)) : side * 0.12 * k);
+        H.mat.emissiveIntensity = calling ? 1.6 + 0.6 * Math.sin(t * 14) : 0.15 + 1.1 * k * k;
+        H.mat.color.setRGB(0.85 - 0.25 * k, 0.82 - 0.12 * k, 0.74 + 0.2 * k);
+        H.rings.forEach((r, j) => {
+          const ph = calling ? ((t * 1.4 + j / 3) % 1) : 0;
+          r.visible = calling;
+          r.scale.setScalar(0.06 + ph * 0.32);
+          r.position.set(hornTip.x + ph * 0.4, hornTip.y + ph * 0.08, 0);
+          (r.material as THREE.MeshBasicMaterial).opacity = calling ? 0.8 * (1 - ph) : 0;
+        });
+      } else if (f.horn) f.horn.g.visible = false;
+      if (e.kind === 'conchblower') {
+        if (!f.conch) f.conch = makeConch();
+        const C = f.conch, calling = e.castId === 'conchCall';
+        const cf = calling ? Math.min(1, e.castT / Math.max(0.01, e.castDur)) : 0, lift = calling ? Math.min(1, cf * 4) : 0;
+        const side = flip > 0 ? 1 : -1, sc = 0.75 * rise;
+        C.g.visible = true;
+        // At rest under its arm at hip height; through the call raised to its mouth, mouth pointing out to the side.
+        C.g.position.set(f.mesh.position.x + side * wd * (0.6 - 0.1 * lift), FLOOR + ht * rise * (0.38 + 0.4 * lift), f.mesh.position.z + 0.05);
+        C.g.scale.set(side * sc, sc, sc);
+        C.shell.rotation.set(Math.sin(t * 2 + i) * 0.1 * (1 - lift), 0, 0.25 * lift + (calling ? 0.04 * Math.sin(t * 20) : 0));
+        C.mat.emissiveIntensity = calling ? 0.25 + 0.5 * cf + 0.15 * Math.sin(t * 16) : 0;
+        C.rings.forEach((r, j) => {
+          const ph = (t * 1.6 + j / 3) % 1;
+          r.visible = calling && lift > 0.9;
+          r.position.set(0.25 + ph * 0.6, 0.06 * ph, 0); r.scale.setScalar(0.1 + ph * 0.5);
+          (r.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - ph);
+        });
+        C.ripple.visible = calling;
+        if (calling) {
+          const ph = (t * 0.9) % 1;
+          C.ripple.position.set(x, FLOOR + 0.035, z); C.ripple.scale.setScalar(e.def.radius * S * (1.5 + ph * 4));
+          C.rippleMat.opacity = 0.55 * (1 - ph);
+        }
+      } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
+      outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
+    const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
+    const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
+    ghost.visible = ghostRing.visible = echoing;
+    if (echoing && bossMesh) {
+      const bm = bossMesh as THREE.Mesh;
+      const k = echoAge / ECHO_GHOST;
+      const map = (bm.material as THREE.MeshStandardMaterial).map;
+      ghostMat.uniforms.map.value = map;
+      ghost.geometry = bm.geometry;
+      ghost.position.copy(bm.position).addScaledVector(camDir, 0.05); ghost.position.y += 0.1 * k;
+      ghost.scale.copy(bm.scale).multiplyScalar(1.04 + 0.22 * k);
+      ghostMat.uniforms.opacity.value = 0.8 * (1 - k) * (0.8 + 0.2 * Math.sin(t * 20));
+      ghostRing.position.set(bossX, FLOOR + 0.04, bossZ); ghostRing.scale.setScalar(bossR * (1.1 + 0.9 * k));
+      (ghostRing.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
+    }
+    const milling = w.millT > 0 && bossH > 0;
+    mill.visible = milling;
+    if (milling) {
+      const reach = 200 * S, arc = 2.1, face = w.colFacing; // MILL.range, MILL.arc
+      for (let k = 0; k < MLN; k++) {
+        const h = Math.sin(k * 12.9898 + 4.1) * 43758.5453, rr = h - Math.floor(h);
+        if (k < 90) {
+          // Slag: each blob is flung from his edge out to his reach on a low arc, then lands and starts again.
+          const ph = (t * (0.9 + 0.5 * rr) + rr * 7) % 1;
+          const a = face + (rr * 2 - 1) * arc * 0.97;
+          const r = bossR * 0.9 + reach * ph * (0.55 + 0.45 * ((k * 0.618) % 1));
+          millPos[k * 3] = bossX + Math.cos(a) * r;
+          millPos[k * 3 + 1] = FLOOR + 0.05 + Math.sin(ph * Math.PI) * (0.5 + 0.6 * rr) + 0.35 * (1 - ph);
+          millPos[k * 3 + 2] = bossZ + Math.sin(a) * r;
+        } else {
+          // Grinding sparks round his base, racing the way he turns (millDir).
+          const a = w.millDir * t * 2.7 + ((k - 90) / (MLN - 90)) * Math.PI * 2;
+          millPos[k * 3] = bossX + Math.cos(a) * bossR; millPos[k * 3 + 1] = FLOOR + 0.12 + 0.1 * rr; millPos[k * 3 + 2] = bossZ + Math.sin(a) * bossR;
+        }
+      }
+      millGeo.attributes.position.needsUpdate = true;
+    }
+    const inh = (w.bossVariant === 'inhale' || w.bossEcho === 'inhale') && w.inhaleStage > 0 && bossH > 0 ? w.inhaleStage : 0;
+    inhale.visible = maw.visible = inh > 0;
+    if (inh) {
+      const my = FLOOR + bossH * 0.55, mz = bossZ + 0.08;
+      const glow = inh === 2 ? 1 : 0.45 + 0.35 * Math.sin(t * 9);
+      maw.position.set(bossX, my, mz); maw.scale.setScalar(0.7 + 0.6 * glow);
+      bossLight.position.set(bossX, my, bossZ + 0.7); bossLight.intensity = 4 + 10 * glow;
+      // Each mote spirals in from 3-6 units out, rising to his maw; faster and denser while he breathes in.
+      const n = inh === 2 ? INH : 14, speed = inh === 2 ? 0.9 : 0.25;
+      for (let k = 0; k < INH; k++) {
+        if (k >= n) { inhPos[k * 3 + 1] = -50; continue; }
+        const h = Math.sin(k * 78.233) * 43758.5453, rr = h - Math.floor(h);
+        const ph = (t * speed + rr) % 1, a = k * 2.399 + ph * 1.4;
+        const r = (3 + 3 * rr) * (1 - ph) ** 1.4 + 0.15;
+        inhPos[k * 3] = bossX + Math.cos(a) * r;
+        inhPos[k * 3 + 1] = FLOOR + 0.25 + (my - FLOOR - 0.25) * ph * ph + 0.3 * rr * (1 - ph);
+        inhPos[k * 3 + 2] = mz + Math.sin(a) * r;
+      }
+      inhGeo.attributes.position.needsUpdate = true;
+      inhMat.opacity = inh === 2 ? 0.95 : 0.6;
+    }
 
     // Telegraphs.
     let ti = 0;
@@ -1119,6 +1590,21 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       mat.opacity = 0.82 + 0.18 * Math.sin(t * 6 + ti);
     }
     for (let i = ti; i < tels.length; i++) { tels[i].m.visible = false; tels[i].fill.visible = false; }
+
+    // Tithe dishes (the Regent's gold soak circle, owner -5).
+    let tdi = 0;
+    for (const g of w.telegraphs) {
+      if (!g.alive || g.kind !== 'soak' || g.owner !== -5) continue;
+      const d = dish(tdi++), r = g.r * S, prog = Math.min(1, Math.max(0, g.t / Math.max(0.01, g.dur)));
+      d.g.visible = true; d.g.position.set(g.x * S, FLOOR, g.y * S);
+      d.g.children[0].scale.set(r, 1, r);
+      d.stacks.forEach((c, k) => {
+        const a = (k / 8) * Math.PI * 2 + 0.2;
+        c.position.set(Math.cos(a) * r * 0.86, 0, Math.sin(a) * r * 0.86);
+        c.scale.set(1, 0.04 + (0.08 + 0.05 * (k % 3)) * prog * 2, 1);
+      });
+    }
+    for (let i = tdi; i < dishes.length; i++) dishes[i].g.visible = false;
 
     // Decrees (the Flue).
     const ds = w.regentDecree ?? [];
@@ -1183,6 +1669,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (const f of flick) f.l.intensity = f.base * (0.84 + 0.1 * Math.sin(t * 7 * f.speed + f.seed) + 0.06 * Math.sin(t * 17 * f.speed + f.seed * 2));
     flames.forEach((fl, i) => fl.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(t * 9 + i * 1.7)), 1));
     for (const d of drift) { d.offset.x = (t * 0.012) % 1; d.offset.y = (t * 0.007) % 1; }
+    for (const f of life) f(t);
+    // Room units to world: the room is centred on the arena and scaled so ROOM_R is World.arenaR.
+    for (const h of heard.splice(0)) if (sfx.length < 32) sfx.push({ kind: h.kind, x: (h.x * w.arenaR) / ROOM_R, y: (h.z * w.arenaR) / ROOM_R });
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
@@ -1191,7 +1680,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     pgeo.attributes.position.needsUpdate = true;
 
     // The camera follows the hero like the 2D camera, at the handoff's angle; the sun's shadow box follows too.
-    const look = v3.set(cx, 0, cz - 0.9);
+    // GameScene's focus offset (phones: keep the boss clear of the ability buttons) moves the camera, not the lamp.
+    const fo = A.focus?.();
+    const look = v3.set(cx + (fo?.x ?? 0) * S, 0, cz - 0.9 + (fo?.y ?? 0) * S);
     camera.position.copy(camDir).multiplyScalar(dist).add(look);
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);
@@ -1228,9 +1719,19 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (p.z > 1 || !W || !H) return null;
       return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
     },
+    foeHead(i) {
+      const f = foeHeads[i];
+      if (!f || f.at !== frameNo || !W || !H) return null;
+      const p = pv.set(f.x, f.h, f.z).project(camera);
+      if (p.z > 1) return null;
+      return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
+    },
+    sounds() {
+      return sfx.splice(0);
+    },
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;
-      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks };
+      return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, ms: +ms.toFixed(2), fx, pixelRatio: pr, attacks, foeAttacks };
     },
   };
 }

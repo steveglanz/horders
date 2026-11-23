@@ -18,7 +18,8 @@ export type EncounterId =
   | 'glassSpitters' | 'crawlerCharge'
   | 'shadeSpitters' | 'shadeCharge' | 'lensCharge'
   | 'snufferPack' | 'wardenPack' | 'weaverSnuffers' | 'twoWeavers'
-  | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters';
+  | 'quaySpitters' | 'quayCharge' | 'shoalRift' | 'haulerSpitters'
+  | 'ashwall' | 'ballast' | 'lampeye' | 'dimhorn' | 'conch';
 
 export interface EncounterDef {
   id: EncounterId;
@@ -38,6 +39,8 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   // V1 (variety): Kiln fights that move and hit differently: range, a swarm source, and a charge down a lane.
   spitters: { id: 'spitters', name: 'Ember Spitters', tip: 'They keep their distance and lob fire where you stand. Keep moving and run them down.', spawns: [{ kind: 'emberSpitter', n: 2 }, { kind: 'cinderhound', n: 2 }] },
   riftfall: { id: 'riftfall', name: 'The Hollow Rift', tip: 'The Rift spits Ashlings until it breaks. Break the Rift first.', spawns: [{ kind: 'rift', n: 1 }, { kind: 'cinderhound', n: 2 }] },
+  // Phase 16 U2: the Kiln's new elite. The answer is where you stand, not how fast you kill.
+  ashwall: { id: 'ashwall', name: 'The Ashwall', tip: 'It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it.', spawns: [{ kind: 'ashwall', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbucks: { id: 'ashbucks', name: 'The Ashbucks', tip: 'An Ashbuck shows its lane, then charges down it. Step to the side, not back.', spawns: [{ kind: 'ashbuck', n: 2 }, { kind: 'cinderhound', n: 1 }] },
   spitterBrute: { id: 'spitterBrute', name: 'Brute and Spitters', tip: 'Quench the Ground Pound, and keep moving through the lobs.', spawns: [{ kind: 'cinderBrute', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   // V8: the Drowned Foundry's new fights mix the Kiln's new foes with its own.
@@ -59,6 +62,8 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   haulerSpitters: { id: 'haulerSpitters', name: 'Hauler and Spitters', tip: 'Quench the Haul, or it yanks you off your raft into the lobs.', spawns: [{ kind: 'bargeHauler', n: 1 }, { kind: 'emberSpitter', n: 2 }] },
   ashbuckWarden: { id: 'ashbuckWarden', name: 'Warden and Ashbucks', tip: 'Stay out of the Warden\'s slam without stepping into a lane.', spawns: [{ kind: 'husk', n: 1 }, { kind: 'ashbuck', n: 2 }] },
   shrine: { id: 'shrine', name: 'Ember Shrine', tip: 'A quiet shrine. You heal fully and gain a level, but find no loot.', spawns: [] },
+  // Phase 16 U2: the Foundry's new elite. Its answer is to keep it walking after you, the same kiting Maelra asks for.
+  ballast: { id: 'ballast', name: 'The Ballast', tip: 'When you stand in its reach it drops anchor and barely feels hits. Step back so it has to walk after you, and hit it while it walks.', spawns: [{ kind: 'ballast', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   twins: { id: 'twins', name: 'The Ember Twins', tip: 'Kill them close together, or Quench the Rekindle.', spawns: [{ kind: 'emberTwin', n: 2 }] },
   glass: { id: 'glass', name: 'Glass Warden and Hounds', tip: 'Quench Mirror Ward, or your damage comes back at you.', spawns: [{ kind: 'glassWarden', n: 1 }, { kind: 'cinderhound', n: 2 }] },
   crawlers: { id: 'crawlers', name: 'Sluice Crawler and Hounds', tip: 'Drag the blue ring away from the hounds before it bursts.', spawns: [{ kind: 'sluiceCrawler', n: 1 }, { kind: 'cinderhound', n: 2 }] },
@@ -66,6 +71,10 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   tidepair: { id: 'tidepair', name: 'The Tide Pair', tip: 'Two Sluice Crawlers. Keep their rings apart from them.', spawns: [{ kind: 'sluiceCrawler', n: 2 }] },
   twinsAcolyte: { id: 'twinsAcolyte', name: 'Twins and their Keeper', tip: 'Kill the Acolyte, then the twins together.', spawns: [{ kind: 'emberTwin', n: 2 }, { kind: 'acolyte', n: 1 }] },
   maelra: { id: 'maelra', name: 'Maelra, the Drowned Bellows', tip: 'Kite her over the steam vents to boil off her Temper.', spawns: [{ kind: 'maelra', n: 1 }] },
+  // Phase 16 U2: the Glarewell's new elite. Its answer is to put a pillar between you and it, while its Shades want you in the light.
+  conch: { id: 'conch', name: 'The Conchblower', tip: 'Each blast of its conch brings the next Ebb sooner. Quench the blast, and be near a raft when the water turns.', spawns: [{ kind: 'conchblower', n: 1 }, { kind: 'shoalLurker', n: 2 }] },
+  dimhorn: { id: 'dimhorn', name: 'The Dimhorn', tip: 'Out in the dark it winds its horn and calls the pack. Keep it inside your coal\'s light, where it can\'t sound it.', spawns: [{ kind: 'dimhorn', n: 1 }, { kind: 'snuffer', n: 2 }] },
+  lampeye: { id: 'lampeye', name: 'The Lampeye', tip: 'While it can see you its gaze builds, and when it is full it sears you. Put a pillar between you and it to let the gaze fade, but pull the Shades into the light.', spawns: [{ kind: 'lampeye', n: 1 }, { kind: 'shade', n: 3 }] },
   shades: { id: 'shades', name: 'Shades in the Dark', tip: 'Shades barely feel hits in shadow. Pull them into the light.', spawns: [{ kind: 'shade', n: 4 }] },
   lensbearer: { id: 'lensbearer', name: 'The Lensbearer', tip: 'When it raises the lens, hide behind a pillar, or Quench the Glare.', spawns: [{ kind: 'lensbearer', n: 1 }, { kind: 'shade', n: 2 }] },
   brandkeeper: { id: 'brandkeeper', name: 'The Brandkeeper', tip: 'A Brand on you bursts: get clear of pillars and enemies first.', spawns: [{ kind: 'brandkeeper', n: 1 }, { kind: 'shade', n: 2 }] },
@@ -174,27 +183,27 @@ export interface DungeonDef {
 export const DUNGEONS: Record<DungeonId, DungeonDef> = {
   kiln: {
     id: 'kiln', name: 'The Kiln Depths', boss: 'kilnMother', unlockTier: 1,
-    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
+    openers: ['pack', 'wardens', 'warpack', 'spitters', 'riftfall', 'ashbucks', 'ashwall'], named: ['brute', 'ashmaw', 'spitterBrute', 'ashbuckWarden'], hard: ['acolytes', 'ashmaw'],
     blurb: 'Dodge, interrupt and soak your way to the Kiln Mother.', style: 'solo', minParty: 1,
   },
   foundry: {
     id: 'foundry', name: 'The Drowned Foundry', boss: 'maelra', unlockTier: 4,
-    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
+    openers: ['twins', 'glass', 'crawlers', 'riftfall', 'glassSpitters', 'crawlerCharge', 'ballast'], named: ['bellwarden', 'tidepair', 'spitterBrute'], hard: ['twinsAcolyte', 'tidepair'],
     blurb: 'Mirrors, twins and rising water. Kite Maelra through the steam.', style: 'solo', minParty: 1,
   },
   glarewell: {
     id: 'glarewell', name: 'The Glarewell', boss: 'lensmother', unlockTier: 7,
-    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
+    openers: ['shades', 'lensbearer', 'brandkeeper', 'shadeSpitters', 'shadeCharge', 'riftfall', 'lampeye'], named: ['lamps', 'brandShades', 'lensCharge'], hard: ['lensShades', 'lamps'],
     blurb: 'A sunken observatory. Hide behind pillars from the Glare; burst Brands in the open.', style: 'solo', minParty: 1,
   },
   coldmarrow: {
     id: 'coldmarrow', name: 'The Coldmarrow', boss: 'nhevra', unlockTier: 10,
-    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
+    openers: ['rimepack', 'snuffers', 'frostwardens', 'snufferPack', 'wardenPack', 'weaverSnuffers', 'dimhorn'], named: ['weaver', 'frostwardens', 'twoWeavers'], hard: ['weaverWardens', 'snuffers'],
     blurb: 'The deep under the Kiln, where the fires went out. Keep your Hearthcoal alive: it is the only warmth down here.', style: 'solo', minParty: 1,
   },
   wrackline: {
     id: 'wrackline', name: 'The Wrackline', boss: 'hessa', unlockTier: 13,
-    openers: ['lurkers', 'haulers', 'wardenShoal', 'quaySpitters', 'quayCharge', 'shoalRift'], named: ['twoHaulers', 'wardenShoal', 'haulerSpitters'], hard: ['haulerWarden', 'twoHaulers'],
+    openers: ['lurkers', 'haulers', 'wardenShoal', 'quaySpitters', 'quayCharge', 'shoalRift', 'conch'], named: ['twoHaulers', 'wardenShoal', 'haulerSpitters'], hard: ['haulerWarden', 'twoHaulers'],
     blurb: 'A wrecked quay where the Ebb drags everything to the drain. Ride the rafts when the water pulls.', style: 'solo', minParty: 1,
   },
   hammerdeep: {
@@ -301,15 +310,20 @@ export function rollFork(
   return [steady, { kind: 'named', encounter: harder[pick(harder.length)] }];
 }
 
-/** Rolls a 5-fight route: two openers, a named foe, a hard fight, the boss. */
+/**
+ * Rolls a 5-fight route: two openers, a named foe, a hard fight, the boss. No fight comes twice: some fights are in
+ * more than one list (the Coldmarrow's Frost Wardens are an opener and a named fight), so each pick leaves out the
+ * fights already rolled. It still takes one pick per slot, so a route that had no repeat rolls the same as before.
+ */
 export function rollRoute(pick: (n: number) => number, dungeon: DungeonId = 'kiln'): EncounterId[] {
   const { openers: OPENERS, named: NAMED, hard: HARD, boss } = DUNGEONS[dungeon];
   const open = [...OPENERS];
   const a = open.splice(pick(open.length), 1)[0];
   const b = open.splice(pick(open.length), 1)[0];
-  const named = NAMED[pick(NAMED.length)];
+  const namedFrom = NAMED.filter((n) => n !== a && n !== b);
+  const named = namedFrom[pick(namedFrom.length)];
   if (DUNGEONS[dungeon].raid) return [a, b, named, boss];
-  const hard = HARD.filter((h) => h !== named);
+  const hard = HARD.filter((h) => h !== named && h !== a && h !== b);
   return [a, b, named, hard[pick(hard.length)], boss];
 }
 

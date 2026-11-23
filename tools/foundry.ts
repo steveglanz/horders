@@ -52,6 +52,8 @@ let wins = 0, bossTime = 0, bossFights = 0;
 const fightHurts: number[] = [];
 for (const seed of seeds) {
   const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
+  // Phase 16 U2: FIGHT=<encounter id> makes it the first fight of every run (the run is still in its intro), so a new fight compares with another on the same seeds.
+  if (process.env.FIGHT) w.route[0] = process.env.FIGHT as never;
   // BOSSV=turning (any boss version id) forces this run's boss version, so versions compare on the same seeds.
   if (process.env.BOSSV) {
     const q = w as unknown as Record<string, unknown>;
@@ -73,10 +75,13 @@ for (const seed of seeds) {
       if (ev.type === 'dodge') bump('dodge');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
       if (ev.type === 'stir') bump('stir:' + ev.id);
+      if (ev.type === 'echo') bump('echo:' + ev.id);
       if (ev.type === 'encounterClear' && ev.index > 0) fightHurts.push(w.fightHurt);
+      if (ev.type === 'encounterClear' && process.env.FIGHT && ev.id === process.env.FIGHT) { bump('fightT', Math.round(w.time - (w as unknown as { fightStartedAt: number }).fightStartedAt)); }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'phase') bump('phase' + ev.phase);
       if (ev.type === 'playerHurt') bump('hurt', Math.round(ev.amount));
+      if (ev.type === 'playerHurt' && process.env.FIGHT && w.encounterDef.id === process.env.FIGHT) bump('fightHurt', Math.round(ev.amount));
     }
   }
   const s = w.summary();

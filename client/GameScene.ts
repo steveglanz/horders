@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -77,6 +77,11 @@ const PHONE_TIP: Record<string, string> = {
   [ENCOUNTERS.regent.tip]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. It never lands on the tank, but the tank can take one.',
   [COURT_TIP]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. On a Summons, get inside his gold ring.',
   [PLATE_SHIFT_TIP]: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, find his open back again.',
+  [MILLSTONE_TIP]: 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he grinds round, walk round with him.',
+  [TITHE_TIP]: 'Its Decree burns whoever holds it: walk it to an ally before it bursts. On a Tithe, two or more of you share the gold circle.',
+  [OVERFLOW_TIP]: 'Heal the Ladle burn off the tank. When the pit overflows, gather close to her until it ebbs. Then fill the vents and spread for the Cinder Marks.',
+  [WHIRL_TIP]: 'Hit her between pulls and keep a raft afloat. Later the water swirls and carries you, turning the other way each time: wade across it to a raft.',
+  [ROLLING_TIP]: 'Her vents open one at a time, each further round her: spread so someone is near the next. Never stand together when the Embers mark you.',
 };
 const SLAG_COOL = 0xbcd6e6;
 // Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
@@ -338,6 +343,11 @@ export class GameScene extends Phaser.Scene {
   private homeThrow: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
   private homeFloor: Phaser.GameObjects.Graphics | null = null;
   private homeLie: Phaser.GameObjects.Graphics | null = null;
+  /** World.time of the boss's last echoed cast, for the 3D view's ghost (Hd2dAdapter.echoAt). */
+  private echoAt = -Infinity;
+  /** Camera focus offset in world y (see bossInView): 0 except when it slides to keep a boss clear of the bottom HUD. */
+  private focusY = 0;
+  private focusX = 0;
   private homeLast = 0;
   private whirlGfx: Phaser.GameObjects.Graphics | null = null;
   private whirlFlip = 0;
@@ -676,6 +686,8 @@ export class GameScene extends Phaser.Scene {
           texScale: BASE,
           heroName: (i) => this.world.heroes[i]?.name ?? '',
           floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
+          echoAt: () => this.echoAt,
+          focus: () => ({ x: this.focusX, y: this.focusY }),
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
         this.bridgeStart();
@@ -1024,6 +1036,7 @@ export class GameScene extends Phaser.Scene {
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
+      gaze: w.enemies.filter((e) => e.alive && e.kind === 'lampeye').map((e) => ({ aux: e.aux, sees: w.player.hp > 0 && w.lampeyeSees(e, w.player.x, w.player.y) })),
       islands: w.islands,
       myIsland: w.islands.length ? myIsland(w) : -1,
       stance: w.player.stance,
@@ -1038,6 +1051,7 @@ export class GameScene extends Phaser.Scene {
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: this.listenFrom(w),
       arenaR: w.arenaR,
+      roomSounds: this.hd2d?.sounds?.(),
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -1320,7 +1334,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankEaten(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankEaten(ev.x, ev.y);
           break;
         // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
         case 'wheel': {
@@ -1361,7 +1375,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankSmothered(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankSmothered(ev.x, ev.y);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -1483,6 +1497,11 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'echo':
+          // Phase 16 U1: the boss borrows another version's move. Name it, so a phone shows what's coming.
+          this.hud.ding(`Echo: ${BOSS_VERSION_NAME[ev.id] ?? ev.id}`);
+          this.echoAt = w.time;
+          break;
         case 'emberDrift':
           // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
           this.driftFallAt = this.time.now;
@@ -1728,7 +1747,13 @@ export class GameScene extends Phaser.Scene {
       : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
       // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
       : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
-      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
+      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound'
+      // Phase 16 U2: the Ashwall wears the Hollow Warden until visuals draw it.
+      : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk'
+      : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler'
+      : e.kind === 'lampeye' && !this.textures.exists('lampeye') ? 'shade'
+      : e.kind === 'dimhorn' && !this.textures.exists('dimhorn') ? 'snuffer'
+      : e.kind === 'conchblower' && !this.textures.exists('conchblower') ? 'bargeHauler' : e.kind;
   }
 
   /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
@@ -1774,7 +1799,8 @@ export class GameScene extends Phaser.Scene {
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
-    cam.centerOn(px + sx, py + sy);
+    this.bossInView(dt, px, py);
+    cam.centerOn(px + this.focusX + sx, py + this.focusY + sy);
     // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
     // Name plates, bars and edge marks all cull against worldView, so keep it current by hand.
     if (!cam.visible) {
@@ -2437,6 +2463,46 @@ export class GameScene extends Phaser.Scene {
           g.lineStyle(4, 0x7dffb0, pulse).lineBetween(e.x, e.y, ward.x, ward.y);
         }
       }
+      // Phase 16 U2: the Ashwall's shield, a heavy arc across its front (where hits glance off), and a faint wedge
+      // behind it where foes shelter. Walk round the arc to hit it, or draw its foes out of the wedge.
+      if (e.kind === 'ashwall') {
+        const fa = e.aux;
+        g.fillStyle(0xff9a50, 0.07).slice(e.x, e.y, ASHWALL.shelterR, fa + Math.PI - ASHWALL.shelterArc, fa + Math.PI + ASHWALL.shelterArc, false).fillPath();
+        g.lineStyle(7, 0x6e6258, 0.95).beginPath().arc(e.x, e.y, e.def.radius + 9, fa - ASHWALL.frontArc, fa + ASHWALL.frontArc, false).strokePath();
+        g.lineStyle(2, 0xffb070, 0.8).beginPath().arc(e.x, e.y, e.def.radius + 13, fa - ASHWALL.frontArc, fa + ASHWALL.frontArc, false).strokePath();
+      }
+      // Phase 16 U2: the Ballast. A ring fills as it gets ready to drop anchor; planted, a heavy iron ring holds it
+      // and its reach shows, so you know to step out and make it walk.
+      if (e.kind === 'ballast') {
+        const r0 = e.def.radius + 8;
+        if (e.aux >= BALLAST.plantDelay) {
+          g.lineStyle(6, 0x4a5260, 0.95).strokeCircle(e.x, e.y, r0);
+          g.lineStyle(2, 0x9fb0c8, 0.35).strokeCircle(e.x, e.y, BALLAST.reach + e.def.radius);
+        } else if (e.aux > 0) {
+          const k = e.aux / BALLAST.plantDelay;
+          g.lineStyle(4, 0x8fa0b8, 0.8).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+        }
+      }
+      // Phase 16 U2: the Dimhorn. A cold ring fills while it is out in the dark, toward its Dark Call; during the call it
+      // pulses, so you know to bring your light over it.
+      if (e.kind === 'dimhorn') {
+        const r0 = e.def.radius + 8;
+        const calling = e.castId === 'darkCall';
+        const k = calling ? 1 : Math.min(1, e.aux / DIMHORN.callAt);
+        if (k > 0) g.lineStyle(calling ? 5 : 3, 0x9ab8ff, calling ? 0.6 + 0.35 * Math.sin(now / 80) : 0.75).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+      }
+      // Phase 16 U2: the Lampeye. A ring fills as its gaze builds, and while it can see your hero a thin beam joins
+      // them, so you know to put a pillar in the way; it flares during Searing Look.
+      if (e.kind === 'lampeye') {
+        const r0 = e.def.radius + 8;
+        const k = Math.min(1, e.aux / LAMPEYE.full);
+        if (k > 0) g.lineStyle(4, 0xfff0a0, 0.85).beginPath().arc(e.x, e.y, r0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2, false).strokePath();
+        const p = w.player;
+        if (p.hp > 0 && w.lampeyeSees(e, p.x, p.y)) {
+          const looking = e.castId === 'searingLook';
+          g.lineStyle(looking ? 4 : 1.5, 0xfff4c0, looking ? 0.8 : 0.15 + 0.4 * k).lineBetween(e.x, e.y, p.x, p.y);
+        }
+      }
       // Mirror Ward: a glassy shell that flickers while it reflects damage.
       if (e.kind === 'glassWarden' && e.aux2 > 0) {
         const fl = 0.55 + 0.35 * Math.sin(now / 50);
@@ -2607,7 +2673,7 @@ export class GameScene extends Phaser.Scene {
     const drawBar = (e: World['enemies'][number], hp: number, maxHp: number, ward: number, cast: World['enemies'][number] | undefined, x: number, top: number): void => {
       const bw = e.def.rank === 'rare' ? 70 : 56;
       // HD-2D: the overlay redraws these bars over the 3D view (foeEdgeMarks3d), at the foe's projected place.
-      if (this.hd2d) this.barRecs.push({ x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (cast.interruptible ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
+      if (this.hd2d) this.barRecs.push({ i: w.enemies.indexOf(e), pack: x !== e.x, sx: 0, sy: 0, x, y: e.y, top, bw, hp: Math.max(0, hp) / maxHp, col: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank], cast: cast ? cast.castT / cast.castDur : -1, castCol: cast ? (cast.interruptible ? '#8fd8ff' : '#' + SOAK.toString(16).padStart(6, '0')) : '', ward: ward > 0 ? Math.min(1, (ward / maxHp) * 5) : 0 });
       foeBoxes.push({ l: x - bw / 2, r: x + bw / 2, t: top - 3, b: top + (cast ? 13 : 6) });
       b.fillStyle(0x000000, 0.6).fillRect(x - bw / 2, top, bw, 6);
       b.fillStyle(hex(NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank]), 1).fillRect(x - bw / 2, top, (bw * Math.max(0, hp)) / maxHp, 6);
@@ -3359,7 +3425,7 @@ export class GameScene extends Phaser.Scene {
    */
   private homeDraw(now: number): void {
     const w = this.world;
-    const st = w.bossVariant === 'home' ? w.homeStage : 0;
+    const st = w.bossVariant === 'home' || w.bossEcho === 'home' ? w.homeStage : 0;
     const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     if (!st || !b) {
       if (this.homeLast === 2 && b?.alive) this.emit(this.fx, 'ring', undefined, b.x, b.y - 20, 0.3, { tint: 0xffd08a, sx0: 0.6, sx1: 0.2 });
@@ -3735,7 +3801,7 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; row: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0 };
+  private hudCover: { px: number; at: number; row: number; bar: number; barL: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0, bar: 0, barL: 0 };
 
   /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
   private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
@@ -3870,7 +3936,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** HD-2D: this frame's foe health and cast bars, for the overlay (world units, as drawBar draws them in 2D). */
-  private barRecs: { x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
+  private barRecs: { i: number; pack: boolean; sx: number; sy: number; x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
   /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
   private edgeCanvas: HTMLCanvasElement | null = null;
   /**
@@ -4009,19 +4075,40 @@ export class GameScene extends Phaser.Scene {
     const LIFT = 3.2;
     // A foe whose floor point is off screen gets no bar, name or number, as in 2D, where they'd be outside the camera.
     const onScreen = (q: { x: number; y: number }) => q.x >= 0 && q.x <= W && q.y >= 0 && q.y <= H;
+    // Bars are never drawn smaller than 2D's own size at zoom 1: on a zoomed-out phone they shrank to ~40 px, too
+    // small to read a cast on (QA playtest, 23 Nov: the first delve's coach line points at the Brute's cast bar).
+    const zb = Math.max(z, 1);
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
     for (const r of this.barRecs) {
+      r.sx = r.sy = NaN;
       const p = view.project(r.x, r.y);
       if (!p || !onScreen(p)) continue;
-      const bw = r.bw * z, x = p.x - bw / 2, y = p.y + (r.top - r.y) * z * LIFT;
+      // The bar sits just over the foe's drawn sprite (the renderer reports its head), so it reads as that foe's bar.
+      // QA, 23 Nov: lifting the 2D offset by a fixed LIFT left bars and names ~60-100 px above short foes.
+      const head = view.foeHead?.(r.i);
+      const h = r.cast >= 0 ? 13 : 6;
+      const bw = r.bw * zb, cxp = head && !r.pack ? head.x : p.x;
+      let y = head ? head.y - (h + 4) * zb : p.y + (r.top - r.y) * z * LIFT;
+      const x = cxp - bw / 2;
+      // Foes bunched together: a bar (with its name above it) that would land on one already placed steps up above
+      // it, so each name stays with its own bar (QA on #602: "Ember Spitter" and "Ashwall" printed on top of each other).
+      const nameH = 16 * zb, half = Math.max(bw / 2, 48 * zb);
+      for (let k = 0; k < 6; k++) {
+        const hit = placed.find((q) => cxp - half < q.r && q.l < cxp + half && y - nameH < q.b && q.t < y + h * zb);
+        if (!hit) break;
+        y = hit.t - h * zb - 3 * zb;
+      }
+      placed.push({ l: cxp - half, r: cxp + half, t: y - nameH, b: y + h * zb });
+      r.sx = cxp; r.sy = y;
       // Under the top row or a full-width panel the bar goes with its name (below), so neither clutters the HUD.
       if (y < top) continue;
-      g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * z);
-      g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * z);
+      g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * zb);
+      g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * zb);
       if (r.cast >= 0) {
-        g.globalAlpha = 0.7; g.fillStyle = '#000000'; g.fillRect(x, y + 8 * z, bw, 5 * z);
-        g.globalAlpha = 1; g.fillStyle = r.castCol; g.fillRect(x, y + 8 * z, bw * r.cast, 5 * z);
+        g.globalAlpha = 0.7; g.fillStyle = '#000000'; g.fillRect(x, y + 8 * zb, bw, 5 * zb);
+        g.globalAlpha = 1; g.fillStyle = r.castCol; g.fillRect(x, y + 8 * zb, bw * r.cast, 5 * zb);
       }
-      if (r.ward > 0) { g.globalAlpha = 0.95; g.fillStyle = '#e8f4ff'; g.fillRect(x, y - 3 * z, bw * r.ward, 3 * z); }
+      if (r.ward > 0) { g.globalAlpha = 0.95; g.fillStyle = '#e8f4ff'; g.fillRect(x, y - 3 * zb, bw * r.ward, 3 * zb); }
     }
     g.globalAlpha = 1;
     const texts: { t: Phaser.GameObjects.Text; head: boolean }[] = [
@@ -4038,9 +4125,12 @@ export class GameScene extends Phaser.Scene {
       let p: { x: number; y: number } | null;
       if (head) {
         const bar = this.barRecs.find((r) => Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
-        const q = bar ? view.project(bar.x, bar.y) : view.project(t.x, t.y);
-        if (!q || !onScreen(q)) continue;
-        p = bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
+        if (bar && !Number.isNaN(bar.sy)) p = { x: bar.sx, y: bar.sy - 2 * zb };
+        else {
+          const q = bar ? view.project(bar.x, bar.y) : view.project(t.x, t.y);
+          if (!q || !onScreen(q)) continue;
+          p = bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
+        }
       } else p = view.project(t.x, t.y);
       if (!p || !onScreen(p)) continue;
       // A name under the top row, or the boss or quest panel, stays hidden.
@@ -4071,6 +4161,70 @@ export class GameScene extends Phaser.Scene {
     g.globalAlpha = 1;
   }
 
+  /**
+   * Phones (QA playtest, 23 Nov): the camera centres on your hero, so a boss far below you sat under the ability
+   * buttons or the loot toasts (the Lensmother in phase 3, Nhevra). In a boss fight the camera slides along y, a
+   * little at a time, until the boss is back between the top panels and the action bar, as long as your hero stays
+   * in that band too. When the band is too short for both, it also slides sideways so the boss clears the action
+   * bar (which covers only the right side). The 3D view follows the same offsets (Hd2dAdapter.focus).
+   */
+  private bossInView(dt: number, px: number, py: number): void {
+    const w = this.world;
+    const boss = this.hud.compact && w.phase === 'fight' ? w.enemies.find((e) => e.alive && e.def.rank === 'boss') : undefined;
+    let wantY = 0, wantX = 0;
+    if (boss) {
+      this.clearView();
+      const rect = this.game.canvas.getBoundingClientRect();
+      const view = this.hd2d;
+      const cam = this.cameras.main;
+      const zc = cam.zoom * ((rect.width || 1) / this.game.canvas.width);
+      // Screen point (CSS px from the canvas top left) of world point (x, y) with the camera offset by (ox, oy).
+      const at = (x: number, y: number, ox: number, oy: number): { x: number; y: number } | null => {
+        if (view) {
+          const q = view.project(x, y);
+          return q ? { x: q.x + (this.focusX - ox) * this.pxPerUnitX, y: q.y + (this.focusY - oy) * this.pxPerUnit } : null;
+        }
+        return { x: rect.width / 2 + (x - px - ox) * zc, y: rect.height / 2 + (y - py - oy) * zc };
+      };
+      if (view) {
+        const a = view.project(px, py), b = view.project(px, py + 40), c = view.project(px + 40, py);
+        if (a && b && b.y - a.y > 1) this.pxPerUnit = (b.y - a.y) / 40;
+        if (a && c && c.x - a.x > 1) this.pxPerUnitX = (c.x - a.x) / 40;
+      } else this.pxPerUnit = this.pxPerUnitX = zc;
+      const k = this.pxPerUnit, kx = this.pxPerUnitX;
+      const top = Math.max(this.hudCover.px, this.hudCover.row) - rect.top + 24;
+      const bottom = (this.hudCover.bar || rect.bottom) - rect.top - 24;
+      const barLeft = (this.hudCover.barL || rect.right) - rect.left - 24;
+      const b = at(boss.x, boss.y, this.focusX, this.focusY);
+      const h = at(px, py, 0, 0);
+      if (b && h && bottom - top > 120) {
+        wantY = this.focusY;
+        if (b.y > bottom) wantY += (b.y - bottom) / k;
+        else if (b.y < top) wantY -= (top - b.y) / k;
+        else wantY -= Math.sign(wantY) * Math.min(Math.abs(wantY), Math.max(0, (wantY > 0 ? bottom - b.y : b.y - top) - 8) / k);
+        // Never so far that your hero leaves the band (at least 40 px inside it).
+        const lo = (h.y - (bottom - 40)) / k, hi = (h.y - (top + 40)) / k;
+        wantY = lo > hi ? 0 : Math.max(lo, Math.min(hi, wantY));
+        // Still under the bar's top edge once that offset is reached: slide sideways until the boss is left of it.
+        wantX = this.focusX;
+        const yThen = b.y + (this.focusY - wantY) * k;
+        // (Its right edge, not its feet: a boss sprite is wide.)
+        const edge = barLeft - (boss.def.radius ?? 30) * 1.2 * kx;
+        if (yThen > bottom && b.x > edge) wantX += (b.x - edge) / kx;
+        else if (wantX > 0) wantX -= Math.min(wantX, Math.max(0, edge - b.x - 8) / kx);
+        // Your hero stays at least 40 px from either side.
+        wantX = Math.max(0, Math.min((h.x - 40) / kx, wantX));
+      }
+    }
+    const f = Math.min(1, dt * 4);
+    this.focusY += (wantY - this.focusY) * f;
+    this.focusX += (wantX - this.focusX) * f;
+    if (!boss && Math.abs(this.focusY) < 0.05) this.focusY = 0;
+    if (!boss && Math.abs(this.focusX) < 0.05) this.focusX = 0;
+  }
+  private pxPerUnit = 1;
+  private pxPerUnitX = 1;
+
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
     const v = this.cameras.main.worldView;
     const now = this.time.now;
@@ -4089,6 +4243,10 @@ export class GameScene extends Phaser.Scene {
       // The top row (level, health, clock): the 3D overlay keeps names and bars out of it (see drawLabels3d).
       const row = document.querySelector('#hud > .row');
       this.hudCover.row = row ? row.getBoundingClientRect().bottom : 0;
+      const bar = document.getElementById('actionbar');
+      const brr = bar && !bar.hidden ? bar.getBoundingClientRect() : undefined;
+      this.hudCover.bar = brr ? brr.top : 0;
+      this.hudCover.barL = brr ? brr.left : 0;
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
@@ -5006,7 +5164,7 @@ export class GameScene extends Phaser.Scene {
    */
   private bankDraw(now: number): void {
     const w = this.world;
-    const coals = w.dungeonId === 'hoard' && w.bossVariant === 'bank' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
+    const coals = w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank') ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
     // The ash a smothered coal leaves, fading over 2.5 s.
     this.bankAsh = this.bankAsh.filter((a) => {
       const u = (now - a.at) / 2500;
@@ -5265,7 +5423,7 @@ export class GameScene extends Phaser.Scene {
 
   private wanderDraw(now: number): void {
     const w = this.world;
-    const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const e = w.dungeonId === 'ashvents' && w.ventMove === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     const vents = e?.alive && e.kind === 'ysmeret' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2) : [];
     if (!vents.length) { this.wanderGfx?.clear(); return; }
     if (!this.wanderGfx) this.wanderGfx = this.add.graphics().setDepth(1.9);

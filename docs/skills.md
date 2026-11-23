@@ -39,12 +39,24 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 ## Novice aid (melee, tiers 1 to 3)
 
 A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
-- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by up to 50%.
+- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1 and 70% at tiers 2 and 3 (`BLADE_GUARD`), and not at all from tier 4. Unlike the rest of the aid it doesn't fade through tiers 2 and 3. When it faded, a novice Duskblade won 0 of 40 ungeared at Kiln t2 and t3 (QA's playtest, 23 Nov). Most of the damage came from Cinder Brute hits.
 - **Duskblade Sidestep:** heals up to 3% of max health.
 - **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
+
+Blade Guard at tiers 2 and 3, measured with the Kiln, ungeared, seeds 1 to 80, wins out of 80 (23 Nov):
+
+| Bot | Tier | Duskblade before | Duskblade after | Emberwright |
+|---|---|---|---|---|
+| Novice (`LAG=0.3 SKILL=0.5`) | 1 | 28 | 28 | - |
+| Novice | 2 | 0 | 23 | 25 |
+| Novice | 3 | 0 | 5 | 9 |
+| Full skill | 2 | 77 | 78 | 49 |
+| Full skill | 3 | 61 | 72 | 41 |
+
+The novice Duskblade now sits just under the novice Emberwright. A full-skill Duskblade was already well over the Emberwright at tiers 2 and 3, and at tier 3 it gains 11. Those are learning tiers, so the gap is accepted. It is a watch item for skills if real players find tier 3 too easy on a Duskblade.
 
 ## Co-op threat hooks
 

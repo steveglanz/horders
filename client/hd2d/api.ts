@@ -10,6 +10,7 @@
  * renderer and GameScene share.
  */
 import type { World } from '../../sim/world';
+import type { RoomSound } from '../audio/cues';
 
 /** What GameScene hands the renderer each run. */
 export interface Hd2dAdapter {
@@ -32,9 +33,13 @@ export interface Hd2dAdapter {
    * centred on (0, 0). The renderer lays it on its floor. `stamp` changes whenever the canvas was redrawn.
    */
   floor?(): { canvas: HTMLCanvasElement; span: number; stamp: number } | null;
+  /** Run time (World.time) of the boss's last echoed cast (the 'echo' event, Phase 16 U1), or -Infinity for none. */
+  echoAt?(): number;
+  /** How far (world units) the camera looks past your hero this frame ({0, 0} when it doesn't): phones' boss framing. */
+  focus?(): { x: number; y: number };
 }
 
-export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number }
+export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number }
 
 export interface Hd2dView {
   /** Draws one frame from the world as it is now. `dt` is seconds since the last frame. */
@@ -46,6 +51,16 @@ export interface Hd2dView {
    * or null when it is behind the camera. For overlays drawn over the 3D view (the phone edge chevrons).
    */
   project(x: number, y: number): { x: number; y: number } | null;
+  /**
+   * Where the top of enemy i's drawn sprite shows on screen this frame (CSS px, as project), or null when it was not
+   * drawn. The overlay hangs that foe's health and cast bar here, right over the sprite (QA 23 Nov: they floated high).
+   */
+  foeHead?(i: number): { x: number; y: number } | null;
+  /**
+   * What the room did since the last call that sound can follow (client/audio/cues.ts roomCues): drips landing,
+   * forge chains at the end of a sway, and foe lunges starting. Drains the list.
+   */
+  sounds?(): RoomSound[];
 }
 
 export interface Hd2dModule {
