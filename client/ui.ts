@@ -662,6 +662,11 @@ export class Hud {
     $('pause').hidden = !p;
   }
 
+  /** The rest of the current banner chain (what shows after this banner), if any. */
+  pendingBanner(): BannerNext | undefined {
+    return this.bannerNext;
+  }
+
   /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
   banner(title: string, sub: string, full = false, next?: BannerNext): void {
     $('bannerTitle').textContent = title;

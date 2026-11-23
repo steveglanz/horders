@@ -1228,6 +1228,13 @@ export const SOUNDS = {
   surgeFlue: join(boom(65, 0.45, 0.3),
     [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.02, lp: 3000, lp2: 900, hp: 400, curve: 1.6 },
      { wave: 'sine', f: 330, f2: 220, dur: 0.6, vol: 0.08, curve: 1.6 }]),
+  /** Phase 15 Y10: the dungeon stirs and notices you. A slow stone groan and a long breath through the walls, starting
+   *  0.6 s in so it follows the fight's own stings (layout, Heat, wave) instead of landing on them. */
+  dungeonStir: join(
+    [{ wave: 'saw', f: 62, f2: 50, dur: 1.1, delay: 0.6, vol: 0.14, a: 0.45, lp: 600, curve: 1 },
+     { wave: 'saw', f: 196, f2: 165, dur: 1.0, delay: 0.65, vol: 0.14, a: 0.45, lp: 1400, curve: 1, vib: [3, 0.012] as [number, number] },
+     { wave: 'noise', f: 0, dur: 1.1, delay: 0.6, vol: 0.14, a: 0.5, lp: 1100, lp2: 2600, hp: 380, curve: 1, trem: [1.6, 0.5] as [number, number] }],
+    ...[1.25, 1.36, 1.5].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.08, lp: 7000, hp: 2500, curve: 3 }])),
   /** Cold snap (the Coldmarrow): the cold rushes in, a falling wind with frost crackling. */
   coldSnapWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.16, a: 0.5, lp: 9000, lp2: 3000, hp: 1500, curve: 1 }],
@@ -1562,6 +1569,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedKillBrood: 1.6,
   // Phase 15 Y2 raid landings, level with the others (cave-ins about -28.5, surges about -26 dB).
   caveInSlag: 1.6, caveInBone: 1.5, caveInIngot: 1.8, caveInBrick: 2.5, surgeSlag: 2.2, surgeHoard: 1.5, surgeTuyere: 0.6, surgeFlue: 3.5,
+  dungeonStir: 4.5, // about -30.5 dB counting its 0.6 s lead-in, level with layoutPillars
   // Phase 15 Y1 waves: the warning 1.5 dB over the floor (landing slams mask it: busycheck WHO), 6.8 dB over the Foundry and Pressworks mix; the start calls and landing about -28 dB, over a layout sting.
   reinforceWarn: 4.8, wavePincer: 3.7, waveRing: 6.0, reinforceLand: 2.8,
   seenNew: 1.7, // level with unlock (-23.8 dB)
