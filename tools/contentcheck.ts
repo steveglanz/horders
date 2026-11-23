@@ -3,7 +3,7 @@
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
 import { HEAT_IDS, HEAT_POOLS } from '../sim/content/heat';
-import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId, WAVES, WAVE_BIT } from '../sim/world';
+import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId, WAVES, WAVE_BIT, STIR, STIR_IDS } from '../sim/world';
 import { NAMED, AFFIXES } from '../sim/content/named';
 import type { DungeonId } from '../sim/content/dungeon';
 import { botChoose, botInput } from '../sim/bot';
@@ -131,7 +131,7 @@ for (const [r, want, picked] of RAID_LAYOUT_CASES) for (const seed of picked) fo
 // Phase 14 X8: every marked-foe trait and every arena event, forced (NAMED.forceAffix/forceNamed, ARENA_EVENTS.force),
 // so each one is played every run. X8_SEEDS seeds (default 4) at skill 1 and 0.5.
 const x8Seeds = (process.env.X8_SEEDS ?? '1,2,3,4').split(',').map(Number);
-const resetForces = () => { NAMED.forceAffix = -1; NAMED.forceNamed = 0; ARENA_EVENTS.force = ''; WAVES.force = ''; WAVES.off = false; };
+const resetForces = () => { NAMED.forceAffix = -1; NAMED.forceNamed = 0; ARENA_EVENTS.force = ''; WAVES.force = ''; WAVES.off = false; STIR.force = ''; STIR.off = false; };
 const X8_GROUP: { dungeon: DungeonId; tier: number }[] = [{ dungeon: 'hammerdeep', tier: 6 }, { dungeon: 'ashvents', tier: 7 }, { dungeon: 'pressworks', tier: 10 }];
 const WAVE_SHAPES = ['pincer', 'ring', 'reinforce'] as const;
 const X8_SOLO: { dungeon: DungeonId; tier: number }[] = [
@@ -170,6 +170,21 @@ for (const seed of x8Seeds) for (const skill of [1, 0.5]) {
       grp('drop mid-wave', ['lumen', 'duskblade', 'emberwright'], (w) => (w.phase === 'fight' && w.waveShape === shape && (shape !== 'reinforce' || (w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn)) ? 3 : -1));
     }
   }
+  // Phase 15 Y10: each way the dungeon stirs, forced with STIR.force, in every solo dungeon (at STIR.minTier or above)
+  // and the group dungeons (four, duo, a guest who drops in a stirred fight), and a party with fill bots, which never stirs.
+  for (const stir of STIR_IDS) {
+    const setup = () => { resetForces(); STIR.force = stir; };
+    for (const d of X8_SOLO) cases.push({ label: `stir ${stir} ${d.dungeon}`, skill, setup, opts: { seed, ...main(CLASSES[seed % 4]), dungeon: d.dungeon, tier: Math.max(d.tier, STIR.minTier), omens: [] } });
+    for (const d of X8_GROUP) {
+      const grp = (label: string, rest: ClassId[], dropWhen?: (w: World) => number) =>
+        cases.push({ label: `stir ${stir} ${d.dungeon} ${label}`, skill, setup, dropWhen, opts: { seed, ...main('bulwark'), dungeon: d.dungeon, tier: d.tier, omens: [], party: rest.map((cls) => ({ cls, ...gear(cls) })) } });
+      grp('four', ['lumen', 'duskblade', 'emberwright']);
+      grp('duo', ['lumen']);
+      grp('drop mid-stir', ['lumen', 'duskblade', 'emberwright'], (w) => (w.phase === 'fight' && w.stir === stir ? 3 : -1));
+    }
+  }
+  for (const d of X8_GROUP) cases.push({ label: `stir any ${d.dungeon} fill bots`, skill, setup: () => { resetForces(); STIR.force = 'any'; },
+    opts: { seed, ...main('bulwark'), dungeon: d.dungeon, tier: d.tier, omens: [], fillBots: 2, party: (['lumen', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
 }
 let stuck = 0, longest = 0, mostAlive = 0;
 const layoutFights: Record<string, number> = {};
@@ -179,6 +194,10 @@ let trapped = 0;
 /** Y8 wave checks: fights a wave shape broke (see the WAVE lines), and per shape the fights met, the held packs that landed
  * (early: after the first half had all died), and the closest a foe came in to a solo hero. */
 let waveBad = 0;
+/** Y10 stir checks: problems (see the STIR lines), stirred fights by reaction, and bags dropped in stirred and other clears. */
+let stirBad = 0;
+const stirSeen: Record<string, number> = {};
+const bags = { stirred: 0, stirredBags: 0, plain: 0, plainBags: 0 };
 const waveMet: Record<string, { fights: number; landed: number; nearest: number; nearestAt?: string; early: number }> = {};
 for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   resetForces();
@@ -193,6 +212,9 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   let lastEnc = -1;
   // Y8: this fight's shape (from its 'start' event), when it began, when its first half all died, and whether the held pack landed.
   let wShape = '', wEnc = -1, wT0 = 0, wEmpty = -1, wLanded = false, wBits = 0;
+  // Y10: this fight's reaction (from its 'stir' event), and how many reactions the run has had.
+  let sNow = '', sCount = 0;
+  const stirBadLog = (msg: string) => { stirBad++; console.log(`STIR ${c.label} skill ${c.skill} seed ${c.opts.seed} encounter ${w.encounter}: ${msg}`); };
   const waveBadLog = (msg: string) => { waveBad++; console.log(`WAVE ${c.label} skill ${c.skill} seed ${c.opts.seed} encounter ${w.encounter}: ${msg}`); };
   const closeWave = () => {
     if (wShape === 'reinforce' && !wLanded && w.heroes.some((_, i) => w.heroPlayer(i).hp > 0) && !(w.state === 'ended' && !w.summary().victory)) waveBadLog('the fight ended with reinforcements never arriving');
@@ -216,7 +238,24 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
     if (heldBefore > 0 && phaseBefore === 'fight' && (w.phase !== 'fight' || w.encounter !== encBefore) && w.heroes.some((_, i) => w.heroPlayer(i).hp > 0)) waveBadLog(`the fight ended with ${heldBefore} reinforcements still held back`);
     if (wShape && (w.encounter !== wEnc || w.phase !== 'fight' || w.state === 'ended')) closeWave();
     if (wShape === 'reinforce' && !wLanded && wEmpty < 0 && w.aliveEnemies === 0 && w.reinforceN > 0) wEmpty = w.time;
+    // Y10: a clear leaves each hero one bag (two in a stirred fight; none at the shrine), counted by 'drop' events (a hero
+    // standing on it picks it up the same tick, a 'loot' event too). (Fill-bot parties are left out: the loot cap skips some.)
+    const clear = w.events.find((e) => e.type === 'encounterClear');
+    if (clear && clear.type === 'encounterClear' && clear.id !== 'shrine' && !c.opts.fillBots) {
+      // Only the clear's own bags, which come after its 'encounterClear' event (a named foe or brute killed last that
+      // tick drops its own bag before it).
+      const n = w.events.slice(w.events.indexOf(clear)).filter((e) => e.type === 'drop').length;
+      const want = (sNow ? 2 : 1) * w.heroes.length;
+      if (sNow) { bags.stirred++; bags.stirredBags += n; } else { bags.plain++; bags.plainBags += n; }
+      if (n !== want) stirBadLog(`${n} bags from a ${sNow ? `stirred (${sNow})` : 'plain'} clear of ${clear.id} for ${w.heroes.length} heroes, not ${want} (${w.events.filter((e) => e.type === 'loot').length} picked up this tick)`);
+    }
+    if (clear) sNow = '';
     for (const e of w.events) {
+      if (e.type === 'stir') {
+        sNow = e.id; sCount++; stirSeen[e.id] = (stirSeen[e.id] ?? 0) + 1;
+        if (c.opts.fillBots) stirBadLog(`a party with fill bots stirred (${e.id})`);
+        if (w.encounter === 0) stirBadLog('the opener stirred');
+      }
       if (e.type === 'arenaEvent' && e.stage === 'land') seenEvents[`arena ${e.id}`] = (seenEvents[`arena ${e.id}`] ?? 0) + 1;
       if (e.type === 'waveShape') {
         const m = (waveMet[e.id] ??= { fights: 0, landed: 0, nearest: Infinity, early: 0 });
@@ -224,8 +263,9 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
           if (wShape) closeWave();
           wShape = e.id; wEnc = w.encounter; wT0 = w.time; wEmpty = -1; wLanded = false; m.fights++;
           // The 'start' event must be the shape waveShapeAt promises (variety.ts counts shapes with it).
+          // (A fight the dungeon stirred into a wave (Y10) turns an arc into a pincer or ring, so it isn't in waveShapeAt.)
           const want = w.waveShapeAt(w.encounter, w.route[w.encounter]);
-          if (want !== e.id) waveBadLog(`started as ${e.id} but waveShapeAt says ${want}`);
+          if (want !== e.id && !(w.stir === 'wave' && want === 'arc' && e.id !== 'reinforce')) waveBadLog(`started as ${e.id} but waveShapeAt says ${want}`);
           if (e.id !== 'reinforce') wBits |= WAVE_BIT[e.id];
           // (Acolytes are left out: they circle their ward at ACOLYTE_RING from the first tick, so beside a ward on the
           // wall they start outside it in every shape, the old arc too.)
@@ -260,6 +300,8 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
     maxAlive = Math.max(maxAlive, w.aliveEnemies);
   }
   if (wShape) closeWave();
+  if (w.stirs !== sCount) stirBadLog(`w.stirs is ${w.stirs} but ${sCount} stir events came`);
+  if (c.label.startsWith('stir ') && !c.opts.fillBots && !sCount && w.summary().victory) console.log(`NO STIR ${c.label} skill ${c.skill} seed ${c.opts.seed}: a won run never stirred`);
   // The Seen log reads wavesMet: it must hold exactly the shapes this run met.
   if (w.wavesMet !== wBits) waveBadLog(`wavesMet is ${w.wavesMet} but the run met ${wBits}`);
   if (c.label.startsWith('wave ') && !wBits && waveCan) waveBadLog('a fight promised the forced shape but it never came');
@@ -281,4 +323,5 @@ resetForces();
 console.log(`layout fights played ${JSON.stringify(layoutFights)}`);
 console.log(`forced traits and events seen ${JSON.stringify(seenEvents)}; heroes trapped in a stone ${trapped}`);
 console.log(`wave shapes met ${JSON.stringify(Object.fromEntries(Object.entries(waveMet).map(([k, m]) => [k, { fights: m.fights, landed: m.landed, early: m.early, nearestFoe: Math.round(m.nearest), nearestAt: m.nearestAt }])))}; wave problems ${waveBad}`);
+console.log(`stirred fights ${JSON.stringify(stirSeen)}; bags (all heroes) from ${bags.stirred} stirred clears ${bags.stirredBags}, from ${bags.plain} plain clears ${bags.plainBags}; stir problems ${stirBad}`);
 console.log(`runs ${cases.filter((k) => !only || k.label.startsWith(only)).length}, stuck ${stuck}, longest ${longest.toFixed(0)} s, most foes alive ${mostAlive}`);
