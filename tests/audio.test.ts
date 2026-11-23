@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1009,6 +1009,39 @@ describe('audio', () => {
     expect(scene).toMatch(/whirl: w\.dungeonId === 'wrackline' && w\.whirl/);
     const mixer = readFileSync(new URL('../client/audio/index.ts', import.meta.url), 'utf8');
     expect(mixer).toMatch(/ebbCue\(this\.ebbing, !!ctx\.ebbPull, !!ctx\.outsurge, !!ctx\.whirl\)/);
+  });
+
+  it('spins Ondrel\'s Homeward Hammer out, then rings it home with the return line\'s timing built in (Phase 15 Y3)', () => {
+    type O = { ondrelClock(dt: number): void; finishCast(i: number): void; spawn(kind: string, x: number, y: number): number;
+      bossIndex: number; bossSpawned: boolean; choirT: number; anvilT: number };
+    const party = [{ cls: 'bulwark' as const, name: 'a' }, { cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+    const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as O;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ondrel', 0, -200);
+    q.bossIndex = b; q.bossSpawned = true; q.anvilT = 99;
+    w.bossVariant = 'home';
+    for (let k = 0; k < 4; k++) { const p = w.heroData(k).player; p.x = 0; p.y = k === 0 ? -170 : 0; }
+    w.heroData(3).player.x = 300; w.heroData(3).player.y = 100;
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'hammerdeep', listen: { x: 0, half: 500 } };
+    const heard: { stage: string; id?: string; t: number }[] = [];
+    let t = 0;
+    const grab = () => { for (const ev of w.events) if (ev.type === 'homeward') heard.push({ stage: ev.stage, id: cueFor(ev, c)?.id, t }); w.events.length = 0; };
+    w.events.length = 0;
+    w.enemies[b].castId = 'homeward';
+    q.finishCast(b); grab();
+    q.choirT = 99;
+    q.ondrelClock(HOMEWARD.fall + 0.01); t = HOMEWARD.fall; grab();
+    expect(heard.map((h) => `${h.stage}:${h.id}`)).toEqual(['out:homeOut', 'back:homeBack']);
+    const out = { type: 'homeward', stage: 'out', x: 300, y: 100 } as never;
+    // The throw is panned toward the hero it is thrown at; the ring-and-return is a priority call (centred).
+    expect(panFor(out, c)).toBeGreaterThan(0);
+    expect(PRIORITY.has('homeOut')).toBe(false);
+    expect(PRIORITY.has('homeBack')).toBe(true);
+    // The throw's whoosh ends before it lands; the return whoosh peaks as the line lands and no later.
+    expect(recipeLength(SOUNDS.homeOut)).toBeLessThan(HOMEWARD.fall);
+    expect(recipeLength(SOUNDS.homeBack)).toBeLessThanOrEqual(HOMEWARD.back);
+    expect(recipeLength(SOUNDS.homeBack)).toBeGreaterThan(HOMEWARD.back - 0.1);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
