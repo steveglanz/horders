@@ -1337,6 +1337,10 @@ Solo Coldmarrow at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
     - the echo replacing her own version instead of stacking on it: 41 and 42, with every other class down 1 to 3.
   - Kept as is: 43 to 44 of 80 (54 to 55%) sits inside the tier-10 wall band of 40 to 60% (coldmarrow.md). It's a watch item for skills' class check (U4).
 
+**Skills' U4 check (23 Nov): a Creeping Rime Nhevra only echoes the Emberdrift** (`NHEVRA_RIME_ECHOES`). On seeds 41 to 200 the Duskblade won 41 of 65 Rime runs with echoes off and 26 with Thin Ice forced. Thin Ice cracks, the rime and her body box a blade in: its contact damage from her went from 0.3 to 4.2 per second, and it drifted out of its Snuff interrupt reach. A wider interrupt reach and a bot rule for the cracks each won back at most 1 of 27 seeds. Forced Emberdrift on Rime runs gave 40 of 65 and hurt no other class. Ice and Drift runs still echo both of their other versions.
+
+Coldmarrow t10, seeds 1 to 80, natural echoes, before / after: Bulwark 56 / 56, Duskblade 43 / 48, Emberwright 65 / 66, Lumen 61 / 62, Slagbinder 51 / 57.
+
 ## Phase 16 U1: Hessa's echo
 
 Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
@@ -1407,3 +1411,4 @@ Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party i
 - **Grandmother Slag** gets a little easier with her echo (4 to 5 wins in every setup). Each window change clears the islands or the overflow that was building, which may be why; I haven't measured that. Every setup stays inside the band, so it is kept. Fewer runs see her echo (57 to 73 of 80), because only a run that brings her to 50% in phase 2 gets a window.
 - **The Colossus Anvil party** drops the most, 60 to 48 (75% to 60%), and is still inside the band. The Anvil party was over the band before echoes.
 - **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
+- **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.

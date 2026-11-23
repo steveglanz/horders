@@ -1020,8 +1020,17 @@ export class World {
    * court version), or Infinity when none is coming. Bots read it to walk in before the call.
    */
   summonsDue(): number {
-    if (this.bossVariant !== 'court' || this.bossPhase !== 2 || this.summonsT > 0 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return Infinity;
+    if (this.regentNextMove() !== 'court' || this.bossPhase !== 2 || this.summonsT > 0 || this.bossIndex < 0 || !this.enemies[this.bossIndex]?.alive) return Infinity;
     return this.ashT;
+  }
+  /**
+   * Phase 16 U1: the Furnace Regent's next Ash-timer move: his own version, or his echo when the next turn is the
+   * echo's (sound's check: with a Tithe echo in a court run, bots walked to the throne for a Summons that never came).
+   */
+  regentNextMove(): string {
+    const e = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    if (this.bossEcho && this.echoNext && e && e.hp <= e.maxHp * RAID_ECHO.regent) return this.bossEcho;
+    return this.bossVariant;
   }
   /** True while a burn or bleed tick lands (see `burnBy`). */
   private burnTick = false;
@@ -2038,7 +2047,7 @@ export class World {
           this.tideT = COLD.firstTide;
           this.nightT = COLD.firstNight;
           this.bossVariant = this.rollNhevraVariant();
-          this.bossEcho = this.rollEcho(NHEVRA_VARIANTS, this.bossVariant);
+          this.bossEcho = this.rollNhevraEcho();
           this.echoLive = false; this.echoT = 0;
           this.driftEmbers = [];
           this.events.push({ type: 'bossSpawn' });
@@ -2246,6 +2255,11 @@ export class World {
    * Phase 16 U1: from ECHO.minTier, a boss also echoes one of her other versions in her last phase. Hashed from the seed
    * (no run-rng draws), never the rolled version, and none on the first delve or in stress runs.
    */
+  /** Phase 16 U1: Nhevra's echo, from her other versions; a Creeping Rime run only ever echoes the Emberdrift (NHEVRA_RIME_ECHOES). */
+  private rollNhevraEcho(): NhevraVariant | '' {
+    return this.rollEcho(this.bossVariant === 'rime' ? NHEVRA_RIME_ECHOES : NHEVRA_VARIANTS, this.bossVariant);
+  }
+
   private rollEcho<V extends string>(all: readonly V[], rolled: string): V | '' {
     if (this.firstDelve || this.stress || this.tier < ECHO.minTier || ECHO.off) return '';
     const others = all.filter((v) => v !== rolled);
@@ -8493,6 +8507,11 @@ export type NhevraVariant = 'ice' | 'drift' | 'rime';
 export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
 /** Phase 16 U1: Nhevra has two phases, so her echo starts at `below` health, then runs `on` s on and `off` s off. */
 export const NHEVRA_ECHO = { below: 0.25, on: 12, off: 10 };
+/**
+ * Skills' U4 check (23 Nov): Creeping Rime with a Thin Ice echo boxes a melee hero in between the cracks, the rime
+ * and her body (Duskblade 41 -> 26 of 65 Rime runs, Coldmarrow t10), so a Rime Nhevra only ever echoes the Emberdrift.
+ */
+export const NHEVRA_RIME_ECHOES: NhevraVariant[] = ['drift'];
 /**
  * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
  * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.

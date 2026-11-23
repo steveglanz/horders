@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, SLAG_ECHO, RAID_ECHO, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, NHEVRA_RIME_ECHOES, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, SLAG_ECHO, RAID_ECHO, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1480,10 +1480,26 @@ describe('Phase 16 U1: Nhevra\'s echo', () => {
   });
 
   it('a Thin Ice echo cracks the river as it comes on', () => {
-    const { w, q } = nhevra('rime', 'ice', NHEVRA_ECHO.below - 0.05);
+    const { w, q } = nhevra('drift', 'ice', NHEVRA_ECHO.below - 0.05);
     q.coldClock(0.01);
     q.coldClock(0.01);
     expect(w.cracks.some((c) => c.alive)).toBe(true);
+  });
+});
+
+describe('Phase 16 U1: Nhevra\'s echo by version (skills\' U4 check)', () => {
+  it('a Creeping Rime run only echoes the Emberdrift; the other versions echo both of theirs', () => {
+    const got: Record<string, Set<string>> = { ice: new Set(), drift: new Set(), rime: new Set() };
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = new World({ seed, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+      for (const v of NHEVRA_VARIANTS) {
+        w.bossVariant = v;
+        got[v].add((w as unknown as { rollNhevraEcho(): string }).rollNhevraEcho());
+      }
+    }
+    expect([...got.rime]).toEqual(NHEVRA_RIME_ECHOES);
+    expect([...got.ice].sort()).toEqual(['drift', 'rime']);
+    expect([...got.drift].sort()).toEqual(['ice', 'rime']);
   });
 });
 
