@@ -36,6 +36,8 @@ const HERO_PX = 0.032;
 const BOSS_PX = 0.03;
 /** The 2D short side shows 500 world units (GameScene viewFor); the 3D view frames about the same, a little wider. */
 const VIEW = 560 * S;
+/** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
+const SELF_LIFT = 1.6;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
@@ -800,22 +802,28 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const heroGeo = standGeo(HERO.pad / HERO.H);
   type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string;
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
-    atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[] };
+    atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
+    /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
+    twin?: THREE.Mesh };
   const heroes: HeroS[] = [];
   const heroSprite = (i: number, cls: string): HeroS => {
     const set = F[ART[cls] ?? 'ew'];
     const mats: Record<string, THREE.MeshStandardMaterial> = {};
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
-    const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = true;
+    const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
     mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); scene.add(mesh);
     const rc = new THREE.Color(RING[cls] ?? '#ffc861');
     const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
     const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
     const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
     const h: HeroS = { cls, mesh, mats, blob, ring, disc, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
+    if (i === 0) {
+      const tm = new THREE.MeshBasicMaterial({ map: mats.idle.map, alphaTest: 0.5, side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
+      h.twin = new THREE.Mesh(heroGeo, tm); h.twin.castShadow = true; scene.add(h.twin);
+    }
     heroes[i] = h; return h;
   };
-  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name]) if (o) scene.remove(o); };
+  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin]) if (o) scene.remove(o); };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -1008,8 +1016,16 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const fx = Math.cos(p.facing ?? 0), fz = Math.sin(p.facing ?? 0);
       const faceNow = swing && Math.abs(fx) > 0.2 ? Math.sign(fx) : face;
       h.mesh.scale.set(faceNow * HERO.W * HERO_PX * (1 + 0.08 * k), HERO.H * HERO_PX * (1 + (moving ? 0 : 0.03 * Math.sin(t * 2.4 + i)) - 0.05 * k) * (dead ? 0.35 : 1), 1);
-      // Your own hero a hair nearer the camera, so an ally standing on the same spot never hides it.
-      h.mesh.position.set(x + fx * 0.12 * k, FLOOR + bob, z + fz * 0.12 * k + (i === 0 ? 0.02 : 0));
+      h.mesh.position.set(x + fx * 0.12 * k, FLOOR + bob, z + fz * 0.12 * k);
+      if (h.twin) {
+        // Your own hero always draws over allies and foes it overlaps, as in 2D (depth 6 over allies' 5.9): phones saw
+        // a Lumen bot a step in front cover you completely. The sprite slides toward the camera along its own view ray,
+        // so it stays on the same pixels, shrunk to keep its size; the twin left at the true spot casts the shadow.
+        h.twin.position.copy(h.mesh.position); h.twin.scale.copy(h.mesh.scale); h.twin.visible = true;
+        const lift = Math.min(SELF_LIFT, dist * 0.5);
+        h.mesh.position.addScaledVector(camDir, lift);
+        h.mesh.scale.multiplyScalar((dist - lift) / dist);
+      }
       h.mesh.visible = true;
       (h.mats.idle as THREE.MeshStandardMaterial).opacity = 1;
       h.blob.position.set(x, FLOOR + 0.006, z);
