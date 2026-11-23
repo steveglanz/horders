@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, FOUNDRY } from '../sim/world';
+import { World, FOUNDRY, GRIT_CUT } from '../sim/world';
 
 type Inner = {
   spawn(kind: string, x: number, y: number): number;
@@ -105,6 +105,27 @@ describe('Novice aid for melee heroes', () => {
     // Below tier 4 Blade Guard already covers it, and Grit adds nothing.
     expect(hit(2, 3)).toBeCloseTo(20 * (1 - 0.5 * 2 / 3), 5);
     expect(new World({ seed: 2, cls: 'duskblade', tier: 4, grit: 9 }).gritGuard).toBeCloseTo(0.6, 5);
+  });
+
+  it('Grit Cut: from tier 4 each Grit stack cuts every hit to a non-Duskblade by GRIT_CUT.perStack, up to 3 stacks', () => {
+    const hit = (tier: number, grit: number) => {
+      const w = new World({ seed: 2, cls: 'emberwright', tier, grit });
+      w.enemies[0].alive = true;
+      const hp0 = w.player.hp;
+      (w as unknown as { hurtPlayer(amount: number, src: number): void }).hurtPlayer.call(w, 20, 0);
+      return hp0 - w.player.hp;
+    };
+    const cut = GRIT_CUT.perStack;
+    expect(cut).toBeGreaterThan(0);
+    expect(hit(4, 0)).toBeCloseTo(20, 5);
+    expect(hit(4, 1)).toBeCloseTo(20 * (1 - cut), 5);
+    expect(hit(4, 3)).toBeCloseTo(20 * (1 - 3 * cut), 5);
+    expect(hit(9, 2)).toBeCloseTo(20 * (1 - 2 * cut), 5);
+    // Below tier 4 it does nothing (the novice aid covers those tiers), and stacks past 3 add nothing.
+    expect(hit(3, 3)).toBeCloseTo(20, 5);
+    for (const cls of ['lumen', 'slagbinder', 'bulwark'] as const) expect(new World({ seed: 2, cls, tier: 4, grit: 9 }).gritCut).toBeCloseTo(3 * cut, 5);
+    // The Duskblade has Grit Guard instead, never both.
+    expect(new World({ seed: 2, cls: 'duskblade', tier: 4, grit: 3 }).gritCut).toBe(0);
   });
 
   it('Shield Block at tier 1 covers only the foe the shield faces (the wide novice arc is gone)', () => {

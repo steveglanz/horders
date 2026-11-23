@@ -44,6 +44,17 @@ A slow player in melee keeps drifting into contact, so the first tiers forgive i
 - **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron). Shield Block used to cover every big foe within 75° of the last sweep too; that was dropped on 23 Nov, since under reactBot (`REACT=0.3 SKILL=0.5`, Kiln, ungeared, seeds 1-80) it was worth nothing: 79 vs 78 of 80 at t3.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
 - **Duskblade Grit Guard (tier 4 on):** where Blade Guard ends, each Grit stack (a loss in a row on that tier) gives 20% Blade Guard, up to 3 stacks, so 60% (`GRIT_GUARD`, cap 70%). A win clears Grit, so a player who keeps winning never has it, and a skilled first try is untouched. In QA's career sim (`tools/pt/career.ts`, `LAG=0.5 SKILL=0.3`, 10 careers of 25 runs, 190 tier-4 runs) the Duskblade went from 0 to 26 tier-4 wins, its worst losing streak from 21 to 13, and every career now beats tier 4 (first win on run 10 to 21). The Bulwark got nothing: on the same sim it already wins 37 of 150 tier-4 runs, every career breaks through, and its worst streak is 11 (23 Nov).
+- **Grit Cut (tier 4 on, every class but the Duskblade):** each Grit stack cuts all damage taken by 7%, up to 3 stacks, so 21% (`GRIT_CUT`). The Duskblade has Grit Guard instead, never both. Like Grit Guard it exists only after losses in a row on that tier (design, 23 Nov). Career sim: `reactBot` REACT 0.3, SKILL 0.5, forget 0.5, stepErr 1.0, 20 careers of 15 Kiln runs, on main after #646. The cells are t4 wins/attempts, worst losing streak, and careers with a t4 win:
+
+  | Class | No cut | 7% (shipped) | 10% |
+  |---|---|---|---|
+  | Emberwright | 19/112, 9, 12/20 | 27/112, 8, 16/20 | 34/112, 8, 17/20 |
+  | Bulwark | 101/204, 4, 20/20 | 106/204, 4, 20/20 | 116/204, 4, 20/20 |
+  | Lumen | 226/238, 2, 20/20 | 225/238, 2, 20/20 | 226/238, 2, 20/20 |
+  | Slagbinder | 239/239, 1, 20/20 | 239/239, 1, 20/20 | 239/239, 1, 20/20 |
+  | Duskblade (Grit Guard, no cut) | 101/214, 6, 20/20 | - | - |
+
+  Neither step reaches the Emberwright target of 18/20 careers. Two of its careers never reach tier 4 inside 15 runs at any cut, because the wall is at tier 3. At 10% the Bulwark's t4 share goes to 57% against the Duskblade's 47%, so 7% shipped. The Lumen and the Slagbinder are past the Duskblade's share with no cut at all.
 
 Tier-4 options tried for the novice Duskblade before Grit Guard (career tier-4 wins of 190 / full-skill ungeared Kiln t4 wins of 80, base 0 / 27): Steady Breath 20% or 35% at t4 gave 0 / - and 1 / -; a 3% Sidestep heal gave 1 / -; a 30-60% cut on trash damage gave 1-7 / 37-43; a 40-60% cut below 50-70% health gave 3-59 / 51-73. A novice Duskblade loses in trash and at the Kiln Mother alike (with trash damage at zero it still lost 9 of 10 there), so a narrow fix did little, and a broad one lifted the skilled player more.
 
