@@ -409,7 +409,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       return id ? { id } : null;
     }
     // Phase 15 Y10: placeholder until sound's cue.
-    case 'stir': return null;
+    // Phase 15 Y10: one groan for any stirred fight; its reaction (event, wave, named, elite) sounds by its own cue.
+    case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
