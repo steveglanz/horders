@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1336,9 +1336,12 @@ export function runBot(seed: number, skill = 1, maxSeconds = 700): World {
 
 /**
  * A slower player for balance checks: acts on what the full bot decided
- * `lagTicks` ticks ago (a reaction time), and with `skill` < 1 also misses
- * some interrupts. SKILL alone barely weakens the bot, because its move
- * direction is normalised, so reaction time is the better novice proxy.
+ * `lagTicks` ticks ago, and with `skill` < 1 also misses some interrupts.
+ *
+ * Outdated as a player model: replaying a stale move makes a melee hero overshoot its
+ * spot by its target (about 25 px at 5 ticks) and rock into contact, which badly
+ * overstates melee and group difficulty (Pressworks t10: 7/40 with 0.15 s against
+ * 30/40 at full skill). Use reactBot for reaction time; this stays for old numbers.
  */
 export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
   const queue: Input[] = [];
@@ -1347,6 +1350,41 @@ export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
     const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
     return out;
   };
+}
+
+/**
+ * A player with a reaction time, for playtest and balance sims: it notices things `reactS`
+ * seconds late but steers from where its hero is now (a person sees a new danger late, yet
+ * never walks on from where they stood 150 ms ago). For `reactS` after it appears, the bot
+ * doesn't see:
+ * - a telegraph (red marks and gold soak circles),
+ * - an enemy's cast (so interrupts and dodges of cast hits come late),
+ * - a newly spawned enemy.
+ * `skill` < 1 also misses some interrupts, as in botInput. Not covered: cues that are not
+ * telegraphs, casts or foes (arena vents' glow, a boss picking a target), which it sees at once.
+ */
+export function reactBot(reactS: number, skill = 1): (w: World) => Input {
+  return (w: World) => (reactS > 0 ? perceiveLate(w, reactS, () => botInput(w, skill)) : botInput(w, skill));
+}
+
+/** Runs `decide` with what appeared in the last `reactS` seconds hidden from it, then puts it all back. */
+function perceiveLate<T>(w: World, reactS: number, decide: () => T): T {
+  const tele: Telegraph[] = [];
+  const foes: Enemy[] = [];
+  const casts: [Enemy, string][] = [];
+  for (const t of w.telegraphs) if (t.alive && t.t < reactS) { t.alive = false; tele.push(t); }
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    if (w.time - e.spawnedAt < reactS) { e.alive = false; foes.push(e); }
+    else if (e.castId && e.castT < reactS) { casts.push([e, e.castId]); e.castId = ''; }
+  }
+  try {
+    return decide();
+  } finally {
+    for (const t of tele) t.alive = true;
+    for (const e of foes) e.alive = true;
+    for (const [e, id] of casts) e.castId = id;
+  }
 }
 
 /** a - b, wrapped to -PI..PI. */

@@ -2,15 +2,17 @@
 import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
 import { OmenId } from '../sim/content/omens';
-import { botChoose, botInput, laggedBot } from '../sim/bot';
+import { botChoose, botInput, laggedBot, reactBot } from '../sim/bot';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
 
 // FIRST=1 plays a first delve (L1); FD_HP and FD_DMG override its multipliers.
 if (process.env.FD_HP) FIRST_DELVE.hp = Number(process.env.FD_HP);
 if (process.env.FD_DMG) FIRST_DELVE.dmg = Number(process.env.FD_DMG);
 
-// ROUTE=pack,brute,kilnMother fixes the fights. LAG=seconds gives the bot a reaction time (a novice proxy; see laggedBot).
+// ROUTE=pack,brute,kilnMother fixes the fights. REACT=seconds gives the bot a reaction time (a novice proxy; see reactBot).
+// LAG=seconds is the old delayed-input proxy (laggedBot), which overstates melee and group difficulty; kept to compare.
 const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
+const react = Number(process.env.REACT ?? 0);
 
 // TUNE=DEFENCE_BRANCH.ringDamage=30 overrides an exported tuning number for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
@@ -26,7 +28,7 @@ let wins = 0;
 let hpLeft = 0;
 for (const seed of seeds) {
   const w = new World({ heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined });
-  const drive = lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
+  const drive = react ? reactBot(react, skill) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);
   let bossAt = 0;
