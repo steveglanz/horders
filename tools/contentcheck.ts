@@ -267,9 +267,8 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
           const want = w.waveShapeAt(w.encounter, w.route[w.encounter]);
           if (want !== e.id && !(w.stir === 'wave' && want === 'arc' && e.id !== 'reinforce')) waveBadLog(`started as ${e.id} but waveShapeAt says ${want}`);
           if (e.id !== 'reinforce') wBits |= WAVE_BIT[e.id];
-          // (Acolytes are left out: they circle their ward at ACOLYTE_RING from the first tick, so beside a ward on the
-          // wall they start outside it in every shape, the old arc too.)
-          for (const f of w.enemies) if (f.alive && f.kind !== 'acolyte') {
+          // (Acolytes count too: since #532 they stay inside the wall while they circle a ward standing by it.)
+          for (const f of w.enemies) if (f.alive) {
             if (Math.hypot(f.x, f.y) > w.arenaR + 1) waveBadLog(`a ${f.kind} came in outside the arena`);
             for (let i = 0; i < w.heroes.length; i++) {
               const p = w.heroPlayer(i), d = Math.hypot(f.x - p.x, f.y - p.y);
