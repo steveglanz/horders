@@ -866,11 +866,14 @@ export class Hud {
     // X6: each kind of chip has its own accent (the Heat's from its glyph), as a border and key colour only, so no chip
     // gets wider than X9 sized it for 320 px.
     const heatCol = w.heat && w.heat in HEAT_ICON ? HEAT_ICON[w.heat as HeatId].color : SHAPE_COLOR.heat;
+    // Phase 15 Y4: a chip whose boss version, named-foe trait, event or Heat this hero met for the first time gets a star.
+    const fresh = new Set((rewards?.seenNew ?? []).map((key) => key.split(':')[1]));
+    const isNew = (c: (typeof shape)[number]) => fresh.has(c.kind);
     $('endShape').innerHTML = shape.map((c) => {
       const [k, ...v] = c.label.split(': ');
-      return `<span class="shape" data-shape="${c.kind}" style="--sc:${c.kind === 'heat' ? heatCol : SHAPE_COLOR[c.kind]}"><i>${k}:</i> <b>${v.join(': ')}</b></span>`;
+      return `<span class="shape${isNew(c) ? ' new' : ''}" data-shape="${c.kind}" style="--sc:${c.kind === 'heat' ? heatCol : SHAPE_COLOR[c.kind]}"><i>${isNew(c) ? '<s aria-label="New">★</s>' : ''}${k}:</i> <b>${v.join(': ')}</b></span>`;
     }).join('');
-    $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip));
+    $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip + (isNew(shape[k]) ? ' (new in your Seen log)' : '')));
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
       .map((id) => {
         const def = TALENTS[id];

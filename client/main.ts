@@ -8,6 +8,7 @@ import { Hud } from './ui';
 import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
+import { metIn, recordSeen } from '../sim/seen';
 import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
@@ -160,6 +161,8 @@ function finishRun(w: World) {
     summary = { ...summary, tier: Math.min(summary.tier ?? 1, hero.maxTier) };
   }
   const rewards = applyRun(hero, runSeed, summary, w.eliteKilled, drops, equipped);
+  // Phase 15 Y4: what this delve met goes in the Seen log; the end screen marks the first meetings.
+  rewards.seenNew = recordSeen(hero, metIn(w));
   save();
   hub.render();
   // P3: a beaten key goes on the dungeon's leaderboard (solo key runs only).
