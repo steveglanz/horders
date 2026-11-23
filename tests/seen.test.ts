@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, ARENA_EVENTS, WAVE_BIT, WAVES, STIR, STIR_BIT } from '../sim/world';
+import { World, NEW_FOES, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, ARENA_EVENTS, WAVE_BIT, WAVES, STIR, STIR_BIT } from '../sim/world';
 import { DUNGEONS } from '../sim/content/dungeon';
 import { runShape } from '../sim/runshape';
 import { DUNGEON_IDS } from '../sim/content/dungeon';
@@ -8,7 +8,7 @@ import { AFFIXES, NAMED } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import { newHero } from '../sim/hero';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
-import { BOSS_VERSIONS, echoesPossible, metIn, recordSeen, seenIn, seenKey, seenPool, stirsPossible, wavesPossible } from '../sim/seen';
+import { BOSS_VERSIONS, echoesPossible, foesPossible, metIn, recordSeen, seenIn, seenKey, seenPool, stirsPossible, wavesPossible } from '../sim/seen';
 import { applySnapshot, snapshot } from '../sim/netsync';
 
 type Q = { encounter: number; rollLayout(id: string): void; rollArenaEvent(id: string): void; arenaEventClock(dt: number): void };
@@ -27,6 +27,7 @@ describe('Phase 15 Y4: the Seen log', () => {
       const pool = seenPool(d);
       expect(pool.filter((e) => e.kind === 'boss').map((e) => e.id), d).toEqual([...BOSS_VERSIONS[d]]);
       expect(pool.filter((e) => e.kind === 'echo').map((e) => e.id), d).toEqual([...echoesPossible(d)]);
+      expect(pool.filter((e) => e.kind === 'foe').map((e) => e.id), d).toEqual([...foesPossible(d)]);
       expect(pool.filter((e) => e.kind === 'mark').map((e) => e.id), d).toEqual([...AFFIXES]);
       expect(pool.filter((e) => e.kind === 'event').map((e) => e.id), d).toEqual(ARENA_EVENT_POOLS[d] ?? []);
       expect(pool.filter((e) => e.kind === 'heat').map((e) => e.id), d).toEqual(HEAT_POOLS[d] ?? []);
@@ -36,8 +37,11 @@ describe('Phase 15 Y4: the Seen log', () => {
       }
       for (const v of BOSS_VERSIONS[d]) expect(BOSS_VERSION_NAME[v], v).toBeTruthy();
     }
-    // The Kiln: 3 boss versions (Turning Fire since Y3), 3 echoes, 3 wave shapes, 5 traits, 2 events, 4 stirs, 4 Heats.
-    expect(seenPool('kiln')).toHaveLength(24);
+    // The Kiln: 3 boss versions (Turning Fire since Y3), 3 echoes, the Ashwall, 3 wave shapes, 5 traits, 2 events, 4 stirs, 4 Heats.
+    expect(seenPool('kiln')).toHaveLength(25);
+    expect(foesPossible('kiln')).toEqual(['ashwall']);
+    // Every new foe turns up in some dungeon's pool.
+    for (const k of NEW_FOES) expect(DUNGEON_IDS.some((d) => foesPossible(d).includes(k)), k).toBe(true);
     // Every echo is one of the boss's own versions.
     for (const d of DUNGEON_IDS) for (const v of echoesPossible(d)) expect(BOSS_VERSIONS[d], `${d} ${v}`).toContain(v);
   });
@@ -98,7 +102,7 @@ describe('Phase 15 Y4: the Seen log', () => {
     expect(h.seen).toEqual(['kiln:boss:draw', 'kiln:heat:richHaul', 'kiln:mark:Swift']);
     const kiln = seenIn(h, 'kiln');
     expect(kiln.seen).toBe(3);
-    expect(kiln.total).toBe(24);
+    expect(kiln.total).toBe(25);
     expect(kiln.entries.find((e) => e.id === 'draw')?.seen).toBe(true);
     expect(kiln.entries.find((e) => e.id === 'cataclysm')?.seen).toBe(false);
     expect(seenIn(h, 'foundry').seen).toBe(0);
@@ -195,5 +199,17 @@ describe('Phase 15 Y4: the Seen log', () => {
     const g = new World({ seed: 99, dungeon: 'kiln', tier: 8, omens: [], cls: 'lumen', party: [{ cls: 'emberwright', name: 'Emberwright' }] });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(metIn(g)).toContain('kiln:echo:draw');
+  });
+
+  it('new foes (Phase 16 U2/U3): count once one has spawned; the run shape shows it', () => {
+    const w = new World({ seed: 7, dungeon: 'kiln', tier: 3, omens: [], cls: 'emberwright', route: ['ashwall'] });
+    expect(metIn(w).some((k) => k.includes(':foe:'))).toBe(false);
+    play(w, () => w.foesMet !== 0, 60);
+    expect(w.enemies.some((e) => e.alive && e.kind === 'ashwall')).toBe(true);
+    expect(metIn(w)).toContain('kiln:foe:ashwall');
+    expect(runShape(w).find((c) => c.kind === 'foe')?.label).toBe('New foe: Ashwall');
+    const g = new World({ seed: 99, dungeon: 'kiln', tier: 3, omens: [], cls: 'lumen', party: [{ cls: 'emberwright', name: 'Emberwright' }] });
+    applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
+    expect(metIn(g)).toContain('kiln:foe:ashwall');
   });
 });

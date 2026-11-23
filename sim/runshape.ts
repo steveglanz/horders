@@ -5,11 +5,12 @@
  * events (X3) from World.arenaEventAt().
  */
 import { ENCOUNTERS, type EncounterId } from './content/dungeon';
+import { ENEMIES } from './content/enemies';
 import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
-import { STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
+import { NEW_FOES, NEW_FOE_BIT, STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'boss' | 'echo' | 'heat';
+export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'foe' | 'boss' | 'echo' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -107,6 +108,12 @@ export function runShape(w: World): ShapeChip[] {
   const stirred = STIR_IDS.filter((v) => w.stirsMet & STIR_BIT[v]);
   if (stirred.length) {
     out.push({ kind: 'stir', label: `Stirred: ${stirred.map((v) => STIR_INFO[v].name).join(', ')}`, tip: `Clean fights stirred the dungeon. ${stirred.map((v) => STIR_INFO[v].tip).join(' ')}` });
+  }
+
+  // Phase 16 U3: the new foes (U2) this run met.
+  const foes = NEW_FOES.filter((k) => w.foesMet & (NEW_FOE_BIT[k] ?? 0));
+  if (foes.length) {
+    out.push({ kind: 'foe', label: `New foe: ${foes.map((k) => ENEMIES[k].name).join(', ')}`, tip: foes.map((k) => `${ENEMIES[k].name}: ${ENEMIES[k].title ?? ''}`).join(' ') });
   }
 
   // The boss's version is rolled when it appears, so a run that never reached it shows none.

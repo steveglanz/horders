@@ -20,7 +20,7 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
-const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
