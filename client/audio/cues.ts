@@ -416,6 +416,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'stir': return { id: 'dungeonStir' };
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
+    // Y3 Sealed Vents: silent until sound adds its cue.
+    case 'ventShift': return null;
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };

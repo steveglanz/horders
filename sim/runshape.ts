@@ -21,7 +21,7 @@ export interface ShapeChip {
 /** Each boss version's name, as its phase banner shows it (client/GameScene.ts). */
 export const BOSS_VERSION_NAME: Record<string, string> = {
   cataclysm: 'Molten Cataclysm', draw: 'Kiln Draw', turning: 'Turning Fire',
-  water: 'Rising Water', tide: 'Sluicetide',
+  water: 'Rising Water', tide: 'Sluicetide', seal: 'Sealed Vents',
   brand: 'Twin Brand', glint: 'Glintfall',
   ice: 'Thin Ice', drift: 'Emberdrift',
   riptide: 'Riptide', outsurge: 'The Outsurge',

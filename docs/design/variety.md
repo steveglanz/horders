@@ -839,3 +839,19 @@ The Kiln Mother had two phase-2 versions (Cataclysm and the Draw). The third is 
 - The first build (first cone at 1.2 s, 50° cones) won 32 of 160 at t2. The cones landed before a hero could leave them. A 2.2 s lead and 70° cones brought it into line.
 - **Name:** "Turning Fire" had no WoW-branded match in a search on 23 Nov.
 
+### Y3 Maelra: Sealed Vents (built 23 Nov 2026)
+
+Maelra had two phase-2 versions (Rising Water and the Sluicetide). The third is **Sealed Vents** (`seal`). From phase 2 only one steam vent is open, and only it boils off her Temper. Every 16 s the steam moves to another vent, never the one she stands on when another is free. The next vent pulses 2.5 s ahead, with a "The steam moves" ding. Boiling her Temper at the open vent heals 1.5x as much as a normal vent. The arena keeps its size and nothing pushes the hero. Tuning is `MAELRA_SEAL` in sim/world.ts. Events: `{type:'ventShift', stage:'warn'|'open', vent}`. Fields `w.openVent` and `w.nextVent` (-1 when off). The bot leads her to the open vent.
+
+**Measured** with tools/foundry.ts, Foundry t4, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Rising Water | Sluicetide | Sealed Vents |
+|---|---|---|---|
+| hero-t4 | 157 | 159 | 156 |
+| no gear | 59 | 52 | 61 |
+
+- Natural rolls with hero-t4: 155 of 160.
+- With the steam moving every 12 s, no gear won 45 and hero-t4 153. With 16 s it sits with the other two.
+- Raising the heal to 2.5x changed nothing (46), so the time between moves is the knob.
+- **Name:** "Sealed Vents" had no WoW-branded match in a search on 23 Nov.
+
