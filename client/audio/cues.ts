@@ -408,6 +408,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       const id = ev.stage === 'start' ? WAVE_SOUNDS[ev.id]?.start : ev.stage === 'warn' ? WAVE_SOUNDS[ev.id]?.warn : WAVE_SOUNDS[ev.id]?.land;
       return id ? { id } : null;
     }
+    // Phase 15 Y10: placeholder until sound's cue.
+    case 'stir': return null;
     case 'charge': return { id: 'chargeDash', jitter: 0.04 };
     case 'tideTurn': return { id: 'tideTurn' };
     case 'emberDrift': return { id: 'emberDriftFall' };
