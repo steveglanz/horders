@@ -129,6 +129,8 @@ export const BRIMMING_TIP = 'Heal the Ladle burn off the tank. Later the pit fil
 export const INHALE_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end he breathes you in: when he Inhales, walk away from his mouth until he stops.';
 export const BANKED_TIP = 'Interrupt his Gorge. When he swallows an ally, break the Craw at his side. In the end, stand on each hot coal as it lands, or he eats it.';
 /** Phase 12 W3: the Cinder Colossus's intro when this run's version shifts his plate instead of Wheeling. */
+/** Phase 15 Y3: the Cinder Colossus's intro when this run's version grinds round (Millstone). */
+export const MILLSTONE_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When he grinds round, his burning front turns with him: walk round the way he turns to stay at his back.';
 export const PLATE_SHIFT_TIP = 'His front is plated: the tank holds it, everyone else hits his back. Step out of the Slag Sweep. When his plate shifts, it moves to whoever hurt him most: find his open back again.';
 /** Phase 12 W3: the Furnace Regent's intro when this run's version calls a Summons with the Ash Fall. */
 export const COURT_TIP = 'Its Decree burns whoever holds it: walk it to an ally to pass it on before it bursts. Later, when he calls a Summons, step out of the ash and come close to him before it lands.';
