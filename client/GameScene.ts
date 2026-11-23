@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -19,6 +19,7 @@ import { botName, CLASS_ICON, GLOW_MARK, isBotAlly } from './icons';
 import { ALT_ABILITIES, CLASSES } from '../sim/content/classes';
 import { roleOf } from './net/lobby';
 import { display, onDisplayChange, palette, shakeScale, textScale } from './settings';
+import { hd2dFx, hd2dModule, hideHd2dLoading, type Hd2dView } from './hd2d/api';
 import { buildTextures, FRAMES, SPRITE_RES, WORLD_BOSS_SHEET } from './textures';
 import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
@@ -252,6 +253,11 @@ export class GameScene extends Phaser.Scene {
   warp = 1;
 
   private ground!: Phaser.GameObjects.TileSprite;
+  /** HD-2D look test (?hd2d=1): the 3D view drawn over this scene, when its module has loaded (client/hd2d/api.ts). */
+  private hd2d: Hd2dView | null = null;
+  private hd2dAlpha = 1;
+  /** How long the 3D view took to build and to draw its first frame, in ms (tools/hd2dload.cjs). */
+  hd2dTimes: { mount: number; firstFrame: number } | null = null;
   private player!: Phaser.GameObjects.Image;
   private aura!: Phaser.GameObjects.Image;
   private enemySprites: Phaser.GameObjects.Image[] = [];
@@ -600,11 +606,40 @@ export class GameScene extends Phaser.Scene {
 
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => {
+      this.hd2d?.destroy();
+      this.hd2d = null;
       this.scale.off('resize', this.layout, this);
       if (this.frost) { this.frost.style.opacity = '0'; this.frost.classList.remove('frozen', 'flash'); }
     });
     this.layout();
     this.cameras.main.centerOn(0, 0);
+    // HD-2D: the 3D view draws the run; this scene keeps the sim, input and HUD, and stops drawing its own camera.
+    const hd = hd2dModule();
+    if (hd) {
+      const t0 = performance.now();
+      try {
+        this.hd2d = hd.mount(this.game.canvas.parentElement ?? document.body, {
+          world: () => this.world,
+          alpha: () => this.hd2dAlpha,
+          enemyTex: (i) => this.enemyTex(this.world.enemies[i], i),
+          frame: (key, n) => this.frameCanvas(key, n),
+          frames: (key) => FRAMES[key] ?? 1,
+          texScale: BASE,
+          heroName: (i) => this.world.heroes[i]?.name ?? '',
+        }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
+        this.cameras.main.setVisible(false);
+        const t1 = performance.now();
+        // The first frame builds and compiles everything while the loading screen is still up.
+        this.hd2d.frame(0);
+        this.hd2dTimes = { mount: Math.round(t1 - t0), firstFrame: Math.round(performance.now() - t1) };
+      } catch (err) {
+        console.warn('HD-2D view failed, drawing in 2D', err);
+        this.hd2d?.destroy();
+        this.hd2d = null;
+        this.cameras.main.setVisible(true);
+      }
+      hideHd2dLoading();
+    }
 
     this.hud.bindRun({
       onPick: (i) => this.pick(i),
@@ -808,6 +843,7 @@ export class GameScene extends Phaser.Scene {
       ? Math.min(1, this.snapAge / SNAP_SECONDS)
       : w.state === 'running' && (!this.paused || this.coop) ? this.acc / TICK : 1;
     this.render(alpha, deltaMs / 1000);
+    if (this.hd2d) { this.hd2dAlpha = alpha; this.hd2d.frame(deltaMs / 1000); }
     this.hud.tick(w, this.fps());
   }
 
@@ -1381,7 +1417,11 @@ export class GameScene extends Phaser.Scene {
           // V2: name the arena layout too, so the player knows why the floor looks different.
           const floor = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
           // Phase 15 Y1: a pincer or ring wave says so in the fight banner (a banner of its own would be replaced by this one).
-          const ground = floor + (w.waveShape === 'pincer' || w.waveShape === 'ring' ? ` ${WAVE_SHAPE_INFO[w.waveShape].tip}` : '');
+          const shaped = w.waveShape === 'pincer' || w.waveShape === 'ring' ? w.waveShape : undefined;
+          // Phase 15 Y10: a stirred fight says so (a 'wave' reaction's wave line already says how they come).
+          const stirTip = w.stir ? (w.stir === 'wave' ? STIR_INFO.wave.tip : STIR_INFO[w.stir].tip) : '';
+          const stirLine = w.stir ? ` The dungeon stirs.${w.stir === 'wave' ? '' : ` ${stirTip}`}` : '';
+          const ground = floor + stirLine + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
@@ -1405,6 +1445,13 @@ export class GameScene extends Phaser.Scene {
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
             this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
+          } else if (this.hud.compact && !coach && (shaped || w.stir)) {
+            // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
+            // in the Dark: 198 characters), and the wave line is the part cut off. Each gets its own banner right after,
+            // the stir first (Y10), then the wave, then a named foe's (if one stepped out).
+            const waveNext = shaped ? { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip, next: namedNext } : namedNext;
+            const after = w.stir ? { title: 'The dungeon stirs', sub: stirTip, next: waveNext } : waveNext;
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, after);
           } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach, namedNext);
           break;
         }
@@ -1452,6 +1499,42 @@ export class GameScene extends Phaser.Scene {
       }
     }
   }
+
+  /** The 2D texture enemy slot `i` draws with (the HD-2D view stands the same sheet up in 3D). */
+  private enemyTex(e: Enemy, i: number): string {
+    const w = this.world;
+    return e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
+      : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
+      // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
+      // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
+      : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
+      // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
+      : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
+      : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
+      // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
+      : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
+      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
+  }
+
+  /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
+  private frameCanvas(key: string, n: number): HTMLCanvasElement | null {
+    const id = `${key}#${n}`;
+    const hit = this.frameCache.get(id);
+    if (hit !== undefined) return hit;
+    let out: HTMLCanvasElement | null = null;
+    if (this.textures.exists(key)) {
+      const f = this.textures.getFrame(key, String(n)) ?? this.textures.getFrame(key);
+      const src = f?.source.image as CanvasImageSource | undefined;
+      if (f && src) {
+        out = document.createElement('canvas');
+        out.width = f.cutWidth; out.height = f.cutHeight;
+        out.getContext('2d')!.drawImage(src, f.cutX, f.cutY, f.cutWidth, f.cutHeight, 0, 0, f.cutWidth, f.cutHeight);
+      }
+    }
+    this.frameCache.set(id, out);
+    return out;
+  }
+  private readonly frameCache = new Map<string, HTMLCanvasElement | null>();
 
   // ---------------------------------------------------------------- rendering
 
@@ -1596,17 +1679,7 @@ export class GameScene extends Phaser.Scene {
       }
       // The world boss shadow is the live boss's silhouette (Grandmother Slag's if the name is unknown);
       // Ember Twins alternate palettes by slot so a pair always reads as two.
-      const tex = e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
-        : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
-        // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
-        // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
-        : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')
-        // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
-        : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
-        : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
-        // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
-        : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
-        : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
+      const tex = this.enemyTex(e, i);
       if (this.enemyKinds[i] !== tex) {
         s.setTexture(tex, '0').setAlpha(e.kind === 'worldShadow' ? 0.85 : 1);
         this.enemyKinds[i] = tex;

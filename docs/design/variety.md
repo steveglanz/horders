@@ -763,3 +763,41 @@ Never in the opener, a boss fight, a shrine, a raid or the first delve. A fight 
 - No shape costs a full party much. A forced ring helps in the Pressworks (96 against 81). I haven't traced why.
 - **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 7 with waves off, 7 natural, 5 forced ring, 5 forced pincer. That stays well under the 25% missing-role line.
 - **Names:** Pincer, Surrounded and More Coming are plain English. A search on 23 Nov found no WoW-branded name among them.
+
+## Phase 15 Y10 (built 23 Nov 2026): the dungeon stirs
+
+Steve, 23 Nov: "It would be cool if the dungeons sort of adapted or adjusted difficulty as you played, if you were doing really well they like added an extra monster or something, or something happened."
+
+**How it works** (`STIR` in sim/world.ts):
+- After each trash fight, the dungeon looks at how much damage the party took: each hero's damage as a share of their own health, averaged over the party (`World.fightHurt`).
+- A clean clear (at most 15%, nobody down) adds one to a hidden count. A rough one (50% or more, or a hero down) sets it back to 0. Anything in between leaves it as it is.
+- Two clean clears in a row stir the next trash fight. It gets one reaction, picked by a hash of the seed and the fight's place (no run-rng draws), from the ones that fit the fight:
+
+| Reaction | What happens |
+|---|---|
+| Another joins (`elite`) | One more of the fight's first elite kind comes in from the far side |
+| A named foe (`named`) | The fight's first elite becomes a named foe, only if the run has none |
+| The ground answers (`event`) | An arena event from the dungeon's pool, only if the fight has none |
+| They close in (`wave`) | The wave comes as a pincer or a ring, only if it was an arc |
+
+- A stirred fight drops a second loot bag at the same rarity as its clear bag.
+- At most 2 a run. Never the opener or the boss. Off on the first delve, on tiers 1 to 3, in raids, and in any party with a fill bot, so a bot party can't farm it. A run that's going badly never gets harder.
+- The fight banner says "The dungeon stirs." with the reaction's line. On phones it gets its own banner after the fight's.
+- `World.stirsMet` holds the reactions a run met (`STIR_BIT`), for the Seen log. The event is `{ type: 'stir', id }`.
+- Tools: `STIR=off` or `STIR=elite|named|event|wave|any` in tools/foundry.ts and tools/group.ts.
+
+**Measured,** the good bot (Emberwright solo, the full party in groups), seeds 1 to 120:
+
+| Dungeon, tier | Stir off | Natural | Stirs in 120 runs | Every fight stirred |
+|---|---|---|---|---|
+| Foundry t4, hero-t4 | 119 | 120 | 94 | 114 |
+| Glarewell t7, hero-t6 | 118 | 115 | 72 | 103 |
+| Coldmarrow t10, hero-t8 | 111 | 109 | 110 | 108 |
+| Wrackline t13, hero-t8 | 20 | 18 | 30 | 11 |
+| Hammerdeep t8 (group) | 81 | 81 | 119 | |
+| Ashvents t8 (group) | 83 | 85 | 118 | |
+| Pressworks t10 (group) | 88 | 87 | 119 | |
+
+- The bot takes almost no damage in most trash fights (its median is 0% of its health), so it stirs about once a run. Players who take more hits will see it less, which is the point.
+- **Loot:** tools/lootrate.ts, Emberwright, hero-t6, Glarewell t7, 40 seeds: items a minute 0.92 with stir off and 1.02 on, Rare or better 0.52 and 0.62. Fill with bots runs don't change, since stirring is off there.
+- **Name:** "The dungeon stirs" had no WoW-branded match in a search on 23 Nov.

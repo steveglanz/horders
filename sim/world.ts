@@ -570,6 +570,8 @@ export type SimEvent =
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
   | { type: 'arenaEvent'; id: ArenaEventId; stage: 'warn' | 'land' }
+  /** Phase 15 Y10: the dungeon stirred: this fight has a reaction (and drops a second bag). */
+  | { type: 'stir'; id: StirId }
   /** Phase 15 Y1: a fight's wave came in a new shape (`start`), or its held pack is about to come (`warn`) or came (`land`). */
   | { type: 'waveShape'; id: Exclude<WaveShape, 'arc'>; stage: 'start' | 'warn' | 'land'; x: number; y: number }
   | { type: 'ventFlare'; x: number; y: number }
@@ -872,6 +874,16 @@ export class World {
   reinforceN = 0;
   reinforceT = 0;
   reinforceA = 0;
+  /** Phase 15 Y10: the dungeon's hidden count of clean clears, the reactions so far, whether the next trash fight stirs, and this fight's reaction. */
+  stirCount = 0;
+  stirs = 0;
+  stirNext = false;
+  stir: StirId | '' = '';
+  /** Phase 15 Y10/Y4: the reactions this run has met, as bits of STIR_BIT. */
+  stirsMet = 0;
+  /** Phase 15 Y10: this fight's damage taken (each hero's share of their own health, averaged over the party) and whether a hero went down. */
+  fightHurt = 0;
+  fightDown = false;
   /** Phase 15 Y1/Y4: the wave shapes this run has met, as bits of WAVE_BIT (a pincer or ring when it starts, reinforcements when they warn). */
   wavesMet = 0;
   arenaEventT = 0;
@@ -1806,6 +1818,7 @@ export class World {
       : [];
     this.rollLayout(def.id);
     this.rollArenaEvent(def.id);
+    this.rollStir(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
@@ -1814,6 +1827,7 @@ export class World {
     const all = def.spawns.reduce((a, s) => a + s.n, 0);
     // Phase 15 Y1: how this wave comes in (a hash, so the run rng above is untouched).
     this.waveShape = this.waveShapeAt(this.encounter, def.id);
+    if (this.stir === 'wave') this.waveShape = (this.stirHash() >>> 12) & 1 ? 'ring' : 'pincer';
     this.reinforceN = this.waveShape === 'reinforce' ? reinforceCount(def.spawns) : 0;
     this.reinforceT = WAVES.reinforceAt;
     this.reinforceA = base - Math.PI / 2; // a flank, never the hero's own side
@@ -2028,7 +2042,14 @@ export class World {
         if (sp.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
       }
     }
+    if (this.stir === 'elite') {
+      // One more of the fight's first elite kind joins from the far side.
+      const kind = def.spawns.find((x) => ENEMIES[x.kind].rank === 'elite')!.kind;
+      this.spawn(kind, Math.cos(base) * (this.arenaR - 60), Math.sin(base) * (this.arenaR - 60));
+    }
+    if (this.stir === 'named') this.namedAt = this.encounter;
     this.rollNamed(firstElite);
+    if (this.stir) this.events.push({ type: 'stir', id: this.stir });
     this.events.push({ type: 'encounterStart', index: this.encounter, id: def.id });
   }
 
@@ -2055,6 +2076,8 @@ export class World {
       let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
       if (this.namedFight) min++;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
+      // Phase 15 Y10: a stirred fight leaves a second bag.
+      if (this.stir) this.dropLoot(p.x - 40, p.y, order[Math.min(order.length - 1, min)]);
     }
   }
 
@@ -2062,6 +2085,7 @@ export class World {
     // Co-op: heroes who went down get back up between fights.
     if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
+    this.countStir(this.route[this.encounter]);
     this.encounter++;
     this.openFork();
   }
@@ -2328,6 +2352,66 @@ export class World {
       this.flareK = 0;
     }
     this.events.push({ type: 'layout', id: this.layout });
+  }
+
+  /** Phase 15 Y10: whether this run can stir at all. */
+  get stirOn(): boolean {
+    return !STIR.off && !this.firstDelve && !this.stress && !this.dungeonDef.raid && this.tier >= STIR.minTier && this.fillBots === 0;
+  }
+
+  private stirHash(): number {
+    const h = (Math.imul(this.seed ^ 0x7f4a7c15, 0x9e3779b1) + Math.imul(this.encounter + 1, 0x85ebca77)) >>> 0;
+    return Math.imul(h ^ (h >>> 13), 0xc2b2ae3d) >>> 0;
+  }
+
+  /** Phase 15 Y10: after a trash clear, a clean fight builds the count and a rough one sets it back. */
+  private countStir(id: EncounterId): void {
+    const was = this.stir;
+    this.stir = '';
+    if (!this.stirOn || !this.layoutRolls(id) || was) return;
+    if (this.fightDown || this.fightHurt >= STIR.rough) {
+      this.stirCount = 0;
+      this.stirNext = false;
+    } else if (this.fightHurt <= STIR.clean && ++this.stirCount >= STIR.need && this.stirs < STIR.max) {
+      this.stirCount = 0;
+      this.stirNext = true;
+    }
+  }
+
+  /** The reactions fight `id` could take now. */
+  private stirChoices(id: EncounterId): StirId[] {
+    const def = ENCOUNTERS[id];
+    const n = def.spawns.reduce((a, x) => a + x.n, 0);
+    const elite = def.spawns.some((x) => ENEMIES[x.kind].rank === 'elite');
+    const out: StirId[] = [];
+    if (elite) out.push('elite');
+    this.planNamed();
+    if (elite && this.namedAt === -1) out.push('named');
+    if (ARENA_EVENT_POOLS[this.dungeonId] && !this.arenaEvent && !ARENA_EVENTS.off) out.push('event');
+    if (n >= 2 && this.waveShapeAt(this.encounter, id) === 'arc' && !WAVES.off && !def.spawns.some((x) => x.kind === 'twinLamp')) out.push('wave');
+    return out;
+  }
+
+  /** Phase 15 Y10: a stirred fight picks its reaction (a hash, no run-rng draws) and applies the arena event one now. */
+  private rollStir(id: EncounterId): void {
+    this.stir = '';
+    this.fightHurt = 0;
+    this.fightDown = false;
+    if (!this.stirOn || !this.layoutRolls(id) || this.encounter === 0) return;
+    if (!this.stirNext && !STIR.force) return;
+    const choices = this.stirChoices(id);
+    const pick = STIR.force && STIR.force !== 'any' ? (choices.includes(STIR.force as StirId) ? (STIR.force as StirId) : undefined) : choices[this.stirHash() % Math.max(1, choices.length)];
+    if (!pick) return;
+    this.stir = pick;
+    this.stirNext = false;
+    this.stirs++;
+    this.stirsMet |= STIR_BIT[pick];
+    if (pick === 'event') {
+      const pool = ARENA_EVENT_POOLS[this.dungeonId]!;
+      this.arenaEvent = pool[(this.stirHash() >>> 8) % pool.length];
+      this.arenaEventStage = 0;
+      this.arenaEventT = ARENA_EVENTS.at;
+    }
   }
 
   /** Phase 15 Y1: a `reinforce` wave's held pack: warns, then comes in from the far side (at once if the first half is dead). */
@@ -2874,6 +2958,8 @@ export class World {
     }
     p.hp -= amount;
     p.hurtFlash = 0.15;
+    this.fightHurt += amount / p.maxHp / this.heroes.length;
+    if (p.hp <= 0) this.fightDown = true;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
     // Steady Breath: once per fight, a melee hero knocked low catches its breath.
     // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
@@ -7707,6 +7793,26 @@ export const WAVE_SHAPE_INFO: Record<Exclude<WaveShape, 'arc'>, { name: string; 
   ring: { name: 'Surrounded', tip: 'They come from every side. Cut a way out.' },
   reinforce: { name: 'More Coming', tip: 'The rest of the pack is on its way from another side.' },
 };
+
+/**
+ * Phase 15 Y10, the dungeon stirs (Steve, 23 Nov: "if you were doing really well they like added an extra monster").
+ * A trash fight cleared taking at most `clean` of the party's health in damage, with nobody down, adds one to a hidden
+ * count; one that took `rough` or more, or put a hero down, sets it back to 0. When it reaches `need`, the next trash fight
+ * (never the boss) stirs: it gets one reaction and an extra loot bag. At most `max` a run. Off on the first delve, below
+ * `minTier`, in raids, and in a party with fill bots. `force` (tools) stirs every trash fight after the opener with that
+ * reaction (or 'any'); `off` turns it off.
+ */
+export type StirId = 'elite' | 'named' | 'event' | 'wave';
+export const STIR = { clean: 0.15, rough: 0.5, need: 2, max: 2, minTier: 4, force: '' as string, off: false };
+export const STIR_IDS: readonly StirId[] = ['elite', 'named', 'event', 'wave'];
+export const STIR_INFO: Record<StirId, { name: string; tip: string }> = {
+  elite: { name: 'Another joins', tip: 'One more joins the fight.' },
+  named: { name: 'A named foe', tip: 'A named foe has come to meet you.' },
+  event: { name: 'The ground answers', tip: 'The arena itself turns on you.' },
+  wave: { name: 'They close in', tip: 'They come at you from more than one side.' },
+};
+/** Phase 15 Y10: each reaction's bit in World.stirsMet. */
+export const STIR_BIT: Record<StirId, number> = { elite: 1, named: 2, event: 4, wave: 8 };
 export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
 export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,

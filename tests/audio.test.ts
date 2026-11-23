@@ -3,17 +3,17 @@ import { readFileSync } from 'node:fs';
 import { render, recipeLength } from '../client/audio/synth';
 import { PHONE_FLOOR_DB, SOUNDS, SoundId } from '../client/audio/sounds';
 import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, THEMES } from '../client/audio/music';
-import { DUNGEON_IDS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
+import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, ARENA_EVENT_SOUNDS, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -793,6 +793,23 @@ describe('audio', () => {
     }
   });
 
+  it('has the raids\' own cave-in and vent-surge landings ready for their trash fights (Phase 15 Y2)', () => {
+    const raids = (Object.keys(DUNGEONS) as DungeonId[]).filter((d) => DUNGEONS[d].raid);
+    expect(raids.sort()).toEqual(['crucible', 'flue', 'hoard', 'smeltery']);
+    const base = { caveIn: phoneDb(render(SOUNDS.caveInLand, 22050), 22050), ventSurge: phoneDb(render(SOUNDS.ventSurgeLand, 22050), 22050) };
+    for (const ev of ['caveIn', 'ventSurge'] as const) {
+      const all = Object.entries(ARENA_LAND).filter(([k]) => k.startsWith(`${ev}.`)).map(([, v]) => v);
+      expect(new Set(all).size, ev).toBe(all.length);
+      for (const d of raids) {
+        const id = cueFor({ type: 'arenaEvent', id: ev, stage: 'land' } as never, { cls: 'emberwright' as const, acting: 0, dungeon: d })?.id;
+        expect(id, `${ev}.${d}`).toBe(ARENA_LAND[`${ev}.${d}`]);
+        expect(id).not.toBe(ARENA_EVENT_SOUNDS[ev].land);
+        expect(recipeLength(SOUNDS[id!]), id).toBeLessThan(1);
+        expect(Math.abs(phoneDb(render(SOUNDS[id!], 22050), 22050) - base[ev]), id).toBeLessThan(3.5);
+      }
+    }
+  });
+
   it('calls a marked foe in by its mark, as a must-hear cue; other named foes keep the usual call (Phase 14 X7)', () => {
     const c = { cls: 'emberwright' as const, acting: 0 };
     for (const affix of AFFIXES) {
@@ -803,6 +820,34 @@ describe('audio', () => {
     }
     expect(Object.keys(AFFIX_SPAWN).sort()).toEqual(['Brood', 'Smoldering']);
     expect(new Set(Object.values(AFFIX_SPAWN)).size).toBe(2);
+  });
+
+  it('sounds each wave shape: a call as a pincer or ring starts, and reinforcements warn from their flank, then land (Phase 15 Y7)', () => {
+    type Q = { startEncounter(): void; encounter: number; route: string[] };
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln', listen: { x: 0, half: 400 } };
+    const heard = (shape: string, ticks: number) => {
+      const w = new World({ seed: 1, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright' });
+      const q = w as unknown as Q;
+      for (const e of w.enemies) e.alive = false;
+      q.route[1] = 'pack';
+      q.encounter = 1;
+      WAVES.force = shape;
+      try { q.startEncounter(); } finally { WAVES.force = ''; }
+      const evs = [...w.events];
+      for (let k = 0; k < ticks; k++) { w.step({ mx: 0, my: 0 } as never); evs.push(...w.events); }
+      return evs.filter((e) => e.type === 'waveShape').map((e) => ({ stage: (e as { stage: string }).stage, id: cueFor(e, c)?.id ?? null, pan: panFor(e, c) }));
+    };
+    expect(heard('pincer', 0)).toEqual([{ stage: 'start', id: 'wavePincer', pan: undefined }]);
+    expect(heard('ring', 0)).toEqual([{ stage: 'start', id: 'waveRing', pan: undefined }]);
+    const r = heard('reinforce', Math.ceil((WAVES.reinforceAt + 0.5) * 60));
+    expect(r.map((x) => [x.stage, x.id])).toEqual([['start', null], ['warn', 'reinforceWarn'], ['land', 'reinforceLand']]);
+    // The warning is must-hear, ends before they arrive, and pans to their flank.
+    expect(PRIORITY.has('reinforceWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.reinforceWarn)).toBeLessThan(WAVES.reinforceWarn);
+    expect(typeof r[1].pan).toBe('number');
+    expect(Math.abs(r[1].pan!)).toBeGreaterThan(0);
+    for (const id of ['wavePincer', 'waveRing', 'reinforceLand'] as const) expect(PRIORITY.has(id), id).toBe(false);
+    expect(Object.keys(WAVE_SOUNDS).sort()).toEqual(['pincer', 'reinforce', 'ring']);
   });
 
   it('lists exactly the Heats that lay a floor in FLOOR_HEATS, so no Heat stings twice or goes silent (Phase 14 X1)', () => {

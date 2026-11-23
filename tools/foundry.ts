@@ -41,6 +41,9 @@ else if (process.env.ARENA) WORLD.ARENA_EVENTS.force = process.env.ARENA;
 // Phase 15 Y1: WAVE=off keeps every wave an arc; WAVE=pincer|ring|reinforce forces one.
 if (process.env.WAVE === 'off') WORLD.WAVES.off = true;
 else if (process.env.WAVE) WORLD.WAVES.force = process.env.WAVE;
+// Phase 15 Y10: STIR=off turns the dungeon's stirring off; STIR=elite|named|event|wave|any stirs every trash fight after the opener.
+if (process.env.STIR === 'off') WORLD.STIR.off = true;
+else if (process.env.STIR) WORLD.STIR.force = process.env.STIR;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {
@@ -60,6 +63,7 @@ for (const seed of seeds) {
       if (ev.type === 'pillarCrack') bump('crack');
       if (ev.type === 'dodge') bump('dodge');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
+      if (ev.type === 'stir') bump('stir:' + ev.id);
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'phase') bump('phase' + ev.phase);
       if (ev.type === 'playerHurt') bump('hurt', Math.round(ev.amount));
