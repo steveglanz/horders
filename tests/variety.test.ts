@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, SLAG_ECHO, RAID_ECHO, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1620,5 +1620,57 @@ describe('Phase 16 U1: Ysmeret\'s echo', () => {
     const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below + 0.1);
     expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
     expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+  });
+});
+
+describe('Phase 16 U1: Grandmother Slag\'s echo', () => {
+  type G = { slagClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; heatT: number; pourT: number; ladleT: number };
+  const party = [{ cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function slag(variant: string, echo: string, hp: number): { w: World; q: G; b: number } {
+    const w = new World({ seed: 3, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('grandmotherSlag', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 2;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoLive = false; w.echoT = 0;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.ladleT = 99; q.pourT = 99; q.heatT = 99;
+    return { w, q, b };
+  }
+  const pour = (w: World, q: G, b: number) => {
+    w.enemies[b].castId = ''; q.pourT = 0; q.ladleT = 99;
+    q.slagClock(0.01);
+    return w.enemies[b].castId;
+  };
+
+  it(`from ${RAID_ECHO.slag * 100}% health a Brimming echo comes for ${SLAG_ECHO.on} s on a Pour run, then goes`, () => {
+    const { w, q, b } = slag('pour', 'brim', RAID_ECHO.slag - 0.05);
+    w.events.length = 0;
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.some((x) => x.type === 'echo' && x.id === 'brim')).toBe(true);
+    expect(w.islands.length).toBeGreaterThan(0);
+    expect(pour(w, q, b)).toBe('churn');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+  });
+
+  it('a Pour echo on a Brimming run sinks the islands while it is on, and they come back after', () => {
+    const { w, q, b } = slag('brim', 'pour', RAID_ECHO.slag - 0.05);
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.islands.length).toBeGreaterThan(0);
+  });
+
+  it('nothing above the threshold', () => {
+    const { w, q } = slag('pour', 'flow', RAID_ECHO.slag + 0.1);
+    q.slagClock(1);
+    expect(w.echoLive).toBe(false);
   });
 });

@@ -2047,6 +2047,8 @@ export class World {
           this.raidBurnT = 1;
           this.lastEmberCast = false;
           this.bossVariant = this.rollSlagVariant();
+          this.bossEcho = this.rollEcho(SLAG_VARIANTS, this.bossVariant);
+          this.echoLive = false; this.echoT = 0;
           this.islands = [];
           this.islandN = 0;
           this.flowStage = 0;
@@ -2066,6 +2068,8 @@ export class World {
           this.lastEmberCast = false;
           this.summonsT = 0;
           this.bossVariant = this.rollRegentVariant();
+          this.bossEcho = this.rollEcho(REGENT_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'colossus') {
@@ -2085,6 +2089,8 @@ export class World {
           this.millDir = 1;
           this.millTickT = 0;
           this.bossVariant = this.rollColossusVariant();
+          this.bossEcho = this.rollEcho(COLOSSUS_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.lastEmberCast = false;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2102,6 +2108,8 @@ export class World {
           this.coalEmbers.length = 0;
           this.lastEmberCast = false;
           this.bossVariant = this.rollVorhulmVariant();
+          this.bossEcho = this.rollEcho(VORHULM_VARIANTS, this.bossVariant);
+          this.echoNext = true;
           this.bankN = 0;
           this.inhaleStage = 0;
           this.inhaleT = 0;
@@ -6731,6 +6739,11 @@ export class World {
    * Phase 2 The Pour: molten lanes and a steady party burn. Phase 3 Last Ember: soak vents
    * and Cinder Marks. Ladle Burn ticks the whole fight. Last Ember ends it at `hardEnrage`.
    */
+  /** Phase 16 U1: Grandmother Slag's version in effect now: her echo while one is on, else her own. */
+  private slagMove(): string {
+    return this.echoLive && this.bossEcho ? this.bossEcho : this.bossVariant;
+  }
+
   private slagClock(dt: number): void {
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
@@ -6748,9 +6761,29 @@ export class World {
         this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
       }
       if (phase === 2 && this.bossVariant === 'flow') { this.flowStage = 0; this.flowT = OVERFLOW.first; }
-      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; }
+      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; this.echoLive = false; }
     }
-    if (phase === 2 && this.bossVariant === 'flow') {
+    // Phase 16 U1: from `RAID_ECHO.slag` health in phase 2, her echo takes her own version's place `SLAG_ECHO.on` s at a time.
+    if (phase === 2 && this.bossEcho && frac <= RAID_ECHO.slag) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? SLAG_ECHO.on : SLAG_ECHO.off;
+        if (this.echoLive) this.events.push({ type: 'echo', id: this.bossEcho });
+        // Clear what was running, then start the version that runs now.
+        this.islands = [];
+        if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' });
+        this.flowStage = 0;
+        const now = this.slagMove();
+        if (now === 'brim') {
+          for (let k = 0; k < BRIM.count; k++) this.islands.push(this.placeIsland(e, this.islandN++, BRIM.life * (k + 1) / BRIM.count));
+          this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
+        }
+        if (now === 'flow') this.flowT = OVERFLOW.first;
+      }
+    }
+    const move = this.slagMove();
+    if (phase === 2 && move === 'flow') {
       // The Overflow: warn, rise from the rim, burn anyone far from her, ebb.
       this.flowT -= dt;
       if (this.flowT <= 0) {
@@ -6798,9 +6831,9 @@ export class World {
       if (this.heatT <= 0) {
         this.heatT += SLAG.heatEvery;
         // The Brimming: off an island the slag burns harder, and on one it doesn't burn at all.
-        const brim = this.bossVariant === 'brim';
+        const brim = move === 'brim';
         this.eachHero(() => {
-          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : this.bossVariant === 'flow' ? OVERFLOW.heat : SLAG.heat;
+          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : move === 'flow' ? OVERFLOW.heat : SLAG.heat;
           if (share > 0) this.hurtPlayer(this.player.maxHp * share, i, true);
         });
         this.use(at);
@@ -6850,7 +6883,7 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0 && (this.bossVariant === 'brim' || this.bossVariant === 'flow')) {
+    } else if (phase === 2 && this.pourT <= 0 && (move === 'brim' || move === 'flow')) {
       // The Brimming: she churns the pit on the Pour's timer and cast, with no lanes. It keeps the Pour's
       // pause on the tank (skills' W7 trace: without it an Anvil Slagbinder tank won 4 of 32).
       this.pourT = SLAG.pourEvery;
@@ -6942,7 +6975,13 @@ export class World {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
-        if (this.bossVariant === 'tithe') {
+        // Phase 16 U1: from `RAID_ECHO.regent` health, every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.regent) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'tithe') {
           // Phase 15 Y3: he demands a Tithe instead of the ash: a gold circle away from him that needs at least TITHE.need heroes.
           const a = this.rng.next() * Math.PI * 2;
           let x = e.x + Math.cos(a) * TITHE.dist, y = e.y + Math.sin(a) * TITHE.dist;
@@ -6952,7 +6991,7 @@ export class World {
           this.events.push({ type: 'castStart', index: i, id: 'tithe', name: 'Tithe' });
           return;
         }
-        if (this.bossVariant === 'court') {
+        if (move === 'court') {
           // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
           this.summonsT = SUMMONS.warn;
           this.events.push({ type: 'castStart', index: i, id: 'summons', name: 'Summons' });
@@ -7114,8 +7153,14 @@ export class World {
     if (phase === 2) this.wheelT -= dt;
     if (phase === 2 && this.wheelT <= 0) {
       this.wheelT = COLO.wheelEvery;
-      if (this.bossVariant === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
-      else if (this.bossVariant === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
+      // Phase 16 U1: from `RAID_ECHO.colossus` health, every other one is his echo's (the first one is).
+      let move: string = this.bossVariant;
+      if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.colossus) {
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      if (move === 'shift') this.startCast(i, 'plateShift', 'Plate Shift', COLO.wheelCast, false);
+      else if (move === 'mill') this.startCast(i, 'millstone', 'Millstone', COLO.wheelCast, false);
       else this.startCast(i, 'wheel', 'Wheel', COLO.wheelCast, false);
     } else if (phase < 3 && this.sweepT <= 0) {
       this.sweepT = COLO.sweepEvery;
@@ -7186,15 +7231,44 @@ export class World {
         this.feedVorhulm(m.x, m.y);
       }
     }
-    if (phase === 3 && this.bossVariant === 'inhale') {
-      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
+    if (phase === 3) {
       this.spillT -= dt;
-      if (this.inhaleStage === 0 && this.spillT <= 0) {
+      if (this.spillT <= 0 && this.inhaleStage === 0) {
         this.spillT = COAL.spillEvery;
-        this.inhaleStage = 1;
-        this.inhaleT = INHALE.warn;
-        this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
-        this.events.push({ type: 'inhale', stage: 'warn' });
+        // Phase 16 U1: in his last phase every other one is his echo's (the first one is).
+        let move: string = this.bossVariant;
+        if (this.bossEcho && e.hp <= e.maxHp * RAID_ECHO.vorhulm) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'inhale') {
+          // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
+          this.inhaleStage = 1;
+          this.inhaleT = INHALE.warn;
+          this.events.push({ type: 'castStart', index: i, id: 'inhale', name: 'Inhale' });
+          this.events.push({ type: 'inhale', stage: 'warn' });
+        } else if (move === 'bank') {
+          // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
+          for (let k = 0; k < BANK.count; k++) {
+            const n = this.bankN++;
+            const a = n * 2.39996 + (this.seed & 7) * 0.785;
+            const r = n % 2 === 0 ? BANK.near : BANK.far;
+            const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+            this.clampArena(c, BANK.radius + 10);
+            // owner -4: a Banked Coal (no blast if missed: he eats it instead).
+            this.addTelegraph('circle', c.x, c.y, BANK.radius, 0, 0, BANK.fuse, 0, 'soak', -4);
+          }
+          this.events.push({ type: 'castStart', index: i, id: 'bankedCoals', name: 'Banked Coals' });
+        } else {
+          for (let k = 0; k < COAL.spillN; k++) {
+            const a = this.rng.range(0, Math.PI * 2);
+            const r = this.rng.range(COAL.spillMin, COAL.spillMax);
+            const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+            this.clampArena(c, 30);
+            this.coalEmbers.push({ x: c.x, y: c.y, t: COAL.emberLife });
+          }
+          this.events.push({ type: 'castStart', index: i, id: 'emberSpill', name: 'Ember Spill' });
+        }
       } else if (this.inhaleStage > 0) {
         this.inhaleT -= dt;
         if (this.inhaleT <= 0 && this.inhaleStage === 1) {
@@ -7228,35 +7302,6 @@ export class World {
           }
         }
         this.use(at);
-      }
-    } else if (phase === 3 && this.bossVariant === 'bank') {
-      this.spillT -= dt;
-      if (this.spillT <= 0) {
-        // Banked Coals: hot coals settle in a ring round him; a hero standing on one as it lands smothers it.
-        this.spillT = COAL.spillEvery;
-        for (let k = 0; k < BANK.count; k++) {
-          const n = this.bankN++;
-          const a = n * 2.39996 + (this.seed & 7) * 0.785;
-          const r = n % 2 === 0 ? BANK.near : BANK.far;
-          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
-          this.clampArena(c, BANK.radius + 10);
-          // owner -4: a Banked Coal (no blast if missed: he eats it instead).
-          this.addTelegraph('circle', c.x, c.y, BANK.radius, 0, 0, BANK.fuse, 0, 'soak', -4);
-        }
-        this.events.push({ type: 'castStart', index: i, id: 'bankedCoals', name: 'Banked Coals' });
-      }
-    } else if (phase === 3) {
-      this.spillT -= dt;
-      if (this.spillT <= 0) {
-        this.spillT = COAL.spillEvery;
-        for (let k = 0; k < COAL.spillN; k++) {
-          const a = this.rng.range(0, Math.PI * 2);
-          const r = this.rng.range(COAL.spillMin, COAL.spillMax);
-          const c = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
-          this.clampArena(c, 30);
-          this.coalEmbers.push({ x: c.x, y: c.y, t: COAL.emberLife });
-        }
-        this.events.push({ type: 'castStart', index: i, id: 'emberSpill', name: 'Ember Spill' });
       }
     }
     if (phase >= 2 && this.swallowed < 0) this.swallowT -= dt;
@@ -8708,6 +8753,13 @@ export type OndrelVariant = 'choir' | 'load' | 'home';
 export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load', 'home'];
 /** Phase 16 U1: the group bosses have one phase, so their echo starts at `below` health: every other signature is the echo's, the first one first. */
 export const GROUP_ECHO = { below: 0.25 };
+/**
+ * Phase 16 U1: the raid bosses' signatures run in one phase, so each echo starts at that boss's health share here
+ * and alternates with the boss's own signature on the same timer, echo first.
+ */
+export const RAID_ECHO = { regent: 0.4, colossus: 0.45, vorhulm: 1, slag: 0.5 };
+/** Phase 16 U1: Grandmother Slag's echo windows in phase 2: `on` s on (one Overflow cycle), `off` s off. */
+export const SLAG_ECHO = { on: 14, off: 10 };
 /**
  * Phase 15 Y3 the Homeward Hammer, on the Choir's timer: he throws his hammer at the hero farthest from him. It lands
  * in a circle (`radius`, after `fall` s), then flies straight back to his hand along a line `width` px either side
