@@ -751,3 +751,13 @@ Never in the opener, a boss fight, a shrine, a raid or the first delve. A fight 
 - A forced ring is the hardest shape in Coldmarrow (95 against 114): its Snuffers and Rimehounds close from every side at once. At the natural rate it costs 3 of 120, and that's the point of a ring. Kept.
 - Wrackline t13 with t8 gear wins too few runs to read a shape from (10 to 21 of 120). The natural rate matches waves off.
 - Reinforcements never cost anything: half a pack at a time is easier, but the second half comes from somewhere new.
+
+**Group,** tools/group.ts, the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, seeds 1 to 120:
+
+| Dungeon, tier | Waves off | Pincer | Ring | Reinforcements | Natural |
+|---|---|---|---|---|---|
+| Hammerdeep t8 | 72 | 75 | 77 | 67 | 81 |
+| Ashvents t8 | 77 | 75 | 78 | 77 | 83 |
+| Pressworks t10 | 81 | 88 | 96 | 82 | 88 |
+
+- No shape costs a full party much. A forced ring helps in the Pressworks (96 against 81). I haven't traced why.
