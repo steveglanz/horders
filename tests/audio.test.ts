@@ -1435,4 +1435,27 @@ describe('stereo', () => {
     expect(panFor({ type: 'playerHurt', amount: 5 }, c)).toBeUndefined();
     expect(panFor({ type: 'hit', x: 350, y: 0, amount: 1, crit: false }, { cls: 'emberwright', acting: 0 })).toBeUndefined();
   });
+
+  it('in the 3D view, pans by where a sound shows on screen, not by world x', () => {
+    // A stand-in for Hd2dView.project: a tilted perspective camera, so a floor point nearer the camera (larger y) spreads wider.
+    const W = 400, spread = (y: number) => 0.9 + 0.002 * y;
+    const project = (x: number, y: number) => (y > 600 ? null : { x: W / 2 + (x - 100) * spread(y), y: 300 + y * 0.5 });
+    const c3 = { cls: 'emberwright' as const, acting: 0, listen: { x: 100, y: 0, half: 250, screen: project, screenHalf: W / 2 } };
+    const hit = (x: number, y: number) => ({ type: 'hit' as const, x, y, amount: 1, crit: false });
+    // Same world offset, two depths: the nearer one shows further across the screen, so it pans further.
+    const far = panFor(hit(180, -100), c3)!, near = panFor(hit(180, 100), c3)!;
+    expect(near).toBeGreaterThan(far);
+    expect(far).toBeCloseTo((((180 - 100) * spread(-100) - 0) / (W / 2)) * PAN_MAX, 6);
+    // World x alone would put both at the same place.
+    expect(panFor(hit(180, -100), c)).toBeCloseTo(panFor(hit(180, 100), c)!, 6);
+    // Off the far edge of the screen it still stops at PAN_MAX.
+    expect(panFor(hit(2000, 0), c3)).toBeCloseTo(PAN_MAX);
+    // A point the camera can't place (behind it) or an event with no y falls back to world x.
+    expect(panFor(hit(225, 900), c3)).toBeCloseTo(PAN_MAX / 2);
+    expect(panFor({ type: 'slam', x: 225, r: 50 } as never, c3)).toBeCloseTo(PAN_MAX / 2);
+    // The scene builds the 3D listener from the 3D view's own projection and width.
+    const scene = readFileSync(new URL('../client/GameScene.ts', import.meta.url), 'utf8');
+    expect(scene).toMatch(/listen: this\.listenFrom\(w\)/);
+    expect(scene).toMatch(/screen: \(x, y\) => view\.project\(x, y\), screenHalf: width \/ 2/);
+  });
 });

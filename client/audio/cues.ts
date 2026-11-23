@@ -45,8 +45,12 @@ export interface CueContext {
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
   revive?: { t: number[]; need: number; left: number };
-  /** Where this screen listens from: the hero's x and half the view's width (world units), for panning. */
-  listen?: { x: number; half: number };
+  /**
+   * Where this screen listens from: the hero's x and half the view's width (world units), for panning.
+   * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
+   * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
+   */
+  listen?: { x: number; half: number; y?: number; screen?: (x: number, y: number) => { x: number; y: number } | null; screenHalf?: number };
   /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
   sets?: SetFlags;
   /** The Hoard: seconds left before this screen's hero is digested while swallowed (Player.swallowT), 0 when not inside. */
@@ -292,8 +296,15 @@ export function panFor(ev: SimEvent, c: CueContext): number | undefined {
   if (ev.type === 'waveShape' && ev.stage === 'start') return undefined;
   const x = (ev as { x?: unknown }).x;
   if (!c.listen || typeof x !== 'number' || !(c.listen.half > 0)) return undefined;
-  const p = Math.max(-1, Math.min(1, (x - c.listen.x) / c.listen.half)) * PAN_MAX;
+  const p = Math.max(-1, Math.min(1, screenOffset(c.listen, x, (ev as { y?: unknown }).y) ?? (x - c.listen.x) / c.listen.half)) * PAN_MAX;
   return Math.abs(p) < 0.02 ? undefined : p;
+}
+
+/** 3D view: how far across the screen a floor point shows from the hero, in half-widths; null when it can't be placed (then world x is used). */
+function screenOffset(l: NonNullable<CueContext['listen']>, x: number, y: unknown): number | null {
+  if (!l.screen || !(l.screenHalf && l.screenHalf > 0) || typeof y !== 'number' || typeof l.y !== 'number') return null;
+  const at = l.screen(x, y), me = l.screen(l.x, l.y);
+  return at && me ? (at.x - me.x) / l.screenHalf : null;
 }
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
