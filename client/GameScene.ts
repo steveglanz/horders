@@ -205,6 +205,11 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string | nu
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
 
+/** A named foe's banner line. */
+function namedLine(affix: keyof typeof AFFIX_TIP): string {
+  return `A named foe (${affix}). ${AFFIX_TIP[affix]} It carries its own loot.`;
+}
+
 export class GameScene extends Phaser.Scene {
   world!: World;
   hud!: Hud;
@@ -869,6 +874,8 @@ export class GameScene extends Phaser.Scene {
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
+    // A named foe steps out as its fight starts: its banner follows the fight's own (encounterStart), which would replace it.
+    const fightStarts = events.some((e) => e.type === 'encounterStart');
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
@@ -1317,7 +1324,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           break;
         case 'namedSpawn': {
-          this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
+          if (!fightStarts) this.hud.banner(ev.name, namedLine(ev.affix));
           // It steps out of the pack: a blue flare, rings and a little shake.
           const ne = w.enemies[ev.index];
           if (ne) {
@@ -1389,6 +1396,8 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
+          const named = events.find((e) => e.type === 'namedSpawn');
+          const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
           if (this.hud.compact && !coach && (omens || heat)) {
             // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
@@ -1396,12 +1405,13 @@ export class GameScene extends Phaser.Scene {
             const next = omens
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
-            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, next);
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
           } else if (this.hud.compact && !coach && shaped) {
             // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
-            // in the Dark: 198 characters), and the wave line is the part cut off. It gets its own banner right after.
-            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip });
-          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach);
+            // in the Dark: 198 characters), and the wave line is the part cut off. It gets its own banner right after,
+            // then a named foe's (if one stepped out).
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip, next: namedNext });
+          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach, namedNext);
           break;
         }
         case 'fork':
