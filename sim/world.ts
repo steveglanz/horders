@@ -864,6 +864,8 @@ export class World {
   private flareK = 0;
   /** Phase 14 X3: this fight's arena event ('' for none), its clock, and its stage (0 waiting, 1 warned, 2 landed). */
   arenaEvent: ArenaEventId | '' = '';
+  /** Phase 15 Y1: how this fight's wave came in. */
+  waveShape: WaveShape = 'arc';
   arenaEventT = 0;
   arenaEventStage = 0;
   /** Maelra's steam vents (empty in other fights). */
@@ -1796,12 +1798,22 @@ export class World {
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
     const n = def.spawns.reduce((a, s) => a + s.n, 0);
+    // Phase 15 Y1: how this wave comes in (a hash, so the run rng above is untouched).
+    this.waveShape = this.waveShapeAt(this.encounter, def.id);
+    const waveAngle = (k: number): number => {
+      if (this.waveShape === 'pincer') {
+        const side = k % 2, m = side ? Math.floor(n / 2) : Math.ceil(n / 2), idx = Math.floor(k / 2);
+        return base + side * Math.PI + (idx - (m - 1) / 2) * 0.35;
+      }
+      if (this.waveShape === 'ring') return base + (k * 2 * Math.PI) / n;
+      return base + (k - (n - 1) / 2) * 0.35;
+    };
     let k = 0;
     let lead = -1;
     let firstElite = -1;
     for (const sp of def.spawns) {
       for (let j = 0; j < sp.n; j++, k++) {
-        const a = base + (k - (n - 1) / 2) * 0.35;
+        const a = waveAngle(k);
         const r = this.arenaR - 60;
         const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
         if (i < 0) continue;
@@ -2273,6 +2285,16 @@ export class World {
       this.flareK = 0;
     }
     this.events.push({ type: 'layout', id: this.layout });
+  }
+
+  /** Phase 15 Y1: the wave shape the fight `id` at route position `k` gets: 'arc' unless a solo or group trash fight rolls another. */
+  waveShapeAt(k: number, id: EncounterId): WaveShape {
+    if (WAVES.off || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id) || id === 'worldShadow') return 'arc';
+    if (WAVES.force) return WAVES.force as WaveShape;
+    let h = (Math.imul(this.seed ^ 0x51ed270b, 0x9e3779b1) + Math.imul(k + 1, 0xc2b2ae35)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+    const u = (h % 1000) / 1000;
+    return u < WAVES.pincer ? 'pincer' : u < WAVES.pincer + WAVES.ring ? 'ring' : 'arc';
   }
 
   /** Phase 14 X3: the arena event hash for route position `k` (its own salt, no run-rng draws). */
@@ -7554,6 +7576,13 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
  * High Water (the Wrackline): the Ebb comes at once. `force` (tools) forces one; `off` turns them off.
  * Damage numbers are before tierDamage.
  */
+/**
+ * Phase 15 Y1: wave shapes. A solo or group trash fight's foes come in as one arc from the far side (as before),
+ * or a pincer (alternate foes from opposite sides), or a ring round the arena. `pincer` and `ring` are each fight's
+ * chance of that shape. `force` (tools) forces one; `off` keeps every wave an arc. Never boss fights or raids.
+ */
+export type WaveShape = 'arc' | 'pincer' | 'ring';
+export const WAVES = { pincer: 0.25, ring: 0.2, force: '' as string, off: false };
 export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
 export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,
