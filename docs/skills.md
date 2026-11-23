@@ -900,6 +900,43 @@ Every class gets round a stone the same way, and pillar fights are a little shor
 
 **A measuring trap.** Forcing the same trash fights open on the same seeds gave a few big win swings in the boss fight. For example, Flue Anvil won 35/80 with layouts against 52/80 forced open, though the boss arena is open in both. The floors change how many run-rng draws the trash uses, so the drafts and the boss fight roll differently. A control that keeps the fights open but adds 1, 2 or 3 extra rng draws per fight gave 39, 39 and 38 of 80. So the 52 was luck, not the floors. Compare floors on the trash itself, or use 320 seeds or more for the whole run, as design did (#462).
 
+## Marks and arena events: class check (X5, 23 Nov 2026)
+Phase 14 gave the named foes two more affixes (Brood, Smoldering; X2) and gave the solo trash fights arena events (Cave-in, Vent Surge, Cold Snap, High Water; X3). X5 asks whether every class has an answer to each one.
+
+**How it was measured.** The harness is skills scratch: tmpm/x5.ts, kept in the project files as balance/x5-harness.ts. It runs the good bot, solo, with heroes-r2 hero-<tier>-0 files. A forced row puts a named foe in every delve and gives it the one affix (`NAMED.forceNamed = 1`, `NAMED.forceAffix`), with arena events off. An event row forces that event (`ARENA_EVENTS.force`). Base rows turn events off and leave the named foe rolled as usual. Each cell gives wins and, per fight kind, hero deaths. Tiers: Kiln and Foundry t6, Glarewell t8, Coldmarrow t10, Wrackline t13. The Wrackline is out of reach with t8 gear (0 to 15 of 40), so its rows are only a relative baseline.
+
+**Screen.** First all 165 cells on 40 seeds: on #477's head, then again on main after #477. Every cell that came out 6 or more below its own base then got 160 seeds (41 to 200).
+
+**What changed from the screen.** Every fix was on the fight side. No class needed a talent.
+- #477: Warded's shield 0.35 → 0.2 of health, and Blooms never heal a named foe. A Swift Sluice Crawler had been healing in its own Bloom.
+- #488: the named foe's fight gets 60 s more before Burnout (`BURNOUT.named`), and in the Coldmarrow a named foe feeds coal as it loses health (`COLD.namedFeed` 0.07 per tenth). A ranged hero's Warded fight there used to outlast the coal, and the Long Night's Chill killed it about 153 s after the foe appeared. That was the coal, not Burnout: `BURNOUT.named` 0 and 60 gave the same Coldmarrow results.
+
+Wins out of 160, seeds 41 to 200, every named foe Warded:
+
+| Cell | Before #488 | After #488 | Base |
+|---|---|---|---|
+| Coldmarrow t10 Emberwright | 83 | 128 | 131 |
+| Coldmarrow t10 Slagbinder | 81 | 109 | 103 |
+| Coldmarrow t10 Lumen | 116 | 125 | 125 |
+| Foundry t6 Slagbinder | 105 | 126 | 127 |
+
+**The rest of the 160-seed checks, on main after #488:**
+
+| Cell | Forced | Base | Reading |
+|---|---|---|---|
+| Coldmarrow Emberwright, Brood | 130 | 131 | level |
+| Coldmarrow Slagbinder, Vengeful | 110 | 103 | level |
+| Kiln Bulwark, Brood / Swift / Vengeful / Smoldering / Warded | 133 / 126 / 135 / 134 / 136 | 142 | rng reshuffle (controls 128 to 136) |
+| Kiln Duskblade, Cave-in / Vent Surge | 87 / 86 | 99 | rng reshuffle (controls 79 to 93) |
+| Glarewell Emberwright, Swift / Vengeful | 148 / 142 | 146 | level |
+| Glarewell Emberwright, Warded | 131 | 146 | real, accepted (below) |
+
+The control is base plus 1, 2 or 3 extra run-rng draws per fight, as in E6. The Kiln losses all land at the boss, with 0 to 2 deaths in the named or event fight, and the controls spread just as wide.
+
+**Accepted: the Glarewell Emberwright against a Warded Brandkeeper.** It dies in the named fight 21 times in 160, against 4 in base. Solo, a Brand always bursts on the hero (35 damage at t8, every 11.8 s), and the Emberwright brings no healing into the fight. At 365 health it falls at the eleventh Brand, 127 s after the foe appears (seed 59: the foe at 24%). In that run 21 heroes died in the named fight with the foe still standing, 17 of them exactly 127 s after it appeared. Forced on every run it costs 9% of wins. In real runs (a named foe in half the delves, Warded about one affix in five) it is about 1.5 in 160, so it stays. If it ever needs closing, the knob is the Brand's cadence on a named Brandkeeper, not an Emberwright talent.
+
+**Also accepted:** a forced Cold Snap in the Coldmarrow costs 9 to 12 of 160 for the Emberwright, the Lumen and the Slagbinder. Design kept it after cutting `snapCut` to 0.2 (#477).
+
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 
 Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.
