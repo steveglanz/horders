@@ -6154,6 +6154,7 @@ export class World {
       }
     } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
       // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
+      const risen = !this.rimeOn;
       if (!this.rimeOn) {
         this.rimeOn = true;
         this.rimeX = e.x;
@@ -6173,9 +6174,10 @@ export class World {
       const nx = d > 1 ? this.rimeX + (dx / d) * step : this.rimeX, ny = d > 1 ? this.rimeY + (dy / d) * step : this.rimeY;
       if (CREEPING_RIME.hold > 0 && Math.hypot(nx - e.x, ny - e.y) < min) {
         // Her own body holds the rime off (`hold`, px past her edge): it creeps round her toward the hero, not through her.
-        // (Just risen under her, it first comes out on the hero's side.)
-        const inside = Math.hypot(this.rimeX - e.x, this.rimeY - e.y) < min - 1;
-        const a0 = inside ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
+        // Just risen under her, it first comes out on the hero's side. If she walks into it later, it is pushed out
+        // along its own angle (QA on #550: snapping to the hero's side then made it jump up to 100 degrees round her).
+        const hd = Math.hypot(this.rimeX - e.x, this.rimeY - e.y);
+        const a0 = risen || hd < 1 ? Math.atan2(ty - e.y, tx - e.x) : Math.atan2(this.rimeY - e.y, this.rimeX - e.x);
         let da = Math.atan2(ty - e.y, tx - e.x) - a0;
         while (da > Math.PI) da -= 2 * Math.PI;
         while (da < -Math.PI) da += 2 * Math.PI;
@@ -8347,7 +8349,7 @@ export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
  * The rising slag burns a hero off an island `heat` of max health every SLAG.heatEvery s, and one on an island nothing.
  */
 export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
-/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, two rows marching out from him. */
+/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, three rows marching out from him. */
 export type OskelVariant = 'rivets' | 'cut' | 'punch';
 export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
 /**

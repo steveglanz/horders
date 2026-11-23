@@ -1113,3 +1113,11 @@ Pressworks tier 10, heroes-r2 hero-t8-0, the base party, seeds 1 to 80, each ver
   - Every 7 s gave 65, r 65 gave 64, and a faster march (1.1 s first, 0.2 s step) gave 65. Every 7 s with r 65 together gave 58, which was kept.
 - The bots step out of the punches, so the sim mostly measures the time spent moving. Up to 18 circles fit in the 24-telegraph pool, beside the plate.
 - **Name:** searches on 23 Nov found no WoW ability called "Punch Line".
+
+### Creeping Rime fix 2 (23 Nov 2026): no jump when she walks into it
+
+QA on #550 found that Nhevra could walk into the held rime (as close as 90 px). On the next tick it snapped to the hero's side, a jump of 110 to 173 px (51 to 103 degrees round her), 8 times in 16 solo runs.
+
+- **The fix:** it now comes out on the hero's side only on the tick it rises. After that, when she walks into it, it is pushed out along its own angle and slides round at its usual speed.
+- Coldmarrow t10, seeds 41 to 120: Bulwark 44 to 54 of 80 (Thin Ice 52), Duskblade 54 (ice 34, drift 65).
+- QA also saw Rolling Vents win 12 of 24 against 23 for Twin Vents, at tier 6 with hero-t6 gear. On 80 seeds at tier 6 (hero-t6-0) they are level: roll 72, still 72, wander 73. So that was a small-sample gap.
