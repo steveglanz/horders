@@ -9,6 +9,8 @@ const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const SIZES = { p320: { width: 320, height: 568, mobile: true }, l568: { width: 568, height: 320, mobile: true }, desk: { width: 1280, height: 800, mobile: false } };
 const SEEN = ['kiln:boss:draw', 'kiln:mark:Swift', 'kiln:mark:Brood', 'kiln:event:caveIn', 'kiln:heat:richHaul', 'kiln:heat:stoneFloor'];
+// SEEN_MORE=a,b adds keys (Y6 art shots meet every trait and both versions to show each glyph).
+if (process.env.SEEN_MORE) SEEN.push(...process.env.SEEN_MORE.split(','));
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const errs = [];

@@ -1013,6 +1013,10 @@
   .seen-e { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--card-line); color: var(--muted); font: 500 12px var(--sans); max-width: 100%; }
   .seen-e i { font-style: normal; font-weight: 700; }
   .seen-e.met { border-style: solid; border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--ink); }
+  /* Y6: a met entry's glyph in its own colour (the trait badge, event mark, Heat glyph or boss crown), and its border tinted to match. */
+  .seen-e.met[style] { border-color: color-mix(in srgb, var(--gc) 55%, transparent); }
+  .seen-e svg { flex: none; color: var(--gc, var(--gold)); stroke-width: 2.6; }
+  .prep-chip .seen-eye { display: inline-flex; }
   .sheet .bounty { margin-top: 10px; }
   /* P1 weekly quests: a teal card (progress over the week), a diamond per quest that fills when done, a bar each, and the title as a crest. */
   .prep-chip[data-prep="weekly"] .star { color: var(--xp); }
