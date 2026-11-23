@@ -1016,6 +1016,18 @@ export const SOUNDS = {
   ),
   /** Die Cut lands: the die shears through half the floor, a sharp cut over a heavy press thump. */
   dieCut: join(whoosh(6000, 1200, 0.35, 0.35), clang(220, 0.4, 0.8), boom(45, 0.7, 0.7)),
+  /** Punch Line (Oskel's third version, Phase 15 Y3) winds up: the presses draw breath. A pneumatic hiss that rises under a
+   *  ratchet ticking at the punches' own 0.25 s beat, so the rhythm is heard before the first lands (PUNCH.first 1.4 s). */
+  punchLineWarn: join(
+    [{ wave: 'noise', f: 0, dur: 1.2, vol: 0.2, a: 0.9, lp: 1500, lp2: 6000, hp: 700, curve: 0.7 },
+     { wave: 'saw', f: 90, f2: 130, dur: 1.2, vol: 0.1, a: 0.6, lp: 900, curve: 0.8 }],
+    ...[0.4, 0.65, 0.9, 1.15].map((d, k) => [{ wave: 'square' as const, f: 900 + k * 120, dur: 0.04, delay: d, vol: 0.1, lp: 5000, curve: 3 }]),
+  ),
+  /** Punch Line lands: one press punch, a hard metal thunk. Short, so each step of the march (0.25 s apart) stays its own. */
+  punchHit: join(
+    [{ wave: 'noise', f: 0, dur: 0.05, vol: 0.32, lp: 6000, hp: 600, curve: 3 }],
+    clang(330, 0.18, 0.16), boom(70, 0.2, 0.35),
+  ),
   /** The Pressworks' steam-press vents: a hydraulic hiss builds against a valve tick. */
   pressVentWarn: join(
     [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.2, a: 0.9, lp: 2000, lp2: 7000, hp: 900, curve: 0.8 }],
@@ -1659,6 +1671,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  punchLineWarn: 3.5, punchHit: 1.5, // Y3 Punch Line: the wind-up level with dieCutWarn, each punch level with slam
   rollVentWarn: 4.0, ventRollNext: 2.7, ventRollLast: 2.4, // Y3 Rolling Vents: the opening level with wanderVentWarn, each next vent a little under it
   homeOut: 7.0, homeBack: 4.2, // Y3 Homeward Hammer: the throw near slam, the ring-and-return (priority) lands with the circle's slam, so it sits 6.6 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=11)
   rimeRise: 2.0, rimeCrackle: 7.0, // Y3 Creeping Rime: the swell (after its 1.4 s wait) near slam, the crackle a little under lavaSizzle
