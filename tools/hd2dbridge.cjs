@@ -22,6 +22,7 @@ const CASES = [
   { name: 'whirl-warn', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlWarn', tier: 13 },
   { name: 'whirl-pull', dungeon: 'wrackline', boss: 'hessa', variant: 'whirl', until: 'whirlPull', tier: 13 },
   { name: 'home-fly', dungeon: 'hammerdeep', boss: 'ondrel', variant: 'home', party: true, until: 'homeFly', tier: 8 },
+  { name: 'brute-cast', dungeon: 'kiln', boss: 'brute', kind: 'cinderBrute', until: 'cast', tier: 1, hp: 0.9 },
   { name: 'echo', dungeon: 'kiln', boss: 'kilnMother', until: 'echo', tier: 8, hp: 0.25 },
   { name: 'mill', dungeon: 'smeltery', boss: 'colossus', variant: 'mill', party: true, until: 'mill', tier: 10, hp: 0.45 },
   { name: 'tithe', dungeon: 'flue', boss: 'regent', variant: 'tithe', party: true, until: 'tithe', tier: 11, hp: 0.4 },
@@ -54,8 +55,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
     await page.evaluate((c) => { const s = window.__ember.scene(); s.scene.restart({ opts: { seed: 13, cls: 'bulwark', dungeon: c.dungeon, route: [c.boss], tier: c.tier || 6, invulnerable: true, ...(c.party ? { party: [{ cls: 'lumen', name: 'Lumen' }, { cls: 'emberwright', name: 'Emberwright' }] } : {}) }, hud: s.hud, onEnd: () => {} }); }, c);
     await page.waitForTimeout(3000);
     await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 3; });
-    await page.waitForFunction((c) => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === c.boss), c, { timeout: 300000, polling: 200 });
-    await page.evaluate((c) => { const w = window.__ember.scene().world; if (c.variant) w.bossVariant = c.variant; const e = w.enemies.find((o) => o.alive && o.kind === c.boss); e.hp = e.maxHp * (c.hp || 0.6); }, c);
+    await page.waitForFunction((c) => window.__ember.scene().world.enemies.some((e) => e.alive && e.kind === (c.kind || c.boss)), c, { timeout: 300000, polling: 200 });
+    await page.evaluate((c) => { const w = window.__ember.scene().world; if (c.variant) w.bossVariant = c.variant; const e = w.enemies.find((o) => o.alive && o.kind === (c.kind || c.boss)); e.hp = e.maxHp * (c.hp || 0.6); }, c);
     await page.waitForFunction((c) => {
       const s = window.__ember.scene(); const w = s.world;
       const ok = c.until === 'cones' ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).length >= 4 && w.telegraphs.some((t) => t.alive && t.t > 0.5)
@@ -71,6 +72,7 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
         : c.until === 'homeLie' ? w.homeStage === 2 && w.homeT < 0.7
         : c.until === 'homeBack' ? w.homeStage === 2 && w.homeT < 0.14
         : c.until === 'open' ? w.openVent >= 0 && w.nextVent < 0 && Math.hypot(w.vents[w.openVent].x - w.player.x, w.vents[w.openVent].y - w.player.y) < 200
+        : c.until === 'cast' ? w.enemies.some((e) => e.alive && e.castId && e.castT / e.castDur > 0.45)
         : c.until === 'boss' ? true
         : w.nextVent >= 0;
       if (ok) s.warp = 0;

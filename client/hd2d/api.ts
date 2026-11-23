@@ -50,6 +50,11 @@ export interface Hd2dView {
    */
   project(x: number, y: number): { x: number; y: number } | null;
   /**
+   * Where the top of enemy i's drawn sprite shows on screen this frame (CSS px, as project), or null when it was not
+   * drawn. The overlay hangs that foe's health and cast bar here, right over the sprite (QA 23 Nov: they floated high).
+   */
+  foeHead?(i: number): { x: number; y: number } | null;
+  /**
    * What the room did since the last call that sound can follow (client/audio/cues.ts roomCues): drips landing,
    * forge chains at the end of a sway, and foe lunges starting. Drains the list.
    */
