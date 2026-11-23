@@ -1514,3 +1514,28 @@ Natural runs at t10, heroes-r2 hero-t8-0, seeds 1 to 160, wins before / after:
 | Lumen | 125 / 123 | 137 / 136 |
 | Slagbinder | 118 / 116 | 158 / 158 |
 
+## Phase 16 U2: the Coldmarrow's new elite, the Dimhorn
+
+In the Coldmarrow you carry your light with you, so its new elite is one you have to bring your light to. The **Dimhorn** (`dimhorn`, 750 hp, elite, title "Calls from the dark") is a quick, thin thing with a horn. It shuns the light and calls the pack from the dark. It comes in the new opener **The Dimhorn** (`dimhorn`): one Dimhorn and two Snuffers, which dim your coal and shrink its light. Tip: "Out in the dark it winds its horn and calls the pack. Keep it inside your coal's light, where it can't sound it."
+
+The name was searched and has no match. I passed on "Horncaller", because it was too close to WoW's "Wyrmcaller's Horn". The Ember Twins already cover the "pair that must die together" idea, so the Dimhorn takes the other roadmap example instead: a foe that calls a wave in if it lives too long.
+
+- **It shuns the light.** It hangs `DIMHORN.hang` (40 px) outside its hero's coal light. It backs off if it is inside, and circles in a `band` (70 px) ring just outside.
+- **Dark Call:** `Enemy.aux` counts its seconds outside every coal's light. Inside a light it drains `drain` (2) times as fast, and it can't start the call there. At `callAt` (7 s) it casts Dark Call for `callCast` (2 s). The call can't be interrupted. When it ends, `calls` (3) Rimehounds come in from the arena edge behind it, unless the Dimhorn is inside a coal's light by then. In that case the call is lost (`castDone` id `darkCallLost`). After `maxCalls` (2) calls its horn is spent (`Enemy.aux2` counts them).
+- **The trade:** Rimehound kills feed your coal, so a call isn't all loss. But the Snuffers shrink the light you need, and chasing it pulls a ranged hero into melee.
+- **Bots:** once its count is 40% of the way to a call, or it is calling, a bot moves toward it until it is well inside the light. `NODIMHORN=1` turns that off.
+- **Client:** a cold ring round it fills toward the call and pulses during the call. It wears the Snuffer's sprite until visuals draw it.
+- **Seen log:** appended to `NEW_FOES`.
+- **Tuning:** the first version had no cap on calls. A ranged hero who never brought the light over it faced 10 to 26 calls and died every time (Emberwright, Lumen and Slagbinder 0 of 80). With two calls at most, an unhelped hero survives but the fight takes about twice as long.
+
+Coldmarrow t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`). Each cell is the median fight time, then whole-run wins:
+
+| Class | Dimhorn | Dimhorn, bots don't bring the light | The Snuffers |
+|---|---|---|---|
+| Bulwark | 50 s, 56 | 53 s, 49 | 28 s, 54 |
+| Duskblade | 45 s, 42 | 79 s, 44 | 33 s, 45 |
+| Emberwright | 90 s, 62 | 121 s, 53 | 55 s, 56 |
+| Lumen | 57 s, 74 | 151 s, 61 | 58 s, 57 |
+| Slagbinder | 83 s, 55 | 138 s, 57 | 64 s, 59 |
+
+With their rule, the bots never let it call. Without the rule, the Emberwright, Lumen and Slagbinder met a call in all 80 runs, the Duskblade in 51 and the Bulwark in 33. Natural Coldmarrow t10 runs, seeds 1 to 160, wins before / after: Bulwark 116 / 117, Duskblade 90 / 89, Emberwright 121 / 121, Lumen 123 / 121, Slagbinder 116 / 122. The cap doesn't change these, because with the rule no call happens.
