@@ -197,6 +197,10 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   anchorSlam: { start: 'anchorWarn' }, // Anchor Slam
   // Phase 16 U2: the Lampeye (the Glarewell). Its gaze climbs in steps (gazeCues); full, Searing Look's cast start is the last warning.
   searingLook: { start: 'searingWarn' }, // Searing Look
+  // Phase 16 U2: the Dimhorn (the Coldmarrow). Dark Call's cast start is the warning; a call that lands is heard as the
+  // pack arriving (waveShape reinforce land), and one silenced in a coal's light ends on castDone 'darkCallLost'.
+  darkCall: { start: 'dimhornCall' }, // Dark Call
+  darkCallLost: { done: 'dimhornSilenced' }, // Silenced
   anchor: { done: 'anchorDrop' }, // Drops Anchor
   unanchor: { done: 'anchorWeigh' }, // Weighs Anchor
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
@@ -474,6 +478,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castDone':
       if (ev.id === 'wheel' || ev.id === 'millstone') return null;
       if (ev.id === 'churn') return null;
+      // A Dark Call that lands is heard as the pack arriving (reinforceLand), not a cast click.
+      if (ev.id === 'darkCall') return null;
       return { id: CAST_SOUNDS[ev.id]?.done ?? 'castDone' };
     // The Smeltery: Wheel turns him on one hero. That hero must move; the rest hear the Sweep's wind-up.
     case 'wheel': return mine(ev.hero) ? { id: 'wheelOnMe' } : null;
