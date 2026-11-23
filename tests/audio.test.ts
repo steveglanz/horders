@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { GLARE, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -896,6 +896,36 @@ describe('audio', () => {
     expect(PRIORITY.has('tideTurn')).toBe(true);
     expect(recipeLength(SOUNDS.steamMoveWarn)).toBeLessThan(MAELRA_SEAL.warn);
     expect(PRIORITY.has('steamMoveOpen')).toBe(false);
+  });
+
+  it('sweeps the light round as the Lensmother\'s Carried Light moves it, after her Glare warning and panned toward her (Phase 15 Y3)', () => {
+    type G = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; markT: number; bossBrandT: number; glareT: number; runLensmother(i: number, dt: number): void };
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: 7, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 400, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'walk';
+    q.bossPhase = 2; q.markT = 0; q.bossBrandT = 0; q.glareT = 0;
+    w.enemies[b].abilityT = 99;
+    w.events.length = 0;
+    q.runLensmother(b, 0.01);
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'glarewell', listen: { x: 0, half: 500 } };
+    const move = w.events.find((e) => e.type === 'lightMove');
+    const start = w.events.find((e) => e.type === 'castStart');
+    expect(move && cueFor(move, c)?.id).toBe('lightSwing');
+    expect(start && cueFor(start, c)?.id).toBe('castWarn');
+    // It waits for the Glare's warning to end, so the priority duck doesn't bury it, and it ends well inside the warning.
+    const first = Math.min(...SOUNDS.lightSwing.map((v) => v.delay ?? 0));
+    expect(first).toBeGreaterThanOrEqual(recipeLength(SOUNDS.castWarn));
+    expect(recipeLength(SOUNDS.lightSwing)).toBeLessThan(GLARE.glareWarn);
+    expect(PRIORITY.has('lightSwing')).toBe(false);
+    // She is to the right of the hero, so the swing is too.
+    expect(panFor(move!, c)).toBeGreaterThan(0);
+    // Phase 1 keeps the light in the centre: no swing.
+    w.events.length = 0; q.bossPhase = 1; q.glareT = 0; w.enemies[b].castId = '';
+    q.runLensmother(b, 0.01);
+    expect(w.events.some((e) => e.type === 'lightMove')).toBe(false);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
