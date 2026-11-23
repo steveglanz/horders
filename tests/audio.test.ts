@@ -245,6 +245,8 @@ describe('audio', () => {
   it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
     // Seed 19 since Phase 15 Y2: raid trash events changed seed 3's run, which no longer reached Meltdown.
     const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    // Phase 15 Y3 added a third version (Millstone), so seed 19 no longer rolls the Wheel by itself: keep its Wheel run.
+    (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'wheel';
     const heard = new Set<string>();
     let phase3Side = false;
     while (w.state !== 'ended' && w.time < 900) {

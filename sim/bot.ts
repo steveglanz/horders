@@ -688,7 +688,7 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
   const e = w.enemies[w.bossIndex];
   if (!e?.alive || e.kind !== 'colossus') return null;
   const p = w.player;
-  // Y3 Millstone: in (or just ahead of) his grinding front, walk round the way he turns and a little out (NOMILL=1 turns this off).
+  // Y3 Millstone: in (or just ahead of) his grinding front, get clear of it (NOMILL=1 turns this off).
   if (w.millT > 0 && process.env.NOMILL !== '1') {
     const at0 = Math.atan2(p.y - e.y, p.x - e.x);
     const d0 = Math.hypot(p.x - e.x, p.y - e.y) || 1;
@@ -696,7 +696,9 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
     if (d0 < e.def.radius + MILL.range + 40 && lead > -MILL.arc - 0.2 && lead < MILL.arc + 0.6) {
       const tx = -Math.sin(at0) * w.millDir, ty = Math.cos(at0) * w.millDir;
       const ox = (p.x - e.x) / d0, oy = (p.y - e.y) / d0;
-      const dx = tx + ox * 0.35, dy = ty + oy * 0.35, n = Math.hypot(dx, dy) || 1;
+      // Close in, his front turns slower than a hero walks: keep ahead of it. Further out it turns faster: step out of its reach.
+      const far = d0 > e.def.radius + MILL.range * 0.5;
+      const dx = far ? ox : tx + ox * 0.35, dy = far ? oy : ty + oy * 0.35, n = Math.hypot(dx, dy) || 1;
       return { dx: dx / n, dy: dy / n };
     }
   }

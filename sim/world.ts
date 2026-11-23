@@ -6936,7 +6936,7 @@ export class World {
       }
     }
     if (this.millT > 0) {
-      // Millstone: he grinds round, and his front burns any non-tank in it.
+      // Millstone: he grinds round, and slag pours off him onto any non-tank not at his back.
       this.millT -= dt;
       this.colFacing = angleDiff(this.colFacing + this.millDir * MILL.turn * dt, 0);
       this.millTickT -= dt;
@@ -8452,11 +8452,12 @@ export type ColossusVariant = 'wheel' | 'shift' | 'mill';
 export const COLOSSUS_VARIANTS: ColossusVariant[] = ['wheel', 'shift', 'mill'];
 /**
  * Phase 15 Y3 Millstone (his phase 2 in the `mill` version, on the Wheel's timer and cast): he grinds round on the spot for `time` s,
- * turning `turn` radians a second one way (chosen at random), ignoring the tank. His front grinds the floor: every `tick` s a non-tank
- * hero within `range` px of his edge and within `arc` radians of his facing takes `damage` of max health. His open back turns with him,
- * so the damage dealers have to walk round with it. No Slag Sweep while he grinds.
+ * turning `turn` radians a second one way (chosen at random), ignoring the tank. Slag pours off him all round: every `tick` s a non-tank
+ * hero within `range` px of his edge and within `arc` radians of his facing (all but his open back) takes `damage` of max health. His open
+ * back turns with him, so the damage dealers have to walk round with it. No Slag Sweep while he grinds. (A front-only burn, arc pi/3,
+ * hit almost nobody: the bots already stood at his back.)
  */
-export const MILL = { time: 6, turn: 0.9, arc: Math.PI / 3, range: 200, tick: 0.5, damage: 0.04 };
+export const MILL = { time: 6, turn: 0.9, arc: 2.1, range: 200, tick: 0.5, damage: 0.08 };
 /** Phase 12 W3 and Phase 15 Y3: Old Vorhulm's versions. `spill`: Ember Feast scatters embers to grab. `bank`: Banked Coals, gold circles to stand on as they land. `inhale`: he draws the raid in to bite. */
 export type VorhulmVariant = 'spill' | 'bank' | 'inhale';
 export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];

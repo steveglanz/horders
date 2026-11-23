@@ -1425,7 +1425,7 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 2: Riptide', 'The rafts drift faster and the water pulls harder. Move with them');
           } else if (w.dungeonId === 'smeltery') {
             if (ev.phase === 2 && w.bossVariant === 'shift') this.hud.banner('Phase 2: Plate Shift', 'His plate slides round to face whoever hurts him most. Find his open back again');
-            else if (ev.phase === 2 && w.bossVariant === 'mill') this.hud.banner('Phase 2: Millstone', 'He grinds round with his front burning. Walk round the way he turns');
+            else if (ev.phase === 2 && w.bossVariant === 'mill') this.hud.banner('Phase 2: Millstone', 'He grinds round, pouring slag everywhere but his back. Walk round with him');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Wheel', 'He turns on whoever hurts him most. Tank: take him back');
             else this.hud.banner('Phase 3: Meltdown', 'His plate cracks: hit him anywhere. Healers, the heat keeps rising');
           } else if (w.dungeonId === 'flue') {
@@ -3218,7 +3218,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.flowGfx;
     g.clear();
     if (w.millT > 0) {
-      // Y3 Millstone (the Cinder Colossus), a placeholder: his burning front wedge as it grinds round.
+      // Y3 Millstone (the Cinder Colossus), a placeholder: the slag pouring off him (all but his open back) as he grinds round.
       const R = b.def.radius + MILL.range;
       const flick = 0.25 + 0.1 * Math.sin(now / 90);
       g.fillStyle(0xff6020, flick).slice(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).fillPath();

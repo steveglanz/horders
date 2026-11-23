@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COLO, COLOSSUS_VARIANTS } from '../sim/world';
+import { World, COLO, COLOSSUS_VARIANTS, MILL } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -164,5 +164,37 @@ describe('Phase 12 W3: the Cinder Colossus\'s Plate Shift', () => {
     expect(w.colossusSide(e, behind.x, behind.y)).toBe(COLO.frontMult);
     expect(w.colossusSide(e, 120, 0)).toBe(COLO.backMult);
     expect(w.behindColossus(e, 120, 0)).toBe(true);
+  });
+});
+
+describe('Phase 15 Y3: the Cinder Colossus\'s Millstone', () => {
+  it('grinds round on its own for MILL.time, burning non-tanks in his front, then turns back to his target; no Slag Sweep while he grinds', () => {
+    const { w, inner, b } = smeltery();
+    w.bossVariant = 'mill';
+    const e = w.enemies[b];
+    e.hp = e.maxHp * 0.5;
+    inner.sweepT = 0;
+    inner.wheelT = 0;
+    inner.colossusClock(1 / 30);
+    expect(e.castId).toBe('millstone');
+    inner.finishCast(b);
+    e.castId = undefined as never;
+    expect(w.millT).toBe(MILL.time);
+    expect(w.events.some((ev) => ev.type === 'millstone' && ev.stage === 'start')).toBe(true);
+    // Hero 1 stands right in his front (+x side, past the tank); hero 2 behind him.
+    const front = w.heroes[1].player, back = w.heroes[2].player, tank = w.heroes[0].player;
+    front.x = e.x + e.def.radius + 60; front.y = e.y;
+    const f0 = front.hp, b0 = back.hp, t0 = tank.hp;
+    const dir = w.millDir;
+    const turned = (n: number) => { for (let k = 0; k < n; k++) inner.colossusClock(1 / 30); };
+    turned(18); // 0.6 s: one tick
+    expect(w.colFacing * dir).toBeGreaterThan(0.4);
+    expect(front.hp).toBeLessThan(f0);
+    expect(back.hp).toBe(b0);
+    expect(tank.hp).toBe(t0);
+    expect(w.telegraphs.filter((t) => t.alive && t.shape === 'cone')).toHaveLength(0);
+    turned(Math.ceil(MILL.time * 30));
+    expect(w.millT).toBe(0);
+    expect(w.events.some((ev) => ev.type === 'millstone' && ev.stage === 'end')).toBe(true);
   });
 });
