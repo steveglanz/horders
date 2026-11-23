@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -167,7 +167,7 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
   type B = Inner & { bossIndex: number; bossSpawned: boolean; bossPhase: number; rollKilnVariant(): string; runBoss(i: number, dt: number): void };
 
   /** A Kiln fight with only the Kiln Mother up, in phase 2, Cataclysm due now. */
-  function mother(variant: 'cataclysm' | 'draw'): { w: World; q: B; b: number } {
+  function mother(variant: 'cataclysm' | 'draw' | 'turning'): { w: World; q: B; b: number } {
     const { w, inner } = kiln();
     const q = inner as B;
     const b = q.spawn('kilnMother', 0, 0);
@@ -237,6 +237,27 @@ describe('V3 variety: the Kiln Mother\'s Kiln Draw', () => {
     const { w, q, b } = mother('cataclysm');
     q.runBoss(b, 0.01);
     expect(w.enemies[b].castId).toBe('cataclysm');
+  });
+
+  it('Y3: Turning Fire pours four cones that turn from the hero, flipping way each pour, and holds her other abilities', () => {
+    const { w, q, b } = mother('turning');
+    q.runBoss(b, 0.01);
+    expect(w.enemies[b].castId).toBe('turningFire');
+    const cones = w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.r === KILN_TURN.reach);
+    expect(cones.length).toBe(KILN_TURN.cones);
+    const dir = w.turnDir;
+    cones.forEach((t, k) => {
+      // The first cone points at the hero (at +x), each next one turned by one arc.
+      const want = dir * k * KILN_TURN.arc;
+      expect(Math.abs(Math.atan2(Math.sin(t.angle - want), Math.cos(t.angle - want)))).toBeLessThan(1e-6);
+      expect(t.dur).toBeCloseTo(KILN_TURN.first + k * KILN_TURN.step, 6);
+    });
+    const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+    expect(w.enemies[b].abilityT).toBeGreaterThanOrEqual(pour);
+    for (const t of cones) t.alive = false;
+    w.enemies[b].castId = ''; w.enemies[b].aux = 0;
+    q.runBoss(b, 0.01);
+    expect(w.turnDir).toBe(-dir);
   });
 
   it('online co-op: a guest sees the same version', () => {
@@ -901,7 +922,7 @@ describe('Phase 14 X3: arena events', () => {
   const make = (dungeon: 'kiln' | 'foundry' | 'glarewell' | 'coldmarrow' | 'wrackline' | 'hammerdeep' | 'ashvents' | 'pressworks' | 'crucible', seed = 1) =>
     new World({ seed, dungeon, tier: { kiln: 2, foundry: 4, glarewell: 7, coldmarrow: 10, wrackline: 13, hammerdeep: 4, ashvents: 7, pressworks: 10, crucible: 8 }[dungeon], omens: [], cls: 'emberwright' });
 
-  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss, never a raid', () => {
+  it('about 40% of trash fights get one from the dungeon\'s own pool, never the boss', () => {
     for (const dg of Object.keys(ARENA_EVENT_POOLS) as (keyof typeof ARENA_EVENT_POOLS)[]) {
       let hits = 0, n = 0;
       const seen = new Set<string>();
@@ -919,10 +940,11 @@ describe('Phase 14 X3: arena events', () => {
       expect(hits / n, dg).toBeLessThan(ARENA_EVENTS.chance + 0.08);
       expect([...seen].sort(), dg).toEqual([...ARENA_EVENT_POOLS[dg]!].sort());
     }
-    // X3 part 2: the group dungeons have them too; raids don't yet.
+    // X3 part 2: the group dungeons have them too, and (Phase 15 Y2) the raids' trash, never a raid boss.
     expect(ARENA_EVENT_POOLS.hammerdeep).toBeDefined();
+    expect(ARENA_EVENT_POOLS.crucible).toBeDefined();
     const g = make('crucible');
-    for (let k = 0; k < g.route.length; k++) expect(g.arenaEventAt(k, g.route[k])).toBe('');
+    expect(g.arenaEventAt(g.route.length - 1, g.route[g.route.length - 1])).toBe('');
     expect(new World({ seed: 1, omens: [], firstDelve: true }).arenaEventAt(0, 'pack')).toBe('');
   });
 

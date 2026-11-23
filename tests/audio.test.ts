@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { KILN_DRAW, KILN_TURN, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -243,7 +243,8 @@ describe('audio', () => {
   });
 
   it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
-    const w = new World({ seed: 3, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    // Seed 19 since Phase 15 Y2: raid trash events changed seed 3's run, which no longer reached Meltdown.
+    const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
     const heard = new Set<string>();
     let phase3Side = false;
     while (w.state !== 'ended' && w.time < 900) {
@@ -848,6 +849,65 @@ describe('audio', () => {
     expect(Math.abs(r[1].pan!)).toBeGreaterThan(0);
     for (const id of ['wavePincer', 'waveRing', 'reinforceLand'] as const) expect(PRIORITY.has(id), id).toBe(false);
     expect(Object.keys(WAVE_SOUNDS).sort()).toEqual(['pincer', 'reinforce', 'ring']);
+  });
+
+  it('groans once when the dungeon stirs, after the fight\'s own stings, whatever the reaction (Phase 15 Y10)', () => {
+    type Q = { startEncounter(): void; encounter: number; route: string[] };
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'foundry' };
+    for (const id of STIR_IDS) {
+      const w = new World({ seed: 1, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+      const q = w as unknown as Q;
+      for (const e of w.enemies) e.alive = false;
+      q.route[2] = id === 'named' ? 'wardens' : 'pack'; // a named foe needs a fight with an elite, as in stir.test.ts
+      q.encounter = 2;
+      STIR.force = id;
+      try { q.startEncounter(); } finally { STIR.force = ''; }
+      const stirs = w.events.filter((e) => e.type === 'stir');
+      // A named stir needs this run to have no named foe planned yet (stirChoices), as stir.test.ts allows for.
+      if (id === 'named' && w.stir !== 'named') { expect(stirs.length).toBe(0); continue; }
+      expect(stirs.length, id).toBe(1);
+      expect(cueFor(stirs[0], c)?.id, id).toBe('dungeonStir');
+    }
+    expect(PRIORITY.has('dungeonStir')).toBe(false);
+    // It waits out the layout and Heat stings (both under 0.9 s) before its groan, and stays under 2 s.
+    const firstVoice = Math.min(...SOUNDS.dungeonStir.map((v) => v.delay ?? 0));
+    expect(firstVoice).toBeGreaterThanOrEqual(0.6);
+    expect(recipeLength(SOUNDS.dungeonStir)).toBeLessThan(2);
+    expect(Math.abs(phoneDb(render(SOUNDS.dungeonStir, 22050), 22050) - phoneDb(render(SOUNDS.layoutPillars, 22050), 22050))).toBeLessThan(1);
+  });
+
+  it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
+    type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
+    const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    const q = w as unknown as B;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('kilnMother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 2;
+    w.bossVariant = 'turning';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; w.enemies[b].aux = 0;
+    w.player.x = 200; w.player.y = 0;
+    w.events.length = 0;
+    q.runBoss(b, 0.01);
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' };
+    const start = w.events.find((e) => e.type === 'castStart');
+    expect(start && cueFor(start, c)?.id).toBe('turnFireWarn');
+    expect(PRIORITY.has('turnFireWarn')).toBe(true);
+    expect(recipeLength(SOUNDS.turnFireWarn)).toBeLessThan(KILN_TURN.first);
+    // Step through the pour: four slams of KILN_TURN.reach, each heard as a cone.
+    const heard: { t: number; id: string | null }[] = [];
+    for (let k = 0; k < 60 * (KILN_TURN.first + KILN_TURN.cones * KILN_TURN.step); k++) {
+      w.step({ mx: 0, my: 0 } as never);
+      for (const e of w.events) if (e.type === 'slam' && e.r === KILN_TURN.reach) heard.push({ t: w.time, id: cueFor(e, c)?.id ?? null });
+      if (w.player.hp <= 0) w.player.hp = w.player.maxHp;
+    }
+    expect(heard.map((h) => h.id)).toEqual(Array(KILN_TURN.cones).fill('turnCone'));
+    // Each cone's sound ends before the next lands, so four stay four.
+    expect(recipeLength(SOUNDS.turnCone)).toBeLessThan(KILN_TURN.step);
+    expect(PRIORITY.has('turnCone')).toBe(false);
+    // Nothing else in the Kiln makes a slam that big (Kiln Draw's ring is KILN_DRAW.radius).
+    const world = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    expect([...world.matchAll(/KILN_TURN\.reach/g)].length).toBe(1);
+    expect(KILN_DRAW.radius).not.toBe(KILN_TURN.reach);
   });
 
   it('lists exactly the Heats that lay a floor in FLOOR_HEATS, so no Heat stings twice or goes silent (Phase 14 X1)', () => {

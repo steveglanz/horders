@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, KILN_TURN, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -999,6 +999,13 @@ export function botInput(w: World, skill = 1): Input {
         // A half-floor cut (Die Cut): walk straight back across its edge, everyone at full pace.
         fx -= Math.cos(t.angle) * 0.8 * skill;
         fy -= Math.sin(t.angle) * 0.8 * skill;
+      } else if (t.shape === 'cone' && t.r === KILN_TURN.reach && t.owner !== -3) {
+        // Phase 15 Y3 Turning Fire: only the cone the hero is in matters, and the way out is back against the turn.
+        const off = Math.atan2(Math.sin(Math.atan2(dy, dx) - t.angle), Math.cos(Math.atan2(dy, dx) - t.angle));
+        if (Math.abs(off) > t.arc / 2 + 0.1) continue;
+        const a = Math.atan2(dy, dx) - w.turnDir * (Math.PI / 2);
+        fx += Math.cos(a) * 0.8 * skill;
+        fy += Math.sin(a) * 0.8 * skill;
       } else if (t.shape === 'cone') {
         // A long cone can't be outrun: step sideways out of it instead.
         const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
