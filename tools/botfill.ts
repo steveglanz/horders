@@ -11,6 +11,7 @@ import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import { BOT_FILL, fillClasses, standInGear } from '../sim/content/botfill';
 import type { ClassId } from '../sim/content/emberwright';
+import { toolOmens } from './omenopt';
 
 const main = (process.env.MAIN ?? 'bulwark') as ClassId;
 // BOTS defaults to what the client fills (fillClasses).
@@ -30,7 +31,7 @@ const mp = profile(main);
 let wins = 0;
 for (const seed of seeds) {
   const opts: WorldOptions = {
-    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 6), omens: [], cls: main,
+    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 6), omens: toolOmens(Number(process.env.TIER ?? 6), seed), cls: main,
     ...(mp ? { gear: equippedItems(mp), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: bots.map((cls, k) => {
       const own = botGear === 'own' ? profile(cls) : null;
