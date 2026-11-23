@@ -20,7 +20,7 @@ import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
-const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', boss: '#ffc861', heat: '#ff8a3d' };
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', boss: '#ffc861', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
@@ -89,12 +89,15 @@ function fmt(t: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** A banner to show after the current one times out; it can carry one of its own (a fight, then its wave, then a named foe). */
+export type BannerNext = { title: string; sub: string; next?: BannerNext };
+
 export class Hud {
   private handlers?: RunHandlers;
   private lastTick = 0;
   private draftShownFor = -1;
   private bannerTimer = 0;
-  private bannerNext: { title: string; sub: string } | undefined;
+  private bannerNext: BannerNext | undefined;
   private bannerNextAt = 0;
   showPerf = false;
 
@@ -284,7 +287,7 @@ export class Hud {
     if (this.bannerNextAt && now > this.bannerNextAt && this.bannerNext) {
       const next = this.bannerNext;
       this.bannerNextAt = 0;
-      this.banner(next.title, next.sub);
+      this.banner(next.title, next.sub, false, next.next);
     }
   }
 
@@ -660,7 +663,7 @@ export class Hud {
   }
 
   /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
-  banner(title: string, sub: string, full = false, next?: { title: string; sub: string }): void {
+  banner(title: string, sub: string, full = false, next?: BannerNext): void {
     $('bannerTitle').textContent = title;
     const subEl = $('bannerSub');
     subEl.textContent = sub;

@@ -8,7 +8,7 @@ fs.mkdirSync(out, { recursive: true });
 const html = fs.readFileSync(path.resolve('dist/index.html'));
 const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(0);
 const SIZES = { p320: { width: 320, height: 568, mobile: true }, l568: { width: 568, height: 320, mobile: true }, desk: { width: 1280, height: 800, mobile: false } };
-const SEEN = ['kiln:boss:draw', 'kiln:mark:Swift', 'kiln:mark:Brood', 'kiln:event:caveIn', 'kiln:heat:richHaul', 'kiln:heat:stoneFloor'];
+const SEEN = ['kiln:boss:draw', 'kiln:wave:ring', 'kiln:mark:Swift', 'kiln:mark:Brood', 'kiln:event:caveIn', 'kiln:heat:richHaul', 'kiln:heat:stoneFloor'];
 // SEEN_MORE=a,b adds keys (Y6 art shots meet every trait and both versions to show each glyph).
 if (process.env.SEEN_MORE) SEEN.push(...process.env.SEEN_MORE.split(','));
 (async () => {
@@ -53,10 +53,10 @@ if (process.env.SEEN_MORE) SEEN.push(...process.env.SEEN_MORE.split(','));
       setTimeout(() => {
         const sc = window.__ember.scene(); const w = sc.world; sc.warp = 0;
         const L = ['pillars', 'channel', 'vents'], E = ['caveIn', 'ventSurge', 'caveIn'];
-        w.layoutAt = (k) => L[k % 3]; w.arenaEventAt = (k) => E[k % 3];
+        w.layoutAt = (k) => L[k % 3]; w.arenaEventAt = (k) => E[k % 3]; const V = ['arc', 'reinforce', 'ring', 'reinforce']; w.waveShapeAt = (k) => V[k % 4];
         w.namedPlan = () => ({ at: 1, affix: 'Smoldering' });
         w.heat = 'stoneFloor'; w.bossVariant = 'cataclysm';
-        sc.hud.showEnd(w, { heroXp: 0, items: [], levelsGained: 0, seenNew: ['kiln:boss:cataclysm', 'kiln:mark:Smoldering', 'kiln:event:ventSurge'] });
+        sc.hud.showEnd(w, { heroXp: 0, items: [], levelsGained: 0, seenNew: ['kiln:wave:reinforce', 'kiln:boss:cataclysm', 'kiln:mark:Smoldering', 'kiln:event:ventSurge'] });
         res([...document.querySelectorAll('#endShape .shape')].map((e) => `${e.dataset.shape}${e.classList.contains('new') ? '*' : ''}`));
       }, 500);
     }));

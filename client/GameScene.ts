@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -205,6 +205,11 @@ const EDGE_SETS: Record<string, { big: string; small: string; light: string | nu
   coldmarrow: { big: 'coldArch', small: 'coldBrazier', light: null, flicker: 1000, puff: 'none' },
   crucible: { big: 'crucibleLadle', small: 'crucibleSlagPot', light: 'coalLight', flicker: 160, puff: 'spark' },
 };
+
+/** A named foe's banner line. */
+function namedLine(affix: keyof typeof AFFIX_TIP): string {
+  return `A named foe (${affix}). ${AFFIX_TIP[affix]} It carries its own loot.`;
+}
 
 export class GameScene extends Phaser.Scene {
   world!: World;
@@ -905,6 +910,8 @@ export class GameScene extends Phaser.Scene {
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
+    // A named foe steps out as its fight starts: its banner follows the fight's own (encounterStart), which would replace it.
+    const fightStarts = events.some((e) => e.type === 'encounterStart');
     for (const ev of events) {
       switch (ev.type) {
         case 'hit':
@@ -1353,7 +1360,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.ding('The tide turns');
           break;
         case 'namedSpawn': {
-          this.hud.banner(ev.name, `A named foe (${ev.affix}). ${AFFIX_TIP[ev.affix]} It carries its own loot.`);
+          if (!fightStarts) this.hud.banner(ev.name, namedLine(ev.affix));
           // It steps out of the pack: a blue flare, rings and a little shake.
           const ne = w.enemies[ev.index];
           if (ne) {
@@ -1364,6 +1371,11 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         }
+        case 'waveShape':
+          // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
+          // own banner (encounterStart), which comes after 'start' and would replace a banner here.
+          if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          break;
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
@@ -1403,7 +1415,10 @@ export class GameScene extends Phaser.Scene {
           const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
           const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';
           // V2: name the arena layout too, so the player knows why the floor looks different.
-          const ground = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          const floor = w.layout === 'pillars' ? ' Stones block the way.' : w.layout === 'channel' ? ' Lava burns: cross it, don\'t stand in it.' : w.layout === 'vents' ? ' The vents flare in turn.' : '';
+          // Phase 15 Y1: a pincer or ring wave says so in the fight banner (a banner of its own would be replaced by this one).
+          const shaped = w.waveShape === 'pincer' || w.waveShape === 'ring' ? w.waveShape : undefined;
+          const ground = floor + (shaped ? ` ${WAVE_SHAPE_INFO[shaped].tip}` : '');
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
@@ -1417,6 +1432,8 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
+          const named = events.find((e) => e.type === 'namedSpawn');
+          const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
           if (this.hud.compact && !coach && (omens || heat)) {
             // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
@@ -1424,8 +1441,13 @@ export class GameScene extends Phaser.Scene {
             const next = omens
               ? { title: w.omens.length === 1 ? 'Omen' : 'Omens', sub: `${w.omens.map((o) => OMENS[o].name).join(', ')}. Details in pause.${heatDef ? ` Today's Heat: ${heatDef.name}.` : ''}` }
               : { title: "Today's Heat", sub: `${heatDef!.name}: ${heatDef!.text}` };
-            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, next);
-          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach);
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + ground, false, namedNext ?? next);
+          } else if (this.hud.compact && !coach && shaped) {
+            // Phones: a long fight tip, a floor line and the wave line overflow even 4 lines at 320 wide (the Ashbuck
+            // in the Dark: 198 characters), and the wave line is the part cut off. It gets its own banner right after,
+            // then a named foe's (if one stepped out).
+            this.hud.banner(title, (PHONE_TIP[tip] ?? tip) + floor, false, { title: WAVE_SHAPE_INFO[shaped].name, sub: WAVE_SHAPE_INFO[shaped].tip, next: namedNext });
+          } else this.hud.banner(title, coach ?? (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground + heat + omens, !!coach, namedNext);
           break;
         }
         case 'fork':
@@ -2202,6 +2224,10 @@ export class GameScene extends Phaser.Scene {
         );
       }
     }
+    // Y9: on a phone the view is narrow, so foes coming in from the sides or behind (or hidden under the boss panel)
+    // get a small red chevron at the edge of the clear view: one per direction, a little bigger for a crowd, with a
+    // gold rim when an elite or the boss is among them. Desktop views see the arena, so they stay clean.
+    if (this.hud.compact && w.phase === 'fight') this.foeEdgeMarks(b, now);
     // The Pressworks: a Pressed hero (they took the last Downstroke) wears a red press plate by their health bar,
     // its ring running down with the time left, so the party can see at a glance who must stay out of the next one.
     if (w.dungeonId === 'pressworks') {
@@ -3181,6 +3207,94 @@ export class GameScene extends Phaser.Scene {
    * The part of the camera's view the HUD doesn't cover, in world units: the full view minus the strip under the top
    * panels. Edge arrows test against it and sit on its edge, so a gold circle under the boss panel still gets one.
    */
+  private barCover: { at: number; r?: { left: number; top: number }; party?: { right: number; top: number; bottom: number } } = { at: -1 };
+  /** Y9: edge chevrons for foes off screen on a phone (see the call in the draw loop). */
+  private foeEdgeMarks(b: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const cam = this.cameras.main;
+    const v = this.clearView();
+    const inset = 10 / cam.zoom;
+    const SECTORS = 16;
+    const count = new Array<number>(SECTORS).fill(0);
+    const big = new Array<boolean>(SECTORS).fill(false);
+    const sx = new Array<number>(SECTORS).fill(0);
+    const sy = new Array<number>(SECTORS).fill(0);
+    const cx = v.centerX;
+    const cy = v.centerY;
+    for (const e of w.enemies) {
+      if (!e.alive || e.def.stationary) continue;
+      if (e.x > v.x + inset && e.x < v.right - inset && e.y > v.y + inset && e.y < v.bottom - inset) continue;
+      const a = Math.atan2(e.y - cy, e.x - cx);
+      const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+      count[k]++;
+      sx[k] += e.x - cx;
+      sy[k] += e.y - cy;
+      if (e.def.rank !== 'normal') big[k] = true;
+    }
+    // Phase 15 Y1: a held pack about to come in (the 2 s "More Coming" warning) has not spawned yet, so point at the
+    // flank it comes from, sized by how many are coming and pulsing faster than the foes already here.
+    const fast = new Array<boolean>(SECTORS).fill(false);
+    if (w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+      const rr = w.arenaR - 60;
+      const ix = Math.cos(w.reinforceA) * rr, iy = Math.sin(w.reinforceA) * rr;
+      if (!(ix > v.x + inset && ix < v.right - inset && iy > v.y + inset && iy < v.bottom - inset)) {
+        const a = Math.atan2(iy - cy, ix - cx);
+        const k = ((Math.round((a / (Math.PI * 2)) * SECTORS) % SECTORS) + SECTORS) % SECTORS;
+        count[k] += w.reinforceN;
+        sx[k] += (ix - cx) * w.reinforceN;
+        sy[k] += (iy - cy) * w.reinforceN;
+        fast[k] = true;
+      }
+    }
+    const pad = 20 / cam.zoom;
+    const hw = v.width / 2 - pad;
+    const hh = v.height / 2 - pad;
+    const pulse = 0.8 + 0.2 * Math.sin(now / 160);
+    // The action bar covers the bottom-right corner of a phone's view: a mark that would land under it slides
+    // along the edge to clear it (left along the bottom edge, up along the right edge).
+    if (now - this.barCover.at > 500) {
+      this.barCover.at = now;
+      const el = document.getElementById('actionbar');
+      const r = el && !el.hidden ? el.getBoundingClientRect() : undefined;
+      const c = this.game.canvas.getBoundingClientRect();
+      this.barCover.r = r && r.width > 0 && c.width > 0
+        ? { left: (r.left - c.left) / c.width, top: (r.top - c.top) / c.height }
+        : undefined;
+      // The party frames sit on the left edge in co-op: a mark that would land under them drops just below them.
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden ? pe.getBoundingClientRect() : undefined;
+      this.barCover.party = pr && pr.width > 0 && c.width > 0
+        ? { right: (pr.right - c.left) / c.width, top: (pr.top - c.top) / c.height, bottom: (pr.bottom - c.top) / c.height }
+        : undefined;
+    }
+    const wv = cam.worldView;
+    const bar = this.barCover.r ? { left: wv.x + this.barCover.r.left * wv.width, top: wv.y + this.barCover.r.top * wv.height } : undefined;
+    const pc = this.barCover.party;
+    const party = pc ? { right: wv.x + pc.right * wv.width, top: wv.y + pc.top * wv.height, bottom: wv.y + pc.bottom * wv.height } : undefined;
+    for (let k = 0; k < SECTORS; k++) {
+      if (!count[k]) continue;
+      const a = Math.atan2(sy[k], sx[k]);
+      const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
+      let ex = cx + Math.cos(a) * r;
+      let ey = cy + Math.sin(a) * r;
+      if (bar && ex > bar.left - pad && ey > bar.top - pad) {
+        if (ey >= v.bottom - pad - 1) ex = bar.left - pad;
+        else ey = bar.top - pad;
+      }
+      if (party && ex < party.right + pad && ey > party.top - pad && ey < party.bottom + pad) ey = party.bottom + pad;
+      const sz = (count[k] >= 5 ? 14 : count[k] >= 2 ? 12 : 10) / cam.zoom;
+      const tri = (s: number) => [
+        ex + Math.cos(a) * s, ey + Math.sin(a) * s,
+        ex + Math.cos(a + 2.5) * s * 0.85, ey + Math.sin(a + 2.5) * s * 0.85,
+        ex + Math.cos(a - 2.5) * s * 0.85, ey + Math.sin(a - 2.5) * s * 0.85,
+      ] as const;
+      b.fillStyle(0x000000, 0.55).fillTriangle(...tri(sz * 1.45));
+      const pk = fast[k] ? 0.7 + 0.3 * Math.sin(now / 70) : pulse;
+      if (big[k]) b.fillStyle(0xffc861, pk).fillTriangle(...tri(sz * 1.25));
+      b.fillStyle(0xff4d3d, pk).fillTriangle(...tri(sz));
+    }
+  }
+
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
     const v = this.cameras.main.worldView;
     const now = this.time.now;

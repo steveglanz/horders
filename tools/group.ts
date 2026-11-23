@@ -62,6 +62,9 @@ for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
 // Phase 14 X3: ARENA=caveIn|ventSurge forces that arena event in every trash fight that can have it; ARENA=off turns them off.
 if (process.env.ARENA === 'off') WORLD.ARENA_EVENTS.off = true;
 else if (process.env.ARENA) WORLD.ARENA_EVENTS.force = process.env.ARENA;
+// Phase 15 Y1: WAVE=off keeps every wave an arc; WAVE=pincer|ring|reinforce forces one.
+if (process.env.WAVE === 'off') WORLD.WAVES.off = true;
+else if (process.env.WAVE) WORLD.WAVES.force = process.env.WAVE;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 
 let wins = 0;
