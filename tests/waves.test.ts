@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, WAVES, WAVE_SHAPE_INFO, reinforceCount, wavesIn } from '../sim/world';
+import { World, WAVES, WAVE_SHAPE_INFO, reinforceCount, ringless, wavesIn } from '../sim/world';
 import { ENCOUNTERS, type EncounterId } from '../sim/content/dungeon';
 
 type Q = { startEncounter(): void; encounter: number; route: EncounterId[] };
@@ -28,7 +28,7 @@ describe('Phase 15 Y1: wave shapes', () => {
   it('rolls about its chances in solo and group trash, never in the opener, a boss fight, a raid or the first delve, and is the same every time', () => {
     for (const dg of ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'ashvents', 'pressworks'] as const) {
       const c: Record<string, number> = { arc: 0, pincer: 0, ring: 0, reinforce: 0 };
-      let n = 0;
+      let n = 0, nr = 0, rings = 0;
       for (let seed = 1; seed <= 200; seed++) {
         const w = make(dg, seed);
         for (let k = 0; k < w.route.length; k++) {
@@ -39,12 +39,16 @@ describe('Phase 15 Y1: wave shapes', () => {
           if (ENCOUNTERS[id].spawns.reduce((a, x) => a + x.n, 0) < 2) continue;
           n++;
           c[s]++;
+          // Rimehound fights and the twin lamps never ring, so the ring share is judged on the fights that can.
+          const sp = ENCOUNTERS[id].spawns;
+          if (!ringless(sp) && !sp.some((x) => x.kind === 'twinLamp')) { nr++; if (s === 'ring') rings++; }
         }
       }
       expect(c.pincer / n, dg).toBeGreaterThan(WAVES.pincer - 0.07);
       expect(c.pincer / n, dg).toBeLessThan(WAVES.pincer + 0.07);
-      expect(c.ring / n, dg).toBeGreaterThan(WAVES.ring - 0.07);
-      expect(c.ring / n, dg).toBeLessThan(WAVES.ring + 0.07);
+      expect(rings / nr, dg).toBeGreaterThan(WAVES.ring - 0.07);
+      expect(rings / nr, dg).toBeLessThan(WAVES.ring + 0.07);
+      expect(c.ring, dg).toBe(rings);
       expect(c.reinforce, dg).toBeGreaterThan(0);
     }
     const raid = make('crucible');

@@ -308,15 +308,20 @@ export function rollFork(
   return [steady, { kind: 'named', encounter: harder[pick(harder.length)] }];
 }
 
-/** Rolls a 5-fight route: two openers, a named foe, a hard fight, the boss. */
+/**
+ * Rolls a 5-fight route: two openers, a named foe, a hard fight, the boss. No fight comes twice: some fights are in
+ * more than one list (the Coldmarrow's Frost Wardens are an opener and a named fight), so each pick leaves out the
+ * fights already rolled. It still takes one pick per slot, so a route that had no repeat rolls the same as before.
+ */
 export function rollRoute(pick: (n: number) => number, dungeon: DungeonId = 'kiln'): EncounterId[] {
   const { openers: OPENERS, named: NAMED, hard: HARD, boss } = DUNGEONS[dungeon];
   const open = [...OPENERS];
   const a = open.splice(pick(open.length), 1)[0];
   const b = open.splice(pick(open.length), 1)[0];
-  const named = NAMED[pick(NAMED.length)];
+  const namedFrom = NAMED.filter((n) => n !== a && n !== b);
+  const named = namedFrom[pick(namedFrom.length)];
   if (DUNGEONS[dungeon].raid) return [a, b, named, boss];
-  const hard = HARD.filter((h) => h !== named);
+  const hard = HARD.filter((h) => h !== named && h !== a && h !== b);
   return [a, b, named, hard[pick(hard.length)], boss];
 }
 

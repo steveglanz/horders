@@ -1493,3 +1493,24 @@ Glarewell t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`),
 | Slagbinder | 80 s, 78 | 82 s, 80 | 44 s, 80 |
 
 The fight times count only fights that were cleared. Without hiding, the Emberwright cleared 9 of 80 and the Lumen 22, so the gaze is the fight for ranged heroes. Natural Glarewell t8 runs, seeds 1 to 160, wins before / after: Bulwark 139 / 139, Duskblade 118 / 116, Emberwright 143 / 144, Lumen 156 / 152, Slagbinder 160 / 157. **Watch item for skills:** the Bulwark bot hides when it would do better to stand and finish the eye (59 with hiding against 69 without), and its fight takes twice as long. Its natural runs don't move, so the bot rule is kept the same for every class for now.
+
+## Routes never repeat a fight (playtest must-fix, 23 Nov)
+
+QA's playtest found that one route could hold the same fight twice. Some fights are in more than one of a dungeon's lists:
+- The Coldmarrow's Frost Wardens are an opener and a named fight, and its Snuffers are an opener and a hard fight.
+- The Wrackline's Warden Shoal is an opener and a named fight.
+
+`rollRoute` (sim/content/dungeon.ts) now leaves out fights already rolled when it picks the named and hard fights. It still takes one pick per slot, so a route that had no repeat rolls exactly as before.
+
+Over 2000 seeds, the repeat routes were 535 in the Coldmarrow and 220 in the Wrackline. Those are the only routes that change. No other dungeon had a repeat.
+
+Natural runs at t10, heroes-r2 hero-t8-0, seeds 1 to 160, wins before / after:
+
+| Class | Coldmarrow | Wrackline |
+|---|---|---|
+| Bulwark | 115 / 116 | 93 / 92 |
+| Duskblade | 95 / 90 | 112 / 110 |
+| Emberwright | 124 / 121 | 120 / 122 |
+| Lumen | 125 / 123 | 137 / 136 |
+| Slagbinder | 118 / 116 | 158 / 158 |
+

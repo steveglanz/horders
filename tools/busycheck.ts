@@ -9,7 +9,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { edgeCue, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
+import { edgeCue, gazeCues, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -100,6 +100,7 @@ for (const dungeon of dungeons) {
     const perSecond = new Map<number, number>();
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const room = { drip: 0, chain: 0 }, touch: number[] = [];
+    const gaze = { lv: [] as number[] };
     const play = (id: SoundId, t: number, vol = 1) => {
       for (let k = ends.length - 1; k >= 0; k--) if (ends[k].t <= t) ends.splice(k, 1);
       const gap = THROTTLE[id];
@@ -149,6 +150,8 @@ for (const dungeon of dungeons) {
       if (pc) play(pc.id, w.time, pc.vol);
       const sc = spentCue(spend, dungeon === 'flue' && (w.player.spentT ?? 0) > 0);
       if (sc) play(sc.id, w.time, sc.vol);
+      const gc = gazeCues(gaze, w.enemies.filter((e) => e.alive && e.kind === 'lampeye').map((e) => ({ aux: e.aux, sees: w.player.hp > 0 && w.lampeyeSees(e, w.player.x, w.player.y) })));
+      if (gc) play(gc.id, w.time, gc.vol);
       for (const c of islandCues(isl, w.islands, myIsland(w))) play(c.id, w.time, c.vol);
       // The 3D room (client/hd2d/renderer.ts): every foe's melee lunge (its touch timer reset; no on-screen cull, so
       // this is the busy case), and a drip or chain offered each tick (roomCues keeps only one now and then).
