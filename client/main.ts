@@ -85,6 +85,9 @@ const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#120b0a',
+  // The 3D look lays this canvas's floor layer on its 3D floor (the floor bridge), which needs a see-through canvas.
+  // #game paints the same dark colour behind it, so the 2D look is unchanged.
+  transparent: hd2dWanted(),
   scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60, limit: display.graphics === 'saver' ? 30 : 0 },
