@@ -761,3 +761,5 @@ Never in the opener, a boss fight, a shrine, a raid or the first delve. A fight 
 | Pressworks t10 | 81 | 88 | 96 | 82 | 88 |
 
 - No shape costs a full party much. A forced ring helps in the Pressworks (96 against 81). I haven't traced why.
+- **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 7 with waves off, 7 natural, 5 forced ring, 5 forced pincer. That stays well under the 25% missing-role line.
+- **Names:** Pincer, Surrounded and More Coming are plain English. A search on 23 Nov found no WoW-branded name among them.
