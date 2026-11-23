@@ -884,6 +884,22 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const crownMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.2, 0.8) });
   // Ondrel's Homeward Hammer (Hammerdeep): a real hammer that wheels through the air, lies head-down rattling as it is
   // called home, then streaks back to him. The 2D one is drawn above the floor layer, so the bridge never carried it.
+  // The Regent's Tithe (the Flue, phase 2): a gold tribute dish round the soak circle, its coin stacks rising as the
+  // fuse runs, so it reads apart from the Ventwalker and Banked Coal soak circles.
+  const goldMat = new THREE.MeshStandardMaterial({ color: '#d8a640', roughness: 0.35, metalness: 0.8, emissive: new THREE.Color('#4a2c06') });
+  const coinGeo = new THREE.CylinderGeometry(0.11, 0.11, 1, 12).translate(0, 0.5, 0);
+  const dishRim = new THREE.TorusGeometry(1, 0.035, 6, 64).rotateX(Math.PI / 2);
+  const dishes: { g: THREE.Group; stacks: THREE.Mesh[] }[] = [];
+  const dish = (i: number) => {
+    let d = dishes[i];
+    if (!d) {
+      const g = new THREE.Group(); const rim = new THREE.Mesh(dishRim, goldMat); rim.position.y = 0.04; g.add(rim);
+      const stacks: THREE.Mesh[] = [];
+      for (let k = 0; k < 8; k++) { const c = new THREE.Mesh(coinGeo, goldMat); c.castShadow = !saver; stacks.push(c); g.add(c); }
+      scene.add(g); d = dishes[i] = { g, stacks };
+    }
+    return d;
+  };
   const hammer = new THREE.Group();
   const hamHeadMat = new THREE.MeshStandardMaterial({ color: '#5a524c', roughness: 0.45, metalness: 0.7, emissive: new THREE.Color('#ff9a40'), emissiveIntensity: 0 });
   const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.32), hamHeadMat); hamHead.castShadow = !saver; hammer.add(hamHead);
@@ -1150,6 +1166,21 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       mat.opacity = 0.82 + 0.18 * Math.sin(t * 6 + ti);
     }
     for (let i = ti; i < tels.length; i++) { tels[i].m.visible = false; tels[i].fill.visible = false; }
+
+    // Tithe dishes (the Regent's gold soak circle, owner -5).
+    let tdi = 0;
+    for (const g of w.telegraphs) {
+      if (!g.alive || g.kind !== 'soak' || g.owner !== -5) continue;
+      const d = dish(tdi++), r = g.r * S, prog = Math.min(1, Math.max(0, g.t / Math.max(0.01, g.dur)));
+      d.g.visible = true; d.g.position.set(g.x * S, FLOOR, g.y * S);
+      d.g.children[0].scale.set(r, 1, r);
+      d.stacks.forEach((c, k) => {
+        const a = (k / 8) * Math.PI * 2 + 0.2;
+        c.position.set(Math.cos(a) * r * 0.86, 0, Math.sin(a) * r * 0.86);
+        c.scale.set(1, 0.04 + (0.08 + 0.05 * (k % 3)) * prog * 2, 1);
+      });
+    }
+    for (let i = tdi; i < dishes.length; i++) dishes[i].g.visible = false;
 
     // Decrees (the Flue).
     const ds = w.regentDecree ?? [];
