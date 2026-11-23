@@ -614,3 +614,81 @@ Tier 8, heroes-r2 hero-t8-0, seeds 1 to 320:
 | Two Duskblades | 97 | | 92 |
 
 The other knobs I tried on base: coals of radius 65 won 70 and radius 80 won 72, and a 5 s fuse won 55. Two Duskblades and a Bellows Slagbinder with a Duskblade run high in both versions, which is the class-side Z5.
+
+## Phase 14 X1 to X3 (built 22 Nov 2026): runs that surprise
+Steve, 22 Nov: "People aren't going to want to play the same dungeon multiple times with no changes." These three items add things that change during a run, not only before it. Every roll is a hash: of the day for the Heat, and of the seed with its own salt for the named foe and the arena events. So none of them draws from the run rng, and co-op guests agree with the host.
+
+### X1: Today's Heat in every solo dungeon
+- **Where:** `HEAT_POOLS` (sim/content/heat.ts) lists each solo dungeon's Heats. A dungeon has a Heat at every tier, still never on a first delve, a bounty or a key run. Group dungeons and raids have none.
+  - A floor Heat goes only where that floor is in `LAYOUTS`. The Glarewell has no Stone Floor, the Coldmarrow no Vent Floor, and the Wrackline neither.
+  - The Kiln's pool keeps the V4 order, so the Kiln's Heat on any day is unchanged.
+- **Code:** `heatFor(day, dungeon)` picks from the dungeon's pool, and `heatFits` lets the sim drop a Heat that can't come there.
+- **Own Heats**, one per later dungeon, each a give and a take on its signature mechanic (`HEAT_TUNING`):
+
+| Heat | Dungeon | What it does |
+|---|---|---|
+| Thick Steam | Foundry | Temper builds faster (timer ×0.75), and vents heal twice as much per stack |
+| High Sun | Glarewell | The Glare comes more often (×0.8), and pillar shadows reach farther (×1.25) |
+| Bright Coal | Coldmarrow | Coal light ×1.25 wider; it burns down 15% faster |
+| Slack Water | Wrackline | Rafts drift at 0.6 speed |
+
+- **Names:** web searches on 22 Nov 2026 found no WoW match for any of the four.
+- **Cut after measuring:**
+  - Slack Water's faster Ebb (timer ×0.78) together with the slower rafts gave 9 of 160 against 24 at tier 13. Each on its own gave 24.
+  - Bright Coal with drain ×1.3 gave 90 of 120 against 107.
+
+**Measured** with tools/foundry.ts (`HEAT=`), good bot, geared reference heroes, wins against no Heat:
+
+| Dungeon, tier, hero, seeds | None | Stone Floor | Vent Floor | Quick Study | Rich Haul | Own Heat |
+|---|---|---|---|---|---|---|
+| Foundry t4, hero-t4, 320 | 305 | 296 | 303 | 305 | 305 | Thick Steam 310 |
+| Glarewell t7, hero-t6, 320 | 313 | | 307 | 313 | 314 | High Sun 310 (base 314 on this build) |
+| Coldmarrow t10, hero-t8, 160 | 140 | 144 | | 140 | 140 | Bright Coal 105 of 120 (base 107) |
+| Wrackline t13, hero-t8, 320 | 56 | | | 56 | 59 | Slack Water 24 of 160 (base 24) |
+
+The Wrackline at tier 13 is only a relative check: the reference heroes stop at hero-t8.
+
+### X2: two more named-foe affixes
+The C2 named elites (named-elites.md) already had Swift, Warded and Vengeful. Two more are added:
+- **Brood:** when it dies, 2 of the dungeon's pack foe come out of it (`BROOD_KIND`: Shades in the Glarewell, Rimehounds in the Coldmarrow, Shoal Lurkers in the Wrackline, Cinderhounds elsewhere).
+- **Smoldering:** every 4 s it leaves a fire circle (radius 70) where it stands, landing 1.5 s later.
+
+How they come:
+- An extra draw after the C2 draws gives 40% of named foes one of the two new affixes. So where a named foe appears and what it's called don't move, and each old affix now comes on 20% of named foes instead of 33%.
+- `AFFIX_TIP` adds a line to the named-foe banner. `namedPlan()` reports the named foe's position and affix ahead of time, for the run summary (X4).
+
+**Retuned after skills' X5 screen:**
+- **Warded:** shield 0.35 → 0.2 of health. Forced on every Coldmarrow t10 run, Warded cost ranged classes about half their wins, because the 2x-health Weaver plus its shield ran them into Burnout. Emberwright, 120 seeds: base 107, Warded 0.35 81, 0.2 93.
+- **Blooms no longer heal a named foe.** A Swift Sluice Crawler stood in its own Blooms and healed back to full, and that was most Swift losses in the Foundry. Forced Swift, Foundry t4, before → after: Emberwright 128 → 156 of 160 (base 155), Bulwark 110 → 125 of 127 (base 123). Slowing Swift to 1.3 instead did nothing (130), so Swift keeps 1.45.
+
+**Measured** with every delve given a named foe of that affix (`NAMEDALL=1 AFFIX=`, events off), good bot:
+
+| Check | Base | Swift (after the Bloom fix) | Brood | Smoldering |
+|---|---|---|---|---|
+| Foundry t4, Emberwright, 160 | 155 | 156 | 155 | 157 |
+| Foundry t4, Bulwark, 127 | 123 | 125 | 124 | 118 |
+| Glarewell t7, Emberwright, 160 | 159 | 158 (before the fix) | 158 | 157 |
+
+### X3: arena events
+In 40% of solo trash fights (never the boss), one event comes 9 to 14 s in. Each is hashed per fight. Tuning is in `ARENA_EVENTS`, the pools are in `ARENA_EVENT_POOLS`, and banner copy is in `ARENA_EVENT_INFO`.
+
+| Event | Dungeons | What happens |
+|---|---|---|
+| Cave-in | Kiln, Foundry, Coldmarrow | 3 circles warn for 2.2 s, hit for 26 (before tierDamage), then stones (r 30) stand there for the rest of the fight |
+| Vent Surge | Kiln, Foundry, Glarewell | Every vent erupts at once after 1.8 s (a ring of 4 on floors without vents) |
+| Cold Snap | Coldmarrow | After 2.5 s every hero's coal loses 0.2 warmth (0.3 measured 96 of 120; 0.2 measured 98) |
+| High Water | Wrackline | The Ebb comes at once, with its own warning |
+
+The event is `{ type: 'arenaEvent', id, stage: 'warn' | 'land' }`, and the scalars `arenaEvent`, `arenaEventStage` and `arenaEventT` sync. Tools: `ARENA=caveIn|ventSurge|coldSnap|highWater|off` in tools/foundry.ts. QA's X8 contentcheck played every event in every dungeon whose pool has it: 0 stuck, and 0 heroes trapped in a fallen stone.
+
+**Measured** with the event forced in every trash fight that can have it, good bot:
+
+| Check | Events off | Cave-in | Vent Surge | Own event |
+|---|---|---|---|---|
+| Kiln t2, default hero, 160 | 99 | 93 | 105 | |
+| Foundry t4, hero-t4, 160 | 152 | 150 | 152 of 158 (base 150) | |
+| Glarewell t7, hero-t6, 120 | 119 | | 116 | |
+| Coldmarrow t10, hero-t8, 120 | 107 | 106 | | Cold Snap 98 |
+| Wrackline t13, hero-t8, 160 | 24 | | | High Water 24 |
+
+Live, an event is in about 40% of trash fights, split across the dungeon's pool. So the forced numbers are the worst case.
