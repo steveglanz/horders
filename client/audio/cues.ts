@@ -730,6 +730,18 @@ export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [nu
   glarewell: [[[Math.PI, 9.6]], []],
   // Three fumaroles; the cairns are at the same seeded random spots as the Glarewell's shards, so they keep the random side.
   ashvents: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The giant ladle at the back wall centre (z -9.3), and the two slag pots either side.
+  crucible: [[[Math.PI, 9.3]], [[Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]]],
+  // The three gold mounds (radius 9.4 + r * 0.25 for r 3.4 and 2.0); the bone heaps are at seeded random spots.
+  hoard: [[[Math.PI, 10.25], [Math.PI - 0.85, 9.9], [Math.PI + 0.85, 9.9]], []],
+  // The three frosted arches; the frost (ice shards) is at seeded random spots.
+  coldmarrow: [[[Math.PI, 9.6], [Math.PI - 0.8, 9.6], [Math.PI + 0.8, 9.6]], []],
+  // The three press frames; the plate stacks are at seeded random spots.
+  pressworks: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // The four ore carts on the rail; the ingots are at seeded random spots.
+  smeltery: [[[Math.PI - 0.55, 9.9], [Math.PI - 0.95, 9.9], [Math.PI + 0.6, 9.9], [Math.PI + 1.0, 9.9]], []],
+  // The wrecked hull at the back wall centre (z -9.6), and the six mooring posts.
+  wrackline: [[[Math.PI, 9.6]], [0.7, 1.0, 1.3].flatMap((d) => [[Math.PI - d, 8.9], [Math.PI + d, 8.9]] as const)],
 };
 /** Where a 3D room spot is on the floor, in world units (the room is centred on the arena and scaled to arenaR). */
 export const edgeSpotAt = ([a, r]: readonly [number, number], arenaR: number) => ({ x: Math.sin(a) * r * arenaR / HD2D_ROOM_R, y: Math.cos(a) * r * arenaR / HD2D_ROOM_R });
