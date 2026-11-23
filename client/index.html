@@ -777,6 +777,14 @@
     #actionbar { left: auto; right: max(14px, env(safe-area-inset-right)); transform: none; align-items: flex-end; }
     #heat { width: 200px; }
     .ab { width: 60px; height: 60px; }
+    /* Pause on a short landscape screen: Resume sits right under the title so it never needs a scroll, and the panel is wider
+       with the Omens and Today's Heat two to a row. */
+    #pause .panel { max-width: min(94vw, 680px) !important; width: 100%; display: flex; flex-direction: column; }
+    #pause .panel h2 { margin: 0; order: -2; }
+    #pause #resumeBtn { order: -1; margin-top: 8px; }
+    #pause .panel > button { align-self: center; min-width: 240px; }
+    #pause .pomens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #pause .po-h { grid-column: 1 / -1; }
     #quests { width: 180px; font-size: 11px; }
     #quests h3, #quests .q:not(.now), #quests .qp { display: none; }
     /* The boss frame rides in the top row, between your health and the clock, so it no longer covers the boss. */
