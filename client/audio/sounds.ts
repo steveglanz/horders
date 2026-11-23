@@ -1151,6 +1151,19 @@ export const SOUNDS = {
   edgeLadle: [{ wave: 'noise', f: 0, dur: 1.3, vol: 0.14, a: 0.3, lp: 1600, lp2: 2600, hp: 350, curve: 1.2, trem: [8, 0.25] }],
   /** A brimming slag pot blurps. */
   edgeSlagPot: join(...[0, 0.18].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 90, f2: 520 + k * 120, dur: 0.09, delay: d, vol: 0.12, curve: 2 }])),
+  // ---- room life (3D, PR #602): the quiet motion visuals added to every room, heard now and then (cues.ts roomCues) ----
+  /** A drip lands on the floor of a wet room: a small falling plink and a fainter one off the walls. */
+  roomDrip: join(
+    [{ wave: 'sine', f: 1500, f2: 850, dur: 0.08, vol: 0.18, curve: 2.5 }, { wave: 'sine', f: 2900, f2: 2300, dur: 0.035, vol: 0.05, curve: 3 }],
+    [{ wave: 'sine', f: 1450, f2: 900, dur: 0.07, delay: 0.16, vol: 0.05, curve: 2.5 }],
+  ),
+  /** A chain on a forge wall swings to the end of its sway: two or three light links knocking. */
+  roomChain: join(...[0, 0.09, 0.17].map((d, k) => clang(2100 - k * 260, 0.11 - k * 0.03, 0.12).map((v) => ({ ...v, delay: (v.delay ?? 0) + d })))),
+  /** A foe's melee lunge (3D) lands: a short rush of air into a soft thud. Under the hero's own hurt sound when it is you. */
+  lungeHit: join(whoosh(2600, 900, 0.07, 0.12), [
+    { wave: 'noise', f: 0, dur: 0.06, delay: 0.05, vol: 0.2, lp: 1800, hp: 300, curve: 3 },
+    { wave: 'sine', f: 190, f2: 80, dur: 0.09, delay: 0.05, vol: 0.18 },
+  ]),
   // ---- raid trash-fight vents (Phase 13 E4): each raid's own warn (inside LAYOUT.ventCast 1.2 s), burst and layout sting ----
   /** The Crucible: a slag vent thickens, slow fat bubbles rising under a hot hiss. */
   slagVentWarn: join(

@@ -50,6 +50,8 @@ export interface CueContext {
    * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
    * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
    */
+  /** The 3D view's room life and foe lunges since the last tick (Hd2dView.sounds), for roomCues. Absent in 2D. */
+  roomSounds?: readonly RoomSound[];
   /** The arena's radius (World.arenaR), so the 3D room's props can be placed for the edge sounds. */
   arenaR?: number;
   listen?: { x: number; half: number; y?: number; screen?: (x: number, y: number) => { x: number; y: number } | null; screenHalf?: number };
@@ -334,6 +336,44 @@ function screenOffset(l: NonNullable<CueContext['listen']>, x: number, y: unknow
   if (!l.screen || !(l.screenHalf && l.screenHalf > 0) || typeof y !== 'number' || typeof l.y !== 'number') return null;
   const at = l.screen(x, y), me = l.screen(l.x, l.y);
   return at && me ? (at.x - me.x) / l.screenHalf : null;
+}
+
+/**
+ * What the 3D view's room did that can be heard (client/hd2d/renderer.ts): a drip landing on a wet room's floor, a
+ * forge chain at the end of its sway, or a foe's lunge starting (`melee` when its touch hit, not a shot or boss move).
+ * World units.
+ */
+export interface RoomSound { kind: 'drip' | 'chain' | 'lunge'; x: number; y: number; melee?: boolean; rank?: string }
+
+/**
+ * Room life: the 3D rooms' drips and chains move all the time (Steve: "something", not busy), so only one now and
+ * then is heard, quiet, from where it shows on screen: a drip every `drip` s at most and a chain every `chain` s
+ * (each picked between the two numbers), never in a boss fight. Lunges are the foe attack animations: a melee one
+ * that landed gets a soft rush-and-thud from that foe, louder for bigger foes (shots and boss moves keep their own cues).
+ */
+export const ROOM_LIFE = { drip: [1.6, 4] as const, chain: [6, 13] as const, vol: 0.5, pan: 0.7, lunge: { normal: 0.45, elite: 0.7, rare: 0.8, boss: 0.9 } as Record<string, number> };
+
+export function roomCues(state: { drip: number; chain: number }, list: readonly RoomSound[] | undefined, c: Pick<CueContext, 't' | 'boss' | 'listen'>, rnd: () => number): Cue[] {
+  const out: Cue[] = [];
+  const t = c.t;
+  if (!list || !list.length || t === undefined) return out;
+  // A new run restarts the clock.
+  if (state.drip - t > 10) state.drip = 0;
+  if (state.chain - t > 20) state.chain = 0;
+  const pan = (x: number, y: number) => (offsetAt(c.listen, x, y) ?? 0) * ROOM_LIFE.pan;
+  for (const r of list) {
+    if (r.kind === 'lunge') {
+      if (r.melee) out.push({ id: 'lungeHit', vol: ROOM_LIFE.lunge[r.rank ?? 'normal'] ?? ROOM_LIFE.lunge.normal, jitter: 0.12, pan: pan(r.x, r.y) });
+      continue;
+    }
+    if (c.boss) continue;
+    const [lo, hi] = ROOM_LIFE[r.kind];
+    const key = r.kind;
+    if (t < state[key]) continue;
+    state[key] = t + lo + rnd() * (hi - lo);
+    out.push({ id: r.kind === 'drip' ? 'roomDrip' : 'roomChain', vol: ROOM_LIFE.vol, jitter: 0.15, pan: pan(r.x, r.y) });
+  }
+  return out;
 }
 
 export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
@@ -871,6 +911,8 @@ export const DEEP_DUCK: Partial<Record<SoundId, number>> = { selfDown: 0.25 };
  */
 export const THROTTLE: Partial<Record<SoundId, number>> = {
   hit: 0.045,
+  // Foe lunges (3D): a pack hitting at once is one rush, not a stack.
+  lungeHit: 0.18,
   // Several slams can land on one tick (Glintfall hits up to four pillars at once): one boom, not a stack.
   slam: 0.06,
   // The Hoard: six embers spill at once and a party can sweep them up together.
