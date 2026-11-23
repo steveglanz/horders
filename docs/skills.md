@@ -46,6 +46,18 @@ A slow player in melee keeps drifting into contact, so the first tiers forgive i
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
 
+Blade Guard at tiers 2 and 3, measured with the Kiln, ungeared, seeds 1 to 80, wins out of 80 (23 Nov):
+
+| Bot | Tier | Duskblade before | Duskblade after | Emberwright |
+|---|---|---|---|---|
+| Novice (`LAG=0.3 SKILL=0.5`) | 1 | 28 | 28 | - |
+| Novice | 2 | 0 | 23 | 25 |
+| Novice | 3 | 0 | 5 | 9 |
+| Full skill | 2 | 77 | 78 | 49 |
+| Full skill | 3 | 61 | 72 | 41 |
+
+The novice Duskblade now sits just under the novice Emberwright. A full-skill Duskblade was already well over the Emberwright at tiers 2 and 3, and at tier 3 it gains 11. Those are learning tiers, so the gap is accepted. It is a watch item for skills if real players find tier 3 too easy on a Duskblade.
+
 ## Co-op threat hooks
 
 With a party, enemies pick targets by threat (`sim/threat.ts`). The kits add to it:
