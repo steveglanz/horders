@@ -9,6 +9,7 @@
  * warning has gone off. The Heat counts once the run has started with it. Read-only on the World, so a
  * co-op guest reads the same from the host's snapshot.
  *
+ * Echoes (Phase 16 U3) count once the echo has gone off (World.echoMet), not when it is only rolled.
  * Wave shapes (Y1) count from World.wavesMet: a pincer or ring when its fight starts, reinforcements when they
  * warn. Y3's third boss versions show up here by themselves once they are in their *_VARIANTS list.
  */
@@ -21,10 +22,10 @@ import { BOSS_VERSION_NAME } from './runshape';
 import {
   ARENA_EVENT_INFO, ARENA_EVENT_ORDER, ARENA_EVENT_POOLS, type World, WAVE_SHAPE_INFO, STIR_IDS, STIR_INFO, STIR_BIT, type StirId, reinforceCount, wavesIn, type WaveShape,
   KILN_VARIANTS, MAELRA_VARIANTS, LENS_VARIANTS, NHEVRA_VARIANTS, HESSA_VARIANTS, ONDREL_VARIANTS, YSMERET_VARIANTS,
-  OSKEL_VARIANTS, SLAG_VARIANTS, VORHULM_VARIANTS, COLOSSUS_VARIANTS, REGENT_VARIANTS,
+  OSKEL_VARIANTS, SLAG_VARIANTS, VORHULM_VARIANTS, COLOSSUS_VARIANTS, REGENT_VARIANTS, MAELRA_ECHOES, ECHO,
 } from './world';
 
-export type SeenKind = 'boss' | 'wave' | 'mark' | 'event' | 'stir' | 'heat';
+export type SeenKind = 'boss' | 'echo' | 'wave' | 'mark' | 'event' | 'stir' | 'heat';
 export type SeenKey = string;
 
 export interface SeenEntry {
@@ -44,7 +45,7 @@ export const BOSS_VERSIONS: Record<DungeonId, readonly string[]> = {
 };
 
 /** The section names, in the order the hub lists them. */
-export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', stir: 'The dungeon stirs', heat: 'Heats' };
+export const SEEN_KIND_NAME: Record<SeenKind, string> = { boss: 'Boss versions', echo: 'Echoes', wave: 'Wave shapes', mark: 'Named foe traits', event: 'Arena events', stir: 'The dungeon stirs', heat: 'Heats' };
 
 export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey => `${dungeon}:${kind}:${id}`;
 
@@ -52,12 +53,22 @@ export const seenKey = (dungeon: DungeonId, kind: SeenKind, id: string): SeenKey
 export function seenPool(dungeon: DungeonId): SeenEntry[] {
   const boss = DUNGEONS[dungeon].boss;
   const out: SeenEntry[] = BOSS_VERSIONS[dungeon].map((id) => ({ kind: 'boss' as const, id, name: BOSS_VERSION_NAME[id] ?? id, tip: `How ${ENCOUNTERS[boss].name.split(',')[0]} fights in this version` }));
+  const who = ENCOUNTERS[boss].name.split(',')[0];
+  for (const v of echoesPossible(dungeon)) out.push({ kind: 'echo', id: v, name: BOSS_VERSION_NAME[v] ?? v, tip: `From tier ${ECHO.minTier}, ${who} can borrow this version's move late in the fight` });
   for (const v of wavesPossible(dungeon)) out.push({ kind: 'wave', id: v, name: WAVE_SHAPE_INFO[v].name, tip: WAVE_SHAPE_INFO[v].tip });
   for (const a of AFFIXES) out.push({ kind: 'mark', id: a, name: a, tip: AFFIX_TIP[a] });
   for (const e of ARENA_EVENT_POOLS[dungeon] ?? []) out.push({ kind: 'event', id: e, name: ARENA_EVENT_INFO[e].name, tip: ARENA_EVENT_INFO[e].tip });
   for (const v of stirsPossible(dungeon)) out.push({ kind: 'stir', id: v, name: STIR_INFO[v].name, tip: STIR_INFO[v].tip });
   for (const h of HEAT_POOLS[dungeon] ?? []) out.push({ kind: 'heat', id: h, name: HEATS[h].name, tip: HEATS[h].text });
   return out;
+}
+
+/**
+ * Phase 16 U1/U3: the versions `dungeon`'s boss can echo (World.rollEcho picks one that isn't the rolled version). Every
+ * version can, except that Maelra echoes only her lasting ones (MAELRA_ECHOES).
+ */
+export function echoesPossible(dungeon: DungeonId): readonly string[] {
+  return dungeon === 'foundry' ? MAELRA_ECHOES : BOSS_VERSIONS[dungeon];
 }
 
 /**
@@ -104,6 +115,7 @@ export function metIn(w: World): SeenKey[] {
   const d = w.dungeonId;
   const out: SeenKey[] = [];
   if (w.bossVariant) out.push(seenKey(d, 'boss', w.bossVariant));
+  if (w.echoMet && w.bossEcho) out.push(seenKey(d, 'echo', w.bossEcho));
   for (const v of wavesIn(w.wavesMet)) out.push(seenKey(d, 'wave', v));
   if (w.namedMet >= 0 && AFFIXES[w.namedMet]) out.push(seenKey(d, 'mark', AFFIXES[w.namedMet]));
   ARENA_EVENT_ORDER.forEach((e, k) => { if (w.arenaEventsMet & (1 << k)) out.push(seenKey(d, 'event', e)); });
