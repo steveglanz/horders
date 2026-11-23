@@ -1343,7 +1343,7 @@ Coldmarrow t10, seeds 1 to 80, natural echoes, before / after: Bulwark 56 / 56, 
 
 ## Phase 16 U1: Hessa's echo
 
-Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
+Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (50%, was 25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
 
 - `World.ebbEcho` is true from that Ebb's warning until the next one starts. The `whirl` and `outsurge` getters (sim, bot and client) read the echo's way while it is on. A Riptide echo is an Ebb that is neither of those.
 - The Ebb's cast name follows the way it runs ("The Whirl", "The Outsurge", "The Ebb"). Each echoed Ebb fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
@@ -1359,6 +1359,18 @@ Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
 | Slagbinder | 79 | 79 | 79 |
 
 Every class is within 4 wins of echoes off.
+
+**Earlier start (QA's expert report, 23 Nov).** At 25% the echo usually fired once, right at the end, which is too late to learn (QA saw it once in 11 of 11 early wins). It now starts at 50%, which is all of her phase 2 (`WRACK.phase2`). Same setup, wins out of 80, and echoes per run that saw one:
+
+| Class | 25% (was) | 40% | 50% (now) | Echoes per run at 25% / 50% |
+|---|---|---|---|---|
+| Bulwark | 46 | 46 | 47 | 1.4 / 2.5 |
+| Duskblade | 51 | 50 | 50 | 1.3 / 2.5 |
+| Emberwright | 56 | 53 | 56 | 1.3 / 2.5 |
+| Lumen | 71 | 71 | 71 | 1.0 / 2.0 |
+| Slagbinder | 79 | 79 | 79 | 1.2 / 2.1 |
+
+Wins stay within 3 of 25% for every class, and every run that sees the echo now sees it about twice.
 
 **Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
 

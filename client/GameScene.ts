@@ -4115,15 +4115,19 @@ export class GameScene extends Phaser.Scene {
       if (r.ward > 0) { g.globalAlpha = 0.95; g.fillStyle = '#e8f4ff'; g.fillRect(x, y - 3 * zb, bw * r.ward, 3 * zb); }
     }
     g.globalAlpha = 1;
-    const texts: { t: Phaser.GameObjects.Text; head: boolean }[] = [
+    const texts: { t: Phaser.GameObjects.Text; head: boolean; float?: boolean }[] = [
       ...this.plates.map((t) => ({ t, head: true })),
-      ...this.floats.filter((f) => f.life > 0).map((f) => ({ t: f.txt, head: false })),
+      ...this.floats.filter((f) => f.life > 0).map((f) => ({ t: f.txt, head: false, float: true })),
       ...this.gateTexts.map((t) => ({ t, head: false })),
       { t: this.soakText, head: false },
       { t: this.reviveText, head: false },
     ];
     const heads: { l: number; r: number; t: number; b: number; text: string }[] = [];
-    for (const { t, head } of texts) {
+    // Combat numbers already drawn this frame: one hit on a tight pack lands the same number on the same spot (QA
+    // playtest: "68" three times over), and the 3D tilt squashes the gap between them, so a number that would sit on
+    // another steps up above it.
+    const nums: { l: number; r: number; t: number; b: number }[] = [];
+    for (const { t, head, float } of texts) {
       if (!t || !t.visible || !t.text || t.alpha <= 0) continue;
       // A name sits on its foe's bar: project the foe's own floor point (the bar record just below it) and lift.
       let p: { x: number; y: number } | null;
@@ -4152,6 +4156,18 @@ export class GameScene extends Phaser.Scene {
         const box = { l: p.x - tw / 2, r: p.x + tw / 2, t: p.y - size, b: p.y };
         if (heads.some((q) => q.text === t.text && q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b)) continue;
         heads.push({ ...box, text: t.text });
+      }
+      if (float) {
+        const tw = g.measureText(t.text).width;
+        const box = { l: p.x - tw / 2, r: p.x + tw / 2, t: p.y - size / 2, b: p.y + size / 2 };
+        for (let k = 0; k < 6; k++) {
+          const hit = nums.find((q) => q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b);
+          if (!hit) break;
+          const dy = box.b - hit.t + 1;
+          box.t -= dy; box.b -= dy;
+        }
+        nums.push(box);
+        p = { x: p.x, y: (box.t + box.b) / 2 };
       }
       const lines = t.text.split('\n');
       const lh = size * 1.15;

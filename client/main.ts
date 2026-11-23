@@ -46,6 +46,7 @@ const save = () => {
   saveHero(hero);
   queueCloudSave(() => hero);
 };
+hud.onGearChange = save;
 const hub = new Hub(() => hero, save);
 hub.tier = hero.maxTier;
 hub.render();

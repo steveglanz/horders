@@ -17,7 +17,7 @@ import { setTip } from './tips';
 import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
-import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
+import { HeroProfile, RunRewards, equip, equippedItems, heroMaxLevel, heroXpToNext, lootUpgrades } from '../sim/hero';
 import { hurtRecap } from '../sim/hurtrecap';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
@@ -101,6 +101,8 @@ export class Hud {
   private bannerNext: BannerNext | undefined;
   private bannerNextAt = 0;
   showPerf = false;
+  /** Saves the hero after the end screen's "Equip upgrade" changed what it wears (set by main.ts). */
+  onGearChange?: () => void;
 
   constructor() {
     $('pauseBtn').addEventListener('click', () => this.handlers?.onPause());
@@ -803,6 +805,42 @@ export class Hud {
     $('target').hidden = true;
   }
 
+  /**
+   * Design (23 Nov): a run's loot that beats what you wear gets one small "Equip upgrade" button under the loot, so a
+   * player who never opens Bags still wears the chest's upgrade. One tap equips the best new piece for each slot it
+   * improves, then the button is gone. Nothing shows when no piece is an upgrade.
+   */
+  private upgradeButton(rewards: RunRewards, hero: HeroProfile): void {
+    const ups = lootUpgrades(hero, rewards.items);
+    if (!ups.length) return;
+    const gain = Math.round(ups.reduce((a, u) => a + u.gain, 0));
+    const b = document.createElement('button');
+    b.className = 'eqUp';
+    b.type = 'button';
+    b.textContent = `Equip ${ups.length === 1 ? 'upgrade' : `${ups.length} upgrades`} +${gain}`;
+    b.setAttribute('aria-label', `Equip ${ups.map((u) => u.item.name).join(' and ')}: gear score +${gain}`);
+    b.addEventListener('click', () => {
+      for (const u of ups) equip(hero, u.item.id);
+      this.onGearChange?.();
+      // Retag the loot cards and the header count in place (a fresh render would replay the deal-in).
+      const on = new Set(Object.values(hero.equipped));
+      const worn = setsWorn(hero);
+      $('rewards').querySelectorAll<HTMLElement>('.item').forEach((el, k) => {
+        const it = rewards.items[k];
+        if (it) el.innerHTML = itemHtml(it, on.has(it.id) ? '<span class="tagE">Equipped</span>' : '', worn);
+      });
+      const n = rewards.items.length;
+      const wornN = rewards.items.filter((it) => on.has(it.id)).length;
+      const head = $('rewards').querySelector('.top span');
+      if (head) head.textContent = `${n} ${n === 1 ? 'item' : 'items'}${wornN ? ` · ${wornN} equipped` : ''}`;
+      const done = document.createElement('div');
+      done.className = 'eqDone';
+      done.textContent = `Equipped · gear score +${gain}`;
+      b.replaceWith(done);
+    }, { once: true });
+    $('rewards').appendChild(b);
+  }
+
   showEnd(w: World, rewards?: RunRewards, hero?: HeroProfile): void {
     const s = w.summary();
     this.coach.hide();
@@ -849,12 +887,12 @@ export class Hud {
     $('rewards').innerHTML = loot;
     // Phones show one line per item; the full card (stats, set bonuses) is a hold away.
     if (rewards && hero) {
-      const equipped = new Set(Object.values(hero.equipped));
       const worn = setsWorn(hero);
       $('rewards').querySelectorAll<HTMLElement>('.item').forEach((el, k) => {
         const it = rewards.items[k];
-        if (it) setTip(el, () => itemHtml(it, equipped.has(it.id) ? '<span class="tagE">Equipped</span>' : '', worn));
+        if (it) setTip(el, () => itemHtml(it, new Set(Object.values(hero.equipped)).has(it.id) ? '<span class="tagE">Equipped</span>' : '', worn));
       });
+      this.upgradeButton(rewards, hero);
     }
     $('end').classList.toggle('win', s.victory);
     $('end').classList.toggle('loss', !s.victory);

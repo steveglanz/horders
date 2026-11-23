@@ -1,7 +1,7 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
-  HeroProfile, characterOf, switchClass, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
+  HeroProfile, characterOf, switchClass, lootUpgrades, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
@@ -182,6 +182,13 @@ export class Hub {
     return h.inventory.filter((i) => !set.has(i.id)).length;
   }
 
+  /** The gear score gain of the unseen items that beat what you wear (0 when none does). */
+  private newUpgradeGain(): number {
+    const h = this.hero();
+    const set = new Set(this.seen[h.cls ?? 'emberwright'] ?? h.inventory.map((i) => i.id));
+    return Math.round(lootUpgrades(h, h.inventory.filter((i) => !set.has(i.id))).reduce((a, u) => a + u.gain, 0));
+  }
+
   private markSeen(): void {
     const h = this.hero();
     this.seen[h.cls ?? 'emberwright'] = h.inventory.map((i) => i.id);
@@ -195,8 +202,13 @@ export class Hub {
     $('heroBadge').hidden = pts === 0;
     $('heroBadge').title = pts ? `${pts} talent ${pts === 1 ? 'point' : 'points'} to spend` : '';
     const fresh = $('bag').hidden ? this.newItems() : 0;
+    // Design (23 Nov): an unseen item that beats what you wear (the end screen's "Equip upgrade", lootUpgrades) marks
+    // the tab with its gear score gain instead of a plain count, until it is worn or the bags are opened.
+    const up = fresh ? this.newUpgradeGain() : 0;
     $('bagBadge').hidden = fresh === 0;
-    $('bagBadge').textContent = fresh > 9 ? '9+' : String(fresh);
+    $('bagBadge').classList.toggle('up', up > 0);
+    $('bagBadge').textContent = up > 0 ? `+${up > 99 ? '99' : up}` : fresh > 9 ? '9+' : String(fresh);
+    $('bagBadge').title = up > 0 ? `An upgrade to wear: gear score +${up}` : fresh ? `${fresh} new in your bags` : '';
     $('groupBadge').hidden = !(this.boss?.unclaimed.length);
     this.syncTabbar();
   }

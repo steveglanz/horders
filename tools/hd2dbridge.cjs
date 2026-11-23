@@ -1,10 +1,11 @@
 // The floor bridge in the 3D look (?hd2d=1): the same forced boss moments as tools/y3artshots.cjs, drawn by the 3D view,
 // so the 2D-only floor tells (rafts and the Whirl, vents, the light and its wedges, the Rime) can be checked on its floor.
-// Usage: npm run build && ONLY=whirl-pull,seal-open,carried,rime node tools/hd2dbridge.cjs <outDir>   (DIST=<dir> for another build)
+// Usage: npm run build && ONLY=whirl-pull,seal-open,carried,rime node tools/hd2dbridge.cjs <outDir> [p360|p320|l568|land|desk]
+//   (DIST=<dir> for another build; BANNER=1 keeps the banners on for phone checks)
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
-const size = ['p360', 'land', 'desk'].find((s) => process.argv.includes(s)) || 'p360';
+const size = ['p360', 'p320', 'l568', 'land', 'desk'].find((s) => process.argv.includes(s)) || 'p360';
 fs.mkdirSync(out, { recursive: true });
 const dist = process.env.DIST || 'dist';
 const srv = http.createServer((q, r) => {
@@ -13,7 +14,7 @@ const srv = http.createServer((q, r) => {
   r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : 'text/html' });
   r.end(fs.readFileSync(path.resolve(f)));
 }).listen(0);
-const VIEW = { p360: { viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, land: { viewport: { width: 740, height: 360 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, desk: { viewport: { width: 1280, height: 720 } } };
+const VIEW = { p360: { viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, p320: { viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, l568: { viewport: { width: 568, height: 320 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, land: { viewport: { width: 740, height: 360 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, desk: { viewport: { width: 1280, height: 720 } } };
 const CASES = [
   { name: 'turning', dungeon: 'kiln', boss: 'kilnMother', variant: 'turning', until: 'cones' },
   { name: 'seal-next', dungeon: 'foundry', boss: 'maelra', variant: 'seal', until: 'next' },
@@ -104,7 +105,8 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
       if (ok) s.warp = 0;
       return ok;
     }, c, { timeout: 400000, polling: 200 }).catch(() => errs.push('timeout ' + c.name));
-    await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = 'hidden'; });
+    // BANNER=1 keeps the fight's banners on (phone checks); by default they are hidden so the floor shows whole.
+    if (!process.env.BANNER) await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = 'hidden'; });
     await page.waitForTimeout(1500);
     let last = 0;
     for (const [n, ms] of (c.at || [400]).entries()) {

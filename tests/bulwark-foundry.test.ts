@@ -81,10 +81,10 @@ describe('Novice aid for melee heroes', () => {
     expect(new World({ seed: 1, tier: 8 }).noviceAid).toBe(0);
   });
 
-  it('Blade Guard halves hits from the Duskblade\'s target at tier 1, stops 70% at tiers 2 and 3, and none from tier 4', () => {
+  it('Blade Guard halves hits from the Duskblade\'s target at tier 1, fades with the aid through tiers 2 and 3, and none from tier 4', () => {
     expect(hitFromTarget(1)).toBeCloseTo(10, 5);
-    expect(hitFromTarget(2)).toBeCloseTo(6, 5);
-    expect(hitFromTarget(3)).toBeCloseTo(6, 5);
+    expect(hitFromTarget(2)).toBeCloseTo(20 * (1 - 0.5 * 2 / 3), 5);
+    expect(hitFromTarget(3)).toBeCloseTo(20 * (1 - 0.5 / 3), 5);
     expect(hitFromTarget(4)).toBeCloseTo(20, 5);
     expect(hitFromTarget(8)).toBeCloseTo(20, 5);
   });
@@ -103,7 +103,7 @@ describe('Novice aid for melee heroes', () => {
     expect(hit(4, 3)).toBeCloseTo(8, 5);
     expect(hit(8, 2)).toBeCloseTo(12, 5);
     // Below tier 4 Blade Guard already covers it, and Grit adds nothing.
-    expect(hit(2, 3)).toBeCloseTo(6, 5);
+    expect(hit(2, 3)).toBeCloseTo(20 * (1 - 0.5 * 2 / 3), 5);
     expect(new World({ seed: 2, cls: 'duskblade', tier: 4, grit: 9 }).gritGuard).toBeCloseTo(0.6, 5);
   });
 

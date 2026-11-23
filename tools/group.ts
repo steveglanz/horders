@@ -1,6 +1,7 @@
 // Group dungeon check: a party of bots, each hero driving its own input.
 // PARTY=bulwark,lumen,duskblade,emberwright (first is the main hero), DUNGEON=hammerdeep, TIER=n, SEEDS=...
 // HEROES=dir with <cls>/hero-t6-0.json (the skills team's heroes-r2) gives every hero that hero's gear and passives.
+// OMENS=client|rotate|none|ids picks the Omens (tools/omenopt.ts); the default is none, though the client plays 1 to 3 from tier 3.
 // SKILL=1 bot skill. TUNE=SLAG.searMult=0.4,ENEMIES.grandmotherSlag.hp=22000 overrides tuning numbers for the run.
 import * as WORLD from '../sim/world';
 import { World, WorldOptions } from '../sim/world';
@@ -12,6 +13,7 @@ import type { ClassId } from '../sim/content/emberwright';
 import type { Item } from '../sim/content/items';
 import { SET_SLOTS, SET_TUNING, SetId } from '../sim/content/sets';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
+import { toolOmens } from './omenopt';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
@@ -82,7 +84,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: [], cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
