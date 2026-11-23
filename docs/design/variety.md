@@ -705,3 +705,18 @@ Skills' re-screen (heroes-r2, every named foe forced to Warded, seeds 41 to 200)
 | Lumen | 116 | 125 | 125 |
 
 My own check, good bot, hero-t8, Coldmarrow t10: `BURNOUT.named` 0 against 60 gave 93 and 93 of 120 on the same seeds.
+
+### X3, part 2 (23 Nov 2026): arena events in the group dungeons
+The Hammerdeep, the Ashvents and the Pressworks trash fights now roll Cave-in and Vent Surge, as the solo dungeons do: 40% of trash fights, never the boss. Raids don't roll them yet. Their trash got stones and vents in Phase 13 E1, and the raids' bands are tight.
+
+**Measured** with tools/group.ts (`ARENA=`), the full party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, event forced in every trash fight:
+
+| Dungeon, tier, seeds | Events off | Cave-in | Vent Surge |
+|---|---|---|---|
+| Hammerdeep t8, 120 | 70 | 79 | 73 |
+| Ashvents t8, 100 | 62 | 69 | 65 |
+| Pressworks t10, 74 | 47 | 50 | 47 |
+
+- **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 6 with events off and 6 with Cave-in. That stays well under the 25% missing-role line.
+- **Why forced events don't cost a full party:** a party clears trash quickly, so an event often lands near the end of a fight. New stones also give cover from ranged foes.
+- **Sound:** each group dungeon has its own landing sounds (#493).
