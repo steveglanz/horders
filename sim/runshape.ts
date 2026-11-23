@@ -12,7 +12,7 @@ import type { ArenaEventId, LayoutId, World } from './world';
 export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'boss' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
-  /** Short chip text, such as "Floors: 2 stone floors, 1 vent floor". */
+  /** Short chip text, such as "Floors: 2 stone, 1 vent". */
   label: string;
   /** The longer hold-tip text. */
   tip: string;
@@ -34,10 +34,11 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   ash: 'Ash Fall', court: 'Summons',
 };
 
-const FLOOR_NAME: Record<Exclude<LayoutId, 'open'>, [string, string, string]> = {
-  pillars: ['stone floor', 'stone floors', 'Stones that block movement and shots'],
-  channel: ['lava floor', 'lava floors', 'A lava channel across the floor'],
-  vents: ['vent floor', 'vent floors', 'Vents that flare in turn'],
+/** Each floor's short chip word ("Floors: 2 stone, 1 vent" stays one line on a phone) and its tip line. */
+const FLOOR_NAME: Record<Exclude<LayoutId, 'open'>, [string, string]> = {
+  pillars: ['stone', 'Stones that block movement and shots'],
+  channel: ['lava', 'A lava channel across the floor'],
+  vents: ['vent', 'Vents that flare in turn'],
 };
 
 export const EVENT_NAME: Record<ArenaEventId, string> = {
@@ -62,11 +63,11 @@ export function runShape(w: World): ShapeChip[] {
     const l = w.layoutAt(f.k, f.id);
     if (l === 'open') continue;
     count[l] = (count[l] ?? 0) + 1;
-    floors.push(`${name(f.id)}: ${FLOOR_NAME[l][2].toLowerCase()}`);
+    floors.push(`${name(f.id)}: ${FLOOR_NAME[l][1].toLowerCase()}`);
   }
   const kinds = (Object.keys(count) as Exclude<LayoutId, 'open'>[]);
   if (kinds.length) {
-    out.push({ kind: 'floor', label: `Floors: ${kinds.map((l) => plural(count[l]!, FLOOR_NAME[l][0], FLOOR_NAME[l][1])).join(', ')}`, tip: floors.join('. ') });
+    out.push({ kind: 'floor', label: `Floors: ${kinds.map((l) => `${count[l]} ${FLOOR_NAME[l][0]}`).join(', ')}`, tip: floors.join('. ') });
   }
 
   const plan = w.namedPlan();

@@ -2,8 +2,8 @@
 import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
 import { World, BOSS_PHASES, BRIM, SUMMONS } from '../sim/world';
-import { runShape } from '../sim/runshape';
-import { HEATS } from '../sim/content/heat';
+import { runShape, type ShapeKind } from '../sim/runshape';
+import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -11,13 +11,16 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, heatTile, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, HEAT_ICON, heatTile, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
+
+/** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
+const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', boss: '#ffc861', heat: '#ff8a3d' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** L2: per-frame HUD writes skip unchanged values, since even a same-value write invalidates layout. */
@@ -860,9 +863,12 @@ export class Hud {
       ['Damage', s.damageDealt >= 100_000 ? s.damageDealt.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 }) : s.damageDealt.toLocaleString(), s.damageDealt >= 100_000 ? `${s.damageDealt.toLocaleString()} damage` : ''],
     ].map(([k, v, tip]) => `<div${tip ? ` title="${tip}"` : ''}><b>${v}</b><span>${k}</span></div>`).join('');
     const shape = runShape(w);
+    // X6: each kind of chip has its own accent (the Heat's from its glyph), as a border and key colour only, so no chip
+    // gets wider than X9 sized it for 320 px.
+    const heatCol = w.heat && w.heat in HEAT_ICON ? HEAT_ICON[w.heat as HeatId].color : SHAPE_COLOR.heat;
     $('endShape').innerHTML = shape.map((c) => {
       const [k, ...v] = c.label.split(': ');
-      return `<span class="shape" data-shape="${c.kind}">${k}: <b>${v.join(': ')}</b></span>`;
+      return `<span class="shape" data-shape="${c.kind}" style="--sc:${c.kind === 'heat' ? heatCol : SHAPE_COLOR[c.kind]}"><i>${k}:</i> <b>${v.join(': ')}</b></span>`;
     }).join('');
     $('endShape').querySelectorAll<HTMLElement>('.shape').forEach((el, k) => setTip(el, () => shape[k].tip));
     $('endTalents').innerHTML = (Object.keys(s.talents) as TalentId[])
