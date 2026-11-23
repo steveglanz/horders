@@ -1118,6 +1118,34 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const ghost = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, ghostMat); ghost.visible = false; ghost.renderOrder = 3; scene.add(ghost);
   const ghostRing = flat(new THREE.RingGeometry(0.85, 1, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 0.9, 1.5), transparent: true, depthWrite: false }), 0.04);
   ghostRing.visible = false;
+  // Grandmother Slag's Overflow (the Crucible raid, phase 2, Y3 #558): molten slag floods in over the floor from the
+  // rim and leaves only a dry ring round her (OVERFLOW.safeR). While it warns, the slag creeps in from the arena edge and
+  // her safe ring pulses gold; once risen it is a churning, glowing sheet everywhere outside the ring, with a bright
+  // crust line where it laps at the dry floor; on the ebb it drains back to the rim.
+  const floodMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 }, inner: { value: 99 }, outer: { value: 8 }, ctr: { value: new THREE.Vector2() }, opacity: { value: 0 } },
+    vertexShader: 'varying vec2 vW; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: `uniform float time; uniform float inner; uniform float outer; uniform vec2 ctr; uniform float opacity; varying vec2 vW;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+      void main() {
+        float d = length(vW - ctr);
+        if (d < inner || length(vW) > outer) discard;
+        vec2 p = vW * 2.6;
+        float k = n(p + vec2(time * 0.35, time * 0.2)) * 0.6 + n(p * 2.3 - vec2(time * 0.5, -time * 0.3)) * 0.4;
+        vec3 crust = vec3(0.16, 0.035, 0.01), hot = vec3(1.5, 0.45, 0.08);
+        vec3 col = mix(crust, hot, smoothstep(0.5, 0.72, k));
+        float lip = 1.0 - smoothstep(0.0, 0.22, d - inner);
+        col += vec3(1.8, 0.9, 0.3) * lip;
+        float a = opacity * (0.82 + 0.18 * lip) * (1.0 - smoothstep(outer - 0.3, outer, length(vW)));
+        gl_FragColor = vec4(col, a);
+      }`,
+    transparent: true, depthWrite: false, toneMapped: false,
+  });
+  const flood = flat(new THREE.CircleGeometry(1, 96), floodMat, 0.045); flood.renderOrder = 3; flood.visible = false;
+  const safeRing = flat(new THREE.RingGeometry(0.965, 1, 96), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 0.6), transparent: true, depthWrite: false, toneMapped: false }), 0.05);
+  safeRing.visible = false;
+  let floodK = 0, floodWas = 0;
   const INH = 80;
   const inhPos = new Float32Array(INH * 3);
   const inhGeo = new THREE.BufferGeometry(); inhGeo.setAttribute('position', new THREE.BufferAttribute(inhPos, 3));
@@ -1505,6 +1533,31 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
+    // The Overflow. floodK eases the rise (stage 2) and the ebb (back to 0) so the sheet never pops.
+    {
+      const st = w.flowStage, boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+      const on = !!boss?.alive && st > 0;
+      if (st === 2) floodK = Math.min(1, floodK + dt / 0.45); else floodK = Math.max(0, floodK - dt / (floodWas === 2 ? 0.8 : 0.3));
+      floodWas = st;
+      const warnK = st === 1 ? Math.min(1, Math.max(0, 1 - w.flowT / SIM.overflowWarn)) : 0;
+      const showFlood = !!boss?.alive && (st === 1 || floodK > 0);
+      flood.visible = showFlood; safeRing.visible = on;
+      if (boss && showFlood) {
+        const ar = w.arenaR * S, sr = SIM.overflowSafeR * S, bx = L(boss.px, boss.x) * S, bz = L(boss.py, boss.y) * S;
+        const u = floodMat.uniforms;
+        u.time.value = t; u.outer.value = ar; u.ctr.value.set(bx, bz);
+        // Warning: the slag creeps in from the rim, a third of the way. Risen: right up to her safe ring. Ebb: back out.
+        const reach = st === 1 ? ar - (ar - sr) * 0.35 * warnK : ar - (ar - sr) * floodK;
+        u.inner.value = Math.max(sr, reach);
+        u.opacity.value = st === 1 ? 0.55 + 0.25 * warnK : 0.92 * Math.max(floodK, 0.2);
+        flood.scale.setScalar(ar + 0.1); flood.position.y = FLOOR + 0.045 + 0.04 * floodK;
+      }
+      if (boss && on) {
+        const bx = L(boss.px, boss.x) * S, bz = L(boss.py, boss.y) * S, sr = SIM.overflowSafeR * S;
+        safeRing.position.set(bx, FLOOR + 0.06 + 0.04 * floodK, bz); safeRing.scale.setScalar(sr);
+        (safeRing.material as THREE.MeshBasicMaterial).opacity = st === 1 ? 0.45 + 0.45 * Math.abs(Math.sin(t * 6)) : 0.9;
+      }
+    }
     ghost.visible = ghostRing.visible = echoing;
     if (echoing && bossMesh) {
       const bm = bossMesh as THREE.Mesh;

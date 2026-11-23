@@ -3315,6 +3315,9 @@ export class GameScene extends Phaser.Scene {
       }
       return;
     }
+    // In 3D the Overflow is drawn natively (a molten sheet and a gold safe ring, client/hd2d/renderer.ts), so the
+    // floor bridge must not carry this flat one too.
+    if (this.bridge) return;
     const R = OVERFLOW.safeR;
     if (w.flowStage === 2) {
       const outer = ARENA * 2;
