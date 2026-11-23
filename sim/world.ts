@@ -392,6 +392,8 @@ export interface Player {
   coalR?: number;
   chill?: number;
   chillT?: number;
+  /** Phase 15 Y10: share of max health this hero has lost in the current fight (for the dungeon's stir). */
+  stirHurt?: number;
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   /** P1 weekly quests: casts this hero interrupted this run. */
@@ -2398,10 +2400,21 @@ export class World {
     const was = this.stir;
     this.stir = '';
     if (!this.stirOn || !this.layoutRolls(id) || was) return;
-    if (this.fightDown || this.fightHurt >= STIR.rough) {
+    // The worst-off hero decides, each judged against their own class's usual cost (STIR_CLASS).
+    // A rough fight for anyone resets the count; the rough bar never loosens past STIR.roughMax of max health.
+    let worst = 0;
+    let rough = false;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const cls = k === this.acting ? this.cls : this.heroes[k].cls;
+      const hurt = this.heroPlayer(k).stirHurt ?? 0;
+      worst = Math.max(worst, hurt / STIR_CLASS[cls]);
+      if (hurt >= Math.min(STIR.roughMax, STIR.rough * STIR_CLASS[cls])) rough = true;
+    }
+    this.fightHurt = worst;
+    if (this.fightDown || rough) {
       this.stirCount = 0;
       this.stirNext = false;
-    } else if (this.fightHurt <= STIR.clean && ++this.stirCount >= STIR.need && this.stirs < STIR.max) {
+    } else if (this.fightHurt <= STIR.clean * (this.heroes.length > 1 ? STIR.groupClean : 1) && ++this.stirCount >= STIR.need && this.stirs < STIR.max) {
       this.stirCount = 0;
       this.stirNext = true;
     }
@@ -2426,6 +2439,7 @@ export class World {
     this.stir = '';
     this.fightHurt = 0;
     this.fightDown = false;
+    for (let k = 0; k < this.heroes.length; k++) this.heroPlayer(k).stirHurt = 0;
     if (!this.stirOn || !this.layoutRolls(id) || this.encounter === 0) return;
     if (!this.stirNext && !STIR.force) return;
     const choices = this.stirChoices(id);
@@ -2991,7 +3005,7 @@ export class World {
     }
     p.hp -= amount;
     p.hurtFlash = 0.15;
-    this.fightHurt += amount / p.maxHp / this.heroes.length;
+    p.stirHurt = (p.stirHurt ?? 0) + amount / p.maxHp;
     if (p.hp <= 0) this.fightDown = true;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
     // Steady Breath: once per fight, a melee hero knocked low catches its breath.
@@ -4821,6 +4835,8 @@ export class World {
         e.aux += 0.35 * dt;
         e.x = b.x + Math.cos(e.aux) * ACOLYTE_RING;
         e.y = b.y + Math.sin(e.aux) * ACOLYTE_RING;
+        // A ward near the wall would swing its acolytes outside it, out of reach (QA, Y8): keep them in.
+        this.clampArena(e, e.def.radius);
         b.hp = Math.min(b.maxHp, b.hp + b.maxHp * ACOLYTE.heal * dt * this.healTakenMult(b));
       }
     }
@@ -7814,15 +7830,6 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
 };
 /** V2 tuning. Stones block movement; a lava channel burns `lavaBurn` of max health a second; vents flare every `ventEvery` s in turn. */
 /**
- * Phase 14 X3: arena events, one thing that happens partway through a solo trash fight.
- * `chance` of trash fights get one, `at` + 0..`spread` s in (a hash, so co-op agrees).
- * Cave-in: `caveCount` stones fall on a ring of `caveRing`; under one as it lands takes `caveDamage`, then it stands.
- * Vent Surge: every vent (or a ring of them on another floor) erupts at once after `surgeWarn` s.
- * Cold Snap (the Coldmarrow): after `snapWarn` s every hero's coal loses `snapCut` warmth.
- * High Water (the Wrackline): the Ebb comes at once. `force` (tools) forces one; `off` turns them off.
- * Damage numbers are before tierDamage.
- */
-/**
  * Phase 15 Y1: wave shapes. A solo or group trash fight's foes come in as one arc from the far side (as before),
  * or a pincer (alternate foes from opposite sides), or a ring round the arena. `pincer` and `ring` are each fight's
  * chance of that shape. `force` (tools) forces one; `off` keeps every wave an arc. Never boss fights or raids.
@@ -7833,9 +7840,9 @@ export const WAVES = {
   ring: 0.15,
   /** `reinforce`: up to half the pack (the kinds in REINFORCE_KINDS) is held back and comes in from the other side. */
   reinforce: 0.2,
-  /** Seconds into the fight the held pack arrives (sooner if the first half is already dead). */
   /** `ring`: how far from the hero the ring forms. */
   ringR: 460,
+  /** Seconds into the fight the held pack arrives (sooner if the first half is already dead). */
   reinforceAt: 7,
   /** Seconds of warning before it arrives. */
   reinforceWarn: 2,
@@ -7850,9 +7857,12 @@ export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]
   const pack = spawns.reduce((a, s) => a + (REINFORCE_KINDS.includes(s.kind) ? s.n : 0), 0);
   return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
 }
-/** Phase 15 Y5 fix: a Rimehound pack of 3 or more never forms a ring (it stays an arc). */
+/** Phase 15 Y5 fix: a Rimehound pack that is 3 or more with its Hoarfrost Weavers never forms a ring (it stays an arc). */
 function ringless(spawns: readonly { kind: EnemyKind; n: number }[]): boolean {
-  return spawns.some((s) => s.kind === 'rimehound' && s.n >= 3);
+  // Hoarfrost Weavers count too: their Frost Lace pins a hero while the hounds close (skills' Y5, the Two Weavers).
+  const n = (k: EnemyKind) => spawns.filter((s) => s.kind === k).reduce((a, s) => a + s.n, 0);
+  const hounds = n('rimehound');
+  return hounds >= 1 && hounds + n('hoarfrostWeaver') >= 3;
 }
 /** Which flat spawn slots are held back: the last `m` pack foes. */
 function heldMask(spawns: readonly { kind: EnemyKind; n: number }[], m: number): boolean[] {
@@ -7883,7 +7893,13 @@ export const WAVE_SHAPE_INFO: Record<Exclude<WaveShape, 'arc'>, { name: string; 
  * reaction (or 'any'); `off` turns it off.
  */
 export type StirId = 'elite' | 'named' | 'event' | 'wave';
-export const STIR = { clean: 0.15, rough: 0.5, need: 2, max: 2, minTier: 4, force: '' as string, off: false };
+/**
+ * Phase 15 Y10 follow-up: how much of a fight's usual cost each class takes, as a multiple of the clean and rough bars.
+ * A Bulwark's kit trades hits in melee, so its bar is looser; the party's worst hero, so judged, decides.
+ */
+export const STIR_CLASS: Record<ClassId, number> = { emberwright: 1, duskblade: 2, bulwark: 2, lumen: 1, slagbinder: 1 };
+/** `groupClean`: a party trash fight is clean only under `clean` times this (at 0.15 even half-skill bot parties stirred almost every run). `roughMax` caps a class's loosened rough bar. */
+export const STIR = { clean: 0.15, rough: 0.5, roughMax: 0.8, groupClean: 0.35, need: 2, max: 2, minTier: 4, force: '' as string, off: false };
 export const STIR_IDS: readonly StirId[] = ['elite', 'named', 'event', 'wave'];
 export const STIR_INFO: Record<StirId, { name: string; tip: string }> = {
   elite: { name: 'Another joins', tip: 'One more joins the fight.' },
@@ -7894,6 +7910,15 @@ export const STIR_INFO: Record<StirId, { name: string; tip: string }> = {
 /** Phase 15 Y10: each reaction's bit in World.stirsMet. */
 export const STIR_BIT: Record<StirId, number> = { elite: 1, named: 2, event: 4, wave: 8 };
 export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
+/**
+ * Phase 14 X3: arena events, one thing that happens partway through a solo trash fight.
+ * `chance` of trash fights get one, `at` + 0..`spread` s in (a hash, so co-op agrees).
+ * Cave-in: `caveCount` stones fall on a ring of `caveRing`; under one as it lands takes `caveDamage`, then it stands.
+ * Vent Surge: every vent (or a ring of them on another floor) erupts at once after `surgeWarn` s.
+ * Cold Snap (the Coldmarrow): after `snapWarn` s every hero's coal loses `snapCut` warmth.
+ * High Water (the Wrackline): the Ebb comes at once. `force` (tools) forces one; `off` turns them off.
+ * Damage numbers are before tierDamage.
+ */
 export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,
   caveCount: 3, caveRing: 150, caveRadius: 30, caveWarn: 2.2, caveDamage: 26,
