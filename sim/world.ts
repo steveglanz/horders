@@ -48,7 +48,8 @@ const BOSS_ENRAGE_AFTER = 150;
  * through shields. `warn` s before, the HUD warns. `addCap`: a fight never holds
  * more than this many live foes (summons past it fizzle).
  */
-export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150 };
+/** `named`: Phase 14 X5, extra seconds for the fight that holds this delve's named foe (a 2x-health elite, often with a ward, outlasted ranged classes). */
+export const BURNOUT = { fight: 240, boss: 360, warn: 30, ramp: 0.04, addCap: 150, named: 60 };
 export const SHADOW_TIME = 60;
 /** Chance that a normal enemy drops an item. */
 const TRASH_DROP = 1 / 800;
@@ -1721,7 +1722,7 @@ export class World {
   private burnoutClock(dt: number): void {
     // The raid boss has her own hard enrage (Last Ember), so Burnout only backs it up.
     const bossLimit = this.dungeonDef.raid ? SLAG.hardEnrage + SLAG.lastEmberCast + BURNOUT.warn : BURNOUT.boss;
-    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight);
+    const limit = this.fightStartedAt + (this.encounterDef.id === this.dungeonDef.boss ? bossLimit : BURNOUT.fight + (this.encounter === this.namedAt ? BURNOUT.named : 0));
     if (!this.burnoutWarned && this.time >= limit - BURNOUT.warn) {
       this.burnoutWarned = true;
       this.events.push({ type: 'burnout', warn: true });
