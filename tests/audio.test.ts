@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, REGENT, TITHE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { ASHWALL, CREEPING_RIME, GLARE, HOMEWARD, INHALE, REGENT, TITHE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1317,6 +1317,37 @@ describe('audio', () => {
     const db = (id: SoundId) => phoneDb(render(SOUNDS[id], 22050), 22050);
     expect(db('echoSting')).toBeLessThan(db('turnFireWarn') - 4);
     expect(recipeLength(SOUNDS.echoSting)).toBeLessThan(0.7);
+  });
+
+  it('warns of the Ashwall\'s Shield Bash, and turns hits on its shield into a dull glance (Phase 16 U2)', () => {
+    type A = { spawn(k: string, x: number, y: number): number; route: string[]; runAbilities(i: number, dt: number): void; damageEnemy(i: number, amount: number, canCrit: boolean): void };
+    // A Kiln run whose first fight is the Ashwall (as in tests/ashwall.test.ts).
+    const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
+    const q = w as unknown as A;
+    q.route[0] = 'ashwall';
+    for (const e of w.enemies) e.alive = false;
+    (w as unknown as { phase: string }).phase = 'fight';
+    const a = q.spawn('ashwall', 200, 0);
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' };
+    const hitCue = () => { w.events.length = 0; const e = w.enemies[a]; e.hp = e.maxHp = 1e6; q.damageEnemy(a, 100, false); return w.events.filter((ev) => ev.type === 'hit').map((ev) => cueFor(ev, c)?.id); };
+    // From its front, the hit glances; from its side, it is a plain hit.
+    w.player.x = 0; w.player.y = 0;
+    expect(hitCue()).toEqual(['glance']);
+    w.player.x = 200; w.player.y = 200;
+    expect(hitCue()).toEqual(['hit']);
+    // In reach of its front, it bashes: the wind-up is the warning.
+    w.player.x = 200 - 60; w.player.y = 0; w.enemies[a].aux = Math.PI;
+    const casts: (string | undefined)[] = [];
+    for (let k = 0; k < 30 * (ASHWALL.bashEvery + 1) && !casts.length; k++) {
+      w.events.length = 0;
+      q.runAbilities(a, 1 / 30);
+      for (const ev of w.events) if (ev.type === 'castStart' && ev.id === 'shieldBash') casts.push(cueFor(ev, c)?.id);
+    }
+    expect(casts).toEqual(['bashWarn']);
+    expect(PRIORITY.has('bashWarn')).toBe(true);
+    expect(PRIORITY.has('glance')).toBe(false);
+    expect(recipeLength(SOUNDS.bashWarn)).toBeLessThan(ASHWALL.bashCast);
+    expect(THROTTLE.glance).toBeGreaterThan(THROTTLE.hit!);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
