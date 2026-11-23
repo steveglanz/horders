@@ -418,7 +418,6 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'tideTurn': return { id: 'tideTurn' };
     // Y3 Sealed Vents: a building hiss as the steam is about to move, a burst as it opens at the new vent.
     case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
-    // Y3 Carried Light: silent until sound adds its cue (the Glare's own warning already plays).
     // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
     case 'lightMove': return { id: 'lightSwing' };
     case 'emberDrift': return { id: 'emberDriftFall' };

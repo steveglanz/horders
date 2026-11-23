@@ -71,6 +71,8 @@ else if (process.env.STIR) WORLD.STIR.force = process.env.STIR;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 
 let wins = 0;
+/** STIRHURT=1: Phase 15 Y10's judged cost of each trash clear (the worst hero against their class bar), as percentiles. */
+const fightHurts: number[] = [];
 for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
@@ -134,6 +136,7 @@ for (const seed of seeds) {
       }
       if (ev.type === 'castDone') bump('cast:' + ev.name);
       if (ev.type === 'stir') bump('stir:' + ev.id);
+      if (ev.type === 'encounterClear') fightHurts.push(w.fightHurt);
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');
       if (ev.type === 'revive') bump('revive');
@@ -148,5 +151,10 @@ for (const seed of seeds) {
   if (s.victory) wins++;
   const alive = w.heroes.map((_, i) => (w.hero(i).player.hp > 0 ? 'up' : 'down')).join('/');
   console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} heroes=${alive} boss=${w.bossIndex >= 0 ? Math.round((100 * w.enemies[w.bossIndex].hp) / w.enemies[w.bossIndex].maxHp) + '%' : '-'} deaths=${deaths.join(',')} ${JSON.stringify(c)}`);
+}
+if (process.env.STIRHURT === '1' && fightHurts.length) {
+  const q = [...fightHurts].sort((x, y) => x - y);
+  const at = (f: number) => q[Math.min(q.length - 1, Math.floor(f * q.length))].toFixed(3);
+  console.log(`stirhurt n=${q.length} p25=${at(0.25)} p50=${at(0.5)} p75=${at(0.75)} p90=${at(0.9)}`);
 }
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);

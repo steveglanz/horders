@@ -28,4 +28,15 @@ describe('Kiln acolytes channel Kindle', () => {
     expect(acolyte.castId).toBe('');
     expect(w.interruptTarget()).not.toBe(a);
   });
+
+  it('stays inside the arena wall when its ward stands by the wall', () => {
+    const { w, a } = toKindle();
+    const acolyte = w.enemies[a];
+    const brute = w.enemies[acolyte.aux2];
+    for (let k = 0; k < 90; k++) {
+      brute.x = w.arenaR - brute.def.radius; brute.y = 0;
+      w.step({ x: 0, y: 0 });
+      expect(Math.hypot(acolyte.x, acolyte.y)).toBeLessThanOrEqual(w.arenaR - acolyte.def.radius + 1e-6);
+    }
+  });
 });

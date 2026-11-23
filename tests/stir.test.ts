@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { World, STIR, STIR_BIT, STIR_INFO, STIR_IDS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, STIR, STIR_CLASS, STIR_BIT, STIR_INFO, STIR_IDS, ARENA_EVENT_POOLS } from '../sim/world';
 import type { EncounterId } from '../sim/content/dungeon';
 
 type Q = {
@@ -38,7 +38,7 @@ describe('Phase 15 Y10: the dungeon stirs', () => {
   it('two clean clears stir the next trash fight; a rough one or a hero down sets the count back', () => {
     const w = make('foundry', 4);
     const q = w as unknown as Q;
-    const clear = (hurt: number, down = false) => { w.fightHurt = hurt; w.fightDown = down; q.countStir('pack'); };
+    const clear = (hurt: number, down = false) => { w.player.stirHurt = hurt; w.fightDown = down; q.countStir('pack'); };
     clear(0.05);
     expect(w.stirCount).toBe(1);
     clear(0.6);
@@ -56,6 +56,29 @@ describe('Phase 15 Y10: the dungeon stirs', () => {
     w.stirNext = false; w.stirs = STIR.max;
     clear(0.1); clear(0.1);
     expect(w.stirNext).toBe(false);
+  });
+
+  it('follow-up: each hero is judged against their class bar, and the worst-off hero decides', () => {
+    // A Bulwark's usual melee cost is within its looser bar; an Emberwright's isn't.
+    const bul = new World({ seed: 1, dungeon: 'foundry', tier: 4, omens: [], cls: 'bulwark' });
+    const qb = bul as unknown as Q;
+    bul.player.stirHurt = STIR.clean * STIR_CLASS.bulwark * 0.9; qb.countStir('pack');
+    expect(bul.stirCount).toBe(1);
+    // The rough bar loosens too, but never past roughMax.
+    bul.player.stirHurt = STIR.roughMax; qb.countStir('pack');
+    expect(bul.stirCount).toBe(0);
+    const emb = make('foundry', 4);
+    emb.player.stirHurt = STIR.clean * STIR_CLASS.bulwark * 0.9; (emb as unknown as Q).countStir('pack');
+    expect(emb.stirCount).toBe(0);
+    // A party: one clean hero isn't enough when another took a beating.
+    const g = new World({ seed: 1, dungeon: 'hammerdeep', tier: 8, omens: [], party: [{ cls: 'lumen' }, { cls: 'emberwright' }] });
+    const qg = g as unknown as Q & { heroPlayer(k: number): { stirHurt?: number } };
+    qg.heroPlayer(0).stirHurt = 0; qg.heroPlayer(1).stirHurt = 0.3;
+    qg.countStir('pack');
+    expect(g.stirCount).toBe(0);
+    qg.heroPlayer(1).stirHurt = 0.05;
+    qg.countStir('pack');
+    expect(g.stirCount).toBe(1);
   });
 
   it('each reaction does what it says, and a stirred fight drops a second bag', () => {
