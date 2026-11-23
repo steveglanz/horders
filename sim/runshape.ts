@@ -29,7 +29,7 @@ export const BOSS_VERSION_NAME: Record<string, string> = {
   still: 'Twin Vents', wander: 'Wandering Vents', roll: 'Rolling Vents',
   rivets: 'Rivets', cut: 'Die Cut', punch: 'Punch Line',
   pour: 'The Pour', brim: 'The Brimming', flow: 'The Overflow',
-  spill: 'Ember Feast', bank: 'Banked Coals',
+  spill: 'Ember Feast', bank: 'Banked Coals', inhale: 'Inhale',
   wheel: 'Wheel', shift: 'Plate Shift',
   ash: 'Ash Fall', court: 'Summons',
 };

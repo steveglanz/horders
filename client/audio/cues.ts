@@ -441,6 +441,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
+    case 'inhale': return null; // Y3 Inhale: cue to come from sound
     // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
     case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
     case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };

@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1433,6 +1433,7 @@ export class GameScene extends Phaser.Scene {
           } else if (w.dungeonId === 'hoard') {
             if (ev.phase === 2) this.hud.banner('Phase 2: Swallow', 'He swallows one of you. Break the Craw to get them out');
             else if (w.bossVariant === 'bank') this.hud.banner('Phase 3: Banked Coals', 'Hot coals settle round him. Stand on each one as it lands, or he eats it');
+            else if (w.bossVariant === 'inhale') this.hud.banner('Phase 3: Inhale', 'He breathes you in. Walk away from his mouth until he stops');
             else this.hud.banner('Phase 3: Ember Feast', 'Grab the spilled embers before he eats them');
           } else if (w.dungeonId === 'coldmarrow') {
             // Thin Ice has its own banner when the first cracks open.
@@ -1638,7 +1639,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'ysmeret' && w.bossVariant === 'roll' ? ROLLING_TIP : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'punch' ? PUNCH_TIP : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
             : ev.id === 'grandmotherSlag' && w.bossVariant === 'flow' ? OVERFLOW_TIP : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
-            : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
+            : ev.id === 'vorhulm' && w.bossVariant === 'inhale' ? INHALE_TIP : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
@@ -3210,10 +3211,22 @@ export class GameScene extends Phaser.Scene {
   private overflowDraw(now: number): void {
     const w = this.world;
     const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
-    if (!w.flowStage || !b?.alive) { this.flowGfx?.clear(); return; }
+    if ((!w.flowStage && !w.inhaleStage) || !b?.alive) { this.flowGfx?.clear(); return; }
     if (!this.flowGfx) this.flowGfx = this.add.graphics().setDepth(1.43);
     const g = this.flowGfx;
     g.clear();
+    if (w.inhaleStage) {
+      // Y3 Inhale (Old Vorhulm), also a placeholder: his mouth's reach, and streaks drawn in toward him while he breathes in.
+      const m = b.def.radius + INHALE.bite;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 120);
+      g.lineStyle(3, 0xff5030, w.inhaleStage === 2 ? 0.9 : 0.4 + 0.4 * pulse).strokeCircle(b.x, b.y, m);
+      if (w.inhaleStage === 2) for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        const r0 = m + 40 + ((now / 4 + k * 37) % 220);
+        g.lineStyle(2, 0xffd0a0, 0.5).lineBetween(b.x + Math.cos(a) * r0, b.y + Math.sin(a) * r0, b.x + Math.cos(a) * (r0 - 30), b.y + Math.sin(a) * (r0 - 30));
+      }
+      return;
+    }
     const R = OVERFLOW.safeR;
     if (w.flowStage === 2) {
       const outer = ARENA * 2;
