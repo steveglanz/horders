@@ -1,6 +1,7 @@
 // Phase 15 Y6 art for the Y3 third boss versions, in 2D: the Kiln Mother's Turning Fire (the sweep arrow, the next
 // cone's edge and order pips) and Maelra's Sealed Vents (iron-capped grates, the next vent's rattling plate).
 // Forces each version and phase 2 (her health set to 60% by hand), freezes the sim at the moment, and shoots.
+// Also the Lensmother's Carried Light (the light gliding onto her, then beams to each pillar while her Glare comes).
 // Usage: npm run build && node tools/y3artshots.cjs <outDir> [p360|land|desk]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -13,6 +14,7 @@ const VIEW = { p360: { viewport: { width: 360, height: 740 }, deviceScaleFactor:
 const CASES = [
   { name: 'turning', dungeon: 'kiln', boss: 'kilnMother', variant: 'turning', until: 'cones' },
   { name: 'seal-next', dungeon: 'foundry', boss: 'maelra', variant: 'seal', until: 'next' },
+  { name: 'carried', dungeon: 'glarewell', boss: 'lensmother', variant: 'walk', until: 'light', at: [250, 1100] },
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -35,13 +37,17 @@ const CASES = [
     await page.waitForFunction((c) => {
       const s = window.__ember.scene(); const w = s.world;
       const ok = c.until === 'cones' ? w.telegraphs.filter((t) => t.alive && t.shape === 'cone' && t.owner === w.bossIndex).length >= 4 && w.telegraphs.some((t) => t.alive && t.t > 0.5)
+        : c.until === 'light' ? !!s.lightAnim
         : w.nextVent >= 0;
       if (ok) s.warp = 0;
       return ok;
     }, c, { timeout: 120000, polling: 'raf' }).catch(() => errs.push('timeout ' + c.name));
     await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = 'hidden'; });
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: path.join(out, `${size}-${c.name}.png`) });
+    let last = 0;
+    for (const [n, ms] of (c.at || [400]).entries()) {
+      await page.waitForTimeout(ms - last); last = ms;
+      await page.screenshot({ path: path.join(out, `${size}-${c.name}${c.at ? '-' + n : ''}.png`) });
+    }
     await page.evaluate(() => { const b = document.getElementById('banner'); if (b) b.style.visibility = ''; });
   }
   console.log(size, errs.length ? errs.join('\n') : 'no errors');

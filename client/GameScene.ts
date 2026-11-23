@@ -321,6 +321,8 @@ export class GameScene extends Phaser.Scene {
   private waveGfx: Phaser.GameObjects.Graphics | null = null;
   /** Y6: the Kiln Mother's Turning Fire sweep arrow (depth 2.1, over the cones), and Maelra's sealed-vent plates (depth 1.42, over the grates). */
   private turnGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Y6 Carried Light: the light's drawn spot, gliding from where it was to her over 0.6 s when it moves (lightMove). */
+  private lightAnim: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
   private sealGfx: Phaser.GameObjects.Graphics | null = null;
   private waveFx: { kind: 'ring' | 'pincer' | 'gate' | 'burst'; x: number; y: number; a: number; t0: number; dur: number }[] = [];
   /** Phase 15 Y10: the extra elite a stirred fight sends (enemy slot and when it spawned), marked until it dies; and the stir beat's start. */
@@ -434,6 +436,8 @@ export class GameScene extends Phaser.Scene {
     this.footGfx = null;
     this.waveGfx = null;
     this.turnGfx = null;
+    this.lightAnim = null;
+    this.lightLast = { x: 0, y: 0 };
     this.sealGfx = null;
     this.waveFx = [];
     this.stirElite = null;
@@ -1371,6 +1375,11 @@ export class GameScene extends Phaser.Scene {
           // Y3 Carried Light: the shadows swing to point away from her.
           this.hud.ding('The light moves');
           this.ring(ev.x, ev.y, 70, 0xfff0c0, 0.6);
+          {
+            // Y6: the light glides from where it was onto her, and the shadow wedges swing with it.
+            const from = this.lightLast;
+            this.lightAnim = { fx: from.x, fy: from.y, tx: ev.x, ty: ev.y, t0: this.time.now };
+          }
           break;
         case 'ventShift': {
           // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
@@ -2001,12 +2010,24 @@ export class GameScene extends Phaser.Scene {
     // away from the centre lens. The wedges match World.shadowed(), so what you
     // see is where you're safe.
     if (w.pillars.length) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
+    const light = this.lightAt(now);
+    // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
+    // pillar, so a phone shows which way each shadow now falls before it lands.
+    const carried = w.bossVariant === 'walk' && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
+    if (carried && w.pillars.length) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+      for (const c of w.pillars) {
+        if (c.cracked) continue;
+        g.lineStyle(10, 0xfff0c0, 0.08 + 0.06 * pulse).lineBetween(light.x, light.y, c.x, c.y);
+        g.lineStyle(3, 0xffe2a0, 0.45 + 0.3 * pulse).lineBetween(light.x, light.y, c.x, c.y);
+      }
+    }
     this.pillarSprites.forEach((ps, k) => {
       const c = w.pillars[k];
       if (!c) { if (ps.visible) ps.setVisible(false); return; }
       if (!c.cracked) {
         // Y3 Carried Light: the wedge points away from wherever the light is now.
-        const cx = c.x - w.lightX, cy = c.y - w.lightY;
+        const cx = c.x - light.x, cy = c.y - light.y;
         const d = Math.hypot(cx, cy) || 1;
         const ux = cx / d;
         const uy = cy / d;
@@ -2032,8 +2053,9 @@ export class GameScene extends Phaser.Scene {
       const glaring = w.enemies.some((o) => o.alive && o.castId === 'glare');
       const a = glaring ? 0.25 + 0.2 * Math.sin(now / 50) : 0.1;
       // Y3 Carried Light: the glow sits wherever the light is now.
-      g.fillStyle(0xfff0c0, a).fillCircle(w.lightX, w.lightY, 60);
-      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(w.lightX, w.lightY, 60);
+      g.fillStyle(0xfff0c0, a).fillCircle(light.x, light.y, 60);
+      g.lineStyle(3, 0xffe2a0, 0.5).strokeCircle(light.x, light.y, 60);
+      if (this.lightAnim) g.fillStyle(0xfff8e0, 0.5).fillCircle(light.x, light.y, 22); // the bright core as it travels
     }
     if (w.lampBeam) {
       const b = w.lampBeam;
@@ -2980,6 +3002,18 @@ export class GameScene extends Phaser.Scene {
    * - her furnace mouth swells with light until the 150-radius burst lands.
    * The burst itself is the sim's ordinary red circle telegraph; this only adds the inward motion.
    */
+  /** Y6 Carried Light: where the light is drawn now: World.lightX/Y, or on its way there for 0.6 s after it moved. */
+  private lightAt(now: number): { x: number; y: number } {
+    const w = this.world, an = this.lightAnim;
+    const k = an ? (now - an.t0) / 600 : 1;
+    if (an && (k >= 1 || an.tx !== w.lightX || an.ty !== w.lightY)) this.lightAnim = null;
+    const e = 1 - (1 - k) * (1 - k);
+    const at = this.lightAnim && an ? { x: an.fx + (an.tx - an.fx) * e, y: an.fy + (an.ty - an.fy) * e } : { x: w.lightX, y: w.lightY };
+    this.lightLast = at;
+    return at;
+  }
+  private lightLast = { x: 0, y: 0 };
+
   /**
    * Y6: the Kiln Mother's Turning Fire. Her four cones land one after another, turning one cone each time (w.turnDir).
    * A molten arrow curves round her through the cones in the order they land, the next cone to land shows a bright
