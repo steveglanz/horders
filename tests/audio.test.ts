@@ -640,6 +640,14 @@ describe('audio', () => {
     expect(src).toContain('Math.sin(a) * 9.4, 0, Math.cos(a) * 9.4'); // boilers
     expect(src).toContain('Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5'); // anvils
     expect(src).toContain('Math.sin(a) * 9.7, 0, Math.cos(a) * 9.7'); // chimneys
+    expect(src).toContain('lg.position.set(0, 6.2, -9.6)'); // the Glarewell's lens, at the back wall centre (z -9.6)
+    expect(src).toMatch(/\[Math\.PI, 2\.2\], \[Math\.PI - 0\.8, 1\.6\], \[Math\.PI \+ 0\.8, 1\.6\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // fumaroles
+    // Only dungeons with their own 3D room get spots (the rest share the Flue room, whose props aren't theirs). A new room
+    // without spots yet just keeps the random side, so visuals' room PRs never wait on sound.
+    const own = [...(src.match(/const OWN_ROOMS[^=]*= \[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+    expect(own.length).toBeGreaterThanOrEqual(5);
+    for (const d of Object.keys(EDGE_SPOTS)) expect(['flue', ...own], d).toContain(d);
+    for (const d of Object.keys(EDGE_SPOTS)) expect(EDGE_SPOTS[d]![0].length, d).toBeGreaterThan(0);
     [2.3, 1.65, 1.65].forEach((r, k) => expect(EDGE_SPOTS.kiln?.[0][k][1]).toBeCloseTo(9.2 + r * 0.25, 9));
     // The back wall is world -y, scaled to the arena.
     const back = edgeSpotAt([Math.PI, HD2D_ROOM_R], 560);

@@ -696,7 +696,7 @@ export const HD2D_ROOM_R = 7.45;
 /**
  * The 3D rooms (client/hd2d/renderer.ts buildRoom): where each edge sound's prop stands, so in the 3D view the sound
  * comes from the prop you can see. Each spot is [angle round the room (0 the front, PI the back wall), radius in room
- * units]. Only the four dungeons with their own room; the rest share the Flue's room, whose chimneys aren't their props,
+ * units]. Only the dungeons with their own room (renderer.ts OWN_ROOMS); the rest share the Flue's room, whose chimneys aren't their props,
  * and a sound with no spots (or the 2D view) keeps the random side.
  */
 export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [number, number])[], readonly (readonly [number, number])[]]>> = {
@@ -708,6 +708,11 @@ export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [nu
   hammerdeep: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
   // Three chimneys; the banners hang between sconces, so they keep the random side.
   flue: [[[Math.PI, 9.7], [Math.PI - 0.78, 9.7], [Math.PI + 0.78, 9.7]], []],
+  // The great lens, high at the back wall centre (its floor point: it's straight ahead either way). The shard clusters
+  // stand at seeded random spots round the open wall, so they keep the random side.
+  glarewell: [[[Math.PI, 9.6]], []],
+  // Three fumaroles; the cairns are at the same seeded random spots as the Glarewell's shards, so they keep the random side.
+  ashvents: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
 };
 /** Where a 3D room spot is on the floor, in world units (the room is centred on the arena and scaled to arenaR). */
 export const edgeSpotAt = ([a, r]: readonly [number, number], arenaR: number) => ({ x: Math.sin(a) * r * arenaR / HD2D_ROOM_R, y: Math.cos(a) * r * arenaR / HD2D_ROOM_R });
