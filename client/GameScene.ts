@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { BANKED_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -328,6 +328,7 @@ export class GameScene extends Phaser.Scene {
   private lightAnim: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
   /** Y6 Creeping Rime: its floor layer (1.44, with the other floor tells), when it rose, and which way it is creeping. */
   private rimeGfx: Phaser.GameObjects.Graphics | null = null;
+  private flowGfx: Phaser.GameObjects.Graphics | null = null;
   private rimeBorn = 0;
   private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
   /** Y6 the Whirl: the way it last turned, and when that flipped (whirlDraw grows the arrows in fresh). */
@@ -454,6 +455,7 @@ export class GameScene extends Phaser.Scene {
     this.turnGfx = null;
     this.lightAnim = null;
     this.rimeGfx = null;
+    this.flowGfx = null;
     this.rimeBorn = 0;
     this.whirlSeen = 0;
     this.homeThrow = null;
@@ -1408,6 +1410,7 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
+            else if (ev.phase === 2 && w.bossVariant === 'flow') this.hud.banner('Phase 2: The Overflow', 'The pit floods in from the rim. When it rises, gather close to her');
             else if (ev.phase === 2) this.hud.banner('Phase 2: The Pour', 'Molten lanes and rising slag. Keep moving, healers keep everyone up');
             else this.hud.banner('Phase 3: Last Ember', 'Split up to fill both vents, then spread for the Cinder Marks');
           } else if (w.dungeonId === 'foundry') {
@@ -1634,7 +1637,7 @@ export class GameScene extends Phaser.Scene {
             : ev.id === 'ondrel' && w.bossVariant === 'home' ? HOMEWARD_TIP : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
             : ev.id === 'ysmeret' && w.bossVariant === 'roll' ? ROLLING_TIP : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
             : ev.id === 'oskel' && w.bossVariant === 'punch' ? PUNCH_TIP : ev.id === 'oskel' && w.bossVariant === 'cut' ? DIECUT_TIP
-            : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
+            : ev.id === 'grandmotherSlag' && w.bossVariant === 'flow' ? OVERFLOW_TIP : ev.id === 'grandmotherSlag' && w.bossVariant === 'brim' ? BRIMMING_TIP
             : ev.id === 'vorhulm' && w.bossVariant === 'bank' ? BANKED_TIP
             : ev.id === 'colossus' && w.bossVariant === 'shift' ? PLATE_SHIFT_TIP
             : ev.id === 'regent' && w.bossVariant === 'court' ? COURT_TIP : def.tip;
@@ -2248,6 +2251,7 @@ export class GameScene extends Phaser.Scene {
     this.tideDraw(now);
     this.glintDraw(now);
     this.rimeDraw(now);
+    this.overflowDraw(now);
     this.homeDraw(now);
     // Maelra's steam vents: iron grates that glow and breathe steam.
     let sealedDrawn = false;
@@ -3199,6 +3203,28 @@ export class GameScene extends Phaser.Scene {
    * its middle and reach further on the side it is creeping toward, the trailing side thins, crystals glint, and a cold
    * mist rolls round the rim. The rim itself stays a clear pale line at CREEPING_RIME.r, so you can see where it bites.
    */
+  /**
+   * Y3 the Overflow (Grandmother Slag's third version), a placeholder until visuals: while it warns, a pulsing ring at
+   * OVERFLOW.safeR round her; while it has risen, molten slag fills everything outside that ring.
+   */
+  private overflowDraw(now: number): void {
+    const w = this.world;
+    const b = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    if (!w.flowStage || !b?.alive) { this.flowGfx?.clear(); return; }
+    if (!this.flowGfx) this.flowGfx = this.add.graphics().setDepth(1.43);
+    const g = this.flowGfx;
+    g.clear();
+    const R = OVERFLOW.safeR;
+    if (w.flowStage === 2) {
+      const outer = ARENA * 2;
+      g.lineStyle(outer - R, 0xff6a1a, 0.32 + 0.05 * Math.sin(now / 160)).strokeCircle(b.x, b.y, (outer + R) / 2);
+      g.lineStyle(4, 0xffc070, 0.9).strokeCircle(b.x, b.y, R);
+    } else {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 110);
+      g.lineStyle(3 + 2 * pulse, 0xff8a30, 0.45 + 0.4 * pulse).strokeCircle(b.x, b.y, R);
+    }
+  }
+
   private rimeDraw(now: number): void {
     const w = this.world;
     if (!w.rimeOn) { this.rimeGfx?.clear(); return; }

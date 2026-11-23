@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1077,6 +1077,29 @@ describe('Phase 12 W3: Grandmother Slag\'s Brimming', () => {
     expect(lost).toBeGreaterThan(0);
     expect(lost / w.heroData(2).player.maxHp).toBeLessThan(YSMERET.scatterSelf);
     expect(SLAG.marksSelf).toBe(0.1);
+  });
+  it('Y3 the Overflow: in phase 2 it warns, rises from the rim and burns only heroes far from her, then ebbs; no lanes, no islands', () => {
+    const { w, q, b } = slag('flow');
+    const e = w.enemies[b];
+    q.slagClock(1 / 30);
+    expect(w.flowStage).toBe(0);
+    expect(w.islands).toHaveLength(0);
+    q.heatT = 99; q.pourT = 99;
+    // Hero 0 (Bulwark) close to her, hero 1 far out.
+    const near = w.heroData(0).player, far = w.heroData(1).player;
+    near.x = e.x + 60; near.y = e.y; far.x = e.x + OVERFLOW.safeR + 100; far.y = e.y;
+    q.slagClock(OVERFLOW.first + 0.01);
+    expect(w.flowStage).toBe(1);
+    expect(w.events.some((ev) => ev.type === 'overflow' && ev.stage === 'warn')).toBe(true);
+    const hp0 = near.hp, hp1 = far.hp;
+    q.slagClock(OVERFLOW.warn + 0.01);
+    expect(w.flowStage).toBe(2);
+    for (let k = 0; k < 4; k++) { q.heatT = 99; q.pourT = 99; q.slagClock(OVERFLOW.tick); }
+    expect(near.hp).toBe(hp0);
+    expect(far.hp).toBeLessThan(hp1);
+    q.slagClock(OVERFLOW.last);
+    expect(w.flowStage).toBe(0);
+    expect(w.telegraphs.some((t) => t.alive && t.shape === 'cone')).toBe(false);
   });
 });
 
