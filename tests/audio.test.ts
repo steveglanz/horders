@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, OSKEL, OVERFLOW, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, OSKEL, OVERFLOW, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1134,6 +1134,35 @@ describe('audio', () => {
     // The warning has ended before the slag rises, so the crash is heard on its own.
     expect(recipeLength(SOUNDS.overflowWarn)).toBeLessThan(OVERFLOW.warn);
     expect(recipeLength(SOUNDS.overflowRise)).toBeLessThan(OVERFLOW.last);
+  });
+
+  it('warns of Old Vorhulm\'s Inhale once, roars in the in-breath, and sighs the all-clear (Phase 15 Y3)', () => {
+    type G = { coalClock(dt: number): void; spawn(kind: string, x: number, y: number): number; bossIndex: number;
+      gorgeT: number; swallowT: number; spillT: number };
+    const w = new World({ seed: 5, dungeon: 'hoard', omens: [], cls: 'bulwark', worldBoss: 'Old Vorhulm',
+      party: [{ cls: 'emberwright' }, { cls: 'emberwright' }, { cls: 'emberwright' }] });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('vorhulm', 0, -200);
+    q.bossIndex = b;
+    w.bossVariant = 'inhale';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.2;
+    w.heroes.forEach((h, k) => { h.player.x = -150 + k * 100; h.player.y = 0; });
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'hoard' };
+    const heard: string[] = [];
+    const tick = (dt: number) => {
+      w.events.length = 0; q.gorgeT = 999; q.swallowT = 999; q.coalClock(dt);
+      for (const ev of w.events) if (ev.type === 'castStart' || ev.type === 'inhale') heard.push(`${ev.type === 'inhale' ? ev.stage : ev.type}:${cueFor(ev, c)?.id ?? '-'}`);
+    };
+    q.spillT = 0;
+    tick(1 / 30); tick(INHALE.warn + 0.001); q.spillT = 999; tick(INHALE.time);
+    // One warning (the castStart), not two: the event's own warn stage is silent.
+    expect(heard).toEqual(['castStart:inhaleWarn', 'warn:-', 'draw:inhaleDraw', 'end:inhaleEnd']);
+    expect(PRIORITY.has('inhaleWarn') && PRIORITY.has('inhaleDraw')).toBe(true);
+    expect(PRIORITY.has('inhaleEnd')).toBe(false);
+    // The warning is over before he breathes in, and the in-breath is over before the all-clear.
+    expect(recipeLength(SOUNDS.inhaleWarn)).toBeLessThan(INHALE.warn);
+    expect(recipeLength(SOUNDS.inhaleDraw)).toBeLessThan(INHALE.time);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
