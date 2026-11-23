@@ -375,6 +375,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'castStart':
       // Ysmeret's Wandering Vents reuse the twinVents cast; only its name says the circles will move.
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
+      if (ev.id === 'twinVents' && ev.name === ROLLING_VENTS) return { id: 'rollVentWarn' };
       // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
       return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
@@ -436,7 +437,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
     case 'lightMove': return { id: 'lightSwing' };
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
-    case 'ventRoll': return null; // Y3 Rolling Vents: cue to come from sound
+    // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
+    case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
     case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };
     // Y3 Creeping Rime: silent until sound adds its cue.
     // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
@@ -752,10 +754,12 @@ export function targetCue(state: { on: boolean }, onMe: boolean): Cue | null {
 export const DIECUT_R = ARENA * 2;
 /** The cast name sim/world.ts gives Twin Vents in Ysmeret's `wander` version (tests/audio.test.ts checks it). */
 export const WANDERING_VENTS = 'Wandering Vents';
+/** Ysmeret's Rolling Vents (Phase 15 Y3) reuse the twinVents cast too; its name is the only tell. */
+export const ROLLING_VENTS = 'Rolling Vents';
 
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),

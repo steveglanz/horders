@@ -6,14 +6,14 @@ import { bedSamples, chordAt, HUB_BY_SEASON, hubThemeFor, sectionAt, themeFor, T
 import { DUNGEON_IDS, DUNGEONS, SOLO_DUNGEON_IDS } from '../sim/content/dungeon';
 import { HEAT_IDS, heatApplies } from '../sim/content/heat';
 import { SEASON_START_WEEK, SEASON, SEASONS, seasonOf, seasonRewards } from '../sim/content/season';
-import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
+import { DEEP_DUCK, EDGE, EDGE_SOUNDS, edgeCue, withoutBankedSoaks, ISLAND_SLACK, islandCues, myIsland, DIECUT_R, WANDERING_VENTS, ROLLING_VENTS, FLOOR_HEATS, HEAT_STING, WAVE_SOUNDS, ARENA_EVENT_SOUNDS, ARENA_LAND, AFFIX_SPAWN, VENT_SOUNDS, PILLAR_STING, inLavaNow, inRimeNow, landCueFor, LAYOUT_STING, spentCue, behindColossusNow, colossusCue, SHADOW_STING, BELLY, beatGap, bellyCues, DRY, pressedCue, CAST_SOUNDS, cueFor, DUCK, partyCues, PHASE_STING, phaseSting, pickCue, ebbCue, panFor, PAN_MAX, PRIORITY, setCues, setFlagsOf, THROTTLE, reviveCues, targetCue } from '../client/audio/cues';
 import { ENEMIES } from '../sim/content/enemies';
 import { buzzFor, BUZZ, Haptics } from '../client/audio/haptics';
 import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1042,6 +1042,35 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.homeOut)).toBeLessThan(HOMEWARD.fall);
     expect(recipeLength(SOUNDS.homeBack)).toBeLessThanOrEqual(HOMEWARD.back);
     expect(recipeLength(SOUNDS.homeBack)).toBeGreaterThan(HOMEWARD.back - 0.1);
+  });
+
+  it('counts Ysmeret\'s Rolling Vents: an opening call, then a step up for each next vent and a closing ring on the last (Phase 15 Y3)', () => {
+    type Y = { ysmeretClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+      bossIndex: number; bossSpawned: boolean; twinVentT: number; scatterT: number; bellowT: number };
+    const w = new World({ seed: 3, dungeon: 'ashvents', tier: 6, omens: [], cls: 'bulwark' });
+    const q = w as unknown as Y;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ysmeret', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'roll';
+    q.twinVentT = 0; q.scatterT = 99; q.bellowT = 99;
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'ashvents' };
+    const heard: string[] = [];
+    const grab = () => { for (const ev of w.events) if (ev.type === 'castStart' || ev.type === 'ventRoll') heard.push(cueFor(ev, c)?.id ?? 'none'); w.events.length = 0; };
+    w.events.length = 0;
+    q.ysmeretClock(1 / 30); grab();
+    for (let n = 1; n < ROLLING.count; n++) {
+      for (const t of w.telegraphs) if (t.alive && t.owner === -2) t.alive = false; // soaked
+      q.ysmeretClock(1 / 30); grab();
+    }
+    expect(heard).toEqual(['rollVentWarn', ...Array(ROLLING.count - 2).fill('ventRollNext'), 'ventRollLast']);
+    // Each is a soak call, so each is priority, and each next vent's sound ends long before its fuse does.
+    for (const id of ['rollVentWarn', 'ventRollNext', 'ventRollLast'] as const) expect(PRIORITY.has(id)).toBe(true);
+    expect(recipeLength(SOUNDS.ventRollLast)).toBeLessThan(ROLLING.fuse / 2);
+    // The other versions keep their own calls.
+    const ash = { cls: 'bulwark' as const, acting: 0, dungeon: 'ashvents' };
+    expect(cueFor({ type: 'castStart', index: 0, id: 'twinVents', name: 'Twin Vents' } as never, ash)?.id).not.toBe('rollVentWarn');
+    expect(readFileSync('sim/world.ts', 'utf8')).toContain(`'${ROLLING_VENTS}'`);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
