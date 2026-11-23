@@ -863,6 +863,8 @@ export class World {
    * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
    */
   bossEcho: string = '';
+  /** Phase 16 U3: the U2 new foes this run has met (spawned), as bits of NEW_FOE_BIT. */
+  foesMet = 0;
   /** Phase 16 U3: true once this run's echo has actually gone off (its first 'echo' event), for the Seen log and run summary. */
   echoMet = false;
   /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
@@ -2909,6 +2911,8 @@ export class World {
     e.alive = true;
     e.kind = kind;
     e.def = def;
+    const nb = NEW_FOE_BIT[kind];
+    if (nb) this.foesMet |= nb;
     if (this.threat.length) this.threat[idx] = newThreat();
     e.x = e.px = x;
     e.y = e.py = y;
@@ -8559,6 +8563,12 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
  * Phase 16 U1 echoes: from `minTier`, a boss's last phase also uses one of her other versions' moves, every other time her
  * signature comes round. `off` and `force` (a version id) are for measuring.
  */
+/**
+ * Phase 16 U2/U3: the new foes the Seen log and run summary track, in bit order (append only: bits are saved on heroes'
+ * Seen logs as ids, but the run's World.foesMet uses the order). A dungeon lists one when a trash fight on its route spawns it.
+ */
+export const NEW_FOES: readonly EnemyKind[] = ['ashwall'];
+export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
