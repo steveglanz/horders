@@ -555,6 +555,8 @@ export type SimEvent =
   | { type: 'wheel'; hero: number }
   /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
   | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
+  /** Phase 15 Y3 Tithe: the Regent's gold circle landed with `n` heroes in it; `ok` when that was enough. */
+  | { type: 'tithe'; ok: boolean; n: number }
   | { type: 'meltPulse'; n: number }
   /** Raid 4 (the Flue): a Decree landed on a hero, was passed (`from` to `hero`; `done`: its last pass, so it fades), or burst. */
   | { type: 'decree'; hero: number }
@@ -6820,6 +6822,16 @@ export class World {
       this.ashT -= dt;
       if (this.ashT <= 0) {
         this.ashT = REGENT.ashEvery;
+        if (this.bossVariant === 'tithe') {
+          // Phase 15 Y3: he demands a Tithe instead of the ash: a gold circle away from him that needs at least TITHE.need heroes.
+          const a = this.rng.next() * Math.PI * 2;
+          let x = e.x + Math.cos(a) * TITHE.dist, y = e.y + Math.sin(a) * TITHE.dist;
+          const lim = ARENA - TITHE.r - 20, m = Math.hypot(x, y);
+          if (m > lim) { x *= lim / m; y *= lim / m; }
+          this.addTelegraph('circle', x, y, TITHE.r, 0, 0, TITHE.fuse, 0, 'soak', -5);
+          this.events.push({ type: 'castStart', index: i, id: 'tithe', name: 'Tithe' });
+          return;
+        }
         if (this.bossVariant === 'court') {
           // Phase 12 W3: as the ash falls he calls a Summons: step out of your circle, then come before him.
           this.summonsT = SUMMONS.warn;
@@ -7593,6 +7605,17 @@ export class World {
             const q = this.player;
             if (this.setCount('ventwalker') >= 3 && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) this.healPlayer(q.maxHp * SET_TUNING.vwHeal);
           });
+        }
+        if (t.owner === -5) {
+          // Y3 the Regent's Tithe: enough heroes share it, or everyone pays.
+          const boss = this.bossIndex;
+          if (took.length >= TITHE.need) {
+            const share = TITHE.cost / took.length;
+            for (const k of took) { this.use(k); this.hurtPlayer(this.player.maxHp * share, boss, true); }
+          } else this.eachHero(() => this.hurtPlayer(this.player.maxHp * TITHE.miss, boss, true));
+          this.use(0);
+          this.events.push({ type: 'tithe', ok: took.length >= TITHE.need, n: took.length });
+          continue;
         }
         if (t.owner === -4) {
           // A Banked Coal: smothered, or he eats it (the same as an ember he inhales).
@@ -8440,8 +8463,15 @@ export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1
  * (scaled by tier). The party has to gather on him, where a Decree's scorch (REGENT.scorchRadius) catches anyone close
  * to its holder, so holders stand at the edge and passes happen in the crowd.
  */
-export type RegentVariant = 'ash' | 'court';
-export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court'];
+export type RegentVariant = 'ash' | 'court' | 'tithe';
+export const REGENT_VARIANTS: RegentVariant[] = ['ash', 'court', 'tithe'];
+/**
+ * Phase 15 Y3 Tithe (his phase 2 in the `tithe` version, on Ash Fall's timer, in place of the ash): a gold circle of `r` lands
+ * `dist` px from him (a random side) after `fuse` s. If at least `need` heroes stand in it, they share the tithe: each takes
+ * `cost` of max health split between them. If fewer do, every hero pays `miss` of max health. Decrees still scorch anyone close
+ * to their holder, so a holder who joins the tithe burns the others.
+ */
+export const TITHE = { dist: 240, r: 80, fuse: 4, need: 2, cost: 0.6, miss: 0.35 };
 export const SUMMONS = { warn: 2.5, radius: 130, damage: 70 };
 /**
  * Phase 12 W3: the Cinder Colossus's two versions (his phase 2). `wheel`: he turns on the hero who hurt him most and sweeps.
