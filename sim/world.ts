@@ -5225,6 +5225,8 @@ export class World {
       e.aux = phase === 3 ? 12 : 18;
       if (phase >= 2 && this.bossVariant === 'turning') {
         this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
+        // She's busy pouring: nothing else from her until the last cone lands.
+        e.abilityT = Math.max(e.abilityT, KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step + 0.5);
         // Clockwise or not, in turn, so a player can't learn one way round.
         const dir = (this.turnDir = e.aux2 = e.aux2 > 0 ? -1 : 1);
         const a0 = Math.atan2(p.y - e.y, p.x - e.x);
