@@ -584,6 +584,8 @@ export type SimEvent =
   | { type: 'tideTurn'; angle: number }
   /** Y3 Carried Light: the Glarewell's light now comes from here. */
   | { type: 'lightMove'; x: number; y: number }
+  /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
+  | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
   | { type: 'ventShift'; stage: 'warn' | 'open'; vent: number }
   | { type: 'chest'; x: number; y: number }
@@ -856,6 +858,12 @@ export class World {
   cutCount = 0;
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
+  /** Y3 Creeping Rime: whether it's up, and where. */
+  /** Y3 the Whirl: which way Hessa's water turns this Ebb (1 or -1). */
+  whirlDir = 1;
+  rimeOn = false;
+  rimeX = 0;
+  rimeY = 0;
   private driftT = 0;
   private driftN = 0;
   /** V8 Sluicetide: the way the water flows (radians), while it runs. */
@@ -2239,6 +2247,11 @@ export class World {
   }
 
   /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
+  /** Phase 15 Y3: Hessa's Whirl version, in phase 2 while she lives. */
+  get whirl(): boolean {
+    return this.bossVariant === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+  }
+
   get outsurge(): boolean {
     return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
@@ -2271,6 +2284,12 @@ export class World {
       if (k !== not && dist2(e.x, e.y, v.x, v.y) > (v.r + e.def.radius) ** 2) free.push(k);
     }
     if (!free.length) for (let k = 0; k < n; k++) if (k !== not) free.push(k);
+    if (MAELRA_SEAL.near) {
+      // The free vent nearest her, so a slow melee lead can reach it.
+      let best = free[0], bd = Infinity;
+      for (const k of free) { const d = dist2(e.x, e.y, this.vents[k].x, this.vents[k].y); if (d < bd) { bd = d; best = k; } }
+      return best;
+    }
     return free[h % free.length];
   }
 
@@ -6042,6 +6061,11 @@ export class World {
         this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
         this.use(at);
       }
+      if (this.rimeOn && q.hp > 0 && dist2(q.x, q.y, this.rimeX, this.rimeY) <= CREEPING_RIME.r ** 2) {
+        // Y3 Creeping Rime: it soaks the coal and chills, but doesn't burn.
+        q.coal = Math.max(0, q.coal - CREEPING_RIME.drain * dt);
+        q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + CREEPING_RIME.chill * dt);
+      }
       if (this.coldPhase >= 2 && q.hp > 0 && this.inWater(q.x, q.y)) {
         // Thin Ice: open water soaks the coal, chills fast, and hurts.
         q.coal = Math.max(0, q.coal - COLD.waterDrain * dt);
@@ -6086,6 +6110,27 @@ export class World {
           this.driftEmbers.push({ x: Math.cos(a) * EMBERDRIFT.ring, y: Math.sin(a) * EMBERDRIFT.ring });
         }
         this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
+      }
+    } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
+      // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
+      if (!this.rimeOn) {
+        this.rimeOn = true;
+        this.rimeX = e.x;
+        this.rimeY = e.y;
+        this.events.push({ type: 'rimeRise', x: e.x, y: e.y });
+      }
+      let tx = this.rimeX, ty = this.rimeY, best = Infinity;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp <= 0) continue;
+        const d = dist2(q.x, q.y, this.rimeX, this.rimeY);
+        if (d < best) { best = d; tx = q.x; ty = q.y; }
+      }
+      const dx = tx - this.rimeX, dy = ty - this.rimeY, d = Math.hypot(dx, dy);
+      if (d > 1) {
+        const step = Math.min(d, CREEPING_RIME.speed * dt);
+        this.rimeX += (dx / d) * step;
+        this.rimeY += (dy / d) * step;
       }
     } else if (this.coldPhase >= 2) {
       this.iceT -= dt;
@@ -6149,7 +6194,8 @@ export class World {
     const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
     // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
     const out = this.outsurge;
-    const riptide = this.wrackPhase >= 2 && !out;
+    const whirl = this.whirl;
+    const riptide = this.wrackPhase >= 2 && !out && !whirl;
     const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
@@ -6169,9 +6215,18 @@ export class World {
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
         const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
-        const step = this.anchored(q) ? 0 : Math.min(room, pull * CLASSES[this.heroes[k].cls].speed * dt) * (out ? -1 : 1);
+        const speed = CLASSES[this.heroes[k].cls].speed;
+        const step = this.anchored(q) ? 0 : Math.min(room, pull * (whirl ? WHIRL.inward : 1) * speed * dt) * (out ? -1 : 1);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
+        if (whirl && !this.anchored(q)) {
+          // Y3 the Whirl: carried round the drain, the way it turns this Ebb.
+          const s = WHIRL.spin * speed * dt * this.whirlDir;
+          const qx = q.x;
+          q.x += (-q.y / d) * s;
+          q.y += (qx / d) * s;
+          this.clampArena(q, PLAYER_RADIUS);
+        }
         const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
@@ -6184,8 +6239,14 @@ export class World {
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
-        e.x -= (e.x / d) * step;
-        e.y -= (e.y / d) * step;
+        e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
+        e.y -= (e.y / d) * step * (whirl ? WHIRL.inward : 1);
+        if (whirl) {
+          const s = foePull * dt * this.whirlDir;
+          const ex = e.x;
+          e.x += (-e.y / d) * s;
+          e.y += (ex / d) * s;
+        }
         if (out ? d >= rim : d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
       }
     } else if (this.ebbWarnT > 0) {
@@ -6196,7 +6257,8 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
+        if (whirl) this.whirlDir = -this.whirlDir;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : whirl ? 'The Whirl' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -7086,7 +7148,8 @@ export class World {
       this.events.push({ type: 'phase', phase });
     }
     // Temper builds over time; dragging her through a vent boils it away.
-    this.temperT -= dt;
+    // Y3 Sealed Vents: with one vent open, her Temper builds `temperSlow` times slower from phase 2.
+    this.temperT -= dt / (phase >= 2 && this.bossVariant === 'seal' ? MAELRA_SEAL.temperSlow : 1);
     if (this.temperT <= 0) {
       this.temperT = this.temperEvery;
       if (this.temper < FOUNDRY.temperMax) this.temper++;
@@ -7115,7 +7178,7 @@ export class World {
       for (let vi = 0; vi < this.vents.length; vi++) {
         const v = this.vents[vi];
         if (sealed && vi !== this.openVent) continue;
-        if (dist2(e.x, e.y, v.x, v.y) <= (v.r + e.def.radius * 0.5) ** 2) {
+        if (dist2(e.x, e.y, v.x, v.y) <= (v.r * (sealed ? MAELRA_SEAL.wide : 1) + e.def.radius * 0.5) ** 2) {
           // Boiling her Temper away vents cool water back at the hero: a heal for playing the verb.
           const heal = this.healPlayer(p.maxHp * FOUNDRY.ventHealPerStack * (this.heat === 'thickSteam' ? HEAT_TUNING.steamHeal : 1) * (sealed ? MAELRA_SEAL.healMult : 1) * this.temper);
           if (heal > 0) {
@@ -7965,8 +8028,13 @@ export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
-export type NhevraVariant = 'ice' | 'drift';
-export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift'];
+export type NhevraVariant = 'ice' | 'drift' | 'rime';
+export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
+/**
+ * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
+ * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.
+ */
+export const CREEPING_RIME = { r: 85, speed: 48, drain: 0.05, chill: 1.5 };
 /** V8 Emberdrift: from phase 2 coals drain `drainMult` times faster; every `every` s, `n` embers fall on a `ring` px ring, each refilling `refill` of a coal when touched (within `pickR`). */
 export const EMBERDRIFT = { every: 12, n: 3, ring: 280, pickR: 34, refill: 0.45, drainMult: 2.5 };
 
@@ -7990,8 +8058,11 @@ export const SLUICETIDE = { drift: 45, turnEvery: 8 };
 /**
  * Phase 15 Y3 Sealed Vents: from phase 2 only one vent is open; only it boils off her Temper.
  * Every `every` s the steam moves to another vent, shown `warn` s ahead. The open vent heals `healMult` times as much.
+ * Skills' Y5 fix (the Bulwark fell to 49 of 160 at t6): the open vent boils her from `wide` times its radius, the steam moves
+ * to the free vent nearest her when `near` is 1, and her Temper builds `temperSlow` times slower. The clock runs in runMaelra,
+ * so it pauses while she casts.
  */
-export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5 };
+export const MAELRA_SEAL = { every: 16, warn: 2.5, healMult: 1.5, wide: 1.6, near: 1, temperSlow: 1.5 };
 
 export const LAYOUT = {
   stoneCount: 5, stoneRing: 230, stoneRadius: 34,
@@ -8182,8 +8253,13 @@ export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
  */
 export const IRONLOAD = { time: 5, radius: 110, share: 0.5, grow: 0.08 };
 /** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
-export type HessaVariant = 'riptide' | 'outsurge';
-export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];
+export type HessaVariant = 'riptide' | 'outsurge' | 'whirl';
+export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
+/**
+ * Phase 15 Y3 the Whirl: from phase 2 the Ebb swirls round the drain instead of only pulling in. Off a raft, a hero is carried
+ * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
+ */
+export const WHIRL = { spin: 0.6, inward: 0.5 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */

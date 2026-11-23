@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, IRONLOAD, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, KILN_TURN, LAYOUT, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -39,6 +39,8 @@ export interface CueContext {
   ebbPull?: boolean;
   /** The Wrackline: Hessa's Outsurge version is live (World.outsurge), so the Ebb runs outward and sounds different. */
   outsurge?: boolean;
+  /** The Wrackline: Hessa's Whirl version is live (World.whirl), so the Ebb swirls round the drain and sounds different. */
+  whirl?: boolean;
   /** Co-op: each hero's party role ('tank', 'healer' or 'dps'), as on the party frames. */
   roles?: string[];
   /** Co-op pick-ups: each hero's seconds stood on so far, the seconds needed, and pick-ups left (World.revivesLeft). */
@@ -72,6 +74,8 @@ export interface CueContext {
   heat?: string;
   /** The Kiln's channel layout: this screen's hero stands in lava (inLavaNow), so it sizzles. */
   inLava?: boolean;
+  /** Y3 Creeping Rime: this screen's hero stands in the rime (inRimeNow), so frost crackles underfoot. */
+  inRime?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -362,7 +366,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (ev.id === 'twinVents' && ev.name === WANDERING_VENTS) return { id: 'wanderVentWarn' };
       // The Brimming's Churn hurts no one: a quiet stir of the pit, not a warning (so not in CAST_SOUNDS, which are all priority).
       if (ev.id === 'churn') return { id: 'churn', jitter: 0.06 };
-      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
+      return { id: ev.id === 'ebb' && c.outsurge ? 'outsurgeWarn' : ev.id === 'ebb' && c.whirl ? 'whirlWarn' : CAST_SOUNDS[ev.id]?.start ?? 'castWarn' };
     case 'interrupt': return { id: 'interrupt' };
     // The Hoard: Swallow is the fight's main alarm for everyone (break the Craw); getting out or digesting is news for all.
     case 'swallowed': return { id: 'swallowed' };
@@ -420,6 +424,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'ventShift': return { id: ev.stage === 'warn' ? 'steamMoveWarn' : 'steamMoveOpen' };
     // Y3 Carried Light: the shadows swing as she carries the light; it pans toward her (panFor reads ev.x).
     case 'lightMove': return { id: 'lightSwing' };
+    // Y3 Creeping Rime: silent until sound adds its cue.
+    // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
+    case 'rimeRise': return { id: 'rimeRise' };
     case 'emberDrift': return { id: 'emberDriftFall' };
     // Only this screen's hero hears their own coal brighten; an ally's pickup is a quiet clink.
     case 'emberPick': return mine(ev.hero) ? { id: 'emberPickUp' } : { id: 'emberTaken', vol: 0.5, jitter: 0.1 };
@@ -521,6 +528,14 @@ export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
 }
 
 /** The Kiln's channel layout: is this hero standing in a lava strip (World.lava, as World.layoutClock burns it)? */
+/** Y3 Creeping Rime: is this screen's (living) hero inside the rime? The same test the sim uses to chill. */
+export function inRimeNow(w: { rimeOn: boolean; rimeX: number; rimeY: number; player: { x: number; y: number; hp: number } }): boolean {
+  const p = w.player;
+  if (!w.rimeOn || p.hp <= 0) return false;
+  const dx = p.x - w.rimeX, dy = p.y - w.rimeY;
+  return dx * dx + dy * dy <= CREEPING_RIME.r ** 2;
+}
+
 export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
   const p = w.player;
   if (p.hp <= 0) return false;
@@ -702,10 +717,10 @@ export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
 }
 
 /** The Ebb's drag: once, as the pull starts. `state.on` is updated in place. */
-export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false): Cue | null {
+export function ebbCue(state: { on: boolean }, pulling: boolean, outsurge = false, whirl = false): Cue | null {
   const fire = pulling && !state.on;
   state.on = pulling;
-  return fire ? { id: outsurge ? 'outsurgePull' : 'ebbPull' } : null;
+  return fire ? { id: outsurge ? 'outsurgePull' : whirl ? 'whirlPull' : 'ebbPull' } : null;
 }
 
 /** The "you're targeted" sting: once, when Anvilfall starts winding up on you. `state.on` is updated in place. */
@@ -727,7 +742,7 @@ export const WANDERING_VENTS = 'Wandering Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
@@ -762,6 +777,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   // The Kiln: a Rift spits every 3 s and two can be open; lava sizzles while you stand in it.
   riftSpit: 1,
   lavaSizzle: 0.35,
+  rimeCrackle: 0.35,
   // Planted can blink off and on as a hero shuffles; one knock a second is plenty.
   planted: 1,
   // Kinbound: a healer keeps re-covering the party, so Covered and Bonded sound at most every 2 s each.

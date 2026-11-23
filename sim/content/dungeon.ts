@@ -98,6 +98,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
+export const CREEPING_RIME_TIP = 'Quench her Snuff and kill the Snuffers. Later a patch of rime creeps after you and smothers your coal: keep moving and lead it away.';
 export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the cold eats your coal fast, but embers fall: walk over them to keep your coal bright for the Long Night.';
 /** V8: the Lensmother's intro when this run's version brings Glintfall from phase 2. */
 export const CARRIED_LIGHT_TIP = 'Hide from her Glare behind a pillar. Later she carries the light herself: when a Glare starts, put a pillar between you and her.';
@@ -111,6 +112,7 @@ export const DIECUT_TIP = 'Take turns under his Downstroke. His Die Cut stamps h
 /** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
 export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
+export const WHIRL_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water swirls round the drain and carries you with it: it turns the other way each time, so watch which way and wade across it to a raft.';
 export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water turns and throws you out to the rim: the rim burns, so stay on a raft.';
 /** Phase 12 W3: Grandmother Slag's intro when this run's version brings the Brimming (cooling islands) instead of the Pour's lanes. */
 export const BRIMMING_TIP = 'Heal the Ladle burn off the tank. Later the pit fills: stand on the cooling islands and move before they sink. Then fill the vents and spread for the Cinder Marks.';

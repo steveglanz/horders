@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, HESSA_VARIANTS, OUTSURGE, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -606,7 +606,7 @@ describe('V8 variety: the Coldmarrow', () => {
 describe('V8 variety: Nhevra\'s Emberdrift', () => {
   type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void; rollNhevraVariant(): string;
     bossIndex: number; bossSpawned: boolean; coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
-  function nhevra(variant: 'ice' | 'drift'): { w: World; q: N; b: number } {
+  function nhevra(variant: 'ice' | 'drift' | 'rime'): { w: World; q: N; b: number } {
     const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
     const q = w as unknown as N;
     for (const e of w.enemies) e.alive = false;
@@ -652,6 +652,28 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
     expect(w.events.some((e) => e.type === 'emberPick')).toBe(true);
   });
 
+  it('Y3 Creeping Rime: rises under her in phase 2, creeps after the hero, and smothers a coal inside it; no Thin Ice', () => {
+    const { w, q } = nhevra('rime');
+    q.coldClock(0.01);
+    expect(w.rimeOn).toBe(true);
+    expect(w.events.some((e) => e.type === 'rimeRise')).toBe(true);
+    expect(w.cracks.some((c) => c.alive)).toBe(false);
+    const d0 = Math.hypot(w.player.x - w.rimeX, w.player.y - w.rimeY);
+    q.coldClock(1);
+    expect(d0 - Math.hypot(w.player.x - w.rimeX, w.player.y - w.rimeY)).toBeCloseTo(CREEPING_RIME.speed, 3);
+    // Outside it the coal drains as usual; inside it, much faster, and Chill builds.
+    w.player.coal = 0.5; w.player.chill = 0;
+    w.player.x = w.rimeX; w.player.y = w.rimeY;
+    q.coldClock(1);
+    expect(0.5 - w.player.coal!).toBeCloseTo(0.01 + CREEPING_RIME.drain, 3);
+    expect(w.player.chill!).toBeGreaterThan(0);
+    // Phase 1 has none.
+    const one = nhevra('rime');
+    one.q.coldPhase = 1; one.w.enemies[one.b].hp = one.w.enemies[one.b].maxHp;
+    one.q.coldClock(0.5);
+    expect(one.w.rimeOn).toBe(false);
+  });
+
   it('online co-op: a guest sees the same version and embers', () => {
     const { w, q } = nhevra('drift');
     q.coldClock(0.01);
@@ -665,7 +687,7 @@ describe('V8 variety: Nhevra\'s Emberdrift', () => {
 describe('Phase 12 W1: Hessa\'s Outsurge', () => {
   type H = { spawn(kind: string, x: number, y: number): number; wrackClock(dt: number): void; rollHessaVariant(): string;
     bossIndex: number; bossSpawned: boolean; wrackPhase: number; ebbT: number; rafts: unknown[] };
-  function hessa(variant: 'riptide' | 'outsurge', phase = 2): { w: World; q: H } {
+  function hessa(variant: 'riptide' | 'outsurge' | 'whirl', phase = 2): { w: World; q: H } {
     const w = new World({ seed: 5, dungeon: 'wrackline', tier: 10, omens: [], cls: 'emberwright' });
     const q = w as unknown as H;
     for (const e of w.enemies) e.alive = false;
@@ -710,6 +732,26 @@ describe('Phase 12 W1: Hessa\'s Outsurge', () => {
     mid.q.wrackClock(0.5);
     expect(lost).toBeGreaterThan((hp2 - mid.w.player.hp) * 1.5);
     expect(OUTSURGE.rimBurn).toBeGreaterThan(0);
+  });
+
+  it('Y3 the Whirl: in phase 2 the Ebb carries a hero round the drain, drawing in more gently, and turns the other way each Ebb', () => {
+    const { w, q } = hessa('whirl');
+    expect(w.whirl).toBe(true);
+    const dir = w.whirlDir;
+    q.wrackClock(0.5);
+    // Carried round: the hero (at +x) moves along y in the whirl's direction, and in less than Riptide would pull.
+    expect(Math.sign(w.player.y)).toBe(dir);
+    const rip = hessa('riptide');
+    rip.q.wrackClock(0.5);
+    expect(300 - Math.hypot(w.player.x, w.player.y)).toBeLessThan(300 - Math.hypot(rip.w.player.x, rip.w.player.y));
+    // The next Ebb turns the other way.
+    const n = hessa('whirl');
+    const q2 = n.q as unknown as { ebbT: number; ebbWarnT: number; tideClockT: number };
+    q2.ebbT = 0; q2.ebbWarnT = 0; q2.tideClockT = 0;
+    n.q.wrackClock(0.01);
+    expect(n.w.whirlDir).toBe(-dir);
+    expect(n.w.events.some((e) => e.type === 'castStart' && e.name === 'The Whirl')).toBe(true);
+    expect(WHIRL.spin).toBeGreaterThan(0);
   });
 
   it('phase 1 pulls in for both versions', () => {

@@ -131,13 +131,13 @@ for (const dungeon of dungeons) {
       });
       wearSet();
       w.step(inputs);
-      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, namedAffix: w.namedPlan()?.affix };
+      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, whirl: dungeon === 'wrackline' && w.whirl, namedAffix: w.namedPlan()?.affix };
       for (const ev of withoutBankedSoaks(w.events)) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
       }
       for (const c of partyCues(wasDown, w.heroes.map((_, i) => w.heroData(i).player.hp), w.acting)) play(c.id, w.time);
-      const ec = ebbCue(ebb, dungeon === 'wrackline' && w.ebbT > 0, ctx.outsurge);
+      const ec = ebbCue(ebb, dungeon === 'wrackline' && w.ebbT > 0, ctx.outsurge, ctx.whirl);
       if (ec) play(ec.id, w.time, ec.vol);
       const pc = pressedCue(press, dungeon === 'pressworks' && (w.player.pressedT ?? 0) > 0);
       if (pc) play(pc.id, w.time, pc.vol);

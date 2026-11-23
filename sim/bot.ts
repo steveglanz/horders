@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, KILN_TURN, REVIVE_RADIUS, WRACK, World } from './world';
+import { ARENA, SUMMONS, BRIM, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1082,6 +1082,12 @@ export function botInput(w: World, skill = 1): Input {
     const td = Math.hypot(tx, ty) || 1;
     fx += (tx / td) * 0.06 * skill;
     fy += (ty / td) * 0.06 * skill;
+  }
+  // Y3 Creeping Rime: keep out of the frost as it creeps after you.
+  if (w.rimeOn) {
+    const dx = p.x - w.rimeX, dy = p.y - w.rimeY, d = Math.hypot(dx, dy) || 1;
+    const reach = CREEPING_RIME.r + 70;
+    if (d < reach) { fx += (dx / d) * 0.6 * skill * (1 - d / reach + 0.3); fy += (dy / d) * 0.6 * skill * (1 - d / reach + 0.3); }
   }
   // Glarewell: hide from a Glare, burst a Brand in the open, stay out of the lamps' beam.
   if (w.pillars.length) {
