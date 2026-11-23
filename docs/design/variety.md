@@ -1478,7 +1478,7 @@ The Glarewell already teaches you to hide behind pillars from the Lensmother's G
 - **Searing Look:** at `full` (6 s) it casts Searing Look for `lookCast` (1 s), not interruptible. When the cast ends, every hero it can still see takes `lookDamage` (34) times the tier's damage. A hero who gets behind a pillar during the cast takes nothing. Either way the gaze resets to 0.
 - **It keeps its distance:** inside `keep` (220 px) it backs away, so its gaze crosses the room.
 - **The trade:** a pillar's shadow is where Shades take less damage (`GLARE.shadeShadowTaken`). Hide to break the gaze, then step back out and draw the Shades into the light.
-- **Bots:** once the gaze is half full and it can see them, a bot heads for the far side of the nearest standing pillar (`NOLAMPEYE=1` turns that off).
+- **Bots:** once the gaze is half full and it can see them, a ranged bot heads for the far side of the nearest standing pillar (`NOLAMPEYE=1` turns that off). Melee bots stay on the eye.
 - **Client:** a ring round it fills as the gaze builds, and a thin beam joins it to your hero while it can see you. The beam flares during Searing Look. It wears the Shade's sprite until visuals draw it.
 - **Seen log:** appended to `NEW_FOES`.
 
@@ -1492,7 +1492,7 @@ Glarewell t8, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`),
 | Lumen | 65 s, 78 | 75 s, 22 | 53 s, 79 |
 | Slagbinder | 80 s, 78 | 82 s, 80 | 44 s, 80 |
 
-The fight times count only fights that were cleared. Without hiding, the Emberwright cleared 9 of 80 and the Lumen 22, so the gaze is the fight for ranged heroes. Natural Glarewell t8 runs, seeds 1 to 160, wins before / after: Bulwark 139 / 139, Duskblade 118 / 116, Emberwright 143 / 144, Lumen 156 / 152, Slagbinder 160 / 157. **Watch item for skills:** the Bulwark bot hides when it would do better to stand and finish the eye (59 with hiding against 69 without), and its fight takes twice as long. Its natural runs don't move, so the bot rule is kept the same for every class for now.
+The fight times count only fights that were cleared. Without hiding, the Emberwright cleared 9 of 80 and the Lumen 22, so the gaze is the fight for ranged heroes. Natural Glarewell t8 runs, seeds 1 to 160, wins before / after: Bulwark 139 / 139, Duskblade 118 / 116, Emberwright 143 / 144, Lumen 156 / 152, Slagbinder 160 / 157. **Melee bots don't hide (skills' U4, 23 Nov):** forced first fight, seeds 41 to 200, whole-run wins of 160, the Duskblade won 89 hiding against 127 for the Shades control, and the Bulwark 118 against 145; with `NOLAMPEYE=1` the Bulwark is back to 145. The Duskblade lost 38 runs in the Lampeye fight itself. So the pillar rule is now for ranged heroes only, and a melee hero stays on the eye.
 
 ## Routes never repeat a fight (playtest must-fix, 23 Nov)
 
