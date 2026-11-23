@@ -236,6 +236,25 @@ Steve, 22 Nov: "People aren't going to want to play the same dungeon multiple ti
 | X8 | **QA:** contentcheck plays every mark and event (0 stuck); variety.ts counts the distinct run shapes per dungeon | QA | ✅ #484: 624 runs, 0 stuck, 0 trapped; run shapes 998 to 1000 per 1000 seeds |
 | X9 | **Phones:** the run-shape chips, the mark badge and event warnings fit at 320 px wide without covering the fight | phones | ✅ #479 (end-screen chips made compact: one line each at 320 and 568 with every chip a run can roll). Checked with no change needed on 23 Nov: every named-foe banner (AFFIX_TIP) and arena-event warning stays whole at 320, 360, 568 and 667, solo and with party frames; the trait badge sits on the foe's plate and Vent Surge's warning clears the HUD at 320 and 568; the Heat chip shows on every solo dungeon card with no cut or sideways scroll. Screenshots in docs/ux/phase14/. The co-op dungeon card's run shape isn't built yet: check it when it is |
 
+### Phase 15: waves and bosses that don't repeat (planned by game design, 23 Nov 2026)
+Steve, 22 Nov: "The bosses I have fought, and the waves, have seemed pretty similar." and "People aren't going to want to play the same dungeon multiple times with no changes." Phases 11 to 14 changed which fights come, the floor, the boss version, the named foe, mid-fight events and the day's Heat. Two things still play the same every time:
+- **Waves:** every trash fight's foes all arrive at once, in one arc from the far side of the arena (`startEncounter`, sim/world.ts).
+- **Bosses:** each boss has only two versions.
+
+Phase 15 changes how waves arrive, gives bosses a third version, and lets players see what they haven't met yet. Every roll stays a hash of the seed.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| Y1 | **Wave shapes:** each trash fight's foes arrive in a seeded shape: today's arc; a pincer from two sides; a ring round the party; or half now and reinforcements a few seconds later, with a warning | design | ⏭ Solo and group trash, then raids; measured against each band on 120 to 160 seeds |
+| Y2 | **Raid trash events:** Cave-in and Vent Surge in raid openers and named fights (never the boss), as the group dungeons got in #494 | design | ⏭ Raids stay 55 to 70% at their unlock tier |
+| Y3 | **Third boss versions:** a third phase-2 version for each solo boss, the Kiln Mother first, then Maelra, the Lensmother, Nhevra and Hessa; group and raid bosses after | design | ⏭ One boss per PR, every version within the band; names searched for WoW matches |
+| Y4 | **Seen log:** each hero keeps a record of the boss versions, named-foe traits, arena events, wave shapes and Heats they have met. The end screen marks what's new, and the hub shows what's still unseen in each dungeon | engineering | ⏭ Reads runShape (sim/runshape.ts); saved with the hero |
+| Y5 | **Class check:** each class against each wave shape (melee against a ring, ranged against a pincer) and each third version | skills | ⏭ After Y1 and Y3 ids |
+| Y6 | **Art**, in the current lit 2D style: where each wave comes in from, the reinforcement warning, each third version's mechanic, and the Seen log | visuals | ⏭ After Y1, Y3 and Y4 ids |
+| Y7 | **Sound:** a cue for reinforcements arriving and for a wave from behind, and each third version's cues | sound | ⏭ After Y1 and Y3 ids |
+| Y8 | **QA:** contentcheck forces each wave shape and third version (0 stuck); variety.ts counts wave shapes | QA | ⏭ |
+| Y9 | **Phones:** foes coming in from off screen get an edge marker at 320 px; the Seen log fits a phone | phones | ⏭ After Y1, Y4 and Y6 |
+
 ## R2. The Forge
 
 **Problem.** Salvage gives embers, and embers do nothing. Players salvage once, see nothing happen, and stop.
