@@ -583,6 +583,22 @@ export const SOUNDS = {
     { wave: 'sine', f: 1500, f2: 700, dur: 2.6, vol: 0.08, a: 1.8, curve: 0.6 },
     { wave: 'noise', f: 0, dur: 0.3, delay: 2.4, vol: 0.2, lp: 9000, hp: 2500, curve: 2 },
   ],
+  /** The Whirl (Hessa, phase 2+ on whirl runs) winds up: the water starts to turn. Three swells of churn that circle faster and faster,
+   *  a low tone that wobbles like a spinning drain, and a whistle that climbs into the pull. Same length as ebbWarn. */
+  whirlWarn: [
+    { wave: 'noise', f: 0, dur: 1.2, vol: 0.24, a: 0.6, lp: 600, lp2: 3000, hp: 250, curve: 0.8, trem: [2, 0.6] },
+    { wave: 'noise', f: 0, dur: 1.0, delay: 0.9, vol: 0.27, a: 0.4, lp: 1200, lp2: 4500, hp: 300, curve: 0.8, trem: [3.5, 0.6] },
+    { wave: 'noise', f: 0, dur: 1.0, delay: 1.8, vol: 0.3, a: 0.3, lp: 2000, lp2: 6000, hp: 400, curve: 0.9, trem: [6, 0.6] },
+    { wave: 'tri', f: 160, f2: 200, dur: 2.8, vol: 0.13, a: 1.0, curve: 0.8, vib: [2.5, 0.08] },
+    { wave: 'sine', f: 700, f2: 1400, dur: 2.6, vol: 0.07, a: 1.8, curve: 0.6, vib: [4, 0.05] },
+  ],
+  /** The Whirl turns: a churning round-and-round swirl, not the Ebb's straight drag or the Outsurge's backwash. */
+  whirlPull: [
+    { wave: 'noise', f: 0, dur: 2.2, vol: 0.28, a: 0.1, lp: 1400, lp2: 900, hp: 250, trem: [3, 0.6] },
+    { wave: 'saw', f: 110, f2: 95, dur: 2.2, vol: 0.12, a: 0.15, lp: 1400, vib: [3, 0.06], trem: [3, 0.4] },
+    { wave: 'noise', f: 0, dur: 2.1, vol: 0.24, a: 0.12, lp: 6000, lp2: 3000, hp: 1200, trem: [6, 0.6] },
+    { wave: 'sine', f: 900, f2: 700, dur: 2.0, vol: 0.06, a: 0.2, curve: 1.2, vib: [3, 0.12] },
+  ],
   /** The Outsurge throws you out: a backwash that surges and breaks on the burning rim, not the Ebb's churning drag. */
   outsurgePull: [
     { wave: 'noise', f: 0, dur: 2.2, vol: 0.3, a: 0.05, lp: 700, lp2: 3500, hp: 300, curve: 1.2 },
@@ -1583,6 +1599,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   // Hessa's Outsurge (Phase 12 W1): -26.9 and -29.2 dB alone; raised again to about 6.5 dB over the Wrackline mix (busycheck SEEDS=4,5).
   outsurgeWarn: 4.0,
   outsurgePull: 5.0,
+  // Hessa's Whirl (Phase 15 Y3).
+  whirlWarn: 5.0, whirlPull: 5.2, // level with the Outsurge's pair
   // Ondrel's Ironload wind-up (Phase 12 W2) is a cast start: -33.5 dB alone and 1.0 dB over the Hammerdeep mix (busycheck SEEDS=1,3,9, n=13); now creaks and rattles in the phone band too.
   ironloadWarn: 10.5,
   // Oskel's Die Cut wind-up (Phase 12 W2) is a cast start: -27.3 dB alone.
