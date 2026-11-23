@@ -859,6 +859,8 @@ export class World {
   /** V8 Emberdrift: embers on the floor that refill a coal. */
   driftEmbers: { x: number; y: number }[] = [];
   /** Y3 Creeping Rime: whether it's up, and where. */
+  /** Y3 the Whirl: which way Hessa's water turns this Ebb (1 or -1). */
+  whirlDir = 1;
   rimeOn = false;
   rimeX = 0;
   rimeY = 0;
@@ -2245,6 +2247,11 @@ export class World {
   }
 
   /** Phase 12 W1: is the Ebb running backwards right now (Hessa's Outsurge, from phase 2)? */
+  /** Phase 15 Y3: Hessa's Whirl version, in phase 2 while she lives. */
+  get whirl(): boolean {
+    return this.bossVariant === 'whirl' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
+  }
+
   get outsurge(): boolean {
     return this.bossVariant === 'outsurge' && this.wrackPhase >= 2 && this.bossIndex >= 0 && !!this.enemies[this.bossIndex]?.alive && this.enemies[this.bossIndex].kind === 'hessa';
   }
@@ -6187,7 +6194,8 @@ export class World {
     const late = !!boss && this.time - boss.spawnedAt > WRACK.enrageAfter;
     // Phase 12 W1: in her Outsurge version, phase 2 turns the Ebb around (out to the rim) instead of Riptide.
     const out = this.outsurge;
-    const riptide = this.wrackPhase >= 2 && !out;
+    const whirl = this.whirl;
+    const riptide = this.wrackPhase >= 2 && !out && !whirl;
     const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
@@ -6207,9 +6215,18 @@ export class World {
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
         const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
-        const step = this.anchored(q) ? 0 : Math.min(room, pull * CLASSES[this.heroes[k].cls].speed * dt) * (out ? -1 : 1);
+        const speed = CLASSES[this.heroes[k].cls].speed;
+        const step = this.anchored(q) ? 0 : Math.min(room, pull * (whirl ? WHIRL.inward : 1) * speed * dt) * (out ? -1 : 1);
         q.x -= (q.x / d) * step;
         q.y -= (q.y / d) * step;
+        if (whirl && !this.anchored(q)) {
+          // Y3 the Whirl: carried round the drain, the way it turns this Ebb.
+          const s = WHIRL.spin * speed * dt * this.whirlDir;
+          const qx = q.x;
+          q.x += (-q.y / d) * s;
+          q.y += (qx / d) * s;
+          this.clampArena(q, PLAYER_RADIUS);
+        }
         const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
@@ -6222,8 +6239,14 @@ export class World {
         if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.def.stationary) continue;
         const d = Math.hypot(e.x, e.y) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
-        e.x -= (e.x / d) * step;
-        e.y -= (e.y / d) * step;
+        e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
+        e.y -= (e.y / d) * step * (whirl ? WHIRL.inward : 1);
+        if (whirl) {
+          const s = foePull * dt * this.whirlDir;
+          const ex = e.x;
+          e.x += (-e.y / d) * s;
+          e.y += (ex / d) * s;
+        }
         if (out ? d >= rim : d <= WRACK.drainR) this.damageEnemy(i, e.maxHp * WRACK.foeDrain * dt, false, true);
       }
     } else if (this.ebbWarnT > 0) {
@@ -6234,7 +6257,8 @@ export class World {
       if (this.tideClockT <= 0) {
         this.tideClockT = boss ? (late ? WRACK.tideLate : WRACK.tideBoss) : WRACK.tideEvery * (this.heat === 'slackWater' ? HEAT_TUNING.slackTide : 1);
         this.ebbWarnT = WRACK.tideWarn;
-        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : 'The Ebb' });
+        if (whirl) this.whirlDir = -this.whirlDir;
+        this.events.push({ type: 'castStart', index: boss ? this.bossIndex : -1, id: 'ebb', name: out ? 'The Outsurge' : whirl ? 'The Whirl' : 'The Ebb' });
       }
     }
     if (!boss) return;
@@ -8229,8 +8253,13 @@ export const ONDREL_VARIANTS: OndrelVariant[] = ['choir', 'load'];
  */
 export const IRONLOAD = { time: 5, radius: 110, share: 0.5, grow: 0.08 };
 /** Phase 12 W1: Hessa's two versions. `riptide`: phase 2 speeds the rafts and the pull. `outsurge`: phase 2 turns the Ebb around. */
-export type HessaVariant = 'riptide' | 'outsurge';
-export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge'];
+export type HessaVariant = 'riptide' | 'outsurge' | 'whirl';
+export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
+/**
+ * Phase 15 Y3 the Whirl: from phase 2 the Ebb swirls round the drain instead of only pulling in. Off a raft, a hero is carried
+ * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
+ */
+export const WHIRL = { spin: 0.6, inward: 0.5 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */
