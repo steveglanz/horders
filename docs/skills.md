@@ -43,6 +43,9 @@ A slow player in melee keeps drifting into contact, so the first tiers forgive i
 - **Duskblade Sidestep:** heals up to 3% of max health.
 - **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
 - **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
+- **Duskblade Grit Guard (tier 4 on):** where Blade Guard ends, each Grit stack (a loss in a row on that tier) gives 20% Blade Guard, up to 3 stacks, so 60% (`GRIT_GUARD`, cap 70%). A win clears Grit, so a player who keeps winning never has it, and a skilled first try is untouched. In QA's career sim (`tools/pt/career.ts`, `LAG=0.5 SKILL=0.3`, 10 careers of 25 runs, 190 tier-4 runs) the Duskblade went from 0 to 26 tier-4 wins, its worst losing streak from 21 to 13, and every career now beats tier 4 (first win on run 10 to 21). The Bulwark got nothing: on the same sim it already wins 37 of 150 tier-4 runs, every career breaks through, and its worst streak is 11 (23 Nov).
+
+Tier-4 options tried for the novice Duskblade before Grit Guard (career tier-4 wins of 190 / full-skill ungeared Kiln t4 wins of 80, base 0 / 27): Steady Breath 20% or 35% at t4 gave 0 / - and 1 / -; a 3% Sidestep heal gave 1 / -; a 30-60% cut on trash damage gave 1-7 / 37-43; a 40-60% cut below 50-70% health gave 3-59 / 51-73. A novice Duskblade loses in trash and at the Kiln Mother alike (with trash damage at zero it still lost 9 of 10 there), so a narrow fix did little, and a broad one lifted the skilled player more.
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
 

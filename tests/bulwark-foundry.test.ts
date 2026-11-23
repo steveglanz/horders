@@ -89,6 +89,24 @@ describe('Novice aid for melee heroes', () => {
     expect(hitFromTarget(8)).toBeCloseTo(20, 5);
   });
 
+  it('Grit Guard: from tier 4 each Grit stack blocks 20% of hits from the Duskblade\'s target, up to 3 stacks', () => {
+    const hit = (tier: number, grit: number) => {
+      const w = new World({ seed: 2, cls: 'duskblade', tier, grit });
+      w.player.guardId = 0;
+      w.enemies[0].alive = true;
+      const hp0 = w.player.hp;
+      (w as unknown as Hurt).hurtPlayer.call(w, 20, 0);
+      return hp0 - w.player.hp;
+    };
+    expect(hit(4, 0)).toBeCloseTo(20, 5);
+    expect(hit(4, 1)).toBeCloseTo(16, 5);
+    expect(hit(4, 3)).toBeCloseTo(8, 5);
+    expect(hit(8, 2)).toBeCloseTo(12, 5);
+    // Below tier 4 Blade Guard already covers it, and Grit adds nothing.
+    expect(hit(2, 3)).toBeCloseTo(6, 5);
+    expect(new World({ seed: 2, cls: 'duskblade', tier: 4, grit: 9 }).gritGuard).toBeCloseTo(0.6, 5);
+  });
+
   it('Steady Breath catches a melee hero once per fight at tier 1', () => {
     const w = new World({ seed: 2, cls: 'bulwark', tier: 1 });
     const hurt = (w as unknown as Hurt).hurtPlayer.bind(w);
