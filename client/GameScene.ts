@@ -3489,7 +3489,9 @@ export class GameScene extends Phaser.Scene {
     const host = this.game.canvas.parentElement;
     if (!view || !host) return;
     let cv = this.edgeCanvas;
-    const on = this.hud.compact && this.world.phase === 'fight';
+    const foes = this.hud.compact && this.world.phase === 'fight';
+    // Co-op: an ally off screen gets its class-coloured arrow at every size, as in 2D (the 3D view hides those too).
+    const on = foes || this.allies.length > 0;
     if (!cv) {
       if (!on) return;
       cv = this.edgeCanvas = document.createElement('canvas');
@@ -3531,8 +3533,8 @@ export class GameScene extends Phaser.Scene {
       if (isBig) big[k] = true;
       if (isFast) fast[k] = true;
     };
-    for (const e of w.enemies) if (e.alive && !e.def.stationary) add(e.x, e.y, 1, e.def.rank !== 'normal', false);
-    if (w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
+    if (foes) for (const e of w.enemies) if (e.alive && !e.def.stationary) add(e.x, e.y, 1, e.def.rank !== 'normal', false);
+    if (foes && w.reinforceN > 0 && w.reinforceT <= WAVES.reinforceWarn) {
       const rr = w.arenaR - 60;
       add(Math.cos(w.reinforceA) * rr, Math.sin(w.reinforceA) * rr, w.reinforceN, false, true);
     }
@@ -3573,6 +3575,28 @@ export class GameScene extends Phaser.Scene {
       tri(ex, ey, a, sz * 1.45, '#000000', 0.55);
       if (big[k]) tri(ex, ey, a, sz * 1.25, '#ffc861', pk);
       tri(ex, ey, a, sz, '#ff4d3d', pk);
+    }
+    // Allies off screen or under the top panels: a class-coloured arrow on a dark disc (grey when down), as in 2D.
+    for (const al of this.allies) {
+      const q = w.heroData(al.hero).player;
+      const p = view.project(q.x, q.y);
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      const ins = 20, pd = 26;
+      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      const sz = 12;
+      g.globalAlpha = 0.55;
+      g.fillStyle = '#000000';
+      g.beginPath(); g.arc(ex, ey, sz * 1.2, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1;
+      g.fillStyle = q.hp <= 0 ? '#9a8a84' : CLASS_ICON[w.heroes[al.hero].cls].color;
+      g.beginPath();
+      g.moveTo(ex + Math.cos(a) * sz, ey + Math.sin(a) * sz);
+      g.lineTo(ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8);
+      g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
+      g.closePath(); g.fill();
     }
     g.globalAlpha = 1;
   }
