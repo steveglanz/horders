@@ -107,6 +107,24 @@ describe('Novice aid for melee heroes', () => {
     expect(new World({ seed: 2, cls: 'duskblade', tier: 4, grit: 9 }).gritGuard).toBeCloseTo(0.6, 5);
   });
 
+  it('Shield Block at tier 1 covers only the foe the shield faces (the wide novice arc is gone)', () => {
+    // A big foe in front of the shield but not its target takes the same toll as one behind it.
+    const hitFrom = (faceIt: boolean) => {
+      const w = new World({ seed: 2, cls: 'bulwark', tier: 1 });
+      for (const e of w.enemies) e.alive = false;
+      const inner = w as unknown as { spawn(kind: string, x: number, y: number): number };
+      const a = inner.spawn('cinderBrute', w.player.x - 40, w.player.y);
+      const b = inner.spawn('cinderBrute', w.player.x + 40, w.player.y);
+      w.player.guardId = a;
+      w.player.guardAng = faceIt ? 0 : Math.PI;
+      const hp0 = w.player.hp;
+      (w as unknown as Hurt).hurtPlayer.call(w, 50, b);
+      return hp0 - w.player.hp;
+    };
+    expect(hitFrom(true)).toBeGreaterThan(0);
+    expect(hitFrom(true)).toBeCloseTo(hitFrom(false), 5);
+  });
+
   it('Steady Breath catches a melee hero once per fight at tier 1', () => {
     const w = new World({ seed: 2, cls: 'bulwark', tier: 1 });
     const hurt = (w as unknown as Hurt).hurtPlayer.bind(w);

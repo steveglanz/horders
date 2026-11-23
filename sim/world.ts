@@ -4263,14 +4263,6 @@ export class World {
     return Math.min(GRIT_GUARD.cap, GRIT_GUARD.perStack * Math.min(GRIT.maxStacks, this.grit));
   }
 
-  /** Whether enemy `i` is a big foe in front of the Bulwark's shield (within 75 degrees of its last sweep). */
-  private inGuardArc(i: number): boolean {
-    const e = this.enemies[i];
-    if (!e || e.def.rank === 'normal') return false;
-    const p = this.player;
-    return Math.abs(angleDiff(Math.atan2(e.y - p.y, e.x - p.x), p.guardAng)) <= (75 * Math.PI) / 180;
-  }
-
   /** True while bulwarkMitigate is turning a hit back (see there). */
   private turningBack = false;
 
@@ -4282,7 +4274,7 @@ export class World {
     if (this.hasMythic('ringwallVow')) {
       // Ringwall Vow: a lighter block, on every side.
       if (src >= 0) amount *= 1 - RINGWALL_BLOCK;
-    } else if (src >= 0 && (src === p.guardId || (this.noviceAid > 0 && this.inGuardArc(src)))) amount *= 1 - BULWARK_BLOCK;
+    } else if (src >= 0 && src === p.guardId) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
