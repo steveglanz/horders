@@ -70,7 +70,7 @@ for (const dungeon of dungeons) {
     const [main, ...rest] = classes;
     const mp = profile(main);
     const w = new World({
-      seed, dungeon, tier: TIER[dungeon] ?? 4, omens: [], cls: main,
+      seed, dungeon, tier: Number(process.env.TIER ?? 0) || (TIER[dungeon] ?? 4), omens: [], cls: main,
       ...(mp ? { ...gearOf(main), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
       party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}`, ...gearOf(cls) })),
     });

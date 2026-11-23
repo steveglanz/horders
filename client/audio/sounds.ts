@@ -1555,6 +1555,14 @@ export const SOUNDS = {
      { wave: 'noise', f: 0, dur: 1.9, vol: 0.36, a: 0.25, lp: 1200, lp2: 3200, hp: 400, trem: [11, 0.7], curve: 0.8 }],
     ...[0.15, 0.55, 0.95, 1.35, 1.7].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.035, delay: d, vol: 0.24 + k * 0.03, lp: 5000, hp: 1400, curve: 3 }]),
   ),
+  /** Phase 16 U1: a boss's echo, the move she borrows from another of her versions, is about to come. A ghostly shimmer
+   *  rising in the high band, as if the move were heard twice: it rides over the move's own warning (which says what to
+   *  do) rather than under it, so it is ordinary and quiet. One sound for every boss. */
+  echoSting: join(
+    [{ wave: 'sine', f: note(22), f2: note(29), dur: 0.55, vol: 0.06, a: 0.35, curve: 2, vib: [7, 0.01] },
+     { wave: 'sine', f: note(22) * 1.006, f2: note(29) * 1.006, dur: 0.55, vol: 0.05, a: 0.35, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.5, vol: 0.06, a: 0.3, lp: 9000, hp: 4000, curve: 2 }],
+  ),
   /** Phase 15 Y3: the Furnace Regent's Tithe (his third phase-2 version). The gold circle appears and he demands payment:
    *  a struck gong of office, a ripple of coins, and a two-note call that says "together". */
   titheWarn: join(
@@ -1761,6 +1769,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it
   inhaleWarn: 5.5, inhaleDraw: 3.0, inhaleEnd: 4.0, // Y3 Inhale: warning 6.9 dB and in-breath (priority) 7.9 dB over the Hoard raid mix (busycheck t8 heroes, SEEDS=1-6, n=51); the all-clear a quieter exhale

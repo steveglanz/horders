@@ -469,7 +469,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
-    case 'echo': return null; // Phase 16 U1: cue to come from sound
+    // Phase 16 U1: the echo marks a borrowed move; the move's own cast cue (the same tick) still says what to do.
+    case 'echo': return { id: 'echoSting' };
     case 'tithe': return { id: ev.ok ? 'titheShared' : 'titheMissed' };
     case 'millstone': return { id: ev.stage === 'start' ? 'millStart' : 'millEnd' };
     case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };

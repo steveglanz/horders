@@ -1292,6 +1292,32 @@ describe('audio', () => {
     expect(recipeLength(SOUNDS.titheWarn)).toBeLessThan(TITHE.fuse);
   });
 
+  it('marks a boss\'s echo with a quiet sting on top of the borrowed move\'s own warning (Phase 16 U1)', () => {
+    type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void; echoNext: boolean };
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'kiln' };
+    const expectWarn: Record<string, string> = { turning: 'turnFireWarn', draw: 'kilnDraw', cataclysm: 'castWarn' };
+    for (const [own, echo] of [['cataclysm', 'turning'], ['turning', 'draw'], ['draw', 'cataclysm']] as const) {
+      const w = new World({ seed: 3, dungeon: 'kiln', tier: 8, omens: [], cls: 'emberwright' });
+      const q = w as unknown as B;
+      for (const e of w.enemies) e.alive = false;
+      const b = q.spawn('kilnMother', 0, 0);
+      q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 3;
+      w.bossVariant = own; w.bossEcho = echo; q.echoNext = true;
+      w.enemies[b].hp = w.enemies[b].maxHp * 0.2; w.enemies[b].aux = 0;
+      w.player.x = 200; w.player.y = 0;
+      w.events.length = 0;
+      q.runBoss(b, 0.01);
+      const heard = w.events.filter((e) => e.type === 'echo' || e.type === 'castStart').map((e) => cueFor(e, c)?.id);
+      // The sting and the echoed move's own warning, in the same tick.
+      expect(heard, own).toEqual(['echoSting', expectWarn[echo]]);
+    }
+    // Ordinary and quiet: the move's warning says what to do, so the sting never takes its voice or sits over it.
+    expect(PRIORITY.has('echoSting')).toBe(false);
+    const db = (id: SoundId) => phoneDb(render(SOUNDS[id], 22050), 22050);
+    expect(db('echoSting')).toBeLessThan(db('turnFireWarn') - 4);
+    expect(recipeLength(SOUNDS.echoSting)).toBeLessThan(0.7);
+  });
+
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
     type B = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; bossPhase: number; runBoss(i: number, dt: number): void };
     const w = new World({ seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright' });
