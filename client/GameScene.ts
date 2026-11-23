@@ -1328,7 +1328,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberEaten':
           this.floatText(ev.x, ev.y - 20, `Fed ×${ev.fed}`, '#ff9a4a', 13);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankEaten(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankEaten(ev.x, ev.y);
           break;
         // The Smeltery: Wheel snaps him round, and each Meltdown pulse rolls out from him.
         case 'wheel': {
@@ -1369,7 +1369,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'emberTaken':
           this.burst(ev.x, ev.y, 6);
-          if (w.dungeonId === 'hoard' && w.bossVariant === 'bank') this.bankSmothered(ev.x, ev.y);
+          if (w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank')) this.bankSmothered(ev.x, ev.y);
           break;
         case 'dodge':
           // Glarewarden: stepped out of a marked attack in time.
@@ -5019,7 +5019,7 @@ export class GameScene extends Phaser.Scene {
    */
   private bankDraw(now: number): void {
     const w = this.world;
-    const coals = w.dungeonId === 'hoard' && w.bossVariant === 'bank' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
+    const coals = w.dungeonId === 'hoard' && (w.bossVariant === 'bank' || w.bossEcho === 'bank') ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -4) : [];
     // The ash a smothered coal leaves, fading over 2.5 s.
     this.bankAsh = this.bankAsh.filter((a) => {
       const u = (now - a.at) / 2500;
@@ -5278,7 +5278,7 @@ export class GameScene extends Phaser.Scene {
 
   private wanderDraw(now: number): void {
     const w = this.world;
-    const e = w.dungeonId === 'ashvents' && w.bossVariant === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+    const e = w.dungeonId === 'ashvents' && w.ventMove === 'wander' && w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
     const vents = e?.alive && e.kind === 'ysmeret' ? w.telegraphs.filter((t) => t.alive && t.kind === 'soak' && t.owner === -2) : [];
     if (!vents.length) { this.wanderGfx?.clear(); return; }
     if (!this.wanderGfx) this.wanderGfx = this.add.graphics().setDepth(1.9);

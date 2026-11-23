@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, HESSA_ECHO, OUTSURGE, WHIRL, ONDREL_VARIANTS, GROUP_ECHO, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, SLAG_ECHO, RAID_ECHO, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1574,5 +1574,103 @@ describe('Phase 16 U1: Ondrel\'s echo', () => {
     const { w, q, b } = ondrel('choir', 'load', GROUP_ECHO.below + 0.1);
     expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
     expect(cast(w, q, b)).toEqual({ id: 'choir', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Ysmeret\'s echo', () => {
+  type Y = { ysmeretClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; twinVentT: number; scatterT: number; bellowT: number; rollLeft: number };
+  function ysmeret(variant: string, echo: string, hp: number): { w: World; q: Y } {
+    const w = new World({ seed: 3, dungeon: 'ashvents', tier: 8, omens: [], cls: 'bulwark' });
+    const q = w as unknown as Y;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('ysmeret', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.scatterT = 99; q.bellowT = 99;
+    return { w, q };
+  }
+  /** Open the next set of vents and say how they were named. */
+  const open = (w: World, q: Y) => {
+    for (const t of w.telegraphs) t.alive = false;
+    q.twinVentT = 0; q.rollLeft = 0; w.events.length = 0;
+    q.ysmeretClock(0.01);
+    const c = w.events.find((x) => x.type === 'castStart' && x.id === 'twinVents') as { name: string } | undefined;
+    return { name: c?.name, echo: w.events.some((x) => x.type === 'echo'), move: w.ventMove };
+  };
+
+  it('from 25% health every other set of vents is the echo, the first one first', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below - 0.05);
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Rolling Vents', echo: true, move: 'roll' });
+  });
+
+  it('Wandering Vents as an echo circle her like the version does', () => {
+    const { w, q } = ysmeret('roll', 'wander', GROUP_ECHO.below - 0.05);
+    expect(open(w, q).name).toBe('Wandering Vents');
+    const before = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    q.ysmeretClock(0.5);
+    const after = w.telegraphs.filter((t) => t.alive && t.owner === -2).map((t) => t.x);
+    expect(after).not.toEqual(before);
+  });
+
+  it('nothing above 25% health', () => {
+    const { w, q } = ysmeret('still', 'roll', GROUP_ECHO.below + 0.1);
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+    expect(open(w, q)).toEqual({ name: 'Twin Vents', echo: false, move: 'still' });
+  });
+});
+
+describe('Phase 16 U1: Grandmother Slag\'s echo', () => {
+  type G = { slagClock(dt: number): void; spawn(kind: string, x: number, y: number): number;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; heatT: number; pourT: number; ladleT: number };
+  const party = [{ cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+  function slag(variant: string, echo: string, hp: number): { w: World; q: G; b: number } {
+    const w = new World({ seed: 3, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('grandmotherSlag', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true; q.bossPhase = 2;
+    w.bossVariant = variant as never; w.bossEcho = echo; w.echoLive = false; w.echoT = 0;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.ladleT = 99; q.pourT = 99; q.heatT = 99;
+    return { w, q, b };
+  }
+  const pour = (w: World, q: G, b: number) => {
+    w.enemies[b].castId = ''; q.pourT = 0; q.ladleT = 99;
+    q.slagClock(0.01);
+    return w.enemies[b].castId;
+  };
+
+  it(`from ${RAID_ECHO.slag * 100}% health a Brimming echo comes for ${SLAG_ECHO.on} s on a Pour run, then goes`, () => {
+    const { w, q, b } = slag('pour', 'brim', RAID_ECHO.slag - 0.05);
+    w.events.length = 0;
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.some((x) => x.type === 'echo' && x.id === 'brim')).toBe(true);
+    expect(w.islands.length).toBeGreaterThan(0);
+    expect(pour(w, q, b)).toBe('churn');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+  });
+
+  it('a Pour echo on a Brimming run sinks the islands while it is on, and they come back after', () => {
+    const { w, q, b } = slag('brim', 'pour', RAID_ECHO.slag - 0.05);
+    q.slagClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.islands).toHaveLength(0);
+    expect(pour(w, q, b)).toBe('pour');
+    q.slagClock(SLAG_ECHO.on);
+    expect(w.islands.length).toBeGreaterThan(0);
+  });
+
+  it('nothing above the threshold', () => {
+    const { w, q } = slag('pour', 'flow', RAID_ECHO.slag + 0.1);
+    q.slagClock(1);
+    expect(w.echoLive).toBe(false);
   });
 });

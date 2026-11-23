@@ -9,7 +9,7 @@ import { HEATS, type HeatId } from './content/heat';
 import { AFFIX_TIP } from './content/named';
 import { STIR_BIT, STIR_IDS, STIR_INFO, WAVE_SHAPE_INFO, type ArenaEventId, type LayoutId, type WaveShape, type World } from './world';
 
-export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'boss' | 'heat';
+export type ShapeKind = 'route' | 'floor' | 'mark' | 'event' | 'wave' | 'stir' | 'boss' | 'echo' | 'heat';
 export interface ShapeChip {
   kind: ShapeKind;
   /** Short chip text, such as "Floors: 2 stone, 1 vent". */
@@ -113,6 +113,11 @@ export function runShape(w: World): ShapeChip[] {
   if (w.bossVariant) {
     const v = BOSS_VERSION_NAME[w.bossVariant] ?? w.bossVariant;
     out.push({ kind: 'boss', label: `Boss: ${v}`, tip: `${name(w.dungeonDef.boss)} used ${v} this run` });
+  }
+  // Phase 16 U3: the echo shows once it has gone off, so a run that ended before her last phase shows none.
+  if (w.echoMet && w.bossEcho) {
+    const e = BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho;
+    out.push({ kind: 'echo', label: `Echo: ${e}`, tip: `${name(w.dungeonDef.boss)} also borrowed ${e} late in the fight` });
   }
 
   if (w.heat) {

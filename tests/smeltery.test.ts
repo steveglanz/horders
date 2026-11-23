@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, COLO, COLOSSUS_VARIANTS, MILL } from '../sim/world';
+import { World, COLO, COLOSSUS_VARIANTS, MILL, RAID_ECHO } from '../sim/world';
 import { DUNGEONS, partyBlocker, rollRoute, raidCountsTriple } from '../sim/content/dungeon';
 import { botFillBlocker } from '../sim/content/botfill';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
@@ -196,5 +196,31 @@ describe('Phase 15 Y3: the Cinder Colossus\'s Millstone', () => {
     turned(Math.ceil(MILL.time * 30));
     expect(w.millT).toBe(0);
     expect(w.events.some((ev) => ev.type === 'millstone' && ev.stage === 'end')).toBe(true);
+  });
+});
+
+describe('Phase 16 U1: the Cinder Colossus\'s echo', () => {
+  const turn = (w: World, inner: Inner, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; w.millT = 0; inner.wheelT = 0; inner.sweepT = 999; w.events.length = 0;
+    inner.colossusClock(0.01);
+    return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it(`from ${RAID_ECHO.colossus * 100}% health every other Wheel turn is his echo, the first one first`, () => {
+    const { w, inner, b } = smeltery();
+    w.bossVariant = 'wheel'; w.bossEcho = 'mill'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.colossus - 0.05);
+    expect(turn(w, inner, b)).toEqual({ id: 'millstone', echo: true });
+    expect(turn(w, inner, b)).toEqual({ id: 'wheel', echo: false });
+    expect(turn(w, inner, b)).toEqual({ id: 'millstone', echo: true });
+  });
+
+  it('nothing above the threshold', () => {
+    const { w, inner, b } = smeltery();
+    w.bossVariant = 'shift'; w.bossEcho = 'wheel'; w.echoNext = true;
+    w.enemies[b].hp = w.enemies[b].maxHp * (RAID_ECHO.colossus + 0.1);
+    expect(turn(w, inner, b)).toEqual({ id: 'plateShift', echo: false });
+    expect(turn(w, inner, b)).toEqual({ id: 'plateShift', echo: false });
   });
 });

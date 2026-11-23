@@ -1313,7 +1313,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
       millGeo.attributes.position.needsUpdate = true;
     }
-    const inh = w.bossVariant === 'inhale' && w.inhaleStage > 0 && bossH > 0 ? w.inhaleStage : 0;
+    const inh = (w.bossVariant === 'inhale' || w.bossEcho === 'inhale') && w.inhaleStage > 0 && bossH > 0 ? w.inhaleStage : 0;
     inhale.visible = maw.visible = inh > 0;
     if (inh) {
       const my = FLOOR + bossH * 0.55, mz = bossZ + 0.08;

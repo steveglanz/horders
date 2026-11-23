@@ -1357,3 +1357,53 @@ Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
 Every class is within 4 wins of echoes off.
 
 **Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
+
+## Phase 16 U1: Ysmeret's and Oskel's echoes
+
+These follow the same rule as Ondrel: from tier 8 and `GROUP_ECHO.below` (25%) health, every other signature on the boss's timer is the echo's, the first one first.
+
+- **Ysmeret:** each set of vents runs the way of `World.ventMove`, which is her version or her echo's: Twin, Wandering or Rolling Vents. The vents' cast name follows it. The Wandering Vents drawing and the Scatter-during-the-roll rule read `ventMove` too.
+- **Oskel:** his Rivets timer gives Rivets, Die Cut or Punch Line, with the echo on every other turn.
+
+Base party (Bulwark, Lumen, Duskblade, Emberwright), heroes-r2 hero-t8-0, wins out of 80, and how many runs saw an echo:
+
+| Boss | Setup | Echo on | Echo off | Saw an echo |
+|---|---|---|---|---|
+| Ysmeret, Ashvents t8 | Base, seeds 1 to 80 | 49 | 54 | 69 |
+| Ysmeret, Ashvents t8 | Half skill, seeds 41 to 120 | 47 | 49 | 68 |
+| Oskel, Pressworks t10 | Base, seeds 1 to 80 | 58 | 58 | 76 |
+
+- Ysmeret's runs stay inside the 55 to 70% band (59 to 61%).
+- The Pressworks base party was already over the band (73%) before echoes, and the echo doesn't move it.
+
+## Phase 16 U1: raid echoes
+
+Raid bosses have long fights with several phases, so each one's echo starts at its own health mark (`RAID_ECHO` in sim/world.ts) in its last phase, from tier 8 like every other echo.
+
+- **The Furnace Regent** (from 40%): his phase-2 Ash timer alternates the echo and his own move, echo first. Ash Fall, Summons or Tithe.
+- **The Cinder Colossus** (from 45%): his phase-2 Wheel timer alternates the echo and his own move, echo first. Wheel, Plate Shift or Millstone.
+- **Old Vorhulm** (all of phase 3): his phase-3 timer alternates the echo and his own move, echo first. Ember Feast, Banked Coals or Inhale. The Banked Coals drawing and the Inhale's 3D pull read `bossEcho` too.
+- **Grandmother Slag** (from 50%, in phase 2): the echo comes in windows, on `SLAG_ECHO.on` 14 s and off `off` 10 s, and takes her own version's place while it is on. Each change clears the islands and the overflow and sets up the version now running (the Brimming's islands, or the Overflow from its first beat). Her flow, heat share and churn read the running version. The windows stop when she goes into phase 3.
+- Each echo fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
+
+Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party is Bulwark, Lumen, Duskblade, Emberwright; Anvil is Slagbinder, Lumen, Duskblade, Emberwright with `STANCE=anvil`.
+
+| Boss | Setup | Echo on | Echo off | Saw an echo |
+|---|---|---|---|---|
+| Regent, Flue t11 | Base, seeds 1 to 80 | 59 | 56 | 78 |
+| Regent, Flue t11 | Half skill, seeds 41 to 120 | 55 | 48 | 79 |
+| Regent, Flue t11 | Anvil, seeds 41 to 120 | 50 | 53 | 76 |
+| Colossus, Smeltery t10 | Base, seeds 1 to 80 | 59 | 58 | 80 |
+| Colossus, Smeltery t10 | Half skill, seeds 41 to 120 | 57 | 50 | 80 |
+| Colossus, Smeltery t10 | Anvil, seeds 41 to 120 | 48 | 60 | 80 |
+| Vorhulm, Hoard t9 | Base, seeds 1 to 80 | 55 | 58 | 79 |
+| Vorhulm, Hoard t9 | Half skill, seeds 41 to 120 | 37 | 41 | 77 |
+| Vorhulm, Hoard t9 | Anvil, seeds 41 to 120 | 72 | 73 | 77 |
+| Grandmother Slag, Crucible t8 | Base, seeds 1 to 80 | 51 | 47 | 57 |
+| Grandmother Slag, Crucible t8 | Half skill, seeds 41 to 120 | 52 | 47 | 63 |
+| Grandmother Slag, Crucible t8 | Anvil, seeds 41 to 120 | 63 | 59 | 73 |
+
+- The base parties land at 64 to 74% with echoes on, against 59 to 73% with them off.
+- **Grandmother Slag** gets a little easier with her echo (4 to 5 wins in every setup). Each window change clears the islands or the overflow that was building, which may be why; I haven't measured that. Every setup stays inside the band, so it is kept. Fewer runs see her echo (57 to 73 of 80), because only a run that brings her to 50% in phase 2 gets a window.
+- **The Colossus Anvil party** drops the most, 60 to 48 (75% to 60%), and is still inside the band. The Anvil party was over the band before echoes.
+- **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
