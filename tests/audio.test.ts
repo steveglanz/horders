@@ -65,9 +65,10 @@ describe('audio', () => {
     const dungeons: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
     classes.forEach((cls, k) => {
       const w = new World({ seed: 11 + k, cls, dungeon: dungeons[k % dungeons.length], tier: 1 });
-      // Up to 150 simulated seconds per class: the Lumen bot casts its Burst only every minute or so, and a
-      // Kiln pillar layout (V2) can push its first one past 75 s.
-      for (let i = 0; i < 30 * 150 && w.state !== 'ended'; i++) {
+      // Up to 200 simulated seconds per class: the Lumen bot casts its Burst only every minute or so, and a
+      // Kiln pillar layout (V2) can push its first one past 75 s. With U2's seventh Kiln opener re-rolling the
+      // routes, seed 14's Lumen first Bursts at 153 s.
+      for (let i = 0; i < 30 * 200 && w.state !== 'ended'; i++) {
         if (w.state === 'draft') w.choose(botChoose(w));
         else w.step(botInput(w));
         for (const ev of w.events) {

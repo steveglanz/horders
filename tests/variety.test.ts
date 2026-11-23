@@ -25,9 +25,9 @@ function kiln(): { w: World; inner: Inner } {
 const step = (w: World, n: number) => { for (let k = 0; k < n; k++) w.step({ mx: 0, my: 0 } as never); };
 
 describe('V1 variety: the Kiln\'s new foes', () => {
-  it('the Kiln draws from 6 openers and 4 named fights, and the first delve keeps its fixed route', () => {
+  it('the Kiln draws from 7 openers and 4 named fights, and the first delve keeps its fixed route', () => {
     const d = DUNGEONS.kiln;
-    expect(d.openers).toHaveLength(6);
+    expect(d.openers).toHaveLength(7);
     expect(d.named).toHaveLength(4);
     for (const id of [...d.openers, ...d.named]) expect(ENCOUNTERS[id]).toBeDefined();
     const seen = new Set<string>();
