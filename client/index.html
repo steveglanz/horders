@@ -563,6 +563,8 @@
   #end.win #endTitle { color: #ffe2c2; text-shadow: 0 0 28px rgba(255,170,60,0.55); }
   #end.loss #endTitle { color: #ffd0d6; text-shadow: 0 0 28px rgba(255,59,107,0.4); }
   #endSub { margin-top: 4px; font-size: 14px; }
+  /* The loss screen's "what hurt most" line (sim/hurtrecap.ts). */
+  #endCause { margin-top: 6px; font-size: 13px; color: #ffd0d6; line-height: 1.35; }
   #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
   #stats div { padding: 10px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--card-line); }
   #stats b { display: block; font: 600 22px var(--serif); font-variant-numeric: tabular-nums; }
@@ -1536,6 +1538,7 @@
   <div class="endwrap">
     <h2 id="endTitle"></h2>
     <div class="muted" id="endSub"></div>
+    <div id="endCause" hidden></div>
     <div id="stats"></div>
     <div class="end-grid">
       <div class="end-col">
