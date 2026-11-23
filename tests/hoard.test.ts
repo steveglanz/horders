@@ -223,7 +223,7 @@ describe('Phase 12 W3: Old Vorhulm\'s Banked Coals', () => {
     expect(w.enemies.filter((x) => x.alive && x.kind === 'ashling')).toHaveLength(0);
   });
 
-  it('Y3 Inhale: in phase 3 he warns, then draws every hero in; anyone at his mouth is bitten and feeds him; no embers', () => {
+  it('Y3 Inhale: in phase 3 he warns, then draws every hero in; anyone at his mouth is bitten; no embers', () => {
     const { w, inner, b } = hoard();
     w.bossVariant = 'inhale';
     const e = w.enemies[b];
@@ -240,13 +240,12 @@ describe('Phase 12 W3: Old Vorhulm\'s Banked Coals', () => {
     inner.coalClock(INHALE.warn + 0.001);
     expect(w.inhaleStage).toBe(2);
     const d0 = Math.hypot(far.x - e.x, far.y - e.y);
-    const hp0 = mouth.hp, hp1 = far.hp, bossHp = e.hp;
+    const hp0 = mouth.hp, hp1 = far.hp;
     inner.spillT = 999;
     for (let k = 0; k < 15; k++) inner.coalClock(1 / 30);
     expect(Math.hypot(far.x - e.x, far.y - e.y)).toBeLessThan(d0);
     expect(mouth.hp).toBeLessThan(hp0);
     expect(far.hp).toBe(hp1);
-    expect(e.hp).toBeGreaterThan(bossHp);
     inner.coalClock(INHALE.time);
     expect(w.inhaleStage).toBe(0);
   });

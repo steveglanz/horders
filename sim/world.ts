@@ -6617,9 +6617,9 @@ export class World {
       // The Overflow: warn, rise from the rim, burn anyone far from her, ebb.
       this.flowT -= dt;
       if (this.flowT <= 0) {
-        if (this.flowStage === 0) { this.flowStage = 1; this.flowT = OVERFLOW.warn; this.events.push({ type: 'overflow', stage: 'warn' }); }
-        else if (this.flowStage === 1) { this.flowStage = 2; this.flowT = OVERFLOW.last; this.flowTickT = 0; this.events.push({ type: 'overflow', stage: 'rise' }); }
-        else { this.flowStage = 0; this.flowT = OVERFLOW.every - OVERFLOW.warn - OVERFLOW.last; this.events.push({ type: 'overflow', stage: 'ebb' }); }
+        if (this.flowStage === 0) { this.flowStage = 1; this.flowT += OVERFLOW.warn; this.events.push({ type: 'overflow', stage: 'warn' }); }
+        else if (this.flowStage === 1) { this.flowStage = 2; this.flowT += OVERFLOW.last; this.flowTickT = 0; this.events.push({ type: 'overflow', stage: 'rise' }); }
+        else { this.flowStage = 0; this.flowT += OVERFLOW.every - OVERFLOW.warn - OVERFLOW.last; this.events.push({ type: 'overflow', stage: 'ebb' }); }
       }
       if (this.flowStage === 2) {
         this.flowTickT -= dt;
@@ -7014,7 +7014,7 @@ export class World {
       }
     }
     if (phase === 3 && this.bossVariant === 'inhale') {
-      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten and feeds him.
+      // Inhale: warn, then draw everyone in; anyone at his mouth is bitten.
       this.spillT -= dt;
       if (this.inhaleStage === 0 && this.spillT <= 0) {
         this.spillT = COAL.spillEvery;
@@ -7026,7 +7026,7 @@ export class World {
         this.inhaleT -= dt;
         if (this.inhaleT <= 0 && this.inhaleStage === 1) {
           this.inhaleStage = 2;
-          this.inhaleT = INHALE.time;
+          this.inhaleT += INHALE.time;
           this.inhaleTickT = INHALE.tick;
           this.events.push({ type: 'inhale', stage: 'draw' });
         } else if (this.inhaleT <= 0) {
@@ -7051,7 +7051,6 @@ export class World {
           if (bite && d <= mouth + PLAYER_RADIUS) {
             this.use(k);
             this.hurtPlayer(q.maxHp * INHALE.damage, i, true);
-            e.hp = Math.min(e.maxHp, e.hp + e.maxHp * INHALE.heal);
             this.events.push({ type: 'slam', x: q.x, y: q.y, r: 40 });
           }
         }
@@ -8416,9 +8415,10 @@ export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank', 'inhale'];
 /**
  * Phase 15 Y3 Inhale (his phase 3 in the `inhale` version, on Ember Spill's timer, in place of the embers): after a `warn` s
  * warning he breathes in for `time` s, drawing every hero toward him at `pull` of their class speed (Anvil Skin holds a Bulwark).
- * Anyone within `bite` px of his edge is bitten every `tick` s for `damage` of max health, and each bite heals him `heal`.
+ * Anyone within `bite` px of his edge is bitten every `tick` s for `damage` of max health. (A bite that also healed him
+ * made it a damage race weaker parties lost: half-skill bots won 20 of 80 with it, 38 without.)
  */
-export const INHALE = { warn: 1.5, time: 3, pull: 0.38, bite: 40, tick: 0.5, damage: 0.06, heal: 0.01 };
+export const INHALE = { warn: 1.5, time: 3, pull: 0.3, bite: 40, tick: 0.5, damage: 0.08 };
 /**
  * Banked Coals (his phase 3 in the `bank` version, on Ember Spill's timer, in place of the embers): `count` gold circles of
  * `radius`, `near` or `far` from him in turn, landing after `fuse` s. A hero standing in one smothers it; an empty one he eats
