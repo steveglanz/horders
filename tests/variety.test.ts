@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, ECHO, MAELRA_VARIANTS, MAELRA_ECHO, MAELRA_ECHOES, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, NHEVRA_ECHO, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, ROLLING, YSMERET, SLAG_VARIANTS, BRIM, OVERFLOW, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -1371,5 +1371,118 @@ describe('Phase 16 U1: Maelra\'s echo', () => {
     w.enemies[b].hp = w.enemies[b].maxHp * 0.5; q.bossPhase = 2;
     q.runMaelra(b, MAELRA_ECHO.first + 1);
     expect(w.echoLive).toBe(false);
+  });
+});
+
+describe('Phase 16 U1: the Lensmother\'s echo', () => {
+  type G = { spawn(kind: string, x: number, y: number): number; runLensmother(i: number, dt: number): void;
+    bossIndex: number; bossSpawned: boolean; bossPhase: number; markT: number; bossBrandT: number; glareT: number };
+  function lens(variant: 'brand' | 'glint' | 'walk', echo: string): { w: World; q: G; b: number } {
+    const w = new World({ seed: 6, dungeon: 'glarewell', tier: ECHO.minTier, omens: [], cls: 'emberwright' });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('lensmother', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoNext = false;
+    q.bossPhase = 3; q.markT = 0; q.bossBrandT = 99; q.glareT = 99;
+    w.enemies[b].abilityT = 99;
+    return { w, q, b };
+  }
+  /** Fire her brand timer once and say what she cast. */
+  const brand = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.bossBrandT = 0; w.events.length = 0;
+    q.runLensmother(b, 0.01);
+    return { id: e.castId, echo: w.events.some((x) => x.type === 'echo') };
+  };
+  /** Fire her Glare once and say whether the light was carried. */
+  const glare = (w: World, q: G, b: number) => {
+    const e = w.enemies[b];
+    e.castId = ''; q.glareT = 0; w.events.length = 0;
+    e.x = 120; e.y = 40;
+    q.runLensmother(b, 0.01);
+    return { carried: w.lightX === 120 && w.lightY === 40, echo: w.events.some((x) => x.type === 'echo') };
+  };
+
+  it('a Glintfall echo on a Twin Brand run takes every other turn', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'glintfall', echo: true });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+
+  it('a Carried Light run gets its Twin Brand echo every other turn, and nothing on the others', () => {
+    const { w, q, b } = lens('walk', 'brand');
+    expect(brand(w, q, b).id).not.toBe('twinBrand');
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: true });
+  });
+
+  it('a Carried Light echo carries every other Glare, and the light goes back to the middle between', () => {
+    const { w, q, b } = lens('glint', 'walk');
+    expect(glare(w, q, b)).toEqual({ carried: false, echo: false });
+    expect(glare(w, q, b)).toEqual({ carried: true, echo: true });
+    const back = glare(w, q, b);
+    expect(back.carried).toBe(false);
+    expect([w.lightX, w.lightY]).toEqual([0, 0]);
+  });
+
+  it('no echo in phase 2', () => {
+    const { w, q, b } = lens('brand', 'glint');
+    q.bossPhase = 2;
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+    expect(brand(w, q, b)).toEqual({ id: 'twinBrand', echo: false });
+  });
+});
+
+describe('Phase 16 U1: Nhevra\'s echo', () => {
+  type N = { spawn(kind: string, x: number, y: number): number; coldClock(dt: number): void;
+    bossIndex: number; bossSpawned: boolean; coldPhase: number; driftT: number; iceT: number; snuffT: number; tideT: number; nightT: number };
+  function nhevra(variant: 'ice' | 'drift' | 'rime', echo: string, hp: number): { w: World; q: N; b: number } {
+    const w = new World({ seed: 8, dungeon: 'coldmarrow', tier: 10, omens: [], cls: 'emberwright' });
+    const q = w as unknown as N;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('nhevra', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = variant; w.bossEcho = echo; w.echoLive = false; w.echoT = 0;
+    w.enemies[b].hp = w.enemies[b].maxHp * hp;
+    q.coldPhase = 2; q.driftT = 99; q.iceT = 99; q.snuffT = 99; q.tideT = 99; q.nightT = 99;
+    w.player.x = 500; w.player.y = 500; w.player.coal = 0.5;
+    return { w, q, b };
+  }
+
+  it('nothing above the echo threshold', () => {
+    const { w, q } = nhevra('ice', 'drift', NHEVRA_ECHO.below + 0.05);
+    q.coldClock(1);
+    expect(w.echoLive).toBe(false);
+    expect(w.driftEmbers).toHaveLength(0);
+  });
+
+  it('an Emberdrift echo drops embers while on and clears them when it ends', () => {
+    const { w, q } = nhevra('ice', 'drift', NHEVRA_ECHO.below - 0.05);
+    w.events.length = 0;
+    q.coldClock(0.01);
+    expect(w.echoLive).toBe(true);
+    expect(w.events.some((x) => x.type === 'echo' && x.id === 'drift')).toBe(true);
+    q.coldClock(0.01);
+    expect(w.driftEmbers.length).toBeGreaterThan(0);
+    q.coldClock(NHEVRA_ECHO.on);
+    expect(w.echoLive).toBe(false);
+    expect(w.driftEmbers).toHaveLength(0);
+  });
+
+  it('a Creeping Rime echo rises while on and fades when it ends', () => {
+    const { w, q } = nhevra('drift', 'rime', NHEVRA_ECHO.below - 0.05);
+    q.coldClock(0.01);
+    q.coldClock(0.01);
+    expect(w.rimeOn).toBe(true);
+    q.coldClock(NHEVRA_ECHO.on);
+    expect(w.rimeOn).toBe(false);
+  });
+
+  it('a Thin Ice echo cracks the river as it comes on', () => {
+    const { w, q } = nhevra('rime', 'ice', NHEVRA_ECHO.below - 0.05);
+    q.coldClock(0.01);
+    q.coldClock(0.01);
+    expect(w.cracks.some((c) => c.alive)).toBe(true);
   });
 });

@@ -937,6 +937,61 @@ The control is base plus 1, 2 or 3 extra run-rng draws per fight, as in E6. The 
 
 **Also accepted:** a forced Cold Snap in the Coldmarrow costs 9 to 12 of 160 for the Emberwright, the Lumen and the Slagbinder. Design kept it after cutting `snapCut` to 0.2 (#477).
 
+## Wave shapes, stirs and third versions: class check (Y5, 23 Nov 2026)
+Phase 15 gave trash fights wave shapes (Y1), made the dungeon stir after clean fights (Y10), and gave every boss a third phase-2 version (Y3). Y5 asks whether every class and party can answer each one. All the fixes landed on the fight side. Two bot rules were tried and dropped, and no class needed a new talent.
+
+**How it was measured.** Everything uses heroes-r2 files and the good bot. Solo cells come from tools/foundry.ts, or from the X5 harness with a wave tag added (balance/y5-harness.ts in the project files). Party cells come from tools/group.ts with five parties: base (Bulwark, Lumen, Duskblade, Emberwright), Anvil (an Anvil Slagbinder tanks), Bellows (the Slagbinder replaces the Duskblade), two Duskblades, and two Emberwrights. Boss versions are forced with `BOSSV` on the same seeds (41-200), so the trash is identical and only the boss fight differs. Wave shapes are forced with `WAVE`. Wins are out of 160, and the party band is 88 to 112.
+
+### Wave shapes (Y1)
+A screen of 100 cells (Kiln, Foundry, Glarewell and Coldmarrow, each class, off / natural / pincer / ring / reinforce, 80 seeds) flagged only the Coldmarrow. At 160 seeds, a forced ring there cost the Duskblade 25 and the Emberwright 37. That came from 24 to 36 trash deaths, against 3 to 8 with waves off, almost all of them in the Weaver fights. On an arc the Rimehounds come from one side and the bot keeps them at range. On a ring two or three of them bite from different sides at once, and 405 health goes in 3.5 s. Lumen and Slagbinder heal or plate through it.
+
+- A bot rule that steps out through the widest gap among the foes changed nothing (Emberwright ring 46/80 against 48), so it was reverted.
+- Design's fix (#517, then #532): a fight with at least one Rimehound, where hounds plus Weavers come to 3 or more, never forms a ring.
+- After it, Coldmarrow t10 natural rates for Emberwright / Bulwark / Duskblade / Lumen / Slagbinder were 114 / 128 / 95 / 120 / 107, against 126 / 133 / 93 / 119 / 106 with waves off. With the Two Weavers fight added (#532), design measured the Emberwright's forced ring at 113.
+- A forced pincer in the Foundry costs the Bulwark a little (96 against 110); at natural rates it's 108. Design kept it as a watch item.
+
+### The dungeon stirs (Y10)
+These are runs out of 80 that stirred at least once (seeds 41-120, natural rates). Before #532 the melee classes were nearly shut out of the Foundry (Bulwark 13, Duskblade 23, against 49 to 60 for the rest), and every party stirred in 74 to 80 runs. Design's #532 judges each hero against a per-class bar, lets the worst-off hero decide for a party, and gives party fights a 0.35x clean bar. After it:
+
+| | Bulwark | Duskblade | Emberwright | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| Kiln t6 | 80 | 73 | 74 | 73 | 76 |
+| Foundry t6 | 48 | 50 | 48 | 49 | 60 |
+| Glarewell t8 | 72 | 64 | 61 | 39 | 76 |
+| Coldmarrow t10 | 73 | 77 | 76 | 73 | 72 |
+
+Parties now stir in 26 to 54 runs of 80. The exception is the Anvil party, at 67 to 76, because a party with an Anvil tank takes almost no damage in trash. Design traced that and kept it, since turning the stir off doesn't change its wins. The Glarewell Lumen at 39 is a watch item.
+
+### Third boss versions (Y3)
+Each row lists the boss's three versions, with the new one last.
+
+| Solo boss (tier) | Emberwright | Duskblade | Bulwark | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| Kiln Mother t6: cataclysm / draw / turning | 103 / 105 / 96 | 93 / 83 / 95 | 136 / 119 / 126 | 156 / 154 / 152 | 92 / 93 / 89 |
+| Maelra t6: water / tide / seal (after #534) | 128 / 125 / 131 | 129 / 131 / 126 | 121 / 96 / 110 | 153 / 154 / 155 | 124 / 120 / 131 |
+| Lensmother t7: brand / glint / walk | 114 / 141 / 141 | 84 / 123 / 113 | 126 / 141 / 141 | 153 / 155 / 154 | 149 / 154 / 159 |
+| Nhevra t10: ice / drift / rime (after #555) | 101 / 128 / 129 | 63 / 126 / 103 | 104 / 139 / 104 | 97 / 143 / 122 | 72 / 144 / 88 |
+| Hessa t10: riptide / outsurge / whirl | 121 / 124 / 124 | 112 / 112 / 110 | 85 / 88 / 83 | 137 / 138 / 138 | 160 / 159 / 159 |
+
+- **Maelra's Sealed Vents** first cost the Bulwark 49 against 131 at t6. It lives on vent heals, and with one open vent moving every 16 s, its slow melee lead reached it less often. A stronger melee vent lead in the bot helped only partly (19 → 29 of 80 on seeds 41-120). Design's #534 fixed the fight: the open vent boils her from 1.6x its radius, the steam moves to the free vent nearest her, and her Temper builds 1.5x slower in seal. After that the bot rule was within noise (Bulwark 110 with it, 105 without), so it wasn't shipped.
+- **Nhevra's Creeping Rime** first gave the Duskblade 19 and the Bulwark 39. The rime rose under her and chased the nearest hero, which in solo play is the melee hero standing on her. A bot rule that circles her made it worse (Bulwark 19 → 2 of 80). Design's #550 holds the rime 85 px off her body and slides it round her, and #555 fixed a jump when she walked into it.
+
+| Party boss (tier) | Base | Anvil | Bellows | Two Duskblades | Two Emberwrights |
+|---|---|---|---|---|---|
+| Ondrel t8: choir / load / home (after #554) | 95 / 96 / 95 | 110 / 79 / 94 | 97 / 71 / 102 | 95 / 86 / 86 | 120 / 92 / 99 |
+| Ysmeret t8: still / wander / roll | 105 / 100 / 107 | 104 / 124 / 139 | 109 / 111 / 92 | 72 / 80 / 85 | 116 / 117 / 108 |
+| Oskel t10: rivets / cut / punch (punch after #573) | 129 / 105 / 117 | 81 / 95 / 123 | 132 / 133 / 148 | 106 / 84 / 98 | 132 / 108 / 152 |
+| Grandmother Slag t8: pour / brim / flow | 84 / 88 / 89 | 103 / 117 / 127 | 95 / 107 / 102 | 99 / 88 / 96 | 89 / 86 / 97 |
+| Old Vorhulm t9: spill / bank / inhale | 106 / 97 / 99 | 147 / 149 / 146 | 81 / 87 / 79 | 122 / 115 / 106 | 75 / 65 / 86 |
+| Cinder Colossus t10: wheel / shift / mill | 107 / 106 / 101 | 120 / 117 / 114 | 76 / 64 / 71 | 133 / 131 / 129 | 95 / 86 / 88 |
+| Furnace Regent t11: ash / court / tithe | 106 / 100 / 113 | 97 / 104 / 94 | 80 / 83 / 85 | 110 / 97 / 147 | 110 / 98 / 87 |
+
+- **Ondrel's Homeward Hammer** first gave two Duskblades 66. Design traced it to the 8% ring and cut it to 5% (#554).
+- **Oskel's Punch Line** first split by range: two Duskblades 78, two Emberwrights 150. #573 widens punches further out, which brought two Duskblades to 98. Ranged parties are high across the whole Pressworks, and design logged that as a dungeon-wide watch item.
+- **Watch items, kept as they are:** the Anvil party on Rolling Vents (139) and the Overflow (127); two Duskblades on the Tithe (147), which design is tracing; and the Anvil party in the Hoard on every version.
+- **The Hoard's Anvil party** has been at 67 to 73 of 80 (seeds 41-120) since before #341, so it isn't a regression. No single Slagbinder kit piece explains it: allyBrittle at 1.0 gives 66, and turning off plating, plateMend, party armour and Brittle together gives 62. Holding Vorhulm close doesn't remove it either (76 to 78). The other half is the Bulwark: it died 470 times in 480 base-party runs, mostly late, while another hero was Swallowed. Design tried softening Vorhulm's blows while a hero is Swallowed. It lifted every Bulwark party by about the same amount, so it didn't separate the parties and wasn't shipped.
+- **Known and accepted:** the Pressworks Anvil party at 36 of 80 (seeds 41-120) stays the hard way to tank there, as ruled in #308.
+
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 
 Phase 11 gave the solo dungeons rolled layouts (pillars, a lava channel, vents) and new foes (the Ember Spitter's lob, the Ashbuck's charge). Each class now has one card that pays off only in its situation. Brief, agreed with design: /mnt/project-files/horders/skills/variety-talents-brief.md.

@@ -1981,6 +1981,8 @@ export class World {
           this.bossBrandT = 4;
           this.crackT = GLARE.crackEvery;
           this.bossVariant = this.rollLensVariant();
+          this.bossEcho = this.rollEcho(LENS_VARIANTS, this.bossVariant);
+          this.echoNext = true; // her first brand-timer cast (or Glare, for a Carried Light echo) in phase 3 is the echo
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'ondrel') {
@@ -2018,6 +2020,8 @@ export class World {
           this.tideT = COLD.firstTide;
           this.nightT = COLD.firstNight;
           this.bossVariant = this.rollNhevraVariant();
+          this.bossEcho = this.rollEcho(NHEVRA_VARIANTS, this.bossVariant);
+          this.echoLive = false; this.echoT = 0;
           this.driftEmbers = [];
           this.events.push({ type: 'bossSpawn' });
         }
@@ -6039,27 +6043,48 @@ export class World {
       this.glareT = (this.bossEnraged ? GLARE.bossGlareEvery * 0.6 : GLARE.bossGlareEvery) * (this.heat === 'highSun' ? HEAT_TUNING.sunGlare : 1);
       this.startCast(i, 'glare', 'Glare', GLARE.glareWarn, false);
       // Y3 Carried Light: from phase 2 she carries the light; the shadows swing as the warning starts.
-      if (this.bossPhase >= 2 && this.bossVariant === 'walk') {
+      let carry = this.bossPhase >= 2 && this.bossVariant === 'walk';
+      // Phase 16 U1: a Carried Light echo carries every other Glare in her last phase; the others come from the middle again.
+      if (this.bossPhase >= 3 && this.bossEcho === 'walk') {
+        carry = this.echoNext;
+        this.echoNext = !this.echoNext;
+        if (carry) this.events.push({ type: 'echo', id: 'walk' });
+        else if (this.lightX !== 0 || this.lightY !== 0) {
+          this.lightX = 0; this.lightY = 0;
+          this.events.push({ type: 'lightMove', x: 0, y: 0 });
+        }
+      }
+      if (carry) {
         this.lightX = e.x;
         this.lightY = e.y;
         this.events.push({ type: 'lightMove', x: e.x, y: e.y });
       }
       return;
     }
-    if (this.bossPhase >= 2 && this.markT <= 0 && this.bossVariant !== 'walk') {
+    // Phase 16 U1: a Twin Brand or Glintfall echo takes every other turn of this timer in her last phase.
+    const brandEcho = this.bossPhase >= 3 && (this.bossEcho === 'brand' || this.bossEcho === 'glint');
+    if (this.bossPhase >= 2 && this.markT <= 0 && (this.bossVariant !== 'walk' || brandEcho)) {
       this.bossBrandT -= dt;
       if (this.bossBrandT <= 0) {
         this.bossBrandT = GLARE.bossBrandEvery;
-        if (this.bossVariant === 'glint') {
+        let move: string = this.bossVariant;
+        if (brandEcho) {
+          if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+          this.echoNext = !this.echoNext;
+        }
+        if (move === 'walk') {
+          // A Carried Light run has nothing of its own on this timer: only the echo.
+        } else if (move === 'glint') {
           // V8 Glintfall: light shards fall on every standing pillar. Step off your cover until they land.
           this.startCast(i, 'glintfall', 'Glintfall', GLINTFALL.cast, false);
           for (const q of this.pillars) {
             if (!q.cracked) this.addTelegraph('circle', q.x, q.y, GLINTFALL.radius, 0, 0, GLINTFALL.cast, GLINTFALL.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
           }
           return;
+        } else {
+          this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
+          return;
         }
-        this.startCast(i, 'twinBrand', 'Twin Brand', GLARE.brandCast, false);
-        return;
       }
     }
     if (e.abilityT > 0) return;
@@ -6140,7 +6165,7 @@ export class World {
       if (q.hp <= 0) continue;
       if (q.coal === undefined) { q.coal = 1; q.chill = 0; q.chillT = 0; }
       // V8 Emberdrift: in phase 2 the cold eats coals faster, and fallen embers refill them.
-      const drift = this.coldPhase >= 2 && this.bossVariant === 'drift';
+      const drift = this.coldPhase >= 2 && versionLive(this, 'drift');
       q.coal = Math.max(0, q.coal - COLD.drain * (drift ? EMBERDRIFT.drainMult : 1) * (this.heat === 'brightCoal' ? HEAT_TUNING.coalDrain : 1) * dt);
       if (drift) {
         for (let n = this.driftEmbers.length - 1; n >= 0; n--) {
@@ -6205,7 +6230,25 @@ export class World {
       this.iceT = COLD.firstCrack;
       this.events.push({ type: 'phase', phase: 2 });
     }
-    if (this.coldPhase >= 2 && this.bossVariant === 'drift') {
+    // Phase 16 U1: from `NHEVRA_ECHO.below` health, her echo comes and goes, `on` s at a time.
+    if (this.coldPhase >= 2 && this.bossEcho && e.hp <= e.maxHp * NHEVRA_ECHO.below) {
+      this.echoT -= dt;
+      if (this.echoT <= 0) {
+        this.echoLive = !this.echoLive;
+        this.echoT = this.echoLive ? NHEVRA_ECHO.on : NHEVRA_ECHO.off;
+        if (this.echoLive) {
+          this.events.push({ type: 'echo', id: this.bossEcho });
+          if (this.bossEcho === 'drift') this.driftT = 0;
+          if (this.bossEcho === 'ice') this.iceT = 0;
+        } else if (this.bossEcho === 'drift') {
+          this.driftEmbers = [];
+        } else if (this.bossEcho === 'rime') {
+          this.rimeOn = false;
+        }
+      }
+    }
+    const has = (v: NhevraVariant) => this.coldPhase >= 2 && versionLive(this, v);
+    if (has('drift')) {
       // V8 Emberdrift: embers fall in a ring; the old ones gutter out.
       this.driftT -= dt;
       if (this.driftT <= 0) {
@@ -6220,7 +6263,8 @@ export class World {
         }
         this.events.push({ type: 'emberDrift', n: EMBERDRIFT.n });
       }
-    } else if (this.coldPhase >= 2 && this.bossVariant === 'rime') {
+    }
+    if (has('rime')) {
       // Y3 Creeping Rime: it rises under her, then creeps after the nearest hero.
       const risen = !this.rimeOn;
       if (!this.rimeOn) {
@@ -6256,7 +6300,9 @@ export class World {
         this.rimeX = nx;
         this.rimeY = ny;
       }
-    } else if (this.coldPhase >= 2) {
+    }
+    // Thin Ice is her base version: any run that didn't roll the other two has it.
+    if (has('ice') || (this.coldPhase >= 2 && this.bossVariant !== 'drift' && this.bossVariant !== 'rime')) {
       this.iceT -= dt;
       if (this.iceT <= 0) {
         this.iceT = COLD.crackEvery;
@@ -8347,6 +8393,8 @@ export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage:
 /** V8: Nhevra's phase-2 signature this run: Thin Ice (as before) or Emberdrift. */
 export type NhevraVariant = 'ice' | 'drift' | 'rime';
 export const NHEVRA_VARIANTS: NhevraVariant[] = ['ice', 'drift', 'rime'];
+/** Phase 16 U1: Nhevra has two phases, so her echo starts at `below` health, then runs `on` s on and `off` s off. */
+export const NHEVRA_ECHO = { below: 0.25, on: 12, off: 10 };
 /**
  * Phase 15 Y3 Creeping Rime: from phase 2 a patch of rime `r` px across rises under Nhevra and creeps after the nearest hero
  * at `speed` px/s. Inside it a coal loses `drain`/s and Chill builds `chill` stacks/s. No Thin Ice in this version.

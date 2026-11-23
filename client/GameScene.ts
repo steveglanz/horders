@@ -1409,6 +1409,7 @@ export class GameScene extends Phaser.Scene {
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
             else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
             else if (ev.phase === 2) this.hud.banner('Phase 2: Twin Brand', 'Two Brands in a row. Burst them in the open');
+            else if (w.bossEcho) this.hud.banner('Phase 3: The pillars fall', `She cracks a pillar every so often, and echoes ${BOSS_VERSION_NAME[w.bossEcho] ?? w.bossEcho}`);
             else this.hud.banner('Phase 3: The pillars fall', 'She cracks a pillar every so often. Save the rest');
           } else if (w.dungeonId === 'crucible') {
             if (ev.phase === 2 && w.bossVariant === 'brim') this.hud.banner('Phase 2: The Brimming', 'The pit fills. Stand on the cooling islands, and move before they sink');
@@ -1482,6 +1483,10 @@ export class GameScene extends Phaser.Scene {
           if (q) this.burst(w.player.x, w.player.y, 18);
           break;
         }
+        case 'echo':
+          // Phase 16 U1: the boss borrows another version's move. Name it, so a phone shows what's coming.
+          this.hud.ding(`Echo: ${BOSS_VERSION_NAME[ev.id] ?? ev.id}`);
+          break;
         case 'emberDrift':
           // V8 Emberdrift: fresh embers drop in; a ring marks each as it lands.
           this.driftFallAt = this.time.now;
@@ -2174,7 +2179,7 @@ export class GameScene extends Phaser.Scene {
     const light = this.lightAt(now);
     // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
     // pillar, so a phone shows which way each shadow now falls before it lands.
-    const carried = w.bossVariant === 'walk' && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
+    const carried = (w.bossVariant === 'walk' || w.bossEcho === 'walk') && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
     if (carried && w.pillars.length) {
       const pulse = 0.5 + 0.5 * Math.sin(now / 80);
       for (const c of w.pillars) {
