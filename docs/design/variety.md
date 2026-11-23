@@ -720,3 +720,34 @@ The Hammerdeep, the Ashvents and the Pressworks trash fights now roll Cave-in an
 - **No healer** (Bulwark, Duskblade, Emberwright, Slagbinder), Hammerdeep t8, 80 seeds: 6 with events off and 6 with Cave-in. That stays well under the 25% missing-role line.
 - **Sound:** each group dungeon has its own landing sounds (#493).
 - Forced events don't cost a full party anything here. I haven't traced why.
+
+## Phase 15 Y1 (built 23 Nov 2026): wave shapes
+
+Steve: "The bosses I have fought, and the waves, have seemed pretty similar." Until now every trash fight's foes came in at once, in one arc from the far side of the arena (`startEncounter`).
+
+Now each solo and group trash fight after the opener rolls how its wave comes in (`waveShapeAt`, a hash of the seed and the fight's place, so the run's other rolls don't move):
+
+| Shape | Chance | What happens |
+|---|---|---|
+| Arc | the rest | As before: one arc from the far side |
+| Pincer | 20% | Alternate foes come from the two flanks, a quarter turn either side of the far side |
+| Ring | 15% | The foes form a ring 460 round the hero (a foe that would stand outside the arena waits at the wall instead, still 460 away) |
+| Reinforcements | 20% | Up to half the fight's pack foes (Cinderhounds, Shades, Rimehounds, Shoal Lurkers) wait. After 7 s, or as soon as the first half is dead, a 2 s warning, then they come from a flank. The fight doesn't end while they're on the way |
+
+Never in the opener, a boss fight, a shrine, a raid or the first delve. A fight with one foe stays an arc, and so does the Twin Lamps fight (split lamps would sweep their beam across the whole arena). Tuning is in `WAVES`; names and tips in `WAVE_SHAPE_INFO`; `World.wavesMet` holds which shapes a run met (for engineering's Seen log, Y4). Event: `{ type: 'waveShape', id, stage: 'start' | 'warn' | 'land', x, y }`. Tools: `WAVE=off` or `WAVE=pincer|ring|reinforce` in tools/foundry.ts and tools/group.ts.
+
+**What the first build got wrong.** The first try put a pincer's second half, the ring and the reinforcements on the far side's opposite, which is the hero's own side: foes spawned on top of the hero. Glarewell with every fight forced to a pincer fell from 119 to 109 of 120, the Twin Lamps fight lost 4 runs in each of ring and pincer, and Coldmarrow's opener (four Rimehounds at level 1) killed the hero in 11 s. The flanks, the wider ring, keeping the Lamps in an arc and leaving the opener alone fixed those.
+
+**Measured,** solo, seeds 1 to 120, the shape forced in every trash fight after the opener, then the natural rates:
+
+| Dungeon, tier, hero | Waves off | Pincer | Ring | Reinforcements | Natural |
+|---|---|---|---|---|---|
+| Kiln t2, no gear | 71 | 78 | 77 | 79 | 74 |
+| Foundry t4, hero-t4 | 118 | 115 | 117 | 117 | 119 |
+| Glarewell t7, hero-t6 | 119 | 119 | 117 | 119 | 118 |
+| Coldmarrow t10, hero-t8 | 114 | 105 | 95 | 112 | 111 |
+| Wrackline t13, hero-t8 | 19 | 10 | 21 | 14 | 20 |
+
+- A forced ring is the hardest shape in Coldmarrow (95 against 114): its Snuffers and Rimehounds close from every side at once. At the natural rate it costs 3 of 120, and that's the point of a ring. Kept.
+- Wrackline t13 with t8 gear wins too few runs to read a shape from (10 to 21 of 120). The natural rate matches waves off.
+- Reinforcements never cost anything: half a pack at a time is easier, but the second half comes from somewhere new.

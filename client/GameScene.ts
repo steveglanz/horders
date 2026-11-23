@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO } from '../sim/world';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, WorldOptions, VEIN_TIME, ARENA, GLARE, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO } from '../sim/world';
 import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
@@ -1328,6 +1328,10 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         }
+        case 'waveShape':
+          // Phase 15 Y1: a banner as a new-shape wave starts, and again as a held pack is about to come (visuals' Y6 draws the rest).
+          if (ev.stage === 'warn' || (ev.stage === 'start' && ev.id !== 'reinforce')) this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          break;
         case 'arenaEvent':
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).

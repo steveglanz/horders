@@ -570,6 +570,8 @@ export type SimEvent =
   /** V2: this fight's arena layout (not sent for an open arena), and a Kiln vent flaring at (x, y). */
   | { type: 'layout'; id: LayoutId }
   | { type: 'arenaEvent'; id: ArenaEventId; stage: 'warn' | 'land' }
+  /** Phase 15 Y1: a fight's wave came in a new shape (`start`), or its held pack is about to come (`warn`) or came (`land`). */
+  | { type: 'waveShape'; id: Exclude<WaveShape, 'arc'>; stage: 'start' | 'warn' | 'land'; x: number; y: number }
   | { type: 'ventFlare'; x: number; y: number }
   /** V8: Nhevra's Emberdrift drops `n` embers; a hero picks one up. */
   | { type: 'emberDrift'; n: number }
@@ -866,6 +868,12 @@ export class World {
   arenaEvent: ArenaEventId | '' = '';
   /** Phase 15 Y1: how this fight's wave came in. */
   waveShape: WaveShape = 'arc';
+  /** Phase 15 Y1: how many foes a `reinforce` wave still holds back, the seconds until they come, and the angle they come from. */
+  reinforceN = 0;
+  reinforceT = 0;
+  reinforceA = 0;
+  /** Phase 15 Y1/Y4: the wave shapes this run has met, as bits of WAVE_BIT (a pincer or ring when it starts, reinforcements when they warn). */
+  wavesMet = 0;
   arenaEventT = 0;
   arenaEventStage = 0;
   /** Maelra's steam vents (empty in other fights). */
@@ -1649,7 +1657,8 @@ export class World {
     if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'flue') this.regentClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
-    if (this.phase === 'fight' && this.aliveEnemies === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
+    if (this.phase === 'fight' && this.reinforceN > 0 && !this.victory) this.reinforceClock(dt);
+    if (this.phase === 'fight' && this.aliveEnemies === 0 && this.reinforceN === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
   }
 
   /** A won delve with a living world boss goes on to the shadow fight. */
@@ -1797,25 +1806,54 @@ export class World {
     this.lampBeam = null;
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
-    const n = def.spawns.reduce((a, s) => a + s.n, 0);
+    const all = def.spawns.reduce((a, s) => a + s.n, 0);
     // Phase 15 Y1: how this wave comes in (a hash, so the run rng above is untouched).
     this.waveShape = this.waveShapeAt(this.encounter, def.id);
-    const waveAngle = (k: number): number => {
+    this.reinforceN = this.waveShape === 'reinforce' ? reinforceCount(def.spawns) : 0;
+    this.reinforceT = WAVES.reinforceAt;
+    this.reinforceA = base - Math.PI / 2; // a flank, never the hero's own side
+    const held = heldMask(def.spawns, this.reinforceN);
+    const n = all - this.reinforceN;
+    if (this.waveShape !== 'arc') {
+      const r = this.arenaR - 60;
+      this.events.push({ type: 'waveShape', id: this.waveShape, stage: 'start', x: Math.cos(base) * r, y: Math.sin(base) * r });
+      if (this.waveShape !== 'reinforce') this.wavesMet |= WAVE_BIT[this.waveShape];
+    }
+    let at = 0;
+    const edge = this.arenaR - 60;
+    const onEdge = (a: number) => ({ x: Math.cos(a) * edge, y: Math.sin(a) * edge });
+    const outside = [0, 0];
+    const wavePos = (k: number): { x: number; y: number } => {
       if (this.waveShape === 'pincer') {
+        // The two flanks (a quarter turn either side of the far side), so neither half lands on the hero.
         const side = k % 2, m = side ? Math.floor(n / 2) : Math.ceil(n / 2), idx = Math.floor(k / 2);
-        return base + side * Math.PI + (idx - (m - 1) / 2) * 0.35;
+        return onEdge(base + (side ? -1 : 1) * (Math.PI / 2) + (idx - (m - 1) / 2) * 0.35);
       }
-      if (this.waveShape === 'ring') return base + (k * 2 * Math.PI) / n;
-      return base + (k - (n - 1) / 2) * 0.35;
+      if (this.waveShape === 'ring') {
+        // A ring round the hero. A foe that would stand outside the arena goes to the wall instead, at least
+        // ringR from the hero (further round the wall for each one, so they don't stack).
+        const a = base + (k * 2 * Math.PI) / n;
+        const rr = Math.min(WAVES.ringR, edge);
+        const x = p.x + Math.cos(a) * rr, y = p.y + Math.sin(a) * rr;
+        if (Math.hypot(x, y) <= edge) return { x, y };
+        const d0 = Math.hypot(p.x, p.y), u = Math.atan2(p.y, p.x);
+        const c = (edge * edge + d0 * d0 - rr * rr) / (2 * edge * d0);
+        const th = Math.acos(Math.max(-1, Math.min(1, c)));
+        const side = Math.sin(a - u) >= 0 ? 1 : -1;
+        outside[side > 0 ? 0 : 1]++;
+        return onEdge(u + side * (th + 0.3 * (outside[side > 0 ? 0 : 1] - 1)));
+      }
+      return onEdge(base + (k - (n - 1) / 2) * 0.35);
     };
     let k = 0;
     let lead = -1;
     let firstElite = -1;
     for (const sp of def.spawns) {
       for (let j = 0; j < sp.n; j++, k++) {
-        const a = waveAngle(k);
-        const r = this.arenaR - 60;
-        const i = this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
+        if (held[k]) continue;
+        const pos = wavePos(at++);
+        const a = Math.atan2(pos.y, pos.x);
+        const i = this.spawn(sp.kind, pos.x, pos.y);
         if (i < 0) continue;
         const e = this.enemies[i];
         if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
@@ -2287,14 +2325,54 @@ export class World {
     this.events.push({ type: 'layout', id: this.layout });
   }
 
+  /** Phase 15 Y1: a `reinforce` wave's held pack: warns, then comes in from the far side (at once if the first half is dead). */
+  private reinforceClock(dt: number): void {
+    const r = this.arenaR - 60;
+    const x = Math.cos(this.reinforceA) * r, y = Math.sin(this.reinforceA) * r;
+    const early = this.aliveEnemies === 0 && this.reinforceT > WAVES.reinforceWarn;
+    const was = early ? Infinity : this.reinforceT;
+    this.reinforceT = (early ? WAVES.reinforceWarn : this.reinforceT) - dt;
+    if (was > WAVES.reinforceWarn && this.reinforceT <= WAVES.reinforceWarn) {
+      this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'warn', x, y });
+      this.wavesMet |= WAVE_BIT.reinforce;
+    }
+    if (this.reinforceT > 0) return;
+    const def = this.encounterDef;
+    const held = heldMask(def.spawns, this.reinforceN);
+    const m = this.reinforceN;
+    let k = 0, at = 0;
+    for (const sp of def.spawns) {
+      for (let j = 0; j < sp.n; j++, k++) {
+        if (!held[k]) continue;
+        const a = this.reinforceA + (at++ - (m - 1) / 2) * 0.35;
+        this.spawn(sp.kind, Math.cos(a) * r, Math.sin(a) * r);
+      }
+    }
+    this.reinforceN = 0;
+    this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x, y });
+  }
+
   /** Phase 15 Y1: the wave shape the fight `id` at route position `k` gets: 'arc' unless a solo or group trash fight rolls another. */
   waveShapeAt(k: number, id: EncounterId): WaveShape {
-    if (WAVES.off || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id) || id === 'worldShadow') return 'arc';
-    if (WAVES.force) return WAVES.force as WaveShape;
+    // The opener stays an arc: the hero has no talents yet, and a ring of hounds at level 1 killed in 11 s (Coldmarrow t10).
+    if (WAVES.off || k === 0 || this.firstDelve || this.stress || this.dungeonDef.raid || !this.layoutRolls(id) || id === 'worldShadow') return 'arc';
     let h = (Math.imul(this.seed ^ 0x51ed270b, 0x9e3779b1) + Math.imul(k + 1, 0xc2b2ae35)) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+    const def = ENCOUNTERS[id];
+    const n = def ? def.spawns.reduce((a, s) => a + s.n, 0) : 0;
+    if (WAVES.force) {
+      const f = WAVES.force as WaveShape;
+      if (f === 'reinforce') return def && reinforceCount(def.spawns) > 0 ? f : 'arc';
+      return n >= 2 && !def!.spawns.some((x) => x.kind === 'twinLamp') ? f : 'arc';
+    }
+    if (n < 2) return 'arc';
+    // The Twin Lamps' beam runs between them, so split lamps would sweep the whole arena: they keep the arc.
+    const lamps = def!.spawns.some((x) => x.kind === 'twinLamp');
     const u = (h % 1000) / 1000;
-    return u < WAVES.pincer ? 'pincer' : u < WAVES.pincer + WAVES.ring ? 'ring' : 'arc';
+    if (u < WAVES.pincer) return lamps ? 'arc' : 'pincer';
+    if (u < WAVES.pincer + WAVES.ring) return lamps ? 'arc' : 'ring';
+    if (u < WAVES.pincer + WAVES.ring + WAVES.reinforce && reinforceCount(def!.spawns) > 0) return 'reinforce';
+    return 'arc';
   }
 
   /** Phase 14 X3: the arena event hash for route position `k` (its own salt, no run-rng draws). */
@@ -7581,8 +7659,48 @@ export const LAYOUTS: Partial<Record<DungeonId, LayoutId[]>> = {
  * or a pincer (alternate foes from opposite sides), or a ring round the arena. `pincer` and `ring` are each fight's
  * chance of that shape. `force` (tools) forces one; `off` keeps every wave an arc. Never boss fights or raids.
  */
-export type WaveShape = 'arc' | 'pincer' | 'ring';
-export const WAVES = { pincer: 0.25, ring: 0.2, force: '' as string, off: false };
+export type WaveShape = 'arc' | 'pincer' | 'ring' | 'reinforce';
+export const WAVES = {
+  pincer: 0.2,
+  ring: 0.15,
+  /** `reinforce`: up to half the pack (the kinds in REINFORCE_KINDS) is held back and comes in from the other side. */
+  reinforce: 0.2,
+  /** Seconds into the fight the held pack arrives (sooner if the first half is already dead). */
+  /** `ring`: how far from the hero the ring forms. */
+  ringR: 460,
+  reinforceAt: 7,
+  /** Seconds of warning before it arrives. */
+  reinforceWarn: 2,
+  force: '' as string,
+  off: false,
+};
+/** Phase 15 Y1: the pack foes a `reinforce` wave can hold back. */
+export const REINFORCE_KINDS: readonly EnemyKind[] = ['cinderhound', 'shade', 'rimehound', 'shoalLurker'];
+/** Phase 15 Y1: how many of a fight's foes a `reinforce` wave holds back: the pack foes, at most half the fight, at least one left in. */
+export function reinforceCount(spawns: readonly { kind: EnemyKind; n: number }[]): number {
+  const all = spawns.reduce((a, s) => a + s.n, 0);
+  const pack = spawns.reduce((a, s) => a + (REINFORCE_KINDS.includes(s.kind) ? s.n : 0), 0);
+  return all < 3 ? 0 : Math.min(pack, Math.floor(all / 2));
+}
+/** Which flat spawn slots are held back: the last `m` pack foes. */
+function heldMask(spawns: readonly { kind: EnemyKind; n: number }[], m: number): boolean[] {
+  const flat: EnemyKind[] = [];
+  for (const sp of spawns) for (let j = 0; j < sp.n; j++) flat.push(sp.kind);
+  const out = flat.map(() => false);
+  for (let k = flat.length - 1; k >= 0 && m > 0; k--) if (REINFORCE_KINDS.includes(flat[k])) { out[k] = true; m--; }
+  return out;
+}
+/** Phase 15 Y4: each shape's bit in World.wavesMet. */
+export const WAVE_BIT: Record<Exclude<WaveShape, 'arc'>, number> = { pincer: 1, ring: 2, reinforce: 4 };
+/** The shapes a `wavesMet` mask holds. */
+export function wavesIn(mask: number): Exclude<WaveShape, 'arc'>[] {
+  return (Object.keys(WAVE_BIT) as Exclude<WaveShape, 'arc'>[]).filter((s) => mask & WAVE_BIT[s]);
+}
+export const WAVE_SHAPE_INFO: Record<Exclude<WaveShape, 'arc'>, { name: string; tip: string }> = {
+  pincer: { name: 'Pincer', tip: 'They come from both sides. Pick one side and break it.' },
+  ring: { name: 'Surrounded', tip: 'They come from every side. Cut a way out.' },
+  reinforce: { name: 'More Coming', tip: 'The rest of the pack is on its way from another side.' },
+};
 export type ArenaEventId = 'caveIn' | 'ventSurge' | 'coldSnap' | 'highWater';
 export const ARENA_EVENTS = {
   chance: 0.4, at: 9, spread: 5,
