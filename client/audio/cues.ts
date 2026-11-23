@@ -187,6 +187,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
   turningFire: { start: 'turnFireWarn' }, // Turning Fire (Y3): each cone's landing is a slam the size of KILN_TURN.reach
   // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
   glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
@@ -441,7 +442,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
-    case 'inhale': return null; // Y3 Inhale: cue to come from sound
+    case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };
     // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
     case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
     case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };
@@ -765,7 +766,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
