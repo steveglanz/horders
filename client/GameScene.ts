@@ -1032,6 +1032,7 @@ export class GameScene extends Phaser.Scene {
       swallowLeft: w.dungeonId === 'hoard' ? w.player.swallowT ?? 0 : 0,
       pressed: w.dungeonId === 'pressworks' && (w.player.pressedT ?? 0) > 0,
       spent: w.dungeonId === 'flue' && (w.player.spentT ?? 0) > 0,
+      gaze: w.enemies.filter((e) => e.alive && e.kind === 'lampeye').map((e) => ({ aux: e.aux, sees: w.player.hp > 0 && w.lampeyeSees(e, w.player.x, w.player.y) })),
       islands: w.islands,
       myIsland: w.islands.length ? myIsland(w) : -1,
       stance: w.player.stance,

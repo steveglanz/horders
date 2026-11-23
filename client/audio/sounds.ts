@@ -38,6 +38,13 @@ const whoosh = (from: number, to: number, dur: number, vol = 0.3): Recipe => [
   { wave: 'noise', f: 0, dur, vol, a: dur * 0.3, lp: from, lp2: to, curve: 1.5 },
 ];
 
+/** The Lampeye's gaze, step k of 5: a short glassy hum two semitones above the last, brighter as it climbs. */
+const gazeTone = (k: number): Recipe => [
+  { wave: 'sine', f: note(5 + 2 * k), dur: 0.55, vol: 0.12 + 0.02 * k, a: 0.06, curve: 1.6, vib: [6, 0.006] },
+  { wave: 'tri', f: note(17 + 2 * k), dur: 0.45, vol: 0.05 + 0.012 * k, a: 0.05, curve: 2 },
+  { wave: 'sine', f: note(24 + 2 * k) * 1.003, dur: 0.3, vol: 0.03 + 0.01 * k, a: 0.02, curve: 2.5 },
+];
+
 const horn = (f: number, dur: number, vol = 0.45): Recipe => [
   { wave: 'saw', f: f * 0.97, f2: f, dur, vol: vol * 0.5, a: 0.12, lp: 900, lp2: 2200, curve: 1.2, vib: [5, 0.006] },
   { wave: 'saw', f: f * 1.005, dur, vol: vol * 0.4, a: 0.15, lp: 1200, curve: 1.2, vib: [4.4, 0.008] },
@@ -873,6 +880,17 @@ export const SOUNDS = {
   anchorWeigh: join(
     ...[0, 0.11, 0.21, 0.3].map((d, k) => clang(1200 + k * 160, 0.07, 0.07).map((v) => ({ ...v, delay: (v.delay ?? 0) + d }))),
     [{ wave: 'noise', f: 0, dur: 0.35, vol: 0.07, a: 0.05, lp: 3000, lp2: 5000, hp: 900, curve: 1.5 }],
+  ),
+  /** Phase 16 U2: the Lampeye's gaze builds (Enemy.aux toward LAMPEYE.full 6 s) while it can see your hero. Each whole
+   *  second plays the next step of a rising glassy hum (gazeCues), so the climb itself says "get behind a pillar". */
+  gaze1: gazeTone(1), gaze2: gazeTone(2), gaze3: gazeTone(3), gaze4: gazeTone(4), gaze5: gazeTone(5),
+  /** Its gaze is full: Searing Look (LAMPEYE.lookCast 1 s, can't be interrupted). The hum flares into a bright,
+   *  rising searing hiss; a hero it can still see when it ends is burned. Ends before the cast does. */
+  searingWarn: join(
+    [{ wave: 'saw', f: note(17), f2: note(24), dur: 0.8, vol: 0.12, a: 0.1, lp: 2500, lp2: 7000, curve: 1.1, vib: [9, 0.01] },
+     { wave: 'sine', f: note(29), f2: note(31), dur: 0.8, vol: 0.12, a: 0.05, curve: 1.1, vib: [7, 0.012] },
+     { wave: 'noise', f: 0, dur: 0.75, vol: 0.16, a: 0.45, lp: 9000, hp: 3000, curve: 1.2 }],
+    chime(note(24), 0.78, 0.14, 0.15),
   ),
   /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
    *  so "that did little" is heard without looking. Takes the place of the hit sound. */
@@ -1818,6 +1836,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedKillBrood: 1.6,
   bashWarn: 7.2, glance: 4.0, // U2 Ashwall: the wind-up 6.1 dB over the Kiln mix (busycheck t8 heroes, SEEDS=1-16, n=9), level with chargeWindup; the glance a little over plateHit, under the plain hit
   anchorWarn: 4.5, anchorDrop: 3.0, anchorWeigh: 3.0, // U2 Ballast: the wind-up ~8 dB over the Foundry mix (busycheck t8 heroes, SEEDS=1-24); drop and weigh ordinary
+  gaze1: 3.0, gaze2: 3.0, gaze3: 3.0, gaze4: 3.0, gaze5: 3.0, searingWarn: 3.0, // U2 Lampeye: see busycheck in the PR
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it

@@ -50,6 +50,8 @@ export interface CueContext {
    * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
    * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
    */
+  /** The Glarewell's Lampeyes: each one's gaze (Enemy.aux, s toward LAMPEYE.full) and whether it can see this screen's hero. */
+  gaze?: readonly { aux: number; sees: boolean }[];
   /** The 3D view's room life and foe lunges since the last tick (Hd2dView.sounds), for roomCues. Absent in 2D. */
   roomSounds?: readonly RoomSound[];
   /** The arena's radius (World.arenaR), so the 3D room's props can be placed for the edge sounds. */
@@ -193,6 +195,8 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   // Phase 16 U2: the Ballast (the Foundry). Anchor Slam's wind-up is the step-out warning; dropping and weighing anchor
   // are its two castDone moments (BALLAST.plantDelay / unplant), heard as a chain running out and a chain hauled in.
   anchorSlam: { start: 'anchorWarn' }, // Anchor Slam
+  // Phase 16 U2: the Lampeye (the Glarewell). Its gaze climbs in steps (gazeCues); full, Searing Look's cast start is the last warning.
+  searingLook: { start: 'searingWarn' }, // Searing Look
   anchor: { done: 'anchorDrop' }, // Drops Anchor
   unanchor: { done: 'anchorWeigh' }, // Weighs Anchor
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
@@ -859,6 +863,33 @@ export function myIsland(w: { islands: readonly { x: number; y: number; t: numbe
  * The Flue (raid 4): Spent ends. A hero who just passed a Decree can't take it back for a while (Player.spentT);
  * a small tick when this screen's hero may take one again. Silent going in: the pass itself already sounded.
  */
+/** The gaze steps that sound (1..5); at LAMPEYE.full (6) Searing Look starts and its cast warning takes over. */
+export const GAZE_STEPS = ['gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5'] as const;
+/** How far (s) a gaze must fall below a step before that step can sound again, so a hero edging in and out of a pillar's cover doesn't retrigger it each tick. */
+export const GAZE_DROP = 0.5;
+/**
+ * The Lampeye (Phase 16 U2): while one can see this screen's hero, each whole second its gaze gains plays the next step
+ * of a rising hum, so the climb is the tell to step behind a pillar. Only the highest new step plays when several eyes
+ * climb at once; one that can't see you climbs in silence (it can't sear you). A gaze that falls back (a pillar in the
+ * way, or the look done) steps down silently, GAZE_DROP past a step, so climbing again is heard again.
+ */
+export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; sees: boolean }[] | undefined): Cue | null {
+  if (!eyes || !eyes.length) {
+    state.lv = [];
+    return null;
+  }
+  let best = 0;
+  eyes.forEach((e, k) => {
+    const lv = Math.min(GAZE_STEPS.length, Math.floor(e.aux + 1e-6)), was = state.lv[k] ?? 0;
+    if (lv > was) {
+      if (e.sees) best = Math.max(best, lv);
+      state.lv[k] = lv;
+    } else if (e.aux < was - GAZE_DROP) state.lv[k] = Math.min(GAZE_STEPS.length, Math.floor(e.aux + GAZE_DROP + 1e-6));
+  });
+  state.lv.length = eyes.length;
+  return best > 0 ? { id: GAZE_STEPS[best - 1] } : null;
+}
+
 export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
   const was = state.on;
   state.on = spent;
@@ -893,7 +924,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);
