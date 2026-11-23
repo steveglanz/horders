@@ -34,6 +34,11 @@ export interface Hd2dView {
   frame(dt: number): void;
   destroy(): void;
   stats(): Hd2dStats;
+  /**
+   * Where world point (x, y) on the floor shows on screen this frame, in CSS px from the 3D view's top left,
+   * or null when it is behind the camera. For overlays drawn over the 3D view (the phone edge chevrons).
+   */
+  project(x: number, y: number): { x: number; y: number } | null;
 }
 
 export interface Hd2dModule {
@@ -92,10 +97,13 @@ export function prefetchHd2d(): void {
  * Loads ./hd2d.js once (or finishes the quiet prefetch), showing the loading screen while it comes in. Resolves to the module, or to null
  * if it fails (the screen says so for a moment, and the run goes ahead in 2D).
  */
-export function loadHd2d(): Promise<Hd2dModule | null> {
+export function loadHd2d(dungeon?: string): Promise<Hd2dModule | null> {
   if (mounted) return Promise.resolve(mod);
   if (pending) return pending;
   const screen = document.getElementById('hd2dLoad');
+  // Names the dungeon being entered ("Entering the Kiln Depths"): a fixed raid name read as the wrong dungeon.
+  const title = screen?.querySelector('.hl-title');
+  if (title) title.textContent = dungeon ? `Entering ${dungeon.replace(/^The /, 'the ')}` : 'Entering the depths';
   const t0 = performance.now();
   if (screen) { screen.hidden = false; screen.classList.remove('failed'); }
   pending = fetchModule()

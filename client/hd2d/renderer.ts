@@ -240,6 +240,13 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   cv.className = 'hd2d-canvas';
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1';
   host.appendChild(cv);
+  // A dark band under the HUD's top line: in portrait the room's brightest light sits behind it, and the gold
+  // "Fight 1 of 5" was hard to read there at 320 px (QA, 23 Nov).
+  const shade = document.createElement('div');
+  shade.className = 'hd2d-shade';
+  shade.style.cssText = 'position:absolute;left:0;right:0;top:0;height:calc(max(10px, env(safe-area-inset-top)) + 96px);'
+    + 'pointer-events:none;z-index:1;background:linear-gradient(to bottom, rgba(8,4,3,0.72), rgba(8,4,3,0.4) 55%, rgba(8,4,3,0))';
+  host.appendChild(shade);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#0a0504');
@@ -401,7 +408,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   };
 
   const times: number[] = [];
-  const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), sc = new THREE.Vector3(), pv = new THREE.Vector3();
   let t = 0;
   const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, s: number) => { v3.set(x, y, z); sc.set(s, s, s); m4.compose(v3, q0, sc); im.setMatrixAt(n, m4); };
 
@@ -601,6 +608,12 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       composer?.dispose();
       renderer.renderLists.dispose();
       cv.remove();
+      shade.remove();
+    },
+    project(x, y) {
+      const p = pv.set(x * S, FLOOR, y * S).project(camera);
+      if (p.z > 1 || !W || !H) return null;
+      return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
     },
     stats() {
       const ms = times.length ? times.reduce((x, y) => x + y, 0) / times.length : 0;

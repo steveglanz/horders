@@ -307,7 +307,7 @@ el('startBtn').addEventListener('click', () => {
   stress = params.has('stress');
   hud.showPerf = stress || params.has('debug');
   // HD-2D look test: the 3D file loads the first time you press Delve (a short loading screen), never before.
-  if (hd2dWanted() && !hd2dMounted()) { void loadHd2d().then(() => startRun()); return; }
+  if (hd2dWanted() && !hd2dMounted()) { void loadHd2d(DUNGEONS[hub.dungeon]?.name).then(() => startRun()); return; }
   startRun();
 });
 el('stressLink').addEventListener('click', (e) => {
