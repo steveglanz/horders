@@ -39,6 +39,8 @@ const BOSS_PX = 0.03;
 const VIEW = 560 * S;
 /** How far (world units) your own hero's sprite is drawn toward the camera, so nothing standing next to you covers it. */
 const SELF_LIFT = 1.6;
+/** BALLAST.plantDelay (sim/world.ts): seconds in reach before the Ballast drops anchor. */
+const BALLAST_PLANT = 0.8;
 
 /** Class ring colours, as v2 settled them (the Duskblade's #ff5fa2 keeps it clear of danger pink). */
 const RING: Record<string, string> = { bulwark: '#d6dde4', duskblade: '#ff5fa2', emberwright: '#ff8a3d', lumen: '#ffc861', slagbinder: '#ff9b4a' };
@@ -929,7 +931,21 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group };
+  // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
+  // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
+  const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
+  const makeAnchor = () => {
+    const g = new THREE.Group();
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8).translate(0, 0.35, 0), anchorIron); g.add(shank);
+    const arms = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.05, 6, 16, Math.PI), anchorIron); arms.rotation.z = Math.PI; arms.position.y = 0.26; g.add(arms);
+    for (const sx of [-1, 1]) { const fluke = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.18, 4), anchorIron); fluke.position.set(sx * 0.26, 0.3, 0); g.add(fluke); }
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.06), anchorIron); stock.position.y = 0.62; g.add(stock);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 12), anchorIron); ring.position.y = 0.76; g.add(ring);
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 5).translate(0, 0.5, 0), anchorIron); chain.position.y = 0.82; chain.name = 'chain'; g.add(chain);
+    g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; });
+    scene.add(g); return g;
+  };
   // Phase 16 U2, the Ashwall: a real slab of cooled slag carried before it, glowing in its cracks, turned to Enemy.aux
   // (its shield facing). The front arc and the shelter wedge are 2D floor marks the bridge already carries.
   const slagCracks = (() => { const c = mk(64, 64), k = c.getContext('2d')!; k.fillStyle = '#000'; k.fillRect(0, 0, 64, 64); k.strokeStyle = '#ffffff'; k.lineWidth = 2;
@@ -1281,7 +1297,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1305,9 +1321,22 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.shield.scale.set(r * 2.6, ht * rise * 0.8, 1);
         shieldMat.emissiveIntensity = (e.castId ? 1.8 + 0.6 * Math.sin(t * 14) : 1.1) * (e.flash > 0 ? 1.4 : 1);
       } else if (f.shield) f.shield.visible = false;
+      if (e.kind === 'ballast') {
+        if (!f.anchor) f.anchor = makeAnchor();
+        const r = e.def.radius * S, plant = Math.min(1, Math.max(0, e.aux / BALLAST_PLANT));
+        const planted = e.aux >= BALLAST_PLANT, heave = e.castId ? 0.12 + 0.06 * Math.sin(t * 16) : 0;
+        const side = flip > 0 ? 1 : -1;
+        const ax = x + side * r * 1.15, az = z + r * 0.7; // a little in front, so a planted anchor isn't hidden by the body
+        const y = FLOOR + (1 - plant) * 0.9 - (planted ? 0.12 : 0) + heave;
+        f.anchor.visible = true; f.anchor.position.set(ax, y, az); f.anchor.scale.setScalar(1.35);
+        f.anchor.rotation.set(0, 0, planted ? side * 0.12 : Math.sin(t * 3 + i) * 0.15 * (1 - plant));
+        const chain = f.anchor.getObjectByName('chain')!;
+        chain.scale.y = Math.max(0.05, ht * rise * 0.55 - (y - FLOOR) * 0.2 + (1 - plant) * 0.2);
+        anchorIron.emissiveIntensity = e.castId ? 0.9 + 0.5 * Math.sin(t * 14) : planted ? 0.25 : 0;
+      } else if (f.anchor) f.anchor.visible = false;
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
