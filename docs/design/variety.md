@@ -1421,6 +1421,21 @@ Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party i
 - **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
 - **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.
 
+- **The Hoard echo and the parties without a Duskblade (23 Nov):** skills found Old Vorhulm's echo cost the Bellows party (Bulwark, Lumen, Slagbinder with `STANCE=bellows`, Emberwright) and the two-Emberwright party (Bulwark, Lumen, two Emberwrights) about 10 to 14 wins of 160, spread over all three echoes. I tried five changes to when and how often the echo comes. Hoard t9, heroes-r2 hero-t8-0, seeds 1 to 160, wins out of 160:
+
+| Setup | Bellows | Two Emberwrights | Base |
+|---|---|---|---|
+| Echoes off | 86 | 80 | 111 |
+| Echo as shipped (every other spill, echo first) | 72 | 70 | 109 |
+| His own move first | 78 | 72 | |
+| Echo every third spill | 79 | | |
+| Echo only below 15% health | 77 | 70 | |
+| At most 3 echoes | 71 | 71 | 104 |
+| At most 2 echoes | 75 | 73 | |
+
+  None of them wins back more than about half the cost, and opening-order changes move 6 or fewer wins, which is inside the rng-reshuffle noise for raids (horders-raid-measuring). The base party loses only 2 to the echo. The flipped runs (won with echoes off, lost with them on) all wiped in phase 3, between 2% and 38% boss health. Both parties were already under the band with echoes off, so the echo widens an existing class-side gap (skills' Z5, #324) rather than opening one. Kept as shipped; no change to `RAID_ECHO.vorhulm`.
+- **Novice aid at tier 4:** skills' Grit Guard (#630, `GRIT_GUARD` in docs/skills.md) gives the Duskblade Blade Guard per Grit stack from tier 4, so only a player who keeps losing a tier gets it.
+
 ## Phase 16 U2: the Kiln's new elite, the Ashwall
 
 U2 gives each solo dungeon one new elite whose answer isn't "kill it or step out". The Kiln's is the **Ashwall** (`ashwall`, 900 hp, elite, title "Shields those behind it"), a slab of cooled slag carried as a shield. It comes in the new opener **The Ashwall** (`ashwall`): one Ashwall and two Ember Spitters. Tip: "It shields the foes behind it, and its own front. Walk round it, or draw them out from behind it." The name was searched: no World of Warcraft match.

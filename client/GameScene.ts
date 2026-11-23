@@ -1754,13 +1754,7 @@ export class GameScene extends Phaser.Scene {
       : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
       // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
       : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
-      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound'
-      // Phase 16 U2: the Ashwall wears the Hollow Warden until visuals draw it.
-      : e.kind === 'ashwall' && !this.textures.exists('ashwall') ? 'husk'
-      : e.kind === 'ballast' && !this.textures.exists('ballast') ? 'sluiceCrawler'
-      : e.kind === 'lampeye' && !this.textures.exists('lampeye') ? 'shade'
-      : e.kind === 'dimhorn' && !this.textures.exists('dimhorn') ? 'snuffer'
-      : e.kind === 'conchblower' && !this.textures.exists('conchblower') ? 'bargeHauler' : e.kind;
+      : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
   }
 
   /** Frame `n` of a texture, cropped into its own canvas, for the HD-2D view (cached per key and frame). */
