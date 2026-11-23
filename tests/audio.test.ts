@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, OSKEL, OVERFLOW, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, INHALE, OSKEL, OVERFLOW, PUNCH, isPunchR, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1140,7 +1140,7 @@ describe('audio', () => {
     for (let t = 0; t < PUNCH.first + PUNCH.step * PUNCH.n + 0.2; t += dt) {
       w.events.length = 0;
       q.updatePartyTelegraphs(dt);
-      const here = w.events.filter((e) => e.type === 'slam' && e.r === PUNCH.r);
+      const here = w.events.filter((e) => e.type === 'slam' && isPunchR(e.r));
       for (const e of here) expect(cueFor(e, c)?.id).toBe('punchHit');
       if (here.length) lands.push(t);
     }
