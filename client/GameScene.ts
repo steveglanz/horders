@@ -3769,7 +3769,7 @@ export class GameScene extends Phaser.Scene {
     // The clear view: below a full-width boss or quest panel (clearView's cache, in viewport px), at most 40% down.
     this.clearView();
     const top = Math.min(0.4 * H, Math.max(0, this.hudCover.px - hr.top));
-    this.drawLabels3d(g, view, top);
+    this.drawLabels3d(g, view, top, W, H);
     const inset = 10;
     const cx = W / 2, cy = (top + H) / 2;
     const SECTORS = 16;
@@ -3864,12 +3864,17 @@ export class GameScene extends Phaser.Scene {
    * scene draws on its own (hidden) camera. Each goes at its projected floor point, at the same on-screen size as
    * in 2D. Over-the-head items (bars, names) get lifted by the 2D offset times LIFT, since the 3D sprites stand up.
    */
-  private drawLabels3d(g: CanvasRenderingContext2D, view: Hd2dView, top: number): void {
-    const z = this.cameras.main.zoom;
-    const LIFT = 1.6;
+  private drawLabels3d(g: CanvasRenderingContext2D, view: Hd2dView, top: number, W: number, H: number): void {
+    // The camera zoom maps world px to the game canvas, which runs at device resolution (main.ts); this overlay draws
+    // in CSS px, so divide by that ratio or every name, number and bar comes out DPR times too big.
+    const cw = this.game.canvas.getBoundingClientRect().width || 1;
+    const z = this.cameras.main.zoom * (cw / this.game.canvas.width);
+    const LIFT = 3.2;
+    // A foe whose floor point is off screen gets no bar, name or number, as in 2D, where they'd be outside the camera.
+    const onScreen = (q: { x: number; y: number }) => q.x >= 0 && q.x <= W && q.y >= 0 && q.y <= H;
     for (const r of this.barRecs) {
       const p = view.project(r.x, r.y);
-      if (!p) continue;
+      if (!p || !onScreen(p)) continue;
       const bw = r.bw * z, x = p.x - bw / 2, y = p.y + (r.top - r.y) * z * LIFT;
       g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(x, y, bw, 6 * z);
       g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(x, y, bw * r.hp, 6 * z);
@@ -3895,9 +3900,10 @@ export class GameScene extends Phaser.Scene {
       if (head) {
         const bar = this.barRecs.find((r) => Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
         const q = bar ? view.project(bar.x, bar.y) : view.project(t.x, t.y);
-        p = q && bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
+        if (!q || !onScreen(q)) continue;
+        p = bar ? { x: q.x, y: q.y + (t.y - bar.y) * z * LIFT } : q;
       } else p = view.project(t.x, t.y);
-      if (!p) continue;
+      if (!p || !onScreen(p)) continue;
       // A name under the boss or quest panel stays hidden, as in 2D.
       if (head && p.y < top) continue;
       const st = t.style;

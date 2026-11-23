@@ -27,7 +27,7 @@ export interface Hd2dAdapter {
   heroName(i: number): string;
 }
 
-export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number }
+export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number }
 
 export interface Hd2dView {
   /** Draws one frame from the world as it is now. `dt` is seconds since the last frame. */
