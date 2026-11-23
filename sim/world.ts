@@ -7873,7 +7873,7 @@ export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
  * each `arc` wide, the first on the hero, each next one a turn further on and landing `step` s after the last (the first
  * at `first` s). Not interruptible: follow the fire round her, into the ground the last cone already burned.
  */
-export const KILN_TURN = { cones: 4, arc: (80 * Math.PI) / 180, first: 1.6, step: 0.7, reach: 900, damage: 40 };
+export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step: 0.7, reach: 900, damage: 40 };
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 
