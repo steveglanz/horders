@@ -917,3 +917,46 @@ Win rates moved by at most 5 of 80 in any cell (Glarewell Duskblade 70 to 65). T
 
 **Acolytes stay inside the wall** (QA's note). A ward near the wall swung its acolytes outside the arena, out of reach. Their circling position is now clamped inside. Kiln t6, heroes-r2, seeds 41 to 120, with the new stir rules, wins before and after the clamp: Emberwright 52 / 51, Duskblade 44 / 46, Bulwark 63 / 62, Lumen 78 / 79, Slagbinder 52 / 52.
 
+**Sealed Vents fix (23 Nov 2026, after skills' Y5).** In skills' class check (seeds 41 to 200), the Bulwark at t6 won 49 of 160 on Sealed Vents, against 131 on Rising Water. It fought her 204 s against 161 and boiled her less often. Her Temper also stayed high: in my runs it averaged 2.4 stacks against 1.0 on Rising Water, so she took less damage for longer. Three changes, all in `MAELRA_SEAL`:
+- The open vent boils her from 1.6x its radius (`wide`).
+- The steam moves to the free vent nearest her (`near`).
+- Her Temper builds 1.5x slower in this version (`temperSlow`).
+
+The Bulwark was the worst case, so I measured it on heroes-r2 hero-t6-0 at Foundry t6, seeds 41 to 120. Wins out of 80, against 62 on Rising Water:
+
+| Change | Bulwark |
+|---|---|
+| Before | 23 |
+| Nearest vent | 27 |
+| 1.6x radius | 36 |
+| Every 24 s | 31 |
+| Nearest + 1.6x | 37 |
+| Temper 1.5x slower | 33 |
+| Temper 2x slower | 40 |
+| **Nearest + 1.6x + Temper 1.5x slower (shipped)** | **52** |
+| Nearest + 1.6x + Temper 2x slower | 55 |
+
+- The Emberwright, same setup: 62 before, 65 after (Rising Water 63).
+- Foundry t4, seeds 1 to 160: hero-t4 156 (unchanged), no gear 55 (Rising Water 59, Sluicetide 52).
+- Skills will add a stronger melee vent lead to the bot on top of this. Their test of it alone gave +6 of 80.
+- QA's note: the steam clock lives in runMaelra, which doesn't run while she casts. So the warning can run past 2.5 s, but it always comes before the move.
+
+### Y3 Nhevra: Creeping Rime (built 23 Nov 2026)
+
+Nhevra had two phase-2 versions, Thin Ice and Emberdrift. The third is **Creeping Rime** (`rime`).
+- When phase 2 starts, a patch of rime 85 px across rises under her. It creeps after the nearest living hero at 48 px/s, slower than any hero walks.
+- Inside it, a coal loses 0.05 warmth a second on top of the usual drain, and Chill builds 1.5 stacks a second. While the coal still burns, Chill falls faster than that (2 a second), so in practice the Chill only bites once the coal is out.
+- There is no Thin Ice in this version. The Long Night keeps its phase-2 pace.
+- Tuning is `CREEPING_RIME` in sim/world.ts. Fields `w.rimeOn`, `w.rimeX` and `w.rimeY`, all scalars. Event `{type:'rimeRise', x, y}`.
+- The bot keeps clear of the patch.
+
+**Measured** with tools/foundry.ts at Coldmarrow t10, seeds 1 to 160, each version forced with `BOSSV`:
+
+| Setup | Thin Ice | Emberdrift | Creeping Rime |
+|---|---|---|---|
+| hero-t8 | 144 | 156 | 150 |
+| hero-t6 | 81 | 113 | 106 |
+
+- Creeping Rime sits between the other two. Thin Ice stays the hardest.
+- **Name:** "Creeping Rime" had no WoW match in a search on 23 Nov ("Rime" alone is a WoW page, but it's a single plain word).
+

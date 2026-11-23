@@ -98,6 +98,7 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDef> = {
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', tip: 'Dodge the red, Quench her Cataclysm, stand in the gold.', spawns: [{ kind: 'kilnMother', n: 1 }] },
 };
 /** V8: Nhevra's intro when this run's version brings the Emberdrift from phase 2. */
+export const CREEPING_RIME_TIP = 'Quench her Snuff and kill the Snuffers. Later a patch of rime creeps after you and smothers your coal: keep moving and lead it away.';
 export const EMBERDRIFT_TIP = 'Quench her Snuff and kill the Snuffers. Later the cold eats your coal fast, but embers fall: walk over them to keep your coal bright for the Long Night.';
 /** V8: the Lensmother's intro when this run's version brings Glintfall from phase 2. */
 export const CARRIED_LIGHT_TIP = 'Hide from her Glare behind a pillar. Later she carries the light herself: when a Glare starts, put a pillar between you and her.';

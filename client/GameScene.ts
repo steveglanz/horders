@@ -7,8 +7,8 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
-import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
+import { SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO } from '../sim/world';
+import { BANKED_TIP, BRIMMING_TIP, COURT_TIP, PLATE_SHIFT_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { HEATS } from '../sim/content/heat';
 import { RARITY } from '../sim/content/items';
 import { ENEMIES } from '../sim/content/enemies';
@@ -1387,6 +1387,11 @@ export class GameScene extends Phaser.Scene {
             this.lightAnim = { fx: from.x, fy: from.y, tx: ev.x, ty: ev.y, t0: this.time.now };
           }
           break;
+        case 'rimeRise':
+          // Y3 Creeping Rime: the frost rises under Nhevra.
+          this.hud.ding('The rime creeps');
+          this.ring(ev.x, ev.y, CREEPING_RIME.r, 0xcfeaff, 0.7);
+          break;
         case 'ventShift': {
           // Y3 Sealed Vents: the steam is moving (warn) or has moved (open) to one vent.
           const v = w.vents[ev.vent];
@@ -1493,7 +1498,7 @@ export class GameScene extends Phaser.Scene {
           // V3: this run's Kiln Mother breathes in from phase 2 instead of casting Molten Cataclysm.
           const tip = ev.id === 'kilnMother' && w.bossVariant === 'draw' ? KILN_DRAW_TIP : ev.id === 'kilnMother' && w.bossVariant === 'turning' ? TURNING_FIRE_TIP : ev.id === 'maelra' && w.bossVariant === 'seal' ? SEALED_VENTS_TIP : ev.id === 'maelra' && w.bossVariant === 'tide' ? SLUICETIDE_TIP
             : ev.id === 'lensmother' && w.bossVariant === 'walk' ? CARRIED_LIGHT_TIP : ev.id === 'lensmother' && w.bossVariant === 'glint' ? GLINTFALL_TIP
-            : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
+            : ev.id === 'nhevra' && w.bossVariant === 'rime' ? CREEPING_RIME_TIP : ev.id === 'nhevra' && w.bossVariant === 'drift' ? EMBERDRIFT_TIP
             : ev.id === 'hessa' && w.bossVariant === 'outsurge' ? OUTSURGE_TIP
             : ev.id === 'ondrel' && w.bossVariant === 'load' ? IRONLOAD_TIP
             : ev.id === 'ysmeret' && w.bossVariant === 'wander' ? WANDER_TIP
@@ -2102,6 +2107,12 @@ export class GameScene extends Phaser.Scene {
     this.turnDraw(now);
     this.tideDraw(now);
     this.glintDraw(now);
+    // Y3 Creeping Rime: a pale frost patch with a breathing edge (placeholder until visuals' art).
+    if (w.rimeOn) {
+      const br = 1 + 0.04 * Math.sin(now / 300);
+      g.fillStyle(0xdff3ff, 0.22).fillCircle(w.rimeX, w.rimeY, CREEPING_RIME.r * br);
+      g.lineStyle(2.5 * this.textK, 0xbfe6ff, 0.7).strokeCircle(w.rimeX, w.rimeY, CREEPING_RIME.r * br);
+    }
     // Maelra's steam vents: iron grates that glow and breathe steam.
     let sealedDrawn = false;
     this.ventSprites.forEach((vs, k) => {
