@@ -1581,28 +1581,25 @@ Natural Wrackline t10 runs, seeds 1 to 160, wins before / after: Bulwark 92 / 92
 
 The Emberwright's drop is not the Conchblower. It won 13 of the 19 runs that met it (68%). In its other 141 runs it won 100 (71%), against 76% over all 160 before, so most of the drop is re-rolled routes. **Watch item for skills:** the Emberwright's forced first fight, 53 against 63.
 
-## Playtest follow-up: melee heroes and the Lensmother (23 Nov)
+## Playtest follow-up: melee heroes, the Lensmother and the lagged bot (23 Nov)
 
-QA's average-player playtest (qa/playtest/average.md) found melee heroes fall off at average skill in the Glarewell t8. It blamed Lens Sweep, because Lens Sweep was the last cast to finish before most deaths. Counting where the damage actually comes from tells a different story. Boss fight only, heroes-r2 hero-t8-0, laggedBot at 0.15 s and skill 0.75:
+QA's average-player playtest (qa/playtest/average.md) found that melee heroes fall off at average skill in the Glarewell t8, and that group dungeons are a wall. Its "average player" is `laggedBot(5 ticks, 0.75)`: the bot's input is delayed by 0.15 s.
 
-| Source | Bulwark (seeds 1 to 30) | Duskblade (seeds 1 to 20) |
+**What I first did (#635), and why it's undone.** QA blamed Lens Sweep, because it was the last cast to finish before most deaths. Counting damage by source with the lagged bot showed her touch made up about three quarters of a melee hero's boss-fight damage. So #635 cut her touch from 22 to 16. The tool I used for the "full skill" check also had the 0.15 s lag in it, though. With no lag, her touch is 22% of a Bulwark's boss-fight damage (seeds 1 to 20), not 75%. Her touch is back at 22. Lens Sweep's numbers stay in `GLARE` (`sweepCast`, `sweepRange`, `sweepArc`, same values), as QA's bug 6 asked.
+
+**The lagged bot overstates how hard melee and group fights are.** Splitting lag from skill, base party, seeds 1 to 40, wins out of 40:
+
+| Setup | Pressworks t10 | Ashvents t8 |
 |---|---|---|
-| Her touch (22 every 0.6 s while in contact) | 76% | 69% |
-| Her casts (finishCast) | 8% | 16% |
-| Burst Brands | 11% | 11% |
-| Telegraphs, Lens Sweep included | 5% | 5% |
+| Full skill, no lag | 30 | 23 (QA) |
+| Skill 0.75, no lag | 31 | 28 |
+| Lag 0.15 s, skill 1 | 7 | 18 |
+| Lag 0.15 s, skill 0.75 (QA's average) | 4 | 14 |
+| Late to see new telegraphs (0.15 s), steering on time | 27 | |
+| Late to see new telegraphs (0.3 s), steering on time | 25 | |
 
-At full skill the Bulwark takes 75% from her touch too. It just survives. Spacing the sweeps out didn't help melee (sweepEvery 1.7 to 2.2 or 2.6: Bulwark 19, 22, 11 of 80), so the change is to her touch: `damage` 22 to 16, the same as the group bosses. Ranged heroes kite her and never touch her.
+Solo, Kiln t8 Duskblade, seeds 1 to 80: full 35, lag 0.15 s 2 (68 lost in trash), late to see telegraphs 0.15 s 36, 0.3 s 33. Skills traced the cause (23 Nov): `botInput` holds a melee hero in a narrow band by its target at full speed, and with 5 ticks of delay it overshoots about 25 px each way, about the width of the band, so it keeps rocking into contact. A person with 150 ms reactions eases off near a target instead. Delayed casts alone cost the Duskblade little (31 of 80 against 35).
 
-Glarewell t8, seeds 1 to 80, wins out of 80:
-
-| Hero | Average 22 (was) | Average 16 | Average 12 | Full skill 22 | Full skill 16 |
-|---|---|---|---|---|---|
-| Bulwark | 19 | 33 | 37 | 74 | 74 |
-| Duskblade | 13 | 19 | 26 | 63 | 71 |
-| Emberwright | 60 | 61 | | | |
-
-- At 16 the average Bulwark goes 19 to 33 and the Duskblade 13 to 19, while the Emberwright stays put. At full skill the Duskblade comes up level with the Bulwark (71 and 74). 12 would close more of the gap, but it would make her touch the softest of any boss, so 16 it is.
-- The average Duskblade's bigger loss is still the trash: 45 of its 80 runs end before the boss, against 8 at full skill. That's next.
-- Lens Sweep's 1.1 s cast, 300 px reach and 60° width are now in `GLARE` (`sweepCast`, `sweepRange`, `sweepArc`), as QA's bug 6 asked, with the same values.
-
+- So laggedBot numbers for melee and for group mechanics are a pessimistic bound, not a measurement. That covers QA's average report, the `LAG=0.3` novice reference, and the career sims. No tuning should come from them until the proxy is fixed.
+- One model that behaves: delay what the bot notices (new telegraphs here; casts and foes could follow), but steer from where the hero is now. That's `REACT` in my measuring copy. QA or engineering owns the proxy.
+- Grit Guard (#630) stays, because it only acts after real losses.
