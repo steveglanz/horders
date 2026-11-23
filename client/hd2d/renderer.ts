@@ -160,10 +160,12 @@ function nameCanvas(text: string, color: string) {
  * - flue: chimneys, the Regent's throne, red banners, a brass inlay, barrels and crates.
  * - foundry: the Drowned Foundry. Dark water instead of lava, wet slate, three brass boilers with sea-glass
  *   gauges and pipes at the back, teal lamps, cool light with the forge's warmth only at the front.
+ * - hammerdeep: cold forge iron, three great anvils at the back (a giant hammer resting by the middle one),
+ *   a banked slag pit, pale lanterns and cool light.
  * - kiln: the Kiln Depths, a potters' firing hall. Three brick beehive kilns with glowing mouths at the back,
  *   firebrick floor, pots and urns on shelves, stacked firewood, brick piers, a soot ring instead of brass.
  */
-export type RoomId = 'flue' | 'kiln' | 'foundry';
+export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep';
 interface RoomTheme {
   tile: string; wall: string; ground: string;
   /** Hemisphere sky and ground colours and intensity, the key light colour, the hero lamp colour. */
@@ -171,26 +173,32 @@ interface RoomTheme {
   /** The two shared warm lights: back wall and front. */
   backLight: string; frontLight: string;
   /** Scene background and fog colour; the rising motes' colour (HDR); the pit; the lamps' flame; tile wetness. */
-  bg: string; fog: string; mote: [number, number, number]; pit: 'lava' | 'water'; teal: boolean; rough: number;
+  bg: string; fog: string; mote: [number, number, number]; pit: 'lava' | 'water'; flame: 'fire' | 'teal' | 'pale'; rough: number;
+  /** How bright the pit glows (the lava's colour multiplier). */
+  pitGlow: number;
 }
 const ROOMS: Record<RoomId, RoomTheme> = {
-  flue: { tile: '#6a5548', wall: '#ffffff', ground: '#1a100c', hemi: ['#c09a8a', '#3a2418', 1.25], key: '#ffd0a8', lamp: '#ffb27a', backLight: '#ff7a30', frontLight: '#ff8a3d', bg: '#0a0504', fog: '#120705', mote: [3, 1.35, 0.45], pit: 'lava', teal: false, rough: 0.88 },
+  flue: { tile: '#6a5548', wall: '#ffffff', ground: '#1a100c', hemi: ['#c09a8a', '#3a2418', 1.25], key: '#ffd0a8', lamp: '#ffb27a', backLight: '#ff7a30', frontLight: '#ff8a3d', bg: '#0a0504', fog: '#120705', mote: [3, 1.35, 0.45], pit: 'lava', flame: 'fire', rough: 0.88, pitGlow: 0.8 },
   // Firebrick: warmer and redder than the Flue's ash-brown stone, as the 2D Kiln's furnaces (client/textures.ts kilnFurnace).
-  kiln: { tile: '#7c4c3a', wall: '#e8b8a0', ground: '#1e0f0a', hemi: ['#d0a088', '#40200f', 1.3], key: '#ffc898', lamp: '#ffac70', backLight: '#ff6a24', frontLight: '#ff8a40', bg: '#0a0504', fog: '#140705', mote: [3, 1.35, 0.45], pit: 'lava', teal: false, rough: 0.88 },
+  kiln: { tile: '#7c4c3a', wall: '#e8b8a0', ground: '#1e0f0a', hemi: ['#d0a088', '#40200f', 1.3], key: '#ffc898', lamp: '#ffac70', backLight: '#ff6a24', frontLight: '#ff8a40', bg: '#0a0504', fog: '#140705', mote: [3, 1.35, 0.45], pit: 'lava', flame: 'fire', rough: 0.88, pitGlow: 0.8 },
   // Wet slate and verdigris, lit cool from above, the boilers' gauges teal (client/textures.ts foundryBoiler).
-  foundry: { tile: '#4e5a58', wall: '#9cb4ae', ground: '#0a1414', hemi: ['#9fc4c8', '#1c2e2e', 1.45], key: '#d8ecf4', lamp: '#ffd6a8', backLight: '#3ad8bc', frontLight: '#ffa868', bg: '#040a0b', fog: '#071214', mote: [0.9, 2.2, 2.0], pit: 'water', teal: true, rough: 0.42 },
+  foundry: { tile: '#4e5a58', wall: '#9cb4ae', ground: '#0a1414', hemi: ['#9fc4c8', '#1c2e2e', 1.45], key: '#d8ecf4', lamp: '#ffd6a8', backLight: '#3ad8bc', frontLight: '#ffa868', bg: '#040a0b', fog: '#071214', mote: [0.9, 2.2, 2.0], pit: 'water', flame: 'teal', rough: 0.42, pitGlow: 0.8 },
+  // Cold forge iron, grey-violet (the 2D floor's 0x9c98a8 tint), a banked slag pit, pale lanterns: the red telegraphs read hot on it.
+  hammerdeep: { tile: '#5c5a66', wall: '#aaa6ba', ground: '#0e0d12', hemi: ['#bcbcd4', '#24222c', 1.4], key: '#e6e6f6', lamp: '#ffd2a0', backLight: '#c4ccff', frontLight: '#ff9a58', bg: '#070709', fog: '#0d0c12', mote: [1.5, 1.6, 2.2], pit: 'lava', flame: 'pale', rough: 0.55, pitGlow: 0.42 },
 };
 /** Which room a dungeon gets. */
-export const roomOf = (dungeonId: string | undefined): RoomId => (dungeonId === 'kiln' ? 'kiln' : dungeonId === 'foundry' ? 'foundry' : 'flue');
+export const roomOf = (dungeonId: string | undefined): RoomId => (dungeonId === 'kiln' || dungeonId === 'foundry' || dungeonId === 'hammerdeep' ? dungeonId : 'flue');
 
 /**
  * A flame's colour up a cone (ConeGeometry's v runs 0 at the base to 1 at the tip): gold at the base to deep
  * orange at the tip. A flat colour read as one pale blob once bloom spread it (mobile's 568x320 check, 23 Nov).
  */
-function flameCanvas(teal = false) {
+function flameCanvas(kind: 'fire' | 'teal' | 'pale' = 'fire') {
   const c = mk(8, 64), k = c.getContext('2d')!, g = k.createLinearGradient(0, 64, 0, 0);
   // The Foundry's lamps burn sea-glass teal, like its boilers' gauges.
-  if (teal) { g.addColorStop(0, '#d8fff4'); g.addColorStop(0.35, '#4fe3c1'); g.addColorStop(0.75, '#178a7c'); g.addColorStop(1, '#063a36'); }
+  // Hammerdeep's lanterns burn pale, cold white-blue (client/textures.ts deepLantern, paleLight).
+  if (kind === 'pale') { g.addColorStop(0, '#f4f6ff'); g.addColorStop(0.35, '#b8c4f0'); g.addColorStop(0.75, '#5a64a0'); g.addColorStop(1, '#1e2244'); }
+  else if (kind === 'teal') { g.addColorStop(0, '#d8fff4'); g.addColorStop(0.35, '#4fe3c1'); g.addColorStop(0.75, '#178a7c'); g.addColorStop(1, '#063a36'); }
   else { g.addColorStop(0, '#ffd27a'); g.addColorStop(0.35, '#ff9a3a'); g.addColorStop(0.75, '#d8480e'); g.addColorStop(1, '#7a1a04'); }
   k.fillStyle = g; k.fillRect(0, 0, 8, 64); return c;
 }
@@ -213,7 +221,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   const glows: THREE.MeshBasicMaterial[] = [];
   const room = new THREE.Group(); scene.add(room);
   const grain = canvasTex(grainCanvas(), { repeat: [1, 1] });
-  const tileMat = new THREE.MeshStandardMaterial({ map: grain, roughness: th.rough, metalness: id === 'foundry' ? 0.12 : 0.02 });
+  const tileMat = new THREE.MeshStandardMaterial({ map: grain, roughness: th.rough, metalness: id === 'foundry' ? 0.12 : id === 'hammerdeep' ? 0.35 : 0.02 });
   const cells: [number, number, number][] = [];
   // Tiles at 0.62 units (the handoff's were 1): with the camera over the floor, whole-unit tiles dwarfed the heroes.
   const T = 0.62;
@@ -230,9 +238,9 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     col.set(th.tile).multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
   });
   tiles.receiveShadow = true; room.add(tiles);
-  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : lavaCanvas()), color: new THREE.Color(0.8, 0.8, 0.8) }));
+  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : lavaCanvas()), color: new THREE.Color(th.pitGlow, th.pitGlow, th.pitGlow) }));
   lava.rotation.x = -Math.PI / 2; lava.position.y = -0.1; room.add(lava);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: new THREE.Color(th.pit === 'water' ? 0.9 : 1.2, th.pit === 'water' ? 0.9 : 1.2, th.pit === 'water' ? 0.9 : 1.2) }));
+  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: new THREE.Color().setScalar(th.pit === 'water' ? 0.9 : 1.5 * th.pitGlow) }));
   rim.rotation.x = -Math.PI / 2; rim.position.y = -0.12; room.add(rim);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: th.ground, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.35; ground.receiveShadow = true; room.add(ground);
@@ -271,6 +279,24 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       const f = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 8), chimInner); f.position.set(x, 4.9, 0.15); throne.add(f);
     }
     throne.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; }); room.add(throne);
+  } else if (id === 'hammerdeep') {
+    // Three great anvils on stone plinths against the back wall, and a giant hammer resting head-down
+    // beside the middle one. Cold iron, a little lit by the slag. Outside the floor.
+    const cold = new THREE.MeshStandardMaterial({ color: '#4a4852', roughness: 0.42, metalness: 0.8 });
+    const haft = new THREE.MeshStandardMaterial({ color: '#4a3424', roughness: 0.8, map: grain });
+    for (const [a, sc] of [[Math.PI, 1.35], [Math.PI - 0.8, 1], [Math.PI + 0.8, 1]] as const) {
+      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5); g.lookAt(0, 0, 0);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(2.2 * sc, 1.0, 1.6 * sc), basalt); plinth.position.y = 0.3; g.add(plinth);
+      const waist = new THREE.Mesh(new THREE.BoxGeometry(0.9 * sc, 1.0 * sc, 0.8 * sc), cold); waist.position.y = 0.8 + 0.5 * sc; g.add(waist);
+      const face = new THREE.Mesh(new THREE.BoxGeometry(2.4 * sc, 0.55 * sc, 1.0 * sc), cold); face.position.y = 0.8 + 1.27 * sc; g.add(face);
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.42 * sc, 1.4 * sc, 4), cold); horn.rotation.z = Math.PI / 2; horn.rotation.x = Math.PI / 4; horn.position.set(1.9 * sc, 0.8 + 1.3 * sc, 0); g.add(horn);
+      if (sc > 1.2) {
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 4.6, 8), haft); stick.position.set(-1.76, 3.2, 0.2); stick.rotation.z = -0.28; g.add(stick);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 1.0), cold); head.position.set(-2.4, 0.5, 0.2); head.rotation.z = -0.28; g.add(head);
+      }
+      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      room.add(g);
+    }
   } else if (id === 'foundry') {
     // Three brass boilers against the back wall: upright tanks with domed tops, verdigris bands, a sea-glass
     // gauge glowing teal on each, joined by a pipe run. Outside the floor, like the Flue's chimneys.
@@ -311,11 +337,11 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     }
   }
   const flames: THREE.Mesh[] = [];
-  const flameTex = canvasTex(flameCanvas(th.teal));
+  const flameTex = canvasTex(flameCanvas(th.flame));
   // Only the back braziers: the handoff's two front ones stood between this camera and the fight, and side ones
   // (PI ± 1.55) came within a metre of the camera when your hero stood at that side (mobile's 568x320 check, 23 Nov).
   // The Foundry is drowned: no braziers, its teal lamps and gauges light it.
-  for (const a of id === 'foundry' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
+  for (const a of id === 'foundry' || id === 'hammerdeep' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
     const g = new THREE.Group(); g.position.set(Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62);
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
@@ -451,11 +477,11 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   const CR = saver ? 4 : 8;
   const cracks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: canvasTex(cc), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }), CR);
   for (let k = 0; k < CR; k++) { const a = sr(0, Math.PI * 2), r = sr(1.2, 7.0); put(cracks, k, Math.sin(a) * r, FLOOR + 0.006, Math.cos(a) * r, 0, sr(0.7, 1.3), sr(0.7, 1.3), 1, -Math.PI / 2, sr(0, 6)); }
-  if (id !== 'foundry') room.add(cracks);
+  if (id !== 'foundry' && id !== 'hammerdeep') room.add(cracks);
   // Rubble and coal along the floor's edge and outside it, low enough never to hide a telegraph.
   const RB = saver ? 40 : 90;
   const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), basalt, RB);
-  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' ? '#000000' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
+  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' ? '#000000' : id === 'hammerdeep' ? '#2a0a02' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
   for (let k = 0; k < RB; k++) { const a = sr(0, Math.PI * 2), r = k % 3 ? sr(6.7, 7.4) : sr(9.0, 10.3), sz = sr(0.04, k % 3 ? 0.1 : 0.22); put(rubble, k, Math.sin(a) * r, FLOOR + sz * 0.4 - (r > 8 ? 0.15 : 0), Math.cos(a) * r, sr(0, 6), sz, sz * sr(0.5, 0.9), sz, sr(0, 3)); }
   for (let k = 0; k < coal.count; k++) { const a = sr(0, Math.PI * 2), r = sr(6.4, 7.4), sz = sr(0.04, 0.08); put(coal, k, Math.sin(a) * r, FLOOR + sz * 0.4, Math.cos(a) * r, sr(0, 6), sz); }
   rubble.receiveShadow = true; room.add(rubble, coal);
