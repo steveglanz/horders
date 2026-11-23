@@ -85,6 +85,11 @@ for (const seed of seeds) {
     }),
   };
   const w = new World(opts);
+  // BOSSV=home (any boss version id) forces this run's boss version, so versions compare on the same seeds.
+  if (process.env.BOSSV) {
+    const q = w as unknown as Record<string, unknown>;
+    for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(w))) if (/^roll\w+Variant$/.test(k)) q[k] = () => process.env.BOSSV;
+  }
   // GRANT=leeSide:2,frontMend:2 gives each hero of the card's class those ranks from the start
   // (to measure cards the bot rarely drafts). Granted ranks don't count toward the branch's capstone,
   // so the bot's own draft and capstone timing stay as they were.

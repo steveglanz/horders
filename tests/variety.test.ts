@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
+import { World, VARIETY, LAYOUT, LAYOUTS, KILN_DRAW, KILN_TURN, KILN_VARIANTS, MAELRA_VARIANTS, SLUICETIDE, MAELRA_SEAL, LENS_VARIANTS, GLINTFALL, NHEVRA_VARIANTS, EMBERDRIFT, CREEPING_RIME, HESSA_VARIANTS, OUTSURGE, WHIRL, ONDREL_VARIANTS, IRONLOAD, HOMEWARD, YSMERET_VARIANTS, WANDER, YSMERET, SLAG_VARIANTS, BRIM, SLAG, ARENA_EVENTS, ARENA_EVENT_POOLS } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, ENCOUNTERS, rollRoute } from '../sim/content/dungeon';
@@ -819,6 +819,35 @@ describe('Phase 12 W2: the Hammerdeep and Ondrel\'s Ironload', () => {
     expect(lost[others[0]]).toBeGreaterThan(0);
     expect(lost[others[1]]).toBe(0);
     expect(lost[others[2]]).toBe(0);
+  });
+
+  it('Y3 the Homeward Hammer: thrown at the farthest hero, it lands there, then flies back on a line to his hand; no Sweep while it is out', () => {
+    const { w, q, b } = ondrel();
+    w.bossVariant = 'home';
+    const e = w.enemies[b];
+    // Hero 0 is nearest (so holds him with no threat yet), 1 and 2 are mid-way, 3 is farthest.
+    for (let k = 0; k < 4; k++) { const p = w.heroData(k).player; p.x = 0; p.y = k === 0 ? -170 : 0; }
+    w.heroData(3).player.x = 300; w.heroData(3).player.y = 100;
+    e.castId = 'homeward';
+    q.finishCast(b);
+    const h = w as unknown as { homeStage: number; homeX: number; homeY: number; homeT: number };
+    expect(h.homeStage).toBe(1);
+    expect([h.homeX, h.homeY]).toEqual([300, 100]);
+    const circle = w.telegraphs.find((t) => t.alive && t.shape === 'circle' && t.x === 300 && t.y === 100);
+    expect(circle?.r).toBe(HOMEWARD.radius);
+    // While it is out, Ondrel makes no Hammer Sweep.
+    e.abilityT = 0;
+    (w as unknown as { runOndrel(i: number): void }).runOndrel(b);
+    expect(e.castId).not.toBe('hammerSweep');
+    q.choirT = 99;
+    q.ondrelClock(HOMEWARD.fall + 0.01);
+    expect(h.homeStage).toBe(2);
+    const line = w.telegraphs.find((t) => t.alive && t.shape === 'cone' && t.x === 300 && t.y === 100);
+    expect(line).toBeDefined();
+    expect(line!.angle).toBeCloseTo(Math.atan2(e.y - 100, e.x - 300));
+    expect(w.events.some((ev) => ev.type === 'homeward' && ev.stage === 'back')).toBe(true);
+    q.ondrelClock(HOMEWARD.back + 0.01);
+    expect(h.homeStage).toBe(0);
   });
 });
 

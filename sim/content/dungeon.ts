@@ -111,6 +111,8 @@ export const WANDER_TIP = 'Two of you stand in her vents, and they drift round h
 export const DIECUT_TIP = 'Take turns under his Downstroke. His Die Cut stamps half the floor: get to the other side, toward the plate.';
 /** Phase 12 W2: Ondrel's intro when this run's version brings Ironload instead of the Choir of Iron. */
 export const IRONLOAD_TIP = 'The tank holds his Anvilfall. His Ironload marks one of you: everyone gather on them before it lands, and share the weight.';
+/** Phase 15 Y3: Ondrel's intro when this run's version throws the Homeward Hammer instead of the Choir of Iron. */
+export const HOMEWARD_TIP = 'The tank holds his Anvilfall. He throws his hammer at whoever stands farthest away: step out of where it lands, then off the straight line back to his hand.';
 /** Phase 12 W1: Hessa's intro when this run's version turns the Ebb around (the Outsurge) from phase 2. */
 export const WHIRL_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water swirls round the drain and carries you with it: it turns the other way each time, so watch which way and wade across it to a raft.';
 export const OUTSURGE_TIP = 'She holds the drain. Hit her between pulls, and keep a raft afloat. Later the water turns and throws you out to the rim: the rim burns, so stay on a raft.';

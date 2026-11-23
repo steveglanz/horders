@@ -983,3 +983,25 @@ Hessa had two phase-2 versions, Riptide and the Outsurge. The third is **the Whi
 - As with the Outsurge, the bots ride a raft through every Ebb, so the bot numbers barely tell the versions apart. For a person, the Whirl changes which way to wade.
 - **Name:** a search on 23 Nov found no WoW spell named just "Whirl". WoW has compounds such as Fire Whirl, Grievous Whirl and Whirlwind, so "Whirl" falls under the single-plain-word rule.
 
+
+### Y3 Ondrel: the Homeward Hammer (built 23 Nov 2026)
+
+Ondrel (the Hammerdeep) had two versions on the Choir's timer: the Choir of Iron (every hero hurt) and Ironload (stack to share a mark). The third is **the Homeward Hammer** (`home`, tuning in `HOMEWARD`, sim/world.ts). It is a movement check where the other two are a healing check and a stacking check.
+
+- On the Choir's timer he throws his hammer at the hero farthest from him. A circle (`radius` 75) lands there after `fall` 1.8 s for `damage` 70.
+- As it lands, it rings through the floor: every hero loses `ring` 8% of max health, growing by the Choir's 2% a throw. Without this ring the version was far too easy (see below), and it keeps the healer's job.
+- Then it flies straight back to his hand: a line from where it lay to him (`width` 40 px either side) lands after `back` 1.2 s for `backDamage` 60.
+- Each throw hits `grow` 8% harder. While the hammer is out he makes no Hammer Sweep.
+- The throw targets the farthest hero, so the ranged heroes learn to step out, then sideways off the line home.
+
+Hammerdeep tier 8, heroes-r2 hero-t8-0, the base party (Bulwark, Lumen, Duskblade, Emberwright), seeds 1 to 80, each version forced (`BOSSV`, now read by tools/group.ts too):
+
+| Setup | Choir of Iron | Ironload | Homeward Hammer |
+|---|---|---|---|
+| Full-skill bots | 47 | 48 | 49 |
+| Half-skill bots (`SKILL=0.5`) | 46 | 49 | 49 |
+| No healer (Slagbinder for the Lumen), seeds 1 to 40 | 2 | 1 | 3 |
+
+- First build, with no ring: 77 of 80. A ring of 8% gave 49, 12% gave 44, 16% gave 37.
+- The bots step out of every throw and line: with the circle or the line set to 2000 damage, no hero died to either (25 and 27 of 40, the same as normal). So the sim only measures the ring and the lost Sweeps. For a person, the throw and the line are the new part.
+- **Name:** searches on 23 Nov found WoW NPC spells named Hammer Throw and Throw Hammer, so those were avoided. "Homeward Hammer" found no WoW match.
