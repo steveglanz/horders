@@ -1515,7 +1515,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     pgeo.attributes.position.needsUpdate = true;
 
     // The camera follows the hero like the 2D camera, at the handoff's angle; the sun's shadow box follows too.
-    const look = v3.set(cx, 0, cz - 0.9);
+    // GameScene's focus offset (phones: keep the boss clear of the ability buttons) moves the camera, not the lamp.
+    const fo = A.focus?.();
+    const look = v3.set(cx + (fo?.x ?? 0) * S, 0, cz - 0.9 + (fo?.y ?? 0) * S);
     camera.position.copy(camDir).multiplyScalar(dist).add(look);
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);
