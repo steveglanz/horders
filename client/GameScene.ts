@@ -345,6 +345,9 @@ export class GameScene extends Phaser.Scene {
   private homeLie: Phaser.GameObjects.Graphics | null = null;
   /** World.time of the boss's last echoed cast, for the 3D view's ghost (Hd2dAdapter.echoAt). */
   private echoAt = -Infinity;
+  /** Camera focus offset in world y (see bossInView): 0 except when it slides to keep a boss clear of the bottom HUD. */
+  private focusY = 0;
+  private focusX = 0;
   private homeLast = 0;
   private whirlGfx: Phaser.GameObjects.Graphics | null = null;
   private whirlFlip = 0;
@@ -684,6 +687,7 @@ export class GameScene extends Phaser.Scene {
           heroName: (i) => this.world.heroes[i]?.name ?? '',
           floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
           echoAt: () => this.echoAt,
+          focus: () => ({ x: this.focusX, y: this.focusY }),
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
         this.bridgeStart();
@@ -1792,7 +1796,8 @@ export class GameScene extends Phaser.Scene {
       sx = (Math.random() - 0.5) * m;
       sy = (Math.random() - 0.5) * m;
     }
-    cam.centerOn(px + sx, py + sy);
+    this.bossInView(dt, px, py);
+    cam.centerOn(px + this.focusX + sx, py + this.focusY + sy);
     // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
     // Name plates, bars and edge marks all cull against worldView, so keep it current by hand.
     if (!cam.visible) {
@@ -3785,7 +3790,7 @@ export class GameScene extends Phaser.Scene {
   /** CSS px of the screen's top that the HUD covers (the top row, party frames' first row, boss panel, hints), refreshed
    * twice a second: reading the layout every frame would force a reflow. `banner` is the cast banner's box while it
    * shows (CSS px), or undefined. */
-  private hudCover: { px: number; at: number; row: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0 };
+  private hudCover: { px: number; at: number; row: number; bar: number; barL: number; banner?: DOMRect; party?: DOMRect } = { px: 0, at: -1, row: 0, bar: 0, barL: 0 };
 
   /** The party frames' box in world units, if they are showing (refreshed with clearView's HUD read). */
   private partyBox(): { l: number; r: number; t: number; b: number } | undefined {
@@ -4145,6 +4150,70 @@ export class GameScene extends Phaser.Scene {
     g.globalAlpha = 1;
   }
 
+  /**
+   * Phones (QA playtest, 23 Nov): the camera centres on your hero, so a boss far below you sat under the ability
+   * buttons or the loot toasts (the Lensmother in phase 3, Nhevra). In a boss fight the camera slides along y, a
+   * little at a time, until the boss is back between the top panels and the action bar, as long as your hero stays
+   * in that band too. When the band is too short for both, it also slides sideways so the boss clears the action
+   * bar (which covers only the right side). The 3D view follows the same offsets (Hd2dAdapter.focus).
+   */
+  private bossInView(dt: number, px: number, py: number): void {
+    const w = this.world;
+    const boss = this.hud.compact && w.phase === 'fight' ? w.enemies.find((e) => e.alive && e.def.rank === 'boss') : undefined;
+    let wantY = 0, wantX = 0;
+    if (boss) {
+      this.clearView();
+      const rect = this.game.canvas.getBoundingClientRect();
+      const view = this.hd2d;
+      const cam = this.cameras.main;
+      const zc = cam.zoom * ((rect.width || 1) / this.game.canvas.width);
+      // Screen point (CSS px from the canvas top left) of world point (x, y) with the camera offset by (ox, oy).
+      const at = (x: number, y: number, ox: number, oy: number): { x: number; y: number } | null => {
+        if (view) {
+          const q = view.project(x, y);
+          return q ? { x: q.x + (this.focusX - ox) * this.pxPerUnitX, y: q.y + (this.focusY - oy) * this.pxPerUnit } : null;
+        }
+        return { x: rect.width / 2 + (x - px - ox) * zc, y: rect.height / 2 + (y - py - oy) * zc };
+      };
+      if (view) {
+        const a = view.project(px, py), b = view.project(px, py + 40), c = view.project(px + 40, py);
+        if (a && b && b.y - a.y > 1) this.pxPerUnit = (b.y - a.y) / 40;
+        if (a && c && c.x - a.x > 1) this.pxPerUnitX = (c.x - a.x) / 40;
+      } else this.pxPerUnit = this.pxPerUnitX = zc;
+      const k = this.pxPerUnit, kx = this.pxPerUnitX;
+      const top = Math.max(this.hudCover.px, this.hudCover.row) - rect.top + 24;
+      const bottom = (this.hudCover.bar || rect.bottom) - rect.top - 24;
+      const barLeft = (this.hudCover.barL || rect.right) - rect.left - 24;
+      const b = at(boss.x, boss.y, this.focusX, this.focusY);
+      const h = at(px, py, 0, 0);
+      if (b && h && bottom - top > 120) {
+        wantY = this.focusY;
+        if (b.y > bottom) wantY += (b.y - bottom) / k;
+        else if (b.y < top) wantY -= (top - b.y) / k;
+        else wantY -= Math.sign(wantY) * Math.min(Math.abs(wantY), Math.max(0, (wantY > 0 ? bottom - b.y : b.y - top) - 8) / k);
+        // Never so far that your hero leaves the band (at least 40 px inside it).
+        const lo = (h.y - (bottom - 40)) / k, hi = (h.y - (top + 40)) / k;
+        wantY = lo > hi ? 0 : Math.max(lo, Math.min(hi, wantY));
+        // Still under the bar's top edge once that offset is reached: slide sideways until the boss is left of it.
+        wantX = this.focusX;
+        const yThen = b.y + (this.focusY - wantY) * k;
+        // (Its right edge, not its feet: a boss sprite is wide.)
+        const edge = barLeft - (boss.def.radius ?? 30) * 1.2 * kx;
+        if (yThen > bottom && b.x > edge) wantX += (b.x - edge) / kx;
+        else if (wantX > 0) wantX -= Math.min(wantX, Math.max(0, edge - b.x - 8) / kx);
+        // Your hero stays at least 40 px from either side.
+        wantX = Math.max(0, Math.min((h.x - 40) / kx, wantX));
+      }
+    }
+    const f = Math.min(1, dt * 4);
+    this.focusY += (wantY - this.focusY) * f;
+    this.focusX += (wantX - this.focusX) * f;
+    if (!boss && Math.abs(this.focusY) < 0.05) this.focusY = 0;
+    if (!boss && Math.abs(this.focusX) < 0.05) this.focusX = 0;
+  }
+  private pxPerUnit = 1;
+  private pxPerUnitX = 1;
+
   private clearView(): { x: number; y: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number } {
     const v = this.cameras.main.worldView;
     const now = this.time.now;
@@ -4163,6 +4232,10 @@ export class GameScene extends Phaser.Scene {
       // The top row (level, health, clock): the 3D overlay keeps names and bars out of it (see drawLabels3d).
       const row = document.querySelector('#hud > .row');
       this.hudCover.row = row ? row.getBoundingClientRect().bottom : 0;
+      const bar = document.getElementById('actionbar');
+      const brr = bar && !bar.hidden ? bar.getBoundingClientRect() : undefined;
+      this.hudCover.bar = brr ? brr.top : 0;
+      this.hudCover.barL = brr ? brr.left : 0;
       const banner = document.getElementById('banner');
       const br = banner?.classList.contains('show') ? banner.getBoundingClientRect() : undefined;
       this.hudCover.banner = br && br.width > 0 && br.height > 0 ? br : undefined;
