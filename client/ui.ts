@@ -18,6 +18,7 @@ import { roleOf } from './net/lobby';
 import { Coach } from './coach';
 import { HELP } from '../sim/content/help';
 import { HeroProfile, RunRewards, equippedItems, heroMaxLevel, heroXpToNext } from '../sim/hero';
+import { hurtRecap } from '../sim/hurtrecap';
 
 /** X6: the run-shape chips' accents: the stone of the floors, the named Rare blue, the ember of an event, the boss's gold. */
 const SHAPE_COLOR: Record<ShapeKind, string> = { route: '#b9a596', floor: '#c8b8a8', mark: '#5aa9ff', event: '#ff8a3d', wave: '#e06a5a', stir: '#c98bff', foe: '#ff6b8a', boss: '#ffc861', echo: '#ffe29a', heat: '#ff8a3d' };
@@ -863,6 +864,10 @@ export class Hud {
       : w.bossSpawned
         ? `So close. ${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} still stands.`
         : `${w.encounterDef.name} bested you. Your gear and levels carry into the next delve.`;
+    // What took this hero's health in the fight they fell in, so a loss says what to watch for next time.
+    const cause = s.victory ? '' : hurtRecap(w.player);
+    $('endCause').textContent = cause;
+    $('endCause').hidden = !cause;
     $('stats').innerHTML = [
       ['Time', fmt(s.time)],
       ['Level', String(s.level)],
