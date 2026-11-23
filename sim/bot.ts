@@ -877,7 +877,9 @@ export function botInput(w: World, skill = 1): Input {
   }
   // Phase 16 U2: once a Lampeye's gaze is half full and it can still see you, put the nearest pillar between you and
   // it (NOLAMPEYE=1 turns this off for measuring). Its gaze fades there and the hero steps back out once it has.
-  if (process.env.NOLAMPEYE !== '1' && w.pillars.length) {
+  // Ranged heroes only: a melee hero does better to stay on the eye and finish it (skills' U4: the Duskblade won 89
+  // of 160 hiding against 127 for the Shades control, and the Bulwark 118 against 145, which not hiding restores).
+  if (process.env.NOLAMPEYE !== '1' && !melee && w.pillars.length) {
     for (const e of w.enemies) {
       if (!e.alive || e.kind !== 'lampeye' || e.aux < LAMPEYE.full * 0.5 || !w.lampeyeSees(e, p.x, p.y)) continue;
       let best: { x: number; y: number; r: number } | null = null, bd = Infinity;

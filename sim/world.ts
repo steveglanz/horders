@@ -7332,6 +7332,8 @@ export class World {
   /** Phase 16 U2: whether the Lampeye at `e` can see (x, y): no standing pillar crosses the line between them. */
   lampeyeSees(e: Enemy, x: number, y: number): boolean {
     const dx = x - e.x, dy = y - e.y, L2 = dx * dx + dy * dy || 1;
+    // Too close for it to focus: a hero right under the eye is out of its gaze.
+    if (L2 < (e.def.radius + LAMPEYE.under) ** 2) return false;
     for (const c of this.pillars) {
       if (c.cracked) continue;
       const k = Math.max(0, Math.min(1, ((c.x - e.x) * dx + (c.y - e.y) * dy) / L2));
@@ -8802,9 +8804,10 @@ export const DIMHORN = { hang: 40, band: 70, drain: 2, callAt: 7, callCast: 2, c
 /**
  * Phase 16 U2: the Lampeye (the Glarewell). Its gaze (`Enemy.aux`, seconds) builds while it can see its hero and
  * fades `fade` times as fast behind a pillar. At `full` it casts Searing Look for `lookCast` s: every hero it can
- * still see takes `lookDamage`. It backs off inside `keep` px.
+ * still see takes `lookDamage`. It backs off inside `keep` px. A hero within `under` px of its edge is too close for it
+ * to focus on, so out of its gaze: melee heroes beat it by getting right under it.
  */
-export const LAMPEYE = { full: 6, fade: 2, lookCast: 1.0, lookDamage: 34, keep: 220 };
+export const LAMPEYE = { full: 6, fade: 2, lookCast: 1.0, lookDamage: 34, keep: 220, under: 70 };
 
 /**
  * Phase 16 U2: the Ballast (the Foundry). With its hero within `reach` (past its own radius) for `plantDelay` s it
