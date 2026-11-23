@@ -35,8 +35,8 @@ describe('Phase 15 Y4: the Seen log', () => {
       }
       for (const v of BOSS_VERSIONS[d]) expect(BOSS_VERSION_NAME[v], v).toBeTruthy();
     }
-    // The Kiln: 2 boss versions, 3 wave shapes, 5 traits, 2 events, 4 stirs, 4 Heats.
-    expect(seenPool('kiln')).toHaveLength(20);
+    // The Kiln: 3 boss versions (Turning Fire since Y3), 3 wave shapes, 5 traits, 2 events, 4 stirs, 4 Heats.
+    expect(seenPool('kiln')).toHaveLength(21);
   });
 
   it('a run counts the boss version only once the boss has rolled it, and never changes the run', () => {
@@ -95,7 +95,7 @@ describe('Phase 15 Y4: the Seen log', () => {
     expect(h.seen).toEqual(['kiln:boss:draw', 'kiln:heat:richHaul', 'kiln:mark:Swift']);
     const kiln = seenIn(h, 'kiln');
     expect(kiln.seen).toBe(3);
-    expect(kiln.total).toBe(20);
+    expect(kiln.total).toBe(21);
     expect(kiln.entries.find((e) => e.id === 'draw')?.seen).toBe(true);
     expect(kiln.entries.find((e) => e.id === 'cataclysm')?.seen).toBe(false);
     expect(seenIn(h, 'foundry').seen).toBe(0);

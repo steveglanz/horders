@@ -2354,6 +2354,9 @@ export class World {
     this.events.push({ type: 'layout', id: this.layout });
   }
 
+  /** Phase 15 Y3: which way this Turning Fire turns (1 anticlockwise, -1 clockwise). */
+  turnDir = 1;
+
   /** Phase 15 Y10: whether this run can stir at all. */
   get stirOn(): boolean {
     return !STIR.off && !this.firstDelve && !this.stress && !this.dungeonDef.raid && this.tier >= STIR.minTier && this.fillBots === 0;
@@ -5221,6 +5224,21 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
+      if (phase >= 2 && this.bossVariant === 'turning') {
+        this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
+        // She's busy pouring: nothing else from her until the last cone lands.
+        const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
+        e.abilityT = Math.max(e.abilityT, pour + 0.5);
+        // And no Kiln Brand to soak while the fire turns: one job at a time.
+        this.brandT = Math.max(this.brandT, pour + 1);
+        // Clockwise or not, in turn, so a player can't learn one way round.
+        const dir = (this.turnDir = e.aux2 = e.aux2 > 0 ? -1 : 1);
+        const a0 = Math.atan2(p.y - e.y, p.x - e.x);
+        for (let k = 0; k < KILN_TURN.cones; k++) {
+          this.addTelegraph('cone', e.x, e.y, KILN_TURN.reach, a0 + dir * k * KILN_TURN.arc, KILN_TURN.arc, KILN_TURN.first + k * KILN_TURN.step, KILN_TURN.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+        }
+        return;
+      }
       if (phase >= 2 && this.bossVariant === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
@@ -7853,8 +7871,14 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
-export type KilnVariant = 'cataclysm' | 'draw';
-export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw'];
+export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
+export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
+/**
+ * Phase 15 Y3 Turning Fire: from phase 2, in place of Molten Cataclysm, she pours `cones` cones of fire around herself,
+ * each `arc` wide, the first on the hero, each next one a turn further on and landing `step` s after the last (the first
+ * at `first` s). Not interruptible: follow the fire round her, into the ground the last cone already burned.
+ */
+export const KILN_TURN = { cones: 4, arc: (70 * Math.PI) / 180, first: 2.2, step: 0.7, reach: 900, damage: 40 };
 /** V3 Kiln Draw: a `cast` s inhale, not interruptible, pulling heroes within `reach` toward her at `pull` px/s; then fire lands in a `radius` circle on her. */
 export const KILN_DRAW = { cast: 2.2, pull: 80, reach: 900, radius: 150, damage: 45 };
 

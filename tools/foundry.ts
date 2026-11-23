@@ -48,6 +48,11 @@ const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).
 let wins = 0, bossTime = 0, bossFights = 0;
 for (const seed of seeds) {
   const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: [], cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
+  // BOSSV=turning (any boss version id) forces this run's boss version, so versions compare on the same seeds.
+  if (process.env.BOSSV) {
+    const q = w as unknown as Record<string, unknown>;
+    for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(w))) if (/^roll\w+Variant$/.test(k)) q[k] = () => process.env.BOSSV;
+  }
   const c: Record<string, number> = {};
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0, maxTemper = 0, temperTicks = 0, bossTicks = 0;
