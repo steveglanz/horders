@@ -1243,3 +1243,25 @@ Flue tier 11, heroes-r2 hero-t8-0, each version forced:
 - Without the bots answering it (`NOTITHE=1`, measured at 60%) it won 0 of 80.
 - **Name:** "Tithe" turns up in WoW (a warcraft.wiki.gg page called Tithe, and a spell called "Scouring Tithe"). It is a single plain word, which Steve's rule allows (21 Nov).
 - **Fix (QA on #579):** a hero alone in the gold circle used to read as a made soak. The client showed the gold blast and played the made-soak sound, and that hero got the Relayer buff and the Ventwalker 3-piece heal, while everyone paid 35%. A Tithe now only counts as made with `TITHE.need` heroes in it, and a missed one reads "Tithe unpaid!".
+
+## Phase 16 U1: the Kiln Mother's echo
+
+From tier 8 (`ECHO.minTier`), the Kiln Mother's last phase also borrows the signature of one version this run didn't roll. A Draw run can now end with Turning Fire in the mix, so the same version can end two ways.
+
+- **The pick:** `rollEcho` hashes the seed (no run-rng draws) over the versions other than the rolled one. There's no echo below tier 8, on the first delve (always tier 1), or in stress runs.
+- **The timer:** in phase 3 her signatures alternate, her own and then the echo's. She casts one every 12 s in phase 3, so the echo comes every 24 s. Phase 2 never echoes.
+- New event `{type:'echo', id}` when she casts the echo, followed by the echo's own cast events. The cue is a placeholder (`return null`) until sound adds one.
+- **Client:** the phase-3 banner reads "She casts faster, and echoes Turning Fire" (or whichever echo it is, from `BOSS_VERSION_NAME`).
+- **Tools:** `ECHO=off` turns echoes off, and `ECHO=<id>` forces one (if it isn't the rolled version), in tools/foundry.ts and tools/group.ts.
+
+Solo Kiln at tier 8, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off |
+|---|---|---|
+| Bulwark | 48 | 50 |
+| Duskblade | 29 | 29 |
+| Emberwright | 46 | 47 |
+| Lumen | 56 | 55 |
+| Slagbinder | 51 | 48 |
+
+Every class is within 3 wins of echoes off. In the Bulwark logs all 80 runs reached her (every one shows her Molten Cataclysm).

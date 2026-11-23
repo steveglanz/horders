@@ -66,6 +66,9 @@ else if (process.env.ARENA) WORLD.ARENA_EVENTS.force = process.env.ARENA;
 if (process.env.WAVE === 'off') WORLD.WAVES.off = true;
 else if (process.env.WAVE) WORLD.WAVES.force = process.env.WAVE;
 // Phase 15 Y10: STIR=off turns the dungeon's stirring off; STIR=elite|named|event|wave|any stirs every trash fight after the opener.
+// Phase 16 U1: ECHO=off turns boss echoes off; ECHO=<version id> forces that echo where the boss has it.
+if (process.env.ECHO === 'off') WORLD.ECHO.off = true;
+else if (process.env.ECHO) WORLD.ECHO.force = process.env.ECHO;
 if (process.env.STIR === 'off') WORLD.STIR.off = true;
 else if (process.env.STIR) WORLD.STIR.force = process.env.STIR;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);

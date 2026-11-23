@@ -555,6 +555,8 @@ export type SimEvent =
   | { type: 'wheel'; hero: number }
   /** Phase 15 Y3 Millstone: the Colossus starts or stops grinding round (`dir` +1 or -1). */
   | { type: 'millstone'; stage: 'start' | 'end'; dir: number }
+  /** Phase 16 U1: the boss uses her echo's move (`id`, a version id) in her last phase. */
+  | { type: 'echo'; id: string }
   /** Phase 15 Y3 Tithe: the Regent's gold circle landed with `n` heroes in it; `ok` when that was enough. */
   | { type: 'tithe'; ok: boolean; n: number }
   | { type: 'meltPulse'; n: number }
@@ -856,6 +858,13 @@ export class World {
   /** V2 (variety): this fight's arena layout, and its pieces (empty when the layout doesn't use them). */
   layout: LayoutId = 'open';
   /** V3: the Kiln Mother's signature from phase 2 this run ('' until she rises). */
+  /**
+   * Phase 16 U1: this run's echo, a second version of the same boss (never the rolled one) whose move she also uses in her
+   * last phase, every other time her signature comes round. '' when none (below ECHO.minTier, the first delve, stress runs).
+   */
+  bossEcho: KilnVariant | '' = '';
+  /** Phase 16 U1: true when the next signature in the last phase is the echo's. */
+  echoNext = false;
   bossVariant: KilnVariant | MaelraVariant | LensVariant | NhevraVariant | HessaVariant | OndrelVariant | YsmeretVariant | OskelVariant | SlagVariant | VorhulmVariant | ColossusVariant | RegentVariant | '' = '';
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
@@ -1946,6 +1955,8 @@ export class World {
           this.bossIndex = i;
           e.aux = 12; // first Molten Cataclysm
           this.bossVariant = this.rollKilnVariant();
+          this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
+          this.echoNext = false;
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -2191,6 +2202,20 @@ export class World {
    * the fight's place in the route, so the run's own rng is untouched. Boss fights and the first
    * delve stay open.
    */
+  /**
+   * Phase 16 U1: from ECHO.minTier, a boss also echoes one of her other versions in her last phase. Hashed from the seed
+   * (no run-rng draws), never the rolled version, and none on the first delve or in stress runs.
+   */
+  private rollEcho<V extends string>(all: readonly V[], rolled: string): V | '' {
+    if (this.firstDelve || this.stress || this.tier < ECHO.minTier || ECHO.off) return '';
+    const others = all.filter((v) => v !== rolled);
+    if (!others.length) return '';
+    if (ECHO.force && (others as string[]).includes(ECHO.force)) return ECHO.force as V;
+    let h = Math.imul(this.seed ^ 0x6c8e9cf5, 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+    return others[(h >>> 4) % others.length];
+  }
+
   /** V3: which signature the Kiln Mother uses from phase 2, hashed from the seed (no run-rng draws). The first delve keeps Molten Cataclysm. */
   private rollKilnVariant(): KilnVariant {
     if (this.firstDelve || this.stress) return 'cataclysm';
@@ -5360,7 +5385,13 @@ export class World {
     e.aux -= dt;
     if (e.aux <= 0) {
       e.aux = phase === 3 ? 12 : 18;
-      if (phase >= 2 && this.bossVariant === 'turning') {
+      // Phase 16 U1: in her last phase every other signature is her echo's.
+      let move: string = this.bossVariant;
+      if (phase === 3 && this.bossEcho) {
+        if (this.echoNext) { move = this.bossEcho; this.events.push({ type: 'echo', id: this.bossEcho }); }
+        this.echoNext = !this.echoNext;
+      }
+      if (phase >= 2 && move === 'turning') {
         this.startCast(i, 'turningFire', 'Turning Fire', KILN_TURN.first, false);
         // She's busy pouring: nothing else from her until the last cone lands.
         const pour = KILN_TURN.first + (KILN_TURN.cones - 1) * KILN_TURN.step;
@@ -5375,7 +5406,7 @@ export class World {
         }
         return;
       }
-      if (phase >= 2 && this.bossVariant === 'draw') {
+      if (phase >= 2 && move === 'draw') {
         // V3 Kiln Draw: she breathes in and pulls everyone toward her mouth, where the fire lands. Walk out against the pull.
         this.startCast(i, 'kilnDraw', 'Kiln Draw', KILN_DRAW.cast, false);
         this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
@@ -8275,6 +8306,11 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
   flue: ['caveIn', 'ventSurge'],
 };
 /** V3: the Kiln Mother's phase-2 signature this run. */
+/**
+ * Phase 16 U1 echoes: from `minTier`, a boss's last phase also uses one of her other versions' moves, every other time her
+ * signature comes round. `off` and `force` (a version id) are for measuring.
+ */
+export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
 /**
