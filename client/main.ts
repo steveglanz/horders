@@ -17,6 +17,7 @@ import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
+import { hd2dMounted, hd2dWanted, loadHd2d, prefetchHd2d } from './hd2d/api';
 import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
@@ -298,11 +299,15 @@ function startRun(bounty = false, key = false): void {
 game.events.once(Phaser.Core.Events.READY, () => {
   game.scene.add('game', GameScene, false);
   if (stress) startRun();
+  // HD-2D look test: fetch the 3D file quietly once the title is up, so Delve waits less.
+  prefetchHd2d();
 });
 
 el('startBtn').addEventListener('click', () => {
   stress = params.has('stress');
   hud.showPerf = stress || params.has('debug');
+  // HD-2D look test: the 3D file loads the first time you press Delve (a short loading screen), never before.
+  if (hd2dWanted() && !hd2dMounted()) { void loadHd2d().then(() => startRun()); return; }
   startRun();
 });
 el('stressLink').addEventListener('click', (e) => {
