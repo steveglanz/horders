@@ -167,5 +167,6 @@ describe('the Glarewell', () => {
       if (w.victory) wins++;
     }
     expect(wins).toBeGreaterThan(0);
-  });
+    // Up to three whole bot runs: past vitest's 5 s default on a busy CI runner (timed out beside tests/reactbot.test.ts).
+  }, 20000);
 });
