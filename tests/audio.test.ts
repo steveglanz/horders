@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { KILN_DRAW, KILN_TURN, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -874,6 +874,28 @@ describe('audio', () => {
     expect(firstVoice).toBeGreaterThanOrEqual(0.6);
     expect(recipeLength(SOUNDS.dungeonStir)).toBeLessThan(2);
     expect(Math.abs(phoneDb(render(SOUNDS.dungeonStir, 22050), 22050) - phoneDb(render(SOUNDS.layoutPillars, 22050), 22050))).toBeLessThan(1);
+  });
+
+  it('hisses before Maelra\'s Sealed Vents move the steam and bursts as the new vent opens (Phase 15 Y3)', () => {
+    type M = { spawn(k: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean; startMaelra(): void; runMaelra(i: number, dt: number): void };
+    const w = new World({ seed: 9, dungeon: 'foundry', tier: 4, omens: [], cls: 'emberwright' });
+    const q = w as unknown as M;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('maelra', 300, 300);
+    q.bossIndex = b; q.bossSpawned = true;
+    q.startMaelra();
+    w.bossVariant = 'seal';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5; w.enemies[b].abilityT = 99;
+    const c = { cls: 'emberwright' as const, acting: 0, dungeon: 'foundry' };
+    const heard: string[] = [];
+    const tick = (dt: number) => { w.events.length = 0; q.runMaelra(b, dt); for (const e of w.events) if (e.type === 'ventShift') heard.push(`${e.stage}:${cueFor(e, c)?.id}`); };
+    tick(0.01); tick(MAELRA_SEAL.every - MAELRA_SEAL.warn); tick(MAELRA_SEAL.warn);
+    expect(heard).toEqual(['open:steamMoveOpen', 'warn:steamMoveWarn', 'open:steamMoveOpen']);
+    // The warning is a priority call, like Sluicetide's tideTurn, and the hiss has built and ended before the steam arrives.
+    expect(PRIORITY.has('steamMoveWarn')).toBe(true);
+    expect(PRIORITY.has('tideTurn')).toBe(true);
+    expect(recipeLength(SOUNDS.steamMoveWarn)).toBeLessThan(MAELRA_SEAL.warn);
+    expect(PRIORITY.has('steamMoveOpen')).toBe(false);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
