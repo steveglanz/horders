@@ -1336,3 +1336,24 @@ Solo Coldmarrow at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
     - 8 s windows: 42;
     - the echo replacing her own version instead of stacking on it: 41 and 42, with every other class down 1 to 3.
   - Kept as is: 43 to 44 of 80 (54 to 55%) sits inside the tier-10 wall band of 40 to 60% (coldmarrow.md). It's a watch item for skills' class check (U4).
+
+## Phase 16 U1: Hessa's echo
+
+Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
+
+- `World.ebbEcho` is true from that Ebb's warning until the next one starts. The `whirl` and `outsurge` getters (sim, bot and client) read the echo's way while it is on. A Riptide echo is an Ebb that is neither of those.
+- The Ebb's cast name follows the way it runs ("The Whirl", "The Outsurge", "The Ebb"). Each echoed Ebb fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
+
+Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
+
+| Class | Echo on | Echo off | Saw an echo |
+|---|---|---|---|
+| Bulwark | 50 | 46 | 61 |
+| Duskblade | 48 | 49 | 52 |
+| Emberwright | 55 | 55 | 55 |
+| Lumen | 70 | 70 | 70 |
+| Slagbinder | 79 | 79 | 79 |
+
+Every class is within 4 wins of echoes off.
+
+**Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
