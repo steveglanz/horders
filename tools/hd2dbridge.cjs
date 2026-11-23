@@ -28,6 +28,9 @@ const CASES = [
   { name: 'ash-boss', dungeon: 'ashvents', boss: 'ysmeret', variant: undefined, until: 'boss', tier: 7, at: [1500] },
   { name: 'cru-boss', dungeon: 'crucible', boss: 'grandmotherSlag', until: 'boss', tier: 8, party: true, at: [1500] },
   { name: 'hoard-boss', dungeon: 'hoard', boss: 'vorhulm', until: 'boss', tier: 9, party: true, at: [1500] },
+  { name: 'cold-boss', dungeon: 'coldmarrow', boss: 'nhevra', until: 'boss', tier: 10, at: [1500] },
+  { name: 'press-boss', dungeon: 'pressworks', boss: 'oskel', until: 'boss', tier: 10, party: true, at: [1500] },
+  { name: 'smelt-boss', dungeon: 'smeltery', boss: 'colossus', until: 'boss', tier: 10, party: true, at: [1500] },
   { name: 'carried', dungeon: 'glarewell', boss: 'lensmother', variant: 'walk', until: 'light', at: [250, 1100] },
 ];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;

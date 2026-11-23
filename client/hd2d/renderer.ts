@@ -100,6 +100,21 @@ function waterCanvas() {
   }
   return c;
 }
+/** The Coldmarrow's pit: dark blue ice with pale crack lines and frost at the edge. */
+function iceCanvas() {
+  const c = mk(512, 512), k = c.getContext('2d')!;
+  k.fillStyle = '#0a1424'; k.fillRect(0, 0, 512, 512);
+  const g = k.createRadialGradient(256, 256, 150, 256, 256, 256);
+  g.addColorStop(0, 'rgba(30,60,100,0)'); g.addColorStop(0.8, 'rgba(70,120,180,.55)'); g.addColorStop(1, 'rgba(200,230,255,.9)');
+  k.fillStyle = g; k.fillRect(0, 0, 512, 512); k.lineCap = 'round';
+  for (let i = 0; i < 40; i++) {
+    let a = rnd(0, Math.PI * 2), r = rnd(0.6, 0.95) * 256; k.strokeStyle = `rgba(210,235,255,${rnd(0.2, 0.55)})`; k.lineWidth = rnd(0.8, 2);
+    k.beginPath(); k.moveTo(256 + Math.cos(a) * r, 256 + Math.sin(a) * r);
+    for (let n = 0; n < 4; n++) { a += rnd(-0.08, 0.08); r += rnd(-18, 18); k.lineTo(256 + Math.cos(a) * r, 256 + Math.sin(a) * r); }
+    k.stroke();
+  }
+  return c;
+}
 /** The Glarewell's pit: a dark indigo void with a scatter of pale stars, lit faintly gold at its rim. */
 function voidCanvas() {
   const c = mk(512, 512), k = c.getContext('2d')!;
@@ -184,10 +199,14 @@ function nameCanvas(text: string, color: string) {
  * - ashvents: pale ash floor, three smoking fumaroles at the back, ash cairns, rose embers.
  * - crucible: rosy slag-stone, a giant tilted ladle pouring a molten stream at the back, slag pots, a bright pit.
  * - hoard: dark bone-stone, Old Vorhulm's great mound of gold and bones at the back, a coal-red pit, coin heaps.
+ * - coldmarrow: frozen slate, a frozen pit, ice-crusted stone arches hung with icicles, cold dim light (its
+ *   Hearthcoals' warm pools are a mechanic, drawn by the 2D floor through the bridge).
+ * - pressworks: oily olive brass, three press frames with their rams at the back, stacks of pressed plates.
+ * - smeltery: sooty blue-grey cast iron, a great furnace mouth and ore carts on a rail at the back, ingot stacks.
  * - kiln: the Kiln Depths, a potters' firing hall. Three brick beehive kilns with glowing mouths at the back,
  *   firebrick floor, pots and urns on shelves, stacked firewood, brick piers, a soot ring instead of brass.
  */
-export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents' | 'crucible' | 'hoard';
+export type RoomId = 'flue' | 'kiln' | 'foundry' | 'hammerdeep' | 'glarewell' | 'ashvents' | 'crucible' | 'hoard' | 'coldmarrow' | 'pressworks' | 'smeltery';
 interface RoomTheme {
   tile: string; wall: string; ground: string;
   /** Hemisphere sky and ground colours and intensity, the key light colour, the hero lamp colour. */
@@ -195,7 +214,7 @@ interface RoomTheme {
   /** The two shared warm lights: back wall and front. */
   backLight: string; frontLight: string;
   /** Scene background and fog colour; the rising motes' colour (HDR); the pit; the lamps' flame; tile wetness. */
-  bg: string; fog: string; mote: [number, number, number]; pit: 'lava' | 'water' | 'void'; flame: 'fire' | 'teal' | 'pale'; rough: number;
+  bg: string; fog: string; mote: [number, number, number]; pit: 'lava' | 'water' | 'void' | 'ice'; flame: 'fire' | 'teal' | 'pale'; rough: number;
   /** How bright the pit glows (the lava's colour multiplier). */
   pitGlow: number;
   /** Optional per-channel tint on the lava (the Hoard's coal red). */
@@ -216,10 +235,16 @@ const ROOMS: Record<RoomId, RoomTheme> = {
   crucible: { tile: '#8a6458', wall: '#d8a898', ground: '#160c08', hemi: ['#f0c4b0', '#3a1c10', 1.35], key: '#ffd4b0', lamp: '#ffb27a', backLight: '#ff6a1f', frontLight: '#ff9a48', bg: '#0b0503', fog: '#180904', mote: [3.2, 1.3, 0.4], pit: 'lava', flame: 'fire', rough: 0.8, pitGlow: 1.0 },
   // Dark bone-stone (the 2D floor's 0x70584e tint), a coal-red pit (HOARD_RIM 0xd8382a), gold everywhere.
   hoard: { tile: '#5e4a42', wall: '#a88a80', ground: '#100806', hemi: ['#d8b8a8', '#2a1410', 1.4], key: '#ffe0b8', lamp: '#ffc88a', backLight: '#e09040', frontLight: '#ff6a48', bg: '#080403', fog: '#120605', mote: [3, 1.0, 0.7], pit: 'lava', flame: 'fire', rough: 0.85, pitGlow: 0.75, pitTint: [1.1, 0.55, 0.5] },
+  // Frozen slate (COLD_FLOOR 0x7e98c4), a frozen pit, dim and cold: the Hearthcoals' warmth should be the light that matters.
+  coldmarrow: { tile: '#5c6c88', wall: '#a8bcd8', ground: '#070a10', hemi: ['#b8d0f0', '#141c2c', 1.2], key: '#d8e8ff', lamp: '#ffc890', backLight: '#8ab8ff', frontLight: '#ffb070', bg: '#04060a', fog: '#0a0e18', mote: [1.8, 2.2, 2.8], pit: 'ice', flame: 'pale', rough: 0.3, pitGlow: 0.8 },
+  // Oily olive brass (0x9aa070), the gold Downstroke plate and red Rivets read on it.
+  pressworks: { tile: '#6a6e4c', wall: '#bab890', ground: '#0e0e08', hemi: ['#e0dcb0', '#262414', 1.35], key: '#fff0c8', lamp: '#ffd090', backLight: '#ffb050', frontLight: '#ff9a48', bg: '#080806', fog: '#12110a', mote: [2.8, 2.2, 0.9], pit: 'lava', flame: 'fire', rough: 0.5, pitGlow: 0.7 },
+  // Sooty blue-grey cast iron (0x606878), so the Colossus's hot back and the Sweep read warm.
+  smeltery: { tile: '#4e5462', wall: '#9aa0b0', ground: '#0a0b0e', hemi: ['#c0c8d8', '#1c1e26', 1.35], key: '#e8ecf8', lamp: '#ffc890', backLight: '#ff7a2a', frontLight: '#ffa050', bg: '#060608', fog: '#0e0f14', mote: [3, 1.4, 0.5], pit: 'lava', flame: 'fire', rough: 0.6, pitGlow: 0.9 },
   hammerdeep: { tile: '#5c5a66', wall: '#aaa6ba', ground: '#0e0d12', hemi: ['#bcbcd4', '#24222c', 1.4], key: '#e6e6f6', lamp: '#ffd2a0', backLight: '#c4ccff', frontLight: '#ff9a58', bg: '#070709', fog: '#0d0c12', mote: [1.5, 1.6, 2.2], pit: 'lava', flame: 'pale', rough: 0.55, pitGlow: 0.42 },
 };
 /** Which room a dungeon gets. */
-const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard'];
+const OWN_ROOMS: readonly string[] = ['kiln', 'foundry', 'hammerdeep', 'glarewell', 'ashvents', 'crucible', 'hoard', 'coldmarrow', 'pressworks', 'smeltery'];
 export const roomOf = (dungeonId: string | undefined): RoomId => (dungeonId && OWN_ROOMS.includes(dungeonId) ? (dungeonId as RoomId) : 'flue');
 
 /**
@@ -271,9 +296,9 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     col.set(th.tile).multiplyScalar(rnd(0.78, 1.08) * (d > 6 ? 0.85 : 1)); tiles.setColorAt(i, col);
   });
   tiles.receiveShadow = true; room.add(tiles);
-  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : th.pit === 'void' ? voidCanvas() : lavaCanvas()), color: new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(th.pitGlow) }));
+  const lava = new THREE.Mesh(new THREE.CircleGeometry(7.7, 64), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? waterCanvas() : th.pit === 'void' ? voidCanvas() : th.pit === 'ice' ? iceCanvas() : lavaCanvas()), color: new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(th.pitGlow) }));
   lava.rotation.x = -Math.PI / 2; lava.position.y = -0.1; room.add(lava);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : th.pit === 'void' ? paleRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: th.pit === 'lava' ? new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(1.5 * th.pitGlow) : new THREE.Color().setScalar(0.9) }));
+  const rim = new THREE.Mesh(new THREE.RingGeometry(7.55, 8.3, 96, 1), new THREE.MeshBasicMaterial({ map: canvasTex(th.pit === 'water' ? wetRimCanvas() : th.pit === 'void' || th.pit === 'ice' ? paleRimCanvas() : rimCanvas(), { repeat: [12, 1] }), color: th.pit === 'lava' ? new THREE.Color(...(th.pitTint ?? [1, 1, 1])).multiplyScalar(1.5 * th.pitGlow) : new THREE.Color().setScalar(0.9) }));
   rim.rotation.x = -Math.PI / 2; rim.position.y = -0.12; room.add(rim);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: th.ground, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.35; ground.receiveShadow = true; room.add(ground);
@@ -378,6 +403,60 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       m4.compose(new THREE.Vector3(Math.sin(a) * 10.4, 1.25 - Math.abs(k - 3.5) * 0.09, Math.cos(a) * 10.4), q, one); ribs.setMatrixAt(k, m4);
     }
     ribs.castShadow = true; room.add(ribs);
+  } else if (id === 'coldmarrow') {
+    // Three ice-crusted stone arches against the back wall (coldArch), hung with icicles, frost on their caps.
+    const frostStone = new THREE.MeshStandardMaterial({ color: '#8aa0c0', roughness: 0.35, metalness: 0.1 });
+    const ice = new THREE.MeshStandardMaterial({ color: '#d8ecff', roughness: 0.1, metalness: 0, transparent: true, opacity: 0.85, emissive: new THREE.Color('#182a44') });
+    const icicles = new THREE.InstancedMesh(new THREE.ConeGeometry(0.1, 1, 6), ice, 36);
+    let ni = 0;
+    for (const [a, w] of [[Math.PI, 3.2], [Math.PI - 0.8, 2.2], [Math.PI + 0.8, 2.2]] as const) {
+      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.6, 0, Math.cos(a) * 9.6); g.lookAt(0, 0, 0);
+      for (const x of [-w / 2, w / 2]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.6, 0.8), frostStone); leg.position.set(x, 1.8, 0); g.add(leg); }
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(w / 2, 0.36, 8, 20, Math.PI), frostStone); arc.position.y = 3.6; g.add(arc);
+      const cap = new THREE.Mesh(new THREE.TorusGeometry(w / 2, 0.2, 6, 20, Math.PI), ice); cap.position.set(0, 3.82, 0.05); g.add(cap);
+      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      room.add(g);
+      for (let j = 0; j < 12 && ni < 36; j++) {
+        const t = (j + 0.5) / 12 * Math.PI, lx = Math.cos(t) * w / 2, ly = 3.6 + Math.sin(t) * (w / 2) - 0.45, len = 0.4 + ((j * 7) % 5) * 0.15;
+        const wx = Math.sin(a) * 9.6 + Math.cos(a) * lx, wz = Math.cos(a) * 9.6 - Math.sin(a) * lx;
+        e.set(Math.PI, 0, 0); q.setFromEuler(e); m4.compose(new THREE.Vector3(wx, ly - len / 2 + 0.2, wz), q, new THREE.Vector3(1, len, 1)); icicles.setMatrixAt(ni++, m4);
+      }
+    }
+    icicles.count = ni; room.add(icicles);
+  } else if (id === 'pressworks') {
+    // Three press frames against the back wall (pressFrame): two iron posts, a crown beam, a ram hanging from it
+    // over a brass bed. Outside the floor.
+    const ironP = new THREE.MeshStandardMaterial({ color: '#3c3e34', roughness: 0.5, metalness: 0.7 });
+    const brassP = new THREE.MeshStandardMaterial({ color: '#b09a50', roughness: 0.4, metalness: 0.85 });
+    for (const [a, w] of [[Math.PI, 3.0], [Math.PI - 0.8, 2.2], [Math.PI + 0.8, 2.2]] as const) {
+      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.5, 0, Math.cos(a) * 9.5); g.lookAt(0, 0, 0);
+      for (const x of [-w / 2, w / 2]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.45, 5.2, 0.6), ironP); post.position.set(x, 2.6, 0); g.add(post); }
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(w + 0.9, 0.7, 0.9), ironP); crown.position.y = 5.3; g.add(crown);
+      const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.8, 8), brassP); screw.position.y = 4.1; g.add(screw);
+      const ram = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.9, 0.8), ironP); ram.position.y = 2.9; g.add(ram);
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.6, 1.0), brassP); bed.position.y = 0.3; g.add(bed);
+      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      room.add(g);
+    }
+  } else if (id === 'smeltery') {
+    // A great furnace in the back wall, its mouth glowing, and ore carts on a curved rail either side (smeltCart).
+    const castI = new THREE.MeshStandardMaterial({ color: '#3a3e48', roughness: 0.55, metalness: 0.7 });
+    const fg = new THREE.Group(); fg.position.set(0, 0, -9.7);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(4.6, 6.5, 1.8), new THREE.MeshStandardMaterial({ map: canvasTex(brick, { repeat: [3, 4] }), color: '#8a8e9c', roughness: 0.9 })); body.position.y = 3.25; fg.add(body);
+    const mm = new THREE.MeshBasicMaterial({ map: canvasTex(archCanvas()), transparent: true, color: new THREE.Color(1, 1, 1) }); mm.userData.base = mm.color.clone(); glows.push(mm);
+    const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.6), mm); mouth.position.set(0, 1.35, 0.92); fg.add(mouth);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.5, 2.2), castI); hood.position.y = 6.6; fg.add(hood);
+    body.castShadow = body.receiveShadow = true; room.add(fg);
+    const rail = new THREE.Mesh(new THREE.TorusGeometry(9.9, 0.06, 4, 64, 2.4), castI); rail.rotation.x = Math.PI / 2; rail.rotation.z = -Math.PI / 2 - 1.2; rail.position.y = 0.05; room.add(rail);
+    const ore = new THREE.MeshStandardMaterial({ color: '#5a4a40', roughness: 0.9, map: grain });
+    for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {
+      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.9, 0, Math.cos(a) * 9.9); g.rotation.y = a + Math.PI / 2;
+      const tub = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.55, 0.8, 8, 1, true), castI); tub.position.y = 0.75; g.add(tub);
+      const load = new THREE.Mesh(new THREE.SphereGeometry(0.66, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), ore); load.position.y = 1.05; load.scale.y = 0.6; g.add(load);
+      for (const z of [-0.45, 0.45]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 10), castI); wh.rotation.x = Math.PI / 2; wh.rotation.z = Math.PI / 2; wh.position.set(z, 0.22, 0); g.add(wh); }
+      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      room.add(g);
+    }
   } else if (id === 'hammerdeep') {
     // Three great anvils on stone plinths against the back wall, and a giant hammer resting head-down
     // beside the middle one. Cold iron, a little lit by the slag. Outside the floor.
@@ -440,7 +519,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // Only the back braziers: the handoff's two front ones stood between this camera and the fight, and side ones
   // (PI ± 1.55) came within a metre of the camera when your hero stood at that side (mobile's 568x320 check, 23 Nov).
   // The Foundry is drowned: no braziers, its teal lamps and gauges light it.
-  for (const a of id === 'foundry' || id === 'hammerdeep' || id === 'glarewell' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
+  for (const a of id === 'foundry' || id === 'hammerdeep' || id === 'glarewell' || id === 'coldmarrow' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
     const g = new THREE.Group(); g.position.set(Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62);
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
@@ -466,17 +545,22 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   const spots: number[] = [];
   // Spread round the open part of the wall (at most 200 tries each, so a crowded wall can never hang the build).
   for (let k = 0; k < 8; k++) { for (let tries = 0; tries < 200; tries++) { const a = sr(0, Math.PI * 2); if (!back(a) && !spots.some((b) => Math.abs(b - a) < 0.4)) { spots.push(a); break; } } }
-  if (id === 'glarewell' || id === 'ashvents' || id === 'hoard') {
+  if (id === 'glarewell' || id === 'ashvents' || id === 'hoard' || id === 'coldmarrow' || id === 'pressworks' || id === 'smeltery') {
     // The Glarewell: clusters of pale crystal shards (glareShards). The Ashvents: cairns of flat ash stones (ashCairn).
     // The Hoard: heaps of coin (hoardPile).
-    const glare = id === 'glarewell', hoard = id === 'hoard';
-    const mat = hoard ? new THREE.MeshStandardMaterial({ color: '#c09038', roughness: 0.5, metalness: 0.65, emissive: new THREE.Color('#140a02') }) : glare ? new THREE.MeshStandardMaterial({ color: '#d8d0ff', roughness: 0.15, metalness: 0.1, emissive: new THREE.Color('#2a2050'), transparent: true, opacity: 0.85 }) : new THREE.MeshStandardMaterial({ color: '#8a7a74', roughness: 1, map: grain });
-    const bits = new THREE.InstancedMesh(hoard ? new THREE.SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2) : glare ? new THREE.OctahedronGeometry(0.3, 0) : new THREE.CylinderGeometry(0.42, 0.5, 0.18, 7), mat, 64);
+    // The Coldmarrow: ice chunks. The Pressworks: stacks of pressed brass plates (pressStack). The Smeltery: ingot stacks (smeltIngots).
+    const glare = id === 'glarewell' || id === 'coldmarrow', hoard = id === 'hoard', plates = id === 'pressworks' || id === 'smeltery';
+    const mat = id === 'coldmarrow' ? new THREE.MeshStandardMaterial({ color: '#cfe6ff', roughness: 0.1, emissive: new THREE.Color('#14243a'), transparent: true, opacity: 0.85 })
+      : id === 'pressworks' ? new THREE.MeshStandardMaterial({ color: '#b09a50', roughness: 0.4, metalness: 0.85 })
+      : id === 'smeltery' ? new THREE.MeshStandardMaterial({ color: '#8a8e9a', roughness: 0.4, metalness: 0.85 })
+      : hoard ? new THREE.MeshStandardMaterial({ color: '#c09038', roughness: 0.5, metalness: 0.65, emissive: new THREE.Color('#140a02') }) : glare ? new THREE.MeshStandardMaterial({ color: '#d8d0ff', roughness: 0.15, metalness: 0.1, emissive: new THREE.Color('#2a2050'), transparent: true, opacity: 0.85 }) : new THREE.MeshStandardMaterial({ color: '#8a7a74', roughness: 1, map: grain });
+    const bits = new THREE.InstancedMesh(plates ? new THREE.BoxGeometry(id === 'smeltery' ? 0.7 : 0.8, 0.14, id === 'smeltery' ? 0.3 : 0.8) : hoard ? new THREE.SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2) : glare ? new THREE.OctahedronGeometry(0.3, 0) : new THREE.CylinderGeometry(0.42, 0.5, 0.18, 7), mat, 64);
     let nbt = 0;
     for (const a of spots) {
       const r0 = sr(9.4, 9.9), cx = Math.sin(a) * r0, cz = Math.cos(a) * r0;
       for (let j = 0; j < 7 && nbt < 64; j++) {
-        if (hoard) { if (j < 3) { const sc = sr(0.6, 1.3); put(bits, nbt++, cx + sr(-0.7, 0.7), -0.06, cz + sr(-0.7, 0.7), sr(0, 6), sc, sc * 0.45, sc); } }
+        if (plates) { const smelt = id === 'smeltery'; put(bits, nbt++, cx + (smelt ? (j % 2) * 0.34 - 0.17 : sr(-0.05, 0.05)), 0.02 + (smelt ? Math.floor(j / 2) : j) * 0.15, cz + sr(-0.05, 0.05), smelt ? a + (Math.floor(j / 2) % 2) * Math.PI / 2 : sr(-0.15, 0.15), 1); }
+        else if (hoard) { if (j < 3) { const sc = sr(0.6, 1.3); put(bits, nbt++, cx + sr(-0.7, 0.7), -0.06, cz + sr(-0.7, 0.7), sr(0, 6), sc, sc * 0.45, sc); } }
         else if (glare) { const sc = sr(0.6, 1.8); put(bits, nbt++, cx + sr(-0.7, 0.7), sc * 0.3, cz + sr(-0.7, 0.7), sr(0, 6), sc * 0.7, sc * 1.6, sc * 0.7, sr(-0.3, 0.3), sr(-0.3, 0.3)); }
         else { const sc = 1 - j * 0.11; put(bits, nbt++, cx + sr(-0.08, 0.08), 0.05 + j * 0.17, cz + sr(-0.08, 0.08), sr(0, 6), sc); }
       }
@@ -592,11 +676,11 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   const CR = saver ? 4 : 8;
   const cracks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: canvasTex(cc), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }), CR);
   for (let k = 0; k < CR; k++) { const a = sr(0, Math.PI * 2), r = sr(1.2, 7.0); put(cracks, k, Math.sin(a) * r, FLOOR + 0.006, Math.cos(a) * r, 0, sr(0.7, 1.3), sr(0.7, 1.3), 1, -Math.PI / 2, sr(0, 6)); }
-  if (id === 'flue' || id === 'kiln' || id === 'ashvents') room.add(cracks);
+  if (id === 'flue' || id === 'kiln' || id === 'ashvents' || id === 'crucible' || id === 'smeltery') room.add(cracks);
   // Rubble and coal along the floor's edge and outside it, low enough never to hide a telegraph.
   const RB = saver ? 40 : 90;
   const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), basalt, RB);
-  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' || id === 'glarewell' ? '#000000' : id === 'hammerdeep' ? '#2a0a02' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
+  const coal = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: '#1c1614', roughness: 0.7, emissive: new THREE.Color(id === 'foundry' || id === 'glarewell' || id === 'coldmarrow' ? '#000000' : id === 'hammerdeep' ? '#2a0a02' : '#5a1a04'), emissiveIntensity: 0.6 }), Math.round(RB / 3));
   for (let k = 0; k < RB; k++) { const a = sr(0, Math.PI * 2), r = k % 3 ? sr(6.7, 7.4) : sr(9.0, 10.3), sz = sr(0.04, k % 3 ? 0.1 : 0.22); put(rubble, k, Math.sin(a) * r, FLOOR + sz * 0.4 - (r > 8 ? 0.15 : 0), Math.cos(a) * r, sr(0, 6), sz, sz * sr(0.5, 0.9), sz, sr(0, 3)); }
   for (let k = 0; k < coal.count; k++) { const a = sr(0, Math.PI * 2), r = sr(6.4, 7.4), sz = sr(0.04, 0.08); put(coal, k, Math.sin(a) * r, FLOOR + sz * 0.4, Math.cos(a) * r, sr(0, 6), sz); }
   rubble.receiveShadow = true; room.add(rubble, coal);
