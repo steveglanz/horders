@@ -1121,3 +1121,30 @@ QA on #550 found that Nhevra could walk into the held rime (as close as 90 px). 
 - **The fix:** it now comes out on the hero's side only on the tick it rises. After that, when she walks into it, it is pushed out along its own angle and slides round at its usual speed.
 - Coldmarrow t10, seeds 41 to 120: Bulwark 44 to 54 of 80 (Thin Ice 52), Duskblade 54 (ice 34, drift 65).
 - QA also saw Rolling Vents win 12 of 24 against 23 for Twin Vents, at tier 6 with hero-t6 gear. On 80 seeds at tier 6 (hero-t6-0) they are level: roll 72, still 72, wander 73. So that was a small-sample gap.
+
+### Y3 Grandmother Slag: the Overflow (built 23 Nov 2026)
+
+Grandmother Slag (the Crucible, raid 1) had two phase-2 versions: the Pour's molten lanes and the Brimming's cooling islands. The third is **the Overflow** (`flow`, tuning in `OVERFLOW`, sim/world.ts). Where the Brimming spreads the raid onto islands, the Overflow pulls it in to her.
+
+- In phase 2 the pit overflows from the rim every `every` 14 s (the first after `first` 4 s).
+- After a `warn` 2.5 s warning it rises for `last` 4 s. Every hero farther than `safeR` 190 px from her burns `burn` 3% of max health every `tick` 0.5 s. Close to her, nothing.
+- Between floods, the party heat burns `heat` 3.5% every SLAG.heatEvery s (the Pour's is 3%).
+- She churns on the Pour's timer, as in the Brimming, so the tank keeps the Pour's pause. There are no lanes and no islands.
+- New state: `World.flowStage` (0 still, 1 warning, 2 risen) and `flowT`. New event `{type:'overflow', stage:'warn'|'rise'|'ebb'}`.
+- Bot: while it warns or has risen, a hero farther than safeR − 45 heads in to her (`NOFLOW=1` turns this off for measuring).
+- Client: a placeholder ring at safeR while it warns, and molten slag outside it while it has risen.
+
+Crucible tier 8, heroes-r2 hero-t8-0, each version forced:
+
+| Setup | The Pour | The Brimming | The Overflow |
+|---|---|---|---|
+| Base party, seeds 1 to 80 | 43 | 48 | 45 |
+| Half-skill bots, seeds 41 to 120 | 50 | 48 | 53 |
+| Anvil party, seeds 41 to 120 | 48 | 51 | 59 |
+
+- **Tuning steps:**
+  - With the Pour's 3% heat it won 56. At 4% it won 36, at 5% 18, and 3.5% (kept) gave 45.
+  - A tighter safe ring (160) gave 54, floods every 11 s gave 53, and both together 56.
+- Without the bots gathering in (`NOFLOW=1`) it won 13 of 80, so the flood is the real check.
+- The Anvil party is 8 to 11 above its other versions: a watch item for skills' raid sweep.
+- **Name:** a search on 23 Nov turned up WoW compounds such as "Sanguine Overflow", and no spell called just "Overflow" in its results. "The Overflow" is a single plain word.

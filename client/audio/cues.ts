@@ -441,6 +441,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
+    // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
+    case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
     case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };
     // Y3 Creeping Rime: silent until sound adds its cue.
     // Y3 Creeping Rime: the frost rises under Nhevra (once, as phase 2 starts); it pans toward her via ev.x.
@@ -762,7 +764,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

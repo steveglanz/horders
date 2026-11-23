@@ -586,6 +586,7 @@ export type SimEvent =
   | { type: 'lightMove'; x: number; y: number }
   | { type: 'homeward'; stage: 'out' | 'back'; x: number; y: number }
   | { type: 'ventRoll'; x: number; y: number; left: number }
+  | { type: 'overflow'; stage: 'warn' | 'rise' | 'ebb' }
   /** Y3 Creeping Rime: the rime rises here as phase 2 starts. */
   | { type: 'rimeRise'; x: number; y: number }
   /** Y3 Sealed Vents: the steam is about to move to `vent` ('warn'), or has moved there ('open'). */
@@ -854,6 +855,10 @@ export class World {
   /** Phase 12 W3: Grandmother Slag's cooling islands in the Brimming (her phase 2, `brim` version); `t` is seconds until it sinks. */
   islands: { x: number; y: number; t: number }[] = [];
   private islandN = 0;
+  /** Phase 15 Y3 the Overflow: 0 still, 1 warning, 2 risen; time left on this stage (or until the next warning, when still). */
+  flowStage = 0;
+  flowT = 0;
+  private flowTickT = 0;
   /** Phase 12 W3: how many Banked Coals Old Vorhulm has laid (turns where they land). */
   private bankN = 0;
   /** Phase 12 W2: how many Die Cuts Oskel has made this fight (turns the side). */
@@ -2002,6 +2007,8 @@ export class World {
           this.bossVariant = this.rollSlagVariant();
           this.islands = [];
           this.islandN = 0;
+          this.flowStage = 0;
+          this.flowT = 0;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'regent') {
@@ -6478,7 +6485,7 @@ export class World {
       this.addTelegraph('cone', e.x, e.y, ARENA * 2, a, Math.PI, DIECUT.fuse, DIECUT.damage, 'hit', -1); // scaled by tier as it lands
       this.events.push({ type: 'castStart', index: i, id: 'dieCut', name: 'Die Cut' });
     } else if (this.rivetT <= 0 && this.bossVariant === 'punch') {
-      // Punch Line: two marching rows of punches through Oskel.
+      // Punch Line: marching rows of punches out from Oskel.
       this.rivetT = PUNCH.every;
       const plate = this.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
       let a: number;
@@ -6596,7 +6603,28 @@ export class World {
         for (let k = 0; k < BRIM.count; k++) this.islands.push(this.placeIsland(e, this.islandN++, BRIM.life * (k + 1) / BRIM.count));
         this.events.push({ type: 'castStart', index: i, id: 'brimming', name: 'The Brimming' });
       }
-      if (phase === 3) this.islands = [];
+      if (phase === 2 && this.bossVariant === 'flow') { this.flowStage = 0; this.flowT = OVERFLOW.first; }
+      if (phase === 3) { this.islands = []; if (this.flowStage) this.events.push({ type: 'overflow', stage: 'ebb' }); this.flowStage = 0; }
+    }
+    if (phase === 2 && this.bossVariant === 'flow') {
+      // The Overflow: warn, rise from the rim, burn anyone far from her, ebb.
+      this.flowT -= dt;
+      if (this.flowT <= 0) {
+        if (this.flowStage === 0) { this.flowStage = 1; this.flowT = OVERFLOW.warn; this.events.push({ type: 'overflow', stage: 'warn' }); }
+        else if (this.flowStage === 1) { this.flowStage = 2; this.flowT = OVERFLOW.last; this.flowTickT = 0; this.events.push({ type: 'overflow', stage: 'rise' }); }
+        else { this.flowStage = 0; this.flowT = OVERFLOW.every - OVERFLOW.warn - OVERFLOW.last; this.events.push({ type: 'overflow', stage: 'ebb' }); }
+      }
+      if (this.flowStage === 2) {
+        this.flowTickT -= dt;
+        if (this.flowTickT <= 0) {
+          this.flowTickT += OVERFLOW.tick;
+          const back = this.acting;
+          this.eachHero(() => {
+            if (dist2(this.player.x, this.player.y, e.x, e.y) > OVERFLOW.safeR ** 2) this.hurtPlayer(this.player.maxHp * OVERFLOW.burn, i, true);
+          });
+          this.use(back);
+        }
+      }
     }
     if (this.islands.length) {
       // An island that sinks is replaced by a new one elsewhere.
@@ -6628,7 +6656,7 @@ export class World {
         // The Brimming: off an island the slag burns harder, and on one it doesn't burn at all.
         const brim = this.bossVariant === 'brim';
         this.eachHero(() => {
-          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : SLAG.heat;
+          const share = brim ? (this.onIsland(this.player.x, this.player.y) ? 0 : BRIM.heat) : this.bossVariant === 'flow' ? OVERFLOW.heat : SLAG.heat;
           if (share > 0) this.hurtPlayer(this.player.maxHp * share, i, true);
         });
         this.use(at);
@@ -6678,7 +6706,7 @@ export class World {
       this.ladleT = phase === 1 ? SLAG.ladleEvery : SLAG.ladleLate;
       this.ladleTarget = this.targetOf(i, 0);
       this.startCast(i, 'ladlePour', 'Ladle Pour', SLAG.ladleCast, false);
-    } else if (phase === 2 && this.pourT <= 0 && this.bossVariant === 'brim') {
+    } else if (phase === 2 && this.pourT <= 0 && (this.bossVariant === 'brim' || this.bossVariant === 'flow')) {
       // The Brimming: she churns the pit on the Pour's timer and cast, with no lanes. It keeps the Pour's
       // pause on the tank (skills' W7 trace: without it an Anvil Slagbinder tank won 4 of 32).
       this.pourT = SLAG.pourEvery;
@@ -8340,9 +8368,15 @@ export const VORHULM_VARIANTS: VorhulmVariant[] = ['spill', 'bank'];
  * (COAL.emberHeal and COAL.emberDamage, as for an ember). No blast and no adds.
  */
 export const BANK = { count: 2, radius: 50, fuse: 4, near: 120, far: 170 };
-/** Phase 12 W3: Grandmother Slag's two versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. */
-export type SlagVariant = 'pour' | 'brim';
-export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
+/** Phase 12 W3 and Phase 15 Y3: Grandmother Slag's versions. `pour`: phase 2 is the Pour's molten lanes. `brim`: the Brimming, cooling islands that sink. `flow`: the Overflow, the pit floods in from the rim. */
+export type SlagVariant = 'pour' | 'brim' | 'flow';
+export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim', 'flow'];
+/**
+ * Phase 15 Y3 the Overflow (her phase 2 in the `flow` version, in place of the Pour's lanes): every `every` s (first after
+ * `first`) the pit overflows from the rim. After a `warn` s warning, for `last` s every hero farther than `safeR` from her
+ * burns `burn` of max health each `tick` s, so the raid gathers at her feet. The party heat burns `heat` (the Pour's is SLAG.heat) as before.
+ */
+export const OVERFLOW = { every: 14, first: 4, warn: 2.5, last: 4, safeR: 190, burn: 0.03, tick: 0.5, heat: 0.035 };
 /**
  * The Brimming (her phase 2 in the `brim` version, in place of the Pour's lanes): `count` cooling islands of `radius`,
  * `near` or `far` from her. Each lasts `life` s (dimming for its last `warn`), then sinks and a new one rises elsewhere.
@@ -8350,7 +8384,6 @@ export const SLAG_VARIANTS: SlagVariant[] = ['pour', 'brim'];
  */
 export const BRIM = { count: 3, radius: 80, life: 12, warn: 3, near: 170, far: 260, heat: 0.06 };
 /** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, three rows marching out from him. */
-/** Phase 12 W2 and Phase 15 Y3: Oskel's versions. `rivets`: a ring under every hero. `cut`: Die Cut, half the floor at once. `punch`: Punch Line, two rows marching out from him. */
 export type OskelVariant = 'rivets' | 'cut' | 'punch';
 export const OSKEL_VARIANTS: OskelVariant[] = ['rivets', 'cut', 'punch'];
 /**

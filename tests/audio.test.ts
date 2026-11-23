@@ -13,7 +13,7 @@ import { uiSoundFor, Tappable } from '../client/audio/ui';
 import { phoneDb, phoneShare } from '../tools/mixcheck';
 import { LOOT_DEAL, lootCues, rewardCues } from '../client/audio/rewards';
 import { nextTake, VARIANTS, variantOf } from '../client/audio/variants';
-import { CREEPING_RIME, GLARE, HOMEWARD, OSKEL, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
+import { CREEPING_RIME, GLARE, HOMEWARD, OSKEL, OVERFLOW, PUNCH, ROLLING, KILN_DRAW, KILN_TURN, MAELRA_SEAL, STIR, STIR_IDS, WAVES, ARENA_EVENTS, ARENA_EVENT_POOLS, BRIM, COLO, IRONLOAD, LAYOUT, LAYOUTS, VARIETY, World, type SimEvent } from '../sim/world';
 import { AFFIXES } from '../sim/content/named';
 import { botChoose, botInput } from '../sim/bot';
 import type { ClassId } from '../sim/content/emberwright';
@@ -1109,6 +1109,31 @@ describe('audio', () => {
     expect(THROTTLE.punchHit ?? 0).toBeLessThan(PUNCH.step);
     // No other Pressworks landing shares the punch's radius.
     for (const r of [OSKEL.downRadius, OSKEL.rivetRadius, DIECUT_R]) expect(r).not.toBe(PUNCH.r);
+  });
+
+  it('calls the raid in before Grandmother Slag\'s Overflow rises, crashes as it burns, and drains as it ebbs (Phase 15 Y3)', () => {
+    type G = { slagClock(dt: number): void; spawn(kind: string, x: number, y: number): number; bossIndex: number; bossSpawned: boolean;
+      heatT: number; pourT: number; ladleT: number };
+    const party = [{ cls: 'lumen' as const, name: 'b' }, { cls: 'duskblade' as const, name: 'c' }, { cls: 'emberwright' as const, name: 'd' }];
+    const w = new World({ seed: 3, dungeon: 'crucible', tier: 8, omens: [], cls: 'bulwark', party });
+    const q = w as unknown as G;
+    for (const e of w.enemies) e.alive = false;
+    const b = q.spawn('grandmotherSlag', 0, 0);
+    q.bossIndex = b; q.bossSpawned = true;
+    w.bossVariant = 'flow';
+    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+    q.ladleT = 99;
+    const c = { cls: 'bulwark' as const, acting: 0, dungeon: 'crucible' };
+    const heard: string[] = [];
+    const tick = (dt: number) => { w.events.length = 0; q.heatT = 99; q.pourT = 99; q.slagClock(dt); for (const ev of w.events) if (ev.type === 'overflow') heard.push(`${ev.stage}:${cueFor(ev, c)?.id}`); };
+    tick(1 / 30); tick(OVERFLOW.first + 0.01); tick(OVERFLOW.warn + 0.01); tick(OVERFLOW.last + 0.01);
+    expect(heard).toEqual(['warn:overflowWarn', 'rise:overflowRise', 'ebb:overflowEbb']);
+    // The warning and the rise are calls to act (priority); the ebb is the all-clear (ordinary).
+    expect(PRIORITY.has('overflowWarn') && PRIORITY.has('overflowRise')).toBe(true);
+    expect(PRIORITY.has('overflowEbb')).toBe(false);
+    // The warning has ended before the slag rises, so the crash is heard on its own.
+    expect(recipeLength(SOUNDS.overflowWarn)).toBeLessThan(OVERFLOW.warn);
+    expect(recipeLength(SOUNDS.overflowRise)).toBeLessThan(OVERFLOW.last);
   });
 
   it('warns of the Kiln Mother\'s Turning Fire and sounds each of its four cones landing (Phase 15 Y3)', () => {
