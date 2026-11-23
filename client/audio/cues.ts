@@ -50,6 +50,8 @@ export interface CueContext {
    * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
    * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
    */
+  /** The arena's radius (World.arenaR), so the 3D room's props can be placed for the edge sounds. */
+  arenaR?: number;
   listen?: { x: number; half: number; y?: number; screen?: (x: number, y: number) => { x: number; y: number } | null; screenHalf?: number };
   /** Verb-set states on this screen's hero, for the set-proc cues (setCues). Each is false when the hero lacks the pieces. */
   sets?: SetFlags;
@@ -187,6 +189,7 @@ export const CAST_SOUNDS: Record<string, { start?: SoundId; done?: SoundId }> = 
   charge: { start: 'chargeWindup' }, // Charge
   // The Kiln Mother's Kiln Draw variant: a 2.2 s inhale that pulls heroes in, then the fire circle around her lands.
   kilnDraw: { start: 'kilnDraw', done: 'ringClose' }, // Kiln Draw
+  inhale: { start: 'inhaleWarn' }, // Old Vorhulm's Inhale (Y3): the castStart is the warning, so the inhale event's warn stage is silent
   turningFire: { start: 'turnFireWarn' }, // Turning Fire (Y3): each cone's landing is a slam the size of KILN_TURN.reach
   // The Lensmother's Glintfall variant: light gathers, then shards fall on every standing pillar (one sound for all).
   glintfall: { start: 'glintWarn', done: 'glintfall' }, // Glintfall
@@ -296,9 +299,17 @@ export function panFor(ev: SimEvent, c: CueContext): number | undefined {
   // A pincer or ring comes from all round you, so its call stays centred (only the reinforcements' flank pans).
   if (ev.type === 'waveShape' && ev.stage === 'start') return undefined;
   const x = (ev as { x?: unknown }).x;
-  if (!c.listen || typeof x !== 'number' || !(c.listen.half > 0)) return undefined;
-  const p = Math.max(-1, Math.min(1, screenOffset(c.listen, x, (ev as { y?: unknown }).y) ?? (x - c.listen.x) / c.listen.half)) * PAN_MAX;
+  if (typeof x !== 'number') return undefined;
+  const o = offsetAt(c.listen, x, (ev as { y?: unknown }).y);
+  if (o === null) return undefined;
+  const p = o * PAN_MAX;
   return Math.abs(p) < 0.02 ? undefined : p;
+}
+
+/** How far across the view a floor point is from the hero, -1 (left edge) to 1 (right edge); null with no listener. */
+function offsetAt(l: CueContext['listen'], x: number, y: unknown): number | null {
+  if (!l || !(l.half > 0)) return null;
+  return Math.max(-1, Math.min(1, screenOffset(l, x, y) ?? (x - l.x) / l.half));
 }
 
 /** 3D view: how far across the screen a floor point shows from the hero, in half-widths; null when it can't be placed (then world x is used). */
@@ -441,7 +452,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Y3 the Homeward Hammer: the throw spins toward its target (panned); the landing rings and the hammer starts home (priority: the return line is the one to dodge).
     // Y3 Rolling Vents: each next vent steps the count up; the last one rings to say the roll ends.
     case 'ventRoll': return { id: ev.left > 0 ? 'ventRollNext' : 'ventRollLast' };
-    case 'inhale': return null; // Y3 Inhale: cue to come from sound
+    case 'inhale': return ev.stage === 'warn' ? null : { id: ev.stage === 'draw' ? 'inhaleDraw' : 'inhaleEnd' };
     // Y3 the Overflow: warn (gather on her), rise (it burns anyone far out), ebb (spread again).
     case 'overflow': return { id: ev.stage === 'warn' ? 'overflowWarn' : ev.stage === 'rise' ? 'overflowRise' : 'overflowEbb' };
     case 'homeward': return { id: ev.stage === 'out' ? 'homeOut' : 'homeBack' };
@@ -680,11 +691,37 @@ export const EDGE_SOUNDS: Record<string, readonly [SoundId, SoundId]> = {
 /** How often an edge prop sounds (s of game time, picked between min and max), how loud, and how far to the side. */
 export const EDGE = { min: 7, max: 15, vol: 0.45, pan: 0.7 };
 
+/** client/hd2d/renderer.ts ROOM_R: the 3D room is built at this radius, then scaled so it fits World.arenaR. */
+export const HD2D_ROOM_R = 7.45;
+/**
+ * The 3D rooms (client/hd2d/renderer.ts buildRoom): where each edge sound's prop stands, so in the 3D view the sound
+ * comes from the prop you can see. Each spot is [angle round the room (0 the front, PI the back wall), radius in room
+ * units]. Only the dungeons with their own room (renderer.ts OWN_ROOMS); the rest share the Flue's room, whose chimneys aren't their props,
+ * and a sound with no spots (or the 2D view) keeps the random side.
+ */
+export const EDGE_SPOTS: Partial<Record<string, readonly [readonly (readonly [number, number])[], readonly (readonly [number, number])[]]>> = {
+  // Three beehive kilns (radius 9.2 + r * 0.25 for r 2.3 and 1.65), and four braziers.
+  kiln: [[[Math.PI, 9.775], [Math.PI - 0.8, 9.6125], [Math.PI + 0.8, 9.6125]], [[Math.PI - 0.5, 8.62], [Math.PI + 0.5, 8.62], [Math.PI - 1.1, 8.62], [Math.PI + 1.1, 8.62]]],
+  // Three brass boilers; the valve's pipe run spans the back wall, so it keeps the random side.
+  foundry: [[[Math.PI, 9.4], [Math.PI - 0.8, 9.4], [Math.PI + 0.8, 9.4]], []],
+  // Three great anvils; the lanterns are the sconces all round, so they keep the random side.
+  hammerdeep: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+  // Three chimneys; the banners hang between sconces, so they keep the random side.
+  flue: [[[Math.PI, 9.7], [Math.PI - 0.78, 9.7], [Math.PI + 0.78, 9.7]], []],
+  // The great lens, high at the back wall centre (its floor point: it's straight ahead either way). The shard clusters
+  // stand at seeded random spots round the open wall, so they keep the random side.
+  glarewell: [[[Math.PI, 9.6]], []],
+  // Three fumaroles; the cairns are at the same seeded random spots as the Glarewell's shards, so they keep the random side.
+  ashvents: [[[Math.PI, 9.5], [Math.PI - 0.8, 9.5], [Math.PI + 0.8, 9.5]], []],
+};
+/** Where a 3D room spot is on the floor, in world units (the room is centred on the arena and scaled to arenaR). */
+export const edgeSpotAt = ([a, r]: readonly [number, number], arenaR: number) => ({ x: Math.sin(a) * r * arenaR / HD2D_ROOM_R, y: Math.cos(a) * r * arenaR / HD2D_ROOM_R });
+
 /**
  * The next edge-prop sound, if one is due. `t` is game time; a boss on the field (or no dungeon) keeps it quiet and
  * pushes the next one back. `rnd` returns [0, 1) (Math.random in the engine; a seeded one in tests).
  */
-export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number): Cue | null {
+export function edgeCue(state: { next: number }, dungeon: string | undefined, t: number | undefined, boss: boolean, rnd: () => number, room?: { listen: CueContext['listen']; arenaR: number }): Cue | null {
   const set = dungeon ? EDGE_SOUNDS[dungeon] : undefined;
   if (!set || t === undefined) return null;
   const gap = () => EDGE.min + rnd() * (EDGE.max - EDGE.min);
@@ -694,7 +731,16 @@ export function edgeCue(state: { next: number }, dungeon: string | undefined, t:
   state.next = t + gap();
   if (boss) return null;
   const side = rnd() < 0.5 ? -1 : 1;
-  return { id: set[rnd() < 0.5 ? 0 : 1], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
+  const which = rnd() < 0.5 ? 0 : 1;
+  const cue: Cue = { id: set[which], vol: EDGE.vol, jitter: 0.08, pan: side * EDGE.pan * (0.6 + 0.4 * rnd()) };
+  // The 3D view: from one of that prop's spots, panned by where it shows on screen.
+  const spots = room?.listen?.screen && room.arenaR > 0 && dungeon ? EDGE_SPOTS[dungeon]?.[which] : undefined;
+  if (spots && spots.length > 0) {
+    const at = edgeSpotAt(spots[Math.min(spots.length - 1, Math.floor(rnd() * spots.length))], room!.arenaR);
+    const o = offsetAt(room!.listen, at.x, at.y);
+    if (o !== null) cue.pan = o * EDGE.pan;
+  }
+  return cue;
 }
 
 /**
@@ -765,7 +811,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

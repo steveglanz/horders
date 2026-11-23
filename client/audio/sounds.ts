@@ -900,6 +900,29 @@ export const SOUNDS = {
     { wave: 'noise', f: 0, dur: 0.9, vol: 0.18, a: 0.1, lp: 6000, lp2: 1200, hp: 600, curve: 1.2 },
     { wave: 'sine', f: 700, f2: 300, dur: 0.8, vol: 0.08, a: 0.08, curve: 1.3 },
   ],
+  /** Phase 15 Y3: Old Vorhulm's Inhale (the Hoard, phase 3). The warning (INHALE.warn, 1.5 s): a deep throat rumble as his
+   *  jaw opens, three quick snuffs, and two rising horn calls that say walk away now. */
+  inhaleWarn: join(
+    [{ wave: 'saw', f: 48, f2: 62, dur: 1.3, vol: 0.2, a: 0.3, lp: 420, lp2: 900, curve: 1.0, trem: [7, 0.5] },
+     { wave: 'noise', f: 0, dur: 1.3, vol: 0.12, a: 0.4, lp: 700, lp2: 1600, hp: 200, curve: 1.0, trem: [7, 0.5] }],
+    ...[0.15, 0.32, 0.49].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.12, delay: d, vol: 0.2, a: 0.03, lp: 5000, lp2: 2500, hp: 900, curve: 1.6 }]),
+    horn(note(-5), 0.35, 0.3).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.65 })),
+    horn(note(2), 0.5, 0.32).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.95 })),
+  ),
+  /** He breathes in (INHALE.time, 3 s), pulling every hero toward his mouth: a long rising in-breath, its filter opening as
+   *  the pull goes on, with embers rattling in his throat. Ends before the all-clear. */
+  inhaleDraw: join(
+    [{ wave: 'noise', f: 0, dur: 2.9, vol: 0.3, a: 2.2, lp: 500, lp2: 4500, hp: 300, curve: 0.6, trem: [5, 0.25] },
+     { wave: 'saw', f: 55, f2: 82, dur: 2.9, vol: 0.14, a: 2.0, lp: 700, lp2: 1800, curve: 0.6 },
+     { wave: 'sine', f: 330, f2: 660, dur: 2.9, vol: 0.07, a: 2.2, curve: 0.6, vib: [4, 0.01] }],
+    ...[0.4, 0.9, 1.3, 1.65, 1.95, 2.2, 2.45, 2.65].map((d, k) => [{ wave: 'sine' as const, f: 900 + k * 90, f2: 1500 + k * 110, dur: 0.04, delay: d, vol: 0.08, curve: 2 }]),
+  ),
+  /** The all-clear: his jaw shuts and he breathes out, a falling sigh. */
+  inhaleEnd: join(
+    clang(180, 0.12, 0.25),
+    [{ wave: 'noise', f: 0, dur: 0.8, delay: 0.05, vol: 0.16, a: 0.06, lp: 3000, lp2: 600, hp: 250, curve: 1.3 },
+     { wave: 'saw', f: 70, f2: 45, dur: 0.6, delay: 0.05, vol: 0.08, a: 0.05, lp: 500, curve: 1.4 }],
+  ),
   /** A cooling island starts to sink (its last BRIM.warn s): a long hiss of slag closing over stone, falling. */
   islandSink: [
     { wave: 'noise', f: 0, dur: 1.3, vol: 0.2, a: 0.15, lp: 8000, lp2: 2500, hp: 1200, curve: 0.9, trem: [7, 0.3] },
@@ -1694,6 +1717,7 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   namedSpawn: 2.1,
   // Phase 14: the marked foes' calls and the arena-event warnings, at or above PHONE_FLOOR_DB like every must-hear cue.
   namedKillBrood: 1.6,
+  inhaleWarn: 5.5, inhaleDraw: 3.0, inhaleEnd: 4.0, // Y3 Inhale: warning 6.9 dB and in-breath (priority) 7.9 dB over the Hoard raid mix (busycheck t8 heroes, SEEDS=1-6, n=51); the all-clear a quieter exhale
   overflowWarn: 4.1, overflowRise: 2.4, overflowEbb: 2.0, // Y3 the Overflow: warn 6.5 dB and rise 7.1 dB over the Crucible raid mix (busycheck t8 heroes, SEEDS=1-6, n=37); the ebb a quieter all-clear
   punchLineWarn: 3.5, punchHit: 1.5, // Y3 Punch Line: the wind-up level with dieCutWarn, each punch level with slam
   rollVentWarn: 4.0, ventRollNext: 2.7, ventRollLast: 2.4, // Y3 Rolling Vents: the opening level with wanderVentWarn, each next vent a little under it
