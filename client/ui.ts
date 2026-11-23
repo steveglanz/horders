@@ -3,6 +3,7 @@ import { WEEKLY_QUESTS } from '../sim/content/weekly';
 import { coachLine } from '../sim/content/firstdelve';
 import { World, BOSS_PHASES, BRIM, SUMMONS } from '../sim/world';
 import { runShape } from '../sim/runshape';
+import { HEATS } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
 import { CLASSES } from '../sim/content/classes';
@@ -10,7 +11,7 @@ import { ENCOUNTERS } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
 import { SETS, SET_TUNING } from '../sim/content/sets';
-import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, omenTile } from './icons';
+import { ABILITY_GLYPH, ALT_GLYPH, BOT_GLYPH, botName, CLASS_ICON, isBotAlly, medalTile, talentTile, INTERRUPT_SLOT, SET_COLOR, SET_ICON, glyph, heatTile, omenTile } from './icons';
 import { OMENS, OmenId } from '../sim/content/omens';
 import { setTip } from './tips';
 import { roleOf } from './net/lobby';
@@ -148,18 +149,26 @@ export class Hud {
   private wasDown = false;
   private wasNoRevive = false;
 
-  /** The pause menu names this delve's Omens; hold or hover one for what it does. */
+  /**
+   * The pause menu names this delve's Omens and Today's Heat; hold or hover one for what it does.
+   * Phones only name the Heat in the first fight's banner, so its line lives here too.
+   */
   private showOmens(w: World): void {
     const box = $('pauseOmens');
     const ids = (w.omens ?? []) as OmenId[];
-    box.hidden = !ids.length;
-    if (!ids.length) { box.innerHTML = ''; return; }
-    box.innerHTML = `<div class="po-h">${ids.length === 1 ? 'Omen' : 'Omens'} this delve</div>`
-      + ids.map((id) => `<div class="po" data-omen="${id}">${omenTile(id, 28)}<span><b>${OMENS[id].name}</b><i>${OMENS[id].tip}</i></span></div>`).join('');
+    const heat = w.heat ? HEATS[w.heat] : undefined;
+    box.hidden = !ids.length && !heat;
+    if (box.hidden) { box.innerHTML = ''; return; }
+    const head = ids.length ? `${ids.length === 1 ? 'Omen' : 'Omens'}${heat ? " and Today's Heat" : ' this delve'}` : "Today's Heat";
+    box.innerHTML = `<div class="po-h">${head}</div>`
+      + ids.map((id) => `<div class="po" data-omen="${id}">${omenTile(id, 28)}<span><b>${OMENS[id].name}</b><i>${OMENS[id].tip}</i></span></div>`).join('')
+      + (heat ? `<div class="po" data-heat>${heatTile(heat.id, 28)}<span><b>${heat.name}</b><i>${heat.text}</i></span></div>` : '');
     box.querySelectorAll<HTMLElement>('[data-omen]').forEach((el) => {
       const o = OMENS[el.dataset.omen as OmenId];
       setTip(el, () => `<b>${o.name}</b><br>${o.text}<br><span class="tip-g">${o.tip}</span>`);
     });
+    const hEl = box.querySelector<HTMLElement>('[data-heat]');
+    if (hEl && heat) setTip(hEl, () => `<b>Today's Heat: ${heat.name}</b><br>${heat.text}<br><span class="tip-g">The same for everyone today.</span>`);
   }
 
   /** Briefly pulses an action button when it fires. */
