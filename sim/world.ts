@@ -1164,6 +1164,8 @@ export class World {
   hallsMain = 0;
   /** Halls: the pack whose foes are spawning right now (-1 otherwise), so spawn() tags them. */
   private hallsWaking = -1;
+  /** Halls "Catch breath": seconds with no pack awake and no foe alive (resting starts at HALLS.rest.delay). */
+  hallsQuietT = 0;
   /** Gates on offer while `phase` is 'choose'. */
   gates: Gate[] = [];
   /** Paths taken at each fork, for the summary. */
@@ -2347,6 +2349,32 @@ export class World {
     }
   }
 
+  /** Whether the party is catching its breath on the map (the client's cue). */
+  get hallsResting(): boolean {
+    return this.hallsOn && this.hallsQuietT >= HALLS.rest.delay;
+  }
+
+  /**
+   * Halls "Catch breath" (design, 24 Nov): once nothing has been awake or alive for HALLS.rest.delay s, each living hero
+   * gets back HALLS.rest.hp of max hp a second and its class resource builds HALLS.rest.res a second faster. It stops the
+   * moment a pack wakes. Only on the map: never in the boss arena or an arena delve.
+   */
+  private hallsRest(dt: number): void {
+    const m = this.halls!;
+    if (this.aliveEnemies > 0 || m.packs.some((pk) => pk.state === 'awake')) { this.hallsQuietT = 0; return; }
+    this.hallsQuietT += dt;
+    if (this.hallsQuietT < HALLS.rest.delay) return;
+    const at = this.acting;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0) continue;
+      q.hp = Math.min(q.maxHp, q.hp + q.maxHp * HALLS.rest.hp * dt);
+      this.use(k);
+      this.addHeat(HALLS.rest.res * dt);
+    }
+    this.use(at);
+  }
+
   /** Halls: a room's lava heats while its pack is awake and cools back to crust once nothing there is (design, 24 Nov). */
   private hallsLavaHeat(dt: number): void {
     const m = this.halls!;
@@ -2393,8 +2421,10 @@ export class World {
         this.phase = 'cleared';
         this.encounter = this.hallsMain;
       }
+      this.hallsQuietT = 0;
       return;
     }
+    this.hallsRest(dt);
     if (this.lava.length) this.layoutClock(dt);
     const guard = m.packs.find((pk) => pk.guard);
     if (guard && guard.state !== 'cleared') return;

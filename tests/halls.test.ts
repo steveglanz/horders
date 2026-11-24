@@ -216,4 +216,30 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(c.heat).toBe(0);
     expect(w!.inLava({ ...w!.player, x: mx, y: my })).toBe(false);
   });
+  it('catches its breath on the map: after 3 s with nothing awake, 1% hp a second and faster Heat, never in a fight', () => {
+    const w = halls(2);
+    const p = w.player;
+    p.hp = p.maxHp * 0.5;
+    p.heat = 0;
+    // Under the delay: only the class's own regen.
+    for (let k = 0; k < Math.round((HALLS.rest.delay - 0.5) * 30); k++) w.step(idle);
+    expect(w.hallsResting).toBe(false);
+    expect(p.hp).toBeCloseTo(p.maxHp * 0.5, 5);
+    const heat0 = p.heat;
+    // 2 s of rest: +2% hp, and Heat gains rest.res a second on top of its own 2.
+    for (let k = 0; k < 15 + 60; k++) w.step(idle);
+    expect(w.hallsResting).toBe(true);
+    expect(p.hp / p.maxHp).toBeCloseTo(0.52, 2);
+    // 2.5 s of the Emberwright's own 2/s, plus rest.res for the 2 s past the delay.
+    expect(p.heat - heat0).toBeCloseTo(2 * 2.5 + HALLS.rest.res * 2, 1);
+    // A pack wakes: it stops at once.
+    const a = pack(w, 'A');
+    put(w, a.x, a.y + HALLS.reach - 10);
+    w.step(idle);
+    expect(w.hallsResting).toBe(false);
+    expect(w.hallsQuietT).toBe(0);
+    // Not in an arena delve.
+    const arena = new World({ seed: 2, tier: 2 });
+    expect(arena.hallsResting).toBe(false);
+  });
 });
