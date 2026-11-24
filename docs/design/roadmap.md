@@ -443,5 +443,23 @@ Each dungeon drops its own set for the **head, hands and trinket** slots. A set 
 **As built:** `sim/content/sets.ts` holds the sets and every number (`SET_TUNING`); the item card shows a teal set line. Class weapon effects are the skills team's half (PR #38).
 **Balance:** see [balance.md](balance.md#verb-sets-r4-21-nov-2026).
 
+### Phase 18: Halls, dungeons you move through (asked for by Steve, 24 Nov 2026; top priority)
+Steve (24 Nov 2026, 15:14Z): move delves toward MMO-style dungeons: "Move around a dungeon and clear enemy groups of mobs in order to reach a boss. You can sometimes even skip rooms or enemies by just avoiding them." At 15:36Z he made it the focus: "move the game more towards wow parity and dungeons instead of the survivors non moving around style". The brief, "Horders Halls" (working name), is a Claude Doc: https://claude.ai/artifact/EYGycXhryNa3cSaGGoxp3h. In short:
+- A delve is a map of 6 to 8 rooms joined by corridors, with packs that sleep until you come close.
+- Any pack can be skipped except a door guard and the boss. A cleared pack still pays a level, a draft and a bag.
+- The boss room is today's arena, so every boss stays as tuned.
+
+Five choices are on Steve's cards (run length, skipping, the per-pack draft, replace or add, order). The rows below follow design's recommended answers until he picks. Every phase is gated, and nothing past H1 starts until Steve has played the prototype on his phone.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| H1 | **Prototype, one Kiln map:** a greybox map behind a setting (`?halls=1`). It has rooms and corridors from one hand-made template, sleeping packs with reach rings, skipping, a door guard, the boss door into today's arena, a corner map, and bot paths on a room graph. Measure run length, tier 1-4 win rates (full skill and reactBot average), and frame rate on a phone | engineering, design | ⏭ Next. Design writes the template and pack rules; engineering builds the map, the camera and the bot paths |
+| H2 | **The Kiln for real:** a 3D kit (floors, walls, corridors, arches, the boss door) and room life; sound for packs waking, doors and travel; on phones, the corner map and the edge arrow; 3 templates; QA stuck checks on every template; a class check per pack | visuals, sound, phones, QA, skills, design | ⏭ After Steve plays H1 |
+| H3 | **The other solo dungeons:** the Foundry, the Glarewell, the Coldmarrow and the Wrackline, one per PR, each with its kit, each measured against today's numbers | design, visuals, sound, QA | ⏭ After H2 |
+| H4 | **Group dungeons:** the Hammerdeep, the Ashvents and the Pressworks. The tank pulls, packs sync in co-op, a hero far behind catches up, and fill with bots follows the host | engineering, design, skills | ⏭ After H3 |
+| H5 | **Raids:** trash halls before each raid boss; boss rooms unchanged | design, engineering | ⏭ Last |
+
+Phase 17 (the Arena) and the endgame scaling card wait behind H1, if Steve agrees.
+
 ## Backlog notes
 - **Acolyte heals as a real cast (Kiln).** Tried and rolled back 21 Nov 2026. A Kindle cast (Quenchable, then breakable by damage, then a staggerable channel) cost the Duskblade Kiln wins at tier 6 each time. Acolytes channel 0.8% per second again, shown as a pulsing beam; the answer is to kill them. See balance.md.
