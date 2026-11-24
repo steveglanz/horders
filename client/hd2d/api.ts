@@ -41,11 +41,6 @@ export interface Hd2dAdapter {
   echoAt?(): number;
   /** How far (world units) the camera looks past your hero this frame ({0, 0} when it doesn't): phones' boss framing. */
   focus?(): { x: number; y: number };
-  /**
-   * Phase 18 Halls: how much more than today's view the camera shows (1 = today, above 1 zooms out). On a Halls map it
-   * fits the room your hero is in (client/hallsview.ts); elsewhere it is 1.
-   */
-  zoom?(): number;
 }
 
 export interface Hd2dStats { calls: number; triangles: number; ms: number; fx: boolean; pixelRatio: number; /** Attacks your hero has started this run (the attack pose). */ attacks: number; /** Foe attacks (lunges) started this run. */ foeAttacks: number }

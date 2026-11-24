@@ -941,7 +941,11 @@ export class World {
   /** Standing stones: they block heroes and foes alike. */
   stones: { x: number; y: number; r: number }[] = [];
   /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
-  lava: { x1: number; y1: number; x2: number; y2: number; w: number }[] = [];
+  /**
+   * V2 lava channels. Phase 18 Halls: a map room's strip carries `room` and `heat` (0 cooled crust .. 1 hot): it heats
+   * over HALLS.lavaHeat s while that room's pack is awake and burns only at 1 (undefined heat, an arena run: always hot).
+   */
+  lava: { x1: number; y1: number; x2: number; y2: number; w: number; room?: number; heat?: number }[] = [];
   /** Kiln vents: they flare one at a time, in turn. */
   flareVents: { x: number; y: number }[] = [];
   private flareT = 0;
@@ -2333,13 +2337,23 @@ export class World {
         }
       } else if (lay === 'channel') {
         const L = rm.r - 40;
-        this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth });
+        this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth, room, heat: 0 });
       } else if (lay === 'vents') {
         for (let k = 0; k < LAYOUT.ventCount; k++) {
           const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
           m.vents.push({ room, x: rm.x + Math.cos(a) * LAYOUT.ventRing * s, y: rm.y + Math.sin(a) * LAYOUT.ventRing * s });
         }
       }
+    }
+  }
+
+  /** Halls: a room's lava heats while its pack is awake and cools back to crust once nothing there is (design, 24 Nov). */
+  private hallsLavaHeat(dt: number): void {
+    const m = this.halls!;
+    for (const c of this.lava) {
+      if (c.room === undefined || c.heat === undefined) continue;
+      const hot = m.packs.some((pk) => pk.state === 'awake' && roomAt(m, pk.x, pk.y) === c.room);
+      c.heat = Math.max(0, Math.min(1, c.heat + (hot ? dt : -dt) / HALLS.lavaHeat));
     }
   }
 
@@ -2366,6 +2380,7 @@ export class World {
       if (r >= 0) m.seen[r] = true;
     }
     for (let k = 0; k < m.packs.length; k++) if (m.packs[k].state === 'asleep' && this.hallsStirs(k)) this.hallsWake(k);
+    if (this.lava.length) this.hallsLavaHeat(dt);
     if (this.phase === 'fight') {
       this.runOmens(dt);
       if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
@@ -2775,7 +2790,7 @@ export class World {
 
   /** Slag Wade: the hero stands in a lava channel. */
   inLava(p: Player = this.player): boolean {
-    for (const c of this.lava) if (segDist2(p.x, p.y, c.x1, c.y1, c.x2, c.y2) <= (c.w / 2) ** 2) return true;
+    for (const c of this.lava) if ((c.heat ?? 1) >= 1 && segDist2(p.x, p.y, c.x1, c.y1, c.x2, c.y2) <= (c.w / 2) ** 2) return true;
     return false;
   }
 
@@ -3032,6 +3047,7 @@ export class World {
   private layoutClock(dt: number): void {
     const at = this.acting;
     for (const c of this.lava) {
+      if ((c.heat ?? 1) < 1) continue; // Halls: cooled crust, or still heating
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || segDist2(q.x, q.y, c.x1, c.y1, c.x2, c.y2) > (c.w / 2) ** 2) continue;
