@@ -5967,11 +5967,13 @@ export class World {
       // Every hero in the party gets their own boss item (not only whoever landed the
       // killing blow). Group dungeons add a second Rare-or-better item each, but only
       // for a real party: a bot-filled run pays like a solo one.
-      const min: Rarity = this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare';
+      const raid = !!this.dungeonDef.raid;
+      const min: Rarity = (this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER) || (raid && RAID_LOOT.epic) ? 'epic' : 'rare';
       const group = this.dungeonDef.style === 'group' && this.fillBots === 0;
       const give = () => {
         this.pickUp(this.withSet(this.makeItem(min)));
         if (group) this.pickUp(this.makeItem('rare'));
+        if (raid) for (let k = 0; k < RAID_LOOT.extra; k++) this.pickUp(this.makeItem('rare'));
       };
       if (this.heroes.length === 1) give();
       else {
@@ -8530,6 +8532,12 @@ export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
 /** First tier whose first clear guarantees an Epic from the boss. */
 export const FIRST_CLEAR_EPIC_TIER = 2;
+/**
+ * Raid boss loot (design, 24 Nov): a raid boss fight runs 140-340 s against 40-90 s in a group dungeon, so with the
+ * same two boss items a raid paid about half the Rare-or-better items a minute. `epic` makes every hero's boss item
+ * an Epic; `extra` adds that many more Rare-or-better items each.
+ */
+export const RAID_LOOT = { epic: 1, extra: 1 };
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {

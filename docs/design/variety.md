@@ -1669,3 +1669,19 @@ Every party at full skill, same seeds (Ash Fall / Summons):
 | Two Emberwrights | 72 / 72 | 74 / 75 |
 
 The Anvil gains 6, catching up to the other parties rather than passing them, which design accepted. Tried on seeds 1 to 40 and dropped: a 2.0 s cast (average Ash Fall 12 to 23, but Summons stayed at 8, and full-skill Ash Fall rose from 32 to 39), and ashDamage 130 (average 24 / 15, against 27 / 14 at 109). Known limit: at the casual level, Ash Fall and Summons still win almost nothing at tier 11. Design accepts that for a tier-11 raid for now.
+
+### Raid boss loot: an Epic and one more Rare for every hero (design, 24 Nov)
+
+Re-measured with this week's Omens (`OMENS=client`) and QA's average mistakes (REACT 0.3, forget 0.2, stepErr 0.5), the same party as above with Epic ilvl 24 gear, 20 seeds. Value is salvage embers a minute (`RARITY.salvage`: Rare 8, Epic 20), so an Epic counts for more than a Rare.
+
+| Dungeon | t9 salvage/min | t9 Epic+/min | t11 salvage/min | t11 Epic+/min | t11 wins |
+|---|---|---|---|---|---|
+| Hammerdeep | 19.7 | 0.08 | 9.3 | 0.00 | 8/20 |
+| Ashvents | 17.9 | 0.11 | 8.8 | 0.05 | 7/20 |
+| Pressworks | 18.0 | 0.07 | 9.7 | 0.05 | 12/20 |
+| Raids before (Crucible, Hoard, Smeltery, Flue) | 8.3-10.8 | 0.03-0.11 | 4.8-6.1 | 0.01-0.03 | 13-20/20 |
+| Raids, boss item an Epic | 10.4-13.6 | 0.21-0.33 | 5.9-7.4 | 0.11-0.15 | same |
+| Raids, 2 extra Rares | 11.6-15.0 | 0.04-0.14 | 6.3-8.1 | 0.01-0.04 | same |
+| **Raids, Epic and 1 extra Rare (shipped)** | **12.1-15.5** | **0.22-0.33** | **6.8-8.5** | **0.12-0.16** | same |
+
+A raid boss fight runs 140-340 s against 40-90 s in a group dungeon, and both paid the same two boss items, so a raid paid about half as much a minute. The raids were never the farm (fill with bots is blocked there, #254). Now `RAID_LOOT = { epic: 1, extra: 1 }` (sim/world.ts): a raid win gives every hero an Epic as their boss item (a set piece where the slot fits, as before) and one more Rare-or-better item. Raids now pay 70-90% of a group dungeon a minute and are where Epics come from (about 2-3 times the Epic rate of any group dungeon). Raids also pay world boss credit and their own sets, so they don't need full parity. Wins don't change: loot comes after the kill. With this week's Omens the Pressworks is no longer ahead of the other group dungeons at t11 (9.7 against 8.8-9.3).
