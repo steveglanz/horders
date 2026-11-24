@@ -1219,6 +1219,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   let pillarSig = '';
   const pillarGroup = new THREE.Group(); scene.add(pillarGroup);
   const pillarGeo = new THREE.CylinderGeometry(1, 1.08, 1, 10);
+  // Standing stones (World.stones: the 'pillars' layout, in every dungeon that rolls one). Until 24 Nov the 3D view drew
+  // only the Glarewell's pillars, so these blocked heroes and foes unseen. The Kiln and the Flue get square brick piers,
+  // as the Kiln room's own; other rooms a rough stone post in their floor's colour. Shorter than the Glarewell's pillars
+  // (1.4 units, about 100 world), so a stone hides little of the floor behind it.
+  const brickStone = rid === 'kiln' || rid === 'flue';
+  const stoneGeo = brickStone ? new THREE.BoxGeometry(1.8, 1, 1.8) : new THREE.CylinderGeometry(0.95, 1.08, 1, 9);
+  const stoneMat = brickStone ? new THREE.MeshStandardMaterial({ map: canvasTex(brickCanvas(), { repeat: [1, 2] }), color: '#ffd0b4', emissive: new THREE.Color('#2a1008'), roughness: 0.9 }) : basalt.clone();
+  if (!brickStone) (stoneMat as THREE.MeshStandardMaterial).color.set(th0.tile).multiplyScalar(1.15);
+  const STONE_H = 1.4;
 
   /* embers */
   const N = saver ? 60 : 120, pos = new Float32Array(N * 3), vel = new Float32Array(N);
@@ -1308,12 +1317,17 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (fl.stamp !== bridge.stamp) { bridge.stamp = fl.stamp; bridge.tex.needsUpdate = true; }
     }
     // Pillars.
-    const sig = w.pillars.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';');
+    const sig = w.pillars.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';') + '|' + w.stones.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';');
     if (sig !== pillarSig) {
       pillarSig = sig;
       pillarGroup.clear();
       for (const p of w.pillars) {
         const m = new THREE.Mesh(pillarGeo, basalt); m.position.set(p.x * S, 1.1, p.y * S); m.scale.set(p.r * S, 2.2, p.r * S);
+        m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
+      }
+      for (const p of w.stones) {
+        const m = new THREE.Mesh(stoneGeo, stoneMat); m.position.set(p.x * S, FLOOR + STONE_H / 2, p.y * S); m.scale.set(p.r * S, STONE_H, p.r * S);
+        m.rotation.y = ((p.x * 7 + p.y * 13) % 6) * 0.5;
         m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
       }
     }
