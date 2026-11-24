@@ -1249,7 +1249,8 @@ Flue tier 11, heroes-r2 hero-t8-0, each version forced:
 From tier 8 (`ECHO.minTier`), the Kiln Mother's last phase also borrows the signature of one version this run didn't roll. A Draw run can now end with Turning Fire in the mix, so the same version can end two ways.
 
 - **The pick:** `rollEcho` hashes the seed (no run-rng draws) over the versions other than the rolled one. There's no echo below tier 8, on the first delve (always tier 1), or in stress runs.
-- **The timer:** in phase 3 her signatures alternate, her own and then the echo's. She casts one every 12 s in phase 3, so the echo comes every 24 s. Phase 2 never echoes.
+- **The timer:** in phase 3 her signatures alternate, the echo's first and then her own (it was her own first until QA's #658). She casts one every 12 s in phase 3, so the echo comes every 24 s. Phase 2 never echoes.
+- **Echo first (24 Nov, QA #658):** with tier 8 gear her last phase often lasts only about 25 s, so with her own signature first only about half the wins ever heard the echo. Solo Kiln t8, heroes-r2 hero-t8-0, seeds 1 to 80, as wins (wins that heard the echo), before → after, with echoes off for comparison: Bulwark 49 (14) → 48 (42), off 48; Duskblade 35 (10) → 37 (32), off 36; Emberwright 43 (21) → 44 (41), off 44; Lumen 57 (45) → 56 (56), off 58; Slagbinder 46 (25) → 48 (45), off 46. Wins that heard it went 115 of 230 → 216 of 233, and every class stays within 2 wins of echoes off.
 - New event `{type:'echo', id}` when she casts the echo, followed by the echo's own cast events. The cue is a placeholder (`return null`) until sound adds one.
 - **Client:** the phase-3 banner reads "She casts faster, and echoes Turning Fire" (or whichever echo it is, from `BOSS_VERSION_NAME`).
 - **Tools:** `ECHO=off` turns echoes off, and `ECHO=<id>` forces one (if it isn't the rolled version), in tools/foundry.ts and tools/group.ts.
