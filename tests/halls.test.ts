@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { DOOR_ROOM, HALLS, buildHalls, clampHalls, hallsWay, inside, roomAt, roomPath } from '../sim/halls';
+import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampHalls, hallsWay, inside, roomAt, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 
 const idle = { x: 0, y: 0 };
+/** A spec coordinate at the template's scale. */
+const K = (v: number) => v * KILN_SCALE;
 const halls = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => new World({ seed, tier: 2, halls: true, ...more });
 const pack = (w: World, role: string) => w.halls!.packs.find((p) => p.role === role)!;
 /** Puts the hero at (x, y) as if they walked there. */
@@ -47,7 +49,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(d.bags).toBe(2);
       expect(m.mirror).toBe((seed & 1) === 1);
       expect(m.rooms[1].x).toBe(0);
-      expect(m.rooms[2].x).toBe(m.mirror ? 850 : -850);
+      expect(m.rooms[2].x).toBe(m.mirror ? K(850) : K(-850));
       // Asleep: nothing is in the world's enemy list until a pack wakes.
       expect(w.aliveEnemies).toBe(0);
       expect(m.packs.every((p) => p.state === 'asleep')).toBe(true);
@@ -62,14 +64,14 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   it('keeps heroes and foes inside the rooms and corridors', () => {
     const m = buildHalls(2, ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[], 'kiln', () => 0, () => false);
     // Between R1 and R3 off the corridor: pulled back in.
-    const o = { x: 300, y: -1350 };
+    const o = { x: K(300), y: K(-1350) };
     expect(inside(m, o.x, o.y, 14)).toBe(false);
     clampHalls(m, o, 14);
     expect(inside(m, o.x, o.y, 13.9)).toBe(true);
     // Inside already: untouched.
-    const q = { x: 10, y: -900 };
+    const q = { x: 10, y: K(-900) };
     clampHalls(m, q, 14);
-    expect(q).toEqual({ x: 10, y: -900 });
+    expect(q).toEqual({ x: 10, y: K(-900) });
     // The hero can't walk out of R0 at all.
     const w = halls(2);
     run(w, () => false, 4, () => ({ x: 1, y: 0.2 }));
@@ -83,9 +85,10 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     const wp = hallsWay(m, m.rooms[2].x, m.rooms[2].y, m.rooms[5].x, m.rooms[5].y);
     expect(Math.hypot(wp.x - m.rooms[1].x, wp.y - m.rooms[1].y)).toBeLessThan(Math.hypot(m.rooms[2].x - m.rooms[1].x, m.rooms[2].y - m.rooms[1].y));
     // In the same room, straight at it.
-    expect(hallsWay(m, 0, -900, 100, -1000)).toEqual({ x: 100, y: -1000 });
+    expect(hallsWay(m, 0, K(-900), 100, K(-1000))).toEqual({ x: 100, y: K(-1000) });
     // A walker in the R1-R2 corridor heading for R3 goes back to R1 (the stuck-bot case, seed 4).
-    expect(hallsWay(m, -385, -1255, 0, -1800)).toEqual({ x: m.rooms[1].x, y: m.rooms[1].y });
+    const mid = { x: (m.rooms[1].x + m.rooms[2].x) / 2, y: (m.rooms[1].y + m.rooms[2].y) / 2 };
+    expect(hallsWay(m, mid.x, mid.y, m.rooms[3].x, m.rooms[3].y)).toEqual({ x: m.rooms[1].x, y: m.rooms[1].y });
   });
 
   it('wakes a pack when a hero steps into its ring, spawning its foes where they stood', () => {
@@ -123,10 +126,10 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   it('keeps the boss door shut until the door guard falls, then moves the party into today\'s Kiln arena', () => {
     const w = halls(2);
     const m = w.halls!;
-    // E stands in the doorway: its ring spans the corridor, so the way to the door goes through it.
+    // E stands in the doorway: its ring spans the corridor where it leaves R5, so the way to the door goes through it.
     const e = pack(w, 'E');
-    expect(HALLS.reach).toBeGreaterThan(HALLS.corridor / 2);
-    expect(Math.abs(m.door.y - e.y)).toBeLessThan(HALLS.reach + HALLS.door);
+    const north = m.rooms[5].y - m.rooms[5].r;
+    for (const x of [-HALLS.corridor / 2, 0, HALLS.corridor / 2]) expect(Math.hypot(x - e.x, north - e.y)).toBeLessThan(HALLS.reach);
     put(w, m.door.x, m.door.y);
     w.step(idle);
     // At the door with the guard still asleep: nothing happens.
