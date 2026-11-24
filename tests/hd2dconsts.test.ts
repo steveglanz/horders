@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALLAST, DIMHORN, LAMPEYE, OVERFLOW } from '../sim/world';
 import { SIM } from '../client/hd2d/simconsts';
+import { DOOR_ROOM, HALLS } from '../sim/halls';
 
 // The 3D renderer copies these instead of importing sim/world.ts (bundle size, see client/hd2d/simconsts.ts).
 describe('3D view sim constants', () => {
@@ -10,5 +11,9 @@ describe('3D view sim constants', () => {
     expect(SIM.dimhornCall).toBe(DIMHORN.callAt);
     expect(SIM.overflowSafeR).toBe(OVERFLOW.safeR);
     expect(SIM.overflowWarn).toBe(OVERFLOW.warn);
+    expect(SIM.hallsCorridor).toBe(HALLS.corridor);
+    expect(SIM.hallsReach).toBe(HALLS.reach);
+    expect(SIM.hallsShowRing).toBe(HALLS.showRing);
+    expect(SIM.hallsDoorRoom).toBe(DOOR_ROOM);
   });
 });
