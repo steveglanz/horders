@@ -7,6 +7,7 @@
 import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
+import { hallsReport, hallsSeed, hallsTick } from './hallsmeasure';
 import { readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import type { Item } from '../sim/content/items';
@@ -53,7 +54,7 @@ const seeds = (process.env.SEEDS ?? Array.from({ length: 24 }, (_, i) => i + 1).
 let wins = 0, bossTime = 0, bossFights = 0;
 const fightHurts: number[] = [];
 for (const seed of seeds) {
-  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: toolOmens(Number(process.env.TIER ?? 1), seed), cls: (process.env.CLS as 'emberwright') ?? 'emberwright' });
+  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln') ?? 'foundry', tier: Number(process.env.TIER ?? 1), omens: toolOmens(Number(process.env.TIER ?? 1), seed), cls: (process.env.CLS as 'emberwright') ?? 'emberwright', halls: process.env.HALLS === '1' });
   // Phase 16 U2: FIGHT=<encounter id> makes it the first fight of every run (the run is still in its intro), so a new fight compares with another on the same seeds.
   if (process.env.FIGHT) w.route[0] = process.env.FIGHT as never;
   // BOSSV=turning (any boss version id) forces this run's boss version, so versions compare on the same seeds.
@@ -68,6 +69,7 @@ for (const seed of seeds) {
     if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
     const before = w.temper;
     w.step(botInput(w, Number(process.env.SKILL ?? 1)));
+    hallsTick(w);
     if (w.bossSpawned && !bossAt) bossAt = w.time;
     if (w.bossSpawned) { bossTicks++; temperTicks += w.temper; maxTemper = Math.max(maxTemper, w.temper); if (before > 0 && w.temper === 0) bump('boil'); }
     for (const ev of w.events) {
@@ -90,7 +92,9 @@ for (const seed of seeds) {
   if (s.victory) wins++;
   if (bossAt) { bossFights++; bossTime += s.time - bossAt; }
   console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} avgTemper=${bossTicks ? (temperTicks / bossTicks).toFixed(1) : '-'} maxTemper=${maxTemper} arena=${Math.round(w.arenaR)} ${JSON.stringify(c)}`);
+  hallsSeed(w, s.victory);
 }
+hallsReport();
 // STIRHURT=1: share of health lost per trash fight after the opener (Phase 15 Y10's clean / rough bars), as percentiles.
 if (process.env.STIRHURT === '1' && fightHurts.length) {
   const q = [...fightHurts].sort((x, y) => x - y);
