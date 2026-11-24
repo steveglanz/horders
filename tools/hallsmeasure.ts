@@ -6,6 +6,7 @@
  *   HALLS=1 DUNGEON=kiln TIER=2 npx tsx tools/balance.ts
  *   HALLS=1 HALLS_SIDE=1 DUNGEON=kiln TIER=3 npx tsx tools/foundry.ts   (bots clear the side rooms too)
  *   HALLS=1 HALLS_SKIP=1 ...                                             (bots walk round C, the named fight)
+ *   HALLS=1 HALLS_RINGS=1 ...                                            (bots keep clear of sleeping packs in fights)
  */
 import { TICK, World } from '../sim/world';
 

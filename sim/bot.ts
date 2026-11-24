@@ -953,6 +953,24 @@ export function botInput(w: World, skill = 1): Input {
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
   }
+  // Halls, HALLS_RINGS=1 (measuring only, off by default): in a fight, keep clear of other sleeping packs, as of lava (a
+  // player sees a ring from 400 away). It halves double pulls (Kiln t2 Emberwright average bot, seeds 1-300: 130 -> 67
+  // runs with one) but doesn't add wins (79 -> 71 of 300, noise), so it stays a switch until design rules on it.
+  if (w.hallsOn && process.env.HALLS_RINGS === '1') {
+    for (const pk of w.halls!.packs) {
+      if (pk.state !== 'asleep') continue;
+      const dx = p.x - pk.x, dy = p.y - pk.y, d = Math.hypot(dx, dy) || 1;
+      const edge = HALLS.ringKeep;
+      if (d >= edge) continue;
+      // A wall it slides along: drop the part of its move toward the pack, then push out, growing to full 120 inside.
+      const ux = dx / d, uy = dy / d;
+      const inward = -(fx * ux + fy * uy);
+      if (inward > 0) { fx += ux * inward; fy += uy * inward; }
+      const k = Math.min(1, (edge - d) / 120) * Math.max(0.3, Math.hypot(fx, fy));
+      fx += ux * k;
+      fy += uy * k;
+    }
+  }
   // Site cards have no movement rules: pulling a Bulwark to a stone (Back to Stone) cost 23 of 80
   // Coldmarrow runs that took it, and a Slagbinder staying in lava (Slag Wade) 10 of 45 Kiln runs.
   // The Coldmarrow: a ranged hero brings a Frost Warden inside its coal's light to crack it.

@@ -26,6 +26,11 @@ export const HALLS = {
   lead: 120,
   /** A room's rolled lava is cooled crust until its pack wakes, then heats to burning over this long (s). */
   lavaHeat: 1,
+  /**
+   * Bots in a fight keep this far from another sleeping pack's centre: past `pull`, so the foes chasing them don't
+   * wake it (that, not the hero stepping in its ring, was most double pulls).
+   */
+  ringKeep: 400,
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
 };
