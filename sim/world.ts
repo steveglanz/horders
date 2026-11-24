@@ -9223,9 +9223,11 @@ export const OSKEL = {
    * Downstroke: one soak circle `downDist` from Oskel. Everyone under it who wasn't Pressed
    * becomes Pressed for `pressed` s; a Pressed hero under it takes `crush` of max health and
    * doesn't count. `pressed` is longer than `downEvery`, so nobody takes two in a row.
-   * A missed one hits every hero for `downMiss` (and spawns adds, like any missed soak).
+   * A missed one hits every hero for `downMiss` (and spawns adds, like any missed soak). 24 Nov 2026: 70 -> 50. With average
+   * mistakes a party missed a quarter of its Downstrokes (one forgotten taker is a miss), at about 40% of everyone's health
+   * each, and the base party won 41 / 20 of 80 at t10 / t11 against 80 / 77 at full skill (skills; docs/design/variety.md).
    */
-  downEvery: 13, downEnraged: 8, downFuse: 4, downDist: 200, downRadius: 60, downMiss: 70, firstDown: 7,
+  downEvery: 13, downEnraged: 8, downFuse: 4, downDist: 200, downRadius: 60, downMiss: 50, firstDown: 7,
   pressed: 20, crush: 0.5,
   /** Rivets: a ring under every hero; step out. */
   rivetEvery: 9, rivetFuse: 1.6, rivetRadius: 60, rivet: 30, firstRivets: 4,
