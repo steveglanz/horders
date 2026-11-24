@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { World, ONDREL } from '../sim/world';
+import { World, ONDREL, RAID_LOOT } from '../sim/world';
 import { DUNGEONS, BOUNTY_DUNGEON_IDS, partyBlocker, partyLabel } from '../sim/content/dungeon';
 import { bountyFor } from '../sim/content/bounty';
 import { applyRun, newHero } from '../sim/hero';
@@ -108,6 +108,18 @@ describe('group loot (G5)', () => {
       for (let k = 0; k < 3; k++) expect(w.heroData(k).runDrops.length).toBe(each);
       const all = [0, 1, 2].flatMap((k) => w.heroData(k).runDrops);
       expect(all.every((it) => ['rare', 'epic', 'mythic'].includes(it.rarity))).toBe(true);
+    }
+  });
+  it('a raid boss gives every hero an Epic and RAID_LOOT.extra more Rare-or-better items (design, 24 Nov)', () => {
+    const w = new World({ seed: 9, dungeon: 'flue', tier: 9, omens: [], cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }, { cls: 'emberwright' }] });
+    const inner = w as unknown as Kill;
+    const b = inner.spawn('regent', 0, 0);
+    inner.killEnemy(b);
+    for (let k = 0; k < 4; k++) {
+      const d = w.heroData(k).runDrops;
+      expect(d.length).toBe(2 + RAID_LOOT.extra);
+      expect(['epic', 'mythic']).toContain(d[0].rarity);
+      expect(d.every((it) => ['rare', 'epic', 'mythic'].includes(it.rarity))).toBe(true);
     }
   });
 });
