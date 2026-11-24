@@ -24,6 +24,9 @@ describe('playtest: the loss screen says what hurt you most', () => {
   });
 
   it('says nothing when nothing was recorded (an older guest snapshot, or no hits)', () => {
+    // A name with its own bracket takes the share inside it; a sole cause gets no "(100%)".
+    expect(hurtRecap({ hurtBy: { 'Burnout (the fight ran too long)': 60, Cinderhound: 40 } })).toBe('Hurt most by Burnout (the fight ran too long, 60%) and Cinderhound (40%).');
+    expect(hurtRecap({ hurtBy: { 'Burnout (the fight ran too long)': 30 } })).toBe('Hurt only by Burnout (the fight ran too long).');
     expect(hurtRecap({})).toBe('');
     expect(hurtRecap({ hurtBy: {} })).toBe('');
   });
@@ -39,7 +42,7 @@ describe('playtest: the loss screen says what hurt you most', () => {
       expect(lost).toBeGreaterThan(0);
       expect(Object.keys(by)).not.toContain('the dungeon');
       expect(w.player.lastHurtBy).toBeTruthy();
-      expect(hurtRecap(w.player)).toMatch(/^Hurt most by /);
+      expect(hurtRecap(w.player)).toMatch(/^Hurt (most|only) by /);
     }
     expect(losses).toBeGreaterThan(0);
   });
@@ -60,6 +63,6 @@ describe('playtest: the loss screen says what hurt you most', () => {
     const guest = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2 });
     applySnapshot(guest, JSON.parse(JSON.stringify(snapshot(host))), 1);
     expect(guest.player.hurtBy).toEqual({ Cinderhound: 42 });
-    expect(hurtRecap(guest.player)).toBe('Hurt most by Cinderhound (100%).');
+    expect(hurtRecap(guest.player)).toBe('Hurt only by Cinderhound.');
   });
 });

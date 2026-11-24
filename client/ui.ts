@@ -896,7 +896,8 @@ export class Hud {
     }
     $('end').classList.toggle('win', s.victory);
     $('end').classList.toggle('loss', !s.victory);
-    $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
+    // The Tide is the Foundry's rising water; anywhere else a loss is plainly a fall (QA playtest, 23 Nov).
+    $('endTitle').textContent = s.victory ? 'Victory' : w.dungeonId === 'foundry' ? 'The Tide took you' : 'You fell';
     $('endSub').textContent = s.victory
       ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
       : w.bossSpawned
