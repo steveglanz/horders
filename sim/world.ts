@@ -5967,11 +5967,13 @@ export class World {
       // Every hero in the party gets their own boss item (not only whoever landed the
       // killing blow). Group dungeons add a second Rare-or-better item each, but only
       // for a real party: a bot-filled run pays like a solo one.
-      const min: Rarity = this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER ? 'epic' : 'rare';
+      const raid = !!this.dungeonDef.raid;
+      const min: Rarity = (this.firstClear && this.tier >= FIRST_CLEAR_EPIC_TIER) || (raid && RAID_LOOT.epic) ? 'epic' : 'rare';
       const group = this.dungeonDef.style === 'group' && this.fillBots === 0;
       const give = () => {
         this.pickUp(this.withSet(this.makeItem(min)));
         if (group) this.pickUp(this.makeItem('rare'));
+        if (raid) for (let k = 0; k < RAID_LOOT.extra; k++) this.pickUp(this.makeItem('rare'));
       };
       if (this.heroes.length === 1) give();
       else {
@@ -8530,6 +8532,12 @@ export const VEIN_TIME = 1.2;
 export const QUENCH_RANGE = 520;
 /** First tier whose first clear guarantees an Epic from the boss. */
 export const FIRST_CLEAR_EPIC_TIER = 2;
+/**
+ * Raid boss loot (design, 24 Nov): a raid boss fight runs 140-340 s against 40-90 s in a group dungeon, so with the
+ * same two boss items a raid paid about half the Rare-or-better items a minute. `epic` makes every hero's boss item
+ * an Epic; `extra` adds that many more Rare-or-better items each.
+ */
+export const RAID_LOOT = { epic: 1, extra: 1 };
 
 /** The Glarewell's tuning, kept together so balance changes are data changes. */
 export const GLARE = {
@@ -9157,8 +9165,11 @@ export const REGENT = {
    * Ash Fall (phase 2): a circle under every hero. Until 22 Nov 2026 its 70 was scaled by tier twice (once when
    * cast, again when it lands); the Flue was tuned that way at its tier 11, so ashDamage keeps that hit there
    * (70 x 1.12^10, about 217 before tier) and now scales once, like every other telegraph, at other tiers.
+   * 24 Nov 2026: halved to 35 x 1.12^10 (about 109). At 217 one circle landed for 145-180% of max health at t11, so a
+   * single forgotten circle killed any hero, tank included; with average mistakes Ash Fall and Summons won 31 and 17
+   * of 80 against Tithe's 80. At 109 a hit is 73-90% of max health and they win 58 and 48 (skills; docs/design/variety.md).
    */
-  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70 * Math.pow(1.12, 10),
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 35 * Math.pow(1.12, 10),
   /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
   officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
   hardEnrage: 480, lastWordCast: 5,
@@ -9212,9 +9223,11 @@ export const OSKEL = {
    * Downstroke: one soak circle `downDist` from Oskel. Everyone under it who wasn't Pressed
    * becomes Pressed for `pressed` s; a Pressed hero under it takes `crush` of max health and
    * doesn't count. `pressed` is longer than `downEvery`, so nobody takes two in a row.
-   * A missed one hits every hero for `downMiss` (and spawns adds, like any missed soak).
+   * A missed one hits every hero for `downMiss` (and spawns adds, like any missed soak). 24 Nov 2026: 70 -> 50. With average
+   * mistakes a party missed a quarter of its Downstrokes (one forgotten taker is a miss), at about 40% of everyone's health
+   * each, and the base party won 41 / 20 of 80 at t10 / t11 against 80 / 77 at full skill (skills; docs/design/variety.md).
    */
-  downEvery: 13, downEnraged: 8, downFuse: 4, downDist: 200, downRadius: 60, downMiss: 70, firstDown: 7,
+  downEvery: 13, downEnraged: 8, downFuse: 4, downDist: 200, downRadius: 60, downMiss: 50, firstDown: 7,
   pressed: 20, crush: 0.5,
   /** Rivets: a ring under every hero; step out. */
   rivetEvery: 9, rivetFuse: 1.6, rivetRadius: 60, rivet: 30, firstRivets: 4,

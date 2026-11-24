@@ -1615,3 +1615,99 @@ Solo, Kiln t8 Duskblade, seeds 1 to 80: full 35, lag 0.15 s 2 (68 lost in trash)
 - So laggedBot numbers for melee and for group mechanics are a pessimistic bound, not a measurement. That covers QA's average report, the `LAG=0.3` novice reference, and the career sims. No tuning should come from them until the proxy is fixed.
 - One model that behaves: delay what the bot notices (new telegraphs here; casts and foes could follow), but steer from where the hero is now. That's `REACT` in my measuring copy. QA or engineering owns the proxy.
 - Grit Guard (#630) stays, because it only acts after real losses.
+
+## Expert-report follow-up: the Pressworks farm, raid pay and the Flue echo (24 Nov)
+
+QA's expert report measured without Omens and with full-skill bots. These are re-measured with Omens (`OMENS=rotate`, 1 to 3 by tier) and the bot proxies from #639/#643. Party Bulwark, Lumen, Duskblade, Emberwright, level 20, every passive at 10, an Epic in every slot (`ILVL` below), 12 seeds at t13 and 20 at t11. "Average" is reactBot REACT 0.3, forget 0.2, stepErr 0.5, QA's average-player mistake levels, which are an estimate. The script is `/mnt/project-files/horders/design/tools/farm.ts` (copy it to `tools/pt/` to run); it counts the main hero's run drops plus the end chest, the way `applyRun` does.
+
+**Items a minute (wins):**
+
+| Dungeon | t13 ilvl 32, full skill | t13 ilvl 32, average | t11 ilvl 24, average | t10 ilvl 32, average |
+|---|---|---|---|---|
+| Pressworks | **2.00** (12/12) | **1.65** (7/12) | **2.07** (17/20) | 3.34 (12/12) |
+| Hammerdeep | 1.68 (4/12) | 1.47 (2/12) | - | 3.40 (12/12) |
+| Ashvents | 1.58 (5/12) | 1.47 (4/12) | - | 3.08 (12/12) |
+| Smeltery | 1.10 (11/12) | - | 1.35 (20/20) | - |
+| Flue | 1.18 (12/12) | - | 1.25 (13/20) | - |
+| Crucible | 0.88 (3/12) | - | - | - |
+| Hoard | 0.79 (6/12) | - | 1.21 (20/20) | - |
+
+- **The Pressworks lead is mostly its win rate.** At t13 full skill it wins every run while Hammerdeep and the Ashvents win a third. With average mistakes its lead over the other group dungeons drops from about 20% to 12%, and at t10, where every group dungeon wins every run, the three pay the same (3.1 to 3.4). Bots never miss a Downstroke turn, which is why Fill with bots is blocked there (#254), so the bots likely overstate how easy it is for people too. No change for now; re-check with real player data.
+- **The raids pay about half as much a minute as a group dungeon**, at every setting measured (0.8 to 1.4 against 1.5 to 2.1). A raid takes 6 to 9 minutes for 7 to 9 items; a group dungeon takes 5 to 6 minutes for 9 to 12. Raids also pay world boss credit and their sets, but for items alone the Pressworks beats every raid. This is a design question, not a bug; nothing changes until it is decided.
+- Items a minute fall with tier (t10 pays more a minute than t13) because runs are faster, but t13 drops are 3 item levels higher with more luck (`World.luck`, +12% a tier), so the count alone undersells the top tiers.
+
+**The Flue echo does matter; it cancels out in the average.** Turning echoes off barely changes the Flue (t11 average, 20 seeds: 13/20 both ways, the boss 262 s against 245 s). Forcing each version and echo (`BOSSV`, `ECHO`, same seeds) shows why:
+
+| His version | Echo off | Ash Fall echo | Summons echo | Tithe echo |
+|---|---|---|---|---|
+| Ash Fall | 9 | - | 9 (+19 s) | 12 |
+| Summons | 4 | 3 | - | 6 |
+| Tithe | 20 | 18 | 14 | - |
+
+A Summons echo costs a Tithe run 6 wins of 20, and a Tithe echo saves an Ash Fall run 3; the effects point opposite ways and the average hides them. QA's runs were at t13 with max gear, where every Flue version wins every time (full skill, t11 ilvl 24: Ash Fall 19/20, Summons 19/20, Tithe 20/20), so nothing could show there. No change to the echo.
+
+**New watch item: the Tithe version can't be failed by mistakes.** With average mistakes the Summons version wins 4 of 20, Ash Fall 9 and Tithe 20, against 19, 19 and 20 at full skill. Ash Fall puts a circle under every hero, so a hero who misses one telegraph pays for it; a Tithe only needs two heroes in one circle. In the Ash Fall and Summons versions the ash circles are 51-62% of the boss-fight damage (`DMG=1`). The version table above (#579) was measured with full-skill and half-skill bots, where they matched. Before tuning, check this with QA's casual and new-player levels and more seeds, since the mistake levels are an estimate.
+
+**Ash Fall halved (skills, 24 Nov).** Checked with more seeds on the skills team's heroes. Setup: tools/group.ts with reactBot drivers, heroes-r2 hero-t10-0, the base party, `ECHO=off`, each version forced. Average is QA's 0.3/0.2/0.5. Casual is 0.3/0.5/1.0, which is skills' assumption: QA's casual.md defines only a laggedBot persona, so these are the career-sim mistake levels. The watch item held. One ash circle landed for 145-180% of max health (150% on the Bulwark, 180% on the Emberwright), so any circle a hero forgot or misjudged killed them outright, tank included. Every Ash Fall and Summons death was an ash circle. The Lumen died most (19-21 per 40 seeds at average), then the Duskblade (11-15). Summons runs lose more because heroes cross each other's circles walking in to the throne. A Tithe can hardly be failed: average parties missed 16 of 348, casual 136 of 373. `REGENT.ashDamage` is now 35 × 1.12^10 (about 109, was 217), so a hit is 73-90% of max health: survivable from full, still dangerous when low.
+
+Base party, wins of 80, seeds 41 to 120 (Ash Fall / Summons / Tithe):
+
+| Skill | Before | After |
+|---|---|---|
+| Full | 75 / 75 / 80 | 78 / 75 / 80 |
+| Average | 31 / 17 / 80 | 58 / 48 / 80 |
+| Casual (assumed levels) | 0 / 0 / 57 | 3 / 0 / 57 |
+
+Every party at full skill, same seeds (Ash Fall / Summons):
+
+| Party | Before | After |
+|---|---|---|
+| Base | 75 / 75 | 78 / 75 |
+| Anvil | 69 / 62 | 75 / 68 |
+| Bellows | 70 / 71 | 75 / 73 |
+| Two Duskblades | 72 / 63 | 75 / 66 |
+| Two Emberwrights | 72 / 72 | 74 / 75 |
+
+The Anvil gains 6, catching up to the other parties rather than passing them, which design accepted. Tried on seeds 1 to 40 and dropped: a 2.0 s cast (average Ash Fall 12 to 23, but Summons stayed at 8, and full-skill Ash Fall rose from 32 to 39), and ashDamage 130 (average 24 / 15, against 27 / 14 at 109). Known limit: at the casual level, Ash Fall and Summons still win almost nothing at tier 11. Design accepts that for a tier-11 raid for now.
+
+### Group dungeons at average skill, and the Pressworks' missed Downstroke (skills, 24 Nov)
+
+The playtest said group dungeons are a wall for average players. Each one was re-measured at its unlock tier and the next. Setup: tools/group.ts with reactBot drivers (skills' tools/pt/groupr.ts, uncommitted); heroes-r2 hero-t4-0 for the Hammerdeep, t6-0 / t8-0 for the Ashvents at t7 / t8, t10-0 for the Pressworks; `OMENS=client`; seeds 1 to 80. Average is QA's 0.3 / 0.2 / 0.5. Wins of 80, full skill then average:
+
+| Dungeon | Tier | Base party | No healer (Bulwark, Duskblade, 2 Emberwrights) |
+|---|---|---|---|
+| Hammerdeep | 4 | 80 / 80 | 69 / 61 |
+| Hammerdeep | 5 | 80 / 77 | 25 / 21 |
+| Ashvents | 7 | 52 / 33 | 1 / 6 |
+| Ashvents | 8 | 37 / 36 | 7 / 7 |
+| Pressworks | 10 | 80 / 41 | 34 / 11 |
+| Pressworks | 11 | 77 / 20 | 6 / 6 |
+
+Every loss in all three dungeons came at the boss. Only the Pressworks falls off with mistakes. The nearest hero who isn't Pressed takes each Downstroke, so when that hero forgets it, the Downstroke is missed and hits every hero, about 40% of max health at t10. Base-party misses went from 27 of 736 at full skill to 174 of 685 at average. Missed Downstrokes were the largest damage on every non-tank, and Oskel's Stamp on a worn-down tank was the usual first death. In the Ashvents, Ysmeret's hits do the killing at full skill as much as at average, so the Ashvents' base t8 at 37 of 80 at full skill is a band question for later, not a mistakes one.
+
+**`OSKEL.downMiss` 70 → 50 (shipped).** Pressworks, wins of 80:
+
+| Party, skill | downMiss 70 | 50 (shipped) | 35 |
+|---|---|---|---|
+| Base, average, t10 / t11 | 41 / 20 | 61 / 29 | 67 / 42 |
+| Base, full, t10 / t11 | 80 / 77 | 80 / 79 | 80 / 80 |
+| No healer, full, t10 / t11 | 34 / 6 | 40 / 7 | 45 / 7 |
+| No healer, average, t10 | 11 | 13 | 16 |
+
+Design picked 50, not 35, for two reasons. The bot gives each Downstroke to exactly one hero and nobody covers when that hero forgets; real players can, so the bot overstates the average gap. And 35 would push the no-healer party at full skill to 56%. At 50 it is 40 of 80 (50%), still over the 25% bar for a party missing a role, as it was before this change (34, 42%).
+
+### Raid boss loot: an Epic and one more Rare for every hero (design, 24 Nov)
+
+Re-measured with this week's Omens (`OMENS=client`) and QA's average mistakes (REACT 0.3, forget 0.2, stepErr 0.5), the same party as above with Epic ilvl 24 gear, 20 seeds. Value is salvage embers a minute (`RARITY.salvage`: Rare 8, Epic 20), so an Epic counts for more than a Rare.
+
+| Dungeon | t9 salvage/min | t9 Epic+/min | t11 salvage/min | t11 Epic+/min | t11 wins |
+|---|---|---|---|---|---|
+| Hammerdeep | 19.7 | 0.08 | 9.3 | 0.00 | 8/20 |
+| Ashvents | 17.9 | 0.11 | 8.8 | 0.05 | 7/20 |
+| Pressworks | 18.0 | 0.07 | 9.7 | 0.05 | 12/20 |
+| Raids before (Crucible, Hoard, Smeltery, Flue) | 8.3-10.8 | 0.03-0.11 | 4.8-6.1 | 0.01-0.03 | 13-20/20 |
+| Raids, boss item an Epic | 10.4-13.6 | 0.21-0.33 | 5.9-7.4 | 0.11-0.15 | same |
+| Raids, 2 extra Rares | 11.6-15.0 | 0.04-0.14 | 6.3-8.1 | 0.01-0.04 | same |
+| **Raids, Epic and 1 extra Rare (shipped)** | **12.1-15.5** | **0.22-0.33** | **6.8-8.5** | **0.12-0.16** | same |
+
+A raid boss fight runs 140-340 s against 40-90 s in a group dungeon, and both paid the same two boss items, so a raid paid about half as much a minute. The raids were never the farm (fill with bots is blocked there, #254). Now `RAID_LOOT = { epic: 1, extra: 1 }` (sim/world.ts): a raid win gives every hero an Epic as their boss item (a set piece where the slot fits, as before) and one more Rare-or-better item. Raids now pay 70-90% of a group dungeon a minute and are where Epics come from (about 2-3 times the Epic rate of any group dungeon). Raids also pay world boss credit and their own sets, so they don't need full parity. Wins don't change: loot comes after the kill. With this week's Omens the Pressworks is no longer ahead of the other group dungeons at t11 (9.7 against 8.8-9.3).
