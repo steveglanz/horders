@@ -1615,3 +1615,35 @@ Solo, Kiln t8 Duskblade, seeds 1 to 80: full 35, lag 0.15 s 2 (68 lost in trash)
 - So laggedBot numbers for melee and for group mechanics are a pessimistic bound, not a measurement. That covers QA's average report, the `LAG=0.3` novice reference, and the career sims. No tuning should come from them until the proxy is fixed.
 - One model that behaves: delay what the bot notices (new telegraphs here; casts and foes could follow), but steer from where the hero is now. That's `REACT` in my measuring copy. QA or engineering owns the proxy.
 - Grit Guard (#630) stays, because it only acts after real losses.
+
+## Expert-report follow-up: the Pressworks farm, raid pay and the Flue echo (24 Nov)
+
+QA's expert report measured without Omens and with full-skill bots. These are re-measured with Omens (`OMENS=rotate`, 1 to 3 by tier) and the bot proxies from #639/#643. Party Bulwark, Lumen, Duskblade, Emberwright, level 20, every passive at 10, an Epic in every slot (`ILVL` below), 12 seeds at t13 and 20 at t11. "Average" is reactBot REACT 0.3, forget 0.2, stepErr 0.5, QA's average-player mistake levels, which are an estimate. The script is `/mnt/project-files/horders/design/tools/farm.ts` (copy it to `tools/pt/` to run); it counts the main hero's run drops plus the end chest, the way `applyRun` does.
+
+**Items a minute (wins):**
+
+| Dungeon | t13 ilvl 32, full skill | t13 ilvl 32, average | t11 ilvl 24, average | t10 ilvl 32, average |
+|---|---|---|---|---|
+| Pressworks | **2.00** (12/12) | **1.65** (7/12) | **2.07** (17/20) | 3.34 (12/12) |
+| Hammerdeep | 1.68 (4/12) | 1.47 (2/12) | - | 3.40 (12/12) |
+| Ashvents | 1.58 (5/12) | 1.47 (4/12) | - | 3.08 (12/12) |
+| Smeltery | 1.10 (11/12) | - | 1.35 (20/20) | - |
+| Flue | 1.18 (12/12) | - | 1.25 (13/20) | - |
+| Crucible | 0.88 (3/12) | - | - | - |
+| Hoard | 0.79 (6/12) | - | 1.21 (20/20) | - |
+
+- **The Pressworks lead is mostly its win rate.** At t13 full skill it wins every run while Hammerdeep and the Ashvents win a third. With average mistakes its lead over the other group dungeons drops from about 20% to 12%, and at t10, where every group dungeon wins every run, the three pay the same (3.1 to 3.4). Bots never miss a Downstroke turn, which is why Fill with bots is blocked there (#254), so the bots likely overstate how easy it is for people too. No change for now; re-check with real player data.
+- **The raids pay about half as much a minute as a group dungeon**, at every setting measured (0.8 to 1.4 against 1.5 to 2.1). A raid takes 6 to 9 minutes for 7 to 9 items; a group dungeon takes 5 to 6 minutes for 9 to 12. Raids also pay world boss credit and their sets, but for items alone the Pressworks beats every raid. This is a design question, not a bug; nothing changes until it is decided.
+- Items a minute fall with tier (t10 pays more a minute than t13) because runs are faster, but t13 drops are 3 item levels higher with more luck (`World.luck`, +12% a tier), so the count alone undersells the top tiers.
+
+**The Flue echo does matter; it cancels out in the average.** Turning echoes off barely changes the Flue (t11 average, 20 seeds: 13/20 both ways, the boss 262 s against 245 s). Forcing each version and echo (`BOSSV`, `ECHO`, same seeds) shows why:
+
+| His version | Echo off | Ash Fall echo | Summons echo | Tithe echo |
+|---|---|---|---|---|
+| Ash Fall | 9 | - | 9 (+19 s) | 12 |
+| Summons | 4 | 3 | - | 6 |
+| Tithe | 20 | 18 | 14 | - |
+
+A Summons echo costs a Tithe run 6 wins of 20, and a Tithe echo saves an Ash Fall run 3; the effects point opposite ways and the average hides them. QA's runs were at t13 with max gear, where every Flue version wins every time (full skill, t11 ilvl 24: Ash Fall 19/20, Summons 19/20, Tithe 20/20), so nothing could show there. No change to the echo.
+
+**New watch item: the Tithe version can't be failed by mistakes.** With average mistakes the Summons version wins 4 of 20, Ash Fall 9 and Tithe 20, against 19, 19 and 20 at full skill. Ash Fall puts a circle under every hero, so a hero who misses one telegraph pays for it; a Tithe only needs two heroes in one circle. In the Ash Fall and Summons versions the ash circles are 51-62% of the boss-fight damage (`DMG=1`). The version table above (#579) was measured with full-skill and half-skill bots, where they matched. Before tuning, check this with QA's casual and new-player levels and more seeds, since the mistake levels are an estimate.

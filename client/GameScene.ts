@@ -1734,8 +1734,9 @@ export class GameScene extends Phaser.Scene {
           this.burst(ev.x, ev.y, 30);
           break;
         case 'end':
-          // A fallen boss gets its moment before the end screen covers it.
-          this.time.delayedCall(this.bossFell ? 1700 : 700, () => this.onEnd(this.world));
+          // A fallen boss gets its moment before the end screen covers it. Real time, not the scene clock: Phaser caps
+          // each frame's step, so on a slow frame rate (3.5 fps in QA's software-GPU 3D run) a 1.7 s game-clock wait took 40 s.
+          { const w = this.world; window.setTimeout(() => { if (this.world === w && this.sys.isActive()) this.onEnd(w); }, this.bossFell ? 1700 : 700); }
           break;
       }
     }
