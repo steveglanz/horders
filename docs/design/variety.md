@@ -1670,6 +1670,32 @@ Every party at full skill, same seeds (Ash Fall / Summons):
 
 The Anvil gains 6, catching up to the other parties rather than passing them, which design accepted. Tried on seeds 1 to 40 and dropped: a 2.0 s cast (average Ash Fall 12 to 23, but Summons stayed at 8, and full-skill Ash Fall rose from 32 to 39), and ashDamage 130 (average 24 / 15, against 27 / 14 at 109). Known limit: at the casual level, Ash Fall and Summons still win almost nothing at tier 11. Design accepts that for a tier-11 raid for now.
 
+### Group dungeons at average skill, and the Pressworks' missed Downstroke (skills, 24 Nov)
+
+The playtest said group dungeons are a wall for average players. Each one was re-measured at its unlock tier and the next. Setup: tools/group.ts with reactBot drivers (skills' tools/pt/groupr.ts, uncommitted); heroes-r2 hero-t4-0 for the Hammerdeep, t6-0 / t8-0 for the Ashvents at t7 / t8, t10-0 for the Pressworks; `OMENS=client`; seeds 1 to 80. Average is QA's 0.3 / 0.2 / 0.5. Wins of 80, full skill then average:
+
+| Dungeon | Tier | Base party | No healer (Bulwark, Duskblade, 2 Emberwrights) |
+|---|---|---|---|
+| Hammerdeep | 4 | 80 / 80 | 69 / 61 |
+| Hammerdeep | 5 | 80 / 77 | 25 / 21 |
+| Ashvents | 7 | 52 / 33 | 1 / 6 |
+| Ashvents | 8 | 37 / 36 | 7 / 7 |
+| Pressworks | 10 | 80 / 41 | 34 / 11 |
+| Pressworks | 11 | 77 / 20 | 6 / 6 |
+
+Every loss in all three dungeons came at the boss. Only the Pressworks falls off with mistakes. The nearest hero who isn't Pressed takes each Downstroke, so when that hero forgets it, the Downstroke is missed and hits every hero, about 40% of max health at t10. Base-party misses went from 27 of 736 at full skill to 174 of 685 at average. Missed Downstrokes were the largest damage on every non-tank, and Oskel's Stamp on a worn-down tank was the usual first death. In the Ashvents, Ysmeret's hits do the killing at full skill as much as at average, so the Ashvents' base t8 at 37 of 80 at full skill is a band question for later, not a mistakes one.
+
+**`OSKEL.downMiss` 70 → 50 (shipped).** Pressworks, wins of 80:
+
+| Party, skill | downMiss 70 | 50 (shipped) | 35 |
+|---|---|---|---|
+| Base, average, t10 / t11 | 41 / 20 | 61 / 29 | 67 / 42 |
+| Base, full, t10 / t11 | 80 / 77 | 80 / 79 | 80 / 80 |
+| No healer, full, t10 / t11 | 34 / 6 | 40 / 7 | 45 / 7 |
+| No healer, average, t10 | 11 | 13 | 16 |
+
+Design picked 50, not 35, for two reasons. The bot gives each Downstroke to exactly one hero and nobody covers when that hero forgets; real players can, so the bot overstates the average gap. And 35 would push the no-healer party at full skill to 56%. At 50 it is 40 of 80 (50%), still over the 25% bar for a party missing a role, as it was before this change (34, 42%).
+
 ### Raid boss loot: an Epic and one more Rare for every hero (design, 24 Nov)
 
 Re-measured with this week's Omens (`OMENS=client`) and QA's average mistakes (REACT 0.3, forget 0.2, stepErr 0.5), the same party as above with Epic ilvl 24 gear, 20 seeds. Value is salvage embers a minute (`RARITY.salvage`: Rare 8, Epic 20), so an Epic counts for more than a Rare.
