@@ -246,6 +246,11 @@ export class Hud {
     $('killsLabel').textContent = w.stress ? 'kills' : 'slain';
     let next = '';
     if (w.stress) next = 'Stress test';
+    else if (w.hallsOn && w.phase !== 'fight') {
+      // Phase 18 Halls H1: between fights on the map, the goal (the door guard is the one pack that can't be skipped).
+      const guard = w.halls!.packs.find((p) => p.guard);
+      next = guard && guard.state !== 'cleared' ? 'Find the door guard' : 'The boss door is open';
+    } else if (w.hallsOn) next = `Fight · ${w.halls!.packs.filter((p) => p.state === 'cleared').length} packs cleared`;
     else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
     else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} · ${Math.ceil(w.phaseT)}`; // a countdown, as "Choose a path · 6"
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
@@ -445,10 +450,20 @@ export class Hud {
 
   /** The dungeon route, like an MMO dungeon's boss list. */
   private updateQuests(w: World): void {
-    const key = `${w.encounter}:${w.phase}`;
+    const key = `${w.encounter}:${w.phase}${w.halls ? `:${w.halls.done}:${w.halls.packs.map((p) => p.state[1]).join('')}` : ''}`;
     if (key === this.questKey) return;
     this.questKey = key;
     if (w.stress) { $('quests').innerHTML = ''; return; }
+    if (w.hallsOn) {
+      // Phase 18 Halls H1: the map's packs in path order (a side room only once you've met it), then the boss.
+      const order = ['A', 'S', 'B', 'C', 'D', 'E'];
+      const packs = w.halls!.packs.filter((p) => p.main || p.state !== 'asleep').sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+      const row = (name: string, done: boolean, now: boolean, tip: string) => `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
+      $('quests').innerHTML = `<h3>${w.dungeonDef.name}</h3>`
+        + packs.map((p) => row(ENCOUNTERS[p.enc].name + (p.guard ? ' (door guard)' : ''), p.state === 'cleared', p.state === 'awake', ENCOUNTERS[p.enc].tip)).join('')
+        + row(ENCOUNTERS[w.dungeonDef.boss].name, false, false, '');
+      return;
+    }
     $('quests').innerHTML = `<h3>${w.dungeonDef.name}</h3>` + w.route.map((id, i) => {
       const def = ENCOUNTERS[id];
       const done = i < w.encounter;

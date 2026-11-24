@@ -8,6 +8,7 @@ import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { HallsView } from './hallsview';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -355,6 +356,8 @@ export class GameScene extends Phaser.Scene {
   /** Camera focus offset in world y (see bossInView): 0 except when it slides to keep a boss clear of the bottom HUD. */
   private focusY = 0;
   private focusX = 0;
+  /** Phase 18 Halls H1: the map's floor, sleepers, camera rule, corner map and arrow (client/hallsview.ts). */
+  private halls: HallsView | null = null;
   private homeLast = 0;
   private whirlGfx: Phaser.GameObjects.Graphics | null = null;
   private whirlFlip = 0;
@@ -405,6 +408,12 @@ export class GameScene extends Phaser.Scene {
   /** Juice: a brief zoom-in on big moments (fraction of the base zoom), and the zoom it returns to. */
   private punch = 0;
   private baseZoom = 1;
+  /** The Halls zoom the ground was last sized for (layout sizes it for 1). */
+  private groundK = 1;
+  /** Today's view across the short side, in world units (viewFor). */
+  private viewUnits = 500;
+  /** The game canvas's CSS box, re-read every half second (the Halls arrow places itself with it). */
+  private canvasBox = { at: -1e9, rect: new DOMRect() };
   /** Last crit hit-stop (scene ms), so a stream of crits doesn't stutter the game. */
   private lastCritStop = 0;
   /** A full-screen flash after a boss falls (colour and strength, 0 to 1). */
@@ -571,6 +580,12 @@ export class GameScene extends Phaser.Scene {
     w.veins.forEach(() => this.veinSprites.push(this.add.image(0, 0, 'vein').setVisible(false).setDepth(1.5)));
     this.gfx = this.add.graphics().setDepth(2);
     this.overFx = this.add.graphics().setDepth(8.6);
+    // Phase 18 Halls H1: the Kiln as a map. The ground outside the rooms goes dark (the walls), and the map layer draws the rest.
+    this.halls = null;
+    if (w.halls) {
+      this.halls = new HallsView(this, w, (kind) => this.enemyTex({ kind } as Enemy, 0), BASE);
+      this.ground.setAlpha(0.3);
+    }
     this.coalLights = [];
     this.laceShown = false;
     // The Coldmarrow: Hearthcoal light is added onto the floor, under every sprite.
@@ -669,6 +684,8 @@ export class GameScene extends Phaser.Scene {
 
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => {
+      this.halls?.destroy();
+      this.halls = null;
       this.hd2d?.destroy();
       this.hd2d = null;
       this.bridgeStop();
@@ -694,7 +711,8 @@ export class GameScene extends Phaser.Scene {
           heroName: (i) => this.world.heroes[i]?.name ?? '',
           floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
           echoAt: () => this.echoAt,
-          focus: () => ({ x: this.focusX, y: this.focusY }),
+          focus: () => ({ x: this.focusX + (this.halls?.leadX ?? 0), y: this.focusY + (this.halls?.leadY ?? 0) }),
+          zoom: () => this.halls?.zoomK ?? 1,
         }, { fx: hd2dFx(), saver: display.graphics === 'saver' });
         this.cameras.main.setVisible(false);
         this.bridgeStart();
@@ -721,6 +739,8 @@ export class GameScene extends Phaser.Scene {
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
     this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
+    // Halls H1: no fight starts the run, so the map says what to do.
+    if (w.halls) this.hud.banner('The Kiln Depths', this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
   }
 
   /**
@@ -801,10 +821,12 @@ export class GameScene extends Phaser.Scene {
     const dpr = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dpr')) || 1;
     const zoom = short / viewFor(short / dpr);
     this.baseZoom = zoom;
+    this.viewUnits = viewFor(short / dpr);
     this.cameras.main.setZoom(zoom);
     // Scroll-factor-0 objects still scale with zoom around the screen centre,
     // so size the ground in world units and centre it.
     this.ground.setPosition(width / 2, height / 2).setSize(width / zoom + 4, height / zoom + 4);
+    this.groundK = 1;
     // Phones see the world zoomed out (a 500-unit view on a ~375px screen), which shrank
     // nameplates and combat text to 9-10px. Grow world text back to at least its design size.
     // The Large text setting (L3) grows it again on top.
@@ -1699,6 +1721,16 @@ export class GameScene extends Phaser.Scene {
         case 'fork':
           this.hud.banner('Choose your path', 'Walk into a gate. The steady fight is taken if you wait.');
           break;
+        case 'hallsWake': {
+          // A shrine has no fight (no encounterStart), so its wake names it.
+          const pk = w.halls?.packs[ev.pack];
+          if (pk?.enc === 'shrine') this.hud.banner(ENCOUNTERS.shrine.name, ENCOUNTERS.shrine.tip);
+          break;
+        }
+        case 'hallsDoor':
+          this.halls?.door();
+          this.ground.setAlpha(1);
+          break;
         case 'gateChosen':
           if (ev.kind === 'named') this.hud.ding('Named path!');
           break;
@@ -1790,11 +1822,19 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     let sx = 0;
     let sy = 0;
+    // Halls: the map's camera rule zooms out to fit a room (1 = today's view).
+    const mapK = this.halls?.zoomK ?? 1;
+    const z0 = this.baseZoom / mapK;
     if (this.punch > 0) {
       this.punch = Math.max(0, this.punch - dt * 0.12);
       // The camera lean is part of the shake: only at Full.
-      cam.setZoom(this.baseZoom * (1 + (display.shake === 'full' ? this.punch : 0)));
-    } else if (cam.zoom !== this.baseZoom) cam.setZoom(this.baseZoom);
+      cam.setZoom(z0 * (1 + (display.shake === 'full' ? this.punch : 0)));
+    } else if (cam.zoom !== z0) cam.setZoom(z0);
+    if (mapK !== this.groundK) {
+      // Zoomed out, the screen-fixed ground must cover more world.
+      this.groundK = mapK;
+      this.ground.setSize(this.scale.width / z0 + 4, this.scale.height / z0 + 4);
+    }
     if (this.shake > 0) {
       this.shake -= dt;
       const m = Math.min(1, this.shake) * 10 * shakeScale();
@@ -1802,7 +1842,7 @@ export class GameScene extends Phaser.Scene {
       sy = (Math.random() - 0.5) * m;
     }
     this.bossInView(dt, px, py);
-    cam.centerOn(px + this.focusX + sx, py + this.focusY + sy);
+    cam.centerOn(px + this.focusX + (this.halls?.leadX ?? 0) + sx, py + this.focusY + (this.halls?.leadY ?? 0) + sy);
     // HD-2D hides this camera, and Phaser skips a hidden camera's preRender, which is what keeps worldView current.
     // Name plates, bars and edge marks all cull against worldView, so keep it current by hand.
     if (!cam.visible) {
@@ -1811,6 +1851,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.ground.setTilePosition(cam.worldView.x, cam.worldView.y);
     this.ground.setTileScale(1);
+    if (this.halls) this.hallsFrame(px, py, dt);
 
     // The hero: walk cycle while moving, a gentle breath while still.
     const now = this.time.now;
@@ -2177,7 +2218,8 @@ export class GameScene extends Phaser.Scene {
       const R = w.arenaR ?? ARENA;
       const rim = w.dungeonId === 'foundry' ? 0x5ab8ff : w.dungeonId === 'glarewell' ? 0xffe2a0 : w.dungeonId === 'hammerdeep' ? 0xc8d0e0 : w.dungeonId === 'ashvents' ? 0xff9a7a : w.dungeonId === 'coldmarrow' ? FROST : w.dungeonId === 'crucible' ? MOLTEN : w.dungeonId === 'wrackline' ? 0x7fd0e0 : w.dungeonId === 'pressworks' ? 0xf0c66a : w.dungeonId === 'hoard' ? HOARD_RIM : w.dungeonId === 'smeltery' ? 0xa8906c : w.dungeonId === 'flue' ? FLUE_RIM : 0xff8a3d;
       if (!this.darkGfx) this.darkGfx = this.add.graphics().setDepth(1.95);
-      this.darkGfx.clear().lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
+      this.darkGfx.clear();
+      if (!w.hallsOn) this.darkGfx.lineStyle(900, 0x070302, 0.82).strokeCircle(0, 0, R + 450);
       if (R < ARENA) {
         // Floodwater: a deep band with ripples rolling in and foam on the shore.
         g.lineStyle(ARENA - R, 0x0b2f44, 0.8).strokeCircle(0, 0, (ARENA + R) / 2);
@@ -2189,7 +2231,7 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(6, 0xd8f6ff, 0.18 + 0.08 * Math.sin(now / 400)).strokeCircle(0, 0, R + 4);
       }
       // In 3D the room's own edge marks a full-size arena, so the floor bridge carries the rim only once it has moved in.
-      if (!this.bridge || R < ARENA) {
+      if (w.hallsOn) { /* Halls: the map layer draws its own walls and rims. */ } else if (!this.bridge || R < ARENA) {
         g.lineStyle(4, rim, 0.55).strokeCircle(0, 0, R);
         g.lineStyle(14, rim, 0.12).strokeCircle(0, 0, R + 6);
       }
@@ -4232,6 +4274,24 @@ export class GameScene extends Phaser.Scene {
    * in that band too. When the band is too short for both, it also slides sideways so the boss clears the action
    * bar (which covers only the right side). The 3D view follows the same offsets (Hd2dAdapter.focus).
    */
+  /** Phase 18 Halls H1: the map layer's frame (client/hallsview.ts), with a screen projection for either look. */
+  private hallsFrame(px: number, py: number, dt: number): void {
+    const now = this.time.now;
+    if (now - this.canvasBox.at > 500) this.canvasBox = { at: now, rect: this.game.canvas.getBoundingClientRect() };
+    const rect = this.canvasBox.rect;
+    const cam = this.cameras.main;
+    const view = this.hd2d;
+    const zc = cam.zoom * ((rect.width || 1) / this.game.canvas.width);
+    this.halls!.frame({
+      now, dt, threeD: !!this.bridge, px, py, compact: this.hud.compact, rect,
+      view: this.viewUnits,
+      project: view ? (x, y) => view.project(x, y) : (x, y) => ({ x: (x - cam.worldView.x) * zc, y: (y - cam.worldView.y) * zc }),
+    });
+    // The arena's edge props stand round the boss arena; on the map they would stand in the first rooms.
+    const onMap = this.world.hallsOn;
+    for (const p of this.edgeProps) { p.img.setVisible(!onMap); p.light?.setVisible(!onMap); }
+  }
+
   private bossInView(dt: number, px: number, py: number): void {
     const w = this.world;
     const boss = this.hud.compact && w.phase === 'fight' ? w.enemies.find((e) => e.alive && e.def.rank === 'boss') : undefined;

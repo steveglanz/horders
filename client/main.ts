@@ -18,7 +18,7 @@ import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './n
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
-import { display, mountDisplayOptions, onDisplayChange } from './settings';
+import { display, hallsWanted, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -297,6 +297,8 @@ function startRun(bounty = false, key = false): void {
     const gear = standInGear(equippedItems(hero));
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
+  // Phase 18 Halls H1: the Kiln map prototype (Settings or ?halls=1). Local play only: the map isn't synced to guests yet.
+  if (hallsWanted() && !hosting && !stress) opts.halls = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

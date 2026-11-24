@@ -736,7 +736,9 @@ export function botInput(w: World, skill = 1): Input {
     const g = w.gates[botGate(w)];
     return { x: g.x - p.x, y: g.y - p.y };
   }
-  if (w.hallsOn && w.phase !== 'fight') return hallsWalk(w);
+  // Halls: walk the map between fights, but a telegraph a dead pack left behind still lands, so step out of it first
+  // (the arena's intro does the same through the usual dodge below).
+  if (w.hallsOn && w.phase !== 'fight' && !w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 40) ** 2)) return hallsWalk(w);
   // Glarewell: a Glare beats everything else. Get into a pillar's shade and hold still there.
   if (w.pillars.length) {
     let left = Infinity;
