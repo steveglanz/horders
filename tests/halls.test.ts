@@ -175,4 +175,42 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(roomAt(m, c.x, c.y)).toBe(3);
     }
   });
+  it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lavaHeat s, and cools once cleared', () => {
+    // Find a seed whose map rolled a lava channel.
+    let w: World | null = null;
+    for (let seed = 1; seed <= 200 && !w; seed++) { const v = halls(seed); if (v.lava.length) w = v; }
+    expect(w).not.toBeNull();
+    const m = w!.halls!;
+    const c = w!.lava[0];
+    expect(c.heat).toBe(0);
+    const pk = m.packs.find((p) => roomAt(m, p.x, p.y) === c.room)!;
+    // Standing on the crust with the pack asleep: no burn.
+    const mx = (c.x1 + c.x2) / 2, my = (c.y1 + c.y2) / 2;
+    const far = Math.hypot(mx - pk.x, my - pk.y) > HALLS.reach;
+    put(w!, mx, my);
+    const hp = w!.player.hp;
+    for (let k = 0; k < 30; k++) { w!.step(idle); w!.player.x = mx; w!.player.y = my; }
+    if (far) {
+      expect(pk.state).toBe('asleep');
+      expect(w!.player.hp).toBe(hp);
+      expect(c.heat).toBe(0);
+    }
+    // Wake it: heats to 1 over lavaHeat, then burns.
+    put(w!, pk.x, pk.y + HALLS.reach - 10);
+    w!.step(idle);
+    expect(pk.state).toBe('awake');
+    w!.step(idle);
+    expect(c.heat!).toBeGreaterThan(0);
+    expect(c.heat!).toBeLessThan(1);
+    for (let k = 0; k < 40; k++) w!.step(idle);
+    expect(c.heat).toBe(1);
+    expect(w!.inLava({ ...w!.player, x: mx, y: my })).toBe(true);
+    // Cleared: cools back to crust.
+    for (const e of w!.enemies) if (e.alive) { e.hp = 0; e.alive = false; w!.aliveEnemies--; }
+    put(w!, m.rooms[0].x, m.rooms[0].y);
+    for (let k = 0; k < 60; k++) { if (w!.state === 'draft') w!.choose(botChoose(w!)); else w!.step(idle); }
+    expect(pk.state).toBe('cleared');
+    expect(c.heat).toBe(0);
+    expect(w!.inLava({ ...w!.player, x: mx, y: my })).toBe(false);
+  });
 });

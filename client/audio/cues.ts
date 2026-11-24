@@ -654,10 +654,11 @@ export function inRimeNow(w: { rimeOn: boolean; rimeX: number; rimeY: number; pl
   return dx * dx + dy * dy <= CREEPING_RIME.r ** 2;
 }
 
-export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number }[]; player: { x: number; y: number; hp: number } }): boolean {
+export function inLavaNow(w: { lava: readonly { x1: number; y1: number; x2: number; y2: number; w: number; heat?: number }[]; player: { x: number; y: number; hp: number } }): boolean {
   const p = w.player;
   if (p.hp <= 0) return false;
   return w.lava.some((c) => {
+    if ((c.heat ?? 1) < 1) return false; // Halls: cooled crust doesn't burn
     const dx = c.x2 - c.x1, dy = c.y2 - c.y1;
     const len2 = dx * dx + dy * dy;
     const u = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - c.x1) * dx + (p.y - c.y1) * dy) / len2)) : 0;

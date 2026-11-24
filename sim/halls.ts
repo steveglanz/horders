@@ -24,6 +24,8 @@ export const HALLS = {
   fade: 0.8,
   /** The camera leads this far ahead along a corridor. */
   lead: 120,
+  /** A room's rolled lava is cooled crust until its pack wakes, then heats to burning over this long (s). */
+  lavaHeat: 1,
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
 };
