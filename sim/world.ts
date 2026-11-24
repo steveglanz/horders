@@ -69,12 +69,12 @@ const BULWARK_ARMOR = 0.2;
 const BULWARK_BLOCK = 0.35;
 const RINGWALL_BLOCK = 0.2;
 /**
- * Blade Guard (novice aid): share of each hit the Duskblade stops from the foe it is swinging at, by tier (1, 2, 3),
- * and none from tier 4. It stays strong through tiers 2 and 3 instead of fading with the rest of the aid: with it
- * fading, a novice Duskblade (LAG=0.3 SKILL=0.5, ungeared) won 0 of 40 at Kiln t2 and t3, mostly to Cinder Brute
- * hits (QA's playtest, 23 Nov). See docs/skills.md.
+ * Blade Guard (novice aid): share of each hit the Duskblade stops from the foe it is swinging at, fading with the
+ * rest of the aid (full at tier 1, none from tier 4; Grit Guard takes over from there). #618 had kept it at 0.7
+ * through tiers 2 and 3, from laggedBot numbers; with reactBot the fading version already wins more than the
+ * Emberwright at those tiers (design, 23 Nov; docs/skills.md).
  */
-export const BLADE_GUARD: readonly number[] = [0.5, 0.7, 0.7];
+export const BLADE_GUARD = 0.5;
 /**
  * Grit Guard (aid from tier 4, where Blade Guard ends): each Grit stack (a loss in a row on this tier, see GRIT) gives the
  * Duskblade `perStack` Blade Guard against the foe it is swinging at, up to `cap`. A win clears Grit, so a player who wins
@@ -82,6 +82,12 @@ export const BLADE_GUARD: readonly number[] = [0.5, 0.7, 0.7];
  * worst losing streak from 21 to 13, with every career breaking through (skills, 23 Nov). See docs/skills.md.
  */
 export const GRIT_GUARD = { perStack: 0.2, cap: 0.7, fromTier: 4 };
+/**
+ * Grit Cut (aid from tier 4 for every class but the Duskblade, which has Grit Guard instead): each Grit stack cuts all
+ * damage the hero takes by `perStack`, up to GRIT.maxStacks stacks. Like Grit Guard it only exists after losses in a row on
+ * that tier, so first tries and players who win are untouched (design, 23 Nov). See docs/skills.md.
+ */
+export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -406,6 +412,9 @@ export interface Player {
   chillT?: number;
   /** Phase 15 Y10: share of max health this hero has lost in the current fight (for the dungeon's stir). */
   stirHurt?: number;
+  /** The loss screen's "what hurt most": health lost this fight by what took it (foe names, 'Lava', 'Burnout'...), and the last blow. */
+  hurtBy?: Record<string, number>;
+  lastHurtBy?: string;
   /** Hammerdeep: Slag Grip stacks (an ally's heal clears them) and Sundered time left. */
   slag?: number;
   /** P1 weekly quests: casts this hero interrupted this run. */
@@ -1870,6 +1879,7 @@ export class World {
     const at = this.acting;
     this.eachHero(() => {
       const p = this.player;
+      this.noteHurt(p, Math.min(p.maxHp * share, Math.max(0, p.hp)), 'Burnout (the fight ran too long)');
       p.hp -= p.maxHp * share;
       if (p.hp < 0) p.hp = 0;
     });
@@ -1880,6 +1890,7 @@ export class World {
     const def = this.encounterDef;
     this.phase = 'fight';
     this.fightStartedAt = this.time;
+    for (let k = 0; k < this.heroes.length; k++) { const q = this.heroPlayer(k); q.hurtBy = {}; q.lastHurtBy = undefined; }
     if (this.dungeonId === 'coldmarrow') {
       // Every fight starts with a full Hearthcoal and no Chill.
       for (let k = 0; k < this.heroes.length; k++) {
@@ -2763,7 +2774,7 @@ export class World {
         const q = this.heroPlayer(k);
         if (q.hp <= 0 || segDist2(q.x, q.y, c.x1, c.y1, c.x2, c.y2) > (c.w / 2) ** 2) continue;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * (1 - SITE_CARDS.wadeBurn * this.rank('slagWade')) * dt, -1, true);
+        this.hurtPlayer(this.player.maxHp * LAYOUT.lavaBurn * (1 - SITE_CARDS.wadeBurn * this.rank('slagWade')) * dt, -1, true, 'lava');
       }
     }
     this.use(at);
@@ -3041,8 +3052,32 @@ export class World {
     return Math.pow(1.12, this.tier - 1) * this.keyDmg;
   }
 
-  /** `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). */
-  private hurtPlayer(amount: number, src = -1, unblockable = false): void {
+  /**
+   * The loss screen's "what hurt most" line: health this hero lost this fight, by what took it, and the last blow.
+   * Kept on Player so it reaches guests with the rest of the hero (Snapshot.heroes); startEncounter clears it.
+   */
+  private noteHurt(p: Player, amount: number, cause: string): void {
+    if (!(amount > 0)) return;
+    const by = p.hurtBy ?? (p.hurtBy = {});
+    by[cause] = (by[cause] ?? 0) + amount;
+    p.lastHurtBy = cause;
+  }
+
+  /**
+   * What a telegraph's hit is put down to: the foe whose cast drew it, else what the hero saw, since many boss and arena
+   * strikes draw without an owner (owner is also what an interrupt clears, so it isn't added just for this line).
+   */
+  private telegraphCause(t: Telegraph): string {
+    if (t.kind === 'soak') return 'an empty gold circle';
+    if (t.owner >= 0 && this.enemies[t.owner]) return this.enemies[t.owner].def.name;
+    return 'red marks on the floor';
+  }
+
+  /**
+   * `src` is the enemy that dealt the hit, when known (Bulwark thorns and reflects go back to it). `cause` names a hit
+   * with no `src` for the loss screen's "what hurt most" line (noteHurt); left out, the hit is put down to `src`.
+   */
+  private hurtPlayer(amount: number, src = -1, unblockable = false, cause?: string): void {
     if (this.invulnerable || (this.player.shieldT > 0 && !unblockable)) return;
     // Swallowed: nothing outside can reach this hero (coalClock digests them).
     if ((this.player.swallowT ?? 0) > 0) return;
@@ -3141,7 +3176,9 @@ export class World {
     // Kinbound: an ally's heal leaves you Covered.
     if ((p.coverT ?? 0) > 0) amount *= 1 - SET_TUNING.knCovered;
     // Blade Guard: the Duskblade turns part of each hit from the foe it is cutting.
-    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (BLADE_GUARD[this.tier - 1] ?? this.gritGuard);
+    if (this.cls === 'duskblade' && src >= 0 && src === p.guardId) amount *= 1 - (this.noviceAid > 0 ? BLADE_GUARD * this.noviceAid : this.gritGuard);
+    // Grit Cut: every other class shrugs off part of each hit after losses in a row from tier 4 (0 for the Duskblade).
+    amount *= 1 - this.gritCut;
     if (amount >= p.hp && this.rank('martyrsHalo') > 0 && !p.haloUsed) {
       // Martyr's Halo: the killing blow is turned aside once per fight.
       p.haloUsed = true;
@@ -3167,18 +3204,20 @@ export class World {
       this.events.push({ type: 'parry', x: p.x, y: p.y });
       return;
     }
+    this.noteHurt(p, Math.min(amount, Math.max(0, p.hp)), cause ?? (src >= 0 ? this.enemies[src]?.def.name : undefined) ?? 'the dungeon');
     p.hp -= amount;
     p.hurtFlash = 0.15;
     p.stirHurt = (p.stirHurt ?? 0) + amount / p.maxHp;
     if (p.hp <= 0) this.fightDown = true;
     this.events.push({ type: 'playerHurt', amount, hero: this.acting });
-    // Steady Breath: once per fight, a melee hero knocked low catches its breath.
+    // Steady Breath: once per fight, a melee hero knocked low catches its breath. The Emberwright gets it too: a novice
+    // one lost every tier-3 career run at the Kiln Mother, to many different hits rather than one (skills, 23 Nov).
     // Clinker Heart: knocked low, the Slagbinder's own slag sets over it.
     if (this.cls === 'slagbinder' && this.rank('clinkerHeart') > 0 && p.hp > 0 && p.hp < p.maxHp * SLAG_KIT.heartAt && this.time >= (p.heartReadyAt ?? 0)) {
       p.heartReadyAt = this.time + SLAG_KIT.heartEvery;
       this.plate(this.acting, p.maxHp * SLAG_KIT.heartShare);
     }
-    if ((this.cls === 'duskblade' || this.cls === 'bulwark' || this.cls === 'slagbinder') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
+    if ((this.cls === 'duskblade' || this.cls === 'bulwark' || this.cls === 'slagbinder' || this.cls === 'emberwright') && this.noviceAid > 0 && !p.windUsed && p.hp > 0 && p.hp < p.maxHp * 0.3) {
       p.windUsed = true;
       const healed = this.healPlayer(p.maxHp * SECOND_WIND * this.noviceAid);
       if (healed > 0) this.events.push({ type: 'heal', x: p.x, y: p.y, amount: healed });
@@ -4233,12 +4272,10 @@ export class World {
     return Math.min(GRIT_GUARD.cap, GRIT_GUARD.perStack * Math.min(GRIT.maxStacks, this.grit));
   }
 
-  /** Whether enemy `i` is a big foe in front of the Bulwark's shield (within 75 degrees of its last sweep). */
-  private inGuardArc(i: number): boolean {
-    const e = this.enemies[i];
-    if (!e || e.def.rank === 'normal') return false;
-    const p = this.player;
-    return Math.abs(angleDiff(Math.atan2(e.y - p.y, e.x - p.x), p.guardAng)) <= (75 * Math.PI) / 180;
+  /** Grit Cut: the share of each hit a non-Duskblade run on Grit sheds from GRIT_CUT.fromTier (0 below it or with no Grit). */
+  get gritCut(): number {
+    if (this.tier < GRIT_CUT.fromTier || this.cls === 'duskblade') return 0;
+    return GRIT_CUT.perStack * Math.min(GRIT.maxStacks, this.grit);
   }
 
   /** True while bulwarkMitigate is turning a hit back (see there). */
@@ -4252,7 +4289,7 @@ export class World {
     if (this.hasMythic('ringwallVow')) {
       // Ringwall Vow: a lighter block, on every side.
       if (src >= 0) amount *= 1 - RINGWALL_BLOCK;
-    } else if (src >= 0 && (src === p.guardId || (this.noviceAid > 0 && this.inGuardArc(src)))) amount *= 1 - BULWARK_BLOCK;
+    } else if (src >= 0 && src === p.guardId) amount *= 1 - BULWARK_BLOCK;
     if (p.bastionT > 0) p.prevented += raw - amount;
     if (p.ward > 0) {
       const soak = Math.min(p.ward, amount);
@@ -5111,7 +5148,7 @@ export class World {
       const p = this.player;
       p.x += (e.x - p.x) * FOUNDRY.undertowPull;
       p.y += (e.y - p.y) * FOUNDRY.undertowPull;
-      this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage);
+      this.hurtPlayer(FOUNDRY.undertowDamage * this.tierDamage, -1, false, e.def.name);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 60 });
     } else if (id === 'conchCall') {
       // Phase 16 U2: the next Ebb comes `hasten` s sooner (never sooner than `floor` s off). Mid-Ebb it holds the water.
@@ -5715,7 +5752,7 @@ export class World {
     if (e.kind === 'frostWarden') dmg *= this.warmthAt(e.x, e.y, e.def.radius) > 0 ? COLD.wardenWarm : COLD.wardenCold;
     if (e.kind === 'glassWarden' && e.aux2 > 0 && !this.invulnerable) {
       // Mirror Ward: part of the damage comes back at the attacker.
-      this.hurtPlayer(dmg * FOUNDRY.mirrorReflect);
+      this.hurtPlayer(dmg * FOUNDRY.mirrorReflect, -1, false, 'its Mirror Ward');
     }
     if (e.ward > 0) {
       const soak = Math.min(e.ward, dmg);
@@ -6153,9 +6190,9 @@ export class World {
     const r = GLARE.brandRadius;
     if (party) {
       this.eachHero(() => {
-        if (dist2(this.player.x, this.player.y, x, y) <= (r + PLAYER_RADIUS) ** 2) this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+        if (dist2(this.player.x, this.player.y, x, y) <= (r + PLAYER_RADIUS) ** 2) this.hurtPlayer(GLARE.brandDamage * this.tierDamage, -1, false, 'the Brand');
       });
-    } else this.hurtPlayer(GLARE.brandDamage * this.tierDamage);
+    } else this.hurtPlayer(GLARE.brandDamage * this.tierDamage, -1, false, 'the Brand');
     this.pillars.forEach((c, k) => {
       if (!c.cracked && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
         c.cracked = true;
@@ -6280,8 +6317,8 @@ export class World {
     if (e.abilityT > 0) return;
     e.abilityT = this.bossEnraged ? GLARE.sweepEveryEnraged : GLARE.sweepEvery;
     const ang = Math.atan2(p.y - e.y, p.x - e.x);
-    this.startCast(i, 'lensSweep', 'Lens Sweep', 1.1, false);
-    this.addTelegraph('cone', e.x, e.y, 300, ang, (60 * Math.PI) / 180, 1.1, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+    this.startCast(i, 'lensSweep', 'Lens Sweep', GLARE.sweepCast, false);
+    this.addTelegraph('cone', e.x, e.y, GLARE.sweepRange, ang, (GLARE.sweepArc * Math.PI) / 180, GLARE.sweepCast, GLARE.sweepDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
   }
 
   // ---------------------------------------------------------------- the Hammerdeep
@@ -6382,7 +6419,7 @@ export class World {
         // Frozen: the cold itself hurts.
         const at = this.acting;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true);
+        this.hurtPlayer(this.player.maxHp * COLD.frozenBurn * dt, -1, true, 'being Frozen');
         this.use(at);
       }
       if (this.rimeOn && q.hp > 0 && dist2(q.x, q.y, this.rimeX, this.rimeY) <= CREEPING_RIME.r ** 2) {
@@ -6396,7 +6433,7 @@ export class World {
         q.chill = Math.min(COLD.frozenAt, (q.chill ?? 0) + COLD.waterChill * dt);
         const at = this.acting;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * COLD.waterBurn * dt, -1, true);
+        this.hurtPlayer(this.player.maxHp * COLD.waterBurn * dt, -1, true, 'open water');
         this.use(at);
       }
     }
@@ -6590,7 +6627,7 @@ export class World {
         const share = WRACK.tideBurn + (out ? (d >= rim ? OUTSURGE.rimBurn : 0) : d <= WRACK.drainR ? WRACK.drainBurn : 0);
         const at = this.acting;
         this.use(k);
-        this.hurtPlayer(this.player.maxHp * share * dt, -1, true);
+        this.hurtPlayer(this.player.maxHp * share * dt, -1, true, 'the Tide');
         this.use(at);
       }
       // The water takes foes too: all but Lurkers and bosses drift in, and the drain hurts them.
@@ -6852,7 +6889,7 @@ export class World {
       if (q.hp <= 0 || dist2(q.x, q.y, t.x, t.y) > (t.r + PLAYER_RADIUS) ** 2) continue;
       if ((q.pressedT ?? 0) > 0) {
         this.use(k);
-        this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true);
+        this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true, 'a second Downstroke');
         this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
       } else {
         took.push(k);
@@ -6983,7 +7020,7 @@ export class World {
       for (let k = 0; k < this.heroes.length; k++) {
         this.use(k);
         const p = this.player;
-        if ((p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * SLAG.burnTick * (p.slag ?? 0), -1, true);
+        if ((p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * SLAG.burnTick * (p.slag ?? 0), -1, true, 'Ladle Burn');
       }
       this.use(at);
     }
@@ -7603,6 +7640,7 @@ export class World {
     if (craw?.alive && craw.kind === 'craw') this.despawn(this.crawIndex);
     this.crawIndex = -1;
     if (digested) {
+      this.noteHurt(q, Math.max(0, q.hp), ENEMIES.craw.name);
       q.hp = 0;
       this.events.push({ type: 'digested', hero: k });
     } else {
@@ -7703,7 +7741,7 @@ export class World {
       this.use(k);
       const p = this.player;
       if ((p.sunderT ?? 0) > 0) p.sunderT = (p.sunderT ?? 0) - dt;
-      if (tick && (p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * ONDREL.slagTick * (p.slag ?? 0), -1, true);
+      if (tick && (p.slag ?? 0) > 0 && p.hp > 0) this.hurtPlayer(p.maxHp * ONDREL.slagTick * (p.slag ?? 0), -1, true, 'Slag Grip');
     }
     this.use(at);
   }
@@ -7950,7 +7988,7 @@ export class World {
         // Ventwalker (3): standing in the gold circle heals.
         if (ok && this.setCount('ventwalker') >= 3) this.healPlayer(p.maxHp * SET_TUNING.vwHeal);
         if (!ok) {
-          this.hurtPlayer(t.dmg * this.tierDamage);
+          this.hurtPlayer(t.dmg * this.tierDamage, -1, false, this.telegraphCause(t));
           for (let k = 0; k < 6; k++) {
             const a = (k / 6) * Math.PI * 2;
             this.spawn('ashling', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
@@ -7981,7 +8019,7 @@ export class World {
       const inside = this.insideTelegraph(t);
       if (!inside && t.wasIn && t.kind === 'hit') this.dodged();
       // A smothered bloom lands on the shield: the Bulwark takes half.
-      if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1));
+      if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
     }
   }
 
@@ -8028,7 +8066,7 @@ export class World {
           continue;
         }
         if (!ok) {
-          this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage));
+          this.eachHero(() => this.hurtPlayer(t.dmg * this.tierDamage, -1, false, this.telegraphCause(t)));
           for (let k = 0; k < 6; k++) {
             const a = (k / 6) * Math.PI * 2;
             this.spawn('ashling', t.x + Math.cos(a) * 60, t.y + Math.sin(a) * 60);
@@ -8063,7 +8101,7 @@ export class World {
         const inside = this.insideTelegraph(t);
         if (!inside && t.kind === 'hit' && (mask >> h) & 1) this.dodged();
         // A smothered bloom lands on the shield: that Bulwark takes half.
-        if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1));
+        if (inside) this.hurtPlayer(t.dmg * this.tierDamage * (h === smother ? 0.5 : 1), -1, false, this.telegraphCause(t));
       });
     }
   }
@@ -8528,6 +8566,8 @@ export const GLARE = {
   sweepEvery: 1.7,
   sweepEveryEnraged: 1,
   sweepDamage: 26,
+  /** The cone: its warning (s), reach (px) and full width (degrees). */
+  sweepCast: 1.1, sweepRange: 300, sweepArc: 60,
 };
 
 /** Drowned Foundry tuning. */
@@ -9054,8 +9094,11 @@ export const HESSA_VARIANTS: HessaVariant[] = ['riptide', 'outsurge', 'whirl'];
  * round at `spin` of their class speed and drawn in at `inward` of the usual pull; the way it turns flips every Ebb (World.whirlDir).
  */
 export const WHIRL = { spin: 0.6, inward: 0.5 };
-/** Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers. */
-export const HESSA_ECHO = { below: 0.25 };
+/**
+ * Phase 16 U1: Hessa has two phases, so from `below` health every other Ebb runs her echo's way instead of hers.
+ * 0.5 (was 0.25, QA's expert report): all of phase 2, so a run sees it about twice, not once at the very end.
+ */
+export const HESSA_ECHO = { below: 0.5 };
 /** The Outsurge: the water pushes out to the rim instead of the drain, and burns `rimBurn` of max health a second within `rimR` of the edge (the drain's 0.1 at the centre). */
 export const OUTSURGE = { rimR: 90, rimBurn: 0.1 };
 /** How many phases each boss has, for the target frame ("Phase 2 of 3"). Unlisted bosses have 3; 1 means none to show. */

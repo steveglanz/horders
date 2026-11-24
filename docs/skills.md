@@ -39,27 +39,46 @@ From the Drowned Foundry spec (roadmap R6), every class needs:
 ## Novice aid (melee, tiers 1 to 3)
 
 A slow player in melee keeps drifting into contact, so the first tiers forgive it. The aid is full at tier 1, two thirds at tier 2, one third at tier 3, and gone from tier 4 on, so the geared balance is untouched.
-- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1 and 70% at tiers 2 and 3 (`BLADE_GUARD`), and not at all from tier 4. Unlike the rest of the aid it doesn't fade through tiers 2 and 3. When it faded, a novice Duskblade won 0 of 40 ungeared at Kiln t2 and t3 (QA's playtest, 23 Nov). Most of the damage came from Cinder Brute hits.
+- **Duskblade Blade Guard:** hits from the foe it is swinging at are cut by 50% at tier 1, fading with the rest of the aid (`BLADE_GUARD` x the aid), and not at all from tier 4. #618 briefly kept it at 70% through tiers 2 and 3 from laggedBot numbers; that is undone (see the reactBot table below).
 - **Duskblade Sidestep:** heals up to 3% of max health.
-- **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron), and Shield Block also covers every big foe within 75° of the last sweep.
-- **Steady Breath (both):** once per fight, dropping below 30% health heals up to 20% of max health.
+- **Bulwark:** Anvil Skin heals up to 10% of max health (on top of Mended Iron). Shield Block used to cover every big foe within 75° of the last sweep too; that was dropped on 23 Nov, since under reactBot (`REACT=0.3 SKILL=0.5`, Kiln, ungeared, seeds 1-80) it was worth nothing: 79 vs 78 of 80 at t3.
+- **Steady Breath (melee classes and the Emberwright):** once per fight, dropping below 30% health heals up to 20% of max health. The Emberwright got it on 23 Nov. In the career sim (reactBot settings as under Grit Cut, with Grit Cut at 7%), all 54 of its tier-3 losses in 20 careers came at the Kiln Mother. The damage was spread out: her floor circles 37%, Molten Cataclysm 20%, the aimed cone 19%, the missed Kiln Brand soak 18%. So a narrow fix had nothing to aim at. With Steady Breath, careers with a t4 win went 16/20 → 18/20, and on 40 careers 31/40 → 37/40; t4 wins went 48/209 → 66/277, and the worst streak stayed 8. At full skill (Kiln, ungeared, seeds 1-160) the Emberwright went t1 122 → 138, t2 107 → 116, t3 84 → 92, which narrows its known tier-1 gap to the other classes. From tier 4 the aid is 0, so every geared band is unchanged.
 - **Duskblade Grit Guard (tier 4 on):** where Blade Guard ends, each Grit stack (a loss in a row on that tier) gives 20% Blade Guard, up to 3 stacks, so 60% (`GRIT_GUARD`, cap 70%). A win clears Grit, so a player who keeps winning never has it, and a skilled first try is untouched. In QA's career sim (`tools/pt/career.ts`, `LAG=0.5 SKILL=0.3`, 10 careers of 25 runs, 190 tier-4 runs) the Duskblade went from 0 to 26 tier-4 wins, its worst losing streak from 21 to 13, and every career now beats tier 4 (first win on run 10 to 21). The Bulwark got nothing: on the same sim it already wins 37 of 150 tier-4 runs, every career breaks through, and its worst streak is 11 (23 Nov).
+- **Grit Cut (tier 4 on, every class but the Duskblade):** each Grit stack cuts all damage taken by 7%, up to 3 stacks, so 21% (`GRIT_CUT`). The Duskblade has Grit Guard instead, never both. Like Grit Guard it exists only after losses in a row on that tier (design, 23 Nov). Career sim: `reactBot` REACT 0.3, SKILL 0.5, forget 0.5, stepErr 1.0, 20 careers of 15 Kiln runs, on main after #646. The cells are t4 wins/attempts, worst losing streak, and careers with a t4 win:
+
+  | Class | No cut | 7% (shipped) | 10% |
+  |---|---|---|---|
+  | Emberwright | 19/112, 9, 12/20 | 27/112, 8, 16/20 | 34/112, 8, 17/20 |
+  | Bulwark | 101/204, 4, 20/20 | 106/204, 4, 20/20 | 116/204, 4, 20/20 |
+  | Lumen | 226/238, 2, 20/20 | 225/238, 2, 20/20 | 226/238, 2, 20/20 |
+  | Slagbinder | 239/239, 1, 20/20 | 239/239, 1, 20/20 | 239/239, 1, 20/20 |
+  | Duskblade (Grit Guard, no cut) | 101/214, 6, 20/20 | - | - |
+
+  Neither step reaches the Emberwright target of 18/20 careers. Two of its careers never reach tier 4 inside 15 runs at any cut, because the wall is at tier 3. At 10% the Bulwark's t4 share goes to 57% against the Duskblade's 47%, so 7% shipped. The Lumen and the Slagbinder are past the Duskblade's share with no cut at all.
 
 Tier-4 options tried for the novice Duskblade before Grit Guard (career tier-4 wins of 190 / full-skill ungeared Kiln t4 wins of 80, base 0 / 27): Steady Breath 20% or 35% at t4 gave 0 / - and 1 / -; a 3% Sidestep heal gave 1 / -; a 30-60% cut on trash damage gave 1-7 / 37-43; a 40-60% cut below 50-70% health gave 3-59 / 51-73. A novice Duskblade loses in trash and at the Kiln Mother alike (with trash damage at zero it still lost 9 of 10 there), so a narrow fix did little, and a broad one lifted the skilled player more.
 
 Reference: the novice bot (`LAG=0.3 SKILL=0.5`, Kiln tier 1, seeds 1 to 24) wins 8 to 16 of 24 with every class.
 
-Blade Guard at tiers 2 and 3, measured with the Kiln, ungeared, seeds 1 to 80, wins out of 80 (23 Nov):
+Blade Guard at tiers 2 and 3 with the reaction-time novice (`REACT=0.3 SKILL=0.5`, reactBot), Kiln, ungeared, seeds 1 to 80, wins out of 80 (design, 23 Nov):
 
-| Bot | Tier | Duskblade before | Duskblade after | Emberwright |
-|---|---|---|---|---|
-| Novice (`LAG=0.3 SKILL=0.5`) | 1 | 28 | 28 | - |
-| Novice | 2 | 0 | 23 | 25 |
-| Novice | 3 | 0 | 5 | 9 |
-| Full skill | 2 | 77 | 78 | 49 |
-| Full skill | 3 | 61 | 72 | 41 |
+| Tier | Duskblade, no Blade Guard | Duskblade, fading (now) | Duskblade, #618's 70% | Emberwright | Bulwark |
+|---|---|---|---|---|---|
+| 1 | 80 | 79 (full 50%) | 79 | - | - |
+| 2 | 74 | 77 | 80 | 55 | 78 |
+| 3 | 42 | 48 | 64 | 32 | 79 |
 
-The novice Duskblade now sits just under the novice Emberwright. A full-skill Duskblade was already well over the Emberwright at tiers 2 and 3, and at tier 3 it gains 11. Those are learning tiers, so the gap is accepted. It is a watch item for skills if real players find tier 3 too easy on a Duskblade.
+#618 kept Blade Guard at 70% through tiers 2 and 3 because the old novice proxy (`LAG=0.3`, laggedBot) had the Duskblade at 0 of 80 there. That proxy rocks melee heroes into contact (docs/design/variety.md, the lagged-bot section). With reactBot, the fading Blade Guard already puts the Duskblade above the Emberwright, so it is back to fading. The rest of this melee aid was also set from laggedBot numbers and is for skills to re-check with reactBot. So is the Emberwright, which is now the weakest novice at tier 3.
+
+Novice aid under reactBot (`REACT=0.3 SKILL=0.5`, Kiln, ungeared, seeds 1-80, after #644), wins out of 80 at t1 / t2 / t3, with one piece switched off:
+
+| Class | All aid | No Sidestep heal | No Steady Breath | No Blade Guard | No Anvil Skin heal | No wide Shield Block | No aid |
+|---|---|---|---|---|---|---|---|
+| Duskblade | 79 / 77 / 48 | 80 / 75 / 46 | 80 / 75 / 42 | 80 / 74 / 42 | - | - | 76 / 68 / 36 |
+| Bulwark | 80 / 78 / 79 | - | 79 / 78 / 75 | - | 80 / 78 / 72 | 80 / 78 / 78 | 80 / 77 / 65 |
+| Slagbinder | 79 / 75 / 61 | - | 78 / 75 / 59 | - | - | - | - |
+
+No aid of their own: Emberwright 63 / 55 / 32, Lumen 78 / 74 / 78. The Emberwright's t3 losses were mostly the Kiln Mother's aimed cone, because the bot stepped out of cones at 0.2 when ranged (0.6 melee), scaled by skill. The bot's sideways step out of a cone is no longer scaled by skill (reactBot already models noticing it late), so nothing changes at skill 1. At novice settings, t3 goes 32 to 42 for the Emberwright, 48 to 60 for the Duskblade and 78 to 73 for the Lumen. A flat 0.6 step for ranged heroes was tried first and dropped: at full skill it took the Kiln t8 Emberwright (hero-t8-0, seeds 41-200) from 92 to 69 of 160. Under reactBot almost every melee class and the Lumen win 77-80 at Kiln t1 at any REACT 0.3-0.7 / SKILL 0.3-0.5, so no reactBot setting reproduces the old 40-65% novice band (design dropped it in #645). The rest of the aid stays as it is until real player data comes in.
 
 ## Co-op threat hooks
 
@@ -1006,6 +1025,38 @@ Each row lists the boss's three versions, with the new one last.
 - **Watch items, kept as they are:** the Anvil party on Rolling Vents (139) and the Overflow (127); two Duskblades on the Tithe (147), which design is tracing; and the Anvil party in the Hoard on every version.
 - **The Hoard's Anvil party** has been at 67 to 73 of 80 (seeds 41-120) since before #341, so it isn't a regression. No single Slagbinder kit piece explains it: allyBrittle at 1.0 gives 66, and turning off plating, plateMend, party armour and Brittle together gives 62. Holding Vorhulm close doesn't remove it either (76 to 78). The other half is the Bulwark: it died 470 times in 480 base-party runs, mostly late, while another hero was Swallowed. Design tried softening Vorhulm's blows while a hero is Swallowed. It lifted every Bulwark party by about the same amount, so it didn't separate the parties and wasn't shipped.
 - **Known and accepted:** the Pressworks Anvil party at 36 of 80 (seeds 41-120) stays the hard way to tank there, as ruled in #308.
+
+## Echoes and new foes: class check (U4, 23 Nov 2026)
+
+Heroes are heroes-r2 hero-t8-0. Solo runs use seeds 41-200 and parties use the standard five (base, Anvil, Bellows, two-blade, two-ember). Wins are out of 160. Echoes are compared with `ECHO=off` against natural on the same seeds. Pre-boss outcomes are identical between the two, so the same-seed flips (win to loss / loss to win) show how much is real. About ±10 each way is boss-fight reshuffle. New foes are forced as the first fight (`FIGHT=`) against two or more other openers, since forcing an opener reshuffles the run (opener-to-opener spread is about ±12 of 160).
+
+**Solo echoes (off / natural).** Foundry, Glarewell and Wrackline are within 6 for every class. Coldmarrow is the exception: a Rime Nhevra with a Thin Ice echo boxes a melee hero between the cracks, the rime and her body (contact hits x14, Snuffs out of the 210 px interrupt reach, so Long Night hits harder). The Duskblade went 98 / 84 (74 with Thin Ice forced). Design's #601 makes a Rime Nhevra echo only the Emberdrift. A bot rule (take the near side of a crack while rime is up) and an oracle 420 px interrupt reach both failed first.
+
+**Group echoes (off / natural).** No party leaves the band. Two Duskblades in Hammerdeep 88 / 100 (9/21 flips), the base party in Ashvents 101 / 93 (15/7), and the Pressworks Bellows party 135 / 144 (2/11, already over: the #308 ranged-high item).
+
+**Raid echoes (off / natural).**
+- Smeltery Anvil 117 / 95 (30/8). Bots skipped anvilHold in a Plate Shift echo; #609 fixed it (118).
+- Hoard Bellows 86 / 75 and two-ember 81 / 68. The cost is spread over every version and echo pair (0-4 each), so it's a phase-3 cost for parties without a Duskblade, which are under the band anyway (Z5 / #324).
+- Crucible Anvil 124 / 134, already over.
+- Flue base 102 / 113 on main after #601, one over the band; watch item.
+
+**New foes (forced, vs controls).**
+
+| Foe | Bulwark | Duskblade | Emberwright | Lumen | Slagbinder |
+|---|---|---|---|---|---|
+| Ashwall, Kiln t8 (Pack / Wardens) | 82 (105 / 87) | 66 (68 / 64) | 90 (78 / 80) | 106 (118 / 109) | 93 (89 / 83) |
+| Ballast, Foundry t8 (Crawlers) | 125 of 320 (126) | 110 (112) | 133 (125) | 127 (other openers 115-140) | 140 (140) |
+| Lampeye, Glarewell t8, after #628 (Shades) | 140 (145) | 117 (127) | 139 (146) | 157 (159) | 160 (157) |
+| Dimhorn, Coldmarrow t10 (Snuffers) | 111 (115) | 100 (93) | 129 (126) | 133 (131) | 118 (117) |
+| Conchblower, Wrackline t10 (Lurkers / Haulers) | 84 (85 / 84) | 110 (113 / 102) | 116 (122 / 131) | 147 (119 / 144) | 158 (158 / 159) |
+
+- **Lampeye:** before #628, melee lost the Lampeye fight itself: the Duskblade 38 runs and the Bulwark 17, with hiding or without (NOLAMPEYE). Ranged heroes need to hide; the Emberwright gets 15 without it. #628 makes hiding ranged-only and adds LAMPEYE.under, and both melee classes now lose 0 in that fight.
+- **Ballast:** neither the Bulwark nor the Lumen is a watch item. Each sits inside its opener spread.
+- **Watch item (design, wrackline.md):** the Lumen loses 30 of 160 in a forced Lurkers opener. The two Cinderhounds reach it on a raft in the first Ebb. In natural runs it is 10 of 160, against 9 for the Emberwright.
+
+**Novice and average players.**
+- `GRIT_GUARD` (#630, see Novice aid) came out of this check.
+- A trash-only Steady Breath for average-skill Duskblades was tried and dropped. QA's laggedBot delays steering, which makes a melee hero rock in and out of contact. Delayed moves alone took the Kiln t8 Duskblade from 35 to 1 of 80, and delayed casts alone to 31. So treat laggedBot melee numbers as a pessimistic bound until QA's reaction-time proxy lands.
 
 ## Site cards: talents for the variety layouts and foes (22 Nov 2026)
 

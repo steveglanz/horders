@@ -1343,7 +1343,7 @@ Coldmarrow t10, seeds 1 to 80, natural echoes, before / after: Bulwark 56 / 56, 
 
 ## Phase 16 U1: Hessa's echo
 
-Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
+Hessa's versions change the Ebb, so her echo is an Ebb run another way. From tier 8, once she is at `HESSA_ECHO.below` (50%, was 25%) health, every other Ebb runs the way of the version this run didn't roll, starting with the first. The echo takes her own version's place for that Ebb, since an Ebb can only run one way.
 
 - `World.ebbEcho` is true from that Ebb's warning until the next one starts. The `whirl` and `outsurge` getters (sim, bot and client) read the echo's way while it is on. A Riptide echo is an Ebb that is neither of those.
 - The Ebb's cast name follows the way it runs ("The Whirl", "The Outsurge", "The Ebb"). Each echoed Ebb fires `{type:'echo', id}`, and the client dings "Echo: <version name>".
@@ -1359,6 +1359,18 @@ Solo Wrackline at tier 10, heroes-r2 hero-t8-0, seeds 1 to 80, wins out of 80:
 | Slagbinder | 79 | 79 | 79 |
 
 Every class is within 4 wins of echoes off.
+
+**Earlier start (QA's expert report, 23 Nov).** At 25% the echo usually fired once, right at the end, which is too late to learn (QA saw it once in 11 of 11 early wins). It now starts at 50%, which is all of her phase 2 (`WRACK.phase2`). Same setup, wins out of 80, and echoes per run that saw one:
+
+| Class | 25% (was) | 40% | 50% (now) | Echoes per run at 25% / 50% |
+|---|---|---|---|---|
+| Bulwark | 46 | 46 | 47 | 1.4 / 2.5 |
+| Duskblade | 51 | 50 | 50 | 1.3 / 2.5 |
+| Emberwright | 56 | 53 | 56 | 1.3 / 2.5 |
+| Lumen | 71 | 71 | 71 | 1.0 / 2.0 |
+| Slagbinder | 79 | 79 | 79 | 1.2 / 2.1 |
+
+Wins stay within 3 of 25% for every class, and every run that sees the echo now sees it about twice.
 
 **Kiln Mother design call (QA on #583).** Her moves come from her health at the moment, so when the Ember Acolytes heal her back over 60% she uses her phase-1 Molten Cataclysm again, and over 30% she leaves her phase-3 echo. I tested making her moves follow the furthest phase she had reached instead. At Kiln t8 solo, seeds 1 to 80, echoes off, wins went from 50 to 24 for the Bulwark, 47 to 25 for the Emberwright, 55 to 47 for the Lumen and 48 to 48 for the Slagbinder, with the Duskblade unchanged at 28. The fallback Cataclysm can be interrupted, and that is part of what keeps Kiln Draw and Turning Fire runs fair. Kept: healing her back undoes her phase, which also rewards killing the acolytes.
 
@@ -1420,6 +1432,21 @@ Wins out of 80, heroes-r2 hero-t8-0, and how many runs saw an echo. Base party i
   Of the 60 runs that drew a Plate Shift echo, 40 won with the hold and 17 without. With the hold the Anvil party is back level with echoes off (118 against 117 of 160).
 - **The Hoard at half skill** was under the band before echoes (51%) and the echo takes it to 46%. That was already a known gap (#324), not something the echo opened.
 - **Bots and a Tithe echo (sound's check, 23 Nov):** in court runs the bots missed 6 of 13 Tithe echoes, because the bots' walk to the throne ahead of a Summons (`summonsDue`) only read his own version. `World.regentNextMove()` now gives his next Ash-timer move, echo included. On Flue t11 court runs with `ECHO=tithe`, base party, seeds 1 to 40, missed Tithes went from 11 to 8 (of about 100), and 7 of the 8 left came with only one hero alive, so nobody could share them. Wins went 29 to 28. His own Tithe version missed none of 414.
+
+- **The Hoard echo and the parties without a Duskblade (23 Nov):** skills found Old Vorhulm's echo cost the Bellows party (Bulwark, Lumen, Slagbinder with `STANCE=bellows`, Emberwright) and the two-Emberwright party (Bulwark, Lumen, two Emberwrights) about 10 to 14 wins of 160, spread over all three echoes. I tried five changes to when and how often the echo comes. Hoard t9, heroes-r2 hero-t8-0, seeds 1 to 160, wins out of 160:
+
+| Setup | Bellows | Two Emberwrights | Base |
+|---|---|---|---|
+| Echoes off | 86 | 80 | 111 |
+| Echo as shipped (every other spill, echo first) | 72 | 70 | 109 |
+| His own move first | 78 | 72 | |
+| Echo every third spill | 79 | | |
+| Echo only below 15% health | 77 | 70 | |
+| At most 3 echoes | 71 | 71 | 104 |
+| At most 2 echoes | 75 | 73 | |
+
+  None of them wins back more than about half the cost, and opening-order changes move 6 or fewer wins, which is inside the rng-reshuffle noise for raids (horders-raid-measuring). The base party loses only 2 to the echo. The flipped runs (won with echoes off, lost with them on) all wiped in phase 3, between 2% and 38% boss health. Both parties were already under the band with echoes off, so the echo widens an existing class-side gap (skills' Z5, #324) rather than opening one. Kept as shipped; no change to `RAID_ECHO.vorhulm`.
+- **Novice aid at tier 4:** skills' Grit Guard (#630, `GRIT_GUARD` in docs/skills.md) gives the Duskblade Blade Guard per Grit stack from tier 4, so only a player who keeps losing a tier gets it.
 
 ## Phase 16 U2: the Kiln's new elite, the Ashwall
 
@@ -1565,3 +1592,26 @@ Wrackline t10, heroes-r2 hero-t8-0, seeds 1 to 80, first fight forced (`FIGHT=`)
 Natural Wrackline t10 runs, seeds 1 to 160, wins before / after: Bulwark 92 / 92, Duskblade 110 / 107, Emberwright 122 / 113, Lumen 136 / 140, Slagbinder 158 / 157.
 
 The Emberwright's drop is not the Conchblower. It won 13 of the 19 runs that met it (68%). In its other 141 runs it won 100 (71%), against 76% over all 160 before, so most of the drop is re-rolled routes. **Watch item for skills:** the Emberwright's forced first fight, 53 against 63.
+
+## Playtest follow-up: melee heroes, the Lensmother and the lagged bot (23 Nov)
+
+QA's average-player playtest (qa/playtest/average.md) found that melee heroes fall off at average skill in the Glarewell t8, and that group dungeons are a wall. Its "average player" is `laggedBot(5 ticks, 0.75)`: the bot's input is delayed by 0.15 s.
+
+**What I first did (#635), and why it's undone.** QA blamed Lens Sweep, because it was the last cast to finish before most deaths. Counting damage by source with the lagged bot showed her touch made up about three quarters of a melee hero's boss-fight damage. So #635 cut her touch from 22 to 16. The tool I used for the "full skill" check also had the 0.15 s lag in it, though. With no lag, her touch is 22% of a Bulwark's boss-fight damage (seeds 1 to 20), not 75%. Her touch is back at 22. Lens Sweep's numbers stay in `GLARE` (`sweepCast`, `sweepRange`, `sweepArc`, same values), as QA's bug 6 asked.
+
+**The lagged bot overstates how hard melee and group fights are.** Splitting lag from skill, base party, seeds 1 to 40, wins out of 40:
+
+| Setup | Pressworks t10 | Ashvents t8 |
+|---|---|---|
+| Full skill, no lag | 30 | 23 (QA) |
+| Skill 0.75, no lag | 31 | 28 |
+| Lag 0.15 s, skill 1 | 7 | 18 |
+| Lag 0.15 s, skill 0.75 (QA's average) | 4 | 14 |
+| Late to see new telegraphs (0.15 s), steering on time | 27 | |
+| Late to see new telegraphs (0.3 s), steering on time | 25 | |
+
+Solo, Kiln t8 Duskblade, seeds 1 to 80: full 35, lag 0.15 s 2 (68 lost in trash), late to see telegraphs 0.15 s 36, 0.3 s 33. Skills traced the cause (23 Nov): `botInput` holds a melee hero in a narrow band by its target at full speed, and with 5 ticks of delay it overshoots about 25 px each way, about the width of the band, so it keeps rocking into contact. A person with 150 ms reactions eases off near a target instead. Delayed casts alone cost the Duskblade little (31 of 80 against 35).
+
+- So laggedBot numbers for melee and for group mechanics are a pessimistic bound, not a measurement. That covers QA's average report, the `LAG=0.3` novice reference, and the career sims. No tuning should come from them until the proxy is fixed.
+- One model that behaves: delay what the bot notices (new telegraphs here; casts and foes could follow), but steer from where the hero is now. That's `REACT` in my measuring copy. QA or engineering owns the proxy.
+- Grit Guard (#630) stays, because it only acts after real losses.

@@ -213,7 +213,8 @@ describe('verb sets (R4)', () => {
       Object.assign(a, { x: w.player.x + 60, y: w.player.y });
       return w;
     };
-    const taken = (w: World) => { w.player.hp = w.player.maxHp; const h0 = w.player.hp; inner(w).hurtPlayer(100); return h0 - w.player.hp; };
+    // windUsed: keep the Emberwright's novice Steady Breath out of the measurement.
+    const taken = (w: World) => { w.player.hp = w.player.maxHp; w.player.windUsed = true; const h0 = w.player.hp; inner(w).hurtPlayer(100); return h0 - w.player.hp; };
     expect(taken(party(0, 0))).toBeCloseTo(100, 3);
     expect(taken(party(2, 0))).toBeCloseTo(100 * (1 - SET_TUNING.dgCut), 3);
     expect(taken(party(0, 3))).toBeCloseTo(100 * (1 - SET_TUNING.dgAura), 3);
@@ -273,7 +274,7 @@ describe('verb sets (R4)', () => {
       q.bossIndex = b;
       q.colFacing = 0; // facing +x, so his back is at -x
       const e = w.enemies[b];
-      const hit = () => { w.player.hp = w.player.maxHp; w.player.shieldT = 0; q.hurtPlayer(100); return w.player.maxHp - w.player.hp; };
+      const hit = () => { w.player.hp = w.player.maxHp; w.player.shieldT = 0; w.player.windUsed = true; q.hurtPlayer(100); return w.player.maxHp - w.player.hp; };
       w.player.x = 200; w.player.y = 0; // in front
       const front = hit();
       expect(q.setDamageMult(e, true)).toBeCloseTo(1, 5);

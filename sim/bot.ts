@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Input, IRONLOAD, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1102,10 +1102,13 @@ export function botInput(w: World, skill = 1): Input {
         fx += Math.cos(a) * 0.8 * skill;
         fy += Math.sin(a) * 0.8 * skill;
       } else if (t.shape === 'cone') {
-        // A long cone can't be outrun: step sideways out of it instead.
+        // A long cone can't be outrun: step sideways out of it instead. Once a hero has seen a cone (reactBot models
+        // noticing it late), it steps out as hard as a skilled one: scaling the step by skill too left a skill-0.5
+        // Emberwright barely moving, and the Kiln Mother's aimed cone was most of its novice t3 losses (skills,
+        // 23 Nov). At skill 1 nothing changes.
         const side = Math.sign(Math.sin(Math.atan2(dy, dx) - t.angle)) || 1;
-        fx += -Math.sin(t.angle) * side * k * skill;
-        fy += Math.cos(t.angle) * side * k * skill;
+        fx += -Math.sin(t.angle) * side * k;
+        fy += Math.cos(t.angle) * side * k;
       } else {
         let ux = dx / d;
         let uy = dy / d;
@@ -1336,9 +1339,12 @@ export function runBot(seed: number, skill = 1, maxSeconds = 700): World {
 
 /**
  * A slower player for balance checks: acts on what the full bot decided
- * `lagTicks` ticks ago (a reaction time), and with `skill` < 1 also misses
- * some interrupts. SKILL alone barely weakens the bot, because its move
- * direction is normalised, so reaction time is the better novice proxy.
+ * `lagTicks` ticks ago, and with `skill` < 1 also misses some interrupts.
+ *
+ * Outdated as a player model: replaying a stale move makes a melee hero overshoot its
+ * spot by its target (about 25 px at 5 ticks) and rock into contact, which badly
+ * overstates melee and group difficulty (Pressworks t10: 7/40 with 0.15 s against
+ * 30/40 at full skill). Use reactBot for reaction time; this stays for old numbers.
  */
 export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
   const queue: Input[] = [];
@@ -1347,6 +1353,91 @@ export function laggedBot(lagTicks: number, skill = 1): (w: World) => Input {
     const out = queue.length > lagTicks ? queue.shift()! : { x: 0, y: 0 };
     return out;
   };
+}
+
+/**
+ * A player with a reaction time, for playtest and balance sims: it notices things `reactS`
+ * seconds late but steers from where its hero is now (a person sees a new danger late, yet
+ * never walks on from where they stood 150 ms ago). For `reactS` after it appears, the bot
+ * doesn't see:
+ * - a telegraph (red marks and gold soak circles),
+ * - an enemy's cast (so interrupts and dodges of cast hits come late),
+ * - a newly spawned enemy.
+ * `skill` < 1 also misses some interrupts, as in botInput. Not covered: cues that are not
+ * telegraphs, casts or foes (arena vents' glow, a boss picking a target), which it sees at once.
+ *
+ * With no `mistakes` it is a best case: it notices late but then plays perfectly. `mistakes` (BotMistakes) adds
+ * what real players also do: now and then never noticing a mechanic, and steps that are a little off.
+ */
+export function reactBot(reactS: number, skill = 1, mistakes: BotMistakes = {}): (w: World) => Input {
+  const forget = mistakes.forget ?? 0;
+  const stepErr = mistakes.stepErr ?? 0;
+  const salt = mistakes.salt ?? 0;
+  return (w: World) => {
+    const inp = reactS > 0 || forget > 0 ? perceiveLate(w, reactS, forget, salt, () => botInput(w, skill)) : botInput(w, skill);
+    if (!stepErr || (!inp.x && !inp.y)) return inp;
+    // A misjudged step: the move is off by up to stepErr radians, the same error held for STEP_WINDOW s, so the hero
+    // drifts the wrong way for a moment and corrects (unlike a delayed input, it never replays an old move).
+    const a = stepErr * (2 * hash01(salt, w.acting, Math.floor(w.time / STEP_WINDOW), 7) - 1);
+    const c = Math.cos(a), sn = Math.sin(a);
+    return { ...inp, x: inp.x * c - inp.y * sn, y: inp.x * sn + inp.y * c };
+  };
+}
+
+/**
+ * Execution mistakes for reactBot (all default 0, which is #639's mistake-free bot):
+ * - `forget`: the chance that a hero never notices a given telegraph or enemy cast at all (it stands in it, or lets
+ *   the cast finish). Rolled once per telegraph or cast and per hero, so a party doesn't all miss the same one.
+ * - `stepErr`: the most a step can be off, in radians, held for STEP_WINDOW s at a time.
+ * - `salt`: varies which telegraphs are forgotten and which steps go wrong, without touching the run's own rng.
+ */
+export interface BotMistakes {
+  forget?: number;
+  stepErr?: number;
+  salt?: number;
+}
+
+/** How long one misjudged step lasts (s). */
+export const STEP_WINDOW = 0.4;
+
+/** A hash of four integers to [0, 1): the bot's own dice, so its mistakes never draw on the world's rng. */
+function hash01(a: number, b: number, c: number, d: number): number {
+  let h = 2166136261 ^ (a | 0);
+  for (const v of [b, c, d]) {
+    h = Math.imul(h ^ (v | 0), 16777619);
+    h ^= h >>> 13;
+    h = Math.imul(h, 0x5bd1e995);
+    h ^= h >>> 15;
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * Runs `decide` with what appeared in the last `reactS` seconds hidden from it, and with what this hero `forget`s
+ * hidden for good, then puts it all back. A telegraph is known by its pool slot and the tick it appeared; a cast by
+ * its caster and the tick it began.
+ */
+function perceiveLate<T>(w: World, reactS: number, forget: number, salt: number, decide: () => T): T {
+  const tele: Telegraph[] = [];
+  const foes: Enemy[] = [];
+  const casts: [Enemy, string][] = [];
+  const tick = (age: number) => Math.round((w.time - age) * 30);
+  const forgot = (kind: number, slot: number, born: number) => forget > 0 && hash01(salt * 131 + kind, w.acting, slot, born) < forget;
+  w.telegraphs.forEach((t, i) => {
+    if (t.alive && (t.t < reactS || forgot(1, i, tick(t.t)))) { t.alive = false; tele.push(t); }
+  });
+  w.enemies.forEach((e, i) => {
+    if (!e.alive) return;
+    if (w.time - e.spawnedAt < reactS) { e.alive = false; foes.push(e); }
+    else if (e.castId && (e.castT < reactS || forgot(2, i, tick(e.castT)))) { casts.push([e, e.castId]); e.castId = ''; }
+  });
+  try {
+    return decide();
+  } finally {
+    for (const t of tele) t.alive = true;
+    for (const e of foes) e.alive = true;
+    for (const [e, id] of casts) e.castId = id;
+  }
 }
 
 /** a - b, wrapped to -PI..PI. */
