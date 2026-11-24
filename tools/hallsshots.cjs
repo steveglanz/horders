@@ -47,11 +47,11 @@ const OPTS = { cls: 'emberwright', dungeon: 'kiln', tier: 2, invulnerable: true,
   await put(pk('A').x, pk('A').y + 300);
   await shot('2-ring');
   // 3. The corridor from R1 to R3: the camera leads ahead, the arrow points on (A asleep behind, B ahead).
-  await put(0, -1330);
+  await put(0, (m.rooms[1].y + m.rooms[3].y) / 2);
   await page.evaluate(() => { const p = window.__ember.scene().world.player; p.px = p.x; p.py = p.y + 3; });
   await shot('3-corridor');
   // 4. R3, the big room: zoomed out to fit, B and C asleep (C off the path).
-  await put(-20, -1800);
+  await put(-20, m.rooms[3].y);
   await page.evaluate(() => { const w = window.__ember.scene().world; for (const p of w.halls.packs) p.state = p.state === 'awake' ? 'asleep' : p.state; });
   await shot('4-bigroom');
   // 5. The corner map (on a phone: tapped open).

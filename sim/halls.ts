@@ -90,33 +90,40 @@ export interface HallsMap {
   vents: { room: number; x: number; y: number }[];
 }
 
-/** KILN_HALLS_A: the one hand-made template for H1 (spec table "The map"). Room 6 is the boss door's alcove. */
+/**
+ * KILN_HALLS_A: the one hand-made template for H1 (spec table "The map"), drawn at the spec's sizes and scaled by
+ * KILN_SCALE (positions and room radii; corridors stay HALLS.corridor wide). Room 6 is the boss door's alcove.
+ * Design, 24 Nov: x1.3 gives kiting heroes room (Kiln t2 average bot, 120 seeds: Emberwright 33 -> 44, Slagbinder
+ * 108 -> 117; the arena is 58 and 118).
+ */
+export const KILN_SCALE = 1.3;
+const K = (v: number): number => v * KILN_SCALE;
 export const KILN_HALLS_A = {
   rooms: [
-    { id: 'R0', x: 0, y: 0, r: 300, main: true },
-    { id: 'R1', x: 0, y: -900, r: 380, main: true },
-    { id: 'R2', x: -850, y: -1500, r: 340, main: false },
-    { id: 'R3', x: 0, y: -1800, r: 420, main: true },
-    { id: 'R4', x: 800, y: -2500, r: 360, main: false },
-    { id: 'R5', x: 0, y: -2800, r: 380, main: true },
-    { id: 'door', x: 0, y: -3300, r: 100, main: true },
+    { id: 'R0', x: 0, y: K(0), r: K(300), main: true },
+    { id: 'R1', x: 0, y: K(-900), r: K(380), main: true },
+    { id: 'R2', x: K(-850), y: K(-1500), r: K(340), main: false },
+    { id: 'R3', x: 0, y: K(-1800), r: K(420), main: true },
+    { id: 'R4', x: K(800), y: K(-2500), r: K(360), main: false },
+    { id: 'R5', x: 0, y: K(-2800), r: K(380), main: true },
+    { id: 'door', x: 0, y: K(-3300), r: K(100), main: true },
   ] as HallsRoom[],
   corridors: [
     { a: 0, b: 1 }, { a: 1, b: 3 }, { a: 1, b: 2 }, { a: 3, b: 4 }, { a: 3, b: 5 }, { a: 5, b: 6 },
   ] as HallsCorridor[],
   /**
-   * Pack spots: A in R1; B and C in R3, 520 apart so B's foes stand outside C's pull (350), with C to the west, 260 off
-   * the path, so a careful hero walks past its ring (200); D in R4; E in R5's north doorway.
+   * Pack spots: A in R1; B and C in R3, 520 apart (before scaling) so B's foes stand outside C's pull (350), with C to
+   * the west, 260 off the path, so a careful hero walks past its ring (200); D in R4; E in R5's north doorway.
    */
   packs: [
-    { role: 'A', room: 1, x: 0, y: -900 },
-    { role: 'S', room: 2, x: -850, y: -1500 },
-    { role: 'B', room: 3, x: 60, y: -1600 },
-    { role: 'C', room: 3, x: -260, y: -2010 },
-    { role: 'D', room: 4, x: 800, y: -2500 },
-    { role: 'E', room: 5, x: 0, y: -3060 },
+    { role: 'A', room: 1, x: 0, y: K(-900) },
+    { role: 'S', room: 2, x: K(-850), y: K(-1500) },
+    { role: 'B', room: 3, x: K(60), y: K(-1600) },
+    { role: 'C', room: 3, x: K(-260), y: K(-2010) },
+    { role: 'D', room: 4, x: K(800), y: K(-2500) },
+    { role: 'E', room: 5, x: 0, y: K(-3060) },
   ] as { role: PackRole; room: number; x: number; y: number }[],
-  door: { x: 0, y: -3300 },
+  door: { x: 0, y: K(-3300) },
   /** The rooms that roll a layout (pillars, vents, lava) as fights do today, and the route slot whose roll they take. */
   layoutRooms: [{ room: 1, slot: 0 }, { room: 3, slot: 1 }, { room: 5, slot: 3 }],
 };
