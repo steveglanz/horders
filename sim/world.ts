@@ -9157,8 +9157,11 @@ export const REGENT = {
    * Ash Fall (phase 2): a circle under every hero. Until 22 Nov 2026 its 70 was scaled by tier twice (once when
    * cast, again when it lands); the Flue was tuned that way at its tier 11, so ashDamage keeps that hit there
    * (70 x 1.12^10, about 217 before tier) and now scales once, like every other telegraph, at other tiers.
+   * 24 Nov 2026: halved to 35 x 1.12^10 (about 109). At 217 one circle landed for 145-180% of max health at t11, so a
+   * single forgotten circle killed any hero, tank included; with average mistakes Ash Fall and Summons won 31 and 17
+   * of 80 against Tithe's 80. At 109 a hit is 73-90% of max health and they win 58 and 48 (skills; docs/design/variety.md).
    */
-  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 70 * Math.pow(1.12, 10),
+  ashEvery: 12, ashCast: 1.5, ashRadius: 70, ashDamage: 35 * Math.pow(1.12, 10),
   /** Abdication (phase 3): a party-wide burn every `officeEvery` s, growing `officeGrow` a pulse. */
   officeEvery: 3, officeDamage: 0.025, officeGrow: 0.04,
   hardEnrage: 480, lastWordCast: 5,

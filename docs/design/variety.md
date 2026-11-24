@@ -1647,3 +1647,25 @@ QA's expert report measured without Omens and with full-skill bots. These are re
 A Summons echo costs a Tithe run 6 wins of 20, and a Tithe echo saves an Ash Fall run 3; the effects point opposite ways and the average hides them. QA's runs were at t13 with max gear, where every Flue version wins every time (full skill, t11 ilvl 24: Ash Fall 19/20, Summons 19/20, Tithe 20/20), so nothing could show there. No change to the echo.
 
 **New watch item: the Tithe version can't be failed by mistakes.** With average mistakes the Summons version wins 4 of 20, Ash Fall 9 and Tithe 20, against 19, 19 and 20 at full skill. Ash Fall puts a circle under every hero, so a hero who misses one telegraph pays for it; a Tithe only needs two heroes in one circle. In the Ash Fall and Summons versions the ash circles are 51-62% of the boss-fight damage (`DMG=1`). The version table above (#579) was measured with full-skill and half-skill bots, where they matched. Before tuning, check this with QA's casual and new-player levels and more seeds, since the mistake levels are an estimate.
+
+**Ash Fall halved (skills, 24 Nov).** Checked with more seeds on the skills team's heroes. Setup: tools/group.ts with reactBot drivers, heroes-r2 hero-t10-0, the base party, `ECHO=off`, each version forced. Average is QA's 0.3/0.2/0.5. Casual is 0.3/0.5/1.0, which is skills' assumption: QA's casual.md defines only a laggedBot persona, so these are the career-sim mistake levels. The watch item held. One ash circle landed for 145-180% of max health (150% on the Bulwark, 180% on the Emberwright), so any circle a hero forgot or misjudged killed them outright, tank included. Every Ash Fall and Summons death was an ash circle. The Lumen died most (19-21 per 40 seeds at average), then the Duskblade (11-15). Summons runs lose more because heroes cross each other's circles walking in to the throne. A Tithe can hardly be failed: average parties missed 16 of 348, casual 136 of 373. `REGENT.ashDamage` is now 35 × 1.12^10 (about 109, was 217), so a hit is 73-90% of max health: survivable from full, still dangerous when low.
+
+Base party, wins of 80, seeds 41 to 120 (Ash Fall / Summons / Tithe):
+
+| Skill | Before | After |
+|---|---|---|
+| Full | 75 / 75 / 80 | 78 / 75 / 80 |
+| Average | 31 / 17 / 80 | 58 / 48 / 80 |
+| Casual (assumed levels) | 0 / 0 / 57 | 3 / 0 / 57 |
+
+Every party at full skill, same seeds (Ash Fall / Summons):
+
+| Party | Before | After |
+|---|---|---|
+| Base | 75 / 75 | 78 / 75 |
+| Anvil | 69 / 62 | 75 / 68 |
+| Bellows | 70 / 71 | 75 / 73 |
+| Two Duskblades | 72 / 63 | 75 / 66 |
+| Two Emberwrights | 72 / 72 | 74 / 75 |
+
+The Anvil gains 6, catching up to the other parties rather than passing them, which design accepted. Tried on seeds 1 to 40 and dropped: a 2.0 s cast (average Ash Fall 12 to 23, but Summons stayed at 8, and full-skill Ash Fall rose from 32 to 39), and ashDamage 130 (average 24 / 15, against 27 / 14 at 109). Known limit: at the casual level, Ash Fall and Summons still win almost nothing at tier 11. Design accepts that for a tier-11 raid for now.
