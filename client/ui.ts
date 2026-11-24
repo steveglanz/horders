@@ -817,6 +817,8 @@ export class Hud {
     const b = document.createElement('button');
     b.className = 'eqUp';
     b.type = 'button';
+    // The same sound as equipping from Bags (client/audio/ui.ts).
+    b.dataset.sfx = 'equip';
     b.textContent = `Equip ${ups.length === 1 ? 'upgrade' : `${ups.length} upgrades`} +${gain}`;
     b.setAttribute('aria-label', `Equip ${ups.map((u) => u.item.name).join(' and ')}: gear score +${gain}`);
     b.addEventListener('click', () => {
