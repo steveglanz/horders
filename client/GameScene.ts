@@ -1753,7 +1753,7 @@ export class GameScene extends Phaser.Scene {
       // The Furnace Regent in person (raid 4) wears the 192 raid sheet, abdicating in phase 3; 'regent' is his shadow's.
       : e.kind === 'regent' ? (w.bossPhase >= 3 ? 'regentAbdicate' : 'regentRaid')
       : e.kind === 'vorhulm' && !this.textures.exists('vorhulm') ? 'ashmaw' : e.kind === 'craw' && !this.textures.exists('craw') ? 'rift'
-      // V1 (variety): placeholders until visuals draw the Ember Spitter and the Ashbuck.
+      // V1 (variety): fallbacks from before their sheets existed (both drawn since #370).
       : e.kind === 'emberSpitter' && !this.textures.exists('emberSpitter') ? 'acolyte'
       : e.kind === 'ashbuck' && !this.textures.exists('ashbuck') ? 'cinderhound' : e.kind;
   }
@@ -3280,8 +3280,13 @@ export class GameScene extends Phaser.Scene {
    * mist rolls round the rim. The rim itself stays a clear pale line at CREEPING_RIME.r, so you can see where it bites.
    */
   /**
-   * Y3 the Overflow (Grandmother Slag's third version), a placeholder until visuals: while it warns, a pulsing ring at
-   * OVERFLOW.safeR round her; while it has risen, molten slag fills everything outside that ring.
+   * The 2D look (the fallback, and the battery-saving 2D setting) of three phase tells; 3D draws them natively.
+   * - Millstone (the Cinder Colossus): a molten fan off his sides and front (never his open back) with droplets flung
+   *   outward along it, and a bright leading edge.
+   * - Inhale (Old Vorhulm): his bite ring; while he breathes in, a glowing maw and embers and ash streaming in to it.
+   * - The Overflow (Grandmother Slag): while it warns, slag creeps in from the rim and her dry ring (OVERFLOW.safeR)
+   *   pulses gold; once risen, a dark crust with drifting hot cracks fills everything outside the ring, with a bright
+   *   lip where it laps at the dry floor.
    */
   private overflowDraw(now: number): void {
     const w = this.world;
@@ -3291,22 +3296,43 @@ export class GameScene extends Phaser.Scene {
     const g = this.flowGfx;
     g.clear();
     if (w.millT > 0) {
-      // Y3 Millstone (the Cinder Colossus), a placeholder: the slag pouring off him (all but his open back) as he grinds round.
       const R = b.def.radius + MILL.range;
-      const flick = 0.25 + 0.1 * Math.sin(now / 90);
-      g.fillStyle(0xff6020, flick).slice(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).fillPath();
-      g.lineStyle(2, 0xffb060, 0.7).beginPath().arc(b.x, b.y, R, w.colFacing - MILL.arc, w.colFacing + MILL.arc, false).strokePath();
+      const a0 = w.colFacing - MILL.arc, a1 = w.colFacing + MILL.arc;
+      const flick = 0.22 + 0.08 * Math.sin(now / 90);
+      g.fillStyle(0x7a1e08, 0.3).slice(b.x, b.y, R, a0, a1, false).fillPath();
+      g.fillStyle(0xff6020, flick).slice(b.x, b.y, R * 0.72, a0, a1, false).fillPath();
+      // Droplets flung out along the fan, each on its own spoke, racing outward and cooling as they go.
+      const n = this.lowFx ? 14 : 28;
+      for (let k = 0; k < n; k++) {
+        const a = a0 + ((k * 0.618) % 1) * (a1 - a0);
+        const f = (now / 700 + k * 0.37) % 1;
+        const r = b.def.radius + f * (R - b.def.radius);
+        g.fillStyle(f < 0.6 ? 0xffd080 : 0xff6a20, 0.9 * (1 - f * 0.7)).fillCircle(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, 3.2 - f * 1.6);
+      }
+      g.lineStyle(6, 0xff9040, 0.25).beginPath().arc(b.x, b.y, R, a0, a1, false).strokePath();
+      g.lineStyle(2, 0xffd090, 0.85).beginPath().arc(b.x, b.y, R, a0, a1, false).strokePath();
       return;
     }
     if (w.inhaleStage) {
-      // Y3 Inhale (Old Vorhulm), also a placeholder: his mouth's reach, and streaks drawn in toward him while he breathes in.
       const m = b.def.radius + INHALE.bite;
       const pulse = 0.5 + 0.5 * Math.sin(now / 120);
-      g.lineStyle(3, 0xff5030, w.inhaleStage === 2 ? 0.9 : 0.4 + 0.4 * pulse).strokeCircle(b.x, b.y, m);
-      if (w.inhaleStage === 2) for (let k = 0; k < 12; k++) {
-        const a = (k / 12) * Math.PI * 2;
-        const r0 = m + 40 + ((now / 4 + k * 37) % 220);
-        g.lineStyle(2, 0xffd0a0, 0.5).lineBetween(b.x + Math.cos(a) * r0, b.y + Math.sin(a) * r0, b.x + Math.cos(a) * (r0 - 30), b.y + Math.sin(a) * (r0 - 30));
+      const drawing = w.inhaleStage === 2;
+      g.fillStyle(0xff5030, drawing ? 0.14 : 0.06 + 0.05 * pulse).fillCircle(b.x, b.y, m);
+      g.lineStyle(3, 0xff5030, drawing ? 0.9 : 0.4 + 0.4 * pulse).strokeCircle(b.x, b.y, m);
+      if (drawing) {
+        // The maw: a hot glow at his centre, and embers and ash spiralling in to it from all round.
+        g.fillStyle(0xffb070, 0.25 + 0.15 * pulse).fillCircle(b.x, b.y, b.def.radius * 0.7);
+        g.fillStyle(0xfff0c0, 0.6).fillCircle(b.x, b.y, b.def.radius * 0.3);
+        const n = this.lowFx ? 18 : 36;
+        for (let k = 0; k < n; k++) {
+          const f = 1 - ((now / 900 + k * 0.29) % 1);
+          const a = (k / n) * Math.PI * 2 + (1 - f) * 0.9;
+          const r = m * 0.6 + f * 260;
+          const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r;
+          const ash = k % 3 === 0;
+          g.fillStyle(ash ? 0x8a8078 : 0xffc080, (ash ? 0.5 : 0.85) * (1 - f * 0.5)).fillCircle(x, y, ash ? 2.6 : 2.2);
+          if (!ash) g.lineStyle(1.5, 0xffd0a0, 0.35).lineBetween(x, y, x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+        }
       }
       return;
     }
@@ -3314,13 +3340,30 @@ export class GameScene extends Phaser.Scene {
     // floor bridge must not carry this flat one too.
     if (this.bridge) return;
     const R = OVERFLOW.safeR;
+    const outer = ARENA * 2;
     if (w.flowStage === 2) {
-      const outer = ARENA * 2;
-      g.lineStyle(outer - R, 0xff6a1a, 0.32 + 0.05 * Math.sin(now / 160)).strokeCircle(b.x, b.y, (outer + R) / 2);
-      g.lineStyle(4, 0xffc070, 0.9).strokeCircle(b.x, b.y, R);
+      // The flood: a dark molten crust everywhere outside her ring...
+      g.lineStyle(outer - R, 0x5a1606, 0.62).strokeCircle(b.x, b.y, (outer + R) / 2);
+      // ...with hot cracks drifting round in it (seeded rings of short arcs, each turning at its own pace)...
+      const n = this.lowFx ? 18 : 40;
+      for (let k = 0; k < n; k++) {
+        const rr = R + 24 + ((k * 61) % 360);
+        const a = ((k * 2.399) % (Math.PI * 2)) + now / (2600 + (k % 5) * 500) * (k % 2 ? 1 : -1);
+        const len = 0.18 + ((k * 0.37) % 0.25);
+        g.lineStyle(2 + (k % 3), 0xff7a26, 0.55 + 0.25 * Math.sin(now / 200 + k)).beginPath().arc(b.x, b.y, rr, a, a + len, false).strokePath();
+      }
+      // ...and a bright lip where it laps at the dry floor.
+      g.lineStyle(14, 0xff8a30, 0.28 + 0.06 * Math.sin(now / 140)).strokeCircle(b.x, b.y, R + 7);
+      g.lineStyle(4, 0xffd080, 0.95).strokeCircle(b.x, b.y, R);
     } else {
+      // The warning: slag creeping in from the rim, and her dry ring pulsing gold (the soak colour: come here).
+      const k = Math.min(1, Math.max(0, 1 - w.flowT / OVERFLOW.warn));
+      const edge = ARENA - (ARENA - R) * 0.35 * k;
+      g.lineStyle(outer - edge, 0x6a1c08, 0.45).strokeCircle(b.x, b.y, (outer + edge) / 2);
+      g.lineStyle(5, 0xff8a30, 0.6).strokeCircle(b.x, b.y, edge);
       const pulse = 0.5 + 0.5 * Math.sin(now / 110);
-      g.lineStyle(3 + 2 * pulse, 0xff8a30, 0.45 + 0.4 * pulse).strokeCircle(b.x, b.y, R);
+      g.fillStyle(SOAK, 0.06 + 0.06 * pulse).fillCircle(b.x, b.y, R);
+      g.lineStyle(3 + 2 * pulse, SOAK, 0.5 + 0.4 * pulse).strokeCircle(b.x, b.y, R);
     }
   }
 

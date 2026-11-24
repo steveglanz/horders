@@ -817,6 +817,8 @@ export class Hud {
     const b = document.createElement('button');
     b.className = 'eqUp';
     b.type = 'button';
+    // The same sound as equipping from Bags (client/audio/ui.ts).
+    b.dataset.sfx = 'equip';
     b.textContent = `Equip ${ups.length === 1 ? 'upgrade' : `${ups.length} upgrades`} +${gain}`;
     b.setAttribute('aria-label', `Equip ${ups.map((u) => u.item.name).join(' and ')}: gear score +${gain}`);
     b.addEventListener('click', () => {
@@ -896,7 +898,8 @@ export class Hud {
     }
     $('end').classList.toggle('win', s.victory);
     $('end').classList.toggle('loss', !s.victory);
-    $('endTitle').textContent = s.victory ? 'Victory' : 'The Tide took you';
+    // The Tide is the Foundry's rising water; anywhere else a loss is plainly a fall (QA playtest, 23 Nov).
+    $('endTitle').textContent = s.victory ? 'Victory' : w.dungeonId === 'foundry' ? 'The Tide took you' : 'You fell';
     $('endSub').textContent = s.victory
       ? `${ENCOUNTERS[w.dungeonDef.boss].name.split(',')[0]} falls. Emberhold will sing of this.`
       : w.bossSpawned
