@@ -45,12 +45,14 @@ export function hallsWalls(m: HallsMap, corridor: number, doorRoom: number): { r
       const o = m.rooms[c.a === i ? c.b : c.a];
       gaps.push([Math.atan2(o.y - r.y, o.x - r.x), Math.asin(Math.min(1, hw / r.r))]);
     }
-    // The door alcove has no rim of its own: the door frame and the corridor's walls close it.
-    if (i === doorRoom) return;
+    // The door alcove: the boss door spans it across its middle, so only its south half gets a rim (a low near ledge),
+    // leaving the corridor's mouth open. Its north half lies behind the door.
+    const half = i === doorRoom;
     const n = Math.max(8, Math.ceil((2 * Math.PI * r.r) / 70));
     for (let k = 0; k < n; k++) {
       const a = (k + 0.5) * ((2 * Math.PI) / n) - Math.PI;
       if (gaps.some(([g, h]) => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) < h)) continue;
+      if (half && Math.sin(a) <= 0.05) continue;
       const nx = Math.cos(a), ny = Math.sin(a);
       out.push({ room: i, corridor: -1, p: { x: r.x + nx * r.r, y: r.y + ny * r.r, len: ((2 * Math.PI * r.r) / n) * 1.04, nx, ny } });
     }
@@ -210,19 +212,22 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   // bar: red is bad); once he falls the door is gone and gold light fills the arch.
   const door = new THREE.Group();
   const dr = m.rooms[o.doorRoom];
-  door.position.set(m.door.x * S, FLOOR, (m.door.y - dr.r) * S);
+  // Across the alcove's middle, as wide as the alcove (130 world units in radius since the 1.3 scale, #668), so its
+  // sides never show the dark beyond.
+  door.position.set(m.door.x * S, FLOOR, m.door.y * S);
+  const dw = dr.r * S;
   const post = new THREE.BoxGeometry(0.42, 3.3, 0.5);
   const frameMat = new THREE.MeshStandardMaterial({ color: '#c47a5c', roughness: 0.9 });
-  for (const sx of [-1.45, 1.45]) { const p = new THREE.Mesh(post, frameMat); p.position.set(sx, 1.65, 0); p.castShadow = !o.saver; door.add(p); }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 0.56), frameMat); lintel.position.y = 3.45; lintel.castShadow = !o.saver; door.add(lintel);
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.2, 0.14), new THREE.MeshStandardMaterial({ color: '#3a2e2c', roughness: 0.5, metalness: 0.6 }));
+  for (const sx of [-(dw + 0.21), dw + 0.21]) { const p = new THREE.Mesh(post, frameMat); p.position.set(sx, 1.65, 0); p.castShadow = !o.saver; door.add(p); }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2 * dw + 0.9, 0.5, 0.56), frameMat); lintel.position.y = 3.45; lintel.castShadow = !o.saver; door.add(lintel);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(2 * dw + 0.04, 3.2, 0.14), new THREE.MeshStandardMaterial({ color: '#3a2e2c', roughness: 0.5, metalness: 0.6 }));
   panel.position.set(0, 1.6, -0.05); door.add(panel);
   // The seal: a red disc on the door (a bar read as a health bar), with a darker rim.
   const bar = new THREE.Group(); bar.position.set(0, 1.7, 0.08); door.add(bar);
   bar.add(new THREE.Mesh(new THREE.CircleGeometry(0.42, 28), new THREE.MeshBasicMaterial({ color: o.bad.clone().multiplyScalar(0.85) })));
   const sealRim = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 28), new THREE.MeshStandardMaterial({ color: '#1e1614', roughness: 0.4, metalness: 0.7 })); sealRim.position.z = 0.002; bar.add(sealRim);
   const glowMat = new THREE.MeshBasicMaterial({ map: doorGlowTex(), transparent: true, depthWrite: false, opacity: 0, fog: false });
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.25), glowMat); glow.position.set(0, 1.62, -0.12); door.add(glow);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(2 * dw + 0.1, 3.25), glowMat); glow.position.set(0, 1.62, -0.12); door.add(glow);
   roomChunk[o.doorRoom].g.add(door);
 
   // Sleeping packs: a faint red ring at the reach, shown only with a hero near (the spec's 400).
