@@ -28,6 +28,8 @@ import type { Hd2dAdapter, Hd2dView } from './api';
 import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
 import { SIM } from './simconsts';
+import { buildHalls3d, type HallsView } from './halls3d';
+import type { HallsMap } from '../../sim/halls';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
 const S = 1 / 70;
@@ -1096,6 +1098,34 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     return f;
   };
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
+  // Phase 18 Halls H1: the greybox map (halls3d.ts), built the first frame a run has one. Today's room hides while the
+  // party walks the map and comes back when they go through the boss door (World.halls.done).
+  let halls: HallsView | null = null, hallsOf: HallsMap | null = null;
+  /** Sleeping packs' foes: they aren't in World.enemies until their pack wakes, so they're drawn from the map's plan. */
+  type Sleeper = { pack: number; x: number; z: number; mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; wd: number; ht: number; ph: number };
+  const sleepers: Sleeper[] = [];
+  const sleepRingMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: 0.45, depthWrite: false });
+  const sleepRingGeo = new THREE.RingGeometry(0.86, 1, 40);
+  /** Where the two warm room lights stand in today's room, to put them back after the map. */
+  const lightHome = flick.map((f) => f.l.position.clone());
+  const buildHallsView = (m: HallsMap) => {
+    if (halls) scene.remove(halls.group);
+    for (const z of sleepers) scene.remove(z.mesh, z.blob, z.ring);
+    sleepers.length = 0;
+    halls = buildHalls3d(m, { S, floor: FLOOR, tile: ROOMS.kiln.tile, ground: ROOMS.kiln.ground, saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
+    scene.add(halls.group);
+    hallsOf = m;
+    m.packs.forEach((p, k) => p.foes.forEach((f, j) => {
+      const key = A.kindTex?.(f.kind) ?? f.kind;
+      const mat = foeMat(key, 0);
+      if (!mat) return;
+      const d = (mat.map as THREE.Texture).userData as { w: number; h: number };
+      const mesh = new THREE.Mesh(foeGeo, mat); mesh.castShadow = !saver; scene.add(mesh);
+      const blob = flat(circle, blobMat, 0.005);
+      const ring = flat(sleepRingGeo, sleepRingMat, 0.031);
+      sleepers.push({ pack: k, x: f.x * S, z: f.y * S, mesh, blob, ring, wd: d.w * A.texScale * S, ht: d.h * A.texScale * S, ph: k * 1.3 + j * 0.7 });
+    }));
+  };
   // Old Vorhulm's Inhale (the Hoard, phase 3): his maw glows and air, ash and embers stream in to it from all round.
   // The floor ring of his bite and the 2D streaks still come through the bridge.
   // The Cinder Colossus's Millstone (the Smeltery, phase 2): as he grinds round, molten slag is flung off his sides and
@@ -1302,6 +1332,10 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       roomFor = w.arenaR;
       room.scale.setScalar((w.arenaR * S) / ROOM_R);
     }
+    const hm = w.halls, onMap = !!hm && !hm.done;
+    if (hm && hm !== hallsOf) buildHallsView(hm);
+    room.visible = !onMap;
+    if (halls) halls.group.visible = onMap;
     // The floor bridge: the 2D scene's floor layer, laid flat just over the tiles and under the 3D telegraphs.
     const fl = A.floor?.();
     if (fl) {
@@ -1313,7 +1347,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         bridge = { mesh, tex, stamp: -1 };
       }
       bridge.mesh.scale.set(fl.span * S, fl.span * S, 1);
-      bridge.mesh.position.set(0, FLOOR + 0.026, 0); // tiles reach FLOOR + 0.02 (rnd jitter), so lie above the highest
+      // On a Halls map the bridge follows the hero (GameScene centres its camera there and says where).
+      bridge.mesh.position.set((fl.x ?? 0) * S, FLOOR + 0.026, (fl.y ?? 0) * S); // tiles reach FLOOR + 0.02 (rnd jitter), so lie above the highest
       if (fl.stamp !== bridge.stamp) { bridge.stamp = fl.stamp; bridge.tex.needsUpdate = true; }
     }
     // Pillars.
@@ -1750,7 +1785,30 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     // GameScene's focus offset (phones: keep the boss clear of the ability buttons) moves the camera, not the lamp.
     const fo = A.focus?.();
     const look = v3.set(cx + (fo?.x ?? 0) * S, 0, cz - 0.9 + (fo?.y ?? 0) * S);
-    camera.position.copy(camDir).multiplyScalar(dist).add(look);
+    // The Halls room zoom (GameScene, from engineering's camera rule): 1 is today's framing, above 1 shows more.
+    camera.position.copy(camDir).multiplyScalar(dist * (A.zoom?.() ?? 1)).add(look);
+    if (hm && halls) {
+      const me = w.player;
+      halls.update(hm, look.x, look.z, me.x, me.y, t);
+      for (const z of sleepers) {
+        const on = onMap && hm.packs[z.pack].state === 'asleep' && Math.abs(z.x - look.x) < 10 && z.z - look.z < 7 && look.z - z.z < 14;
+        z.mesh.visible = z.blob.visible = z.ring.visible = on;
+        if (!on) continue;
+        // Asleep: standing still, breathing slowly.
+        const br = 1 + 0.025 * Math.sin(t * 1.6 + z.ph);
+        z.mesh.scale.set(z.wd, z.ht * br, 1); z.mesh.position.set(z.x, FLOOR, z.z);
+        z.blob.position.set(z.x, FLOOR + 0.005, z.z); z.blob.scale.setScalar(z.wd * 0.55);
+        z.ring.position.set(z.x, FLOOR + 0.031, z.z); z.ring.scale.setScalar(z.wd * 0.45);
+      }
+      // The two warm room lights stay two (a light switched on or off recompiles every material): on the map they move
+      // to the back of the room the hero is in and just ahead of the hero; through the boss door, back home.
+      if (onMap) {
+        let best = hm.rooms[0], bd = Infinity;
+        for (const r of hm.rooms) { const d = Math.hypot(me.x - r.x, me.y - r.y) - r.r; if (d < bd) { bd = d; best = r; } }
+        flick[0]?.l.position.set(best.x * S, 3, (best.y - best.r * 0.45) * S);
+        flick[1]?.l.position.set(cx, 2.2, cz + 3.2);
+      } else flick.forEach((f, k) => f.l.position.copy(lightHome[k]));
+    }
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);
     lamp.position.set(cx, 2.4, cz + 0.6);

@@ -271,7 +271,7 @@ export class GameScene extends Phaser.Scene {
   private hd2d: Hd2dView | null = null;
   private hd2dAlpha = 1;
   /** The floor bridge (3D look): a second camera drawing the floor layer top-down into the canvas's corner, copied each frame. */
-  private bridge: { cam: Phaser.Cameras.Scene2D.Camera; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; n: number; span: number; stamp: number; blank: boolean } | null = null;
+  private bridge: { cam: Phaser.Cameras.Scene2D.Camera; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; n: number; span: number; stamp: number; blank: boolean; cx: number; cy: number } | null = null;
   private hd2dDt = 0;
   /** How long the 3D view took to build and to draw its first frame, in ms (tools/hd2dload.cjs). */
   hd2dTimes: { mount: number; firstFrame: number } | null = null;
@@ -709,7 +709,8 @@ export class GameScene extends Phaser.Scene {
           frames: (key) => FRAMES[key] ?? 1,
           texScale: BASE,
           heroName: (i) => this.world.heroes[i]?.name ?? '',
-          floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp } : null),
+          floor: () => (this.bridge ? { canvas: this.bridge.canvas, span: this.bridge.span, stamp: this.bridge.stamp, x: this.bridge.cx, y: this.bridge.cy } : null),
+          kindTex: (kind) => this.enemyTex({ kind } as Enemy, 0),
           echoAt: () => this.echoAt,
           focus: () => ({ x: this.focusX + (this.halls?.leadX ?? 0), y: this.focusY + (this.halls?.leadY ?? 0) }),
           zoom: () => this.halls?.zoomK ?? 1,
@@ -761,7 +762,7 @@ export class GameScene extends Phaser.Scene {
     canvas.width = canvas.height = n;
     const ctx = canvas.getContext('2d');
     if (!ctx) { this.cameras.remove(cam); return; }
-    this.bridge = { cam, canvas, ctx, n, span, stamp: 0, blank: true };
+    this.bridge = { cam, canvas, ctx, n, span, stamp: 0, blank: true, cx: 0, cy: 0 };
     this.bridgeFilter();
     this.game.events.on('postrender', this.bridgeCopy, this);
   }
@@ -1010,6 +1011,16 @@ export class GameScene extends Phaser.Scene {
       this.hd2dAlpha = alpha;
       this.hd2dDt += deltaMs / 1000;
       this.bridgeFilter();
+      // Phase 18 Halls: a map is too big for one fixed bridge (2.5 world units a pixel over today's arena would be about 7
+      // over the Kiln map), so on the map it follows your hero at today's span, snapped to whole bridge pixels so the floor
+      // doesn't shimmer. Back at (0, 0) for the boss arena and every other run.
+      const b = this.bridge;
+      if (b) {
+        const p = w.player, on = w.hallsOn, step = b.span / b.n;
+        const hx = on ? p.px + (p.x - p.px) * alpha : 0, hy = on ? p.py + (p.y - p.py) * alpha : 0;
+        const cx = Math.round(hx / step) * step, cy = Math.round(hy / step) * step;
+        if (cx !== b.cx || cy !== b.cy) { b.cx = cx; b.cy = cy; b.cam.centerOn(cx, cy); }
+      }
       // With the floor bridge, the 3D frame is drawn after Phaser renders (bridgeCopy), so the floor it lays is this frame's.
       if (!this.bridge) { this.hd2d.frame(this.hd2dDt); this.hd2dDt = 0; this.foeEdgeMarks3d(this.time.now); }
     }

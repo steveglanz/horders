@@ -30,9 +30,13 @@ export interface Hd2dAdapter {
   /**
    * The floor bridge: the 2D scene's floor layer (every floor tell the 3D view doesn't draw yet: rafts, vents, the
    * Glarewell's light, coals, wave marks, boss tells), drawn top-down into a square canvas `span` world units across,
-   * centred on (0, 0). The renderer lays it on its floor. `stamp` changes whenever the canvas was redrawn.
+   * centred on (x, y) (on a Halls map it follows the hero), else (0, 0). The renderer lays it on its floor. `stamp` changes whenever the canvas was redrawn.
    */
-  floor?(): { canvas: HTMLCanvasElement; span: number; stamp: number } | null;
+  floor?(): { canvas: HTMLCanvasElement; span: number; stamp: number; x?: number; y?: number } | null;
+  /** Phase 18 Halls: the texture key the 2D scene draws a foe of `kind` with, for sleeping packs (not in World.enemies yet). */
+  kindTex?(kind: string): string;
+  /** Phase 18 Halls: how much more than today's view the camera shows (1 = today's), for the room zoom. */
+  zoom?(): number;
   /** Run time (World.time) of the boss's last echoed cast (the 'echo' event, Phase 16 U1), or -Infinity for none. */
   echoAt?(): number;
   /** How far (world units) the camera looks past your hero this frame ({0, 0} when it doesn't): phones' boss framing. */
