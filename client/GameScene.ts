@@ -3140,13 +3140,24 @@ export class GameScene extends Phaser.Scene {
       if (!ts) ts = this.lavaStrips[k] = this.add.tileSprite(0, 0, 64, 64, 'lavaTile').setDepth(1.5);
       ts.setVisible(true).setPosition((c.x1 + c.x2) / 2, (c.y1 + c.y2) / 2).setSize(len, c.w).setRotation(ang);
       ts.tilePositionX = -now / 60;
+      // Phase 18 Halls (design's rule, #665): on the map a strip is cooled crust (heat 0, harmless) until its room's pack
+      // wakes, then heats over a second and burns only at 1. Arena strips have no heat: always hot, drawn as before.
+      const heat = c.heat ?? 1, heating = heat > 0 && heat < 1;
+      // Crust is the lava darkened to grey-brown rock; it brightens back to today's lava as it heats.
+      const mix = heat * heat;
+      const ch = (a: number, b: number) => Math.round(a + (b - a) * mix);
+      ts.setTint((ch(0x4a, 0xff) << 16) | (ch(0x38, 0xff) << 8) | ch(0x30, 0xff));
       // Heat glow either side, then dark crust on the edges, so the burning width reads exactly.
       const nx = -Math.sin(ang), ny = Math.cos(ang), hw = c.w / 2;
       const pulse = 0.5 + 0.5 * Math.sin(now / 300);
-      g.lineStyle(c.w + 26, 0xff5a14, 0.1 + 0.05 * pulse).lineBetween(c.x1, c.y1, c.x2, c.y2);
+      // While it heats, the glow flares fast and bright: the warning that it is about to burn.
+      const flare = heating ? 0.22 + 0.16 * (0.5 + 0.5 * Math.sin(now / 55)) : 0;
+      g.lineStyle(c.w + 26, 0xff5a14, (0.1 + 0.05 * pulse) * heat + flare).lineBetween(c.x1, c.y1, c.x2, c.y2);
+      // Cooled: a faint ember seam down the middle, so it still reads as lava rock and not as floor.
+      if (heat < 1) g.lineStyle(3, 0xff6a1f, 0.28 * (1 - heat)).lineBetween(c.x1, c.y1, c.x2, c.y2);
       for (const sd of [-1, 1]) {
         g.lineStyle(5, 0x2a0a04, 0.95).lineBetween(c.x1 + nx * hw * sd, c.y1 + ny * hw * sd, c.x2 + nx * hw * sd, c.y2 + ny * hw * sd);
-        g.lineStyle(2, 0xffb060, 0.7).lineBetween(c.x1 + nx * (hw - 4) * sd, c.y1 + ny * (hw - 4) * sd, c.x2 + nx * (hw - 4) * sd, c.y2 + ny * (hw - 4) * sd);
+        g.lineStyle(2, 0xffb060, 0.7 * heat + (heating ? 0.3 : 0)).lineBetween(c.x1 + nx * (hw - 4) * sd, c.y1 + ny * (hw - 4) * sd, c.x2 + nx * (hw - 4) * sd, c.y2 + ny * (hw - 4) * sd);
       }
     });
     for (let k = w.lava.length; k < this.lavaStrips.length; k++) this.lavaStrips[k].setVisible(false);
