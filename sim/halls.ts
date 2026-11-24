@@ -31,6 +31,11 @@ export const HALLS = {
    * wake it (that, not the hero stepping in its ring, was most double pulls).
    */
   ringKeep: 400,
+  /**
+   * "Catch breath" on the map: after `delay` s with nothing awake, heroes recover `hp` of max hp a second and their class
+   * resource builds `res` a second faster than its own regen (design, 24 Nov: aims at the arena's arrival state).
+   */
+  rest: { delay: 3, hp: 0.01, res: 4 },
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
 };
