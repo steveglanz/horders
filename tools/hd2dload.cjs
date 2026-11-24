@@ -33,7 +33,7 @@ const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     const t0 = Date.now();
-    await page.goto(base + '?seed=3' + (mode === '3d' ? '&hd2d=1' : ''), { waitUntil: 'commit' });
+    await page.goto(base + '?seed=3' + (mode === '3d' ? '&hd2d=1' : '&hd2d=0'), { waitUntil: 'commit' });
     await page.waitForFunction(() => !!window.__ember && !!document.querySelector('canvas') && !document.getElementById('startBtn').disabled, null, { timeout: 90000 });
     const title = Date.now() - t0;
     // Requests while the title was becoming usable: hd2d.js must not be among them.
