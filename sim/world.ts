@@ -2007,7 +2007,7 @@ export class World {
           e.aux = 12; // first Molten Cataclysm
           this.bossVariant = this.rollKilnVariant();
           this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
-          this.echoNext = false;
+          this.echoNext = true; // QA #658: her first phase-3 signature is the echo, so a short last phase still hears it
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
