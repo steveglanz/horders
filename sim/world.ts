@@ -24,6 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollR
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
+import { HALLS, HallsMap, buildHalls, clampHalls, hallsFor, hallsWay, roomAt, KILN_HALLS_A } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -266,6 +267,8 @@ export interface Enemy {
   /** C2: index into NAMED_TITLES (-1 for an ordinary foe), and into AFFIXES. */
   named: number;
   affix: number;
+  /** Phase 18 Halls: the map pack (World.halls.packs index) this foe belongs to; set only on Halls runs. */
+  pack?: number;
 }
 
 export interface Orb {
@@ -655,6 +658,9 @@ export type SimEvent =
   | { type: 'loot'; item: Item; equipped: boolean; delta: number; hero?: number }
   | { type: 'quest'; index: number }
   | { type: 'encounterStart'; index: number; id: EncounterId }
+  /** Phase 18 Halls: map pack `pack` woke (World.halls.packs), and the party went through the boss door. */
+  | { type: 'hallsWake'; pack: number }
+  | { type: 'hallsDoor' }
   | { type: 'encounterClear'; index: number; id: EncounterId }
   | { type: 'end'; victory: boolean };
 
@@ -780,6 +786,8 @@ export interface WorldOptions {
   bounty?: number;
   /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
   keyLevel?: number;
+  /** Phase 18 Halls H1 (?halls=1): play the dungeon as a map of rooms and sleeping packs (the Kiln only for now; sim/halls.ts). */
+  halls?: boolean;
 }
 
 export interface RunSummary {
@@ -801,6 +809,8 @@ export interface RunSummary {
   bounty?: number;
   /** Fights cleared before the run ended (a run that clears none earns no chest). */
   fightsCleared?: number;
+  /** Phase 18: a Halls run (the dungeon as a map, ?halls=1). */
+  halls?: boolean;
   /** P3: the key level, for a Delver's Key run. */
   keyLevel?: number;
   /** P1 weekly quests: the week, this hero's interrupts, and named elites the party felled. */
@@ -1142,7 +1152,14 @@ export class World {
   /** The dungeon: the route of fights, which one is next, and where we are in it. */
   route: EncounterId[] = [];
   encounter = 0;
+  /** 'cleared' is the Halls map between fights: walking the rooms, nothing awake (drafts open then, as after a clear). */
   phase: 'intro' | 'fight' | 'cleared' | 'choose' = 'intro';
+  /** Phase 18 Halls H1: this run's map (sim/halls.ts), or null for an arena run. Not synced (H1 is local play only). */
+  halls: HallsMap | null = null;
+  /** Halls: main-path packs cleared so far (World.encounter between fights). */
+  hallsMain = 0;
+  /** Halls: the pack whose foes are spawning right now (-1 otherwise), so spawn() tags them. */
+  private hallsWaking = -1;
   /** Gates on offer while `phase` is 'choose'. */
   gates: Gate[] = [];
   /** Paths taken at each fork, for the summary. */
@@ -1318,6 +1335,17 @@ export class World {
       }
     }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
+    // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
+    if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q));
+      this.hallsLayouts();
+      this.phase = 'cleared';
+    }
+  }
+
+  /** Halls: walking on the map (not yet through the boss door). */
+  get hallsOn(): boolean {
+    return !!this.halls && !this.halls.done;
   }
 
   // ---------------------------------------------------------------- heroes
@@ -1705,6 +1733,7 @@ export class World {
       dungeon: this.dungeonId,
       bounty: this.bounty,
       fightsCleared: this.encounter,
+      ...(this.halls ? { halls: true } : {}),
       time: this.time,
       kills: this.kills,
       level: this.player.level,
@@ -1753,6 +1782,10 @@ export class World {
   }
 
   private dungeon(dt: number): void {
+    if (this.hallsOn) {
+      this.hallsClock(dt);
+      return;
+    }
     if (this.phase === 'intro') {
       this.phaseT -= dt;
       if (this.phaseT <= 0) this.startEncounter();
@@ -2270,6 +2303,235 @@ export class World {
     this.events.push({ type: 'gateChosen', kind: g.kind, id: g.encounter, timedOut });
     this.phase = 'intro';
     this.phaseT = INTRO_TIME * 0.6;
+  }
+
+  // ---------------------------------------------------------------- Phase 18 Halls H1
+
+  /**
+   * Halls: R1, R3 and R5 roll a layout as their fights would today (layoutAt, by the route slot of the room's
+   * main-path pack), placed inside the room and scaled to it. Stones and lava stand all run; vents flare only while a
+   * pack in their room is awake.
+   */
+  private hallsLayouts(): void {
+    const m = this.halls!;
+    this.stones = [];
+    this.lava = [];
+    this.flareVents = [];
+    this.layout = 'open';
+    for (const { room, slot } of KILN_HALLS_A.layoutRooms) {
+      const rm = m.rooms[room];
+      const id = this.route[slot];
+      const h = this.layoutHash(slot);
+      if (h === undefined || !this.layoutRolls(id)) continue;
+      const lay = this.layoutAt(slot, id);
+      const turn = ((h >>> 8) % 360) * (Math.PI / 180);
+      const s = rm.r / ARENA;
+      if (lay === 'pillars') {
+        for (let k = 0; k < LAYOUT.stoneCount; k++) {
+          const a = turn + (k * 2 * Math.PI) / LAYOUT.stoneCount;
+          this.stones.push({ x: rm.x + Math.cos(a) * LAYOUT.stoneRing * s, y: rm.y + Math.sin(a) * LAYOUT.stoneRing * s, r: LAYOUT.stoneRadius });
+        }
+      } else if (lay === 'channel') {
+        const L = rm.r - 40;
+        this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth });
+      } else if (lay === 'vents') {
+        for (let k = 0; k < LAYOUT.ventCount; k++) {
+          const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
+          m.vents.push({ room, x: rm.x + Math.cos(a) * LAYOUT.ventRing * s, y: rm.y + Math.sin(a) * LAYOUT.ventRing * s });
+        }
+      }
+    }
+  }
+
+  /** Halls: the awake pack whose centre is nearest (x, y), or -1 with none awake. */
+  private hallsNearestAwake(x: number, y: number): number {
+    const m = this.halls;
+    if (!m) return -1;
+    let best = -1, bd = Infinity;
+    m.packs.forEach((pk, k) => {
+      if (pk.state !== 'awake') return;
+      const d = (pk.x - x) ** 2 + (pk.y - y) ** 2;
+      if (d < bd) { bd = d; best = k; }
+    });
+    return best;
+  }
+
+  /** Halls, every step on the map: rooms seen, packs waking, fights clearing, and the boss door. */
+  private hallsClock(dt: number): void {
+    const m = this.halls!;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0) continue;
+      const r = roomAt(m, q.x, q.y);
+      if (r >= 0) m.seen[r] = true;
+    }
+    for (let k = 0; k < m.packs.length; k++) if (m.packs[k].state === 'asleep' && this.hallsStirs(k)) this.hallsWake(k);
+    if (this.phase === 'fight') {
+      this.runOmens(dt);
+      if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
+      if (this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
+      for (let k = 0; k < m.packs.length; k++) {
+        if (m.packs[k].state !== 'awake') continue;
+        if (!this.enemies.some((e) => e.alive && e.pack === k)) this.hallsClear(k);
+      }
+      if (!m.packs.some((pk) => pk.state === 'awake')) {
+        this.phase = 'cleared';
+        this.encounter = this.hallsMain;
+      }
+      return;
+    }
+    if (this.lava.length) this.layoutClock(dt);
+    const guard = m.packs.find((pk) => pk.guard);
+    if (guard && guard.state !== 'cleared') return;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp > 0 && (q.x - m.door.x) ** 2 + (q.y - m.door.y) ** 2 <= HALLS.door ** 2) { this.hallsEnterBoss(); return; }
+    }
+  }
+
+  /** Halls: whether sleeping pack `k` wakes this step (a living hero inside its ring, or an awake foe close by). */
+  private hallsStirs(k: number): boolean {
+    const pk = this.halls!.packs[k];
+    for (let h = 0; h < this.heroes.length; h++) {
+      const q = this.heroPlayer(h);
+      if (q.hp > 0 && (q.x - pk.x) ** 2 + (q.y - pk.y) ** 2 <= HALLS.reach ** 2) return true;
+    }
+    for (const e of this.enemies) if (e.alive && (e.x - pk.x) ** 2 + (e.y - pk.y) ** 2 <= HALLS.pull ** 2) return true;
+    return false;
+  }
+
+  /**
+   * Halls: pack `k` wakes. Its foes spawn where they stood (hp depth from the pack's route slot), and the first pack
+   * awake starts a fight as startEncounter does. A shrine has no foes: stepping in clears it at once.
+   */
+  private hallsWake(k: number): void {
+    const m = this.halls!;
+    const pk = m.packs[k];
+    const def = ENCOUNTERS[pk.enc];
+    const first = !m.packs.some((q) => q.state === 'awake');
+    pk.state = 'awake';
+    this.events.push({ type: 'hallsWake', pack: k });
+    if (!def.spawns.length) {
+      this.hallsClear(k);
+      return;
+    }
+    this.encounter = pk.slot;
+    if (first) {
+      this.phase = 'fight';
+      this.fightStartedAt = this.time;
+      for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); q.hurtBy = {}; q.lastHurtBy = undefined; }
+      this.burnoutWarned = false;
+      this.burnoutTickT = 0;
+      this.burnoutOn = false;
+      this.player.haloUsed = false;
+      this.player.windUsed = false;
+      this.markT = 0;
+      this.markQueued = 0;
+      this.lampBeam = null;
+    }
+    this.hallsWaking = k;
+    let lead = -1;
+    let firstElite = -1;
+    pk.foes.forEach((f, j) => {
+      const i = this.spawn(f.kind, f.x, f.y);
+      if (i < 0) return;
+      const e = this.enemies[i];
+      if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
+      // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.
+      if (f.kind === 'acolyte') {
+        e.aux = Math.atan2(f.y - pk.y, f.x - pk.x);
+        e.aux2 = lead;
+      } else if (lead < 0) lead = i;
+      if (f.kind === 'rift') this.events.push({ type: 'riftOpen', x: e.x, y: e.y });
+      if (f.kind === 'glassWarden') e.abilityT = 3 + j * 2.5;
+      if (f.kind === 'hoarfrostWeaver') e.abilityT = 3;
+      if (f.kind === 'conchblower') e.abilityT = CONCH.first;
+      if (f.kind === 'lensbearer') e.abilityT = 4 + j * 3;
+      if (f.kind === 'brandkeeper') e.abilityT = 3;
+      if (f.kind === 'cinderBrute') this.eliteSpawned = true;
+      if (f.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
+    });
+    this.hallsWaking = -1;
+    // C2: the delve's named elite still hides in one of the main-path fights (namedAt is a route slot).
+    if (pk.main) this.rollNamed(firstElite);
+    const vents = m.vents.filter((v) => v.room === pk.room);
+    if (vents.length && !this.flareVents.length) { this.flareT = LAYOUT.ventFirst; this.flareK = 0; }
+    for (const v of vents) if (!this.flareVents.some((f) => f.x === v.x && f.y === v.y)) this.flareVents.push({ x: v.x, y: v.y });
+    this.events.push({ type: 'encounterStart', index: pk.slot, id: def.id });
+  }
+
+  /**
+   * Halls: pack `k` is cleared. Every hero gets today's clear (a level, a talent draft once the fight is over, 30% heal
+   * and a bag by the pack's slot); D pays a second bag. Heroes who went down get back up, as between arena fights.
+   */
+  private hallsClear(k: number): void {
+    const m = this.halls!;
+    const pk = m.packs[k];
+    const def = ENCOUNTERS[pk.enc];
+    pk.state = 'cleared';
+    const at = this.encounter;
+    this.encounter = pk.slot;
+    this.namedFight = pk.gate === 'named';
+    this.events.push({ type: 'encounterClear', index: pk.slot, id: def.id });
+    const clear = () => {
+      this.clearEncounterFor(def);
+      if (def.id === 'shrine') return;
+      const order: Rarity[] = ['common', 'fine', 'rare'];
+      const min = (this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0) + (this.namedFight ? 1 : 0);
+      for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, order[Math.min(order.length - 1, min)]);
+    };
+    if (this.heroes.length === 1) clear();
+    else this.eachHero(clear, true);
+    if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
+    this.namedFight = false;
+    if (pk.gate) this.paths.push(pk.gate);
+    if (pk.main) this.hallsMain++;
+    // Its room's vents go quiet unless another pack there is still awake.
+    if (!m.packs.some((q) => q.state === 'awake' && q.room === pk.room)) {
+      const mine = m.vents.filter((v) => v.room === pk.room);
+      this.flareVents = this.flareVents.filter((f) => !mine.some((v) => v.x === f.x && v.y === f.y));
+    }
+    this.encounter = m.packs.some((q) => q.state === 'awake') ? at : this.hallsMain;
+  }
+
+  /**
+   * Halls: the party walks through the boss door into today's Kiln arena, as if the boss fight of an arena run were
+   * starting: levels, talents, hp and gear carry over, and the boss code runs unchanged. Loot and xp still lying on the
+   * map come along (the arena sits where the map's first rooms are).
+   */
+  private hallsEnterBoss(): void {
+    const m = this.halls!;
+    const at = this.acting;
+    for (const d of this.drops) {
+      if (!d.alive || !d.item) continue;
+      // The nearest living hero takes it, as walking over it would.
+      let best = 0, bd = Infinity;
+      for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); const dd = (q.x - d.x) ** 2 + (q.y - d.y) ** 2; if (q.hp > 0 && dd < bd) { bd = dd; best = h; } }
+      this.use(best);
+      d.alive = false;
+      this.pickUp(d.item);
+      d.item = null;
+    }
+    this.use(at);
+    for (const g of this.gems) if (g.alive) { g.alive = false; this.gainXp(g.value); }
+    for (const e of this.enemies) if (e.alive) { e.alive = false; this.aliveEnemies--; }
+    for (const pool of [this.telegraphs, this.zones, this.strikes, this.orbs, this.lances] as { alive: boolean }[][]) for (const o of pool) o.alive = false;
+    m.done = true;
+    m.vents = [];
+    this.stones = [];
+    this.lava = [];
+    this.flareVents = [];
+    this.layout = 'open';
+    // The party comes in at the south of the arena; the boss enters from the far side (startEncounter).
+    for (let h = 0; h < this.heroes.length; h++) {
+      const q = this.heroPlayer(h);
+      q.x = q.px = (h - (this.heroes.length - 1) / 2) * 50;
+      q.y = q.py = ARENA * 0.45;
+    }
+    this.encounter = this.route.length - 1;
+    this.phase = 'intro';
+    this.phaseT = HALLS.fade;
+    this.events.push({ type: 'hallsDoor' });
   }
 
   /**
@@ -2805,11 +3067,14 @@ export class World {
 
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
-    const d = Math.hypot(o.x, o.y);
-    const max = this.arenaR - r;
-    if (d > max) {
-      o.x *= max / d;
-      o.y *= max / d;
+    if (this.hallsOn) clampHalls(this.halls!, o, r);
+    else {
+      const d = Math.hypot(o.x, o.y);
+      const max = this.arenaR - r;
+      if (d > max) {
+        o.x *= max / d;
+        o.y *= max / d;
+      }
     }
     for (const c of this.stones) {
       const dx = o.x - c.x;
@@ -2964,6 +3229,8 @@ export class World {
     e.warded = false;
     e.named = -1;
     e.affix = 0;
+    // Halls: a waking pack's foe is that pack's; anything summoned later joins the awake pack nearest it.
+    if (this.halls) e.pack = this.hallsWaking >= 0 ? this.hallsWaking : this.hallsNearestAwake(x, y);
     this.aliveEnemies++;
     return idx;
   }
@@ -4940,6 +5207,15 @@ export class World {
       const d = Math.hypot(dx, dy) || 1;
       let mx = (dx / d) * speed;
       let my = (dy / d) * speed;
+      // Phase 18 Halls: a foe that can't walk straight at its hero heads round the wall, room to room.
+      if (this.hallsOn) {
+        const wp = hallsWay(this.halls!, e.x, e.y, p.x, p.y);
+        if (wp.x !== p.x || wp.y !== p.y) {
+          const wx = wp.x - e.x, wy = wp.y - e.y, wd = Math.hypot(wx, wy) || 1;
+          mx = (wx / wd) * speed;
+          my = (wy / wd) * speed;
+        }
+      }
       // V1: an Ember Spitter keeps its distance: it backs off when you close in and circles at range.
       if (e.kind === 'emberSpitter') {
         if (d < VARIETY.spitterNear) { mx = -mx; my = -my; }
@@ -5028,7 +5304,7 @@ export class World {
       }
 
       // Despawn stragglers that fall far behind; they respawn ahead.
-      if (e.def.rank === 'normal' && d > SPAWN_RADIUS * 1.5) {
+      if (e.def.rank === 'normal' && d > SPAWN_RADIUS * 1.5 && !this.hallsOn) {
         this.relocate(e);
         continue;
       }
