@@ -29,6 +29,7 @@ import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
 import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, roomBedFor, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
+import { drawKm2d } from './kilnmother2d';
 
 // World units visible on the screen's short side: a little closer on phones.
 const viewFor = (shortSide: number) => (shortSide < 500 ? 500 : 640);
@@ -342,6 +343,8 @@ export class GameScene extends Phaser.Scene {
   private lightAnim: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
   /** Y6 Creeping Rime: its floor layer (1.44, with the other floor tells), when it rose, and which way it is creeping. */
   private rimeGfx: Phaser.GameObjects.Graphics | null = null;
+  /** BOSSV2 marks in the 2D look: the three-stage Kiln Mother's floor and the Glutton's Gorge (3D draws its own). */
+  private kmGfx: Phaser.GameObjects.Graphics | null = null;
   private flowGfx: Phaser.GameObjects.Graphics | null = null;
   private rimeBorn = 0;
   private rimeDir = { x: 0, y: 1, lx: 0, ly: 0 };
@@ -2121,6 +2124,7 @@ export class GameScene extends Phaser.Scene {
     if (w.rafts.length) this.wrackDraw(g, now);
     else if (this.drainImg?.visible) { this.drainImg.setVisible(false); this.surfGfx?.clear(); for (const r of this.raftImgs) { r.deck.setVisible(false); r.rim.setVisible(false); } }
     this.summonsDraw(now);
+    this.kmDraw(now);
     this.arenaEventDraw(now);
     this.waveDraw(now);
     // Hearthkeeper: Warmth glows under the hero; at full Warmth with 3 pieces (the damage cut) a ring and five orbiting embers.
@@ -3446,6 +3450,24 @@ export class GameScene extends Phaser.Scene {
       const pulse = 0.5 + 0.5 * Math.sin(now / 110);
       g.fillStyle(SOAK, 0.06 + 0.06 * pulse).fillCircle(b.x, b.y, R);
       g.lineStyle(3 + 2 * pulse, SOAK, 0.5 + 0.4 * pulse).strokeCircle(b.x, b.y, R);
+    }
+  }
+
+  /**
+   * BOSSV2 in 2D: the three-stage Kiln Mother's eggs, heated quarters, eruption rings and kiln mouth (kilnmother2d.ts),
+   * and red rings drawing in to Vorhulm the Glutton while it Gorges (aux2 1). Skipped under the 3D look, which draws
+   * both itself (the floor bridge would otherwise copy them on top).
+   */
+  private kmDraw(now: number): void {
+    const w = this.world;
+    const glut = w.bossV2 ? w.enemies.find((e) => e.alive && e.kind === 'ashmaw' && e.aux2 === 1) : undefined;
+    if (this.bridge || (!w.kmStage && !glut)) { this.kmGfx?.clear(); return; }
+    if (!this.kmGfx) this.kmGfx = this.add.graphics().setDepth(1.46);
+    const g = this.kmGfx.clear();
+    drawKm2d(g, w, w.arenaR, now);
+    if (glut) {
+      const ph = (now / 1000 * 1.2) % 1, r = glut.def.radius * (2.6 - 1.5 * ph);
+      g.lineStyle(3, 0xff3b3b, 0.75 * Math.sin(ph * Math.PI)).strokeCircle(glut.x, glut.y, r);
     }
   }
 
