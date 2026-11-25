@@ -3676,7 +3676,8 @@ export class GameScene extends Phaser.Scene {
       fl.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(gx, gy + 8, 26 + 30 * f, 9 + 10 * f);
       this.hammerShape(o, gx, gy - lift - 10, now / 70, 1.1);
       // A faint arc of where it's going, so the farthest hero sees it's for them.
-      o.lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
+      // (On the floor graphics in 3D, which the bridge carries: overFx is covered there.)
+      (this.bridge ? fl : o).lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
       return;
     }
     // Landed: a cracked crater with the hammer head-down in it.
@@ -4556,6 +4557,126 @@ export class GameScene extends Phaser.Scene {
         g.globalAlpha = 0.95; g.strokeStyle = '#f0e8de'; g.lineWidth = 1.5 * zb; line();
         g.globalAlpha = 1; g.lineJoin = 'miter';
       }
+    }
+    // Boss and event marks 2D draws over the sprites (overFx, footGfx, images at depth 5.5), which the 3D view covers.
+    // Drawn on this overlay, so no draw calls. Floor marks of the same casts are on the main graphics (the bridge).
+    {
+      const now = this.time.now;
+      const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
+      const dot = (x: number, y: number, r: number, col: string, a: number) => { g.globalAlpha = a; g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+      // The Crucible, Grandmother Slag's Ladle Pour: the ladle over the target's head, tipping as the cast fills, and
+      // pouring onto them at the end (2D's drawing, at the overlay's scale).
+      const gs = w.enemies.find((e) => e.alive && e.kind === 'grandmotherSlag' && e.castId === 'ladlePour' && e.castDur > 0);
+      const lq = gs ? w.heroData(w.ladlePourTarget).player : undefined;
+      const lp = lq && lq.hp > 0 ? view.project(lq.x, lq.y) : null;
+      if (gs && lp && onScreen(lp)) {
+        const f = gs.castT / gs.castDur, pulse = 0.6 + 0.4 * Math.sin(now / 70);
+        const hx = lp.x - 10 * zb, hy = lp.y - 92 * zb, tip = -0.15 - f * 1.0;
+        const ux = Math.cos(tip), uy = Math.sin(tip);
+        const bx = hx + ux * 22 * zb, by = hy + uy * 22 * zb;
+        const line = (w0: number, col: string, a: number, x0: number, y0: number, x1: number, y1: number) => { g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = w0 * zb; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+        g.lineCap = 'round';
+        dot(bx + 12 * zb, by + 6 * zb, 30 * zb, css(MOLTEN), 0.18 + 0.12 * pulse);
+        line(9, '#140c08', 1, hx - ux * 34 * zb, hy - uy * 34 * zb, bx, by);
+        line(5, '#9a8a80', 1, hx - ux * 34 * zb, hy - uy * 34 * zb, bx, by);
+        dot(bx + 12 * zb, by + 6 * zb, 18 * zb, '#140c08', 1);
+        dot(bx + 12 * zb, by + 6 * zb, 15 * zb, '#6a5a52', 1);
+        dot(bx + 12 * zb, by + 2 * zb, 11 * zb, '#ffb347', 1);
+        dot(bx + 10 * zb, by, 5 * zb, '#fff0b0', 0.9);
+        if (f > 0.7) {
+          const k = (f - 0.7) / 0.3, sx = bx + 26 * zb, sy = by + 4 * zb, ey = sy + (lp.y - 6 * zb - sy) * k;
+          line(9, css(MOLTEN), 0.5, sx, sy, lp.x, ey);
+          line(5, '#ffb347', 1, sx, sy, lp.x, ey);
+          line(2, '#fff0b0', 1, sx, sy, lp.x, ey);
+        }
+        g.lineCap = 'butt';
+      }
+      // The Kiln Mother's Kiln Draw: her furnace mouth swelling with light (14 of her 112 px below the sprite's middle).
+      // The streaming embers and chevrons are floor marks the bridge carries.
+      for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || e.kind !== 'kilnMother' || e.castId !== 'kilnDraw') continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i), h = head ? p.y - head.y : 112 * zb;
+        const my = p.y - h / 2 + 14 * (h / 112), fill = Math.min(1, e.castT / Math.max(0.01, e.castDur));
+        const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+        dot(p.x, my, (26 + 30 * fill) * zb, '#ff8a3a', 0.18 + 0.25 * fill);
+        dot(p.x, my, (12 + 14 * fill) * zb, '#ffe6a0', 0.25 + 0.35 * fill * pulse);
+      }
+      // Coldmarrow: a Frost Warden inside a coal's light, ember cracks glowing through the ice, over its drawn body.
+      if (w.dungeonId === 'coldmarrow') for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || e.kind !== 'frostWarden' || this.coalWarmth(e.x, e.y, e.def.radius) <= 0) continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i), r = e.def.radius * zb;
+        const cx = p.x, cy = head ? (p.y + head.y) / 2 : p.y - r;
+        const pulse = 0.55 + 0.35 * Math.sin(now / 110 + i);
+        g.globalAlpha = 0.25 + 0.2 * pulse; g.strokeStyle = css(COAL); g.lineWidth = 3 * zb;
+        g.beginPath(); g.ellipse(cx, cy, r + 6 * zb, (head ? (p.y - head.y) / 2 : r) + 6 * zb, 0, 0, Math.PI * 2); g.stroke();
+        g.globalAlpha = pulse; g.strokeStyle = '#ffb347'; g.lineWidth = 2.5 * zb; g.lineJoin = 'round';
+        for (let c = 0; c < 4; c++) {
+          let a = (i * 2.399 + c * 1.571) % (Math.PI * 2), lx = cx, ly = cy;
+          g.beginPath(); g.moveTo(lx, ly);
+          for (let seg = 0; seg < 3; seg++) { a += seg % 2 ? 0.6 : -0.5; lx += Math.cos(a) * r * 0.32; ly += Math.sin(a) * r * 0.32; g.lineTo(lx, ly); }
+          g.stroke();
+        }
+        g.lineJoin = 'miter';
+      }
+      // A Brood elite's egg sacs round its feet (2D's footGfx), swelling as it is hurt.
+      for (const e of w.enemies) {
+        if (!e.alive || e.named < 0 || AFFIXES[e.affix] !== 'Brood') continue;
+        const r = e.def.radius, hpF = Math.max(0, e.hp) / e.maxHp;
+        for (let k = 0; k < 3; k++) {
+          const a = Math.PI * (0.27 + k * 0.23);
+          const sw = (1 + 0.08 * Math.sin(now / (160 + 120 * hpF) + k * 2) + 0.15 * (1 - hpF)) * zb;
+          const p = view.project(e.x + Math.cos(a) * (r - 2), e.y + r * 0.3 + Math.sin(a) * (r - 2));
+          if (!p || !onScreen(p)) continue;
+          const ex = p.x, ey = p.y - 6 * zb;
+          g.globalAlpha = 0.95; g.fillStyle = '#d8c89a'; g.beginPath(); g.ellipse(ex, ey, 6.5 * sw, 8 * sw, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = 0.9; g.strokeStyle = '#1a1010'; g.lineWidth = 2 * zb; g.stroke();
+          g.globalAlpha = 0.7; g.fillStyle = '#8a9a3a'; g.beginPath(); g.ellipse(ex + zb, ey + 2 * zb, 3 * sw, 4 * sw, 0, 0, Math.PI * 2); g.fill();
+          dot(ex - 2.5 * zb, ey - 4 * zb, 1.8 * zb, '#fff6d8', 0.8);
+        }
+      }
+      // Arena events: a Cave-in's rock falling onto its shadow with dust trickling down ahead of it, and a Cold Snap's
+      // snow (and the dungeon stirring's grit) falling through the view.
+      const ev = w.arenaEvent, A = ARENA_EVENTS;
+      if (ev === 'caveIn' && w.arenaEventStage === 1) {
+        const k = Math.max(0, Math.min(1, 1 - w.arenaEventT / A.caveWarn));
+        const img = this.textures.get(this.stoneKey()).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+        for (const [n, c] of w.caveInSpots().entries()) {
+          const p = view.project(c.x, c.y);
+          if (!p) continue;
+          for (let m = 0; m < (this.lowFx ? 3 : 6); m++) {
+            const u = ((now / 700) + m / 6 + n * 0.31) % 1;
+            dot(p.x + Math.sin(m * 2.3 + n) * 18 * zb, p.y - (220 - 220 * u) * zb, (1.6 + m % 2) * zb, '#b8aca4', 0.6 * (1 - u));
+          }
+          if (k > 0.6) {
+            const f = (k - 0.6) / 0.4, sc = (A.caveRadius / 68) * (1.3 - 0.3 * f) * zb;
+            const iw = img.width * sc, ih = img.height * sc;
+            g.save(); g.globalAlpha = 1; g.translate(p.x, p.y - 260 * (1 - f * f) * zb); g.rotate((1 - f) * (n % 2 ? 0.5 : -0.5));
+            g.drawImage(img, -iw * 0.5, -ih * 0.64, iw, ih); g.restore();
+          }
+        }
+      }
+      const snow = ev === 'coldSnap' && w.arenaEventStage === 1 ? Math.max(0, Math.min(1, 1 - w.arenaEventT / A.snapWarn)) : 0;
+      if (snow > 0) {
+        const N = this.lowFx ? 10 : 24;
+        for (let m = 0; m < N; m++) {
+          const u = ((now / 2600) + m * 0.137) % 1;
+          dot(((m + 0.5) / N) * W + Math.sin(now / 900 + m) * 12 * zb, top + u * (H - top), (1.6 + (m % 3) * 0.6) * zb, '#f2fbff', 0.7 * snow);
+        }
+      }
+      if (this.stirAt >= 0 && now - this.stirAt < 1400 && !this.lowFx) {
+        const k = (now - this.stirAt) / 1400;
+        for (let j = 0; j < 26; j++) {
+          const u = (k * 1.6 + j * 0.137) % 1;
+          dot(((j * 97.31) % 1) * W + (j % 2 ? 6 : -6) * u * zb, top + u * (H - top), (1.4 + (j % 3) * 0.6) * zb, '#b8aca4', 0.55 * (1 - k));
+        }
+      }
+      g.globalAlpha = 1;
     }
     // The Flue: a Decree holder's seal with its countdown ring (gold, then red and beating in the last 3 s), and a Spent
     // hero's cold seal with a grey arc for the time left. 2D draws these over the head on overFx and depth 9.4, which
@@ -6627,7 +6748,8 @@ export class GameScene extends Phaser.Scene {
   private ysmeretCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
     const f = Math.min(1, e.castT / e.castDur);
-    const o = this.overFx;
+    // In 3D the main graphics (the floor bridge) carries these; overFx is covered there. 2D keeps them over the sprites.
+    const o = this.bridge ? g : this.overFx;
     if (e.castId === 'scatter') {
       // Each living hero carries an ember ring the size of their burst. Two rings that
       // overlap turn red and are tied together, so a stacked pair can see the problem.
