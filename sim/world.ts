@@ -7732,7 +7732,7 @@ export class World {
       const f = this.enemies[j];
       this.clampArena(f, f.def.radius);
       f.maxHp = f.hp = pool;
-      f.abilityT = YSMERETV2.firstScatter + YSMERET.scatterEvery / 2; // the two Scatters come half a timer apart
+      f.abilityT = YSMERETV2.firstScatter + (YSMERETV2.scatterSync ? 0 : YSMERET.scatterEvery / 2); // half a timer apart, or together
       this.ysAx1 = f.x; this.ysAy1 = f.y;
     }
     this.ysPool = pool;
@@ -10340,6 +10340,8 @@ export const YSMERETV2 = {
   bellowEvery: 12,
   /** 1: only the flame on the tank (or the first flame, with no tank up) Bellows, on one timer; 0: each flame on its own. */
   tankBellow: 1,
+  /** 1: both flames cast Scatter Embers at the same moment; 0: half a timer apart. */
+  scatterSync: 0,
 };
 
 export const OSKEL = {
