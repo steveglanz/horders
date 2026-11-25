@@ -2815,6 +2815,8 @@ export class World {
       if (i < 0) return;
       const e = this.enemies[i];
       if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
+      // KILNTRASH.named (design, 25 Nov, measuring): on a map with trash, the other packs' foes at this share of health.
+      else if (KILNTRASH.named !== 1 && this.halls!.packs.some((q) => q.trash)) e.maxHp = e.hp = e.maxHp * KILNTRASH.named;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
       // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.
       if (f.kind === 'acolyte') {
@@ -3539,6 +3541,9 @@ export class World {
     if (!this.rareSpawned && t >= RARE_AT && !this.stress) {
       this.rareSpawned = true;
       this.rareIndex = this.spawnAtRing('ashmaw', 520);
+      // KILNTRASH.named: the rare too, on a map with trash.
+      const rare = this.enemies[this.rareIndex];
+      if (rare && KILNTRASH.named !== 1 && this.halls?.packs.some((q) => q.trash)) rare.maxHp = rare.hp = rare.maxHp * KILNTRASH.named;
       this.events.push({ type: 'rareSpawn' });
     }
     if (!this.stress && !this.bossSpawned && this.riftsOpened < RIFT_TIMES.length && t >= RIFT_TIMES[this.riftsOpened]) {
