@@ -1014,8 +1014,11 @@ describe('H4b: the Ashvents on the Halls map', () => {
 });
 
 describe('H4c: the Pressworks on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, its own themes and Oskel behind the door', () => {
-    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).toBeNull();
+  it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Oskel behind the door', () => {
+    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).not.toBeNull();
+    expect(HALLS_ON).toContain('pressworks');
+    expect(HALLS_BETA).not.toContain('pressworks');
+    expect(HALLS_COOP).toContain('pressworks');
     const { openers, named, hard, boss } = DUNGEONS.pressworks;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
