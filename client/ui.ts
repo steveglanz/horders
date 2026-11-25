@@ -1001,7 +1001,25 @@ export class Hud {
     let ox = 0;
     let oy = 0;
     const R = 56;
+    // QA, 25 Nov (Steve on a phone: the stick got stuck moving one way and he had to quit). A finger-up can be lost (an
+    // app switch, a notification pulled down, a system gesture), and then the stick kept its last direction and ignored
+    // every new touch, since it still thought the first finger was down. Now the stick lets go whenever the page loses
+    // the finger or the focus, and a new touch always takes over from a stale one.
+    const release = () => {
+      if (id === null) return;
+      try {
+        if (zone.hasPointerCapture(id)) zone.releasePointerCapture(id);
+      } catch {
+        // The pointer is already gone.
+      }
+      id = null;
+      base.hidden = true;
+      this.handlers?.onStick(0, 0);
+    };
+    window.addEventListener('blur', release);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
     zone.addEventListener('pointerdown', (e) => {
+      if (id !== null && id !== e.pointerId) release();
       if (id !== null) return;
       id = e.pointerId;
       ox = e.clientX;
@@ -1038,5 +1056,6 @@ export class Hud {
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+    zone.addEventListener('lostpointercapture', end);
   }
 }
