@@ -99,7 +99,7 @@ describe('ONDRELV2: the staged Ondrel', () => {
     expect(w.slagPatches[0].x).toBeCloseTo(-150);
   });
 
-  it('stage 3 at 25%: every patch glows, bursts and is gone, no more slag, and his move comes on the stage 3 timer', () => {
+  it('stage 3 at ONDRELV2.stage3 (15%): every patch glows, bursts and is gone, no more slag, and his move comes on the stage 3 timer', () => {
     const { w, q, b } = fight();
     stage2(w, q, b);
     w.heroData(0).player.x = -200; anvilfall(w, q, b);
