@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 
@@ -502,7 +502,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'glarewell', tier: 7, hallsBeta: true }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -572,6 +572,120 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
       expect(w.hallsOn, `seed ${seed}`).toBe(false);
       expect(w.route[w.encounter]).toBe('maelra');
     }
+  });
+});
+
+describe('H3b: the Glarewell on the Halls map', () => {
+  const GLARE_THEMES = ['lens', 'orrery', 'colonnade', 'mirror'];
+  const glare = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'glarewell', tier: 7, hallsBeta: true, ...more });
+  /** Wakes pack k first, as a hero walking straight to it would: stands the hero at its middle and steps until it stirs. */
+  const wake = (w: World, k: number) => {
+    const p = w.halls!.packs[k];
+    put(w, p.x, p.y);
+    for (let j = 0; j < 30 && p.state === 'asleep'; j++) w.step(idle);
+    return p;
+  };
+  /** The first (seed, pack) whose room is this shape. */
+  const find = (shape: string) => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const m = glare(seed).halls!;
+      const k = m.packs.findIndex((p) => p.foes.length && m.rooms[p.room].shape === shape);
+      if (k >= 0) return { seed, k };
+    }
+    throw new Error(shape);
+  };
+
+  it('is off for players until design turns it on, and gets its own fights, themes and the Lensmother behind the door', () => {
+    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.glarewell;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    let cross = 0, ring = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = glare(seed);
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(GLARE_THEMES, `seed ${seed} room ${i}`).toContain(r.theme); });
+      cross += m.rooms.filter((r) => r.shape === 'cross').length;
+      ring += m.rooms.filter((r) => r.shape === 'ring').length;
+    }
+    // Cross and Ring are weighted up (design): clearly more of them than in the Kiln's rooms on the same seeds.
+    let kiln = 0;
+    for (let seed = 1; seed <= 120; seed++) kiln += halls(seed).halls!.rooms.filter((r) => r.shape === 'cross' || r.shape === 'ring').length;
+    expect(cross + ring).toBeGreaterThan(kiln * 1.3);
+  });
+
+  it('a woken pack\'s room gets the fight\'s pillars round its middle: on its floor, clear of every doorway, the lens at the middle', () => {
+    const shapes = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const n = glare(seed).halls!.packs.length;
+      for (let k = 0; k < n; k++) {
+        const w = glare(seed);
+        const m = w.halls!, p = m.packs[k], rm = m.rooms[p.room], f = layoutFrame(rm);
+        if (!p.foes.length) continue;
+        wake(w, k);
+        expect(p.state, `seed ${seed} pack ${k}`).not.toBe('asleep');
+        shapes.add(rm.shape ?? 'round');
+        expect(w.lightX).toBeCloseTo(f.x, 6);
+        expect(w.lightY).toBeCloseTo(f.y, 6);
+        expect(w.pillars.length, `seed ${seed} pack ${k} ${rm.shape}`).toBeGreaterThan(0);
+        const doors = m.corridors.flatMap((c) => (c.a === p.room ? [[c.ax!, c.ay!]] : c.b === p.room ? [[c.bx!, c.by!]] : []));
+        for (const c of w.pillars) {
+          expect(!!c.fixed, `seed ${seed} pack ${k}`).toBe(rm.shape === 'cross');
+          if (c.fixed) continue;
+          expect(roomGap(rm, c.x, c.y), `seed ${seed} pack ${k}`).toBeGreaterThanOrEqual(c.r + 20);
+          for (const [dx, dy] of doors) expect(Math.hypot(dx - c.x, dy - c.y)).toBeGreaterThan(HALLS.corridor / 2 + c.r + 40);
+        }
+      }
+    }
+    expect([...shapes].sort()).toEqual(['cross', 'hall', 'ring', 'round', 'twin']);
+  });
+
+  it('a Cross room\'s own stone pillars are its cover and a Brand can\'t crack them', () => {
+    const { seed, k } = find('cross');
+    const w = glare(seed);
+    wake(w, k);
+    expect(w.pillars.length).toBe(4);
+    expect(w.pillars.every((c) => c.fixed)).toBe(true);
+    const q = w as unknown as { burstBrandAt(x: number, y: number, party: boolean): void };
+    expect(typeof q.burstBrandAt).toBe('function');
+    for (const c of w.pillars) q.burstBrandAt(c.x, c.y, false);
+    expect(w.pillars.some((c) => c.cracked)).toBe(false);
+  });
+
+  it('walls block the Glare: a spot in the next room is in shadow; the same reach on open floor is not', () => {
+    const w = glare(4);
+    const m = w.halls!, p = wake(w, 0), rm = m.rooms[p.room], f = layoutFrame(rm);
+    const other = m.rooms.findIndex((r, i) => i !== p.room && !clearWalk(m, f.x, f.y, r.x, r.y));
+    expect(other).toBeGreaterThanOrEqual(0);
+    expect(w.shadowed(m.rooms[other].x, m.rooms[other].y)).toBe(true);
+    // Somewhere on this room's own floor with nothing in between is lit.
+    let lit = false;
+    for (let a = 0; a < Math.PI * 2 && !lit; a += 0.2) {
+      const x = f.x + Math.cos(a) * 60, y = f.y + Math.sin(a) * 60;
+      if (roomGap(rm, x, y) > 0 && !w.shadowed(x, y)) lit = true;
+    }
+    expect(lit).toBe(true);
+  });
+
+  it('an arena Glarewell run is unchanged: the pillars stand on the ring round the middle lens', () => {
+    const w = new World({ seed: 4, tier: 7, dungeon: 'glarewell' });
+    run(w, () => w.pillars.length > 0, 120);
+    expect(w.lightX).toBe(0);
+    expect(w.pillars.map((c) => Math.round(Math.hypot(c.x, c.y)))).toEqual([200, 200, 200, 200]);
+    expect(w.pillars.some((c) => c.fixed)).toBe(false);
+  });
+
+  it('bots walk it and go through the door into the Lensmother\'s arena', () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const w = glare(seed, { cls: 'slagbinder' });
+      run(w, () => !w.hallsOn || w.state === 'ended', 900);
+      if (!w.hallsOn && w.route[w.encounter] === 'lensmother') reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(4);
   });
 });
 

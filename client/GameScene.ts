@@ -2267,7 +2267,8 @@ export class GameScene extends Phaser.Scene {
     // The Glarewell: the floor is lit pale gold, and pillars cast shadow wedges
     // away from the centre lens. The wedges match World.shadowed(), so what you
     // see is where you're safe.
-    if (w.pillars.length) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
+    // (H3b: on a Halls map the room's own floor is lit by its theme, so no arena-wide glow.)
+    if (w.pillars.length && !w.hallsOn) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
     const light = this.lightAt(now);
     // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
     // pillar, so a phone shows which way each shadow now falls before it lands.
@@ -2302,6 +2303,8 @@ export class GameScene extends Phaser.Scene {
         g.fillPath();
         g.strokePath();
       }
+      // H3b: a Cross room's own stone pillar is drawn by the room; only its shadow is drawn here.
+      if (c.fixed) { if (ps.visible) ps.setVisible(false); return; }
       const fr = c.cracked ? '1' : '0';
       if (ps.frame.name !== fr) ps.setFrame(fr);
       ps.setVisible(true).setPosition(c.x, c.y).setScale((c.r * 2.3) / (64 * SPRITE_RES)).setAlpha(c.cracked ? 0.7 : 1);

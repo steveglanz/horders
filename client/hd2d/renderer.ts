@@ -1360,6 +1360,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       pillarSig = sig;
       pillarGroup.clear();
       for (const p of w.pillars) {
+        if (p.fixed) continue; // H3b: a Cross room's own stone pillar; the room kit draws it
         const m = new THREE.Mesh(pillarGeo, basalt); m.position.set(p.x * S, 1.1, p.y * S); m.scale.set(p.r * S, 2.2, p.r * S);
         m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
       }
