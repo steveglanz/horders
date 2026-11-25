@@ -809,6 +809,8 @@ export interface WorldOptions {
   ondrelV2?: boolean;
   /** YSMERETV2 (?ysmeretv2=1, design 25 Nov, ysmeret-v2.md): Ysmeret in two stages, the vents and then two flames. */
   ysmeretV2?: boolean;
+  /** OSKELV2 (?oskelv2=1, design 25 Nov, oskel-v2.md): Oskel in three stages, the press, the belt and full speed. */
+  oskelV2?: boolean;
   /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
   hallsBeta?: boolean;
 }
@@ -912,6 +914,15 @@ export class World {
   /** ONDRELV2: 0 = not a v2 fight, else his stage (1 the hammer, 2 the burning slag, 3 the last heat). */
   ondrelStage = 0;
   readonly ysmeretV2: boolean;
+  /** OSKELV2: the staged Oskel. */
+  readonly oskelV2: boolean;
+  /** OSKELV2: 0 = not a v2 fight, else his stage (1 the press, 2 the belt, 3 full speed). */
+  osStage = 0;
+  /** OSKELV2 stage 2-3: the way the press bed carries everyone (radians), and the s left until it flips (-1: no flip due). */
+  osDir = 0;
+  osFlipT = -1;
+  /** OSKELV2: crush-line hits on heroes this run (for tools/group.ts). */
+  osCrushHits = 0;
   /** YSMERETV2: 0 off, 1 the vents, 2 twofold (two flames). */
   ysStage = 0;
   /** YSMERETV2 stage 2: the two flames (enemy indices), where each landed (it stays there), and how long each has had no hero near it. */
@@ -1335,6 +1346,7 @@ export class World {
     this.bossV2 = !!opts.bossV2 && !this.firstDelve;
     this.ondrelV2 = !!opts.ondrelV2 && !this.firstDelve;
     this.ysmeretV2 = !!opts.ysmeretV2 && !this.firstDelve;
+    this.oskelV2 = !!opts.oskelV2 && !this.firstDelve;
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
@@ -2391,6 +2403,11 @@ export class World {
           this.bossEcho = this.rollEcho(OSKEL_VARIANTS, this.bossVariant);
           this.echoNext = true;
           this.cutCount = 0;
+          // OSKELV2: the belt's first way comes from the seed, not the rng, so the rest of the run's draws don't move.
+          this.osStage = this.oskelV2 ? 1 : 0;
+          this.osDir = ((this.seed & 7) * Math.PI) / 4;
+          this.osFlipT = -1;
+          if (this.oskelV2 && OSKELV2.hpMult !== 1) { e.maxHp *= OSKELV2.hpMult; e.hp = e.maxHp; }
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
@@ -7842,6 +7859,7 @@ export class World {
     const i = this.bossIndex;
     const e = this.enemies[i];
     if (!e || !e.alive || e.kind !== 'oskel') return;
+    if (this.osStage > 0) this.oskelStages(dt, e);
     const late = this.time - e.spawnedAt > OSKEL.enrageAfter;
     if (late && !this.bossEnraged) {
       this.bossEnraged = true;
@@ -7861,6 +7879,8 @@ export class World {
       // owner -3: the Downstroke (Pressed heroes don't count).
       this.addTelegraph('circle', c.x, c.y, OSKEL.downRadius, 0, 0, OSKEL.downFuse, OSKEL.downMiss, 'soak', -3);
       this.events.push({ type: 'castStart', index: i, id: 'downstroke', name: 'Downstroke' });
+      // OSKELV2 stage 2: every Downstroke flips the belt, after a warning arrow on the floor.
+      if (this.osStage === 2) this.osFlipT = OSKELV2.flipWarn;
     }
     // Phase 16 U1: from `GROUP_ECHO.below` health, every other one on this timer is his echo's (the first one is).
     let move: string = this.bossVariant;
@@ -7914,6 +7934,72 @@ export class World {
       this.stampTarget = this.targetOf(i, 0);
       this.startCast(i, 'stamp', 'Stamp', OSKEL.stampCast, false);
     }
+  }
+
+  /**
+   * OSKELV2 (design, oskel-v2.md): the stages, and from stage 2 the press bed. The belt carries every hero, every foe but
+   * Oskel, and the Downstroke plate `belt` a second along `osDir` (`belt3` in stage 3, which stops flipping). The crush line
+   * is the downstream `arc` of the arena's rim, `depth` deep: a hero on it takes `crush` of max health and is pushed `push`
+   * upstream, and a normal foe on it dies.
+   */
+  private oskelStages(dt: number, e: Enemy): void {
+    const f = e.hp / e.maxHp;
+    if (this.osStage === 1 && f <= OSKELV2.stage2) {
+      this.osStage = 2;
+      this.bossPhase = 2;
+      this.events.push({ type: 'phase', phase: 2 });
+    }
+    if (this.osStage === 2 && f <= OSKELV2.stage3) {
+      this.osStage = 3;
+      this.bossPhase = 3;
+      this.osFlipT = -1; // it keeps the way it had
+      this.events.push({ type: 'phase', phase: 3 });
+    }
+    if (this.osStage < 2) return;
+    if (this.osFlipT >= 0) {
+      this.osFlipT -= dt;
+      if (this.osFlipT <= 0) { this.osDir = (this.osDir + Math.PI) % (2 * Math.PI); this.osFlipT = -1; }
+    }
+    const v = (this.osStage === 3 ? OSKELV2.belt3 : OSKELV2.belt) * dt;
+    const cx = Math.cos(this.osDir), cy = Math.sin(this.osDir);
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || (q.swallowT ?? 0) > 0) continue;
+      q.x += cx * v; q.y += cy * v;
+      this.clampArena(q, PLAYER_RADIUS);
+    }
+    for (const o of this.enemies) {
+      if (!o.alive || o.kind === 'oskel') continue;
+      o.x += cx * v; o.y += cy * v;
+      this.clampArena(o, o.def.radius);
+    }
+    if (OSKELV2.plateRides) for (const t of this.telegraphs) if (t.alive && t.kind === 'soak' && t.owner === -3) { t.x += cx * v; t.y += cy * v; this.clampArena(t, t.r + 10); }
+    // The crush line.
+    const at = this.acting;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || !this.onCrushLine(q.x, q.y, PLAYER_RADIUS)) continue;
+      this.use(k);
+      this.hurtPlayer(q.maxHp * OSKELV2.crush, -1, true, 'the crush line');
+      q.x -= cx * OSKELV2.push; q.y -= cy * OSKELV2.push;
+      this.clampArena(q, PLAYER_RADIUS);
+      this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+      this.osCrushHits++;
+    }
+    this.use(at);
+    for (let j = 0; j < this.enemies.length; j++) {
+      const o = this.enemies[j];
+      if (o.alive && o.def.rank === 'normal' && this.onCrushLine(o.x, o.y, o.def.radius)) { o.hp = 0; this.killEnemy(j); }
+    }
+  }
+
+  /** OSKELV2: whether a body at (x, y) of radius r touches the crush line (the downstream arc of the rim). */
+  onCrushLine(x: number, y: number, r: number): boolean {
+    if (this.osStage < 2) return false;
+    if (Math.hypot(x, y) + r < this.arenaR - OSKELV2.depth) return false;
+    let d = Math.atan2(y, x) - this.osDir;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.abs(d) <= OSKELV2.arc / 2;
   }
 
   /**
@@ -10363,6 +10449,19 @@ export const YSMERETV2 = {
   flareMult: 1,
   /** Stage 2: the flame holding the tank (her threat target; the first flame with no tank up) Bellow Slams every this many s (0 = none). */
   bellowEvery: 12,
+};
+
+/**
+ * OSKELV2 (design 25 Nov, oskel-v2.md): starting values. Stage 2 from `stage2` of his health: the press bed carries
+ * everyone `belt` a second and flips at each Downstroke (`flipWarn` s of warning first); the downstream `arc` (radians)
+ * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream). Stage 3 from `stage3`:
+ * `belt3`, no more flips. `hpMult`: his health under v2. Belt 30 and hp x0.9 are design's two levers, measured 25 Nov (see the PR).
+ */
+export const OSKELV2 = {
+  stage2: 0.55, stage3: 0.2, belt: 30, belt3: 70, flipWarn: 1.5,
+  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, hpMult: 0.9,
+  /** 1: the Downstroke plate rides the belt (design's rule); 0 for measuring only. */
+  plateRides: 1,
 };
 
 export const OSKEL = {

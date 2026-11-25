@@ -34,7 +34,7 @@ const skill = Number(process.env.SKILL ?? 1);
 // REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
 const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
 // HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta).
-// ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md).
+// ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md). OSKELV2=1 the staged Oskel (oskel-v2.md); it prints crush-line hits.
 // YSMERETV2=1 plays the two-stage Ysmeret (design, ysmeret-v2.md); TUNE=YSMERETV2.split=0 keeps only her Bellow change.
 const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
 const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
@@ -82,6 +82,8 @@ else if (process.env.STIR) WORLD.STIR.force = process.env.STIR;
 const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).join(',')).split(',').map(Number);
 
 let wins = 0;
+// OSKELV2: crush-line hits, and the fights that reached the belt (stage 2) and full speed (stage 3).
+const os = { hits: 0, belt: 0, full: 0, by: {} as Record<string, number>, ticks: 0, tankBoss: 0, tankHealer: 0, downOk: 0, downMiss: 0, bossTicks: 0, flips: 0 };
 /** STIRHURT=1: Phase 15 Y10's judged cost of each trash clear (the worst hero against their class bar), as percentiles. */
 const fightHurts: number[] = [];
 /** STIRHURT=1: how often each class was the worst-off hero of a cleared fight. */
@@ -166,7 +168,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
@@ -211,7 +213,18 @@ for (const seed of seeds) {
       return inp;
     });
     const before = w.heroes.map((_, i) => w.hero(i).player.hp);
+    const crushBefore = w.osCrushHits, dirBefore = w.osDir;
     w.step(inputs);
+    if (w.osStage >= 2 && w.osDir !== dirBefore) os.flips++;
+    if (w.osStage >= (process.env.OSDBG ? Number(process.env.OSDBG) : 2) && w.bossIndex >= 0 && w.enemies[w.bossIndex]?.kind === 'oskel') {
+      if (w.osCrushHits > crushBefore) w.heroes.forEach((h, k) => { const q = w.hero(k).player; if (q.lastHurtBy === 'the crush line' && q.hp < before[k]) os.by[h.cls] = (os.by[h.cls] ?? 0) + 1; });
+      const ti = w.heroes.findIndex((h) => h.cls === 'bulwark'), li = w.heroes.findIndex((h) => h.cls === 'lumen'), b = w.enemies[w.bossIndex];
+      if (ti >= 0 && b?.alive && w.hero(ti).player.hp > 0) {
+        const t = w.hero(ti).player; os.ticks++; os.tankBoss += Math.hypot(t.x - b.x, t.y - b.y);
+        if (li >= 0 && w.hero(li).player.hp > 0) os.tankHealer += Math.hypot(t.x - w.hero(li).player.x, t.y - w.hero(li).player.y);
+      }
+      for (const ev of w.events) if (ev.type === 'soak' && ev.owner === -3) { if (ev.ok) os.downOk++; else os.downMiss++; }
+    }
     if (w.bossSpawned && !bossAt) bossAt = w.time;
     if (ytrace && w.bossSpawned && w.bossIndex >= 0) ysTick(w, before);
     w.heroes.forEach((_, i) => {
@@ -253,6 +266,7 @@ for (const seed of seeds) {
     }
   }
   const s = w.summary();
+  if (w.osStage >= 2) { os.belt++; os.hits += w.osCrushHits; if (w.osStage === 3) os.full++; }
   if (s.victory) wins++;
   if (ytrace) ysEnd(w, s.victory);
   const alive = w.heroes.map((_, i) => (w.hero(i).player.hp > 0 ? 'up' : 'down')).join('/');
@@ -265,3 +279,4 @@ if (process.env.STIRHURT === '1' && fightHurts.length) {
 }
 if (ytrace) ysReport();
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);
+if (process.env.OSKELV2 === '1') console.log(`oskelv2 beltFights=${os.belt} fullSpeedFights=${os.full} crushHits=${os.hits} perBeltFight=${(os.hits / Math.max(1, os.belt)).toFixed(2)} flips=${os.flips} flipsPerBeltFight=${(os.flips / Math.max(1, os.belt)).toFixed(1)} by=${JSON.stringify(os.by)} beltDownstrokes ok=${os.downOk} missed=${os.downMiss} avgTankToOskel=${(os.tankBoss / Math.max(1, os.ticks)).toFixed(0)} avgTankToHealer=${(os.tankHealer / Math.max(1, os.ticks)).toFixed(0)}`);
