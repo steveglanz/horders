@@ -62,6 +62,15 @@ describe('Duskblade Open Wounds', () => {
     expect(heal(0)).toBeCloseTo(FOUNDRY.bloomHeal, 5);
     expect(heal(3)).toBeCloseTo(FOUNDRY.bloomHeal / 2, 5);
   });
+
+  it('on a Halls run a Bloom heals hallsBloomHeal instead (a sealed room keeps the Crawler on its own Blooms)', () => {
+    expect(FOUNDRY.hallsBloomHeal).toBeLessThan(FOUNDRY.bloomHeal);
+    const arena = new World({ seed: 3, dungeon: 'foundry', tier: 4 });
+    const map = new World({ seed: 3, dungeon: 'foundry', tier: 4, halls: true, hallsBeta: true });
+    expect(map.halls).not.toBeNull();
+    expect(arena.bloomHeal).toBe(FOUNDRY.bloomHeal);
+    expect(map.bloomHeal).toBe(FOUNDRY.hallsBloomHeal);
+  });
 });
 
 describe('Novice aid for melee heroes', () => {
