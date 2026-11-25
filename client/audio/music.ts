@@ -43,6 +43,10 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   | 'pressFloor' | 'gearRoom' | 'plateStore' | 'oilSump'
   // The Crucible raid's four (H5, visuals #788, 25 Nov): copper and casting sand, nothing glows.
   | 'ladleHall' | 'craneBay' | 'mouldFloor' | 'clinkerHeap'
+  // The Hoard raid's four (H5, visuals #788): coal and old gold.
+  | 'coalBunker' | 'scaleHall' | 'cofferVault' | 'titheStore'
+  // The Smeltery raid's four (H5, visuals #788): blue steel under warm taphole light.
+  | 'tappingFloor' | 'flywheelHall' | 'billetRack' | 'hoistShaft'
   // OSKELV2 (design, 25 Nov): the running press bed under Oskel in stages 2 and 3, played as a room bed.
   | 'pressBelt';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
@@ -55,6 +59,8 @@ export const ROOM_BEDS: readonly RoomBedKind[] = [
   'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift',
   'pressFloor', 'gearRoom', 'plateStore', 'oilSump',
   'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap',
+  'coalBunker', 'scaleHall', 'cofferVault', 'titheStore',
+  'tappingFloor', 'flywheelHall', 'billetRack', 'hoistShaft',
   'pressBelt',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
@@ -681,6 +687,91 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         lp += (w - lp) * 0.08;
         const s = i / rate;
         raw[i] = lp * 0.12 + (Math.sin(2 * Math.PI * 146.8 * s) + 0.5 * Math.sin(2 * Math.PI * 220.2 * s)) * 0.012 + brown * 0.14;
+        break;
+      }
+      case 'coalBunker': {
+        // Coal bunker, the door guard's room: warm light breathes over heaped coal. A low dusty rumble that breathes once
+        // round the loop, and a soft trickle of settling coal grit twice.
+        lp += (w - lp) * 0.07;
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        const breath = 0.35 + 0.65 * Math.pow(Math.sin(t * Math.PI), 2);
+        const trickle = [0.18, 0.63].reduce((m, at) => Math.max(m, t >= at && t < at + 0.07 ? Math.sin((Math.PI * (t - at)) / 0.07) : 0), 0);
+        raw[i] = lp * 0.4 * breath + hp * 0.06 * trickle + brown * 0.12;
+        break;
+      }
+      case 'scaleHall': {
+        // Scale hall, by the boss door: a great balance sways. A brass hum that leans up and down in pitch with each of two
+        // slow tilts, and a soft beam creak as each tilt turns.
+        const s = i / rate;
+        const tilt = Math.sin(t * Math.PI * 4);
+        const hum = Math.sin(2 * Math.PI * 220 * s + tilt * 0.9) + 0.5 * Math.sin(2 * Math.PI * 330 * s + tilt * 1.3);
+        const ph = (t * 2 + 0.25) % 1;
+        const creakAt = (c: number) => Math.exp(-Math.abs(ph - c) * 45);
+        const creak = Math.sin(2 * Math.PI * 392 * s + Math.sin(2 * Math.PI * 17 * s) * 4) * (creakAt(0) + 0.8 * creakAt(0.5));
+        const lean = 0.3 + 0.7 * tilt * tilt;
+        raw[i] = hum * 0.03 * lean + creak * 0.06 + brown * 0.07;
+        break;
+      }
+      case 'cofferVault': {
+        // Coffer vault: gold light swells a little over closed chests. A soft, bright golden chord that swells once.
+        const s = i / rate;
+        const swell = 0.55 + 0.45 * Math.pow(Math.sin(t * Math.PI), 2);
+        const gold = Math.sin(2 * Math.PI * 587.3 * s) + 0.7 * Math.sin(2 * Math.PI * 740 * s) + 0.5 * Math.sin(2 * Math.PI * 880 * s) + 0.25 * Math.sin(2 * Math.PI * 1760 * s);
+        raw[i] = gold * 0.03 * swell + brown * 0.06;
+        break;
+      }
+      case 'titheStore': {
+        // Tithe store, the quiet room: still, dusty air between sacks and tallies, a faint warm hum; nothing moves.
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.2;
+        const s = i / rate;
+        raw[i] = lp * 0.06 + (Math.sin(2 * Math.PI * 174.6 * s) + 0.6 * Math.sin(2 * Math.PI * 261.6 * s)) * 0.014 + brown * 0.1;
+        break;
+      }
+      case 'tappingFloor': {
+        // Tapping floor, the door guard's room: warm light breathes from the taphole. A low molten bubbling that breathes
+        // twice round the loop, a warm low tone under it.
+        lp += (w - lp) * 0.05;
+        const s = i / rate;
+        const breath = 0.25 + 0.75 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const bubble = Math.sin(2 * Math.PI * 7 * s + Math.sin(2 * Math.PI * 1.3 * s) * 2);
+        raw[i] = lp * 0.5 * breath * (0.7 + 0.3 * bubble) + Math.sin(2 * Math.PI * 155.6 * s) * 0.02 * breath + brown * 0.12;
+        break;
+      }
+      case 'flywheelHall': {
+        // Flywheel hall, by the boss door: a great steel flywheel turns slowly. A soft whoosh as each of its four spokes
+        // passes, one turn round the loop, over a steady steel hum.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.3;
+        const s = i / rate;
+        const ph = (t * 4) % 1;
+        const whoosh = Math.pow(Math.sin(Math.PI * ph), 4);
+        raw[i] = lp * 0.14 * whoosh + (Math.sin(2 * Math.PI * 246.9 * s) + 0.5 * Math.sin(2 * Math.PI * 370.4 * s)) * 0.014 + brown * 0.06;
+        break;
+      }
+      case 'billetRack': {
+        // Billet rack, the quiet room: still, cold air between racked steel bars, a faint cold resonance; nothing moves.
+        hp = 0.98 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.12;
+        const s = i / rate;
+        raw[i] = lp * 0.05 + (Math.sin(2 * Math.PI * 293.7 * s) + 0.6 * Math.sin(2 * Math.PI * 440 * s) + 0.3 * Math.sin(2 * Math.PI * 1174.7 * s)) * 0.011 + brown * 0.07;
+        break;
+      }
+      case 'hoistShaft': {
+        // Hoist shaft: a hook sways in a tall shaft. A hollow, low draught swaying once round the loop, and a slow chain
+        // creak at each end of the swing.
+        lp += (w - lp) * 0.04;
+        hp = 0.9 * (hp + lp - prev);
+        prev = lp;
+        const s = i / rate;
+        const sway = 0.3 + 0.7 * Math.pow(Math.sin(t * Math.PI), 2);
+        const creakAt = (c: number) => Math.exp(-Math.abs(t - c) * 30);
+        const creak = Math.sin(2 * Math.PI * 440 * s + Math.sin(2 * Math.PI * 11 * s) * 5) * (creakAt(0.25) + 0.8 * creakAt(0.75));
+        raw[i] = hp * 0.4 * sway + creak * 0.09 + brown * 0.08;
         break;
       }
       case 'shimmer': {

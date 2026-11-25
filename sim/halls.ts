@@ -223,16 +223,21 @@ const hash = (seed: number, k: number): number => {
  * #724 #726 and the co-op grate fix #723 were in); H3d the Wrackline (on 25 Nov once QA cleared #727 and the phone pass #734 was in); H4a the Hammerdeep, the first group
  * map (on 25 Nov once QA's two-tab co-op run, the themes #744, the beds #745 and the phone pass #750 were in); H4c the
  * Pressworks (on 25 Nov once the grid, QA solo and co-op, the themes #747 and the phone pass #759 were in); H4b the
- * Ashvents (on 25 Nov once the stuck-bot fix #760, QA's Ysmeret v2 pass and its fixes #772 and the phone pass #771 were in).
+ * Ashvents (on 25 Nov once the stuck-bot fix #760, QA's Ysmeret v2 pass and its fixes #772 and the phone pass #771 were in);
+ * H5a the Crucible, the first raid map (on 25 Nov once the grid with named in B #797, QA solo and four-tab co-op, the
+ * phone pass #800, the themes #788 and the beds #790 were in); H5b the Hoard (on 25 Nov once the grid, QA solo and
+ * four-tab co-op and the phone pass #807 were in); H5c the Smeltery (on 25 Nov once the grid, QA solo and four-tab
+ * co-op and the phone pass #811 were in); H5d the Flue (on 25 Nov once the grid, QA solo and four-tab co-op and the
+ * phone pass #813 were in), so every dungeon and raid now has its map.
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['crucible', 'hoard'];
+export const HALLS_BETA: DungeonId[] = [];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents'];
+export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -268,11 +273,25 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
  * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
  * A trash clear still gives a level (design, 25 Nov: its XP step measured worse and was dropped).
+ * `named` (design, 25 Nov, measured in engineering/kiln-trash-grid.md): on a map with trash, every other pack's foes and
+ * the rare get this share of their health, so named and hard fights take about a minute or less (1 turns it off).
  */
-export const KILNTRASH = { foes: 2, hp: 0.3 };
-export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
+export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
+/**
+ * A pack's special foes, which keep their count in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
+ * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring), the
+ * Ballast, and the Ember Twins (the pair is the mechanic: with four, each death starts another Rekindle). Hounds,
+ * spitters and the Ashbuck double as the Kiln's do.
+ */
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast', 'emberTwin'];
+/** The dungeons whose map's openers are trash (WorldOptions.kilnTrash, on by default in play; ?kilntrash=0 turns it off). */
+export const TRASH_ON: DungeonId[] = ['kiln'];
+/** Trash rollout (design, 25 Nov): built but off for players; a run gets it with WorldOptions.trashBeta (?trashbeta=1, TRASH_BETA=1 in tools). */
+export const TRASH_BETA: DungeonId[] = ['foundry'];
+/** Whether `dungeon`'s map has trash packs (raids have their own switch, raidTrash). */
+export const trashFor = (dungeon: DungeonId, on: boolean, beta: boolean): boolean => (on && TRASH_ON.includes(dungeon)) || (beta && TRASH_BETA.includes(dungeon));
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false, trashBeta = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -317,7 +336,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const trash = ((kilnTrash && dungeon === 'kiln') || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
+    const trash = (trashFor(dungeon, kilnTrash, trashBeta) || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
     const foes = packFoes(seed, k, p.enc, x, y, trash);
     return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });

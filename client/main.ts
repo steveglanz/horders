@@ -321,6 +321,8 @@ function startRun(bounty = false, key = false): void {
   if (params.get('kilntrash') !== '0') opts.kilnTrash = true;
   // H5 (design's h5-plan.md): a raid map's openers as trash too, off until it has had a day live in the Kiln.
   if (params.get('raidtrash') === '1') opts.raidTrash = true;
+  // Trash rollout (design's trash-rollout-plan.md): the next solo dungeons' openers as trash (TRASH_BETA, the Foundry first), off until its grid and QA.
+  if (params.get('trashbeta') === '1') opts.trashBeta = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
   // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
   if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;

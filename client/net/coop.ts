@@ -12,7 +12,7 @@ import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
 import { POTION_IDS } from '../../sim/content/potions';
-import { RESEND_TICKS, Snapshot, heardEvents, snapshot, withHeard } from '../../sim/netsync';
+import { Snapshot, heardEvents, snapshot, trimRecent, withHeard } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
 export interface HeroCard {
@@ -117,6 +117,8 @@ export class CoopSession {
   /** Host: each tick's events, the last RESEND_TICKS of them, sent again with every snapshot (Snapshot.recent). */
   private events: { tick: number; events: SimEvent[] }[] = [];
   private lastSnapTick = -1;
+  /** The tick of the snapshot before the last one (trimRecent keeps a batch until two snapshots carried it). */
+  private prevSnapTick = -1;
   private lastSnapAt = 0;
   private latest: Snapshot | null = null;
   /** Guest: when the last snapshot came in (performance.now()), or when the delve started. */
@@ -197,6 +199,7 @@ export class CoopSession {
     this.gone.clear();
     this.events = [];
     this.lastSnapTick = -1;
+    this.prevSnapTick = -1;
     this.running = true;
     this.runOpts = full;
     this.party.broadcast('rel', { t: 'start', opts: full, order: this.order } satisfies Msg);
@@ -217,7 +220,7 @@ export class CoopSession {
   /** Host: after each step, keep the tick's events for the next snapshot. */
   afterStep(w: World): void {
     if (w.events.length) this.events.push({ tick: w.tick, events: [...w.events] });
-    while (this.events.length && this.events[0].tick <= w.tick - RESEND_TICKS) this.events.shift();
+    trimRecent(this.events, w.tick, this.prevSnapTick);
     // A press is done once its ability went on cooldown, or after the queue window.
     this.order.forEach((id, k) => {
       const c = this.casts.get(id);
@@ -240,6 +243,7 @@ export class CoopSession {
     }
     const due = w.tick - this.lastSnapTick >= SNAP_TICKS || now - this.lastSnapAt > 200;
     if (!due || !this.party.members.length) return;
+    this.prevSnapTick = this.lastSnapTick;
     this.lastSnapTick = w.tick;
     this.lastSnapAt = now;
     const s = snapshot(w, [], this.events);

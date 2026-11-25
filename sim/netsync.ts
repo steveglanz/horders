@@ -92,6 +92,17 @@ export const RESEND_TICKS = 8;
  */
 export const EVENT_HOLD_TICKS = 60;
 
+/**
+ * Host, after each step: drops the event batches every guest has had their chance at. A batch goes once it is
+ * RESEND_TICKS old and has ridden two snapshots (it came on or before `prevSentTick`, the tick of the snapshot before
+ * the last one sent; -1 for none), so one lost snapshot never loses it. QA, 25 Nov: trimming by age alone lost a tick's
+ * events when a host frame ran 8 or more ticks (a 250 ms hitch, one snapshot per frame), so guests heard 2 of 3 grate
+ * lifts. Never kept past EVENT_HOLD_TICKS.
+ */
+export function trimRecent(batches: { tick: number }[], tick: number, prevSentTick: number): void {
+  while (batches.length && (batches[0].tick <= tick - EVENT_HOLD_TICKS || (batches[0].tick <= tick - RESEND_TICKS && batches[0].tick <= prevSentTick))) batches.shift();
+}
+
 /** Guest, for every snapshot heard (newest or not): keeps its event batches by host tick for the next frame. */
 export function heardEvents(heard: Map<number, SimEvent[]>, s: Snapshot): void {
   if (!s.recent) return;

@@ -279,6 +279,8 @@ export interface Enemy {
   /** Hamstring and Cinder Sump: the run time until which this foe is slowed, and its speed factor. */
   slowUntil?: number;
   slowMult?: number;
+  /** Ember Twins: the fallen twin's maxHp while this one casts Rekindle (design, 25 Nov: it returns at half of that). */
+  rekindleHp?: number;
   /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
@@ -821,8 +823,10 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
-  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the Kiln map's opener packs are trash (sim/halls.ts). */
+  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the opener packs of a TRASH_ON map (the Kiln) are trash (sim/halls.ts). */
   kilnTrash?: boolean;
+  /** Trash rollout (?trashbeta=1, TRASH_BETA=1, design 25 Nov, trash-rollout-plan.md): a TRASH_BETA map's openers (the Foundry's) are trash too. */
+  trashBeta?: boolean;
   /** H5 (design's h5-plan.md): a raid map's opener packs are trash as the Kiln's (?raidtrash=1, RAIDTRASH=1; off until design's go). */
   raidTrash?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
@@ -1458,7 +1462,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash, !!opts.trashBeta);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2863,6 +2867,8 @@ export class World {
       if (i < 0) return;
       const e = this.enemies[i];
       if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
+      // KILNTRASH.named (design, 25 Nov): on a map with trash, the other packs' foes at this share of health.
+      else if (KILNTRASH.named !== 1 && this.halls!.packs.some((q) => q.trash)) e.maxHp = e.hp = e.maxHp * KILNTRASH.named;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
       // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.
       if (f.kind === 'acolyte') {
@@ -3587,6 +3593,9 @@ export class World {
     if (!this.rareSpawned && t >= RARE_AT && !this.stress) {
       this.rareSpawned = true;
       this.rareIndex = this.spawnAtRing('ashmaw', 520);
+      // KILNTRASH.named: the rare too, on a map with trash.
+      const rare = this.enemies[this.rareIndex];
+      if (rare && KILNTRASH.named !== 1 && this.halls?.packs.some((q) => q.trash)) rare.maxHp = rare.hp = rare.maxHp * KILNTRASH.named;
       this.events.push({ type: 'rareSpawn' });
     }
     if (!this.stress && !this.bossSpawned && this.riftsOpened < RIFT_TIMES.length && t >= RIFT_TIMES[this.riftsOpened]) {
@@ -5950,9 +5959,15 @@ export class World {
     } else if (id === 'mirror') {
       e.aux2 = FOUNDRY.mirrorTime;
     } else if (id === 'rekindle') {
-      // Bring the fallen twin back beside this one at half health.
+      // Bring the fallen twin back beside this one at half of its own health (design, 25 Nov: a trash twin's 30% or a
+      // named fight's 80% carries over; a fresh spawn's maxHp would ignore them).
       const k = this.spawn('emberTwin', e.x + 30, e.y);
-      if (k >= 0) this.enemies[k].hp = this.enemies[k].maxHp * 0.5;
+      if (k >= 0) {
+        const t = this.enemies[k];
+        if (e.rekindleHp) t.maxHp = e.rekindleHp;
+        t.hp = t.maxHp * 0.5;
+      }
+      e.rekindleHp = undefined;
     } else if (id === 'undertow') {
       const p = this.player;
       p.x += (e.x - p.x) * FOUNDRY.undertowPull;
@@ -6968,7 +6983,7 @@ export class World {
         n.burnBy = this.acting;
       });
     }
-    if (e.kind === 'emberTwin') this.twinFell();
+    if (e.kind === 'emberTwin') this.twinFell(e.maxHp);
     if (e.kind === 'craw') this.crawBroken();
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
@@ -9089,10 +9104,11 @@ export class World {
   }
 
   /** A twin fell: a living twin tries to Rekindle it. Quench it or kill the caster. */
-  private twinFell(): void {
+  private twinFell(maxHp: number): void {
     for (let j = 0; j < this.enemies.length; j++) {
       const o = this.enemies[j];
       if (o.alive && o.kind === 'emberTwin' && !o.castId) {
+        o.rekindleHp = maxHp;
         this.startCast(j, 'rekindle', 'Rekindle', FOUNDRY.rekindleCast, true);
         return;
       }

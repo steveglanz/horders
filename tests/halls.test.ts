@@ -33,8 +33,9 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    // A raid has no map.
-    expect(new World({ seed: 2, tier: 9, halls: true, dungeon: 'hoard' }).halls).toBeNull();
+    // Every raid has its map since the Flue went on (25 Nov), so HALLS_BETA is empty.
+    expect(HALLS_BETA).toEqual([]);
+    expect(new World({ seed: 2, tier: 11, halls: true, dungeon: 'flue' }).halls).not.toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -531,7 +532,6 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'hoard', tier: 9 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -1385,10 +1385,12 @@ describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)
 
 describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
-    expect(HALLS_BETA).toContain('crucible');
-    expect(HALLS_ON).not.toContain('crucible');
-    expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and co-op, phones #800, themes, beds).
+    expect(HALLS_ON).toContain('crucible');
+    expect(HALLS_COOP).toContain('crucible');
+    expect(HALLS_BETA).not.toContain('crucible');
+    expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.crucible;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
@@ -1456,10 +1458,12 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
 
 describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta with the raid layout, H4a\'s named gate rule, and its own themes from #788', () => {
-    expect(HALLS_BETA).toContain('hoard');
-    expect(HALLS_ON).not.toContain('hoard');
-    expect(halls(3, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #807).
+    expect(HALLS_ON).toContain('hoard');
+    expect(HALLS_COOP).toContain('hoard');
+    expect(HALLS_BETA).not.toContain('hoard');
+    expect(halls(3, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.hoard;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'hoard', tier: 9, hallsBeta: true, cls: 'bulwark', party });
@@ -1492,6 +1496,98 @@ describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
         w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
       }
       if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.hoard.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 90000);
+});
+
+describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
+  const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (tap guards the door, flywheel is the alcove)', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #811).
+    expect(HALLS_ON).toContain('smeltery');
+    expect(HALLS_COOP).toContain('smeltery');
+    expect(HALLS_BETA).not.toContain('smeltery');
+    expect(halls(3, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party }).halls).not.toBeNull();
+    const { openers, named, boss } = DUNGEONS.smeltery;
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'smeltery', tier: 10, hallsBeta: true, cls: 'bulwark', party });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[3]).toBe(boss);
+      expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R2', 'R3', 'R5', 'door']);
+      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
+      expect(openers).toContain(pk('A').enc);
+      if (pk('B').gate === 'named') expect(pk('S').enc).toBe(w.route[1]);
+      else expect(pk('B').enc).toBe(w.route[1]);
+      expect(named).toContain(pk('C').enc);
+      expect(m.packs.filter((p) => p.guard)).toEqual([pk('C')]);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[4].theme).toBe('tap');
+      expect(m.rooms[5].theme).toBe('flywheel');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['tap', 'flywheel', 'billet', 'hoist'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a four-hero bot party walks it and goes through the door into the Cinder Colossus\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 4: without gear a party dies to the Smeltery's tier-10 crawlers before the door; this checks the walk, not the numbers.
+      const w = halls(seed, { dungeon: 'smeltery', tier: 4, hallsBeta: true, cls: 'bulwark', party });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.smeltery.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 90000);
+});
+
+describe('H5d: the Flue on the Halls map (design, h5-plan.md)', () => {
+  const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (firebox guards the door, damper is the alcove)', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #813).
+    expect(HALLS_ON).toContain('flue');
+    expect(HALLS_COOP).toContain('flue');
+    expect(HALLS_BETA).not.toContain('flue');
+    expect(halls(3, { dungeon: 'flue', tier: 11, cls: 'bulwark', party }).halls).not.toBeNull();
+    const { openers, named, boss } = DUNGEONS.flue;
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'flue', tier: 11, hallsBeta: true, cls: 'bulwark', party });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[3]).toBe(boss);
+      expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R2', 'R3', 'R5', 'door']);
+      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
+      expect(openers).toContain(pk('A').enc);
+      if (pk('B').gate === 'named') expect(pk('S').enc).toBe(w.route[1]);
+      else expect(pk('B').enc).toBe(w.route[1]);
+      expect(named).toContain(pk('C').enc);
+      expect(m.packs.filter((p) => p.guard)).toEqual([pk('C')]);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[4].theme).toBe('firebox');
+      expect(m.rooms[5].theme).toBe('damper');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['firebox', 'damper', 'soot', 'sweep'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a four-hero bot party walks it and goes through the door into the Furnace Regent\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 4: without gear a party dies to the Flue's tier-11 trash before the door; this checks the walk, not the numbers.
+      const w = halls(seed, { dungeon: 'flue', tier: 4, hallsBeta: true, cls: 'bulwark', party });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.flue.boss) reached++;
     }
     expect(reached).toBeGreaterThanOrEqual(2);
   }, 90000);
