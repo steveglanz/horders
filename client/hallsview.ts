@@ -162,7 +162,7 @@ export class HallsView {
 
   /**
    * The floor, drawn once: rooms in their theme's colour (H2d, client/hallsthemes.ts) for any outline (H2c,
-   * client/hallsshape.ts: Round, Hall, Cross, Ring, Twin; the Ring's island a coal hearth), corridors in plain stone,
+   * client/hallsshape.ts: Round, Hall, Cross, Ring, Twin; the Ring's island a stone plinth), corridors in plain stone,
    * an ember rim round it all, walls left dark, and one simple prop per theme along the walls.
    */
   private drawFloor(m: HallsMap): void {
@@ -191,8 +191,8 @@ export class HallsView {
     for (const c of span) quad(c.x1, c.y1, c.x2, c.y2, hw);
     loops.forEach((l, i) => {
       g.fillStyle(themeOf(m, i).floor2d, 1).fillPoints(poly(l[0]), true);
-      // The Ring's hearth: banked coals inside a low ember rim.
-      for (let k = 1; k < l.length; k++) { g.fillStyle(0x1a0d09, 1).fillPoints(poly(l[k]), true); g.lineStyle(5, 0xff6a2a, 0.55).strokePoints(poly(l[k]), true, true); }
+      // Islands: dark stone plinths with a lighter stone rim, no glow (glow means lava; design, 25 Nov).
+      for (let k = 1; k < l.length; k++) { g.fillStyle(0x2a2624, 1).fillPoints(poly(l[k]), true); g.lineStyle(5, 0x5a524c, 0.9).strokePoints(poly(l[k]), true, true); }
     });
     // A faint flagstone grid inside each room, so walking reads as moving (segments kept to the floor).
     g.lineStyle(1, 0x3a2c25, 0.6);

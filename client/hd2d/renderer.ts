@@ -1130,7 +1130,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     sleepers.length = 0;
     // Corridors take the dungeon's own floor and a darker shade of its wall (the Kiln keeps its brick).
     const hr = ROOMS[rid];
-    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
+    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, lensDais: rid === 'glarewell', corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
     scene.add(halls.group);
     hallsOf = m;
     m.packs.forEach((p, k) => p.foes.forEach((f, j) => {
