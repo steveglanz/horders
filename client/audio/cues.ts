@@ -665,6 +665,8 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   ash: 'ashStore', bellows: 'bellowsHall', slag: 'slagChannel', cooling: 'coolingYard', shrine: 'kilnShrine',
   // The Drowned Foundry (H3a; its shrine side room is 'shrine' too).
   boiler: 'boilerRoom', cistern: 'cistern', pump: 'pumpHall', anchor: 'anchorStore',
+  // The Glarewell (H3b).
+  lens: 'lensGallery', orrery: 'starVault', colonnade: 'shadeColonnade', mirror: 'mirrorHall',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
