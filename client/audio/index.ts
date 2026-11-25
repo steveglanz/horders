@@ -10,7 +10,7 @@ import type { RunRewards } from '../../sim/hero';
 import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
-import { MusicPlayer, ThemeId, THEMES } from './music';
+import { MusicPlayer, type RoomBedKind, ThemeId, THEMES } from './music';
 import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
@@ -81,6 +81,7 @@ class AudioEngine {
   private voices = 0;
   private wantTheme: ThemeId | null = null;
   private wantIntensity = 0;
+  private wantRoomBed: RoomBedKind | null = null;
   private listeners = new Set<() => void>();
   private wasDown: boolean[] = [];
   private targeted = { on: false };
@@ -183,6 +184,7 @@ class AudioEngine {
       silent.start(0);
       this.music.play(this.wantTheme);
       this.music.setIntensity(this.wantIntensity);
+      this.music.setRoomBed(this.wantRoomBed);
       // Build the sounds a few at a time in the background, combat sounds
       // first, so the first hit or level-up never waits on a render.
       // Each busy sound's extra takes (VARIANTS) warm right after the base sounds.
@@ -370,6 +372,7 @@ class AudioEngine {
     this.cue(spentCue(this.spending, !!ctx.spent));
     this.cue(gazeCues(this.gazing, ctx.gaze));
     this.cue(restCue(this.resting, !!ctx.hallsResting, ctx.hallsPacks));
+    this.roomBed(ctx.hallsBed ?? null);
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
     // The props round the rim give off a quiet sound now and then (not in a boss fight).
     this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random, ctx.arenaR ? { listen: ctx.listen, arenaR: ctx.arenaR } : undefined));
@@ -405,6 +408,14 @@ class AudioEngine {
     }
     this.wantTheme = id;
     this.music?.play(id);
+    // The end screen and the hub have no room: a Halls room bed never outlives its delve.
+    if (id === null || id.startsWith('hub')) this.roomBed(null);
+  }
+
+  /** Halls: the quiet bed of the room the hero stands in (roomBedFor), or null in a corridor, the boss arena or off the map. */
+  roomBed(kind: RoomBedKind | null): void {
+    this.wantRoomBed = kind;
+    this.music?.setRoomBed(kind);
   }
 
   /** 0 is exploring, 1 is a boss fight (drums and bass join in). */
