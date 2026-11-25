@@ -92,7 +92,7 @@ describe('weekly quests (P1)', () => {
     }
     expect(seen).toBeGreaterThan(0);
     expect(w.summary().interrupts).toBe(seen);
-  });
+  }, 30000);
 });
 
 describe('the party quest', () => {

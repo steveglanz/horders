@@ -2638,6 +2638,39 @@ export class World {
   }
 
   /**
+   * H3c (design, 25 Nov): on a Halls map the Dimhorn's Dark Call brings its hounds in from the dark edge of its own
+   * room, behind it as seen from the room's middle, and they join its pack. A spot off the floor or within a sleeping
+   * pack's pull is walked in toward the Dimhorn, so the call never wakes a pack in another room.
+   */
+  private hallsDarkCall(e: Enemy): void {
+    const m = this.halls!;
+    const pack = e.pack ?? -1;
+    const ri = pack >= 0 ? m.packs[pack].room : roomAt(m, e.x, e.y);
+    if (ri < 0) return;
+    const rm = m.rooms[ri], f = layoutFrame(rm), R = ENEMIES.rimehound.radius;
+    const a = Math.atan2(e.y - f.y, e.x - f.x);
+    const ok = (x: number, y: number) => roomGap(rm, x, y) >= R + 20 && m.packs.every((pk) => pk.state !== 'asleep' || (pk.x - x) ** 2 + (pk.y - y) ** 2 > (HALLS.pull + 40) ** 2);
+    const was = this.hallsWaking;
+    this.hallsWaking = pack;
+    let lx = e.x, ly = e.y;
+    for (let k = 0; k < DIMHORN.calls; k++) {
+      const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;
+      // From the room's rim inward to the Dimhorn's own spot.
+      let x = e.x, y = e.y;
+      const rx = f.x + Math.cos(b) * f.r, ry = f.y + Math.sin(b) * f.r;
+      for (let t = 1; t >= 0; t -= 0.05) {
+        const qx = e.x + (rx - e.x) * t, qy = e.y + (ry - e.y) * t;
+        if (ok(qx, qy)) { x = qx; y = qy; break; }
+      }
+      if (!ok(x, y)) continue;
+      this.spawn('rimehound', x, y);
+      lx = x; ly = y;
+    }
+    this.hallsWaking = was;
+    this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x: lx, y: ly });
+  }
+
+  /**
    * Halls: pack `k` wakes. Its foes spawn where they stood (hp depth from the pack's route slot), and the first pack
    * awake starts a fight as startEncounter does. A shrine has no foes: stepping in clears it at once.
    */
@@ -5686,6 +5719,7 @@ export class World {
       e.aux = 0;
       if (this.warmthAt(e.x, e.y, e.def.radius) > 0) { this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'darkCallLost', name: 'Silenced' }); return; }
       e.aux2++;
+      if (this.hallsOn) { this.hallsDarkCall(e); return; }
       const a = Math.atan2(e.y, e.x), r = this.arenaR - 60;
       for (let k = 0; k < DIMHORN.calls; k++) {
         const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;

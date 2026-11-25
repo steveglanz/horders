@@ -700,6 +700,80 @@ describe('H3b: the Glarewell on the Halls map', () => {
   }, 30000);
 });
 
+describe('H3c: the Coldmarrow on the Halls map', () => {
+  const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
+  const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
+
+  it('is off for players until design turns it on, and gets its own fights, themes and Nhevra behind the door', () => {
+    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.coldmarrow;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = cold(seed);
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[5].theme).toBe('hearthless');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(COLD_THEMES, `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a pack waking starts the fight with a full Hearthcoal and no Chill, as an arena fight does', () => {
+    const w = cold(3);
+    const p = w.player;
+    p.coal = 0.3; p.chill = 0.6;
+    const pk = w.halls!.packs.find((q) => q.foes.length)!;
+    put(w, pk.x, pk.y);
+    for (let j = 0; j < 30 && pk.state === 'asleep'; j++) w.step(idle);
+    expect(pk.state).toBe('awake');
+    expect(p.coal).toBeGreaterThan(0.95);
+    expect(p.chill).toBeLessThan(0.05);
+  });
+
+  it('the Dimhorn\'s Dark Call brings its hounds in inside its own room, into its own pack, and wakes no other pack', () => {
+    let tried = 0;
+    for (let seed = 1; seed <= 200 && tried < 6; seed++) {
+      const w = cold(seed);
+      const m = w.halls!;
+      const k = m.packs.findIndex((q) => q.foes.some((f) => f.kind === 'dimhorn'));
+      if (k < 0) continue;
+      tried++;
+      const pk = m.packs[k];
+      put(w, pk.x, pk.y);
+      for (let j = 0; j < 30 && pk.state === 'asleep'; j++) w.step(idle);
+      const hi = w.enemies.findIndex((e) => e.alive && e.kind === 'dimhorn');
+      expect(hi, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+      const before = w.enemies.filter((e) => e.alive && e.kind === 'rimehound').length;
+      (w as unknown as { hallsDarkCall(e: unknown): void }).hallsDarkCall(w.enemies[hi]);
+      const hounds = w.enemies.filter((e) => e.alive && e.kind === 'rimehound').slice(before);
+      expect(hounds.length, `seed ${seed}`).toBeGreaterThan(0);
+      for (const h of hounds) {
+        expect(roomAt(m, h.x, h.y), `seed ${seed}`).toBe(pk.room);
+        expect(h.pack).toBe(k);
+      }
+      const asleep = m.packs.map((q) => q.state);
+      for (let j = 0; j < 3; j++) w.step(idle);
+      m.packs.forEach((q, j) => { if (j !== k && asleep[j] === 'asleep') expect(q.state, `seed ${seed} pack ${j}`).toBe('asleep'); });
+    }
+    expect(tried).toBeGreaterThanOrEqual(3);
+  });
+
+  it('bots walk it and go through the door into Nhevra\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
+      await new Promise((r) => setTimeout(r, 0));
+      const w = cold(seed, { cls: 'slagbinder' });
+      run(w, () => !w.hallsOn || w.state === 'ended', 900);
+      if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
 describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
   it('the arena step and hallsClock both run dungeonClocks, and no dungeon clock is called anywhere else (design, 25 Nov)', () => {
     const src = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
