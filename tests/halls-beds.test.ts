@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'pressBelt']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'coalBunker', 'scaleHall', 'cofferVault', 'titheStore', 'pressBelt']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -58,6 +58,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     pressworks: ['pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'kilnShrine'],
     // The Crucible raid's Halls (H5; its R2 shrine is 'shrine' too).
     crucible: ['ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'kilnShrine'],
+    hoard: ['coalBunker', 'scaleHall', 'cofferVault', 'titheStore', 'kilnShrine'],
     // OSKELV2: the running press bed plays in place of the room's bed, so it is never beside another.
     oskelBelt: ['pressBelt'],
   } as const;
@@ -93,6 +94,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     for (const busy of ['pressFloor', 'gearRoom', 'oilSump'] as const) expect(m(busy)).toBeGreaterThan(2 * m('plateStore'));
     // The Crucible: the ladle sways, the hook block turns, the mould light swells; the clinker heap is still.
     for (const busy of ['ladleHall', 'craneBay', 'mouldFloor'] as const) expect(m(busy)).toBeGreaterThan(2 * m('clinkerHeap'));
+    // The Hoard: the bunker light breathes, the balance tilts, the coffer light swells; the tithe store is still.
+    for (const busy of ['coalBunker', 'scaleHall', 'cofferVault'] as const) expect(m(busy)).toBeGreaterThan(2 * m('titheStore'));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
