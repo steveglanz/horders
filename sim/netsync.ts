@@ -84,6 +84,30 @@ type Bag = Record<string, unknown>;
 /** How many host ticks of events every snapshot carries again (8 ticks is 4 snapshots, about a quarter second). */
 export const RESEND_TICKS = 8;
 
+/**
+ * A guest keeps every snapshot's `recent` batches it hears until its next frame (heardEvents), so a frame that comes
+ * more than RESEND_TICKS host ticks after the last one still plays them all (QA, 25 Nov: a slow guest frame dropped
+ * 7 of 21 flares). It holds at most this many host ticks (2 s), so a tab coming back from the background doesn't play
+ * a long backlog at once.
+ */
+export const EVENT_HOLD_TICKS = 60;
+
+/** Guest, for every snapshot heard (newest or not): keeps its event batches by host tick for the next frame. */
+export function heardEvents(heard: Map<number, SimEvent[]>, s: Snapshot): void {
+  if (!s.recent) return;
+  for (const b of s.recent) if (!heard.has(b.tick)) heard.set(b.tick, b.events);
+  const newest = Math.max(...heard.keys());
+  for (const t of [...heard.keys()]) if (t <= newest - EVENT_HOLD_TICKS) heard.delete(t);
+}
+
+/** Guest, at a frame: the newest snapshot, carrying every batch heard since the last frame (oldest first). */
+export function withHeard(s: Snapshot, heard: Map<number, SimEvent[]>): Snapshot {
+  if (!s.recent) return s;
+  const recent = [...heard.entries()].sort((a, b) => a[0] - b[0]).map(([tick, events]) => ({ tick, events }));
+  heard.clear();
+  return { ...s, recent };
+}
+
 /** The last host tick whose events each guest mirror has played (see Snapshot.recent). */
 const playedTo = new WeakMap<World, number>();
 
