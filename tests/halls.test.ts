@@ -33,7 +33,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 7, halls: true, dungeon: 'ashvents' }).halls).toBeNull();
+    // A raid has no map.
+    expect(new World({ seed: 2, tier: 9, halls: true, dungeon: 'hoard' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -530,7 +531,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'hoard', tier: 9 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -979,8 +980,11 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
 });
 
 describe('H4b: the Ashvents on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
-    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
+  it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
+    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).not.toBeNull();
+    expect(HALLS_ON).toContain('ashvents');
+    expect(HALLS_COOP).toContain('ashvents');
+    expect(HALLS_BETA).toEqual([]);
     const { openers, named, hard, boss } = DUNGEONS.ashvents;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
