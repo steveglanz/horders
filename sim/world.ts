@@ -7700,7 +7700,7 @@ export class World {
     // Her open vents go with her stage 1.
     for (const t of this.telegraphs) if (t.alive && t.kind === 'soak' && t.owner === -2) t.alive = false;
     this.rollLeft = 0;
-    const half = e.hp / 2;
+    const half = (e.hp / 2) * YSMERETV2.hpMult;
     const tgt = this.heroPlayer(this.targetOf(i, 0));
     const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
     const d = YSMERETV2.apart / 2;
@@ -7724,6 +7724,22 @@ export class World {
 
   /** YSMERETV2 stage 2: each flame casts Scatter Embers on its own timer (nothing else), and a flame that went out relights. */
   private flamesClock(dt: number): void {
+    if (YSMERETV2.bellow2) {
+      this.bellowT -= dt;
+      if (this.bellowT <= 0) {
+        // The flame whose target is a tank Bellows it; without one, it waits.
+        for (let j = 0; j < this.enemies.length; j++) {
+          const f = this.enemies[j];
+          if (!f.alive || f.kind !== 'ysmeret' || f.castId || f.stunT > 0) continue;
+          const t = this.targetOf(j, 0);
+          if (!this.isTank(t)) continue;
+          this.bellowT = YSMERETV2.bellow2Every;
+          this.bellowTarget = t;
+          this.startCast(j, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
+          break;
+        }
+      }
+    }
     for (let j = 0; j < this.enemies.length; j++) {
       const f = this.enemies[j];
       if (!f.alive || f.kind !== 'ysmeret' || f.castId || f.stunT > 0 || f.abilityT > 0) continue;
@@ -10286,7 +10302,15 @@ export const YSMERET = {
  * left, `melee` of her melee damage and Scatter Embers on its own timer (offset by half). When one goes out the other has
  * `window` s, or the first relights at `relight` of its health. `split: 0` keeps stage 1 only (the Bellow change alone).
  */
-export const YSMERETV2 = { bellowWaits: 1, split: 0.5, apart: 300, melee: 0.6, window: 10, relight: 0.5, firstScatter: 3 };
+export const YSMERETV2 = {
+  bellowWaits: 1, split: 0.5, apart: 300, melee: 0.6, window: 10, relight: 0.5, firstScatter: 3,
+  /** The two flames' health together, x what she had left (1 = unchanged). */
+  hpMult: 1,
+  /** 1: in stage 2 the flame holding the tank keeps her Bellow Slam (on its usual timer). */
+  bellow2: 0,
+  /** Stage 2's Bellow Slam timer, when `bellow2` is on (YSMERET.bellowEvery is 9). */
+  bellow2Every: 9,
+};
 
 export const OSKEL = {
   /**

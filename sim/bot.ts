@@ -1438,8 +1438,14 @@ function focusFlame(w: World): Enemy | null {
     if (!lo || e.hp < lo.hp) lo = e;
     if (!hi || e.hp > hi.hp) hi = e;
   }
-  return w.isTank(w.acting) ? hi : lo;
+  if (w.isTank(w.acting)) return hi;
+  // Everyone else burns the one with less, but only once the two are close: killing the small one while the big one is
+  // far ahead leaves too much to burn in the window, and it relights (the trace, 25 Nov: a full-skill duo let 116 of 131
+  // flames relight at t7). So first even them out on the big one, then finish the small one and turn to the other.
+  return hi && lo && hi.hp > lo.hp * FLAME_EVEN ? hi : lo;
 }
+/** YSMERETV2 bots: the bigger flame counts as "close" to the smaller within this much more health. */
+const FLAME_EVEN = 1.15;
 
 /**
  * H2c: in a fight on a Halls map, a move that runs into a wall slides along it, and in a corner it breaks out the way

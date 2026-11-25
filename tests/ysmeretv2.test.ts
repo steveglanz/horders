@@ -78,13 +78,13 @@ describe('YSMERETV2: the Twofold Flame', () => {
     expect(w.events.some((e) => e.type === 'phase' && e.phase === 2)).toBe(true);
     const f = flames(w);
     expect(f).toHaveLength(2);
-    expect(f[0].hp + f[1].hp).toBeCloseTo(left, 3);
+    expect(f[0].hp + f[1].hp).toBeCloseTo(left * YSMERETV2.hpMult, 3);
     expect(Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y)).toBeCloseTo(YSMERETV2.apart, 0);
     expect(ventsOpen(w)).toBe(false);
     // No vents and no Bellow from here, and the two Scatters come half a timer apart.
     const casts: number[] = [];
     for (let t = 0; t < 30; t += 0.05) {
-      for (const e of w.enemies) if (e.alive && e.kind === 'ysmeret' && e.castId === 'bellowSlam') throw new Error('Bellow in stage 2');
+      for (const e of w.enemies) if (!YSMERETV2.bellow2 && e.alive && e.kind === 'ysmeret' && e.castId === 'bellowSlam') throw new Error('Bellow in stage 2');
       q.ysmeretClock(0.05);
       for (const e of w.enemies) if (e.alive && e.kind === 'ysmeret') { e.abilityT -= 0.05; if (e.castId === 'scatter') { casts.push(t); e.castId = ''; } }
       expect(ventsOpen(w)).toBe(false);
@@ -120,7 +120,7 @@ describe('YSMERETV2: the Twofold Flame', () => {
     expect(w.victory).toBe(true);
   });
 
-  it('bots: the tank walks to the flame with more health, the healer to the one with less', () => {
+  it('bots: the tank walks to the flame with more health; the healer evens them out first, then takes the one with less', () => {
     const { w, q } = fight();
     const b = w.enemies[q.bossIndex];
     b.hp = b.maxHp * 0.5;
@@ -131,10 +131,13 @@ describe('YSMERETV2: the Twofold Flame', () => {
     for (const k of [0, 1]) { const p = w.heroData(k).player; p.x = 0; p.y = 0; }
     w.telegraphs.length = 0;
     w.use(0); const tank = botInput(w, 1);
-    w.use(1); const heal = botInput(w, 1);
+    w.use(1); const far = botInput(w, 1);
+    f0.hp = f1.hp * 0.95; // now close: the healer finishes the smaller one
+    const close = botInput(w, 1);
     w.use(0);
     expect(tank.x).toBeGreaterThan(0.3);
-    expect(heal.x).toBeLessThan(-0.3);
+    expect(far.x).toBeGreaterThan(0.3);
+    expect(close.x).toBeLessThan(-0.3);
   });
 
   it('a co-op guest gets the stage and both flames', () => {

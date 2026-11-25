@@ -90,7 +90,7 @@ const worstBy: Record<string, number> = {};
 // whether the tank stands in a vent when Bellow Slam lands.
 const ytrace = process.env.YTRACE === '1';
 const yt = { fights: 0, wins: 0, firstRole: {} as Record<string, number>, firstCause: {} as Record<string, number>, cause: {} as Record<string, number>,
-  firstAt: [] as number[], endAt: [] as number[], enraged: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
+  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, outs: 0, relit: 0, s2ticks: 0, s2same: 0, s2tankOnBig: 0, s2time: [] as number[], s2start: 0, otherAtOut: [] as number[], otherAtRelight: [] as number[], vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
 let ysFirst = false, ysOn = false;
 const role = (cls: string) => (cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'dps');
 const bump2 = (o: Record<string, number>, k: string) => (o[k] = (o[k] ?? 0) + 1);
@@ -99,7 +99,25 @@ function ysTick(w: World, before: number[]): void {
   if (!b || b.kind !== 'ysmeret') return;
   if (!ysOn) { ysOn = true; ysFirst = false; yt.fights++; }
   const f = b.alive ? b.hp / b.maxHp : 0;
+  if (w.ysStage === 2) {
+    if (!yt.s2start) { yt.s2start = w.time; yt.split++; }
+    const fl = w.enemies.filter((e) => e.alive && e.kind === 'ysmeret');
+    if (fl.length === 2) {
+      const near = (k: number) => { const q = w.hero(k).player; return fl.reduce((bi, e, j) => (Math.hypot(e.x - q.x, e.y - q.y) < Math.hypot(fl[bi].x - q.x, fl[bi].y - q.y) ? j : bi), 0); };
+      const up = w.heroes.map((_, k) => k).filter((k) => w.hero(k).player.hp > 0);
+      yt.s2ticks++;
+      if (up.length > 1 && up.every((k) => near(k) === near(up[0]))) yt.s2same++;
+      const t = w.heroes.findIndex((h) => h.cls === 'bulwark');
+      const big = fl[0].hp >= fl[1].hp ? 0 : 1;
+      if (t >= 0 && w.hero(t).player.hp > 0 && near(t) === big) yt.s2tankOnBig++;
+    }
+  }
   for (const ev of w.events) {
+    if (ev.type === 'ysFlame') {
+      const o = w.enemies.find((e) => e.alive && e.kind === 'ysmeret');
+      if (ev.lit) yt.relit++; else { yt.outs++; if (o) yt.otherAtOut.push(Math.round((100 * o.hp) / o.maxHp)); }
+      if (ev.lit && o) yt.otherAtRelight.push(Math.round((100 * o.hp) / o.maxHp));
+    }
     if (ev.type === 'soak' && ev.owner === -2) { yt.vents++; if (!ev.ok) yt.ventsMissed++; }
     if (ev.type === 'castDone' && ev.name === 'Bellow Slam') {
       yt.bellows++;
@@ -117,7 +135,7 @@ function ysTick(w: World, before: number[]): void {
       const casts = w.events.filter((e) => e.type === 'castDone').map((e) => (e as { name: string }).name);
       const vent = w.events.some((e) => e.type === 'soak' && e.owner === -2 && !e.ok);
       const why = vent ? 'empty vent' : casts.includes('Bellow Slam') ? 'Bellow Slam' : casts.includes('Scatter Embers') ? 'Scatter Embers' : (q.lastHurtBy ?? 'other');
-      const tag = why + (w.bossEnraged ? ' (enraged)' : '');
+      const tag = why + (w.bossEnraged ? ' (enraged)' : '') + (w.ysStage ? ` [S${w.ysStage}]` : '');
       bump2(yt.cause, role(h.cls) + ': ' + tag);
       if (!ysFirst) { ysFirst = true; bump2(yt.firstRole, role(h.cls)); bump2(yt.firstCause, role(h.cls) + ': ' + tag); yt.firstAt.push(Math.round(100 * f)); }
     }
@@ -126,6 +144,7 @@ function ysTick(w: World, before: number[]): void {
 function ysEnd(w: World, won: boolean): void {
   if (!ysOn) return;
   ysOn = false;
+  if (yt.s2start) { yt.s2time.push(Math.round(w.time - yt.s2start)); yt.s2start = 0; }
   if (won) yt.wins++;
   else { const b = w.enemies[w.bossIndex]; yt.endAt.push(b ? Math.round((100 * b.hp) / b.maxHp) : 0); if (w.heroes.every((_, i) => w.hero(i).player.hp <= 0)) yt.deadAll++; }
   if (w.bossEnraged) yt.enraged++;
@@ -137,6 +156,7 @@ function ysReport(): void {
   console.log(`ytrace firstDeath role=${JSON.stringify(yt.firstRole)} herHpAtFirstDeath avg=${avg(yt.firstAt)}% median=${med(yt.firstAt)}%  herHpAtLoss avg=${avg(yt.endAt)}%`);
   console.log(`ytrace firstDeathCause=${JSON.stringify(yt.firstCause)}`);
   console.log(`ytrace allDeaths=${JSON.stringify(yt.cause)}`);
+  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flamesOut=${yt.outs} relit=${yt.relit} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}% tankNearBiggerFlame=${(100 * yt.s2tankOnBig / Math.max(1, yt.s2ticks)).toFixed(0)}% otherFlameHpAtOut avg=${avg(yt.otherAtOut)}% median=${med(yt.otherAtOut)}% otherAtRelight avg=${avg(yt.otherAtRelight)}%`);
 }
 for (const seed of seeds) {
   const [main, ...rest] = classes;
