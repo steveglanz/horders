@@ -32,7 +32,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 4, halls: true, dungeon: 'foundry' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 7, halls: true, dungeon: 'glarewell' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -491,6 +491,87 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       void fits;
     }
     expect(matched).toBeGreaterThan(0);
+  });
+});
+
+describe('H3a: the Drowned Foundry on the Halls map', () => {
+  const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
+  const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
+
+  it('is off for players until design turns it on: only ?hallsbeta=1 (hallsBeta) gives the Foundry a map', () => {
+    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
+    expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
+    expect(halls(3, { dungeon: 'glarewell', tier: 7, hallsBeta: true }).halls).toBeNull();
+  });
+
+  it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
+    const { openers, named, hard, boss } = DUNGEONS.foundry;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      // No lava in a drowned foundry (its layouts are stones and vents).
+      expect(w.lava.length).toBe(0);
+      const R = m.rooms;
+      expect(R[2].theme).toBe('shrine');
+      expect(R[5].theme).toBe('boiler');
+      R.forEach((r, i) => {
+        expect(FOUNDRY_THEMES, `seed ${seed} room ${i}`).toContain(r.theme);
+        if (i !== 2) expect(r.theme).not.toBe('shrine');
+      });
+      for (const c of m.corridors) expect(R[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(R[c.b].theme);
+      for (const i of [0, 1, 3, 4, C_ROOM]) {
+        const t = R[i].theme!;
+        // A fitting theme, or the boiler a vents room takes, or a spare once every fitting one is next door.
+        const nextDoor = m.corridors.flatMap((c) => (c.a === i ? [R[c.b].theme] : c.b === i ? [R[c.a].theme] : []));
+        const fitFree = fits[R[i].shape ?? 'round'].filter((f) => !nextDoor.includes(f as never));
+        expect(fitFree.includes(t) || (t === 'boiler' && m.vents.some((v) => v.room === i)) || fitFree.length === 0, `seed ${seed} room ${i} ${R[i].shape} ${t}`).toBe(true);
+      }
+    }
+  });
+
+  it('the Kiln\'s themes are unchanged by the per-dungeon kits', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const R = halls(seed).halls!.rooms;
+      expect(R[5].theme).toBe('slag');
+      for (const r of R) expect(['ash', 'bellows', 'slag', 'cooling', 'shrine']).toContain(r.theme);
+    }
+  });
+
+  it('a Sluice Crawler keeps the arena\'s speed on the map, and its Bloom bursts after 2.5 s as in the arena (design, 25 Nov)', () => {
+    const w = halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
+    const q = w as unknown as { spawn(kind: string, x: number, y: number): number };
+    for (const e of w.enemies) e.alive = false;
+    const m = w.halls!, a = pack(w, 'A');
+    // Walk both a crawler and a hound toward a hero across A's room and compare the ground they cover.
+    const ci = q.spawn('sluiceCrawler', a.x, a.y), hi = q.spawn('cinderhound', a.x, a.y + 4);
+    const c = w.enemies[ci], h = w.enemies[hi];
+    w.player.x = a.x + 300; w.player.y = a.y;
+    const c0 = c.x, h0 = h.x;
+    for (let k = 0; k < 10; k++) { c.abilityT = 99; w.step(idle); }
+    expect(m).toBeTruthy();
+    expect((c.x - c0) / (10 / 30)).toBeLessThanOrEqual(c.def.speed * 1.02);
+    expect((h.x - h0) / (10 / 30)).toBeGreaterThan(h.def.speed * 1.1);
+    const first = (w2: World) => {
+      let dur = -1;
+      run(w2, () => { const t = w2.telegraphs.find((x) => x.alive && x.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
+      return dur;
+    };
+    expect(first(halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
+  });
+
+  it('bots walk it and go through the door into Maelra\'s arena (seeds the bot wins on the map)', () => {
+    for (const seed of [9, 11]) {
+      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
+      run(w, () => !w.hallsOn || w.state === 'ended', 600);
+      expect(w.hallsOn, `seed ${seed}`).toBe(false);
+      expect(w.route[w.encounter]).toBe('maelra');
+    }
   });
 });
 
