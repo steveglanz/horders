@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
@@ -1154,6 +1154,13 @@ export class GameScene extends Phaser.Scene {
           }
           this.blast(ev.x, ev.y, ev.r);
           this.ring(ev.x, ev.y, ev.r, 0xffa050, 0.3);
+          break;
+        case 'ysFlare':
+          // YSMERETV2: a lone flame flared and hit every hero.
+          this.blast(ev.x, ev.y, YSMERETV2.flareR, DANGER);
+          this.ring(ev.x, ev.y, YSMERETV2.flareR * 2.2, 0xff6a2a, 0.45);
+          this.floatText(ev.x, ev.y - 60, 'Flare!', '#ff8a5a', 18);
+          this.shake = Math.max(this.shake, 0.25);
           break;
         case 'slam':
           this.blast(ev.x, ev.y, ev.r, DANGER);
@@ -2665,6 +2672,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if (e.kind === 'ondrel' && w.slagPatches.length) this.ondrelSlagDraw(g, now);
+      if (e.kind === 'ysmeret' && w.ysStage === 2 && w.enemies.indexOf(e) === w.ysF0) this.ysFlamesDraw(g, now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
@@ -4277,6 +4285,23 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8);
       g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
       g.closePath(); g.fill();
+    }
+    // An empty vent or a lone Ysmeret flame off screen: the gold arrow 2D draws (emptyVents), placed with the 3D camera.
+    for (const ev of this.emptyVents) {
+      const p = view.project(ev.x, ev.y);
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      const ins = 20, pd = 30;
+      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      const sz = 16, blink = 0.775 + 0.225 * Math.sin(now / 90);
+      g.globalAlpha = 0.6; g.fillStyle = '#000000';
+      g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.fill();
+      const gold = '#' + SOAK.toString(16).padStart(6, '0');
+      g.globalAlpha = blink; g.strokeStyle = gold; g.lineWidth = 2;
+      g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.stroke();
+      tri(ex, ey, a, sz, gold, blink);
     }
     g.globalAlpha = 1;
   }
@@ -6340,6 +6365,47 @@ export class GameScene extends Phaser.Scene {
       o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
       o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
       o.fillStyle(DANGER, 1).fillRect(bx - 1.5, by - 7, 3, 9).fillRect(bx - 1.5, by + 4, 3, 3);
+    }
+  }
+
+  /**
+   * YSMERETV2 stage 2, "Keep a hero on each flame": a gold ring (stand here, as her vents were) of the flare reach round
+   * each flame, centred on the flame itself since that is where the sim measures. Covered, it is a calm gold ring. Left
+   * alone, it turns red and beats, and a red-orange fire spreads out from the flame to the ring as ysAway runs to the
+   * flare (away / flareAfter), so the build-up is plain from across the room. On the main graphics (depth 2), so the
+   * floor bridge lays it on the 3D floor too, at no draw call. An uncovered flame off screen gets the empty-vent arrow.
+   */
+  private ysFlamesDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const R = YSMERETV2.flareR;
+    for (const [j, away] of [[w.ysF0, w.ysAway0], [w.ysF1, w.ysAway1]] as const) {
+      const f = j >= 0 ? w.enemies[j] : undefined;
+      if (!f?.alive || f.kind !== 'ysmeret') continue;
+      let covered = false;
+      for (let k = 0; k < w.heroes.length && !covered; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp > 0 && (q.x - f.x) ** 2 + (q.y - f.y) ** 2 < R * R) covered = true;
+      }
+      if (covered) {
+        g.fillStyle(SOAK, 0.1).fillCircle(f.x, f.y, R);
+        g.lineStyle(5, SOAK, 0.9).strokeCircle(f.x, f.y, R);
+        continue;
+      }
+      const k = Math.min(1, away / YSMERETV2.flareAfter);
+      const beat = 0.5 + 0.5 * Math.sin(now / (110 - 70 * k));
+      g.fillStyle(DANGER, 0.08).fillCircle(f.x, f.y, R);
+      // The fire spreading from the flame: a hot core and a red front that reaches the ring as it flares.
+      const front = R * (0.25 + 0.75 * k);
+      g.fillStyle(0xff6a2a, 0.22 + 0.2 * k).fillCircle(f.x, f.y, front);
+      g.fillStyle(0xffc070, 0.25 + 0.35 * k * beat).fillCircle(f.x, f.y, front * 0.45);
+      g.lineStyle(3, 0xff6a2a, 0.6 + 0.4 * beat).strokeCircle(f.x, f.y, front);
+      // The ring itself, red and broken, turning, brighter as it nears.
+      g.lineStyle(5, DANGER, 0.55 + 0.45 * beat);
+      for (let d = 0; d < 16; d++) {
+        const a0 = (d * Math.PI * 2) / 16 + now / 1600;
+        g.beginPath().arc(f.x, f.y, R, a0, a0 + 0.26, false).strokePath();
+      }
+      this.emptyVents.push({ x: f.x, y: f.y });
     }
   }
 
