@@ -436,7 +436,8 @@ export class Hud {
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
     const phases = BOSS_PHASES[e.kind] ?? 3;
-    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
+    // YSMERETV2 stage 2: two flames, one bar (they share their health), and the frame says so.
+    const state = e.kind === 'ysmeret' && w.ysStage === 2 && !w.bossEnraged ? 'Two flames · one health' : e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {
@@ -831,12 +832,16 @@ export class Hud {
       // The Flue: an ally's Decree counts down on their row; Spent allies can't take one.
       const dec = w.dungeonId === 'flue' && !down ? w.regentDecree.find((d) => d.hero === r.hero) : undefined;
       const spent = w.dungeonId === 'flue' && !down && !dec && (q.spentT ?? 0) > 0;
-      const mt = dec ? `${Math.ceil(dec.t)}s` : spent ? 'Spent' : '';
+      // The Pressworks: a Pressed ally (took the last Downstroke) can't take the next one; their row says so, in red
+      // (no seconds: the name keeps its room, and the mark by the hero runs down the time).
+      const pressed = w.dungeonId === 'pressworks' && !down && (q.pressedT ?? 0) > 0;
+      const mt = dec ? `${Math.ceil(dec.t)}s` : spent ? 'Spent' : pressed ? 'Pressed' : '';
       if (mt !== r.markText) {
         r.markText = mt;
         r.mark.textContent = mt;
         r.el.classList.toggle('decree', !!dec);
         r.el.classList.toggle('spent', spent);
+        r.el.classList.toggle('pressed', pressed);
       }
       const reviving = rev > 0;
       if (reviving !== r.reviving) {

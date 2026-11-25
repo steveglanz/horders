@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
@@ -1155,6 +1155,13 @@ export class GameScene extends Phaser.Scene {
           this.blast(ev.x, ev.y, ev.r);
           this.ring(ev.x, ev.y, ev.r, 0xffa050, 0.3);
           break;
+        case 'ysFlare':
+          // YSMERETV2: a lone flame flared and hit every hero.
+          this.blast(ev.x, ev.y, YSMERETV2.flareR, DANGER);
+          this.ring(ev.x, ev.y, YSMERETV2.flareR * 2.2, 0xff6a2a, 0.45);
+          this.floatText(ev.x, ev.y - 60, 'Flare!', '#ff8a5a', 18);
+          this.shake = Math.max(this.shake, 0.25);
+          break;
         case 'slam':
           this.blast(ev.x, ev.y, ev.r, DANGER);
           this.ring(ev.x, ev.y, ev.r, DANGER, 0.35);
@@ -2224,20 +2231,21 @@ export class GameScene extends Phaser.Scene {
               if (img) { rx = img.x; ry = img.y; found = true; }
             }
           }
-          if (found) o.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
+          // The tether and the progress ring are floor marks (main graphics), so the floor bridge shows them in 3D too.
+          if (found) g.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
           // A boss pick-up takes 9 s, so it counts down under the circle.
           if (w.bossUp && !reviveShown) {
             reviveShown = true;
             this.reviveText.setVisible(true).setPosition(x, y + 6 + R + 4).setText(`Reviving ${Math.max(0, w.reviveSeconds * (1 - t)).toFixed(1)}`);
           }
           const a1 = -Math.PI / 2 + t * Math.PI * 2;
-          o.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
-          o.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
+          g.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
+          g.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
           if (!this.lowFx && Math.random() < 0.35) {
             this.emit(this.fx, 'spark', undefined, x + (Math.random() - 0.5) * 30, y + 10, 0.7, { tint: REVIVE, vx: (Math.random() - 0.5) * 20, vy: -70 - Math.random() * 50, drag: 0.97, sx0: 1.6, sx1: 0.3 });
           }
         } else {
-          // A bobbing cross over the body asks for help.
+          // A bobbing cross over the body asks for help (the 3D overlay draws its own: drawLabels3d).
           const by = y - 62 + Math.sin(now / 300) * 3;
           o.fillStyle(0x0c1a10, 0.75).fillCircle(x, by, 11);
           o.lineStyle(2, REVIVE, 0.9).strokeCircle(x, by, 11);
@@ -2665,6 +2673,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
       if (e.kind === 'ondrel' && w.slagPatches.length) this.ondrelSlagDraw(g, now);
+      if (e.kind === 'ysmeret' && w.ysStage === 2 && w.enemies.indexOf(e) === w.ysF0) this.ysFlamesDraw(g, now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
@@ -3854,7 +3863,9 @@ export class GameScene extends Phaser.Scene {
    */
   private smelteryDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // The Wheel's and Meltdown's rings: over his body in 2D (overFx), and on the main graphics in 3D, where the floor
+    // bridge lays them on the floor (the 3D view covers overFx).
+    const o = this.bridge ? g : this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
     // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift). The drawn plate slides to the sim's
@@ -3930,7 +3941,9 @@ export class GameScene extends Phaser.Scene {
 
   private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // Coal Gorge's ring and the Craw's marks: over the bodies in 2D (overFx), and on the main graphics in 3D, where the
+    // floor bridge lays them on the floor (the 3D view covers overFx). The party-frame pointer stays 2D only.
+    const o = this.bridge ? g : this.overFx;
     for (const m of w.coalEmbers) {
       const f = Math.max(0, Math.min(1, m.t / VORHULM.emberLife));
       // Steady while fresh, guttering in the last third.
@@ -4002,7 +4015,8 @@ export class GameScene extends Phaser.Scene {
    * they are inside him, and a ring in their class colour pulses on his belly. */
   private hoardHeroes(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // Its ring: over the hero in 2D (overFx); on the main graphics in 3D, where the floor bridge carries it.
+    const o = this.bridge ? g : this.overFx;
     const heroes = [{ k: w.acting, img: this.player as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }, ...this.allies.map((al) => ({ k: al.hero, img: al.img as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }))];
     for (const { k, img } of heroes) {
       const q = w.heroData(k).player;
@@ -4278,6 +4292,23 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8);
       g.closePath(); g.fill();
     }
+    // An empty vent or a lone Ysmeret flame off screen: the gold arrow 2D draws (emptyVents), placed with the 3D camera.
+    for (const ev of this.emptyVents) {
+      const p = view.project(ev.x, ev.y);
+      const px = p ? p.x : cx, py = p ? p.y : -H;
+      const ins = 20, pd = 30;
+      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      const a = Math.atan2(py - cy, px - cx);
+      const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
+      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      const sz = 16, blink = 0.775 + 0.225 * Math.sin(now / 90);
+      g.globalAlpha = 0.6; g.fillStyle = '#000000';
+      g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.fill();
+      const gold = '#' + SOAK.toString(16).padStart(6, '0');
+      g.globalAlpha = blink; g.strokeStyle = gold; g.lineWidth = 2;
+      g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.stroke();
+      tri(ex, ey, a, sz, gold, blink);
+    }
     g.globalAlpha = 1;
   }
 
@@ -4405,6 +4436,156 @@ export class GameScene extends Phaser.Scene {
     // Hammerdeep (and the Crucible): Sundered, the tank swap's cue, as the 2D mark (a cracked red ring beside the hero).
     // The floor bridge flattened it onto the floor at a third of its size, unreadable on a phone (phone pass, 25 Nov).
     const w = this.world;
+    // G6 revive: the bobbing green "+" over a downed hero nobody is reviving yet, or the grey struck-through cross when
+    // a boss allows no more revives. 2D draws these on overFx, which the 3D view covers (sweep, docs/art/oskel-3d). The
+    // revive circle, tether and progress ring are floor marks the bridge carries.
+    if (w.heroes.length > 1) {
+      const now = this.time.now;
+      const rv = '#' + REVIVE.toString(16).padStart(6, '0');
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp > 0 || (w.revivesLeft > 0 && (q.reviveT ?? 0) > 0)) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        const none = w.revivesLeft <= 0;
+        // Above the hero's name, which sits over the body.
+        const x = p.x, y = p.y - (66 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
+        g.globalAlpha = 0.8; g.fillStyle = none ? '#140c0a' : '#0c1a10';
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.strokeStyle = none ? '#8a7d78' : rv; g.lineWidth = 2 * zb;
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = none ? '#8a7d78' : rv;
+        g.fillRect(x - 6 * zb, y - 2 * zb, 12 * zb, 4 * zb); g.fillRect(x - 2 * zb, y - 6 * zb, 4 * zb, 12 * zb);
+        if (none) {
+          g.strokeStyle = '#ff6b6b'; g.lineWidth = 2.5 * zb; g.lineCap = 'round';
+          g.beginPath(); g.moveTo(x - 8 * zb, y + 8 * zb); g.lineTo(x + 8 * zb, y - 8 * zb); g.stroke(); g.lineCap = 'butt';
+        }
+      }
+    }
+    // Ysmeret's (and Grandmother Slag's) vents: the badge over each, a green tick while a hero covers it and a blinking
+    // red "!" while it is empty, as 2D's ventMark (its rings are floor marks the bridge carries).
+    if (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible') {
+      const now = this.time.now;
+      const dg = '#' + DANGER.toString(16).padStart(6, '0');
+      for (const t of w.telegraphs) {
+        if (!t.alive || t.kind !== 'soak' || t.owner !== -2) continue;
+        let covered = false;
+        for (let k = 0; k < w.heroes.length && !covered; k++) {
+          const q = w.heroData(k).player;
+          if (q.hp > 0 && (q.x - t.x) ** 2 + (q.y - t.y) ** 2 <= t.r * t.r) covered = true;
+        }
+        const bp = view.project(t.x, t.y - t.r);
+        if (!bp || !onScreen(bp)) continue;
+        const bx = bp.x, by = bp.y - 14 * zb, r = 11 * zb;
+        const f = Math.min(1, Math.max(0, t.t / Math.max(0.01, t.dur)));
+        const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+        g.fillStyle = covered ? 'rgba(16,32,15,0.85)' : 'rgba(32,10,14,0.85)';
+        g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.fill();
+        g.lineCap = 'round';
+        if (covered) {
+          g.strokeStyle = '#9fe8a8'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke();
+          g.lineWidth = 3 * zb; g.beginPath(); g.moveTo(bx - 5 * zb, by); g.lineTo(bx - 1 * zb, by + 4 * zb); g.lineTo(bx + 6 * zb, by - 4 * zb); g.stroke();
+        } else {
+          g.globalAlpha = 0.6 + 0.4 * blink; g.strokeStyle = dg; g.lineWidth = 2 * zb;
+          g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+          g.fillStyle = dg; g.fillRect(bx - 1.5 * zb, by - 7 * zb, 3 * zb, 9 * zb); g.fillRect(bx - 1.5 * zb, by + 4 * zb, 3 * zb, 3 * zb);
+        }
+        g.lineCap = 'butt';
+      }
+    }
+    // Class marks 2D draws on overFx, which the 3D view covers: the Slagbinder's Cooling Shell (a pale dome over the
+    // hero) and Brittle (pale fracture lines over a foe), and the Emberwright's Ember Ward (a ring of flame tongues round
+    // the hero, thinning as it is spent). The Slagbinder's plate band and the shell's floor ring are floor marks the
+    // bridge carries. Drawn on this overlay, so no draw calls.
+    {
+      const now = this.time.now, t = w.time;
+      const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        const shell = (q.shellUntil ?? -1) > t;
+        const ward = q.plateBy === -1 && (q.plate ?? 0) > 0 && (q.plateUntil ?? -1) > t;
+        if (!shell && !ward) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        // The hero's body: about 26 px over the feet, 34 wide and 40 tall at zoom 1.
+        const cx = p.x, cy = p.y - 26 * zb, rx = 34 * zb, ry = 40 * zb;
+        if (shell) {
+          const fade = Math.min(1, ((q.shellUntil ?? 0) - t) / 0.6);
+          g.globalAlpha = 0.14 * fade; g.fillStyle = css(SLAG_COOL);
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = (0.6 + 0.15 * Math.sin(now / 200)) * fade; g.strokeStyle = css(SLAG_COOL); g.lineWidth = 2 * zb;
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI * 1.02, Math.PI * 1.98); g.stroke();
+          g.globalAlpha = 0.4 * fade; g.strokeStyle = '#ffffff'; g.lineWidth = 1.5 * zb;
+          g.beginPath(); g.ellipse(cx - 5 * zb, cy - 6 * zb, rx * 0.68, ry * 0.68, 0, Math.PI * 1.2, Math.PI * 1.45); g.stroke();
+          g.globalAlpha = 1;
+        }
+        if (ward) {
+          const frac = Math.max(0.15, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
+          const fade = Math.min(1, ((q.plateUntil ?? 0) - t) / 0.4);
+          g.globalAlpha = 0.1 * fade; g.fillStyle = css(WARD_FIRE);
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = 0.55 * fade; g.strokeStyle = css(WARD_FIRE); g.lineWidth = 2 * zb;
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+          const n = 12;
+          for (let j = 0; j < n && j / n < frac; j++) {
+            const a = now / 700 + (j / n) * Math.PI * 2;
+            const fl = (7 + 4 * Math.sin(now / 90 + j * 1.7)) * zb;
+            const bx = cx + Math.cos(a) * rx, by = cy + Math.sin(a) * ry;
+            g.globalAlpha = 0.9 * fade; g.fillStyle = j % 2 ? '#ffb347' : css(WARD_FIRE);
+            g.beginPath(); g.moveTo(bx - 4 * zb, by + 2 * zb); g.lineTo(bx + 4 * zb, by + 2 * zb); g.lineTo(bx + Math.cos(a) * 3 * zb, by - fl); g.closePath(); g.fill();
+          }
+          g.globalAlpha = 1;
+        }
+      }
+      // Brittle: the 2D cracks, over the foe's drawn body (between its feet and the head the renderer reports).
+      for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || (e.brittleUntil ?? 0) <= t) continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i);
+        const r = e.def.radius * zb;
+        const cx = p.x, cy = head ? (p.y + head.y) / 2 : p.y - r;
+        const line = () => {
+          g.beginPath(); g.moveTo(cx - r * 0.5, cy - r * 0.55); g.lineTo(cx - r * 0.1, cy - r * 0.15); g.lineTo(cx - r * 0.25, cy + r * 0.2); g.lineTo(cx + r * 0.15, cy + r * 0.55); g.stroke();
+          g.beginPath(); g.moveTo(cx - r * 0.1, cy - r * 0.15); g.lineTo(cx + r * 0.45, cy - r * 0.3); g.stroke();
+        };
+        g.lineJoin = 'round';
+        g.globalAlpha = 0.7; g.strokeStyle = '#1a1412'; g.lineWidth = 3 * zb; line();
+        g.globalAlpha = 0.95; g.strokeStyle = '#f0e8de'; g.lineWidth = 1.5 * zb; line();
+        g.globalAlpha = 1; g.lineJoin = 'miter';
+      }
+    }
+    // The Flue: a Decree holder's seal with its countdown ring (gold, then red and beating in the last 3 s), and a Spent
+    // hero's cold seal with a grey arc for the time left. 2D draws these over the head on overFx and depth 9.4, which
+    // the 3D view covers; the 3D view's crown has no timer. Beside the hero, as the Pressed and Sundered marks.
+    if (w.dungeonId === 'flue') {
+      const now = this.time.now;
+      const seal = this.textures.get('decreeSeal').getSourceImage() as CanvasImageSource;
+      const spent = this.textures.get('spentMark').getSourceImage() as CanvasImageSource;
+      const mark = (k: number, img: CanvasImageSource, f: number, col: string, alpha: number, sz: number) => {
+        const q = w.heroData(k).player;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) return;
+        const x = p.x + 26 * zb, y = p.y - 24 * zb, r = sz * zb;
+        g.globalAlpha = 0.6; g.fillStyle = '#000000';
+        g.beginPath(); g.arc(x, y, r * 1.25, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.drawImage(img, x - r, y - r, r * 2, r * 2);
+        g.globalAlpha = alpha; g.strokeStyle = col; g.lineWidth = 3 * zb;
+        g.beginPath(); g.arc(x, y, r * 1.2, -Math.PI / 2, -Math.PI / 2 + Math.max(0, Math.min(1, f)) * Math.PI * 2); g.stroke();
+        g.globalAlpha = 1;
+      };
+      for (const d of w.regentDecree) {
+        const late = d.t < 3, pulse = 0.5 + 0.5 * Math.sin(now / (late ? 90 : 220));
+        mark(d.hero, seal, d.t / REGENT.decreeTime, late ? '#ff3a2a' : '#ffc861', late ? 0.7 + 0.3 * pulse : 0.95, 12 * (late ? 1 + 0.08 * pulse : 1));
+      }
+      for (let k = 0; k < w.heroes.length; k++) {
+        const st = w.heroData(k).player.spentT ?? 0;
+        if (st <= 0 || w.regentDecree.some((d) => d.hero === k)) continue;
+        mark(k, spent, st / REGENT.spentTime, '#c8c0b8', 0.8, 10);
+      }
+    }
     if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {
       const dg = '#' + DANGER.toString(16).padStart(6, '0');
       for (let k = 0; k < w.heroes.length; k++) {
@@ -4421,6 +4602,61 @@ export class GameScene extends Phaser.Scene {
         g.beginPath(); g.arc(x, y, r, -0.5, 1.2); g.stroke();
         g.lineWidth = 2 * zb;
         g.beginPath(); g.moveTo(x - 2 * zb, y - 10 * zb); g.lineTo(x + 2 * zb, y - 3 * zb); g.lineTo(x - 1 * zb, y + 2 * zb); g.stroke();
+        g.lineCap = 'butt';
+      }
+    }
+    // The Pressworks: who is Pressed (took the last Downstroke, can't take the next), the warning ring on a Pressed
+    // hero who steps onto the plate, and the plate's badge (tick, cross, "!"). 2D draws these on overFx, which the 3D
+    // view covers, so on a phone nobody could tell who was Pressed (phone pass, Pressworks Halls, 25 Nov).
+    if (w.dungeonId === 'pressworks') {
+      const dg = '#' + DANGER.toString(16).padStart(6, '0');
+      const now = this.time.now;
+      const plate = w.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      let ok = 0, crushed = false;
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        const onPlate = !!plate && (q.x - plate.x) ** 2 + (q.y - plate.y) ** 2 <= plate.r * plate.r;
+        const left = q.pressedT ?? 0;
+        if (onPlate) { if (left > 0) crushed = true; else ok++; }
+        if (left <= 0) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        if (onPlate) {
+          g.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * Math.sin(now / 70));
+          g.strokeStyle = dg; g.lineWidth = 3 * zb;
+          g.beginPath(); g.ellipse(p.x, p.y, 26 * zb, 11 * zb, 0, 0, Math.PI * 2); g.stroke();
+          g.globalAlpha = 1;
+        }
+        // The 2D mark: a small red plate with a press-down glyph, ringed by the time left.
+        const x = p.x + 24 * zb, y = p.y - 22 * zb, r = 10 * zb, kk = Math.max(0, Math.min(1, left / OSKEL.pressed));
+        g.fillStyle = 'rgba(32,10,14,0.9)'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(90,32,40,0.9)'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = dg; g.lineWidth = 2.5 * zb; g.beginPath(); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * kk); g.stroke();
+        g.fillStyle = dg;
+        g.fillRect(x - 5 * zb, y - 6 * zb, 10 * zb, 3 * zb); g.fillRect(x - 1.25 * zb, y - 3 * zb, 2.5 * zb, 5 * zb);
+        g.beginPath(); g.moveTo(x - 4 * zb, y + 1 * zb); g.lineTo(x + 4 * zb, y + 1 * zb); g.lineTo(x, y + 5 * zb); g.closePath(); g.fill();
+        g.fillRect(x - 5 * zb, y + 5 * zb, 10 * zb, 1.6 * zb);
+      }
+      const bp = plate ? view.project(plate.x, plate.y - plate.r) : null;
+      if (plate && bp && onScreen(bp)) {
+        const bx = bp.x, by = bp.y - 14 * zb, r = 11 * zb;
+        const f = Math.min(1, Math.max(0, plate.t / Math.max(0.01, plate.dur)));
+        const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+        g.fillStyle = crushed || !ok ? 'rgba(32,10,14,0.85)' : 'rgba(16,32,15,0.85)';
+        g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.fill();
+        g.lineCap = 'round';
+        if (crushed || !ok) {
+          g.globalAlpha = 0.6 + 0.4 * blink; g.strokeStyle = dg; g.lineWidth = 2 * zb;
+          g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+          if (crushed) {
+            g.lineWidth = 3 * zb; g.beginPath();
+            g.moveTo(bx - 5 * zb, by - 5 * zb); g.lineTo(bx + 5 * zb, by + 5 * zb); g.moveTo(bx - 5 * zb, by + 5 * zb); g.lineTo(bx + 5 * zb, by - 5 * zb); g.stroke();
+          } else { g.fillStyle = dg; g.fillRect(bx - 1.5 * zb, by - 7 * zb, 3 * zb, 9 * zb); g.fillRect(bx - 1.5 * zb, by + 4 * zb, 3 * zb, 3 * zb); }
+        } else {
+          g.strokeStyle = '#9fe8a8'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke();
+          g.lineWidth = 3 * zb; g.beginPath(); g.moveTo(bx - 5 * zb, by); g.lineTo(bx - 1 * zb, by + 4 * zb); g.lineTo(bx + 6 * zb, by - 4 * zb); g.stroke();
+        }
         g.lineCap = 'butt';
       }
     }
@@ -4740,14 +4976,14 @@ export class GameScene extends Phaser.Scene {
       const o = this.overFx;
       // A shadow that grows and darkens as the anvil comes down.
       g.fillStyle(0x000000, 0.25 + 0.35 * f).fillEllipse(t.x, t.y + 18, 40 + 50 * f, 14 + 18 * f);
-      // A closing reticle in the boss's red.
+      // A closing reticle in the boss's red: a floor mark (main graphics), so the bridge shows it in 3D too.
       const r = 110 - 60 * f;
-      o.lineStyle(3, DANGER, 0.85 * close).strokeCircle(t.x, t.y, r);
+      g.lineStyle(3, DANGER, 0.85 * close).strokeCircle(t.x, t.y, r);
       for (let k = 0; k < 4; k++) {
         const a = (k * Math.PI) / 2 + now / 900;
-        o.lineBetween(t.x + Math.cos(a) * (r + 6), t.y + Math.sin(a) * (r + 6), t.x + Math.cos(a) * (r + 20), t.y + Math.sin(a) * (r + 20));
+        g.lineBetween(t.x + Math.cos(a) * (r + 6), t.y + Math.sin(a) * (r + 6), t.x + Math.cos(a) * (r + 20), t.y + Math.sin(a) * (r + 20));
       }
-      // The anvil itself, falling from above the target.
+      // The anvil itself, falling from above the target (3D: anvil3d.ts).
       const ay = t.y - 46 - (1 - f) * (1 - f) * 150;
       const ax = t.x;
       const pts = [
@@ -6276,7 +6512,8 @@ export class GameScene extends Phaser.Scene {
     const close = 0.6 + 0.4 * Math.sin(now / (f > 0.75 ? 40 : 90));
     g.fillStyle(0x000000, 0.25 + 0.35 * f).fillRect(t.x - (20 + 22 * f), t.y + 12, 40 + 44 * f, 10 + 10 * f);
     const r = 100 - 52 * f;
-    o.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
+    // The reticle is a floor mark: on the main graphics, so the floor bridge shows it in 3D (the die is oskel3d.ts there).
+    g.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
     const dy = t.y - 50 - (1 - f) * (1 - f) * 150;
     o.fillStyle(0x5a645a, 0.97).fillRect(t.x - 24, dy - 12, 48, 24);
     o.fillStyle(0xf2c230, 1).fillRect(t.x - 23, dy + 5, 46, 6);
@@ -6325,21 +6562,64 @@ export class GameScene extends Phaser.Scene {
     const bx = t.x;
     const by = t.y - t.r - 16;
     if (!covered) this.emptyVents.push({ x: t.x, y: t.y });
+    // The covered gold ring and an empty vent's red dashes are floor marks (main graphics, so the bridge shows them in
+    // 3D); the badge over the vent stays above the sprites, and the 3D overlay draws its own (drawLabels3d).
     if (covered) {
-      o.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
+      g.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
       o.fillStyle(0x10200f, 0.85).fillCircle(bx, by, 11);
       o.lineStyle(2, 0x9fe8a8, 1).strokeCircle(bx, by, 11);
       o.lineStyle(3, 0x9fe8a8, 1).beginPath().moveTo(bx - 5, by).lineTo(bx - 1, by + 4).lineTo(bx + 6, by - 4).strokePath();
     } else {
       const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
-      o.lineStyle(3, DANGER, 0.4 + 0.5 * blink);
+      g.lineStyle(3, DANGER, 0.4 + 0.5 * blink);
       for (let d = 0; d < 16; d++) {
         const a0 = (d * Math.PI * 2) / 16 - now / 2000;
-        o.beginPath().arc(t.x, t.y, t.r + 8, a0, a0 + 0.22, false).strokePath();
+        g.beginPath().arc(t.x, t.y, t.r + 8, a0, a0 + 0.22, false).strokePath();
       }
       o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
       o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);
       o.fillStyle(DANGER, 1).fillRect(bx - 1.5, by - 7, 3, 9).fillRect(bx - 1.5, by + 4, 3, 3);
+    }
+  }
+
+  /**
+   * YSMERETV2 stage 2, "Keep a hero on each flame": a gold ring (stand here, as her vents were) of the flare reach round
+   * each flame, centred on the flame itself since that is where the sim measures. Covered, it is a calm gold ring. Left
+   * alone, it turns red and beats, and a red-orange fire spreads out from the flame to the ring as ysAway runs to the
+   * flare (away / flareAfter), so the build-up is plain from across the room. On the main graphics (depth 2), so the
+   * floor bridge lays it on the 3D floor too, at no draw call. An uncovered flame off screen gets the empty-vent arrow.
+   */
+  private ysFlamesDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world;
+    const R = YSMERETV2.flareR;
+    for (const [j, away] of [[w.ysF0, w.ysAway0], [w.ysF1, w.ysAway1]] as const) {
+      const f = j >= 0 ? w.enemies[j] : undefined;
+      if (!f?.alive || f.kind !== 'ysmeret') continue;
+      let covered = false;
+      for (let k = 0; k < w.heroes.length && !covered; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp > 0 && (q.x - f.x) ** 2 + (q.y - f.y) ** 2 < R * R) covered = true;
+      }
+      if (covered) {
+        g.fillStyle(SOAK, 0.1).fillCircle(f.x, f.y, R);
+        g.lineStyle(5, SOAK, 0.9).strokeCircle(f.x, f.y, R);
+        continue;
+      }
+      const k = Math.min(1, away / YSMERETV2.flareAfter);
+      const beat = 0.5 + 0.5 * Math.sin(now / (110 - 70 * k));
+      g.fillStyle(DANGER, 0.08).fillCircle(f.x, f.y, R);
+      // The fire spreading from the flame: a hot core and a red front that reaches the ring as it flares.
+      const front = R * (0.25 + 0.75 * k);
+      g.fillStyle(0xff6a2a, 0.22 + 0.2 * k).fillCircle(f.x, f.y, front);
+      g.fillStyle(0xffc070, 0.25 + 0.35 * k * beat).fillCircle(f.x, f.y, front * 0.45);
+      g.lineStyle(3, 0xff6a2a, 0.6 + 0.4 * beat).strokeCircle(f.x, f.y, front);
+      // The ring itself, red and broken, turning, brighter as it nears.
+      g.lineStyle(5, DANGER, 0.55 + 0.45 * beat);
+      for (let d = 0; d < 16; d++) {
+        const a0 = (d * Math.PI * 2) / 16 + now / 1600;
+        g.beginPath().arc(f.x, f.y, R, a0, a0 + 0.26, false).strokePath();
+      }
+      this.emptyVents.push({ x: f.x, y: f.y });
     }
   }
 

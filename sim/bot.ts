@@ -6,7 +6,7 @@ import { YSMERETV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMON
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
-import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
+import { BOT_WALK_STEP, HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
 
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -1696,7 +1696,7 @@ function hallsWalk(w: World): Input {
   }
   const target = hallsTarget(w);
   const goal = bag ?? (target ? { x: target.x, y: target.y } : m.door);
-  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y);
+  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y, BOT_WALK_STEP);
   let fx = wp.x - p.x, fy = wp.y - p.y;
   const fl = Math.hypot(fx, fy) || 1;
   fx /= fl; fy /= fl;
