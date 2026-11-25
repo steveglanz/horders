@@ -198,13 +198,16 @@ const hash = (seed: number, k: number): number => {
   return (h ^ (h >>> 16)) >>> 0;
 };
 
-/** The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its crawler split). */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry'];
+/**
+ * The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its
+ * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged).
+ */
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['glarewell', 'coldmarrow'];
+export const HALLS_BETA: DungeonId[] = ['coldmarrow'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -350,6 +353,8 @@ export function roomAt(m: HallsGeo, x: number, y: number, pad = 0): number {
  * started the tick (`px`, `py`, when it has them), so a dash or leap that lands past the grates (Blink, Glimmer Step,
  * Interpose, Sidestep, Charge, Rending Dash) stops at them instead.
  */
+/** How far off a sealed grate clampGrates keeps anything, on either side. */
+export const GRATE_SKIN = 2;
 export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number): void {
   for (const rm of m.rooms) {
     if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
@@ -357,16 +362,19 @@ export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number;
     if (!from && (o.x - rm.x) ** 2 + (o.y - rm.y) ** 2 > (rm.r + r) ** 2) continue;
     const g = roomGap(rm, o.x, o.y);
     const wasIn = from ? roomGap(rm, o.px!, o.py!) >= 0 : g >= 0;
+    // QA, 25 Nov: each side stays GRATE_SKIN off the grate, so a hero and a foe pressed on its two sides never meet at
+    // exactly radius + radius (a touch passed there on float error, through a sealed grate).
+    const k = r + GRATE_SKIN;
     if (wasIn) {
-      if (g >= r) continue;
-      const q = roomClamp(rm, o.x, o.y, r);
+      if (g >= k) continue;
+      const q = roomClamp(rm, o.x, o.y, k);
       o.x = q.x;
       o.y = q.y;
     } else {
-      if (g <= -r) continue;
+      if (g <= -k) continue;
       const n = roomInward(rm, o.x, o.y);
-      o.x -= n.x * (r + g);
-      o.y -= n.y * (r + g);
+      o.x -= n.x * (k + g);
+      o.y -= n.y * (k + g);
     }
   }
 }
