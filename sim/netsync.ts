@@ -19,6 +19,11 @@ export const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes
  * NOT_SENT (tests/netsync-coverage.test.ts fails otherwise): the Hoard's embers once missed it.
  */
 export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree', 'stones', 'lava', 'flareVents', 'driftEmbers', 'islands', 'kmEggs', 'kmRings'] as const;
+/**
+ * Plain objects on World a guest draws from, sent whole alongside ARRAYS (QA, 25 Nov: BOSSV2's kmHeat never reached
+ * guests, so they saw no burning or safe quarters). A new plain object goes here or in NOT_SENT.
+ */
+export const OBJECTS = ['kmHeat'] as const;
 /** Arrays a snapshot carries in fields of their own (Snapshot.heroes, strikeOwner, bossThreat, events). */
 export const SENT_APART = ['heroes', 'strikeOwner', 'threat', 'events'] as const;
 /** Arrays on World that a guest never needs, and why. */
@@ -32,6 +37,14 @@ export const NOT_SENT: Record<string, string> = {
   runDrops: 'per hero, sent in Snapshot.heroes',
   runEquipped: 'per hero, sent in Snapshot.heroes',
   choices: 'per hero, sent in Snapshot.heroes',
+  // Plain objects (OBJECTS covers the sent ones).
+  rng: 'the host rolls every random number',
+  loadout: 'per hero, sent in Snapshot.heroes',
+  classDef: 'per hero, fixed at the start from the class',
+  passives: 'per hero, fixed at the start from the start options',
+  talents: 'per hero, sent in Snapshot.heroes',
+  player: 'per hero, sent in Snapshot.heroes',
+  kmClock: 'BOSSV2 timers only the host steps; guests draw kmHeat, kmEggs and kmRings',
 };
 /** Fields a guest keeps for itself. */
 const LOCAL = new Set(['acting', 'stress']);
@@ -79,6 +92,7 @@ export function snapshot(w: World, events: SimEvent[] = []): Snapshot {
   }
   const arrays: Snapshot['arrays'] = {};
   for (const name of ARRAYS) if (Array.isArray(W[name])) arrays[name] = W[name];
+  for (const name of OBJECTS) if (W[name] && typeof W[name] === 'object') arrays[name] = W[name];
   const heroes = w.heroes.map((_, i) => w.heroData(i));
   const so = W.strikeOwner as Int8Array | undefined;
   const bossThreat = w.bossIndex >= 0 ? w.threat[w.bossIndex] : undefined;
@@ -115,6 +129,7 @@ export function applySnapshot(w: World, s: Snapshot, me: number): void {
     for (let i = 0; i < pool.length; i++) if (!seen[i]) pool[i].alive = false;
   }
   for (const name of ARRAYS) if (name in s.arrays) W[name] = s.arrays[name];
+  for (const name of OBJECTS) if (name in s.arrays) W[name] = s.arrays[name];
   s.heroes.forEach((h, i) => {
     const old = w.heroData(i).player;
     h.player.px = old.x;

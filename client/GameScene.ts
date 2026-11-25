@@ -3466,7 +3466,7 @@ export class GameScene extends Phaser.Scene {
     if (this.bridge || (!w.kmStage && !glut)) { this.kmGfx?.clear(); return; }
     if (!this.kmGfx) this.kmGfx = this.add.graphics().setDepth(1.46);
     const g = this.kmGfx.clear();
-    drawKm2d(g, w, w.arenaR, now);
+    drawKm2d(g, w, w.arenaR, now, w.player.x, w.player.y);
     if (glut) {
       const ph = (now / 1000 * 1.2) % 1, r = glut.def.radius * (2.6 - 1.5 * ph);
       g.lineStyle(3, 0xff3b3b, 0.75 * Math.sin(ph * Math.PI)).strokeCircle(glut.x, glut.y, r);

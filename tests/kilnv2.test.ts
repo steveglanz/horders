@@ -149,7 +149,7 @@ describe('BOSSV2 stage 2: into the kiln', () => {
     expect(w.kmQuarter(KM_MOUTH.x, KM_MOUTH.y)).toBe(3);
   });
 
-  it('heats 3 quarters every 6 s after a 1.5 s warning, the safe one stepping clockwise; the safe quarter takes nothing', () => {
+  it('heats 3 quarters every 6 s after a 2.5 s warning (design, 25 Nov: a slow melee hero can walk from the middle of a quarter to safety), the safe one stepping clockwise; the safe quarter takes nothing', () => {
     const { w, q, b } = mother();
     intoKiln(w, q, b);
     one(w);
@@ -158,7 +158,7 @@ describe('BOSSV2 stage 2: into the kiln', () => {
       // Wait for the next warning.
       for (let n = 0; n < 30 * 7 && !(w.kmHeat.warn > 0 && !w.kmHeat.on); n++) one(w);
       safes.push(w.kmHeat.safe);
-      expect(w.kmHeat.warn).toBeGreaterThan(1.4);
+      expect(w.kmHeat.warn).toBeGreaterThan(2.4);
       // Stand in the safe quarter through the warning and the burn.
       const a = (w.kmHeat.safe * Math.PI) / 2;
       const hp = w.player.hp;
