@@ -2361,12 +2361,12 @@ export class World {
           this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth, room, heat: 0 });
         } else {
           // Along one of the room's axes (a hall's or a cross's arm), across the whole floor, in runs that keep 40 off
-          // every wall and island (a ring's channel is two runs either side of its hearth).
+          // every wall and island past its own half width (a ring's channel is two runs either side of its hearth).
           turn = Math.round(turn / (Math.PI / 2)) * (Math.PI / 2);
           const ux = Math.cos(turn), uy = Math.sin(turn);
           let run: number | null = null;
           for (let t = -rm.r * 2; t <= rm.r * 2 + 10; t += 10) {
-            const ok = t <= rm.r * 2 && roomGap(rm, f.x + ux * t, f.y + uy * t) >= 40;
+            const ok = t <= rm.r * 2 && roomGap(rm, f.x + ux * t, f.y + uy * t) >= 40 + LAYOUT.lavaWidth / 2;
             if (ok && run === null) run = t;
             if (!ok && run !== null) {
               const t1 = t - 10;
