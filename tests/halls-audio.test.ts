@@ -43,7 +43,7 @@ describe('Sound for Halls (Phase 18)', () => {
   });
 
   it('a real Halls delve: packs wake, the party catches its breath between them, then the boss door closes', () => {
-    const w = new World({ seed: 2, tier: 2, halls: true, cls: 'emberwright', invulnerable: true });
+    const w = new World({ seed: 3, tier: 2, halls: true, cls: 'emberwright', invulnerable: true });
     const st = { on: false };
     const heard: string[] = [];
     while (w.state !== 'ended' && w.time < 600 && !heard.includes('doorSeal')) {
