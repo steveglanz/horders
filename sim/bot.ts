@@ -401,6 +401,21 @@ function nearestShade(w: World): { x: number; y: number } | null {
   return best;
 }
 
+/** How far past a bloom's edge a hero walks while a foe it would feed follows them out: its size and reach. */
+const BLOOM_DRAG = 110;
+/**
+ * The foe a bloom would feed (an elite, not a named one, as world.ts heals) that is nearest the hero within 400, and
+ * whether it is already inside the ring.
+ */
+function bloomFeeder(w: World, t: { x: number; y: number; r: number }, p: { x: number; y: number }): { e: Enemy; inside: boolean } | null {
+  let best: Enemy | null = null, bd = 400;
+  for (const e of w.enemies) {
+    if (!e.alive || e.def.rank === 'normal' || e.named >= 0) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best ? { e: best, inside: Math.hypot(best.x - t.x, best.y - t.y) < t.r + best.def.radius + 10 } : null;
+}
 /** Scatter Embers: how far apart two bots try to stand (twice the burst, plus a margin). */
 const SCATTER_GAP = 2 * 80 + 20;
 
@@ -1216,6 +1231,17 @@ export function botInput(w: World, skill = 1): Input {
     const dx = p.x - t.x;
     const dy = p.y - t.y;
     const d = Math.hypot(dx, dy) || 1;
+    // A Sluice Crawler's bloom feeds a foe caught in it when it bursts (NODRAG=1 turns this off for measuring).
+    const feed = t.kind === 'bloom' && process.env.NODRAG !== '1' ? bloomFeeder(w, t, p) : null;
+    if (feed && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
+      // One already in it follows you: walk on until it trails out too. One outside walks after you: leave on its
+      // side, so its way to you never crosses the ring.
+      const fx0 = feed.inside ? dx / d : (feed.e.x - t.x) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
+      const fy0 = feed.inside ? dy / d : (feed.e.y - t.y) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
+      fx += fx0 * 0.6 * skill;
+      fy += fy0 * 0.6 * skill;
+      continue;
+    }
     if (d < t.r + 30) {
       const k = melee ? 0.6 : 0.2;
       if (t.shape === 'cone' && t.arc >= Math.PI * 0.9) {
