@@ -7,8 +7,8 @@
 import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
-/** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), then the Coldmarrow's four (H3c). Ids are unique across dungeons. */
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt';
+/** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), the Coldmarrow's four (H3c), then the Wrackline's four (H3d). Ids are unique across dungeons. */
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice';
 
 export interface Theme {
   id: ThemeId;
@@ -26,6 +26,8 @@ export interface Theme {
   lightK: number;
   /** How the room lights breathe: 0 = today's flicker only, >0 = a slow swell at this rate (Hz). */
   swell: number;
+  /** The floor is open water (the Wrackline's quays): ripples that drift, not tiles; `tile` is the water's colour. */
+  water?: boolean;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -69,6 +71,17 @@ export const THEMES: Record<ThemeId, Theme> = {
   drift: { id: 'drift', floor2d: 0x22262e, name: 'Snowdrift cave', tile: '#565e6e', cracked: false, wall: '#a0aabc', light: '#d8e4f4', lightK: 1.1, swell: 0 },
   // Dark stone, frosted stone coffins along the walls, a dim violet-blue light: the quiet room.
   crypt: { id: 'crypt', floor2d: 0x1a1c24, name: 'Cold crypt', tile: '#363a48', cracked: true, wall: '#70768c', light: '#a8b4e0', lightK: 1.0, swell: 0 },
+  // H3d, the Wrackline (ids engineering's, 25 Nov). Every room is a quay: open water with the three rafts (the rafts
+  // and the drain are drawn by the fight, GameScene wrackDraw), so every floor is water and the room is told by its
+  // stone or timber walls, its props and its light.
+  // Stone quay walls, bollards with coiled rope, warm lantern light: the door guard's room.
+  quay: { id: 'quay', floor2d: 0x1a3236, name: 'Harbour quay', tile: '#2e5a62', cracked: false, wall: '#8a9a98', light: '#ffd6a0', lightK: 1.3, swell: 0, water: true },
+  // Broken hull ribs and loose barrels against dark timber, grey daylight.
+  wreck: { id: 'wreck', floor2d: 0x182c30, name: 'Wreck yard', tile: '#2a4e56', cracked: false, wall: '#7a6a58', light: '#c8dce4', lightK: 1.2, swell: 0, water: true },
+  // Kelp swaying along the walls, cool sea light that swells slowly.
+  kelp: { id: 'kelp', floor2d: 0x16302e, name: 'Kelp bed', tile: '#264e4c', cracked: false, wall: '#6e8a84', light: '#a8d8e8', lightK: 1.25, swell: 0.12, water: true },
+  // Iron sluice gates with their wheels, the palest water: the boss door alcove's.
+  sluice: { id: 'sluice', floor2d: 0x1c3440, name: 'Sluice gate', tile: '#30586a', cracked: false, wall: '#7a8a92', light: '#d0e4f0', lightK: 1.3, swell: 0, water: true },
 };
 
 /** H1's template has no theme field: R0 entrance, R1 A, R2 S (side), R3 B/C, R4 D (side), R5 door guard, door alcove. */
@@ -91,4 +104,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5 };
