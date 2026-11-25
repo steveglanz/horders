@@ -485,10 +485,22 @@ export class HallsView {
       const top = (this.mapBtn.getBoundingClientRect().bottom || 98) + g;
       const bar = document.getElementById('actionbar')?.getBoundingClientRect();
       const barTop = bar && bar.height ? bar.top : H, barLeft = bar && bar.width ? bar.left : W;
-      const areas = [
+      let areas = [
         { left: 12, top, w: W - 24, h: barTop - g - top },
         { left: 12, top, w: barLeft - g - 12, h: H - 12 - top },
-      ].filter((a) => a.w > 80 && a.h > 80);
+      ];
+      // Party frames win (design, 25 Nov: health keeps a party alive): an area that would cover them gives way to the
+      // part of it beside the frames or below them, whichever fits the map bigger.
+      const pe = document.getElementById('party');
+      const pr = pe && !pe.hidden && pe.childElementCount ? pe.getBoundingClientRect() : null;
+      if (pr && pr.width && pr.height) {
+        areas = areas.flatMap((a) => {
+          if (pr.right + g <= a.left || pr.left - g >= a.left + a.w || pr.bottom + g <= a.top || pr.top - g >= a.top + a.h) return [a];
+          const r = Math.ceil(pr.right) + g, b = Math.ceil(pr.bottom) + g;
+          return [{ left: r, top: a.top, w: a.left + a.w - r, h: a.h }, { left: a.left, top: b, w: a.w, h: a.top + a.h - b }];
+        });
+      }
+      areas = areas.filter((a) => a.w > 80 && a.h > 80);
       const scaleOf = (a: { w: number; h: number }) => Math.min((a.w - 16) / (x1 - x0), (a.h - 16) / (y1 - y0));
       const a = areas.sort((p, q) => scaleOf(q) - scaleOf(p))[0] ?? { left: 12, top, w: W - 24, h: H - top - 12 };
       boxW = Math.round(a.w); boxH = Math.round(a.h);

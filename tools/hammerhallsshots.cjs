@@ -4,7 +4,7 @@
 //          heroes in, never out: a green "Walk in" tag on the grate), and the map.
 //   ondrel (straight to the boss, optionally `v2` for ?ondrelv2=1): Sundered on a tank (the tank swap), then with v2
 //          the burning slag and the stage 3 bursts' warning.
-// Usage: npm run build && node tools/hammerhallsshots.cjs <outDir> [p320|l568] [halls|ondrel] [v2] [seed]
+// Usage: npm run build && node tools/hammerhallsshots.cjs <outDir> [p320|l568] [halls|ondrel] [v2|maponly] [seed]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
@@ -64,6 +64,9 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     await page.waitForTimeout(900);
     await shot('1b-map');
     await tapMap();
+    report.mapBox = await page.evaluate(() => { const r = (id) => { const b = document.getElementById(id)?.getBoundingClientRect(); return b ? [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)] : null; }; return { party: r('party') }; });
+  }
+  if (mode === 'halls' && !process.argv.includes('maponly')) {
     // 2: the first pack awake and its room sealed, the party inside.
     await page.waitForFunction(() => { const s = window.__ember.scene(); const w = s.world; if (w.phase === 'fight' && w.halls.rooms.some((r) => (r.lock ?? -1) >= 1.2 && !r.lifted)) { s.warp = 0; return true; } return false; }, null, { timeout: 600000, polling: 30 }).catch(() => errs.push('no sealed fight'));
     await page.waitForTimeout(1200);
@@ -85,7 +88,7 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     await page.waitForTimeout(800);
     await shot('3-outside-sealed');
     report['3-outside-sealed'].hud = await page.evaluate(() => ({ outside: window.__outside, arrow: document.getElementById('hallsArrow')?.className || '', tag: document.getElementById('hallsSealTag')?.hidden === false ? document.getElementById('hallsSealTag').textContent : '', mapBtn: !document.getElementById('hallsMapBtn')?.hidden }));
-  } else {
+  } else if (mode === 'ondrel') {
     // 1: a tank Sundered by Anvilfall (the tank swap).
     await page.waitForFunction(() => { const s = window.__ember.scene(); const w = s.world; if (w.heroes.some((h, k) => (w.heroData(k).player.sunderT ?? 0) > 0)) { s.warp = 0; return true; } return false; }, null, { timeout: 900000, polling: 30 }).catch(() => errs.push('no sunder'));
     await page.waitForTimeout(1200);
