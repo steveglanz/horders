@@ -282,6 +282,19 @@ export class HallsView {
       g.fillStyle(0xb8904a, 1).fillRect(x - tx * 24 - 4, y - ty * 24 - 4, 8, 8).fillRect(x + tx * 24 - 4, y + ty * 24 - 4, 8, 8);
       g.lineStyle(8, 0xb8904a, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 24, y + ty * 24);
       g.lineStyle(4, 0xdde4f4, 1).lineBetween(x - tx * 20, y - ty * 20, x + tx * 20, y + ty * 20);
+    } else if (id === 'hearthless') {
+      g.fillStyle(0x5a6070, 1).fillRect(x - tx * 30 + nx * 8 - 6, y - ty * 30 + ny * 8 - 6, 12, 12).fillRect(x + tx * 30 + nx * 8 - 6, y + ty * 30 + ny * 8 - 6, 12, 12);
+      g.lineStyle(10, 0x5a6070, 1).lineBetween(x - tx * 30 + nx * 8, y - ty * 30 + ny * 8, x + tx * 30 + nx * 8, y + ty * 30 + ny * 8);
+      g.fillStyle(0x7c7e84, 0.9).fillEllipse(x - nx * 10, y - ny * 10, 44, 22);
+      g.lineStyle(6, 0x2a2624, 1).lineBetween(x - tx * 14 - nx * 10, y - ty * 14 - ny * 10, x + tx * 14 - nx * 12, y + ty * 14 - ny * 12);
+    } else if (id === 'rime') {
+      g.fillStyle(0x5c6a80, 1).fillCircle(x, y, 18);
+      g.fillStyle(0xd4e4f4, 1).fillCircle(x, y, 12);
+    } else if (id === 'drift') {
+      g.fillStyle(0xdce6f0, 0.85).fillEllipse(x, y, 60, 34).fillEllipse(x - tx * 30 - nx * 6, y - ty * 30 - ny * 6, 30, 22);
+    } else if (id === 'crypt') {
+      g.fillStyle(0x4a4e5e, 1).fillPoints([new Phaser.Math.Vector2(x - tx * 32 + nx * 10, y - ty * 32 + ny * 10), new Phaser.Math.Vector2(x + tx * 32 + nx * 10, y + ty * 32 + ny * 10), new Phaser.Math.Vector2(x + tx * 32 - nx * 14, y + ty * 32 - ny * 14), new Phaser.Math.Vector2(x - tx * 32 - nx * 14, y - ty * 32 - ny * 14)], true);
+      g.lineStyle(2, 0xc4d0e0, 0.8).lineBetween(x - tx * 22, y - ty * 22, x + tx * 22, y + ty * 22);
     } else {
       g.fillStyle(0x8a6a4a, 1).fillRect(x + nx * 10 - 22, y + ny * 10 - 22, 44, 44);
       g.fillStyle(0x3a2a1e, 1).fillRect(x + nx * 10 - 12, y + ny * 10 - 12, 24, 24);
