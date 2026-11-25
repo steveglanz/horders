@@ -316,6 +316,8 @@ function startRun(bounty = false, key = false): void {
   // ONDRELV2 (design, 25 Nov): the staged Ondrel, on by default in local play and hosted co-op since QA passed it in
   // hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ondrelv2=0 turns it off for comparing.
   if (params.get('ondrelv2') !== '0') opts.ondrelV2 = true;
+  // KILNTRASH (design, 25 Nov): the Kiln map's opener packs as trash (more foes, less health, no bag), off until measured.
+  if (params.get('kilntrash') === '1') opts.kilnTrash = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, off until design has measured it.
   if (params.get('ysmeretv2') === '1') opts.ysmeretV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;

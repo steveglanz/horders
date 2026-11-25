@@ -136,6 +136,8 @@ export interface HallsPack {
   gate?: GateKind;
   /** Loot bags each hero gets for clearing it (D pays a second). */
   bags: number;
+  /** KILNTRASH (design, 25 Nov): a Kiln opener pack as trash, with more foes at KILNTRASH.hp health and no bag. */
+  trash?: boolean;
   state: 'asleep' | 'awake' | 'cleared';
   /** Where each foe stands while asleep (spawned there when the pack wakes). */
   foes: { kind: EnemyKind; x: number; y: number }[];
@@ -234,9 +236,12 @@ type Spot = { role: PackRole; room: number; x: number; y: number };
  * H2c: the rooms come from genHalls (hashes of the seed only); `template` keeps H1's hand-made KILN_HALLS_A.
  */
 /** Where the foes of the map's `k`th pack (encounter `enc`, standing at x, y) sleep: round its spot, turned by the seed. */
-export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number): { kind: EnemyKind; x: number; y: number }[] {
+export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number, trash = false): { kind: EnemyKind; x: number; y: number }[] {
   const kinds: EnemyKind[] = [];
-  for (const sp of ENCOUNTERS[enc].spawns) for (let j = 0; j < sp.n; j++) kinds.push(sp.kind);
+  for (const sp of ENCOUNTERS[enc].spawns) {
+    const n = trash && !KILNTRASH_ONE.includes(sp.kind) ? Math.round(sp.n * KILNTRASH.foes) : sp.n;
+    for (let j = 0; j < n; j++) kinds.push(sp.kind);
+  }
   const turn = ((hash(seed, k) >>> 4) % 360) * (Math.PI / 180);
   return kinds.map((kind, j) => {
     if (kinds.length === 1) return { kind, x, y };
@@ -246,7 +251,16 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
   });
 }
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4): HallsMap {
+/**
+ * KILNTRASH (design, 25 Nov, /mnt/project-files/horders/design/halls/kiln-trash-plan.md): on the Kiln's map, the packs
+ * drawn from its openers list (A, B and the steady side fight, never a named gate) are trash: `foes` times as many foes
+ * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health, and they drop no bag. The
+ * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
+ */
+export const KILNTRASH = { foes: 2, hp: 0.4 };
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
+
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -288,8 +302,9 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const foes = packFoes(seed, k, p.enc, x, y);
-    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes };
+    const trash = kilnTrash && dungeon === 'kiln' && p.gate !== 'named' && DUNGEONS.kiln.openers.includes(p.enc);
+    const foes = packFoes(seed, k, p.enc, x, y, trash);
+    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });
   return { rooms, corridors, packs, door, mirror, layoutRooms, seen: rooms.map((_, i) => i === 0), done: false, vents: [] };
 }

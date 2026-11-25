@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, r
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HALLS_GEN, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HALLS_GEN, KILNTRASH, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -803,6 +803,8 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
+  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the Kiln map's opener packs are trash (sim/halls.ts). */
+  kilnTrash?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
   bossV2?: boolean;
   /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
@@ -1227,6 +1229,8 @@ export class World {
   hallsMain = 0;
   /** Halls: the pack whose foes are spawning right now (-1 otherwise), so spawn() tags them. */
   private hallsWaking = -1;
+  /** KILNTRASH: set while a trash pack's clear pays out, so it drops no bag. */
+  private trashClear = false;
   /** Halls "Catch breath": seconds with no pack awake and no foe alive (resting starts at HALLS.rest.delay). */
   hallsQuietT = 0;
   /** Gates on offer while `phase` is 'choose'. */
@@ -1416,7 +1420,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2432,6 +2436,8 @@ export class World {
       const order: Rarity[] = ['common', 'fine', 'rare'];
       let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
       if (this.namedFight) min++;
+      // KILNTRASH: a trash pack drops no bag.
+      if (this.trashClear) return;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
       // Phase 15 Y10: a stirred fight leaves a second bag.
       if (this.stir) this.dropLoot(p.x - 40, p.y, order[Math.min(order.length - 1, min)]);
@@ -2787,6 +2793,7 @@ export class World {
       const i = this.spawn(f.kind, f.x, f.y);
       if (i < 0) return;
       const e = this.enemies[i];
+      if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
       // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.
       if (f.kind === 'acolyte') {
@@ -2841,8 +2848,10 @@ export class World {
       const min = (this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0) + (this.namedFight ? 1 : 0);
       for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, order[Math.min(order.length - 1, min)]);
     };
+    this.trashClear = !!pk.trash;
     if (this.heroes.length === 1) clear();
     else this.eachHero(clear, true);
+    this.trashClear = false;
     if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
     if (pk.gate) this.paths.push(pk.gate);
