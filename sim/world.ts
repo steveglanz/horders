@@ -800,6 +800,8 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
+  /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
+  hallsBeta?: boolean;
 }
 
 export interface RunSummary {
@@ -1354,7 +1356,7 @@ export class World {
     }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
-    if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
+    if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
       this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate);
       this.hallsLayouts();
       this.phase = 'cleared';

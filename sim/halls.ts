@@ -195,7 +195,13 @@ const hash = (seed: number, k: number): number => {
 };
 
 /** Whether `dungeon` has a Halls map yet (H1: the Kiln; H3a: the Drowned Foundry). */
-export const hallsFor = (dungeon: DungeonId): boolean => dungeon === 'kiln' || dungeon === 'foundry';
+/**
+ * The dungeons whose Halls map is still off by default (design, 25 Nov: the Foundry's map is built, but it waits until
+ * skills close a melee/ranged split in its crawler fights). A run gets one only with WorldOptions.hallsBeta
+ * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
+ */
+export const HALLS_BETA: DungeonId[] = ['foundry'];
+export const hallsFor = (dungeon: DungeonId, beta = false): boolean => dungeon === 'kiln' || (beta && HALLS_BETA.includes(dungeon));
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
 type Spot = { role: PackRole; room: number; x: number; y: number };

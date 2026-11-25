@@ -498,11 +498,18 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
   const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
 
+  it('is off for players until design turns it on: only ?hallsbeta=1 (hallsBeta) gives the Foundry a map', () => {
+    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
+    expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
+    expect(halls(3, { dungeon: 'glarewell', tier: 7, hallsBeta: true }).halls).toBeNull();
+  });
+
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
     const { openers, named, hard, boss } = DUNGEONS.foundry;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 120; seed++) {
-      const w = halls(seed, { dungeon: 'foundry', tier: 4 });
+      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[4]).toBe(boss);
@@ -537,7 +544,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   });
 
   it('a Sluice Crawler keeps the arena\'s speed on the map, and its Bloom bursts after 2.5 s as in the arena (design, 25 Nov)', () => {
-    const w = halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
+    const w = halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
     const q = w as unknown as { spawn(kind: string, x: number, y: number): number };
     for (const e of w.enemies) e.alive = false;
     const m = w.halls!, a = pack(w, 'A');
@@ -555,12 +562,12 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
       run(w2, () => { const t = w2.telegraphs.find((x) => x.alive && x.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
       return dur;
     };
-    expect(first(halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
+    expect(first(halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
   });
 
   it('bots walk it and go through the door into Maelra\'s arena (seeds the bot wins on the map)', () => {
     for (const seed of [9, 11]) {
-      const w = halls(seed, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
+      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
       run(w, () => !w.hallsOn || w.state === 'ended', 600);
       expect(w.hallsOn, `seed ${seed}`).toBe(false);
       expect(w.route[w.encounter]).toBe('maelra');
