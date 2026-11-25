@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'pressBelt']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -56,6 +56,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     hammerdeep: ['anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'kilnShrine'],
     ashvents: ['fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'kilnShrine'],
     pressworks: ['pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'kilnShrine'],
+    // OSKELV2: the running press bed plays in place of the room's bed, so it is never beside another.
+    oskelBelt: ['pressBelt'],
   } as const;
 
   it('within one dungeon, every room bed sounds different from the others on a phone', () => {
@@ -109,7 +111,8 @@ describe('which room bed plays where (roomBedFor)', () => {
     expect(roomBedFor(bare, m.rooms[1].x, m.rooms[1].y)).toBe('bellowsHall');
     const themed = { ...m, rooms: m.rooms.map((r, i) => (i === 0 ? { ...r, theme: 'shrine' as const } : r)) };
     expect(roomBedFor(themed, r0.x, r0.y)).toBe('kilnShrine');
-    expect(Object.values(ROOM_THEME_BED).sort()).toEqual([...ROOM_BEDS].sort());
+    // Every bed but OSKELV2's running belt (it plays in his fight, not for a room theme) is some theme's.
+    expect(Object.values(ROOM_THEME_BED).sort()).toEqual([...ROOM_BEDS].filter((k) => k !== 'pressBelt').sort());
     // Visuals' Foundry ids (25 Nov).
     expect([ROOM_THEME_BED.boiler, ROOM_THEME_BED.cistern, ROOM_THEME_BED.pump, ROOM_THEME_BED.anchor]).toEqual(['boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
     expect([ROOM_THEME_BED.lens, ROOM_THEME_BED.orrery, ROOM_THEME_BED.colonnade, ROOM_THEME_BED.mirror]).toEqual(['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
@@ -135,7 +138,7 @@ describe('which room bed plays where (roomBedFor)', () => {
 
   it('the game passes the hero\'s room bed only on the Halls map, and the hub or end screen stops it', () => {
     const scene = readFileSync('client/GameScene.ts', 'utf8');
-    expect(scene).toContain('hallsBed: w.hallsOn && w.player.hp > 0 ? roomBedFor(w.halls, w.player.x, w.player.y) : null');
+    expect(scene).toContain("hallsBed: w.player.hp <= 0 ? null : w.osStage >= 2 ? 'pressBelt' : w.hallsOn ? roomBedFor(w.halls, w.player.x, w.player.y) : null");
     const engine = readFileSync('client/audio/index.ts', 'utf8');
     expect(engine).toContain('this.roomBed(ctx.hallsBed ?? null);');
     expect(engine).toContain("if (id === null || id.startsWith('hub')) this.roomBed(null);");
