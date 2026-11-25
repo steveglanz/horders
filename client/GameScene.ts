@@ -6301,7 +6301,8 @@ export class GameScene extends Phaser.Scene {
     const close = 0.6 + 0.4 * Math.sin(now / (f > 0.75 ? 40 : 90));
     g.fillStyle(0x000000, 0.25 + 0.35 * f).fillRect(t.x - (20 + 22 * f), t.y + 12, 40 + 44 * f, 10 + 10 * f);
     const r = 100 - 52 * f;
-    o.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
+    // The reticle is a floor mark: on the main graphics, so the floor bridge shows it in 3D (the die is oskel3d.ts there).
+    g.lineStyle(3, DANGER, 0.85 * close).strokeRect(t.x - r, t.y - r * 0.8, r * 2, r * 1.6);
     const dy = t.y - 50 - (1 - f) * (1 - f) * 150;
     o.fillStyle(0x5a645a, 0.97).fillRect(t.x - 24, dy - 12, 48, 24);
     o.fillStyle(0xf2c230, 1).fillRect(t.x - 23, dy + 5, 46, 6);
