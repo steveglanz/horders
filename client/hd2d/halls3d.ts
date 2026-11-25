@@ -265,7 +265,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const propGeo = new Map<ThemeId, THREE.BufferGeometry>();
   type Props = { mesh: THREE.InstancedMesh; id: ThemeId; at: THREE.Matrix4[]; ch: Chunk };
   const props: Props[] = [];
-  const steamAt: { x: number; z: number; ch: Chunk; ph: number }[] = [];
+  const steamAt: { x: number; z: number; y: number; ch: Chunk; ph: number }[] = [];
   m.rooms.forEach((_, i) => {
     const th = themes[i];
     const pick = themeSpots(m, i, o.corridor / 2, o.doorRoom);
@@ -279,7 +279,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       const x = (p.x - p.nx * (30 + 26 * PROP_SCALE[th.id])) * S, z = (p.y - p.ny * (30 + 26 * PROP_SCALE[th.id])) * S;
       const mm = new THREE.Matrix4().compose(new THREE.Vector3(x, FLOOR, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sc, sc, sc));
       mesh.setMatrixAt(k, mm); at.push(mm);
-      if (th.id === 'cooling') steamAt.push({ x, z, ch: roomChunk[i], ph: k * 1.7 + i });
+      // Steam: off a Cooling yard post's grille, and off the top of a Foundry boiler's stack.
+      if (th.id === 'cooling') steamAt.push({ x, z, y: 0.5, ch: roomChunk[i], ph: k * 1.7 + i });
+      if (th.id === 'boiler') steamAt.push({ x, z, y: 1.3 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
     });
     mesh.castShadow = !o.saver; mesh.receiveShadow = true;
     roomChunk[i].g.add(mesh);
@@ -299,7 +301,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion();
   const roomLife = (t: number) => {
     for (const pr of props) {
-      if (!pr.ch.g.visible || pr.id !== 'bellows') continue;
+      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump')) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
         const { sy } = propMotion(pr.id, t, k * 1.3);
@@ -312,7 +314,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       const on = s0.ch.g.visible; any ||= on;
       for (let j = 0; j < STEAM_PER; j++) {
         const u = ((t * 0.35 + s0.ph + j / STEAM_PER) % 1), o3 = (k * STEAM_PER + j) * 3;
-        steamPos[o3] = s0.x + Math.sin(u * 5 + s0.ph) * 0.12; steamPos[o3 + 1] = on ? FLOOR + 0.5 + u * 1.6 : -50; steamPos[o3 + 2] = s0.z + u * 0.1;
+        steamPos[o3] = s0.x + Math.sin(u * 5 + s0.ph) * 0.12; steamPos[o3 + 1] = on ? FLOOR + s0.y + u * 1.6 : -50; steamPos[o3 + 2] = s0.z + u * 0.1;
       }
     });
     steam.visible = any; if (any) steamGeo.attributes.position.needsUpdate = true;
