@@ -765,20 +765,33 @@ function kmStep(w: World): { dx: number; dy: number } | null {
   // edge by 0.08 rad).
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
   const reach = w.cls === 'lumen' ? w.lumenRange - 30 : 560;
+  const clock = w.kmStepIn;
   let best: { x: number; y: number } | null = null, bd = Infinity;
   for (const e of w.enemies) {
     if (!e.alive || e.kind !== 'kilnBellows') continue;
     const q = w.kmQuarter(e.x, e.y);
     if (melee && q !== safe) continue;
     const st = kmStand(e, mid, melee);
+    // Only if it can still get over the leading line before the next step's warning runs out (design, 25 Nov).
+    const lineOff = Math.max(0, mid + Math.PI / 4 - Math.atan2(st.y, st.x) - 2 * Math.PI * Math.round((mid + Math.PI / 4 - Math.atan2(st.y, st.x)) / (2 * Math.PI)));
+    const cross = Math.hypot(st.x, st.y) * Math.sin(Math.min(Math.PI / 2, lineOff));
+    if (cross / w.moveSpeed > clock.next + clock.warn * 0.7) continue;
     const far = Math.hypot(e.x - st.x, e.y - st.y);
     if (!melee && far > reach) continue;
     const d = Math.hypot(st.x - p.x, st.y - p.y) + far;
     if (d < bd) { bd = d; best = e; }
   }
   if (best) { const st = kmStand(best, mid, melee); return to(st.x, st.y); }
-  return inSafe ? null : to(Math.cos(mid) * 260, Math.sin(mid) * 260);
+  // Nothing to break from here: wait near the middle at the safe quarter's leading edge (the side the safe quarter
+  // steps to next), so a step means a few paces across the line, not a walk round the floor (design, 25 Nov: a
+  // Bulwark at 128/s took 3 ticks a step walking from one quarter's middle to the next at radius 260).
+  void inSafe;
+  const lead = mid + Math.PI / 4 - 0.15;
+  return to(Math.cos(lead) * KM_WAIT_R, Math.sin(lead) * KM_WAIT_R);
 }
+
+/** BOSSV2: how far from the middle a bot waits in the kiln stage. */
+const KM_WAIT_R = 110;
 
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
