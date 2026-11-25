@@ -4,6 +4,7 @@ import { botChoose, botInput, hallsOrder } from '../sim/bot';
 import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
+import { equippedItems } from '../sim/hero';
 
 const idle = { x: 0, y: 0 };
 /** A spec coordinate at the template's scale. */
@@ -312,6 +313,23 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(r1.lock).toBe(-1);
     expect(v.phase).toBe('cleared');
   });
+
+  it('a melee bot closes on a Dimhorn hugging a sealed room\'s wall, so its Dark Call never lands (skills, 25 Nov)', async () => {
+    // Seed 38, the Coldmarrow at tier 11 with tools/heroes/hero-t8.json: hallsSteer's 120-unit look-ahead held the
+    // Duskblade off a Dimhorn 17 from the wall, out in the dark, until its horn called three hounds in on it.
+    const hero = JSON.parse(readFileSync(new URL('../tools/heroes/hero-t8.json', import.meta.url), 'utf8'));
+    const w = new World({ seed: 38, halls: true, hallsBeta: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
+    let dimhorn: (typeof w.enemies)[number] | undefined;
+    const end = w.time + 400;
+    while (w.state !== 'ended' && w.time < end && w.player.hp > 0 && !(dimhorn && !dimhorn.alive)) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+      dimhorn ??= w.enemies.find((e) => e.alive && e.kind === 'dimhorn');
+    }
+    expect(dimhorn, 'the map has a Dimhorn').toBeDefined();
+    expect(dimhorn!.alive, 'the Dimhorn falls').toBe(false);
+    expect(dimhorn!.aux2, 'Dark Calls landed').toBe(0);
+  }, 60000);
 
   it('H2b: no dash or leap carries a hero through a sealed room\'s grates, out or in', () => {
     const moves: [string, string][] = [['emberwright', 'blink'], ['lumen', 'glimmerStep'], ['slagbinder', 'interpose'], ['duskblade', 'sidestep']];
@@ -763,15 +781,16 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
 
   it('bots walk it and go through the door into Nhevra\'s arena', async () => {
     let reached = 0;
-    for (const seed of [1, 2, 3, 4]) {
+    // Gearless at tier 10 many die on the way (the cold), so this is a smoke test over 8 seeds (25 Nov: 5 of 8, 4 of 8 once a bot closes on a foe at a wall).
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
       await new Promise((r) => setTimeout(r, 0));
       const w = cold(seed, { cls: 'slagbinder' });
       run(w, () => !w.hallsOn || w.state === 'ended', 900);
       if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
     }
-    expect(reached).toBeGreaterThanOrEqual(2);
-  }, 60000);
+    expect(reached).toBeGreaterThanOrEqual(3);
+  }, 120000);
 });
 
 describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {

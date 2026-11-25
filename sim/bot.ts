@@ -1413,14 +1413,17 @@ function hallsSteer(w: World, fx: number, fy: number): { x: number; y: number } 
   // Inside a sealed room (or one sealing), its grates are walls too.
   const sealed = m.rooms.find((rm) => rm.lock !== undefined && rm.lock >= 0 && roomGap(rm, p.x, p.y) >= 0);
   const at = (x: number, y: number) => (sealed ? roomGap(sealed, x, y) >= r : inside(m, x, y, r));
-  const ok = (dx: number, dy: number) => at(p.x + dx * 60, p.y + dy * 60) && at(p.x + dx * 120, p.y + dy * 120);
-  if (ok(fx, fy)) return { x: fx, y: fy };
-  let nx = 0, ny = 0, nd = Infinity;
+  let nx = 0, ny = 0, nd = Infinity, nr = 0;
   for (const e of w.enemies) {
     if (!e.alive) continue;
     const d = Math.hypot(e.x - p.x, e.y - p.y);
-    if (d < nd) { nd = d; nx = (e.x - p.x) / (d || 1); ny = (e.y - p.y) / (d || 1); }
+    if (d < nd) { nd = d; nr = e.def.radius; nx = (e.x - p.x) / (d || 1); ny = (e.y - p.y) / (d || 1); }
   }
+  // A move toward a foe near its wall only looks as far as that foe: a Dimhorn hugging a wall out in the dark (seed 10)
+  // otherwise held a melee hero off at the probe's length until its Dark Call landed.
+  const reach = (dx: number, dy: number) => (nd < 140 && dx * nx + dy * ny > 0.7 ? Math.max(10, nd - nr - r) : 120);
+  const ok = (dx: number, dy: number) => { const L = reach(dx, dy); return at(p.x + dx * Math.min(60, L), p.y + dy * Math.min(60, L)) && at(p.x + dx * L, p.y + dy * L); };
+  if (ok(fx, fy)) return { x: fx, y: fy };
   let bx = fx, by = fy, best = -Infinity;
   for (let k = 0; k < 16; k++) {
     const a = (k / 16) * 2 * Math.PI, dx = Math.cos(a), dy = Math.sin(a);

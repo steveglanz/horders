@@ -1131,6 +1131,32 @@ Every cell is within seed noise of zero: bots don't seek out a situation, and a 
 
 **Tier 1 Kiln** (no gear, 480 seeds, cards on / off): good bot Emberwright 368 / 379, Duskblade 478 / 478, Bulwark 480 / 480, Lumen 461 / 461, Slagbinder 479 / 479. Novice: Emberwright 270 / 270, Duskblade 167 / 167, Bulwark 206 / 216, Lumen 459 / 459, Slagbinder 478 / 478. The good-bot Emberwright gap to the Duskblade goes from 8.2 to 9.1 per 40 (the bot takes Vent-Fed in about half its offers), still inside ±10. Everything else is unchanged or under 1 per 40. **Hashcheck:** 1 of 24 rows moves (emberwright kiln seed 3), because a site card in the pool changes that draft.
 
+## Halls H3c: Coldmarrow class check and a bot that reaches a foe at a wall (25 Nov)
+
+Design asked about engineering's Coldmarrow grid (#715: Emberwright -11 over its two t11 cells). Re-measured at t11 on the Halls map against the arena: `heroes-r2/<cls>/hero-t10-{0,1,2}.json`, seeds 1-80 each, so 240 runs a cell.
+
+| class, skill | arena | map | map, boss at arena speed |
+|---|---|---|---|
+| Emberwright full | 148 | 132 | 145 |
+| Emberwright avg | 97 | 96 | |
+| Duskblade full | 96 | 74 | 90 |
+| Duskblade avg | 53 | 55 | |
+
+- **Emberwright:** its map losses are in the boss fight (85 against 66 in the arena). With the boss fight at arena speed it is back to 145. That is the H2f watch item (1.25x in the boss fight), which design kept.
+- **Duskblade:** 20 more losses before the boss on the map, 12 of them to the Dimhorn. On 12 of 48 maps with a Dimhorn its Dark Call landed, and every one of those runs was lost. In the arena that happened 1 time in 26. The cause was the bot, not the foe. A Dimhorn hugs the wall out in the dark (17 from it). hallsSteer (#683) looks 120 ahead, so it turned the hero away from the Dimhorn every other tick, and the hero stood 117 off until the horn sounded. The fix: a move toward the nearest foe within 140 only looks as far as that foe. With the fix, no Dark Calls landed (0 of 48).
+
+**The fix measured on the Halls map, before / after** (wins; Coldmarrow t11 out of 240, Kiln t4 `hero-t4-{0,1,2}` full out of 120):
+
+| class | Coldmarrow full | Coldmarrow avg | Kiln full |
+|---|---|---|---|
+| Bulwark | 179 / 180 | 137 / 150 | 114 / 117 |
+| Lumen | 107 / 109 | 99 / 98 | 119 / 120 |
+| Slagbinder | 169 / 176 | 174 / 175 | 119 / 115 |
+| Emberwright | 132 / 134 | 96 / 105 | 93 / 90 |
+| Duskblade | 74 / 79 | 55 / 54 | 78 / 92 |
+
+The Coldmarrow totals go from 1,222 to 1,260, and the Kiln from 523 to 534. No cell drops by more than 4, which is inside seed noise. #683's own check (Kiln t2 Slagbinder, 40 seeds) is 40/40 both ways. The Coldmarrow smoke test ("bots walk it ... into Nhevra's arena") plays a gearless t10 Slagbinder that mostly dies of the cold. One of its 4 seeds flipped, so it now plays 8 seeds and needs 3 (5 reach the door before the fix, 4 after).
+
 ## Order of work
 
 1. Draft rules and the three Emberwright ability talents (on top of the class system PR).
