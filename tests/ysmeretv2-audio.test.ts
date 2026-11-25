@@ -34,7 +34,7 @@ describe('YSMERETV2 sound', () => {
     expect(w.events.filter((e) => e.type === 'phase').map((e) => cueFor(e, ctx)?.id)).toEqual(['phaseYsmeret']);
   });
 
-  it('a flame left alone: one must-hear warning from its side, ending as it flares, and the flare its own whump', () => {
+  it('a flame left alone: one must-hear warning, ending as it flares, and the flare its own whump', () => {
     const { w, q } = fight();
     const b = w.enemies[q.bossIndex];
     b.hp = b.maxHp * YSMERETV2.split;
