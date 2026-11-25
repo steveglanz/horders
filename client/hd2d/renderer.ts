@@ -1104,7 +1104,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
   // BOSSV2, the three-stage Kiln Mother (kilnmother3d.ts): her eggs, the heated quarters and the eruption rings; hidden
   // unless World.kmStage is set.
-  const km = buildKm3d({ S, floor: FLOOR, arena: 560, /* World ARENA: her fight is always in the 560 room */ bad: BAD, gold: new THREE.Color('#ffc861'), saver });
+  const km = buildKm3d({ S, floor: FLOOR, arena: 560, /* World ARENA: her fight is always in the 560 room */ bad: BAD, good: GOOD, gold: new THREE.Color('#ffc861'), saver });
   scene.add(km.group);
   // Vorhulm the Glutton's Gorge (BOSSV2, aux2 1 while it heals): red rings draw in to it, as if it is gulping, until
   // someone hits it.
@@ -1555,7 +1555,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (e.kind === 'kilnBellows') {
         // A great bellows in 3D stands in for the sprite; its red ring and outline still say "hit this".
         if (!f.bellows) { f.bellows = makeKmBellows(); f.bellows.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; }); scene.add(f.bellows.g); }
-        const B = f.bellows, sc = e.def.radius * S * 3.2 * rise;
+        const B = f.bellows, sc = e.def.radius * S * 4.4 * rise; // big enough to see past a hero standing at it (QA phone shots, 25 Nov)
         B.g.visible = true; B.g.position.set(x, FLOOR, z); B.g.scale.setScalar(sc);
         B.g.rotation.y = Math.atan2(-x, -z); // its nozzle at the arena centre, where she waits in the kiln's light
         B.set(Math.max(0, e.hp / e.maxHp), t + i, e.flash);
@@ -1810,7 +1810,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     // Room units to world: the room is centred on the arena and scaled so ROOM_R is World.arenaR.
     for (const h of heard.splice(0)) if (sfx.length < 32) sfx.push({ kind: h.kind, x: (h.x * w.arenaR) / ROOM_R, y: (h.z * w.arenaR) / ROOM_R });
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
-    { const mk = km.update(w, t); if (kilnMouth && mk !== 1) kilnMouth.color.multiplyScalar(mk); }
+    { const me = w.heroData(0).player, mk = km.update(w, t, me.x, me.y); if (kilnMouth && mk !== 1) kilnMouth.color.multiplyScalar(mk); }
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
       if (pos[i * 3 + 1] > 6) spawn(i, cx, cz, false);
