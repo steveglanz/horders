@@ -223,16 +223,18 @@ const hash = (seed: number, k: number): number => {
  * #724 #726 and the co-op grate fix #723 were in); H3d the Wrackline (on 25 Nov once QA cleared #727 and the phone pass #734 was in); H4a the Hammerdeep, the first group
  * map (on 25 Nov once QA's two-tab co-op run, the themes #744, the beds #745 and the phone pass #750 were in); H4c the
  * Pressworks (on 25 Nov once the grid, QA solo and co-op, the themes #747 and the phone pass #759 were in); H4b the
- * Ashvents (on 25 Nov once the stuck-bot fix #760, QA's Ysmeret v2 pass and its fixes #772 and the phone pass #771 were in).
+ * Ashvents (on 25 Nov once the stuck-bot fix #760, QA's Ysmeret v2 pass and its fixes #772 and the phone pass #771 were in);
+ * H5a the Crucible, the first raid map (on 25 Nov once the grid with named in B #797, QA solo and four-tab co-op, the
+ * phone pass #800, the themes #788 and the beds #790 were in).
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents', 'crucible'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['crucible', 'hoard'];
+export const HALLS_BETA: DungeonId[] = ['hoard'];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents'];
+export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
