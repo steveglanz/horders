@@ -369,7 +369,7 @@ class AudioEngine {
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     this.cue(gazeCues(this.gazing, ctx.gaze));
-    this.cue(restCue(this.resting, !!ctx.hallsResting));
+    this.cue(restCue(this.resting, !!ctx.hallsResting, ctx.hallsPacks));
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
     // The props round the rim give off a quiet sound now and then (not in a boss fight).
     this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random, ctx.arenaR ? { listen: ctx.listen, arenaR: ctx.arenaR } : undefined));

@@ -915,10 +915,14 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
   return best > 0 ? { id: GAZE_STEPS[best - 1] } : null;
 }
 
-/** Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its own cue). */
-export function restCue(state: { on: boolean }, resting: boolean): Cue | null {
+/**
+ * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
+ * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
+ */
+export function restCue(state: { on: boolean }, resting: boolean, packs?: readonly { state: string }[]): Cue | null {
   const was = state.on;
-  state.on = resting;
+  state.on = resting && !!packs?.some((pk) => pk.state === 'cleared');
+  resting = state.on;
   return resting && !was ? { id: 'catchBreath' } : null;
 }
 

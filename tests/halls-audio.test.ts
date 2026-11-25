@@ -26,11 +26,20 @@ describe('Sound for Halls (Phase 18)', () => {
 
   it('Catch breath plays once as it starts, not while it lasts or as it ends', () => {
     const st = { on: false };
-    expect(restCue(st, false)).toBeNull();
-    expect(restCue(st, true)?.id).toBe('catchBreath');
+    const done = [{ state: 'cleared' }, { state: 'asleep' }];
+    expect(restCue(st, false, done)).toBeNull();
+    expect(restCue(st, true, done)?.id).toBe('catchBreath');
+    expect(restCue(st, true, done)).toBeNull();
+    expect(restCue(st, false, done)).toBeNull();
+    expect(restCue(st, true, done)?.id).toBe('catchBreath');
+  });
+
+  it('the walk in before the first pack is cleared rests silently (design, 25 Nov)', () => {
+    const st = { on: false };
+    expect(restCue(st, true, [{ state: 'asleep' }, { state: 'asleep' }])).toBeNull();
     expect(restCue(st, true)).toBeNull();
-    expect(restCue(st, false)).toBeNull();
-    expect(restCue(st, true)?.id).toBe('catchBreath');
+    // Resting carries on as that first pack is cleared: the rest after it is heard.
+    expect(restCue(st, true, [{ state: 'cleared' }, { state: 'asleep' }])?.id).toBe('catchBreath');
   });
 
   it('a real Halls delve: packs wake, the party catches its breath between them, then the boss door closes', () => {
@@ -42,11 +51,13 @@ describe('Sound for Halls (Phase 18)', () => {
       w.step(botInput(w));
       const ctx = ctxOf(w);
       for (const ev of w.events) { const cue = cueFor(ev, ctx); if (cue && /^packWake|^doorSeal$/.test(cue.id)) heard.push(cue.id); }
-      const r = restCue(st, w.hallsResting);
-      if (r) { heard.push(r.id); expect(w.halls!.packs.some((pk) => pk.state === 'awake') || w.aliveEnemies > 0).toBe(false); }
+      const r = restCue(st, w.hallsResting, w.halls!.packs);
+      if (r) { heard.push(r.id); expect(w.halls!.packs.some((pk) => pk.state === 'cleared')).toBe(true); expect(w.halls!.packs.some((pk) => pk.state === 'awake') || w.aliveEnemies > 0).toBe(false); }
     }
     expect(heard.filter((id) => id.startsWith('packWake')).length).toBeGreaterThanOrEqual(3);
     expect(heard).toContain('catchBreath');
     expect(heard.at(-1)).toBe('doorSeal');
+    // A fresh delve opens with a wake, never with Catch breath.
+    expect(heard[0]).toMatch(/^packWake/);
   }, 60000);
 });

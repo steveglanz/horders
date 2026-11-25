@@ -154,7 +154,7 @@ for (const dungeon of dungeons) {
       if (sc) play(sc.id, w.time, sc.vol);
       const gc = gazeCues(gaze, w.enemies.filter((e) => e.alive && e.kind === 'lampeye').map((e) => ({ aux: e.aux, sees: w.player.hp > 0 && w.lampeyeSees(e, w.player.x, w.player.y) })));
       if (gc) play(gc.id, w.time, gc.vol);
-      const rc = restCue(resting, w.hallsResting);
+      const rc = restCue(resting, w.hallsResting, w.halls?.packs);
       if (rc) play(rc.id, w.time, rc.vol);
       for (const c of islandCues(isl, w.islands, myIsland(w))) play(c.id, w.time, c.vol);
       // The 3D room (client/hd2d/renderer.ts): every foe's melee lunge (its touch timer reset; no on-screen cull, so
