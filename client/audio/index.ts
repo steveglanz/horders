@@ -12,7 +12,7 @@ import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, type RoomBedKind, ThemeId, THEMES } from './music';
 import { TrackPlayer, trackFor } from './tracks';
-import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, slagBurstAt, slagCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, kmHeatCues, slagCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -99,6 +99,7 @@ class AudioEngine {
   private gazing = { lv: [] as number[] };
   /** Halls: whether Catch breath was on last tick (restCue). */
   private resting = { on: false };
+  private kmHeating = { warn: false, on: false };
   private slagging = { burning: new Map<string, number>(), glowing: new Set<string>() };
   private duckGain = 1;
   private setFlags: Partial<SetFlags> = {};
@@ -360,8 +361,7 @@ class AudioEngine {
       else if (ev.type === 'phase') this.intensity(ev.phase);
       // The music bows out under the victory or defeat sting; the menu brings the hub theme back.
       else if (ev.type === 'end') this.theme(null);
-      // ONDRELV2: the last heat's slag bursting is the Crucible's slag splash, not Ironload's slam (both are 110 wide).
-      const c = slagBurstAt(this.slagging, ev) ? { id: 'slagBurst' as const } : cueFor(ev, ctx);
+      const c = cueFor(ev, ctx);
       if (c) this.cue({ ...c, pan: panFor(ev, ctx) });
       const land = landCueFor(ev, ctx.dungeon);
       if (land && ctx.t !== undefined) this.later.push({ at: ctx.t + (land.after ?? 0), c: { ...land, pan: panFor(ev, ctx) } });
@@ -374,7 +374,7 @@ class AudioEngine {
       this.later = this.later.filter((l) => l.at > t);
     }
     if (ctx.inLava) this.cue({ id: 'lavaSizzle', jitter: 0.08 });
-    for (const c of slagCues(this.slagging, ctx.slag ?? [], ctx.listen)) {
+    for (const c of [...slagCues(this.slagging, ctx.slag ?? [], ctx.listen), ...kmHeatCues(this.kmHeating, ctx.kmHeat)]) {
       if (c.after && ctx.t !== undefined) this.later.push({ at: ctx.t + c.after, c });
       else this.cue(c);
     }
