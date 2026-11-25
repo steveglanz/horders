@@ -33,8 +33,9 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    // A raid still in HALLS_BETA has no map without ?hallsbeta=1.
-    expect(new World({ seed: 2, tier: 11, halls: true, dungeon: 'flue' }).halls).toBeNull();
+    // Every raid has its map since the Flue went on (25 Nov), so HALLS_BETA is empty.
+    expect(HALLS_BETA).toEqual([]);
+    expect(new World({ seed: 2, tier: 11, halls: true, dungeon: 'flue' }).halls).not.toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -531,7 +532,6 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'flue', tier: 11 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -1549,10 +1549,12 @@ describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
 
 describe('H5d: the Flue on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta with the raid layout, H4a\'s named gate rule, and its own themes from #788 (firebox guards the door, damper is the alcove)', () => {
-    expect(HALLS_BETA).toContain('flue');
-    expect(HALLS_ON).not.toContain('flue');
-    expect(halls(3, { dungeon: 'flue', tier: 11, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (firebox guards the door, damper is the alcove)', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #813).
+    expect(HALLS_ON).toContain('flue');
+    expect(HALLS_COOP).toContain('flue');
+    expect(HALLS_BETA).not.toContain('flue');
+    expect(halls(3, { dungeon: 'flue', tier: 11, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.flue;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'flue', tier: 11, hallsBeta: true, cls: 'bulwark', party });
