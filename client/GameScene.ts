@@ -3863,7 +3863,9 @@ export class GameScene extends Phaser.Scene {
    */
   private smelteryDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // The Wheel's and Meltdown's rings: over his body in 2D (overFx), and on the main graphics in 3D, where the floor
+    // bridge lays them on the floor (the 3D view covers overFx).
+    const o = this.bridge ? g : this.overFx;
     // Outside his drawn body (the 192 sheet is wider than his hit radius), so the floor marks show round him.
     const R = e.def.radius + 36;
     // Phase 12 W3: the plate's middle (turned from his facing after a Plate Shift). The drawn plate slides to the sim's
@@ -3939,7 +3941,9 @@ export class GameScene extends Phaser.Scene {
 
   private hoardDraw(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // Coal Gorge's ring and the Craw's marks: over the bodies in 2D (overFx), and on the main graphics in 3D, where the
+    // floor bridge lays them on the floor (the 3D view covers overFx). The party-frame pointer stays 2D only.
+    const o = this.bridge ? g : this.overFx;
     for (const m of w.coalEmbers) {
       const f = Math.max(0, Math.min(1, m.t / VORHULM.emberLife));
       // Steady while fresh, guttering in the last third.
@@ -4011,7 +4015,8 @@ export class GameScene extends Phaser.Scene {
    * they are inside him, and a ring in their class colour pulses on his belly. */
   private hoardHeroes(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
-    const o = this.overFx;
+    // Its ring: over the hero in 2D (overFx); on the main graphics in 3D, where the floor bridge carries it.
+    const o = this.bridge ? g : this.overFx;
     const heroes = [{ k: w.acting, img: this.player as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }, ...this.allies.map((al) => ({ k: al.hero, img: al.img as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image }))];
     for (const { k, img } of heroes) {
       const q = w.heroData(k).player;
@@ -4486,6 +4491,35 @@ export class GameScene extends Phaser.Scene {
           g.fillStyle = dg; g.fillRect(bx - 1.5 * zb, by - 7 * zb, 3 * zb, 9 * zb); g.fillRect(bx - 1.5 * zb, by + 4 * zb, 3 * zb, 3 * zb);
         }
         g.lineCap = 'butt';
+      }
+    }
+    // The Flue: a Decree holder's seal with its countdown ring (gold, then red and beating in the last 3 s), and a Spent
+    // hero's cold seal with a grey arc for the time left. 2D draws these over the head on overFx and depth 9.4, which
+    // the 3D view covers; the 3D view's crown has no timer. Beside the hero, as the Pressed and Sundered marks.
+    if (w.dungeonId === 'flue') {
+      const now = this.time.now;
+      const seal = this.textures.get('decreeSeal').getSourceImage() as CanvasImageSource;
+      const spent = this.textures.get('spentMark').getSourceImage() as CanvasImageSource;
+      const mark = (k: number, img: CanvasImageSource, f: number, col: string, alpha: number, sz: number) => {
+        const q = w.heroData(k).player;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) return;
+        const x = p.x + 26 * zb, y = p.y - 24 * zb, r = sz * zb;
+        g.globalAlpha = 0.6; g.fillStyle = '#000000';
+        g.beginPath(); g.arc(x, y, r * 1.25, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.drawImage(img, x - r, y - r, r * 2, r * 2);
+        g.globalAlpha = alpha; g.strokeStyle = col; g.lineWidth = 3 * zb;
+        g.beginPath(); g.arc(x, y, r * 1.2, -Math.PI / 2, -Math.PI / 2 + Math.max(0, Math.min(1, f)) * Math.PI * 2); g.stroke();
+        g.globalAlpha = 1;
+      };
+      for (const d of w.regentDecree) {
+        const late = d.t < 3, pulse = 0.5 + 0.5 * Math.sin(now / (late ? 90 : 220));
+        mark(d.hero, seal, d.t / REGENT.decreeTime, late ? '#ff3a2a' : '#ffc861', late ? 0.7 + 0.3 * pulse : 0.95, 12 * (late ? 1 + 0.08 * pulse : 1));
+      }
+      for (let k = 0; k < w.heroes.length; k++) {
+        const st = w.heroData(k).player.spentT ?? 0;
+        if (st <= 0 || w.regentDecree.some((d) => d.hero === k)) continue;
+        mark(k, spent, st / REGENT.spentTime, '#c8c0b8', 0.8, 10);
       }
     }
     if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {

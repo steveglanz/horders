@@ -1504,6 +1504,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       h.ring.position.set(x, FLOOR + 0.03, z); h.disc.position.set(x, FLOOR + 0.028, z);
       h.ring.visible = h.disc.visible = !dead;
       outline(h.rim, h.mesh, RIM_GROW); if (dead) h.rim.visible = false;
+      // The Hoard: a hero the Craw has swallowed is inside Vorhulm, as 2D fades them out (hoardHeroes); their class-colour
+      // ring on his belly is a floor mark the bridge carries.
+      if ((p.swallowT ?? 0) > 0) { h.mesh.visible = false; h.rim.visible = false; if (h.twin) h.twin.visible = false; }
       if (i > 0) {
         const nm = A.heroName(i);
         if (nm !== h.nameText) {
