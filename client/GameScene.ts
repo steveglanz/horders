@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, YSMERETV2, OSKELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
@@ -2520,6 +2520,7 @@ export class GameScene extends Phaser.Scene {
       const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
       setColorIf(txt.setVisible(true).setText(label), '#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
+    if (w.dungeonId === 'pressworks' && w.osStage >= 2 && !this.bossFell) this.oskelBelt(g, now);
     let soakShown = false;
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
     const lk = this.textK;
@@ -6597,6 +6598,60 @@ export class GameScene extends Phaser.Scene {
    * Over it, a badge: a tick while someone who isn't Pressed stands on it, a cross when a Pressed hero is on it (they
    * would be crushed and don't count), "!" when nobody is. A Pressed hero on the plate gets a red warning ring.
    */
+  /**
+   * OSKELV2 (design, oskel-v2.md): the running press bed, on the floor graphics so 3D shows it through the floor bridge.
+   * - Chevron streaks over the whole floor drift the way the belt carries (osDir) at its speed, so the motion reads.
+   * - The crush line: a red band on the downstream 90 degrees of rim, 30 deep, with press teeth along its inner edge.
+   * - The 1.5 s before a flip: big white arrows the new way through the middle, and the next crush line outlined.
+   */
+  private oskelBelt(g: Phaser.GameObjects.Graphics, now: number): void {
+    const w = this.world, R = w.arenaR ?? ARENA;
+    const dir = w.osDir, cx = Math.cos(dir), cy = Math.sin(dir), nx = -cy, ny = cx;
+    const fast = w.osStage === 3;
+    const speed = fast ? OSKELV2.belt3 : OSKELV2.belt;
+    const flipping = w.osFlipT > 0;
+    // Streaks: rows of chevrons across the belt, sliding downstream. Inside the rim only.
+    const gap = 80, off = ((w.time * speed) % gap + gap) % gap, ch = 18;
+    g.lineStyle(4, 0xf0c66a, flipping ? 0.12 : fast ? 0.42 : 0.32);
+    for (let a = -R; a <= R; a += gap) {
+      for (let b = -R + gap / 2; b <= R; b += gap) {
+        const u = a + off, x = cx * u + nx * b, y = cy * u + ny * b;
+        if (x * x + y * y > (R - 46) * (R - 46)) continue;
+        g.lineBetween(x - cx * ch + nx * ch, y - cy * ch + ny * ch, x, y);
+        g.lineBetween(x, y, x - cx * ch - nx * ch, y - cy * ch - ny * ch);
+      }
+    }
+    // The crush line, and the next one while a flip is due.
+    const band = (d: number, fillA: number, edgeA: number, teeth: boolean): void => {
+      const h = OSKELV2.arc / 2, n = 18, r0 = R - OSKELV2.depth, pts: Phaser.Math.Vector2[] = [];
+      for (let k = 0; k <= n; k++) { const t = d - h + (2 * h * k) / n; pts.push(new Phaser.Math.Vector2(Math.cos(t) * R, Math.sin(t) * R)); }
+      for (let k = n; k >= 0; k--) { const t = d - h + (2 * h * k) / n; pts.push(new Phaser.Math.Vector2(Math.cos(t) * r0, Math.sin(t) * r0)); }
+      if (fillA > 0) g.fillStyle(DANGER, fillA).fillPoints(pts, true);
+      g.lineStyle(3, DANGER, edgeA);
+      g.beginPath(); g.arc(0, 0, r0, d - h, d + h); g.strokePath();
+      if (!teeth) return;
+      // Press teeth: short spikes pointing inward along the band's inner edge.
+      g.fillStyle(0xff8a8a, edgeA * 0.9);
+      for (let k = 0; k < 9; k++) {
+        const t = d - h + (2 * h * (k + 0.5)) / 9, c = Math.cos(t), s = Math.sin(t), tc = Math.cos(t + 0.035), ts = Math.sin(t + 0.035), bc = Math.cos(t - 0.035), bs = Math.sin(t - 0.035);
+        g.fillTriangle(bc * r0, bs * r0, tc * r0, ts * r0, c * (r0 - 14), s * (r0 - 14));
+      }
+    };
+    const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+    band(dir, 0.3 + 0.12 * pulse, 0.85, true);
+    if (flipping) {
+      const blink = 0.55 + 0.45 * Math.sin(now / 70);
+      band(dir + Math.PI, 0, 0.5 * blink, false);
+      // Big arrows the new way, through the middle of the floor.
+      const ux = -cx, uy = -cy, L = 34;
+      g.fillStyle(0xffffff, 0.55 * blink);
+      for (let k = -2; k <= 2; k++) {
+        const px = ux * k * 110, py = uy * k * 110;
+        g.fillTriangle(px + ux * L, py + uy * L, px - ux * L * 0.4 + nx * L, py - uy * L * 0.4 + ny * L, px - ux * L * 0.4 - nx * L, py - uy * L * 0.4 - ny * L);
+      }
+    }
+  }
+
   private pressMark(g: Phaser.GameObjects.Graphics, t: World['telegraphs'][number], f: number, now: number): void {
     const w = this.world;
     const o = this.overFx;
