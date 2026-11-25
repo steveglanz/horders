@@ -311,6 +311,37 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(v.phase).toBe('cleared');
   });
 
+  it('H2b: no dash or leap carries a hero through a sealed room\'s grates, out or in', () => {
+    const moves: [string, string][] = [['emberwright', 'blink'], ['lumen', 'glimmerStep'], ['slagbinder', 'interpose'], ['duskblade', 'sidestep']];
+    for (const [cls, fn] of moves) {
+      for (const out of [true, false]) {
+        const w = halls(2, { invulnerable: true, cls: cls as never });
+        const m = w.halls!;
+        const a = pack(w, 'A');
+        const rm = m.rooms[roomAt(m, a.x, a.y)];
+        put(w, a.x, a.y + HALLS.reach - 10);
+        for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(idle);
+        expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+        // A doorway of the room: u points out along its corridor, and t = 0 is where the corridor leaves the floor.
+        const c = m.corridors.find((q) => m.rooms[q.a] === rm || m.rooms[q.b] === rm)!;
+        const inA = m.rooms[c.a] === rm;
+        const px = inA ? c.ax! : c.bx!, py = inA ? c.ay! : c.by!, ox = inA ? c.bx! : c.ax!, oy = inA ? c.by! : c.ay!;
+        const len = Math.hypot(ox - px, oy - py), ux = (ox - px) / len, uy = (oy - py) / len;
+        let t = 0;
+        while (roomGap(rm, px + ux * t, py + uy * t) > 0) t += 1;
+        // Just inside the doorway, leaping out; or in the corridor just outside it, leaping in.
+        const at = out ? t - 20 : t + 60;
+        put(w, px + ux * at, py + uy * at);
+        w.player.facing = Math.atan2(out ? uy : -uy, out ? ux : -ux);
+        (w as unknown as Record<string, (i: { x: number; y: number }) => void>)[fn]({ x: out ? ux : -ux, y: out ? uy : -uy });
+        w.step(idle);
+        const g = roomGap(rm, w.player.x, w.player.y);
+        if (out) expect(g, `${cls} ${fn} out`).toBeGreaterThanOrEqual(0);
+        else expect(g, `${cls} ${fn} in`).toBeLessThan(0);
+      }
+    }
+  });
+
   it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
     const arena = new World({ seed: 2, tier: 2 });
     const w = halls(2);
