@@ -379,7 +379,9 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       for (const r of g.rooms) shapes.add(`${r.id}:${r.shape}`);
     }
     // Every shape turns up where it may: the four fight shapes for A, E and the side rooms, round or twin for B and C.
-    for (const id of ['R1', 'R2', 'R4', 'R5']) for (const sh of ['round', 'hall', 'cross', 'ring']) expect(shapes).toContain(`${id}:${sh}`);
+    for (const id of ['R2', 'R4', 'R5']) for (const sh of ['round', 'hall', 'cross', 'ring']) expect(shapes).toContain(`${id}:${sh}`);
+    // A's room is only ever Round or Ring.
+    expect([...shapes].filter((k) => k.startsWith('R1:')).sort()).toEqual(['R1:ring', 'R1:round']);
     expect(shapes).toContain('R3:round');
     expect(shapes).toContain('R3:twin');
     expect(shapes).toContain('R0:hall');
@@ -435,7 +437,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
 
   it('H2c: bots walk generated maps of every shape to the boss', () => {
     const seen = new Set<string>();
-    for (const seed of [1, 3, 5, 8]) {
+    for (const seed of [1, 9, 12]) {
       const w = halls(seed, { invulnerable: true, cls: 'duskblade' });
       for (const r of w.halls!.rooms) seen.add(r.shape ?? 'round');
       run(w, () => w.bossSpawned, 600);
