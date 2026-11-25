@@ -101,6 +101,8 @@ export interface HeroProfile {
   achieved?: string[];
   /** Phase 15 Y4: the Seen log (sim/seen.ts), `dungeon:kind:id` keys, shared by every class. */
   seen?: string[];
+  /** Halls (keep it simple, 25 Nov): encounters whose fight tip this account has already been shown on a Halls map. */
+  tipsSeen?: string[];
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
