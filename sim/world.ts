@@ -604,7 +604,7 @@ export type SimEvent =
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'ysFlare'; /** YSMERETV2 stage 2: a flame with no hero near it flared and hit every hero. */ x: number; y: number }
-  | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst. */ source?: 'slagBurst' }
+  | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst, 'crush' Oskel v2's crush line (a hero hit or a foe crushed). */ source?: 'slagBurst' | 'crush' }
   /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
   | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
   | { type: 'charge'; index: number }
@@ -7983,7 +7983,7 @@ export class World {
       this.hurtPlayer(q.maxHp * OSKELV2.crush, -1, true, 'the crush line');
       q.x -= cx * OSKELV2.push; q.y -= cy * OSKELV2.push;
       this.clampArena(q, PLAYER_RADIUS);
-      this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+      this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50, source: 'crush' });
       this.osCrushHits++;
     }
     this.use(at);
@@ -8015,7 +8015,7 @@ export class World {
       if ((q.pressedT ?? 0) > 0) {
         this.use(k);
         this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true, 'a second Downstroke');
-        this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+        this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50, source: 'crush' });
       } else {
         took.push(k);
         q.pressedT = OSKEL.pressed;
