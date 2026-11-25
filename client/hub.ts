@@ -1,9 +1,11 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
-  HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor,
+  HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
+  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree,
 } from '../sim/hero';
+import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode, treeOf } from '../sim/content/trees';
+import { BRANCH_NAMES } from '../sim/content/emberwright';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
 import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
@@ -31,14 +33,6 @@ import { HELP } from '../sim/content/help';
 import { BOOK_ICON, BOT_GLYPH, CLASS_ICON, glowMarkClass, MEDAL_ICON, medalTile, MYTHIC_ICON, POTION_ICON, SET_COLOR, SET_ICON, SLOT_ICON, WEAPON_FX_ICON, glyph, heatTile, omenTile, seenIcon, SEEN_GLYPH } from './icons';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-/** "+3% damage per point" at rank 4 reads "+12% damage". */
-function passiveNow(text: string, rank: number): string {
-  const m = /^([+-]?)(\d+(?:\.\d+)?)(%?)\s+(.*?)\s+per point$/.exec(text);
-  if (!m) return text;
-  if (rank === 0) return `${m[1]}${m[2]}${m[3]} ${m[4]} each`;
-  const v = Math.round(Number(m[2]) * rank * 10) / 10;
-  return `${m[1]}${v}${m[3]} ${m[4]}`;
-}
 const KIT_KEY = 'horders.ui.kit';
 function readKitOpen(): boolean {
   try {
@@ -232,13 +226,21 @@ export class Hub {
         ? `<div class="slot" data-slot="${slot}" style="--rc:${RARITY[it.rarity].color}"><div class="sl"><span>${SLOT_LABEL[slot]}</span><span>${it.set ? `<span class="setmark" style="color:${SET_COLOR}" title="Set piece">${glyph(SET_ICON[it.set], 11)}</span>` : ''}${it.ilvl}</span></div><div class="nm">${it.name}</div></div>`
         : `<div class="slot empty"><div class="sl"><span>${SLOT_LABEL[slot]}</span></div><div class="nm">Empty</div></div>`;
     }).join('');
-    const passives = (Object.keys(PASSIVES) as PassiveId[]).map((id) => {
-      const def = PASSIVES[id];
-      const r = h.passives[id] ?? 0;
-      const can = pts > 0 && r < def.max;
-      return `<button data-p="${id}" data-sfx="${can ? 'passive' : 'click'}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''}" aria-disabled="${!can}">`
-        + `<span class="tn"><b>${def.name}</b><em>${r}/${def.max}</em></span><span class="te">${passiveNow(def.text, r)}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
-    }).join('');
+    // The character's tree (sim/content/trees.ts): its three branches, 3 nodes and a keystone each.
+    const nodes = treeOf(cls);
+    const branches = [...new Set(nodes.map((n) => n.branch))];
+    const spentTree = nodes.reduce((a, n) => a + (h.passives[n.id] ?? 0), 0);
+    const passives = branches.map((b) => {
+      const inB = branchPoints(h.passives, cls, b);
+      return `<div class="tree-b"><span>${BRANCH_NAMES[b]}</span><em>${inB} ${inB === 1 ? 'point' : 'points'}</em></div>` + nodes.filter((n) => n.branch === b).map((def) => {
+        const r = h.passives[def.id] ?? 0;
+        const can = pts > 0 && canTakeNode(h.passives, cls, def.id);
+        const locked = !!def.keystone && inB < TREE_KEYSTONE_POINTS;
+        const line = locked ? `Opens at ${TREE_KEYSTONE_POINTS} in ${BRANCH_NAMES[b]}` : def.text;
+        return `<button data-p="${def.id}" data-sfx="${can ? 'passive' : 'click'}" class="tal ${can ? 'can' : ''} ${r ? 'has' : ''} ${def.keystone ? 'key' : ''} ${locked ? 'locked' : ''}" aria-disabled="${!can}">`
+          + `<span class="tn"><b>${def.name}</b><em>${r}/${def.maxRank}</em></span><span class="te">${line}</span>${can ? '<i aria-hidden="true">+</i>' : ''}</button>`;
+      }).join('');
+    }).join('') + (spentTree ? '<button class="tree-reset" data-treereset data-sfx="click">Reset tree (free)</button>' : '');
     const ci = CLASS_ICON[cls];
     const glow = h.wear?.glow ? GLOWS[h.wear.glow] : undefined;
     const worn = items.length;
@@ -280,15 +282,21 @@ export class Hub {
       try { localStorage.setItem(KIT_KEY, kit.open ? '1' : '0'); } catch { /* private mode: keep it for this visit */ }
     });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => {
-      const id = b.dataset.p as PassiveId;
-      const def = PASSIVES[id];
+      const id = b.dataset.p as TreeNodeId;
+      const def = TREE_NODES[id];
       const r = h.passives[id] ?? 0;
-      setTip(b, () => `<b>${def.name}</b> · ${r}/${def.max}<br>${def.tip}<br><span class="tip-m">Now: ${r ? passiveNow(def.text, r) : 'nothing yet'}${r < def.max ? ` · next point: ${passiveNow(def.text, r + 1)}` : ' · maxed'}</span>`
-        + (pts > 0 && r < def.max ? '<br><span class="tip-g">Tap to spend a point.</span>' : pts ? '' : '<br><span class="tip-m">Earn points by levelling this hero.</span>'));
+      const can = pts > 0 && canTakeNode(h.passives, cls, id);
+      setTip(b, () => `<b>${def.name}</b> · ${r}/${def.maxRank}<br>${def.tip}`
+        + (can ? '<br><span class="tip-g">Tap to spend a point.</span>' : pts ? (r >= def.maxRank ? '<br><span class="tip-m">Maxed.</span>' : '') : '<br><span class="tip-m">Earn points by levelling this hero.</span>'));
+    });
+    $('heroCard').querySelector<HTMLButtonElement>('[data-treereset]')?.addEventListener('click', () => {
+      resetTree(h);
+      this.save();
+      this.render();
     });
     $('heroCard').querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
-        const id = b.dataset.p as PassiveId;
+        const id = b.dataset.p as TreeNodeId;
         if (spendPoint(h, id)) {
           this.save();
           this.render();

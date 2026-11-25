@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { World } from '../sim/world';
-import { newHero, pointsAvailable, refundStatPoints, resetTree, spendPoint, loadoutFrom, usesTree } from '../sim/hero';
-import { TREE, TREE_BUILDS, TREE_CLASSES, TREE_KEYSTONE_POINTS, TREE_NODES, buildPoints, canTakeNode, treeOf } from '../sim/content/trees';
+import { SLAG_KIT, World } from '../sim/world';
+import { newHero, pointsAvailable, resetTree, spendPoint, loadoutFrom, switchClass, toTree } from '../sim/hero';
+import { TREE, TREE_BUILDS, TREE_KEYSTONE_POINTS, TREE_NODES, botTree, buildPoints, canTakeNode, treeOf } from '../sim/content/trees';
+import { CLASS_IDS } from '../sim/content/classes';
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 
 type Inner = { spawn(kind: string, x: number, y: number): number; bulwarkMitigate(raw: number, src: number): number };
 
 describe('character trees (class progression brief)', () => {
-  it('no class uses the tree yet: it stays behind its check', () => {
-    expect(TREE_CLASSES).toEqual([]);
+  it('every class has a tree and a bot build (trees are on for everyone, no switch)', () => {
+    for (const cls of CLASS_IDS) {
+      expect(treeOf(cls)).toHaveLength(12);
+      const pts = botTree(cls, 19);
+      expect(Object.values(pts).reduce((a, b) => a + (b ?? 0), 0)).toBe(19);
+    }
   });
 
   it.each([
@@ -16,6 +21,7 @@ describe('character trees (class progression brief)', () => {
     ['duskblade', ['bloodletting', 'tempo', 'guard']],
     ['emberwright', ['wildfire', 'kindling', 'ashguard']],
     ['lumen', ['dawn', 'grace', 'choir']],
+    ['slagbinder', ['forge', 'clinker', 'crust']],
   ] as const)('the %s tree has 3 nodes and a keystone in each of its run-draft branches', (cls, branches) => {
     const nodes = treeOf(cls);
     expect(nodes).toHaveLength(12);
@@ -54,14 +60,22 @@ describe('character trees (class progression brief)', () => {
     expect(pointsAvailable(h)).toBe(7);
   });
 
-  it('a class not on the tree keeps its stat points when refunding', () => {
+  it('the old stat points can no longer be bought, and a save that has them gets them back on every character', () => {
     const h = newHero();
     h.cls = 'bulwark';
     h.level = 4;
-    spendPoint(h, 'fortitude');
-    expect(usesTree(h)).toBe(false);
-    refundStatPoints(h);
-    expect(h.passives.fortitude).toBe(1);
+    expect(spendPoint(h, 'fortitude')).toBe(false);
+    h.passives = { fortitude: 2, bulk: 1 };
+    switchClass(h, 'lumen');
+    h.level = 6;
+    h.passives = { might: 5 };
+    toTree(h);
+    expect(h.passives).toEqual({});
+    expect(pointsAvailable(h)).toBe(5);
+    expect(h.roster?.bulwark?.passives).toEqual({ bulk: 1 });
+    // Safe to run again.
+    toTree(h);
+    expect(h.roster?.bulwark?.passives).toEqual({ bulk: 1 });
   });
 
   it('every fixed build spends exactly the points it is given', () => {
@@ -216,5 +230,42 @@ describe('character trees (class progression brief)', () => {
     expect(hit({ refrain: 1 }, 0.4, true)).toBeCloseTo(hit({}, 0.4, true) * (1 + TREE.refrainDmg), 6);
     expect(hit({ refrain: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
     expect(hit({ noonday: 1 }, 0.4, false, true)).toBeCloseTo(hit({}, 0.4, false, true) * (2 + TREE.noondayCrit) / 2, 6);
+  });
+
+  it('Slagbinder tree: Heft adds health, Reload fires faster, Ladle and Spring cut cooldowns, Coat thickens plating, Flaw stretches Brittle, Shale takes less', () => {
+    expect(loadoutFrom({ heft: 2 }, []).maxHpBonus).toBe(2 * TREE.heftHp + 2 * TREE.pointHp);
+    const base = new World({ seed: 1, cls: 'slagbinder' });
+    const tree = new World({ seed: 1, cls: 'slagbinder', passives: { ladle: 3, spring: 2, coat: 3, flaw: 2, shale: 3 } as never });
+    type In = { baseCooldown(s: number): number; plateAmount: number; brittleTime: number; hurtPlayer(a: number): void };
+    const cd = (w: World, slot: number) => (w as unknown as In).baseCooldown(slot);
+    expect(cd(base, 0) - cd(tree, 0)).toBeCloseTo(3 * TREE.ladleCd, 6);
+    expect(cd(base, 1) - cd(tree, 1)).toBeCloseTo(2 * TREE.springCd, 6);
+    const plate = (w: World) => (w as unknown as In).plateAmount / w.player.maxHp;
+    expect(plate(tree)).toBeCloseTo(plate(base) + SLAG_KIT.plateShare * 3 * TREE.coatPlate, 6);
+    expect((tree as unknown as In).brittleTime - (base as unknown as In).brittleTime).toBeCloseTo(2 * TREE.flawTime, 6);
+    const taken = (w: World) => { const hp0 = w.player.hp; (w as unknown as In).hurtPlayer(20); return hp0 - w.player.hp; };
+    expect(taken(tree)).toBeLessThan(taken(base));
+  });
+
+  it('Slagbinder tree: Core only above half health, Breach only on Brittle foes, Glaze only while plated', () => {
+    const hit = (passives: Record<string, number>, hpShare: number, brittle: boolean, plated = false) => {
+      const w = new World({ seed: 1, cls: 'slagbinder', passives: passives as never });
+      const wi = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { hp: number; brittleUntil?: number }[]; damageEnemy(i: number, a: number, c: boolean): void };
+      const i = wi.spawn('cinderBrute', 400, 0);
+      const e = wi.enemies[i];
+      w.player.hp = w.player.maxHp * hpShare;
+      if (brittle) e.brittleUntil = w.time + 5;
+      if (plated) Object.assign(w.player, { plate: 20, plateUntil: w.time + 5 });
+      const before = e.hp;
+      wi.damageEnemy(i, 100, false);
+      return before - e.hp;
+    };
+    expect(hit({}, 0.9, false)).toBeGreaterThan(0);
+    expect(hit({ core: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false) * (1 + TREE.coreDmg), 6);
+    expect(hit({ core: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ breach: 1 }, 0.4, true)).toBeCloseTo(hit({}, 0.4, true) * (1 + TREE.breachDmg), 6);
+    expect(hit({ breach: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ glaze: 1 }, 0.4, false, true)).toBeCloseTo(hit({}, 0.4, false, true) * (1 + TREE.glazeDmg), 6);
+    expect(hit({ glaze: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
   });
 });

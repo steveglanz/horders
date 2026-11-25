@@ -43,9 +43,11 @@ describe('hero', () => {
     applyRun(h, 3, win, true);
     h.level = 3;
     expect(pointsAvailable(h)).toBe(2);
-    expect(spendPoint(h, 'might')).toBe(true);
+    // Level points go on the tree (the Emberwright's Warmth here); the old stat points can't be bought.
+    expect(spendPoint(h, 'might' as never)).toBe(false);
+    expect(spendPoint(h, 'warmth')).toBe(true);
     const l = loadoutFor(h);
-    expect(l.dmgMult).toBeGreaterThan(1);
+    expect(l.maxHpBonus).toBeGreaterThan(0);
     for (const it of h.inventory) equip(h, it.id);
     expect(loadoutFor(h).maxHpBonus).toBeGreaterThanOrEqual(0);
   });

@@ -3,7 +3,7 @@
  * blocked site data), so every access is guarded and the game still runs with
  * an in-memory hero. Cloud saves replace this in a later build.
  */
-import { HeroProfile, newHero, shareEmbers } from '../sim/hero';
+import { HeroProfile, newHero, shareEmbers, toTree } from '../sim/hero';
 
 const KEY = 'horders.hero.v1';
 
@@ -12,7 +12,7 @@ export function loadHero(): HeroProfile {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const h = JSON.parse(raw) as HeroProfile;
-      if (h && h.version === 1 && Array.isArray(h.inventory)) return shareEmbers({ ...newHero(), ...h });
+      if (h && h.version === 1 && Array.isArray(h.inventory)) return toTree(shareEmbers({ ...newHero(), ...h }));
     }
   } catch {
     // Fall through to a fresh hero.

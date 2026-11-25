@@ -4,9 +4,9 @@
  * keystone opens once TREE_KEYSTONE_POINTS are in that branch. Points are stored in the hero's `passives` beside the
  * old stat points (Might, Fortitude, Insight, Alacrity), so they save, swap per hero and reach the sim the same way.
  *
- * Behind a flag: TREE_CLASSES lists the classes whose characters spend on the tree instead of the stat points. It is
- * empty until a class's tree passes its check (within 3 of 40 of today's stat points, first three tiers of every
- * dungeon). Names are single plain words, as Steve's naming rule allows.
+ * Every class has a tree, and every character spends its level points there (Steve 25 Nov: "Nothing should be a
+ * switch"). The old stat points (Might, Fortitude, Insight, Alacrity) are no longer spent; a save that has them gets
+ * them back as tree points (toTree in sim/hero.ts). Names are single plain words, as Steve's naming rule allows.
  */
 import type { Branch, ClassId } from './emberwright';
 
@@ -22,7 +22,10 @@ export type TreeNodeId =
   | 'warmth' | 'soot' | 'skip' | 'glow'
   | 'shine' | 'pulse' | 'dazzle' | 'noonday'
   | 'sturdy' | 'tend' | 'drift' | 'serene'
-  | 'lilt' | 'chime' | 'verse' | 'refrain';
+  | 'lilt' | 'chime' | 'verse' | 'refrain'
+  | 'coat' | 'blast' | 'ladle' | 'glaze'
+  | 'bore' | 'reload' | 'flaw' | 'breach'
+  | 'heft' | 'shale' | 'spring' | 'core';
 
 export interface TreeNode {
   id: TreeNodeId;
@@ -40,9 +43,6 @@ export interface TreeNode {
 
 /** Points in a branch that open its keystone. */
 export const TREE_KEYSTONE_POINTS = 6;
-
-/** Classes whose characters use the tree instead of the stat points. Empty until a tree passes its check. */
-export const TREE_CLASSES: ClassId[] = [];
 
 /** The numbers each node uses, in one place for tuning (TUNE=TREE.bulkHp=12 in the tools). */
 export const TREE = {
@@ -103,6 +103,19 @@ export const TREE = {
   chimeCd: 2,
   verseBurn: 0.15,
   refrainDmg: 0.08,
+  // Slagbinder (the cannon gunner)
+  coatPlate: 0.1,
+  blastBurst: 0.15,
+  ladleCd: 0.5,
+  glazeDmg: 0.1,
+  boreCannon: 0.08,
+  reloadHaste: 0.04,
+  flawTime: 1,
+  breachDmg: 0.1,
+  heftHp: 15,
+  shaleCut: 0.03,
+  springCd: 1,
+  coreDmg: 0.1,
 };
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
@@ -166,6 +179,21 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   chime: { id: 'chime', cls: 'lumen', branch: 'choir', name: 'Chime', maxRank: 2, text: 'Sanctuary recharges 2s faster per point.', tip: 'Sanctuary comes back 2s sooner per point, 4s at 2 points.' },
   verse: { id: 'verse', cls: 'lumen', branch: 'choir', name: 'Verse', maxRank: 3, text: 'Sanctuary burns 15% harder per point.', tip: 'Sanctuary burns foes for 15% more per point, 45% at 3 points.' },
   refrain: { id: 'refrain', cls: 'lumen', branch: 'choir', name: 'Refrain', maxRank: 1, keystone: true, text: 'Foes in your Sanctuary take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe standing in your Sanctuary.' },
+  // Slagbinder, Forge branch: Molten Plating.
+  coat: { id: 'coat', cls: 'slagbinder', branch: 'forge', name: 'Coat', maxRank: 3, text: 'Molten Plating holds 10% more per point.', tip: 'Molten Plating holds 10% more per point, 30% at 3 points.' },
+  blast: { id: 'blast', cls: 'slagbinder', branch: 'forge', name: 'Blast', maxRank: 2, text: 'Plating bursts 15% harder per point.', tip: 'When plating breaks or runs out, its burst deals 15% more per point, 30% at 2 points.' },
+  ladle: { id: 'ladle', cls: 'slagbinder', branch: 'forge', name: 'Ladle', maxRank: 3, text: 'Molten Plating recharges 0.5s faster per point.', tip: 'Molten Plating comes back 0.5s sooner per point, 1.5s at 3 points.' },
+  glaze: { id: 'glaze', cls: 'slagbinder', branch: 'forge', name: 'Glaze', maxRank: 1, keystone: true, text: 'While plated, deal 10% more damage.', tip: 'Keystone. While your own Molten Plating holds, you deal 10% more damage.' },
+  // Slagbinder, Clinker branch: the Cannon and Brittle.
+  bore: { id: 'bore', cls: 'slagbinder', branch: 'clinker', name: 'Bore', maxRank: 3, text: 'Cannon shots hit 8% harder per point.', tip: 'Your Cannon deals 8% more damage per point, 24% at 3 points, the pierce too.' },
+  reload: { id: 'reload', cls: 'slagbinder', branch: 'clinker', name: 'Reload', maxRank: 3, text: 'Cannon fires 4% faster per point.', tip: 'Your Cannon fires 4% faster per point, 12% at 3 points.' },
+  flaw: { id: 'flaw', cls: 'slagbinder', branch: 'clinker', name: 'Flaw', maxRank: 2, text: 'Brittle lasts 1s longer per point.', tip: 'Foes you make Brittle stay Brittle 1s longer per point, 2s at 2 points.' },
+  breach: { id: 'breach', cls: 'slagbinder', branch: 'clinker', name: 'Breach', maxRank: 1, keystone: true, text: 'Brittle foes take 10% more damage from you.', tip: 'Keystone. You deal 10% more damage to any foe that is Brittle.' },
+  // Slagbinder, Crust branch: lasting through the fight.
+  heft: { id: 'heft', cls: 'slagbinder', branch: 'crust', name: 'Heft', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  shale: { id: 'shale', cls: 'slagbinder', branch: 'crust', name: 'Shale', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
+  spring: { id: 'spring', cls: 'slagbinder', branch: 'crust', name: 'Spring', maxRank: 2, text: 'Recoil recharges 1s faster per point.', tip: 'Recoil comes back 1s sooner per point, 2s at 2 points.' },
+  core: { id: 'core', cls: 'slagbinder', branch: 'crust', name: 'Core', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Crust helps you stay there.' },
 };
 
 export const TREE_IDS = Object.keys(TREE_NODES) as TreeNodeId[];
@@ -219,7 +247,17 @@ export const TREE_BUILDS: Partial<Record<ClassId, Record<string, TreeNodeId[]>>>
     grace: ['sturdy', 'tend', 'sturdy', 'drift', 'tend', 'sturdy', 'serene', 'tend', 'drift', 'shine', 'dazzle', 'shine', 'pulse', 'dazzle', 'shine', 'noonday', 'dazzle', 'pulse', 'lilt'],
     choir: ['lilt', 'verse', 'lilt', 'chime', 'verse', 'lilt', 'refrain', 'verse', 'chime', 'shine', 'dazzle', 'shine', 'pulse', 'dazzle', 'shine', 'noonday', 'dazzle', 'pulse', 'sturdy'],
   },
+  slagbinder: {
+    forge: ['coat', 'ladle', 'coat', 'blast', 'ladle', 'coat', 'glaze', 'ladle', 'blast', 'bore', 'reload', 'bore', 'reload', 'bore', 'flaw', 'breach', 'reload', 'flaw', 'heft'],
+    clinker: ['bore', 'reload', 'bore', 'flaw', 'reload', 'bore', 'breach', 'reload', 'flaw', 'coat', 'ladle', 'coat', 'blast', 'ladle', 'coat', 'glaze', 'ladle', 'blast', 'heft'],
+    crust: ['heft', 'shale', 'heft', 'spring', 'shale', 'heft', 'core', 'shale', 'spring', 'bore', 'reload', 'bore', 'reload', 'bore', 'flaw', 'breach', 'reload', 'flaw', 'coat'],
+  },
 };
+
+/** A bot's tree (fill bots and stand-ins): its class's first fixed build, `n` points in. */
+export function botTree(cls: ClassId, n: number): Partial<Record<TreeNodeId, number>> {
+  return buildPoints(cls, Object.keys(TREE_BUILDS[cls] ?? {})[0] ?? '', n);
+}
 
 /** The first `n` points of a fixed build, as a points record (skipping any the rules refuse). */
 export function buildPoints(cls: ClassId, branch: string, n: number): Partial<Record<TreeNodeId, number>> {

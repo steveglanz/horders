@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadHero, resetHero, saveHero } from '../client/save';
-import { applyRun, characterOf, gearScore, loadoutFor, switchClass } from '../sim/hero';
+import { applyRun, characterOf, gearScore, loadoutFor, pointsAvailable, switchClass } from '../sim/hero';
 import { RunSummary } from '../sim/world';
 
 const KEY = 'horders.hero.v1';
@@ -38,12 +38,14 @@ describe('L6 save migration', () => {
   it('a first-shape save loads with every field kept and plays on as an Emberwright', () => {
     store[KEY] = JSON.stringify(firstShape);
     const h = loadHero();
-    expect(h).toMatchObject(firstShape);
+    // Trees for everyone (25 Nov): its old stat points (Might 2, Fortitude 1) come back to spend on the tree.
+    expect(h).toMatchObject({ ...firstShape, passives: {} });
+    expect(pointsAvailable(h)).toBe(6);
     expect(h.cls).toBeUndefined();
     expect(characterOf(h, 'emberwright')?.level).toBe(7);
     const l = loadoutFor(h);
-    expect(l.dmgMult).toBeCloseTo(1.06 * 1.06);
-    expect(l.maxHpBonus).toBe(18);
+    expect(l.dmgMult).toBeCloseTo(1.06);
+    expect(l.maxHpBonus).toBe(10);
     expect(gearScore(h)).toBeGreaterThan(0);
     applyRun(h, 9, win, true);
     expect(h.runs).toBe(23);
