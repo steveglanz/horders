@@ -9438,7 +9438,7 @@ export const KILN_V2 = {
   fallOut: 90,
   /** Stage 3: her first signature and first Kiln Brand come this many s in. Engineering's picks. */
   sigFirst: 4, brandFirst: 3,
-  ringN: 3, ringEvery: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 40,
+  ringN: 2, ringEvery: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 40,
   gorgeQuiet: 3, gorgeHeal: 0.08,
 };
 
