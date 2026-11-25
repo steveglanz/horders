@@ -51,7 +51,9 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine';
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme;
+/** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
+export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -192,8 +194,14 @@ const hash = (seed: number, k: number): number => {
   return (h ^ (h >>> 16)) >>> 0;
 };
 
-/** Whether `dungeon` has a Halls map yet (H1: the Kiln only). */
-export const hallsFor = (dungeon: DungeonId): boolean => dungeon === 'kiln';
+/** Whether `dungeon` has a Halls map yet (H1: the Kiln; H3a: the Drowned Foundry). */
+/**
+ * The dungeons whose Halls map is still off by default (design, 25 Nov: the Foundry's map is built, but it waits until
+ * skills close a melee/ranged split in its crawler fights). A run gets one only with WorldOptions.hallsBeta
+ * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
+ */
+export const HALLS_BETA: DungeonId[] = ['foundry'];
+export const hallsFor = (dungeon: DungeonId, beta = false): boolean => dungeon === 'kiln' || (beta && HALLS_BETA.includes(dungeon));
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
 type Spot = { role: PackRole; room: number; x: number; y: number };
@@ -994,34 +1002,47 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
 // ---------------------------------------------------------------- H2d themes
 
 /** Which themes suit which shape (design's h2-plan.md, H2d table "Fits"). */
-const THEME_FITS: Record<RoomShape, RoomTheme[]> = {
-  round: ['ash', 'slag', 'cooling'],
-  hall: ['ash', 'bellows'],
-  cross: ['slag', 'ash'],
-  ring: ['cooling', 'ash'],
-  twin: ['bellows', 'ash'],
+/**
+ * Each dungeon's room themes: the door guard's room, the theme a vents or lava room takes, the boss door alcove's, the
+ * themes that fit each shape and the spares. Every map's R2 is the shrine.
+ */
+interface ThemeKit { guard: RoomTheme; byLayout: Partial<Record<string, RoomTheme>>; alcove: RoomTheme; fits: Record<RoomShape, RoomTheme[]>; rest: RoomTheme[] }
+const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
+  kiln: {
+    guard: 'slag', byLayout: { channel: 'slag', vents: 'cooling' }, alcove: 'bellows',
+    fits: { round: ['ash', 'slag', 'cooling'], hall: ['ash', 'bellows'], cross: ['slag', 'ash'], ring: ['cooling', 'ash'], twin: ['bellows', 'ash'] },
+    rest: ['ash', 'bellows', 'slag', 'cooling'],
+  },
+  // H3a (visuals, 25 Nov): the boiler guards the door and pairs with vents; the anchor fits any shape and is the spare.
+  foundry: {
+    guard: 'boiler', byLayout: { vents: 'boiler' }, alcove: 'anchor',
+    fits: { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'], twin: ['cistern', 'pump', 'anchor'] },
+    rest: ['anchor', 'cistern', 'pump', 'boiler'],
+  },
 };
 
 /**
  * H2d: rolls each room's theme (design's h2-plan.md, H2d), from hashes of the seed alone. R2 (S, the shrine or named
- * room) is the Kiln shrine, and the shrine is nowhere else. The door guard's room is always the Slag channel, the
- * hottest look before the boss. A room that rolled the lava layout is a Slag channel and one that rolled vents a Cooling
- * yard, unless a neighbour already has it; any other room takes a theme that fits its shape. No two rooms joined by a
- * corridor share a theme. `layout(room)` is the layout the room rolled (World.hallsLayouts).
+ * room) is the shrine, and the shrine is nowhere else. The door guard's room is always the dungeon's guard theme (the
+ * Kiln's Slag channel, the Foundry's boiler). A room that rolled a layout with a theme of its own (the Kiln: lava is a
+ * Slag channel, vents a Cooling yard; the Foundry: vents are a boiler) takes it unless a neighbour already has it; any
+ * other room takes a theme that fits its shape. No two rooms joined by a corridor share a theme. `layout(room)` is the
+ * layout the room rolled (World.hallsLayouts).
  */
-export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined): void {
+export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
+  const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
   const free = (i: number, t: RoomTheme) => near(i).every((j) => R[j].theme !== t);
   for (const r of R) r.theme = undefined;
   R[2].theme = 'shrine';
-  R[5].theme = 'slag';
+  R[5].theme = kit.guard;
   for (const i of [3, ...(R.length > C_ROOM ? [C_ROOM] : []), 1, 4, 0, DOOR_ROOM]) {
     const lay = layout(i);
-    const want: RoomTheme | undefined = lay === 'channel' ? 'slag' : lay === 'vents' ? 'cooling' : undefined;
+    const want = lay === undefined ? undefined : kit.byLayout[lay];
     if (want && free(i, want)) { R[i].theme = want; continue; }
-    const fits = (i === DOOR_ROOM ? ['bellows' as RoomTheme] : THEME_FITS[R[i].shape ?? 'round']).filter((t) => free(i, t));
-    const rest = (['ash', 'bellows', 'slag', 'cooling'] as RoomTheme[]).filter((t) => free(i, t));
+    const fits = (i === DOOR_ROOM ? [kit.alcove] : kit.fits[R[i].shape ?? 'round']).filter((t) => free(i, t));
+    const rest = kit.rest.filter((t) => free(i, t));
     const pool = fits.length ? fits : rest;
     R[i].theme = pool[hash(seed ^ 0x54686d65, i) % pool.length];
   }

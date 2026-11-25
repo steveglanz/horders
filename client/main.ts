@@ -304,6 +304,8 @@ function startRun(bounty = false, key = false): void {
     opts.halls = true;
     // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
     if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;
+    // H3: ?hallsbeta=1 also maps the dungeons whose Halls aren't on for players yet (the Foundry, design 25 Nov).
+    if (new URLSearchParams(location.search).get('hallsbeta') === '1') opts.hallsBeta = true;
   }
   // BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the new Gorge, local play only until Steve okays it.
   if (params.get('bossv2') === '1' && !hosting) opts.bossV2 = true;

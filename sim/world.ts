@@ -804,6 +804,8 @@ export interface WorldOptions {
   hallsTemplate?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
   bossV2?: boolean;
+  /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
+  hallsBeta?: boolean;
 }
 
 export interface RunSummary {
@@ -1372,7 +1374,7 @@ export class World {
     }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
-    if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
+    if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
       this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate);
       this.hallsLayouts();
       this.phase = 'cleared';
@@ -2423,7 +2425,7 @@ export class World {
       }
     }
     // H2d: each room's theme, matched to the layout it rolled.
-    hallsThemes(m, this.seed, (r) => rolled.get(r));
+    hallsThemes(m, this.seed, (r) => rolled.get(r), this.dungeonId);
   }
 
   /**
@@ -5495,8 +5497,11 @@ export class World {
         continue;
       }
 
-      e.x += mx * dt * this.moveScale;
-      e.y += my * dt * this.moveScale;
+      // Design, 25 Nov (H3a): on a Halls map a Sluice Crawler keeps the arena's speed. At 1.25x it walked its friends into
+      // its own Bloom before the burst (inside a Bloom 52% of the time vs 34% in the arena).
+      const ms = e.kind === 'sluiceCrawler' ? 1 : this.moveScale;
+      e.x += mx * dt * ms;
+      e.y += my * dt * ms;
       this.clampArena(e, e.def.radius);
       // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
       if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
