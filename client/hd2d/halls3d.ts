@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import type { HallsMap } from '../../sim/halls';
 import { SIM } from './simconsts';
+import { grateState, hallsGrates, liftedOf, lockOf } from '../hallsgrates';
 
 /** Floor tiles: the room's 0.62-unit firebrick tiles (renderer.ts buildRoom), drawn into one repeating texture. */
 const TILE = 0.62;
@@ -238,10 +239,62 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     roomChunk[p.room].g.add(r); return r;
   });
 
+  // H2b ember grates: a sealing room's doorways glow red on the floor for 1 s (red is bad), then iron bars, hot at the
+  // edges, drop across them; they lift once the room is cleared. One batch of bars and one of floor glows for the whole
+  // map, written each frame for the rooms that are sealing, sealed or lifting, and hidden otherwise (no cost at rest).
+  const grates = hallsGrates(m, o.corridor, o.doorRoom);
+  const BAR_GAP = 0.26, BAR_H = 1.3, BAR_LIFT = 2.6;
+  const perGrate = grates.map((g) => Math.max(3, Math.round((2 * g.hw * S) / BAR_GAP)));
+  const barMat = new THREE.MeshStandardMaterial({ color: '#2a2220', roughness: 0.45, metalness: 0.7, emissive: o.bad, emissiveIntensity: 0 });
+  const bars = new THREE.InstancedMesh(box, barMat, Math.max(1, perGrate.reduce((a, b) => a + b + 2, 0)));
+  bars.frustumCulled = false; bars.visible = false; group.add(bars);
+  const stripMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const stripGeo = new THREE.PlaneGeometry(1, 1); stripGeo.rotateX(-Math.PI / 2);
+  const strips = new THREE.InstancedMesh(stripGeo, stripMat, Math.max(1, grates.length));
+  strips.frustumCulled = false; strips.visible = false; strips.renderOrder = 2; group.add(strips);
+  const v3 = new THREE.Vector3(), s3 = new THREE.Vector3(), gq = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const red = o.bad.clone();
+  const drawGrates = (mm: HallsMap, t: number) => {
+    let nb = 0, ns = 0, hot = 0;
+    grates.forEach((g, k) => {
+      const r = mm.rooms[g.room];
+      const st = grateState(lockOf(r), liftedOf(r));
+      if (st.glow <= 0.001 && st.drop <= 0.001) return;
+      // Bars across the doorway, along its tangent; a top and a bottom rail. Up out of sight while the floor glows.
+      gq.setFromAxisAngle(up, -Math.atan2(g.uy, g.ux) + Math.PI / 2);
+      const tx = -g.uy, ty = g.ux, w = 2 * g.hw * S, n = perGrate[k];
+      // Dropping, they fall from above; lifting, they sink back into the floor (rising bars float in front of the room
+      // from this camera and read as part of it).
+      const lifting = lockOf(r) < 0, bh = lifting ? BAR_H * st.drop : BAR_H;
+      const base = FLOOR + (lifting ? 0 : (1 - st.drop) * BAR_LIFT);
+      if (st.drop > 0.001) {
+        for (let b = 0; b < n; b++) {
+          const off = ((b + 0.5) / n - 0.5) * w;
+          v3.set(g.x * S + tx * off, base + bh / 2, g.y * S + ty * off); s3.set(0.07, bh, 0.07);
+          m4.compose(v3, gq, s3); bars.setMatrixAt(nb++, m4);
+        }
+        for (const yy of [Math.min(0.12, bh * 0.5), bh - 0.06]) {
+          v3.set(g.x * S, base + Math.max(0.03, yy), g.y * S); s3.set(w, 0.09, 0.1);
+          m4.compose(v3, gq, s3); bars.setMatrixAt(nb++, m4);
+        }
+      }
+      hot = Math.max(hot, st.glow);
+      // The floor's warning: a red band across the doorway, pulsing faster as the drop nears.
+      const lock = lockOf(r), pulse = lock >= 0 && st.drop === 0 ? 0.75 + 0.25 * Math.sin(t * (8 + 10 * st.glow)) : 1;
+      v3.set(g.x * S, FLOOR + 0.02, g.y * S); s3.set(w + 0.1, 1, 0.55);
+      m4.compose(v3, gq, s3); strips.setMatrixAt(ns, m4);
+      col.copy(red).multiplyScalar(Math.min(1, st.glow * pulse) * 0.9); strips.setColorAt(ns++, col);
+    });
+    bars.count = nb; bars.visible = nb > 0; bars.instanceMatrix.needsUpdate = true;
+    strips.count = ns; strips.visible = ns > 0; strips.instanceMatrix.needsUpdate = true;
+    if (strips.instanceColor) strips.instanceColor.needsUpdate = true;
+    barMat.emissiveIntensity = 0.12 + 0.75 * hot;
+  };
+
   let openK = 0, lastT = 0;
   return {
     group,
-    pieces: chunks.length * 3 + 6,
+    pieces: chunks.length * 3 + 8,
     update(mm, cx, cz, hx, hy, t) {
       const dt = Math.min(0.1, Math.max(0, t - lastT)); lastT = t;
       // On screen: the camera shows about 9 units either side and from 12 ahead to 6 behind the hero (the foe cull's box).
@@ -251,6 +304,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       openK = Math.max(0, Math.min(1, openK + (open ? dt : -dt) * 1.5));
       panel.visible = openK < 0.99; panel.scale.x = 1 - openK; bar.visible = !open;
       glowMat.opacity = openK * (0.9 + 0.1 * Math.sin(t * 3));
+      drawGrates(mm, t);
       mm.packs.forEach((p, k) => {
         const near = Math.hypot(hx - p.x, hy - p.y) < SIM.hallsShowRing;
         const target = p.state === 'asleep' && near ? 0.38 + 0.06 * Math.sin(t * 2 + k) : 0;
