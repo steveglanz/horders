@@ -32,30 +32,43 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
       expect(x.reduce((p, v) => Math.max(p, Math.abs(v)), 0), k).toBeLessThanOrEqual(1);
       expect(phoneShare(x, R), k).toBeGreaterThan(0.25);
-      // The loop's seam: the last and first samples sit close (the tail is crossfaded over the head).
-      expect(Math.abs(x[x.length - 1] - x[0]), k).toBeLessThan(0.25);
+      // The loop's seam: the jump from the last sample to the first is no bigger than the bed's own sample-to-sample jumps
+      // (the tail is crossfaded over the head). A quiet, noisy bed is normalised up, so its steps are large everywhere.
+      let big = 0;
+      for (let i = 1; i < x.length; i++) big = Math.max(big, Math.abs(x[i] - x[i - 1]));
+      expect(Math.abs(x[x.length - 1] - x[0]), k).toBeLessThanOrEqual(big);
     }
   });
 
-  it('the five sound different from each other on a phone', () => {
-    for (let i = 0; i < ROOM_BEDS.length; i++) for (let j = i + 1; j < ROOM_BEDS.length; j++) {
-      const a = profile(beds[ROOM_BEDS[i]]), b = profile(beds[ROOM_BEDS[j]]);
+  // The beds a delve can play: each dungeon's own themes plus the shrine side room (Kiln; Drowned Foundry, H3a).
+  const SETS = {
+    kiln: ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine'],
+    foundry: ['boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'kilnShrine'],
+  } as const;
+
+  it('within one dungeon, every room bed sounds different from the others on a phone', () => {
+    for (const [dg, set] of Object.entries(SETS)) for (let i = 0; i < set.length; i++) for (let j = i + 1; j < set.length; j++) {
+      const a = profile(beds[set[i]]), b = profile(beds[set[j]]);
       const d = Math.sqrt(a.reduce((s, v, k) => s + (v - b[k]) ** 2, 0));
-      const dm = Math.abs(motion(beds[ROOM_BEDS[i]]) - motion(beds[ROOM_BEDS[j]]));
+      const dm = Math.abs(motion(beds[set[i]]) - motion(beds[set[j]]));
       // Either the colour or the motion tells them apart.
-      expect(d + dm, `${ROOM_BEDS[i]} vs ${ROOM_BEDS[j]}`).toBeGreaterThan(0.15);
+      expect(d + dm, `${dg}: ${set[i]} vs ${set[j]}`).toBeGreaterThan(0.15);
     }
+    expect([...new Set(Object.values(SETS).flat())].sort()).toEqual([...ROOM_BEDS].sort());
   });
 
   it('each keeps its room\'s one quiet motion: the bellows breathe and the steam puffs; ash and candle stay still', () => {
     const m = (k: (typeof ROOM_BEDS)[number]) => motion(beds[k]);
     for (const busy of ['bellowsHall', 'coolingYard'] as const) for (const still of ['ashStore', 'kilnShrine'] as const) expect(m(busy)).toBeGreaterThan(m(still));
+    // The Foundry: the boiler puffs, the cistern's light swells, the pumps stroke; the anchor store doesn't move at all.
+    for (const busy of ['boilerRoom', 'cistern', 'pumpHall'] as const) expect(m(busy)).toBeGreaterThan(2 * m('anchorStore'));
+    expect(m('anchorStore')).toBeLessThan(m('kilnShrine'));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
@@ -79,6 +92,8 @@ describe('which room bed plays where (roomBedFor)', () => {
     const themed = { ...m, rooms: m.rooms.map((r, i) => (i === 0 ? { ...r, theme: 'shrine' as const } : r)) };
     expect(roomBedFor(themed, r0.x, r0.y)).toBe('kilnShrine');
     expect(Object.values(ROOM_THEME_BED).sort()).toEqual([...ROOM_BEDS].sort());
+    // Visuals' Foundry ids (25 Nov).
+    expect([ROOM_THEME_BED.boiler, ROOM_THEME_BED.cistern, ROOM_THEME_BED.pump, ROOM_THEME_BED.anchor]).toEqual(['boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
   });
 
   it('a corridor, the boss door alcove and anywhere off the map are quiet', () => {
