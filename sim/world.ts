@@ -2393,7 +2393,7 @@ export class World {
       }
     }
     // H2d: each room's theme, matched to the layout it rolled.
-    hallsThemes(m, this.seed, (r) => rolled.get(r));
+    hallsThemes(m, this.seed, (r) => rolled.get(r), this.dungeonId);
   }
 
   /**
