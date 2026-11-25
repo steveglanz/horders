@@ -1483,6 +1483,10 @@ export class GameScene extends Phaser.Scene {
             // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
             if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
+          } else if (w.dungeonId === 'pressworks' && w.osStage > 0) {
+            // OSKELV2 (design, oskel-v2.md): one line per stage.
+            if (ev.phase === 2) this.hud.banner('Stage 2: The belt', 'The press bed is running. Walk against it, and stay off the crush line');
+            else this.hud.banner('Stage 3: Full speed', 'Full speed. Keep walking');
           } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
             if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', "She splits in two. Keep a hero on each flame; the tank's flame still Bellows");

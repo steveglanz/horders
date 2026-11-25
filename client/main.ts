@@ -317,6 +317,8 @@ function startRun(bounty = false, key = false): void {
   if (params.get('ondrelv2') === '1') opts.ondrelV2 = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, off until design has measured it.
   if (params.get('ysmeretv2') === '1') opts.ysmeretV2 = true;
+  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, off until design has measured it.
+  if (params.get('oskelv2') === '1') opts.oskelV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
