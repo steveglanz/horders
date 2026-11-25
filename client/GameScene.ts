@@ -750,7 +750,9 @@ export class GameScene extends Phaser.Scene {
       onCast: (slot) => this.cast(slot),
     });
     // Phones: the HUD fades the party frames while a boss, elite or the Craw stands under them.
-    this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
+    // In 3D the tilted camera puts a foe somewhere else on screen than the 2D view would (Hoard raid phone pass, 25 Nov:
+    // the frames faded for a Hollow Warden standing below them), so the HUD asks the 3D view where it is drawn.
+    this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas, project: (x, y) => this.hd2d?.project(x, y) ?? null };
     this.hud.showRun(w);
     // Halls H1: no fight starts the run, so the map says what to do.
     // Every Halls dungeon's own name (phone pass 25 Nov: the Hammerdeep opened as "The Kiln Depths").

@@ -775,7 +775,7 @@ export class Hud {
   }
 
   /** Set by GameScene: the camera's world view (live) and the canvas, to place enemies on the screen. */
-  view?: { rect: { x: number; y: number; width: number; height: number }; canvas: HTMLCanvasElement };
+  view?: { rect: { x: number; y: number; width: number; height: number }; canvas: HTMLCanvasElement; project?: (x: number, y: number) => { x: number; y: number } | null };
   /** The party frames' and canvas's boxes (CSS px), re-read at most once a second so the HUD doesn't force a reflow every tick. */
   private partyBox?: { party: DOMRect; canvas: DOMRect; at: number };
   private partyUnder = false;
@@ -794,7 +794,10 @@ export class Hud {
         const k = c.width / v.width;
         under = w.enemies.some((e) => {
           if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary)) return false;
-          const x = c.left + (e.x - v.x) * k, y = c.top + (e.y - v.y) * k, r = e.def.radius * k;
+          // The 3D view, when it is up, says where the foe is drawn (CSS px over the game canvas); else the 2D camera.
+          const q = this.view!.project?.(e.x, e.y), q2 = q && this.view!.project!(e.x + e.def.radius, e.y);
+          const x = q ? c.left + q.x : c.left + (e.x - v.x) * k, y = q ? c.top + q.y : c.top + (e.y - v.y) * k;
+          const r = q && q2 ? Math.hypot(q2.x - q.x, q2.y - q.y) : e.def.radius * k;
           return x + r > pr.left && x - r < pr.right && y + r > pr.top && y - r < pr.bottom;
         });
       }
