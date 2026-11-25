@@ -123,6 +123,32 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#dde4f4', 0, 0.7, -0.08, 0.52, 1.18, 0.02));
     parts.push(part(box, '#8a6a34', -0.24, 0.04, 0.02, 0.08, 0.08, 0.3));
     parts.push(part(box, '#8a6a34', 0.24, 0.04, 0.02, 0.08, 0.08, 0.3));
+  } else if (id === 'hearthless') {
+    // A dead hearth: a stone surround with a dark mouth, grey ash and two charred logs on the floor before it (no fire).
+    parts.push(part(box, '#5a6070', 0, 0.45, -0.15, 1.0, 0.9, 0.3));
+    parts.push(part(box, '#1c1e24', 0, 0.32, -0.02, 0.56, 0.5, 0.04));
+    parts.push(part(box, '#6a7080', 0, 0.94, -0.12, 1.1, 0.08, 0.36));
+    parts.push(part(ball, '#7c7e84', 0, 0.03, 0.2, 0.7, 0.08, 0.36));
+    const log = new THREE.CylinderGeometry(0.5, 0.5, 1, 8); log.rotateZ(Math.PI / 2);
+    parts.push(part(log, '#2a2624', -0.05, 0.08, 0.18, 0.5, 0.12, 0.12), part(log, '#2e2a28', 0.08, 0.1, 0.26, 0.42, 0.11, 0.11));
+  } else if (id === 'rime') {
+    // An ice-crusted stone stump with a frosted cap and three icicles hanging off its lip.
+    parts.push(part(cyl, '#5c6a80', 0, 0.35, 0, 0.5, 0.7, 0.5));
+    parts.push(part(cyl, '#d4e4f4', 0, 0.74, 0, 0.56, 0.1, 0.56));
+    for (const [x, z, h] of [[-0.18, 0.2, 0.3], [0.05, 0.27, 0.22], [0.22, 0.14, 0.34]] as const) {
+      const ic = new THREE.ConeGeometry(0.5, 1, 6); ic.rotateX(Math.PI);
+      parts.push(part(ic, '#c8dcf0', x, 0.69 - h / 2, z, 0.06, h, 0.06));
+    }
+  } else if (id === 'drift') {
+    // Snow heaped against the wall: three soft white mounds.
+    parts.push(part(ball, '#e4ecf4', 0, 0.1, -0.05, 1.0, 0.42, 0.6));
+    parts.push(part(ball, '#d8e2ee', -0.42, 0.06, 0.08, 0.56, 0.26, 0.44));
+    parts.push(part(ball, '#dce6f0', 0.4, 0.05, 0.12, 0.5, 0.22, 0.4));
+  } else if (id === 'crypt') {
+    // A stone coffin along the wall: a dark box with a lid stepping in, frost on the lid.
+    parts.push(part(box, '#4a4e5e', 0, 0.22, 0, 1.0, 0.44, 0.46));
+    parts.push(part(box, '#5c6072', 0, 0.48, 0, 0.94, 0.08, 0.42));
+    parts.push(part(box, '#c4d0e0', 0, 0.53, 0, 0.7, 0.02, 0.26));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
