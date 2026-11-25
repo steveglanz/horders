@@ -1098,7 +1098,9 @@ export class GameScene extends Phaser.Scene {
       dungeon: w.dungeonId,
       namedAffix: w.namedPlan()?.affix,
       heat: w.heat || undefined,
-      inLava: w.lava.length > 0 && inLavaNow(w),
+      // ONDRELV2: standing in Ondrel's burning slag sizzles like the Kiln's lava.
+      inLava: (w.lava.length > 0 && inLavaNow(w)) || (w.slagPatches.length > 0 && w.player.hp > 0 && w.inSlag(w.player.x, w.player.y)),
+      slag: w.slagPatches,
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: this.listenFrom(w),
