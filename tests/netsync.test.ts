@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World, WorldOptions, SimEvent } from '../sim/world';
 import { botInput } from '../sim/bot';
-import { applySnapshot, heardEvents, RESEND_TICKS, snapshot, Snapshot, withHeard } from '../sim/netsync';
+import { applySnapshot, heardEvents, snapshot, Snapshot, trimRecent, withHeard } from '../sim/netsync';
 
 const opts: WorldOptions = { seed: 21, party: [{ cls: 'bulwark' }, { cls: 'lumen' }] };
 
@@ -84,16 +84,17 @@ describe('co-op snapshots', () => {
 });
 
 describe('co-op events survive a lost snapshot and a slow guest frame', () => {
-  // As client/net/coop.ts: the host sends each tick's events with the next RESEND_TICKS ticks of snapshots
-  // (Snapshot.recent); the guest keeps every snapshot's batches it hears (heardEvents) and, at each of its frames,
-  // applies the newest snapshot with all of them (withHeard).
-  function run(frameEvery: number) {
+  // As client/net/coop.ts: the host sends each tick's events with its snapshots until one RESEND_TICKS later has gone
+  // out (Snapshot.recent, trimRecent); the guest keeps every snapshot's batches it hears (heardEvents) and, at each of
+  // its frames, applies the newest snapshot with all of them (withHeard). `snapEvery`: host ticks per snapshot (a host
+  // frame sends at most one, so a 250 ms host frame is 8 or 9 ticks).
+  function run(frameEvery: number, snapEvery = 2) {
     const host = new World(opts);
     const guest = new World(opts);
     const batches: { tick: number; events: SimEvent[] }[] = [];
     const heard = new Map<number, SimEvent[]>();
     const sent: string[] = [], got: string[] = [];
-    let biggest = 0, n = 0, latest: Snapshot | null = null;
+    let biggest = 0, n = 0, latest: Snapshot | null = null, sentTick = -1, prevSent = -1;
     while (host.state !== 'ended' && host.time < 120) {
       if (host.state === 'draft') {
         const h = host.heroes.findIndex((_, i) => host.choicesOf(i).length > 0);
@@ -102,9 +103,11 @@ describe('co-op events survive a lost snapshot and a slow guest frame', () => {
         host.step(host.heroes.map(() => botInput(host)));
         for (const e of host.events) sent.push(JSON.stringify(e));
         if (host.events.length) batches.push({ tick: host.tick, events: [...host.events] });
-        while (batches.length && batches[0].tick <= host.tick - RESEND_TICKS) batches.shift();
+        trimRecent(batches, host.tick, prevSent);
       }
-      if (host.tick % 2 === 0) {
+      if (host.tick % snapEvery === 0 && host.tick !== sentTick) {
+        prevSent = sentTick;
+        sentTick = host.tick;
         const text = JSON.stringify(snapshot(host, [], batches));
         biggest = Math.max(biggest, text.length);
         // Lose one snapshot in three (never two in a row).
@@ -128,6 +131,16 @@ describe('co-op events survive a lost snapshot and a slow guest frame', () => {
 
   for (const frameEvery of [2, 12, 30]) it(`a guest drawing a frame every ${frameEvery} host ticks plays every host event once, in order`, () => {
     const { sent, got, tail, biggest } = run(frameEvery);
+    expect(sent.length).toBeGreaterThan(100);
+    expect(got.length).toBeGreaterThanOrEqual(sent.length - tail);
+    expect(got).toEqual(sent.slice(0, got.length));
+    expect(biggest).toBeLessThan(48_000);
+  });
+
+  // QA, 25 Nov (Flue, four tabs): a slow host frame of 8 or more ticks lost the first tick since the last snapshot, so
+  // guests heard 2 of 3 grate lifts. Every host frame here is that slow, and one snapshot in three is still lost.
+  for (const snapEvery of [8, 9]) it(`a host sending a snapshot every ${snapEvery} ticks (a 250 ms frame) still gets every event to the guest`, () => {
+    const { sent, got, tail, biggest } = run(snapEvery, snapEvery);
     expect(sent.length).toBeGreaterThan(100);
     expect(got.length).toBeGreaterThanOrEqual(sent.length - tail);
     expect(got).toEqual(sent.slice(0, got.length));
