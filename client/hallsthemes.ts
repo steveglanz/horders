@@ -8,7 +8,7 @@ import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
 /** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), the Coldmarrow's four (H3c), then the Wrackline's four (H3d). Ids are unique across dungeons. */
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice';
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice' | 'anvil' | 'chain' | 'quench' | 'ingot';
 
 export interface Theme {
   id: ThemeId;
@@ -82,6 +82,17 @@ export const THEMES: Record<ThemeId, Theme> = {
   kelp: { id: 'kelp', floor2d: 0x16302e, name: 'Kelp bed', tile: '#264e4c', cracked: false, wall: '#6e8a84', light: '#a8d8e8', lightK: 1.25, swell: 0.12, water: true },
   // Iron sluice gates with their wheels, the palest water: the boss door alcove's.
   sluice: { id: 'sluice', floor2d: 0x1c3440, name: 'Sluice gate', tile: '#30586a', cracked: false, wall: '#7a8a92', light: '#d0e4f0', lightK: 1.3, swell: 0, water: true },
+  // H4a, the Hammerdeep: cold forge iron, grey-violet like Ondrel's arena (renderer ROOMS.hammerdeep), pale lantern
+  // light, nothing glowing. One quiet motion each (design, 25 Nov): the anvil hall's lanterns breathe, the chains swing
+  // slowly, steam lifts off the quench troughs; the ingot store is the still, quiet room.
+  // Great anvils on oak blocks with a hammer leaning on one, warm lantern light: the door guard's room.
+  anvil: { id: 'anvil', floor2d: 0x2a2830, name: 'Anvil hall', tile: '#686674', cracked: false, wall: '#a29eb2', light: '#ffd8b0', lightK: 1.35, swell: 0.08 },
+  // Heavy chains hanging from an iron bracket on the wall, swinging slowly, pale cold light: the boss door alcove's.
+  chain: { id: 'chain', floor2d: 0x26252e, name: 'Chain gallery', tile: '#5e5c6a', cracked: false, wall: '#9490a6', light: '#d8dcff', lightK: 1.3, swell: 0 },
+  // Iron troughs of dark quench water with steam lifting off them, cool blue light.
+  quench: { id: 'quench', floor2d: 0x24272e, name: 'Quench trough', tile: '#586070', cracked: false, wall: '#8890aa', light: '#c0d2ff', lightK: 1.3, swell: 0 },
+  // Iron ingots stacked on pallets, cracked worn floor, plain pale light: the quiet room.
+  ingot: { id: 'ingot', floor2d: 0x2a2a2e, name: 'Ingot store', tile: '#6c6a74', cracked: true, wall: '#9692a2', light: '#e4e0f0', lightK: 1.25, swell: 0 },
 };
 
 /** H1's template has no theme field: R0 entrance, R1 A, R2 S (side), R3 B/C, R4 D (side), R5 door guard, door alcove. */
@@ -104,4 +115,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5, anvil: 1.7, chain: 1.6, quench: 1.4, ingot: 1.5 };
