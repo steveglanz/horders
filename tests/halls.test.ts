@@ -1010,6 +1010,42 @@ describe('H4b: the Ashvents on the Halls map', () => {
   }, 60000);
 });
 
+describe('H4c: the Pressworks on the Halls map', () => {
+  it('is off for players until design turns it on; a party gets its own fights, its own themes and Oskel behind the door', () => {
+    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.pressworks;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'pressworks', tier: 10, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      // H4c (visuals, 25 Nov): the Pressworks' own themes; the press floor guards the door.
+      expect(m.rooms[5].theme).toBe('press');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['press', 'gear', 'plate', 'oil'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a Bulwark and Lumen bot duo walks it and goes through the door into Oskel\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 4: without gear a duo dies to its tier-10 trash before the door; this checks the walk, not the numbers.
+      const w = halls(seed, { dungeon: 'pressworks', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.pressworks.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
 describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
   const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
