@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import type { HallsMap } from '../../sim/halls';
 import { SIM } from './simconsts';
 import { grateState, hallsGrates, liftedOf, lockOf } from '../hallsgrates';
-import { PROP_SCALE, THEMES, Theme, ThemeId, propMotion, themeOf, themeProp, themeSpots, themeTileCanvas } from './hallsthemes';
+import { MOVING, PROP_SCALE, THEMES, Theme, ThemeId, propMotion, themeOf, themeProp, themeSpots, themeTileCanvas } from './hallsthemes';
 import { Loop, corridorEnds, inCorridor, inLoop, inRoom, roomLoops, roomPieces } from '../hallsshape';
 
 /** Floor tiles: the room's 0.62-unit firebrick tiles (renderer.ts buildRoom), drawn into one repeating texture. */
@@ -309,7 +309,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const roomLife = (t: number) => {
     for (const tx of waterTex) { tx.offset.x = (t * 0.012) % 1; tx.offset.y = (t * 0.007) % 1; }
     for (const pr of props) {
-      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp' && pr.id !== 'chain' && pr.id !== 'gear' && pr.id !== 'press')) continue;
+      if (!pr.ch.g.visible || !MOVING.has(pr.id)) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
         const { sy, ry, swing, swingAt } = propMotion(pr.id, t, k * 1.3);

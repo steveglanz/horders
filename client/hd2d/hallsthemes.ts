@@ -261,6 +261,85 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(cyl, '#2a2a1e', -0.24, 0.525, 0, 0.3, 0.01, 0.3), part(cyl, '#2a2a1e', 0.16, 0.525, -0.06, 0.3, 0.01, 0.3));
     const lying = new THREE.CylinderGeometry(0.5, 0.5, 1, 10); lying.rotateZ(Math.PI / 2);
     parts.push(part(lying, '#56603c', 0.12, 0.18, 0.32, 0.5, 0.36, 0.36));
+  } else if (id === 'ladle') {
+    // A wall crane's arm with a great copper ladle hanging under it on two rods (it sways from HANG_TOP).
+    parts.push(part(box, '#4a3a36', 0, HANG_TOP, -0.12, 0.9, 0.1, 0.14));
+    parts.push(part(box, '#5a4844', -0.18, HANG_TOP - 0.3, -0.02, 0.04, 0.6, 0.04), part(box, '#5a4844', 0.18, HANG_TOP - 0.3, -0.02, 0.04, 0.6, 0.04));
+    const bowl = new THREE.CylinderGeometry(0.42, 0.3, 0.5, 12);
+    parts.push(part(bowl, '#a8644a', 0, HANG_TOP - 0.82, 0));
+    parts.push(part(cyl, '#5a3628', 0, HANG_TOP - 0.565, 0, 0.74, 0.02, 0.74));
+    parts.push(part(box, '#8a523c', 0.5, HANG_TOP - 0.7, 0, 0.24, 0.06, 0.08));
+  } else if (id === 'crane' || id === 'hoist') {
+    // A jib on the wall, a chain, and a hook block (the Smeltery's hoist is the same in steel). It sways from HANG_TOP.
+    const steel = id === 'hoist';
+    parts.push(part(box, steel ? '#3a3e48' : '#4a3a36', 0, HANG_TOP, -0.1, 0.8, 0.1, 0.16));
+    parts.push(part(box, steel ? '#6a7080' : '#6a5248', 0, HANG_TOP - 0.42, -0.02, 0.05, 0.84, 0.05));
+    parts.push(part(box, steel ? '#8a90a0' : '#b07a5a', 0, HANG_TOP - 0.94, -0.02, 0.26, 0.22, 0.16));
+    const hook = new THREE.TorusGeometry(0.1, 0.03, 4, 10, Math.PI * 1.4);
+    parts.push(part(hook, steel ? '#9aa0b0' : '#c08a6a', 0, HANG_TOP - 1.14, -0.02));
+  } else if (id === 'mould') {
+    // Two rows of open ingot moulds on a low iron bed.
+    parts.push(part(box, '#4a3632', 0, 0.05, 0, 0.9, 0.1, 0.6));
+    for (const zz of [-0.14, 0.14]) for (const xx of [-0.3, 0, 0.3]) { parts.push(part(box, '#7a5448', xx, 0.15, zz, 0.24, 0.1, 0.2), part(box, '#3a2622', xx, 0.2, zz, 0.18, 0.01, 0.14)); }
+  } else if (id === 'clinker') {
+    // A heap of rose clinker lumps, a smaller one beside it.
+    parts.push(part(ball, '#8a5a4c', 0, 0.22, 0, 0.8, 0.44, 0.7), part(ball, '#a06a58', -0.1, 0.42, 0.02, 0.4, 0.26, 0.36));
+    parts.push(part(ball, '#7a5044', 0.48, 0.14, 0.18, 0.42, 0.28, 0.4));
+  } else if (id === 'bunker') {
+    // A timber bunker heaped with coal.
+    parts.push(part(box, '#6a4a32', 0, 0.2, -0.24, 0.9, 0.4, 0.06));
+    parts.push(part(box, '#6a4a32', -0.42, 0.18, 0, 0.06, 0.36, 0.52), part(box, '#6a4a32', 0.42, 0.18, 0, 0.06, 0.36, 0.52));
+    parts.push(part(cone, '#2a2224', 0, 0.36, 0, 0.84, 0.5, 0.5), part(ball, '#3a3032', 0.2, 0.42, 0.08, 0.2, 0.14, 0.18));
+  } else if (id === 'scale') {
+    // A great balance hanging from a wall bracket: a beam and two pans on cords (it sways from HANG_TOP).
+    parts.push(part(box, '#4a3c36', 0, HANG_TOP, -0.12, 0.2, 0.12, 0.14));
+    parts.push(part(box, '#b08848', 0, HANG_TOP - 0.16, 0, 0.96, 0.05, 0.05));
+    for (const xx of [-0.44, 0.44]) { parts.push(part(box, '#8a7a6a', xx, HANG_TOP - 0.4, 0, 0.02, 0.48, 0.02), part(cyl, '#c09a50', xx, HANG_TOP - 0.66, 0, 0.36, 0.05, 0.36)); }
+  } else if (id === 'coffer') {
+    // Two iron-bound coffers, one on top of the other, and a third beside them.
+    parts.push(part(box, '#6a4630', -0.18, 0.18, 0, 0.5, 0.36, 0.36), part(box, '#7a5236', -0.18, 0.5, 0, 0.42, 0.28, 0.3));
+    parts.push(part(box, '#3a3634', -0.18, 0.18, 0.185, 0.52, 0.06, 0.01), part(box, '#c09a50', -0.18, 0.5, 0.155, 0.08, 0.08, 0.01));
+    parts.push(part(box, '#6e4a32', 0.34, 0.16, 0.06, 0.4, 0.32, 0.32), part(box, '#3a3634', 0.34, 0.16, 0.225, 0.42, 0.05, 0.01));
+  } else if (id === 'tithe') {
+    // Sacks against a tally board on the wall.
+    parts.push(part(box, '#6a5040', 0, 0.6, -0.2, 0.7, 0.8, 0.04));
+    for (let k = 0; k < 4; k++) parts.push(part(box, '#d8c8a8', -0.22 + k * 0.15, 0.7, -0.17, 0.02, 0.4, 0.01));
+    parts.push(part(ball, '#a8947a', -0.3, 0.2, 0.05, 0.42, 0.42, 0.38), part(ball, '#988470', 0.22, 0.18, 0.1, 0.4, 0.36, 0.36));
+  } else if (id === 'tap') {
+    // A taphole in a brick boss on the wall, with a short iron trough running out of it (no glow: the light breathes).
+    parts.push(part(box, '#4a4e5a', 0, 0.5, -0.18, 0.7, 0.8, 0.2));
+    parts.push(part(box, '#22242a', 0, 0.42, -0.07, 0.18, 0.16, 0.02));
+    parts.push(part(box, '#3a3e48', 0, 0.12, 0.2, 0.22, 0.12, 0.7), part(box, '#5a3a2a', 0, 0.18, 0.2, 0.14, 0.01, 0.66));
+  } else if (id === 'flywheel') {
+    // A big steel flywheel on the wall, its hub at WHEEL_AT (it turns about its hub), six spokes and a heavy rim.
+    const rim = new THREE.TorusGeometry(0.48, 0.09, 6, 24);
+    parts.push(part(rim, '#7a8090', 0, WHEEL_AT, -0.08));
+    for (let k = 0; k < 3; k++) { const sp = new THREE.BoxGeometry(0.92, 0.07, 0.07); sp.rotateZ((k / 3) * Math.PI); parts.push(part(sp, '#5a6070', 0, WHEEL_AT, -0.08)); }
+    parts.push(part(cyl.clone().rotateX(Math.PI / 2), '#3a3e48', 0, WHEEL_AT, -0.04, 0.2, 0.14, 0.2));
+  } else if (id === 'billet') {
+    // A rack of square steel billets.
+    parts.push(part(box, '#3a3e48', -0.38, 0.3, 0, 0.06, 0.6, 0.4), part(box, '#3a3e48', 0.38, 0.3, 0, 0.06, 0.6, 0.4));
+    for (const yy of [0.14, 0.34, 0.54]) for (const zz of [-0.1, 0.1]) parts.push(part(box, '#8a90a0', 0, yy, zz, 0.86, 0.12, 0.12));
+  } else if (id === 'firebox') {
+    // An iron fire door in a brick boss, with a grate below (no glow: the room light breathes like bellows).
+    parts.push(part(box, '#5a4038', 0, 0.45, -0.18, 0.8, 0.9, 0.22));
+    parts.push(part(box, '#2e2a28', 0, 0.5, -0.06, 0.44, 0.4, 0.04), part(box, '#8a7a6a', 0.14, 0.5, -0.03, 0.06, 0.06, 0.03));
+    for (let k = 0; k < 4; k++) parts.push(part(box, '#3a3432', -0.15 + k * 0.1, 0.14, -0.06, 0.04, 0.16, 0.04));
+  } else if (id === 'damper') {
+    // A big damper plate hanging from its pivot bar on the wall (it rocks from HANG_TOP).
+    parts.push(part(box, '#3e3430', 0, HANG_TOP, -0.12, 0.9, 0.1, 0.14));
+    parts.push(part(box, '#6a5a50', -0.3, HANG_TOP - 0.12, -0.04, 0.05, 0.24, 0.05), part(box, '#6a5a50', 0.3, HANG_TOP - 0.12, -0.04, 0.05, 0.24, 0.05));
+    parts.push(part(box, '#5a4c44', 0, HANG_TOP - 0.62, -0.04, 0.8, 0.8, 0.05));
+    parts.push(part(box, '#7a6a5e', 0, HANG_TOP - 0.62, -0.01, 0.7, 0.06, 0.02), part(box, '#7a6a5e', 0, HANG_TOP - 0.62, -0.01, 0.06, 0.7, 0.02));
+  } else if (id === 'soot') {
+    // Soft grey soot drifts heaped by the wall.
+    parts.push(part(ball, '#5a5250', 0, 0.16, 0, 0.9, 0.32, 0.6), part(ball, '#6e6460', -0.36, 0.12, 0.12, 0.5, 0.24, 0.4));
+    parts.push(part(ball, '#4e4846', 0.4, 0.1, 0.16, 0.4, 0.2, 0.34));
+  } else if (id === 'sweep') {
+    // A ladder and two long sweeps' brushes leaning on the wall.
+    parts.push(part(box, '#8a6a48', -0.3, 0.6, -0.12, 0.05, 1.2, 0.05), part(box, '#8a6a48', -0.06, 0.6, -0.12, 0.05, 1.2, 0.05));
+    for (let k = 0; k < 5; k++) parts.push(part(box, '#7a5c3e', -0.18, 0.15 + k * 0.24, -0.12, 0.24, 0.04, 0.04));
+    for (const xx of [0.2, 0.36]) { parts.push(part(box, '#6a5038', xx, 0.6, -0.1, 0.03, 1.1, 0.03), part(ball, '#2e2a28', xx, 1.18, -0.1, 0.22, 0.22, 0.22)); }
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
@@ -283,6 +362,14 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
 
 /** How high the Chain gallery's bracket is: its chains swing from here. */
 export const CHAIN_TOP = 1.4;
+/** How high the raids' hanging props (ladle, crane, scale, hoist, damper) hang from: they sway about here. */
+export const HANG_TOP = 1.5;
+/** How high the Flywheel hall's hub is: it turns about here. */
+export const WHEEL_AT = 0.75;
+/** H5: the raids' hanging props and how far and how slowly each sways (radians, Hz). */
+const SWAY: Partial<Record<ThemeId, [number, number]>> = { ladle: [0.04, 0.1], crane: [0.06, 0.12], scale: [0.05, 0.1], hoist: [0.06, 0.12], damper: [0.05, 0.08] };
+/** The props whose instances move (halls3d's roomLife updates only these). */
+export const MOVING = new Set<ThemeId>(['bellows', 'pump', 'orrery', 'kelp', 'chain', 'gear', 'press', 'flywheel', ...(Object.keys(SWAY) as ThemeId[])]);
 /** How high the Gear room's gear hub is: it turns about here. */
 export const GEAR_AT = 0.75;
 
@@ -290,6 +377,10 @@ export const GEAR_AT = 0.75;
 export function propMotion(id: ThemeId, t: number, ph: number): { sy: number; ry?: number; swing?: number; swingAt?: number } {
   // The Chain gallery's chains swing a few degrees, about once every eight seconds.
   if (id === 'chain') return { sy: 1, swing: 0.06 * Math.sin(t * 2 * Math.PI * 0.12 + ph), swingAt: CHAIN_TOP };
+  // H5: a raid's hanging prop sways from its bracket; the Smeltery's flywheel turns about once every 30 s.
+  const sw = SWAY[id];
+  if (sw) return { sy: 1, swing: sw[0] * Math.sin(t * 2 * Math.PI * sw[1] + ph), swingAt: HANG_TOP };
+  if (id === 'flywheel') return { sy: 1, swing: t * 0.2 + ph, swingAt: WHEEL_AT };
   // The Gear room's gear turns about once every 40 s; the Press floor's press strokes as slowly as the pumps.
   if (id === 'gear') return { sy: 1, swing: t * 0.16 + ph, swingAt: GEAR_AT };
   if (id === 'press') return { sy: 1 + 0.05 * Math.sin(t * 2 * Math.PI * 0.2 + ph) };

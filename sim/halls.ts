@@ -51,7 +51,7 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme | PressworksTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme | PressworksTheme | RaidTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
@@ -66,6 +66,11 @@ export type HammerdeepTheme = 'anvil' | 'chain' | 'quench' | 'ingot';
 export type AshventsTheme = 'fumarole' | 'obsidian' | 'cairn' | 'pumice';
 /** H4c (visuals, 25 Nov): the Pressworks' rooms: a press floor, a gear room, a plate store, an oil sump. */
 export type PressworksTheme = 'press' | 'gear' | 'plate' | 'oil';
+
+/** H5 (visuals, 25 Nov): the raids' rooms. Crucible: ladle hall, crane bay, mould floor, clinker heap. Hoard: coal
+ * bunker, scale hall, coffer vault, tithe store. Smeltery: tapping floor, flywheel hall, billet rack, hoist shaft. Flue:
+ * firebox row, damper hall, soot chamber, sweeps' gallery. */
+export type RaidTheme = 'ladle' | 'crane' | 'mould' | 'clinker' | 'bunker' | 'scale' | 'coffer' | 'tithe' | 'tap' | 'flywheel' | 'billet' | 'hoist' | 'firebox' | 'damper' | 'soot' | 'sweep';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -1109,6 +1114,33 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     guard: 'press', byLayout: {}, alcove: 'gear',
     fits: { round: ['press', 'oil', 'plate'], hall: ['gear', 'plate'], cross: ['plate', 'press'], ring: ['oil', 'gear'], twin: ['gear', 'oil'] },
     rest: ['plate', 'oil', 'gear', 'press'],
+  },
+  // H5 (visuals, 25 Nov, ready before each raid's map is switched on; design's h5-plan.md). Raids have no D or E room,
+  // so the guard theme goes to the boss door guard's room wherever the generator puts it (R5, as for every map).
+  // H5a, the Crucible: rose stone and copper. The ladle hall guards the door, the crane bay is the alcove, the clinker
+  // heap is the quiet room and fits any shape.
+  crucible: {
+    guard: 'ladle', byLayout: {}, alcove: 'crane',
+    fits: { round: ['ladle', 'mould', 'clinker'], hall: ['crane', 'clinker'], cross: ['clinker', 'ladle'], ring: ['mould', 'crane'], twin: ['crane', 'mould'] },
+    rest: ['clinker', 'mould', 'crane', 'ladle'],
+  },
+  // H5b, the Hoard: coal-brown stone, gold light. The coal bunker guards the door, the scale hall is the alcove.
+  hoard: {
+    guard: 'bunker', byLayout: {}, alcove: 'scale',
+    fits: { round: ['bunker', 'coffer', 'tithe'], hall: ['scale', 'tithe'], cross: ['tithe', 'bunker'], ring: ['coffer', 'scale'], twin: ['scale', 'coffer'] },
+    rest: ['tithe', 'coffer', 'scale', 'bunker'],
+  },
+  // H5c, the Smeltery: blue-grey steel. The tapping floor guards the door, the flywheel hall is the alcove.
+  smeltery: {
+    guard: 'tap', byLayout: {}, alcove: 'flywheel',
+    fits: { round: ['tap', 'hoist', 'billet'], hall: ['flywheel', 'billet'], cross: ['billet', 'tap'], ring: ['hoist', 'flywheel'], twin: ['flywheel', 'hoist'] },
+    rest: ['billet', 'hoist', 'flywheel', 'tap'],
+  },
+  // H5d, the Flue: sooty brick, amber light. The firebox row guards the door, the damper hall is the alcove.
+  flue: {
+    guard: 'firebox', byLayout: {}, alcove: 'damper',
+    fits: { round: ['firebox', 'soot', 'sweep'], hall: ['damper', 'sweep'], cross: ['sweep', 'firebox'], ring: ['soot', 'damper'], twin: ['damper', 'soot'] },
+    rest: ['sweep', 'soot', 'damper', 'firebox'],
   },
 };
 

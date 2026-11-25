@@ -351,6 +351,43 @@ export class HallsView {
     } else if (id === 'oil') {
       g.fillStyle(0x4e5a38, 1).fillCircle(x - tx * 12, y - ty * 12, 11).fillCircle(x + tx * 12, y + ty * 12, 11);
       g.fillStyle(0x2a2a1e, 1).fillCircle(x - tx * 12, y - ty * 12, 8).fillCircle(x + tx * 12, y + ty * 12, 8);
+    } else if (id === 'ladle' || id === 'crane' || id === 'hoist' || id === 'scale' || id === 'damper') {
+      // H5's hanging props, seen from above: the bracket on the wall and what hangs under it.
+      const steel = id === 'hoist';
+      g.lineStyle(7, steel ? 0x3a3e48 : 0x4a3a36, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 24, y + ty * 24);
+      if (id === 'ladle') { g.fillStyle(0xa8644a, 1).fillCircle(x - nx * 14, y - ny * 14, 16); g.fillStyle(0x5a3628, 1).fillCircle(x - nx * 14, y - ny * 14, 11); }
+      else if (id === 'scale') { g.lineStyle(4, 0xb08848, 1).lineBetween(x - tx * 22 - nx * 10, y - ty * 22 - ny * 10, x + tx * 22 - nx * 10, y + ty * 22 - ny * 10); g.fillStyle(0xc09a50, 1).fillCircle(x - tx * 22 - nx * 10, y - ty * 22 - ny * 10, 8).fillCircle(x + tx * 22 - nx * 10, y + ty * 22 - ny * 10, 8); }
+      else if (id === 'damper') g.fillStyle(0x5a4c44, 1).fillRect(x - nx * 8 - 16, y - ny * 8 - 16, 32, 32);
+      else { g.fillStyle(steel ? 0x8a90a0 : 0xb07a5a, 1).fillRect(x - nx * 14 - 8, y - ny * 14 - 8, 16, 16); }
+    } else if (id === 'mould') {
+      g.fillStyle(0x4a3632, 1).fillRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x3a2622, 1); for (const k of [-1, 0, 1]) for (const j of [-1, 1]) g.fillRect(x + tx * k * 16 + nx * j * 8 - 6, y + ty * k * 16 + ny * j * 8 - 5, 12, 10);
+    } else if (id === 'clinker' || id === 'soot') {
+      const a = id === 'clinker' ? 0x8a5a4c : 0x5a5250, b = id === 'clinker' ? 0xa06a58 : 0x6e6460;
+      g.fillStyle(a, 1).fillCircle(x, y, 22).fillCircle(x + tx * 24 - nx * 6, y + ty * 24 - ny * 6, 12);
+      g.fillStyle(b, 1).fillCircle(x - tx * 4, y - ty * 4, 10);
+    } else if (id === 'bunker') {
+      g.lineStyle(5, 0x6a4a32, 1).strokeRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x2a2224, 1).fillCircle(x, y, 15).fillCircle(x + tx * 12, y + ty * 12, 10);
+    } else if (id === 'coffer') {
+      g.fillStyle(0x6a4630, 1).fillRect(x - tx * 10 - 13, y - ty * 10 - 10, 26, 20).fillRect(x + tx * 16 - 10, y + ty * 16 - 8, 20, 16);
+      g.fillStyle(0xc09a50, 1).fillCircle(x - tx * 10, y - ty * 10, 3);
+    } else if (id === 'tithe' ) {
+      g.fillStyle(0xa8947a, 1).fillCircle(x - tx * 14, y - ty * 14, 13).fillCircle(x + tx * 12, y + ty * 12, 12);
+      g.lineStyle(4, 0x6a5040, 1).lineBetween(x - tx * 24 + nx * 8, y - ty * 24 + ny * 8, x + tx * 24 + nx * 8, y + ty * 24 + ny * 8);
+    } else if (id === 'tap' || id === 'firebox') {
+      g.fillStyle(id === 'tap' ? 0x4a4e5a : 0x5a4038, 1).fillRect(x - 24, y - 16, 48, 32);
+      g.fillStyle(0x22242a, 1).fillRect(x - 9, y - 7, 18, 14);
+      if (id === 'tap') g.lineStyle(6, 0x3a3e48, 1).lineBetween(x, y, x - nx * 34, y - ny * 34);
+    } else if (id === 'flywheel') {
+      g.lineStyle(7, 0x7a8090, 1).strokeCircle(x + nx * 6, y + ny * 6, 18);
+      g.fillStyle(0x3a3e48, 1).fillCircle(x + nx * 6, y + ny * 6, 6);
+    } else if (id === 'billet') {
+      g.fillStyle(0x3a3e48, 1).fillRect(x - 26, y - 16, 52, 32);
+      g.fillStyle(0x8a90a0, 1); for (const k of [-1, 0, 1]) g.fillRect(x - 22 + (k + 1) * 0, y + k * 9 - 3, 44, 6);
+    } else if (id === 'sweep') {
+      g.lineStyle(4, 0x8a6a48, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 8, y + ty * 8);
+      g.fillStyle(0x2e2a28, 1).fillCircle(x + tx * 18, y + ty * 18, 8).fillCircle(x + tx * 28, y + ty * 28, 8);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);

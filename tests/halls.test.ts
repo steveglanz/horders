@@ -575,6 +575,20 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     }
   });
 
+  it('the raid kits (H5, ready before their maps are on): their own themes, the guard theme at the door, no two neighbours alike', () => {
+    const kits = { crucible: ['ladle', 'crane', 'mould', 'clinker'], hoard: ['bunker', 'scale', 'coffer', 'tithe'], smeltery: ['tap', 'flywheel', 'billet', 'hoist'], flue: ['firebox', 'damper', 'soot', 'sweep'] } as const;
+    for (const [raid, ids] of Object.entries(kits)) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const m = halls(seed).halls!;
+        hallsThemes(m, seed, () => undefined, raid as 'crucible');
+        expect(m.rooms[5].theme).toBe(ids[0]);
+        expect(m.rooms[2].theme).toBe('shrine');
+        m.rooms.forEach((r, i) => { if (i !== 2) expect(ids as readonly string[], `${raid} seed ${seed} room ${i}`).toContain(r.theme); });
+        for (const c of m.corridors) expect(m.rooms[c.a].theme, `${raid} seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+      }
+    }
+  });
+
   it('the Kiln\'s themes are unchanged by the per-dungeon kits', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const R = halls(seed).halls!.rooms;

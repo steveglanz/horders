@@ -8,7 +8,8 @@ import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
 /** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), the Coldmarrow's four (H3c), then the Wrackline's four (H3d). Ids are unique across dungeons. */
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice' | 'anvil' | 'chain' | 'quench' | 'ingot' | 'fumarole' | 'obsidian' | 'cairn' | 'pumice' | 'press' | 'gear' | 'plate' | 'oil';
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice' | 'anvil' | 'chain' | 'quench' | 'ingot' | 'fumarole' | 'obsidian' | 'cairn' | 'pumice' | 'press' | 'gear' | 'plate' | 'oil'
+  | 'ladle' | 'crane' | 'mould' | 'clinker' | 'bunker' | 'scale' | 'coffer' | 'tithe' | 'tap' | 'flywheel' | 'billet' | 'hoist' | 'firebox' | 'damper' | 'soot' | 'sweep';
 
 export interface Theme {
   id: ThemeId;
@@ -112,6 +113,44 @@ export const THEMES: Record<ThemeId, Theme> = {
   plate: { id: 'plate', floor2d: 0x2e2e26, name: 'Plate store', tile: '#80826a', cracked: true, wall: '#b4b296', light: '#f4ecd0', lightK: 1.25, swell: 0 },
   // Oil drums and a dark sump, olive light that breathes slowly.
   oil: { id: 'oil', floor2d: 0x26281c, name: 'Oil sump', tile: '#6c7050', cracked: false, wall: '#a4a27c', light: '#e8e0a0', lightK: 1.3, swell: 0.08 },
+  // H5, the raids (visuals, 25 Nov; design's h5-plan.md): four rooms each, in the colours of the raid's arena
+  // (renderer ROOMS), bright on a phone, one quiet motion each, nothing glowing. A hanging prop sways from its bracket.
+  // H5a, the Crucible: rose stone and copper like Grandmother Slag's arena.
+  // A great ladle hanging from a wall crane, swaying slowly: the door guard's room.
+  ladle: { id: 'ladle', floor2d: 0x30221e, name: 'Ladle hall', tile: '#906a5c', cracked: false, wall: '#d8a898', light: '#ffd0a8', lightK: 1.3, swell: 0 },
+  // A hook block on a chain from a jib, swaying: the boss door alcove's.
+  crane: { id: 'crane', floor2d: 0x2e221e, name: 'Crane bay', tile: '#8a6658', cracked: false, wall: '#cca090', light: '#ffd8b4', lightK: 1.3, swell: 0 },
+  // Rows of open ingot moulds, the light swelling faintly as they cool.
+  mould: { id: 'mould', floor2d: 0x32241f, name: 'Mould floor', tile: '#9a7464', cracked: false, wall: '#dcb0a0', light: '#ffc8a0', lightK: 1.3, swell: 0.06 },
+  // Heaps of cooled rose clinker on a cracked floor: the quiet room, its light barely breathing.
+  clinker: { id: 'clinker', floor2d: 0x2c201c, name: 'Clinker heap', tile: '#84625a', cracked: true, wall: '#c89a8c', light: '#ffe0c8', lightK: 1.25, swell: 0.04 },
+  // H5b, the Hoard: Old Vorhulm's dark coal-brown stone and warm gold lamp light.
+  // Coal heaped in timber bunkers, warm light breathing slowly: the door guard's room.
+  bunker: { id: 'bunker', floor2d: 0x241a16, name: 'Coal bunker', tile: '#685248', cracked: true, wall: '#a88a80', light: '#ffd8a8', lightK: 1.35, swell: 0.05 },
+  // A great balance hanging from a wall bracket, its pans swaying: the boss door alcove's.
+  scale: { id: 'scale', floor2d: 0x281e1a, name: 'Scale hall', tile: '#705a4e', cracked: false, wall: '#b49488', light: '#ffe4b8', lightK: 1.35, swell: 0 },
+  // Iron-bound coffers, gold light that swells a little, as if off coin.
+  coffer: { id: 'coffer', floor2d: 0x2a1f1a, name: 'Coffer vault', tile: '#745c4c', cracked: false, wall: '#b8968a', light: '#ffe0a0', lightK: 1.35, swell: 0.08 },
+  // Sacks and tally boards: the quiet room.
+  tithe: { id: 'tithe', floor2d: 0x2a201c, name: 'Tithe store', tile: '#7a6456', cracked: false, wall: '#bc9e92', light: '#fff0d8', lightK: 1.3, swell: 0.04 },
+  // H5c, the Smeltery: the Cinder Colossus's blue-grey steel, warm lamps over cool stone.
+  // A taphole trough in the wall, warm orange light breathing from it (light only: the trough itself doesn't glow).
+  tap: { id: 'tap', floor2d: 0x22242a, name: 'Tapping floor', tile: '#5a6070', cracked: false, wall: '#a0a6b6', light: '#ffc890', lightK: 1.3, swell: 0.15 },
+  // A big flywheel on the wall turning slowly: the boss door alcove's.
+  flywheel: { id: 'flywheel', floor2d: 0x202228, name: 'Flywheel hall', tile: '#565c6a', cracked: false, wall: '#9aa0b0', light: '#e8ecf8', lightK: 1.3, swell: 0 },
+  // Racks of steel billets on a cracked floor: the quiet room.
+  billet: { id: 'billet', floor2d: 0x24262c, name: 'Billet rack', tile: '#626876', cracked: true, wall: '#a8aebc', light: '#f0f2fa', lightK: 1.25, swell: 0.04 },
+  // A hoist hook hanging in a frame, swaying.
+  hoist: { id: 'hoist', floor2d: 0x22242a, name: 'Hoist shaft', tile: '#5c6270', cracked: false, wall: '#a4aab8', light: '#ffd8a8', lightK: 1.3, swell: 0 },
+  // H5d, the Flue: the Furnace Regent's sooty brick, warm amber light.
+  // A row of iron fire doors, amber light breathing like bellows: the door guard's room.
+  firebox: { id: 'firebox', floor2d: 0x2a1e18, name: 'Firebox row', tile: '#725a4c', cracked: false, wall: '#b08c7c', light: '#ffc488', lightK: 1.3, swell: 0.2 },
+  // A big damper plate hanging from its pivot, rocking slowly: the boss door alcove's.
+  damper: { id: 'damper', floor2d: 0x281c18, name: 'Damper hall', tile: '#6c5648', cracked: false, wall: '#a88676', light: '#ffd8b0', lightK: 1.3, swell: 0 },
+  // Soot drifts on a cracked floor, pale grey light barely breathing.
+  soot: { id: 'soot', floor2d: 0x26201e, name: 'Soot chamber', tile: '#6a5e58', cracked: true, wall: '#a8988e', light: '#f4e8dc', lightK: 1.3, swell: 0.05 },
+  // Sweeps' brushes and ladders against the wall: the quiet room.
+  sweep: { id: 'sweep', floor2d: 0x2a201a, name: "Sweeps' gallery", tile: '#786254', cracked: false, wall: '#b4968a', light: '#ffe8cc', lightK: 1.3, swell: 0.04 },
   ingot: { id: 'ingot', floor2d: 0x2a2a2e, name: 'Ingot store', tile: '#6c6a74', cracked: true, wall: '#9692a2', light: '#e4e0f0', lightK: 1.25, swell: 0 },
 };
 
@@ -135,4 +174,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5, anvil: 1.7, chain: 1.6, quench: 1.4, ingot: 1.5, fumarole: 1.6, obsidian: 1.5, cairn: 1.4, pumice: 1.5, press: 1.5, gear: 1.5, plate: 1.4, oil: 1.4 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5, anvil: 1.7, chain: 1.6, quench: 1.4, ingot: 1.5, fumarole: 1.6, obsidian: 1.5, cairn: 1.4, pumice: 1.5, press: 1.5, gear: 1.5, plate: 1.4, oil: 1.4, ladle: 1.5, crane: 1.5, mould: 1.4, clinker: 1.5, bunker: 1.5, scale: 1.5, coffer: 1.4, tithe: 1.4, tap: 1.5, flywheel: 1.5, billet: 1.4, hoist: 1.5, firebox: 1.5, damper: 1.5, soot: 1.5, sweep: 1.4 };
