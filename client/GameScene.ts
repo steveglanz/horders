@@ -4455,7 +4455,7 @@ export class GameScene extends Phaser.Scene {
         if (!p || !onScreen(p)) continue;
         const none = w.revivesLeft <= 0;
         // Above the hero's name, which sits over the body.
-        const x = p.x, y = p.y - (66 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
+        const x = p.x, y = p.y - (90 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
         g.globalAlpha = 0.8; g.fillStyle = none ? '#140c0a' : '#0c1a10';
         g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
         g.globalAlpha = 1; g.strokeStyle = none ? '#8a7d78' : rv; g.lineWidth = 2 * zb;
@@ -4514,8 +4514,9 @@ export class GameScene extends Phaser.Scene {
         if (!shell && !ward) continue;
         const p = view.project(q.x, q.y);
         if (!p || !onScreen(p)) continue;
-        // The hero's body: about 26 px over the feet, 34 wide and 40 tall at zoom 1.
-        const cx = p.x, cy = p.y - 26 * zb, rx = 34 * zb, ry = 40 * zb;
+        // The hero's body: about 36 px over the feet, 34 wide and 52 tall at zoom 1 (the 3D sprite stands at its full
+        // drawn height since it leans to face the camera).
+        const cx = p.x, cy = p.y - 36 * zb, rx = 34 * zb, ry = 52 * zb;
         if (shell) {
           const fade = Math.min(1, ((q.shellUntil ?? 0) - t) / 0.6);
           g.globalAlpha = 0.14 * fade; g.fillStyle = css(SLAG_COOL);
