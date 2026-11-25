@@ -5368,6 +5368,12 @@ export class World {
         this.runStationary(i, dt);
         continue;
       }
+      // BOSSV2 stage 2 (QA, 25 Nov): no hero's stun or shove lands on her on the walk or in the kiln. A stun would
+      // stop her clocks here (the kiln's 40 s among them), and a shove would move her off the kiln mouth.
+      if (e.kind === 'kilnMother' && this.kmStage === 2) {
+        e.stunT = 0;
+        if (this.kmInKiln) { e.x = 0; e.y = this.kmSpotY(); }
+      }
       if (e.stunT > 0) {
         e.stunT -= dt;
         continue;
