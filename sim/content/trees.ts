@@ -19,7 +19,10 @@ export type TreeNodeId =
   | 'hardy' | 'poise' | 'footwork' | 'steadfast'
   | 'char' | 'tinder' | 'fan' | 'ablaze'
   | 'brisk' | 'spark' | 'primer' | 'glint'
-  | 'warmth' | 'soot' | 'skip' | 'glow';
+  | 'warmth' | 'soot' | 'skip' | 'glow'
+  | 'shine' | 'pulse' | 'dazzle' | 'noonday'
+  | 'sturdy' | 'tend' | 'drift' | 'serene'
+  | 'lilt' | 'chime' | 'verse' | 'refrain';
 
 export interface TreeNode {
   id: TreeNodeId;
@@ -87,6 +90,19 @@ export const TREE = {
   sootCut: 0.03,
   skipCd: 1,
   glowDmg: 0.1,
+  // Lumen
+  shineMote: 0.08,
+  pulseBurst: 0.15,
+  dazzleCrit: 0.03,
+  noondayCrit: 0.2,
+  sturdyHp: 15,
+  tendHeal: 0.05,
+  driftCd: 1,
+  sereneDmg: 0.1,
+  liltHaste: 0.04,
+  chimeCd: 2,
+  verseBurn: 0.15,
+  refrainDmg: 0.08,
 };
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
@@ -135,6 +151,21 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   soot: { id: 'soot', cls: 'emberwright', branch: 'ashguard', name: 'Soot', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
   skip: { id: 'skip', cls: 'emberwright', branch: 'ashguard', name: 'Skip', maxRank: 2, text: 'Blink recharges 1s faster per point.', tip: 'Blink comes back 1s sooner per point, 2s at 2 points.' },
   glow: { id: 'glow', cls: 'emberwright', branch: 'ashguard', name: 'Glow', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Ashguard helps you stay there.' },
+  // Lumen, Dawn branch: Sunmotes, Radiant Burst and crits.
+  shine: { id: 'shine', cls: 'lumen', branch: 'dawn', name: 'Shine', maxRank: 3, text: 'Sunmotes hit 8% harder per point.', tip: 'Sunmotes deal 8% more damage per point, 24% at 3 points.' },
+  pulse: { id: 'pulse', cls: 'lumen', branch: 'dawn', name: 'Pulse', maxRank: 2, text: 'Radiant Burst hits 15% harder per point.', tip: 'Radiant Burst deals 15% more damage per point, 30% at 2 points. Its heal stays the same.' },
+  dazzle: { id: 'dazzle', cls: 'lumen', branch: 'dawn', name: 'Dazzle', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
+  noonday: { id: 'noonday', cls: 'lumen', branch: 'dawn', name: 'Noonday', maxRank: 1, keystone: true, text: 'Crits hit for 2.2 times instead of 2.', tip: 'Keystone. Your crits deal 2.2 times the hit instead of 2 times, 10% more on every crit.' },
+  // Lumen, Grace branch: lasting and mending.
+  sturdy: { id: 'sturdy', cls: 'lumen', branch: 'grace', name: 'Sturdy', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  tend: { id: 'tend', cls: 'lumen', branch: 'grace', name: 'Tend', maxRank: 3, text: 'Your heals are 5% stronger per point.', tip: 'Every heal you cast, on you or an ally, is 5% stronger per point, 15% at 3 points.' },
+  drift: { id: 'drift', cls: 'lumen', branch: 'grace', name: 'Drift', maxRank: 2, text: 'Glimmer Step recharges 1s faster per point.', tip: 'Glimmer Step comes back 1s sooner per point, 2s at 2 points.' },
+  serene: { id: 'serene', cls: 'lumen', branch: 'grace', name: 'Serene', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Grace helps you stay there.' },
+  // Lumen, Choir branch: faster Sunmotes and a stronger Sanctuary.
+  lilt: { id: 'lilt', cls: 'lumen', branch: 'choir', name: 'Lilt', maxRank: 3, text: 'Sunmotes fly 4% more often per point.', tip: 'Sunmotes come 4% faster per point, 12% at 3 points.' },
+  chime: { id: 'chime', cls: 'lumen', branch: 'choir', name: 'Chime', maxRank: 2, text: 'Sanctuary recharges 2s faster per point.', tip: 'Sanctuary comes back 2s sooner per point, 4s at 2 points.' },
+  verse: { id: 'verse', cls: 'lumen', branch: 'choir', name: 'Verse', maxRank: 3, text: 'Sanctuary burns 15% harder per point.', tip: 'Sanctuary burns foes for 15% more per point, 45% at 3 points.' },
+  refrain: { id: 'refrain', cls: 'lumen', branch: 'choir', name: 'Refrain', maxRank: 1, keystone: true, text: 'Foes in your Sanctuary take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe standing in your Sanctuary.' },
 };
 
 export const TREE_IDS = Object.keys(TREE_NODES) as TreeNodeId[];
@@ -182,6 +213,11 @@ export const TREE_BUILDS: Partial<Record<ClassId, Record<string, TreeNodeId[]>>>
     wildfire: ['char', 'tinder', 'char', 'fan', 'tinder', 'char', 'ablaze', 'fan', 'fan', 'brisk', 'spark', 'brisk', 'spark', 'brisk', 'primer', 'glint', 'spark', 'primer', 'warmth'],
     kindling: ['brisk', 'spark', 'brisk', 'primer', 'spark', 'brisk', 'glint', 'spark', 'primer', 'char', 'tinder', 'char', 'fan', 'tinder', 'char', 'ablaze', 'fan', 'fan', 'warmth'],
     ashguard: ['warmth', 'soot', 'warmth', 'skip', 'soot', 'warmth', 'glow', 'soot', 'skip', 'brisk', 'spark', 'brisk', 'spark', 'brisk', 'primer', 'glint', 'spark', 'primer', 'char'],
+  },
+  lumen: {
+    dawn: ['shine', 'dazzle', 'shine', 'pulse', 'dazzle', 'shine', 'noonday', 'dazzle', 'pulse', 'lilt', 'verse', 'lilt', 'verse', 'lilt', 'chime', 'refrain', 'verse', 'chime', 'sturdy'],
+    grace: ['sturdy', 'tend', 'sturdy', 'drift', 'tend', 'sturdy', 'serene', 'tend', 'drift', 'shine', 'dazzle', 'shine', 'pulse', 'dazzle', 'shine', 'noonday', 'dazzle', 'pulse', 'lilt'],
+    choir: ['lilt', 'verse', 'lilt', 'chime', 'verse', 'lilt', 'refrain', 'verse', 'chime', 'shine', 'dazzle', 'shine', 'pulse', 'dazzle', 'shine', 'noonday', 'dazzle', 'pulse', 'sturdy'],
   },
 };
 

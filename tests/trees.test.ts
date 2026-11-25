@@ -15,6 +15,7 @@ describe('character trees (class progression brief)', () => {
     ['bulwark', ['bastion', 'retribution', 'vanguard']],
     ['duskblade', ['bloodletting', 'tempo', 'guard']],
     ['emberwright', ['wildfire', 'kindling', 'ashguard']],
+    ['lumen', ['dawn', 'grace', 'choir']],
   ] as const)('the %s tree has 3 nodes and a keystone in each of its run-draft branches', (cls, branches) => {
     const nodes = treeOf(cls);
     expect(nodes).toHaveLength(12);
@@ -182,5 +183,38 @@ describe('character trees (class progression brief)', () => {
       return hp0 - w.player.hp;
     };
     expect(taken({ soot: 3 })).toBeLessThan(taken({}));
+  });
+
+  it('Lumen tree: Sturdy adds health, Lilt speeds Sunmotes, Dazzle crits more, Drift and Chime cut cooldowns, Tend heals more', () => {
+    expect(loadoutFrom({ sturdy: 2 }, []).maxHpBonus).toBe(2 * TREE.sturdyHp + 2 * TREE.pointHp);
+    const base = new World({ seed: 1, cls: 'lumen' });
+    const tree = new World({ seed: 1, cls: 'lumen', passives: { lilt: 3, dazzle: 3, drift: 2, chime: 2, tend: 3 } as never });
+    expect(tree.moteCooldown).toBeCloseTo(base.moteCooldown / (1 + 3 * TREE.liltHaste), 6);
+    expect(tree.critChance).toBeCloseTo(base.critChance + 3 * TREE.dazzleCrit, 6);
+    const cd = (w: World, slot: number) => (w as unknown as { baseCooldown(s: number): number }).baseCooldown(slot);
+    expect(cd(base, 1) - cd(tree, 1)).toBeCloseTo(2 * TREE.driftCd, 6);
+    expect(cd(base, 2) - cd(tree, 2)).toBeCloseTo(2 * TREE.chimeCd, 6);
+    const healed = (w: World) => { w.player.hp = 1; return w.healPlayer(10); };
+    expect(healed(tree)).toBeCloseTo(healed(base) * (1 + 3 * TREE.tendHeal), 6);
+  });
+
+  it('Lumen tree: Serene only above half health, Refrain only in the Sanctuary, Noonday makes crits bigger', () => {
+    const hit = (passives: Record<string, number>, hpShare: number, inSanct: boolean, crit = false) => {
+      const w = new World({ seed: 1, cls: 'lumen', passives: passives as never });
+      const wi = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { hp: number; x: number; y: number }[]; damageEnemy(i: number, a: number, c: boolean, b?: boolean, f?: boolean): void };
+      const i = wi.spawn('cinderBrute', 400, 0);
+      const e = wi.enemies[i];
+      w.player.hp = w.player.maxHp * hpShare;
+      if (inSanct) Object.assign(w.player, { sanctT: 3, sanctX: e.x, sanctY: e.y });
+      const before = e.hp;
+      wi.damageEnemy(i, 100, false, false, crit);
+      return before - e.hp;
+    };
+    expect(hit({}, 0.9, false)).toBeGreaterThan(0);
+    expect(hit({ serene: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false) * (1 + TREE.sereneDmg), 6);
+    expect(hit({ serene: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ refrain: 1 }, 0.4, true)).toBeCloseTo(hit({}, 0.4, true) * (1 + TREE.refrainDmg), 6);
+    expect(hit({ refrain: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ noonday: 1 }, 0.4, false, true)).toBeCloseTo(hit({}, 0.4, false, true) * (2 + TREE.noondayCrit) / 2, 6);
   });
 });
