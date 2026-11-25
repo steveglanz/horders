@@ -459,7 +459,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (c.dungeon === 'pressworks' && isPunchR(ev.r)) return { id: 'punchHit', jitter: 0.04 };
       // A hero crushed by the press (a second Downstroke on a Pressed hero, or OSKELV2's crush line) is the only Pressworks
       // slam of radius CRUSH_R: one heavy press punch.
-      if (c.dungeon === 'pressworks' && ev.r === CRUSH_R) return { id: 'punchHit', vol: 1.3 };
+      // The sim tags them source 'crush' (25 Nov); the radius still matches too.
+      if (ev.source === 'crush' || (c.dungeon === 'pressworks' && ev.r === CRUSH_R)) return { id: 'punchHit', vol: 1.3 };
       // Turning Fire's cones are the only Kiln telegraphs as long as KILN_TURN.reach (Kiln Draw's ring is KILN_DRAW.radius).
       if (c.dungeon === 'kiln' && ev.r === KILN_TURN.reach) return { id: 'turnCone' };
       return { id: 'slam' };
