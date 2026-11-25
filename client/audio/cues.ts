@@ -95,6 +95,8 @@ export interface CueContext {
   inLava?: boolean;
   /** Y3 Creeping Rime: this screen's hero stands in the rime (inRimeNow), so frost crackles underfoot. */
   inRime?: boolean;
+  /** ONDRELV2: Ondrel's burning slag (World.slagPatches; glow > 0 while it counts down to its burst in the last heat). */
+  slag?: readonly SlagPatch[];
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -961,6 +963,47 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
  * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
  * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
  */
+/** ONDRELV2 (design 25 Nov, ondrel-v2.md): one patch of Ondrel's slag, as World.slagPatches holds it. */
+export interface SlagPatch { x: number; y: number; glow: number }
+/** How long slagVentWarn runs (its 1.1 s hiss with bubbles), so it ends as the slag bursts. */
+export const SLAG_WARN_LEAD = 1.1;
+const slagKey = (a: { x: number; y: number }) => `${Math.round(a.x)},${Math.round(a.y)}`;
+
+/**
+ * ONDRELV2's slag, from reused sounds only (Steve, 25 Nov: keep it simple). A new patch landing under an Anvilfall
+ * flares like the Kiln's lava (lavaFlare). When the last heat makes them glow, the Crucible's slag-vent warning
+ * (slagVentWarn) is timed to end as they burst. `state` keeps last tick's patches, for these edges and for slagBurstAt.
+ */
+export function slagCues(state: { burning: Map<string, number>; glowing: Set<string> }, patches: readonly SlagPatch[], listen?: CueContext['listen']): Cue[] {
+  const out: Cue[] = [];
+  // Counted per spot: a tank who doesn't move takes two Anvilfalls, and two patches, on one spot.
+  const burning = new Map<string, number>(), glowing = new Set<string>();
+  let lead = -1;
+  for (const a of patches) {
+    const k = slagKey(a);
+    if (a.glow === 0) {
+      const n = (burning.get(k) ?? 0) + 1;
+      burning.set(k, n);
+      if (n > (state.burning.get(k) ?? 0)) {
+        const o = offsetAt(listen, a.x, a.y);
+        out.push({ id: 'lavaFlare', vol: 0.8, jitter: 0.06, pan: o === null ? undefined : o * PAN_MAX });
+      }
+    } else if (a.glow > 0) {
+      glowing.add(k);
+      if (!state.glowing.size) lead = Math.max(lead, a.glow);
+    }
+  }
+  if (lead >= 0) out.push({ id: 'slagVentWarn', after: Math.max(0, lead - SLAG_WARN_LEAD) });
+  state.burning = burning;
+  state.glowing = glowing;
+  return out;
+}
+
+/** Whether a slam is one of last tick's glowing patches bursting (the sim drops the patch as it bursts), not Ironload. */
+export function slagBurstAt(state: { glowing: Set<string> }, ev: SimEvent): boolean {
+  return ev.type === 'slam' && state.glowing.size > 0 && state.glowing.has(slagKey(ev));
+}
+
 export function restCue(state: { on: boolean }, resting: boolean, packs?: readonly { state: string }[]): Cue | null {
   const was = state.on;
   state.on = resting && !!packs?.some((pk) => pk.state === 'cleared');
@@ -1029,6 +1072,8 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   lungeHit: 0.18,
   // Several slams can land on one tick (Glintfall hits up to four pillars at once): one boom, not a stack.
   slam: 0.06,
+  // ONDRELV2: up to four slag patches burst on one tick; one splash.
+  slagBurst: 0.1,
   // The Hoard: six embers spill at once and a party can sweep them up together.
   emberTaken: 0.1,
   emberEaten: 0.15,
