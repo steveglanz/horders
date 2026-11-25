@@ -52,4 +52,27 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
       expect(w.drops.filter((d) => d.alive).length - bags).toBe(w === on ? 0 : 1);
     }
   });
+
+  it('the XP step (KILNTRASH.xp): half a level per trash clear and one and a half per other fight, so A, B, C, E still give 4', () => {
+    KILNTRASH.xp = 1;
+    try {
+      for (let seed = 1; seed <= 10; seed++) {
+        const w = kiln(seed, true);
+        const m = w.halls!;
+        const order = (['A', 'B', 'C', 'E'] as const).map((r) => m.packs.findIndex((p) => p.role === r));
+        const steps: number[] = [];
+        for (const k of order) {
+          const before = w.player.level + (w.player.levelPart ?? 0);
+          (w as unknown as Q).hallsClear(k);
+          steps.push(w.player.level + (w.player.levelPart ?? 0) - before);
+          expect(w.player.pendingLevels).toBe(w.player.level - 1);
+        }
+        expect(steps, `seed ${seed}`).toEqual(order.map((k) => (m.packs[k].trash ? 0.5 : 1.5)));
+        const trash = order.filter((k) => m.packs[k].trash).length;
+        if (trash === 2) expect(w.player.level).toBe(5);
+      }
+    } finally {
+      KILNTRASH.xp = 0;
+    }
+  });
 });
