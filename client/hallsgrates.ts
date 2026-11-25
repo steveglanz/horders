@@ -2,13 +2,14 @@
  * Phase 18 Halls H2b (design plan /mnt/project-files/horders/design/halls/h2-plan.md): a room seals once a pack in it
  * wakes. Ember grates drop across each of its doorways after a 1.0 s red glow, and lift once the room is cleared.
  * Shared by the 2D view (client/hallsview.ts) and the 3D view (client/hd2d/halls3d.ts), so both put the grates in the
- * same place. No imports beyond types, so the 3D bundle and the main bundle can both take it.
+ * same place. Only types and client/hallsshape.ts (itself import-free), so the 3D bundle and the main bundle can both take it.
  *
  * The sim's fields (agreed with engineering, 25 Nov): HallsRoom.lock, seconds since the room began to seal (-1 or
  * absent while open), and HallsRoom.lifted, seconds since it opened again (absent if it never sealed). Read through
  * lockOf and liftedOf so this builds before and after the fields are typed in sim/halls.ts.
  */
 import type { HallsMap, HallsRoom } from '../sim/halls';
+import { corridorEnds, inLoop, roomLoops } from './hallsshape';
 
 /** The red glow before the grates drop (design: 1.0 s). */
 export const GRATE_WARN = 1.0;
@@ -39,13 +40,22 @@ export function hallsGrates(m: HallsMap, corridor: number, doorRoom: number): Gr
   const out: Grate[] = [];
   const hw = corridor / 2;
   m.corridors.forEach((c) => {
-    for (const [i, j] of [[c.a, c.b], [c.b, c.a]]) {
+    const e = corridorEnds(m, c);
+    for (const [i, x1, y1, x2, y2] of [[c.a, e.x1, e.y1, e.x2, e.y2], [c.b, e.x2, e.y2, e.x1, e.y1]]) {
       if (i === doorRoom) continue;
-      const r = m.rooms[i], o = m.rooms[j];
-      const dx = o.x - r.x, dy = o.y - r.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-      // The mouth: where the corridor's sides cross the rim, then 10 units on into the corridor.
-      const t = Math.sqrt(Math.max(0, r.r * r.r - hw * hw)) + 10;
-      out.push({ room: i, x: r.x + ux * t, y: r.y + uy * t, ux: -ux, uy: -uy, hw });
+      const r = m.rooms[i];
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+      // The mouth: the farthest point where either corridor side leaves the room's outline (any shape), marching out
+      // from the centre line's end inside the room, then 10 units on into the corridor.
+      const outer = roomLoops(r)[0];
+      let t = 0;
+      for (const s of [1, -1]) {
+        const sx = x1 - uy * hw * s, sy = y1 + ux * hw * s;
+        let d = 0; while (d < L && inLoop(outer, sx + ux * d, sy + uy * d)) d += 2;
+        t = Math.max(t, d);
+      }
+      t += 10;
+      out.push({ room: i, x: x1 + ux * t, y: y1 + uy * t, ux: -ux, uy: -uy, hw });
     }
   });
   return out;
