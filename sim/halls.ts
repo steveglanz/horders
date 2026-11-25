@@ -51,13 +51,15 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
 export type GlarewellTheme = 'lens' | 'orrery' | 'colonnade' | 'mirror';
 /** H3c: the Coldmarrow's rooms (engineering's names, 25 Nov, for visuals to rename): a dead hearth, rime, snowdrift, a cold crypt. */
 export type ColdmarrowTheme = 'hearthless' | 'rime' | 'drift' | 'crypt';
+/** H3d: the Wrackline's quay rooms (engineering's names, 25 Nov, for visuals to rename): a harbour quay, a wreck yard, a kelp bed, a sluice. */
+export type WracklineTheme = 'quay' | 'wreck' | 'kelp' | 'sluice';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -204,7 +206,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry'];
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['glarewell', 'coldmarrow'];
+export const HALLS_BETA: DungeonId[] = ['glarewell', 'coldmarrow', 'wrackline'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -793,16 +795,19 @@ export const mainRooms = (m: { rooms: unknown[] }): number[] => (m.rooms.length 
  * careful hero walks past it.
  */
 /** Per dungeon, the shapes an any-shape room rolls from (design, 25 Nov: the Glarewell weights up Cross and Ring, which give cover). */
-const ANY_SHAPES: Partial<Record<DungeonId, RoomShape[]>> = { glarewell: ['round', 'hall', 'cross', 'cross', 'ring', 'ring'] };
+const ANY_SHAPES: Partial<Record<DungeonId, RoomShape[]>> = { glarewell: ['round', 'hall', 'cross', 'cross', 'ring', 'ring'], wrackline: ['round'] };
+/** H3d (design, 25 Nov): the Wrackline's rooms are all quays, Round or Twin only, since the rafts need open water. */
+const QUAY_DUNGEONS: DungeonId[] = ['wrackline'];
 
 function genOnce(rnd: () => number, dungeon: DungeonId = 'kiln'): GenMap {
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
   const anyShape: RoomShape[] = ANY_SHAPES[dungeon] ?? ['round', 'hall', 'cross', 'ring'];
-  const r0 = genRoom('R0', true, pick<RoomShape>(['round', 'round', 'hall']), rnd, { r: [390, 450] });
+  const quay = QUAY_DUNGEONS.includes(dungeon);
+  const r0 = genRoom('R0', true, pick<RoomShape>(quay ? ['round'] : ['round', 'round', 'hall']), rnd, { r: [390, 450] });
   // Design, 25 Nov: A's room is Round or Ring, so the first sealed fight is in a simple room.
-  const r1 = genRoom('R1', true, pick<RoomShape>(['round', 'ring']), rnd, { spotSide: sgn() });
+  const r1 = genRoom('R1', true, pick<RoomShape>(quay ? ['round'] : ['round', 'ring']), rnd, { spotSide: sgn() });
   // B's room: any shape; a twin keeps both halves, with B in the half on the walk.
   const bs = sgn();
   const r3 = genRoom('R3', true, pick<RoomShape>([...anyShape, 'twin']), rnd, { cSide: bs, spotSide: sgn() });
@@ -1038,6 +1043,12 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     guard: 'hearthless', byLayout: {}, alcove: 'crypt',
     fits: { round: ['hearthless', 'rime', 'drift'], hall: ['crypt', 'rime'], cross: ['crypt'], ring: ['hearthless', 'drift'], twin: ['drift', 'crypt'] },
     rest: ['rime', 'drift', 'crypt', 'hearthless'],
+  },
+  // H3d: every room is a quay (Round or Twin only); the quay guards the door, the sluice is the alcove.
+  wrackline: {
+    guard: 'quay', byLayout: {}, alcove: 'sluice',
+    fits: { round: ['quay', 'wreck', 'kelp'], hall: ['quay'], cross: ['quay'], ring: ['quay'], twin: ['kelp', 'wreck', 'sluice'] },
+    rest: ['wreck', 'kelp', 'sluice', 'quay'],
   },
 };
 
