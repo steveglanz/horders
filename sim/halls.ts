@@ -355,13 +355,14 @@ export function roomAt(m: HallsGeo, x: number, y: number, pad = 0): number {
 
 /**
  * H2b: a sealed room's grates (rm.lock past HALLS.lockDelay) close its doorways: nothing inside its floor gets out, and
- * nothing outside gets in. `o` (radius `r`) is kept wholly on its own side of the room's wall. The side is where `o`
+ * nothing outside gets in (`letIn`, co-op heroes only: design 25 Nov, "Grates let heroes in, never out"). `o` (radius `r`)
+ * is kept wholly on its own side of the room's wall. The side is where `o`
  * started the tick (`px`, `py`, when it has them), so a dash or leap that lands past the grates (Blink, Glimmer Step,
  * Interpose, Sidestep, Charge, Rending Dash) stops at them instead.
  */
 /** How far off a sealed grate clampGrates keeps anything, on either side. */
 export const GRATE_SKIN = 2;
-export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number): void {
+export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number, letIn = false): void {
   for (const rm of m.rooms) {
     if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
     const from = o.px !== undefined && o.py !== undefined;
@@ -377,7 +378,8 @@ export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number;
       o.x = q.x;
       o.y = q.y;
     } else {
-      if (g <= -k) continue;
+      // Design, 25 Nov ("Grates let heroes in, never out"): in co-op a hero shut outside can walk in through a grate.
+      if (g <= -k || letIn) continue;
       const n = roomInward(rm, o.x, o.y);
       o.x -= n.x * (k + g);
       o.y -= n.y * (k + g);

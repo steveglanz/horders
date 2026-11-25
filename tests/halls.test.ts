@@ -1144,3 +1144,51 @@ describe('Halls: one pack per room (design, 25 Nov)', () => {
     }
   });
 });
+
+describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
+  /** Seals the A pack's room with hero 0 inside; returns the room and a doorway line (u points out, `t` is the rim). */
+  function sealed(w: World) {
+    const m = w.halls!;
+    const a = m.packs.find((q) => q.role === 'A')!;
+    const rm = m.rooms[roomAt(m, a.x, a.y)];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    const c = m.corridors.find((q) => m.rooms[q.a] === rm || m.rooms[q.b] === rm)!;
+    const inA = m.rooms[c.a] === rm;
+    const px = inA ? c.ax! : c.bx!, py = inA ? c.ay! : c.by!, ox = inA ? c.bx! : c.ax!, oy = inA ? c.by! : c.ay!;
+    const len = Math.hypot(ox - px, oy - py), ux = (ox - px) / len, uy = (oy - py) / len;
+    let t = 0;
+    while (roomGap(rm, px + ux * t, py + uy * t) > 0) t += 1;
+    return { rm, px, py, ux, uy, t };
+  }
+
+  it('in co-op a hero shut outside walks in through a grate, and then can\'t walk out; foes still can\'t cross', () => {
+    const w = halls(2, { invulnerable: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    const q = w.heroData(1).player;
+    q.x = q.px = px + ux * (t + 250); q.y = q.py = py + uy * (t + 250);
+    const hold = [idle, idle];
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(hold);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 starts outside').toBeLessThan(0);
+    // Walk in along the corridor.
+    for (let k = 0; k < 90; k++) w.step([idle, { x: -ux, y: -uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 walked in').toBeGreaterThanOrEqual(0);
+    // And out again: the grate holds.
+    for (let k = 0; k < 120; k++) w.step([idle, { x: ux, y: uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 can\'t walk out').toBeGreaterThanOrEqual(0);
+    // A foe outside is still kept out.
+    const foe = { x: px - ux * 5, y: py - uy * 5, px: px + ux * (t + 40), py: py + uy * (t + 40) };
+    clampGrates(w.halls!, foe, 15);
+    expect(roomGap(rm, foe.x, foe.y)).toBeLessThan(0);
+  });
+
+  it('solo play doesn\'t change: a sealed grate keeps the hero out', () => {
+    const w = halls(2, { invulnerable: true });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    w.step(idle);
+    rm.lock = HALLS.lockDelay + 1; // sealed (solo, the hero is never outside a seal, so set it by hand)
+    put(w, px + ux * (t + 80), py + uy * (t + 80));
+    for (let k = 0; k < 90; k++) w.step({ x: -ux, y: -uy });
+    expect(roomGap(rm, w.player.x, w.player.y)).toBeLessThan(0);
+  });
+});
