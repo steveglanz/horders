@@ -42,17 +42,15 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const m = w.halls!;
       expect(w.phase).toBe('cleared');
       expect(pack(w, 'A').enc).toBe(w.route[0]);
-      // Design, 25 Nov: a named gate goes on the main path as B, and the side room keeps B's steady fight.
-      const named = pack(w, 'S').gate === 'steady';
-      expect(pack(w, named ? 'S' : 'B').enc).toBe(w.route[1]);
-      if (named) expect(pack(w, 'B').gate).toBe('named');
+      // Tiers 1-3 keep the named gate in the side room (design, 25 Nov; from tier 4 it goes on the main path).
+      expect(pack(w, 'B').enc).toBe(w.route[1]);
       expect(pack(w, 'C').enc).toBe(w.route[2]);
       expect(pack(w, 'E').enc).toBe(w.route[3]);
       expect(pack(w, 'E').guard).toBe(true);
       expect(w.route[4]).toBe('kilnMother');
       // R2 is a gate as rollFork rolls it (a named fight, or a shrine); D a hard or named fight not already on the map.
       const s = pack(w, 'S');
-      expect(s.enc === 'shrine' ? s.gate === 'shrine' : s.gate === 'steady').toBe(true);
+      expect(s.enc === 'shrine' ? s.gate === 'shrine' : s.gate === 'named').toBe(true);
       const d = pack(w, 'D');
       expect([...DUNGEONS.kiln.hard, ...DUNGEONS.kiln.named]).toContain(d.enc);
       expect(d.bags).toBe(2);
@@ -1201,5 +1199,24 @@ describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
     put(w, px + ux * (t + 80), py + uy * (t + 80));
     for (let k = 0; k < 90; k++) w.step({ x: -ux, y: -uy });
     expect(roomGap(rm, w.player.x, w.player.y)).toBeLessThan(0);
+  });
+});
+
+describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)', () => {
+  it('B takes the named fight and the side room keeps the steady one; tiers 1-3 keep the old map', () => {
+    let moved = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const lo = halls(seed, { tier: 3 }), hi = halls(seed, { tier: 4 });
+      const sLo = lo.halls!.packs.find((q) => q.role === 'S')!, bLo = lo.halls!.packs.find((q) => q.role === 'B')!;
+      const sHi = hi.halls!.packs.find((q) => q.role === 'S')!, bHi = hi.halls!.packs.find((q) => q.role === 'B')!;
+      expect(bLo.enc).toBe(lo.route[1]);
+      if (sHi.gate === 'shrine') { expect(bHi.enc).toBe(hi.route[1]); continue; }
+      moved++;
+      expect(bHi.gate).toBe('named');
+      expect(sHi.gate).toBe('steady');
+      expect(sHi.enc).toBe(hi.route[1]);
+      expect(sLo.gate).toBe('named');
+    }
+    expect(moved).toBeGreaterThan(5);
   });
 });

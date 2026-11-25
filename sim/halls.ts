@@ -236,7 +236,7 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
   });
 }
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -263,9 +263,10 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const { hard, named } = DUNGEONS[dungeon];
   const pool = [...hard, ...named].filter((e, i, a) => !used.has(e) && a.indexOf(e) === i);
   const dEnc = pool.length ? pool[pick(pool.length)] : route[3];
-  // H4a (design, 25 Nov): on every map a named gate goes on the main path, as an arena run takes it (its Brutes' elite
-  // chests are drafts the party needs for the boss), and the side room keeps the steady fight instead.
-  const onPath = side.kind === 'named';
+  // H4a (design, 25 Nov): from tier 4, on every map a named gate goes on the main path, as an arena run takes it (its
+  // Brutes' elite chests are drafts the party needs for the boss), and the side room keeps the steady fight instead.
+  // Tiers 1-3 are the novice tiers (noviceAid) and keep it in the side room (a Kiln t2 Emberwright lost 8 of 80 to it).
+  const onPath = side.kind === 'named' && tier >= 4;
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
     B: onPath ? { enc: side.encounter, slot: 1, main: true, bags: 1, gate: 'named' } : { enc: route[1], slot: 1, main: true, bags: 1 },
