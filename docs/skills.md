@@ -953,6 +953,17 @@ Arena, heroes-r2 Slagbinder files x 3, 40 seeds, full skill, wins of 40 and aver
 
 Kiln t3 Halls on main after H2a-H2c (no gear, 40 seeds): full skill 17 wins at 340 s becomes 16 at 287 s, and average skill 16 at 353 s becomes 24 at 315 s. Runs over 7 min: 14 -> 8 (full) and 13 -> 9 (average).
 
+## Halls H2: class check on locked rooms and the new speed (H2f, 25 Nov 2026)
+Main cd315fe (H2a speed, H2b room lock, H2c generated maps, #683 bot corners), Kiln t3, full skill unless noted.
+
+- **Grates (#680):** every hero dash or leap (Blink, Glimmer Step, Interpose, Sidestep, Charge, Rending Dash) landed past a sealed room's grates, out or in, and an escape left the woken pack sealed in. `clampGrates` now takes the side from where the body started the tick.
+- **Seeds 1-80, arena vs Halls (wins of 80):** full: Emberwright 47/50, Slagbinder 79/71, Lumen 76/75, Duskblade 61/57, Bulwark 74/75. Average (reactBot 0.3/0.2/0.5): 10/11, 79/77, 77/77, 32/31, 41/37.
+- **Cause of the two swings, seeds 81-240 (wins of 160, arena / Halls / Halls with an arena-speed boss, a scratch test):** Slagbinder 157/144/153, Emberwright 86/109/70, Bulwark 148/147/153, Duskblade 107/101/106. The boss fight runs at H2a's 1.25x, which helps a kiting Emberwright and hurts the Slagbinder. Design kept 1.25x (Steve asked for everything faster): when Halls replaces the arena Kiln, the boss fight is tuned at 1.25x for every class.
+
+**Watch items:**
+- Emberwright t3 full: +23 of 160 in Halls over the arena.
+- Slagbinder: -13 of 160 at the Kiln boss in Halls (14 boss deaths against 3).
+
 ## Marks and arena events: class check (X5, 23 Nov 2026)
 Phase 14 gave the named foes two more affixes (Brood, Smoldering; X2) and gave the solo trash fights arena events (Cave-in, Vent Surge, Cold Snap, High Water; X3). X5 asks whether every class has an answer to each one.
 
