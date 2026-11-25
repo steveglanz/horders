@@ -83,7 +83,7 @@ const seeds = (process.env.SEEDS ?? Array.from({ length: 20 }, (_, i) => i + 1).
 
 let wins = 0;
 // OSKELV2: crush-line hits, and the fights that reached the belt (stage 2) and full speed (stage 3).
-const os = { hits: 0, belt: 0, full: 0, by: {} as Record<string, number>, ticks: 0, tankBoss: 0, tankHealer: 0, downOk: 0, downMiss: 0, bossTicks: 0 };
+const os = { hits: 0, belt: 0, full: 0, by: {} as Record<string, number>, ticks: 0, tankBoss: 0, tankHealer: 0, downOk: 0, downMiss: 0, bossTicks: 0, flips: 0 };
 /** STIRHURT=1: Phase 15 Y10's judged cost of each trash clear (the worst hero against their class bar), as percentiles. */
 const fightHurts: number[] = [];
 /** STIRHURT=1: how often each class was the worst-off hero of a cleared fight. */
@@ -213,8 +213,9 @@ for (const seed of seeds) {
       return inp;
     });
     const before = w.heroes.map((_, i) => w.hero(i).player.hp);
-    const crushBefore = w.osCrushHits;
+    const crushBefore = w.osCrushHits, dirBefore = w.osDir;
     w.step(inputs);
+    if (w.osStage >= 2 && w.osDir !== dirBefore) os.flips++;
     if (w.osStage >= (process.env.OSDBG ? Number(process.env.OSDBG) : 2) && w.bossIndex >= 0 && w.enemies[w.bossIndex]?.kind === 'oskel') {
       if (w.osCrushHits > crushBefore) w.heroes.forEach((h, k) => { const q = w.hero(k).player; if (q.lastHurtBy === 'the crush line' && q.hp < before[k]) os.by[h.cls] = (os.by[h.cls] ?? 0) + 1; });
       const ti = w.heroes.findIndex((h) => h.cls === 'bulwark'), li = w.heroes.findIndex((h) => h.cls === 'lumen'), b = w.enemies[w.bossIndex];
@@ -278,4 +279,4 @@ if (process.env.STIRHURT === '1' && fightHurts.length) {
 }
 if (ytrace) ysReport();
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);
-if (process.env.OSKELV2 === '1') console.log(`oskelv2 beltFights=${os.belt} fullSpeedFights=${os.full} crushHits=${os.hits} perBeltFight=${(os.hits / Math.max(1, os.belt)).toFixed(2)} by=${JSON.stringify(os.by)} beltDownstrokes ok=${os.downOk} missed=${os.downMiss} avgTankToOskel=${(os.tankBoss / Math.max(1, os.ticks)).toFixed(0)} avgTankToHealer=${(os.tankHealer / Math.max(1, os.ticks)).toFixed(0)}`);
+if (process.env.OSKELV2 === '1') console.log(`oskelv2 beltFights=${os.belt} fullSpeedFights=${os.full} crushHits=${os.hits} perBeltFight=${(os.hits / Math.max(1, os.belt)).toFixed(2)} flips=${os.flips} flipsPerBeltFight=${(os.flips / Math.max(1, os.belt)).toFixed(1)} by=${JSON.stringify(os.by)} beltDownstrokes ok=${os.downOk} missed=${os.downMiss} avgTankToOskel=${(os.tankBoss / Math.max(1, os.ticks)).toFixed(0)} avgTankToHealer=${(os.tankHealer / Math.max(1, os.ticks)).toFixed(0)}`);

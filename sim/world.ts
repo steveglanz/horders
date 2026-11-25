@@ -10426,11 +10426,11 @@ export const YSMERETV2 = {
  * OSKELV2 (design 25 Nov, oskel-v2.md): starting values. Stage 2 from `stage2` of his health: the press bed carries
  * everyone `belt` a second and flips at each Downstroke (`flipWarn` s of warning first); the downstream `arc` (radians)
  * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream). Stage 3 from `stage3`:
- * `belt3`, no more flips. `hpMult`: his health under v2 (design's second lever).
+ * `belt3`, no more flips. `hpMult`: his health under v2. Belt 30 and hp x0.9 are design's two levers, measured 25 Nov (see the PR).
  */
 export const OSKELV2 = {
-  stage2: 0.55, stage3: 0.2, belt: 40, belt3: 70, flipWarn: 1.5,
-  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, hpMult: 1,
+  stage2: 0.55, stage3: 0.2, belt: 30, belt3: 70, flipWarn: 1.5,
+  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, hpMult: 0.9,
   /** 1: the Downstroke plate rides the belt (design's rule); 0 for measuring only. */
   plateRides: 1,
 };
