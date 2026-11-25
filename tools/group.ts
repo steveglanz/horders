@@ -175,7 +175,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', trashBeta: process.env.TRASH_BETA === '1', raidTrash: process.env.RAIDTRASH === '1', ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', trashBeta: process.env.TRASH_BETA === '1', raidTrash: process.env.RAIDTRASH === '1', gunner: process.env.GUNNER === '0' ? false : undefined, ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: treePoints(main, mp), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);

@@ -34,8 +34,8 @@ describe('Fill with bots', () => {
     expect(fillClasses([{ cls: 'lumen' }])).toEqual(['bulwark', 'duskblade', 'emberwright']);
     expect(fillClasses([{ cls: 'bulwark' }])).toEqual(['lumen', 'duskblade', 'emberwright']);
     expect(fillClasses([{ cls: 'duskblade' }])).toEqual(['bulwark', 'lumen', 'emberwright']);
-    // A Slagbinder's role comes from its stance: Anvil tanks.
-    expect(fillClasses([{ cls: 'slagbinder', stance: 'anvil' }])).toEqual(['lumen', 'duskblade', 'emberwright']);
+    // The Slagbinder gunner never tanks, even with an old saved Anvil stance.
+    expect(fillClasses([{ cls: 'slagbinder', stance: 'anvil' }])).toEqual(['bulwark', 'lumen', 'duskblade']);
     expect(fillClasses([{ cls: 'slagbinder', stance: 'bellows' }])).toEqual(['bulwark', 'lumen', 'duskblade']);
   });
 

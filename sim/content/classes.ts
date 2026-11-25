@@ -41,7 +41,7 @@ export const LUMEN_ABILITIES: AbilityDef[] = [
 
 export const SLAGBINDER_ABILITIES: AbilityDef[] = [
   { name: 'Molten Plating', key: 'Q', cost: 30, cooldown: 6, text: 'Plate yourself in slag: a ward that bursts when it breaks or runs out. In a party, it plates the most hurt hero near you, at half thickness on an ally.' },
-  { name: 'Interpose', key: 'E', cost: 0, cooldown: 10, text: 'Leap where you are moving and shove small foes aside. In a party, leap to the most hurt ally and take most of their hits for 3s.' },
+  { name: 'Recoil', key: 'E', cost: 0, cooldown: 10, text: 'Leap where you are moving (away from the nearest foe if standing still) and shove small foes aside.' },
   { name: 'Cooling Shell', key: 'R', cost: 60, cooldown: 24, text: 'For 5s take 35% less damage, and whatever hits you turns Brittle. In a party, heroes beside you take 20% less.' },
   { name: 'Clinker', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Hurl a clinker to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it makes the boss Brittle.' },
 ];
@@ -64,12 +64,18 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, abilities: LUMEN_ABILITIES,
   },
   slagbinder: {
-    id: 'slagbinder', name: 'Slagbinder', role: 'Off-tank', blurb: 'Molten plate for you and your friends. Brittle foes break.',
+    id: 'slagbinder', name: 'Slagbinder', role: 'Ranged gunner', blurb: 'A slow slag cannon that hits hard and pierces. Brittle foes break.',
     resource: 'Slag', baseHp: 150, speed: 134, interruptRange: 380, abilities: SLAGBINDER_ABILITIES,
   },
 };
 
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
+
+/**
+ * The Slagbinder plays as the cannon gunner (Steve 25 Nov; SLAG_KIT.cannon* in sim/world.ts): no stances, the Bulwark
+ * is the only tank. Tools turn it off with GUNNER=0 for before/after measuring.
+ */
+export const SLAG_GUNNER = true;
 
 /**
  * Ability options (one per class, unlocked at hero level 8): a sidegrade for one action-bar slot,
@@ -81,5 +87,5 @@ export const ALT_ABILITIES: Record<ClassId, { slot: number; replaces: string; de
   duskblade: { slot: 0, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },
   bulwark: { slot: 2, replaces: 'Anvil Skin', def: { name: 'Muster', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
   lumen: { slot: 1, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
-  slagbinder: { slot: 1, replaces: 'Interpose', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+  slagbinder: { slot: 1, replaces: 'Recoil', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
 };

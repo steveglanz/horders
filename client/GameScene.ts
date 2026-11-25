@@ -1237,6 +1237,11 @@ export class GameScene extends Phaser.Scene {
         case 'lob':
           this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
+        case 'cannon':
+          // The Slagbinder's Cannon: a hot tracer down the whole line it pierces, and a flash at the muzzle.
+          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xff8a3d, life: 0.22 });
+          this.emit(this.fx, 'spark', undefined, ev.x1, ev.y1, 0.25, { tint: SLAG, sx0: 0.9, sx1: 0.2 });
+          break;
         case 'plate':
           // Molten Plating poured on a hero: a bright ring closing in and a few drips.
           this.emit(this.fx, 'ring', undefined, ev.x, ev.y + 8, 0.35, { tint: SLAG, sx0: 0.9, sx1: 0.35 });

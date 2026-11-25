@@ -59,7 +59,7 @@ describe('the Smeltery Lumen in Meltdown', () => {
 describe('the Smeltery Anvil tank in Plate Shift', () => {
   /** anvilHold for an Anvil Slagbinder tank `d` px from the Colossus, in version `v`. */
   function hold(v: 'wheel' | 'shift', d: number, telegraph = false, echo = '', hpFrac = 1): { dx: number; dy: number } | null {
-    const w = new World({ seed: 5, dungeon: 'smeltery', omens: [], cls: 'slagbinder', stance: 'anvil', worldBoss: 'The Cinder Colossus', party: [{ cls: 'lumen' }] });
+    const w = new World({ seed: 5, dungeon: 'smeltery', omens: [], cls: 'slagbinder', gunner: false, stance: 'anvil', worldBoss: 'The Cinder Colossus', party: [{ cls: 'lumen' }] });
     const inner = w as unknown as Inner;
     for (const e of w.enemies) e.alive = false;
     inner.bossIndex = inner.spawn('colossus', 0, 0);

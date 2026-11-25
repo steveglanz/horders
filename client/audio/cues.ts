@@ -484,6 +484,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'parry': return { id: 'parry' };
     case 'mote': return { id: 'mote', jitter: 0.2 };
     case 'lob': return { id: 'slagLob', jitter: 0.15 };
+    // The gunner's Cannon: the Slag Lob sound, louder, until sound gives it its own.
+    case 'cannon': return { id: 'slagLob', jitter: 0.05, vol: 1.3 };
     case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
     // Hessa's Outsurge keeps the Ebb's cast id, so its own wind-up keys on World.outsurge.

@@ -6,7 +6,7 @@ import {
 } from '../sim/hero';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
-import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS } from '../sim/content/classes';
+import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
@@ -310,7 +310,8 @@ export class Hub {
         + `<span class="gtile" style="width:40px;height:40px">${glyph(ic.d, 24)}</span><b>${c.name}</b><span class="cl">${ch ? `Lv ${ch.level}` : c.role}</span></button>`;
     }).join('')
       // The Slagbinder picks a stance before the run: Anvil tanks, Bellows fills a damage slot.
-      + (cls === 'slagbinder'
+      // The gunner (SLAG_GUNNER) has no stances: the Bulwark is the only tank.
+      + (cls === 'slagbinder' && !SLAG_GUNNER
         ? `<div class="stance" role="group" aria-label="Stance">${(['anvil', 'bellows'] as const).map((st) => {
           const on = (h.stance ?? 'bellows') === st;
           const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, hits land 35% lighter (20% in a party), and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. Alone, you deal 20% more damage; in a party, 30% less (15% less in the Flue).';

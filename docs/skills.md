@@ -435,6 +435,8 @@ The rework (tuning in `LUMEN_CAPS` in sim/world.ts):
 The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is within design's ±15 of the Emberwright. A first version, with a 60 base and 200 px, won 34.3 at Kiln 8, 15.3 ahead of the Emberwright, so both numbers were trimmed.
 
 ## Fifth class: the Slagbinder (spec, draft for design review)
+
+> **25 Nov: the Slagbinder is now a ranged cannon gunner** (Steve: "a slower sniper type that fires a gun or cannon slowly but does heavier damage"). Its basic attack is a Cannon shot every 1.6 s for 62. The shot carries on in a straight line out to 460, and each other foe it passes through takes half. The Anvil and Bellows stances are gone, so the Bulwark is the only tank. Interpose is now Recoil, a self leap. The gunner has 35 less health and normal threat, and soloDmg doesn't apply to it. The numbers are in `SLAG_KIT.cannon*` and `gunnerHp`, and the flag is `SLAG_GUNNER` in sim/content/classes.ts (GUNNER=0 in the tools for the old kit). The spec below is the old kit and still describes Plating, Cooling Shell, Clinker and the talents.
 **Role: Off-tank, an off-tank and support hybrid.** The Bulwark holds the boss, and the Lumen heals after the damage lands. The Slagbinder stops damage before it lands, on whoever is about to take it. It wears molten slag as armour and pours it onto allies as plating. Solo, it plates itself and fights at mid range. In a party, it picks up loose adds, takes a hit for a friend, and makes the boss Brittle for everyone.
 
 **Name check (21 Nov 2026):** a web search for "Slagbinder" found no game, class or product of that name, only unrelated Dutch hardware listings. Slag already belongs to Horders' own world (Grandmother Slag, Slag Grip).
