@@ -18,7 +18,7 @@ Shots: Pressworks t10, seed 3, Bulwark, frozen. From the left:
 - stage 2 with the hero 424 from the centre;
 - a flip warning there;
 - the crush line off screen to the east (red edge arrow);
-- stage 3 running diagonally (the stage line in the shot is from mobile's #792, which this branch had while shooting).
+- stage 3 running diagonally. That shot was taken while this branch still made the stage line a slim warning line. It no longer does, because mobile's #792 makes that change.
 
 3D:
 ![](3d.jpg)
