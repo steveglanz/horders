@@ -8634,7 +8634,7 @@ export class World {
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
         // ONDRELV2 stage 3: his version's move comes on the enraged timer.
-        this.choirT = late || this.ondrelStage === 3 ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
+        this.choirT = late ? ONDREL.choirEvery / 2 : this.ondrelStage === 3 ? ONDREL.choirEvery * ONDRELV2.lastChoir : ONDREL.choirEvery;
         // Phase 16 U1: from `GROUP_ECHO.below` health, every other one is his echo's (the first one is).
         let move: string = this.bossVariant;
         if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
@@ -10238,6 +10238,8 @@ export const ONDRELV2 = {
   stage2: 0.6, stage3: 0.25,
   r: 40, cap: 4, hot: 4, ringR: 80, ring: 0.03, tick: 0.5,
   glow: 2.5, burstR: 110, burst: 45,
+  /** Stage 3: his version's move comes every choirEvery x this (0.5 = the enraged timer). */
+  lastChoir: 0.5,
 };
 
 export const ONDREL = {
