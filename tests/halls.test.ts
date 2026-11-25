@@ -831,6 +831,20 @@ describe('H3d: the Wrackline on the Halls map', () => {
     expect(riftTicks).toBeGreaterThan(100);
   }, 60000);
 
+  it('QA, 25 Nov: a foe pinched between two rafts that nearly touch is pushed clear of both', () => {
+    const w = wrack(5);
+    wake(w);
+    const [a, b] = w.rafts;
+    // Two rafts side by side, 150 apart (each 78 across the middle), and a foe in the gap between them.
+    b.x = a.x + 150; b.y = a.y;
+    const e = w.enemies.find((q) => q.alive && q.def.rank !== 'boss' && !q.def.stationary)!;
+    for (const [ox, oy] of [[75, 0], [75, 20], [60, -10], [90, 5]]) {
+      e.x = a.x + ox; e.y = a.y + oy;
+      (w as unknown as { raftsClear(): void }).raftsClear();
+      for (const r of [a, b]) expect(Math.hypot(e.x - r.x, e.y - r.y), `${ox},${oy}`).toBeGreaterThanOrEqual(78);
+    }
+  });
+
   it('bots walk it and go through the door into Hessa\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
