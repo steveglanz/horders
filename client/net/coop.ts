@@ -12,7 +12,7 @@ import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
 import { POTION_IDS } from '../../sim/content/potions';
-import { Snapshot, snapshot } from '../../sim/netsync';
+import { RESEND_TICKS, Snapshot, snapshot } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
 export interface HeroCard {
@@ -114,7 +114,8 @@ export class CoopSession {
   private pids = new Map<string, string>();
   /** Host: the running delve's start options, sent again to a guest who rejoins. */
   private runOpts: WorldOptions | null = null;
-  private events: SimEvent[] = [];
+  /** Host: each tick's events, the last RESEND_TICKS of them, sent again with every snapshot (Snapshot.recent). */
+  private events: { tick: number; events: SimEvent[] }[] = [];
   private lastSnapTick = -1;
   private lastSnapAt = 0;
   private latest: Snapshot | null = null;
@@ -213,7 +214,8 @@ export class CoopSession {
 
   /** Host: after each step, keep the tick's events for the next snapshot. */
   afterStep(w: World): void {
-    for (const e of w.events) this.events.push(e);
+    if (w.events.length) this.events.push({ tick: w.tick, events: [...w.events] });
+    while (this.events.length && this.events[0].tick <= w.tick - RESEND_TICKS) this.events.shift();
     // A press is done once its ability went on cooldown, or after the queue window.
     this.order.forEach((id, k) => {
       const c = this.casts.get(id);
@@ -238,8 +240,7 @@ export class CoopSession {
     if (!due || !this.party.members.length) return;
     this.lastSnapTick = w.tick;
     this.lastSnapAt = now;
-    const s = snapshot(w, this.events);
-    this.events = [];
+    const s = snapshot(w, [], this.events);
     this.party.broadcast('fast', { t: 'snap', s } satisfies Msg);
   }
 

@@ -321,7 +321,8 @@ export class Hub {
       + (() => {
         const opt = ALT_ABILITIES[cls];
         const own = CLASSES[cls].abilities[opt.slot];
-        if (h.level < ALT_UNLOCK_LEVEL) return `<div class="stance" role="group" aria-label="Ability option"><button disabled title="At level ${ALT_UNLOCK_LEVEL}, you can swap ${own.name} for ${opt.def.name}.">${opt.def.name} · Lv ${ALT_UNLOCK_LEVEL}</button></div>`;
+        // Before level 8 a plain note, not a button: "Muster · Lv 8" on a disabled button read as a mystery label (Steve, 25 Nov).
+        if (h.level < ALT_UNLOCK_LEVEL) return `<p class="altlock" title="${opt.def.name}: ${opt.def.text}"><b>Level ${ALT_UNLOCK_LEVEL}:</b> swap ${own.name} for ${opt.def.name}</p>`;
         return `<div class="stance" role="group" aria-label="Ability option">${[false, true].map((on) => {
           const d = on ? opt.def : own;
           const sel = !!h.alt === on;

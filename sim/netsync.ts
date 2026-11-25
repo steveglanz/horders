@@ -60,6 +60,13 @@ export interface Snapshot {
   heroes: HeroSlotData[];
   /** Everything the host's sim emitted since the last snapshot, oldest first. */
   events: SimEvent[];
+  /**
+   * The host's events of its last RESEND_TICKS ticks, by the tick they came on. Snapshots go on an unordered channel with
+   * no retransmits, and a guest draws only the newest one each frame, so one lost or skipped snapshot used to lose its
+   * events (QA, 25 Nov: a guest heard 21 of the host's 22 Ysmeret flares). With `recent`, a guest plays each tick's events
+   * once, from whichever snapshot brings them first, and ignores `events`.
+   */
+  recent?: { tick: number; events: SimEvent[] }[];
   /** Strike owners ride along with strikes (they live in a side array). */
   strikeOwner?: number[];
   /** The boss's threat table, so a guest's bossTarget, tauntCue and swapCue see who the boss is on. */
@@ -74,7 +81,13 @@ export interface Snapshot {
 
 type Bag = Record<string, unknown>;
 
-export function snapshot(w: World, events: SimEvent[] = []): Snapshot {
+/** How many host ticks of events every snapshot carries again (8 ticks is 4 snapshots, about a quarter second). */
+export const RESEND_TICKS = 8;
+
+/** The last host tick whose events each guest mirror has played (see Snapshot.recent). */
+const playedTo = new WeakMap<World, number>();
+
+export function snapshot(w: World, events: SimEvent[] = [], recent?: Snapshot['recent']): Snapshot {
   const W = w as unknown as Bag;
   const scalars: Snapshot['scalars'] = {};
   for (const k of Object.keys(W)) {
@@ -107,7 +120,7 @@ export function snapshot(w: World, events: SimEvent[] = []): Snapshot {
   const halls = m
     ? { lock: m.rooms.map((r) => r.lock ?? null), lifted: m.rooms.map((r) => r.lifted ?? null), packs: m.packs.map((p) => p.state), seen: [...m.seen], done: m.done }
     : undefined;
-  return { tick: w.tick, scalars, pools, arrays, heroes, events, strikeOwner: so ? Array.from(so) : undefined, bossThreat, halls };
+  return { tick: w.tick, scalars, pools, arrays, heroes, events, ...(recent ? { recent } : {}), strikeOwner: so ? Array.from(so) : undefined, bossThreat, halls };
 }
 
 /**
@@ -157,6 +170,12 @@ export function applySnapshot(w: World, s: Snapshot, me: number): void {
     m.seen = s.halls.seen;
     m.done = s.halls.done;
   }
-  w.events = s.events;
+  if (s.recent) {
+    const from = playedTo.get(w) ?? -1;
+    w.events = s.recent.filter((b) => b.tick > from).flatMap((b) => b.events);
+    playedTo.set(w, Math.max(from, ...s.recent.map((b) => b.tick)));
+  } else {
+    w.events = s.events;
+  }
   w.use(Math.min(me, w.heroes.length - 1));
 }

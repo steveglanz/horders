@@ -380,7 +380,7 @@ class AudioEngine {
       else this.cue(c);
     }
     if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
-    for (const c of flameCues(this.flaming, ctx.ysFlames, ctx.listen)) this.cue(c);
+    for (const c of flameCues(this.flaming, ctx.ysFlames)) this.cue(c);
     this.cue(millCue(ctx));
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));
