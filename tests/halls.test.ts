@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { BOT_WALK_STEP, C_ROOM, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { BOT_WALK_STEP, C_ROOM, doorRoom, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -998,7 +998,7 @@ describe('H4b: the Ashvents on the Halls map', () => {
     expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).not.toBeNull();
     expect(HALLS_ON).toContain('ashvents');
     expect(HALLS_COOP).toContain('ashvents');
-    expect(HALLS_BETA).toEqual([]);
+    expect(HALLS_BETA).not.toContain('ashvents');
     const { openers, named, hard, boss } = DUNGEONS.ashvents;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
@@ -1367,4 +1367,69 @@ describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)
     }
     expect(moved).toBeGreaterThan(5);
   });
+});
+
+describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
+  const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
+  it('is behind ?hallsbeta: A and B hold the two openers, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
+    expect(HALLS_BETA).toContain('crucible');
+    expect(HALLS_ON).not.toContain('crucible');
+    expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).toBeNull();
+    const { openers, named, boss } = DUNGEONS.crucible;
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route).toHaveLength(4);
+      expect(w.route[3]).toBe(boss);
+      expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R2', 'R3', 'R5', 'door']);
+      expect(doorRoom(m)).toBe(5);
+      expect(mainRooms(m)).toEqual([0, 1, 3, 4, 5]);
+      expect(m.packs.map((p) => p.role).sort()).toEqual(['A', 'B', 'C', 'S']);
+      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
+      expect(pk('A').enc).toBe(w.route[0]);
+      expect(pk('B').enc).toBe(w.route[1]);
+      expect(openers).toContain(pk('A').enc);
+      expect(openers).toContain(pk('B').enc);
+      expect(pk('C').enc).toBe(w.route[2]);
+      expect(named).toContain(pk('C').enc);
+      expect(m.packs.filter((p) => p.guard)).toEqual([pk('C')]);
+      expect(pk('C').room).toBe(4);
+      expect(m.packs.some((p) => p.trash)).toBe(false);
+      for (const r of m.rooms) {
+        if (r.id === 'door') continue;
+        if (r.shape === 'round') expect(r.r, `seed ${seed} ${r.id}`).toBeGreaterThanOrEqual(450);
+        if (r.shape === 'hall') expect(2 * Math.min((r.parts![0] as { b: number[] }).b[2], (r.parts![0] as { b: number[] }).b[3]), `seed ${seed} ${r.id}`).toBeGreaterThanOrEqual(480);
+        expect(r.shape).not.toBe('twin');
+      }
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[2].theme).toBe('shrine');
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('RAIDTRASH (raidTrash): the openers become trash as the Kiln\'s; the named door guard never does', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const m = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, raidTrash: true, cls: 'bulwark', party }).halls!;
+      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
+      expect(pk('A').trash).toBe(true);
+      expect(pk('B').trash).toBe(true);
+      expect(pk('C').trash).toBeFalsy();
+    }
+  });
+
+  it('a four-hero bot party walks it and goes through the door into Grandmother Slag\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3]) {
+      await new Promise((r) => setTimeout(r, 0));
+      const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.crucible.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 90000);
 });

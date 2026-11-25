@@ -809,6 +809,8 @@ export interface WorldOptions {
   hallsTemplate?: boolean;
   /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the Kiln map's opener packs are trash (sim/halls.ts). */
   kilnTrash?: boolean;
+  /** H5 (design's h5-plan.md): a raid map's opener packs are trash as the Kiln's (?raidtrash=1, RAIDTRASH=1; off until design's go). */
+  raidTrash?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
   bossV2?: boolean;
   /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
@@ -1436,7 +1438,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
