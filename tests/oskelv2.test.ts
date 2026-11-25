@@ -102,6 +102,7 @@ describe('OSKELV2: the running press bed', () => {
     expect(h.hp).toBeGreaterThanOrEqual(h.maxHp * (1 - OSKELV2.crush) - 1e-6);
     expect(h.x).toBeLessThan(w.arenaR - 20 - OSKELV2.push + 10);
     expect(w.osCrushHits).toBe(1);
+    expect(w.events.some((e) => e.type === 'slam' && e.source === 'crush')).toBe(true);
     // The upstream rim and the sides are safe.
     const l = w.heroData(1).player;
     l.hp = l.maxHp;

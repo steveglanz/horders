@@ -136,6 +136,8 @@ export interface HallsPack {
   gate?: GateKind;
   /** Loot bags each hero gets for clearing it (D pays a second). */
   bags: number;
+  /** KILNTRASH (design, 25 Nov): a Kiln opener pack as trash, with more foes at KILNTRASH.hp health and no bag. */
+  trash?: boolean;
   state: 'asleep' | 'awake' | 'cleared';
   /** Where each foe stands while asleep (spawned there when the pack wakes). */
   foes: { kind: EnemyKind; x: number; y: number }[];
@@ -235,9 +237,12 @@ type Spot = { role: PackRole; room: number; x: number; y: number };
  * H2c: the rooms come from genHalls (hashes of the seed only); `template` keeps H1's hand-made KILN_HALLS_A.
  */
 /** Where the foes of the map's `k`th pack (encounter `enc`, standing at x, y) sleep: round its spot, turned by the seed. */
-export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number): { kind: EnemyKind; x: number; y: number }[] {
+export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number, trash = false): { kind: EnemyKind; x: number; y: number }[] {
   const kinds: EnemyKind[] = [];
-  for (const sp of ENCOUNTERS[enc].spawns) for (let j = 0; j < sp.n; j++) kinds.push(sp.kind);
+  for (const sp of ENCOUNTERS[enc].spawns) {
+    const n = trash && !KILNTRASH_ONE.includes(sp.kind) ? Math.round(sp.n * KILNTRASH.foes) : sp.n;
+    for (let j = 0; j < n; j++) kinds.push(sp.kind);
+  }
   const turn = ((hash(seed, k) >>> 4) % 360) * (Math.PI / 180);
   return kinds.map((kind, j) => {
     if (kinds.length === 1) return { kind, x, y };
@@ -247,7 +252,19 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
   });
 }
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4): HallsMap {
+/**
+ * KILNTRASH (design, 25 Nov, /mnt/project-files/horders/design/halls/kiln-trash-plan.md): on the Kiln's map, the packs
+ * drawn from its openers list (A, B and the steady side fight, never a named gate) are trash: `foes` times as many foes
+ * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health (design's plan said 40%;
+ * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
+ * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
+ * `xp` 1 (design's second step, measured on its own): a trash clear gives half a level and any other fight one and a half,
+ * so the usual route (A, B, C, E) still reaches the door at level 5.
+ */
+export const KILNTRASH = { foes: 2, hp: 0.3, xp: 0 };
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
+
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -289,8 +306,9 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const foes = packFoes(seed, k, p.enc, x, y);
-    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes };
+    const trash = kilnTrash && dungeon === 'kiln' && p.gate !== 'named' && DUNGEONS.kiln.openers.includes(p.enc);
+    const foes = packFoes(seed, k, p.enc, x, y, trash);
+    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });
   return { rooms, corridors, packs, door, mirror, layoutRooms, seen: rooms.map((_, i) => i === 0), done: false, vents: [] };
 }
@@ -601,7 +619,7 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * next point on the shortest walk through the map's walking graph (round a ring's island, a cross's pillars, the
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
-export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40): { x: number; y: number } {
+export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40, bot = false): { x: number; y: number } {
   // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
   const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
   if (clearWalk(m, x, y, tx, ty, pad, step)) return { x: tx, y: ty };
@@ -613,6 +631,11 @@ export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: numb
     if (c < best) { best = c; bi = i; bj = j; }
   }
   const p = nav.pts[bi];
+  // QA, 25 Nov (Ashvents t7 seed 1, Lumen + Lumen): within 30 of a nav point that sees the target too, a walker goes
+  // straight at the target (below), but one step on it is past 30 and the padded line fails (a hole's corner near the
+  // bag), so it turned back to the point, and so on forever. A bot whose nav point sees the target walks straight at it
+  // whenever the unpadded line is clear, from both sides of that 30.
+  if (bot && bi === bj && clearWalk(m, x, y, tx, ty, 0, step)) return { x: tx, y: ty };
   if (Math.hypot(p.x - x, p.y - y) < 30) {
     // Already there: on to the next point (or the target, from the last one).
     if (bi === bj) return { x: tx, y: ty };

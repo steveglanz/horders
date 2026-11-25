@@ -1723,7 +1723,7 @@ function hallsWalk(w: World): Input {
   }
   const target = hallsTarget(w);
   const goal = bag ?? (target ? { x: target.x, y: target.y } : m.door);
-  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y, BOT_WALK_STEP);
+  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y, BOT_WALK_STEP, true);
   let fx = wp.x - p.x, fy = wp.y - p.y;
   const fl = Math.hypot(fx, fy) || 1;
   fx /= fl; fy /= fl;
