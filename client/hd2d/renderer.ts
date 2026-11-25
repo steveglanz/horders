@@ -761,21 +761,39 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     const poolMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.5)', 'rgba(255,255,255,0)')), color: keyC.clone().multiplyScalar(0.16), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
     const shaftGeo = new THREE.CylinderGeometry(0.3, 0.75, 9, 16, 1, true).translate(0, 4.5, 0);
     const SH = [[2.2, -3.4], [-4.6, -1.2], [4.8, 2.6], [-1.8, 4.4], [0.6, 0.8]];
-    SH.forEach(([sx, sz], k) => {
-      const sh = new THREE.Mesh(shaftGeo, shaftMat); sh.position.set(sx, FLOOR, sz); room.add(sh);
-      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(sx, FLOOR + 0.012, sz); room.add(pool);
-      life.push((t) => { const a = Math.sin(t * 0.21 + k * 1.7); sh.rotation.set(a * 0.05, 0, Math.cos(t * 0.17 + k) * 0.05); pool.scale.setScalar(1 + 0.08 * a); });
+    // Instanced, the shafts one draw call and the pools another (they were ten meshes, a draw call each). Each moves on
+    // its own, so they are never culled as one: the room is always in view.
+    const shafts = new THREE.InstancedMesh(shaftGeo, shaftMat, SH.length), pools = new THREE.InstancedMesh(new THREE.CircleGeometry(0.95, 24), poolMat, SH.length);
+    shafts.frustumCulled = pools.frustumCulled = false; room.add(shafts, pools);
+    const lv = new THREE.Vector3(), ls = new THREE.Vector3(), le = new THREE.Euler(), lq = new THREE.Quaternion(), lm = new THREE.Matrix4();
+    const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, rx: number, rz: number, s: number) => {
+      lq.setFromEuler(le.set(rx, 0, rz)); im.setMatrixAt(n, lm.compose(lv.set(x, y, z), lq, ls.set(s, s, s)));
+    };
+    life.push((t) => {
+      SH.forEach(([sx, sz], k) => {
+        const a = Math.sin(t * 0.21 + k * 1.7);
+        place(shafts, k, sx, FLOOR, sz, a * 0.05, Math.cos(t * 0.17 + k) * 0.05, 1);
+        place(pools, k, sx, FLOOR + 0.012, sz, -Math.PI / 2, 0, 1 + 0.08 * a);
+      });
+      shafts.instanceMatrix.needsUpdate = pools.instanceMatrix.needsUpdate = true;
     });
     life.push((t) => { shaftMat.opacity = 0.85 + 0.15 * Math.sin(t * 0.5); });
     // Low mist drifting over the floor, tinted by the room's fog, very faint so telegraphs stay clear.
     if (id !== 'wrackline') {
       const mc = new THREE.Color(th.wall).lerp(new THREE.Color(th.fog), 0.35);
       const mistMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.55)', 'rgba(255,255,255,0)')), color: mc, transparent: true, opacity: 0.12, depthWrite: false });
-      for (let k = 0; k < 7; k++) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + 0.08 + k * 0.004; room.add(m);
-        const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
-        life.push((t) => { const a = a0 + t * sp * (k % 2 ? 1 : -1); m.position.x = Math.cos(a) * r0; m.position.z = Math.sin(a) * r0; m.rotation.z = a * 0.5; });
-      }
+      // One instanced mesh (seven planes were seven draw calls). They share one colour, so the order they blend in
+      // changes nothing.
+      const mist = new THREE.InstancedMesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat, 7);
+      mist.frustumCulled = false; room.add(mist);
+      life.push((t) => {
+        for (let k = 0; k < 7; k++) {
+          const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
+          const a = a0 + t * sp * (k % 2 ? 1 : -1);
+          place(mist, k, Math.cos(a) * r0, FLOOR + 0.08 + k * 0.004, Math.sin(a) * r0, -Math.PI / 2, a * 0.5, 1);
+        }
+        mist.instanceMatrix.needsUpdate = true;
+      });
     }
     const forge = id === 'flue' || id === 'kiln' || id === 'hammerdeep' || id === 'pressworks' || id === 'smeltery' || id === 'crucible' || id === 'hoard';
     const wet = id === 'foundry' || id === 'coldmarrow' || id === 'wrackline' || id === 'glarewell';
