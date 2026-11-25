@@ -206,6 +206,22 @@ describe('BOSSV2 stage 2: into the kiln', () => {
     expect(w.enemies[b].stunT).toBe(0);
     expect(w.enemies.some((o) => o.alive && o.kind === 'kilnBellows')).toBe(false);
   });
+
+  it('a hero\'s stun or shove in the kiln stage doesn\'t stop her clock or move her off the mouth (QA, 25 Nov)', () => {
+    const { w, q, b } = mother();
+    intoKiln(w, q, b);
+    const e = w.enemies[b], at = { x: e.x, y: e.y };
+    // A Rim Smash or Charge every second: a 2 s stun and a 60 shove.
+    let n = 0;
+    for (; n < 30 * 41 && w.kmStage === 2; n++) {
+      if (n % 30 === 0) { e.stunT = 2; e.x += 60; }
+      w.player.hp = w.player.maxHp;
+      one(w);
+      if (w.kmStage === 2) { expect(e.x).toBe(at.x); expect(e.y).toBe(at.y); }
+    }
+    expect(w.kmStage).toBe(3);
+    expect(n / 30).toBeLessThanOrEqual(KILN_V2.kilnMax + 0.2);
+  });
 });
 
 describe('BOSSV2 stage 3: the last fire', () => {
