@@ -317,7 +317,7 @@ function startRun(bounty = false, key = false): void {
   // hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ondrelv2=0 turns it off for comparing.
   if (params.get('ondrelv2') !== '0') opts.ondrelV2 = true;
   // KILNTRASH (design, 25 Nov): the Kiln map's opener packs as trash (twice the foes at 30% health, no bag), on by default
-  // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing. Its XP step stays off.
+  // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing.
   if (params.get('kilntrash') !== '0') opts.kilnTrash = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
   // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.

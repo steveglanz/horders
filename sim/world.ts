@@ -487,8 +487,6 @@ export interface Player {
   xp: number;
   xpToNext: number;
   pendingLevels: number;
-  /** KILNTRASH.xp: a half level banked from a trash clear, toward the next level. */
-  levelPart?: number;
   /** Set timers (R4): Kilnbreaker damage, time on the move and a charged Tidewalker hit, Glarewarden damage. */
   kbT?: number;
   moveT?: number;
@@ -2443,28 +2441,12 @@ export class World {
     this.afterClear(def);
   }
 
-  private clearEncounterFor(def: (typeof ENCOUNTERS)[EncounterId], levels = 1): void {
+  private clearEncounterFor(def: (typeof ENCOUNTERS)[EncounterId]): void {
     const p = this.player;
     // Every clear is a level: a talent draft, some healing, and a loot bag.
-    if (levels === 1) {
-      p.level++;
-      p.pendingLevels++;
-      this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
-    } else {
-      // KILNTRASH.xp: half a level for a trash pack, one and a half for the rest. Halves add up in levelPart (not xp,
-      // whose step grows each level, and not through xp multipliers), so the level at the door holds.
-      p.levelPart = (p.levelPart ?? 0) + levels;
-      while (p.levelPart >= 1 - 1e-9) {
-        p.levelPart -= 1;
-        p.level++;
-        p.pendingLevels++;
-        this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
-      }
-      p.levelPart = Math.max(0, p.levelPart);
-      // The xp bar shows the half level.
-      p.xpToNext = xpFor(p.level);
-      p.xp = p.levelPart * p.xpToNext;
-    }
+    p.level++;
+    p.pendingLevels++;
+    this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
     if (def.id === 'shrine') {
       p.hp = p.maxHp;
@@ -2878,10 +2860,8 @@ export class World {
     this.encounter = pk.slot;
     this.namedFight = pk.gate === 'named';
     this.events.push({ type: 'encounterClear', index: pk.slot, id: def.id });
-    // KILNTRASH.xp: on a map with trash packs, a trash clear is half a level and any other fight one and a half.
-    const levels = KILNTRASH.xp && def.id !== 'shrine' && m.packs.some((q) => q.trash) ? (pk.trash ? 0.5 : 1.5) : 1;
     const clear = () => {
-      this.clearEncounterFor(def, levels);
+      this.clearEncounterFor(def);
       if (def.id === 'shrine') return;
       const order: Rarity[] = ['common', 'fine', 'rare'];
       const min = (this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0) + (this.namedFight ? 1 : 0);

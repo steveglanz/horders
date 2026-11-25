@@ -258,10 +258,9 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health (design's plan said 40%;
  * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
  * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
- * `xp` 1 (design's second step, measured on its own): a trash clear gives half a level and any other fight one and a half,
- * so the usual route (A, B, C, E) still reaches the door at level 5.
+ * A trash clear still gives a level (design, 25 Nov: its XP step measured worse and was dropped).
  */
-export const KILNTRASH = { foes: 2, hp: 0.3, xp: 0 };
+export const KILNTRASH = { foes: 2, hp: 0.3 };
 export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
 
 export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false): HallsMap {
