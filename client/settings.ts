@@ -52,12 +52,6 @@ function load(): DisplaySettings {
 
 export const display: DisplaySettings = load();
 
-/**
- * Halls is the default (Steve, 25 Nov: "we can make halls the default, we do not need a querystring"): every delve in a
- * dungeon with a Halls map (sim/halls.ts hallsFor) is played on the map. No setting and no ?halls= link.
- */
-export const hallsWanted = (): boolean => true;
-
 /** How much of the normal screen shake to apply. */
 export function shakeScale(): number {
   return display.shake === 'full' ? 1 : display.shake === 'reduced' ? 0.3 : 0;

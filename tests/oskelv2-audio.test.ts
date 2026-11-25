@@ -9,7 +9,7 @@ import { ROOM_BEDS } from '../client/audio/music';
 // OSKELV2's sounds (design 25 Nov, oskel-v2.md): his stage stings, the flip warning, the crush and the running belt.
 type Q = { startEncounter(): void; encounter: number; route: string[]; bossIndex: number; oskelClock(dt: number): void; downT: number; rivetT: number; stampT: number };
 function fight(): { w: World; q: Q } {
-  const w = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }], oskelV2: true });
+  const w = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }] });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   q.route[1] = 'oskel';

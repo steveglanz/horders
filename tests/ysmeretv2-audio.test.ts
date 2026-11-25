@@ -7,7 +7,7 @@ import { SOUNDS } from '../client/audio/sounds';
 // YSMERETV2's sounds (design 25 Nov, ysmeret-v2.md): her split, a lone flame's warning and its flare.
 type Q = { startEncounter(): void; encounter: number; route: string[]; bossIndex: number; ysmeretClock(dt: number): void };
 function fight(): { w: World; q: Q } {
-  const w = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }], ysmeretV2: true });
+  const w = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }] });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   q.route[1] = 'ysmeret';

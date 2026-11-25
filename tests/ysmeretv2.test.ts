@@ -11,8 +11,8 @@ type Q = {
 };
 const party = [{ cls: 'lumen' as const, name: 'b' }];
 
-function fight(v2 = true): { w: World; q: Q } {
-  const w = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party, ysmeretV2: v2 });
+function fight(): { w: World; q: Q } {
+  const w = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   q.route[1] = 'ysmeret';
@@ -28,15 +28,6 @@ const flames = (w: World) => w.enemies.filter((e) => e.alive && e.kind === 'ysme
 const ventsOpen = (w: World) => w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
 
 describe('YSMERETV2: the Twofold Flame', () => {
-  it('is off unless asked for: no split at 50%', () => {
-    const { w, q } = fight(false);
-    expect(w.ysStage).toBe(0);
-    const b = w.enemies[q.bossIndex];
-    b.hp = b.maxHp * 0.4;
-    q.ysmeretClock(0.05);
-    expect(flames(w)).toHaveLength(1);
-  });
-
   it('stage 1: Bellow Slam waits while her vents are open, then goes off once they close', () => {
     const { w, q } = fight();
     expect(w.ysStage).toBe(1);
@@ -185,7 +176,7 @@ describe('YSMERETV2: the Twofold Flame', () => {
     const b = w.enemies[q.bossIndex];
     b.hp = b.maxHp * 0.5;
     q.ysmeretClock(0.05);
-    const g = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party, ysmeretV2: true });
+    const g = new World({ seed: 4, dungeon: 'ashvents', tier: 7, omens: [], cls: 'bulwark', party });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.ysStage).toBe(2);
     expect(g.enemies.filter((e) => e.alive && e.kind === 'ysmeret')).toHaveLength(2);

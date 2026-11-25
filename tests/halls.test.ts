@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { BOT_WALK_STEP, C_ROOM, doorRoom, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { BOT_WALK_STEP, C_ROOM, doorRoom, HALLS_ON, TRASH_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -33,8 +33,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    // Every raid has its map since the Flue went on (25 Nov), so HALLS_BETA is empty.
-    expect(HALLS_BETA).toEqual([]);
+    // Every dungeon and raid has its map since the Flue went on (25 Nov).
+    for (const d of Object.keys(DUNGEONS)) expect(HALLS_ON, d).toContain(d);
     expect(new World({ seed: 2, tier: 11, halls: true, dungeon: 'flue' }).halls).not.toBeNull();
   });
 
@@ -321,7 +321,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     // Seed 38, the Coldmarrow at tier 11 with tools/heroes/hero-t8.json: hallsSteer's 120-unit look-ahead held the
     // Duskblade off a Dimhorn 17 from the wall, out in the dark, until its horn called three hounds in on it.
     const hero = JSON.parse(readFileSync(new URL('../tools/heroes/hero-t8.json', import.meta.url), 'utf8'));
-    const w = new World({ seed: 38, halls: true, hallsBeta: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
+    const w = new World({ seed: 38, halls: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
     // Since the named gate went on the main path (25 Nov) this seed's Dimhorn is in the side room, so put it back as B
     // (the map it was found on; the rolls and rooms are the same).
     const m = w.halls!;
@@ -527,18 +527,16 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
   const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
 
-  it('is on for players since skills closed its crawler split (#706, 25 Nov), with or without ?hallsbeta=1', () => {
+  it('is on for players since skills closed its crawler split (#706, 25 Nov), no switch', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
-    expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
     const { openers, named, hard, boss } = DUNGEONS.foundry;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 120; seed++) {
-      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true });
+      const w = halls(seed, { dungeon: 'foundry', tier: 4 });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[4]).toBe(boss);
@@ -598,7 +596,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   });
 
   it('a Sluice Crawler keeps the arena\'s speed on the map, and its Bloom bursts after 2.5 s as in the arena (design, 25 Nov)', () => {
-    const w = halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
+    const w = halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
     const q = w as unknown as { spawn(kind: string, x: number, y: number): number };
     for (const e of w.enemies) e.alive = false;
     const m = w.halls!, a = pack(w, 'A');
@@ -616,12 +614,12 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
       run(w2, () => { const t = w2.telegraphs.find((x) => x.alive && x.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
       return dur;
     };
-    expect(first(halls(9, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
+    expect(first(halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
   });
 
   it('bots walk it and go through the door into Maelra\'s arena (seeds the bot wins on the map)', () => {
     for (const seed of [9, 11]) {
-      const w = halls(seed, { dungeon: 'foundry', tier: 4, hallsBeta: true, cls: 'bulwark' });
+      const w = halls(seed, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
       run(w, () => !w.hallsOn || w.state === 'ended', 600);
       expect(w.hallsOn, `seed ${seed}`).toBe(false);
       expect(w.route[w.encounter]).toBe('maelra');
@@ -631,7 +629,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
 
 describe('H3b: the Glarewell on the Halls map', () => {
   const GLARE_THEMES = ['lens', 'orrery', 'colonnade', 'mirror'];
-  const glare = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'glarewell', tier: 7, hallsBeta: true, ...more });
+  const glare = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'glarewell', tier: 7, ...more });
   /** Wakes pack k first, as a hero walking straight to it would: stands the hero at its middle and steps until it stirs. */
   const wake = (w: World, k: number) => {
     const p = w.halls!.packs[k];
@@ -755,7 +753,7 @@ describe('H3b: the Glarewell on the Halls map', () => {
 
 describe('H3d: the Wrackline on the Halls map', () => {
   const QUAY_THEMES = ['quay', 'wreck', 'kelp', 'sluice'];
-  const wrack = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'wrackline', tier: 13, hallsBeta: true, ...more });
+  const wrack = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'wrackline', tier: 13, ...more });
   /** Wakes the first pack with foes and returns it. */
   const wake = (w: World) => {
     const k = w.halls!.packs.findIndex((q) => q.foes.length);
@@ -935,7 +933,7 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
   it('with a pillar dead ahead on its walk, the bot gets past it instead of pressing into it', () => {
     let tried = 0;
     for (let seed = 1; seed <= 10; seed++) {
-      const w = halls(seed, { dungeon: 'glarewell', tier: 7, hallsBeta: true });
+      const w = halls(seed, { dungeon: 'glarewell', tier: 7 });
       const m = w.halls!;
       const p = w.player;
       for (let j = 0; j < 30; j++) w.step(botInput(w));
@@ -959,12 +957,10 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
   it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Ondrel behind the door', () => {
     expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).not.toBeNull();
     expect(HALLS_ON).toContain('hammerdeep');
-    expect(HALLS_BETA).not.toContain('hammerdeep');
-    expect(HALLS_COOP).toContain('hammerdeep');
     const { openers, named, hard, boss } = DUNGEONS.hammerdeep;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[4]).toBe(boss);
@@ -981,7 +977,7 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
       await new Promise((r) => setTimeout(r, 0));
-      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1011,12 +1007,10 @@ describe('H4b: the Ashvents on the Halls map', () => {
   it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
     expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).not.toBeNull();
     expect(HALLS_ON).toContain('ashvents');
-    expect(HALLS_COOP).toContain('ashvents');
-    expect(HALLS_BETA).not.toContain('ashvents');
     const { openers, named, hard, boss } = DUNGEONS.ashvents;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'ashvents', tier: 7, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'ashvents', tier: 7, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[4]).toBe(boss);
@@ -1033,7 +1027,7 @@ describe('H4b: the Ashvents on the Halls map', () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
       await new Promise((r) => setTimeout(r, 0));
-      const w = halls(seed, { dungeon: 'ashvents', tier: 7, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'ashvents', tier: 7, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1049,12 +1043,10 @@ describe('H4c: the Pressworks on the Halls map', () => {
   it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Oskel behind the door', () => {
     expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).not.toBeNull();
     expect(HALLS_ON).toContain('pressworks');
-    expect(HALLS_BETA).not.toContain('pressworks');
-    expect(HALLS_COOP).toContain('pressworks');
     const { openers, named, hard, boss } = DUNGEONS.pressworks;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'pressworks', tier: 10, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'pressworks', tier: 10, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[4]).toBe(boss);
@@ -1072,7 +1064,7 @@ describe('H4c: the Pressworks on the Halls map', () => {
     for (const seed of [1, 2, 3, 4]) {
       await new Promise((r) => setTimeout(r, 0));
       // Tier 4: without gear a duo dies to its tier-10 trash before the door; this checks the walk, not the numbers.
-      const w = halls(seed, { dungeon: 'pressworks', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const w = halls(seed, { dungeon: 'pressworks', tier: 4, cls: 'bulwark', party: [{ cls: 'lumen' }] });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1086,7 +1078,7 @@ describe('H4c: the Pressworks on the Halls map', () => {
 
 describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
-  const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
+  const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, ...more });
 
   it('is on for players (design, 25 Nov), and gets its own fights, themes and Nhevra behind the door', () => {
     expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).not.toBeNull();
@@ -1388,12 +1380,10 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
   it('is on for players: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
     // On for players and hosted co-op since 25 Nov (design: grid, QA solo and co-op, phones #800, themes, beds).
     expect(HALLS_ON).toContain('crucible');
-    expect(HALLS_COOP).toContain('crucible');
-    expect(HALLS_BETA).not.toContain('crucible');
     expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.crucible;
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route).toHaveLength(4);
@@ -1430,13 +1420,11 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
     }
   });
 
-  it('RAIDTRASH (raidTrash): the openers become trash as the Kiln\'s; the named door guard never does', () => {
+  it('a raid map keeps full packs: no opener is trash (design\'s ruling)', () => {
+    expect(TRASH_ON).not.toContain('crucible');
     for (let seed = 1; seed <= 20; seed++) {
-      const m = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, raidTrash: true, cls: 'bulwark', party }).halls!;
-      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
-      expect(pk('A').trash).toBe(true);
-      expect(!!pk('B').trash).toBe(pk('B').gate !== 'named');
-      expect(pk('C').trash).toBeFalsy();
+      const m = halls(seed, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls!;
+      expect(m.packs.some((p) => p.trash), `seed ${seed}`).toBe(false);
     }
   });
 
@@ -1444,7 +1432,7 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
     let reached = 0;
     for (const seed of [1, 2, 3]) {
       await new Promise((r) => setTimeout(r, 0));
-      const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1461,12 +1449,10 @@ describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
   it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788', () => {
     // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #807).
     expect(HALLS_ON).toContain('hoard');
-    expect(HALLS_COOP).toContain('hoard');
-    expect(HALLS_BETA).not.toContain('hoard');
     expect(halls(3, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.hoard;
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'hoard', tier: 9, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[3]).toBe(boss);
@@ -1489,7 +1475,7 @@ describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
     let reached = 0;
     for (const seed of [1, 2, 3]) {
       await new Promise((r) => setTimeout(r, 0));
-      const w = halls(seed, { dungeon: 'hoard', tier: 9, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1506,12 +1492,10 @@ describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
   it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (tap guards the door, flywheel is the alcove)', () => {
     // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #811).
     expect(HALLS_ON).toContain('smeltery');
-    expect(HALLS_COOP).toContain('smeltery');
-    expect(HALLS_BETA).not.toContain('smeltery');
     expect(halls(3, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.smeltery;
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'smeltery', tier: 10, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[3]).toBe(boss);
@@ -1535,7 +1519,7 @@ describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
     for (const seed of [1, 2, 3]) {
       await new Promise((r) => setTimeout(r, 0));
       // Tier 4: without gear a party dies to the Smeltery's tier-10 crawlers before the door; this checks the walk, not the numbers.
-      const w = halls(seed, { dungeon: 'smeltery', tier: 4, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'smeltery', tier: 4, cls: 'bulwark', party });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
@@ -1552,12 +1536,10 @@ describe('H5d: the Flue on the Halls map (design, h5-plan.md)', () => {
   it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (firebox guards the door, damper is the alcove)', () => {
     // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #813).
     expect(HALLS_ON).toContain('flue');
-    expect(HALLS_COOP).toContain('flue');
-    expect(HALLS_BETA).not.toContain('flue');
     expect(halls(3, { dungeon: 'flue', tier: 11, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.flue;
     for (let seed = 1; seed <= 60; seed++) {
-      const w = halls(seed, { dungeon: 'flue', tier: 11, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'flue', tier: 11, cls: 'bulwark', party });
       const m = w.halls!;
       expect(m, `seed ${seed}`).toBeTruthy();
       expect(w.route[3]).toBe(boss);
@@ -1581,7 +1563,7 @@ describe('H5d: the Flue on the Halls map (design, h5-plan.md)', () => {
     for (const seed of [1, 2, 3]) {
       await new Promise((r) => setTimeout(r, 0));
       // Tier 4: without gear a party dies to the Flue's tier-11 trash before the door; this checks the walk, not the numbers.
-      const w = halls(seed, { dungeon: 'flue', tier: 4, hallsBeta: true, cls: 'bulwark', party });
+      const w = halls(seed, { dungeon: 'flue', tier: 4, cls: 'bulwark', party });
       const end = w.time + 900;
       while (w.state !== 'ended' && w.time < end && w.hallsOn) {
         if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
