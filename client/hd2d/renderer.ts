@@ -1177,25 +1177,24 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const RIM_GROW = 0.05;
   // The Coldmarrow is the darkest floor (design 25 Nov, phone pass: Rimehounds read near-black at 320 px). Seen from
   // above, a low-slung hound is a thin sliver of sprite over its black blob shadow, so there its red ring is brighter
-  // and wider and the blob lighter: the ring, not a dark hole, says where the foe is. Same meshes, no extra draws.
+  // and wider (now on every floor, below) and the blob lighter: the ring, not a dark hole, says where the foe is.
   const darkRoom = rid === 'coldmarrow';
-  // The Kiln's floor is red-brown (mobile, 25 Nov, phone pass: small dark Ashbucks and their thin red rings sank into
-  // it at 320 px). Red stays the "bad" colour, so there a foe's ring is wide and bright over a dark disc, and the foe's
-  // red edge is drawn thicker, and the foes glow more of their own colour. Same meshes, no extra draws.
-  const warmRoom = rid === 'kiln';
-  const foeRingGeo = new THREE.RingGeometry(0.86, 1, 40), foeRingDark = new THREE.RingGeometry(0.76, 1, 40);
+  // Foe contrast, one rule for every map and arena (design, 25 Nov): the Kiln's red-brown floor (#796) and then the
+  // Crucible's rose floor hid small dark foes and their thin red rings at 320 px. Red stays the "bad" colour, so a foe's
+  // ring is wide and bright over its dark disc, its red edge is drawn thicker, and foes glow more of their own colour.
+  const foeRingGeo = new THREE.RingGeometry(0.76, 1, 40);
   const foeBlobMat = darkRoom ? (() => { const m = blobMat.clone(); m.opacity = 0.45; return m; })() : blobMat;
   /** Foes made of rime or pale stone glow more of their own colour, so they read pale on the dark floor. */
   const FOE_GLOW: Partial<Record<string, number>> = { rimehound: 0.8 };
-  const foeGlow = warmRoom ? 0.6 : 0.34;
-  const FOE_EDGE = warmRoom ? 2 : 1;
+  const foeGlow = 0.6;
+  const FOE_EDGE = 2;
   // Every foe's blob shadow and red ring are two instanced meshes, one draw each for the whole room (they were two
   // meshes a foe: 12 draws for six foes). Same geometry, material and height as before, so they look the same; the
   // blobs are made first so the rings still draw over them. Grown (and remade) when more foes are up than fit.
-  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(warmRoom ? 1.5 : 1.2), transparent: true, opacity: darkRoom || warmRoom ? 0.95 : 0.6, depthWrite: false });
+  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.5), transparent: true, opacity: 0.95, depthWrite: false });
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   const feetOf = (geo: THREE.BufferGeometry, mat: THREE.Material, n: number) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.renderOrder = 2; m.frustumCulled = false; scene.add(m); return m; };
-  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom || warmRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
+  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(foeRingGeo, ringMat, feetCap);
   let feetN = 0;
   const footM = new THREE.Matrix4(), footP = new THREE.Vector3(), footS = new THREE.Vector3();
   /** Puts foe feet number feetN (blob of radius br, ring of radius rr) at x, z. */
