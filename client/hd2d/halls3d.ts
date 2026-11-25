@@ -309,7 +309,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const roomLife = (t: number) => {
     for (const tx of waterTex) { tx.offset.x = (t * 0.012) % 1; tx.offset.y = (t * 0.007) % 1; }
     for (const pr of props) {
-      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp' && pr.id !== 'chain')) continue;
+      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp' && pr.id !== 'chain' && pr.id !== 'gear' && pr.id !== 'press')) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
         const { sy, ry, swing, swingAt } = propMotion(pr.id, t, k * 1.3);
