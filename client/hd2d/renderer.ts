@@ -1156,8 +1156,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }`,
     transparent: true, depthWrite: false, depthTest: !xray, side: THREE.DoubleSide, toneMapped: false,
   });
-  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge. */
-  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number) => {
+  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge, `edge` times as thick. */
+  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number, edge = 1) => {
     rim.visible = m.visible;
     if (!m.visible) return;
     const map = (m.material as THREE.MeshStandardMaterial).map;
@@ -1165,7 +1165,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const u = rim.material.uniforms;
     u.map.value = map;
     const img = map.image as { width?: number; height?: number } | undefined;
-    u.texel.value.set(1 / (img?.width || 32), 1 / (img?.height || 32));
+    u.texel.value.set(edge / (img?.width || 32), edge / (img?.height || 32));
     rim.geometry = m.geometry;
     rim.position.copy(m.position).addScaledVector(camDir, 0.01);
     rim.rotation.copy(m.rotation);
@@ -1179,17 +1179,23 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   // above, a low-slung hound is a thin sliver of sprite over its black blob shadow, so there its red ring is brighter
   // and wider and the blob lighter: the ring, not a dark hole, says where the foe is. Same meshes, no extra draws.
   const darkRoom = rid === 'coldmarrow';
+  // The Kiln's floor is red-brown (mobile, 25 Nov, phone pass: small dark Ashbucks and their thin red rings sank into
+  // it at 320 px). Red stays the "bad" colour, so there a foe's ring is wide and bright over a dark disc, and the foe's
+  // red edge is drawn thicker, and the foes glow more of their own colour. Same meshes, no extra draws.
+  const warmRoom = rid === 'kiln';
   const foeRingGeo = new THREE.RingGeometry(0.86, 1, 40), foeRingDark = new THREE.RingGeometry(0.76, 1, 40);
   const foeBlobMat = darkRoom ? (() => { const m = blobMat.clone(); m.opacity = 0.45; return m; })() : blobMat;
   /** Foes made of rime or pale stone glow more of their own colour, so they read pale on the dark floor. */
   const FOE_GLOW: Partial<Record<string, number>> = { rimehound: 0.8 };
+  const foeGlow = warmRoom ? 0.6 : 0.34;
+  const FOE_EDGE = warmRoom ? 2 : 1;
   // Every foe's blob shadow and red ring are two instanced meshes, one draw each for the whole room (they were two
   // meshes a foe: 12 draws for six foes). Same geometry, material and height as before, so they look the same; the
   // blobs are made first so the rings still draw over them. Grown (and remade) when more foes are up than fit.
-  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: darkRoom ? 0.95 : 0.6, depthWrite: false });
+  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(warmRoom ? 1.5 : 1.2), transparent: true, opacity: darkRoom || warmRoom ? 0.95 : 0.6, depthWrite: false });
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   const feetOf = (geo: THREE.BufferGeometry, mat: THREE.Material, n: number) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.renderOrder = 2; m.frustumCulled = false; scene.add(m); return m; };
-  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
+  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom || warmRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
   let feetN = 0;
   const footM = new THREE.Matrix4(), footP = new THREE.Vector3(), footS = new THREE.Vector3();
   /** Puts foe feet number feetN (blob of radius br, ring of radius rr) at x, z. */
@@ -1636,7 +1642,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
-        m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
+        m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? foeGlow; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.06 * ak), ht * rise * (1 - hit - 0.05 * ak + rear), 1);
@@ -1758,7 +1764,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
           C.rippleMat.opacity = 0.55 * (1 - ph);
         }
       } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
-      outline(f.rim, f.mesh, RIM_GROW);
+      outline(f.rim, f.mesh, RIM_GROW * FOE_EDGE, FOE_EDGE);
     }
     foeBlobs.count = foeRings.count = feetN; foeBlobs.instanceMatrix.needsUpdate = foeRings.instanceMatrix.needsUpdate = true;
     for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } hideExtra(foes[i]); }
