@@ -6137,11 +6137,14 @@ export class World {
       }
     }
     if (e.abilityT > 0) return;
-    e.abilityT = this.bossEnraged ? 1.6 : phase === 3 ? 2.4 : 3.2;
+    // BOSSV2: her basic attacks keep today's phase 2 pace from when she comes out, and today's phase 3 pace below 30%
+    // (design, 25 Nov); her signature and Brand run on the stage 3 clocks above.
+    const pace = v2 ? (frac > 0.3 ? 2 : 3) : phase;
+    e.abilityT = this.bossEnraged ? 1.6 : pace === 3 ? 2.4 : 3.2;
     const roll = this.rng.int(3);
     if (roll === 0) {
       this.addTelegraph('circle', p.x, p.y, 120, 0, 0, 1.3, 35 * mult);
-      if (phase === 3) {
+      if (pace === 3) {
         const a = this.rng.next() * Math.PI * 2;
         this.addTelegraph('circle', p.x + Math.cos(a) * 170, p.y + Math.sin(a) * 170, 120, 0, 0, 1.6, 35 * mult);
       }
@@ -6149,7 +6152,7 @@ export class World {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
       this.addTelegraph('cone', e.x, e.y, 320, ang, (70 * Math.PI) / 180, 1.1, 30 * mult);
     } else {
-      const n = phase === 3 ? 10 : 7;
+      const n = pace === 3 ? 10 : 7;
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
