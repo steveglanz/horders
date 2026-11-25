@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, MAIN_ROOMS, corridorAt, corridorEnds, hallsWay, roomAt } from '../sim/halls';
+import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
