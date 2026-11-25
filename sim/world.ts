@@ -20,7 +20,7 @@ import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
 import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
-import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
+import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
@@ -1943,8 +1943,12 @@ export class World {
     this.use(at);
   }
 
-  private startEncounter(): void {
-    const def = this.encounterDef;
+  /**
+   * The start of a fight, shared by an arena fight (startEncounter) and a Halls pack waking with nothing else awake
+   * (hallsWake), so each dungeon's per-fight setup runs on both (design, H3 plan: Coldmarrow's full Hearthcoal, the
+   * Glarewell's fresh pillars, the Wrackline's rafts).
+   */
+  private fightSetup(def: EncounterDef): void {
     this.phase = 'fight';
     this.fightStartedAt = this.time;
     for (let k = 0; k < this.heroes.length; k++) { const q = this.heroPlayer(k); q.hurtBy = {}; q.lastHurtBy = undefined; }
@@ -1978,7 +1982,6 @@ export class World {
     this.burnoutOn = false;
     this.player.haloUsed = false;
     this.player.windUsed = false;
-    const p = this.player;
     // Glarewell: fresh pillars every fight (a cracked pillar only stays down for that fight).
     this.pillars = this.dungeonId === 'glarewell'
       ? [0, 1, 2, 3].map((k) => {
@@ -1986,12 +1989,18 @@ export class World {
         return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
       })
       : [];
-    this.rollLayout(def.id);
-    this.rollArenaEvent(def.id);
-    this.rollStir(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
+  }
+
+  private startEncounter(): void {
+    const def = this.encounterDef;
+    this.fightSetup(def);
+    const p = this.player;
+    this.rollLayout(def.id);
+    this.rollArenaEvent(def.id);
+    this.rollStir(def.id);
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
     const all = def.spawns.reduce((a, s) => a + s.n, 0);
@@ -2573,19 +2582,7 @@ export class World {
       return;
     }
     this.encounter = pk.slot;
-    if (first) {
-      this.phase = 'fight';
-      this.fightStartedAt = this.time;
-      for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); q.hurtBy = {}; q.lastHurtBy = undefined; }
-      this.burnoutWarned = false;
-      this.burnoutTickT = 0;
-      this.burnoutOn = false;
-      this.player.haloUsed = false;
-      this.player.windUsed = false;
-      this.markT = 0;
-      this.markQueued = 0;
-      this.lampBeam = null;
-    }
+    if (first) this.fightSetup(def);
     this.hallsWaking = k;
     let lead = -1;
     let firstElite = -1;
