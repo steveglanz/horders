@@ -1,8 +1,9 @@
+import { botTree } from '../sim/content/trees';
 import { mkdirSync, writeFileSync } from 'fs';
 // Plays 40 consecutive runs with the autopilot, carrying hero progress between them.
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
-import { applyRun, equip, equippedItems, gearScore, itemScore, newHero, pointsAvailable, spendPoint, PassiveId } from '../sim/hero';
+import { applyRun, equip, equippedItems, gearScore, itemScore, newHero } from '../sim/hero';
 import { SLOTS } from '../sim/content/items';
 import { salvage, gritFor } from '../sim/hero';
 import { canUpgrade, upgradeItem } from '../sim/forge';
@@ -21,7 +22,6 @@ if (process.env.CLS) h.cls = process.env.CLS as typeof h.cls;
 // SNAP=4,6 writes the hero to SNAP_DIR/hero-t<N>.json the first time that tier unlocks (a geared reference hero for balance tools).
 const snaps = new Set((process.env.SNAP ?? '').split(',').filter(Boolean).map(Number));
 const snapDir = process.env.SNAP_DIR ?? 'tools/heroes';
-const order: PassiveId[] = ['might', 'fortitude', 'alacrity', 'insight'];
 let wins = 0;
 let tier = 1;
 let lossStreak = 0;
@@ -52,8 +52,8 @@ for (let run = 1; run <= runs; run++) {
       forgedTotal++;
     }
   }
-  let guard = 0;
-  while (pointsAvailable(h) > 0 && guard++ < 20) if (!spendPoint(h, order[guard % 4])) continue;
+  // Level points go on the class's tree (its first fixed build), as for fill bots.
+  h.passives = botTree(h.cls ?? 'emberwright', h.level - 1);
   if (snaps.has(h.maxTier)) {
     snaps.delete(h.maxTier);
     mkdirSync(snapDir, { recursive: true });

@@ -4,9 +4,10 @@
 // POLICY=forge (salvage everything spare, Forge the lowest worn item) | draught (also brew Rising
 // Draught before every delve it can afford) | hoard (salvage, spend nothing).
 // DAYS=10 RUNS_PER_DAY=3 CLS=emberwright SEED_OFFSET=0
+import { botTree } from '../sim/content/trees';
 import { World } from '../sim/world';
 import { botChoose, botInput } from '../sim/bot';
-import { applyRun, brewPotion, equip, equippedItems, gritFor, itemScore, newHero, pointsAvailable, salvage, spendPoint, takePotion, PassiveId } from '../sim/hero';
+import { applyRun, brewPotion, equip, equippedItems, gritFor, itemScore, newHero, salvage, takePotion } from '../sim/hero';
 import { SLOTS } from '../sim/content/items';
 import { canUpgrade, maxForgeLevel, upgradeItem, upgradeCost } from '../sim/forge';
 import { bountyFor } from '../sim/content/bounty';
@@ -19,7 +20,6 @@ const policy = process.env.POLICY ?? 'forge';
 const off = Number(process.env.SEED_OFFSET ?? 0);
 const h = newHero();
 if (process.env.CLS) h.cls = process.env.CLS as typeof h.cls;
-const order: PassiveId[] = ['might', 'fortitude', 'alacrity', 'insight'];
 const src = { salvage: 0, bounty: 0, weekly: 0 };
 const sink = { forge: 0, potion: 0 };
 let upgrades = 0, draughts = 0, delves = 0, wins = 0, tier = 1, lossStreak = 0;
@@ -66,8 +66,8 @@ function play(seed: number, bounty: ReturnType<typeof bountyFor> | null, day: nu
       upgrades++;
     }
   }
-  let guard = 0;
-  while (pointsAvailable(h) > 0 && guard++ < 20) spendPoint(h, order[guard % 4]);
+  // Level points go on the class's tree (its first fixed build), as for fill bots.
+  h.passives = botTree(h.cls ?? 'emberwright', h.level - 1);
 }
 
 // DETAIL=1 prints one line a day: upgrades that day, and how far worn gear sits below the Forge cap.
