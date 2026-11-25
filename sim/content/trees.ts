@@ -91,9 +91,9 @@ export const TREE = {
   skipCd: 1,
   glowDmg: 0.1,
   // Lumen
-  shineMote: 0.08,
+  shineMote: 0.06,
   pulseBurst: 0.15,
-  dazzleCrit: 0.03,
+  dazzleCrit: 0.02,
   noondayCrit: 0.2,
   sturdyHp: 15,
   tendHeal: 0.05,
@@ -165,9 +165,9 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   skip: { id: 'skip', cls: 'emberwright', branch: 'ashguard', name: 'Skip', maxRank: 2, text: 'Blink recharges 1s faster per point.', tip: 'Blink comes back 1s sooner per point, 2s at 2 points.' },
   glow: { id: 'glow', cls: 'emberwright', branch: 'ashguard', name: 'Glow', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Ashguard helps you stay there.' },
   // Lumen, Dawn branch: Sunmotes, Radiant Burst and crits.
-  shine: { id: 'shine', cls: 'lumen', branch: 'dawn', name: 'Shine', maxRank: 3, text: 'Sunmotes hit 8% harder per point.', tip: 'Sunmotes deal 8% more damage per point, 24% at 3 points.' },
+  shine: { id: 'shine', cls: 'lumen', branch: 'dawn', name: 'Shine', maxRank: 3, text: 'Sunmotes hit 6% harder per point.', tip: 'Sunmotes deal 6% more damage per point, 18% at 3 points.' },
   pulse: { id: 'pulse', cls: 'lumen', branch: 'dawn', name: 'Pulse', maxRank: 2, text: 'Radiant Burst hits 15% harder per point.', tip: 'Radiant Burst deals 15% more damage per point, 30% at 2 points. Its heal stays the same.' },
-  dazzle: { id: 'dazzle', cls: 'lumen', branch: 'dawn', name: 'Dazzle', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
+  dazzle: { id: 'dazzle', cls: 'lumen', branch: 'dawn', name: 'Dazzle', maxRank: 3, text: '+2% chance to crit per point.', tip: '2% more chance per point to crit for double damage, 6% at 3 points.' },
   noonday: { id: 'noonday', cls: 'lumen', branch: 'dawn', name: 'Noonday', maxRank: 1, keystone: true, text: 'Crits hit for 2.2 times instead of 2.', tip: 'Keystone. Your crits deal 2.2 times the hit instead of 2 times, 10% more on every crit.' },
   // Lumen, Grace branch: lasting and mending.
   sturdy: { id: 'sturdy', cls: 'lumen', branch: 'grace', name: 'Sturdy', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
