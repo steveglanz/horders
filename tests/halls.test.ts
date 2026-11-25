@@ -32,7 +32,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 10, halls: true, dungeon: 'coldmarrow' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 13, halls: true, dungeon: 'wrackline' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -503,7 +503,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -831,6 +831,20 @@ describe('H3d: the Wrackline on the Halls map', () => {
     expect(riftTicks).toBeGreaterThan(100);
   }, 60000);
 
+  it('QA, 25 Nov: a foe pinched between two rafts that nearly touch is pushed clear of both', () => {
+    const w = wrack(5);
+    wake(w);
+    const [a, b] = w.rafts;
+    // Two rafts side by side, 150 apart (each 78 across the middle), and a foe in the gap between them.
+    b.x = a.x + 150; b.y = a.y;
+    const e = w.enemies.find((q) => q.alive && q.def.rank !== 'boss' && !q.def.stationary)!;
+    for (const [ox, oy] of [[75, 0], [75, 20], [60, -10], [90, 5]]) {
+      e.x = a.x + ox; e.y = a.y + oy;
+      (w as unknown as { raftsClear(): void }).raftsClear();
+      for (const r of [a, b]) expect(Math.hypot(e.x - r.x, e.y - r.y), `${ox},${oy}`).toBeGreaterThanOrEqual(78);
+    }
+  });
+
   it('bots walk it and go through the door into Hessa\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
@@ -892,8 +906,8 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
   const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
 
-  it('is off for players until design turns it on, and gets its own fights, themes and Nhevra behind the door', () => {
-    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+  it('is on for players (design, 25 Nov), and gets its own fights, themes and Nhevra behind the door', () => {
+    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).not.toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.coldmarrow;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 120; seed++) {
