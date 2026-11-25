@@ -91,8 +91,8 @@ export const TREE = {
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   // Bulwark, Anvil Skin branch: holding the line.
-  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+10 max health per point.', tip: 'More health. +10 max health per point, +30 at 3 points.' },
-  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '2% less damage taken per point.', tip: 'Take less from every hit. 2% less damage per point, 6% at 3 points.' },
+  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
   damper: { id: 'damper', cls: 'bulwark', branch: 'bastion', name: 'Damper', maxRank: 2, text: 'Smother costs 3 less Resolve per point.', tip: 'Catching a Sluice Crawler\'s bloom on the shield costs 3 less Resolve per point (10 to 4 at 2 points).' },
   bedrock: { id: 'bedrock', cls: 'bulwark', branch: 'bastion', name: 'Bedrock', maxRank: 1, keystone: true, text: 'Anvil Skin recharges 6s faster.', tip: 'Keystone. Anvil Skin comes back every 14s instead of 20s.' },
   // Bulwark, the thorns branch (the run draft's Spite branch, id retribution).
@@ -112,7 +112,7 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   torrent: { id: 'torrent', cls: 'duskblade', branch: 'bloodletting', name: 'Torrent', maxRank: 1, keystone: true, text: 'Bleeding foes take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe that is bleeding.' },
   // Duskblade, Tempo branch: faster, sharper swings.
   pace: { id: 'pace', cls: 'duskblade', branch: 'tempo', name: 'Pace', maxRank: 3, text: 'Swing 3% faster per point.', tip: 'Your swings come 3% faster per point, 9% at 3 points.' },
-  whet: { id: 'whet', cls: 'duskblade', branch: 'tempo', name: 'Whet', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
+  whet: { id: 'whet', cls: 'duskblade', branch: 'tempo', name: 'Whet', maxRank: 3, text: '+2% chance to crit per point.', tip: '2% more chance per point to crit for double damage, 6% at 3 points.' },
   rush: { id: 'rush', cls: 'duskblade', branch: 'tempo', name: 'Rush', maxRank: 2, text: 'Hits build 8% more Momentum per point.', tip: 'Every hit builds 8% more Momentum per point, 16% at 2 points.' },
   cadence: { id: 'cadence', cls: 'duskblade', branch: 'tempo', name: 'Cadence', maxRank: 1, keystone: true, text: 'Execution recharges 4s faster.', tip: 'Keystone. Execution comes back 4s sooner.' },
   // Duskblade, Guard branch: lasting through the fight.
