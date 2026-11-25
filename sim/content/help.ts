@@ -3,11 +3,12 @@
  * Facts here are checked against the code they describe; keep them in step.
  */
 import { CAPSTONE_RANKS } from './emberwright';
+import { TREE_KEYSTONE_POINTS } from './trees';
 
 export const HELP = {
   /** The hub's hero talents (PASSIVES in sim/hero.ts; points from pointsAvailable). */
   heroTalents:
-    'Hero talents are permanent. You get 1 point for each hero level after the first. Spend it here, and it counts in every delve.',
+    `Your talent tree is permanent. You get 1 point for each hero level after the first. Each branch's last talent opens at ${TREE_KEYSTONE_POINTS} points in that branch. Resetting is free.`,
   /** The level-up cards during a run (TALENTS in sim/content/emberwright.ts; World.rollDraft). */
   runTalents:
     `When you level up in a delve, pick 1 of 3 talent cards. Most cards belong to a branch. ${CAPSTONE_RANKS} ranks in one branch unlock its capstone, a big upgrade. Talent cards reset when the delve ends.`,

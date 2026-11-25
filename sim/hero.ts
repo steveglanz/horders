@@ -15,7 +15,7 @@ import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { ALT_UNLOCK_LEVEL } from './content/classes';
-import { TREE, TREE_CLASSES, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
+import { TREE, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
 import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
@@ -704,14 +704,9 @@ export function salvageAll(hero: HeroProfile): { count: number; embers: number }
 
 export function spendPoint(hero: HeroProfile, id: PointId): boolean {
   if (pointsAvailable(hero) <= 0) return false;
-  if (isTreeNode(id)) {
-    if (!canTakeNode(hero.passives, hero.cls ?? 'emberwright', id)) return false;
-    hero.passives[id] = (hero.passives[id] ?? 0) + 1;
-    return true;
-  }
-  const r = hero.passives[id] ?? 0;
-  if (r >= PASSIVES[id].max) return false;
-  hero.passives[id] = r + 1;
+  // Level points go on the character's tree; the old stat points can't be bought any more.
+  if (!isTreeNode(id) || !canTakeNode(hero.passives, hero.cls ?? 'emberwright', id)) return false;
+  hero.passives[id] = (hero.passives[id] ?? 0) + 1;
   return true;
 }
 
@@ -720,18 +715,21 @@ export function resetTree(hero: HeroProfile): void {
   for (const id of Object.keys(hero.passives)) if (isTreeNode(id)) delete hero.passives[id];
 }
 
-/** Does this character spend its points on the tree (its class is in TREE_CLASSES)? */
-export function usesTree(hero: HeroProfile): boolean {
-  return TREE_CLASSES.includes(hero.cls ?? 'emberwright');
+/**
+ * Moving a character onto the tree: its old stat points (Might, Fortitude, Insight, Alacrity) come back to spend there.
+ */
+export function refundStatPoints(hero: Pick<HeroProfile, 'passives'>): void {
+  for (const id of Object.keys(hero.passives ?? {})) if (!isTreeNode(id)) delete hero.passives[id as PassiveId];
 }
 
 /**
- * Moving a character onto the tree: its old stat points (Might, Fortitude, Insight, Alacrity) come back to spend there.
- * Does nothing for a class not yet on the tree.
+ * Trees for everyone (25 Nov): every character on a save, played or in the roster, gets its old stat points back to
+ * spend on its tree. Safe to run on every load (it does nothing once moved).
  */
-export function refundStatPoints(hero: HeroProfile): void {
-  if (!usesTree(hero)) return;
-  for (const id of Object.keys(hero.passives)) if (!isTreeNode(id)) delete hero.passives[id as PassiveId];
+export function toTree(h: HeroProfile): HeroProfile {
+  refundStatPoints(h);
+  for (const c of Object.values(h.roster ?? {})) if (c?.passives) refundStatPoints(c);
+  return h;
 }
 
 /** A rough single-number strength used to compare items. */

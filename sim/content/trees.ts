@@ -4,9 +4,9 @@
  * keystone opens once TREE_KEYSTONE_POINTS are in that branch. Points are stored in the hero's `passives` beside the
  * old stat points (Might, Fortitude, Insight, Alacrity), so they save, swap per hero and reach the sim the same way.
  *
- * Behind a flag: TREE_CLASSES lists the classes whose characters spend on the tree instead of the stat points. It is
- * empty until a class's tree passes its check (within 3 of 40 of today's stat points, first three tiers of every
- * dungeon). Names are single plain words, as Steve's naming rule allows.
+ * Every class has a tree, and every character spends its level points there (Steve 25 Nov: "Nothing should be a
+ * switch"). The old stat points (Might, Fortitude, Insight, Alacrity) are no longer spent; a save that has them gets
+ * them back as tree points (toTree in sim/hero.ts). Names are single plain words, as Steve's naming rule allows.
  */
 import type { Branch, ClassId } from './emberwright';
 
@@ -43,9 +43,6 @@ export interface TreeNode {
 
 /** Points in a branch that open its keystone. */
 export const TREE_KEYSTONE_POINTS = 6;
-
-/** Classes whose characters use the tree instead of the stat points. Empty until a tree passes its check. */
-export const TREE_CLASSES: ClassId[] = [];
 
 /** The numbers each node uses, in one place for tuning (TUNE=TREE.bulkHp=12 in the tools). */
 export const TREE = {
@@ -256,6 +253,11 @@ export const TREE_BUILDS: Partial<Record<ClassId, Record<string, TreeNodeId[]>>>
     crust: ['heft', 'shale', 'heft', 'spring', 'shale', 'heft', 'core', 'shale', 'spring', 'bore', 'reload', 'bore', 'reload', 'bore', 'flaw', 'breach', 'reload', 'flaw', 'coat'],
   },
 };
+
+/** A bot's tree (fill bots and stand-ins): its class's first fixed build, `n` points in. */
+export function botTree(cls: ClassId, n: number): Partial<Record<TreeNodeId, number>> {
+  return buildPoints(cls, Object.keys(TREE_BUILDS[cls] ?? {})[0] ?? '', n);
+}
 
 /** The first `n` points of a fixed build, as a points record (skipping any the rules refuse). */
 export function buildPoints(cls: ClassId, branch: string, n: number): Partial<Record<TreeNodeId, number>> {

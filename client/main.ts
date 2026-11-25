@@ -9,7 +9,8 @@ import { installTips } from './tips';
 import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { metIn, recordSeen } from '../sim/seen';
-import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers } from '../sim/hero';
+import { botTree } from '../sim/content/trees';
+import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
 import { CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
@@ -57,7 +58,7 @@ hub.render();
 void (async () => {
   const loaded = await cloud.loadHero();
   // P5: a cloud save from before the shared purse folds its per-class embers in too.
-  const remote = loaded && loaded.version === 1 && Array.isArray(loaded.inventory) ? shareEmbers(loaded) : loaded;
+  const remote = loaded && loaded.version === 1 && Array.isArray(loaded.inventory) ? toTree(shareEmbers(loaded)) : loaded;
   if (remote && remote.version === 1 && Array.isArray(remote.inventory)) {
     const best = newerHero(hero, remote);
     if (best === remote && el('title').hidden === false) {
@@ -297,7 +298,7 @@ function startRun(bounty = false, key = false): void {
   const fill = !botParty?.length && !bounty && !stress && (hosting || !(coop && coop.roster.length > 1)) ? hub.fillParty() : [];
   if (fill.length) {
     const gear = standInGear(equippedItems(hero));
-    Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
+    Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: botTree(cls, hero.level - 1) })), partySize: 1 + fill.length, fillBots: fill.length });
   }
   // Phase 18 Halls: every dungeon with a map (sim/halls.ts HALLS_ON) is played on it, solo, bot-filled and hosted online
   // co-op alike (the map reaches guests in netsync's Snapshot.halls). Its trash packs (TRASH_ON), and the staged Kiln

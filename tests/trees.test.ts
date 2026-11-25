@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { SLAG_KIT, World } from '../sim/world';
-import { newHero, pointsAvailable, refundStatPoints, resetTree, spendPoint, loadoutFrom, usesTree } from '../sim/hero';
-import { TREE, TREE_BUILDS, TREE_CLASSES, TREE_KEYSTONE_POINTS, TREE_NODES, buildPoints, canTakeNode, treeOf } from '../sim/content/trees';
+import { newHero, pointsAvailable, resetTree, spendPoint, loadoutFrom, switchClass, toTree } from '../sim/hero';
+import { TREE, TREE_BUILDS, TREE_KEYSTONE_POINTS, TREE_NODES, botTree, buildPoints, canTakeNode, treeOf } from '../sim/content/trees';
+import { CLASS_IDS } from '../sim/content/classes';
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 
 type Inner = { spawn(kind: string, x: number, y: number): number; bulwarkMitigate(raw: number, src: number): number };
 
 describe('character trees (class progression brief)', () => {
-  it('no class uses the tree yet: it stays behind its check', () => {
-    expect(TREE_CLASSES).toEqual([]);
+  it('every class has a tree and a bot build (trees are on for everyone, no switch)', () => {
+    for (const cls of CLASS_IDS) {
+      expect(treeOf(cls)).toHaveLength(12);
+      const pts = botTree(cls, 19);
+      expect(Object.values(pts).reduce((a, b) => a + (b ?? 0), 0)).toBe(19);
+    }
   });
 
   it.each([
@@ -55,14 +60,22 @@ describe('character trees (class progression brief)', () => {
     expect(pointsAvailable(h)).toBe(7);
   });
 
-  it('a class not on the tree keeps its stat points when refunding', () => {
+  it('the old stat points can no longer be bought, and a save that has them gets them back on every character', () => {
     const h = newHero();
     h.cls = 'bulwark';
     h.level = 4;
-    spendPoint(h, 'fortitude');
-    expect(usesTree(h)).toBe(false);
-    refundStatPoints(h);
-    expect(h.passives.fortitude).toBe(1);
+    expect(spendPoint(h, 'fortitude')).toBe(false);
+    h.passives = { fortitude: 2, bulk: 1 };
+    switchClass(h, 'lumen');
+    h.level = 6;
+    h.passives = { might: 5 };
+    toTree(h);
+    expect(h.passives).toEqual({});
+    expect(pointsAvailable(h)).toBe(5);
+    expect(h.roster?.bulwark?.passives).toEqual({ bulk: 1 });
+    // Safe to run again.
+    toTree(h);
+    expect(h.roster?.bulwark?.passives).toEqual({ bulk: 1 });
   });
 
   it('every fixed build spends exactly the points it is given', () => {

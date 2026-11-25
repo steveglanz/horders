@@ -344,6 +344,11 @@
   .tal.can { border-color: var(--gold); }
   .tal[aria-disabled="true"] { cursor: default; }
   .tal-help { margin: -2px 0 8px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+  .tree-b { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; font: 600 13px var(--serif); color: var(--gold); }
+  .tree-b em { font: normal 11px var(--sans, inherit); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tal.key b { color: var(--gold); }
+  .tal.locked { opacity: 0.55; }
+  .tree-reset { grid-column: 1 / -1; justify-self: end; margin-top: 4px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--card-line); background: rgba(0,0,0,0.3); color: var(--muted); font-size: 12px; }
   /* Tooltip: press and hold on touch, hover with a mouse (client/tips.ts). */
   #tip { position: fixed; z-index: 60; max-width: min(300px, calc(100vw - 16px)); padding: 9px 12px; border-radius: 12px; background: rgba(20,12,10,0.97); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-size: 13px; line-height: 1.4; color: var(--ink); pointer-events: none; text-align: left; animation: tipIn 0.12s ease-out; }
   #tip b { font-family: var(--serif); }
