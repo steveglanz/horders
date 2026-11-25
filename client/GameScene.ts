@@ -4493,6 +4493,70 @@ export class GameScene extends Phaser.Scene {
         g.lineCap = 'butt';
       }
     }
+    // Class marks 2D draws on overFx, which the 3D view covers: the Slagbinder's Cooling Shell (a pale dome over the
+    // hero) and Brittle (pale fracture lines over a foe), and the Emberwright's Ember Ward (a ring of flame tongues round
+    // the hero, thinning as it is spent). The Slagbinder's plate band and the shell's floor ring are floor marks the
+    // bridge carries. Drawn on this overlay, so no draw calls.
+    {
+      const now = this.time.now, t = w.time;
+      const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        const shell = (q.shellUntil ?? -1) > t;
+        const ward = q.plateBy === -1 && (q.plate ?? 0) > 0 && (q.plateUntil ?? -1) > t;
+        if (!shell && !ward) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        // The hero's body: about 26 px over the feet, 34 wide and 40 tall at zoom 1.
+        const cx = p.x, cy = p.y - 26 * zb, rx = 34 * zb, ry = 40 * zb;
+        if (shell) {
+          const fade = Math.min(1, ((q.shellUntil ?? 0) - t) / 0.6);
+          g.globalAlpha = 0.14 * fade; g.fillStyle = css(SLAG_COOL);
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = (0.6 + 0.15 * Math.sin(now / 200)) * fade; g.strokeStyle = css(SLAG_COOL); g.lineWidth = 2 * zb;
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI * 1.02, Math.PI * 1.98); g.stroke();
+          g.globalAlpha = 0.4 * fade; g.strokeStyle = '#ffffff'; g.lineWidth = 1.5 * zb;
+          g.beginPath(); g.ellipse(cx - 5 * zb, cy - 6 * zb, rx * 0.68, ry * 0.68, 0, Math.PI * 1.2, Math.PI * 1.45); g.stroke();
+          g.globalAlpha = 1;
+        }
+        if (ward) {
+          const frac = Math.max(0.15, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
+          const fade = Math.min(1, ((q.plateUntil ?? 0) - t) / 0.4);
+          g.globalAlpha = 0.1 * fade; g.fillStyle = css(WARD_FIRE);
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = 0.55 * fade; g.strokeStyle = css(WARD_FIRE); g.lineWidth = 2 * zb;
+          g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+          const n = 12;
+          for (let j = 0; j < n && j / n < frac; j++) {
+            const a = now / 700 + (j / n) * Math.PI * 2;
+            const fl = (7 + 4 * Math.sin(now / 90 + j * 1.7)) * zb;
+            const bx = cx + Math.cos(a) * rx, by = cy + Math.sin(a) * ry;
+            g.globalAlpha = 0.9 * fade; g.fillStyle = j % 2 ? '#ffb347' : css(WARD_FIRE);
+            g.beginPath(); g.moveTo(bx - 4 * zb, by + 2 * zb); g.lineTo(bx + 4 * zb, by + 2 * zb); g.lineTo(bx + Math.cos(a) * 3 * zb, by - fl); g.closePath(); g.fill();
+          }
+          g.globalAlpha = 1;
+        }
+      }
+      // Brittle: the 2D cracks, over the foe's drawn body (between its feet and the head the renderer reports).
+      for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || (e.brittleUntil ?? 0) <= t) continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i);
+        const r = e.def.radius * zb;
+        const cx = p.x, cy = head ? (p.y + head.y) / 2 : p.y - r;
+        const line = () => {
+          g.beginPath(); g.moveTo(cx - r * 0.5, cy - r * 0.55); g.lineTo(cx - r * 0.1, cy - r * 0.15); g.lineTo(cx - r * 0.25, cy + r * 0.2); g.lineTo(cx + r * 0.15, cy + r * 0.55); g.stroke();
+          g.beginPath(); g.moveTo(cx - r * 0.1, cy - r * 0.15); g.lineTo(cx + r * 0.45, cy - r * 0.3); g.stroke();
+        };
+        g.lineJoin = 'round';
+        g.globalAlpha = 0.7; g.strokeStyle = '#1a1412'; g.lineWidth = 3 * zb; line();
+        g.globalAlpha = 0.95; g.strokeStyle = '#f0e8de'; g.lineWidth = 1.5 * zb; line();
+        g.globalAlpha = 1; g.lineJoin = 'miter';
+      }
+    }
     // The Flue: a Decree holder's seal with its countdown ring (gold, then red and beating in the last 3 s), and a Spent
     // hero's cold seal with a grey arc for the time left. 2D draws these over the head on overFx and depth 9.4, which
     // the 3D view covers; the 3D view's crown has no timer. Beside the hero, as the Pressed and Sundered marks.
