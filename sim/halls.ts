@@ -458,7 +458,9 @@ export function clampHalls(m: HallsGeo, o: { x: number; y: number }, r: number):
 /** Whether the straight walk from (x1, y1) to (x2, y2) stays inside the map (sampled every 40 units). */
 export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
-  const n = Math.max(1, Math.ceil(d / 40));
+  // QA, 25 Nov: every 16 units, not 40. At 40 a hole's corner could fall between samples from one step and not the
+  // next, so a bot's way flipped every tick and it stood still short of the door (Ashvents t8 seed 1).
+  const n = Math.max(1, Math.ceil(d / 16));
   for (let k = 1; k < n; k++) {
     const t = k / n;
     if (!inside(m, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, pad)) return false;
