@@ -276,9 +276,20 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  * the rare get this share of their health, so named and hard fights take about a minute or less (1 turns it off).
  */
 export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
-export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
+/**
+ * A pack's single special foe, which stays at one in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
+ * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring) and
+ * the Ballast. Its hounds, spitters, Ember Twins and the Ashbuck double as the Kiln's do.
+ */
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast'];
+/** The dungeons whose map's openers are trash (WorldOptions.kilnTrash, on by default in play; ?kilntrash=0 turns it off). */
+export const TRASH_ON: DungeonId[] = ['kiln'];
+/** Trash rollout (design, 25 Nov): built but off for players; a run gets it with WorldOptions.trashBeta (?trashbeta=1, TRASH_BETA=1 in tools). */
+export const TRASH_BETA: DungeonId[] = ['foundry'];
+/** Whether `dungeon`'s map has trash packs (raids have their own switch, raidTrash). */
+export const trashFor = (dungeon: DungeonId, on: boolean, beta: boolean): boolean => (on && TRASH_ON.includes(dungeon)) || (beta && TRASH_BETA.includes(dungeon));
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false, trashBeta = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -323,7 +334,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const trash = ((kilnTrash && dungeon === 'kiln') || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
+    const trash = (trashFor(dungeon, kilnTrash, trashBeta) || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
     const foes = packFoes(seed, k, p.enc, x, y, trash);
     return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });

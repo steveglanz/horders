@@ -40,7 +40,7 @@ const treePoints = (cls: ClassId, h: HeroProfile) => {
 const skill = Number(process.env.SKILL ?? 1);
 // REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
 const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
-// HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta). RAIDTRASH=1 makes a raid map's openers trash (KILNTRASH=1 the Kiln's).
+// HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta). RAIDTRASH=1 makes a raid map's openers trash (KILNTRASH=1 the Kiln's, TRASH_BETA=1 the Foundry's).
 // ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md). OSKELV2=1 the staged Oskel (oskel-v2.md); it prints crush-line hits.
 // YSMERETV2=1 plays the two-stage Ysmeret (design, ysmeret-v2.md); TUNE=YSMERETV2.split=0 keeps only her Bellow change.
 const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
@@ -175,7 +175,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', raidTrash: process.env.RAIDTRASH === '1', ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', trashBeta: process.env.TRASH_BETA === '1', raidTrash: process.env.RAIDTRASH === '1', ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: treePoints(main, mp), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
