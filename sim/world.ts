@@ -1172,8 +1172,6 @@ export class World {
   private hallsWaking = -1;
   /** Halls "Catch breath": seconds with no pack awake and no foe alive (resting starts at HALLS.rest.delay). */
   hallsQuietT = 0;
-  /** H2b: where each hero and foe stood at the last Halls step (the grates undo a dash through them). */
-  private hallsAt = new WeakMap<object, { x: number; y: number }>();
   /** Gates on offer while `phase` is 'choose'. */
   gates: Gate[] = [];
   /** Paths taken at each fork, for the summary. */
@@ -2394,13 +2392,6 @@ export class World {
    * health when next woken). The grates lift once no pack in the room is awake.
    */
   private hallsLocks(dt: number): void {
-    this.hallsSeal(dt);
-    // Where everyone stood this step, for the next step's grate check (a blink resets px, so it can't be used).
-    for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); this.hallsAt.set(q, { x: q.x, y: q.y }); }
-    for (const e of this.enemies) if (e.alive) this.hallsAt.set(e, { x: e.x, y: e.y });
-  }
-
-  private hallsSeal(dt: number): void {
     const m = this.halls!;
     const packRoom = (k: number) => m.packs[k].room;
     m.rooms.forEach((rm, i) => {
@@ -2418,21 +2409,6 @@ export class World {
         rm.lock = -1;
         rm.lifted = 0;
         return;
-      }
-      if (rm.lock >= HALLS.lockDelay) {
-        // Grates down: a dash or a leap that carried a hero or a foe through one last step is undone (clampGrates only
-        // sees where it landed, past the bars).
-        const back = (o: { x: number; y: number; px: number; py: number }, r: number) => {
-          const prev = this.hallsAt.get(o);
-          if (!prev) return;
-          const was = roomGap(rm, prev.x, prev.y) >= 0, now = roomGap(rm, o.x, o.y) >= 0;
-          if (was === now) return;
-          const to = was ? roomClamp(rm, o.x, o.y, r) : prev;
-          o.x = o.px = to.x;
-          o.y = o.py = to.y;
-        };
-        for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); if (q.hp > 0) back(q, PLAYER_RADIUS); }
-        for (const e of this.enemies) if (e.alive) back(e, e.def.radius);
       }
       const was = rm.lock;
       rm.lock += dt;
