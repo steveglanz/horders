@@ -32,7 +32,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 7, halls: true, dungeon: 'glarewell' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 10, halls: true, dungeon: 'coldmarrow' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -503,7 +503,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -596,8 +596,8 @@ describe('H3b: the Glarewell on the Halls map', () => {
     throw new Error(shape);
   };
 
-  it('is off for players until design turns it on, and gets its own fights, themes and the Lensmother behind the door', () => {
-    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
+  it('is on for players (design, 25 Nov), and gets its own fights, themes and the Lensmother behind the door', () => {
+    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).not.toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.glarewell;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     let cross = 0, ring = 0;
@@ -737,7 +737,7 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
       const ux = (wp.x - p.x) / d, uy = (wp.y - p.y) / d;
       w.pillars = [{ x: p.x + ux * 60, y: p.y + uy * 60, r: 26, cracked: false }];
       const start = Math.hypot(a.x - p.x, a.y - p.y);
-      for (let j = 0; j < 60 * 4 && w.phase !== 'fight'; j++) w.step(botInput(w));
+      for (let j = 0; j < 60 * 4 && (w.phase as string) !== 'fight'; j++) w.step(botInput(w));
       expect(Math.hypot(a.x - p.x, a.y - p.y), `seed ${seed}`).toBeLessThan(start - 150);
     }
     expect(tried).toBeGreaterThanOrEqual(3);
