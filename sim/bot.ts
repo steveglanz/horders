@@ -1109,8 +1109,18 @@ export function botInput(w: World, skill = 1): Input {
     }
   }
   // The Ashvents (G3): spread out while Scatter Embers is winding up.
+  // YSMERETV2 stage 2: either flame's Scatter counts.
   const scatter = w.heroes.length > 1 && process.env.NOSPREAD !== '1' && w.bossIndex >= 0
-    && w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter';
+    && (w.ysStage === 2 ? w.enemies.some((e) => e.alive && e.kind === 'ysmeret' && e.castId === 'scatter')
+      : w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter');
+  // YSMERETV2 stage 2 (design's bot rule): the tank holds the flame with more health, everyone else burns the one with
+  // less first, then the other. Walking up to it is how a bot picks it (auto-attacks hit the nearest foe).
+  const flame = w.ysStage === 2 ? focusFlame(w) : null;
+  if (flame) {
+    const dx = flame.x - p.x, dy = flame.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d > flame.def.radius + (melee ? 30 : 160)) { fx += (dx / d) * 0.12 * skill; fy += (dy / d) * 0.12 * skill; }
+  }
   if (scatter) {
     const near = nearestAlly(w);
     if (near && near.d < SCATTER_GAP) {
@@ -1418,6 +1428,17 @@ export function botInput(w: World, skill = 1): Input {
   const len = Math.hypot(fx, fy) || 1;
   if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
   return { x: fx / len, y: fy / len, cast };
+}
+
+/** YSMERETV2 stage 2: the flame this bot should be on (see botInput). */
+function focusFlame(w: World): Enemy | null {
+  let lo: Enemy | null = null, hi: Enemy | null = null;
+  for (const e of w.enemies) {
+    if (!e.alive || e.kind !== 'ysmeret') continue;
+    if (!lo || e.hp < lo.hp) lo = e;
+    if (!hi || e.hp > hi.hp) hi = e;
+  }
+  return w.isTank(w.acting) ? hi : lo;
 }
 
 /**

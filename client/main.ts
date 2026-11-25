@@ -314,6 +314,8 @@ function startRun(bounty = false, key = false): void {
   if (hosting ? params.get('bossv2') === '1' : params.get('bossv2') !== '0') opts.bossV2 = true;
   // ONDRELV2 (design, 25 Nov): the staged Ondrel, off until design has measured it, so solo and host both opt in.
   if (params.get('ondrelv2') === '1') opts.ondrelV2 = true;
+  // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, off until design has measured it.
+  if (params.get('ysmeretv2') === '1') opts.ysmeretV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
