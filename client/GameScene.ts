@@ -1496,8 +1496,10 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           } else if (w.dungeonId === 'pressworks' && w.osStage > 0) {
             // OSKELV2 (design, oskel-v2.md): one line per stage.
-            if (ev.phase === 2) this.hud.banner('Stage 2: The belt', 'The press bed is running. Walk against it, and stay off the crush line');
-            else this.hud.banner('Stage 3: Full speed', 'Full speed. Keep walking');
+            // Both stages start the belt carrying heroes toward the crush line at once, so they are slim warning lines,
+            // not the big banner over the floor (phone pass, 25 Nov), as Ondrel's stage 3 and Ysmeret's stage 2 are.
+            if (ev.phase === 2) this.hud.warn('Stage 2: The belt', 'Walk against it; stay off the crush line');
+            else this.hud.warn('Stage 3: Full speed', 'The belt runs faster. Keep walking');
           } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
             // A lone flame flares in 3 s, so this is a slim warning line, not the big banner over the floor (phone pass, 25 Nov).
