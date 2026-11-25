@@ -30,11 +30,14 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   // The Drowned Foundry's four (visuals, 25 Nov; its shrine side room keeps kilnShrine).
   | 'boilerRoom' | 'cistern' | 'pumpHall' | 'anchorStore'
   // The Glarewell's four (visuals, 25 Nov).
-  | 'lensGallery' | 'starVault' | 'shadeColonnade' | 'mirrorHall';
+  | 'lensGallery' | 'starVault' | 'shadeColonnade' | 'mirrorHall'
+  // The Coldmarrow's four (visuals, 25 Nov): no warm sound in any of them, since the hero's Hearthcoal is the only warmth.
+  | 'deadHearth' | 'rimeHall' | 'snowdriftCave' | 'coldCrypt';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
   'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
   'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall',
+  'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
@@ -405,6 +408,45 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         prev = w;
         const glass = Math.sin(2 * Math.PI * 1760 * s) * (0.8 + 0.2 * Math.sin(2 * Math.PI * 0.7 * s)) + 0.6 * Math.sin(2 * Math.PI * 2637 * s) + 0.4 * Math.sin(2 * Math.PI * 3520.5 * s);
         raw[i] = glass * 0.03 + hp * 0.02 + brown * 0.08;
+        break;
+      }
+      case 'deadHearth': {
+        // Dead hearth hall: a cold chimney with no fire, a hollow low wind drawing up the dead flue twice round the loop.
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.06;
+        const draw = 0.2 + 0.8 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const s = i / rate;
+        const flue = Math.sin(2 * Math.PI * 147 * s) + 0.5 * Math.sin(2 * Math.PI * 294.5 * s) + 0.25 * Math.sin(2 * Math.PI * 441 * s);
+        raw[i] = lp * 0.7 * draw + flue * 0.025 * draw + brown * 0.12;
+        break;
+      }
+      case 'rimeHall': {
+        // Rime hall: frost and icicles under pale blue light that shimmers slowly: a high, cold shimmer that swells once.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        const s = i / rate;
+        const swell = 0.35 + 0.65 * Math.pow(Math.sin(t * Math.PI), 2);
+        const ice = Math.sin(2 * Math.PI * 1318.5 * s) * (0.7 + 0.3 * Math.sin(2 * Math.PI * 1.3 * s)) + 0.5 * Math.sin(2 * Math.PI * 1975.5 * s + Math.sin(2 * Math.PI * 0.5 * s));
+        raw[i] = ice * 0.03 * swell + hp * 0.02 * swell + brown * 0.06;
+        break;
+      }
+      case 'snowdriftCave': {
+        // Snowdrift cave: hushed. A soft, muffled wind behind banked snow, one slow gust round the loop.
+        lp += (w - lp) * 0.08;
+        hp = 0.94 * (hp + lp - prev);
+        prev = lp;
+        const gust = 0.5 + 0.5 * Math.pow(Math.sin(t * Math.PI), 3);
+        raw[i] = hp * 0.6 * gust + brown * 0.1;
+        break;
+      }
+      case 'coldCrypt': {
+        // Cold crypt, the quiet room: still stone air with a faint, dark resonance between the coffins; nothing moves.
+        hp = 0.99 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.2;
+        const s = i / rate;
+        raw[i] = lp * 0.1 + (Math.sin(2 * Math.PI * 174.6 * s) + 0.5 * Math.sin(2 * Math.PI * 261.6 * s) + 0.3 * Math.sin(2 * Math.PI * 523 * s)) * 0.012 + brown * 0.08;
         break;
       }
       case 'shimmer': {
