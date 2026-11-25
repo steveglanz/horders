@@ -16,6 +16,7 @@
  * The 2D scene keeps running the sim and the HUD underneath; it only stops drawing its own camera.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -480,7 +481,17 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.8, 8), brassP); screw.position.y = 4.1; g.add(screw);
       const ram = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.9, 0.8), ironP); ram.position.y = 2.9; g.add(ram);
       const bed = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.6, 1.0), brassP); bed.position.y = 0.3; g.add(bed);
-      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      // Merged into one mesh per material (two, not six, plus their shadows): the frames near the rim pushed the
+      // room over the draw-call bar (25 Nov).
+      const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+      for (const o of [...g.children] as THREE.Mesh[]) {
+        o.updateMatrix();
+        const geo = o.geometry.clone().applyMatrix4(o.matrix);
+        const m = o.material as THREE.Material;
+        (byMat.get(m) ?? byMat.set(m, []).get(m)!).push(geo);
+        o.geometry.dispose(); g.remove(o);
+      }
+      for (const [m, list] of byMat) { const mesh = new THREE.Mesh(mergeGeometries(list), m); mesh.castShadow = mesh.receiveShadow = true; g.add(mesh); for (const q of list) q.dispose(); }
       room.add(g);
     }
   } else if (id === 'smeltery') {
@@ -805,8 +816,13 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
         const a = Math.PI + (k - 3) * 0.42, r = 8.6;
         const g = new THREE.Group(); g.position.set(Math.sin(a) * r, 6.2, Math.cos(a) * r); g.rotation.y = a;
         const n = 10 + (k * 3) % 7;
-        for (let j = 0; j < n; j++) { const l = new THREE.Mesh(link, iron); l.position.y = -j * 0.15; l.rotation.y = j % 2 ? Math.PI / 2 : 0; g.add(l); }
-        const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3), iron); hook.position.y = -n * 0.15 - 0.12; g.add(hook);
+        // The links and the hook merged into one mesh: a mesh per link was ~90 draw calls round the room, and 112-114
+        // in all with the camera near the Pressworks' rim (25 Nov).
+        const parts: THREE.BufferGeometry[] = [];
+        for (let j = 0; j < n; j++) parts.push(link.clone().rotateY(j % 2 ? Math.PI / 2 : 0).translate(0, -j * 0.15, 0));
+        parts.push(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3).translate(0, -n * 0.15 - 0.12, 0));
+        g.add(new THREE.Mesh(mergeGeometries(parts), iron));
+        for (const q of parts) q.dispose();
         room.add(g);
         let swing = 0;
         life.push((t) => {
@@ -952,7 +968,18 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /* heroes */
   const F = artFrames(true) as Record<string, Record<string, Frame>>;
   const heroGeo = standGeo(HERO.pad / HERO.H);
-  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string; nameW?: number;
+  // Every hero's green ring, its faint disc and its blob shadow are three instanced meshes for the whole party, not three
+  // meshes each: a raid party of four cost 21 draws over solo, 7 a hero (design, H5 raid trash, 25 Nov).
+  // The colour is GOOD (#5dff8a), declared further down.
+  const MAX_HEROES = 8;
+  const heroFlat = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
+    const im = new THREE.InstancedMesh(geo, mat, MAX_HEROES); im.frustumCulled = false; im.renderOrder = 2; im.count = 0; scene.add(im); return im;
+  };
+  const heroRings = heroFlat(new THREE.RingGeometry(0.4, 0.5, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5dff8a').multiplyScalar(1.3), transparent: true, depthWrite: false }));
+  const heroDiscs = heroFlat(new THREE.CircleGeometry(0.4, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5dff8a'), transparent: true, opacity: 0.18, depthWrite: false }));
+  const heroBlobs = heroFlat(circle.clone().rotateX(-Math.PI / 2), blobMat);
+  const hfM = new THREE.Matrix4();
+  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; name: THREE.Sprite | null; nameText: string; nameW?: number;
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
     atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
     /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
@@ -968,19 +995,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
     const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
     mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); mesh.rotation.x = -SPRITE_TILT; scene.add(mesh);
-    const rc = GOOD.clone(); // was the class colour (RING); Steve, 23 Nov: green = good
-    const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
-    const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
-    const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
     const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(heroGeo, rimMat(GOOD, false)); rim.renderOrder = 4; scene.add(rim);
-    const h: HeroS = { cls, mesh, mats, blob, ring, disc, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
+    const h: HeroS = { cls, mesh, mats, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
     if (i === 0) {
       const tm = new THREE.MeshBasicMaterial({ map: mats.idle.map, alphaTest: 0.5, side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
       h.twin = new THREE.Mesh(heroGeo, tm); h.twin.castShadow = true; scene.add(h.twin);
     }
     heroes[i] = h; return h;
   };
-  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
+  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -1133,8 +1156,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }`,
     transparent: true, depthWrite: false, depthTest: !xray, side: THREE.DoubleSide, toneMapped: false,
   });
-  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge. */
-  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number) => {
+  /** Lays `rim` over `m` (same geometry, frame and pose), grown by `grow` world units round the sprite for the edge, `edge` times as thick. */
+  const outline = (rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>, m: THREE.Mesh, grow: number, edge = 1) => {
     rim.visible = m.visible;
     if (!m.visible) return;
     const map = (m.material as THREE.MeshStandardMaterial).map;
@@ -1142,7 +1165,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const u = rim.material.uniforms;
     u.map.value = map;
     const img = map.image as { width?: number; height?: number } | undefined;
-    u.texel.value.set(1 / (img?.width || 32), 1 / (img?.height || 32));
+    u.texel.value.set(edge / (img?.width || 32), edge / (img?.height || 32));
     rim.geometry = m.geometry;
     rim.position.copy(m.position).addScaledVector(camDir, 0.01);
     rim.rotation.copy(m.rotation);
@@ -1156,17 +1179,23 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   // above, a low-slung hound is a thin sliver of sprite over its black blob shadow, so there its red ring is brighter
   // and wider and the blob lighter: the ring, not a dark hole, says where the foe is. Same meshes, no extra draws.
   const darkRoom = rid === 'coldmarrow';
+  // The Kiln's floor is red-brown (mobile, 25 Nov, phone pass: small dark Ashbucks and their thin red rings sank into
+  // it at 320 px). Red stays the "bad" colour, so there a foe's ring is wide and bright over a dark disc, and the foe's
+  // red edge is drawn thicker, and the foes glow more of their own colour. Same meshes, no extra draws.
+  const warmRoom = rid === 'kiln';
   const foeRingGeo = new THREE.RingGeometry(0.86, 1, 40), foeRingDark = new THREE.RingGeometry(0.76, 1, 40);
   const foeBlobMat = darkRoom ? (() => { const m = blobMat.clone(); m.opacity = 0.45; return m; })() : blobMat;
   /** Foes made of rime or pale stone glow more of their own colour, so they read pale on the dark floor. */
   const FOE_GLOW: Partial<Record<string, number>> = { rimehound: 0.8 };
+  const foeGlow = warmRoom ? 0.6 : 0.34;
+  const FOE_EDGE = warmRoom ? 2 : 1;
   // Every foe's blob shadow and red ring are two instanced meshes, one draw each for the whole room (they were two
   // meshes a foe: 12 draws for six foes). Same geometry, material and height as before, so they look the same; the
   // blobs are made first so the rings still draw over them. Grown (and remade) when more foes are up than fit.
-  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: darkRoom ? 0.95 : 0.6, depthWrite: false });
+  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(warmRoom ? 1.5 : 1.2), transparent: true, opacity: darkRoom || warmRoom ? 0.95 : 0.6, depthWrite: false });
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   const feetOf = (geo: THREE.BufferGeometry, mat: THREE.Material, n: number) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.renderOrder = 2; m.frustumCulled = false; scene.add(m); return m; };
-  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
+  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom || warmRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
   let feetN = 0;
   const footM = new THREE.Matrix4(), footP = new THREE.Vector3(), footS = new THREE.Vector3();
   /** Puts foe feet number feetN (blob of radius br, ring of radius rr) at x, z. */
@@ -1223,13 +1252,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /** Their colour and strength in today's room, for the same reason; on the map the room's theme sets them (H2d). */
   const lightHomeCol = flick.map((f) => f.l.color.clone()), lightHomeBase = flick.map((f) => f.base);
   const themeCol = new THREE.Color();
+  // H5: a raid's map has no R4 or R6, so its door alcove is room 5; any other map's is SIM.hallsDoorRoom (6).
+  const hallsDoorOf = (m: HallsMap): number => { const i = m.rooms.findIndex((r) => r.id === 'door'); return i < 0 ? SIM.hallsDoorRoom : i; };
   const buildHallsView = (m: HallsMap) => {
     if (halls) scene.remove(halls.group);
     for (const z of sleepers) scene.remove(z.mesh, z.blob, z.ring);
     sleepers.length = 0;
     // Corridors take the dungeon's own floor and a darker shade of its wall (the Kiln keeps its brick).
     const hr = ROOMS[rid];
-    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, lensDais: rid === 'glarewell', corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
+    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, lensDais: rid === 'glarewell', corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: hallsDoorOf(m) });
     scene.add(halls.group);
     hallsOf = m;
     m.packs.forEach((p, k) => p.foes.forEach((f, j) => {
@@ -1375,6 +1406,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const stoneMat = brickStone ? new THREE.MeshStandardMaterial({ map: canvasTex(brickCanvas(), { repeat: [1, 2] }), color: '#ffd0b4', emissive: new THREE.Color('#2a1008'), roughness: 0.9 }) : basalt.clone();
   if (!brickStone) (stoneMat as THREE.MeshStandardMaterial).color.set(th0.tile).multiplyScalar(1.15);
   const STONE_H = 1.4;
+  const UP_Y = new THREE.Vector3(0, 1, 0);
 
   /* embers */
   const N = saver ? 60 : 120, pos = new Float32Array(N * 3), vel = new Float32Array(N);
@@ -1472,21 +1504,28 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const sig = w.pillars.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';') + '|' + w.stones.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';');
     if (sig !== pillarSig) {
       pillarSig = sig;
+      for (const c of pillarGroup.children) (c as THREE.InstancedMesh).dispose();
       pillarGroup.clear();
-      for (const p of w.pillars) {
-        if (p.fixed) continue; // H3b: a Cross room's own stone pillar; the room kit draws it
-        const m = new THREE.Mesh(pillarGeo, basalt); m.position.set(p.x * S, 1.1, p.y * S); m.scale.set(p.r * S, 2.2, p.r * S);
-        m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
-      }
-      for (const p of w.stones) {
-        const m = new THREE.Mesh(stoneGeo, stoneMat); m.position.set(p.x * S, FLOOR + STONE_H / 2, p.y * S); m.scale.set(p.r * S, STONE_H, p.r * S);
-        m.rotation.y = ((p.x * 7 + p.y * 13) % 6) * 0.5;
-        m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
-      }
+      // One instanced mesh for the pillars and one for the stones (a draw and a shadow draw each), not a mesh apiece:
+      // a Halls room with 8 stones in view cost 13 draws (H5 raid trash cost check, 25 Nov).
+      const batch = (geo: THREE.BufferGeometry, mat: THREE.Material, list: { x: number; y: number; r: number }[], y: number, h: number, turn: boolean) => {
+        if (!list.length) return;
+        const im = new THREE.InstancedMesh(geo, mat, list.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+        list.forEach((p, k) => {
+          q.setFromAxisAngle(UP_Y, turn ? ((p.x * 7 + p.y * 13) % 6) * 0.5 : 0);
+          im.setMatrixAt(k, m4.compose(v.set(p.x * S, y, p.y * S), q, sc.set(p.r * S, h, p.r * S)));
+        });
+        im.computeBoundingSphere();
+        im.castShadow = im.receiveShadow = true; pillarGroup.add(im);
+      };
+      // H3b: a Cross room's own stone pillar (fixed) is drawn by the room kit.
+      batch(pillarGeo, basalt, w.pillars.filter((p) => !p.fixed), 1.1, 2.2, false);
+      batch(stoneGeo, stoneMat, w.stones, FLOOR + STONE_H / 2, STONE_H, true);
     }
 
     // Heroes.
     let cx = 0, cz = 0;
+    let nRing = 0, nBlob = 0;
     for (let i = 0; i < w.heroes.length; i++) {
       const cls = w.heroes[i].cls;
       let h = heroes[i];
@@ -1526,9 +1565,11 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
       h.mesh.visible = true;
       (h.mats.idle as THREE.MeshStandardMaterial).opacity = 1;
-      h.blob.position.set(x, FLOOR + 0.006, z);
-      h.ring.position.set(x, FLOOR + 0.03, z); h.disc.position.set(x, FLOOR + 0.028, z);
-      h.ring.visible = h.disc.visible = !dead;
+      if (nBlob < MAX_HEROES) heroBlobs.setMatrixAt(nBlob++, hfM.makeScale(0.48, 1, 0.48).setPosition(x, FLOOR + 0.006, z));
+      if (!dead && nRing < MAX_HEROES) {
+        heroRings.setMatrixAt(nRing, hfM.makeTranslation(x, FLOOR + 0.03, z));
+        heroDiscs.setMatrixAt(nRing++, hfM.makeTranslation(x, FLOOR + 0.028, z));
+      }
       outline(h.rim, h.mesh, RIM_GROW); if (dead) h.rim.visible = false;
       // The Hoard: a hero the Craw has swallowed is inside Vorhulm, as 2D fades them out (hoardHeroes); their class-colour
       // ring on his belly is a floor mark the bridge carries.
@@ -1547,6 +1588,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
     }
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
+    heroRings.count = heroDiscs.count = nRing; heroBlobs.count = nBlob;
+    heroRings.instanceMatrix.needsUpdate = heroDiscs.instanceMatrix.needsUpdate = heroBlobs.instanceMatrix.needsUpdate = true;
     unstackNames();
 
     // Foes.
@@ -1599,7 +1642,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
-        m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
+        m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? foeGlow; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.06 * ak), ht * rise * (1 - hit - 0.05 * ak + rear), 1);
@@ -1721,7 +1764,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
           C.rippleMat.opacity = 0.55 * (1 - ph);
         }
       } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
-      outline(f.rim, f.mesh, RIM_GROW);
+      outline(f.rim, f.mesh, RIM_GROW * FOE_EDGE, FOE_EDGE);
     }
     foeBlobs.count = foeRings.count = feetN; foeBlobs.instanceMatrix.needsUpdate = foeRings.instanceMatrix.needsUpdate = true;
     for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } hideExtra(foes[i]); }

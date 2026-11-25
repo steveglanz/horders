@@ -9,7 +9,7 @@ import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 import { SET_TUNING, type SetId } from '../../sim/content/sets';
 import { ENCOUNTERS, type EncounterId } from '../../sim/content/dungeon';
-import { DOOR_ROOM, roomAt, type HallsMap } from '../../sim/halls';
+import { doorRoom, roomAt, type HallsMap } from '../../sim/halls';
 import type { RoomBedKind } from './music';
 
 export interface Cue {
@@ -700,6 +700,8 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   fumarole: 'fumaroleField', obsidian: 'obsidianGallery', cairn: 'cairnWalk', pumice: 'pumiceDrift',
   // The Pressworks (H4c).
   press: 'pressFloor', gear: 'gearRoom', plate: 'plateStore', oil: 'oilSump',
+  // The Crucible raid (H5, visuals #788).
+  ladle: 'ladleHall', crane: 'craneBay', mould: 'mouldFloor', clinker: 'clinkerHeap',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
@@ -711,7 +713,7 @@ const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 export function roomBedFor(m: HallsMap | null | undefined, x: number, y: number): RoomBedKind | null {
   if (!m) return null;
   const i = roomAt(m, x, y);
-  if (i < 0 || i === DOOR_ROOM) return null;
+  if (i < 0 || i === doorRoom(m)) return null;
   const theme = (m.rooms[i] as { theme?: string }).theme ?? THEME_BY_INDEX[i % THEME_BY_INDEX.length];
   return ROOM_THEME_BED[theme] ?? null;
 }

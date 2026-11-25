@@ -317,13 +317,17 @@ function startRun(bounty = false, key = false): void {
   // hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ondrelv2=0 turns it off for comparing.
   if (params.get('ondrelv2') !== '0') opts.ondrelV2 = true;
   // KILNTRASH (design, 25 Nov): the Kiln map's opener packs as trash (twice the foes at 30% health, no bag), on by default
-  // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing. Its XP step stays off.
+  // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing.
   if (params.get('kilntrash') !== '0') opts.kilnTrash = true;
+  // H5 (design's h5-plan.md): a raid map's openers as trash too, off until it has had a day live in the Kiln.
+  if (params.get('raidtrash') === '1') opts.raidTrash = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
   // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
   if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;
-  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, off until art, sound and QA have seen it.
-  if (params.get('oskelv2') === '1') opts.oskelV2 = true;
+  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, on by default in local play and hosted co-op
+  // since its grid (#777, #786), sound (#779), art (#783, #793), QA solo and co-op, and the phone pass (#792). The first
+  // delve keeps the old fight (in World); ?oskelv2=0 turns it off for comparing.
+  if (params.get('oskelv2') !== '0') opts.oskelV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

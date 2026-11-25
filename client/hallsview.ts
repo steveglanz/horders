@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
+import { HALLS, doorRoom, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
@@ -227,10 +227,10 @@ export class HallsView {
     // One simple prop per theme along the walls, where the 3D look stands its props.
     m.rooms.forEach((_, i) => {
       const th = themeOf(m, i);
-      for (const p of themeSpots(m, i, hw, DOOR_ROOM)) this.prop2d(g, th.id, p.x - p.nx * 40, p.y - p.ny * 40, p.nx, p.ny);
+      for (const p of themeSpots(m, i, hw, doorRoom(m))) this.prop2d(g, th.id, p.x - p.nx * 40, p.y - p.ny * 40, p.nx, p.ny);
     });
     // The boss door: a heavy arch at the end of the alcove (its glow is drawn each frame, gold once it opens).
-    const dr = m.rooms[DOOR_ROOM];
+    const dr = m.rooms[doorRoom(m)];
     g.fillStyle(0x140d0a, 1).fillRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
     g.lineStyle(3, RIM, 0.7).strokeRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
   }
@@ -351,6 +351,43 @@ export class HallsView {
     } else if (id === 'oil') {
       g.fillStyle(0x4e5a38, 1).fillCircle(x - tx * 12, y - ty * 12, 11).fillCircle(x + tx * 12, y + ty * 12, 11);
       g.fillStyle(0x2a2a1e, 1).fillCircle(x - tx * 12, y - ty * 12, 8).fillCircle(x + tx * 12, y + ty * 12, 8);
+    } else if (id === 'ladle' || id === 'crane' || id === 'hoist' || id === 'scale' || id === 'damper') {
+      // H5's hanging props, seen from above: the bracket on the wall and what hangs under it.
+      const steel = id === 'hoist';
+      g.lineStyle(7, steel ? 0x3a3e48 : 0x4a3a36, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 24, y + ty * 24);
+      if (id === 'ladle') { g.fillStyle(0xa8644a, 1).fillCircle(x - nx * 14, y - ny * 14, 16); g.fillStyle(0x5a3628, 1).fillCircle(x - nx * 14, y - ny * 14, 11); }
+      else if (id === 'scale') { g.lineStyle(4, 0xb08848, 1).lineBetween(x - tx * 22 - nx * 10, y - ty * 22 - ny * 10, x + tx * 22 - nx * 10, y + ty * 22 - ny * 10); g.fillStyle(0xc09a50, 1).fillCircle(x - tx * 22 - nx * 10, y - ty * 22 - ny * 10, 8).fillCircle(x + tx * 22 - nx * 10, y + ty * 22 - ny * 10, 8); }
+      else if (id === 'damper') g.fillStyle(0x5a4c44, 1).fillRect(x - nx * 8 - 16, y - ny * 8 - 16, 32, 32);
+      else { g.fillStyle(steel ? 0x8a90a0 : 0xb07a5a, 1).fillRect(x - nx * 14 - 8, y - ny * 14 - 8, 16, 16); }
+    } else if (id === 'mould') {
+      g.fillStyle(0x4a3632, 1).fillRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x3a2622, 1); for (const k of [-1, 0, 1]) for (const j of [-1, 1]) g.fillRect(x + tx * k * 16 + nx * j * 8 - 6, y + ty * k * 16 + ny * j * 8 - 5, 12, 10);
+    } else if (id === 'clinker' || id === 'soot') {
+      const a = id === 'clinker' ? 0x8a5a4c : 0x5a5250, b = id === 'clinker' ? 0xa06a58 : 0x6e6460;
+      g.fillStyle(a, 1).fillCircle(x, y, 22).fillCircle(x + tx * 24 - nx * 6, y + ty * 24 - ny * 6, 12);
+      g.fillStyle(b, 1).fillCircle(x - tx * 4, y - ty * 4, 10);
+    } else if (id === 'bunker') {
+      g.lineStyle(5, 0x6a4a32, 1).strokeRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x2a2224, 1).fillCircle(x, y, 15).fillCircle(x + tx * 12, y + ty * 12, 10);
+    } else if (id === 'coffer') {
+      g.fillStyle(0x6a4630, 1).fillRect(x - tx * 10 - 13, y - ty * 10 - 10, 26, 20).fillRect(x + tx * 16 - 10, y + ty * 16 - 8, 20, 16);
+      g.fillStyle(0xc09a50, 1).fillCircle(x - tx * 10, y - ty * 10, 3);
+    } else if (id === 'tithe' ) {
+      g.fillStyle(0xa8947a, 1).fillCircle(x - tx * 14, y - ty * 14, 13).fillCircle(x + tx * 12, y + ty * 12, 12);
+      g.lineStyle(4, 0x6a5040, 1).lineBetween(x - tx * 24 + nx * 8, y - ty * 24 + ny * 8, x + tx * 24 + nx * 8, y + ty * 24 + ny * 8);
+    } else if (id === 'tap' || id === 'firebox') {
+      g.fillStyle(id === 'tap' ? 0x4a4e5a : 0x5a4038, 1).fillRect(x - 24, y - 16, 48, 32);
+      g.fillStyle(0x22242a, 1).fillRect(x - 9, y - 7, 18, 14);
+      if (id === 'tap') g.lineStyle(6, 0x3a3e48, 1).lineBetween(x, y, x - nx * 34, y - ny * 34);
+    } else if (id === 'flywheel') {
+      g.lineStyle(7, 0x7a8090, 1).strokeCircle(x + nx * 6, y + ny * 6, 18);
+      g.fillStyle(0x3a3e48, 1).fillCircle(x + nx * 6, y + ny * 6, 6);
+    } else if (id === 'billet') {
+      g.fillStyle(0x3a3e48, 1).fillRect(x - 26, y - 16, 52, 32);
+      g.fillStyle(0x8a90a0, 1); for (const k of [-1, 0, 1]) g.fillRect(x - 22 + (k + 1) * 0, y + k * 9 - 3, 44, 6);
+    } else if (id === 'sweep') {
+      g.lineStyle(4, 0x8a6a48, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 8, y + ty * 8);
+      g.fillStyle(0x2e2a28, 1).fillCircle(x + tx * 18, y + ty * 18, 8).fillCircle(x + tx * 28, y + ty * 28, 8);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);
@@ -390,7 +427,7 @@ export class HallsView {
     this.drawGrates(m, f, g);
     // The boss door glows gold once the door guard falls.
     const guard = m.packs.find((p) => p.guard);
-    const dr = m.rooms[DOOR_ROOM];
+    const dr = m.rooms[doorRoom(m)];
     if (guard?.state === 'cleared') g.lineStyle(6, 0xffc861, 0.55 + 0.25 * Math.sin(f.now / 300)).strokeRect(dr.x - 74, dr.y - dr.r - 22, 148, 38);
   }
 
@@ -399,7 +436,7 @@ export class HallsView {
    * iron bars, hot at the tips, drops across each; they lift once the room is cleared. The 3D look draws its own.
    */
   private drawGrates(m: HallsMap, f: HallsFrame, g: Phaser.GameObjects.Graphics): void {
-    this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+    this.grates ??= hallsGrates(m, HALLS.corridor, doorRoom(m));
     for (const gr of this.grates) {
       const r = m.rooms[gr.room], lock = lockOf(r);
       const st = grateState(lock, liftedOf(r));
@@ -633,7 +670,7 @@ export class HallsView {
     const inset = 40;
     if (walkIn) {
       // The room's nearest doorway in view: the tag stands on its grate, so you see where to walk in.
-      this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+      this.grates ??= hallsGrates(m, HALLS.corridor, doorRoom(m));
       let best: Grate | null = null, bd = Infinity;
       for (const gr of this.grates) {
         if (gr.room !== shut!.i) continue;
@@ -681,7 +718,7 @@ export class HallsView {
 
   /** The next main-path room past the furthest one any hero has seen (hallsWay finds the way there from anywhere). */
   private nextGoal(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
-    if (roomAt(m, x, y) === DOOR_ROOM) return null;
+    if (roomAt(m, x, y) === doorRoom(m)) return null;
     let far = 0;
     const main = mainRooms(m);
     main.forEach((r, i) => { if (m.seen[r]) far = i; });
@@ -721,7 +758,7 @@ export function mapDoors(m: HallsMap): MapDoor[] {
   for (const c of m.corridors) {
     const e = corridorEnds(m, c);
     for (const [room, sx, sy, tx, ty] of [[c.a, e.x1, e.y1, e.x2, e.y2], [c.b, e.x2, e.y2, e.x1, e.y1]]) {
-      if (room === DOOR_ROOM) continue;
+      if (room === doorRoom(m)) continue;
       const dx = tx - sx, dy = ty - sy, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
       let t = 0;
       while (t < L && roomAt(m, sx + ux * t, sy + uy * t) === room) t += 8;

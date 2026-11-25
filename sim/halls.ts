@@ -51,7 +51,7 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme | PressworksTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme | PressworksTheme | RaidTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
@@ -66,6 +66,11 @@ export type HammerdeepTheme = 'anvil' | 'chain' | 'quench' | 'ingot';
 export type AshventsTheme = 'fumarole' | 'obsidian' | 'cairn' | 'pumice';
 /** H4c (visuals, 25 Nov): the Pressworks' rooms: a press floor, a gear room, a plate store, an oil sump. */
 export type PressworksTheme = 'press' | 'gear' | 'plate' | 'oil';
+
+/** H5 (visuals, 25 Nov): the raids' rooms. Crucible: ladle hall, crane bay, mould floor, clinker heap. Hoard: coal
+ * bunker, scale hall, coffer vault, tithe store. Smeltery: tapping floor, flywheel hall, billet rack, hoist shaft. Flue:
+ * firebox row, damper hall, soot chamber, sweeps' gallery. */
+export type RaidTheme = 'ladle' | 'crane' | 'mould' | 'clinker' | 'bunker' | 'scale' | 'coffer' | 'tithe' | 'tap' | 'flywheel' | 'billet' | 'hoist' | 'firebox' | 'damper' | 'soot' | 'sweep';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -199,8 +204,12 @@ export const KILN_HALLS_A = {
   layoutRooms: [{ room: 1, slot: 0 }, { room: 3, slot: 1 }, { room: 5, slot: 3 }],
 };
 
-/** Room index of the door alcove. */
+/** Room index of the door alcove on a dungeon's map (a raid's map has no R4 or R6, so use doorRoom(m) for any map). */
 export const DOOR_ROOM = 6;
+/** Room index of the room with id `id` ('R0'-'R6', 'door'), or -1. */
+export const roomIx = (m: { rooms: { id: string }[] }, id: string): number => m.rooms.findIndex((r) => r.id === id);
+/** H5 (design's h5-plan.md): the door alcove's room index on this map (6, or 5 on a raid's map). */
+export const doorRoom = (m: { rooms: { id: string }[] }): number => { const i = roomIx(m, 'door'); return i < 0 ? DOOR_ROOM : i; };
 
 const hash = (seed: number, k: number): number => {
   let h = (Math.imul(seed ^ 0x48616c6c, 0x9e3779b1) + Math.imul(k + 1, 0x85ebca77)) >>> 0;
@@ -221,14 +230,14 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = [];
+export const HALLS_BETA: DungeonId[] = ['crucible'];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
 export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
-type Spot = { role: PackRole; room: number; x: number; y: number };
+type Spot = { role: PackRole; room: number; x: number; y: number; guard?: boolean };
 
 /**
  * Builds this run's map from today's route ([opener, opener, named, hard, boss]): A and B are the openers, C the named
@@ -258,13 +267,12 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health (design's plan said 40%;
  * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
  * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
- * `xp` 1 (design's second step, measured on its own): a trash clear gives half a level and any other fight one and a half,
- * so the usual route (A, B, C, E) still reaches the door at level 5.
+ * A trash clear still gives a level (design, 25 Nov: its XP step measured worse and was dropped).
  */
-export const KILNTRASH = { foes: 2, hp: 0.3, xp: 0 };
+export const KILNTRASH = { foes: 2, hp: 0.3 };
 export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -294,6 +302,9 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   // H4a (design, 25 Nov): from tier 4, on every map a named gate goes on the main path, as an arena run takes it (its
   // Brutes' elite chests are drafts the party needs for the boss), and the side room keeps the steady fight instead.
   // Tiers 1-3 are the novice tiers (noviceAid) and keep it in the side room (a Kiln t2 Emberwright lost 8 of 80 to it).
+  // H5: a raid's map follows the same rule (design, 25 Nov: without it the Crucible's party met Grandmother Slag with
+  // 0.8 fewer elite chests than in the arena, engineering/h5a-crucible-grid.md); C, its named fight, guards the door.
+  const raid = !!DUNGEONS[dungeon].raid;
   const onPath = side.kind === 'named' && tier >= 4;
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
@@ -306,9 +317,9 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const trash = kilnTrash && dungeon === 'kiln' && p.gate !== 'named' && DUNGEONS.kiln.openers.includes(p.enc);
+    const trash = ((kilnTrash && dungeon === 'kiln') || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
     const foes = packFoes(seed, k, p.enc, x, y, trash);
-    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
+    return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });
   return { rooms, corridors, packs, door, mirror, layoutRooms, seen: rooms.map((_, i) => i === 0), done: false, vents: [] };
 }
@@ -738,6 +749,9 @@ export const HALLS_GEN = {
   packApart: 700,
   minAcross: 420,
   tries: 400,
+  /** H5 (design's h5-plan.md): a raid's rooms, for four heroes. Round radius and Hall width. */
+  raidRound: [450, 550] as [number, number],
+  raidWide: [480, 520] as [number, number],
 };
 
 const G = HALLS_GEN;
@@ -762,10 +776,10 @@ const loop = (x: number, y: number, r: number, n = 48): number[] => {
 };
 
 /** Builds room `shape` with its path axis at (0, 0); shiftRoom moves it into place. */
-function genRoom(id: string, main: boolean, shape: RoomShape, rnd: () => number, o: { r?: [number, number]; cSide?: number; spotSide?: number } = {}): GenRoom {
+function genRoom(id: string, main: boolean, shape: RoomShape, rnd: () => number, o: { r?: [number, number]; wide?: [number, number]; cSide?: number; spotSide?: number } = {}): GenRoom {
   const lerp = (lh: [number, number]) => Math.round(lh[0] + (lh[1] - lh[0]) * rnd());
   if (shape === 'hall') {
-    const hy = lerp(G.hallLen) / 2, hx = lerp(G.hallWide) / 2;
+    const hy = lerp(G.hallLen) / 2, hx = lerp(o.wide ?? G.hallWide) / 2;
     return {
       room: { id, main, shape, x: 0, y: 0, r: Math.hypot(hx, hy), parts: [{ b: [0, 0, hx, hy] }], edge: [[-hx, -hy, hx, -hy, hx, hy, -hx, hy]], nav: [[0, 0]] },
       ax: 0, ay: 0, ext: { n: hy, s: hy, e: hx, w: hx }, spot: [0, 0],
@@ -847,8 +861,11 @@ export interface GenMap {
 /** Room index of C's own room on a generated map (design, 25 Nov: one pack per room); H1's template has none. */
 export const C_ROOM = 7;
 
-/** The main-path room order the bots and the edge arrow follow: R0, R1, R3, C's room (generated maps), R5, door. */
-export const mainRooms = (m: { rooms: unknown[] }): number[] => (m.rooms.length > C_ROOM ? [0, 1, 3, C_ROOM, 5, DOOR_ROOM] : MAIN_ROOMS);
+/**
+ * The main-path room order the bots and the edge arrow follow: R0, R1, R3, C's room R6 (generated maps), R5, door. A
+ * raid's map (H5) has no R6: C guards the door from R5.
+ */
+export const mainRooms = (m: { rooms: { id: string }[] }): number[] => ['R0', 'R1', 'R3', 'R6', 'R5', 'door'].map((id) => roomIx(m, id)).filter((i) => i >= 0);
 
 /**
  * One roll of the layout from `rnd`: R0 entrance, R1 (A), R2 (S), R3 (B), R4 (D), R5 (E), the door alcove, then R6
@@ -862,6 +879,7 @@ const ANY_SHAPES: Partial<Record<DungeonId, RoomShape[]>> = { glarewell: ['round
 const QUAY_DUNGEONS: DungeonId[] = ['wrackline'];
 
 function genOnce(rnd: () => number, dungeon: DungeonId = 'kiln'): GenMap {
+  if (DUNGEONS[dungeon].raid) return genRaid(rnd);
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
@@ -926,6 +944,59 @@ function genOnce(rnd: () => number, dungeon: DungeonId = 'kiln'): GenMap {
   return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms, tries: 0 };
 }
 
+/**
+ * H5 (design's h5-plan.md, "Only what raids need"): a raid's route is two openers and a named fight, then the boss, so
+ * its map is R0 entrance, R1 (A), R2 (S, off A's room), R3 (B), R5 (C, the named fight, guarding the boss door) and the
+ * door alcove: no D room, no E room, no R6. Every room is big enough for four heroes: Round at least radius
+ * HALLS_GEN.raidRound[0], a Hall at least raidWide[0] wide (Cross and Ring are wider already); no Twin.
+ */
+function genRaid(rnd: () => number): GenMap {
+  const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
+  const sgn = () => (rnd() < 0.5 ? -1 : 1);
+  const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
+  const any: RoomShape[] = ['round', 'hall', 'cross', 'ring'];
+  const big = { r: G.raidRound, wide: G.raidWide };
+  const r0 = genRoom('R0', true, pick<RoomShape>(['round', 'round', 'hall']), rnd, { r: [G.raidRound[0], 500], wide: G.raidWide });
+  const r1 = genRoom('R1', true, pick<RoomShape>(['round', 'ring']), rnd, { ...big, spotSide: sgn() });
+  const r3 = genRoom('R3', true, pick(any), rnd, { ...big, spotSide: sgn() });
+  const r5 = genRoom('R5', true, pick(any), rnd, { ...big, spotSide: sgn() });
+  const sSide = sgn();
+  const r2 = genRoom('R2', false, pick(any), rnd, { r: [G.raidRound[0], 500], wide: G.raidWide, spotSide: sSide });
+  const chain = [r0, r1, r3, r5];
+  for (let k = 1; k < chain.length; k++) {
+    const a = chain[k - 1], b = chain[k];
+    const gap = len(G.corridor);
+    const drift = (rnd() * 2 - 1) * gap * G.drift;
+    shiftRoom(b, a.ax + drift, a.ay - a.ext.n - gap - b.ext.s);
+  }
+  {
+    const gap = len(G.sideCorridor);
+    const out = sSide > 0 ? r1.ext.e : r1.ext.w, back = sSide > 0 ? r2.ext.w : r2.ext.e;
+    shiftRoom(r2, r1.ax + sSide * (out + gap + back), r1.ay);
+  }
+  const doorY = r5.ay - r5.ext.n - G.alcoveGap - G.alcove;
+  const alcove: HallsRoom = { id: 'door', main: true, shape: 'round', x: r5.ax, y: doorY, r: G.alcove, edge: [loop(r5.ax, doorY, G.alcove, 24)], nav: [[r5.ax, doorY]] };
+  const rooms = [r0.room, r1.room, r2.room, r3.room, r5.room, alcove];
+  const cor = (a: number, b: number, pa: [number, number], pb: [number, number]): HallsCorridor => ({ a, b, ax: pa[0], ay: pa[1], bx: pb[0], by: pb[1] });
+  const sideOut: Side = sSide > 0 ? 'e' : 'w', sideIn: Side = sSide > 0 ? 'w' : 'e';
+  const corridors = [
+    cor(0, 1, port(r0, 'n'), port(r1, 's')),
+    cor(1, 3, port(r1, 'n'), port(r3, 's')),
+    cor(1, 2, port(r1, sideOut), port(r2, sideIn)),
+    cor(3, 4, port(r3, 'n'), port(r5, 's')),
+    cor(4, 5, port(r5, 'n'), [r5.ax, doorY]),
+  ];
+  const spots: Spot[] = [
+    { role: 'A', room: 1, x: r1.spot[0], y: r1.spot[1] },
+    { role: 'S', room: 2, x: r2.spot[0], y: r2.spot[1] },
+    { role: 'B', room: 3, x: r3.spot[0], y: r3.spot[1] },
+    { role: 'C', room: 4, x: r5.ax, y: r5.ay - r5.ext.n + G.guardIn, guard: true },
+  ];
+  for (const s of spots) { s.x = Math.round(s.x); s.y = Math.round(s.y); }
+  const layoutRooms = [{ room: 1, slot: 0 }, { room: 3, slot: 1 }, { room: 4, slot: 2 }];
+  return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms, tries: 0 };
+}
+
 /** Roll `t` of seed `seed`'s layout (before the checker). */
 export function genRoll(seed: number, t: number, dungeon: DungeonId = 'kiln'): GenMap {
   let k = 0;
@@ -981,9 +1052,10 @@ function segSeg(a: { x1: number; y1: number; x2: number; y2: number }, b: { x1: 
 export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs: Spot[]; layoutRooms: { room: number; slot: number }[] }): string[] {
   const out: string[] = [];
   const R = m.rooms;
+  const DR = doorRoom(m);
   for (let i = 0; i < R.length; i++) {
     for (let j = i + 1; j < R.length; j++) {
-      const min = i === DOOR_ROOM || j === DOOR_ROOM ? G.alcoveGap - 6 : G.roomGap;
+      const min = i === DR || j === DR ? G.alcoveGap - 6 : G.roomGap;
       const pts = (rm: HallsRoom) => rm.edge?.[0] ?? loop(rm.x, rm.y, rm.r);
       let worst = -Infinity;
       const pi = pts(R[i]), pj = pts(R[j]);
@@ -1005,7 +1077,7 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
       const d = segSeg(e, ends[k]);
       if (d < HALLS.corridor + G.roomGap) out.push(`corridors ${R[c.a].id}-${R[c.b].id} and ${R[o.a].id}-${R[o.b].id} are ${Math.round(d - HALLS.corridor)} apart`);
     });
-    if (c.b === DOOR_ROOM || c.a === DOOR_ROOM) return;
+    if (c.b === DR || c.a === DR) return;
     // Rim to rim: the part of the centre line outside both its rooms.
     const n = Math.ceil(Math.hypot(e.x2 - e.x1, e.y2 - e.y1) / 10);
     let open = 0;
@@ -1027,7 +1099,8 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
   const C = pk('C');
   let off = Infinity;
   for (let k = 1; k < line.length; k++) { const q = segClosest(C.x, C.y, line[k - 1].x, line[k - 1].y, line[k].x, line[k].y); off = Math.min(off, Math.hypot(C.x - q.x, C.y - q.y)); }
-  if (off < G.cOff) out.push(`C stands ${Math.round(off)} off the walk`);
+  // H5: on a raid's map C is the door guard, so it stands on the walk.
+  if (!C.guard && off < G.cOff) out.push(`C stands ${Math.round(off)} off the walk`);
   // Design, 25 Nov: one pack per room, so a sealed room only ever holds one fight.
   for (const p of m.packs) {
     const n = m.packs.filter((q) => q.room === p.room).length;
@@ -1042,10 +1115,10 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
     }
   }
   // The door guard: both edges of the doorway to the boss door stand inside its ring.
-  const dc = m.corridors.find((c) => c.a === DOOR_ROOM || c.b === DOOR_ROOM);
-  const E = pk('E');
+  const dc = m.corridors.find((c) => c.a === DR || c.b === DR);
+  const E = m.packs.find((p) => p.guard) ?? pk('E');
   if (dc) {
-    const e = corridorEnds(m, dc), rm = R[dc.a === DOOR_ROOM ? dc.b : dc.a];
+    const e = corridorEnds(m, dc), rm = R[dc.a === DR ? dc.b : dc.a];
     const vx = e.x2 - e.x1, vy = e.y2 - e.y1, l = Math.hypot(vx, vy) || 1;
     // Walk out along the corridor to the room's wall: the doorway.
     let t = 0;
@@ -1133,6 +1206,33 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     fits: { round: ['press', 'oil', 'plate'], hall: ['gear', 'plate'], cross: ['plate', 'press'], ring: ['oil', 'gear'], twin: ['gear', 'oil'] },
     rest: ['plate', 'oil', 'gear', 'press'],
   },
+  // H5 (visuals, 25 Nov, ready before each raid's map is switched on; design's h5-plan.md). Raids have no D or E room,
+  // so the guard theme goes to the boss door guard's room wherever the generator puts it (R5, as for every map).
+  // H5a, the Crucible: rose stone and copper. The ladle hall guards the door, the crane bay is the alcove, the clinker
+  // heap is the quiet room and fits any shape.
+  crucible: {
+    guard: 'ladle', byLayout: {}, alcove: 'crane',
+    fits: { round: ['ladle', 'mould', 'clinker'], hall: ['crane', 'clinker'], cross: ['clinker', 'ladle'], ring: ['mould', 'crane'], twin: ['crane', 'mould'] },
+    rest: ['clinker', 'mould', 'crane', 'ladle'],
+  },
+  // H5b, the Hoard: coal-brown stone, gold light. The coal bunker guards the door, the scale hall is the alcove.
+  hoard: {
+    guard: 'bunker', byLayout: {}, alcove: 'scale',
+    fits: { round: ['bunker', 'coffer', 'tithe'], hall: ['scale', 'tithe'], cross: ['tithe', 'bunker'], ring: ['coffer', 'scale'], twin: ['scale', 'coffer'] },
+    rest: ['tithe', 'coffer', 'scale', 'bunker'],
+  },
+  // H5c, the Smeltery: blue-grey steel. The tapping floor guards the door, the flywheel hall is the alcove.
+  smeltery: {
+    guard: 'tap', byLayout: {}, alcove: 'flywheel',
+    fits: { round: ['tap', 'hoist', 'billet'], hall: ['flywheel', 'billet'], cross: ['billet', 'tap'], ring: ['hoist', 'flywheel'], twin: ['flywheel', 'hoist'] },
+    rest: ['billet', 'hoist', 'flywheel', 'tap'],
+  },
+  // H5d, the Flue: sooty brick, amber light. The firebox row guards the door, the damper hall is the alcove.
+  flue: {
+    guard: 'firebox', byLayout: {}, alcove: 'damper',
+    fits: { round: ['firebox', 'soot', 'sweep'], hall: ['damper', 'sweep'], cross: ['sweep', 'firebox'], ring: ['soot', 'damper'], twin: ['damper', 'soot'] },
+    rest: ['sweep', 'soot', 'damper', 'firebox'],
+  },
 };
 
 /**
@@ -1150,13 +1250,14 @@ export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) =>
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
   const free = (i: number, t: RoomTheme) => near(i).every((j) => R[j].theme !== t);
   for (const r of R) r.theme = undefined;
-  R[2].theme = 'shrine';
-  R[5].theme = kit.guard;
-  for (const i of [3, ...(R.length > C_ROOM ? [C_ROOM] : []), 1, 4, 0, DOOR_ROOM]) {
+  const DR = doorRoom(m);
+  R[roomIx(m, 'R2')].theme = 'shrine';
+  R[roomIx(m, 'R5')].theme = kit.guard;
+  for (const i of ['R3', 'R6', 'R1', 'R4', 'R0', 'door'].map((id) => roomIx(m, id)).filter((k) => k >= 0)) {
     const lay = layout(i);
     const want = lay === undefined ? undefined : kit.byLayout[lay];
     if (want && free(i, want)) { R[i].theme = want; continue; }
-    const fits = (i === DOOR_ROOM ? [kit.alcove] : kit.fits[R[i].shape ?? 'round']).filter((t) => free(i, t));
+    const fits = (i === DR ? [kit.alcove] : kit.fits[R[i].shape ?? 'round']).filter((t) => free(i, t));
     const rest = kit.rest.filter((t) => free(i, t));
     const pool = fits.length ? fits : rest;
     R[i].theme = pool[hash(seed ^ 0x54686d65, i) % pool.length];
