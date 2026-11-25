@@ -250,12 +250,15 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const { hard, named } = DUNGEONS[dungeon];
   const pool = [...hard, ...named].filter((e, i, a) => !used.has(e) && a.indexOf(e) === i);
   const dEnc = pool.length ? pool[pick(pool.length)] : route[3];
+  // H4a (design, 25 Nov): in a group dungeon a named gate goes on the main path, as an arena party takes it (its Brutes'
+  // elite chests are drafts a party needs for the boss), and the side room keeps the steady fight instead.
+  const onPath = DUNGEONS[dungeon].style === 'group' && side.kind === 'named';
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
-    B: { enc: route[1], slot: 1, main: true, bags: 1 },
+    B: onPath ? { enc: side.encounter, slot: 1, main: true, bags: 1, gate: 'named' } : { enc: route[1], slot: 1, main: true, bags: 1 },
     C: { enc: route[2], slot: 2, main: true, bags: 1 },
     E: { enc: route[3], slot: 3, main: true, bags: 1 },
-    S: { enc: side.encounter, slot: 1, main: false, bags: 1, gate: side.kind },
+    S: onPath ? { enc: route[1], slot: 1, main: false, bags: 1, gate: 'steady' } : { enc: side.encounter, slot: 1, main: false, bags: 1, gate: side.kind },
     D: { enc: dEnc, slot: 3, main: false, bags: 2 },
   };
   const packs: HallsPack[] = spots.map((s, k) => {
