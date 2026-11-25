@@ -11,7 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, ThemeId, THEMES } from './music';
-import { BellyState, bellyCues, edgeCue, gazeCues, roomCues, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -93,6 +93,8 @@ class AudioEngine {
   private rooming = { drip: 0, chain: 0 };
   /** Each Lampeye's last gaze step (gazeCues). */
   private gazing = { lv: [] as number[] };
+  /** Halls: whether Catch breath was on last tick (restCue). */
+  private resting = { on: false };
   private duckGain = 1;
   private setFlags: Partial<SetFlags> = {};
   private reviving: ReviveState = { t: [], left: Infinity };
@@ -367,6 +369,7 @@ class AudioEngine {
     this.cue(pressedCue(this.pressing, !!ctx.pressed));
     this.cue(spentCue(this.spending, !!ctx.spent));
     this.cue(gazeCues(this.gazing, ctx.gaze));
+    this.cue(restCue(this.resting, !!ctx.hallsResting, ctx.hallsPacks));
     for (const c of islandCues(this.islanding, ctx.islands ?? [], ctx.myIsland ?? -1)) this.cue(c);
     // The props round the rim give off a quiet sound now and then (not in a boss fight).
     this.cue(edgeCue(this.edging, ctx.dungeon, ctx.t, !!ctx.boss, Math.random, ctx.arenaR ? { listen: ctx.listen, arenaR: ctx.arenaR } : undefined));

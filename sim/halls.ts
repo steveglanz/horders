@@ -40,6 +40,8 @@ export const HALLS = {
   moveScale: 1.25,
   /** H2a: and heroes this much faster again while catching their breath (nothing awake for rest.delay s). */
   travelRun: 1.2,
+  /** H2b: a room seals this long after a pack in it wakes (the doorways glow red until then). */
+  lockDelay: 1.0,
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
 };
@@ -53,6 +55,10 @@ export interface HallsRoom {
   r: number;
   /** On the main path (R0, R1, R3, R5 and the door); R2 and R4 are side rooms. */
   main: boolean;
+  /** H2b: seconds since the room began to seal (grates drop at HALLS.lockDelay), or -1 / undefined while open. */
+  lock?: number;
+  /** H2b: seconds since the room last opened again (undefined if it never sealed), for the client's lift. */
+  lifted?: number;
 }
 
 export interface HallsCorridor {
@@ -214,6 +220,24 @@ export function roomAt(m: HallsMap, x: number, y: number, pad = 0): number {
     if ((x - r.x) ** 2 + (y - r.y) ** 2 <= (r.r - pad) ** 2) return i;
   }
   return -1;
+}
+
+/**
+ * H2b: keeps `o` (radius `r`) on its side of every sealed room's grates: inside a sealed room it stays inside, and
+ * outside one it can't come in.
+ */
+export function clampGrates(m: HallsMap, o: { x: number; y: number }, r: number): void {
+  for (const rm of m.rooms) {
+    if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
+    const dx = o.x - rm.x, dy = o.y - rm.y, d = Math.hypot(dx, dy) || 1;
+    if (d <= rm.r) {
+      const max = rm.r - r;
+      if (d > max) { o.x = rm.x + (dx / d) * max; o.y = rm.y + (dy / d) * max; }
+    } else if (d < rm.r + r) {
+      o.x = rm.x + (dx / d) * (rm.r + r);
+      o.y = rm.y + (dy / d) * (rm.r + r);
+    }
+  }
 }
 
 /** Which corridor (index) holds (x, y) with `pad` to spare, or -1. */
