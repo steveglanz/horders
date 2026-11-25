@@ -1103,6 +1103,8 @@ export class GameScene extends Phaser.Scene {
       inLava: (w.lava.length > 0 && inLavaNow(w)) || (w.slagPatches.length > 0 && w.player.hp > 0 && w.inSlag(w.player.x, w.player.y)),
       slag: w.slagPatches,
       kmHeat: w.kmStage ? w.kmHeat : undefined,
+      // One entry per flame slot (a fallen flame counts as covered), so flameCues keeps each flame's own edge.
+      ysFlames: w.ysStage === 2 ? ([[w.ysF0, w.ysAway0], [w.ysF1, w.ysAway1]] as const).map(([j, away]) => { const f = j >= 0 ? w.enemies[j] : undefined; return f?.alive ? { x: f.x, y: f.y, away } : { x: 0, y: 0, away: 0 }; }) : undefined,
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: this.listenFrom(w),
