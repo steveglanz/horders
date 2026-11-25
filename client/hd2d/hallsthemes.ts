@@ -94,6 +94,35 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#3e4446', 0.2, 0.12, -0.1, 0.36, 0.08, 0.08));
     parts.push(part(cyl, '#555c5e', 0.32, 0.06, 0.18, 0.4, 0.12, 0.4));
     parts.push(part(cyl, '#2e3234', 0.32, 0.075, 0.18, 0.2, 0.13, 0.2));
+  } else if (id === 'lens') {
+    // A great lens on a brass stand: three legs, a post, and the pale gold glass in a brass rim, tilted to the room.
+    for (const a of [0, 2.1, 4.2]) parts.push(part(box, '#8a6a34', Math.cos(a) * 0.2, 0.15, Math.sin(a) * 0.2 - 0.05, 0.05, 0.3, 0.05));
+    parts.push(part(cyl, '#b8904a', 0, 0.55, -0.05, 0.08, 0.8, 0.08));
+    const rim = new THREE.TorusGeometry(0.34, 0.05, 6, 20); rim.rotateX(-0.35);
+    parts.push(part(rim, '#c8a058', 0, 1.1, 0));
+    const glass = new THREE.CylinderGeometry(0.32, 0.32, 0.04, 20); glass.rotateX(Math.PI / 2 - 0.35);
+    parts.push(part(glass, '#f4e6c0', 0, 1.1, 0));
+  } else if (id === 'orrery') {
+    // A brass orrery: a stone pedestal, two crossed rings and a pale ball in the middle (the whole top turns slowly).
+    parts.push(part(cyl, '#5a5670', 0, 0.2, 0, 0.5, 0.4, 0.5));
+    parts.push(part(cyl, '#b8904a', 0, 0.5, 0, 0.06, 0.3, 0.06));
+    const r1 = new THREE.TorusGeometry(0.36, 0.03, 6, 24); r1.rotateX(Math.PI / 2 - 0.4);
+    const r2 = new THREE.TorusGeometry(0.36, 0.03, 6, 24); r2.rotateY(Math.PI / 2); r2.rotateZ(0.3);
+    parts.push(part(r1, '#c8a058', 0, 0.9, 0), part(r2, '#b08848', 0, 0.9, 0));
+    parts.push(part(ball, '#e8e0ff', 0, 0.9, 0, 0.22, 0.22, 0.22));
+  } else if (id === 'colonnade') {
+    // A broken column (base, a shaft snapped off) and a fallen drum beside it.
+    parts.push(part(box, '#6e6a84', 0, 0.08, 0, 0.6, 0.16, 0.6));
+    parts.push(part(cyl, '#8a84a4', 0, 0.62, 0, 0.42, 0.95, 0.42));
+    parts.push(part(cone, '#8a84a4', 0.05, 1.12, 0, 0.42, 0.14, 0.42));
+    const drum = new THREE.CylinderGeometry(0.5, 0.5, 1, 12); drum.rotateZ(Math.PI / 2);
+    parts.push(part(drum, '#7c7898', 0.55, 0.2, 0.25, 0.4, 0.4, 0.4));
+  } else if (id === 'mirror') {
+    // A tall mirror in a brass frame, leaning on the wall on two feet; the glass is pale and cool.
+    parts.push(part(box, '#b8904a', 0, 0.7, -0.12, 0.62, 1.3, 0.06));
+    parts.push(part(box, '#dde4f4', 0, 0.7, -0.08, 0.52, 1.18, 0.02));
+    parts.push(part(box, '#8a6a34', -0.24, 0.04, 0.02, 0.08, 0.08, 0.3));
+    parts.push(part(box, '#8a6a34', 0.24, 0.04, 0.02, 0.08, 0.08, 0.3));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
@@ -114,8 +143,10 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
   return g;
 }
 
-/** How a theme's prop moves, as a y scale and a glow for its instance at time t (phase ph): the quiet motion. */
-export function propMotion(id: ThemeId, t: number, ph: number): { sy: number } {
+/** How a theme's prop moves, as a y scale and a turn for its instance at time t (phase ph): the quiet motion. */
+export function propMotion(id: ThemeId, t: number, ph: number): { sy: number; ry?: number } {
+  // The Star vault's orreries turn about once a minute.
+  if (id === 'orrery') return { sy: 1, ry: t * 0.1 + ph };
   if (id === 'bellows') return { sy: 1 + 0.1 * Math.sin(t * 2 * Math.PI * THEMES.bellows.swell + ph) };
   // The Foundry's pumps stroke as slowly as the bellows breathe.
   if (id === 'pump') return { sy: 1 + 0.07 * Math.sin(t * 2 * Math.PI * 0.2 + ph) };

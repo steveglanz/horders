@@ -249,6 +249,8 @@ export interface Enemy {
   flash: number;
   abilityT: number;
   spawnedAt: number;
+  /** BOSSV2: when a hero last hit it (Vorhulm the Glutton Gorges after KILN_V2.gorgeQuiet s without one). */
+  hitAt?: number;
   /** Current cast ('' when not casting); shown on cast bars. */
   castId: string;
   castName: string;
@@ -800,6 +802,8 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
+  /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
+  bossV2?: boolean;
   /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
   hallsBeta?: boolean;
 }
@@ -896,6 +900,19 @@ export class World {
   private fillRng: Rng | null = null;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
+  /** BOSSV2: the three-stage Kiln Mother and the new Gorge (never on the first delve). */
+  readonly bossV2: boolean;
+  /** BOSSV2 Kiln Mother: 0 = not a v2 fight, else her stage (1 the duel, 2 in the kiln, 3 the last fire). */
+  kmStage = 0;
+  /** BOSSV2: she's inside the kiln (stage 2; she can't be hit all through stage 2, the walk in too). */
+  kmInKiln = false;
+  /** BOSSV2 stage 1: ember eggs (hatch at t >= dur unless a hero touches one). */
+  kmEggs: { x: number; y: number; t: number; dur: number; alive: boolean }[] = Array.from({ length: 4 }, () => ({ x: 0, y: 0, t: 0, dur: 0, alive: false }));
+  /** BOSSV2 stage 2: the heated quarters. Quarter q is the angle q*90 deg +-45 round the arena's centre (0 = east, y down). */
+  kmHeat = { safe: 0, warn: 0, on: false };
+  /** BOSSV2 stage 3: eruption rings rolling out from her, each with two gaps [centre, width, centre, width] (radians). */
+  kmRings: { x: number; y: number; r: number; w: number; gaps: number[]; alive: boolean; hit: number }[] = Array.from({ length: 3 }, () => ({ x: 0, y: 0, r: 0, w: 0, gaps: [0, 0, 0, 0], alive: false, hit: 0 }));
+  private kmClock = { swipe: 0, egg: 0, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -1277,6 +1294,7 @@ export class World {
     this.fillBots = opts.fillBots ?? 0;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
+    this.bossV2 = !!opts.bossV2 && !this.firstDelve;
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
@@ -1638,6 +1656,7 @@ export class World {
       this.updateStrikes(dt, 0);
       this.updateLances(dt);
       this.updateTelegraphs(dt);
+      if (this.kmStage) this.kmTick(dt);
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
@@ -1660,6 +1679,7 @@ export class World {
     this.updateLances(dt);
     // Shared things tick once per step and then resolve for each hero (not once per hero).
     this.updatePartyTelegraphs(dt);
+    if (this.kmStage) this.kmTick(dt);
     this.eachHero(() => this.updateDrops());
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
@@ -2106,6 +2126,7 @@ export class World {
           this.bossVariant = this.rollKilnVariant();
           this.bossEcho = this.rollEcho(KILN_VARIANTS, this.bossVariant);
           this.echoNext = true; // QA #658: her first phase-3 signature is the echo, so a short last phase still hears it
+          if (this.bossV2) this.kmStart();
           this.events.push({ type: 'bossSpawn' });
         }
         // Wardens take turns mirroring, so one Quench can answer each Mirror Ward.
@@ -3380,7 +3401,7 @@ export class World {
   private spawn(kind: EnemyKind, x: number, y: number): number {
     const def = ENEMIES[kind];
     // C7: summons past the cap fizzle, so a stalled fight can't flood the arena.
-    if (!this.stress && this.phase === 'fight' && def.rank === 'normal' && this.aliveEnemies >= BURNOUT.addCap) return -1;
+    if (!this.stress && this.phase === 'fight' && def.rank === 'normal' && kind !== 'kilnBellows' && this.aliveEnemies >= BURNOUT.addCap) return -1;
     const idx = this.enemies.findIndex((e) => !e.alive);
     if (idx < 0) return -1;
     const e = this.enemies[idx];
@@ -3406,6 +3427,7 @@ export class World {
     e.flash = 0;
     e.abilityT = def.rank === 'boss' ? 2 : def.stationary ? 1 : 4;
     e.spawnedAt = this.time;
+    e.hitAt = this.time;
     e.castId = '';
     e.castName = '';
     e.castT = 0;
@@ -5471,6 +5493,13 @@ export class World {
         my = Math.sin(e.aux) * VARIETY.chargeSpeed;
       }
 
+      // BOSSV2 stage 2: she walks to the kiln mouth and climbs in.
+      if (e.kind === 'kilnMother' && this.kmStage === 2) {
+        const sy = this.kmSpotY(), kx = -e.x, ky = sy - e.y, kd = Math.hypot(kx, ky);
+        const run = e.def.speed * KILN_V2.walkIn;
+        if (kd > 4) { mx = (kx / kd) * Math.min(run, kd / (dt * this.moveScale)); my = (ky / kd) * Math.min(run, kd / (dt * this.moveScale)); }
+        else { mx = 0; my = 0; e.x = 0; e.y = sy; if (!this.kmInKiln) { this.kmInKiln = true; this.kmClock.kiln = 0; if (e.castId) this.cancelCast(i); this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmKiln', name: 'Into the Kiln' }); } }
+      }
       // Separation so a group reads as separate foes, not a single blob.
       if (e.def.rank !== 'boss') {
         let sx = 0;
@@ -5511,7 +5540,7 @@ export class World {
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
-      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0) {
+      if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage === 2 && e.kind === 'kilnMother')) {
         e.touchCd = 0.6;
         const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
@@ -5539,6 +5568,7 @@ export class World {
   /** Rifts spawn ashlings; acolytes channel heals into the boss. */
   private runStationary(i: number, dt: number): void {
     const e = this.enemies[i];
+    if (e.kind === 'kilnBellows') return; // BOSSV2: they only stand and wait to be broken
     if (e.kind === 'rift') {
       e.abilityT -= dt;
       if (e.abilityT <= 0) {
@@ -5978,11 +6008,23 @@ export class World {
       return;
     }
     if (e.kind === 'ashmaw') {
+      // BOSSV2: KILN_V2.gorgeQuiet s with no hit on it and it Gorges, healing gorgeHeal of its max health a second
+      // until a hero hits it again (aux2 1 while it Gorges).
+      if (this.bossV2) {
+        const quiet = this.time - (e.hitAt ?? e.spawnedAt) >= KILN_V2.gorgeQuiet;
+        if (quiet && e.hp < e.maxHp) {
+          if (!e.aux2) { e.aux2 = 1; this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'gorgeStart', name: 'Gorge' }); }
+          const amount = Math.min(e.maxHp - e.hp, e.maxHp * KILN_V2.gorgeHeal * dt * this.healTakenMult(e));
+          e.hp += amount;
+          if (Math.floor(this.time * 2) !== Math.floor((this.time - dt) * 2)) this.events.push({ type: 'heal', x: e.x, y: e.y, amount: e.maxHp * KILN_V2.gorgeHeal * 0.5 });
+        } else e.aux2 = 0;
+      }
       if (e.abilityT <= 0) {
         e.abilityT = 5;
         e.aux++;
         if (e.aux % 2 === 0) {
-          this.startCast(i, 'gorge', 'Gorge', 2.2, true);
+          // BOSSV2: no Gorge cast; it Gorges on its own when nobody hits it (below).
+          if (!this.bossV2) this.startCast(i, 'gorge', 'Gorge', 2.2, true);
         } else {
           const ang = Math.atan2(p.y - e.y, p.x - e.x);
           this.startCast(i, 'spit', 'Ash Spit', 1.0, false);
@@ -6058,9 +6100,12 @@ export class World {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
     }
+    // BOSSV2: stages 1 and 2 are her own; stage 3 is today's last phase, without the Acolytes or the interrupt.
+    const v2 = this.kmStage > 0 && e.kind === 'kilnMother';
+    if (v2 && this.kmStage < 3) { this.runKilnV2(i, dt); return; }
     // The shadow can't be worn down, so its phases follow the clock instead.
     const frac = e.kind === 'worldShadow' ? 1 - (this.time - e.spawnedAt) / SHADOW_TIME : e.hp / e.maxHp;
-    const phase = frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
+    const phase = v2 ? 3 : frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
     if (phase > this.bossPhase) {
       this.bossPhase = phase;
       this.events.push({ type: 'phase', phase });
@@ -6109,6 +6154,13 @@ export class World {
         this.addTelegraph('circle', e.x, e.y, KILN_DRAW.radius, 0, 0, KILN_DRAW.cast, KILN_DRAW.damage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
         return;
       }
+      // BOSSV2: Molten Cataclysm is eruption rings to walk through, not an interrupt.
+      if (v2) {
+        this.kmClock.rings = KILN_V2.ringN;
+        this.kmClock.ringNext = 0;
+        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmRings', name: 'Molten Cataclysm' });
+        return;
+      }
       this.startCast(i, 'cataclysm', 'Molten Cataclysm', 3, true);
       return;
     }
@@ -6122,11 +6174,14 @@ export class World {
       }
     }
     if (e.abilityT > 0) return;
-    e.abilityT = this.bossEnraged ? 1.6 : phase === 3 ? 2.4 : 3.2;
+    // BOSSV2: her basic attacks keep today's phase 2 pace from when she comes out, and today's phase 3 pace below 30%
+    // (design, 25 Nov); her signature and Brand run on the stage 3 clocks above.
+    const pace = v2 ? (frac > 0.3 ? 2 : 3) : phase;
+    e.abilityT = this.bossEnraged ? 1.6 : pace === 3 ? 2.4 : 3.2;
     const roll = this.rng.int(3);
     if (roll === 0) {
       this.addTelegraph('circle', p.x, p.y, 120, 0, 0, 1.3, 35 * mult);
-      if (phase === 3) {
+      if (pace === 3) {
         const a = this.rng.next() * Math.PI * 2;
         this.addTelegraph('circle', p.x + Math.cos(a) * 170, p.y + Math.sin(a) * 170, 120, 0, 0, 1.6, 35 * mult);
       }
@@ -6134,12 +6189,190 @@ export class World {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
       this.addTelegraph('cone', e.x, e.y, 320, ang, (70 * Math.PI) / 180, 1.1, 30 * mult);
     } else {
-      const n = phase === 3 ? 10 : 7;
+      const n = pace === 3 ? 10 : 7;
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
         this.spawn('ashling', e.x + Math.cos(a) * 260, e.y + Math.sin(a) * 260);
       }
     }
+  }
+
+  /** BOSSV2: the Kiln Mother's fight starts in stage 1 (called when she spawns). */
+  private kmStart(): void {
+    this.kmStage = 1;
+    this.kmInKiln = false;
+    this.kmClock = { swipe: KILN_V2.swipeEvery, egg: KILN_V2.eggFirst, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
+    this.kmHeat = { safe: 0, warn: 0, on: false };
+    for (const g of this.kmEggs) g.alive = false;
+    for (const r of this.kmRings) r.alive = false;
+  }
+
+  /** Where she stands in the kiln mouth (the north wall, KILN_V2.mouthIn inside it). */
+  private kmSpotY(): number {
+    return -(this.arenaR - KILN_V2.mouthIn);
+  }
+
+  /** A telegraph's shown time on this run: design, 25 Nov, a Halls run shows them 1/moveScale as long. */
+  private kmShow(t: number): number {
+    return t / this.moveScale;
+  }
+
+  /** BOSSV2 stages 1 and 2 (design's kiln-mother-v2.md). */
+  private runKilnV2(i: number, dt: number): void {
+    const e = this.enemies[i];
+    const p = this.player;
+    const K = KILN_V2, c = this.kmClock;
+    if (this.kmStage === 1) {
+      if (e.hp / e.maxHp <= K.stage2At) {
+        // Stage 2: she heads for the kiln (the walk is in updateEnemies); her swipe and eggs stop.
+        this.kmStage = 2;
+        this.bossPhase = 2;
+        this.events.push({ type: 'phase', phase: 2 });
+        if (e.castId) this.cancelCast(i);
+        return;
+      }
+      // Swipe: she turns to the nearest hero, shows the cone, and holds her facing.
+      c.swipe -= dt;
+      if (c.swipe <= 0) {
+        c.swipe = K.swipeEvery;
+        const ang = Math.atan2(p.y - e.y, p.x - e.x);
+        const show = this.kmShow(K.swipeShow);
+        this.startCast(i, 'kmSwipe', 'Swipe', show, false);
+        this.addTelegraph('cone', e.x, e.y, K.swipeReach, ang, K.swipeArc, show, K.swipeDamage * (this.bossEnraged ? 1.5 : 1), 'hit', i);
+      }
+      // Ember eggs on the far side of her from the nearest hero.
+      c.egg -= dt;
+      if (c.egg <= 0) {
+        c.egg = K.eggEvery;
+        const away = Math.atan2(e.y - p.y, e.x - p.x);
+        for (let k = 0; k < K.eggN; k++) {
+          const g = this.kmEggs.find((q) => !q.alive);
+          if (!g) break;
+          const a = away + (this.rng.next() - 0.5) * K.eggSpread;
+          const d = K.eggMin + (K.eggMax - K.eggMin) * this.rng.next();
+          const o = { x: e.x + Math.cos(a) * d, y: e.y + Math.sin(a) * d };
+          this.clampArena(o, K.eggR);
+          Object.assign(g, { x: o.x, y: o.y, t: 0, dur: K.eggHatch, alive: true });
+        }
+      }
+      return;
+    }
+    // Stage 2: in the kiln. The bellows come with her; break all 3 and she falls out stunned, or after kilnMax s she
+    // comes out on her own. Either way stage 3 starts.
+    if (!this.kmInKiln) return;
+    if (c.kiln === 0) {
+      for (const deg of K.bellowsAt) {
+        const a = (deg * Math.PI) / 180;
+        this.spawn('kilnBellows', Math.cos(a) * K.bellowsRing, Math.sin(a) * K.bellowsRing);
+      }
+      c.heat = 0;
+      this.kmHeat.safe = 3; // the first step moves it to 0 (east)
+    }
+    c.kiln += dt;
+    const left = this.enemies.some((o) => o.alive && o.kind === 'kilnBellows');
+    if (!left || c.kiln >= K.kilnMax) {
+      for (let k = 0; k < this.enemies.length; k++) if (this.enemies[k].alive && this.enemies[k].kind === 'kilnBellows') this.despawn(k);
+      this.kmInKiln = false;
+      this.kmStage = 3;
+      this.kmHeat.on = false;
+      this.kmHeat.warn = 0;
+      e.y = this.kmSpotY() + K.fallOut;
+      e.aux = K.sigFirst;
+      this.brandT = K.brandFirst;
+      if (!left) {
+        e.stunT = K.stun;
+        c.vuln = this.time + K.stun;
+        this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmFallen', name: 'She Falls Out' });
+      } else this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'kmOut', name: 'Out of the Kiln' });
+    }
+  }
+
+  /** BOSSV2: eggs, the heated quarters and the eruption rings, once a step for the whole party. */
+  private kmTick(dt: number): void {
+    const K = KILN_V2, c = this.kmClock;
+    const boss = this.bossIndex >= 0 ? this.enemies[this.bossIndex] : undefined;
+    const live = !!boss?.alive && boss.kind === 'kilnMother';
+    for (const g of this.kmEggs) {
+      if (!g.alive) continue;
+      let touched = false;
+      this.eachHero(() => { if (dist2(this.player.x, this.player.y, g.x, g.y) < (K.eggR + PLAYER_RADIUS) ** 2) touched = true; });
+      if (touched || !live) {
+        g.alive = false;
+        if (touched) this.events.push({ type: 'castDone', x: g.x, y: g.y, id: 'kmEggStamped', name: '' });
+        continue;
+      }
+      g.t += dt;
+      if (g.t >= g.dur) {
+        g.alive = false;
+        for (let k = 0; k < K.eggAshlings; k++) {
+          const a = (k / K.eggAshlings) * Math.PI * 2;
+          this.spawn('ashling', g.x + Math.cos(a) * 20, g.y + Math.sin(a) * 20);
+        }
+        this.events.push({ type: 'castDone', x: g.x, y: g.y, id: 'kmEggHatch', name: 'Hatched' });
+      }
+    }
+    // Heat: every heatEvery s the safe quarter steps clockwise; the other three are shown heatWarn s, then burn.
+    if (this.kmInKiln && live) {
+      const h = this.kmHeat;
+      c.heat -= dt;
+      if (c.heat <= 0) {
+        c.heat = K.heatEvery;
+        h.safe = (h.safe + 1) % 4;
+        h.warn = this.kmShow(K.heatWarn);
+        h.on = false;
+      }
+      if (h.warn > 0) {
+        h.warn -= dt;
+        if (h.warn <= 0) { h.warn = 0; h.on = true; c.tick = 0; }
+      }
+      if (h.on) {
+        c.tick -= dt;
+        if (c.tick <= 0) {
+          c.tick += K.heatTick;
+          this.eachHero(() => {
+            const p = this.player;
+            if (p.hp > 0 && this.kmQuarter(p.x, p.y) !== h.safe) this.hurtPlayer(p.maxHp * K.heatShare, -1, false, 'Kiln Heat');
+          });
+        }
+      }
+    } else if (this.kmHeat.on || this.kmHeat.warn) { this.kmHeat.on = false; this.kmHeat.warn = 0; }
+    // Eruption rings: one a second while any are left to roll, each hitting a hero once unless they stand in a gap.
+    if (c.rings > 0 && live) {
+      c.ringNext -= dt;
+      if (c.ringNext <= 0) {
+        const r = this.kmRings.find((q) => !q.alive);
+        c.rings--;
+        c.ringNext = K.ringEvery;
+        if (r) {
+          const g1 = this.rng.next() * Math.PI * 2;
+          const g2 = g1 + Math.PI * (0.5 + this.rng.next());
+          Object.assign(r, { x: boss!.x, y: boss!.y, r: boss!.def.radius, w: K.ringW, gaps: [g1, K.ringGap, angleDiff(g2, 0), K.ringGap], alive: true, hit: 0 });
+        }
+      }
+    } else if (!live) c.rings = 0;
+    for (const r of this.kmRings) {
+      if (!r.alive) continue;
+      const was = r.r;
+      r.r += K.ringSpeed * this.moveScale * dt;
+      if (was > this.arenaR * 1.5 || !live) { r.alive = false; continue; }
+      this.eachHero((hi) => {
+        const p = this.player;
+        if (r.hit & (1 << hi) || p.hp <= 0) return;
+        const d = Math.hypot(p.x - r.x, p.y - r.y);
+        // The band sweeps from was to r.r this step: a hero it crossed is hit, unless they stand in a gap.
+        if (d + PLAYER_RADIUS < was - r.w / 2 || d - PLAYER_RADIUS > r.r + r.w / 2) return;
+        const a = Math.atan2(p.y - r.y, p.x - r.x);
+        for (let k = 0; k < r.gaps.length; k += 2) if (Math.abs(angleDiff(a, r.gaps[k])) < r.gaps[k + 1] / 2) return;
+        r.hit |= 1 << hi;
+        this.hurtPlayer(K.ringDamage * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, this.bossIndex, false, 'Molten Cataclysm');
+      }, true);
+    }
+  }
+
+  /** Which heat quarter (0 east, 1 south, 2 west, 3 north; y down) the point is in. */
+  kmQuarter(x: number, y: number): number {
+    const a = Math.atan2(y, x);
+    return ((Math.round(a / (Math.PI / 2)) % 4) + 4) % 4;
   }
 
   /** Kiln Draw: each living hero slides toward the Kiln Mother while she breathes in, stopping at her edge. */
@@ -6160,7 +6393,12 @@ export class World {
   private damageEnemy(i: number, amount: number, canCrit: boolean, silent = false, forceCrit = false): void {
     const e = this.enemies[i];
     if (!e.alive) return;
+    // BOSSV2: from stage 2's start (the walk in, then inside the kiln) she can't be hit; fallen out, she takes double
+    // for KILN_V2.stun s.
+    if (e.kind === 'kilnMother' && this.kmStage === 2) return;
+    e.hitAt = this.time;
     let dmg = amount;
+    if (e.kind === 'kilnMother' && this.time < this.kmClock.vuln) dmg *= KILN_V2.stunTaken;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
@@ -8971,7 +9209,7 @@ export class World {
     const m2 = maxDist * maxDist;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive) continue;
+      if (!e.alive || (this.kmStage === 2 && e.kind === 'kilnMother')) continue;
       const d0 = dist2(x, y, e.x, e.y);
       if (d0 > m2) continue;
       // The Craw counts as much nearer, so auto-attacks break it and free the hero inside.
@@ -8991,7 +9229,7 @@ export class World {
     const m2 = maxDist * maxDist;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (e.alive && dist2(x, y, e.x, e.y) <= m2) cands.push(i);
+      if (e.alive && !(this.kmStage === 2 && e.kind === 'kilnMother') && dist2(x, y, e.x, e.y) <= m2) cands.push(i);
     }
     return cands.length ? cands[this.rng.int(cands.length)] : -1;
   }
@@ -9210,6 +9448,35 @@ export const ARENA_EVENT_POOLS: Partial<Record<DungeonId, ArenaEventId[]>> = {
 export const NEW_FOES: readonly EnemyKind[] = ['ashwall', 'ballast', 'lampeye', 'dimhorn', 'conchblower'];
 export const NEW_FOE_BIT: Partial<Record<EnemyKind, number>> = Object.fromEntries(NEW_FOES.map((k, i) => [k, 1 << i]));
 export const ECHO: { minTier: number; off: boolean; force: string } = { minTier: 8, off: false, force: '' };
+/** BOSSV2: where the kiln's mouth is on the Kiln arena's north wall (visuals' beehive kiln, renderer buildRoom). */
+export const KM_MOUTH = { x: 0, y: -522, w: 120 };
+
+/**
+ * BOSSV2 (design's /mnt/project-files/horders/design/bosses/kiln-mother-v2.md, 25 Nov): the three-stage Kiln Mother
+ * and the Glutton's Gorge without an interrupt. Shown times are arena values; a Halls run shows them 1/moveScale as long.
+ */
+export const KILN_V2 = {
+  /** Stage 2 at this share of her health. */
+  stage2At: 0.65,
+  swipeEvery: 6, swipeArc: (120 * Math.PI) / 180, swipeReach: 220, swipeShow: 1.2, swipeDamage: 30,
+  eggFirst: 8, eggEvery: 14, eggN: 2, eggMin: 150, eggMax: 250, eggHatch: 6, eggR: 30, eggAshlings: 3,
+  /** Eggs land within this spread (radians) of the far side from the nearest hero. Engineering's pick. */
+  eggSpread: (90 * Math.PI) / 180,
+  /** Her walk to the kiln is this many times her speed (engineering's pick: at 30/s the walk would take up to 16 s). */
+  walkIn: 4,
+  /** She stands this far inside the north wall (y = -480 in the 560 arena). */
+  mouthIn: 80,
+  heatEvery: 6, heatWarn: 1.5, heatTick: 0.5, heatShare: 0.04,
+  bellowsRing: 380, bellowsAt: [210, 330, 90],
+  kilnMax: 40, stun: 8, stunTaken: 2,
+  /** Fallen out, she lands this far in front of her kiln spot. Engineering's pick. */
+  fallOut: 90,
+  /** Stage 3: her first signature and first Kiln Brand come this many s in. Engineering's picks. */
+  sigFirst: 4, brandFirst: 3,
+  ringN: 2, ringEvery: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 40,
+  gorgeQuiet: 3, gorgeHeal: 0.08,
+};
+
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
 /**

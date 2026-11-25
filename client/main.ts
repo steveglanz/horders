@@ -307,6 +307,8 @@ function startRun(bounty = false, key = false): void {
     // H3: ?hallsbeta=1 also maps the dungeons whose Halls aren't on for players yet (the Foundry, design 25 Nov).
     if (new URLSearchParams(location.search).get('hallsbeta') === '1') opts.hallsBeta = true;
   }
+  // BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the new Gorge, local play only until Steve okays it.
+  if (params.get('bossv2') === '1' && !hosting) opts.bossV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

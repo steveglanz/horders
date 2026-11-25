@@ -29,6 +29,7 @@ import type { RoomSound } from '../audio/cues';
 import type { World } from '../../sim/world';
 import { SIM } from './simconsts';
 import { buildHalls3d, type HallsView } from './halls3d';
+import { buildKm3d, makeKmBellows } from './kilnmother3d';
 import type { HallsMap } from '../../sim/halls';
 
 /** 3D units per world unit: the 560-unit arena becomes an 8-unit room. */
@@ -304,6 +305,8 @@ function archCanvas() {
 function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: number, d: number, p: THREE.Vector3, s?: number) => void, id: RoomId = 'flue') {
   const th = ROOMS[id];
   const glows: THREE.MeshBasicMaterial[] = [];
+  /** The Kiln's centre kiln mouth, which flares while the three-stage Kiln Mother is inside it. */
+  let kilnMouth: THREE.MeshBasicMaterial | null = null;
   /** Textures whose offset drifts each frame (the Wrackline's water). */
   const drift: THREE.Texture[] = [];
   const room = new THREE.Group(); scene.add(room);
@@ -558,6 +561,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       const stack = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.22, r * 0.9, 10), kb); stack.position.y = 0.35 + r * 1.5; g.add(stack);
       const lip = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.24, r * 0.24, 0.12, 10), basalt); lip.position.y = 0.35 + r * 1.95; g.add(lip);
       const gm = new THREE.MeshBasicMaterial({ map: arch, transparent: true, color: new THREE.Color(1, 1, 1) }); gm.userData.base = gm.color.clone(); glows.push(gm);
+      if (a === Math.PI) kilnMouth = gm; // the great kiln the three-stage Kiln Mother climbs into (kilnmother3d.ts)
       const mouth = new THREE.Mesh(new THREE.PlaneGeometry(r * 0.75, r * 0.94), gm); mouth.position.set(0, 0.36 + r * 0.47, r + 0.02); g.add(mouth);
       g.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== mouth) o.castShadow = o.receiveShadow = true; });
       room.add(g);
@@ -817,7 +821,7 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       }
     }
   }
-  return { room, flames, basalt, glows, th, drift, life, heard };
+  return { room, flames, basalt, glows, th, drift, life, heard, kilnMouth };
 }
 
 /* ---------- sprites ---------- */
@@ -877,7 +881,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const rimCool = new THREE.DirectionalLight('#7f8cff', 0.35); rimCool.position.set(4, 6, -10); scene.add(rimCool);
   const flick: { l: THREE.PointLight; base: number; seed: number; speed: number }[] = [];
   const addLight = (c: string, i: number, d: number, p: THREE.Vector3, speed = 1) => { const l = new THREE.PointLight(c, i, d, 2); l.position.copy(p); scene.add(l); flick.push({ l, base: i, seed: Math.random() * 100, speed }); };
-  const { room, flames, basalt, glows, drift, life, heard } = buildRoom(scene, saver, addLight, rid);
+  const { room, flames, basalt, glows, drift, life, heard, kilnMouth } = buildRoom(scene, saver, addLight, rid);
   let roomFor = -1;
 
   const flat = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + y; m.renderOrder = 2; scene.add(m); return m; };
@@ -936,7 +940,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS };
+  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS; bellows?: ReturnType<typeof makeKmBellows>; gorge?: THREE.Mesh };
   // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
   // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
   const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
@@ -1098,6 +1102,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     return f;
   };
   const bossLight = new THREE.PointLight('#ff7a2e', 0, 6, 2); scene.add(bossLight);
+  // BOSSV2, the three-stage Kiln Mother (kilnmother3d.ts): her eggs, the heated quarters and the eruption rings; hidden
+  // unless World.kmStage is set.
+  const km = buildKm3d({ S, floor: FLOOR, arena: 560, /* World ARENA: her fight is always in the 560 room */ bad: BAD, gold: new THREE.Color('#ffc861'), saver });
+  scene.add(km.group);
+  // Vorhulm the Glutton's Gorge (BOSSV2, aux2 1 while it heals): red rings draw in to it, as if it is gulping, until
+  // someone hits it.
+  const gorgeMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.3), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const gorgeGeo = new THREE.RingGeometry(0.9, 1, 40);
+  const hideExtra = (f: FoeS) => { if (f.bellows) f.bellows.g.visible = false; if (f.gorge) f.gorge.visible = false; };
   // Phase 18 Halls H1: the greybox map (halls3d.ts), built the first frame a run has one. Today's room hides while the
   // party walks the map and comes back when they go through the boss door (World.halls.done).
   let halls: HallsView | null = null, hallsOf: HallsMap | null = null;
@@ -1115,7 +1128,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     if (halls) scene.remove(halls.group);
     for (const z of sleepers) scene.remove(z.mesh, z.blob, z.ring);
     sleepers.length = 0;
-    halls = buildHalls3d(m, { S, floor: FLOOR, tile: ROOMS.kiln.tile, ground: ROOMS.kiln.ground, saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
+    // Corridors take the dungeon's own floor and a darker shade of its wall (the Kiln keeps its brick).
+    const hr = ROOMS[rid];
+    halls = buildHalls3d(m, { S, floor: FLOOR, tile: hr.tile, ground: hr.ground, corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
     scene.add(halls.group);
     hallsOf = m;
     m.packs.forEach((p, k) => p.foes.forEach((f, j) => {
@@ -1470,7 +1485,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } continue; }
+        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } hideExtra(f); continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1538,6 +1553,23 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.mesh.visible = false;
         foeHeads[i].h = ey + R * 1.1;
       } else if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; }
+      if (e.kind === 'kilnBellows') {
+        // A great bellows in 3D stands in for the sprite; its red ring and outline still say "hit this".
+        if (!f.bellows) { f.bellows = makeKmBellows(); f.bellows.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !saver; }); scene.add(f.bellows.g); }
+        const B = f.bellows, sc = e.def.radius * S * 3.2 * rise;
+        B.g.visible = true; B.g.position.set(x, FLOOR, z); B.g.scale.setScalar(sc);
+        B.g.rotation.y = Math.atan2(-x, -z); // its nozzle at the arena centre, where she waits in the kiln's light
+        B.set(Math.max(0, e.hp / e.maxHp), t + i, e.flash);
+        f.mesh.visible = false;
+        foeHeads[i].h = FLOOR + sc * 0.75;
+      } else if (f.bellows) f.bellows.g.visible = false;
+      if (e.kind === 'ashmaw' && e.aux2 === 1) {
+        if (!f.gorge) { f.gorge = flat(gorgeGeo, gorgeMat, 0.034); }
+        const r = e.def.radius * S, ph = (t * 1.2) % 1;
+        f.gorge.visible = true; f.gorge.position.set(x, FLOOR + 0.034, z); f.gorge.scale.setScalar(r * (2.6 - 1.5 * ph));
+        gorgeMat.opacity = 0.75 * Math.sin(ph * Math.PI);
+        f.mesh.scale.multiplyScalar(1 + 0.05 * Math.sin(t * 9));
+      } else if (f.gorge) f.gorge.visible = false;
       if (e.kind === 'dimhorn') {
         if (!f.horn) f.horn = makeHorn();
         const H = f.horn, calling = e.castId === 'darkCall', k = calling ? 1 : Math.min(1, e.aux / DIMHORN_CALL);
@@ -1582,7 +1614,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } }
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } hideExtra(foes[i]); }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
@@ -1779,6 +1811,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     // Room units to world: the room is centred on the arena and scaled so ROOM_R is World.arenaR.
     for (const h of heard.splice(0)) if (sfx.length < 32) sfx.push({ kind: h.kind, x: (h.x * w.arenaR) / ROOM_R, y: (h.z * w.arenaR) / ROOM_R });
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
+    { const mk = km.update(w, t); if (kilnMouth && mk !== 1) kilnMouth.color.multiplyScalar(mk); }
     for (let i = 0; i < N; i++) {
       pos[i * 3 + 1] += vel[i] * dt; pos[i * 3] += Math.sin(t * 0.8 + i) * dt * 0.25;
       if (pos[i * 3 + 1] > 6) spawn(i, cx, cz, false);
