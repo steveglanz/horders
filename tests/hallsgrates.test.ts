@@ -5,7 +5,7 @@ import { inCorridor, inRoom, roomLoops } from '../client/hallsshape';
 import { GRATE_DROP, GRATE_LIFT, GRATE_WARN, grateState, hallsGrates, liftedOf, lockOf } from '../client/hallsgrates';
 
 describe('Halls H2b ember grates (client/hallsgrates.ts)', () => {
-  const m = new World({ seed: 2, tier: 2, halls: true }).halls!;
+  const m = new World({ seed: 2, tier: 2, halls: true, hallsTemplate: true }).halls!;
   const grates = hallsGrates(m, HALLS.corridor, DOOR_ROOM);
 
   it('puts a grate in every doorway but the boss door alcove, standing on the floor and facing into its room', () => {
@@ -45,7 +45,7 @@ describe('Halls H2b ember grates (client/hallsgrates.ts)', () => {
   });
 
   it('stands just outside a shaped room, in the corridor', () => {
-    const mm = new World({ seed: 2, tier: 2, halls: true }).halls!, i = 1, r = mm.rooms[i];
+    const mm = new World({ seed: 2, tier: 2, halls: true, hallsTemplate: true }).halls!, i = 1, r = mm.rooms[i];
     mm.rooms[i] = { ...r, edge: [[r.x - 250, r.y - 430, r.x + 250, r.y - 430, r.x + 250, r.y + 430, r.x - 250, r.y + 430]] } as typeof r;
     const loops = roomLoops(mm.rooms[i]);
     const mine = hallsGrates(mm, HALLS.corridor, DOOR_ROOM).filter((g) => g.room === i);

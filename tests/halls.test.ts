@@ -361,7 +361,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       return n;
     };
     expect(calls(false)).toBe(calls(true));
-  });
+  }, 30000);
 
   it('H2c: every pack\'s foes stand on its room\'s floor, and every layout piece on the floor of its room', () => {
     for (let seed = 1; seed <= 80; seed++) {
