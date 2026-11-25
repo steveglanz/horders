@@ -1522,7 +1522,13 @@ export class World {
   get moveSpeed(): number {
     const boost = (this.player.hasteT > 0 ? 1.3 : 1) * (1 + 0.05 * this.rank('momentum'));
     const chill = this.player.chill ? 1 - COLD.chillSlow * this.player.chill : 1;
-    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill;
+    // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too), and a resting party runs.
+    const halls = this.moveScale * (this.hallsResting ? HALLS.travelRun : 1);
+    return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
+  }
+  /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
+  get moveScale(): number {
+    return this.halls ? HALLS.moveScale : 1;
   }
   get regen(): number {
     const low = this.player.hp < this.player.maxHp * 0.5 ? 4 * this.rank('slowPulse') + 3 * this.rank('bankedFire') + 3 * this.rank('quietMend') : 0;
@@ -5355,8 +5361,8 @@ export class World {
         continue;
       }
 
-      e.x += mx * dt;
-      e.y += my * dt;
+      e.x += mx * dt * this.moveScale;
+      e.y += my * dt * this.moveScale;
       this.clampArena(e, e.def.radius);
       // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
       if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
@@ -5458,7 +5464,7 @@ export class World {
       this.hurtPlayer(45 * (this.bossEnraged ? 1.5 : 1) * this.tierDamage, i);
       this.events.push({ type: 'slam', x: p.x, y: p.y, r: 160 });
     } else if (id === 'charge') {
-      e.aux2 = VARIETY.chargeLen / VARIETY.chargeSpeed; // run the lane it showed
+      e.aux2 = VARIETY.chargeLen / (VARIETY.chargeSpeed * this.moveScale); // run the lane it showed (faster on a Halls run, no further)
       this.events.push({ type: 'charge', index: i });
     } else if (id === 'mirror') {
       e.aux2 = FOUNDRY.mirrorTime;
