@@ -16,7 +16,10 @@ export type TreeNodeId =
   | 'stride' | 'cover' | 'ram' | 'onrush'
   | 'gash' | 'leech' | 'opener' | 'torrent'
   | 'pace' | 'whet' | 'rush' | 'cadence'
-  | 'hardy' | 'poise' | 'footwork' | 'steadfast';
+  | 'hardy' | 'poise' | 'footwork' | 'steadfast'
+  | 'char' | 'tinder' | 'fan' | 'ablaze'
+  | 'brisk' | 'spark' | 'primer' | 'glint'
+  | 'warmth' | 'soot' | 'skip' | 'glow';
 
 export interface TreeNode {
   id: TreeNodeId;
@@ -71,12 +74,25 @@ export const TREE = {
   poiseCut: 0.03,
   footworkCd: 1,
   steadfastDmg: 0.1,
+  // Emberwright
+  charWave: 0.08,
+  tinderCost: 5,
+  fanCd: 0.4,
+  ablazeDmg: 0.08,
+  briskHaste: 0.04,
+  sparkCrit: 0.03,
+  primerCd: 1.5,
+  glintCrit: 0.2,
+  warmthHp: 15,
+  sootCut: 0.03,
+  skipCd: 1,
+  glowDmg: 0.1,
 };
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   // Bulwark, Anvil Skin branch: holding the line.
-  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
-  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
+  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+10 max health per point.', tip: 'More health. +10 max health per point, +30 at 3 points.' },
+  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '2% less damage taken per point.', tip: 'Take less from every hit. 2% less damage per point, 6% at 3 points.' },
   damper: { id: 'damper', cls: 'bulwark', branch: 'bastion', name: 'Damper', maxRank: 2, text: 'Smother costs 3 less Resolve per point.', tip: 'Catching a Sluice Crawler\'s bloom on the shield costs 3 less Resolve per point (10 to 4 at 2 points).' },
   bedrock: { id: 'bedrock', cls: 'bulwark', branch: 'bastion', name: 'Bedrock', maxRank: 1, keystone: true, text: 'Anvil Skin recharges 6s faster.', tip: 'Keystone. Anvil Skin comes back every 14s instead of 20s.' },
   // Bulwark, the thorns branch (the run draft's Spite branch, id retribution).
@@ -96,7 +112,7 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   torrent: { id: 'torrent', cls: 'duskblade', branch: 'bloodletting', name: 'Torrent', maxRank: 1, keystone: true, text: 'Bleeding foes take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe that is bleeding.' },
   // Duskblade, Tempo branch: faster, sharper swings.
   pace: { id: 'pace', cls: 'duskblade', branch: 'tempo', name: 'Pace', maxRank: 3, text: 'Swing 3% faster per point.', tip: 'Your swings come 3% faster per point, 9% at 3 points.' },
-  whet: { id: 'whet', cls: 'duskblade', branch: 'tempo', name: 'Whet', maxRank: 3, text: '+2% chance to crit per point.', tip: '2% more chance per point to crit for double damage, 6% at 3 points.' },
+  whet: { id: 'whet', cls: 'duskblade', branch: 'tempo', name: 'Whet', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
   rush: { id: 'rush', cls: 'duskblade', branch: 'tempo', name: 'Rush', maxRank: 2, text: 'Hits build 8% more Momentum per point.', tip: 'Every hit builds 8% more Momentum per point, 16% at 2 points.' },
   cadence: { id: 'cadence', cls: 'duskblade', branch: 'tempo', name: 'Cadence', maxRank: 1, keystone: true, text: 'Execution recharges 4s faster.', tip: 'Keystone. Execution comes back 4s sooner.' },
   // Duskblade, Guard branch: lasting through the fight.
@@ -104,6 +120,21 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   poise: { id: 'poise', cls: 'duskblade', branch: 'guard', name: 'Poise', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
   footwork: { id: 'footwork', cls: 'duskblade', branch: 'guard', name: 'Footwork', maxRank: 2, text: 'Sidestep recharges 1s faster per point.', tip: 'Sidestep comes back 1s sooner per point, 2s at 2 points. Each Sidestep also mends a little.' },
   steadfast: { id: 'steadfast', cls: 'duskblade', branch: 'guard', name: 'Steadfast', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Guard helps you stay there.' },
+  // Emberwright, Wildfire branch: Flame Wave and burning foes.
+  char: { id: 'char', cls: 'emberwright', branch: 'wildfire', name: 'Char', maxRank: 3, text: 'Flame Wave hits 8% harder per point.', tip: 'Flame Wave deals 8% more damage per point, 24% at 3 points.' },
+  tinder: { id: 'tinder', cls: 'emberwright', branch: 'wildfire', name: 'Tinder', maxRank: 2, text: 'Flame Wave costs 5 less Heat per point.', tip: 'Flame Wave costs 5 less Heat per point, 30 to 20 at 2 points.' },
+  fan: { id: 'fan', cls: 'emberwright', branch: 'wildfire', name: 'Fan', maxRank: 3, text: 'Flame Wave recharges 0.4s faster per point.', tip: 'Flame Wave comes back 0.4s sooner per point, 1.2s at 3 points.' },
+  ablaze: { id: 'ablaze', cls: 'emberwright', branch: 'wildfire', name: 'Ablaze', maxRank: 1, keystone: true, text: 'Burning foes take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe that is burning.' },
+  // Emberwright, Kindling branch: faster orbs and crits.
+  brisk: { id: 'brisk', cls: 'emberwright', branch: 'kindling', name: 'Brisk', maxRank: 3, text: 'Cinder Volley fires 4% faster per point.', tip: 'Cinder Volley fires 4% faster per point, 12% at 3 points.' },
+  spark: { id: 'spark', cls: 'emberwright', branch: 'kindling', name: 'Spark', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
+  primer: { id: 'primer', cls: 'emberwright', branch: 'kindling', name: 'Primer', maxRank: 2, text: 'Combustion recharges 1.5s faster per point.', tip: 'Combustion comes back 1.5s sooner per point, 3s at 2 points.' },
+  glint: { id: 'glint', cls: 'emberwright', branch: 'kindling', name: 'Glint', maxRank: 1, keystone: true, text: 'Crits hit for 2.2 times instead of 2.', tip: 'Keystone. Your crits deal 2.2 times the hit instead of 2 times, 10% more on every crit.' },
+  // Emberwright, Ashguard branch: lasting through the fight.
+  warmth: { id: 'warmth', cls: 'emberwright', branch: 'ashguard', name: 'Warmth', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  soot: { id: 'soot', cls: 'emberwright', branch: 'ashguard', name: 'Soot', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
+  skip: { id: 'skip', cls: 'emberwright', branch: 'ashguard', name: 'Skip', maxRank: 2, text: 'Blink recharges 1s faster per point.', tip: 'Blink comes back 1s sooner per point, 2s at 2 points.' },
+  glow: { id: 'glow', cls: 'emberwright', branch: 'ashguard', name: 'Glow', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Ashguard helps you stay there.' },
 };
 
 export const TREE_IDS = Object.keys(TREE_NODES) as TreeNodeId[];
@@ -146,6 +177,11 @@ export const TREE_BUILDS: Partial<Record<ClassId, Record<string, TreeNodeId[]>>>
     bloodletting: ['gash', 'leech', 'gash', 'opener', 'leech', 'gash', 'torrent', 'leech', 'opener', 'pace', 'whet', 'pace', 'whet', 'pace', 'rush', 'cadence', 'whet', 'rush', 'hardy'],
     tempo: ['pace', 'whet', 'pace', 'rush', 'whet', 'pace', 'cadence', 'whet', 'rush', 'gash', 'leech', 'gash', 'opener', 'leech', 'gash', 'torrent', 'leech', 'opener', 'hardy'],
     guard: ['hardy', 'poise', 'hardy', 'footwork', 'poise', 'hardy', 'steadfast', 'poise', 'footwork', 'pace', 'whet', 'pace', 'whet', 'pace', 'rush', 'cadence', 'whet', 'rush', 'gash'],
+  },
+  emberwright: {
+    wildfire: ['char', 'tinder', 'char', 'fan', 'tinder', 'char', 'ablaze', 'fan', 'fan', 'brisk', 'spark', 'brisk', 'spark', 'brisk', 'primer', 'glint', 'spark', 'primer', 'warmth'],
+    kindling: ['brisk', 'spark', 'brisk', 'primer', 'spark', 'brisk', 'glint', 'spark', 'primer', 'char', 'tinder', 'char', 'fan', 'tinder', 'char', 'ablaze', 'fan', 'fan', 'warmth'],
+    ashguard: ['warmth', 'soot', 'warmth', 'skip', 'soot', 'warmth', 'glow', 'soot', 'skip', 'brisk', 'spark', 'brisk', 'spark', 'brisk', 'primer', 'glint', 'spark', 'primer', 'char'],
   },
 };
 

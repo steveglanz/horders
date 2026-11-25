@@ -14,6 +14,7 @@ describe('character trees (class progression brief)', () => {
   it.each([
     ['bulwark', ['bastion', 'retribution', 'vanguard']],
     ['duskblade', ['bloodletting', 'tempo', 'guard']],
+    ['emberwright', ['wildfire', 'kindling', 'ashguard']],
   ] as const)('the %s tree has 3 nodes and a keystone in each of its run-draft branches', (cls, branches) => {
     const nodes = treeOf(cls);
     expect(nodes).toHaveLength(12);
@@ -137,5 +138,49 @@ describe('character trees (class progression brief)', () => {
     const wi = w as unknown as { baseCooldown(s: number): number; rank(id: string): number };
     wi.rank = (id: string) => (id === 'evasion' ? 3 : 0);
     expect(wi.baseCooldown(1)).toBe(1);
+  });
+
+  it('Emberwright tree: Warmth adds health, Brisk fires faster, Spark crits more, Fan, Skip and Primer cut cooldowns, Tinder cuts Heat', () => {
+    expect(loadoutFrom({ warmth: 2 }, []).maxHpBonus).toBe(2 * TREE.warmthHp + 2 * TREE.pointHp);
+    const base = new World({ seed: 1, cls: 'emberwright' });
+    const tree = new World({ seed: 1, cls: 'emberwright', passives: { brisk: 3, spark: 3, fan: 3, skip: 2, primer: 2, tinder: 2 } as never });
+    expect(tree.volleyCooldown).toBeCloseTo(base.volleyCooldown / (1 + 3 * TREE.briskHaste), 6);
+    expect(tree.critChance).toBeCloseTo(base.critChance + 3 * TREE.sparkCrit, 6);
+    const cd = (w: World, slot: number) => (w as unknown as { baseCooldown(s: number): number }).baseCooldown(slot);
+    expect(cd(base, 0) - cd(tree, 0)).toBeCloseTo(3 * TREE.fanCd, 6);
+    expect(cd(base, 1) - cd(tree, 1)).toBeCloseTo(2 * TREE.skipCd, 6);
+    expect(cd(base, 2) - cd(tree, 2)).toBeCloseTo(2 * TREE.primerCd, 6);
+    expect(base.abilityCost(0) - tree.abilityCost(0)).toBe(2 * TREE.tinderCost);
+  });
+
+  it('Emberwright tree: Glow hits harder only above half health, Ablaze only on burning foes, Glint makes crits bigger, Soot takes less', () => {
+    const mk = (passives: Record<string, number>) => {
+      const w = new World({ seed: 1, cls: 'emberwright', passives: passives as never });
+      const wi = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { hp: number; burnT: number }[]; damageEnemy(i: number, a: number, c: boolean, b?: boolean, f?: boolean): void; hurtPlayer(a: number): void };
+      return { w, wi };
+    };
+    const hit = (passives: Record<string, number>, hpShare: number, burning: boolean, crit = false) => {
+      const { w, wi } = mk(passives);
+      const i = wi.spawn('cinderBrute', 400, 0);
+      const e = wi.enemies[i];
+      e.burnT = burning ? 5 : 0;
+      w.player.hp = w.player.maxHp * hpShare;
+      const before = e.hp;
+      wi.damageEnemy(i, 100, false, false, crit);
+      return before - e.hp;
+    };
+    expect(hit({}, 0.9, false)).toBeGreaterThan(0);
+    expect(hit({ glow: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false) * (1 + TREE.glowDmg), 6);
+    expect(hit({ glow: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ ablaze: 1 }, 0.9, true)).toBeCloseTo(hit({}, 0.9, true) * (1 + TREE.ablazeDmg), 6);
+    expect(hit({ ablaze: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false), 6);
+    expect(hit({ glint: 1 }, 0.4, false, true)).toBeCloseTo(hit({}, 0.4, false, true) * (2 + TREE.glintCrit) / 2, 6);
+    const taken = (passives: Record<string, number>) => {
+      const { w, wi } = mk(passives);
+      const hp0 = w.player.hp;
+      wi.hurtPlayer(20);
+      return hp0 - w.player.hp;
+    };
+    expect(taken({ soot: 3 })).toBeLessThan(taken({}));
   });
 });

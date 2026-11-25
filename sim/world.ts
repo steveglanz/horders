@@ -1628,13 +1628,13 @@ export class World {
     return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
-    return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult;
+    return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
   }
   get orbCount(): number {
     return 1 + this.rank('extraOrb');
   }
   get critChance(): number {
-    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + TREE.whetCrit * this.tree('whet') + this.loadout.critBonus;
+    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + TREE.whetCrit * this.tree('whet') + TREE.sparkCrit * this.tree('spark') + this.loadout.critBonus;
   }
   get pickupRadius(): number {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
@@ -1675,7 +1675,7 @@ export class World {
   /** Resource cost of an action-bar slot after talents. */
   abilityCost(slot: number): number {
     if (this.isAlt(slot)) return ALT_ABILITIES[this.cls].def.cost;
-    if (this.cls === 'emberwright' && slot === 0) return ABILITIES[0].cost - 6 * this.rank('rollingInferno');
+    if (this.cls === 'emberwright' && slot === 0) return Math.max(0, ABILITIES[0].cost - 6 * this.rank('rollingInferno') - TREE.tinderCost * this.tree('tinder'));
     if (this.cls === 'duskblade' && slot === 0 && this.rank('flurryStep') >= 2) return this.abilities[0].cost - 10;
     return this.abilities[slot]?.cost ?? 0;
   }
@@ -1707,7 +1707,12 @@ export class World {
       return base;
     }
     if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
-    if (this.cls === 'emberwright' && slot === 1) return (base - 1.5 * this.rank('flicker')) * (this.hasMythic('wanderersWake') ? 0.5 : 1);
+    if (this.cls === 'emberwright') {
+      if (slot === 0) return base - TREE.fanCd * this.tree('fan');
+      if (slot === 1) return Math.max(1, (base - 1.5 * this.rank('flicker') - TREE.skipCd * this.tree('skip')) * (this.hasMythic('wanderersWake') ? 0.5 : 1));
+      if (slot === 2) return base - 3 * this.rank('heatSink') - 3 * this.rank('fastFuse') - TREE.primerCd * this.tree('primer');
+      return base;
+    }
     if (slot === 1) return base - 1.5 * this.rank('flicker');
     if (slot === 2) return base - 3 * this.rank('heatSink') - 3 * this.rank('fastFuse');
     return base;
@@ -3801,7 +3806,7 @@ export class World {
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
-    if (this.cls === 'emberwright') amount *= 1 - 0.04 * this.rank('sootCloak');
+    if (this.cls === 'emberwright') amount *= (1 - 0.04 * this.rank('sootCloak')) * (1 - TREE.sootCut * this.tree('soot'));
     if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));
     // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
@@ -4008,7 +4013,7 @@ export class World {
     const r = 230;
     const tide = this.rank('cinderTide') > 0;
     const half = tide ? Math.PI : (110 * Math.PI) / 360;
-    const dmg = 50 * (1 + 0.2 * this.rank('emberCarpet')) * this.dmgMult;
+    const dmg = 50 * (1 + 0.2 * this.rank('emberCarpet')) * (1 + TREE.charWave * this.tree('char')) * this.dmgMult;
     if (tide) this.addZone(p.x, p.y, CAPSTONES_2.tideZoneR, CAPSTONES_2.tideZoneDps * this.dmgMult, CAPSTONES_2.tideZoneTime);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
@@ -6705,9 +6710,11 @@ export class World {
     if (e.kind === 'kilnMother' && this.time < this.kmClock.vuln) dmg *= KILN_V2.stunTaken;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
-    if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage') + TREE.torrentDmg * this.tree('torrent');
+    if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage') + TREE.torrentDmg * this.tree('torrent') + TREE.ablazeDmg * this.tree('ablaze');
     // Steadfast (Duskblade tree keystone): harder hits while the Duskblade stays above half health.
+    // Glow (Emberwright tree keystone) works the same way.
     if (this.tree('steadfast') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.steadfastDmg;
+    if (this.tree('glow') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.glowDmg;
     // Character tree, Kickback: harder on a foe that hit this hero in the last few seconds.
     if (e.struckBy === this.acting && this.time - (e.struckAt ?? -99) < TREE.kickbackWindow) dmg *= 1 + TREE.kickbackDmg * this.tree('kickback');
     // Turned Back (party card): the boss is busy with someone else.
@@ -6742,7 +6749,7 @@ export class World {
       glance = m < 1;
     }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
-      dmg *= 2 + 0.1 * this.rank('brightWick');
+      dmg *= 2 + 0.1 * this.rank('brightWick') + TREE.glintCrit * this.tree('glint');
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
