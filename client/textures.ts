@@ -908,7 +908,13 @@ function drawSnuffer(ctx: Ctx, _s: number, f: number): void {
   ctx.strokeStyle = RIME_HI; ctx.shadowColor = '#bfe6ff'; ctx.shadowBlur = 5; ctx.lineWidth = 1.3;
   ell(ctx, 25, 18, m, m * 0.8); ctx.stroke();
   ctx.restore();
-  eyes(ctx, [[22.5, 12.5], [26.5, 12.5]], 0.9, '#cfeaff');
+  // Slanted eyes over the pulling mouth (menacing pass, 25 Nov).
+  ctx.save(); ctx.fillStyle = '#cfeaff'; ctx.shadowColor = '#cfeaff'; ctx.shadowBlur = 4;
+  for (const [x, d] of [[22.6, 1], [26.6, -1]] as [number, number][]) { ctx.beginPath(); ctx.moveTo(x - 1.7 * d, 11.2); ctx.lineTo(x + 1.7 * d, 12.6); ctx.lineTo(x - 1 * d, 13.6); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  // Needle teeth round the mouth ring.
+  ctx.fillStyle = '#e8f4ff';
+  for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2, rx = m + 0.6; const x = 25 + Math.cos(a) * rx, y = 18 + Math.sin(a) * rx * 0.8; ctx.beginPath(); ctx.moveTo(x - Math.sin(a) * 0.6, y + Math.cos(a) * 0.6); ctx.lineTo(25 + Math.cos(a) * (m - 1), 18 + Math.sin(a) * (m - 1) * 0.8); ctx.lineTo(x + Math.sin(a) * 0.6, y - Math.cos(a) * 0.6); ctx.fill(); }
 }
 
 // ---- Phase 16 U2 foes (design #603, #606, #612, #621, #623). Bodies only where the 3D view adds the prop itself
@@ -1057,10 +1063,15 @@ function drawConchblower(ctx: Ctx, _s: number, f: number): void {
   ctx.strokeStyle = '#c8b07a'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(15, 20 + bob); ctx.lineTo(31, 35 + bob); ctx.stroke();
   // Head: wide fish face, crest fin, round eye.
   ell(ctx, 26, 13 + bob, 8, 6.5); shade(ctx, '#5abcaa', '#22685e', 7, 20, 1.4);
-  ctx.beginPath(); ctx.moveTo(20, 9 + bob); ctx.lineTo(22, 1 + bob); ctx.lineTo(25, 6 + bob); ctx.lineTo(28, 0 + bob); ctx.lineTo(30, 8 + bob); ctx.closePath(); shade(ctx, '#ff9a70', '#b04a36', 0, 9, 1.1);
-  ell(ctx, 29, 12 + bob, 2.4, 2.4); ctx.fillStyle = '#ffe9a8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.stroke();
-  ell(ctx, 29.6, 12 + bob, 1, 1.2); ctx.fillStyle = '#101010'; ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(30, 16.5 + bob); ctx.lineTo(34, 16 + bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18, 10 + bob); ctx.lineTo(18.5, 2 + bob); ctx.lineTo(21.5, 7 + bob); ctx.lineTo(23, -0.5 + bob); ctx.lineTo(25.5, 6 + bob); ctx.lineTo(28, -1 + bob); ctx.lineTo(30, 8 + bob); ctx.closePath(); shade(ctx, '#ff9a70', '#b04a36', 0, 9, 1.1);
+  // A cold slit eye under a hard brow, and a wide mouth of needle teeth (menacing pass, 25 Nov).
+  ctx.fillStyle = '#1e5a52'; ctx.beginPath(); ctx.moveTo(25.5, 9.4 + bob); ctx.lineTo(33, 10.4 + bob); ctx.lineTo(32, 11.6 + bob); ctx.lineTo(26, 11 + bob); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.fillStyle = '#ffd84a'; ctx.shadowColor = '#ffd84a'; ctx.shadowBlur = 3;
+  ctx.beginPath(); ctx.moveTo(27, 11.4 + bob); ctx.lineTo(32, 12 + bob); ctx.lineTo(27.6, 13.2 + bob); ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#0c1a18'; ctx.beginPath(); ctx.moveTo(25, 15.4 + bob); ctx.lineTo(34.5, 14.6 + bob); ctx.quadraticCurveTo(33, 18.6 + bob, 26, 17.6 + bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f2f6ea';
+  for (const x of [27, 29, 31, 33]) { ctx.beginPath(); ctx.moveTo(x - 0.5, 15.3 + bob - (x - 25) * 0.08); ctx.lineTo(x, 16.9 + bob); ctx.lineTo(x + 0.5, 15.2 + bob - (x - 25) * 0.08); ctx.fill(); }
+  for (const x of [28, 30, 32]) { ctx.beginPath(); ctx.moveTo(x - 0.5, 17.7 + bob); ctx.lineTo(x, 16.3 + bob); ctx.lineTo(x + 0.5, 17.6 + bob); ctx.fill(); }
   // Gill slits.
   ctx.strokeStyle = 'rgba(10,40,36,0.8)'; ctx.lineWidth = 0.8; for (const d of [0, 2]) { ctx.beginPath(); ctx.moveTo(21 + d, 14 + bob); ctx.lineTo(22 + d, 17 + bob); ctx.stroke(); }
   // Front arm, webbed hand forward.
@@ -2783,9 +2794,17 @@ function drawShade(ctx: Ctx, _s: number, f: number): void {
   g.addColorStop(0, 'rgba(58,48,112,0.97)'); g.addColorStop(0.6, 'rgba(22,16,52,0.95)'); g.addColorStop(1, 'rgba(10,8,24,0.55)');
   ctx.fillStyle = g; ctx.fill();
   ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(138,156,255,0.55)'; ctx.stroke();
-  eyes(ctx, [[21.5, 15], [26.5, 15]], 1.4, '#a8c8ff');
-  ctx.save(); ctx.strokeStyle = 'rgba(168,200,255,0.5)'; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(21, 21); ctx.quadraticCurveTo(24, 23, 27, 21); ctx.stroke(); ctx.restore();
+  // Slanted eyes and a torn maw of needle teeth (menacing pass, 25 Nov).
+  ctx.save(); ctx.fillStyle = '#a8c8ff'; ctx.shadowColor = '#a8c8ff'; ctx.shadowBlur = 4;
+  for (const [x, d] of [[22, 1], [27, -1]] as [number, number][]) { ctx.beginPath(); ctx.moveTo(x - 2 * d, 13.4); ctx.lineTo(x + 2 * d, 14.8); ctx.lineTo(x - 1.2 * d, 16.2); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  ctx.beginPath(); ctx.moveTo(19.5, 19.5); ctx.quadraticCurveTo(24.5, 23.5, 29.5, 19); ctx.quadraticCurveTo(24.5, 26.5, 19.5, 19.5); ctx.closePath(); ctx.fillStyle = '#05040c'; ctx.fill();
+  ctx.fillStyle = '#d8e4ff';
+  for (const x of [21.5, 23.5, 25.5, 27.5]) { const y = 19.6 + Math.sin((x - 19.5) / 10 * Math.PI) * 2.2; ctx.beginPath(); ctx.moveTo(x - 0.6, y); ctx.lineTo(x, y + 1.8); ctx.lineTo(x + 0.6, y); ctx.fill(); }
+  // Clawed wisps reaching forward.
+  ctx.save(); ctx.strokeStyle = 'rgba(168,200,255,0.75)'; ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+  for (const d of [-1.4, 0, 1.4]) { ctx.beginPath(); ctx.moveTo(30.5, 23 + w * 0.5); ctx.quadraticCurveTo(33.5, 23.5 + d + w * 0.5, 35, 25.5 + d * 1.4 + w * 0.5); ctx.stroke(); }
+  ctx.restore();
 }
 
 /** Brandkeeper: a tall mantled keeper with the sun-eye sigil burning on its chest. Faces right. */
