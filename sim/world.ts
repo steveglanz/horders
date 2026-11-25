@@ -1634,7 +1634,7 @@ export class World {
     return 1 + this.rank('extraOrb');
   }
   get critChance(): number {
-    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + this.loadout.critBonus;
+    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + TREE.whetCrit * this.tree('whet') + this.loadout.critBonus;
   }
   get pickupRadius(): number {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
@@ -1700,9 +1700,10 @@ export class World {
       return base;
     }
     if (this.cls === 'duskblade') {
-      if (slot === 0) return base - 1 * this.rank('deepCuts');
-      if (slot === 1) return base - 1.5 * this.rank('evasion') - (this.hasMythic('mirrorstep') ? 2 : 0);
-      if (slot === 2) return base - 3 * this.rank('momentumFlow');
+      if (slot === 0) return base - 1 * this.rank('deepCuts') - TREE.openerCd * this.tree('opener');
+      // Sidestep never drops below 1s, so its small heal can't be spammed when Evasion, Mirrorstep and Footwork stack.
+      if (slot === 1) return Math.max(1, base - 1.5 * this.rank('evasion') - (this.hasMythic('mirrorstep') ? 2 : 0) - TREE.footworkCd * this.tree('footwork'));
+      if (slot === 2) return base - 3 * this.rank('momentumFlow') - TREE.cadenceCd * this.tree('cadence');
       return base;
     }
     if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
@@ -3801,7 +3802,7 @@ export class World {
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
     if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
     if (this.cls === 'emberwright') amount *= 1 - 0.04 * this.rank('sootCloak');
-    if (this.cls === 'duskblade') amount *= 1 - 0.04 * this.rank('lowStance');
+    if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));
     // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Lee Side (party card): heroes close to a Bulwark that took it take less.
@@ -5284,11 +5285,11 @@ export class World {
 
   get swingCooldown(): number {
     const rhythm = this.rank('killingRhythm') > 0 ? 1 + CAPSTONES_2.rhythmStep * (this.player.rhythmN ?? 0) : 1;
-    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm / (1 + 0.05 * this.rank('lightGrip'));
+    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm / (1 + 0.05 * this.rank('lightGrip')) / (1 + TREE.paceHaste * this.tree('pace'));
   }
   /** Open Veins: the Duskblade's bleeds hit harder. */
   get bleedMult(): number {
-    return (this.rank('openVeins') > 0 ? CAPSTONES_2.veinsMult : 1) * (1 + 0.1 * this.rank('slowDrip'));
+    return (this.rank('openVeins') > 0 ? CAPSTONES_2.veinsMult : 1) * (1 + 0.1 * this.rank('slowDrip')) * (1 + TREE.gashBleed * this.tree('gash'));
   }
   get swingReach(): number {
     return 92 * (1 + 0.15 * this.rank('longReach'));
@@ -5373,7 +5374,7 @@ export class World {
         e.burnBy = this.acting;
       }
     });
-    this.addHeat(Math.min(15, 5 * hits) * (1 + 0.3 * this.rank('momentumFlow')));
+    this.addHeat(Math.min(15, 5 * hits) * (1 + 0.3 * this.rank('momentumFlow')) * (1 + TREE.rushMomentum * this.tree('rush')));
     // Mirrorstep: the afterimage strikes the nearest foe in its reach for half.
     if (p.imageT > 0) {
       const n = this.nearestEnemies(p.imageX, p.imageY, 1, r + 40)[0];
@@ -6704,7 +6705,9 @@ export class World {
     if (e.kind === 'kilnMother' && this.time < this.kmClock.vuln) dmg *= KILN_V2.stunTaken;
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
-    if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
+    if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage') + TREE.torrentDmg * this.tree('torrent');
+    // Steadfast (Duskblade tree keystone): harder hits while the Duskblade stays above half health.
+    if (this.tree('steadfast') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.steadfastDmg;
     // Character tree, Kickback: harder on a foe that hit this hero in the last few seconds.
     if (e.struckBy === this.acting && this.time - (e.struckAt ?? -99) < TREE.kickbackWindow) dmg *= 1 + TREE.kickbackDmg * this.tree('kickback');
     // Turned Back (party card): the boss is busy with someone else.
@@ -6792,7 +6795,8 @@ export class World {
     // Wheel turns on whoever hurt him most lately.
     if (e.kind === 'colossus') this.colDmg[this.acting] = (this.colDmg[this.acting] ?? 0) + dmg;
     const thirst = this.rank('thirst');
-    if (thirst > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * 0.02 * thirst);
+    const leech = 0.02 * thirst + TREE.leechHeal * this.tree('leech');
+    if (leech > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + dmg * leech);
     if (!silent) {
       e.flash = 0.08;
       this.events.push({ type: 'hit', x: e.x, y: e.y, amount: dmg, crit, hero: this.acting, ...(glance ? { glance: true as const } : {}) });

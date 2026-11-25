@@ -13,7 +13,10 @@ import type { Branch, ClassId } from './emberwright';
 export type TreeNodeId =
   | 'bulk' | 'brace' | 'damper' | 'bedrock'
   | 'barbs' | 'payback' | 'kickback' | 'bristle'
-  | 'stride' | 'cover' | 'ram' | 'onrush';
+  | 'stride' | 'cover' | 'ram' | 'onrush'
+  | 'gash' | 'leech' | 'opener' | 'torrent'
+  | 'pace' | 'whet' | 'rush' | 'cadence'
+  | 'hardy' | 'poise' | 'footwork' | 'steadfast';
 
 export interface TreeNode {
   id: TreeNodeId;
@@ -55,12 +58,25 @@ export const TREE = {
   ramCd: 1,
   onrushCut: 0.2,
   onrushTime: 3,
+  // Duskblade
+  gashBleed: 0.06,
+  leechHeal: 0.004,
+  openerCd: 0.5,
+  torrentDmg: 0.08,
+  paceHaste: 0.03,
+  whetCrit: 0.02,
+  rushMomentum: 0.08,
+  cadenceCd: 4,
+  hardyHp: 15,
+  poiseCut: 0.03,
+  footworkCd: 1,
+  steadfastDmg: 0.1,
 };
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   // Bulwark, Anvil Skin branch: holding the line.
-  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+10 max health per point.', tip: 'More health. +10 max health per point, +30 at 3 points.' },
-  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '2% less damage taken per point.', tip: 'Take less from every hit. 2% less damage per point, 6% at 3 points.' },
+  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
   damper: { id: 'damper', cls: 'bulwark', branch: 'bastion', name: 'Damper', maxRank: 2, text: 'Smother costs 3 less Resolve per point.', tip: 'Catching a Sluice Crawler\'s bloom on the shield costs 3 less Resolve per point (10 to 4 at 2 points).' },
   bedrock: { id: 'bedrock', cls: 'bulwark', branch: 'bastion', name: 'Bedrock', maxRank: 1, keystone: true, text: 'Anvil Skin recharges 6s faster.', tip: 'Keystone. Anvil Skin comes back every 14s instead of 20s.' },
   // Bulwark, the thorns branch (the run draft's Spite branch, id retribution).
@@ -73,6 +89,21 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   cover: { id: 'cover', cls: 'bulwark', branch: 'vanguard', name: 'Cover', maxRank: 2, text: 'Allies near you take 2% less damage per point.', tip: 'In a party, heroes within 200 of you take 2% less damage per point. Alone, it does nothing.' },
   ram: { id: 'ram', cls: 'bulwark', branch: 'vanguard', name: 'Ram', maxRank: 3, text: 'Charge recharges 1s faster per point.', tip: 'Charge comes back 1s sooner per point, 3s at 3 points.' },
   onrush: { id: 'onrush', cls: 'bulwark', branch: 'vanguard', name: 'Onrush', maxRank: 1, keystone: true, text: 'After Charge, take 20% less damage for 3s.', tip: 'Keystone. Landing a Charge makes you take 20% less damage for 3s.' },
+  // Duskblade, Bloodletting branch: bleeds and staying alive by them.
+  gash: { id: 'gash', cls: 'duskblade', branch: 'bloodletting', name: 'Gash', maxRank: 3, text: 'Your bleeds deal 6% more per point.', tip: 'Every bleed you cause deals 6% more damage per point, 18% at 3 points.' },
+  leech: { id: 'leech', cls: 'duskblade', branch: 'bloodletting', name: 'Leech', maxRank: 3, text: 'Heal for 0.4% of the damage you deal per point.', tip: 'Heal for 0.4% of all the damage you deal per point, 1.2% at 3 points.' },
+  opener: { id: 'opener', cls: 'duskblade', branch: 'bloodletting', name: 'Opener', maxRank: 2, text: 'Rending Dash recharges 0.5s faster per point.', tip: 'Rending Dash comes back 0.5s sooner per point, 1s at 2 points.' },
+  torrent: { id: 'torrent', cls: 'duskblade', branch: 'bloodletting', name: 'Torrent', maxRank: 1, keystone: true, text: 'Bleeding foes take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe that is bleeding.' },
+  // Duskblade, Tempo branch: faster, sharper swings.
+  pace: { id: 'pace', cls: 'duskblade', branch: 'tempo', name: 'Pace', maxRank: 3, text: 'Swing 3% faster per point.', tip: 'Your swings come 3% faster per point, 9% at 3 points.' },
+  whet: { id: 'whet', cls: 'duskblade', branch: 'tempo', name: 'Whet', maxRank: 3, text: '+2% chance to crit per point.', tip: '2% more chance per point to crit for double damage, 6% at 3 points.' },
+  rush: { id: 'rush', cls: 'duskblade', branch: 'tempo', name: 'Rush', maxRank: 2, text: 'Hits build 8% more Momentum per point.', tip: 'Every hit builds 8% more Momentum per point, 16% at 2 points.' },
+  cadence: { id: 'cadence', cls: 'duskblade', branch: 'tempo', name: 'Cadence', maxRank: 1, keystone: true, text: 'Execution recharges 4s faster.', tip: 'Keystone. Execution comes back 4s sooner.' },
+  // Duskblade, Guard branch: lasting through the fight.
+  hardy: { id: 'hardy', cls: 'duskblade', branch: 'guard', name: 'Hardy', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
+  poise: { id: 'poise', cls: 'duskblade', branch: 'guard', name: 'Poise', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
+  footwork: { id: 'footwork', cls: 'duskblade', branch: 'guard', name: 'Footwork', maxRank: 2, text: 'Sidestep recharges 1s faster per point.', tip: 'Sidestep comes back 1s sooner per point, 2s at 2 points. Each Sidestep also mends a little.' },
+  steadfast: { id: 'steadfast', cls: 'duskblade', branch: 'guard', name: 'Steadfast', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Guard helps you stay there.' },
 };
 
 export const TREE_IDS = Object.keys(TREE_NODES) as TreeNodeId[];
@@ -110,6 +141,11 @@ export const TREE_BUILDS: Partial<Record<ClassId, Record<string, TreeNodeId[]>>>
     bastion: ['bulk', 'brace', 'bulk', 'brace', 'damper', 'bulk', 'bedrock', 'brace', 'damper', 'barbs', 'barbs', 'kickback', 'kickback', 'payback', 'barbs', 'bristle', 'kickback', 'payback', 'stride'],
     retribution: ['barbs', 'kickback', 'barbs', 'kickback', 'payback', 'barbs', 'bristle', 'kickback', 'payback', 'bulk', 'brace', 'bulk', 'brace', 'bulk', 'damper', 'bedrock', 'brace', 'damper', 'stride'],
     vanguard: ['ram', 'stride', 'cover', 'ram', 'stride', 'cover', 'onrush', 'ram', 'stride', 'bulk', 'brace', 'bulk', 'brace', 'bulk', 'damper', 'bedrock', 'brace', 'damper', 'barbs'],
+  },
+  duskblade: {
+    bloodletting: ['gash', 'leech', 'gash', 'opener', 'leech', 'gash', 'torrent', 'leech', 'opener', 'pace', 'whet', 'pace', 'whet', 'pace', 'rush', 'cadence', 'whet', 'rush', 'hardy'],
+    tempo: ['pace', 'whet', 'pace', 'rush', 'whet', 'pace', 'cadence', 'whet', 'rush', 'gash', 'leech', 'gash', 'opener', 'leech', 'gash', 'torrent', 'leech', 'opener', 'hardy'],
+    guard: ['hardy', 'poise', 'hardy', 'footwork', 'poise', 'hardy', 'steadfast', 'poise', 'footwork', 'pace', 'whet', 'pace', 'whet', 'pace', 'rush', 'cadence', 'whet', 'rush', 'gash'],
   },
 };
 
