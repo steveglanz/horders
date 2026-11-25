@@ -38,6 +38,8 @@
   button { font: inherit; color: inherit; cursor: pointer; }
 
   /* Screen-edge mood vignette; flashes red when hit and pulses at low health. */
+  /* The 3D view's Glare and boss flash (GameScene sets its opacity each frame). */
+  #flashFx { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: #fff0c0; }
   #vignette { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(5,2,2,0.55) 100%); }
   #vignette::after { content: ""; position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(220,30,40,0.55) 100%); }
   #vignette.hurt::after { animation: hurtFlash 0.35s ease-out; }
@@ -1438,6 +1440,7 @@
   </div>
 </div>
 <div id="vignette"></div>
+<div id="flashFx"></div>
 <div id="frost"></div>
 <div id="touch"></div>
 <div id="stickBase" hidden><div id="stickKnob"></div></div>

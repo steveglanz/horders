@@ -431,6 +431,9 @@ export class GameScene extends Phaser.Scene {
   private resFloor = false;
   private fxCheckAt = 0;
   private vignette: HTMLElement | null = null;
+  /** The 3D view's Glare and boss flash: a screen-wide wash, its opacity set each frame. */
+  private flashFx: HTMLElement | null = null;
+  private flashShown = -1;
   /** The Coldmarrow: the additive Hearthcoal light layer, and the frost creeping in from the screen edge. */
   private coalLights: Phaser.GameObjects.Image[] = [];
   private frost: HTMLElement | null = null;
@@ -644,6 +647,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.vignette = document.getElementById('vignette');
+    this.flashFx = document.getElementById('flashFx');
+    this.flashShown = -1;
     // Foundry steam vents and fork gates (pooled; most runs never show them).
     for (let k = 0; k < 4; k++) this.ventSprites.push(this.add.image(0, 0, 'vent', '0').setScale(BASE).setVisible(false).setDepth(1.4));
     // Glarewell pillars stand above the floor and the shadows they cast.
@@ -687,6 +692,7 @@ export class GameScene extends Phaser.Scene {
 
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => {
+      if (this.flashFx) this.flashFx.style.opacity = '0'; // a run that ends mid-flash must not leave the screen washed
       this.halls?.destroy();
       this.halls = null;
       this.hd2d?.destroy();
@@ -2342,15 +2348,22 @@ export class GameScene extends Phaser.Scene {
         g.strokePath();
       }
     }
+    // In 3D the world graphics are painted onto the floor's square canvas, so a world-space flash lit a hard-edged
+    // pale square over the void and the corridors round a Halls room (phone pass, 25 Nov). There the flash is a
+    // screen-wide wash (#flashFx) instead; 2D keeps drawing it into the world.
+    let wash = 0;
     if (this.glareFlash > 0) {
       // Bright enough to sting, faint enough that you can still see the fight.
       this.glareFlash = Math.max(0, this.glareFlash - this.game.loop.delta / 450);
-      g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
+      if (this.hd2d) wash = Math.max(wash, 0.55 * this.glareFlash);
+      else g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     if (this.bossFlash > 0) {
       this.bossFlash = Math.max(0, this.bossFlash - this.game.loop.delta / 700);
-      g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
+      if (this.hd2d) wash = Math.max(wash, 0.6 * this.bossFlash * this.bossFlash);
+      else g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
+    if (this.flashFx && wash !== this.flashShown) { this.flashShown = wash; this.flashFx.style.opacity = wash.toFixed(3); }
     this.layoutDraw(g, now);
     this.edgeDraw(now);
     this.wanderDraw(now);
