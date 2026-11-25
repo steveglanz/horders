@@ -16,6 +16,7 @@
  * The 2D scene keeps running the sim and the HUD underneath; it only stops drawing its own camera.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -480,7 +481,17 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
       const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.8, 8), brassP); screw.position.y = 4.1; g.add(screw);
       const ram = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.9, 0.8), ironP); ram.position.y = 2.9; g.add(ram);
       const bed = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.6, 1.0), brassP); bed.position.y = 0.3; g.add(bed);
-      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
+      // Merged into one mesh per material (two, not six, plus their shadows): the frames near the rim pushed the
+      // room over the draw-call bar (25 Nov).
+      const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+      for (const o of [...g.children] as THREE.Mesh[]) {
+        o.updateMatrix();
+        const geo = o.geometry.clone().applyMatrix4(o.matrix);
+        const m = o.material as THREE.Material;
+        (byMat.get(m) ?? byMat.set(m, []).get(m)!).push(geo);
+        o.geometry.dispose(); g.remove(o);
+      }
+      for (const [m, list] of byMat) { const mesh = new THREE.Mesh(mergeGeometries(list), m); mesh.castShadow = mesh.receiveShadow = true; g.add(mesh); for (const q of list) q.dispose(); }
       room.add(g);
     }
   } else if (id === 'smeltery') {
@@ -805,8 +816,13 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
         const a = Math.PI + (k - 3) * 0.42, r = 8.6;
         const g = new THREE.Group(); g.position.set(Math.sin(a) * r, 6.2, Math.cos(a) * r); g.rotation.y = a;
         const n = 10 + (k * 3) % 7;
-        for (let j = 0; j < n; j++) { const l = new THREE.Mesh(link, iron); l.position.y = -j * 0.15; l.rotation.y = j % 2 ? Math.PI / 2 : 0; g.add(l); }
-        const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3), iron); hook.position.y = -n * 0.15 - 0.12; g.add(hook);
+        // The links and the hook merged into one mesh: a mesh per link was ~90 draw calls round the room, and 112-114
+        // in all with the camera near the Pressworks' rim (25 Nov).
+        const parts: THREE.BufferGeometry[] = [];
+        for (let j = 0; j < n; j++) parts.push(link.clone().rotateY(j % 2 ? Math.PI / 2 : 0).translate(0, -j * 0.15, 0));
+        parts.push(new THREE.TorusGeometry(0.16, 0.04, 4, 10, Math.PI * 1.3).translate(0, -n * 0.15 - 0.12, 0));
+        g.add(new THREE.Mesh(mergeGeometries(parts), iron));
+        for (const q of parts) q.dispose();
         room.add(g);
         let swing = 0;
         life.push((t) => {
