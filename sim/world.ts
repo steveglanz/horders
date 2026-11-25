@@ -804,6 +804,8 @@ export interface WorldOptions {
   hallsTemplate?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
   bossV2?: boolean;
+  /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
+  ondrelV2?: boolean;
   /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
   hallsBeta?: boolean;
 }
@@ -902,6 +904,15 @@ export class World {
   readonly firstDelve: boolean;
   /** BOSSV2: the three-stage Kiln Mother and the new Gorge (never on the first delve). */
   readonly bossV2: boolean;
+  /** ONDRELV2: the staged Ondrel. */
+  readonly ondrelV2: boolean;
+  /** ONDRELV2: 0 = not a v2 fight, else his stage (1 the hammer, 2 the burning slag, 3 the last heat). */
+  ondrelStage = 0;
+  /**
+   * ONDRELV2 stage 2: the burning slag each Anvilfall leaves (design, 25 Nov: flat patches, no block). A patch burns a
+   * hero standing in it until stage 3; then `glow` counts down to its burst (0 = still burning).
+   */
+  slagPatches: { x: number; y: number; tick: number; glow: number }[] = [];
   /** BOSSV2 Kiln Mother: 0 = not a v2 fight, else her stage (1 the duel, 2 in the kiln, 3 the last fire). */
   kmStage = 0;
   /** BOSSV2: she's inside the kiln (stage 2; she can't be hit all through stage 2, the walk in too). */
@@ -1304,6 +1315,7 @@ export class World {
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
     this.bossV2 = !!opts.bossV2 && !this.firstDelve;
+    this.ondrelV2 = !!opts.ondrelV2 && !this.firstDelve;
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
@@ -2219,6 +2231,9 @@ export class World {
           this.echoNext = true;
           this.gripT = 0;
           this.slagTickT = 1;
+          this.ondrelStage = this.ondrelV2 ? 1 : 0;
+          this.slagPatches = [];
+          if (this.ondrelV2) { e.maxHp *= ONDRELV2.hpMult; e.hp = e.maxHp; }
           e.abilityT = ONDREL.sweepEvery;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -5822,6 +5837,8 @@ export class World {
         this.hurtPlayer(ONDREL.anvil * (sundered ? ONDREL.sunderMult : 1) * this.tierDamage, i, true);
         p.sunderT = ONDREL.sunderTime;
         this.events.push({ type: 'slam', x: p.x, y: p.y, r: 70 });
+        // ONDRELV2 stage 2: it leaves burning slag where it landed, on the tank's spot.
+        if (this.ondrelStage === 2) this.leaveSlag(p.x, p.y);
       }
       this.use(at);
     } else if (id === 'haul') {
@@ -8529,12 +8546,64 @@ export class World {
     this.player.y = this.player.py = b.y;
   }
 
+  /** ONDRELV2: the stage changes, the slag's burn, and the last heat's bursts. */
+  private ondrelStages(dt: number, i: number, e: Enemy): void {
+    const f = e.hp / e.maxHp;
+    if (this.ondrelStage === 1 && f <= ONDRELV2.stage2) {
+      this.ondrelStage = 2;
+      this.bossPhase = 2;
+      this.events.push({ type: 'phase', phase: 2 });
+    }
+    if (this.ondrelStage === 2 && f <= ONDRELV2.stage3) {
+      // He slams: every patch glows, then bursts and is gone. No more slag after this.
+      this.ondrelStage = 3;
+      this.bossPhase = 3;
+      this.events.push({ type: 'phase', phase: 3 });
+      for (const a of this.slagPatches) {
+        a.glow = ONDRELV2.glow;
+        this.addTelegraph('circle', a.x, a.y, ONDRELV2.burstR, 0, 0, ONDRELV2.glow, ONDRELV2.burst, 'hit', i); // scaled by tier as it lands
+      }
+    }
+    const at = this.acting;
+    for (const a of this.slagPatches) {
+      if (a.glow === 0) {
+        a.tick -= dt;
+        if (a.tick <= 0) {
+          a.tick += ONDRELV2.tick;
+          for (let k = 0; k < this.heroes.length; k++) {
+            this.use(k);
+            const p = this.player;
+            if (p.hp > 0 && dist2(p.x, p.y, a.x, a.y) <= (ONDRELV2.r + PLAYER_RADIUS * 0.5) ** 2) this.hurtPlayer(p.maxHp * ONDRELV2.burn, i, true);
+          }
+        }
+      } else if ((a.glow -= dt) <= 0) a.glow = -1;
+    }
+    this.use(at);
+    if (this.slagPatches.some((a) => a.glow < 0)) {
+      for (const a of this.slagPatches) if (a.glow < 0) this.events.push({ type: 'slam', x: a.x, y: a.y, r: ONDRELV2.burstR });
+      this.slagPatches = this.slagPatches.filter((a) => a.glow >= 0);
+    }
+  }
+
+  /** ONDRELV2 stage 2: a slag patch at (x, y); past the cap the oldest cools. */
+  private leaveSlag(x: number, y: number): void {
+    this.slagPatches.push({ x, y, tick: ONDRELV2.tick, glow: 0 });
+    while (this.slagPatches.length > ONDRELV2.cap) this.slagPatches.shift();
+  }
+
+  /** ONDRELV2: is (x, y) in a burning slag patch, with `pad` to spare? */
+  inSlag(x: number, y: number, pad = 0): boolean {
+    for (const a of this.slagPatches) if (a.glow === 0 && dist2(x, y, a.x, a.y) <= (ONDRELV2.r + pad) ** 2) return true;
+    return false;
+  }
+
   /** Ondrel's clocks run during casts too: Anvilfall, Choir of Iron, Slag Grip ticks, Sundered. */
   private ondrelClock(dt: number): void {
     if (this.bossIndex < 0) return;
     const i = this.bossIndex;
     const e = this.enemies[i];
     if (!e || !e.alive || e.kind !== 'ondrel') return;
+    if (this.ondrelStage > 0) this.ondrelStages(dt, i, e);
     const late = this.time - e.spawnedAt > ONDREL.enrageAfter;
     if (late && !this.bossEnraged) {
       this.bossEnraged = true;
@@ -8549,7 +8618,8 @@ export class World {
         this.anvilTarget = this.targetOf(i, 0);
         this.startCast(i, 'anvilfall', 'Anvilfall', ONDREL.anvilCast, false);
       } else if (this.choirT <= 0) {
-        this.choirT = late ? ONDREL.choirEvery / 2 : ONDREL.choirEvery;
+        // ONDRELV2 stage 3: his version's move comes on the enraged timer.
+        this.choirT = late ? ONDREL.choirEvery / 2 : this.ondrelStage === 3 ? ONDREL.choirEvery * ONDRELV2.lastChoir : ONDREL.choirEvery;
         // Phase 16 U1: from `GROUP_ECHO.below` health, every other one is his echo's (the first one is).
         let move: string = this.bossVariant;
         if (this.bossEcho && e.hp <= e.maxHp * GROUP_ECHO.below) {
@@ -10141,6 +10211,23 @@ export const OSKEL = {
   stamp: 75, stampEvery: 10, stampCast: 2, firstStamp: 5,
   /** Soft enrage: Downstrokes come faster than Pressed wears off for a duo. */
   enrageAfter: 270,
+};
+
+/**
+ * ONDRELV2 (design 25 Nov, ondrel-v2.md): starting values for the grid. Stage 2 from `stage2` of his health: each
+ * Anvilfall leaves a flat patch of burning slag (radius `r`, at most `cap`; no block, walking and shots pass) that burns
+ * `burn` of max health every `tick` s while a hero stands in it, until stage 3. Stage 3 from `stage3`: every patch
+ * glows `glow` s, then bursts (`burstR`, `burst` scaled by tier). Anvils as blocks (the first spec) cost average
+ * parties 4-16 of 80 (engineering/h4a-hammerdeep-grid.md), so design dropped them.
+ */
+export const ONDRELV2 = {
+  stage2: 0.6, stage3: 0.25,
+  r: 80, cap: 4, burn: 0.03, tick: 0.5,
+  glow: 2.5, burstR: 110, burst: 45,
+  /** Stage 3: his version's move comes every choirEvery x this (design 25 Nov: 1, the normal timer; 0.5 measured too hard). */
+  lastChoir: 1,
+  /** His health under ONDRELV2 only, x this (design 25 Nov: the stage costs a number; -15% is the smaller cut that passed all 4 cells). */
+  hpMult: 0.85,
 };
 
 export const ONDREL = {

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -824,6 +824,23 @@ export function botInput(w: World, skill = 1): Input {
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
+  // ONDRELV2: burning slag, so step out of it, away from its middle (the tank drags him off it this way).
+  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
+  for (const a of w.slagPatches) {
+    if (a.glow !== 0) continue;
+    const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
+    if (d > ONDRELV2.r + 16) continue;
+    // A fresh patch lands right under him (d is ~0, so "away from its middle" is no direction): walk away from the boss, or
+    // straight on if he's not on him.
+    let ux = dx / d, uy = dy / d;
+    if (d < 6) {
+      const bx = boss?.alive ? p.x - boss.x : Math.cos(p.facing), by = boss?.alive ? p.y - boss.y : Math.sin(p.facing);
+      const bl = Math.hypot(bx, by) || 1;
+      ux = bx / bl; uy = by / bl;
+    }
+    const s = w.hallsOn ? hallsSteer(w, ux, uy) : { x: ux, y: uy };
+    return { x: s.x, y: s.y, cast: botCast(w, skill) };
+  }
   // The Flue's Summons: get before the throne (inside SUMMONS.radius) before it lands (NOCOURT=1 turns this off for measuring).
   // Step out of a circle first (the Ash Fall falls with the call), then come in.
   const inCircle = w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && t.shape === 'circle' && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 12) ** 2);
