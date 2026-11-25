@@ -456,11 +456,12 @@ export function clampHalls(m: HallsGeo, o: { x: number; y: number }, r: number):
 }
 
 /** Whether the straight walk from (x1, y1) to (x2, y2) stays inside the map (sampled every 40 units). */
-export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0): boolean {
+export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0, step = 16): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
-  // QA, 25 Nov: every 16 units, not 40. At 40 a hole's corner could fall between samples from one step and not the
-  // next, so a bot's way flipped every tick and it stood still short of the door (Ashvents t8 seed 1).
-  const n = Math.max(1, Math.ceil(d / 16));
+  // QA, 25 Nov: a walker's checks sample every 16 units, not 40. At 40 a hole's corner could fall between samples from
+  // one step and not the next, so a bot's way flipped every tick and it stood still short of the door (Ashvents t8
+  // seed 1). The walking graph (navOf) keeps 40: its points don't move, and it is built for every map the checker rolls.
+  const n = Math.max(1, Math.ceil(d / step));
   for (let k = 1; k < n; k++) {
     const t = k / n;
     if (!inside(m, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, pad)) return false;
@@ -535,7 +536,7 @@ function navOf(m: HallsGeo): Nav {
     for (let j = i + 1; j < n; j++) {
       if (!area[i].some((a) => area[j].includes(a))) continue;
       const a = pts[i], b = pts[j];
-      if (!clearWalk(m, a.x, a.y, b.x, b.y, NAV_PAD)) continue;
+      if (!clearWalk(m, a.x, a.y, b.x, b.y, NAV_PAD, 40)) continue;
       const l = Math.hypot(a.x - b.x, a.y - b.y);
       d[i * n + j] = d[j * n + i] = l;
       next[i * n + j] = j;
