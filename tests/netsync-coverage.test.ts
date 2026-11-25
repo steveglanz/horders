@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World, WorldOptions } from '../sim/world';
 import { botInput } from '../sim/bot';
 import { DUNGEONS, DungeonId } from '../sim/content/dungeon';
-import { ARRAYS, NOT_SENT, POOLS, SENT_APART, applySnapshot, snapshot } from '../sim/netsync';
+import { ARRAYS, NOT_SENT, OBJECTS, POOLS, SENT_APART, applySnapshot, snapshot } from '../sim/netsync';
 
 /** A 4-hero party in `dungeon`, stepped by bots for `seconds` (some arrays only fill once a fight starts). */
 function run(dungeon: DungeonId, seconds: number): World {
@@ -20,14 +20,16 @@ const runs = new Map<string, World>();
 const ran = (id: DungeonId) => { if (!runs.has(id)) runs.set(id, run(id, 40)); return runs.get(id)!; };
 
 const isList = (v: unknown) => Array.isArray(v) || ArrayBuffer.isView(v) || v instanceof Map || v instanceof Set;
+/** QA, 25 Nov: plain objects (and class instances) too, since snapshot() only sends scalars and the lists. */
+const isObj = (v: unknown) => v !== null && typeof v === 'object' && !isList(v);
 
 describe('Y2: every array on World reaches guests or is listed as not needed', () => {
-  const known = new Set<string>([...POOLS, ...ARRAYS, ...SENT_APART, ...Object.keys(NOT_SENT)]);
+  const known = new Set<string>([...POOLS, ...ARRAYS, ...OBJECTS, ...SENT_APART, ...Object.keys(NOT_SENT)]);
   for (const id of Object.keys(DUNGEONS) as DungeonId[]) {
     it(`${id}: no unlisted arrays`, () => {
       for (const w of [new World({ seed: 5, dungeon: id, tier: 9, party: [{ cls: 'bulwark' }], partySize: 2 }), ran(id)]) {
         const W = w as unknown as Record<string, unknown>;
-        const missing = Object.keys(W).filter((k) => isList(W[k]) && !known.has(k));
+        const missing = Object.keys(W).filter((k) => (isList(W[k]) || isObj(W[k])) && !known.has(k));
         // Add a new array to ARRAYS or POOLS in sim/netsync.ts (or to NOT_SENT with the reason a guest doesn't need it).
         expect(missing, `unsynced arrays on World in ${id}`).toEqual([]);
       }
@@ -55,6 +57,14 @@ describe('Y2: dungeon arrays a guest draws are mirrored', () => {
     const fresh = new World({ seed: 5, dungeon: 'wrackline', tier: 9, party: [{ cls: 'bulwark' }], partySize: 2 });
     expect(JSON.stringify(host.rafts)).not.toBe(JSON.stringify(fresh.rafts)); // they really moved
     expect(mirror(host).rafts).toEqual(host.rafts);
+  });
+
+  it('BOSSV2: the Kiln Heat (safe quarter, warning, burning) reaches the guest (QA, 25 Nov)', () => {
+    const host = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2, bossV2: true });
+    host.kmHeat = { safe: 1, warn: 0, on: true };
+    const guest = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2, bossV2: true });
+    applySnapshot(guest, JSON.parse(JSON.stringify(snapshot(host))), 1);
+    expect(guest.kmHeat).toEqual({ safe: 1, warn: 0, on: true });
   });
 
   it('a cracked Glarewell pillar shows cracked on the guest', () => {

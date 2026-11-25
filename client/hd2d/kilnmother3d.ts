@@ -28,10 +28,10 @@ export const HEAT_WARN = 1.5;
 export interface KmView {
   group: THREE.Group;
   /** Each frame; returns how much the great kiln's mouth should flare (1 = as today, more while she is inside). */
-  update(w: KmWorld, t: number): number;
+  update(w: KmWorld, t: number, hx: number, hy: number): number;
 }
 
-export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THREE.Color; gold: THREE.Color; saver: boolean }): KmView {
+export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THREE.Color; good: THREE.Color; gold: THREE.Color; saver: boolean }): KmView {
   const { S, floor: FLOOR } = o;
   const group = new THREE.Group();
 
@@ -70,6 +70,20 @@ export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THR
     return mesh;
   });
 
+  // The safe quarter (QA, 25 Nov: at phone zoom the screen was all red stripes): a faint green floor (green is good),
+  // and a green arrow at your hero's feet pointing to it whenever you stand outside it during the heat.
+  const safeMats = [0, 1, 2, 3].map(() => new THREE.MeshBasicMaterial({ color: o.good, transparent: true, opacity: 0, depthWrite: false }));
+  const safe = [0, 1, 2, 3].map((q) => {
+    const g = new THREE.CircleGeometry(o.arena * S, 24, -(q * Math.PI / 2 + Math.PI / 4), Math.PI / 2); g.rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(g, safeMats[q]); mesh.position.y = FLOOR + 0.011; mesh.renderOrder = 1; mesh.visible = false; group.add(mesh);
+    return mesh;
+  });
+  const arrowShape = new THREE.Shape([new THREE.Vector2(0.5, 0), new THREE.Vector2(-0.1, 0.36), new THREE.Vector2(0.05, 0), new THREE.Vector2(-0.1, -0.36)]);
+  const arrowGeo = new THREE.ShapeGeometry(arrowShape); arrowGeo.rotateX(-Math.PI / 2);
+  const arrowMat = new THREE.MeshBasicMaterial({ color: o.good.clone().multiplyScalar(1.3), transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, toneMapped: false });
+  const arrow = new THREE.Mesh(arrowGeo, arrowMat); arrow.renderOrder = 8; arrow.visible = false; group.add(arrow);
+  let warnMax = 0;
+
   // Eruption rings: a red band with its two gaps left open, rebuilt as the ring grows (at most 3, a few dozen
   // triangles each).
   const ringMat = new THREE.MeshBasicMaterial({ color: o.bad.clone().multiplyScalar(1.2), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
@@ -103,7 +117,7 @@ export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THR
   let mouth = 1;
   return {
     group,
-    update(w, t) {
+    update(w, t, hx, hy) {
       const on = (w.kmStage ?? 0) > 0;
       group.visible = on;
       if (!on) { mouth += (1 - mouth) * 0.1; return mouth; }
@@ -131,10 +145,24 @@ export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THR
         let a = 0;
         if (h && qi !== h.safe) {
           if (h.on) a = 0.5 + 0.05 * Math.sin(t * 3 + qi);
-          else if (h.warn > 0) { const k = 1 - Math.min(1, h.warn / HEAT_WARN); a = (0.12 + 0.3 * k) * (0.7 + 0.3 * Math.sin(t * (8 + 8 * k))); }
+          else if (h.warn > 0) { const k = 1 - Math.min(1, h.warn / Math.max(HEAT_WARN, warnMax)); a = (0.12 + 0.3 * k) * (0.7 + 0.3 * Math.sin(t * (8 + 8 * k))); }
         }
         m.uniforms.op.value = a; mesh.visible = a > 0.005;
       });
+      // The warning's length is the sim's (it grew from 1.5 s), so the pulse follows the longest warning seen this cycle.
+      warnMax = h && h.warn > 0 ? Math.max(warnMax, h.warn) : 0;
+      const heat = !!h && (h.on || h.warn > 0);
+      safe.forEach((mesh, qi) => { const on = heat && qi === h!.safe; mesh.visible = on; safeMats[qi].opacity = on ? 0.16 + 0.04 * Math.sin(t * 3) : 0; });
+      // Your hero's quarter (q*90 deg +-45, 0 = east, y down), and the arrow to the safe one if it isn't it.
+      const mine = ((Math.round(Math.atan2(hy, hx) / (Math.PI / 2)) % 4) + 4) % 4;
+      arrow.visible = heat && mine !== h!.safe;
+      if (arrow.visible) {
+        const a = (h!.safe * Math.PI) / 2, tx = Math.cos(a) * o.arena * 0.55, ty = Math.sin(a) * o.arena * 0.55;
+        const dir = Math.atan2(ty - hy, tx - hx), bob = 0.12 * Math.sin(t * 6);
+        arrow.position.set((hx + Math.cos(dir) * 70) * S + Math.cos(dir) * bob, FLOOR + 0.05, (hy + Math.sin(dir) * 70) * S + Math.sin(dir) * bob);
+        arrow.rotation.y = -dir;
+        arrowMat.opacity = h!.on ? 0.95 : 0.75;
+      }
       // Rings: rebuilt only when their radius moves.
       const list = w.kmRings ?? [];
       rings.forEach((rg, k) => {
@@ -158,7 +186,7 @@ export function buildKm3d(o: { S: number; floor: number; arena: number; bad: THR
  */
 export function makeKmBellows(): { g: THREE.Group; set(hpK: number, t: number, flash: number): void } {
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, emissive: '#ffffff', emissiveIntensity: 0 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, emissive: '#ffd0a0', emissiveIntensity: 0.12 });
   const body = new THREE.Mesh(themeProp('bellows'), mat); body.castShadow = true; body.receiveShadow = true;
   g.add(body);
   return {
@@ -166,8 +194,8 @@ export function makeKmBellows(): { g: THREE.Group; set(hpK: number, t: number, f
     set(hpK, t, flash) {
       // No new colour: its red ring and outline say "hit this", as on any foe.
       body.scale.y = (0.55 + 0.45 * hpK) * (1 + 0.12 * hpK * Math.sin(t * 2.2));
-      mat.color.setScalar(0.6 + 0.6 * hpK);
-      mat.emissiveIntensity = flash > 0 ? 0.35 : 0;
+      mat.color.setScalar(0.85 + 0.6 * hpK);
+      mat.emissiveIntensity = flash > 0 ? 0.4 : 0.12;
     },
   };
 }

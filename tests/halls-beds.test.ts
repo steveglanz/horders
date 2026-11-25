@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -51,6 +51,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     kiln: ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine'],
     foundry: ['boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'kilnShrine'],
     glarewell: ['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'kilnShrine'],
+    coldmarrow: ['deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'kilnShrine'],
   } as const;
 
   it('within one dungeon, every room bed sounds different from the others on a phone', () => {
@@ -72,6 +73,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     expect(m('anchorStore')).toBeLessThan(m('kilnShrine'));
     // The Glarewell: the lens light swells and the orreries tick round; the colonnade and the mirrors stay still.
     for (const busy of ['lensGallery', 'starVault'] as const) for (const still of ['shadeColonnade', 'mirrorHall'] as const) expect(m(busy)).toBeGreaterThan(m(still));
+    // The Coldmarrow: the dead flue draws, the rime shimmers, the drift gusts; the crypt is the stillest of them.
+    for (const busy of ['deadHearth', 'rimeHall', 'snowdriftCave'] as const) expect(m(busy)).toBeGreaterThan(2 * m('coldCrypt'));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
@@ -98,6 +101,7 @@ describe('which room bed plays where (roomBedFor)', () => {
     // Visuals' Foundry ids (25 Nov).
     expect([ROOM_THEME_BED.boiler, ROOM_THEME_BED.cistern, ROOM_THEME_BED.pump, ROOM_THEME_BED.anchor]).toEqual(['boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
     expect([ROOM_THEME_BED.lens, ROOM_THEME_BED.orrery, ROOM_THEME_BED.colonnade, ROOM_THEME_BED.mirror]).toEqual(['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
+    expect([ROOM_THEME_BED.hearthless, ROOM_THEME_BED.rime, ROOM_THEME_BED.drift, ROOM_THEME_BED.crypt]).toEqual(['deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt']);
   });
 
   it('a corridor, the boss door alcove and anywhere off the map are quiet', () => {

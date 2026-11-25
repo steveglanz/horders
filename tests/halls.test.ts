@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 
@@ -498,11 +498,12 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
   const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
 
-  it('is off for players until design turns it on: only ?hallsbeta=1 (hallsBeta) gives the Foundry a map', () => {
-    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
+  it('is on for players since skills closed its crawler split (#706, 25 Nov), with or without ?hallsbeta=1', () => {
+    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).not.toBeNull();
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
+    expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'glarewell', tier: 7, hallsBeta: true }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -571,6 +572,227 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
       run(w, () => !w.hallsOn || w.state === 'ended', 600);
       expect(w.hallsOn, `seed ${seed}`).toBe(false);
       expect(w.route[w.encounter]).toBe('maelra');
+    }
+  });
+});
+
+describe('H3b: the Glarewell on the Halls map', () => {
+  const GLARE_THEMES = ['lens', 'orrery', 'colonnade', 'mirror'];
+  const glare = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'glarewell', tier: 7, hallsBeta: true, ...more });
+  /** Wakes pack k first, as a hero walking straight to it would: stands the hero at its middle and steps until it stirs. */
+  const wake = (w: World, k: number) => {
+    const p = w.halls!.packs[k];
+    put(w, p.x, p.y);
+    for (let j = 0; j < 30 && p.state === 'asleep'; j++) w.step(idle);
+    return p;
+  };
+  /** The first (seed, pack) whose room is this shape. */
+  const find = (shape: string) => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const m = glare(seed).halls!;
+      const k = m.packs.findIndex((p) => p.foes.length && m.rooms[p.room].shape === shape);
+      if (k >= 0) return { seed, k };
+    }
+    throw new Error(shape);
+  };
+
+  it('is off for players until design turns it on, and gets its own fights, themes and the Lensmother behind the door', () => {
+    expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.glarewell;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    let cross = 0, ring = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = glare(seed);
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(GLARE_THEMES, `seed ${seed} room ${i}`).toContain(r.theme); });
+      cross += m.rooms.filter((r) => r.shape === 'cross').length;
+      ring += m.rooms.filter((r) => r.shape === 'ring').length;
+    }
+    // Cross and Ring are weighted up (design): clearly more of them than in the Kiln's rooms on the same seeds.
+    let kiln = 0;
+    for (let seed = 1; seed <= 120; seed++) kiln += halls(seed).halls!.rooms.filter((r) => r.shape === 'cross' || r.shape === 'ring').length;
+    expect(cross + ring).toBeGreaterThan(kiln * 1.3);
+  });
+
+  it('a woken pack\'s room gets the fight\'s pillars round its middle: on its floor, clear of every doorway, the lens at the middle', () => {
+    const shapes = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const n = glare(seed).halls!.packs.length;
+      for (let k = 0; k < n; k++) {
+        const w = glare(seed);
+        const m = w.halls!, p = m.packs[k], rm = m.rooms[p.room], f = layoutFrame(rm);
+        if (!p.foes.length) continue;
+        wake(w, k);
+        expect(p.state, `seed ${seed} pack ${k}`).not.toBe('asleep');
+        shapes.add(rm.shape ?? 'round');
+        expect(w.lightX).toBeCloseTo(f.x, 6);
+        expect(w.lightY).toBeCloseTo(f.y, 6);
+        expect(w.pillars.length, `seed ${seed} pack ${k} ${rm.shape}`).toBeGreaterThan(0);
+        const doors = m.corridors.flatMap((c) => (c.a === p.room ? [[c.ax!, c.ay!]] : c.b === p.room ? [[c.bx!, c.by!]] : []));
+        for (const c of w.pillars) {
+          expect(!!c.fixed, `seed ${seed} pack ${k}`).toBe(rm.shape === 'cross');
+          if (c.fixed) continue;
+          expect(roomGap(rm, c.x, c.y), `seed ${seed} pack ${k}`).toBeGreaterThanOrEqual(c.r + 20);
+          for (const [dx, dy] of doors) expect(Math.hypot(dx - c.x, dy - c.y)).toBeGreaterThan(HALLS.corridor / 2 + c.r + 40);
+        }
+      }
+    }
+    expect([...shapes].sort()).toEqual(['cross', 'hall', 'ring', 'round', 'twin']);
+  });
+
+  it('a Cross room\'s own stone pillars are its cover and a Brand can\'t crack them', () => {
+    const { seed, k } = find('cross');
+    const w = glare(seed);
+    wake(w, k);
+    expect(w.pillars.length).toBe(4);
+    expect(w.pillars.every((c) => c.fixed)).toBe(true);
+    const q = w as unknown as { burstBrandAt(x: number, y: number, party: boolean): void };
+    expect(typeof q.burstBrandAt).toBe('function');
+    for (const c of w.pillars) q.burstBrandAt(c.x, c.y, false);
+    expect(w.pillars.some((c) => c.cracked)).toBe(false);
+  });
+
+  it('walls block the Glare: a spot in the next room is in shadow; the same reach on open floor is not', () => {
+    const w = glare(4);
+    const m = w.halls!, p = wake(w, 0), rm = m.rooms[p.room], f = layoutFrame(rm);
+    const other = m.rooms.findIndex((r, i) => i !== p.room && !clearWalk(m, f.x, f.y, r.x, r.y));
+    expect(other).toBeGreaterThanOrEqual(0);
+    expect(w.shadowed(m.rooms[other].x, m.rooms[other].y)).toBe(true);
+    // Somewhere on this room's own floor with nothing in between is lit.
+    let lit = false;
+    for (let a = 0; a < Math.PI * 2 && !lit; a += 0.2) {
+      const x = f.x + Math.cos(a) * 60, y = f.y + Math.sin(a) * 60;
+      if (roomGap(rm, x, y) > 0 && !w.shadowed(x, y)) lit = true;
+    }
+    expect(lit).toBe(true);
+  });
+
+  it('a Brand bursts on the map as in the arena (its clock runs in a Halls fight)', () => {
+    const w = glare(4);
+    wake(w, 0);
+    expect(w.phase).toBe('fight');
+    w.markT = 0.05;
+    let burst = false;
+    for (let j = 0; j < 10 && !burst; j++) { w.step(idle); burst = w.events.some((e) => e.type === 'brandBurst'); }
+    expect(burst).toBe(true);
+  });
+
+  it('an arena Glarewell run is unchanged: the pillars stand on the ring round the middle lens', () => {
+    const w = new World({ seed: 4, tier: 7, dungeon: 'glarewell' });
+    run(w, () => w.pillars.length > 0, 120);
+    expect(w.lightX).toBe(0);
+    expect(w.pillars.map((c) => Math.round(Math.hypot(c.x, c.y)))).toEqual([200, 200, 200, 200]);
+    expect(w.pillars.some((c) => c.fixed)).toBe(false);
+  });
+
+  it('bots walk it and go through the door into the Lensmother\'s arena', () => {
+    // All of seeds 1-6 reach her (checked 25 Nov); two of the quicker ones keep CI fast.
+    for (const seed of [3, 5]) {
+      const w = glare(seed, { cls: 'slagbinder' });
+      run(w, () => !w.hallsOn || w.state === 'ended', 900);
+      expect(w.hallsOn, `seed ${seed}`).toBe(false);
+      expect(w.route[w.encounter]).toBe('lensmother');
+    }
+  }, 30000);
+});
+
+describe('H3c: the Coldmarrow on the Halls map', () => {
+  const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
+  const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
+
+  it('is off for players until design turns it on, and gets its own fights, themes and Nhevra behind the door', () => {
+    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.coldmarrow;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = cold(seed);
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[5].theme).toBe('hearthless');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(COLD_THEMES, `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a pack waking starts the fight with a full Hearthcoal and no Chill, as an arena fight does', () => {
+    const w = cold(3);
+    const p = w.player;
+    p.coal = 0.3; p.chill = 0.6;
+    const pk = w.halls!.packs.find((q) => q.foes.length)!;
+    put(w, pk.x, pk.y);
+    for (let j = 0; j < 30 && pk.state === 'asleep'; j++) w.step(idle);
+    expect(pk.state).toBe('awake');
+    expect(p.coal).toBeGreaterThan(0.95);
+    expect(p.chill).toBeLessThan(0.05);
+  });
+
+  it('the Dimhorn\'s Dark Call brings its hounds in inside its own room, into its own pack, and wakes no other pack', () => {
+    let tried = 0;
+    for (let seed = 1; seed <= 200 && tried < 6; seed++) {
+      const w = cold(seed);
+      const m = w.halls!;
+      const k = m.packs.findIndex((q) => q.foes.some((f) => f.kind === 'dimhorn'));
+      if (k < 0) continue;
+      tried++;
+      const pk = m.packs[k];
+      put(w, pk.x, pk.y);
+      for (let j = 0; j < 30 && pk.state === 'asleep'; j++) w.step(idle);
+      const hi = w.enemies.findIndex((e) => e.alive && e.kind === 'dimhorn');
+      expect(hi, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+      const before = w.enemies.filter((e) => e.alive && e.kind === 'rimehound').length;
+      (w as unknown as { hallsDarkCall(e: unknown): void }).hallsDarkCall(w.enemies[hi]);
+      const hounds = w.enemies.filter((e) => e.alive && e.kind === 'rimehound').slice(before);
+      expect(hounds.length, `seed ${seed}`).toBeGreaterThan(0);
+      for (const h of hounds) {
+        expect(roomAt(m, h.x, h.y), `seed ${seed}`).toBe(pk.room);
+        expect(h.pack).toBe(k);
+      }
+      const asleep = m.packs.map((q) => q.state);
+      for (let j = 0; j < 3; j++) w.step(idle);
+      m.packs.forEach((q, j) => { if (j !== k && asleep[j] === 'asleep') expect(q.state, `seed ${seed} pack ${j}`).toBe('asleep'); });
+    }
+    expect(tried).toBeGreaterThanOrEqual(3);
+  });
+
+  it('bots walk it and go through the door into Nhevra\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
+      await new Promise((r) => setTimeout(r, 0));
+      const w = cold(seed, { cls: 'slagbinder' });
+      run(w, () => !w.hallsOn || w.state === 'ended', 900);
+      if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
+describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
+  it('the arena step and hallsClock both run dungeonClocks, and no dungeon clock is called anywhere else (design, 25 Nov)', () => {
+    const src = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    const body = (name: string) => {
+      const at = src.indexOf(`  private ${name}(dt: number): void {`);
+      expect(at, name).toBeGreaterThan(0);
+      return src.slice(at, src.indexOf('\n  }\n', at));
+    };
+    expect(body('hallsClock')).toContain('this.dungeonClocks(dt)');
+    expect(body('dungeon')).toContain('this.dungeonClocks(dt)');
+    const clocks = body('dungeonClocks');
+    // Every per-dungeon clock call (this.xClock(dt), this.runGlarewell(dt)) lives in dungeonClocks alone.
+    const calls = [...src.matchAll(/this\.(\w+Clock|runGlarewell)\(dt\)/g)].map((m) => m[1]);
+    const shared = new Set(['layoutClock', 'arenaEventClock', 'burnoutClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock']);
+    for (const c of new Set(calls)) {
+      if (shared.has(c)) continue;
+      const n = calls.filter((x) => x === c).length;
+      expect(clocks, c).toContain(`this.${c}(dt)`);
+      expect(n, `${c} is called outside dungeonClocks`).toBe(1);
     }
   });
 });

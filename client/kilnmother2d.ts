@@ -9,13 +9,16 @@ import type { KmWorld } from './hd2d/kilnmother3d';
 
 const RED = 0xff4d3d;
 const GOLD = 0xffc861;
+const GREEN = 0x5dff8a;
 const WOBBLE = 1.5;
 const HEAT_WARN = 1.5;
+/** The longest warning seen this heat cycle: the sim's warning grew past 1.5 s, so the pulse follows the sim. */
+let warnMax = 0;
 
 /** The great kiln's mouth (sim KM_MOUTH: x 0, y -522, 120 wide). */
 const MOUTH = { x: 0, y: -522, w: 120 };
 
-export function drawKm2d(g: Phaser.GameObjects.Graphics, w: KmWorld, arena: number, now: number): void {
+export function drawKm2d(g: Phaser.GameObjects.Graphics, w: KmWorld, arena: number, now: number, hx: number, hy: number): void {
   if (!w.kmStage) return;
   const t = now / 1000;
   // The great kiln's mouth: a brick arch at the north wall with fire inside; it roars while she is in it.
@@ -25,16 +28,29 @@ export function drawKm2d(g: Phaser.GameObjects.Graphics, w: KmWorld, arena: numb
   g.fillStyle(0xfff2c4, roar * 0.7).fillEllipse(MOUTH.x, MOUTH.y - 6, MOUTH.w * 0.6, 22);
   // Heated quarters: the three that aren't safe pulse red through the 1.5 s warning, then burn steady.
   const h = w.kmHeat;
+  warnMax = h && h.warn > 0 ? Math.max(warnMax, h.warn) : 0;
   if (h) for (let q = 0; q < 4; q++) {
     if (q === h.safe) continue;
     let a = 0;
     if (h.on) a = 0.32 + 0.04 * Math.sin(t * 3 + q);
-    else if (h.warn > 0) { const k = 1 - Math.min(1, h.warn / HEAT_WARN); a = (0.06 + 0.18 * k) * (0.7 + 0.3 * Math.sin(t * (8 + 8 * k))); }
+    else if (h.warn > 0) { const k = 1 - Math.min(1, h.warn / Math.max(HEAT_WARN, warnMax)); a = (0.06 + 0.18 * k) * (0.7 + 0.3 * Math.sin(t * (8 + 8 * k))); }
     if (a <= 0) continue;
     const c = (q * Math.PI) / 2;
     g.fillStyle(RED, a).slice(0, 0, arena, c - Math.PI / 4, c + Math.PI / 4, false).fillPath();
     // A bright edge, as on every telegraph, so the line between hot and safe floor is sharp.
     g.lineStyle(3, RED, Math.min(1, a * 2.4)).slice(0, 0, arena, c - Math.PI / 4, c + Math.PI / 4, false).strokePath();
+  }
+  // The safe quarter: a faint green floor (green is good), and a green arrow by your hero pointing to it while you
+  // stand outside it during the heat (QA, 25 Nov: nothing pointed to it once it was off screen).
+  if (h && (h.on || h.warn > 0)) {
+    const c = (h.safe * Math.PI) / 2;
+    g.fillStyle(GREEN, 0.12 + 0.03 * Math.sin(t * 3)).slice(0, 0, arena, c - Math.PI / 4, c + Math.PI / 4, false).fillPath();
+    const mine = ((Math.round(Math.atan2(hy, hx) / (Math.PI / 2)) % 4) + 4) % 4;
+    if (mine !== h.safe) {
+      const tx = Math.cos(c) * arena * 0.55, ty = Math.sin(c) * arena * 0.55, d = Math.atan2(ty - hy, tx - hx);
+      const r = 70 + 8 * Math.sin(t * 6), x = hx + Math.cos(d) * r, y = hy + Math.sin(d) * r, ux = Math.cos(d), uy = Math.sin(d);
+      g.fillStyle(GREEN, h.on ? 0.95 : 0.75).fillTriangle(x + ux * 30, y + uy * 30, x - ux * 6 - uy * 22, y - uy * 6 + ux * 22, x - ux * 6 + uy * 22, y - uy * 6 - ux * 22);
+    }
   }
   // Eruption rings: a red band with its two gaps open.
   for (const r of w.kmRings ?? []) {

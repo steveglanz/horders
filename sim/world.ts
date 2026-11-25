@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, r
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HALLS_GEN, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -913,6 +913,8 @@ export class World {
   /** BOSSV2 stage 3: eruption rings rolling out from her, each with two gaps [centre, width, centre, width] (radians). */
   kmRings: { x: number; y: number; r: number; w: number; gaps: number[]; alive: boolean; hit: number }[] = Array.from({ length: 3 }, () => ({ x: 0, y: 0, r: 0, w: 0, gaps: [0, 0, 0, 0], alive: false, hit: 0 }));
   private kmClock = { swipe: 0, egg: 0, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
+  /** BOSSV2, for the bot: seconds until the kiln stage's safe quarter next steps, and the warning it then gets. */
+  get kmStepIn(): { next: number; warn: number } { return { next: this.kmClock.heat, warn: this.kmShow(KILN_V2.heatWarn) }; }
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
@@ -1014,7 +1016,8 @@ export class World {
   /** Maelra's Temper stacks: each cuts her damage taken. */
   temper = 0;
   /** Glarewell stone pillars around the central lens; each casts a shadow wedge outward. Empty elsewhere. */
-  pillars: { x: number; y: number; r: number; cracked: boolean }[] = [];
+  /** Glarewell cover. `fixed`: a Cross room's own stone pillar on a Halls map (H3b), which a Brand can't crack. */
+  pillars: { x: number; y: number; r: number; cracked: boolean; fixed?: boolean }[] = [];
   /** Where the Glarewell's light comes from: the centre lens, or (Y3 Carried Light) where the Lensmother last began a Glare. */
   lightX = 0;
   lightY = 0;
@@ -1855,21 +1858,32 @@ export class World {
       return;
     }
     if (this.phase === 'fight') this.runOmens(dt);
-    if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
+    if (this.phase === 'fight') this.dungeonClocks(dt);
     if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.arenaEvent) this.arenaEventClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'hoard') this.coalClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'flue') this.regentClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.reinforceN > 0 && !this.victory) this.reinforceClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && this.reinforceN === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
+  }
+
+  /**
+   * Each dungeon's own per-tick fight clock. The arena's step and a Halls fight (hallsClock) both run it, so a
+   * dungeon's mechanics can't run in one and not the other (H3b: the Glarewell's Brands never burst on the map
+   * while this lived in the arena's step alone). Arena events stay arena-only (design, 25 Nov).
+   */
+  private dungeonClocks(dt: number): void {
+    switch (this.dungeonId) {
+      case 'glarewell': if (this.pillars.length || this.hallsOn) this.runGlarewell(dt); break;
+      case 'hammerdeep': this.ondrelClock(dt); break;
+      case 'ashvents': this.ysmeretClock(dt); break;
+      case 'pressworks': this.oskelClock(dt); break;
+      case 'coldmarrow': this.coldClock(dt); break;
+      case 'wrackline': this.wrackClock(dt); break;
+      case 'crucible': this.slagClock(dt); break;
+      case 'hoard': this.coalClock(dt); break;
+      case 'smeltery': this.colossusClock(dt); break;
+      case 'flue': this.regentClock(dt); break;
+    }
   }
 
   /** A won delve with a living world boss goes on to the shadow fight. */
@@ -2016,9 +2030,37 @@ export class World {
         return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
       })
       : [];
+    // The lens stands in the middle at the start of every fight (H3b: hallsGlare moves it to a woken pack's room).
+    if (this.dungeonId === 'glarewell') { this.lightX = 0; this.lightY = 0; }
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
+  }
+
+  /**
+   * H3b (design, 25 Nov): a Glarewell pack's room gets the fight's fresh pillars round its own middle, where the lens
+   * stands: the arena's four on GLARE.pillarRing scaled to the room (clear of a Ring's island), left out where one
+   * would stand off the floor or within reach of a doorway. A Cross room's own four stone pillars are its cover instead.
+   */
+  private hallsGlare(room: number): void {
+    const m = this.halls!, rm = m.rooms[room], f = layoutFrame(rm);
+    this.lightX = f.x;
+    this.lightY = f.y;
+    if (rm.shape === 'cross' && rm.holes?.length) {
+      this.pillars = rm.holes.map((h) => {
+        const b = (h as { b: number[] }).b;
+        return { x: b[0], y: b[1], r: Math.min(b[2], b[3]), cracked: false, fixed: true };
+      });
+      return;
+    }
+    const pr = GLARE.pillarRadius;
+    const ring = Math.max((GLARE.pillarRing * f.r) / ARENA, (rm.shape === 'ring' ? HALLS_GEN.island : 0) + pr + 40);
+    const doors = m.corridors.flatMap((c) => (c.a === room ? [{ x: c.ax ?? rm.x, y: c.ay ?? rm.y }] : c.b === room ? [{ x: c.bx ?? rm.x, y: c.by ?? rm.y }] : []));
+    const clear = HALLS.corridor / 2 + pr + 40;
+    this.pillars = [0, 1, 2, 3].map((k) => {
+      const a = Math.PI / 4 + (k * Math.PI) / 2;
+      return { x: f.x + Math.cos(a) * ring, y: f.y + Math.sin(a) * ring, r: pr, cracked: false };
+    }).filter((c) => roomGap(rm, c.x, c.y) >= c.r + 20 && doors.every((d) => Math.hypot(d.x - c.x, d.y - c.y) > clear));
   }
 
   private startEncounter(): void {
@@ -2560,6 +2602,7 @@ export class World {
     if (this.lava.length) this.hallsLavaHeat(dt);
     if (this.phase === 'fight') {
       this.runOmens(dt);
+      this.dungeonClocks(dt);
       if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
       if (this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
       for (let k = 0; k < m.packs.length; k++) {
@@ -2595,6 +2638,39 @@ export class World {
   }
 
   /**
+   * H3c (design, 25 Nov): on a Halls map the Dimhorn's Dark Call brings its hounds in from the dark edge of its own
+   * room, behind it as seen from the room's middle, and they join its pack. A spot off the floor or within a sleeping
+   * pack's pull is walked in toward the Dimhorn, so the call never wakes a pack in another room.
+   */
+  private hallsDarkCall(e: Enemy): void {
+    const m = this.halls!;
+    const pack = e.pack ?? -1;
+    const ri = pack >= 0 ? m.packs[pack].room : roomAt(m, e.x, e.y);
+    if (ri < 0) return;
+    const rm = m.rooms[ri], f = layoutFrame(rm), R = ENEMIES.rimehound.radius;
+    const a = Math.atan2(e.y - f.y, e.x - f.x);
+    const ok = (x: number, y: number) => roomGap(rm, x, y) >= R + 20 && m.packs.every((pk) => pk.state !== 'asleep' || (pk.x - x) ** 2 + (pk.y - y) ** 2 > (HALLS.pull + 40) ** 2);
+    const was = this.hallsWaking;
+    this.hallsWaking = pack;
+    let lx = e.x, ly = e.y;
+    for (let k = 0; k < DIMHORN.calls; k++) {
+      const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;
+      // From the room's rim inward to the Dimhorn's own spot.
+      let x = e.x, y = e.y;
+      const rx = f.x + Math.cos(b) * f.r, ry = f.y + Math.sin(b) * f.r;
+      for (let t = 1; t >= 0; t -= 0.05) {
+        const qx = e.x + (rx - e.x) * t, qy = e.y + (ry - e.y) * t;
+        if (ok(qx, qy)) { x = qx; y = qy; break; }
+      }
+      if (!ok(x, y)) continue;
+      this.spawn('rimehound', x, y);
+      lx = x; ly = y;
+    }
+    this.hallsWaking = was;
+    this.events.push({ type: 'waveShape', id: 'reinforce', stage: 'land', x: lx, y: ly });
+  }
+
+  /**
    * Halls: pack `k` wakes. Its foes spawn where they stood (hp depth from the pack's route slot), and the first pack
    * awake starts a fight as startEncounter does. A shrine has no foes: stepping in clears it at once.
    */
@@ -2611,6 +2687,7 @@ export class World {
     }
     this.encounter = pk.slot;
     if (first) this.fightSetup(def);
+    if (first && this.dungeonId === 'glarewell') this.hallsGlare(pk.room);
     this.hallsWaking = k;
     let lead = -1;
     let firstElite = -1;
@@ -3286,6 +3363,8 @@ export class World {
 
   /** Is this point in a standing pillar's shadow (cast outward from the lens at the centre)? */
   shadowed(x: number, y: number): boolean {
+    // H3b: on a Halls map a room's walls block the light too.
+    if (this.hallsOn && !clearWalk(this.halls!, this.lightX, this.lightY, x, y)) return true;
     for (const c of this.pillars) {
       if (c.cracked) continue;
       const cx = c.x - this.lightX, cy = c.y - this.lightY;
@@ -4549,7 +4628,7 @@ export class World {
     // Bosses pull focus, as they do for the Emberwright's orbs.
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
-      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
+      if (boss.alive && boss.def.rank === 'boss' && !(this.kmStage === 2 && boss.kind === 'kilnMother') && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
       if (this.crawIn(this.lumenRange) >= 0) t = this.crawIn(this.lumenRange);
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
@@ -4996,7 +5075,8 @@ export class World {
     let bestD = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive) continue;
+      // BOSSV2: she can't be hit through stage 2, so blades and light look past her (to the bellows).
+      if (!e.alive || (this.kmStage === 2 && e.kind === 'kilnMother')) continue;
       const d = Math.sqrt(dist2(p.x, p.y, e.x, e.y)) - e.def.radius;
       if (d > maxDist) continue;
       // Big foes count as a little closer, so the blades stay on them.
@@ -5222,7 +5302,7 @@ export class World {
     // Bosses pull focus: the first orb always goes to a boss in range.
     if (this.bossIndex >= 0) {
       const b = this.enemies[this.bossIndex];
-      if (b.alive && b.def.rank === 'boss' && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
+      if (b.alive && b.def.rank === 'boss' && !(this.kmStage === 2 && b.kind === 'kilnMother') && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
     }
     if (this.crawIn(480) >= 0) targets.unshift(this.crawIn(480));
     for (let k = 0; k < n; k++) {
@@ -5639,6 +5719,7 @@ export class World {
       e.aux = 0;
       if (this.warmthAt(e.x, e.y, e.def.radius) > 0) { this.events.push({ type: 'castDone', x: e.x, y: e.y, id: 'darkCallLost', name: 'Silenced' }); return; }
       e.aux2++;
+      if (this.hallsOn) { this.hallsDarkCall(e); return; }
       const a = Math.atan2(e.y, e.x), r = this.arenaR - 60;
       for (let k = 0; k < DIMHORN.calls; k++) {
         const b = a + (k - (DIMHORN.calls - 1) / 2) * 0.35;
@@ -6843,7 +6924,8 @@ export class World {
     if (a >= 0 && b >= 0) {
       const ea = this.enemies[a];
       const eb = this.enemies[b];
-      if (dist2(ea.x, ea.y, eb.x, eb.y) <= GLARE.lampMaxDist ** 2) {
+      // H3b: on a Halls map a wall between them breaks the beam.
+      if (dist2(ea.x, ea.y, eb.x, eb.y) <= GLARE.lampMaxDist ** 2 && !(this.hallsOn && !clearWalk(this.halls!, ea.x, ea.y, eb.x, eb.y))) {
         this.lampBeam = { x1: ea.x, y1: ea.y, x2: eb.x, y2: eb.y };
         this.lampTickT -= dt;
         if (this.lampTickT <= 0) {
@@ -6882,7 +6964,7 @@ export class World {
       });
     } else this.hurtPlayer(GLARE.brandDamage * this.tierDamage, -1, false, 'the Brand');
     this.pillars.forEach((c, k) => {
-      if (!c.cracked && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
+      if (!c.cracked && !c.fixed && dist2(p.x, p.y, c.x, c.y) <= (r + c.r) ** 2) {
         c.cracked = true;
         this.events.push({ type: 'pillarCrack', index: k });
       }
@@ -8072,6 +8154,8 @@ export class World {
     const dx = x - e.x, dy = y - e.y, L2 = dx * dx + dy * dy || 1;
     // Too close for it to focus: a hero right under the eye is out of its gaze.
     if (L2 < (e.def.radius + LAMPEYE.under) ** 2) return false;
+    // H3b: on a Halls map walls block its gaze, as pillars do.
+    if (this.hallsOn && !clearWalk(this.halls!, e.x, e.y, x, y)) return false;
     for (const c of this.pillars) {
       if (c.cracked) continue;
       const k = Math.max(0, Math.min(1, ((c.x - e.x) * dx + (c.y - e.y) * dy) / L2));
@@ -9441,7 +9525,7 @@ export const KILN_V2 = {
   walkIn: 4,
   /** She stands this far inside the north wall (y = -480 in the 560 arena). */
   mouthIn: 80,
-  heatEvery: 6, heatWarn: 1.5, heatTick: 0.5, heatShare: 0.04,
+  heatEvery: 6, heatWarn: 2.5, heatTick: 0.5, heatShare: 0.04,
   bellowsRing: 380, bellowsAt: [210, 330, 90],
   kilnMax: 40, stun: 8, stunTaken: 2,
   /** Fallen out, she lands this far in front of her kiln spot. Engineering's pick. */
