@@ -146,6 +146,8 @@
   .pf.decree .pfd::before { content: ''; width: 7px; height: 7px; border-radius: 50%; border: 2px solid #1a0d06; box-sizing: border-box; }
   .pf.spent .pfd { color: #c9b8b0; background: rgba(255,255,255,0.1); text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
   .pf.spent .gtile { opacity: 0.55; }
+  .pf.pressed .pfd { color: #ffe3e0; background: #b3263a; }
+  .pf.pressed { border-color: rgba(255,77,61,0.7); }
   /* The badge takes the role chip's place, so the name stays readable. */
   .pf:is(.decree, .spent) .pfr { display: none; }
   @keyframes decreePulse { from { box-shadow: 0 0 4px rgba(255,138,61,0.35); } to { box-shadow: 0 0 12px rgba(255,138,61,0.75); } }
