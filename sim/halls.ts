@@ -619,7 +619,7 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * next point on the shortest walk through the map's walking graph (round a ring's island, a cross's pillars, the
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
-export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40): { x: number; y: number } {
+export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40, bot = false): { x: number; y: number } {
   // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
   const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
   if (clearWalk(m, x, y, tx, ty, pad, step)) return { x: tx, y: ty };
@@ -631,6 +631,11 @@ export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: numb
     if (c < best) { best = c; bi = i; bj = j; }
   }
   const p = nav.pts[bi];
+  // QA, 25 Nov (Ashvents t7 seed 1, Lumen + Lumen): within 30 of a nav point that sees the target too, a walker goes
+  // straight at the target (below), but one step on it is past 30 and the padded line fails (a hole's corner near the
+  // bag), so it turned back to the point, and so on forever. A bot whose nav point sees the target walks straight at it
+  // whenever the unpadded line is clear, from both sides of that 30.
+  if (bot && bi === bj && clearWalk(m, x, y, tx, ty, 0, step)) return { x: tx, y: ty };
   if (Math.hypot(p.x - x, p.y - y) < 30) {
     // Already there: on to the next point (or the target, from the last one).
     if (bi === bj) return { x: tx, y: ty };
