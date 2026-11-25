@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { C_ROOM, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -33,7 +33,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 4, halls: true, dungeon: 'hammerdeep' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 7, halls: true, dungeon: 'ashvents' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -530,7 +530,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -941,8 +941,11 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
 });
 
 describe('H4a: the Hammerdeep on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ondrel behind the door', () => {
-    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
+  it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Ondrel behind the door', () => {
+    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).not.toBeNull();
+    expect(HALLS_ON).toContain('hammerdeep');
+    expect(HALLS_BETA).not.toContain('hammerdeep');
+    expect(HALLS_COOP).toContain('hammerdeep');
     const { openers, named, hard, boss } = DUNGEONS.hammerdeep;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
