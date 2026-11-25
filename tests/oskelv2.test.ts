@@ -122,6 +122,24 @@ describe('OSKELV2: the running press bed', () => {
     expect(boss(w, q).alive).toBe(true);
   });
 
+  it('in stage 3 the crush pushes a hero far enough upstream that standing still is not crushed again within 2 s (QA)', () => {
+    const { w, q } = fight();
+    boss(w, q).hp = boss(w, q).maxHp * 0.19;
+    w.osDir = 0;
+    q.oskelClock(0.05);
+    expect(w.osStage).toBe(3);
+    const h = w.heroData(0).player;
+    h.hp = h.maxHp * 10; h.maxHp = h.hp; // survive two crushes, if they came
+    w.heroData(1).player.x = -200; w.heroData(1).player.y = 0;
+    h.x = w.arenaR - 20; h.y = 0;
+    const x0 = h.x;
+    q.oskelClock(0.05);
+    expect(w.osCrushHits).toBe(1);
+    expect(x0 - h.x).toBeGreaterThan(OSKELV2.push);
+    for (let t = 0; t < OSKELV2.pushSecs - 0.1; t += 0.05) q.oskelClock(0.05);
+    expect(w.osCrushHits).toBe(1);
+  });
+
   it('bots walk against the belt: a hero holding still drifts far less than the belt would carry it', () => {
     const { w, q } = fight();
     boss(w, q).hp = boss(w, q).maxHp * 0.5;

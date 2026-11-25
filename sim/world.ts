@@ -8012,7 +8012,12 @@ export class World {
       if (q.hp <= 0 || !this.onCrushLine(q.x, q.y, PLAYER_RADIUS)) continue;
       this.use(k);
       this.hurtPlayer(q.maxHp * OSKELV2.crush, -1, true, 'the crush line');
-      q.x -= cx * OSKELV2.push; q.y -= cy * OSKELV2.push;
+      // Far enough upstream that the belt takes at least pushSecs to carry a hero standing still back onto the line
+      // (QA, 25 Nov: in stage 3 the belt carried them back within ~1 s). Stage 2 keeps `push`, which already gives that.
+      const along = q.x * cx + q.y * cy;
+      const back = along - (this.arenaR - OSKELV2.depth - PLAYER_RADIUS - OSKELV2.pushSecs * (this.osStage === 3 ? OSKELV2.belt3 : OSKELV2.belt));
+      const push = Math.max(OSKELV2.push, back);
+      q.x -= cx * push; q.y -= cy * push;
       this.clampArena(q, PLAYER_RADIUS);
       this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50, source: 'crush' });
       this.osCrushHits++;
@@ -10485,12 +10490,12 @@ export const YSMERETV2 = {
 /**
  * OSKELV2 (design 25 Nov, oskel-v2.md): starting values. Stage 2 from `stage2` of his health: the press bed carries
  * everyone `belt` a second and flips at each Downstroke (`flipWarn` s of warning first); the downstream `arc` (radians)
- * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream). Stage 3 from `stage3`:
+ * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream, or further if the belt would carry a hero standing still back onto it in under `pushSecs`). Stage 3 from `stage3`:
  * `belt3`, no more flips. `hpMult`: his health under v2. Belt 30 and hp x0.9 are design's two levers, measured 25 Nov (see the PR).
  */
 export const OSKELV2 = {
   stage2: 0.55, stage3: 0.2, belt: 30, belt3: 70, flipWarn: 1.5,
-  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, hpMult: 0.9,
+  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, pushSecs: 2, hpMult: 0.9,
   /** 1: the Downstroke plate rides the belt (design's rule); 0 for measuring only. */
   plateRides: 1,
 };
