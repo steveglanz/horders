@@ -13,7 +13,10 @@ import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
 import { ALT_ABILITIES, CLASSES, ClassDef } from './content/classes';
-import { Loadout, PassiveId, itemScore, loadoutFrom, rollDrop } from './hero';
+import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
+import { TREE, TreeNodeId } from './content/trees';
+/** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
+export { TREE };
 import { Item, Rarity } from './content/items';
 import { QUESTS, QuestId } from './content/quests';
 import { BOUNTY } from './content/bounty';
@@ -253,6 +256,9 @@ export interface Enemy {
   spawnedAt: number;
   /** BOSSV2: when a hero last hit it (Vorhulm the Glutton Gorges after KILN_V2.gorgeQuiet s without one). */
   hitAt?: number;
+  /** Character tree, Kickback: which hero this foe last hit, and when. */
+  struckBy?: number;
+  struckAt?: number;
   /** Current cast ('' when not casting); shown on cast bars. */
   castId: string;
   castName: string;
@@ -534,6 +540,8 @@ export interface Player {
   ward: number;
   wardT: number;
   bastionT: number;
+  /** Character tree, Onrush: seconds left of the cut after a Charge. */
+  onrushT?: number;
   prevented: number;
   echoT: number;
   /** Bulwark: the foe its shield faces (the last Shield Sweep target); its hits are partly blocked. */
@@ -702,7 +710,7 @@ export interface HeroOptions {
   /** Ability option for this run (ALT_ABILITIES). */
   alt?: boolean;
   gear?: Item[];
-  passives?: Partial<Record<PassiveId, number>>;
+  passives?: Partial<Record<PointId, number>>;
   name?: string;
   /** Co-op: the potion this party member brewed (the lead hero's comes from WorldOptions.potion). */
   potion?: PotionId;
@@ -730,7 +738,7 @@ interface HeroSlot {
   loadout: Loadout;
   cls: ClassId;
   classDef: ClassDef;
-  passives: Partial<Record<PassiveId, number>>;
+  passives: Partial<Record<PointId, number>>;
   gear: Item[];
   revived: boolean;
   runDrops: Item[];
@@ -754,7 +762,7 @@ export interface WorldOptions {
   /** Equipped gear brought into the run. */
   gear?: Item[];
   /** Permanent hero passives. */
-  passives?: Partial<Record<PassiveId, number>>;
+  passives?: Partial<Record<PointId, number>>;
   /** Hero level, which sets the item level of drops. */
   heroLevel?: number;
   /** First free item id, so run drops never collide with the hero's bag. */
@@ -883,7 +891,7 @@ export class World {
   /** C3: when the raid boss appeared (-1 until then). Her fight is the "shadow" part of the strike. */
   raidStart = -1;
   shadowDone = false;
-  passives: Partial<Record<PassiveId, number>>;
+  passives: Partial<Record<PointId, number>>;
   /** Gear currently worn (upgrades picked up mid-run replace pieces). */
   gear: Item[];
   /** Items picked up this run and the ids auto-equipped as upgrades. */
@@ -1558,6 +1566,30 @@ export class World {
     return this.talents[id] ?? 0;
   }
 
+  /** Character tree points the acting hero has in `id` (content/trees.ts; 0 unless its class uses the tree). */
+  tree(id: TreeNodeId): number {
+    return this.passives[id] ?? 0;
+  }
+
+  /** Character tree: the highest points in `id` among the other living heroes within `r` of q. */
+  private allyTree(id: TreeNodeId, q: Player, r: number): number {
+    let best = 0;
+    for (let k = 0; k < this.heroes.length; k++) {
+      if (k === this.acting) continue;
+      const n = this.heroes[k].passives[id] ?? 0;
+      if (n <= best) continue;
+      const h = this.heroes[k].player;
+      if (h.hp > 0 && dist2(h.x, h.y, q.x, q.y) <= r * r) best = n;
+    }
+    return best;
+  }
+
+  /** Resolve a Bulwark spends to Smother a bloom (Damper lowers it). */
+  private smotherCost(k: number): number {
+    const n = (k === this.acting ? this.passives : this.heroes[k].passives).damper ?? 0;
+    return SMOTHER_COST - TREE.damperCost * n;
+  }
+
   /** Party cards: the highest rank of `id` among the other living heroes within `r` of q. */
   private allyRank(id: TalentId, q: Player, r: number): number {
     let best = 0;
@@ -1590,7 +1622,7 @@ export class World {
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
     const p = this.player;
-    // Vengeance: the Bulwark hits harder the more hurt it is.
+    // Rancor: the Bulwark hits harder the more hurt it is.
     const missing = Math.floor(Math.max(0, 1 - p.hp / p.maxHp) * 10);
     const vengeance = 1 + 0.04 * this.rank('vengeance') * missing;
     const kindled = this.time < (p.kindleUntil ?? -1) ? GROUP_TOOLS.kindleMult : 1;
@@ -1668,7 +1700,8 @@ export class World {
       return base;
     }
     if (this.cls === 'bulwark') {
-      if (slot === 1) return base - 2 * this.rank('momentum');
+      if (slot === 1) return base - 2 * this.rank('momentum') - TREE.ramCd * this.tree('ram');
+      if (slot === 2) return base - TREE.bedrockCd * this.tree('bedrock');
       return base;
     }
     if (this.cls === 'duskblade') {
@@ -3773,6 +3806,8 @@ export class World {
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Lee Side (party card): heroes close to a Bulwark that took it take less.
     if (this.heroes.length > 1) amount *= 1 - PARTY_CARDS.leeCut * this.allyRank('leeSide', p, PARTY_CARDS.leeRadius);
+    // Cover (character tree): heroes close to a Bulwark with it take less.
+    if (this.heroes.length > 1) amount *= 1 - TREE.coverCut * this.allyTree('cover', p, TREE.coverRadius);
     // Ember Ward: whatever strikes the ward catches fire.
     if (src >= 0 && p.plateBy === -1 && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time && this.enemies[src]?.alive) {
       const e = this.enemies[src];
@@ -4920,7 +4955,8 @@ export class World {
     const armor = 1 - (BULWARK_ARMOR + 0.04 * this.rank('holdTheLine') + 0.05 * this.rank('rivetedPlates'));
     const stone = this.rank('backToStone');
     const guard = stone > 0 && this.nearStone(p) ? 1 - (this.dungeonId === 'glarewell' ? SITE_CARDS.glareStoneDr : SITE_CARDS.stoneDr) * stone : 1;
-    return armor * (p.bastionT > 0 ? 0.4 : 1) * guard;
+    const tree = (1 - TREE.braceCut * this.tree('brace')) * ((p.onrushT ?? 0) > 0 ? 1 - TREE.onrushCut : 1);
+    return armor * (p.bastionT > 0 ? 0.4 : 1) * guard * tree;
   }
 
   /** Armor, Anvil Skin, the Ward shield, Resolve gain, and damage turned back. Returns what gets through. */
@@ -4964,8 +5000,15 @@ export class World {
     }
     let back = 0;
     if (src >= 0 && this.rank('spikedShield') > 0) back += 8 * this.rank('spikedShield') * this.dmgMult;
-    // Anvil Skin turns back a quarter of each hit; Thornwall turns back 15% even outside it.
-    const reflect = (p.bastionT > 0 ? 0.25 : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0);
+    // Character tree: Barbs pays every attacker back; Kickback marks it for a harder hit.
+    if (src >= 0) {
+      back += TREE.barbsDamage * this.tree('barbs') * this.dmgMult;
+      if (this.tree('kickback') > 0) { this.enemies[src].struckBy = this.acting; this.enemies[src].struckAt = this.time; }
+    }
+    // Anvil Skin turns back a quarter of each hit (Payback adds to it); Thornwall turns back 15% even outside it, and
+    // Bristle 10% while Resolve is at half or more.
+    const reflect = (p.bastionT > 0 ? 0.25 + TREE.paybackReflect * this.tree('payback') : 0) + (this.rank('thornwall') > 0 ? 0.15 : 0)
+      + (this.tree('bristle') > 0 && p.heat >= TREE.bristleResolve ? TREE.bristleReflect : 0);
     back += raw * reflect * this.dmgMult;
     // A hit that comes back while the Bulwark is turning one back (a Glass Warden's Mirror Ward)
     // is taken but not turned back again: otherwise the two bounce it forever and the sim never returns.
@@ -4999,6 +5042,7 @@ export class World {
         p.ward = Math.max(p.ward, p.maxHp * 0.08 * ward);
       }
     }
+    if ((p.onrushT ?? 0) > 0) p.onrushT = (p.onrushT ?? 0) - dt;
     if (p.bastionT > 0) {
       p.bastionT -= dt;
       if (p.bastionT <= 0 && this.rank('unbreakable') > 0 && p.prevented > 0) {
@@ -5151,6 +5195,7 @@ export class World {
     p.py = p.y;
     p.facing = ang;
     p.shieldT = Math.max(p.shieldT, 0.2);
+    if (t >= 0 && this.tree('onrush') > 0) p.onrushT = TREE.onrushTime;
     const ram = this.rank('batteringRam');
     const off = this.rank('broadBack') > 0 ? this.bossTarget : -1;
     for (let i = 0; i < this.enemies.length; i++) {
@@ -6609,6 +6654,8 @@ export class World {
     let crit = false;
     if (e.def.rank !== 'normal' && this.hasMythic('giantsBane')) dmg *= 1.3;
     if (e.burnT > 0) dmg *= 1 + 0.1 * this.rank('hemorrhage');
+    // Character tree, Kickback: harder on a foe that hit this hero in the last few seconds.
+    if (e.struckBy === this.acting && this.time - (e.struckAt ?? -99) < TREE.kickbackWindow) dmg *= 1 + TREE.kickbackDmg * this.tree('kickback');
     // Turned Back (party card): the boss is busy with someone else.
     if (i === this.bossIndex && this.rank('turnedBack') > 0) {
       const k = this.bossTarget;
@@ -9196,10 +9243,10 @@ export class World {
       }
       this.events.push({ type: 'slam', x: t.x, y: t.y, r: t.r });
       // Smother: a Bulwark standing in a bloom catches the burst on its shield for 25 Resolve, so it feeds no one.
-      const smother = t.kind === 'bloom' && this.cls === 'bulwark' && p.heat >= SMOTHER_COST
+      const smother = t.kind === 'bloom' && this.cls === 'bulwark' && p.heat >= this.smotherCost(this.acting)
         && dist2(p.x, p.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2;
       if (smother) {
-        p.heat -= SMOTHER_COST;
+        p.heat -= this.smotherCost(this.acting);
         this.events.push({ type: 'parry', x: p.x, y: p.y });
       }
       if (t.kind === 'bloom' && !smother) {
@@ -9277,11 +9324,11 @@ export class World {
       if (t.kind === 'bloom') {
         for (let i = 0; i < n && smother < 0; i++) {
           const q = this.heroPlayer(i);
-          if (q.hp > 0 && this.heroes[i].cls === 'bulwark' && q.heat >= SMOTHER_COST && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) smother = i;
+          if (q.hp > 0 && this.heroes[i].cls === 'bulwark' && q.heat >= this.smotherCost(i) && dist2(q.x, q.y, t.x, t.y) <= (t.r + PLAYER_RADIUS) ** 2) smother = i;
         }
         if (smother >= 0) {
           const q = this.heroPlayer(smother);
-          q.heat -= SMOTHER_COST;
+          q.heat -= this.smotherCost(smother);
           this.events.push({ type: 'parry', x: q.x, y: q.y });
         } else {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {

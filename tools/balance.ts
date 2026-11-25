@@ -5,6 +5,8 @@ import * as WORLD from '../sim/world';
 import { World } from '../sim/world';
 import { OmenId } from '../sim/content/omens';
 import { botChoose, botInput, laggedBot, reactBot } from '../sim/bot';
+import { buildPoints } from '../sim/content/trees';
+import type { ClassId } from '../sim/content/emberwright';
 import { hallsReport, hallsSeed, hallsTick } from './hallsmeasure';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
 
@@ -20,7 +22,10 @@ const lagTicks = Math.round(Number(process.env.LAG ?? 0) * 30);
 const react = Number(process.env.REACT ?? 0);
 // HERO=tools/heroes/hero-t6.json plays with that hero's gear, passives and level (as in tools/foundry.ts), for the higher tiers.
 const hero: HeroProfile | null = process.env.HERO ? JSON.parse(readFileSync(process.env.HERO, 'utf8')) : null;
-const heroOpts = hero ? { gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
+// TREE=bastion|retribution|vanguard (character trees, content/trees.ts): the hero's stat points become that branch's fixed
+// build (TREE_BUILDS) with the same number of points (level - 1), for the class given by CLS.
+const treePoints = (h: { level: number; passives: Record<string, number | undefined> }) => (process.env.TREE ? buildPoints((process.env.CLS ?? 'emberwright') as ClassId, process.env.TREE, h.level - 1) : h.passives);
+const heroOpts = hero ? { gear: equippedItems(hero), passives: treePoints(hero), heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
 
 // TUNE=DEFENCE_BRANCH.ringDamage=30 overrides an exported tuning number for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {

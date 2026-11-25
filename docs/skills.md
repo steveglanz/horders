@@ -135,7 +135,7 @@ Auto: **Shield Sweep**, every 0.8s, a 150° arc toward the target, 95 range, 30 
 
 Branches:
 - **Anvil Skin** (soak): *Planted Heels* (3) +30 max health and 4% less damage taken; *Ward* (3) every 8s a shield worth 8% of max health; *Mended Iron* (2, ability) Anvil Skin heals 12% of max health; capstone **Unbreakable**: when Anvil Skin ends it bursts for twice the damage it stopped.
-- **Retribution** (thorns): *Spiked Shield* (3) enemies that hit you take 8 back; *Vengeance* (3) +4% damage per 10% health missing; *Shield Echo* (2, ability) Rim Smash hits again 0.4s later for half, rank 2 adds 10 Resolve; capstone **Thornwall**: always turn back 15% of each hit, and turned-back damage hits everything around you.
+- **Spite** (thorns): *Spiked Shield* (3) enemies that hit you take 8 back; *Rancor* (3) +4% damage per 10% health missing; *Shield Echo* (2, ability) Rim Smash hits again 0.4s later for half, rank 2 adds 10 Resolve; capstone **Thornwall**: always turn back 15% of each hit, and turned-back damage hits everything around you.
 - **Vanguard** (cleave and charge): *Wide Sweep* (2) wider and longer sweeps, a full circle at rank 2; *Momentum* (3) +5% move speed and Charge 2s faster; *Plough Through* (2, ability) Charge hits and stuns everything in its path; capstone **Warpath**: every 4th sweep sends a shockwave for double damage.
 
 ## Duskblade (melee damage)
@@ -207,7 +207,7 @@ The Duskblade numbers are from the first pass; its capstones haven't changed sin
 | Class | Branch | Existing capstone | New capstone |
 |---|---|---|---|
 | Bulwark | Anvil Skin | Unbreakable | **Iron Vigil:** Anvil Skin lasts 10 s instead of 6 |
-| Bulwark | Retribution | Thornwall | **Grudge:** every 4th hit that lands on you, strike every foe within 150 px for 30 plus twice the damage those hits did, and stagger them 0.5 s |
+| Bulwark | Spite | Thornwall | **Grudge:** every 4th hit that lands on you, strike every foe within 150 px for 30 plus twice the damage those hits did, and stagger them 0.5 s |
 | Bulwark | Vanguard | Warpath | **Shield Wake:** Charge lands with a shockwave: 50 damage and a 1 s stun within 120 px |
 | Lumen | Dawn | High Noon | **Noonfire:** Sunmotes deal 15% more to elites, rares and bosses |
 | Lumen | Grace | Martyr's Halo | **Haven:** 30% less damage taken inside your own Sanctuary |
@@ -236,8 +236,8 @@ Two more cards per branch for the Bulwark, Lumen and Slagbinder: 18 in all. They
 |---|---|---|---|---|
 | Bulwark | Anvil Skin | Riveted Plates | 3 | Armor stops 5% more of each hit |
 | Bulwark | Anvil Skin | Slow Pulse | 2 | Below half health, heal 4 health per second |
-| Bulwark | Retribution | Hard Knocks | 3 | Rim Smash deals 20% more damage |
-| Bulwark | Retribution | Grim Tally | 2 | Hits you take build 25% more Resolve |
+| Bulwark | Spite | Hard Knocks | 3 | Rim Smash deals 20% more damage |
+| Bulwark | Spite | Grim Tally | 2 | Hits you take build 25% more Resolve |
 | Bulwark | Vanguard | Broad Shoulders | 3 | Shield Sweep swings 8% more often |
 | Bulwark | Vanguard | Full Weight | 2 | Charge hits 50% harder |
 | Lumen | Dawn | Daybreak Pulse | 2 | Radiant Burst recovers 0.5 s sooner and heals 10% more |
