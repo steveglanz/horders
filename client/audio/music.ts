@@ -32,12 +32,15 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   // The Glarewell's four (visuals, 25 Nov).
   | 'lensGallery' | 'starVault' | 'shadeColonnade' | 'mirrorHall'
   // The Coldmarrow's four (visuals, 25 Nov): no warm sound in any of them, since the hero's Hearthcoal is the only warmth.
-  | 'deadHearth' | 'rimeHall' | 'snowdriftCave' | 'coldCrypt';
+  | 'deadHearth' | 'rimeHall' | 'snowdriftCave' | 'coldCrypt'
+  // The Wrackline's four (visuals, 25 Nov): every room is a quay of open water with rafts.
+  | 'harbourQuay' | 'wreckYard' | 'kelpBed' | 'sluiceGate';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
   'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
   'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall',
   'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt',
+  'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
@@ -447,6 +450,49 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         lp += (hp - lp) * 0.2;
         const s = i / rate;
         raw[i] = lp * 0.1 + (Math.sin(2 * Math.PI * 174.6 * s) + 0.5 * Math.sin(2 * Math.PI * 261.6 * s) + 0.3 * Math.sin(2 * Math.PI * 523 * s)) * 0.012 + brown * 0.08;
+        break;
+      }
+      case 'harbourQuay': {
+        // Harbour quay, the warm room: water lapping gently at the stone, three slow laps round the loop, a low warm lantern hum.
+        lp += (w - lp) * 0.05;
+        const ph = (t * 3) % 1;
+        const lap = ph < 0.3 ? Math.pow(Math.sin((Math.PI * ph) / 0.3), 2) : 0.15 * Math.exp(-(ph - 0.3) * 6);
+        const s = i / rate;
+        const hum = Math.sin(2 * Math.PI * 220 * s) + 0.5 * Math.sin(2 * Math.PI * 330.4 * s);
+        raw[i] = lp * 0.5 * (0.5 + 0.5 * lap) + hum * 0.04 + brown * 0.1;
+        break;
+      }
+      case 'wreckYard': {
+        // Wreck yard: grey and creaking. A slow sea swell under old hull timbers that groan twice round the loop.
+        lp += (w - lp) * 0.06;
+        hp = 0.95 * (hp + lp - prev);
+        prev = lp;
+        const s = i / rate;
+        const swell = 0.5 + 0.5 * Math.sin(t * Math.PI * 2);
+        const groanAt = (c: number) => Math.exp(-Math.abs(t - c) * 14);
+        const groan = (Math.sin(2 * Math.PI * 176 * s + Math.sin(2 * Math.PI * 9 * s) * 4) + 0.6 * Math.sin(2 * Math.PI * 353 * s + Math.sin(2 * Math.PI * 9 * s) * 8)) * (groanAt(0.3) + 0.8 * groanAt(0.75));
+        raw[i] = hp * 0.5 * swell + groan * 0.08 + brown * 0.12;
+        break;
+      }
+      case 'kelpBed': {
+        // Kelp bed: cool sea light swaying. A soft, airy wash that sways in and out twice round the loop, a cool high tone over it.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.15;
+        const s = i / rate;
+        const sway = 0.3 + 0.7 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const cool = Math.sin(2 * Math.PI * 659.3 * s) + 0.5 * Math.sin(2 * Math.PI * 987.8 * s);
+        raw[i] = lp * 0.5 * sway + cool * 0.02 * sway + brown * 0.08;
+        break;
+      }
+      case 'sluiceGate': {
+        // Sluice gate, by the boss door: water pouring steadily through iron gates, a low iron ring under it; nothing else moves.
+        hp = 0.95 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.25;
+        const s = i / rate;
+        const iron = Math.sin(2 * Math.PI * 98 * s) + 0.6 * Math.sin(2 * Math.PI * 147.3 * s) + 0.3 * Math.sin(2 * Math.PI * 392.6 * s);
+        raw[i] = lp * 0.3 + iron * 0.02 + brown * 0.15;
         break;
       }
       case 'shimmer': {
