@@ -763,7 +763,8 @@ function genOnce(rnd: () => number): GenMap {
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
   const anyShape: RoomShape[] = ['round', 'hall', 'cross', 'ring'];
   const r0 = genRoom('R0', true, pick<RoomShape>(['round', 'round', 'hall']), rnd, { r: [390, 450] });
-  const r1 = genRoom('R1', true, pick(anyShape), rnd, { spotSide: sgn() });
+  // Design, 25 Nov: A's room is Round or Ring, so the first sealed fight is in a simple room.
+  const r1 = genRoom('R1', true, pick<RoomShape>(['round', 'ring']), rnd, { spotSide: sgn() });
   const cs = sgn();
   // B and C share a room: a round one big enough for C to stand 260 off the walk and B's foes outside C's pull, or a twin.
   const r3 = genRoom('R3', true, pick<RoomShape>(['round', 'twin']), rnd, { r: [530, 550], cSide: cs });
@@ -866,7 +867,7 @@ function segSeg(a: { x1: number; y1: number; x2: number; y2: number }, b: { x1: 
  * 300-700 rim to rim (east-west ones at most 400, main ones mostly north-south); the walk from the entrance to the boss
  * door is 3,600-5,600; C stands 260 off that walk; packs in different rooms are 700 apart; the door guard's ring spans
  * the doorway to the boss door; A, B, C and E stand on reachable floor with room for their foes; layout rooms are 420
- * across.
+ * across; A's room is Round or Ring (design, 25 Nov: the first sealed fight is in a simple room).
  */
 export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs: Spot[]; layoutRooms: { room: number; slot: number }[] }): string[] {
   const out: string[] = [];
@@ -954,6 +955,8 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
     if (across < G.minAcross) out.push(`layout room ${rm.id} is ${Math.round(across)} across`);
   }
   if (roomAt(m, start.x, start.y, 30) !== 0) out.push('the entrance has no floor at its centre');
+  const aRoom = R[pk('A').room];
+  if (aRoom.shape && aRoom.shape !== 'round' && aRoom.shape !== 'ring') out.push(`A's room is a ${aRoom.shape}`);
   return out;
 }
 
