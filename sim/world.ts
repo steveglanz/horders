@@ -1634,7 +1634,7 @@ export class World {
     return 1 + this.rank('extraOrb');
   }
   get critChance(): number {
-    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + TREE.whetCrit * this.tree('whet') + TREE.sparkCrit * this.tree('spark') + this.loadout.critBonus;
+    return 0.05 + 0.12 * (this.rank('searingFocus') + this.rank('precision')) + 0.08 * this.rank('brightWick') + TREE.whetCrit * this.tree('whet') + TREE.sparkCrit * this.tree('spark') + TREE.dazzleCrit * this.tree('dazzle') + this.loadout.critBonus;
   }
   get pickupRadius(): number {
     return 80 * (1 + 0.4 * (this.rank('magnetism') + this.rank('nimble'))) * this.loadout.pickupMult;
@@ -1706,7 +1706,13 @@ export class World {
       if (slot === 2) return base - 3 * this.rank('momentumFlow') - TREE.cadenceCd * this.tree('cadence');
       return base;
     }
-    if (this.cls === 'lumen' && slot === 0) return base - 0.5 * this.rank('daybreakPulse');
+    if (this.cls === 'lumen') {
+      if (slot === 0) return base - 0.5 * this.rank('daybreakPulse');
+      // Glimmer Step never drops below 1s (Flicker and Drift stack).
+      if (slot === 1) return Math.max(1, base - 1.5 * this.rank('flicker') - TREE.driftCd * this.tree('drift'));
+      if (slot === 2) return base - 3 * this.rank('heatSink') - 3 * this.rank('fastFuse') - TREE.chimeCd * this.tree('chime');
+      return base;
+    }
     if (this.cls === 'emberwright') {
       if (slot === 0) return base - TREE.fanCd * this.tree('fan');
       if (slot === 1) return Math.max(1, (base - 1.5 * this.rank('flicker') - TREE.skipCd * this.tree('skip')) * (this.hasMythic('wanderersWake') ? 0.5 : 1));
@@ -4731,7 +4737,7 @@ export class World {
 
   healPlayer(amount: number): number {
     const p = this.player;
-    if (this.cls === 'lumen') amount *= 1 + 0.1 * this.rank('lampglowCare');
+    if (this.cls === 'lumen') amount *= (1 + 0.1 * this.rank('lampglowCare')) * (1 + TREE.tendHeal * this.tree('tend'));
     const eff = Math.max(0, Math.min(p.maxHp - p.hp, amount));
     p.hp += eff;
     // Co-op: effective healing draws threat, split across the living enemies.
@@ -4751,7 +4757,7 @@ export class World {
   healAllies(x: number, y: number, r: number, amount: number, only = -1, cleanse = true): number {
     if (this.heroes.length === 1) return 0;
     const p = this.player;
-    if (this.cls === 'lumen') amount *= 1 + 0.1 * this.rank('lampglowCare');
+    if (this.cls === 'lumen') amount *= (1 + 0.1 * this.rank('lampglowCare')) * (1 + TREE.tendHeal * this.tree('tend'));
     let total = 0;
     let over = 0;
     const tank = this.rank('frontMend') > 0 ? this.bossTarget : -1;
@@ -4797,7 +4803,7 @@ export class World {
   }
 
   get moteCooldown(): number {
-    return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult;
+    return (0.7 * Math.pow(0.88, this.rank('hastedHymn'))) / this.loadout.hasteMult / (1 + TREE.liltHaste * this.tree('lilt'));
   }
   get burstRadius(): number {
     return (140 + 40 * this.rank('sunflare')) * (this.hasMythic('eclipseGlass') ? 1.1 : 1);
@@ -4823,7 +4829,7 @@ export class World {
         this.healAllies(p.sanctX, p.sanctY, r, 2);
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
-          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * (1 + 0.5 * this.rank('hallowedEmbers')) * this.dmgMult, false, true);
+          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * (1 + 0.5 * this.rank('hallowedEmbers')) * (1 + TREE.verseBurn * this.tree('verse')) * this.dmgMult, false, true);
         });
       }
     }
@@ -4877,7 +4883,7 @@ export class World {
     const p = this.player;
     const bonus = Math.min(p.brilliance, 10);
     p.brilliance -= bonus;
-    const dmg = (22 * (1 + 0.15 * this.rank('searingRadiance') + 0.1 * this.rank('lanternHeart') + 0.1 * this.rank('longNote')) + bonus) * this.dmgMult;
+    const dmg = (22 * (1 + 0.15 * this.rank('searingRadiance') + 0.1 * this.rank('lanternHeart') + 0.1 * this.rank('longNote')) + bonus) * (1 + TREE.shineMote * this.tree('shine')) * this.dmgMult;
     const hit = (i: number, k: number) => {
       const e = this.enemies[i];
       this.events.push({ type: 'mote', x1: p.x, y1: p.y, x2: e.x, y2: e.y });
@@ -4932,7 +4938,7 @@ export class World {
     const aegis = this.rank('aegisOfLight');
     if (aegis > 0) p.ward = Math.max(p.ward, p.maxHp * 0.08 * aegis);
     const r = this.burstRadius;
-    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * this.dmgMult * (eclipse ? 1.4 : 1);
+    const dmg = 40 * (1 + 0.5 * this.rank('sunflare')) * (1 + TREE.pulseBurst * this.tree('pulse')) * this.dmgMult * (eclipse ? 1.4 : 1);
     this.forEachNear(p.x, p.y, r + 40, (i) => {
       const e = this.enemies[i];
       const dx = e.x - p.x;
@@ -6715,6 +6721,9 @@ export class World {
     // Glow (Emberwright tree keystone) works the same way.
     if (this.tree('steadfast') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.steadfastDmg;
     if (this.tree('glow') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.glowDmg;
+    if (this.tree('serene') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.sereneDmg;
+    // Refrain (Lumen tree keystone): harder on a foe standing in the Lumen's Sanctuary.
+    if (this.tree('refrain') > 0 && this.player.sanctT > 0 && dist2(this.player.sanctX, this.player.sanctY, e.x, e.y) <= (this.sanctuaryRadius + e.def.radius) ** 2) dmg *= 1 + TREE.refrainDmg;
     // Character tree, Kickback: harder on a foe that hit this hero in the last few seconds.
     if (e.struckBy === this.acting && this.time - (e.struckAt ?? -99) < TREE.kickbackWindow) dmg *= 1 + TREE.kickbackDmg * this.tree('kickback');
     // Turned Back (party card): the boss is busy with someone else.
@@ -6749,7 +6758,7 @@ export class World {
       glance = m < 1;
     }
     if (forceCrit || (canCrit && this.rng.chance(this.critChance))) {
-      dmg *= 2 + 0.1 * this.rank('brightWick') + TREE.glintCrit * this.tree('glint');
+      dmg *= 2 + 0.1 * this.rank('brightWick') + TREE.glintCrit * this.tree('glint') + TREE.noondayCrit * this.tree('noonday');
       crit = true;
       // Ignition rank 2: crits bring Flame Wave back sooner.
       if (this.rank('ignition') >= 2) this.player.cds[0] = Math.max(0, this.player.cds[0] - 0.3);
