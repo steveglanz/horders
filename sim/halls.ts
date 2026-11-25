@@ -232,7 +232,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['hoard', 'smeltery'];
+export const HALLS_BETA: DungeonId[] = ['hoard', 'smeltery', 'flue'];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
 export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible'];
 /** Whether a run of `dungeon` gets a Halls map. */
