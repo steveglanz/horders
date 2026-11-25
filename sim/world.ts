@@ -9228,10 +9228,10 @@ export class World {
     const mult = this.bossEnraged ? 2 : 1;
     e.abilityT = this.bossEnraged ? 1.6 : phase === 3 ? 2.6 : 3.2;
     if (this.rng.int(2) === 0) {
-      this.addTelegraph('circle', p.x, p.y, 110, 0, 0, 1.3, 32 * mult);
+      this.addTelegraph('circle', p.x, p.y, 110, 0, 0, 1.3, MAELRA_HITS.circle * mult);
     } else {
       const ang = Math.atan2(p.y - e.y, p.x - e.x);
-      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, 28 * mult);
+      this.addTelegraph('cone', e.x, e.y, 300, ang, (65 * Math.PI) / 180, 1.1, MAELRA_HITS.cone * mult);
     }
   }
 
@@ -10112,6 +10112,12 @@ export const MAELRA_VARIANTS: MaelraVariant[] = ['water', 'tide', 'seal'];
 /** V8 Sluicetide: from phase 2 the water pushes every hero `drift` px/s one way, and turns every `turnEvery` s. The arena keeps its size. */
 export const SLUICETIDE = { drift: 45, turnEvery: 8 };
 /** Phase 16 U1: Maelra's echo windows in her last phase: the first `first` s in, then `on` s on and `off` s off. */
+/**
+ * Maelra's hits between casts: a circle under the hero and a 300 px cone. The cone only ever lands on melee, so 1.0 M3
+ * (25 Nov) cut it 28 -> 10, as at average skill she walled the Bulwark and Duskblade at t6 (7 and 3 of 20) while ranged
+ * classes won 16-18 of 20. Same fix as the Lensmother's Lens Sweep (GLARE.sweepDamage).
+ */
+export const MAELRA_HITS = { circle: 32, cone: 10 };
 export const MAELRA_ECHO = { first: 2, on: 12, off: 10 };
 /** Maelra's versions that can echo: rising water is in every version but the Sluicetide already. */
 export const MAELRA_ECHOES: MaelraVariant[] = ['tide', 'seal'];
