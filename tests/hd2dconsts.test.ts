@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALLAST, DIMHORN, LAMPEYE, ONDRELV2, OVERFLOW } from '../sim/world';
+import { BALLAST, DIMHORN, LAMPEYE, ONDRELV2, OSKEL, OVERFLOW } from '../sim/world';
 import { SIM } from '../client/hd2d/simconsts';
 import { DOOR_ROOM, HALLS } from '../sim/halls';
 
@@ -18,5 +18,6 @@ describe('3D view sim constants', () => {
     expect(SIM.ondrelSlagR).toBe(ONDRELV2.r);
     expect(SIM.ondrelBurstR).toBe(ONDRELV2.burstR);
     expect(SIM.ondrelGlow).toBe(ONDRELV2.glow);
+    expect(SIM.oskelRivetR).toBe(OSKEL.rivetRadius);
   });
 });
