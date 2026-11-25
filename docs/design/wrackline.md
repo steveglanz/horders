@@ -38,7 +38,7 @@ She holds the drain at the centre and never moves. Melee have to stand in the dr
 |---|---|---|
 | **The Ebb** | Every 14 s while she's up | Be on a raft |
 | **Sink** | Every 9 s, a 2.2 s Quenchable cast on the afloat raft nearest her target. If it lands, that raft goes under for 12 s | Quench it, or move to another raft |
-| **Call the Shoal** | Every 28 s, 2 Shoal Lurkers | Stand in a raft's middle, or kill them between pulls |
+| **Call the Shoal** | Every 28 s, 1 Shoal Lurker (2 until 25 Nov) | Stand in a raft's middle, or kill them between pulls |
 | **Phase 2, Riptide** (below half health) | Rafts drift 1.6× faster and the pull is 1.25× stronger | Move with the rafts |
 | **Soft enrage** (240 s) | The Ebb every 7 s | Finish her |
 

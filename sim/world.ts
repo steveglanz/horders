@@ -9946,7 +9946,8 @@ export const WRACK = {
   haulEvery: 8, haulCast: 1.6, haul: 160, haulRange: 520, haulDamage: 8,
   /** Hessa: Sink (Quenchable) sinks the raft nearest her target for `sinkTime` s; Call the Shoal brings Lurkers. */
   sinkEvery: 9, sinkCast: 2.2, sinkTime: 12, firstSink: 7,
-  shoalEvery: 28, shoalN: 2, firstShoal: 14,
+  /** Call the Shoal: `shoalN` Lurkers every `shoalEvery` s (2 until 25 Nov, when the solo Bulwark lost 3 of 5 Hessa fights to them on the map). */
+  shoalEvery: 28, shoalN: 1, firstShoal: 14,
   /** Phase 2, Riptide (from `phase2` of her health): rafts drift faster and the pull is stronger. */
   phase2: 0.5, riptideDrift: 1.6, riptideDrag: 1.25,
   /** Soft enrage: the Ebb every `tideLate` s. */
