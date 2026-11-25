@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
+import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
@@ -559,8 +559,9 @@ export class HallsView {
   private nextGoal(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
     if (roomAt(m, x, y) === DOOR_ROOM) return null;
     let far = 0;
-    MAIN_ROOMS.forEach((r, i) => { if (m.seen[r]) far = i; });
-    const r = m.rooms[MAIN_ROOMS[Math.min(MAIN_ROOMS.length - 1, far + 1)]];
+    const main = mainRooms(m);
+    main.forEach((r, i) => { if (m.seen[r]) far = i; });
+    const r = m.rooms[main[Math.min(main.length - 1, far + 1)]];
     return { x: r.x, y: r.y };
   }
 }
