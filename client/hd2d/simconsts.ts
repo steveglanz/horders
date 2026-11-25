@@ -22,4 +22,10 @@ export const SIM = {
   hallsShowRing: 400,
   /** DOOR_ROOM: the room index of the boss door's alcove. */
   hallsDoorRoom: 6,
+  /** ONDRELV2.r: the radius of a burning slag patch. */
+  ondrelSlagR: 80,
+  /** ONDRELV2.burstR: a patch's burst radius in the last heat. */
+  ondrelBurstR: 110,
+  /** ONDRELV2.glow: seconds a patch glows before it bursts. */
+  ondrelGlow: 2.5,
 } as const;

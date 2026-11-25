@@ -1,0 +1,46 @@
+// Ondrel v2 slag shots: node ond.cjs <dist> <outDir>   env NO3D=1 LAND=1
+const { chromium } = require('playwright');
+const http = require('http'); const fs = require('fs'); const path = require('path');
+const dist = process.argv[2]; const out = process.argv[3]; fs.mkdirSync(out, { recursive: true });
+const srv = http.createServer((q, r) => { const p = new URL(q.url, 'http://x').pathname; const f = path.join(dist, p === '/hd2d.js' ? 'hd2d.js' : 'index.html'); r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : 'text/html' }); r.end(fs.readFileSync(path.resolve(f))); }).listen(0);
+(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const ctx = await b.newContext(process.env.LAND ? { viewport: { width: 568, height: 320 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await ctx.route('https://*.supabase.co/**', (r) => r.abort());
+  await ctx.addInitScript((LOOK) => localStorage.setItem('horders.display.v1', JSON.stringify({ graphics: 'full', look: LOOK })), process.env.NO3D ? '2d' : '3d');
+  const page = await ctx.newPage(); const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=3&god=1&ondrelv2=1${process.env.NO3D ? '' : '&hd2d=1'}`);
+  await page.waitForFunction(() => !!window.__ember && !document.getElementById('startBtn').disabled, null, { timeout: 60000 });
+  await page.evaluate(() => { const h = window.__ember.hero(); h.maxTier = Math.max(h.maxTier, 12); h.runs = Math.max(h.runs, 3); });
+  await page.evaluate(() => document.getElementById('startBtn').click());
+  await page.waitForFunction((no3d) => window.__ember.scene()?.world?.tick > 0 && (no3d || window.__ember.scene().hd2d), !!process.env.NO3D, { timeout: 120000 });
+  await page.evaluate(() => { const s = window.__ember.scene(); s.scene.restart({ opts: { seed: 3, cls: 'bulwark', dungeon: 'hammerdeep', tier: 5, invulnerable: true, ondrelV2: true, omens: [] }, hud: s.hud, onEnd: () => {} }); });
+  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 5, null, { timeout: 300000 });
+  const ok = await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = false; s.warp = 0; const w = s.world;
+    for (const e of w.enemies) e.alive = false;
+    w.player.x = w.player.px = 60; w.player.y = w.player.py = 120;
+    const b = w.spawn('ondrel', 0, -140); w.bossIndex = b; w.bossSpawned = true; window.__b = b;
+    w.ondrelStage = 2; w.bossPhase = 2; w.slagPatches = [];
+    const e = w.enemies[b]; e.hp = e.maxHp * 0.5; e.castId = null; e.abilityT = 99;
+    for (const [x, y] of [[-170, 40], [150, -20], [-40, 200]]) w.slagPatches.push({ x, y, tick: 0.5, glow: 0 });
+    return w.ondrelV2; });
+  console.log('ondrelV2', ok);
+  const KEEP = "['ondrel']";
+  const step = (sec, until) => page.evaluate(([sec, until, KEEP]) => { const w = window.__ember.scene().world; const keep = new Set(eval(KEEP)); const u = until ? new Function('w', 'return ' + until) : () => false; const end = w.time + sec; let n = 0;
+    while (w.time < end && n++ < 4000) { for (const e of w.enemies) if (e.alive && !keep.has(e.kind)) e.alive = false; const o = w.enemies[window.__b]; if (o) { o.castId = null; o.castT = 0; } if (w.state === 'draft') w.choose(0); else w.step({ x: 0, y: 0 }); if (u(w)) break; }
+    return JSON.stringify({ t: w.time.toFixed(2), st: w.ondrelStage, p: w.slagPatches.map((a) => a.glow.toFixed(2)) }); }, [sec, until || '', KEEP]);
+  const snap = async (name) => { await page.waitForTimeout(1000); await page.screenshot({ path: path.join(out, name + '.png') }); console.log(name, JSON.stringify(await page.evaluate(() => { const v = window.__ember.scene().hd2d?.stats(); return v ? { calls: v.calls, tri: v.triangles } : null; }))); };
+  console.log(await step(0.3)); await snap('s2-slag');
+  await page.evaluate(() => { const w = window.__ember.scene().world; w.player.x = w.player.px = -150; w.player.y = w.player.py = 50; });
+  console.log(await step(0.2)); await snap('s2-standing-in');
+  await page.evaluate(() => { const w = window.__ember.scene().world; w.player.x = w.player.px = 60; w.player.y = w.player.py = 100; const e = w.enemies[window.__b]; e.hp = e.maxHp * 0.24; });
+  console.log(await step(4, 'w.ondrelStage === 3'));
+  console.log(await step(2, 'w.slagPatches.every((a) => a.glow > 0 && a.glow < 1.3)')); await snap('s3-glow');
+  console.log(await step(2, 'w.slagPatches.every((a) => a.glow > 0 && a.glow < 0.25)')); await snap('s3-about-to-burst');
+  console.log(await step(1, 'w.slagPatches.length === 0'));
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 120)));
+  await page.screenshot({ path: path.join(out, 's3-burst.png') });
+  console.log(errs.join(' | ') || 'no errors');
+  await b.close(); srv.close();
+})();
