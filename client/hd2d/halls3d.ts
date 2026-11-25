@@ -174,11 +174,14 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const CORRIDOR_WALL = o.corridorWall ?? '#9a5a44';
   const themes = m.rooms.map((_, i) => themeOf(m, i));
   const themeFloor = new Map<ThemeId, THREE.MeshStandardMaterial>();
+  /** Quay floors' textures, drifting slowly (roomLife). */
+  const waterTex: THREE.Texture[] = [];
   const floorFor = (th: Theme) => {
     let f = themeFloor.get(th.id);
     if (!f) {
       const t = new THREE.CanvasTexture(themeTileCanvas(th, tileCanvas)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      f = new THREE.MeshStandardMaterial({ map: t, roughness: th.id === 'cooling' ? 0.7 : 0.9, metalness: 0.02 }); themeFloor.set(th.id, f);
+      f = new THREE.MeshStandardMaterial({ map: t, roughness: th.water ? 0.55 : th.id === 'cooling' ? 0.7 : 0.9, metalness: 0.02 }); themeFloor.set(th.id, f);
+      if (th.water) waterTex.push(t);
     }
     return f;
   };
@@ -300,8 +303,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   steam.frustumCulled = false; steam.visible = false; if (steamAt.length) group.add(steam);
   const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion(), pr2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
   const roomLife = (t: number) => {
+    for (const tx of waterTex) { tx.offset.x = (t * 0.012) % 1; tx.offset.y = (t * 0.007) % 1; }
     for (const pr of props) {
-      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery')) continue;
+      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp')) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
         const { sy, ry } = propMotion(pr.id, t, k * 1.3);

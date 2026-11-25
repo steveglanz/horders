@@ -295,6 +295,20 @@ export class HallsView {
     } else if (id === 'crypt') {
       g.fillStyle(0x4a4e5e, 1).fillPoints([new Phaser.Math.Vector2(x - tx * 32 + nx * 10, y - ty * 32 + ny * 10), new Phaser.Math.Vector2(x + tx * 32 + nx * 10, y + ty * 32 + ny * 10), new Phaser.Math.Vector2(x + tx * 32 - nx * 14, y + ty * 32 - ny * 14), new Phaser.Math.Vector2(x - tx * 32 - nx * 14, y - ty * 32 - ny * 14)], true);
       g.lineStyle(2, 0xc4d0e0, 0.8).lineBetween(x - tx * 22, y - ty * 22, x + tx * 22, y + ty * 22);
+    } else if (id === 'quay') {
+      g.fillStyle(0x5a6062, 1).fillCircle(x, y, 14);
+      g.lineStyle(4, 0xa08a64, 1).strokeCircle(x, y, 19);
+      g.fillStyle(0xfff0c8, 0.9).fillCircle(x + tx * 30, y + ty * 30, 5);
+    } else if (id === 'wreck') {
+      g.lineStyle(5, 0x5a4434, 1);
+      for (const o of [-22, 0, 22]) g.beginPath().arc(x + tx * o, y + ty * o, 20, Math.atan2(-ny, -nx) - 1, Math.atan2(-ny, -nx) + 1).strokePath();
+      g.fillStyle(0x7a5a3c, 1).fillEllipse(x + tx * 36 - nx * 12, y + ty * 36 - ny * 12, 26, 18);
+    } else if (id === 'kelp') {
+      g.lineStyle(4, 0x4a7a52, 0.9);
+      for (const o of [-16, -4, 10, 20]) g.lineBetween(x + tx * o, y + ty * o, x + tx * (o + 6) - nx * 34, y + ty * (o + 6) - ny * 34);
+    } else if (id === 'sluice') {
+      g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
+      g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);
     } else {
       g.fillStyle(0x8a6a4a, 1).fillRect(x + nx * 10 - 22, y + ny * 10 - 22, 44, 44);
       g.fillStyle(0x3a2a1e, 1).fillRect(x + nx * 10 - 12, y + ny * 10 - 12, 24, 24);
