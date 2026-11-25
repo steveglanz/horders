@@ -118,7 +118,7 @@ describe('Trash rollout: the Drowned Foundry behind ?trashbeta', () => {
     expect(seen.size).toBeGreaterThanOrEqual(5);
     // The list design checks: per opener, what a trash pack holds.
     const held = (enc: Parameters<typeof packFoes>[2]) => packFoes(1, 0, enc, 0, 0, true).map((f) => f.kind).sort();
-    expect(held('twins')).toEqual(['emberTwin', 'emberTwin', 'emberTwin', 'emberTwin']);
+    expect(held('twins')).toEqual(['emberTwin', 'emberTwin']);
     expect(held('glass')).toEqual(['cinderhound', 'cinderhound', 'cinderhound', 'cinderhound', 'glassWarden']);
     expect(held('crawlers')).toEqual(['cinderhound', 'cinderhound', 'cinderhound', 'cinderhound', 'sluiceCrawler']);
     expect(held('riftfall')).toEqual(['cinderhound', 'cinderhound', 'cinderhound', 'cinderhound', 'rift']);
@@ -143,5 +143,32 @@ describe('Trash rollout: the Drowned Foundry behind ?trashbeta', () => {
       expect(on.drops.filter((d) => d.alive).length).toBe(bags);
       expect(on.player.level).toBe(lvl + 1);
     }
+  });
+});
+
+describe('Trash rollout: the Ember Twins keep their pair, and Rekindle keeps the fallen twin\'s health', () => {
+  type C = { finishCast(i: number): void };
+  it('a trash twin comes back at half of its own (30%) maxHp, not half of a fresh one', () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 40 && !checked; seed++) {
+      const w = new World({ seed, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade', trashBeta: true });
+      const k = w.halls!.packs.findIndex((p) => p.trash && p.enc === 'twins');
+      if (k < 0) continue;
+      (w as unknown as Q).hallsWake(k);
+      const twins = w.enemies.map((e, i) => [e, i] as const).filter(([e]) => e.alive && e.kind === 'emberTwin');
+      expect(twins).toHaveLength(2);
+      const [[a, ai], [b, bi]] = twins;
+      const full = a.maxHp;
+      a.hp = 0;
+      (w as unknown as { killEnemy(i: number): void }).killEnemy(ai);
+      expect(b.castId).toBe('rekindle');
+      (w as unknown as C).finishCast(bi);
+      const back = w.enemies.filter((e) => e.alive && e.kind === 'emberTwin' && e !== b);
+      expect(back).toHaveLength(1);
+      expect(back[0].maxHp).toBeCloseTo(full, 6);
+      expect(back[0].hp).toBeCloseTo(full * 0.5, 6);
+      checked++;
+    }
+    expect(checked).toBe(1);
   });
 });
