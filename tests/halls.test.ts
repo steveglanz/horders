@@ -1498,3 +1498,47 @@ describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
     expect(reached).toBeGreaterThanOrEqual(2);
   }, 90000);
 });
+
+describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
+  const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
+  it('is behind ?hallsbeta with the raid layout, H4a\'s named gate rule, and its own themes from #788 (tap guards the door, flywheel is the alcove)', () => {
+    expect(HALLS_BETA).toContain('smeltery');
+    expect(HALLS_ON).not.toContain('smeltery');
+    expect(halls(3, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party }).halls).toBeNull();
+    const { openers, named, boss } = DUNGEONS.smeltery;
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'smeltery', tier: 10, hallsBeta: true, cls: 'bulwark', party });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[3]).toBe(boss);
+      expect(m.rooms.map((r) => r.id)).toEqual(['R0', 'R1', 'R2', 'R3', 'R5', 'door']);
+      const pk = (r: string) => m.packs.find((p) => p.role === r)!;
+      expect(openers).toContain(pk('A').enc);
+      if (pk('B').gate === 'named') expect(pk('S').enc).toBe(w.route[1]);
+      else expect(pk('B').enc).toBe(w.route[1]);
+      expect(named).toContain(pk('C').enc);
+      expect(m.packs.filter((p) => p.guard)).toEqual([pk('C')]);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      expect(m.rooms[4].theme).toBe('tap');
+      expect(m.rooms[5].theme).toBe('flywheel');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['tap', 'flywheel', 'billet', 'hoist'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a four-hero bot party walks it and goes through the door into the Cinder Colossus\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 4: without gear a party dies to the Smeltery's tier-10 crawlers before the door; this checks the walk, not the numbers.
+      const w = halls(seed, { dungeon: 'smeltery', tier: 4, hallsBeta: true, cls: 'bulwark', party });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.smeltery.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 90000);
+});
