@@ -934,6 +934,25 @@ Every class gets round a stone the same way, and pillar fights are a little shor
 
 **A measuring trap.** Forcing the same trash fights open on the same seeds gave a few big win swings in the boss fight. For example, Flue Anvil won 35/80 with layouts against 52/80 forced open, though the boss arena is open in both. The floors change how many run-rng draws the trash uses, so the drafts and the boss fight roll differently. A control that keeps the fights open but adds 1, 2 or 3 extra rng draws per fight gave 39, 39 and 38 of 80. So the 52 was luck, not the floors. Compare floors on the trash itself, or use 320 seeds or more for the whole run, as design did (#462).
 
+## Slagbinder kill speed: solo Bellows damage x1.2 (25 Nov 2026)
+Design's note from Halls H1: Slagbinder Kiln t3 delves ran to about 8 minutes, over Steve's 7-minute cap. The arena was just as slow (473 s on average, 28 of 40 over 7 min), so the cause is kill speed, not the map. Every Slagbinder fight took about twice as long as the Duskblade's, and with heroes-r2 gear it was the slowest class in every t6 and t8 cell (543 to 640 s).
+
+**Why not more damage paid for with less survival.** At Kiln 6 and 8, a third to a half of its losses were the boss timer (the boss fight reaching about 366 s: 13 and 32 of 120 runs). No other class loses that way there. Plating soaks most hits, so making them hurt more barely holds wins: with x1.35 damage, hits past plating at x1.4, x2 and x2.5 still win Kiln 8 29.3, 25.3 and 23.3 of 40 (20.7 before). Design picked the simple option.
+
+**The change:** `SLAG_KIT.soloDmg` = 1.2, for a Bellows Slagbinder alone. The stance tip says "Alone, you deal 20% more damage." Party play (`partyDmg`, `fluePartyDmg`) and the Anvil are unchanged.
+
+Arena, heroes-r2 Slagbinder files x 3, 40 seeds, full skill, wins of 40 and average delve:
+
+| | Kiln 6 | Kiln 8 | Foundry 6 | Foundry 8 |
+|---|---|---|---|---|
+| Before | 28.3, 543 s | 20.7, 624 s | 34.3, 557 s | 28.0, 640 s |
+| soloDmg 1.2 | 36.3, 433 s | 29.0, 539 s | 38.3, 496 s | 34.3, 572 s |
+| Emberwright (same files' tier) | 25.3 | 15.7 | 31.7 | 26.7 |
+
+**Watch item:** Kiln 8 is +13.3 over the Emberwright, inside the L7 +-15 gate but close to it.
+
+Kiln t3 Halls on main after H2a-H2c (no gear, 40 seeds): full skill 17 wins at 340 s becomes 16 at 287 s, and average skill 16 at 353 s becomes 24 at 315 s. Runs over 7 min: 14 -> 8 (full) and 13 -> 9 (average).
+
 ## Marks and arena events: class check (X5, 23 Nov 2026)
 Phase 14 gave the named foes two more affixes (Brood, Smoldering; X2) and gave the solo trash fights arena events (Cave-in, Vent Surge, Cold Snap, High Water; X3). X5 asks whether every class has an answer to each one.
 

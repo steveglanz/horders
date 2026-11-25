@@ -313,7 +313,7 @@ export class Hub {
       + (cls === 'slagbinder'
         ? `<div class="stance" role="group" aria-label="Stance">${(['anvil', 'bellows'] as const).map((st) => {
           const on = (h.stance ?? 'bellows') === st;
-          const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, hits land 35% lighter (20% in a party), and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. In a party, you deal 30% less damage (15% less in the Flue).';
+          const tip = st === 'anvil' ? 'Anvil: you tank. Bosses stay on you, hits land 35% lighter (20% in a party), and Cooling Shell lasts longer. An off-tank: steady in the Hammerdeep, not yet a raid main tank.' : 'Bellows: you fill a damage slot. Plating is thicker and Interpose lasts longer. Alone, you deal 20% more damage; in a party, 30% less (15% less in the Flue).';
           return `<button data-stance="${st}" data-sfx="${st}Pick" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
         }).join('')}</div>`
         : '')

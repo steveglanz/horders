@@ -163,10 +163,12 @@ describe('party cards (Season 2)', () => {
 });
 
 describe('Slagbinder in a party (party-only trim)', () => {
-  it('a Bellows Slagbinder deals partyDmg in a party, an Anvil one and a solo one do not', () => {
+  it('a Bellows Slagbinder deals partyDmg in a party and soloDmg alone; an Anvil one deals neither', () => {
     const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [] });
     const duo = party('slagbinder', ['bulwark']).w;
-    expect(duo.dmgMult).toBeCloseTo(solo.dmgMult * SLAG_KIT.partyDmg);
+    expect(SLAG_KIT.soloDmg).toBeGreaterThan(1);
+    expect(duo.dmgMult).toBeCloseTo((solo.dmgMult / SLAG_KIT.soloDmg) * SLAG_KIT.partyDmg);
+    expect(solo.dmgMult / new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' }).dmgMult).toBeCloseTo(SLAG_KIT.soloDmg, 5);
     duo.player.stance = 'anvil';
     const anvilSolo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' });
     expect(duo.dmgMult).toBeCloseTo(anvilSolo.dmgMult);
