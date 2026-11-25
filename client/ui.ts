@@ -436,7 +436,8 @@ export class Hud {
     const extra = e.kind === 'maelra' && w.temper > 0 ? ` · Temper ×${w.temper}` : e.kind === 'glassWarden' && e.aux2 > 0 ? 'Mirrored' : e.ward > 0 ? (e.named >= 0 && AFFIXES[e.affix] === 'Warded' ? 'Shield up' : 'Warded') : '';
     // A Warded named elite already says "Warded" in its title, so the live state reads "Shield up".
     const phases = BOSS_PHASES[e.kind] ?? 3;
-    const state = e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
+    // YSMERETV2 stage 2: two flames, one bar (they share their health), and the frame says so.
+    const state = e.kind === 'ysmeret' && w.ysStage === 2 && !w.bossEnraged ? 'Two flames · one health' : e.def.rank === 'boss' ? (w.bossEnraged ? 'Enraged' : phases > 1 ? `Phase ${w.bossPhase} of ${phases}` : '') : e.stunT > 0 ? 'Stunned' : '';
     // Join with a dot ("Enraged · Warded"); Maelra's Temper already brings its own.
     $('tPhase').textContent = state && extra && !extra.startsWith(' · ') ? `${state} · ${extra}` : state + extra;
     if (shadow) {
@@ -831,12 +832,16 @@ export class Hud {
       // The Flue: an ally's Decree counts down on their row; Spent allies can't take one.
       const dec = w.dungeonId === 'flue' && !down ? w.regentDecree.find((d) => d.hero === r.hero) : undefined;
       const spent = w.dungeonId === 'flue' && !down && !dec && (q.spentT ?? 0) > 0;
-      const mt = dec ? `${Math.ceil(dec.t)}s` : spent ? 'Spent' : '';
+      // The Pressworks: a Pressed ally (took the last Downstroke) can't take the next one; their row says so, in red
+      // (no seconds: the name keeps its room, and the mark by the hero runs down the time).
+      const pressed = w.dungeonId === 'pressworks' && !down && (q.pressedT ?? 0) > 0;
+      const mt = dec ? `${Math.ceil(dec.t)}s` : spent ? 'Spent' : pressed ? 'Pressed' : '';
       if (mt !== r.markText) {
         r.markText = mt;
         r.mark.textContent = mt;
         r.el.classList.toggle('decree', !!dec);
         r.el.classList.toggle('spent', spent);
+        r.el.classList.toggle('pressed', pressed);
       }
       const reviving = rev > 0;
       if (reviving !== r.reviving) {
@@ -996,7 +1001,25 @@ export class Hud {
     let ox = 0;
     let oy = 0;
     const R = 56;
+    // QA, 25 Nov (Steve on a phone: the stick got stuck moving one way and he had to quit). A finger-up can be lost (an
+    // app switch, a notification pulled down, a system gesture), and then the stick kept its last direction and ignored
+    // every new touch, since it still thought the first finger was down. Now the stick lets go whenever the page loses
+    // the finger or the focus, and a new touch always takes over from a stale one.
+    const release = () => {
+      if (id === null) return;
+      try {
+        if (zone.hasPointerCapture(id)) zone.releasePointerCapture(id);
+      } catch {
+        // The pointer is already gone.
+      }
+      id = null;
+      base.hidden = true;
+      this.handlers?.onStick(0, 0);
+    };
+    window.addEventListener('blur', release);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
     zone.addEventListener('pointerdown', (e) => {
+      if (id !== null && id !== e.pointerId) release();
       if (id !== null) return;
       id = e.pointerId;
       ox = e.clientX;
@@ -1033,5 +1056,6 @@ export class Hud {
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+    zone.addEventListener('lostpointercapture', end);
   }
 }

@@ -313,11 +313,13 @@ function startRun(bounty = false, key = false): void {
   // in local play (the first delve keeps the old fight, in World). Hosted online co-op keeps today's fight until QA
   // has played it there (design, 25 Nov), so a host opts in with ?bossv2=1; ?bossv2=0 turns it off for comparing.
   if (hosting ? params.get('bossv2') === '1' : params.get('bossv2') !== '0') opts.bossV2 = true;
-  // ONDRELV2 (design, 25 Nov): the staged Ondrel, off until design has measured it, so solo and host both opt in.
-  if (params.get('ondrelv2') === '1') opts.ondrelV2 = true;
-  // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, off until design has measured it.
-  if (params.get('ysmeretv2') === '1') opts.ysmeretV2 = true;
-  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, off until design has measured it.
+  // ONDRELV2 (design, 25 Nov): the staged Ondrel, on by default in local play and hosted co-op since QA passed it in
+  // hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ondrelv2=0 turns it off for comparing.
+  if (params.get('ondrelv2') !== '0') opts.ondrelV2 = true;
+  // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
+  // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
+  if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;
+  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, off until art, sound and QA have seen it.
   if (params.get('oskelv2') === '1') opts.oskelV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();

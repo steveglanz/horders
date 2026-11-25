@@ -28,4 +28,6 @@ export const SIM = {
   ondrelBurstR: 110,
   /** ONDRELV2.glow: seconds a patch glows before it bursts. */
   ondrelGlow: 2.5,
+  /** OSKEL.rivetRadius: a Rivets ring's radius (how the 3D view knows a Rivets ring from other red circles). */
+  oskelRivetR: 60,
 } as const;

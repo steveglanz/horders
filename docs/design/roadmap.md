@@ -461,5 +461,18 @@ Five choices are on Steve's cards (run length, skipping, the per-pack draft, rep
 
 Phase 17 (the Arena) and the endgame scaling card wait behind H1, if Steve agrees.
 
+### Phase 19: the App Store and Google Play (asked for by Steve, 25 Nov 2026; direction now, build later)
+Steve (25 Nov 2026, 16:29Z), on shipping to the iOS App Store and Google Play: "Yes make sure it's In the plan." The audit with sources is [app-stores.md](app-stores.md). In short: the plan is to wrap the existing `dist/` build with Capacitor and bundle it inside the app, so it plays offline and stays inside Apple's no-downloaded-code rule (2.5.2). The repo already loads every asset by a relative path, pads for safe areas and pauses on background. The required gaps are account deletion and a privacy policy. Nothing is sold, so store billing isn't needed unless a shop is planned later.
+
+Until P1 starts, every team keeps the game store-safe: no assets from outside hosts, no code fetched at run time, no purchases or ads without a design brief, and any new account or login also gets a way to delete it.
+
+| # | Feature | Owner | Notes |
+|---|---|---|---|
+| P1 | **Delete my account and a privacy policy:** a server function that removes the player's cloud save, leaderboard rows and auth user; a Delete button in Settings; a short privacy page and a deletion request page on the site. Required by Apple 5.1.1(i) and 5.1.1(v) and by Google's account deletion rule. The migration is applied only after Steve says yes | engineering, design | ⏭ First. Also useful on the web |
+| P2 | **Capacitor shell (local only):** `capacitor.config` with `webDir: 'dist'`, iOS and Android projects, the app icon and splash, no pinch zoom or text selection, Android targeting API 36. Built and run on a simulator; nothing uploaded | engineering, visuals | ⏭ After P1, and only when Steve says go. iOS builds need a Mac with Xcode 26 |
+| P3 | **Device checks:** pause and sound on background, safe areas on Android edge to edge, WebRTC co-op inside the app, Supabase calls from the app's origin, saves surviving restarts and updates, native haptics, frame rate and first 3D Delve on a mid phone | QA, phones, sound | ⏭ After P2. Each item is listed in [app-stores.md](app-stores.md#check-on-a-device-not-proven) |
+| P4 | **Store accounts (Steve):** Apple Developer Program, 99 USD a year; Google Play, US$25 once, plus developer verification. A new personal Google account needs a closed test with 12 testers for 14 days in a row before release | Steve | ⏭ When Steve decides. Nobody opens an account or pays for Steve |
+| P5 | **Listings and first release:** screenshots, descriptions, age rating, Apple privacy labels and Google's Data safety form, TestFlight and the Play closed test, then review. Store builds follow the big-batch rhythm of Netlify deploys | design, engineering, QA | ⏭ After P3 and P4 |
+
 ## Backlog notes
 - **Acolyte heals as a real cast (Kiln).** Tried and rolled back 21 Nov 2026. A Kindle cast (Quenchable, then breakable by damage, then a staggerable channel) cost the Duskblade Kiln wins at tier 6 each time. Acolytes channel 0.8% per second again, shown as a pulsing beam; the answer is to kill them. See balance.md.

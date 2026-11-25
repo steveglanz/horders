@@ -3,7 +3,7 @@
  * browser: GameScene hands every event to `cueFor`, and the audio engine plays
  * whatever comes back.
  */
-import { ARENA, BRIM, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, MILL, VARIETY, type SimEvent } from '../../sim/world';
+import { ARENA, BRIM, YSMERETV2, CREEPING_RIME, IRONLOAD, isPunchR, KILN_TURN, LAYOUT, MILL, VARIETY, type SimEvent } from '../../sim/world';
 import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwright';
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
@@ -99,6 +99,8 @@ export interface CueContext {
   slag?: readonly SlagPatch[];
   /** BOSSV2: the Kiln Mother's heated quarters (World.kmHeat, cleared outside her kiln), set only in her fight. */
   kmHeat?: { warn: number; on: boolean };
+  /** YSMERETV2 stage 2: each living flame, and how long it has had no hero near (World.ysAway0/1). */
+  ysFlames?: readonly { x: number; y: number; away: number }[];
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -574,8 +576,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'gather': return { id: 'gather' };
     case 'soak': return { id: ev.ok ? 'soakOk' : 'soakFail' };
-    // YSMERETV2: a lone flame flares and hits every hero, as an empty vent does (sound may give it its own cue).
-    case 'ysFlare': return { id: 'soakFail' };
+    // YSMERETV2: a lone flame flares and hits every hero: its own fiery whump.
+    case 'ysFlare': return { id: 'ysFlare' };
     case 'drop':
       return { id: ev.rarity === 'mythic' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
@@ -982,6 +984,24 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
  * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
  * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
  */
+/** flameAlone's length (the ash vent's 1.1 s hiss), so it ends as the lone flame flares. */
+export const FLAME_ALONE_LEAD = 1.1;
+/**
+ * YSMERETV2 stage 2: a flame no hero is near builds to its flare at YSMERETV2.flareAfter s. Its warning (flameAlone)
+ * starts so it ends as the flare goes off, and again each time the flame is left alone. It is must-hear, so it plays
+ * centred like every warning (the mixer never pans PRIORITY cues).
+ */
+export function flameCues(state: { away: number[] }, flames: CueContext['ysFlames']): Cue[] {
+  const out: Cue[] = [];
+  const at = YSMERETV2.flareAfter - FLAME_ALONE_LEAD;
+  const now = (flames ?? []).map((f) => f.away);
+  (flames ?? []).forEach((f, k) => {
+    if (f.away >= at && (state.away[k] ?? 0) < at) out.push({ id: 'flameAlone' });
+  });
+  state.away = now;
+  return out;
+}
+
 /** kilnVentWarn's length (its 1.1 s rumble-hiss), so it ends as the quarters start to burn. */
 export const KM_HEAT_LEAD = 1.1;
 /**
@@ -1074,7 +1094,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
-  'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
+  'castWarn', 'flameAlone', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
   'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5', 'packWake', 'packWakeExtra', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),

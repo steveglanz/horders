@@ -2627,6 +2627,26 @@ export class World {
     });
   }
 
+  /** The sealed room (grates down) a Halls pack's foe belongs to, or null. */
+  private sealedRoomOf(e: Enemy): HallsMap['rooms'][number] | null {
+    if (!this.hallsOn || e.pack === undefined) return null;
+    const m = this.halls!;
+    const rm = m.rooms[m.packs[e.pack]?.room ?? -1];
+    return rm && rm.lock !== undefined && rm.lock >= HALLS.lockDelay ? rm : null;
+  }
+
+  /** The living hero inside `rm` nearest (x, y), or -1. */
+  private heroInRoom(rm: HallsMap['rooms'][number], x: number, y: number): number {
+    let best = -1, bd = Infinity;
+    for (let k = 0; k < this.heroes.length; k++) {
+      const q = this.heroPlayer(k);
+      if (q.hp <= 0 || roomGap(rm, q.x, q.y) < 0) continue;
+      const d = dist2(q.x, q.y, x, y);
+      if (d < bd) { bd = d; best = k; }
+    }
+    return best;
+  }
+
   /** Whether the party is catching its breath on the map (the client's cue). */
   get hallsResting(): boolean {
     return this.hallsOn && this.hallsQuietT >= HALLS.rest.delay;
@@ -5529,7 +5549,13 @@ export class World {
       const e = this.enemies[i];
       if (!e.alive) continue;
       // The enemy acts against its target: swap that hero in so aims and hits land on them.
-      if (this.heroes.length > 1) this.use(this.targetOf(i, dt));
+      let tgt = this.heroes.length > 1 ? this.targetOf(i, dt) : 0;
+      // QA and design, 25 Nov (the H2b rule, applied to aim): a foe in a sealed room only goes after heroes inside it.
+      // With nobody inside to fight, it holds (a Lob landed past the grate on a hero shut outside, a Ground Pound was
+      // cast from 440 away). With one-way grates a hero outside can always walk in.
+      const sealed = this.sealedRoomOf(e);
+      if (sealed && roomGap(sealed, this.heroPlayer(tgt).x, this.heroPlayer(tgt).y) < 0) tgt = this.heroInRoom(sealed, e.x, e.y);
+      if (this.heroes.length > 1 && tgt >= 0) this.use(tgt);
       const p = this.player;
       e.px = e.x;
       e.py = e.y;
@@ -5547,6 +5573,7 @@ export class World {
         if (!e.alive) continue;
       }
 
+      if (tgt < 0) continue; // sealed in with nobody to fight
       if (e.def.stationary) {
         this.runStationary(i, dt);
         continue;
@@ -7712,7 +7739,9 @@ export class World {
     }
     if (e.castId || e.stunT > 0) return;
     // YSMERETV2 stage 1: Bellow Slam waits while her vents are open (its timer runs on; it goes off once they close).
-    if (this.bellowT <= 0 && !(this.ysStage === 1 && YSMERETV2.bellowWaits && (ventsOpen || this.rollLeft > 0))) {
+    // Looked at again here, so vents that opened above in this same tick count too (QA, 25 Nov).
+    const ventsNow = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+    if (this.bellowT <= 0 && !(this.ysStage === 1 && YSMERETV2.bellowWaits && (ventsNow || this.rollLeft > 0))) {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);

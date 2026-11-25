@@ -73,6 +73,12 @@ const namedCall = (): Recipe => join(
     [0, 0.22, 0.44].map((delay, i) => ({ wave: 'saw' as const, f: note([-9, -6, -2][i]), dur: i === 2 ? 0.7 : 0.3, delay, vol: 0.12, a: 0.02, lp: 2400, curve: 1.5 })),
 );
 
+/** One of Ysmeret's ash vents builds: a dry rising hiss with embers crackling through it (ashVentWarn, flameAlone). */
+const ASH_VENT_WARN: Recipe = join(
+    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.18, a: 0.85, lp: 2500, lp2: 7000, hp: 900, curve: 0.8 }],
+    ...[0.15, 0.32, 0.5, 0.63, 0.76, 0.86, 0.95].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 8000, hp: 2500, curve: 3 }]),
+  );
+
 export const SOUNDS = {
   // ---- combat, frequent (keep these tiny)
   hit: [
@@ -1329,10 +1335,14 @@ export const SOUNDS = {
     [{ wave: 'noise', f: 0, dur: 0.6, delay: 0.3, vol: 0.12, a: 0.25, lp: 1800, hp: 450, curve: 1.2 }]),
   /** The Ashvents (Phase 13 E2): one of Ysmeret's ash vents builds, a dry rising hiss with embers crackling through it.
    *  Kept apart from her Twin Vents call (ventWarn: two whooshes and two chimes). */
-  ashVentWarn: join(
-    [{ wave: 'noise', f: 0, dur: 1.1, vol: 0.18, a: 0.85, lp: 2500, lp2: 7000, hp: 900, curve: 0.8 }],
-    ...[0.15, 0.32, 0.5, 0.63, 0.76, 0.86, 0.95].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 8000, hp: 2500, curve: 3 }]),
-  ),
+  ashVentWarn: ASH_VENT_WARN,
+  /** YSMERETV2 stage 2: a flame no hero is near builds to its flare. The ash vent's dry rising hiss (ashVentWarn), under
+   *  its own id so it can be must-hear: the flare hits every hero. */
+  flameAlone: ASH_VENT_WARN,
+  /** YSMERETV2: a lone flame flares and hits every hero, a deep fiery whump that roars up and out. */
+  ysFlare: join(boom(48, 0.7, 0.6), whoosh(500, 7000, 0.6, 0.38),
+    [{ wave: 'saw', f: 220, f2: 440, dur: 0.35, vol: 0.12, a: 0.04, lp: 2600, curve: 1.6 }],
+    ...[0.1, 0.18, 0.3, 0.41].map((d, k) => [{ wave: 'noise' as const, f: 0, dur: 0.03, delay: d, vol: 0.1 - k * 0.015, lp: 9000, hp: 3000, curve: 3 }])),
   /** The ash vent bursts: a choking puff of ash and a spray of embers. */
   ashBurst: join(whoosh(900, 3500, 0.45, 0.3), boom(60, 0.25, 0.2),
     ...[0.06, 0.12, 0.2, 0.27].map((d, k) => [{ wave: 'sine' as const, f: 1700 + k * 220, f2: 2500 + k * 200, dur: 0.08, delay: d, vol: 0.05, curve: 2 }])),
@@ -1876,8 +1886,11 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   spitLob: 4.5,
   // +2 (Phase 16): it was 4.0 dB over the Foundry mix, under the slams (busycheck t8 heroes, SEEDS=1-24, n=8).
   chargeWindup: 6.0,
-  // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
-  bellowWarn: 3.0,
+  // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16). +1.3 (25 Nov): QA's Ysmeret v2 pass
+  // measured it 5.2 dB over the duo mix; lifted to about 6.5 dB.
+  bellowWarn: 4.3,
+  // YSMERETV2's lone-flame warning shares the ash vent's hiss, which is -29.4 dB alone; raised above the floor (-25.4 dB).
+  flameAlone: 4.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
   kilnDraw: 4.0,
   // The Sluicetide's turn is a must-hear push warning (measured -31.0 dB; 5.7 dB over the Foundry mix at +5.5, so +6.5).
@@ -1954,7 +1967,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   phaseRaid2: 9.0,
   phaseRaid3: 3.3,
   phaseShadow: 1.8,
-  phaseYsmeret: 1.7,
+  // +1.8 (25 Nov): QA's Ysmeret v2 pass measured her split sting 4.7 dB over the duo mix; lifted to about 6.5 dB.
+  phaseYsmeret: 3.5,
   // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
   // Raised again (22 Nov W5 polish): 3.4-7.2 dB over raid and group mixes at +4 (heroes-r2 t8, SEEDS=1-4, n=13).
   revivesSpent: 6,

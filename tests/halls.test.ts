@@ -33,7 +33,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 7, halls: true, dungeon: 'ashvents' }).halls).toBeNull();
+    // A raid has no map.
+    expect(new World({ seed: 2, tier: 9, halls: true, dungeon: 'hoard' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -530,7 +531,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'hoard', tier: 9 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -979,8 +980,11 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
 });
 
 describe('H4b: the Ashvents on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
-    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
+  it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
+    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).not.toBeNull();
+    expect(HALLS_ON).toContain('ashvents');
+    expect(HALLS_COOP).toContain('ashvents');
+    expect(HALLS_BETA).toEqual([]);
     const { openers, named, hard, boss } = DUNGEONS.ashvents;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
@@ -1014,8 +1018,11 @@ describe('H4b: the Ashvents on the Halls map', () => {
 });
 
 describe('H4c: the Pressworks on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, its own themes and Oskel behind the door', () => {
-    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).toBeNull();
+  it('is on for players (25 Nov), hosted co-op included; a party gets its own fights, its own themes and Oskel behind the door', () => {
+    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).not.toBeNull();
+    expect(HALLS_ON).toContain('pressworks');
+    expect(HALLS_BETA).not.toContain('pressworks');
+    expect(HALLS_COOP).toContain('pressworks');
     const { openers, named, hard, boss } = DUNGEONS.pressworks;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 60; seed++) {
@@ -1112,15 +1119,20 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
 
   it('bots walk it and go through the door into Nhevra\'s arena', async () => {
     let reached = 0;
-    // Gearless at tier 10 many die on the way (the cold), so this is a smoke test over 8 seeds (25 Nov: 5 of 8, 4 of 8 once a bot closes on a foe at a wall).
+    const stuck: number[] = [];
+    // Gearless at tier 10 many die on the way (the cold), and whether a run dies at 750 s or reaches the door at 733 s is luck.
+    // So this checks walking, not the cold (QA, 25 Nov): every seed ends at the door or with the party dead, none still walking
+    // at the time limit, and at least one seed reaches the door so a map nobody can walk through can't pass on deaths alone.
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
       await new Promise((r) => setTimeout(r, 0));
       const w = cold(seed, { cls: 'slagbinder' });
       run(w, () => !w.hallsOn || w.state === 'ended', 900);
       if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
+      else if (w.state !== 'ended') stuck.push(seed);
     }
-    expect(reached).toBeGreaterThanOrEqual(3);
+    expect(stuck, 'seeds still walking at the time limit').toEqual([]);
+    expect(reached).toBeGreaterThanOrEqual(1);
   }, 120000);
 });
 
@@ -1279,6 +1291,38 @@ describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
     const foe = { x: px - ux * 5, y: py - uy * 5, px: px + ux * (t + 40), py: py + uy * (t + 40) };
     clampGrates(w.halls!, foe, 15);
     expect(roomGap(rm, foe.x, foe.y)).toBeLessThan(0);
+  });
+
+  it('foes in a sealed room only go after heroes inside it, and hold with nobody inside (QA and design, 25 Nov)', () => {
+    const w = halls(2, { invulnerable: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    const q = w.heroData(1).player;
+    q.x = q.px = px + ux * (t + 250); q.y = q.py = py + uy * (t + 250);
+    const hold = [idle, idle];
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(hold);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    const m = w.halls!;
+    const mine = () => w.enemies.map((e, i) => ({ e, i })).filter(({ e }) => e.alive && e.pack !== undefined && m.rooms[m.packs[e.pack].room] === rm);
+    expect(mine().length).toBeGreaterThan(0);
+    // Hero 0 inside, hero 1 outside: every foe of the room closes on hero 0, none on hero 1.
+    const h0 = w.heroData(0).player;
+    const d0 = (e: { x: number; y: number }) => Math.hypot(e.x - h0.x, e.y - h0.y);
+    const before = mine().map(({ e }) => d0(e));
+    for (let k = 0; k < 30; k++) w.step(hold);
+    const after = mine().map(({ e }) => d0(e));
+    expect(after.reduce((a, b) => a + b, 0)).toBeLessThan(before.reduce((a, b) => a + b, 0));
+    // Now nobody inside (hero 0 set outside by hand): the room's foes hold still and cast nothing.
+    h0.x = h0.px = px + ux * (t + 300); h0.y = h0.py = py + uy * (t + 300);
+    w.step(hold);
+    const at = mine().map(({ e }) => [e.x, e.y]);
+    let casts = 0;
+    for (let k = 0; k < 60; k++) {
+      w.step(hold);
+      const ids = new Set(mine().map(({ i }) => i));
+      casts += w.events.filter((ev) => ev.type === 'castStart' && ids.has((ev as { index: number }).index)).length;
+    }
+    mine().forEach(({ e }, k) => { if (at[k]) { expect(e.x).toBeCloseTo(at[k][0], 3); expect(e.y).toBeCloseTo(at[k][1], 3); } });
+    expect(casts).toBe(0);
   });
 
   it('solo play doesn\'t change: a sealed grate keeps the hero out', () => {
