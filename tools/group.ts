@@ -85,6 +85,58 @@ let wins = 0;
 const fightHurts: number[] = [];
 /** STIRHURT=1: how often each class was the worst-off hero of a cleared fight. */
 const worstBy: Record<string, number> = {};
+// YTRACE=1: Ysmeret's fight, for design (25 Nov): who dies first, to what, at what share of her health, the vents, and
+// whether the tank stands in a vent when Bellow Slam lands.
+const ytrace = process.env.YTRACE === '1';
+const yt = { fights: 0, wins: 0, firstRole: {} as Record<string, number>, firstCause: {} as Record<string, number>, cause: {} as Record<string, number>,
+  firstAt: [] as number[], endAt: [] as number[], enraged: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
+let ysFirst = false, ysOn = false;
+const role = (cls: string) => (cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'dps');
+const bump2 = (o: Record<string, number>, k: string) => (o[k] = (o[k] ?? 0) + 1);
+function ysTick(w: World, before: number[]): void {
+  const b = w.enemies[w.bossIndex];
+  if (!b || b.kind !== 'ysmeret') return;
+  if (!ysOn) { ysOn = true; ysFirst = false; yt.fights++; }
+  const f = b.alive ? b.hp / b.maxHp : 0;
+  for (const ev of w.events) {
+    if (ev.type === 'soak' && ev.owner === -2) { yt.vents++; if (!ev.ok) yt.ventsMissed++; }
+    if (ev.type === 'castDone' && ev.name === 'Bellow Slam') {
+      yt.bellows++;
+      const t = w.heroes.findIndex((h) => h.cls === 'bulwark');
+      if (t >= 0) {
+        const q = w.hero(t).player;
+        const inVent = w.telegraphs.some((g) => g.alive && g.kind === 'soak' && g.owner === -2 && Math.hypot(g.x - q.x, g.y - q.y) < g.r);
+        if (inVent) yt.bellowInVent++;
+      }
+    }
+  }
+  w.heroes.forEach((h, i) => {
+    const q = w.hero(i).player;
+    if (before[i] > 0 && q.hp <= 0) {
+      const casts = w.events.filter((e) => e.type === 'castDone').map((e) => (e as { name: string }).name);
+      const vent = w.events.some((e) => e.type === 'soak' && e.owner === -2 && !e.ok);
+      const why = vent ? 'empty vent' : casts.includes('Bellow Slam') ? 'Bellow Slam' : casts.includes('Scatter Embers') ? 'Scatter Embers' : (q.lastHurtBy ?? 'other');
+      const tag = why + (w.bossEnraged ? ' (enraged)' : '');
+      bump2(yt.cause, role(h.cls) + ': ' + tag);
+      if (!ysFirst) { ysFirst = true; bump2(yt.firstRole, role(h.cls)); bump2(yt.firstCause, role(h.cls) + ': ' + tag); yt.firstAt.push(Math.round(100 * f)); }
+    }
+  });
+}
+function ysEnd(w: World, won: boolean): void {
+  if (!ysOn) return;
+  ysOn = false;
+  if (won) yt.wins++;
+  else { const b = w.enemies[w.bossIndex]; yt.endAt.push(b ? Math.round((100 * b.hp) / b.maxHp) : 0); if (w.heroes.every((_, i) => w.hero(i).player.hp <= 0)) yt.deadAll++; }
+  if (w.bossEnraged) yt.enraged++;
+}
+function ysReport(): void {
+  const avg = (a: number[]) => (a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(0) : '-');
+  const med = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : '-');
+  console.log(`ytrace fights=${yt.fights} wins=${yt.wins} enragedFights=${yt.enraged} vents=${yt.vents} ventsMissed=${yt.ventsMissed} bellows=${yt.bellows} tankInVentAtBellow=${yt.bellowInVent}`);
+  console.log(`ytrace firstDeath role=${JSON.stringify(yt.firstRole)} herHpAtFirstDeath avg=${avg(yt.firstAt)}% median=${med(yt.firstAt)}%  herHpAtLoss avg=${avg(yt.endAt)}%`);
+  console.log(`ytrace firstDeathCause=${JSON.stringify(yt.firstCause)}`);
+  console.log(`ytrace allDeaths=${JSON.stringify(yt.cause)}`);
+}
 for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
@@ -136,6 +188,7 @@ for (const seed of seeds) {
     const before = w.heroes.map((_, i) => w.hero(i).player.hp);
     w.step(inputs);
     if (w.bossSpawned && !bossAt) bossAt = w.time;
+    if (ytrace && w.bossSpawned && w.bossIndex >= 0) ysTick(w, before);
     w.heroes.forEach((_, i) => {
       if (before[i] > 0 && w.hero(i).player.hp <= 0) {
         const casts = w.events.filter((e) => e.type === 'castDone').map((e) => (e as { name: string }).name).join('+') || 'other';
@@ -176,6 +229,7 @@ for (const seed of seeds) {
   }
   const s = w.summary();
   if (s.victory) wins++;
+  if (ytrace) ysEnd(w, s.victory);
   const alive = w.heroes.map((_, i) => (w.hero(i).player.hp > 0 ? 'up' : 'down')).join('/');
   console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} heroes=${alive} boss=${w.bossIndex >= 0 ? Math.round((100 * w.enemies[w.bossIndex].hp) / w.enemies[w.bossIndex].maxHp) + '%' : '-'} deaths=${deaths.join(',')} ${JSON.stringify(c)}`);
 }
@@ -184,4 +238,5 @@ if (process.env.STIRHURT === '1' && fightHurts.length) {
   const at = (f: number) => q[Math.min(q.length - 1, Math.floor(f * q.length))].toFixed(3);
   console.log(`stirhurt n=${q.length} p25=${at(0.25)} p50=${at(0.5)} p75=${at(0.75)} p90=${at(0.9)} worst=${JSON.stringify(worstBy)}`);
 }
+if (ytrace) ysReport();
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);
