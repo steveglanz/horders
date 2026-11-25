@@ -190,6 +190,31 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#5c5448', 0, 0.4, -0.1, 0.76, 0.7, 0.06));
     const wheel = new THREE.TorusGeometry(0.22, 0.03, 5, 16);
     parts.push(part(wheel, '#6e7a7c', 0, 1.32, -0.06));
+  } else if (id === 'anvil') {
+    // A great anvil on an oak block, a hammer leaning against the block.
+    parts.push(part(box, '#5a4030', 0, 0.2, 0, 0.5, 0.4, 0.42));
+    parts.push(part(box, '#3e3c46', 0, 0.48, 0, 0.32, 0.16, 0.26));
+    parts.push(part(box, '#4a4854', 0, 0.62, 0, 0.78, 0.14, 0.3));
+    parts.push(part(cone, '#4a4854', 0.5, 0.62, 0, 0.14, 0.24, 0.14).rotateZ(0));
+    parts.push(part(box, '#6a4a30', 0.38, 0.32, 0.3, 0.05, 0.62, 0.05));
+    parts.push(part(box, '#3a3842', 0.38, 0.64, 0.3, 0.24, 0.1, 0.12));
+  } else if (id === 'chain') {
+    // An iron bracket high on the wall with three heavy chains hanging from it, the middle one ending in a hook. It
+    // swings from the bracket (CHAIN_TOP), so the bracket barely moves.
+    parts.push(part(box, '#3e3c46', 0, CHAIN_TOP, -0.1, 0.7, 0.1, 0.16));
+    for (const [x, l] of [[-0.24, 0.8], [0, 1.05], [0.24, 0.65]] as const) parts.push(part(box, '#5a5866', x, CHAIN_TOP - l / 2, -0.05, 0.06, l, 0.06));
+    const hook = new THREE.TorusGeometry(0.08, 0.025, 4, 10, Math.PI * 1.4);
+    parts.push(part(hook, '#6a6876', 0, CHAIN_TOP - 1.12, -0.05));
+  } else if (id === 'quench') {
+    // A long iron trough of dark water on two feet.
+    parts.push(part(box, '#3a3a44', 0, 0.22, 0, 0.94, 0.36, 0.48));
+    parts.push(part(box, '#1e2a3a', 0, 0.405, 0, 0.84, 0.02, 0.38));
+    parts.push(part(box, '#2a2a32', -0.36, 0.03, 0, 0.12, 0.06, 0.52), part(box, '#2a2a32', 0.36, 0.03, 0, 0.12, 0.06, 0.52));
+  } else if (id === 'ingot') {
+    // Iron ingots stacked on a wooden pallet, two layers crosswise.
+    parts.push(part(box, '#6a5038', 0, 0.04, 0, 0.8, 0.08, 0.6));
+    for (const x of [-0.24, 0, 0.24]) parts.push(part(box, '#5e5c68', x, 0.15, 0, 0.18, 0.14, 0.52));
+    for (const z of [-0.16, 0.08]) parts.push(part(box, '#6a6874', 0, 0.29, z, 0.62, 0.14, 0.18));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
@@ -210,8 +235,13 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
   return g;
 }
 
-/** How a theme's prop moves, as a y scale and a turn for its instance at time t (phase ph): the quiet motion. */
-export function propMotion(id: ThemeId, t: number, ph: number): { sy: number; ry?: number } {
+/** How high the Chain gallery's bracket is: its chains swing from here. */
+export const CHAIN_TOP = 1.4;
+
+/** How a theme's prop moves, as a y scale, a turn and a sway along the wall (pivoting at height `swingAt`) for its instance at time t (phase ph): the quiet motion. */
+export function propMotion(id: ThemeId, t: number, ph: number): { sy: number; ry?: number; swing?: number; swingAt?: number } {
+  // The Chain gallery's chains swing a few degrees, about once every eight seconds.
+  if (id === 'chain') return { sy: 1, swing: 0.06 * Math.sin(t * 2 * Math.PI * 0.12 + ph), swingAt: CHAIN_TOP };
   // The Star vault's orreries turn about once a minute.
   if (id === 'orrery') return { sy: 1, ry: t * 0.1 + ph };
   if (id === 'bellows') return { sy: 1 + 0.1 * Math.sin(t * 2 * Math.PI * THEMES.bellows.swell + ph) };

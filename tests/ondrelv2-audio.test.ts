@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World, IRONLOAD, ONDRELV2 } from '../sim/world';
-import { cueFor, slagBurstAt, slagCues, SLAG_WARN_LEAD, THROTTLE, type CueContext } from '../client/audio/cues';
+import { cueFor, slagCues, SLAG_WARN_LEAD, THROTTLE, type CueContext } from '../client/audio/cues';
 import { recipeLength } from '../client/audio/synth';
 import { SOUNDS } from '../client/audio/sounds';
 
@@ -80,17 +80,16 @@ describe('ONDRELV2 sound: reused cues only', () => {
     expect(warn[0].id).toBe('slagVentWarn');
     expect(warn[0].after! + SLAG_WARN_LEAD).toBeCloseTo(ONDRELV2.glow, 1);
     expect(recipeLength(SOUNDS.slagVentWarn)).toBeCloseTo(SLAG_WARN_LEAD, 1);
-    // An Ironload landing on a hero away from every patch, while they glow, still sounds as Ironload.
-    expect(slagBurstAt(st, { type: 'slam', x: 400, y: 0, r: IRONLOAD.radius })).toBe(false);
+    // An Ironload slam of the same size still sounds as Ironload.
+    expect(cueFor({ type: 'slam', x: 400, y: 0, r: IRONLOAD.radius }, ctx)?.id).toBe('ironload');
     let bursts = 0;
     for (let t = 0; t < ONDRELV2.glow + 0.2; t += 0.05) {
       w.events.length = 0;
       q.ondrelClock(0.05);
       for (const ev of w.events) if (ev.type === 'slam') {
-        // The burst is as wide as Ironload, so cueFor alone would call it Ironload.
+        // The burst is as wide as Ironload; its source tells them apart (#738).
         expect(ev.r).toBe(IRONLOAD.radius);
-        expect(cueFor(ev, ctx)?.id).toBe('ironload');
-        expect(slagBurstAt(st, ev)).toBe(true);
+        expect(cueFor(ev, ctx)?.id).toBe('slagBurst');
         bursts++;
       }
       expect(slagCues(st, w.slagPatches)).toEqual([]);
