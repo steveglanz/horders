@@ -1247,6 +1247,13 @@ export class World {
   cracks: Crack[];
   /** The Wrackline: the rafts (empty elsewhere), and the undertow's clock and state. */
   rafts: Raft[] = [];
+  /**
+   * H3d: the Ebb's drain, the middle the rafts drift round: (0, 0) in the arena, the woken quay room's middle on a Halls
+   * map. `wrackRoom` is that room (-1 in the arena); the Ebb only takes heroes and foes in it, so corridors stay dry.
+   */
+  wrackX = 0;
+  wrackY = 0;
+  wrackRoom = -1;
   /** Seconds until the next undertow warning starts. */
   private tideClockT = 0;
   /** Seconds left of the Ebb's warning (>0 while warning), then of the pull itself. */
@@ -2008,6 +2015,9 @@ export class World {
       // Phase 12 W1: every fight but Hessa's rolls its currents from the seed (which way each raft drifts,
       // and where they start), so the quay plays differently from fight to fight.
       const cur = this.rollCurrents(def.id);
+      this.wrackX = 0;
+      this.wrackY = 0;
+      this.wrackRoom = -1;
       this.rafts = [0, 1, 2].map((k) => {
         const a = (k * 2 * Math.PI) / 3 + 0.5 + cur.turn;
         const ring = WRACK.raftRings[k];
@@ -2042,6 +2052,29 @@ export class World {
    * stands: the arena's four on GLARE.pillarRing scaled to the room (clear of a Ring's island), left out where one
    * would stand off the floor or within reach of a doorway. A Cross room's own four stone pillars are its cover instead.
    */
+  /**
+   * H3d (design, 25 Nov): a woken quay room gets the arena's three rafts, drifting round its middle (a twin's: the half
+   * the pack stands in). Their circles shrink with the room so a raft's far edge stays `HALLS_WRACK.clear` inside the
+   * wall, which keeps every raft out of the doorways (moved in, never dropped).
+   */
+  private hallsWrack(room: number, px: number, py: number): void {
+    const rm = this.halls!.rooms[room];
+    let f = layoutFrame(rm);
+    if (rm.shape === 'twin' && rm.parts) {
+      const near = rm.parts.map((p) => (p as { c: number[] }).c).sort((a, b) => (a[0] - px) ** 2 + (a[1] - py) ** 2 - ((b[0] - px) ** 2 + (b[1] - py) ** 2))[0];
+      f = { x: near[0], y: near[1], r: near[2] };
+    }
+    this.wrackX = f.x;
+    this.wrackY = f.y;
+    this.wrackRoom = room;
+    const s = Math.min(1, (f.r - WRACK.raftR - HALLS_WRACK.clear) / Math.max(...WRACK.raftRings));
+    for (const r of this.rafts) {
+      r.ring *= s;
+      r.x = f.x + Math.cos(r.a) * r.ring;
+      r.y = f.y + Math.sin(r.a) * r.ring;
+    }
+  }
+
   private hallsGlare(room: number): void {
     const m = this.halls!, rm = m.rooms[room], f = layoutFrame(rm);
     this.lightX = f.x;
@@ -2688,6 +2721,7 @@ export class World {
     this.encounter = pk.slot;
     if (first) this.fightSetup(def);
     if (first && this.dungeonId === 'glarewell') this.hallsGlare(pk.room);
+    if (first && this.dungeonId === 'wrackline') this.hallsWrack(pk.room, pk.x, pk.y);
     this.hallsWaking = k;
     let lead = -1;
     let firstElite = -1;
@@ -5594,7 +5628,9 @@ export class World {
       e.y += my * dt * ms;
       this.clampArena(e, e.def.radius);
       // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
-      if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
+      // H3d (design, 25 Nov): on a Halls map, while the Ebb pulls, no foe can climb onto an afloat raft (the Lurkers' rule
+      // for every foe but a boss), so a hero on a raft is safe until the water stops. The arena keeps its rule.
+      if ((e.kind === 'shoalLurker' || (this.hallsOn && this.ebbT > 0 && e.def.rank !== 'boss')) && this.rafts.length) this.keepOffRafts(e);
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
@@ -7366,8 +7402,8 @@ export class World {
     const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
       r.a += (r.dir * drift * dt) / r.ring;
-      r.x = Math.cos(r.a) * r.ring;
-      r.y = Math.sin(r.a) * r.ring;
+      r.x = this.wrackX + Math.cos(r.a) * r.ring;
+      r.y = this.wrackY + Math.sin(r.a) * r.ring;
       if (r.sunkT > 0) r.sunkT = Math.max(0, r.sunkT - dt);
     }
     if (this.ebbT > 0) {
@@ -7375,17 +7411,21 @@ export class World {
       const pull = WRACK.drag * (riptide ? WRACK.riptideDrag : 1);
       const foePull = WRACK.foeDrag * (riptide ? WRACK.riptideDrag : 1);
       const rim = this.arenaR - OUTSURGE.rimR;
+      // H3d: on a Halls map the Ebb drains the woken quay room only (the drain is its middle; corridors are dry jetties).
+      const cx = this.wrackX, cy = this.wrackY;
+      const wet = (x: number, y: number) => !this.hallsOn || roomAt(this.halls!, x, y) === this.wrackRoom;
       for (let k = 0; k < this.heroes.length; k++) {
         const q = this.heroPlayer(k);
-        if (q.hp <= 0 || this.onRaft(q.x, q.y)) continue;
-        const d = Math.hypot(q.x, q.y) || 1;
+        if (q.hp <= 0 || this.onRaft(q.x, q.y) || !wet(q.x, q.y)) continue;
+        const d = Math.hypot(q.x - cx, q.y - cy) || 1;
         // Anvil Skin anchors the Bulwark: the water still burns, but it can't drag.
         // The pull is a share of the hero's own class speed, so every class walks out of it at the same pace.
         const room = out ? Math.max(0, this.arenaR - PLAYER_RADIUS - d) : d;
         const speed = CLASSES[this.heroes[k].cls].speed;
         const step = this.anchored(q) ? 0 : Math.min(room, pull * (whirl ? WHIRL.inward : 1) * speed * dt) * (out ? -1 : 1);
-        q.x -= (q.x / d) * step;
-        q.y -= (q.y / d) * step;
+        q.x -= ((q.x - cx) / d) * step;
+        q.y -= ((q.y - cy) / d) * step;
+        if (this.hallsOn) this.clampArena(q, PLAYER_RADIUS);
         if (whirl && !this.anchored(q)) {
           // Y3 the Whirl: carried round the drain, the way it turns this Ebb.
           const s = WHIRL.spin * speed * dt * this.whirlDir;
@@ -7403,11 +7443,12 @@ export class World {
       // The water takes foes too: all but Lurkers and bosses drift in, and the drain hurts them.
       for (let i = 0; i < this.enemies.length; i++) {
         const e = this.enemies[i];
-        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.kind === 'conchblower' || e.def.stationary) continue;
-        const d = Math.hypot(e.x, e.y) || 1;
+        if (!e.alive || e.def.rank === 'boss' || e.kind === 'shoalLurker' || e.kind === 'conchblower' || e.def.stationary || !wet(e.x, e.y)) continue;
+        const d = Math.hypot(e.x - cx, e.y - cy) || 1;
         const step = out ? -Math.min(Math.max(0, this.arenaR - e.def.radius - d), foePull * dt) : Math.min(d, foePull * dt);
-        e.x -= (e.x / d) * step * (whirl ? WHIRL.inward : 1);
-        e.y -= (e.y / d) * step * (whirl ? WHIRL.inward : 1);
+        e.x -= ((e.x - cx) / d) * step * (whirl ? WHIRL.inward : 1);
+        e.y -= ((e.y - cy) / d) * step * (whirl ? WHIRL.inward : 1);
+        if (this.hallsOn) this.clampArena(e, e.def.radius);
         if (whirl) {
           const s = foePull * dt * this.whirlDir;
           const ex = e.x;
@@ -9784,6 +9825,8 @@ export const WRACK = {
   enrageAfter: 240,
 };
 /** Phase 12 W1: the Wrackline's raft currents: each raft's drift direction (1 or -1), inner ring in the middle. The first is the original. */
+/** H3d: on a Halls map a raft's far edge stays this far inside its quay room's wall (clear of every doorway). */
+export const HALLS_WRACK = { clear: 100 };
 export const CURRENTS: number[][] = [[1, -1, 1], [1, 1, 1], [-1, 1, -1], [-1, -1, 1]];
 /**
  * Phase 12 W3: the Furnace Regent's two versions (his phase 2). `ash`: Ash Fall, a circle under every hero (step out).

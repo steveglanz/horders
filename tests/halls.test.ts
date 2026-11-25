@@ -700,6 +700,122 @@ describe('H3b: the Glarewell on the Halls map', () => {
   }, 30000);
 });
 
+describe('H3d: the Wrackline on the Halls map', () => {
+  const QUAY_THEMES = ['quay', 'wreck', 'kelp', 'sluice'];
+  const wrack = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'wrackline', tier: 13, hallsBeta: true, ...more });
+  /** Wakes the first pack with foes and returns it. */
+  const wake = (w: World) => {
+    const k = w.halls!.packs.findIndex((q) => q.foes.length);
+    const pk = w.halls!.packs[k];
+    put(w, pk.x, pk.y);
+    for (let j = 0; j < 30 && pk.state === 'asleep'; j++) w.step(idle);
+    return { k, pk };
+  };
+
+  it('is off for players until design turns it on; every room is a Round or Twin quay, with its own fights and Hessa behind the door', () => {
+    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.wrackline;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = wrack(seed);
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.role} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      for (const r of m.rooms) expect(['round', 'twin', undefined], `seed ${seed} ${r.id}`).toContain(r.shape);
+      expect(m.rooms[5].theme).toBe('quay');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(QUAY_THEMES, `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a pack waking puts three rafts round its own room\'s middle, and they drift there clear of every doorway', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = wrack(seed);
+      const m = w.halls!;
+      const { pk } = wake(w);
+      expect(pk.state, `seed ${seed}`).toBe('awake');
+      expect(w.wrackRoom).toBe(pk.room);
+      expect(roomAt(m, w.wrackX, w.wrackY)).toBe(pk.room);
+      expect(w.rafts.length).toBe(3);
+      const rm = m.rooms[pk.room];
+      const doors = m.corridors.flatMap((c) => (c.a === pk.room ? [[c.ax!, c.ay!]] : c.b === pk.room ? [[c.bx!, c.by!]] : []));
+      for (let t = 0; t < 40 && pk.state === 'awake'; t++) {
+        for (let j = 0; j < 20; j++) w.step(idle);
+        for (const r of w.rafts) {
+          expect(roomAt(m, r.x, r.y), `seed ${seed}`).toBe(pk.room);
+          expect(roomGap(rm, r.x, r.y), `seed ${seed}`).toBeGreaterThanOrEqual(78);
+          for (const [dx, dy] of doors) expect(Math.hypot(r.x - dx, r.y - dy), `seed ${seed}`).toBeGreaterThan(78 + 40);
+        }
+      }
+    }
+  });
+
+  it('the Ebb drains the woken room only: a hero in the room is pulled and burned, a hero on the dry jetty is not', () => {
+    const w = wrack(4);
+    const m = w.halls!;
+    const { pk } = wake(w);
+    const p = w.player;
+    const c = m.corridors.find((q) => q.a === pk.room || q.b === pk.room)!;
+    // In the room, off the rafts, halfway out from the drain.
+    const off = { x: w.wrackX, y: w.wrackY };
+    let spot: [number, number] | null = null;
+    for (let a = 0; a < 6.28 && !spot; a += 0.2) {
+      const x = off.x + Math.cos(a) * 200, y = off.y + Math.sin(a) * 200;
+      if (roomAt(m, x, y) === pk.room && !w.onRaft(x, y)) spot = [x, y];
+    }
+    expect(spot).toBeTruthy();
+    const ebb = w as unknown as { ebbT: number; ebbWarnT: number };
+    ebb.ebbWarnT = 0; ebb.ebbT = 4;
+    put(w, spot![0], spot![1]);
+    p.hp = p.maxHp;
+    const d0 = Math.hypot(p.x - w.wrackX, p.y - w.wrackY);
+    w.step(idle);
+    expect(Math.hypot(p.x - w.wrackX, p.y - w.wrackY)).toBeLessThan(d0 - 0.5);
+    expect(p.hp).toBeLessThan(p.maxHp);
+    // On the jetty: the corridor's middle.
+    const jx = (c.ax! + c.bx!) / 2, jy = (c.ay! + c.by!) / 2;
+    expect(roomAt(m, jx, jy)).toBe(-1);
+    put(w, jx, jy);
+    p.hp = p.maxHp * 0.5;
+    const hp = p.hp;
+    ebb.ebbT = 4;
+    w.step(idle);
+    expect(Math.hypot(p.x - jx, p.y - jy)).toBeLessThan(0.5);
+    expect(p.hp).toBeGreaterThanOrEqual(hp);
+  });
+
+  it('while the Ebb pulls, no foe can climb onto an afloat raft on the map (design, 25 Nov); out of the Ebb they can', () => {
+    for (const ebbOn of [true, false]) {
+      const w = wrack(5);
+      wake(w);
+      const ebb = w as unknown as { ebbT: number; ebbWarnT: number; tideClockT: number };
+      ebb.ebbWarnT = 0; ebb.ebbT = ebbOn ? 4 : 0; ebb.tideClockT = 99;
+      const r = w.rafts[0];
+      const e = w.enemies.find((q) => q.alive && q.kind !== 'shoalLurker' && q.def.rank !== 'boss')!;
+      e.x = r.x + 10; e.y = r.y;
+      put(w, r.x + 40, r.y + 40);
+      w.step(idle);
+      const d = Math.hypot(e.x - r.x, e.y - r.y);
+      if (ebbOn) expect(d).toBeGreaterThanOrEqual(78);
+      else expect(d).toBeLessThan(78);
+    }
+  });
+
+  it('bots walk it and go through the door into Hessa\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 2: an ungeared bot can't live through a tier 13 pack (the grid uses geared heroes).
+      const w = wrack(seed, { cls: 'slagbinder', tier: 2 });
+      run(w, () => !w.hallsOn || w.state === 'ended', 900);
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.wrackline.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
 describe('Halls: nothing touches through a sealed grate (QA, 25 Nov)', () => {
   it('a hero pressed on a sealed grate from outside and a foe pressed on it from inside stay apart by more than their radii', () => {
     for (let seed = 1; seed <= 20; seed++) {
