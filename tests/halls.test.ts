@@ -920,6 +920,38 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
   });
 });
 
+describe('H4a: the Hammerdeep on the Halls map', () => {
+  it('is off for players until design turns it on; a party gets its own fights, the Kiln themes and Ondrel behind the door', () => {
+    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.hammerdeep;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['ash', 'bellows', 'slag', 'cooling'], `seed ${seed} room ${i}`).toContain(r.theme); });
+    }
+  });
+
+  it('a Bulwark and Lumen bot duo walks it and goes through the door into Ondrel\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.hammerdeep.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
 describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
   const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
