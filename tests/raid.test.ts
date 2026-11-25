@@ -97,7 +97,7 @@ describe('the raid: Grandmother Slag in the Crucible (C3)', () => {
   });
 
   it('cues a fresh tank to swap once the tank she is on is Seared', () => {
-    const w = new World({ seed: 5, dungeon: 'crucible', omens: [], cls: 'bulwark', worldBoss: 'Grandmother Slag',
+    const w = new World({ seed: 5, dungeon: 'crucible', omens: [], gunner: false, cls: 'bulwark', worldBoss: 'Grandmother Slag',
       party: [{ cls: 'slagbinder', stance: 'anvil' }, { cls: 'lumen' }, { cls: 'emberwright' }] });
     const inner = w as unknown as Inner & { threat: { target: string }[] };
     for (const e of w.enemies) e.alive = false;

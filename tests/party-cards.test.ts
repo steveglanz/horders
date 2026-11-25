@@ -164,19 +164,28 @@ describe('party cards (Season 2)', () => {
 
 describe('Slagbinder in a party (party-only trim)', () => {
   it('a Bellows Slagbinder deals partyDmg in a party and soloDmg alone; an Anvil one deals neither', () => {
-    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [] });
-    const duo = party('slagbinder', ['bulwark']).w;
+    // The old Slagbinder (gunner off): the gunner has no stances and no soloDmg.
+    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false });
+    const duo = new World({ seed: 4, dungeon: 'hammerdeep', omens: [], gunner: false, cls: 'slagbinder', party: [{ cls: 'bulwark' }] });
     expect(SLAG_KIT.soloDmg).toBeGreaterThan(1);
     expect(duo.dmgMult).toBeCloseTo((solo.dmgMult / SLAG_KIT.soloDmg) * SLAG_KIT.partyDmg);
-    expect(solo.dmgMult / new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' }).dmgMult).toBeCloseTo(SLAG_KIT.soloDmg, 5);
+    expect(solo.dmgMult / new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false, stance: 'anvil' }).dmgMult).toBeCloseTo(SLAG_KIT.soloDmg, 5);
     duo.player.stance = 'anvil';
-    const anvilSolo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' });
+    const anvilSolo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false, stance: 'anvil' });
     expect(duo.dmgMult).toBeCloseTo(anvilSolo.dmgMult);
+  });
+
+  it('the gunner deals full damage alone and partyDmg in a party', () => {
+    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [] });
+    const old = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false });
+    expect(solo.dmgMult).toBeCloseTo(old.dmgMult / SLAG_KIT.soloDmg, 5);
+    const duo = party('slagbinder', ['bulwark']).w;
+    expect(duo.dmgMult).toBeCloseTo(solo.dmgMult * SLAG_KIT.partyDmg, 5);
   });
 
   it('in the Flue (a damage race) the Bellows party cut is fluePartyDmg instead', () => {
     const mk = (dungeon: 'flue' | 'hammerdeep', stance: 'bellows' | 'anvil') =>
-      new World({ seed: 4, dungeon, omens: [], cls: 'slagbinder', stance, worldBoss: dungeon === 'flue' ? 'The Furnace Regent' : undefined, party: [{ cls: 'bulwark' }] });
+      new World({ seed: 4, dungeon, omens: [], cls: 'slagbinder', gunner: false, stance, worldBoss: dungeon === 'flue' ? 'The Furnace Regent' : undefined, party: [{ cls: 'bulwark' }] });
     expect(mk('flue', 'bellows').dmgMult / mk('flue', 'anvil').dmgMult).toBeCloseTo(SLAG_KIT.fluePartyDmg / 1, 5);
     expect(mk('hammerdeep', 'bellows').dmgMult / mk('hammerdeep', 'anvil').dmgMult).toBeCloseTo(SLAG_KIT.partyDmg, 5);
   });
@@ -196,7 +205,7 @@ describe('Slagbinder in a party (party-only trim)', () => {
 
 describe('Anvil Slagbinder as a party tank', () => {
   it('takes anvilArmor less alone and partyAnvilArmor less with allies', () => {
-    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], stance: 'anvil' });
+    const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false, stance: 'anvil' });
     const sInner = solo as unknown as Inner;
     for (const e of solo.enemies) e.alive = false;
     let before = solo.player.hp;

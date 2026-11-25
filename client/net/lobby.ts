@@ -11,6 +11,7 @@
  * host socket leaves within about 3 s.
  */
 import { MAX_PARTY } from './party';
+import { SLAG_GUNNER } from '../../sim/content/classes';
 
 export interface LobbyAd {
   /** Party code a guest joins with. */
@@ -30,7 +31,8 @@ const ROLES: readonly LobbyRole[] = ['tank', 'healer', 'dps'];
 
 /** A class's lobby role, from its CLASSES role text ('Tank', 'Healer', anything else is damage). An Anvil Slagbinder tanks. */
 export function roleOf(classRole: string, stance?: string): LobbyRole {
-  if (stance === 'anvil') return 'tank';
+  // The old Anvil stance tanked; the gunner (SLAG_GUNNER) has none, so a saved 'anvil' is just damage.
+  if (stance === 'anvil' && !SLAG_GUNNER) return 'tank';
   const r = classRole.toLowerCase();
   return r === 'tank' ? 'tank' : r === 'healer' ? 'healer' : 'dps';
 }

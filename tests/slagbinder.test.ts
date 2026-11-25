@@ -23,7 +23,7 @@ type Inner = {
 
 /** A world for `cls` with no foes alive (a party if `rest` is given). */
 function world(cls: ClassId, rest: ClassId[] = [], stance?: Stance): { w: World; inner: Inner } {
-  const w = new World({ seed: 5, cls, stance, tier: 4, omens: [], party: rest.length ? rest.map((c) => ({ cls: c })) : undefined });
+  const w = new World({ seed: 5, cls, gunner: false, stance, tier: 4, omens: [], party: rest.length ? rest.map((c) => ({ cls: c })) : undefined });
   for (const e of w.enemies) e.alive = false;
   return { w, inner: w as unknown as Inner };
 }
@@ -42,8 +42,8 @@ describe('Slagbinder (fifth class)', () => {
     expect(WEAPON_NAMES.slagbinder).toHaveLength(4);
   });
 
-  it('stance sets the party role and threat: Anvil tanks, Bellows (the default) fills a damage slot', () => {
-    expect(roleOf('slagbinder', 'anvil')).toBe('tank');
+  it('stance sets threat on the old Slagbinder; the gunner is damage whatever its saved stance', () => {
+    expect(roleOf('slagbinder', 'anvil')).toBe('damage');
     expect(roleOf('slagbinder', 'bellows')).toBe('damage');
     expect(roleOf('slagbinder')).toBe('damage');
     expect(world('slagbinder').w.player.stance).toBe('bellows');
@@ -150,5 +150,57 @@ describe('Slagbinder (fifth class)', () => {
     inner.quench();
     expect(w.enemies[b].brittleUntil ?? 0).toBeGreaterThan(w.time);
     expect(w.bossTarget).toBe(0);
+  });
+});
+
+describe('Slagbinder gunner (Steve 25 Nov: a slow cannon that hits hard)', () => {
+  const gun = (rest: ClassId[] = [], stance?: Stance) => {
+    const w = new World({ seed: 5, cls: 'slagbinder', stance, tier: 4, omens: [], party: rest.length ? rest.map((c) => ({ cls: c })) : undefined });
+    for (const e of w.enemies) e.alive = false;
+    // Build the foe hash once: an unbuilt one loops forever in forEachNear.
+    (w as unknown as Inner).rebuildHash();
+    return { w, inner: w as unknown as Inner & { updateSlag(dt: number): void } };
+  };
+
+  it('is a ranged gunner with no stances: never a tank, normal threat, less health', () => {
+    const { w } = gun(['lumen'], 'anvil');
+    expect(CLASSES.slagbinder.role).toBe('Ranged gunner');
+    expect(w.player.stance).toBe('bellows');
+    expect(w.isTank(0)).toBe(false);
+    expect(w.threatMult).toBe(1);
+    const old = new World({ seed: 5, cls: 'slagbinder', tier: 4, omens: [], gunner: false });
+    expect(old.player.maxHp - gun().w.player.maxHp).toBe(SLAG_KIT.gunnerHp);
+  });
+
+  it('a Cannon shot hits its target hard and pierces every foe in the line behind it, not ones beside it', () => {
+    const { w, inner } = gun();
+    w.player.x = 0;
+    w.player.y = 0;
+    const a = inner.spawn('cinderBrute', 200, 0);
+    const b = inner.spawn('cinderBrute', 380, 5);
+    const c = inner.spawn('cinderBrute', 200, 160);
+    inner.rebuildHash();
+    for (const i of [a, b, c]) w.enemies[i].hp = w.enemies[i].maxHp = 10000;
+    w.player.volleyT = 0;
+    inner.updateSlag(0.01);
+    const lost = (i: number) => 10000 - w.enemies[i].hp;
+    expect(lost(a)).toBeGreaterThan(SLAG_KIT.cannonDamage * 0.9);
+    expect(lost(b)).toBeCloseTo(lost(a) * SLAG_KIT.cannonPierce, 0);
+    expect(lost(c)).toBe(0);
+    expect(w.events.some((e) => e.type === 'cannon')).toBe(true);
+    // Slow: the next shot waits cannonEvery.
+    expect(w.player.volleyT).toBeGreaterThan(SLAG_KIT.cannonEvery * 0.8);
+  });
+
+  it('Recoil in a party is a self leap, not a cover on an ally', () => {
+    const { w, inner } = gun(['emberwright']);
+    const ally = w.hero(1).player;
+    ally.hp = ally.maxHp * 0.2;
+    ally.x = 300;
+    w.player.x = 0;
+    w.player.y = 0;
+    inner.interpose({ x: -1, y: 0 });
+    expect(w.player.x).toBeLessThan(-100);
+    expect(ally.interposeUntil ?? -1).toBeLessThan(w.time);
   });
 });

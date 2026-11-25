@@ -12,7 +12,7 @@ import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './c
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
-import { ALT_ABILITIES, CLASSES, ClassDef } from './content/classes';
+import { ALT_ABILITIES, CLASSES, ClassDef, SLAG_GUNNER } from './content/classes';
 import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
@@ -203,6 +203,12 @@ export const SLAG_KIT = {
   partyDmg: 0.7,
   /** The Flue (raid 4) is a damage race, where the Bellows' Brittle and sustain count for less: a lighter party cut there. */
   fluePartyDmg: 0.85,
+  /**
+   * The gunner (Steve 25 Nov: "a slower sniper type that fires a gun or cannon slowly but does heavier damage"; brief section 5).
+   * The Slag Lob becomes a slow Cannon shot that pierces in a line, the Anvil stance goes (the Bulwark is the only tank),
+   * Interpose is a self leap (Recoil), and the gunner has less health. soloDmg is not used by the gunner.
+   */
+  cannonEvery: 1.6, cannonRange: 460, cannonDamage: 62, cannonWidth: 22, cannonPierce: 0.5, cannonSlag: 9, gunnerHp: 35,
 };
 
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
@@ -652,6 +658,8 @@ export type SimEvent =
   | { type: 'mote'; x1: number; y1: number; x2: number; y2: number }
   /** The Slagbinder's Slag Lob, from the hero to the foe it hits. */
   | { type: 'lob'; x1: number; y1: number; x2: number; y2: number }
+  /** The Slagbinder gunner's Cannon shot: from the hero (x1, y1) along its line to (x2, y2). */
+  | { type: 'cannon'; x1: number; y1: number; x2: number; y2: number }
   /** id is the cast's stable key (sound keys on it; the name is display text and may be renamed). */
   | { type: 'castStart'; index: number; id: string; name: string }
   | { type: 'cleanse'; x: number; y: number }
@@ -821,6 +829,8 @@ export interface WorldOptions {
   bossV2?: boolean;
   /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
   ondrelV2?: boolean;
+  /** The Slagbinder as the cannon gunner (default SLAG_GUNNER; false keeps the old Slag Lob and stances, for measuring). */
+  gunner?: boolean;
   /** YSMERETV2 (?ysmeretv2=1, design 25 Nov, ysmeret-v2.md): Ysmeret in two stages, the vents and then two flames. */
   ysmeretV2?: boolean;
   /** OSKELV2 (?oskelv2=1, design 25 Nov, oskel-v2.md): Oskel in three stages, the press, the belt and full speed. */
@@ -925,6 +935,8 @@ export class World {
   readonly bossV2: boolean;
   /** ONDRELV2: the staged Ondrel. */
   readonly ondrelV2: boolean;
+  /** Every Slagbinder in this run is the cannon gunner (no Anvil stance). */
+  readonly gunner: boolean;
   /** ONDRELV2: 0 = not a v2 fight, else his stage (1 the hammer, 2 the burning slag, 3 the last heat). */
   ondrelStage = 0;
   readonly ysmeretV2: boolean;
@@ -1361,6 +1373,7 @@ export class World {
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
     this.bossV2 = !!opts.bossV2 && !this.firstDelve;
     this.ondrelV2 = !!opts.ondrelV2 && !this.firstDelve;
+    this.gunner = opts.gunner ?? SLAG_GUNNER;
     this.ysmeretV2 = !!opts.ysmeretV2 && !this.firstDelve;
     this.oskelV2 = !!opts.oskelV2 && !this.firstDelve;
     if (this.firstDelve) {
@@ -1389,8 +1402,9 @@ export class World {
     };
     if (opts.alt) this.player.alt = true;
     if (this.cls === 'slagbinder') {
-      this.player.stance = opts.stance ?? 'bellows';
+      this.player.stance = this.gunner ? 'bellows' : opts.stance ?? 'bellows';
       if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
+      if (this.gunner) { this.player.maxHp -= SLAG_KIT.gunnerHp; this.player.hp = this.player.maxHp; }
     }
     this.enemies = pool(CAP.enemies, () => ({
       alive: false, kind: 'ashling' as EnemyKind, def: ENEMIES.ashling,
@@ -1475,9 +1489,10 @@ export class World {
     const hp = Math.round((classDef.baseHp + loadout.maxHpBonus) * gritMult(this.grit));
     const a = (index / MAX_PARTY) * Math.PI * 2;
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
-    player.stance = cls === 'slagbinder' ? h.stance ?? 'bellows' : undefined;
+    player.stance = cls === 'slagbinder' ? (this.gunner ? 'bellows' : h.stance ?? 'bellows') : undefined;
     player.alt = h.alt ? true : undefined;
     if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
+    if (cls === 'slagbinder' && this.gunner) { player.maxHp -= SLAG_KIT.gunnerHp; player.hp = player.maxHp; }
     player.px = player.x;
     player.py = player.y;
     if (opts.bounty === undefined) { player.level = 1; player.pendingLevels = 0; player.xpToNext = xpFor(1); }
@@ -1615,7 +1630,7 @@ export class World {
   /** Threat from this hero's damage: the Bulwark and an Anvil Slagbinder tank; a Bellows Slagbinder peels adds. */
   get threatMult(): number {
     if (this.cls === 'bulwark') return THREAT.tankMult;
-    if (this.cls === 'slagbinder') return this.player.stance === 'anvil' ? THREAT.tankMult : SLAG_KIT.bellowsThreat;
+    if (this.cls === 'slagbinder') return this.gunner ? 1 : this.player.stance === 'anvil' ? THREAT.tankMult : SLAG_KIT.bellowsThreat;
     return 1;
   }
 
@@ -1629,7 +1644,7 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : SLAG_KIT.soloDmg;
+    const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : this.gunner ? 1 : SLAG_KIT.soloDmg;
     return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
@@ -4522,7 +4537,8 @@ export class World {
     const p = this.player;
     const x1 = p.x;
     const y1 = p.y;
-    const ally = this.heroes.length > 1 ? this.hurtAlly(SLAG_KIT.interposeRange) : -1;
+    // The gunner's Recoil is always the self leap: it has no one to cover.
+    const ally = this.heroes.length > 1 && !this.gunner ? this.hurtAlly(SLAG_KIT.interposeRange) : -1;
     if (ally >= 0) {
       const a = this.heroPlayer(ally);
       const dx = a.x - p.x;
@@ -4605,18 +4621,19 @@ export class World {
     this.updatePlates();
     p.volleyT -= dt;
     if (p.volleyT > 0) return;
-    let t = this.bladeTarget(SLAG_KIT.lobRange);
+    const range = this.gunner ? SLAG_KIT.cannonRange : SLAG_KIT.lobRange;
+    let t = this.bladeTarget(range);
     if (t < 0) {
       p.volleyT = 0;
       return;
     }
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
-      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (SLAG_KIT.lobRange + boss.def.radius) ** 2) t = this.bossIndex;
-      if (this.crawIn(SLAG_KIT.lobRange) >= 0) t = this.crawIn(SLAG_KIT.lobRange);
+      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < (range + boss.def.radius) ** 2) t = this.bossIndex;
+      if (this.crawIn(range) >= 0) t = this.crawIn(range);
       // As with Sunmote: an acolyte healing a wounded boss is struck first.
       if (boss.alive && boss.hp < boss.maxHp) {
-        let best = (SLAG_KIT.lobRange + 40) ** 2;
+        let best = (range + 40) ** 2;
         for (let i = 0; i < this.enemies.length; i++) {
           const e = this.enemies[i];
           if (!e.alive || e.kind !== 'acolyte' || e.aux2 !== this.bossIndex) continue;
@@ -4625,9 +4642,16 @@ export class World {
         }
       }
     }
-    p.volleyT += SLAG_KIT.lobEvery / this.loadout.hasteMult / (1 + 0.1 * this.rank('fastLadle'));
+    p.volleyT += (this.gunner ? SLAG_KIT.cannonEvery : SLAG_KIT.lobEvery) / this.loadout.hasteMult / (1 + 0.1 * this.rank('fastLadle'));
     if (p.volleyT < 0) p.volleyT = 0;
     p.lobs = (p.lobs ?? 0) + 1;
+    if (this.gunner) {
+      // The gunner: one heavy Cannon shot. Cinder Hail's every-4th volley adds a splashing lob at the target; Shatterpoint still makes it Brittle.
+      this.cannon(t);
+      if (this.rank('shatterpoint') > 0 && p.lobs % SLAG_KIT.hailEvery === 0 && this.enemies[t].alive) this.makeBrittle(t);
+      if (this.rank('cinderHail') > 0 && p.lobs % SLAG_KIT.hailEvery === 0 && this.enemies[t].alive) this.lob(t);
+      return;
+    }
     const hail = this.rank('cinderHail') > 0 && p.lobs % SLAG_KIT.hailEvery === 0;
     this.lob(t);
     if (this.rank('shatterpoint') > 0 && p.lobs % SLAG_KIT.hailEvery === 0) this.makeBrittle(t);
@@ -4636,6 +4660,42 @@ export class World {
       for (const j of this.nearestEnemies(e.x, e.y, 3, 220)) if (j !== t && this.enemies[j].alive) this.lob(j);
       if (this.enemies[t].alive) this.lob(t);
     }
+  }
+
+  /**
+   * Cannon (the gunner's basic attack): a slow heavy shot at `t` that carries on in a straight line to cannonRange,
+   * hitting every foe it passes through for cannonPierce of its damage. Heavy Lob, Shatterpoint and Clinging Slag apply.
+   */
+  private cannon(t: number): void {
+    const p = this.player;
+    const e = this.enemies[t];
+    const ang = Math.atan2(e.y - p.y, e.x - p.x);
+    p.facing = ang;
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang);
+    const L = SLAG_KIT.cannonRange;
+    this.events.push({ type: 'cannon', x1: p.x, y1: p.y, x2: p.x + ux * L, y2: p.y + uy * L });
+    const brittle = (e.brittleUntil ?? 0) > this.time;
+    const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
+    const dmg = SLAG_KIT.cannonDamage * mult * this.dmgMult;
+    this.damageEnemy(t, dmg, true);
+    this.addHeat(SLAG_KIT.cannonSlag + 3 * this.rank('denseGlob') + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
+    if (e.alive && this.hasWeaponFx('clingingSlag')) {
+      e.burnDps = Math.max(e.burnDps, 6 * this.dmgMult);
+      e.burnT = Math.max(e.burnT, 2);
+      e.burnBy = this.acting;
+    }
+    // The shot carries on through the line: everything else it passes takes part of the hit.
+    const mx = p.x + ux * L * 0.5;
+    const my = p.y + uy * L * 0.5;
+    this.forEachNear(mx, my, L * 0.5 + 60, (j) => {
+      if (j === t) return;
+      const o = this.enemies[j];
+      const along = (o.x - p.x) * ux + (o.y - p.y) * uy;
+      if (along < 0 || along > L) return;
+      const off = Math.abs((o.x - p.x) * uy - (o.y - p.y) * ux);
+      if (off <= SLAG_KIT.cannonWidth + o.def.radius) this.damageEnemy(j, dmg * SLAG_KIT.cannonPierce, false, true);
+    });
   }
 
   private lob(t: number): void {

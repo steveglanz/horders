@@ -4,6 +4,7 @@
  * first dungeon; the Drowned Foundry unlocks later and adds new verbs.
  */
 import { EnemyKind } from './enemies';
+import { SLAG_GUNNER } from './classes';
 
 export type EncounterId =
   | 'pack' | 'wardens' | 'warpack' | 'brute' | 'ashmaw' | 'acolytes' | 'kilnMother' | 'shrine'
@@ -263,7 +264,8 @@ export const WEEKLY_DUNGEON_IDS: DungeonId[] = ['kiln', 'foundry', 'glarewell', 
 /** Party roles, from the classes' roles. A Slagbinder's comes from its stance: Anvil tanks, Bellows deals damage. */
 export type PartyRole = 'tank' | 'healer' | 'damage';
 export function roleOf(cls: string, stance?: string): PartyRole {
-  if (cls === 'slagbinder') return stance === 'anvil' ? 'tank' : 'damage';
+  // The gunner (SLAG_GUNNER) has no Anvil stance: a saved 'anvil' no longer makes it a tank.
+  if (cls === 'slagbinder') return stance === 'anvil' && !SLAG_GUNNER ? 'tank' : 'damage';
   return cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'damage';
 }
 
