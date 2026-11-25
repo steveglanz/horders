@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { DOOR_ROOM, HALLS, inside } from '../sim/halls';
+import { inCorridor, inRoom, roomLoops } from '../client/hallsshape';
 import { GRATE_DROP, GRATE_LIFT, GRATE_WARN, grateState, hallsGrates, liftedOf, lockOf } from '../client/hallsgrates';
 
 describe('Halls H2b ember grates (client/hallsgrates.ts)', () => {
@@ -41,5 +42,19 @@ describe('Halls H2b ember grates (client/hallsgrates.ts)', () => {
     expect(mid.drop).toBeGreaterThan(0);
     expect(mid.drop).toBeLessThan(1);
     expect(grateState(-1, GRATE_LIFT)).toEqual({ glow: 0, drop: 0 });
+  });
+
+  it('stands just outside a shaped room, in the corridor', () => {
+    const mm = new World({ seed: 2, tier: 2, halls: true }).halls!, i = 1, r = mm.rooms[i];
+    mm.rooms[i] = { ...r, edge: [[r.x - 250, r.y - 430, r.x + 250, r.y - 430, r.x + 250, r.y + 430, r.x - 250, r.y + 430]] } as typeof r;
+    const loops = roomLoops(mm.rooms[i]);
+    const mine = hallsGrates(mm, HALLS.corridor, DOOR_ROOM).filter((g) => g.room === i);
+    expect(mine.length).toBeGreaterThan(0);
+    for (const g of mine) {
+      expect(inRoom(loops, g.x, g.y)).toBe(false);
+      // A slanted doorway: the far side leaves the outline last, so the room starts within half a corridor of the bars.
+      expect(inRoom(loops, g.x + g.ux * (g.hw + 12), g.y + g.uy * (g.hw + 12))).toBe(true);
+      expect(mm.corridors.some((_, ci) => inCorridor(mm, ci, HALLS.corridor / 2, g.x, g.y))).toBe(true);
+    }
   });
 });
