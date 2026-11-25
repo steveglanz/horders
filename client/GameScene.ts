@@ -2792,6 +2792,7 @@ export class GameScene extends Phaser.Scene {
     // same name printed over each stacks into an unreadable block on a phone.
     const names: { x: number; y: number; text: string; color: string }[] = [];
     const bars: World['enemies'] = [];
+    const trash: World['enemies'] = [];
     for (let ei = 0; ei < eEnd; ei++) {
       const e = w.enemies[ei];
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
@@ -2801,6 +2802,10 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
+      // Kiln trash (design, 25 Nov): an opener-pack foe gets a small bar right on it, only once it has been hit, and
+      // trash bars never stack or lift. Doubled packs stacked 6-8 full bars into a column ~100 px above the clump.
+      // One mid-cast keeps the full bar below, so an interrupt target is always marked.
+      if (!e.castId && this.trashFoe(e)) { if (e.hp < e.maxHp) trash.push(e); continue; }
       bars.push(e);
     }
     // Y9: a pile of the same unnamed elite (Nhevra's Snuffers crowding in) shares one bar, so a dozen bars don't
@@ -2861,6 +2866,12 @@ export class GameScene extends Phaser.Scene {
       const top = e.y - e.def.radius - 14;
       drawBar(e, hp, maxHp, ward, undefined, x, top);
       names.push({ x, y: top, text: `${e.def.name} \u00d7${pk.length}`, color: NAME_COLOR[e.def.rank] });
+    }
+    for (const e of trash) {
+      const bw = 30, top = e.y - e.def.radius - 7, hp = Math.max(0, e.hp) / e.maxHp, col = NAME_COLOR[e.def.rank];
+      if (this.hd2d) this.barRecs.push({ i: w.enemies.indexOf(e), pack: false, trash: true, sx: 0, sy: 0, x: e.x, y: e.y, top, bw, hp, col, cast: -1, castCol: '', ward: 0 });
+      b.fillStyle(0x000000, 0.6).fillRect(e.x - bw / 2, top, bw, 4);
+      b.fillStyle(hex(col), 1).fillRect(e.x - bw / 2, top, bw * hp, 4);
     }
     names.sort((a, c) => a.y - c.y);
     const shown: typeof names = [];
@@ -4177,7 +4188,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** HD-2D: this frame's foe health and cast bars, for the overlay (world units, as drawBar draws them in 2D). */
-  private barRecs: { i: number; pack: boolean; sx: number; sy: number; x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
+  private barRecs: { i: number; pack: boolean; trash?: boolean; sx: number; sy: number; x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
   /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
   private edgeCanvas: HTMLCanvasElement | null = null;
   /**
@@ -4348,6 +4359,15 @@ export class GameScene extends Phaser.Scene {
       // The bar sits just over the foe's drawn sprite (the renderer reports its head), so it reads as that foe's bar.
       // QA, 23 Nov: lifting the 2D offset by a fixed LIFT left bars and names ~60-100 px above short foes.
       const head = view.foeHead?.(r.i);
+      if (r.trash) {
+        // Trash: a small bar right on the foe's head, never stacked or lifted (design, 25 Nov).
+        const tw = r.bw * zb, tx = (head ? head.x : p.x) - tw / 2, ty = head ? head.y - 6 * zb : p.y + (r.top - r.y) * z * LIFT;
+        r.sx = tx + tw / 2; r.sy = ty;
+        if (ty < top) continue;
+        g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(tx, ty, tw, 4 * zb);
+        g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(tx, ty, tw * r.hp, 4 * zb);
+        continue;
+      }
       const h = r.cast >= 0 ? 13 : 6;
       const bw = r.bw * zb;
       let cxp = head && !r.pack ? head.x : p.x;
@@ -5235,6 +5255,14 @@ export class GameScene extends Phaser.Scene {
    * affix shown on the body. Swift trails speed streaks, Vengeful smoulders red faster as it
    * nears death (it bursts where it falls), and Warded already wears the ward bubble.
    */
+  /** Trash (design, 25 Nov, Kiln retune): an unnamed foe of a Halls opener pack (map roles A and B). */
+  private trashFoe(e: World['enemies'][number]): boolean {
+    const m = this.world.halls;
+    if (!m || e.pack === undefined || e.named >= 0) return false;
+    const role = m.packs[e.pack]?.role;
+    return role === 'A' || role === 'B';
+  }
+
   private namedMark(g: Phaser.GameObjects.Graphics, b: Phaser.GameObjects.Graphics, e: World['enemies'][number], top: number, now: number): void {
     const r = e.def.radius;
     const rr = r + 14;
