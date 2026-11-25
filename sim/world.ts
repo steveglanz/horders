@@ -7376,6 +7376,25 @@ export class World {
 
   /** Push a swimmer back to the edge of any afloat raft it has drifted onto. */
   private keepOffRafts(e: Enemy): void {
+    // H3d (QA, 25 Nov): on a Halls map a foe pinched between two rafts that nearly touch can be pushed off one onto the
+    // other, so it resolves again (up to 4 passes), then walks out along the summed push of every raft it's still on.
+    const passes = this.hallsOn ? 4 : 1;
+    for (let k = 0; k < passes; k++) if (!this.keepOffRaftsOnce(e)) return;
+    if (!this.hallsOn) return;
+    const on = () => this.rafts.filter((r) => r.sunkT <= 0 && Math.hypot(e.x - r.x, e.y - r.y) < WRACK.raftR + e.def.radius * 0.5);
+    let ux = 0, uy = 0;
+    for (const r of on()) { const d = Math.hypot(e.x - r.x, e.y - r.y) || 1; ux += (e.x - r.x) / d; uy += (e.y - r.y) / d; }
+    const ul = Math.hypot(ux, uy);
+    if (ul < 0.001) { ux = e.x - this.wrackX || 1; uy = e.y - this.wrackY; }
+    const l = Math.hypot(ux, uy) || 1;
+    if (!on().length) return;
+    for (let n = 0; n < 80 && on().length; n++) { e.x += (ux / l) * 4; e.y += (uy / l) * 4; }
+    this.clampArena(e, e.def.radius);
+  }
+
+  /** One push off each afloat raft in turn; whether any push happened. */
+  private keepOffRaftsOnce(e: Enemy): boolean {
+    let moved = false;
     for (const r of this.rafts) {
       if (r.sunkT > 0) continue;
       const d = Math.hypot(e.x - r.x, e.y - r.y);
@@ -7388,7 +7407,9 @@ export class World {
       if (d <= 0.001 && ul === 1 && !r.x && !r.y) ux = 1;
       e.x = r.x + (ux / ul) * min;
       e.y = r.y + (uy / ul) * min;
+      moved = true;
     }
+    return moved;
   }
 
   /**
