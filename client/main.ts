@@ -19,6 +19,7 @@ import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
 import { display, hallsWanted, mountDisplayOptions, onDisplayChange } from './settings';
+import { HALLS_COOP } from '../sim/halls';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -300,8 +301,8 @@ function startRun(bounty = false, key = false): void {
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
   // Phase 18 Halls: the default wherever a dungeon has a map (hallsFor). H4: the map now reaches guests (netsync's
-  // Snapshot.halls), but hosted online co-op only plays it with ?hallsbeta=1 until QA has played it there.
-  if (hallsWanted() && !stress && (!hosting || params.get('hallsbeta') === '1')) {
+  // Snapshot.halls), but hosted online co-op only plays it where QA has played it there (HALLS_COOP), or with ?hallsbeta=1.
+  if (hallsWanted() && !stress && (!hosting || HALLS_COOP.includes(hub.dungeon) || params.get('hallsbeta') === '1')) {
     opts.halls = true;
     // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
     if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;

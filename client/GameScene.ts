@@ -753,7 +753,8 @@ export class GameScene extends Phaser.Scene {
     this.hud.view = { rect: this.cameras.main.worldView, canvas: this.game.canvas };
     this.hud.showRun(w);
     // Halls H1: no fight starts the run, so the map says what to do.
-    if (w.halls) this.hud.banner('The Kiln Depths', this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
+    // Every Halls dungeon's own name (phone pass 25 Nov: the Hammerdeep opened as "The Kiln Depths").
+    if (w.halls) this.hud.banner(w.dungeonDef.name, this.hud.compact ? 'Foes sleep until you step close. Pick your fights; the door guard must fall.' : 'Foes sleep until you step into their red ring, so pick your fights. The door guard must fall before the boss door opens.');
   }
 
   /**
@@ -1477,13 +1478,20 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
+          if (w.bossIndex >= 0 && w.enemies[w.bossIndex]?.kind === 'worldShadow') {
+            // QA, 25 Nov: a world boss's Shadow fights as the Kiln Mother does (Acolytes, then faster casts) in every
+            // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
+            if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
+            else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
+          } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
-            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', 'She splits in two. Keep a hero on each flame');
+            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', "She splits in two. Keep a hero on each flame; the tank's flame still Bellows");
           } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
-            else this.hud.banner('Stage 3: The last heat', 'The slag bursts. Get clear of it, then burn him');
+            // Stage 3 gives 2.5 s to step out of the glowing slag: a slim warning line up top, as cast warnings are
+            // (phone pass, 25 Nov: the big banner sat over the burst circles and the hero for the whole window).
+            else this.hud.warn('Stage 3: The slag bursts', 'Get clear of it, then burn him');
           } else if (w.dungeonId === 'glarewell') {
             // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
@@ -2250,8 +2258,8 @@ export class GameScene extends Phaser.Scene {
           g.fillStyle(0xff7a1f, 0.12 * slag).fillEllipse(img.x, img.y + 22, 50, 18);
           for (let n = 0; n < slag; n++) g.fillStyle(0xffb347, 1).fillCircle(img.x - (slag - 1) * 5 + n * 10, img.y + 36, 3);
         }
-        if ((q.sunderT ?? 0) > 0) {
-          // Beside the hero (above is their name and health bar).
+        if ((q.sunderT ?? 0) > 0 && !this.bridge) {
+          // Beside the hero (above is their name and health bar). The 3D look draws it on its overlay (drawLabels3d).
           const x = img.x - 30;
           const y = img.y - 8;
           g.fillStyle(0x000000, 0.5).fillCircle(x, y, 12);
@@ -4391,6 +4399,28 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle = st.color as string;
         g.fillText(line, p!.x, ly);
       });
+    }
+    // Hammerdeep (and the Crucible): Sundered, the tank swap's cue, as the 2D mark (a cracked red ring beside the hero).
+    // The floor bridge flattened it onto the floor at a third of its size, unreadable on a phone (phone pass, 25 Nov).
+    const w = this.world;
+    if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {
+      const dg = '#' + DANGER.toString(16).padStart(6, '0');
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0 || (q.sunderT ?? 0) <= 0) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        const x = p.x - 24 * zb, y = p.y - 22 * zb, r = 9 * zb;
+        g.globalAlpha = 0.6; g.fillStyle = '#000000';
+        g.beginPath(); g.arc(x, y, r * 1.35, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.strokeStyle = dg; g.lineCap = 'round';
+        g.lineWidth = 2.5 * zb;
+        g.beginPath(); g.arc(x, y, r, -2.6, -0.9); g.stroke();
+        g.beginPath(); g.arc(x, y, r, -0.5, 1.2); g.stroke();
+        g.lineWidth = 2 * zb;
+        g.beginPath(); g.moveTo(x - 2 * zb, y - 10 * zb); g.lineTo(x + 2 * zb, y - 3 * zb); g.lineTo(x - 1 * zb, y + 2 * zb); g.stroke();
+        g.lineCap = 'butt';
+      }
     }
     g.globalAlpha = 1;
   }
