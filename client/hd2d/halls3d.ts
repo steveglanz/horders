@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import type { HallsMap } from '../../sim/halls';
 import { SIM } from './simconsts';
 import { grateState, hallsGrates, liftedOf, lockOf } from '../hallsgrates';
+import { PROP_SCALE, THEMES, Theme, ThemeId, propMotion, themeOf, themeProp, themeSpots, themeTileCanvas } from './hallsthemes';
 import { Loop, corridorEnds, inCorridor, inLoop, inRoom, roomLoops, roomPieces } from '../hallsshape';
 
 /** Floor tiles: the room's 0.62-unit firebrick tiles (renderer.ts buildRoom), drawn into one repeating texture. */
@@ -158,6 +159,8 @@ export interface HallsView {
   update(m: HallsMap, cx: number, cz: number, heroX: number, heroY: number, t: number): void;
   /** Draw calls the map can add at most (the stats check). */
   pieces: number;
+  /** Room i's theme (H2d): the renderer colours the two room lights by it. */
+  theme(i: number): Theme;
 }
 
 export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: string; ground: string; saver: boolean; bad: THREE.Color; corridor: number; doorRoom: number }): HallsView {
@@ -166,10 +169,23 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const tex = new THREE.CanvasTexture(tileCanvas(o.tile));
   tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   const floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.88, metalness: 0.02 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: '#9a5a44', roughness: 0.92 });
+  // Walls are white here and coloured per instance: the corridors keep the Kiln's brick, rooms take their theme's.
+  const wallMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.92 });
+  const CORRIDOR_WALL = '#9a5a44';
+  const themes = m.rooms.map((_, i) => themeOf(m, i));
+  const themeFloor = new Map<ThemeId, THREE.MeshStandardMaterial>();
+  const floorFor = (th: Theme) => {
+    let f = themeFloor.get(th.id);
+    if (!f) {
+      const t = new THREE.CanvasTexture(themeTileCanvas(th, tileCanvas)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      f = new THREE.MeshStandardMaterial({ map: t, roughness: th.id === 'cooling' ? 0.7 : 0.9, metalness: 0.02 }); themeFloor.set(th.id, f);
+    }
+    return f;
+  };
   const capMat = new THREE.MeshStandardMaterial({ color: '#4a3a34', roughness: 0.8 });
   const coalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95, emissive: '#ffffff', emissiveIntensity: 0.9 });
   { const ct = coalTex(); coalMat.map = ct; coalMat.emissiveMap = ct; }
+  const plinthMat = new THREE.MeshStandardMaterial({ color: '#6a5850', roughness: 0.85 });
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   // Each room and each corridor is a chunk: its floor, its walls and their caps, and a bound for the on-screen check.
@@ -191,12 +207,13 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     const shape = new THREE.Shape(pts(loops[0]));
     for (let k = 1; k < loops.length; k++) shape.holes.push(new THREE.Path(pts(loops[k])));
     const g = new THREE.ShapeGeometry(shape, 4); g.rotateX(-Math.PI / 2); g.translate(0, FLOOR, 0); worldUv(g);
-    const mesh = new THREE.Mesh(g, floorMat); mesh.receiveShadow = true; roomChunk[i].g.add(mesh);
+    const mesh = new THREE.Mesh(g, floorFor(themes[i])); mesh.receiveShadow = true; roomChunk[i].g.add(mesh);
     // Islands (the Ring's hearth): a bed of banked coals level with the hearth's low wall, so the corridor floor that
     // runs under it never shows, and it reads as something shots can't cross.
     for (let k = 1; k < loops.length; k++) {
-      const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H - 0.02, 0); worldUv(hg);
-      roomChunk[i].g.add(new THREE.Mesh(hg, coalMat));
+      const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H + 0.002, 0); worldUv(hg);
+      // A box island (the Cross's pillars: four corners) is a stone plinth; a round one (the Ring) is the coal hearth.
+      roomChunk[i].g.add(new THREE.Mesh(hg, loops[k].length <= 16 ? plinthMat : coalMat));
     }
   });
   m.corridors.forEach((c, i) => {
@@ -219,21 +236,87 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   let seed = 11;
   const sr = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const byChunk = new Map<Chunk, WallPiece[]>();
-  for (const w of pieces) { const ch = w.room >= 0 ? roomChunk[w.room] : corChunk[w.corridor]; (byChunk.get(ch) ?? byChunk.set(ch, []).get(ch)!).push(w.p); }
+  const chunkWall = new Map<Chunk, string>();
+  for (const w of pieces) {
+    const ch = w.room >= 0 ? roomChunk[w.room] : corChunk[w.corridor];
+    (byChunk.get(ch) ?? byChunk.set(ch, []).get(ch)!).push(w.p);
+    chunkWall.set(ch, w.room >= 0 ? themes[w.room].wall : CORRIDOR_WALL);
+  }
   for (const [ch, list] of byChunk) {
+    const wallCol = new THREE.Color(chunkWall.get(ch) ?? CORRIDOR_WALL);
     const walls = new THREE.InstancedMesh(box, wallMat, list.length), caps = new THREE.InstancedMesh(box, capMat, list.length);
     list.forEach((p, k) => {
-      const h = Math.max(NEAR_H, Math.min(p.island ? HEARTH_H : wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
+      // Islands stand HEARTH_H all round (low enough by design, so the clearance cap would only make them uneven).
+      const h = p.island ? HEARTH_H : Math.max(NEAR_H, Math.min(wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
       // Along the rim: local x runs along the wall (the tangent), so it turns by the normal's angle.
       e.set(0, -Math.atan2(p.ny, p.nx) + Math.PI / 2, 0); q.setFromEuler(e);
       const px = (p.x + p.nx * (WALL_T / S / 2)) * S, pz = (p.y + p.ny * (WALL_T / S / 2)) * S;
       m4.compose(new THREE.Vector3(px, FLOOR + h / 2, pz), q, new THREE.Vector3(len, h, WALL_T)); walls.setMatrixAt(k, m4);
-      col.set('#ffffff').multiplyScalar(0.82 + sr() * 0.22); walls.setColorAt(k, col);
+      col.copy(wallCol).multiplyScalar(0.82 + sr() * 0.22); walls.setColorAt(k, col);
       m4.compose(new THREE.Vector3(px, FLOOR + h + 0.04, pz), q, new THREE.Vector3(len * 1.02, 0.08, WALL_T + 0.08)); caps.setMatrixAt(k, m4);
     });
     walls.castShadow = !o.saver && true; walls.receiveShadow = true; caps.receiveShadow = true;
     ch.g.add(walls, caps);
   }
+
+  // H2d props: each themed room gets one batch of its theme's prop along its far and side walls (never the low near
+  // ledge, never an island), spaced out and kept off the doorways, so the middle of the room stays clear for the fight.
+  const propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 });
+  const propGeo = new Map<ThemeId, THREE.BufferGeometry>();
+  type Props = { mesh: THREE.InstancedMesh; id: ThemeId; at: THREE.Matrix4[]; ch: Chunk };
+  const props: Props[] = [];
+  const steamAt: { x: number; z: number; ch: Chunk; ph: number }[] = [];
+  m.rooms.forEach((_, i) => {
+    const th = themes[i];
+    const pick = themeSpots(m, i, o.corridor / 2, o.doorRoom);
+    if (!pick.length) return;
+    const geo = propGeo.get(th.id) ?? propGeo.set(th.id, themeProp(th.id)).get(th.id)!;
+    const mesh = new THREE.InstancedMesh(geo, propMat, pick.length);
+    const at: THREE.Matrix4[] = [];
+    pick.forEach((p, k) => {
+      // Its back to the wall: local +z turns to face into the room (minus the wall's normal).
+      const yaw = Math.atan2(-p.nx, -p.ny), sc = (0.9 + ((i * 13 + k * 7) % 5) * 0.06) * PROP_SCALE[th.id];
+      const x = (p.x - p.nx * (30 + 26 * PROP_SCALE[th.id])) * S, z = (p.y - p.ny * (30 + 26 * PROP_SCALE[th.id])) * S;
+      const mm = new THREE.Matrix4().compose(new THREE.Vector3(x, FLOOR, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sc, sc, sc));
+      mesh.setMatrixAt(k, mm); at.push(mm);
+      if (th.id === 'cooling') steamAt.push({ x, z, ch: roomChunk[i], ph: k * 1.7 + i });
+    });
+    mesh.castShadow = !o.saver; mesh.receiveShadow = true;
+    roomChunk[i].g.add(mesh);
+    props.push({ mesh, id: th.id, at, ch: roomChunk[i] });
+  });
+  // Cooling yard steam: a few soft wisps rising off each post and fading (one batch for the map).
+  const STEAM_PER = 4;
+  const steamPos = new Float32Array(Math.max(1, steamAt.length * STEAM_PER) * 3);
+  const steamGeo = new THREE.BufferGeometry(); steamGeo.setAttribute('position', new THREE.BufferAttribute(steamPos, 3));
+  const steamTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 32; const k = c.getContext('2d')!;
+    const g = k.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(235,245,255,0.55)'); g.addColorStop(1, 'rgba(235,245,255,0)');
+    k.fillStyle = g; k.fillRect(0, 0, 32, 32); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const steam = new THREE.Points(steamGeo, new THREE.PointsMaterial({ map: steamTex, size: 0.9, transparent: true, depthWrite: false, opacity: 0.5 }));
+  steam.frustumCulled = false; steam.visible = false; if (steamAt.length) group.add(steam);
+  const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion();
+  const roomLife = (t: number) => {
+    for (const pr of props) {
+      if (!pr.ch.g.visible || pr.id !== 'bellows') continue;
+      pr.at.forEach((base, k) => {
+        base.decompose(pp, pq, ps);
+        const { sy } = propMotion(pr.id, t, k * 1.3);
+        pm.compose(pp, pq, ps.set(ps.x, ps.y * sy, ps.z)); pr.mesh.setMatrixAt(k, pm);
+      });
+      pr.mesh.instanceMatrix.needsUpdate = true;
+    }
+    let any = false;
+    steamAt.forEach((s0, k) => {
+      const on = s0.ch.g.visible; any ||= on;
+      for (let j = 0; j < STEAM_PER; j++) {
+        const u = ((t * 0.35 + s0.ph + j / STEAM_PER) % 1), o3 = (k * STEAM_PER + j) * 3;
+        steamPos[o3] = s0.x + Math.sin(u * 5 + s0.ph) * 0.12; steamPos[o3 + 1] = on ? FLOOR + 0.5 + u * 1.6 : -50; steamPos[o3 + 2] = s0.z + u * 0.1;
+      }
+    });
+    steam.visible = any; if (any) steamGeo.attributes.position.needsUpdate = true;
+  };
 
   // The boss door: a brick frame in the alcove's north side. Sealed while the door guard lives (dark iron, a dull red
   // bar: red is bad); once he falls the door is gone and gold light fills the arch.
@@ -320,7 +403,8 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   let openK = 0, lastT = 0;
   return {
     group,
-    pieces: chunks.length * 3 + 8,
+    pieces: chunks.length * 3 + props.length + 9,
+    theme: (i) => themes[i] ?? THEMES.ash,
     update(mm, cx, cz, hx, hy, t) {
       const dt = Math.min(0.1, Math.max(0, t - lastT)); lastT = t;
       // On screen: the camera shows about 9 units either side and from 12 ahead to 6 behind the hero (the foe cull's box).
@@ -331,6 +415,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       panel.visible = openK < 0.99; panel.scale.x = 1 - openK; bar.visible = !open;
       glowMat.opacity = openK * (0.9 + 0.1 * Math.sin(t * 3));
       drawGrates(mm, t);
+      roomLife(t);
       mm.packs.forEach((p, k) => {
         const near = Math.hypot(hx - p.x, hy - p.y) < SIM.hallsShowRing;
         const target = p.state === 'asleep' && near ? 0.38 + 0.06 * Math.sin(t * 2 + k) : 0;

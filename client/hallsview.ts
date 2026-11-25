@@ -10,9 +10,10 @@ import type { World } from '../sim/world';
 import { DOOR_ROOM, HALLS, HallsMap, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
+import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
+import { type ThemeId, themeOf, themeSpots } from './hallsthemes';
 
-/** The floor's plain greybox colours: warm dark stone, the Kiln's ember rim. */
-const FLOOR = 0x2c211c;
+/** The corridors' plain greybox stone and the Kiln's ember rim (rooms take their theme's floor2d, hallsthemes.ts). */
 const FLOOR_SIDE = 0x251b17;
 const RIM = 0xff8a3d;
 /** Red is bad (Steve, 23 Nov): a sleeping pack's reach ring. */
@@ -156,52 +157,103 @@ export class HallsView {
     if (this.fadeT >= HALLS.fade) { this.fadeT = -1; this.fadeEl.style.opacity = '0'; }
   }
 
-  /** The greybox floor, drawn once: rooms and corridors in plain stone with an ember rim, walls left dark. */
+  /**
+   * The floor, drawn once: rooms in their theme's colour (H2d, client/hallsthemes.ts) for any outline (H2c,
+   * client/hallsshape.ts: Round, Hall, Cross, Ring, Twin; the Ring's island a coal hearth), corridors in plain stone,
+   * an ember rim round it all, walls left dark, and one simple prop per theme along the walls.
+   */
   private drawFloor(m: HallsMap): void {
     this.floorDrawn = true;
     const g = this.floor.clear();
     const hw = HALLS.corridor / 2;
+    const V = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
+    const poly = (l: number[]) => { const v: Phaser.Math.Vector2[] = []; for (let k = 0; k < l.length; k += 2) v.push(V(l[k], l[k + 1])); return v; };
     const quad = (ax: number, ay: number, bx: number, by: number, w: number) => {
       const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1, nx = (-dy / d) * w, ny = (dx / d) * w;
-      g.fillPoints([new Phaser.Math.Vector2(ax + nx, ay + ny), new Phaser.Math.Vector2(bx + nx, by + ny), new Phaser.Math.Vector2(bx - nx, by - ny), new Phaser.Math.Vector2(ax - nx, ay - ny)], true);
+      g.fillPoints([V(ax + nx, ay + ny), V(bx + nx, by + ny), V(bx - nx, by - ny), V(ax - nx, ay - ny)], true);
     };
+    const loops = m.rooms.map(roomLoops);
+    // Where each corridor's centre line leaves its two rooms' outlines (the doorways).
+    const span = m.corridors.map((c) => {
+      const e = corridorEnds(m, c), L = Math.hypot(e.x2 - e.x1, e.y2 - e.y1) || 1, ux = (e.x2 - e.x1) / L, uy = (e.y2 - e.y1) / L;
+      let t0 = 0; while (t0 < L && inLoop(loops[c.a][0], e.x1 + ux * t0, e.y1 + uy * t0)) t0 += 2;
+      let t1 = L; while (t1 > t0 && inLoop(loops[c.b][0], e.x1 + ux * t1, e.y1 + uy * t1)) t1 -= 2;
+      return { ...e, ux, uy, t0, t1 };
+    });
     // A dark skirt round every shape first, so the walls read as walls on the dimmed ground.
-    g.fillStyle(0x0b0705, 0.9);
-    for (const r of m.rooms) g.fillCircle(r.x, r.y, r.r + 26);
-    for (const c of m.corridors) { const a = m.rooms[c.a], b = m.rooms[c.b]; quad(a.x, a.y, b.x, b.y, hw + 26); }
+    g.fillStyle(0x0b0705, 0.9).lineStyle(52, 0x0b0705, 0.9);
+    for (const l of loops) { g.fillPoints(poly(l[0]), true); g.strokePoints(poly(l[0]), true, true); }
+    for (const c of span) quad(c.x1, c.y1, c.x2, c.y2, hw + 26);
     g.fillStyle(FLOOR_SIDE, 1);
-    for (const c of m.corridors) { const a = m.rooms[c.a], b = m.rooms[c.b]; quad(a.x, a.y, b.x, b.y, hw); }
-    g.fillStyle(FLOOR, 1);
-    for (const r of m.rooms) g.fillCircle(r.x, r.y, r.r);
-    // A faint flagstone grid, so walking reads as moving.
+    for (const c of span) quad(c.x1, c.y1, c.x2, c.y2, hw);
+    loops.forEach((l, i) => {
+      g.fillStyle(themeOf(m, i).floor2d, 1).fillPoints(poly(l[0]), true);
+      // The Ring's hearth: banked coals inside a low ember rim.
+      for (let k = 1; k < l.length; k++) { g.fillStyle(0x1a0d09, 1).fillPoints(poly(l[k]), true); g.lineStyle(5, 0xff6a2a, 0.55).strokePoints(poly(l[k]), true, true); }
+    });
+    // A faint flagstone grid inside each room, so walking reads as moving (segments kept to the floor).
     g.lineStyle(1, 0x3a2c25, 0.6);
-    for (const r of m.rooms) for (let k = -r.r + 60; k < r.r; k += 60) {
-      const h = Math.sqrt(Math.max(0, r.r * r.r - k * k)) - 6;
-      g.lineBetween(r.x + k, r.y - h, r.x + k, r.y + h);
-      g.lineBetween(r.x - h, r.y + k, r.x + h, r.y + k);
-    }
-    // Ember rims: each room's edge, and the corridor sides between the rooms they join.
+    loops.forEach((l, i) => {
+      const r = m.rooms[i];
+      for (let k = -r.r + 60; k < r.r; k += 60) for (const vert of [true, false]) {
+        let start: number | null = null;
+        for (let u = -r.r; u <= r.r + 10; u += 10) {
+          const x = vert ? r.x + k : r.x + u, y = vert ? r.y + u : r.y + k, on = u <= r.r && inRoom(l, x, y);
+          if (on && start === null) start = u;
+          if (!on && start !== null) {
+            const e0 = start + 4, e1 = u - 14;
+            if (e1 > e0) g.lineBetween(vert ? x : r.x + e0, vert ? r.y + e0 : y, vert ? x : r.x + e1, vert ? r.y + e1 : y);
+            start = null;
+          }
+        }
+      }
+    });
+    // Ember rims: each room's outline, and the corridor sides between the rooms they join.
     g.lineStyle(4, RIM, 0.5);
-    for (const r of m.rooms) g.strokeCircle(r.x, r.y, r.r);
-    for (const c of m.corridors) {
-      const a = m.rooms[c.a], b = m.rooms[c.b];
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, nx = -uy * hw, ny = ux * hw;
-      const ia = Math.sqrt(Math.max(0, a.r * a.r - hw * hw)), ib = Math.sqrt(Math.max(0, b.r * b.r - hw * hw));
-      for (const s of [1, -1]) g.lineBetween(a.x + ux * ia + nx * s, a.y + uy * ia + ny * s, b.x - ux * ib + nx * s, b.y - uy * ib + ny * s);
+    for (const l of loops) g.strokePoints(poly(l[0]), true, true);
+    for (const c of span) {
+      const nx = -c.uy * hw, ny = c.ux * hw;
+      for (const s of [1, -1]) g.lineBetween(c.x1 + c.ux * c.t0 + nx * s, c.y1 + c.uy * c.t0 + ny * s, c.x1 + c.ux * c.t1 + nx * s, c.y1 + c.uy * c.t1 + ny * s);
     }
-    // Open the rims across each corridor mouth (floor drawn back over the rim line there).
+    // Open the rims across each corridor mouth (corridor floor drawn back over the rim line there).
     g.fillStyle(FLOOR_SIDE, 1);
-    for (const c of m.corridors) {
-      const a = m.rooms[c.a], b = m.rooms[c.b];
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
-      const ia = Math.sqrt(Math.max(0, a.r * a.r - hw * hw)), ib = Math.sqrt(Math.max(0, b.r * b.r - hw * hw));
-      quad(a.x + ux * (ia - 6), a.y + uy * (ia - 6), a.x + ux * (a.r + 6), a.y + uy * (a.r + 6), hw - 2.5);
-      quad(b.x - ux * (ib - 6), b.y - uy * (ib - 6), b.x - ux * (b.r + 6), b.y - uy * (b.r + 6), hw - 2.5);
+    for (const c of span) {
+      quad(c.x1 + c.ux * (c.t0 - 8), c.y1 + c.uy * (c.t0 - 8), c.x1 + c.ux * (c.t0 + 6), c.y1 + c.uy * (c.t0 + 6), hw - 2.5);
+      quad(c.x1 + c.ux * (c.t1 - 6), c.y1 + c.uy * (c.t1 - 6), c.x1 + c.ux * (c.t1 + 8), c.y1 + c.uy * (c.t1 + 8), hw - 2.5);
     }
+    // One simple prop per theme along the walls, where the 3D look stands its props.
+    m.rooms.forEach((_, i) => {
+      const th = themeOf(m, i);
+      for (const p of themeSpots(m, i, hw, DOOR_ROOM)) this.prop2d(g, th.id, p.x - p.nx * 40, p.y - p.ny * 40, p.nx, p.ny);
+    });
     // The boss door: a heavy arch at the end of the alcove (its glow is drawn each frame, gold once it opens).
     const dr = m.rooms[DOOR_ROOM];
     g.fillStyle(0x140d0a, 1).fillRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
     g.lineStyle(3, RIM, 0.7).strokeRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
+  }
+
+  /** A theme's 2D prop at (x, y), its back to the wall whose outward normal is (nx, ny): plain shapes, no red or green. */
+  private prop2d(g: Phaser.GameObjects.Graphics, id: ThemeId, x: number, y: number, nx: number, ny: number): void {
+    const tx = -ny, ty = nx;
+    if (id === 'ash') {
+      g.fillStyle(0x6a5446, 1).fillRect(x - 14, y - 14, 28, 28);
+      g.fillStyle(0x9a8e84, 1).fillEllipse(x - tx * 20, y - ty * 20, 30, 24).fillEllipse(x + tx * 18 - nx * 6, y + ty * 18 - ny * 6, 26, 22);
+    } else if (id === 'bellows') {
+      g.fillStyle(0x5a3424, 1).fillPoints([new Phaser.Math.Vector2(x + tx * 30, y + ty * 30), new Phaser.Math.Vector2(x - tx * 30, y - ty * 30), new Phaser.Math.Vector2(x - tx * 16 - nx * 36, y - ty * 16 - ny * 36), new Phaser.Math.Vector2(x + tx * 16 - nx * 36, y + ty * 16 - ny * 36)], true);
+      g.fillStyle(0xa8683e, 1).fillCircle(x - nx * 10, y - ny * 10, 12);
+      g.fillStyle(0x2e2624, 1).fillCircle(x - nx * 40, y - ny * 40, 5);
+    } else if (id === 'slag') {
+      g.fillStyle(0x4a302a, 1).fillCircle(x, y, 26).fillCircle(x + tx * 26, y + ty * 26, 15);
+      g.fillStyle(0xe0a060, 0.9).fillCircle(x, y, 6).fillCircle(x + tx * 26, y + ty * 26, 4);
+    } else if (id === 'cooling') {
+      g.fillStyle(0x5c666c, 1).fillCircle(x, y, 17);
+      g.lineStyle(3, 0x8a989e, 1).lineBetween(x - 12, y, x + 12, y).lineBetween(x, y - 12, x, y + 12);
+      g.fillStyle(0xe8f2ff, 0.12).fillCircle(x - nx * 6, y - ny * 6 - 18, 20);
+    } else {
+      g.fillStyle(0x8a6a4a, 1).fillRect(x + nx * 10 - 22, y + ny * 10 - 22, 44, 44);
+      g.fillStyle(0x3a2a1e, 1).fillRect(x + nx * 10 - 12, y + ny * 10 - 12, 24, 24);
+      for (const o of [-16, 0, 16]) g.fillStyle(0xfff2b0, 0.95).fillCircle(x + tx * o - nx * 18, y + ty * o - ny * 18, 3.5);
+    }
   }
 
   /** Sleeping foes where they stand, and a pack's red ring once your hero is within HALLS.showRing of it. */

@@ -21,7 +21,17 @@
 import { note } from './synth';
 
 export type ThemeId = 'hub' | 'kiln' | 'foundry' | 'glarewell' | 'hammerdeep' | 'ashvents' | 'coldmarrow' | 'raid' | 'wrackline' | 'hubBellows' | 'hubHearth' | 'pressworks' | 'hubSlag' | 'hubPress' | 'hubEbb' | 'hoard' | 'smeltery' | 'hubHunger' | 'hubPlate' | 'flue';
-export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride' | 'draft';
+export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost' | 'vents' | 'slag' | 'surf' | 'press' | 'chew' | 'stride' | 'draft'
+  // Halls room themes (visuals, 25 Nov): one quiet bed each, played under the dungeon theme in that room (MusicPlayer.setRoomBed).
+  | RoomBedKind;
+
+/** The five Halls room themes' beds, each from the room's one quiet motion (visuals' theme list, 25 Nov 2026). */
+export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingYard' | 'kilnShrine';
+export const ROOM_BEDS: readonly RoomBedKind[] = ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine'];
+/** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
+export const ROOM_BED_VOL = 0.16;
+/** Seconds a room bed takes to fade into the next room's as the hero walks through a doorway. */
+export const ROOM_BED_FADE = 1.5;
 
 export interface Theme {
   /** Root pitch in semitones from A4. */
@@ -261,6 +271,53 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = lp * 0.9 * pull + howl * 0.05 * pull + brown * 1.3;
         break;
       }
+      case 'ashStore': {
+        // Drifting ash: a dry, soft hiss that drifts louder and back once round the loop; the settling grains are added below.
+        hp = 0.94 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.45;
+        const drift = 0.55 + 0.45 * Math.pow(Math.sin(t * Math.PI), 2);
+        raw[i] = lp * 0.14 * drift + brown * 0.15;
+        break;
+      }
+      case 'bellowsHall': {
+        // Breathing bellows: two slow, airy breaths round the loop (in, then a longer out), a leather creak at each turn.
+        hp = 0.96 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.2;
+        const ph = (t * 2) % 1;
+        const breath = ph < 0.4 ? Math.sin((Math.PI * ph) / 0.8) : Math.cos((Math.PI * (ph - 0.4)) / 1.2);
+        const turn = Math.exp(-Math.abs(ph - 0.4) * 60);
+        const creak = Math.sin(2 * Math.PI * 92 * (i / rate)) * (Math.sin(2 * Math.PI * 23 * (i / rate)) > 0 ? 1 : 0.2);
+        raw[i] = lp * 0.4 * breath * breath + creak * 0.05 * turn + Math.sin(2 * Math.PI * 370 * (i / rate)) * 0.03 * turn + brown * 0.2;
+        break;
+      }
+      case 'slagChannel': {
+        // The channel's glow: a warm hum (low partials beating slowly) that brightens and dims twice round the loop.
+        lp += (w - lp) * 0.02;
+        const glow = 0.6 + 0.4 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const s = i / rate;
+        const hum = Math.sin(2 * Math.PI * 110 * s) * 0.3 + Math.sin(2 * Math.PI * 165.5 * s) * 0.25 + Math.sin(2 * Math.PI * 441 * s) * 0.3 * glow + Math.sin(2 * Math.PI * 663 * s) * 0.18 * glow;
+        raw[i] = hum * 0.5 * glow + lp * 0.3 + brown * 0.25;
+        break;
+      }
+      case 'coolingYard': {
+        // Steam wisps: a faint hiss with four short puffs of steam at uneven places round the loop.
+        hp = 0.88 * (hp + w - prev);
+        prev = w;
+        const puff = [0.08, 0.31, 0.47, 0.78].reduce((m, at) => Math.max(m, t >= at && t < at + 0.07 ? Math.sin((Math.PI * (t - at)) / 0.07) : 0), 0);
+        raw[i] = hp * (0.025 + 0.14 * puff * puff) + brown * 0.12;
+        break;
+      }
+      case 'kilnShrine': {
+        // Candle flicker: a hushed warm breath that wavers like a flame, a faint ringing bowl over it; tiny wick crackles below.
+        lp += (w - lp) * 0.1;
+        const s = i / rate;
+        const flicker = 0.7 + 0.3 * Math.sin(2 * Math.PI * 0.9 * s + Math.sin(2 * Math.PI * 0.37 * s) * 2);
+        const bowl = Math.sin(2 * Math.PI * 523 * s) * (0.75 + 0.25 * Math.sin(2 * Math.PI * (1 / 3) * s)) + 0.3 * Math.sin(2 * Math.PI * 1307 * s);
+        raw[i] = lp * 0.25 * flicker + bowl * 0.05 + brown * 0.15;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -301,6 +358,21 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         s = Math.sin(ph * Math.PI * 2) + 0.4 * Math.sin(ph2 * Math.PI * 2);
       } else s = white();
       raw[at + i] += s * env * amp;
+    }
+  }
+  // Halls room beds: ash grains settling, slag bubbles in the channel, wick crackles at the shrine.
+  const grains = kind === 'ashStore' ? 26 : kind === 'slagChannel' ? 7 : kind === 'kilnShrine' ? 9 : 0;
+  for (let k = 0; k < grains; k++) {
+    const at = Math.floor(r() * (period - rate * 0.3));
+    const bubble = kind === 'slagChannel';
+    const len = Math.floor(rate * (bubble ? 0.14 : 0.006 + r() * 0.01));
+    const amp = bubble ? 0.22 : kind === 'ashStore' ? 0.06 + r() * 0.08 : 0.1 + r() * 0.12;
+    const f0 = 140 + r() * 120;
+    let ph = 0;
+    for (let i = 0; i < len && at + i < n; i++) {
+      const env = Math.pow(1 - i / len, bubble ? 3 : 2);
+      ph += (f0 * (1 + 2.5 * (i / len))) / rate;
+      raw[at + i] += (bubble ? Math.sin(ph * Math.PI * 2) + 0.5 * Math.sin(ph * Math.PI * 6) : white()) * env * amp;
     }
   }
   // Crossfade the tail over the head so the loop has no seam.
@@ -612,6 +684,34 @@ export class MusicPlayer {
 
   setIntensity(level: number): void {
     if (this.current) this.current.intensity = level;
+  }
+
+  private room: { kind: RoomBedKind; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+
+  /** The Halls room the hero is in: its quiet bed fades in over ROOM_BED_FADE s, the last room's fades out (null: none). */
+  setRoomBed(kind: RoomBedKind | null): void {
+    if ((this.room?.kind ?? null) === kind) return;
+    const t = this.ctx.currentTime;
+    if (this.room) {
+      const { src, gain } = this.room;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + ROOM_BED_FADE);
+      src.stop(t + ROOM_BED_FADE + 0.1);
+      setTimeout(() => gain.disconnect(), (ROOM_BED_FADE + 0.5) * 1000);
+      this.room = null;
+    }
+    if (!kind) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.bedBuffer(kind);
+    src.loop = true;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(ROOM_BED_VOL, t + ROOM_BED_FADE);
+    src.connect(gain).connect(this.dest);
+    // Start each room's loop at a different point, so walking back into a room doesn't restart it audibly.
+    src.start(t, Math.random() * (src.buffer.duration - 0.5));
+    this.room = { kind, src, gain };
   }
 
   private halt(): void {
