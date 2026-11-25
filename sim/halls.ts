@@ -205,7 +205,13 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     mirror = (seed & 1) === 1;
     const mx = (x: number) => (mirror && x !== 0 ? -x : x);
     rooms = T.rooms.map((r) => ({ ...r, x: mx(r.x) }));
-    corridors = T.corridors.map((c) => ({ ...c }));
+    // H2c: the corridors end just inside each room's doorway (not at its centre), as on a generated map, so walkers head
+    // for the doorway; the alcove end stays at the door.
+    corridors = T.corridors.map((c) => {
+      const a = rooms[c.a], b = rooms[c.b], d = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / d, uy = (b.y - a.y) / d;
+      const ka = c.a === DOOR_ROOM ? 0 : a.r - 40, kb = c.b === DOOR_ROOM ? 0 : b.r - 40;
+      return { ...c, ax: a.x + ux * ka, ay: a.y + uy * ka, bx: b.x - ux * kb, by: b.y - uy * kb };
+    });
     spots = T.packs.map((s) => ({ ...s, x: mx(s.x) }));
     door = { x: mx(T.door.x), y: T.door.y };
     layoutRooms = T.layoutRooms.map((l) => ({ ...l }));
@@ -433,7 +439,7 @@ interface Nav {
 }
 const NAV_PAD = 12;
 /** A straight walk counts as clear with this much room to spare (a walker is about this wide). */
-const WAY_PAD = 8;
+const WAY_PAD = 16;
 const NAVS = new WeakMap<object, Nav>();
 
 function areasAt(m: HallsGeo, x: number, y: number): number[] {
@@ -486,12 +492,25 @@ function navOf(m: HallsGeo): Nav {
   return nav;
 }
 
+/** How far (x, y) stands from the nearest wall of the roomiest room or corridor it is in (negative: off the floor). */
+function floorGap(m: HallsGeo, x: number, y: number): number {
+  let g = -Infinity;
+  for (const rm of m.rooms) if ((x - rm.x) ** 2 + (y - rm.y) ** 2 <= rm.r * rm.r) g = Math.max(g, roomGap(rm, x, y));
+  const hw = HALLS.corridor / 2;
+  for (const c of m.corridors) {
+    const e = corridorEnds(m, c);
+    const q = segClosest(x, y, e.x1, e.y1, e.x2, e.y2);
+    g = Math.max(g, hw - Math.hypot(x - q.x, y - q.y));
+  }
+  return g;
+}
+
 /** The walking-graph points the walk from (x, y) reaches in a straight line, with how far each is. */
 function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
   const here = areasAt(m, x, y);
   const out: [number, number][] = [];
   // With room to spare first (a walker aiming past a jutting corner, as where a twin's halves meet, snags on it).
-  for (const pad of [WAY_PAD, 0]) {
+  for (const pad of [Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y))), 0]) {
     nav.pts.forEach((p, i) => {
       if (here.length && !nav.area[i].some((a) => here.includes(a))) return;
       if (clearWalk(m, x, y, p.x, p.y, pad)) out.push([i, Math.hypot(p.x - x, p.y - y)]);
@@ -510,7 +529,9 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
 export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number): { x: number; y: number } {
-  if (clearWalk(m, x, y, tx, ty, WAY_PAD)) return { x: tx, y: ty };
+  // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
+  const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
+  if (clearWalk(m, x, y, tx, ty, pad)) return { x: tx, y: ty };
   const nav = navOf(m), n = nav.pts.length;
   const from = seen(m, nav, x, y), to = seen(m, nav, tx, ty);
   let best = Infinity, bi = from[0][0], bj = to[0][0];
