@@ -28,8 +28,14 @@ export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost
 /** The five Halls room themes' beds, each from the room's one quiet motion (visuals' theme list, 25 Nov 2026). */
 export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingYard' | 'kilnShrine'
   // The Drowned Foundry's four (visuals, 25 Nov; its shrine side room keeps kilnShrine).
-  | 'boilerRoom' | 'cistern' | 'pumpHall' | 'anchorStore';
-export const ROOM_BEDS: readonly RoomBedKind[] = ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore'];
+  | 'boilerRoom' | 'cistern' | 'pumpHall' | 'anchorStore'
+  // The Glarewell's four (visuals, 25 Nov).
+  | 'lensGallery' | 'starVault' | 'shadeColonnade' | 'mirrorHall';
+export const ROOM_BEDS: readonly RoomBedKind[] = [
+  'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
+  'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
+  'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall',
+];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
 /** Seconds a room bed takes to fade into the next room's as the hero walks through a doorway. */
@@ -362,6 +368,43 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         lp += (hp - lp) * 0.3;
         const s = i / rate;
         raw[i] = lp * 0.08 + (Math.sin(2 * Math.PI * 233 * s) + 0.6 * Math.sin(2 * Math.PI * 349 * s)) * 0.012 + brown * 0.1;
+        break;
+      }
+      case 'lensGallery': {
+        // Lens gallery: pale gold light that swells slowly once round the loop: a warm open fifth that blooms and settles.
+        const s = i / rate;
+        const bloom = 0.35 + 0.65 * Math.pow(Math.sin(t * Math.PI), 2);
+        const pad = Math.sin(2 * Math.PI * 440 * s) + 0.7 * Math.sin(2 * Math.PI * 659.8 * s) + 0.3 * Math.sin(2 * Math.PI * 880.6 * s) * bloom;
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        raw[i] = pad * 0.05 * bloom + hp * 0.012 * bloom + brown * 0.1;
+        break;
+      }
+      case 'starVault': {
+        // Star vault, the quiet room: brass orreries turning slowly, a soft clockwork tick about once a second over a low violet hum.
+        const s = i / rate;
+        const tick = (t * 8) % 1;
+        const tk = Math.exp(-tick * 160) * Math.sin(2 * Math.PI * 2100 * s) * ((Math.floor(t * 8) % 2) === 0 ? 1 : 0.6);
+        const hum = Math.sin(2 * Math.PI * 233 * s) * (0.7 + 0.3 * Math.sin(2 * Math.PI * 0.25 * s)) + 0.4 * Math.sin(2 * Math.PI * 277.2 * s);
+        raw[i] = tk * 0.1 + hum * 0.035 + brown * 0.05;
+        break;
+      }
+      case 'shadeColonnade': {
+        // Shade colonnade: cool and still, a faint draught between broken columns with a hollow resonance; nothing moves.
+        hp = 0.985 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.05;
+        const s = i / rate;
+        raw[i] = lp * 0.5 + Math.sin(2 * Math.PI * 196 * s) * 0.012 + Math.sin(2 * Math.PI * 392 * s) * 0.008 + brown * 0.12;
+        break;
+      }
+      case 'mirrorHall': {
+        // Mirror hall: the brightest room, a thin glassy shimmer of high partials ringing off the mirrors; still.
+        const s = i / rate;
+        hp = 0.8 * (hp + w - prev);
+        prev = w;
+        const glass = Math.sin(2 * Math.PI * 1760 * s) * (0.8 + 0.2 * Math.sin(2 * Math.PI * 0.7 * s)) + 0.6 * Math.sin(2 * Math.PI * 2637 * s) + 0.4 * Math.sin(2 * Math.PI * 3520.5 * s);
+        raw[i] = glass * 0.03 + hp * 0.02 + brown * 0.08;
         break;
       }
       case 'shimmer': {

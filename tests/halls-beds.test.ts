@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -50,6 +50,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const SETS = {
     kiln: ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine'],
     foundry: ['boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'kilnShrine'],
+    glarewell: ['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'kilnShrine'],
   } as const;
 
   it('within one dungeon, every room bed sounds different from the others on a phone', () => {
@@ -69,6 +70,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     // The Foundry: the boiler puffs, the cistern's light swells, the pumps stroke; the anchor store doesn't move at all.
     for (const busy of ['boilerRoom', 'cistern', 'pumpHall'] as const) expect(m(busy)).toBeGreaterThan(2 * m('anchorStore'));
     expect(m('anchorStore')).toBeLessThan(m('kilnShrine'));
+    // The Glarewell: the lens light swells and the orreries tick round; the colonnade and the mirrors stay still.
+    for (const busy of ['lensGallery', 'starVault'] as const) for (const still of ['shadeColonnade', 'mirrorHall'] as const) expect(m(busy)).toBeGreaterThan(m(still));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
@@ -94,6 +97,7 @@ describe('which room bed plays where (roomBedFor)', () => {
     expect(Object.values(ROOM_THEME_BED).sort()).toEqual([...ROOM_BEDS].sort());
     // Visuals' Foundry ids (25 Nov).
     expect([ROOM_THEME_BED.boiler, ROOM_THEME_BED.cistern, ROOM_THEME_BED.pump, ROOM_THEME_BED.anchor]).toEqual(['boilerRoom', 'cistern', 'pumpHall', 'anchorStore']);
+    expect([ROOM_THEME_BED.lens, ROOM_THEME_BED.orrery, ROOM_THEME_BED.colonnade, ROOM_THEME_BED.mirror]).toEqual(['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
   });
 
   it('a corridor, the boss door alcove and anywhere off the map are quiet', () => {
