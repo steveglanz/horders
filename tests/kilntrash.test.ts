@@ -65,4 +65,18 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
       expect(w.player.level).toBe(5);
     }
   });
+
+  it('KILNTRASH.named (0.8): the other packs\' foes get that share of health on a trash map, never off it', () => {
+    expect(KILNTRASH.named).toBe(0.8);
+    {
+      for (let seed = 1; seed <= 6; seed++) {
+        const on = kiln(seed, true), base = kiln(seed, false);
+        const k = on.halls!.packs.findIndex((p) => !p.trash && p.foes.length > 0);
+        const hp = (w: World) => { (w as unknown as Q).hallsWake(k); return w.enemies.filter((e) => e.alive && e.pack === k).map((e) => e.maxHp); };
+        const a = hp(on), b = hp(base);
+        expect(a.length).toBe(b.length);
+        a.forEach((m, j) => expect(m, `seed ${seed}`).toBeCloseTo(b[j] * 0.8, 3));
+      }
+    }
+  });
 });
