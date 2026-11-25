@@ -498,9 +498,10 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
   const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
 
-  it('is off for players until design turns it on: only ?hallsbeta=1 (hallsBeta) gives the Foundry a map', () => {
-    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
+  it('is on for players since skills closed its crawler split (#706, 25 Nov), with or without ?hallsbeta=1', () => {
+    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).not.toBeNull();
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
+    expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
     expect(halls(3, { dungeon: 'glarewell', tier: 7, hallsBeta: true }).halls).toBeNull();
   });
