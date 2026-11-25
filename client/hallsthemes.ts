@@ -7,8 +7,8 @@
 import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
-/** The Kiln's five (H2d), the Drowned Foundry's four (H3a), then the Glarewell's four (H3b). Ids are unique across dungeons. */
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror';
+/** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), then the Coldmarrow's four (H3c). Ids are unique across dungeons. */
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt';
 
 export interface Theme {
   id: ThemeId;
@@ -59,6 +59,16 @@ export const THEMES: Record<ThemeId, Theme> = {
   colonnade: { id: 'colonnade', floor2d: 0x22202c, name: 'Shade colonnade', tile: '#56526a', cracked: true, wall: '#8a84a8', light: '#d8d0f0', lightK: 1.15, swell: 0 },
   // Tall mirrors in brass frames along the walls, the brightest, whitest light in the dungeon.
   mirror: { id: 'mirror', floor2d: 0x2a2a36, name: 'Mirror hall', tile: '#76728c', cracked: false, wall: '#b0aad0', light: '#eef0ff', lightK: 1.4, swell: 0 },
+  // H3c, the Coldmarrow (ids engineering's, 25 Nov). Its mechanic is your Hearthcoal's light against the dark and Chill,
+  // so these floors are darker than the Kiln's and the lights cool and dim; the only warm light stays your coal.
+  // A great dead hearth, cold grey ash and charred logs, no fire: the door guard's room.
+  hearthless: { id: 'hearthless', floor2d: 0x1c1e24, name: 'Dead hearth hall', tile: '#3c4250', cracked: false, wall: '#7a8296', light: '#c8d4ec', lightK: 1.0, swell: 0 },
+  // Frosted cracked tiles and ice-crusted stumps hung with icicles; pale blue light that shimmers slowly.
+  rime: { id: 'rime', floor2d: 0x1e2430, name: 'Rime hall', tile: '#4c5a70', cracked: true, wall: '#94a8c4', light: '#bcd8ff', lightK: 1.15, swell: 0.1 },
+  // Snow heaped in drifts against the walls, the palest floor of the four.
+  drift: { id: 'drift', floor2d: 0x22262e, name: 'Snowdrift cave', tile: '#565e6e', cracked: false, wall: '#a0aabc', light: '#d8e4f4', lightK: 1.1, swell: 0 },
+  // Dark stone, frosted stone coffins along the walls, a dim violet-blue light: the quiet room.
+  crypt: { id: 'crypt', floor2d: 0x1a1c24, name: 'Cold crypt', tile: '#363a48', cracked: true, wall: '#70768c', light: '#a8b4e0', lightK: 1.0, swell: 0 },
 };
 
 /** H1's template has no theme field: R0 entrance, R1 A, R2 S (side), R3 B/C, R4 D (side), R5 door guard, door alcove. */
@@ -81,4 +91,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4 };
