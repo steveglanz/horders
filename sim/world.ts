@@ -7722,7 +7722,9 @@ export class World {
     }
     if (e.castId || e.stunT > 0) return;
     // YSMERETV2 stage 1: Bellow Slam waits while her vents are open (its timer runs on; it goes off once they close).
-    if (this.bellowT <= 0 && !(this.ysStage === 1 && YSMERETV2.bellowWaits && (ventsOpen || this.rollLeft > 0))) {
+    // Looked at again here, so vents that opened above in this same tick count too (QA, 25 Nov).
+    const ventsNow = this.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -2);
+    if (this.bellowT <= 0 && !(this.ysStage === 1 && YSMERETV2.bellowWaits && (ventsNow || this.rollLeft > 0))) {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);

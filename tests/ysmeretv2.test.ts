@@ -53,6 +53,22 @@ describe('YSMERETV2: the Twofold Flame', () => {
     expect(b.castId).toBe('bellowSlam');
   });
 
+  it('stage 1: Bellow Slam also waits on the tick her vents open (QA, 25 Nov)', () => {
+    const { w, q } = fight();
+    const b = w.enemies[q.bossIndex];
+    // Twin Vents opening, and the last of a Rolling Vents set opening (rollLeft goes 1 -> 0), each with Bellow due.
+    q.scatterT = 99; q.bellowT = 0; q.twinVentT = 0; q.rollLeft = 0;
+    q.ysmeretClock(0.05);
+    expect(ventsOpen(w)).toBe(true);
+    expect(b.castId).toBe('');
+    for (const t of w.telegraphs) if (t.owner === -2) t.alive = false;
+    q.bellowT = 0; q.twinVentT = 99; q.rollLeft = 1;
+    q.ysmeretClock(0.05);
+    expect(ventsOpen(w)).toBe(true);
+    expect(q.rollLeft).toBe(0);
+    expect(b.castId).toBe('');
+  });
+
   it('the Bellow change can be measured alone (split 0): Bellow waits, but she never splits', () => {
     const was = YSMERETV2.split;
     YSMERETV2.split = 0;
