@@ -1071,7 +1071,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     // The raid: Ladle Pour Seared the other tank, so this tank takes the boss.
     const swap = w.swapCue;
-    if (swap && !this.swapShown) this.hud.banner('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
+    if (swap && !this.swapShown) this.hud.warn('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
     this.swapShown = swap;
     audio.events(events, {
       cls: w.cls,
@@ -1323,42 +1323,42 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         case 'castStart':
-          if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
-          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
-          else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
-          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
-          else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
-          else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
-          else if (ev.name === 'Downstroke') this.hud.banner('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
-          else if (ev.name === 'Stamp') this.hud.banner('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
-          else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
-          else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
-          else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
-          else if (ev.name === 'Snuffer Tide') this.hud.banner('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
-          else if (ev.name === 'Thin Ice') this.hud.banner('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
+          if (ev.name === 'Glare') this.hud.warn('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
+          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.warn(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
+          else if (ev.name === 'Molten Cataclysm') this.hud.warn('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          else if (ev.name === 'Anvilfall') this.hud.warn('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
+          else if (ev.name === 'Choir of Iron') this.hud.warn('Choir of Iron!', 'The whole party is hit. Healers: get ready');
+          else if (ev.name === 'Twin Vents') this.hud.warn('Twin Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Downstroke') this.hud.warn('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
+          else if (ev.name === 'Stamp') this.hud.warn('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
+          else if (ev.name === 'Scatter Embers') this.hud.warn('Scatter Embers!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Snuff') this.hud.warn('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
+          else if (ev.name === 'Long Night') this.hud.warn('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
+          else if (ev.name === 'Snuffer Tide') this.hud.warn('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
+          else if (ev.name === 'Thin Ice') this.hud.warn('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
           else if (ev.name === 'Frost Lace' && !this.laceShown) {
             // Once a fight: the Weaver casts it every few seconds, and its cast bar says the rest.
             this.laceShown = true;
-            this.hud.banner('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
+            this.hud.warn('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
           }
           // The Wrackline.
-          else if (ev.name === 'The Ebb') this.hud.banner('The Ebb!', 'The water is about to pull. Get on a raft');
-          else if (ev.name === 'Sink') this.hud.banner('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
-          else if (ev.name === 'Call the Shoal') this.hud.banner('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
+          else if (ev.name === 'The Ebb') this.hud.warn('The Ebb!', 'The water is about to pull. Get on a raft');
+          else if (ev.name === 'Sink') this.hud.warn('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
+          else if (ev.name === 'Call the Shoal') this.hud.warn('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
           // The raid: Grandmother Slag.
-          else if (ev.name === 'Ladle Pour') this.hud.banner('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
-          else if (ev.name === 'The Pour') this.hud.banner('The Pour!', 'Molten lanes: step out of the red');
-          else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
-          else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
-          else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          else if (ev.name === 'Ladle Pour') this.hud.warn('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
+          else if (ev.name === 'The Pour') this.hud.warn('The Pour!', 'Molten lanes: step out of the red');
+          else if (ev.name === 'Crucible Vents') this.hud.warn('Crucible Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Cinder Marks') this.hud.warn('Cinder Marks!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Last Ember') this.hud.warn('Last Ember!', 'She burns everything. Finish her now');
           // Raid 3: the Cinder Colossus.
-          else if (ev.name === 'Wheel') this.hud.banner('Wheel!', 'He is turning on someone. Get out of his front');
-          else if (ev.name === 'Pour Out') this.hud.banner('Pour Out!', "It can't be stopped. Finish him now");
+          else if (ev.name === 'Wheel') this.hud.warn('Wheel!', 'He is turning on someone. Get out of his front');
+          else if (ev.name === 'Pour Out') this.hud.warn('Pour Out!', "It can't be stopped. Finish him now");
           // Raid 4: the Furnace Regent.
-          else if (ev.name === 'Last Word') this.hud.banner('Last Word!', 'Kill him before he finishes');
+          else if (ev.name === 'Last Word') this.hud.warn('Last Word!', 'Kill him before he finishes');
           // Raid 2: Old Vorhulm.
-          else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
-          else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
+          else if (ev.name === 'Swallow') this.hud.warn('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
+          else if (ev.name === 'Last Meal') this.hud.warn('Last Meal!', "It can't be stopped. Finish him now");
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -1635,7 +1635,7 @@ export class GameScene extends Phaser.Scene {
         case 'waveShape':
           // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
           // own banner (encounterStart), which comes after 'start' and would replace a banner here.
-          if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          if (ev.stage === 'warn') this.hud.warn(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
           {
             // Y6: a ring closing in round the hero, chevrons squeezing in from both flanks, or the gate the held pack
             // comes through (pulsing for its 2 s warning) and a burst as it arrives.
@@ -1666,7 +1666,7 @@ export class GameScene extends Phaser.Scene {
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
           // The warning wins over a fight's banner chain (stir, wave, named foe), which resumes after it.
-          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, false, this.hud.pendingBanner());
+          if (ev.stage === 'warn') this.hud.warn(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, this.hud.pendingBanner());
           else if (ev.stage === 'land' && ev.id === 'caveIn') {
             this.shakeBy(0.35);
             for (const c of w.caveInSpots()) {

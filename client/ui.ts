@@ -377,13 +377,15 @@ export class Hud {
     if (this.compact && (landscape || $('party').hidden)) {
       // The stylesheet's own top: 68 px in landscape (HUD row + 60), max(21%, 164 px) in portrait.
       // Only ever push it lower: below the target frame and the buff chips (Planted, Warmth, Ward...).
-      const base = landscape ? 68 : Math.max(0.21 * window.innerHeight, 164);
+      // A warning (one slim line, design 25 Nov) sits right under the top row instead of in the upper band.
+      const warn = b.classList.contains('warn');
+      const base = warn ? Math.round($('pauseBtn').getBoundingClientRect().bottom + 6) : landscape ? 68 : Math.max(0.21 * window.innerHeight, 164);
       const buffs = $('buffs');
       const below = Math.round(Math.max(
         target.hidden ? 0 : target.getBoundingClientRect().bottom + 8,
         buffs.childElementCount ? buffs.getBoundingClientRect().bottom + 6 : 0,
       ));
-      if (below > base) top = `${below}px`;
+      if (below > base || warn) top = `${Math.max(below, base)}px`;
     }
     if (top === this.bannerTop) return;
     this.bannerTop = top;
@@ -696,15 +698,39 @@ export class Hud {
   }
 
   /** `full` is for lines the player must read whole (the first delve's coach): phones show every line, held a bit longer. */
+  /**
+   * A warning banner (a cast, a wave or an arena event that is about to land). Design's rule (25 Nov): on phones a
+   * warning must never cover the fight while it runs, so it is one slim line just under the top HUD (title and sub
+   * side by side, the sub shrunk to fit) instead of the two-line card. Other screens get the usual banner.
+   */
+  warn(title: string, sub: string, next?: BannerNext): void {
+    this.warnNext = this.compact;
+    this.banner(title, sub, false, next);
+  }
+
+  private warnNext = false;
+
   banner(title: string, sub: string, full = false, next?: BannerNext): void {
+    const warn = this.warnNext;
+    this.warnNext = false;
     $('bannerTitle').textContent = title;
     const subEl = $('bannerSub');
     subEl.textContent = sub;
+    subEl.style.fontSize = '';
     $('banner').classList.add('show');
+    $('banner').classList.toggle('warn', warn);
     $('banner').classList.toggle('full', full);
+    if (warn) {
+      // One line: shrink the sub until it fits (down to 10 px). A sub that still doesn't fit (a 320 px phone and a long
+      // line, like the Long Night's) wraps to a second line rather than losing its end to an ellipsis.
+      $('banner').classList.remove('warn2');
+      let px = parseFloat(getComputedStyle(subEl).fontSize) || 12;
+      while (px > 10 && subEl.scrollWidth > subEl.clientWidth + 1) { px -= 0.5; subEl.style.fontSize = `${px}px`; }
+      if (subEl.scrollWidth > subEl.clientWidth + 1) { subEl.style.fontSize = ''; $('banner').classList.add('warn2'); }
+    } else $('banner').classList.remove('warn2');
     // Phones clamp the sub-line to 2 lines. A longer one (a fight tip plus its floor line, say) gets the
     // 4-line banner and the longer time instead of being cut off mid-sentence.
-    if (!full && subEl.scrollHeight > subEl.clientHeight + 1) {
+    if (!warn && !full && subEl.scrollHeight > subEl.clientHeight + 1) {
       full = true;
       $('banner').classList.add('full');
     }
