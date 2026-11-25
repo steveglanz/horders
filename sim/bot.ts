@@ -824,11 +824,11 @@ export function botInput(w: World, skill = 1): Input {
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
-  // ONDRELV2: an anvil's hot ring burns, so step out of it, away from the anvil (the tank drags him off it this way).
-  for (const a of w.anvils) {
-    if (a.hot <= 0) continue;
+  // ONDRELV2: burning slag, so step out of it, away from its middle (the tank drags him off it this way).
+  for (const a of w.slagPatches) {
+    if (a.glow !== 0) continue;
     const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
-    if (d > ONDRELV2.ringR + 16) continue;
+    if (d > ONDRELV2.r + 16) continue;
     const s = w.hallsOn ? hallsSteer(w, dx / d, dy / d) : { x: dx / d, y: dy / d };
     return { x: s.x, y: s.y, cast: botCast(w, skill) };
   }
@@ -1408,7 +1408,22 @@ export function botInput(w: World, skill = 1): Input {
   fy += Math.sin(a) * 0.002;
   const len = Math.hypot(fx, fy) || 1;
   if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
+  if (w.slagPatches.length) { const s = slagSlide(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
   return { x: fx / len, y: fy / len, cast };
+}
+
+/** ONDRELV2: a move that would walk into burning slag goes round its edge instead, on the side that turns least. */
+function slagSlide(w: World, fx: number, fy: number): { x: number; y: number } {
+  const p = w.player;
+  for (const a of w.slagPatches) {
+    if (a.glow !== 0) continue;
+    const dx = a.x - p.x, dy = a.y - p.y, d = Math.hypot(dx, dy) || 1;
+    if (d > ONDRELV2.r + 40 || (dx * fx + dy * fy) / d <= 0.2) continue;
+    let tx = -dy / d, ty = dx / d;
+    if (tx * fx + ty * fy < 0) { tx = -tx; ty = -ty; }
+    return { x: tx, y: ty };
+  }
+  return { x: fx, y: fy };
 }
 
 /**

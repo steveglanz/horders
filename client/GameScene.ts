@@ -1474,8 +1474,8 @@ export class GameScene extends Phaser.Scene {
         case 'phase':
           if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
-            if (ev.phase === 2) this.hud.banner('Stage 2: The anvil floor', 'Every Anvilfall now leaves its anvil. Drag him off it');
-            else this.hud.banner('Stage 3: The last heat', 'He breaks every anvil. Get clear of them, then burn him');
+            if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
+            else this.hud.banner('Stage 3: The last heat', 'The slag bursts. Get clear of it, then burn him');
           } else if (w.dungeonId === 'glarewell') {
             // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
@@ -2646,7 +2646,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'vorhulm') this.hoardDraw(g, e, now);
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
-      if (e.kind === 'ondrel' && w.anvils.length) this.anvilDraw(g, now);
+      if (e.kind === 'ondrel' && w.slagPatches.length) this.ondrelSlagDraw(g, now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
@@ -4637,19 +4637,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * ONDRELV2: the anvils' floor tells (the anvil itself is drawn as one of World.stones). A hot ring is a red ring that
-   * pulses while it burns; in the last heat each anvil glows brighter until it bursts.
+   * ONDRELV2: the burning slag on the floor, a molten patch with a red rim that pulses while it burns; in the last heat
+   * each one glows brighter until it bursts.
    */
-  private anvilDraw(g: Phaser.GameObjects.Graphics, now: number): void {
-    for (const a of this.world.anvils) {
-      if (a.hot > 0) {
-        const pulse = 0.55 + 0.25 * Math.sin(now / 120);
-        g.fillStyle(DANGER, 0.14 * pulse).fillCircle(a.x, a.y, ONDRELV2.ringR);
-        g.lineStyle(3, DANGER, pulse).strokeCircle(a.x, a.y, ONDRELV2.ringR);
-      }
-      if (a.glow > 0) {
+  private ondrelSlagDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    for (const a of this.world.slagPatches) {
+      if (a.glow === 0) {
+        const pulse = 0.55 + 0.25 * Math.sin(now / 160 + a.x);
+        g.fillStyle(0xff6a1a, 0.18 + 0.08 * pulse).fillCircle(a.x, a.y, ONDRELV2.r);
+        g.fillStyle(0xffb24a, 0.12 * pulse).fillCircle(a.x, a.y, ONDRELV2.r * 0.55);
+        g.lineStyle(3, DANGER, pulse).strokeCircle(a.x, a.y, ONDRELV2.r);
+      } else if (a.glow > 0) {
         const f = 1 - a.glow / ONDRELV2.glow;
-        g.fillStyle(0xffb24a, 0.12 + 0.3 * f).fillCircle(a.x, a.y, ONDRELV2.r + 14 + 10 * f);
+        g.fillStyle(0xffb24a, 0.2 + 0.35 * f).fillCircle(a.x, a.y, ONDRELV2.r);
       }
     }
   }

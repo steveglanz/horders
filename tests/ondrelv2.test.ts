@@ -3,9 +3,10 @@ import { World, ONDREL, ONDRELV2 } from '../sim/world';
 import { applySnapshot, snapshot } from '../sim/netsync';
 import { botInput } from '../sim/bot';
 
-// ONDRELV2 (design 25 Nov, /mnt/project-files/horders/design/bosses/ondrel-v2.md): Ondrel in three stages.
+// ONDRELV2 (design 25 Nov, /mnt/project-files/horders/design/bosses/ondrel-v2.md): Ondrel in three stages. Stage 2's
+// Anvilfalls leave flat burning slag (no block), and stage 3 bursts it.
 type O = {
-  ondrelClock(dt: number): void; finishCast(i: number): void; spawn(kind: string, x: number, y: number): number; updateOrbs(dt: number, owner?: number): void;
+  ondrelClock(dt: number): void; finishCast(i: number): void; spawn(kind: string, x: number, y: number): number;
   bossIndex: number; bossSpawned: boolean; choirT: number; anvilT: number; anvilTarget: number; ondrelStage: number;
 };
 const party = [{ cls: 'lumen' as const, name: 'b' }];
@@ -33,122 +34,106 @@ function anvilfall(w: World, q: O, b: number): void {
   w.enemies[b].castId = '';
 }
 
+/** Into stage 2 (half health). */
+function stage2(w: World, q: O, b: number): void {
+  w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
+  q.ondrelClock(0.01);
+}
+
 describe('ONDRELV2: the staged Ondrel', () => {
   it('is off unless asked for', () => {
     const { w, q, b } = fight(false);
     expect(w.ondrelV2).toBe(false);
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.1);
+    stage2(w, q, b);
     anvilfall(w, q, b);
     expect(q.ondrelStage).toBe(0);
-    expect(w.anvils).toHaveLength(0);
+    expect(w.slagPatches).toHaveLength(0);
   });
 
-  it('stage 1 leaves no anvils; stage 2 starts at 60% and every Anvilfall leaves one on the tank\'s spot', () => {
+  it('stage 1 leaves no slag; stage 2 starts at 60% and every Anvilfall leaves a patch on the tank\'s spot, which blocks nothing', () => {
     const { w, q, b } = fight();
     anvilfall(w, q, b);
-    expect(w.anvils).toHaveLength(0);
+    expect(w.slagPatches).toHaveLength(0);
     w.enemies[b].hp = w.enemies[b].maxHp * ONDRELV2.stage2;
     q.ondrelClock(0.1);
     expect(q.ondrelStage).toBe(2);
     expect(w.events.some((e) => e.type === 'phase' && e.phase === 2)).toBe(true);
     anvilfall(w, q, b);
-    expect(w.anvils).toHaveLength(1);
-    expect(w.anvils[0].x).toBeCloseTo(0);
-    expect(w.anvils[0].y).toBeCloseTo(0);
-    expect(w.anvils[0].hot).toBe(ONDRELV2.hot);
-    // It's a stone too, so it blocks walking.
-    expect(w.stones.filter((c) => c.anvil)).toHaveLength(1);
+    expect(w.slagPatches).toHaveLength(1);
+    expect(w.slagPatches[0].x).toBeCloseTo(0);
+    expect(w.slagPatches[0].y).toBeCloseTo(0);
+    expect(w.stones).toHaveLength(0);
   });
 
-  it('the hot ring burns 3% max health every 0.5 s for 4 s, then the anvil stays as a block', () => {
+  it('burns 3% max health every 0.5 s while a hero stands in it, and keeps burning until stage 3', () => {
     const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
+    stage2(w, q, b);
     anvilfall(w, q, b);
     const p = w.heroData(0).player;
-    p.x = 60; p.y = 0; // in the ring, outside the block
+    p.x = 40; p.y = 0;
     p.hp = p.maxHp;
     const far = w.heroData(1).player;
     far.hp = far.maxHp;
     for (let t = 0; t < 1.01; t += 0.05) q.ondrelClock(0.05);
-    const lost = p.maxHp - p.hp;
-    expect(lost).toBeGreaterThan(0);
+    expect((p.maxHp - p.hp) / p.maxHp).toBeGreaterThan(ONDRELV2.burn * 1.5);
     expect(far.hp).toBe(far.maxHp);
-    for (let t = 0; t < 4; t += 0.05) q.ondrelClock(0.05);
-    expect(w.anvils[0].hot).toBeLessThanOrEqual(0);
+    // Still burning 20 s on.
+    for (let t = 0; t < 20; t += 0.05) q.ondrelClock(0.05);
     p.hp = p.maxHp;
-    for (let t = 0; t < 2; t += 0.05) q.ondrelClock(0.05);
+    for (let t = 0; t < 1; t += 0.05) q.ondrelClock(0.05);
+    expect(p.hp).toBeLessThan(p.maxHp);
+    // Out of it: no burn.
+    p.x = 200; p.hp = p.maxHp;
+    for (let t = 0; t < 1; t += 0.05) q.ondrelClock(0.05);
     expect(p.hp).toBe(p.maxHp);
-    expect(w.anvils).toHaveLength(1);
   });
 
-  it('keeps at most 4 anvils: a fifth makes the oldest crumble', () => {
+  it('keeps at most 4 patches: a fifth makes the oldest cool', () => {
     const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
+    stage2(w, q, b);
     for (let k = 0; k < 5; k++) {
       w.heroData(0).player.x = -300 + k * 150;
       anvilfall(w, q, b);
     }
-    expect(w.anvils).toHaveLength(ONDRELV2.cap);
-    expect(w.anvils[0].x).toBeCloseTo(-150);
-    expect(w.stones.filter((c) => c.anvil)).toHaveLength(ONDRELV2.cap);
+    expect(w.slagPatches).toHaveLength(ONDRELV2.cap);
+    expect(w.slagPatches[0].x).toBeCloseTo(-150);
   });
 
-  it('stage 3 at 25%: every anvil glows, bursts and is gone, no more anvils, and his move comes on the enraged timer', () => {
+  it('stage 3 at 25%: every patch glows, bursts and is gone, no more slag, and his move comes on the stage 3 timer', () => {
     const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
+    stage2(w, q, b);
     w.heroData(0).player.x = -200; anvilfall(w, q, b);
     w.heroData(0).player.x = 200; anvilfall(w, q, b);
     w.enemies[b].hp = w.enemies[b].maxHp * ONDRELV2.stage3;
     q.ondrelClock(0.01);
     expect(q.ondrelStage).toBe(3);
-    expect(w.anvils.every((a) => a.glow > 0)).toBe(true);
-    const bursts = w.telegraphs.filter((t) => t.alive && t.r === ONDRELV2.burstR);
-    expect(bursts).toHaveLength(2);
+    expect(w.slagPatches.every((a) => a.glow > 0)).toBe(true);
+    expect(w.telegraphs.filter((t) => t.alive && t.r === ONDRELV2.burstR)).toHaveLength(2);
     for (let t = 0; t < ONDRELV2.glow + 0.1; t += 0.05) q.ondrelClock(0.05);
-    expect(w.anvils).toHaveLength(0);
-    expect(w.stones.filter((c) => c.anvil)).toHaveLength(0);
+    expect(w.slagPatches).toHaveLength(0);
     anvilfall(w, q, b);
-    expect(w.anvils).toHaveLength(0);
+    expect(w.slagPatches).toHaveLength(0);
     q.choirT = 0;
     q.ondrelClock(0.01);
-    expect(q.choirT).toBeCloseTo(ONDREL.choirEvery / 2, 1);
+    expect(q.choirT).toBeCloseTo(ONDREL.choirEvery * ONDRELV2.lastChoir, 1);
   });
 
-  it('an anvil stops a hero\'s shot', () => {
+  it('a bot in burning slag steps out of it, away from its middle', () => {
     const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
+    stage2(w, q, b);
     anvilfall(w, q, b);
-    const o = w.orbs[0];
-    Object.assign(o, { alive: true, x: -10, y: 0, px: -10, py: 0, vx: 10, vy: 0, life: 2, target: -1, dmg: 10, owner: 0, pierce: 0, lastHit: -1 });
-    q.updateOrbs(0.1, 0);
-    expect(o.alive).toBe(false);
-  });
-
-  it('a bot in a hot ring steps out of it, away from the anvil', () => {
-    const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
-    anvilfall(w, q, b);
-    w.heroData(0).player.x = 50; w.heroData(0).player.y = 0;
+    w.heroData(0).player.x = 30; w.heroData(0).player.y = 0;
     w.use(0);
-    const inp = botInput(w, 1);
-    expect(inp.x).toBeGreaterThan(0.9);
+    expect(botInput(w, 1).x).toBeGreaterThan(0.9);
   });
 
-  it('a co-op guest gets the anvils and the stage', () => {
+  it('a co-op guest gets the slag and the stage', () => {
     const { w, q, b } = fight();
-    w.enemies[b].hp = w.enemies[b].maxHp * 0.5;
-    q.ondrelClock(0.01);
+    stage2(w, q, b);
     anvilfall(w, q, b);
     const g = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party, ondrelV2: true });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
-    expect(g.anvils).toHaveLength(1);
+    expect(g.slagPatches).toHaveLength(1);
     expect(g.ondrelStage).toBe(2);
-    expect(g.stones.filter((c) => c.anvil)).toHaveLength(1);
   });
 });
