@@ -302,10 +302,10 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   // H4a (design, 25 Nov): from tier 4, on every map a named gate goes on the main path, as an arena run takes it (its
   // Brutes' elite chests are drafts the party needs for the boss), and the side room keeps the steady fight instead.
   // Tiers 1-3 are the novice tiers (noviceAid) and keep it in the side room (a Kiln t2 Emberwright lost 8 of 80 to it).
-  // H5 (design's h5-plan.md): a raid's map keeps both openers on the path, A then B, and C (the named fight) guards
-  // the boss door; the side room S takes the gate.
+  // H5: a raid's map follows the same rule (design, 25 Nov: without it the Crucible's party met Grandmother Slag with
+  // 0.8 fewer elite chests than in the arena, engineering/h5a-crucible-grid.md); C, its named fight, guards the door.
   const raid = !!DUNGEONS[dungeon].raid;
-  const onPath = side.kind === 'named' && tier >= 4 && !raid;
+  const onPath = side.kind === 'named' && tier >= 4;
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
     B: onPath ? { enc: side.encounter, slot: 1, main: true, bags: 1, gate: 'named' } : { enc: route[1], slot: 1, main: true, bags: 1 },
