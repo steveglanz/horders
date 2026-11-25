@@ -15,6 +15,7 @@ import { GRIT } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { ALT_UNLOCK_LEVEL } from './content/classes';
+import { TREE, TREE_CLASSES, TreeNodeId, canTakeNode, isTreeNode } from './content/trees';
 import { PotionId, potionCost } from './content/potions';
 import type { SetId } from './content/sets';
 import { RunSummary } from './world';
@@ -23,6 +24,8 @@ import {
 } from './content/items';
 
 export type PassiveId = 'might' | 'fortitude' | 'insight' | 'alacrity';
+/** A permanent point: an old stat point or a character tree node (content/trees.ts). */
+export type PointId = PassiveId | TreeNodeId;
 
 /**
  * Hero talents: permanent points bought with hero levels. `text` is the short label,
@@ -49,7 +52,7 @@ export interface HeroProfile {
   version: 1;
   level: number;
   xp: number;
-  passives: Partial<Record<PassiveId, number>>;
+  passives: Partial<Record<PointId, number>>;
   embers: number;
   inventory: Item[];
   equipped: Partial<Record<Slot, string>>;
@@ -232,16 +235,18 @@ export function loadoutFor(h: HeroProfile): Loadout {
 }
 
 /** Loadout from permanent passives plus a set of equipped items (used mid-run when gear changes). */
-export function loadoutFrom(passives: Partial<Record<PassiveId, number>>, items: Item[]): Loadout {
+export function loadoutFrom(passives: Partial<Record<PointId, number>>, items: Item[]): Loadout {
   const t: Record<Stat, number> = { power: 0, vitality: 0, haste: 0, crit: 0, swiftness: 0, reach: 0 };
   for (const it of items) for (const s of it.stats) t[s.stat] += s.value;
   const p = (id: PassiveId) => passives[id] ?? 0;
+  let treePts = 0;
+  for (const [id, n] of Object.entries(passives)) if (isTreeNode(id)) treePts += n ?? 0;
   return {
     dmgMult: (1 + t.power / 100) * (1 + 0.03 * p('might')),
-    maxHpBonus: Math.round(t.vitality + 8 * p('fortitude')),
+    maxHpBonus: Math.round(t.vitality + 8 * p('fortitude') + TREE.bulkHp * (passives.bulk ?? 0) + TREE.pointHp * treePts),
     hasteMult: (1 + t.haste / 100) * (1 + 0.02 * p('alacrity')),
     critBonus: t.crit / 100,
-    speedMult: 1 + t.swiftness / 100,
+    speedMult: (1 + t.swiftness / 100) * (1 + TREE.strideSpeed * (passives.stride ?? 0)),
     pickupMult: 1 + t.reach / 100,
     xpMult: 1 + 0.04 * p('insight') + (items.some((i) => i.mythic === 'gluttonsGem') ? 0.25 : 0),
     mythics: items.map((i) => i.mythic).filter((m): m is MythicId => !!m),
@@ -697,12 +702,36 @@ export function salvageAll(hero: HeroProfile): { count: number; embers: number }
   return { count: plan.items.length, embers };
 }
 
-export function spendPoint(hero: HeroProfile, id: PassiveId): boolean {
+export function spendPoint(hero: HeroProfile, id: PointId): boolean {
   if (pointsAvailable(hero) <= 0) return false;
+  if (isTreeNode(id)) {
+    if (!canTakeNode(hero.passives, hero.cls ?? 'emberwright', id)) return false;
+    hero.passives[id] = (hero.passives[id] ?? 0) + 1;
+    return true;
+  }
   const r = hero.passives[id] ?? 0;
   if (r >= PASSIVES[id].max) return false;
   hero.passives[id] = r + 1;
   return true;
+}
+
+/** Free respec: every point the character put in its tree comes back. */
+export function resetTree(hero: HeroProfile): void {
+  for (const id of Object.keys(hero.passives)) if (isTreeNode(id)) delete hero.passives[id];
+}
+
+/** Does this character spend its points on the tree (its class is in TREE_CLASSES)? */
+export function usesTree(hero: HeroProfile): boolean {
+  return TREE_CLASSES.includes(hero.cls ?? 'emberwright');
+}
+
+/**
+ * Moving a character onto the tree: its old stat points (Might, Fortitude, Insight, Alacrity) come back to spend there.
+ * Does nothing for a class not yet on the tree.
+ */
+export function refundStatPoints(hero: HeroProfile): void {
+  if (!usesTree(hero)) return;
+  for (const id of Object.keys(hero.passives)) if (!isTreeNode(id)) delete hero.passives[id as PassiveId];
 }
 
 /** A rough single-number strength used to compare items. */

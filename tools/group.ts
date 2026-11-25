@@ -14,6 +14,7 @@ import type { Item } from '../sim/content/items';
 import { SET_SLOTS, SET_TUNING, SetId } from '../sim/content/sets';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
 import { toolOmens } from './omenopt';
+import { buildPoints } from '../sim/content/trees';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
@@ -29,6 +30,12 @@ const profile = (cls: ClassId): HeroProfile | null => {
     console.warn(`WARNING: no hero file ${f}; the ${cls} runs with no gear`);
   }
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
+};
+// TREE=bastion (character trees): every hero of a class with fixed builds (TREE_BUILDS) spends its points (level - 1)
+// on that branch's build instead of its stat points; other classes keep their stat points.
+const treePoints = (cls: ClassId, h: HeroProfile) => {
+  const b = process.env.TREE ? buildPoints(cls, process.env.TREE, h.level - 1) : {};
+  return Object.keys(b).length ? b : h.passives;
 };
 const skill = Number(process.env.SKILL ?? 1);
 // REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
@@ -169,10 +176,10 @@ for (const seed of seeds) {
   const mp = profile(main);
   const opts: WorldOptions = {
     seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', raidTrash: process.env.RAIDTRASH === '1', ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
-    ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
+    ...(mp ? { gear: tagSet(equippedItems(mp)), passives: treePoints(main, mp), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
-      return { cls, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(cls), name: `${cls}${k + 1}`, ...(hp ? { gear: tagSet(equippedItems(hp)), passives: hp.passives } : {}) };
+      return { cls, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(cls), name: `${cls}${k + 1}`, ...(hp ? { gear: tagSet(equippedItems(hp)), passives: treePoints(cls, hp) } : {}) };
     }),
   };
   const w = new World(opts);

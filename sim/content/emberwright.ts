@@ -197,9 +197,9 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   rivetedPlates: { id: 'rivetedPlates', cls: 'bulwark', name: 'Riveted Plates', branch: 'bastion', deep: true, maxRank: 3, text: 'Your armor stops 5% more of each hit.' },
   slowPulse: { id: 'slowPulse', cls: 'bulwark', name: 'Slow Pulse', branch: 'bastion', deep: true, maxRank: 2, text: 'Below half health, heal 4 health per second.' },
   ironVigil: { id: 'ironVigil', ability: 2, cls: 'bulwark', name: 'Iron Vigil', branch: 'bastion', maxRank: 1, capstone: true, text: 'Anvil Skin lasts 10s instead of 6.' },
-  // Retribution: thorns and anger
+  // Spite (id retribution): thorns and anger
   spikedShield: { id: 'spikedShield', cls: 'bulwark', name: 'Spiked Shield', branch: 'retribution', maxRank: 3, text: 'Enemies that hit you take 8 damage back.' },
-  vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Vengeance', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
+  vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Rancor', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
   shieldEcho: { id: 'shieldEcho', cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Rim Smash strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
   hardKnocks: { id: 'hardKnocks', ability: 0, cls: 'bulwark', name: 'Hard Knocks', branch: 'retribution', deep: true, maxRank: 3, text: 'Rim Smash deals 20% more damage.' },
   grimTally: { id: 'grimTally', cls: 'bulwark', name: 'Grim Tally', branch: 'retribution', deep: true, maxRank: 2, text: 'Hits you take build 25% more Resolve.' },
@@ -300,7 +300,7 @@ export const BRANCH_NAMES: Record<Branch, string> = {
   tempo: 'Tempo',
   guard: 'Guard',
   bastion: 'Anvil Skin',
-  retribution: 'Retribution',
+  retribution: 'Spite',
   vanguard: 'Vanguard',
   dawn: 'Dawn',
   grace: 'Grace',
