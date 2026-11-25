@@ -103,6 +103,9 @@ export class Hud {
   showPerf = false;
   /** Saves the hero after the end screen's "Equip upgrade" changed what it wears (set by main.ts). */
   onGearChange?: () => void;
+  /** Halls: whether this hero has been shown encounter `id`'s fight tip before, and marking it shown (main.ts, the hero save). */
+  tipSeen?: (id: string) => boolean;
+  markTip?: (id: string) => void;
 
   constructor() {
     $('pauseBtn').addEventListener('click', () => this.handlers?.onPause());
