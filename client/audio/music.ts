@@ -41,6 +41,8 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   | 'fumaroleField' | 'obsidianGallery' | 'cairnWalk' | 'pumiceDrift'
   // The Pressworks' four (H4c, 25 Nov): olive brass, nothing glows.
   | 'pressFloor' | 'gearRoom' | 'plateStore' | 'oilSump'
+  // The Crucible raid's four (H5, visuals #788, 25 Nov): copper and casting sand, nothing glows.
+  | 'ladleHall' | 'craneBay' | 'mouldFloor' | 'clinkerHeap'
   // OSKELV2 (design, 25 Nov): the running press bed under Oskel in stages 2 and 3, played as a room bed.
   | 'pressBelt';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
@@ -52,6 +54,7 @@ export const ROOM_BEDS: readonly RoomBedKind[] = [
   'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore',
   'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift',
   'pressFloor', 'gearRoom', 'plateStore', 'oilSump',
+  'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap',
   'pressBelt',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
@@ -635,6 +638,49 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         const swell = 0.6 + 0.4 * Math.pow(Math.sin(t * Math.PI), 2);
         const glugAt = (c: number) => { const d = t - c; return d >= 0 && d < 0.04 ? Math.sin((Math.PI * d) / 0.04) * Math.sin(2 * Math.PI * (180 + d * 3000) * s) : 0; };
         raw[i] = lp * 0.5 * swell + (glugAt(0.2) + 0.8 * glugAt(0.68)) * 0.12 + Math.sin(2 * Math.PI * 174.6 * s) * 0.015 * swell + brown * 0.15;
+        break;
+      }
+      case 'ladleHall': {
+        // Ladle hall, the door guard's room: a copper ladle sways under a wall crane. A warm low copper hum that swells with
+        // each of two slow sways, and the crane's chain creaking softly as each sway turns.
+        const s = i / rate;
+        const sway = 0.35 + 0.65 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        const ph = (t * 2) % 1;
+        const creakAt = (c: number) => Math.exp(-Math.abs(ph - c) * 40);
+        const creak = Math.sin(2 * Math.PI * 523 * s + Math.sin(2 * Math.PI * 13 * s) * 3) * (creakAt(0.0) + 0.7 * creakAt(0.5));
+        const hum = Math.sin(2 * Math.PI * 164.8 * s) + 0.6 * Math.sin(2 * Math.PI * 247.2 * s) + 0.3 * Math.sin(2 * Math.PI * 494.4 * s);
+        lp += (w - lp) * 0.06;
+        raw[i] = hum * 0.035 * sway + creak * 0.03 + lp * 0.15 * sway + brown * 0.1;
+        break;
+      }
+      case 'craneBay': {
+        // Crane bay, by the boss door: a hook block sways high up. A thin airy draught, and a bright pulley tick four times
+        // round the loop as the block turns.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.3;
+        const s = i / rate;
+        const ph = (t * 4) % 1;
+        const tick = Math.exp(-ph * 80) * (Math.sin(2 * Math.PI * 1397 * s) + 0.5 * Math.sin(2 * Math.PI * 2217 * s));
+        raw[i] = tick * 0.14 + lp * 0.07 + Math.sin(2 * Math.PI * 261.6 * s) * 0.01 + brown * 0.05;
+        break;
+      }
+      case 'mouldFloor': {
+        // Mould floor: rows of sand moulds under warm light that swells faintly. A dry, soft sand hiss that swells once,
+        // over a low warm hum.
+        hp = 0.85 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.45;
+        const s = i / rate;
+        const swell = 0.25 + 0.75 * Math.pow(Math.sin(t * Math.PI), 2);
+        raw[i] = lp * 0.16 * swell + Math.sin(2 * Math.PI * 130.8 * s) * 0.02 * swell + brown * 0.1;
+        break;
+      }
+      case 'clinkerHeap': {
+        // Clinker heap, the quiet room: still, dry air over heaps of spent clinker, a faint low hum; nothing moves.
+        lp += (w - lp) * 0.08;
+        const s = i / rate;
+        raw[i] = lp * 0.12 + (Math.sin(2 * Math.PI * 146.8 * s) + 0.5 * Math.sin(2 * Math.PI * 220.2 * s)) * 0.012 + brown * 0.14;
         break;
       }
       case 'shimmer': {
