@@ -273,6 +273,8 @@ export interface Enemy {
   /** Hamstring and Cinder Sump: the run time until which this foe is slowed, and its speed factor. */
   slowUntil?: number;
   slowMult?: number;
+  /** Ember Twins: the fallen twin's maxHp while this one casts Rekindle (design, 25 Nov: it returns at half of that). */
+  rekindleHp?: number;
   /** Damage taken during the current Kindle cast; enough of it breaks the cast. */
   /** Spare per-enemy timers and counters for scripted abilities. */
   aux: number;
@@ -5897,9 +5899,15 @@ export class World {
     } else if (id === 'mirror') {
       e.aux2 = FOUNDRY.mirrorTime;
     } else if (id === 'rekindle') {
-      // Bring the fallen twin back beside this one at half health.
+      // Bring the fallen twin back beside this one at half of its own health (design, 25 Nov: a trash twin's 30% or a
+      // named fight's 80% carries over; a fresh spawn's maxHp would ignore them).
       const k = this.spawn('emberTwin', e.x + 30, e.y);
-      if (k >= 0) this.enemies[k].hp = this.enemies[k].maxHp * 0.5;
+      if (k >= 0) {
+        const t = this.enemies[k];
+        if (e.rekindleHp) t.maxHp = e.rekindleHp;
+        t.hp = t.maxHp * 0.5;
+      }
+      e.rekindleHp = undefined;
     } else if (id === 'undertow') {
       const p = this.player;
       p.x += (e.x - p.x) * FOUNDRY.undertowPull;
@@ -6915,7 +6923,7 @@ export class World {
         n.burnBy = this.acting;
       });
     }
-    if (e.kind === 'emberTwin') this.twinFell();
+    if (e.kind === 'emberTwin') this.twinFell(e.maxHp);
     if (e.kind === 'craw') this.crawBroken();
     if (e.burnT > 0 && this.rank('crimsonTide') > 0) {
       // Crimson Tide: the bleed bursts onto everything close by.
@@ -9036,10 +9044,11 @@ export class World {
   }
 
   /** A twin fell: a living twin tries to Rekindle it. Quench it or kill the caster. */
-  private twinFell(): void {
+  private twinFell(maxHp: number): void {
     for (let j = 0; j < this.enemies.length; j++) {
       const o = this.enemies[j];
       if (o.alive && o.kind === 'emberTwin' && !o.castId) {
+        o.rekindleHp = maxHp;
         this.startCast(j, 'rekindle', 'Rekindle', FOUNDRY.rekindleCast, true);
         return;
       }

@@ -278,11 +278,12 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  */
 export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
 /**
- * A pack's single special foe, which stays at one in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
- * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring) and
- * the Ballast. Its hounds, spitters, Ember Twins and the Ashbuck double as the Kiln's do.
+ * A pack's special foes, which keep their count in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
+ * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring), the
+ * Ballast, and the Ember Twins (the pair is the mechanic: with four, each death starts another Rekindle). Hounds,
+ * spitters and the Ashbuck double as the Kiln's do.
  */
-export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast'];
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast', 'emberTwin'];
 /** The dungeons whose map's openers are trash (WorldOptions.kilnTrash, on by default in play; ?kilntrash=0 turns it off). */
 export const TRASH_ON: DungeonId[] = ['kiln'];
 /** Trash rollout (design, 25 Nov): built but off for players; a run gets it with WorldOptions.trashBeta (?trashbeta=1, TRASH_BETA=1 in tools). */
