@@ -564,6 +564,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Phase 18 Halls H1: sound is out of scope for the prototype (a pack's fight starts with encounterStart as today).
     case 'hallsWake': return null;
     case 'hallsDoor': return null;
+    case 'hallsLock': return null;
+    case 'hallsLeash': return null;
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
   return null;

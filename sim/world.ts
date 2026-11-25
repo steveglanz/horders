@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollR
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampHalls, hallsFor, hallsWay, roomAt, KILN_HALLS_A } from './halls';
+import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsWay, roomAt, KILN_HALLS_A } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -661,6 +661,8 @@ export type SimEvent =
   /** Phase 18 Halls: map pack `pack` woke (World.halls.packs), and the party went through the boss door. */
   | { type: 'hallsWake'; pack: number }
   | { type: 'hallsDoor' }
+  | { type: 'hallsLock'; room: number }
+  | { type: 'hallsLeash'; room: number }
   | { type: 'encounterClear'; index: number; id: EncounterId }
   | { type: 'end'; victory: boolean };
 
@@ -2349,6 +2351,65 @@ export class World {
     }
   }
 
+  /**
+   * H2b room lock (Steve, 25 Nov: "if you start attacking something in a room it should lock"). A pack waking starts its
+   * room sealing; HALLS.lockDelay s later the grates drop. Then a hero in a doorway is pushed in, the room's foes are
+   * brought in, and if no living hero is inside, the room's awake packs leash (their foes go and they sleep again, at full
+   * health when next woken). The grates lift once no pack in the room is awake.
+   */
+  private hallsLocks(dt: number): void {
+    const m = this.halls!;
+    const packRoom = (k: number) => roomAt(m, m.packs[k].x, m.packs[k].y);
+    m.rooms.forEach((rm, i) => {
+      const awake = m.packs.some((pk, k) => pk.state === 'awake' && packRoom(k) === i);
+      if (rm.lock === undefined || rm.lock < 0) {
+        if (rm.lifted !== undefined) rm.lifted += dt;
+        if (!awake) return;
+        rm.lock = 0;
+        return;
+      }
+      if (!awake) { rm.lock = -1; rm.lifted = 0; return; }
+      const was = rm.lock;
+      rm.lock += dt;
+      if (was >= HALLS.lockDelay || rm.lock < HALLS.lockDelay) return;
+      // The grates drop. A hero standing in a doorway (within reach of the room's rim) is pushed inside.
+      let inside = 0;
+      for (let h = 0; h < this.heroes.length; h++) {
+        const q = this.heroPlayer(h);
+        if (q.hp <= 0) continue;
+        const d = Math.hypot(q.x - rm.x, q.y - rm.y);
+        if (d > rm.r && d <= rm.r + HALLS.corridor / 2 && corridorAt(m, q.x, q.y) >= 0) {
+          const k = (rm.r - 20) / (d || 1);
+          q.x = q.px = rm.x + (q.x - rm.x) * k;
+          q.y = q.py = rm.y + (q.y - rm.y) * k;
+        }
+        if (Math.hypot(q.x - rm.x, q.y - rm.y) <= rm.r) inside++;
+      }
+      if (!inside) {
+        // Everyone walked away: the room's awake packs leash.
+        m.packs.forEach((pk, k) => {
+          if (pk.state !== 'awake' || packRoom(k) !== i) return;
+          for (const e of this.enemies) if (e.alive && e.pack === k) { e.alive = false; this.aliveEnemies--; }
+          pk.state = 'asleep';
+        });
+        rm.lock = -1;
+        rm.lifted = 0;
+        this.events.push({ type: 'hallsLeash', room: i });
+        return;
+      }
+      // The room's own foes caught outside are brought in through the nearest doorway.
+      for (const e of this.enemies) {
+        if (!e.alive || e.pack === undefined || packRoom(e.pack) !== i) continue;
+        const d = Math.hypot(e.x - rm.x, e.y - rm.y);
+        if (d <= rm.r - e.def.radius) continue;
+        const k = (rm.r - e.def.radius - 10) / (d || 1);
+        e.x = e.px = rm.x + (e.x - rm.x) * k;
+        e.y = e.py = rm.y + (e.y - rm.y) * k;
+      }
+      this.events.push({ type: 'hallsLock', room: i });
+    });
+  }
+
   /** Whether the party is catching its breath on the map (the client's cue). */
   get hallsResting(): boolean {
     return this.hallsOn && this.hallsQuietT >= HALLS.rest.delay;
@@ -2401,6 +2462,7 @@ export class World {
   /** Halls, every step on the map: rooms seen, packs waking, fights clearing, and the boss door. */
   private hallsClock(dt: number): void {
     const m = this.halls!;
+    this.hallsLocks(dt);
     for (let k = 0; k < this.heroes.length; k++) {
       const q = this.heroPlayer(k);
       if (q.hp <= 0) continue;
@@ -3113,7 +3175,7 @@ export class World {
 
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
-    if (this.hallsOn) clampHalls(this.halls!, o, r);
+    if (this.hallsOn) { clampHalls(this.halls!, o, r); clampGrates(this.halls!, o, r); }
     else {
       const d = Math.hypot(o.x, o.y);
       const max = this.arenaR - r;
