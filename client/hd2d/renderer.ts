@@ -1108,6 +1108,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const sleepRingGeo = new THREE.RingGeometry(0.86, 1, 40);
   /** Where the two warm room lights stand in today's room, to put them back after the map. */
   const lightHome = flick.map((f) => f.l.position.clone());
+  /** Their colour and strength in today's room, for the same reason; on the map the room's theme sets them (H2d). */
+  const lightHomeCol = flick.map((f) => f.l.color.clone()), lightHomeBase = flick.map((f) => f.base);
+  const themeCol = new THREE.Color();
   const buildHallsView = (m: HallsMap) => {
     if (halls) scene.remove(halls.group);
     for (const z of sleepers) scene.remove(z.mesh, z.blob, z.ring);
@@ -1803,11 +1806,17 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       // The two warm room lights stay two (a light switched on or off recompiles every material): on the map they move
       // to the back of the room the hero is in and just ahead of the hero; through the boss door, back home.
       if (onMap) {
-        let best = hm.rooms[0], bd = Infinity;
-        for (const r of hm.rooms) { const d = Math.hypot(me.x - r.x, me.y - r.y) - r.r; if (d < bd) { bd = d; best = r; } }
+        let best = hm.rooms[0], bd = Infinity, bi = 0;
+        hm.rooms.forEach((r, i) => { const d = Math.hypot(me.x - r.x, me.y - r.y) - r.r; if (d < bd) { bd = d; best = r; bi = i; } });
         flick[0]?.l.position.set(best.x * S, 3, (best.y - best.r * 0.45) * S);
         flick[1]?.l.position.set(cx, 2.2, cz + 3.2);
-      } else flick.forEach((f, k) => f.l.position.copy(lightHome[k]));
+        // The room's theme colours both lights, eased so walking through a doorway blends one room into the next; a
+        // Bellows hall or Slag channel swells slowly (the quiet motion), never faster than a breath.
+        const th = halls.theme(bi), ease = Math.min(1, 2.5 * (1 / 60));
+        themeCol.set(th.light);
+        const swell = th.swell > 0 ? 1 + 0.12 * Math.sin(t * 2 * Math.PI * th.swell) : 1;
+        flick.slice(0, 2).forEach((f, k) => { f.l.color.lerp(themeCol, ease); f.base += (lightHomeBase[k] * th.lightK * swell - f.base) * ease * 4; });
+      } else flick.forEach((f, k) => { f.l.position.copy(lightHome[k]); f.l.color.copy(lightHomeCol[k]); f.base = lightHomeBase[k]; });
     }
     camera.lookAt(look);
     key.position.set(cx - 7, 14, cz - 3); key.target.position.set(cx, 0, cz);

@@ -320,19 +320,24 @@ export function roomAt(m: HallsGeo, x: number, y: number, pad = 0): number {
 
 /**
  * H2b: a sealed room's grates (rm.lock past HALLS.lockDelay) close its doorways: nothing inside its floor gets out, and
- * nothing outside gets in. `o` (radius `r`) is kept wholly on its own side of the room's wall.
+ * nothing outside gets in. `o` (radius `r`) is kept wholly on its own side of the room's wall. The side is where `o`
+ * started the tick (`px`, `py`, when it has them), so a dash or leap that lands past the grates (Blink, Glimmer Step,
+ * Interpose, Sidestep, Charge, Rending Dash) stops at them instead.
  */
-export function clampGrates(m: HallsGeo, o: { x: number; y: number }, r: number): void {
+export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number): void {
   for (const rm of m.rooms) {
     if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
-    if ((o.x - rm.x) ** 2 + (o.y - rm.y) ** 2 > (rm.r + r) ** 2) continue;
+    const from = o.px !== undefined && o.py !== undefined;
+    if (!from && (o.x - rm.x) ** 2 + (o.y - rm.y) ** 2 > (rm.r + r) ** 2) continue;
     const g = roomGap(rm, o.x, o.y);
-    if (g >= r || g <= -r) continue;
-    if (g >= 0) {
+    const wasIn = from ? roomGap(rm, o.px!, o.py!) >= 0 : g >= 0;
+    if (wasIn) {
+      if (g >= r) continue;
       const q = roomClamp(rm, o.x, o.y, r);
       o.x = q.x;
       o.y = q.y;
     } else {
+      if (g <= -r) continue;
       const n = roomInward(rm, o.x, o.y);
       o.x -= n.x * (r + g);
       o.y -= n.y * (r + g);

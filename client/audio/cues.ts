@@ -9,6 +9,8 @@ import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 import { SET_TUNING, type SetId } from '../../sim/content/sets';
 import { ENCOUNTERS, type EncounterId } from '../../sim/content/dungeon';
+import { DOOR_ROOM, roomAt, type HallsMap } from '../../sim/halls';
+import type { RoomBedKind } from './music';
 
 export interface Cue {
   id: SoundId;
@@ -55,6 +57,8 @@ export interface CueContext {
   hallsPacks?: readonly { enc: string; state: string }[];
   /** Halls: the party is catching its breath on the map (World.hallsResting). */
   hallsResting?: boolean;
+  /** Halls: the bed of the room the hero stands in (roomBedFor), null in a corridor, the door alcove or off the map. */
+  hallsBed?: RoomBedKind | null;
   /** The Glarewell's Lampeyes: each one's gaze (Enemy.aux, s toward LAMPEYE.full) and whether it can see this screen's hero. */
   gaze?: readonly { aux: number; sees: boolean }[];
   /** The 3D view's room life and foe lunges since the last tick (Hd2dView.sounds), for roomCues. Absent in 2D. */
@@ -655,6 +659,24 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
 /** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
+/** Engineering's room theme ids (HallsRoom.theme, H2d) and the bed each plays: Ash store, Bellows hall, Slag channel,
+ *  Cooling yard, Kiln shrine. */
+export const ROOM_THEME_BED: Record<string, RoomBedKind> = { ash: 'ashStore', bellows: 'bellowsHall', slag: 'slagChannel', cooling: 'coolingYard', shrine: 'kilnShrine' };
+const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
+
+/**
+ * Halls: the quiet bed of the room at (x, y), from its theme (HallsRoom.theme). Until H2d rolls themes in the sim, a room
+ * takes one from its index, as visuals does. A corridor and the boss door alcove are quiet (null), so walking a corridor
+ * sounds like leaving one place for another.
+ */
+export function roomBedFor(m: HallsMap | null | undefined, x: number, y: number): RoomBedKind | null {
+  if (!m) return null;
+  const i = roomAt(m, x, y);
+  if (i < 0 || i === DOOR_ROOM) return null;
+  const theme = (m.rooms[i] as { theme?: string }).theme ?? THEME_BY_INDEX[i % THEME_BY_INDEX.length];
+  return ROOM_THEME_BED[theme] ?? null;
+}
+
 /** Halls: seconds after hallsGrateLift that its sound plays (the clear's levelUp is 1.24 s long and covered it at 0 s). */
 export const GRATE_LIFT_AFTER = 0.9;
 

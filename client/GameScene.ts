@@ -27,7 +27,7 @@ import { BRANCH_COLOR, Hud } from './ui';
 import { BRANCH_NAMES, TALENTS, TalentId } from '../sim/content/emberwright';
 import { botChoose, botInput } from '../sim/bot';
 import { audio } from './audio';
-import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, setFlagsOf } from './audio/cues';
+import { type CueContext, behindColossusNow, colossusCue, inLavaNow, inRimeNow, myIsland, pickCue, roomBedFor, setFlagsOf } from './audio/cues';
 import { themeFor } from './audio/music';
 
 // World units visible on the screen's short side: a little closer on phones.
@@ -1094,6 +1094,7 @@ export class GameScene extends Phaser.Scene {
       roomSounds: this.hd2d?.sounds?.(),
       hallsPacks: w.hallsOn ? w.halls!.packs : undefined,
       hallsResting: w.hallsResting,
+      hallsBed: w.hallsOn && w.player.hp > 0 ? roomBedFor(w.halls, w.player.x, w.player.y) : null,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
