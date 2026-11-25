@@ -100,7 +100,7 @@ describe('Trash rollout: the Drowned Foundry', () => {
     return trash ? make() : bare(make);
   };
   it('is on for every run, as the Kiln is; group dungeons and raids keep full packs', () => {
-    expect(TRASH_ON).toEqual(['kiln', 'foundry', 'glarewell', 'coldmarrow']);
+    expect(TRASH_ON).toEqual(['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline']);
     for (let seed = 1; seed <= 10; seed++) expect(foundry(seed).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
     for (const d of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) if (DUNGEONS[d].style !== 'solo' || DUNGEONS[d].raid) expect(TRASH_ON, d).not.toContain(d);
   });
@@ -200,6 +200,29 @@ describe('Trash rollout: the Coldmarrow', () => {
     expect(held('wardenPack')).toEqual(['frostWarden', ...Array(6).fill('rimehound')]);
     expect(held('weaverSnuffers')).toEqual(['hoarfrostWeaver', 'snuffer', 'snuffer', 'snuffer', 'snuffer']);
     expect(held('dimhorn')).toEqual(['dimhorn', 'snuffer', 'snuffer', 'snuffer', 'snuffer']);
+  });
+});
+
+// 1.0 M3 (design, 25 Nov): the Wrackline's openers are trash too. Its Barge Hauler and Conchblower (and the Rift) are each
+// their pack's one mechanic, so they stay at one; Lurkers, hounds, spitters, Hollow Wardens and Ashbucks double.
+describe('Trash rollout: the Wrackline', () => {
+  it('its opener packs off a named gate are trash, with twice the foes except the single special one', () => {
+    let trash = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = new World({ seed, dungeon: 'wrackline', tier: 13, halls: true, cls: 'duskblade' });
+      for (const p of w.halls!.packs) {
+        const want = p.gate !== 'named' && DUNGEONS.wrackline.openers.includes(p.enc);
+        expect(!!p.trash, `seed ${seed} ${p.enc}`).toBe(want);
+        if (want) trash++;
+      }
+    }
+    expect(trash).toBeGreaterThan(20);
+    const held = (enc: Parameters<typeof packFoes>[2]) => packFoes(1, 0, enc, 0, 0, true).map((f) => f.kind).sort();
+    expect(held('haulers')).toEqual(['bargeHauler', 'shoalLurker', 'shoalLurker', 'shoalLurker', 'shoalLurker']);
+    expect(held('conch')).toEqual(['conchblower', 'shoalLurker', 'shoalLurker', 'shoalLurker', 'shoalLurker']);
+    expect(held('shoalRift')).toEqual(['rift', 'shoalLurker', 'shoalLurker', 'shoalLurker', 'shoalLurker']);
+    expect(held('lurkers')).toHaveLength(10);
+    expect(held('wardenShoal')).toEqual(['husk', 'husk', 'husk', 'husk', ...Array(6).fill('shoalLurker')]);
   });
 });
 
