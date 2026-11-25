@@ -1223,13 +1223,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /** Their colour and strength in today's room, for the same reason; on the map the room's theme sets them (H2d). */
   const lightHomeCol = flick.map((f) => f.l.color.clone()), lightHomeBase = flick.map((f) => f.base);
   const themeCol = new THREE.Color();
+  // H5: a raid's map has no R4 or R6, so its door alcove is room 5; any other map's is SIM.hallsDoorRoom (6).
+  const hallsDoorOf = (m: HallsMap): number => { const i = m.rooms.findIndex((r) => r.id === 'door'); return i < 0 ? SIM.hallsDoorRoom : i; };
   const buildHallsView = (m: HallsMap) => {
     if (halls) scene.remove(halls.group);
     for (const z of sleepers) scene.remove(z.mesh, z.blob, z.ring);
     sleepers.length = 0;
     // Corridors take the dungeon's own floor and a darker shade of its wall (the Kiln keeps its brick).
     const hr = ROOMS[rid];
-    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, lensDais: rid === 'glarewell', corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: SIM.hallsDoorRoom });
+    halls = buildHalls3d(m, { S, floor: FLOOR, tile: rid === 'wrackline' ? '#6a5a48' /* dry timber jetties between the quays */ : hr.tile, ground: hr.ground, lensDais: rid === 'glarewell', corridorWall: rid === 'kiln' ? undefined : '#' + new THREE.Color(hr.wall).multiplyScalar(0.66).getHexString(), saver, bad: BAD, corridor: SIM.hallsCorridor, doorRoom: hallsDoorOf(m) });
     scene.add(halls.group);
     hallsOf = m;
     m.packs.forEach((p, k) => p.foes.forEach((f, j) => {

@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
+import { HALLS, doorRoom, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
@@ -227,10 +227,10 @@ export class HallsView {
     // One simple prop per theme along the walls, where the 3D look stands its props.
     m.rooms.forEach((_, i) => {
       const th = themeOf(m, i);
-      for (const p of themeSpots(m, i, hw, DOOR_ROOM)) this.prop2d(g, th.id, p.x - p.nx * 40, p.y - p.ny * 40, p.nx, p.ny);
+      for (const p of themeSpots(m, i, hw, doorRoom(m))) this.prop2d(g, th.id, p.x - p.nx * 40, p.y - p.ny * 40, p.nx, p.ny);
     });
     // The boss door: a heavy arch at the end of the alcove (its glow is drawn each frame, gold once it opens).
-    const dr = m.rooms[DOOR_ROOM];
+    const dr = m.rooms[doorRoom(m)];
     g.fillStyle(0x140d0a, 1).fillRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
     g.lineStyle(3, RIM, 0.7).strokeRect(dr.x - 70, dr.y - dr.r - 18, 140, 30);
   }
@@ -427,7 +427,7 @@ export class HallsView {
     this.drawGrates(m, f, g);
     // The boss door glows gold once the door guard falls.
     const guard = m.packs.find((p) => p.guard);
-    const dr = m.rooms[DOOR_ROOM];
+    const dr = m.rooms[doorRoom(m)];
     if (guard?.state === 'cleared') g.lineStyle(6, 0xffc861, 0.55 + 0.25 * Math.sin(f.now / 300)).strokeRect(dr.x - 74, dr.y - dr.r - 22, 148, 38);
   }
 
@@ -436,7 +436,7 @@ export class HallsView {
    * iron bars, hot at the tips, drops across each; they lift once the room is cleared. The 3D look draws its own.
    */
   private drawGrates(m: HallsMap, f: HallsFrame, g: Phaser.GameObjects.Graphics): void {
-    this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+    this.grates ??= hallsGrates(m, HALLS.corridor, doorRoom(m));
     for (const gr of this.grates) {
       const r = m.rooms[gr.room], lock = lockOf(r);
       const st = grateState(lock, liftedOf(r));
@@ -670,7 +670,7 @@ export class HallsView {
     const inset = 40;
     if (walkIn) {
       // The room's nearest doorway in view: the tag stands on its grate, so you see where to walk in.
-      this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+      this.grates ??= hallsGrates(m, HALLS.corridor, doorRoom(m));
       let best: Grate | null = null, bd = Infinity;
       for (const gr of this.grates) {
         if (gr.room !== shut!.i) continue;
@@ -718,7 +718,7 @@ export class HallsView {
 
   /** The next main-path room past the furthest one any hero has seen (hallsWay finds the way there from anywhere). */
   private nextGoal(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
-    if (roomAt(m, x, y) === DOOR_ROOM) return null;
+    if (roomAt(m, x, y) === doorRoom(m)) return null;
     let far = 0;
     const main = mainRooms(m);
     main.forEach((r, i) => { if (m.seen[r]) far = i; });
@@ -758,7 +758,7 @@ export function mapDoors(m: HallsMap): MapDoor[] {
   for (const c of m.corridors) {
     const e = corridorEnds(m, c);
     for (const [room, sx, sy, tx, ty] of [[c.a, e.x1, e.y1, e.x2, e.y2], [c.b, e.x2, e.y2, e.x1, e.y1]]) {
-      if (room === DOOR_ROOM) continue;
+      if (room === doorRoom(m)) continue;
       const dx = tx - sx, dy = ty - sy, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
       let t = 0;
       while (t < L && roomAt(m, sx + ux * t, sy + uy * t) === room) t += 8;

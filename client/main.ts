@@ -319,6 +319,8 @@ function startRun(bounty = false, key = false): void {
   // KILNTRASH (design, 25 Nov): the Kiln map's opener packs as trash (twice the foes at 30% health, no bag), on by default
   // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing. Its XP step stays off.
   if (params.get('kilntrash') !== '0') opts.kilnTrash = true;
+  // H5 (design's h5-plan.md): a raid map's openers as trash too, off until it has had a day live in the Kiln.
+  if (params.get('raidtrash') === '1') opts.raidTrash = true;
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
   // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
   if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;
