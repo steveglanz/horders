@@ -203,14 +203,14 @@ const hash = (seed: number, k: number): number => {
 /**
  * The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its
  * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged); H3c the Coldmarrow (on 25 Nov once QA, the phone pass
- * #724 #726 and the co-op grate fix #723 were in).
+ * #724 #726 and the co-op grate fix #723 were in); H3d the Wrackline (on 25 Nov once QA cleared #727 and the phone pass #734 was in).
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['wrackline', 'hammerdeep'];
+export const HALLS_BETA: DungeonId[] = ['hammerdeep'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
