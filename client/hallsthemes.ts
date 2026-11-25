@@ -1,5 +1,5 @@
 /**
- * Phase 18 Halls H2d: room themes, the data both looks share (no imports beyond types, so the main bundle can take it).
+ * Phase 18 Halls H2d (and H3, the other dungeons): room themes, the data both looks share (no imports beyond types, so the main bundle can take it).
  * Design plan /mnt/project-files/horders/design/halls/h2-plan.md; the names, looks and final list are visuals', agreed
  * with design on 25 Nov. Each room of the map rolls a theme. The theme decides the room's floor tiles, its wall colour,
  * the colour of the two moving room lights, its props and one quiet motion. The 3D side is client/hd2d/hallsthemes.ts.
@@ -7,7 +7,8 @@
 import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine';
+/** The Kiln's five (H2d), then the Drowned Foundry's four (H3a). Ids are unique across dungeons. */
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor';
 
 export interface Theme {
   id: ThemeId;
@@ -38,6 +39,16 @@ export const THEMES: Record<ThemeId, Theme> = {
   cooling: { id: 'cooling', floor2d: 0x2a3134, name: 'Cooling yard', tile: '#8a969c', cracked: true, wall: '#78848a', light: '#cfe2ff', lightK: 1.3, swell: 0 },
   // The shrine or named room: sandstone, a carved niche and candles, gold light.
   shrine: { id: 'shrine', floor2d: 0x3a2f22, name: 'Kiln shrine', tile: '#a8865c', cracked: false, wall: '#b0845e', light: '#ffd890', lightK: 1.35, swell: 0 },
+  // H3a, the Drowned Foundry (design plan /mnt/project-files/horders/design/halls/h3-plan.md). Steam and water; kept to
+  // four, each with one quiet motion at most (Steve, 25 Nov: keep it simple).
+  // Brass boilers, warm amber light, a slow puff of steam off each: the door guard's room.
+  boiler: { id: 'boiler', floor2d: 0x2e2620, name: 'Boiler room', tile: '#5a5048', cracked: false, wall: '#8a6a50', light: '#ffc080', lightK: 1.3, swell: 0 },
+  // Wet slate and stone basins of still water; cool cyan light that swells slowly.
+  cistern: { id: 'cistern', floor2d: 0x223032, name: 'Cistern', tile: '#4e5a58', cracked: false, wall: '#7a8e8a', light: '#9fd8ec', lightK: 1.3, swell: 0.15 },
+  // Pumps whose plungers stroke slowly up and down; pale blue-white light.
+  pump: { id: 'pump', floor2d: 0x2a2e2e, name: 'Pump hall', tile: '#646a68', cracked: false, wall: '#8a9490', light: '#d8ecf4', lightK: 1.3, swell: 0 },
+  // Anchors and coiled chain, dim cool grey, nothing moving: the quiet room.
+  anchor: { id: 'anchor', floor2d: 0x25282a, name: 'Anchor store', tile: '#4a4e50', cracked: true, wall: '#6e7476', light: '#c8d0dc', lightK: 1.15, swell: 0 },
 };
 
 /** H1's template has no theme field: R0 entrance, R1 A, R2 S (side), R3 B/C, R4 D (side), R5 door guard, door alcove. */
@@ -60,4 +71,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4 };

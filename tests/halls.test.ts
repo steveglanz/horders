@@ -3,6 +3,7 @@ import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
 import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
+import { readFileSync } from 'node:fs';
 
 const idle = { x: 0, y: 0 };
 /** A spec coordinate at the template's scale. */
@@ -524,6 +525,24 @@ describe('H2b: hero shots stop at sealed grates', () => {
     rm.lock = -1;
     expect(grateCut(m, ins.x, ins.y, out.x, out.y)).toBe(false);
     rm.lock = lock;
+  });
+});
+
+describe('H3 plan: a pack waking runs the same fight setup as an arena fight', () => {
+  it('hallsWake and startEncounter share fightSetup, so a dungeon\'s per-fight setup runs when a pack wakes', () => {
+    const w = halls(2);
+    w.player.haloUsed = true;
+    w.player.windUsed = true;
+    const a = pack(w, 'A');
+    put(w, a.x, a.y + HALLS.reach - 5);
+    w.step(idle);
+    expect(a.state).toBe('awake');
+    expect(w.phase).toBe('fight');
+    expect(w.player.haloUsed).toBe(false);
+    expect(w.player.windUsed).toBe(false);
+    const src = readFileSync('sim/world.ts', 'utf8');
+    expect(src).toContain('if (first) this.fightSetup(def);');
+    expect(src.match(/this\.fightSetup\(def\)/g)!.length).toBe(2);
   });
 });
 

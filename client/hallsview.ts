@@ -252,6 +252,20 @@ export class HallsView {
       g.fillStyle(0x5c666c, 1).fillCircle(x, y, 17);
       g.lineStyle(3, 0x8a989e, 1).lineBetween(x - 12, y, x + 12, y).lineBetween(x, y - 12, x, y + 12);
       g.fillStyle(0xe8f2ff, 0.12).fillCircle(x - nx * 6, y - ny * 6 - 18, 20);
+    } else if (id === 'boiler') {
+      g.fillStyle(0xb08a4a, 1).fillCircle(x, y, 22);
+      g.lineStyle(3, 0x3a3430, 1).strokeCircle(x, y, 22);
+      g.fillStyle(0x3a3430, 1).fillCircle(x + tx * 8 + nx * 6, y + ty * 8 + ny * 6, 6);
+    } else if (id === 'cistern') {
+      g.fillStyle(0x6a7472, 1).fillRect(x - 28, y - 18, 56, 36);
+      g.fillStyle(0x2e5662, 1).fillRect(x - 22, y - 12, 44, 24);
+    } else if (id === 'pump') {
+      g.fillStyle(0x5a5048, 1).fillRect(x - 18, y - 16, 36, 32);
+      g.fillStyle(0x6e7a78, 1).fillCircle(x, y, 13);
+      g.lineStyle(4, 0x4a3a30, 1).lineBetween(x - tx * 20, y - ty * 20, x + tx * 20, y + ty * 20);
+    } else if (id === 'anchor') {
+      g.lineStyle(6, 0x3e4446, 1).lineBetween(x + nx * 14, y + ny * 14, x - nx * 22, y - ny * 22).lineBetween(x - nx * 22 - tx * 14, y - ny * 22 - ty * 14, x - nx * 22 + tx * 14, y - ny * 22 + ty * 14);
+      g.lineStyle(4, 0x555c5e, 1).strokeCircle(x + tx * 22, y + ty * 22, 10);
     } else {
       g.fillStyle(0x8a6a4a, 1).fillRect(x + nx * 10 - 22, y + ny * 10 - 22, 44, 44);
       g.fillStyle(0x3a2a1e, 1).fillRect(x + nx * 10 - 12, y + ny * 10 - 12, 24, 24);
@@ -357,9 +371,13 @@ export class HallsView {
    * your party as green dots (green is good). Phones keep it behind a Map button; a tap shows the whole map.
    */
   private drawMap(m: HallsMap, f: HallsFrame): void {
+    // Phones (keep it simple, Steve 25 Nov): no map in a fight. The Map button sat on the target frame's corner, and a
+    // fight is no time to read a map; a map left open closes when a pack wakes.
+    const fighting = f.compact && this.world.phase === 'fight';
+    if (fighting && this.open) { this.open = false; this.mapStamp = ''; }
     const show = !f.compact || this.open;
     this.mapBox.hidden = !show;
-    this.mapBtn.hidden = !f.compact;
+    this.mapBtn.hidden = !f.compact || fighting;
     this.mapBtn.textContent = this.open ? 'Close' : 'Map';
     this.mapBox.classList.toggle('big', f.compact && this.open);
     if (!show) return;

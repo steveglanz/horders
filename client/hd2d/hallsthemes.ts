@@ -6,7 +6,7 @@
  * room red-on-red or green.
  *
  * Cost: themes share one wall material (instance colours), one prop material and one shader; each room adds one prop
- * batch (one draw call), and a Cooling yard one more for its steam.
+ * batch (one draw call), and steam (Cooling yard posts, Foundry boilers) one batch for the whole map.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -68,6 +68,32 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(cone, '#7a5a48', 0, 0.5, 0, 0.26, 0.14, 0.26));
     parts.push(part(cone, '#442c26', 0.5, 0.17, 0.2, 0.5, 0.34, 0.5));
     parts.push(part(cone, '#6e5040', 0.5, 0.3, 0.2, 0.14, 0.08, 0.14));
+  } else if (id === 'boiler') {
+    // A brass boiler: a round drum on iron feet, two dark bands, a domed top and a stack (steam rises off it).
+    parts.push(part(box, '#2e2a28', 0, 0.05, 0, 0.7, 0.1, 0.5));
+    parts.push(part(cyl, '#b08a4a', 0, 0.55, 0, 0.72, 0.9, 0.72));
+    parts.push(part(cyl, '#3a3430', 0, 0.35, 0, 0.74, 0.06, 0.74));
+    parts.push(part(cyl, '#3a3430', 0, 0.8, 0, 0.74, 0.06, 0.74));
+    parts.push(part(ball, '#a07a40', 0, 1.0, 0, 0.72, 0.4, 0.72));
+    parts.push(part(cyl, '#3a3430', 0.18, 1.2, -0.1, 0.12, 0.3, 0.12));
+  } else if (id === 'cistern') {
+    // A low stone basin of still dark water.
+    parts.push(part(box, '#6a7472', 0, 0.16, 0, 0.9, 0.32, 0.6));
+    parts.push(part(box, '#2e5662', 0, 0.3, 0, 0.76, 0.03, 0.46));
+  } else if (id === 'pump') {
+    // A pump: an iron housing on a stone block, and a plunger rod above it (the whole pump strokes slowly).
+    parts.push(part(box, '#5a5048', 0, 0.12, 0, 0.6, 0.24, 0.5));
+    parts.push(part(cyl, '#6e7a78', 0, 0.5, 0, 0.42, 0.56, 0.42));
+    parts.push(part(cyl, '#3e4446', 0, 0.9, 0, 0.1, 0.3, 0.1));
+    parts.push(part(box, '#4a3a30', 0, 1.06, 0, 0.6, 0.06, 0.08));
+  } else if (id === 'anchor') {
+    // An anchor leaning on the wall, and a coil of chain at its foot.
+    parts.push(part(box, '#3e4446', 0, 0.55, -0.1, 0.1, 1.0, 0.1));
+    parts.push(part(box, '#3e4446', 0, 0.95, -0.1, 0.5, 0.08, 0.08));
+    parts.push(part(box, '#3e4446', -0.2, 0.12, -0.1, 0.36, 0.08, 0.08));
+    parts.push(part(box, '#3e4446', 0.2, 0.12, -0.1, 0.36, 0.08, 0.08));
+    parts.push(part(cyl, '#555c5e', 0.32, 0.06, 0.18, 0.4, 0.12, 0.4));
+    parts.push(part(cyl, '#2e3234', 0.32, 0.075, 0.18, 0.2, 0.13, 0.2));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
@@ -91,5 +117,7 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
 /** How a theme's prop moves, as a y scale and a glow for its instance at time t (phase ph): the quiet motion. */
 export function propMotion(id: ThemeId, t: number, ph: number): { sy: number } {
   if (id === 'bellows') return { sy: 1 + 0.1 * Math.sin(t * 2 * Math.PI * THEMES.bellows.swell + ph) };
+  // The Foundry's pumps stroke as slowly as the bellows breathe.
+  if (id === 'pump') return { sy: 1 + 0.07 * Math.sin(t * 2 * Math.PI * 0.2 + ph) };
   return { sy: 1 };
 }

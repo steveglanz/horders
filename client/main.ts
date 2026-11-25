@@ -47,6 +47,8 @@ const save = () => {
   queueCloudSave(() => hero);
 };
 hud.onGearChange = save;
+hud.tipSeen = (id) => !!hero.tipsSeen?.includes(id);
+hud.markTip = (id) => { if (hero.tipsSeen?.includes(id)) return; (hero.tipsSeen ??= []).push(id); save(); };
 const hub = new Hub(() => hero, save);
 hub.tier = hero.maxTier;
 hub.render();
