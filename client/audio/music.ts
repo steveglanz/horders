@@ -34,13 +34,16 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   // The Coldmarrow's four (visuals, 25 Nov): no warm sound in any of them, since the hero's Hearthcoal is the only warmth.
   | 'deadHearth' | 'rimeHall' | 'snowdriftCave' | 'coldCrypt'
   // The Wrackline's four (visuals, 25 Nov): every room is a quay of open water with rafts.
-  | 'harbourQuay' | 'wreckYard' | 'kelpBed' | 'sluiceGate';
+  | 'harbourQuay' | 'wreckYard' | 'kelpBed' | 'sluiceGate'
+  // The Hammerdeep's four (H4a, 25 Nov): cold forge iron, nothing glowing.
+  | 'anvilHall' | 'chainGallery' | 'quenchTrough' | 'ingotStore';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
   'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
   'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall',
   'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt',
   'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate',
+  'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
@@ -493,6 +496,48 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         const s = i / rate;
         const iron = Math.sin(2 * Math.PI * 98 * s) + 0.6 * Math.sin(2 * Math.PI * 147.3 * s) + 0.3 * Math.sin(2 * Math.PI * 392.6 * s);
         raw[i] = lp * 0.3 + iron * 0.02 + brown * 0.15;
+        break;
+      }
+      case 'anvilHall': {
+        // Anvil hall, the door guard's room: a low warm hum under the lanterns, breathing slowly once round the loop, and
+        // the great anvils' faint cold ring.
+        const s = i / rate;
+        const breath = 0.45 + 0.55 * Math.pow(Math.sin(t * Math.PI), 2);
+        const hum = Math.sin(2 * Math.PI * 196 * s) + 0.6 * Math.sin(2 * Math.PI * 293.8 * s);
+        const ring = Math.sin(2 * Math.PI * 1244.5 * s) * (0.6 + 0.4 * Math.sin(2 * Math.PI * (1 / 3) * s)) + 0.5 * Math.sin(2 * Math.PI * 1866 * s);
+        lp += (w - lp) * 0.06;
+        raw[i] = hum * 0.035 * breath + ring * 0.008 + lp * 0.2 * breath + brown * 0.1;
+        break;
+      }
+      case 'chainGallery': {
+        // Chain gallery: heavy chains swinging slowly, a soft clink of links as each swing turns, twice round the loop.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        const s = i / rate;
+        const ph = (t * 2) % 1;
+        const clinkAt = (c: number) => Math.exp(-Math.abs(ph - c) * 90);
+        const clink = (Math.sin(2 * Math.PI * 1568 * s) + 0.6 * Math.sin(2 * Math.PI * 2093 * s)) * (clinkAt(0.05) + 0.7 * clinkAt(0.12) + 0.8 * clinkAt(0.55) + 0.5 * clinkAt(0.62));
+        const sway = Math.pow(Math.sin(t * Math.PI * 2), 2);
+        raw[i] = clink * 0.08 + hp * 0.006 * sway + Math.sin(2 * Math.PI * 220 * s + Math.sin(2 * Math.PI * 0.5 * s)) * 0.02 * sway + brown * 0.06;
+        break;
+      }
+      case 'quenchTrough': {
+        // Quench trough: steam lifting off dark water, a soft hiss that rises and settles three times round the loop.
+        hp = 0.93 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.4;
+        const ph = (t * 3) % 1;
+        const lift = ph < 0.6 ? Math.pow(Math.sin((Math.PI * ph) / 0.6), 2) : 0;
+        raw[i] = lp * (0.03 + 0.12 * lift) + brown * 0.12;
+        break;
+      }
+      case 'ingotStore': {
+        // Ingot store, the quiet room: still air between the stacks, a faint cold resonance of iron; nothing moves.
+        hp = 0.98 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.15;
+        const s = i / rate;
+        raw[i] = lp * 0.04 + (Math.sin(2 * Math.PI * 233 * s) + 0.7 * Math.sin(2 * Math.PI * 311 * s)) * 0.016 + brown * 0.06;
         break;
       }
       case 'shimmer': {
