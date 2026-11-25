@@ -668,6 +668,13 @@ export class HallsView {
     const at = f.project(wp.x, wp.y);
     const W = f.rect.width, H = f.rect.height;
     const inset = 40;
+    // Phones: the action bar holds the bottom (right) of the screen. A tag or arrow under it can't be read (phone pass,
+    // Smeltery Halls, 25 Nov: "Walk in" sat behind Anvil Skin), so a point there counts as off screen and the arrow
+    // and tag stop just above it.
+    const ab = document.getElementById('actionbar');
+    const br = ab && !ab.hidden ? ab.getBoundingClientRect() : null;
+    const bar = br && br.width && br.height ? { l: br.left - f.rect.left, r: br.right - f.rect.left, t: br.top - f.rect.top } : null;
+    const underBar = (x: number, y: number, hw: number, hh: number) => !!bar && x + hw > bar.l && x - hw < bar.r && y + hh > bar.t;
     if (walkIn) {
       // The room's nearest doorway in view: the tag stands on its grate, so you see where to walk in.
       this.grates ??= hallsGrates(m, HALLS.corridor, doorRoom(m));
@@ -678,14 +685,14 @@ export class HallsView {
         if (d < bd) { bd = d; best = gr; }
       }
       const gp = best ? f.project(best.x + best.ux * 120, best.y + best.uy * 120) : null; // inside, past the bars: clear of them and your hero
-      if (gp && gp.x > 30 && gp.x < W - 30 && gp.y > 60 && gp.y < H - 14) {
+      if (gp && gp.x > 30 && gp.x < W - 30 && gp.y > 60 && gp.y < H - 14 && !underBar(gp.x, gp.y, 36, 14)) {
         this.arrow.hidden = true;
         this.tag.hidden = false;
         this.tag.style.transform = `translate(${f.rect.left + gp.x}px, ${f.rect.top + gp.y}px) translate(-50%, -50%)`;
         return;
       }
     }
-    if (at && at.x > inset && at.x < W - inset && at.y > inset + 50 && at.y < H - inset) { this.arrow.hidden = true; return; }
+    if (at && at.x > inset && at.x < W - inset && at.y > inset + 50 && at.y < H - inset && !underBar(at.x, at.y, 0, 0)) { this.arrow.hidden = true; return; }
     const me = f.project(f.px, f.py) ?? { x: W / 2, y: H / 2 };
     // Screen direction from your hero to the way point (a point behind the camera still gives the right side).
     let dx: number, dy: number;
@@ -693,12 +700,15 @@ export class HallsView {
     const a = Math.atan2(dy, dx);
     const hw = W / 2 - inset, hh = H / 2 - inset - 30;
     const r = Math.min(hw / Math.abs(Math.cos(a) || 1e-6), hh / Math.abs(Math.sin(a) || 1e-6));
-    const ex = W / 2 + Math.cos(a) * r, ey = H / 2 + 15 + Math.sin(a) * r;
+    let ex = W / 2 + Math.cos(a) * r, ey = H / 2 + 15 + Math.sin(a) * r;
+    // Beside the bar when there's room on its left (keeps the tag off your party in the middle), else just above it.
+    if (bar && underBar(ex, ey, 14, 14)) { if (bar.l - 16 > 24) ex = bar.l - 16; else ey = bar.t - 16; }
     this.arrow.hidden = false;
     this.arrow.style.transform = `translate(${f.rect.left + ex}px, ${f.rect.top + ey}px) rotate(${a}rad)`;
     if (shut) {
       // The tag sits just inside the arrow, toward the screen's middle, kept on screen.
-      const tx = Math.max(34, Math.min(W - 34, ex - Math.cos(a) * 34)), ty = Math.max(14, Math.min(H - 14, ey - Math.sin(a) * 26));
+      let tx = Math.max(34, Math.min(W - 34, ex - Math.cos(a) * 34)), ty = Math.max(14, Math.min(H - 14, ey - Math.sin(a) * 26));
+      if (bar && underBar(tx, ty, 36, 14)) { if (bar.l - 40 >= 34) tx = bar.l - 40; else ty = Math.min(ey, bar.t) - 30; }
       this.tag.hidden = false;
       this.tag.style.transform = `translate(${f.rect.left + tx}px, ${f.rect.top + ty}px) translate(-50%, -50%)`;
     }
