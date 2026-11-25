@@ -574,6 +574,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     case 'gather': return { id: 'gather' };
     case 'soak': return { id: ev.ok ? 'soakOk' : 'soakFail' };
+    // YSMERETV2: a lone flame flares and hits every hero, as an empty vent does (sound may give it its own cue).
+    case 'ysFlare': return { id: 'soakFail' };
     case 'drop':
       return { id: ev.rarity === 'mythic' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
