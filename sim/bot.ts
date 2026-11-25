@@ -1232,11 +1232,14 @@ export function botInput(w: World, skill = 1): Input {
     const dy = p.y - t.y;
     const d = Math.hypot(dx, dy) || 1;
     // A Sluice Crawler's bloom feeds a foe caught in it when it bursts (NODRAG=1 turns this off for measuring).
-    const feed = t.kind === 'bloom' && process.env.NODRAG !== '1' ? bloomFeeder(w, t, p) : null;
-    if (feed && (feed.inside || w.heroes.length > 1) && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
-      // One already in it follows you: walk on until it trails out too. In a party, one outside walks after you, so
-      // leave on its side and its way to you never crosses the ring. Alone, a ranged hero who did that walked into
-      // the Tide Pair and lost (Foundry t6 Emberwright 28 -> 16 of 40), so it steps out as from any ring.
+    // In a party only, and never the Bulwark (it holds the foes, and Smothers when it can): alone, leading a Crawler
+    // out cost more than the heal (Foundry t6 arena: Emberwright full 89 -> 44 of 120; leading only one already inside,
+    // Lumen avg 42 -> 28), so a solo hero steps
+    // out as from any ring.
+    const feed = t.kind === 'bloom' && w.heroes.length > 1 && w.cls !== 'bulwark' && process.env.NODRAG !== '1' ? bloomFeeder(w, t, p) : null;
+    if (feed && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
+      // One already in it follows you: walk on until it trails out too. One outside walks after you: leave on its
+      // side, so its way to you never crosses the ring.
       const fx0 = feed.inside ? dx / d : (feed.e.x - t.x) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
       const fy0 = feed.inside ? dy / d : (feed.e.y - t.y) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
       fx += fx0 * 0.6 * skill;
