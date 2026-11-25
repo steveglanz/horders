@@ -677,6 +677,18 @@ export function lootUpgrades(hero: HeroProfile, items: Item[]): { item: Item; ga
   return [...best.values()];
 }
 
+/**
+ * Bags' "Equip best" (Steve, 25 Nov: "an auto equip or equip best button that puts on your highest gear score"): in
+ * every slot, wears the bag's highest gear-score piece (itemScore, the score Bags shows and the end screen's Equip
+ * upgrade uses) when it beats what is worn there or the slot is empty. Gear score only: it doesn't weigh set bonuses.
+ * Returns the pieces put on and the gear score gained.
+ */
+export function equipBest(hero: HeroProfile): { items: Item[]; gain: number } {
+  const ups = lootUpgrades(hero, hero.inventory);
+  for (const u of ups) equip(hero, u.item.id);
+  return { items: ups.map((u) => u.item), gain: ups.reduce((a, u) => a + u.gain, 0) };
+}
+
 /** Breaks down everything salvageAllPlan picks. Returns the items broken down and the embers gained. */
 export function salvageAll(hero: HeroProfile): { count: number; embers: number } {
   const plan = salvageAllPlan(hero);

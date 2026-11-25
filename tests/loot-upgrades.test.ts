@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { equip, itemScore, lootUpgrades, makeItem, newHero } from '../sim/hero';
+import { equip, equipBest, itemScore, lootUpgrades, makeItem, newHero } from '../sim/hero';
 import { Rng } from '../sim/rng';
 
 /** A hero wearing a mid ring and head piece; the run's loot is pushed to the bag as applyRun does. */
@@ -51,5 +51,28 @@ describe("the end screen's Equip upgrade", () => {
     const { h, rng } = setup();
     const gone = makeItem(rng, 'gone', 'ring', 'epic', 60);
     expect(lootUpgrades(h, [gone])).toEqual([]);
+  });
+});
+
+describe("Bags' Equip best", () => {
+  it('wears the highest gear-score piece in every slot that beats what is worn, and fills empty slots', () => {
+    const { h, rng } = setup();
+    const a = makeItem(rng, 'a', 'ring', 'rare', 40);
+    const b = makeItem(rng, 'b', 'ring', 'epic', 60);
+    const weak = makeItem(rng, 'weak', 'head', 'common', 1);
+    const chest = makeItem(rng, 'chest', 'chest', 'common', 1);
+    h.inventory.push(a, b, weak, chest);
+    const head = h.equipped.head;
+    const ringBest = itemScore(a) > itemScore(b) ? 'a' : 'b';
+    const before = h.inventory.filter((i) => Object.values(h.equipped).includes(i.id)).reduce((s, i) => s + itemScore(i), 0);
+    const r = equipBest(h);
+    expect(h.equipped.ring).toBe(ringBest);
+    expect(h.equipped.chest).toBe('chest');
+    expect(h.equipped.head).toBe(head);
+    const after = h.inventory.filter((i) => Object.values(h.equipped).includes(i.id)).reduce((s, i) => s + itemScore(i), 0);
+    expect(r.gain).toBeCloseTo(after - before);
+    expect(r.items.map((i) => i.id).sort()).toEqual([ringBest, 'chest'].sort());
+    // A second tap has nothing left to do.
+    expect(equipBest(h).items).toEqual([]);
   });
 });
