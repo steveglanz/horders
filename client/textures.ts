@@ -386,7 +386,7 @@ function drawHound(ctx: Ctx, _s: number, f: number): void {
 
 /**
  * V5 (variety) Ember Spitter: a squat ranged lump that keeps its distance and lobs fire. Its swollen throat sac glows
- * and fills over the frames, and three little vent spines smoke on its back, so it reads as "this one spits" at a
+ * and fills over the frames, and a row of glowing vent spines smoke on its back, so it reads as "this one spits" at a
  * glance and never as a melee hound. Faces right.
  */
 function drawSpitter(ctx: Ctx, _s: number, f: number): void {
@@ -395,14 +395,15 @@ function drawSpitter(ctx: Ctx, _s: number, f: number): void {
   // Stubby legs.
   for (const [x, k] of [[10, 1], [15, -1], [23, 1], [28, -1]] as [number, number][]) limb(ctx, x, 30 + bob, x + k, 36, 2.6, '#3a150c');
   // Vent spines on the back, each with a wisp of glow.
-  for (const [x, h] of [[11, 6], [16, 8], [21, 6]] as [number, number][]) {
-    limb(ctx, x, 21 + bob, x - 1, 21 + bob - h, 2.6, '#2a120a');
-    softGlow(ctx, x - 1, 20 + bob - h, 2.6 + puff * 0.4, 'rgba(255,170,70,0.9)');
+  for (const [x, h] of [[10, 6], [14.5, 9], [19, 10], [23.5, 7]] as [number, number][]) {
+    ctx.beginPath(); ctx.moveTo(x - 2.2, 22 + bob); ctx.lineTo(x - 1, 21 + bob - h); ctx.lineTo(x + 2.2, 22 + bob); ctx.closePath();
+    shade(ctx, '#ff9a4a', '#2a120a', 21 - h, 22, 1);
+    softGlow(ctx, x - 1, 21 + bob - h, 2.4 + puff * 0.4, 'rgba(255,170,70,0.9)');
   }
   // The body: a round, charred lump.
   ell(ctx, 19, 27 + bob, 12, 8.5);
   shade(ctx, '#9a3a1e', '#2e0f07', 19, 35, 1.4);
-  cracks(ctx, [[[9, 26 + bob], [13, 24 + bob], [17, 26 + bob]], [[19, 31 + bob], [23, 29 + bob]]], '#ff9a3a', 1);
+  cracks(ctx, [[[10, 23 + bob], [12, 27 + bob], [10.5, 31 + bob]], [[16, 22 + bob], [17.5, 26 + bob], [16.5, 29 + bob]], [[21.5, 23 + bob], [22.5, 28 + bob]]], '#ff9a3a', 1);
   // The head, low and wide, with a broad mouth.
   ell(ctx, 30, 25 + bob, 6.5, 5);
   shade(ctx, '#a8442a', '#36120a', 20, 30, 1.3);
@@ -410,11 +411,19 @@ function drawSpitter(ctx: Ctx, _s: number, f: number): void {
   ctx.beginPath(); ctx.moveTo(29, 26 + bob); ctx.lineTo(37.5, 23.5 + bob); ctx.lineTo(36.5, 28 + bob); ctx.closePath();
   ctx.fillStyle = '#2a0a04'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.1; ctx.stroke();
   softGlow(ctx, 33, 26 + bob, 2.6 + puff * 0.6, 'rgba(255,200,90,0.95)');
+  // Hooked fangs round the mouth.
+  ctx.fillStyle = '#f4ead8';
+  for (const [x, y, d] of [[31.5, 25.4, 1], [34, 24.6, 1], [36.5, 23.9, 1], [32.5, 27.6, -1], [35.5, 27.6, -1]] as [number, number, number][]) {
+    ctx.beginPath(); ctx.moveTo(x - 0.7, y + bob); ctx.lineTo(x + 0.1, y + bob + d * 2); ctx.lineTo(x + 0.7, y + bob); ctx.closePath(); ctx.fill();
+  }
   // The throat sac, filling with fire.
   softGlow(ctx, 29, 30 + bob, 6 + puff * 1.5, 'rgba(255,150,50,0.75)');
   ell(ctx, 29, 30 + bob, 3.6 + puff * 0.7, 2.8 + puff * 0.6);
   shade(ctx, '#ffe08a', '#ff6a1e', 27, 33 + puff, 1);
-  eyes(ctx, [[30.5, 22.5 + bob], [33, 23 + bob]], 1, '#ffd23c');
+  // Slit eyes under a ridge of brow.
+  ctx.save(); ctx.fillStyle = '#ffd23c'; ctx.shadowColor = '#ffd23c'; ctx.shadowBlur = 3;
+  for (const x of [30.5, 33.4]) { ctx.beginPath(); ctx.moveTo(x - 1.4, 21.6 + bob); ctx.lineTo(x + 1.5, 22.4 + bob); ctx.lineTo(x - 1, 23.2 + bob); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
 }
 
 /**
