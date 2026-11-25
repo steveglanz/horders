@@ -127,6 +127,17 @@ describe('ONDRELV2: the staged Ondrel', () => {
     expect(botInput(w, 1).x).toBeGreaterThan(0.9);
   });
 
+  it('a bot that a fresh patch lands right under walks out of it, away from the boss', () => {
+    const { w, q, b } = fight();
+    stage2(w, q, b);
+    anvilfall(w, q, b); // lands on the tank at (0, 0); the boss is at (0, -200)
+    w.heroData(1).player.x = 0; w.heroData(1).player.y = 0;
+    w.use(1);
+    const m = botInput(w, 1);
+    w.use(0);
+    expect(m.y).toBeGreaterThan(0.9);
+  });
+
   it('a co-op guest gets the slag and the stage', () => {
     const { w, q, b } = fight();
     stage2(w, q, b);

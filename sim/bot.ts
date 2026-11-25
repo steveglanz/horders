@@ -825,11 +825,20 @@ export function botInput(w: World, skill = 1): Input {
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
   // ONDRELV2: burning slag, so step out of it, away from its middle (the tank drags him off it this way).
+  const boss = w.bossIndex >= 0 ? w.enemies[w.bossIndex] : undefined;
   for (const a of w.slagPatches) {
     if (a.glow !== 0) continue;
     const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
     if (d > ONDRELV2.r + 16) continue;
-    const s = w.hallsOn ? hallsSteer(w, dx / d, dy / d) : { x: dx / d, y: dy / d };
+    // A fresh patch lands right under him (d is ~0, so "away from its middle" is no direction): walk away from the boss, or
+    // straight on if he's not on him.
+    let ux = dx / d, uy = dy / d;
+    if (d < 6) {
+      const bx = boss?.alive ? p.x - boss.x : Math.cos(p.facing), by = boss?.alive ? p.y - boss.y : Math.sin(p.facing);
+      const bl = Math.hypot(bx, by) || 1;
+      ux = bx / bl; uy = by / bl;
+    }
+    const s = w.hallsOn ? hallsSteer(w, ux, uy) : { x: ux, y: uy };
     return { x: s.x, y: s.y, cast: botCast(w, skill) };
   }
   // The Flue's Summons: get before the throne (inside SUMMONS.radius) before it lands (NOCOURT=1 turns this off for measuring).
@@ -1408,22 +1417,7 @@ export function botInput(w: World, skill = 1): Input {
   fy += Math.sin(a) * 0.002;
   const len = Math.hypot(fx, fy) || 1;
   if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
-  if (w.slagPatches.length) { const s = slagSlide(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
   return { x: fx / len, y: fy / len, cast };
-}
-
-/** ONDRELV2: a move that would walk into burning slag goes round its edge instead, on the side that turns least. */
-function slagSlide(w: World, fx: number, fy: number): { x: number; y: number } {
-  const p = w.player;
-  for (const a of w.slagPatches) {
-    if (a.glow !== 0) continue;
-    const dx = a.x - p.x, dy = a.y - p.y, d = Math.hypot(dx, dy) || 1;
-    if (d > ONDRELV2.r + 40 || (dx * fx + dy * fy) / d <= 0.2) continue;
-    let tx = -dy / d, ty = dx / d;
-    if (tx * fx + ty * fy < 0) { tx = -tx; ty = -ty; }
-    return { x: tx, y: ty };
-  }
-  return { x: fx, y: fy };
 }
 
 /**
