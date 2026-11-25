@@ -227,16 +227,17 @@ const hash = (seed: number, k: number): number => {
  * H5a the Crucible, the first raid map (on 25 Nov once the grid with named in B #797, QA solo and four-tab co-op, the
  * phone pass #800, the themes #788 and the beds #790 were in); H5b the Hoard (on 25 Nov once the grid, QA solo and
  * four-tab co-op and the phone pass #807 were in); H5c the Smeltery (on 25 Nov once the grid, QA solo and four-tab
- * co-op and the phone pass #811 were in).
+ * co-op and the phone pass #811 were in); H5d the Flue (on 25 Nov once the grid, QA solo and four-tab co-op and the
+ * phone pass #813 were in), so every dungeon and raid now has its map.
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['flue'];
+export const HALLS_BETA: DungeonId[] = [];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery'];
+export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
