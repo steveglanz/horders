@@ -1,7 +1,7 @@
 // Phone UX audit: screenshots every menu and in-run screen at four phone viewports
 // (375x667 and 390x844, portrait and landscape) with a mid-game hero, against a fake backend.
 //
-//   npm run build && node tools/uxaudit.cjs <outDir> [se|13|se-land|13-land ...]
+//   npm run build && node tools/uxaudit.cjs <outDir> [se|13|se-land|13-land|p320|l568 ...]
 //
 // Shots per viewport: hub (first screen and the whole scroll), hub with gear/talents open,
 // delve setup, co-op box, the Hero and Group tabs, settings, bags, in-run HUD, talent draft, pause, boss fight and end screen.
@@ -19,6 +19,8 @@ const VIEWS = {
   13: { width: 390, height: 844 },
   'se-land': { width: 667, height: 375 },
   '13-land': { width: 844, height: 390 },
+  p320: { width: 320, height: 568 },
+  l568: { width: 568, height: 320 },
 };
 const HERO = fs.readFileSync(path.resolve('tools/heroes/hero-t6.json'), 'utf8');
 

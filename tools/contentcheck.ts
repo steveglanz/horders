@@ -3,7 +3,11 @@
 // longest run and the most foes alive at once. Burnout should end every fight.
 // Usage: HEROES=<heroes-r2 dir> npx vite-node tools/contentcheck.ts   (SEEDS=1,2,... to change the seeds)
 import { HEAT_IDS, HEAT_POOLS } from '../sim/content/heat';
-import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId, WAVES, WAVE_BIT, STIR, STIR_IDS } from '../sim/world';
+import { World, WorldOptions, LayoutId, TICK, ARENA_EVENTS, ARENA_EVENT_POOLS, ArenaEventId, WAVES, WAVE_BIT, STIR, STIR_IDS, ECHO, NEW_FOE_BIT,
+  KILN_VARIANTS, MAELRA_VARIANTS, MAELRA_ECHOES, LENS_VARIANTS, NHEVRA_VARIANTS, NHEVRA_RIME_ECHOES, HESSA_VARIANTS, ONDREL_VARIANTS,
+  YSMERET_VARIANTS, OSKEL_VARIANTS, SLAG_VARIANTS, VORHULM_VARIANTS, COLOSSUS_VARIANTS, REGENT_VARIANTS } from '../sim/world';
+import type { EncounterId } from '../sim/content/dungeon';
+import type { EnemyKind } from '../sim/content/enemies';
 import { NAMED, AFFIXES } from '../sim/content/named';
 import type { DungeonId } from '../sim/content/dungeon';
 import { botChoose, botInput } from '../sim/bot';
@@ -14,14 +18,14 @@ import { equippedItems, HeroProfile } from '../sim/hero';
 // HEROES=dir with <cls>/<HERO_FILE> (the skills team's heroes-r2) gives every hero that hero's gear.
 const dir = process.env.HEROES;
 const file = process.env.HERO_FILE ?? 'hero-t8-0.json';
-const gear = (cls: ClassId) => {
-  const f = dir ? `${dir}/${cls}/${file}` : '';
+const gear = (cls: ClassId, fileOver?: string) => {
+  const f = dir ? `${dir}/${cls}/${fileOver ?? file}` : '';
   if (!f || !existsSync(f)) return {};
   const h: HeroProfile = JSON.parse(readFileSync(f, 'utf8'));
   return { gear: equippedItems(h), passives: h.passives };
 };
-const main = (cls: ClassId) => {
-  const f = dir ? `${dir}/${cls}/${file}` : '';
+const main = (cls: ClassId, fileOver?: string) => {
+  const f = dir ? `${dir}/${cls}/${fileOver ?? file}` : '';
   if (!f || !existsSync(f)) return { cls };
   const h: HeroProfile = JSON.parse(readFileSync(f, 'utf8'));
   return { cls, gear: equippedItems(h), passives: h.passives, heroLevel: h.level, nextItemId: h.nextItemId };
@@ -35,7 +39,13 @@ const only = process.env.ONLY;
  * `dropWhen`: once it returns a hero index (not -1), that hero stops playing (no input, first card in
  * drafts) for the rest of the run, like a guest who left: their hero stays in the world, idle.
  */
-type Case = { label: string; opts: WorldOptions; skill: number; dropWhen?: (w: World) => number; setup?: () => void };
+type Case = {
+  label: string; opts: WorldOptions; skill: number; dropWhen?: (w: World) => number; setup?: () => void;
+  /** Runs on the new World before its first step (U7 forces the boss's version here). */
+  after?: (w: World) => void;
+  /** Phase 16 U7: what this case forced, checked once the run is over. */
+  u7?: { pair?: string; version?: string; echo?: string; foe?: EnemyKind };
+};
 const downstrokeUp = (w: World) => w.telegraphs.some((t) => t.alive && t.kind === 'soak' && t.owner === -3);
 const crawUp = (w: World) => w.enemies.some((e) => e.alive && e.kind === 'craw');
 /** The Hoard: the hero inside Old Vorhulm right now, or -1. */
@@ -131,7 +141,7 @@ for (const [r, want, picked] of RAID_LAYOUT_CASES) for (const seed of picked) fo
 // Phase 14 X8: every marked-foe trait and every arena event, forced (NAMED.forceAffix/forceNamed, ARENA_EVENTS.force),
 // so each one is played every run. X8_SEEDS seeds (default 4) at skill 1 and 0.5.
 const x8Seeds = (process.env.X8_SEEDS ?? '1,2,3,4').split(',').map(Number);
-const resetForces = () => { NAMED.forceAffix = -1; NAMED.forceNamed = 0; ARENA_EVENTS.force = ''; WAVES.force = ''; WAVES.off = false; STIR.force = ''; STIR.off = false; };
+const resetForces = () => { NAMED.forceAffix = -1; NAMED.forceNamed = 0; ARENA_EVENTS.force = ''; WAVES.force = ''; WAVES.off = false; STIR.force = ''; STIR.off = false; ECHO.force = ''; ECHO.off = false; };
 const X8_GROUP: { dungeon: DungeonId; tier: number }[] = [{ dungeon: 'hammerdeep', tier: 6 }, { dungeon: 'ashvents', tier: 7 }, { dungeon: 'pressworks', tier: 10 }];
 const WAVE_SHAPES = ['pincer', 'ring', 'reinforce'] as const;
 const X8_SOLO: { dungeon: DungeonId; tier: number }[] = [
@@ -186,6 +196,57 @@ for (const seed of x8Seeds) for (const skill of [1, 0.5]) {
   for (const d of X8_GROUP) cases.push({ label: `stir any ${d.dungeon} fill bots`, skill, setup: () => { resetForces(); STIR.force = 'any'; },
     opts: { seed, ...main('bulwark'), dungeon: d.dungeon, tier: d.tier, omens: [], fillBots: 2, party: (['lumen', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls) })) } });
 }
+// Phase 16 U7: every boss version with every echo it can borrow, forced: the version through the boss's own roll
+// (every roll*Variant on that World returns it; only this dungeon's boss calls one), the echo through ECHO.force. Then
+// each new elite (U2) as its dungeon's opener, solo and with a guest who leaves while it stands. U7_SEEDS seeds (default
+// 1,2). Heroes wear the reference gear for the tier (heroes-r2 hero-t8, t10 or t13), so most runs reach the last phase.
+const u7Seeds = (process.env.U7_SEEDS ?? '1,2').split(',').map(Number);
+const u7File = (tier: number) => (process.env.U7_HERO_FILE ?? (tier >= 13 ? 'hero-t13-0.json' : tier >= 10 ? 'hero-t10-0.json' : 'hero-t8-0.json'));
+type U7Boss = { dungeon: DungeonId; tier: number; versions: readonly string[]; echoes: (v: string) => readonly string[]; party: number; worldBoss?: string };
+const others = (all: readonly string[]) => (v: string) => all.filter((x) => x !== v);
+const U7_BOSSES: U7Boss[] = [
+  { dungeon: 'kiln', tier: 8, versions: KILN_VARIANTS, echoes: others(KILN_VARIANTS), party: 1 },
+  { dungeon: 'foundry', tier: 8, versions: MAELRA_VARIANTS, echoes: (v) => MAELRA_ECHOES.filter((x) => x !== v), party: 1 },
+  { dungeon: 'glarewell', tier: 8, versions: LENS_VARIANTS, echoes: others(LENS_VARIANTS), party: 1 },
+  { dungeon: 'coldmarrow', tier: 10, versions: NHEVRA_VARIANTS, echoes: (v) => (v === 'rime' ? NHEVRA_RIME_ECHOES : NHEVRA_VARIANTS.filter((x) => x !== v)), party: 1 },
+  { dungeon: 'wrackline', tier: 13, versions: HESSA_VARIANTS, echoes: others(HESSA_VARIANTS), party: 1 },
+  { dungeon: 'hammerdeep', tier: 8, versions: ONDREL_VARIANTS, echoes: others(ONDREL_VARIANTS), party: 4 },
+  { dungeon: 'ashvents', tier: 8, versions: YSMERET_VARIANTS, echoes: others(YSMERET_VARIANTS), party: 4 },
+  { dungeon: 'pressworks', tier: 10, versions: OSKEL_VARIANTS, echoes: others(OSKEL_VARIANTS), party: 4 },
+  { dungeon: 'crucible', tier: 8, versions: SLAG_VARIANTS, echoes: others(SLAG_VARIANTS), party: 4, worldBoss: 'Grandmother Slag' },
+  { dungeon: 'hoard', tier: 9, versions: VORHULM_VARIANTS, echoes: others(VORHULM_VARIANTS), party: 4, worldBoss: 'Old Vorhulm' },
+  { dungeon: 'smeltery', tier: 10, versions: COLOSSUS_VARIANTS, echoes: others(COLOSSUS_VARIANTS), party: 4, worldBoss: 'The Cinder Colossus' },
+  { dungeon: 'flue', tier: 11, versions: REGENT_VARIANTS, echoes: others(REGENT_VARIANTS), party: 4, worldBoss: 'The Furnace Regent' },
+];
+const forceVersion = (v: string) => (w: World) => {
+  const q = w as unknown as Record<string, unknown>;
+  for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(w))) if (/^roll\w+Variant$/.test(k)) q[k] = () => v;
+};
+for (const seed of u7Seeds) for (const b of U7_BOSSES) for (const version of b.versions) for (const echo of b.echoes(version)) {
+  const f = u7File(b.tier);
+  const lead: ClassId = b.party === 1 ? CLASSES[seed % 4] : 'bulwark';
+  const party = b.party === 1 ? undefined : (['lumen', 'duskblade', 'emberwright'] as ClassId[]).map((cls) => ({ cls, ...gear(cls, f) }));
+  const pair = `${b.dungeon} ${version}+${echo}`;
+  cases.push({ label: `echo ${pair}`, skill: 1, setup: () => { resetForces(); ECHO.force = echo; }, after: forceVersion(version), u7: { pair, version, echo },
+    opts: { seed, ...main(lead, f), dungeon: b.dungeon, tier: b.tier, omens: [], ...(b.worldBoss ? { worldBoss: b.worldBoss } : {}), ...(party ? { party } : {}) } });
+}
+const U7_FOES: { dungeon: DungeonId; tier: number; enc: EncounterId; kind: EnemyKind }[] = [
+  { dungeon: 'kiln', tier: 3, enc: 'ashwall', kind: 'ashwall' },
+  { dungeon: 'foundry', tier: 5, enc: 'ballast', kind: 'ballast' },
+  { dungeon: 'glarewell', tier: 8, enc: 'lampeye', kind: 'lampeye' },
+  { dungeon: 'coldmarrow', tier: 10, enc: 'dimhorn', kind: 'dimhorn' },
+  { dungeon: 'wrackline', tier: 13, enc: 'conch', kind: 'conchblower' },
+];
+for (const seed of u7Seeds) for (const skill of [1, 0.5]) for (const d of U7_FOES) {
+  const f = u7File(d.tier);
+  // The rolled route with the elite as its opener (the new elites are openers in every dungeon's pool).
+  const route = [...new World({ seed, cls: 'bulwark', dungeon: d.dungeon, tier: d.tier, omens: [] }).route];
+  route[0] = d.enc;
+  const foeUp = (w: World) => w.encounter === 0 && w.enemies.some((e) => e.alive && e.kind === d.kind);
+  for (const cls of CLASSES) cases.push({ label: `foe ${d.kind} ${cls}`, skill, setup: resetForces, u7: { foe: d.kind }, opts: { seed, ...main(cls, f), dungeon: d.dungeon, tier: d.tier, omens: [], route } });
+  cases.push({ label: `foe ${d.kind} duo drop`, skill, setup: resetForces, u7: { foe: d.kind }, dropWhen: (w) => (foeUp(w) ? 1 : -1),
+    opts: { seed, ...main('emberwright', f), dungeon: d.dungeon, tier: d.tier, omens: [], route, party: [{ cls: 'lumen', ...gear('lumen', f) }] } });
+}
 let stuck = 0, longest = 0, mostAlive = 0;
 const layoutFights: Record<string, number> = {};
 const tally: Record<string, { runs: number; wins: number; longest: number }> = {};
@@ -196,6 +257,10 @@ let trapped = 0;
 let waveBad = 0;
 /** Y10 stir checks: problems (see the STIR lines), stirred fights by reaction, and bags dropped in stirred and other clears. */
 let stirBad = 0;
+/** U7: forced versions, echoes and elites that didn't take (see the U7 lines), and per version+echo pair the runs, boss fights and echoes heard. */
+let u7Bad = 0;
+const u7Pairs: Record<string, { runs: number; boss: number; heard: number; wins: number; wonUnheard: number }> = {};
+const u7Foes: Record<string, { runs: number; met: number; wins: number }> = {};
 const stirSeen: Record<string, number> = {};
 const bags = { stirred: 0, stirredBags: 0, plain: 0, plainBags: 0 };
 const waveMet: Record<string, { fights: number; landed: number; nearest: number; nearestAt?: string; early: number }> = {};
@@ -203,6 +268,7 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   resetForces();
   c.setup?.();
   const w = new World(c.opts);
+  c.after?.(w);
   const inStone = w.heroes.map(() => 0);
   // Y8: did a fight this run played promise a shape? (`reinforce` needs a fight with pack foes, and the route can change
   // as it is played, so this is checked as each fight starts, not from the starting route.)
@@ -304,6 +370,32 @@ for (const c of cases.filter((k) => !only || k.label.startsWith(only))) {
   // The Seen log reads wavesMet: it must hold exactly the shapes this run met.
   if (w.wavesMet !== wBits) waveBadLog(`wavesMet is ${w.wavesMet} but the run met ${wBits}`);
   if (c.label.startsWith('wave ') && !wBits && waveCan) waveBadLog('a fight promised the forced shape but it never came');
+  if (c.u7) {
+    const u7BadLog = (msg: string) => { u7Bad++; console.log(`U7 ${c.label} skill ${c.skill} seed ${c.opts.seed}: ${msg}`); };
+    const won = w.summary().victory;
+    if (c.u7.pair) {
+      const p = (u7Pairs[c.u7.pair] ??= { runs: 0, boss: 0, heard: 0, wins: 0, wonUnheard: 0 });
+      p.runs++;
+      if (won) p.wins++;
+      if (w.bossSpawned) {
+        p.boss++;
+        if (w.bossVariant !== c.u7.version) u7BadLog(`the boss rolled ${w.bossVariant}, not the forced ${c.u7.version}`);
+        if (w.bossEcho !== c.u7.echo) u7BadLog(`the boss echoes ${w.bossEcho || 'nothing'}, not the forced ${c.u7.echo}`);
+        if (w.echoMet) p.heard++;
+        // Not a problem: most echoes come on a slower timer late in the last phase (the Kiln Mother's on every other
+        // signature), so a strong party can win before the first one. Counted, so a pair nobody ever hears shows up.
+        else if (won) p.wonUnheard++;
+      }
+    }
+    if (c.u7.foe) {
+      const k = `${c.u7.foe} skill ${c.skill}`;
+      const m = (u7Foes[k] ??= { runs: 0, met: 0, wins: 0 });
+      m.runs++;
+      if (won) m.wins++;
+      if (w.foesMet & (NEW_FOE_BIT[c.u7.foe] ?? 0)) m.met++;
+      else u7BadLog(`the forced ${c.u7.foe} opener was never met (foesMet ${w.foesMet})`);
+    }
+  }
   const key = `${c.label} skill ${c.skill}`;
   const t = (tally[key] ??= { runs: 0, wins: 0, longest: 0 });
   t.longest = Math.max(t.longest, w.time);
@@ -323,4 +415,11 @@ console.log(`layout fights played ${JSON.stringify(layoutFights)}`);
 console.log(`forced traits and events seen ${JSON.stringify(seenEvents)}; heroes trapped in a stone ${trapped}`);
 console.log(`wave shapes met ${JSON.stringify(Object.fromEntries(Object.entries(waveMet).map(([k, m]) => [k, { fights: m.fights, landed: m.landed, early: m.early, nearestFoe: Math.round(m.nearest), nearestAt: m.nearestAt }])))}; wave problems ${waveBad}`);
 console.log(`stirred fights ${JSON.stringify(stirSeen)}; bags (all heroes) from ${bags.stirred} stirred clears ${bags.stirredBags}, from ${bags.plain} plain clears ${bags.plainBags}; stir problems ${stirBad}`);
+const pairs = Object.entries(u7Pairs);
+if (pairs.length) {
+  console.log(`echo pairs: ${pairs.length}, runs ${pairs.reduce((a, [, p]) => a + p.runs, 0)}, reached the boss ${pairs.reduce((a, [, p]) => a + p.boss, 0)}, echo heard ${pairs.reduce((a, [, p]) => a + p.heard, 0)}, won before the echo came ${pairs.reduce((a, [, p]) => a + p.wonUnheard, 0)}; never heard: ${pairs.filter(([, p]) => !p.heard).map(([k]) => k).join(', ') || 'none'}`);
+  for (const [k, p] of pairs) console.log(`  ${k}: ${p.wins}/${p.runs} wins, boss ${p.boss}, echo heard ${p.heard}${p.wonUnheard ? `, won before it came ${p.wonUnheard}` : ''}`);
+}
+if (Object.keys(u7Foes).length) console.log(`new foes met ${JSON.stringify(u7Foes)}`);
+if (pairs.length || Object.keys(u7Foes).length) console.log(`U7 problems ${u7Bad}`);
 console.log(`runs ${cases.filter((k) => !only || k.label.startsWith(only)).length}, stuck ${stuck}, longest ${longest.toFixed(0)} s, most foes alive ${mostAlive}`);

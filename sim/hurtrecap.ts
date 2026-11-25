@@ -13,10 +13,14 @@ export function hurtRecap(p: Pick<Player, 'hurtBy' | 'lastHurtBy'>): string {
   const pct = (v: number) => `${Math.round((100 * v) / total)}%`;
   // Two causes at most, and a second one only when it took a real share (a phone line stays one or two lines).
   const top = by.slice(0, 2).filter(([, v], k) => k === 0 || v / total >= 0.15);
-  const most = top.map(([n, v]) => `${n} (${pct(v)})`).join(' and ');
+  // One cause took it all: "Hurt only by", no "(100%)". A name that already ends in a bracket ("Burnout (the fight ran too long)")
+  // takes its share inside it, not a second bracket after it.
+  const share = (n: string, v: number) => (top.length === 1 && v === total ? n : n.endsWith(')') ? `${n.slice(0, -1)}, ${pct(v)})` : `${n} (${pct(v)})`);
+  const most = top.map(([n, v]) => share(n, v)).join(' and ');
   const lastBy = p.lastHurtBy ? short(p.lastHurtBy) : '';
   const last = lastBy && lastBy !== top[0][0] ? ` Last blow: ${lastBy}.` : '';
-  return `Hurt most by ${most}.${last}`;
+  const sole = top.length === 1 && top[0][1] === total;
+  return `Hurt ${sole ? 'only' : 'most'} by ${most}.${last}`;
 }
 
 const short = (n: string) => n.split(',')[0].replace(/^The /, 'the ');

@@ -6,6 +6,7 @@ import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OV
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
+import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, wallPush } from './halls';
 
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -735,6 +736,9 @@ export function botInput(w: World, skill = 1): Input {
     const g = w.gates[botGate(w)];
     return { x: g.x - p.x, y: g.y - p.y };
   }
+  // Halls: walk the map between fights, but a telegraph a dead pack left behind still lands, so step out of it first
+  // (the arena's intro does the same through the usual dodge below).
+  if (w.hallsOn && w.phase !== 'fight' && !w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 40) ** 2)) return hallsWalk(w);
   // Glarewell: a Glare beats everything else. Get into a pillar's shade and hold still there.
   if (w.pillars.length) {
     let left = Infinity;
@@ -948,6 +952,24 @@ export function botInput(w: World, skill = 1): Input {
     const side = pressed ? -1 : 1;
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
+  }
+  // Halls, HALLS_RINGS=1 (measuring only, off by default): in a fight, keep clear of other sleeping packs, as of lava (a
+  // player sees a ring from 400 away). It halves double pulls (Kiln t2 Emberwright average bot, seeds 1-300: 130 -> 67
+  // runs with one) but doesn't add wins (79 -> 71 of 300, noise), so it stays a switch until design rules on it.
+  if (w.hallsOn && process.env.HALLS_RINGS === '1') {
+    for (const pk of w.halls!.packs) {
+      if (pk.state !== 'asleep') continue;
+      const dx = p.x - pk.x, dy = p.y - pk.y, d = Math.hypot(dx, dy) || 1;
+      const edge = HALLS.ringKeep;
+      if (d >= edge) continue;
+      // A wall it slides along: drop the part of its move toward the pack, then push out, growing to full 120 inside.
+      const ux = dx / d, uy = dy / d;
+      const inward = -(fx * ux + fy * uy);
+      if (inward > 0) { fx += ux * inward; fy += uy * inward; }
+      const k = Math.min(1, (edge - d) / 120) * Math.max(0.3, Math.hypot(fx, fy));
+      fx += ux * k;
+      fy += uy * k;
+    }
   }
   // Site cards have no movement rules: pulling a Bulwark to a stone (Back to Stone) cost 23 of 80
   // Coldmarrow runs that took it, and a Slagbinder staying in lava (Slag Wade) 10 of 45 Kiln runs.
@@ -1244,10 +1266,14 @@ export function botInput(w: World, skill = 1): Input {
       if (d < 90) { fx += (dx / d) * 0.4 * skill; fy += (dy / d) * 0.4 * skill; }
     }
   }
-  // Don't get pinned against the arena wall.
+  // Don't get pinned against the arena wall (on a Halls map: the nearest room or corridor wall).
   const fromCenter = Math.hypot(p.x, p.y);
   const edge = w.arenaR ?? ARENA;
-  if (!w.stress && fromCenter > edge - 140) {
+  if (w.hallsOn) {
+    const wp = wallPush(w.halls!, p.x, p.y, 140);
+    fx += wp.x * wp.k * 0.04;
+    fy += wp.y * wp.k * 0.04;
+  } else if (!w.stress && fromCenter > edge - 140) {
     const k = ((fromCenter - (edge - 140)) / 140) * 0.04;
     fx -= (p.x / fromCenter) * k;
     fy -= (p.y / fromCenter) * k;
@@ -1443,4 +1469,64 @@ function perceiveLate<T>(w: World, reactS: number, forget: number, salt: number,
 /** a - b, wrapped to -PI..PI. */
 function angleOff(a: number, b: number): number {
   return ((a - b + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+}
+
+// ---------------------------------------------------------------- Phase 18 Halls H1
+
+/**
+ * The order bots clear a Halls map in: the main path (A, B, C, then the door guard E), skipping the side rooms.
+ * HALLS_SIDE=1 also clears R2 (S) and R4 (D) on the way; HALLS_SKIP=1 walks round C, the named fight, when it can.
+ */
+export function hallsOrder(side = hallsEnv('HALLS_SIDE'), skip = hallsEnv('HALLS_SKIP')): PackRole[] {
+  const order: PackRole[] = side ? ['A', 'S', 'B', 'C', 'D', 'E'] : ['A', 'B', 'C', 'E'];
+  return skip ? order.filter((r) => r !== 'C') : order;
+}
+
+function hallsEnv(name: string): boolean {
+  return typeof process !== 'undefined' && process.env?.[name] === '1';
+}
+
+/** The pack the party is heading for (the first in hallsOrder not yet cleared), or null once only the door is left. */
+export function hallsTarget(w: World): HallsPack | null {
+  const m = w.halls;
+  if (!m) return null;
+  for (const role of hallsOrder()) {
+    const pk = m.packs.find((q) => q.role === role);
+    if (pk && pk.state !== 'cleared') return pk;
+  }
+  return null;
+}
+
+/**
+ * Between fights on a Halls map: pick up a bag in reach, else walk the corridors to the next pack on the route
+ * (stepping in wakes it, and the usual fight logic takes over), and with every pack on it cleared, to the boss door.
+ * Keeps clear of the rings of sleeping packs it isn't after. Every hero in a party heads for the same pack.
+ */
+function hallsWalk(w: World): Input {
+  const m = w.halls!;
+  const p = w.player;
+  let bag: { x: number; y: number } | null = null, bd = Infinity;
+  for (const d of w.drops) {
+    if (!d.alive) continue;
+    const dd = Math.hypot(d.x - p.x, d.y - p.y);
+    if (dd < 520 && dd < bd && clearWalk(m, p.x, p.y, d.x, d.y)) { bd = dd; bag = d; }
+  }
+  const target = hallsTarget(w);
+  const goal = bag ?? (target ? { x: target.x, y: target.y } : m.door);
+  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y);
+  let fx = wp.x - p.x, fy = wp.y - p.y;
+  const fl = Math.hypot(fx, fy) || 1;
+  fx /= fl; fy /= fl;
+  // Give other sleeping packs' rings a wide berth (the push grows inside the last 80 units outside the ring).
+  for (const pk of m.packs) {
+    if (pk.state !== 'asleep' || pk === target) continue;
+    const dx = p.x - pk.x, dy = p.y - pk.y, d = Math.hypot(dx, dy) || 1;
+    const edge = HALLS.reach + 80;
+    if (d < edge) { const k = 1.5 * (1 - (d - HALLS.reach) / 80); fx += (dx / d) * Math.max(0, k); fy += (dy / d) * Math.max(0, k); }
+  }
+  const wall = wallPush(m, p.x, p.y, 40);
+  fx += wall.x * wall.k * 0.5;
+  fy += wall.y * wall.k * 0.5;
+  const len = Math.hypot(fx, fy) || 1;
+  return { x: fx / len, y: fy / len };
 }

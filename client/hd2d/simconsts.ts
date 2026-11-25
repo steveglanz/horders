@@ -14,4 +14,12 @@ export const SIM = {
   overflowSafeR: 190,
   /** OVERFLOW.warn: seconds the Overflow warns before it rises. */
   overflowWarn: 2.5,
+  /** HALLS.corridor (sim/halls.ts): corridor width on a Halls map. */
+  hallsCorridor: 160,
+  /** HALLS.reach: a sleeping pack wakes when a hero steps this close; its red ring's radius. */
+  hallsReach: 200,
+  /** HALLS.showRing: the ring shows only with a hero this close. */
+  hallsShowRing: 400,
+  /** DOOR_ROOM: the room index of the boss door's alcove. */
+  hallsDoorRoom: 6,
 } as const;
