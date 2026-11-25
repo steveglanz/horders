@@ -244,6 +244,58 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     const arena = new World({ seed: 2, tier: 2 });
     expect(arena.hallsResting).toBe(false);
   });
+  it('H2b: a room seals 1 s after its pack wakes, keeps heroes and foes in, and opens once the pack is cleared', () => {
+    const w = halls(2, { invulnerable: true });
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[1];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    w.step(idle);
+    w.step(idle);
+    expect(a.state).toBe('awake');
+    expect(rm.lock).toBeGreaterThanOrEqual(0);
+    expect(rm.lock!).toBeLessThan(HALLS.lockDelay);
+    // Still open: a hero can step into the corridor south.
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) w.step(idle);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    // Sealed: walking south for 3 s stops at the rim.
+    run(w, () => false, 3, () => ({ x: 0, y: 1 }));
+    expect(Math.hypot(w.player.x - rm.x, w.player.y - rm.y)).toBeLessThanOrEqual(rm.r);
+    for (const e of w.enemies) if (e.alive) expect(Math.hypot(e.x - rm.x, e.y - rm.y)).toBeLessThanOrEqual(rm.r + 0.01);
+    // Cleared: the grates lift.
+    for (const e of w.enemies) if (e.alive) { e.hp = 0; e.alive = false; w.aliveEnemies--; }
+    run(w, () => rm.lock === -1, 1, () => idle);
+    expect(a.state).toBe('cleared');
+    expect(rm.lock).toBe(-1);
+    expect(rm.lifted).toBeGreaterThanOrEqual(0);
+  });
+
+  it('H2b: a hero in the doorway when the grates drop is pushed in; walking away before then leashes the pack', () => {
+    // Doorway: wake A, then stand in the R0-R1 corridor mouth just outside R1's rim.
+    const w = halls(2, { invulnerable: true });
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[1];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    w.step(idle);
+    put(w, rm.x, rm.y + rm.r + 30);
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) w.step(idle);
+    expect(Math.hypot(w.player.x - rm.x, w.player.y - rm.y)).toBeLessThanOrEqual(rm.r);
+    expect(a.state).toBe('awake');
+    // Leash: wake it, then be well down the corridor when the grates drop.
+    const v = halls(2, { invulnerable: true });
+    const b = pack(v, 'A');
+    const r1 = v.halls!.rooms[1];
+    put(v, b.x, b.y + HALLS.reach - 10);
+    v.step(idle);
+    put(v, r1.x, r1.y + r1.r + 200);
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) v.step(idle);
+    expect(b.state).toBe('asleep');
+    expect(v.aliveEnemies).toBe(0);
+    expect(r1.lock).toBe(-1);
+    expect(v.phase).toBe('cleared');
+  });
+
   it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
     const arena = new World({ seed: 2, tier: 2 });
     const w = halls(2);
