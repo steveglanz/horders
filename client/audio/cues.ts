@@ -987,18 +987,16 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
 /** flameAlone's length (the ash vent's 1.1 s hiss), so it ends as the lone flame flares. */
 export const FLAME_ALONE_LEAD = 1.1;
 /**
- * YSMERETV2 stage 2: a flame no hero is near builds to its flare at YSMERETV2.flareAfter s. Its warning (flameAlone,
- * panned to the flame) starts so it ends as the flare goes off, and again each time the flame is left alone.
+ * YSMERETV2 stage 2: a flame no hero is near builds to its flare at YSMERETV2.flareAfter s. Its warning (flameAlone)
+ * starts so it ends as the flare goes off, and again each time the flame is left alone. It is must-hear, so it plays
+ * centred like every warning (the mixer never pans PRIORITY cues).
  */
-export function flameCues(state: { away: number[] }, flames: CueContext['ysFlames'], listen?: CueContext['listen']): Cue[] {
+export function flameCues(state: { away: number[] }, flames: CueContext['ysFlames']): Cue[] {
   const out: Cue[] = [];
   const at = YSMERETV2.flareAfter - FLAME_ALONE_LEAD;
   const now = (flames ?? []).map((f) => f.away);
   (flames ?? []).forEach((f, k) => {
-    if (f.away >= at && (state.away[k] ?? 0) < at) {
-      const o = offsetAt(listen, f.x, f.y);
-      out.push({ id: 'flameAlone', pan: o === null ? undefined : o * PAN_MAX });
-    }
+    if (f.away >= at && (state.away[k] ?? 0) < at) out.push({ id: 'flameAlone' });
   });
   state.away = now;
   return out;
