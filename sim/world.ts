@@ -661,7 +661,9 @@ export type SimEvent =
   /** Phase 18 Halls: map pack `pack` woke (World.halls.packs), and the party went through the boss door. */
   | { type: 'hallsWake'; pack: number }
   | { type: 'hallsDoor' }
-  | { type: 'hallsLock'; room: number }
+  | { type: 'hallsGrateWarn'; room: number }
+  | { type: 'hallsGrateDrop'; room: number }
+  | { type: 'hallsGrateLift'; room: number }
   | { type: 'hallsLeash'; room: number }
   | { type: 'encounterClear'; index: number; id: EncounterId }
   | { type: 'end'; victory: boolean };
@@ -2372,9 +2374,16 @@ export class World {
         if (rm.lifted !== undefined) rm.lifted += dt;
         if (!awake) return;
         rm.lock = 0;
+        this.events.push({ type: 'hallsGrateWarn', room: i });
         return;
       }
-      if (!awake) { rm.lock = -1; rm.lifted = 0; return; }
+      if (!awake) {
+        // Lifts once no pack in the room is awake (cleared). A seal that never dropped just stops warning.
+        if (rm.lock >= HALLS.lockDelay) this.events.push({ type: 'hallsGrateLift', room: i });
+        rm.lock = -1;
+        rm.lifted = 0;
+        return;
+      }
       const was = rm.lock;
       rm.lock += dt;
       if (was >= HALLS.lockDelay || rm.lock < HALLS.lockDelay) return;
@@ -2412,7 +2421,7 @@ export class World {
         e.x = e.px = rm.x + (e.x - rm.x) * k;
         e.y = e.py = rm.y + (e.y - rm.y) * k;
       }
-      this.events.push({ type: 'hallsLock', room: i });
+      this.events.push({ type: 'hallsGrateDrop', room: i });
     });
   }
 
