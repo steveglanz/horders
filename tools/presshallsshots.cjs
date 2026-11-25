@@ -3,7 +3,8 @@
 //   halls  (?hallsbeta=1): the party in a fight in a sealed room, the hero outside a sealed room (the green "Walk in"
 //          tag), and the map (maponly stops after it).
 //   oskel  (straight to the boss): a Downstroke plate with a Pressed hero, so we can see who is Pressed at a glance.
-// Usage: npm run build && node tools/presshallsshots.cjs <outDir> [p320|l568] [halls|oskel] [maponly] [seed]
+//          With `v2` (?oskelv2=1): stage 2's running belt and crush line, a flip's warning, and stage 3.
+// Usage: npm run build && node tools/presshallsshots.cjs <outDir> [p320|l568] [halls|oskel] [v2|maponly] [seed]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
@@ -28,7 +29,7 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
-  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=${seed}&god=1&halls=1&hallsbeta=1&hd2d=1`);
+  await page.goto(`http://127.0.0.1:${srv.address().port}/?seed=${seed}&god=1&halls=1&hallsbeta=1&hd2d=1${v2 ? '&oskelv2=1' : ''}`);
   await page.waitForFunction(() => !!window.__ember && !document.getElementById('startBtn').disabled, null, { timeout: 60000 });
   await page.evaluate(() => { const h = window.__ember.hero(); h.maxTier = Math.max(h.maxTier, 12); h.runs = Math.max(h.runs, 3); });
   await page.evaluate(() => document.getElementById('startBtn').click());
@@ -38,7 +39,7 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     const s = window.__ember.scene(); s.warp = 1;
     const party = [{ cls: 'slagbinder', name: 'Slagbinder (bot)' }, { cls: 'lumen', name: 'Lumen (bot)' }];
     const opts = { cls: 'bulwark', dungeon: 'pressworks', tier: 10, invulnerable: true, seed, party, partySize: 3, fillBots: 2 };
-    if (mode === 'halls') Object.assign(opts, { halls: true, hallsBeta: true }); else Object.assign(opts, { route: ['oskel'] });
+    if (mode === 'halls') Object.assign(opts, { halls: true, hallsBeta: true }); else Object.assign(opts, { route: ['oskel'], oskelV2: v2 });
     s.scene.restart({ opts, hud: s.hud, onEnd: () => {} });
   }, { seed, mode, v2 });
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 2, null, { timeout: 120000 });
@@ -48,11 +49,11 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     return {
       t: Math.round(w.time * 10) / 10, phase: w.phase, heroes: w.heroes.map((h, k) => { const p = w.heroData(k).player; return `${h.cls} ${p.hp > 0 ? 'up' : 'down'} ${JSON.stringify(at(p.x, p.y))}${(p.sunderT ?? 0) > 0 ? ' SUNDERED' : ''}`; }),
       sealed: w.halls ? w.halls.rooms.map((r, i) => (r.lock ?? -1) >= 1 && !r.lifted ? i : -1).filter((i) => i >= 0) : null,
-      slag: w.slagPatches?.length ?? 0, stage: w.ondrelStage ?? 0,
+      stage: w.osStage ?? 0, flipT: Math.round((w.osFlipT ?? -1) * 10) / 10,
     };
   });
   const report = {};
-  const shot = async (name) => { await page.screenshot({ path: path.join(out, `${size}-${mode}-${name}.png`) }); report[name] = await info(); };
+  const shot = async (name) => { await page.screenshot({ path: path.join(out, `${size}-${mode}${v2 ? 'v2' : ''}-${name}.png`) }); report[name] = await info(); };
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 1; });
   if (mode === 'halls') {
     await page.waitForTimeout(2500);
@@ -102,6 +103,21 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     });
     await page.waitForTimeout(1500);
     await shot('2-pressed-on-plate');
+    if (v2) {
+      const hold = () => { const s = window.__ember.scene(); s.warp = 0; s.hud.bannerTimer = performance.now() + 60000; };
+      await page.evaluate(() => { const w = window.__ember.scene().world; const e = w.enemies[w.bossIndex]; if (e && e.hp > e.maxHp * 0.54) e.hp = e.maxHp * 0.54; window.__ember.scene().warp = 1; });
+      await page.waitForFunction((h) => { const s = window.__ember.scene(); if (s.world.osStage === 2) { eval(h)(); return true; } return false; }, `(${hold})`, { timeout: 1500000, polling: 30 }).catch(() => errs.push('no stage 2'));
+      await page.waitForTimeout(1200);
+      await shot('3-belt');
+      await page.evaluate(() => { window.__ember.scene().warp = 1; });
+      await page.waitForFunction(() => { const s = window.__ember.scene(); if (s.world.osFlipT > 0.6) { s.warp = 0; return true; } return false; }, null, { timeout: 1500000, polling: 30 }).catch(() => errs.push('no flip'));
+      await page.waitForTimeout(1200);
+      await shot('4-flip-warning');
+      await page.evaluate(() => { const w = window.__ember.scene().world; const e = w.enemies[w.bossIndex]; if (e && e.hp > e.maxHp * 0.19) e.hp = e.maxHp * 0.19; window.__ember.scene().warp = 1; });
+      await page.waitForFunction((h) => { const s = window.__ember.scene(); if (s.world.osStage === 3) { eval(h)(); return true; } return false; }, `(${hold})`, { timeout: 1500000, polling: 30 }).catch(() => errs.push('no stage 3'));
+      await page.waitForTimeout(1200);
+      await shot('5-stage3');
+    }
   }
   report.banners = await page.evaluate(() => window.__banners);
   console.log(JSON.stringify(report, null, 1));

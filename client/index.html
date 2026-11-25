@@ -148,6 +148,8 @@
   .pf.spent .gtile { opacity: 0.55; }
   .pf.pressed .pfd { color: #ffe3e0; background: #b3263a; }
   .pf.pressed { border-color: rgba(255,77,61,0.7); }
+  /* Phone pass 25 Nov: role chip plus "Pressed" squeezed the name out of the row; for its 20 s the chip gives way. */
+  .pf.pressed .pfr { display: none; }
   /* The badge takes the role chip's place, so the name stays readable. */
   .pf:is(.decree, .spent) .pfr { display: none; }
   @keyframes decreePulse { from { box-shadow: 0 0 4px rgba(255,138,61,0.35); } to { box-shadow: 0 0 12px rgba(255,138,61,0.75); } }
