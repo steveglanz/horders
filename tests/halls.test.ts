@@ -1137,7 +1137,9 @@ describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
     const clocks = body('dungeonClocks');
     // Every per-dungeon clock call (this.xClock(dt), this.runGlarewell(dt)) lives in dungeonClocks alone.
     const calls = [...src.matchAll(/this\.(\w+Clock|runGlarewell)\(dt\)/g)].map((m) => m[1]);
-    const shared = new Set(['layoutClock', 'arenaEventClock', 'burnoutClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock']);
+    const shared = new Set(['layoutClock', 'arenaEventClock', 'burnoutClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock',
+      // YSMERETV2 stage 2's clock: ysmeretClock (run by dungeonClocks) hands over to it, so it runs on the map too.
+      'flamesClock']);
     for (const c of new Set(calls)) {
       if (shared.has(c)) continue;
       const n = calls.filter((x) => x === c).length;

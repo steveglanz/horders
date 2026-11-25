@@ -1103,6 +1103,8 @@ export class GameScene extends Phaser.Scene {
       inLava: (w.lava.length > 0 && inLavaNow(w)) || (w.slagPatches.length > 0 && w.player.hp > 0 && w.inSlag(w.player.x, w.player.y)),
       slag: w.slagPatches,
       kmHeat: w.kmStage ? w.kmHeat : undefined,
+      // One entry per flame slot (a fallen flame counts as covered), so flameCues keeps each flame's own edge.
+      ysFlames: w.ysStage === 2 ? ([[w.ysF0, w.ysAway0], [w.ysF1, w.ysAway1]] as const).map(([j, away]) => { const f = j >= 0 ? w.enemies[j] : undefined; return f?.alive ? { x: f.x, y: f.y, away } : { x: 0, y: 0, away: 0 }; }) : undefined,
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: this.listenFrom(w),
@@ -1483,6 +1485,9 @@ export class GameScene extends Phaser.Scene {
             // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
             if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
+          } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
+            // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
+            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', "She splits in two. Keep a hero on each flame; the tank's flame still Bellows");
           } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');

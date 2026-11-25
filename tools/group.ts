@@ -35,6 +35,7 @@ const skill = Number(process.env.SKILL ?? 1);
 const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
 // HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta).
 // ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md).
+// YSMERETV2=1 plays the two-stage Ysmeret (design, ysmeret-v2.md); TUNE=YSMERETV2.split=0 keeps only her Bellow change.
 const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
 const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
 if (grants.length) {
@@ -89,7 +90,7 @@ const worstBy: Record<string, number> = {};
 // whether the tank stands in a vent when Bellow Slam lands.
 const ytrace = process.env.YTRACE === '1';
 const yt = { fights: 0, wins: 0, firstRole: {} as Record<string, number>, firstCause: {} as Record<string, number>, cause: {} as Record<string, number>,
-  firstAt: [] as number[], endAt: [] as number[], enraged: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
+  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, s2ticks: 0, s2same: 0, s2time: [] as number[], s2start: 0, s2pair: 0, s2hurt: {} as Record<string, number>, s2gain: {} as Record<string, number>, s2reach: 0, s2dist: 0, flares: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
 let ysFirst = false, ysOn = false;
 const role = (cls: string) => (cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'dps');
 const bump2 = (o: Record<string, number>, k: string) => (o[k] = (o[k] ?? 0) + 1);
@@ -98,7 +99,28 @@ function ysTick(w: World, before: number[]): void {
   if (!b || b.kind !== 'ysmeret') return;
   if (!ysOn) { ysOn = true; ysFirst = false; yt.fights++; }
   const f = b.alive ? b.hp / b.maxHp : 0;
+  if (w.ysStage === 2) {
+    if (!yt.s2start) { yt.s2start = w.time; yt.split++; }
+    const fl = w.enemies.filter((e) => e.alive && e.kind === 'ysmeret');
+    if (fl.length === 2) {
+      const near = (k: number) => { const q = w.hero(k).player; return fl.reduce((bi, e, j) => (Math.hypot(e.x - q.x, e.y - q.y) < Math.hypot(fl[bi].x - q.x, fl[bi].y - q.y) ? j : bi), 0); };
+      const up = w.heroes.map((_, k) => k).filter((k) => w.hero(k).player.hp > 0);
+      yt.s2ticks++;
+      if (up.length > 1 && up.every((k) => near(k) === near(up[0]))) yt.s2same++;
+      // Can the healer reach the tank? (LUMEN_RANGE 500, before Long Note ranks.)
+      const ti = w.heroes.findIndex((h) => h.cls === 'bulwark'), li = w.heroes.findIndex((h) => h.cls === 'lumen');
+      if (ti >= 0 && li >= 0 && up.includes(ti) && up.includes(li)) {
+        const a = w.hero(ti).player, c = w.hero(li).player, d = Math.hypot(a.x - c.x, a.y - c.y);
+        yt.s2pair++; yt.s2dist += d; if (d <= 500) yt.s2reach++;
+        for (const k of [ti, li]) {
+          const dh = w.hero(k).player.hp - before[k], r = role(w.heroes[k].cls);
+          if (dh > 0) yt.s2gain[r] = (yt.s2gain[r] ?? 0) + dh; else yt.s2hurt[r] = (yt.s2hurt[r] ?? 0) - dh;
+        }
+      }
+    }
+  }
   for (const ev of w.events) {
+    if (ev.type === 'ysFlare') yt.flares++;
     if (ev.type === 'soak' && ev.owner === -2) { yt.vents++; if (!ev.ok) yt.ventsMissed++; }
     if (ev.type === 'castDone' && ev.name === 'Bellow Slam') {
       yt.bellows++;
@@ -116,7 +138,7 @@ function ysTick(w: World, before: number[]): void {
       const casts = w.events.filter((e) => e.type === 'castDone').map((e) => (e as { name: string }).name);
       const vent = w.events.some((e) => e.type === 'soak' && e.owner === -2 && !e.ok);
       const why = vent ? 'empty vent' : casts.includes('Bellow Slam') ? 'Bellow Slam' : casts.includes('Scatter Embers') ? 'Scatter Embers' : (q.lastHurtBy ?? 'other');
-      const tag = why + (w.bossEnraged ? ' (enraged)' : '');
+      const tag = why + (w.bossEnraged ? ' (enraged)' : '') + (w.ysStage ? ` [S${w.ysStage}]` : '');
       bump2(yt.cause, role(h.cls) + ': ' + tag);
       if (!ysFirst) { ysFirst = true; bump2(yt.firstRole, role(h.cls)); bump2(yt.firstCause, role(h.cls) + ': ' + tag); yt.firstAt.push(Math.round(100 * f)); }
     }
@@ -125,6 +147,7 @@ function ysTick(w: World, before: number[]): void {
 function ysEnd(w: World, won: boolean): void {
   if (!ysOn) return;
   ysOn = false;
+  if (yt.s2start) { yt.s2time.push(Math.round(w.time - yt.s2start)); yt.s2start = 0; }
   if (won) yt.wins++;
   else { const b = w.enemies[w.bossIndex]; yt.endAt.push(b ? Math.round((100 * b.hp) / b.maxHp) : 0); if (w.heroes.every((_, i) => w.hero(i).player.hp <= 0)) yt.deadAll++; }
   if (w.bossEnraged) yt.enraged++;
@@ -136,12 +159,14 @@ function ysReport(): void {
   console.log(`ytrace firstDeath role=${JSON.stringify(yt.firstRole)} herHpAtFirstDeath avg=${avg(yt.firstAt)}% median=${med(yt.firstAt)}%  herHpAtLoss avg=${avg(yt.endAt)}%`);
   console.log(`ytrace firstDeathCause=${JSON.stringify(yt.firstCause)}`);
   console.log(`ytrace allDeaths=${JSON.stringify(yt.cause)}`);
+  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flares=${yt.flares} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}% tankInHealReach=${(100 * yt.s2reach / Math.max(1, yt.s2pair)).toFixed(0)}% tankHealerDist=${(yt.s2dist / Math.max(1, yt.s2pair)).toFixed(0)}`);
+  if (yt.split) console.log(`ytrace stage2 (tank and healer both up) net hp lost=${JSON.stringify(Object.fromEntries(Object.entries(yt.s2hurt).map(([k, v]) => [k, Math.round(v)])))} hp gained=${JSON.stringify(Object.fromEntries(Object.entries(yt.s2gain).map(([k, v]) => [k, Math.round(v)])))}`);
 }
 for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, ondrelV2: process.env.ONDRELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);

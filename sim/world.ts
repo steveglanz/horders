@@ -603,6 +603,7 @@ export type SimEvent =
   | { type: 'brandBurst'; x: number; y: number; r: number }
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
+  | { type: 'ysFlare'; /** YSMERETV2 stage 2: a flame with no hero near it flared and hit every hero. */ x: number; y: number }
   | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst. */ source?: 'slagBurst' }
   /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
   | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
@@ -806,6 +807,8 @@ export interface WorldOptions {
   bossV2?: boolean;
   /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
   ondrelV2?: boolean;
+  /** YSMERETV2 (?ysmeretv2=1, design 25 Nov, ysmeret-v2.md): Ysmeret in two stages, the vents and then two flames. */
+  ysmeretV2?: boolean;
   /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
   hallsBeta?: boolean;
 }
@@ -908,6 +911,21 @@ export class World {
   readonly ondrelV2: boolean;
   /** ONDRELV2: 0 = not a v2 fight, else his stage (1 the hammer, 2 the burning slag, 3 the last heat). */
   ondrelStage = 0;
+  readonly ysmeretV2: boolean;
+  /** YSMERETV2: 0 off, 1 the vents, 2 twofold (two flames). */
+  ysStage = 0;
+  /** YSMERETV2 stage 2: the two flames (enemy indices), where each landed (it stays there), and how long each has had no hero near it. */
+  ysF0 = -1;
+  ysF1 = -1;
+  ysAx0 = 0;
+  ysAy0 = 0;
+  ysAx1 = 0;
+  ysAy1 = 0;
+  ysAway0 = 0;
+  ysAway1 = 0;
+  ysBel0 = 0;
+  /** YSMERETV2 stage 2: the flames' one shared health (both show it). */
+  ysPool = 0;
   /**
    * ONDRELV2 stage 2: the burning slag each Anvilfall leaves (design, 25 Nov: flat patches, no block). A patch burns a
    * hero standing in it until stage 3; then `glow` counts down to its burst (0 = still burning).
@@ -1316,6 +1334,7 @@ export class World {
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
     this.bossV2 = !!opts.bossV2 && !this.firstDelve;
     this.ondrelV2 = !!opts.ondrelV2 && !this.firstDelve;
+    this.ysmeretV2 = !!opts.ysmeretV2 && !this.firstDelve;
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
@@ -2358,6 +2377,8 @@ export class World {
           this.echoNext = true; this.ventMove = this.bossVariant;
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
+          this.ysStage = this.ysmeretV2 ? 1 : 0;
+          this.ysF0 = this.ysF1 = -1;
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'oskel') {
@@ -5667,7 +5688,8 @@ export class World {
 
       if (d < e.def.radius + PLAYER_RADIUS && e.touchCd <= 0 && !(this.kmStage === 2 && e.kind === 'kilnMother')) {
         e.touchCd = 0.6;
-        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1);
+        const mult = (e.def.rank === 'boss' && this.bossEnraged ? 2.5 : 1) * (e.kind === 'vorhulm' ? 1 + COAL.emberDamage * this.coalFed : 1)
+          * (e.kind === 'ysmeret' && this.ysStage === 2 ? YSMERETV2.melee : 1);
         this.hurtPlayer(e.def.damage * mult * this.tierDamage, i);
         // A Snuffer's touch drinks the hero's light.
         if (e.kind === 'snuffer' && this.player.coal !== undefined) this.player.coal = Math.max(0, this.player.coal - COLD.snufferDim);
@@ -6796,6 +6818,11 @@ export class World {
       });
       this.events.push({ type: 'explode', x: e.x, y: e.y, r: 120 });
     }
+    // YSMERETV2 stage 2: the flames share one health, so when one goes out the other does too (and that one is the win).
+    if (e.kind === 'ysmeret' && this.ysStage === 2) {
+      const other = this.enemies.findIndex((o, j) => j !== i && o.alive && o.kind === 'ysmeret');
+      if (other >= 0) { this.bossIndex = other; this.enemies[other].hp = 0; this.killEnemy(other); return; }
+    }
     if (e.def.rank === 'boss') {
       this.victory = true;
       // The run ends on this tick (or moves to the shadow fight), so boss loot goes straight to the bags.
@@ -7614,6 +7641,8 @@ export class World {
       this.bossEnraged = true;
       this.events.push({ type: 'bossEnrage' });
     }
+    if (this.ysStage === 2) { this.flamesClock(dt); return; }
+    if (this.ysStage === 1 && YSMERETV2.split > 0 && e.hp <= e.maxHp * YSMERETV2.split) { this.ysSplit(i); return; }
     this.twinVentT -= dt;
     this.scatterT -= dt;
     this.bellowT -= dt;
@@ -7665,7 +7694,8 @@ export class World {
       }
     }
     if (e.castId || e.stunT > 0) return;
-    if (this.bellowT <= 0) {
+    // YSMERETV2 stage 1: Bellow Slam waits while her vents are open (its timer runs on; it goes off once they close).
+    if (this.bellowT <= 0 && !(this.ysStage === 1 && YSMERETV2.bellowWaits && (ventsOpen || this.rollLeft > 0))) {
       this.bellowT = YSMERET.bellowEvery;
       this.bellowTarget = this.targetOf(i, 0);
       this.startCast(i, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
@@ -7674,6 +7704,100 @@ export class World {
       this.startCast(i, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
     }
   }
+  /**
+   * YSMERETV2: at `split` of her health she splits into two flames `apart` px apart. They share one health (what she had
+   * left, x `hpMult`) and each stays where it landed.
+   */
+  private ysSplit(i: number): void {
+    const e = this.enemies[i];
+    if (e.castId) this.cancelCast(i);
+    // Her open vents go with her stage 1.
+    for (const t of this.telegraphs) if (t.alive && t.kind === 'soak' && t.owner === -2) t.alive = false;
+    this.rollLeft = 0;
+    const pool = e.hp * YSMERETV2.hpMult;
+    const tgt = this.heroPlayer(this.targetOf(i, 0));
+    const a = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
+    const d = YSMERETV2.apart / 2;
+    const cx = e.x, cy = e.y;
+    const j = this.spawn('ysmeret', cx - Math.cos(a) * d, cy - Math.sin(a) * d);
+    e.x = e.px = cx + Math.cos(a) * d;
+    e.y = e.py = cy + Math.sin(a) * d;
+    this.clampArena(e, e.def.radius);
+    e.maxHp = e.hp = pool;
+    e.abilityT = YSMERETV2.firstScatter;
+    this.ysF0 = i; this.ysAx0 = e.x; this.ysAy0 = e.y; this.ysAway0 = 0;
+    this.ysF1 = j; this.ysAway1 = 0;
+    if (j >= 0) {
+      const f = this.enemies[j];
+      this.clampArena(f, f.def.radius);
+      f.maxHp = f.hp = pool;
+      f.abilityT = YSMERETV2.firstScatter + YSMERET.scatterEvery / 2; // the two Scatters come half a timer apart
+      this.ysAx1 = f.x; this.ysAy1 = f.y;
+    }
+    this.ysPool = pool;
+    this.ysBel0 = YSMERETV2.bellowEvery * 0.5;
+    this.ysStage = 2;
+    this.bossPhase = 2;
+    this.events.push({ type: 'phase', phase: 2 });
+  }
+
+  /**
+   * YSMERETV2 stage 2: the flames share their health, stay on their spots, cast Scatter Embers on their own timers, and
+   * one with no hero within `flareR` for `flareAfter` s flares (every hero takes YSMERET.ventBlast, like an empty vent).
+   */
+  private flamesClock(dt: number): void {
+    // One health: whatever either flame lost since the last tick comes off both.
+    let lost = 0;
+    for (const j of [this.ysF0, this.ysF1]) if (j >= 0 && this.enemies[j].alive && this.enemies[j].kind === 'ysmeret') lost += Math.max(0, this.ysPool - this.enemies[j].hp);
+    this.ysPool = Math.max(1, this.ysPool - lost);
+    // The flame that holds the tank (her threat target); with no tank up, the first flame.
+    let tankSlot = 0;
+    for (const [slot, j] of [[0, this.ysF0], [1, this.ysF1]] as const) {
+      if (j < 0 || !this.enemies[j].alive || this.enemies[j].kind !== 'ysmeret') continue;
+      const t = this.targetOf(j, 0);
+      if (t >= 0 && this.isTank(t) && this.heroPlayer(t).hp > 0) { tankSlot = slot; break; }
+    }
+    if (tankSlot === 0 && !(this.ysF0 >= 0 && this.enemies[this.ysF0].alive)) tankSlot = 1;
+    for (const [slot, j] of [[0, this.ysF0], [1, this.ysF1]] as const) {
+      if (j < 0) continue;
+      const f = this.enemies[j];
+      if (!f.alive || f.kind !== 'ysmeret') continue;
+      f.hp = this.ysPool;
+      // Leashed: it fights from where it landed.
+      const ax = slot ? this.ysAx1 : this.ysAx0, ay = slot ? this.ysAy1 : this.ysAy0;
+      const dx = f.x - ax, dy = f.y - ay, dd = Math.hypot(dx, dy);
+      if (dd > YSMERETV2.leash) { f.x = ax + (dx / dd) * YSMERETV2.leash; f.y = ay + (dy / dd) * YSMERETV2.leash; }
+      let near = false;
+      for (let k = 0; k < this.heroes.length; k++) {
+        const q = this.heroPlayer(k);
+        if (q.hp > 0 && dist2(q.x, q.y, f.x, f.y) < YSMERETV2.flareR * YSMERETV2.flareR) { near = true; break; }
+      }
+      let away = slot ? this.ysAway1 : this.ysAway0;
+      away = near ? 0 : away + dt;
+      if (away >= YSMERETV2.flareAfter) {
+        away = 0;
+        this.events.push({ type: 'ysFlare', x: f.x, y: f.y });
+        this.eachHero(() => { if (this.player.hp > 0) this.hurtPlayer(YSMERET.ventBlast * YSMERETV2.flareMult * this.tierDamage, j, false, 'a lone flame'); }, true);
+      }
+      if (slot) this.ysAway1 = away; else this.ysAway0 = away;
+      // One Bellow timer (ysBel0), run by the flame that holds the tank.
+      const bellows = YSMERETV2.bellowEvery > 0 && slot === tankSlot;
+      if (bellows) this.ysBel0 -= dt;
+      if (f.castId || f.stunT > 0) continue;
+      if (bellows && this.ysBel0 <= 0) {
+        // Bellow Slam on the tank this flame is on.
+        this.ysBel0 = YSMERETV2.bellowEvery;
+        this.bellowTarget = this.targetOf(j, 0);
+        this.startCast(j, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
+        continue;
+      }
+      if (f.abilityT > 0) continue;
+      f.abilityT = YSMERET.scatterEvery; // runAbilities counts it down
+      this.startCast(j, 'scatter', 'Scatter Embers', YSMERET.scatterCast, false);
+    }
+  }
+
+
 
   /**
    * Oskel's clocks. Downstroke: one gold circle someone must stand under; everyone under it
@@ -10193,6 +10317,23 @@ export const YSMERET = {
   bellow: 90, bellowEvery: 9, bellowCast: 1.5, firstBellow: 5,
   /** Soft enrage: vents open twice as often. */
   enrageAfter: 270,
+};
+
+/**
+ * YSMERETV2 (design 25 Nov, ysmeret-v2.md): starting values. Stage 1 is today's fight, but Bellow Slam waits while her vents
+ * are open (`bellowWaits`). At `split` of her health she splits into two flames `apart` px apart (inside a Lumen's heal reach,
+ * 500) that share one health (what she had left x `hpMult`). Each stays within `leash` of where it landed, hits with
+ * `melee` of her melee damage and casts Scatter Embers on its own timer (offset by half); only the flame on the tank Bellows
+ * (`bellowEvery`). A flame with no hero within `flareR` for `flareAfter` s flares and hits every hero for YSMERET.ventBlast.
+ * `split: 0` keeps stage 1 only. Tuned 25 Nov (h4b-ashvents-grid.md): hpMult 1.6, bellowEvery 12.
+ */
+export const YSMERETV2 = {
+  bellowWaits: 1, split: 0.5, apart: 420, melee: 1, firstScatter: 3,
+  hpMult: 1.6, leash: 40, flareR: 150, flareAfter: 3,
+  /** A flare hits for YSMERET.ventBlast x this. */
+  flareMult: 1,
+  /** Stage 2: the flame holding the tank (her threat target; the first flame with no tank up) Bellow Slams every this many s (0 = none). */
+  bellowEvery: 12,
 };
 
 export const OSKEL = {

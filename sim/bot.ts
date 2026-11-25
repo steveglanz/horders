@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { YSMERETV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1109,8 +1109,21 @@ export function botInput(w: World, skill = 1): Input {
     }
   }
   // The Ashvents (G3): spread out while Scatter Embers is winding up.
+  // YSMERETV2 stage 2: either flame's Scatter counts.
   const scatter = w.heroes.length > 1 && process.env.NOSPREAD !== '1' && w.bossIndex >= 0
-    && w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter';
+    && (w.ysStage === 2 ? w.enemies.some((e) => e.alive && e.kind === 'ysmeret' && e.castId === 'scatter')
+      : w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter');
+  // YSMERETV2 stage 2 (design's bot rule): the tank holds the flame with more health, everyone else burns the one with
+  // less first, then the other. Walking up to it is how a bot picks it (auto-attacks hit the nearest foe).
+  const flame = w.ysStage === 2 ? focusFlame(w) : null;
+  if (flame) {
+    const dx = flame.x - p.x, dy = flame.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    // Melee closes in; a ranged hero holds inside the flare range (YSMERETV2.flareR), and hurries if it has drifted out.
+    const want = melee ? flame.def.radius + 30 : YSMERETV2.flareR * 0.7;
+    const k = d > YSMERETV2.flareR - 10 ? 0.5 : 0.12;
+    if (d > want) { fx += (dx / d) * k * skill; fy += (dy / d) * k * skill; }
+  }
   if (scatter) {
     const near = nearestAlly(w);
     if (near && near.d < SCATTER_GAP) {
@@ -1418,6 +1431,22 @@ export function botInput(w: World, skill = 1): Input {
   const len = Math.hypot(fx, fy) || 1;
   if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
   return { x: fx / len, y: fy / len, cast };
+}
+
+/**
+ * YSMERETV2 stage 2 (design's bot rule): the tank on the flame it held in stage 1 (the most threat), the healer on the
+ * other, and any other heroes split evenly, so neither flame is ever left alone long enough to flare.
+ */
+function focusFlame(w: World): Enemy | null {
+  const f0 = w.ysF0 >= 0 && w.enemies[w.ysF0].alive ? w.enemies[w.ysF0] : null;
+  const f1 = w.ysF1 >= 0 && w.enemies[w.ysF1].alive ? w.enemies[w.ysF1] : null;
+  if (!f0 || !f1) return f0 ?? f1;
+  if (w.isTank(w.acting)) return f0;
+  if (w.cls === 'lumen') return f1;
+  // The others alternate, the first one with the tank.
+  let n = 0;
+  for (let k = 0; k < w.acting; k++) if (!w.isTank(k) && w.heroes[k].cls !== 'lumen') n++;
+  return n % 2 === 0 ? f0 : f1;
 }
 
 /**
