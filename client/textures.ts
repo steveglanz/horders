@@ -970,9 +970,15 @@ function drawBallast(ctx: Ctx, _s: number, f: number): void {
   for (let k = 0; k < 6; k++) { const a = 0.35 + k * 0.45; ctx.fillRect(28 + Math.cos(a) * 15 - 0.8, 26 + bob + Math.sin(a) * 2.8 - 0.8, 1.6, 1.6); }
   // Domed helmet with a glowing porthole.
   ell(ctx, 30, 13 + bob, 9, 8); shade(ctx, '#8a96a2', '#3a424c', 5, 21, 1.6);
-  ell(ctx, 33, 13 + bob, 4.8, 4.8); ctx.fillStyle = '#c9a050'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
-  softGlow(ctx, 33, 13 + bob, 6, 'rgba(255,190,90,0.5)');
-  ell(ctx, 33, 13 + bob, 3.2, 3.2); ctx.fillStyle = '#ffd890'; ctx.fill();
+  // Menacing pass (25 Nov): a narrow burning visor slit and a grille of iron teeth, not a friendly porthole.
+  ctx.fillStyle = '#14181c'; ctx.beginPath(); ctx.moveTo(25, 10 + bob); ctx.lineTo(38.5, 11 + bob); ctx.lineTo(38, 14 + bob); ctx.lineTo(25.5, 13.4 + bob); ctx.closePath(); ctx.fill();
+  softGlow(ctx, 33, 12.2 + bob, 5, 'rgba(255,140,60,0.6)');
+  ctx.save(); ctx.fillStyle = '#ffb04a'; ctx.shadowColor = '#ff8a3a'; ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.moveTo(27, 11.4 + bob); ctx.lineTo(37.5, 12 + bob); ctx.lineTo(37, 13 + bob); ctx.lineTo(27.4, 12.6 + bob); ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#1a1e24'; ctx.fillRect(28, 15.6 + bob, 10, 3.4);
+  ctx.fillStyle = '#c0c8d0'; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(28.4 + k * 2, 15.6 + bob); ctx.lineTo(29.4 + k * 2, 18 + bob); ctx.lineTo(30.4 + k * 2, 15.6 + bob); ctx.fill(); }
+  // Iron spikes on the helmet's crown.
+  for (const [x, h] of [[25, 4], [29, 5.5], [33, 4.5]] as [number, number][]) { ctx.beginPath(); ctx.moveTo(x - 1.6, 7 + bob); ctx.lineTo(x, 7 + bob - h); ctx.lineTo(x + 1.6, 7 + bob); ctx.closePath(); shade(ctx, '#aab4be', '#3a424c', 7 - h, 7, 1); }
   // A loop of chain over the front shoulder.
   ctx.save(); ctx.strokeStyle = '#9aa4ae'; ctx.lineWidth = 1.6;
   for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.ellipse(40 + k * 0.6, 20 + bob + k * 3.4, 1.8, 2.4, 0.4, 0, Math.PI * 2); ctx.stroke(); }
@@ -1190,13 +1196,20 @@ function drawBargeHauler(ctx: Ctx, _s: number, f: number): void {
   for (const y of [22, 29, 36]) { ctx.fillRect(28, y + bob, 3, 1.6); }
   // Shoulders and a thick neck under a sou'wester hat.
   ell(ctx, 28, 15 + bob, 13, 5); shade(ctx, '#5f857c', '#2a3e3a', 10, 20);
-  ell(ctx, 29, 9.5 + bob, 6.5, 5.5); shade(ctx, '#c9a487', '#7a5844', 4, 15);
+  // Menacing pass (25 Nov): a drowned man's face, grey-green and sunken, with a jaw of broken teeth.
+  ell(ctx, 29, 10 + bob, 6.5, 5.8); shade(ctx, '#8aa294', '#3e524a', 4, 16);
+  ctx.fillStyle = '#101614'; ctx.beginPath(); ctx.moveTo(28, 12.6 + bob); ctx.lineTo(35.4, 12 + bob); ctx.lineTo(34.4, 15.4 + bob); ctx.lineTo(28.6, 15 + bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e4e8d4'; for (const x of [29.6, 31.6, 33.6]) { ctx.beginPath(); ctx.moveTo(x - 0.6, 12.5 + bob); ctx.lineTo(x, 14 + bob); ctx.lineTo(x + 0.6, 12.4 + bob); ctx.fill(); }
+  ctx.fillStyle = 'rgba(220,230,210,0.7)'; for (const [x, y] of [[24.5, 12], [26, 14.5], [25, 9.5]]) { ell(ctx, x, y + bob, 0.9, 0.9); ctx.fill(); }
   ctx.beginPath(); ctx.moveTo(20, 7.5 + bob); ctx.quadraticCurveTo(29, -1 + bob, 38, 7.5 + bob); ctx.lineTo(40, 9 + bob); ctx.lineTo(18, 9 + bob); ctx.closePath();
   shade(ctx, '#e0c060', '#8a6a24', 1, 9);
-  eyes(ctx, [[32, 10 + bob]], 0.9, '#fff0c8');
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(22, 9 + bob, 15, 2.6);
+  ctx.save(); ctx.fillStyle = '#9ff0d8'; ctx.shadowColor = '#9ff0d8'; ctx.shadowBlur = 4;
+  for (const x of [30, 34]) { ctx.beginPath(); ctx.moveTo(x - 1.5, 9.6 + bob); ctx.lineTo(x + 1.6, 10.2 + bob); ctx.lineTo(x - 1.1, 11.2 + bob); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
   // Hook arm reaching forward: forearm, fist and an iron hook.
   limb(ctx, 39, 20 + bob, 47, 30 + bob - step * 0.3, 5, '#4a6a62');
-  ell(ctx, 48, 31 + bob, 3.4, 3.2); shade(ctx, '#c9a487', '#7a5844', 28, 34, 1.1);
+  ell(ctx, 48, 31 + bob, 3.4, 3.2); shade(ctx, '#8aa294', '#3e524a', 28, 34, 1.1);
   ctx.save(); ctx.lineCap = 'round';
   ctx.strokeStyle = INK; ctx.lineWidth = 3.6;
   ctx.beginPath(); ctx.moveTo(49, 33 + bob); ctx.lineTo(50, 40 + bob); ctx.arc(47.5, 40 + bob, 2.6, 0, Math.PI * 0.95); ctx.stroke();
