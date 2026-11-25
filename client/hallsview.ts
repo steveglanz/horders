@@ -322,6 +322,22 @@ export class HallsView {
       g.fillStyle(0x6a5038, 1).fillRect(x - 24, y - 18, 48, 36);
       g.fillStyle(0x6a6874, 1);
       for (const o of [-12, 0, 12]) g.fillRect(x + tx * o - 5, y + ty * o - 5, 10, 10);
+    } else if (id === 'fumarole') {
+      g.fillStyle(0x6e5e5a, 1).fillCircle(x, y, 24).fillCircle(x + tx * 26 - nx * 8, y + ty * 26 - ny * 8, 13);
+      g.fillStyle(0x2a2220, 1).fillCircle(x, y, 8);
+      g.fillStyle(0xe8e0dc, 0.14).fillCircle(x - nx * 6, y - ny * 6 - 20, 22);
+    } else if (id === 'obsidian') {
+      g.fillStyle(0x2a2228, 1);
+      for (const o of [-14, 2, 16]) g.fillTriangle(x + tx * (o - 6), y + ty * (o - 6), x + tx * (o + 6), y + ty * (o + 6), x + tx * o - nx * 30, y + ty * o - ny * 30);
+    } else if (id === 'cairn') {
+      g.fillStyle(0x8a7a74, 1).fillCircle(x, y, 18);
+      g.fillStyle(0x9a8a84, 1).fillCircle(x, y, 12);
+      g.fillStyle(0x8a7a74, 1).fillCircle(x, y, 6);
+      g.fillStyle(0x8e7e78, 1).fillCircle(x + tx * 26 - nx * 8, y + ty * 26 - ny * 8, 9);
+    } else if (id === 'pumice') {
+      g.fillStyle(0xd0c4bc, 1).fillCircle(x, y, 20);
+      g.fillStyle(0xc4b6ae, 1).fillCircle(x - tx * 24 - nx * 6, y - ty * 24 - ny * 6, 13);
+      g.fillStyle(0xdacec6, 1).fillCircle(x + tx * 22 - nx * 8, y + ty * 22 - ny * 8, 11);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);

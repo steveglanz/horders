@@ -215,6 +215,27 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#6a5038', 0, 0.04, 0, 0.8, 0.08, 0.6));
     for (const x of [-0.24, 0, 0.24]) parts.push(part(box, '#5e5c68', x, 0.15, 0, 0.18, 0.14, 0.52));
     for (const z of [-0.16, 0.08]) parts.push(part(box, '#6a6874', 0, 0.29, z, 0.62, 0.14, 0.18));
+  } else if (id === 'fumarole') {
+    // A low stone vent cone with a dark mouth (smoke rises off it), and a smaller one beside it. No glow.
+    parts.push(part(cone, '#6e5e5a', 0, 0.26, 0, 0.9, 0.52, 0.9));
+    parts.push(part(cyl, '#2a2220', 0, 0.5, 0, 0.26, 0.04, 0.26));
+    parts.push(part(cone, '#7a6a64', 0.52, 0.15, 0.22, 0.46, 0.3, 0.46));
+  } else if (id === 'obsidian') {
+    // Three tall black obsidian shards leaning out of a rubble foot.
+    for (const [x, z, h, r, c] of [[-0.22, 0, 1.2, 0.12, '#2a2228'], [0.1, 0.06, 0.9, -0.15, '#342a30'], [0.32, -0.04, 0.7, 0.2, '#2e2428']] as const) {
+      const sh = new THREE.ConeGeometry(0.5, 1, 4); sh.rotateZ(r);
+      parts.push(part(sh, c, x, h / 2, z, 0.2, h, 0.16));
+    }
+    parts.push(part(ball, '#7a6864', 0, 0.04, 0.05, 0.9, 0.12, 0.5));
+  } else if (id === 'cairn') {
+    // A cairn of flat stones, each smaller than the one below, and a little one beside it.
+    for (const [y, r] of [[0.06, 0.5], [0.17, 0.42], [0.28, 0.34], [0.38, 0.26], [0.47, 0.18]] as const) parts.push(part(cyl, y % 0.22 < 0.11 ? '#8a7a74' : '#9a8a84', 0.02 * Math.sin(y * 40), y, 0, r, 0.1, r * 0.9));
+    parts.push(part(cyl, '#8e7e78', 0.48, 0.05, 0.22, 0.24, 0.1, 0.22), part(cyl, '#9e8e88', 0.48, 0.14, 0.22, 0.16, 0.08, 0.15));
+  } else if (id === 'pumice') {
+    // Pale pumice boulders heaped against the wall.
+    parts.push(part(ball, '#d0c4bc', 0, 0.26, -0.05, 0.62, 0.52, 0.56));
+    parts.push(part(ball, '#c4b6ae', -0.44, 0.17, 0.1, 0.4, 0.34, 0.38));
+    parts.push(part(ball, '#dacec6', 0.42, 0.14, 0.14, 0.34, 0.28, 0.32));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));

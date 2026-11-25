@@ -965,7 +965,7 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
 });
 
 describe('H4b: the Ashvents on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, the Kiln themes and Ysmeret behind the door', () => {
+  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
     expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.ashvents;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
@@ -976,7 +976,10 @@ describe('H4b: the Ashvents on the Halls map', () => {
       expect(w.route[4]).toBe(boss);
       for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
       expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
-      m.rooms.forEach((r, i) => { if (i !== 2) expect(['ash', 'bellows', 'slag', 'cooling'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      // H4b (visuals, 25 Nov): the Ashvents' own themes; the fumarole field guards the door.
+      expect(m.rooms[5].theme).toBe('fumarole');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['fumarole', 'obsidian', 'cairn', 'pumice'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
     }
   });
 
