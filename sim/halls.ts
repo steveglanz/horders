@@ -210,7 +210,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['hammerdeep'];
+export const HALLS_BETA: DungeonId[] = ['hammerdeep', 'ashvents'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
