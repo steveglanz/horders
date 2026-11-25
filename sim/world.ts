@@ -1852,7 +1852,7 @@ export class World {
       return;
     }
     if (this.phase === 'fight') this.runOmens(dt);
-    if (this.phase === 'fight' && (this.pillars.length || (this.hallsOn && this.dungeonId === 'glarewell'))) this.runGlarewell(dt);
+    if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
     if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.arenaEvent) this.arenaEventClock(dt);
     if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
@@ -2585,6 +2585,8 @@ export class World {
     if (this.lava.length) this.hallsLavaHeat(dt);
     if (this.phase === 'fight') {
       this.runOmens(dt);
+      // H3b: Brands burst and the Twin Lamps' beam burns on the map too (the arena runs this from its own step).
+      if (this.dungeonId === 'glarewell') this.runGlarewell(dt);
       if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
       if (this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
       for (let k = 0; k < m.packs.length; k++) {

@@ -670,6 +670,16 @@ describe('H3b: the Glarewell on the Halls map', () => {
     expect(lit).toBe(true);
   });
 
+  it('a Brand bursts on the map as in the arena (its clock runs in a Halls fight)', () => {
+    const w = glare(4);
+    wake(w, 0);
+    expect(w.phase).toBe('fight');
+    w.markT = 0.05;
+    let burst = false;
+    for (let j = 0; j < 10 && !burst; j++) { w.step(idle); burst = w.events.some((e) => e.type === 'brandBurst'); }
+    expect(burst).toBe(true);
+  });
+
   it('an arena Glarewell run is unchanged: the pillars stand on the ring round the middle lens', () => {
     const w = new World({ seed: 4, tier: 7, dungeon: 'glarewell' });
     run(w, () => w.pillars.length > 0, 120);
