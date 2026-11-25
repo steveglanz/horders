@@ -401,6 +401,21 @@ function nearestShade(w: World): { x: number; y: number } | null {
   return best;
 }
 
+/** How far past a bloom's edge a hero walks while a foe it would feed follows them out: its size and reach. */
+const BLOOM_DRAG = 110;
+/**
+ * The foe a bloom would feed (an elite, not a named one, as world.ts heals) that is nearest the hero within 400, and
+ * whether it is already inside the ring.
+ */
+function bloomFeeder(w: World, t: { x: number; y: number; r: number }, p: { x: number; y: number }): { e: Enemy; inside: boolean } | null {
+  let best: Enemy | null = null, bd = 400;
+  for (const e of w.enemies) {
+    if (!e.alive || e.def.rank === 'normal' || e.named >= 0) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best ? { e: best, inside: Math.hypot(best.x - t.x, best.y - t.y) < t.r + best.def.radius + 10 } : null;
+}
 /** Scatter Embers: how far apart two bots try to stand (twice the burst, plus a margin). */
 const SCATTER_GAP = 2 * 80 + 20;
 
@@ -1231,6 +1246,22 @@ export function botInput(w: World, skill = 1): Input {
     const dx = p.x - t.x;
     const dy = p.y - t.y;
     const d = Math.hypot(dx, dy) || 1;
+    // A Sluice Crawler's bloom feeds a foe caught in it when it bursts (NODRAG=1 turns this off for measuring).
+    // In a party only, and never the Bulwark (it holds the foes, and Smothers when it can): alone, leading a Crawler
+    // out cost more than the heal (Foundry t6 arena: Emberwright full 89 -> 44 of 120; leading only one already inside,
+    // Lumen avg 42 -> 28), so a solo hero steps out as from any ring.
+    const feed = t.kind === 'bloom' && w.heroes.length > 1 && w.cls !== 'bulwark' && process.env.NODRAG !== '1' ? bloomFeeder(w, t, p) : null;
+    // A ranged hero doesn't walk on to lead one already in it: that left a gearless Lumen alone with the hounds of the
+    // Ashvents' Crawler opener (the H4b door test, 9 -> 7 of 16 seeds); a melee hero, whom it follows in contact, does.
+    if (feed && (melee || !feed.inside) && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
+      // One already in it follows you: walk on until it trails out too. One outside walks after you: leave on its
+      // side, so its way to you never crosses the ring.
+      const fx0 = feed.inside ? dx / d : (feed.e.x - t.x) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
+      const fy0 = feed.inside ? dy / d : (feed.e.y - t.y) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
+      fx += fx0 * 0.6 * skill;
+      fy += fy0 * 0.6 * skill;
+      continue;
+    }
     if (d < t.r + 30) {
       const k = melee ? 0.6 : 0.2;
       if (t.shape === 'cone' && t.arc >= Math.PI * 0.9) {
@@ -1692,7 +1723,7 @@ function hallsWalk(w: World): Input {
   }
   const target = hallsTarget(w);
   const goal = bag ?? (target ? { x: target.x, y: target.y } : m.door);
-  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y, BOT_WALK_STEP);
+  const wp = hallsWay(m, p.x, p.y, goal.x, goal.y, BOT_WALK_STEP, true);
   let fx = wp.x - p.x, fy = wp.y - p.y;
   const fl = Math.hypot(fx, fy) || 1;
   fx /= fl; fy /= fl;

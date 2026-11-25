@@ -73,9 +73,10 @@ describe('OSKELV2 sound', () => {
     const slams = w.events.filter((e) => e.type === 'slam');
     expect(slams).toHaveLength(1);
     expect(cueFor(slams[0], ctx)).toEqual({ id: 'punchHit', vol: 1.3 });
-    // Both crushes push a slam of CRUSH_R, and no other Pressworks slam does (the sim's lines this relies on).
+    // Both crushes push a slam of CRUSH_R tagged source 'crush', and no other Pressworks slam does (the sim's lines this relies on).
+    expect(slams[0]).toMatchObject({ r: CRUSH_R, source: 'crush' });
     const src = readFileSync('sim/world.ts', 'utf8');
-    expect(src.match(/type: 'slam', x: q\.x, y: q\.y, r: 50 \}/g)).toHaveLength(2);
+    expect(src.match(/type: 'slam', x: q\.x, y: q\.y, r: 50, source: 'crush' \}/g)).toHaveLength(2);
     expect(CRUSH_R).toBe(50);
     expect(cueFor({ type: 'slam', x: 0, y: 0, r: 60 }, ctx)?.id).not.toBe('punchHit');
   });

@@ -24,9 +24,11 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, r
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HALLS_GEN, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HALLS_GEN, KILNTRASH, HallsMap, buildHalls, clampGrates, clampHalls, clearWalk, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
+/** Re-exported so tools' TUNE=KILNTRASH.hp=0.3 can reach it. */
+export { KILNTRASH };
 export const TICK = 1 / 30;
 export const MINI_BOSS_AT = 240; // seconds
 export const BOSS_AT = 480; // seconds
@@ -485,6 +487,8 @@ export interface Player {
   xp: number;
   xpToNext: number;
   pendingLevels: number;
+  /** KILNTRASH.xp: a half level banked from a trash clear, toward the next level. */
+  levelPart?: number;
   /** Set timers (R4): Kilnbreaker damage, time on the move and a charged Tidewalker hit, Glarewarden damage. */
   kbT?: number;
   moveT?: number;
@@ -604,7 +608,7 @@ export type SimEvent =
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
   | { type: 'ysFlare'; /** YSMERETV2 stage 2: a flame with no hero near it flared and hit every hero. */ x: number; y: number }
-  | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst. */ source?: 'slagBurst' }
+  | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst, 'crush' Oskel v2's crush line (a hero hit or a foe crushed). */ source?: 'slagBurst' | 'crush' }
   /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
   | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
   | { type: 'charge'; index: number }
@@ -803,6 +807,8 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
+  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the Kiln map's opener packs are trash (sim/halls.ts). */
+  kilnTrash?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
   bossV2?: boolean;
   /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
@@ -1238,6 +1244,8 @@ export class World {
   hallsMain = 0;
   /** Halls: the pack whose foes are spawning right now (-1 otherwise), so spawn() tags them. */
   private hallsWaking = -1;
+  /** KILNTRASH: set while a trash pack's clear pays out, so it drops no bag. */
+  private trashClear = false;
   /** Halls "Catch breath": seconds with no pack awake and no foe alive (resting starts at HALLS.rest.delay). */
   hallsQuietT = 0;
   /** Gates on offer while `phase` is 'choose'. */
@@ -1428,7 +1436,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2435,12 +2443,28 @@ export class World {
     this.afterClear(def);
   }
 
-  private clearEncounterFor(def: (typeof ENCOUNTERS)[EncounterId]): void {
+  private clearEncounterFor(def: (typeof ENCOUNTERS)[EncounterId], levels = 1): void {
     const p = this.player;
     // Every clear is a level: a talent draft, some healing, and a loot bag.
-    p.level++;
-    p.pendingLevels++;
-    this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
+    if (levels === 1) {
+      p.level++;
+      p.pendingLevels++;
+      this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
+    } else {
+      // KILNTRASH.xp: half a level for a trash pack, one and a half for the rest. Halves add up in levelPart (not xp,
+      // whose step grows each level, and not through xp multipliers), so the level at the door holds.
+      p.levelPart = (p.levelPart ?? 0) + levels;
+      while (p.levelPart >= 1 - 1e-9) {
+        p.levelPart -= 1;
+        p.level++;
+        p.pendingLevels++;
+        this.events.push({ type: 'levelUp', level: p.level, hero: this.acting });
+      }
+      p.levelPart = Math.max(0, p.levelPart);
+      // The xp bar shows the half level.
+      p.xpToNext = xpFor(p.level);
+      p.xp = p.levelPart * p.xpToNext;
+    }
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
     if (def.id === 'shrine') {
       p.hp = p.maxHp;
@@ -2449,6 +2473,8 @@ export class World {
       const order: Rarity[] = ['common', 'fine', 'rare'];
       let min = this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0;
       if (this.namedFight) min++;
+      // KILNTRASH: a trash pack drops no bag.
+      if (this.trashClear) return;
       this.dropLoot(p.x + 40, p.y, order[Math.min(order.length - 1, min)]);
       // Phase 15 Y10: a stirred fight leaves a second bag.
       if (this.stir) this.dropLoot(p.x - 40, p.y, order[Math.min(order.length - 1, min)]);
@@ -2804,6 +2830,7 @@ export class World {
       const i = this.spawn(f.kind, f.x, f.y);
       if (i < 0) return;
       const e = this.enemies[i];
+      if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
       // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.
       if (f.kind === 'acolyte') {
@@ -2851,15 +2878,19 @@ export class World {
     this.encounter = pk.slot;
     this.namedFight = pk.gate === 'named';
     this.events.push({ type: 'encounterClear', index: pk.slot, id: def.id });
+    // KILNTRASH.xp: on a map with trash packs, a trash clear is half a level and any other fight one and a half.
+    const levels = KILNTRASH.xp && def.id !== 'shrine' && m.packs.some((q) => q.trash) ? (pk.trash ? 0.5 : 1.5) : 1;
     const clear = () => {
-      this.clearEncounterFor(def);
+      this.clearEncounterFor(def, levels);
       if (def.id === 'shrine') return;
       const order: Rarity[] = ['common', 'fine', 'rare'];
       const min = (this.encounter >= 3 ? 2 : this.encounter >= 2 ? 1 : 0) + (this.namedFight ? 1 : 0);
       for (let b = 1; b < pk.bags; b++) this.dropLoot(this.player.x, this.player.y + 40 * b, order[Math.min(order.length - 1, min)]);
     };
+    this.trashClear = !!pk.trash;
     if (this.heroes.length === 1) clear();
     else this.eachHero(clear, true);
+    this.trashClear = false;
     if (this.heroes.length > 1) for (let i = 0; i < this.heroes.length; i++) { const hp = this.heroPlayer(i); if (hp.hp <= 0) hp.hp = hp.maxHp * 0.3; }
     this.namedFight = false;
     if (pk.gate) this.paths.push(pk.gate);
@@ -7981,9 +8012,14 @@ export class World {
       if (q.hp <= 0 || !this.onCrushLine(q.x, q.y, PLAYER_RADIUS)) continue;
       this.use(k);
       this.hurtPlayer(q.maxHp * OSKELV2.crush, -1, true, 'the crush line');
-      q.x -= cx * OSKELV2.push; q.y -= cy * OSKELV2.push;
+      // Far enough upstream that the belt takes at least pushSecs to carry a hero standing still back onto the line
+      // (QA, 25 Nov: in stage 3 the belt carried them back within ~1 s). Stage 2 keeps `push`, which already gives that.
+      const along = q.x * cx + q.y * cy;
+      const back = along - (this.arenaR - OSKELV2.depth - PLAYER_RADIUS - OSKELV2.pushSecs * (this.osStage === 3 ? OSKELV2.belt3 : OSKELV2.belt));
+      const push = Math.max(OSKELV2.push, back);
+      q.x -= cx * push; q.y -= cy * push;
       this.clampArena(q, PLAYER_RADIUS);
-      this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+      this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50, source: 'crush' });
       this.osCrushHits++;
     }
     this.use(at);
@@ -8015,7 +8051,7 @@ export class World {
       if ((q.pressedT ?? 0) > 0) {
         this.use(k);
         this.hurtPlayer(q.maxHp * OSKEL.crush, -1, true, 'a second Downstroke');
-        this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50 });
+        this.events.push({ type: 'slam', x: q.x, y: q.y, r: 50, source: 'crush' });
       } else {
         took.push(k);
         q.pressedT = OSKEL.pressed;
@@ -10454,12 +10490,12 @@ export const YSMERETV2 = {
 /**
  * OSKELV2 (design 25 Nov, oskel-v2.md): starting values. Stage 2 from `stage2` of his health: the press bed carries
  * everyone `belt` a second and flips at each Downstroke (`flipWarn` s of warning first); the downstream `arc` (radians)
- * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream). Stage 3 from `stage3`:
+ * of the rim, `depth` deep, is the crush line (`crush` of max health, pushed `push` upstream, or further if the belt would carry a hero standing still back onto it in under `pushSecs`). Stage 3 from `stage3`:
  * `belt3`, no more flips. `hpMult`: his health under v2. Belt 30 and hp x0.9 are design's two levers, measured 25 Nov (see the PR).
  */
 export const OSKELV2 = {
   stage2: 0.55, stage3: 0.2, belt: 30, belt3: 70, flipWarn: 1.5,
-  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, hpMult: 0.9,
+  arc: Math.PI / 2, depth: 30, crush: 0.35, push: 120, pushSecs: 2, hpMult: 0.9,
   /** 1: the Downstroke plate rides the belt (design's rule); 0 for measuring only. */
   plateRides: 1,
 };

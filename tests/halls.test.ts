@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { BOT_WALK_STEP, C_ROOM, HALLS_BETA, HALLS_COOP, HALLS_ON, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -991,6 +991,20 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
     }
     expect(reached).toBeGreaterThanOrEqual(2);
   }, 60000);
+});
+
+describe('QA, 25 Nov: a bot near a nav point that sees its bag walks straight at it', () => {
+  it('from both sides of the 30-unit "already there" ring (Ashvents t7 seed 1, R3), so it no longer steps back and forth', () => {
+    const w = new World({ seed: 1, dungeon: 'ashvents', tier: 7, halls: true, cls: 'lumen', party: [{ cls: 'lumen' }] });
+    const m = w.halls!;
+    const bag = { x: 83.9, y: -2644.5 };
+    const a = { x: -29.8, y: -2901.72 }, b = { x: -32.31, y: -2907.39 };
+    // Without the bot rule the two spots, 6 apart, disagree: A walks to the nav point (back through B), B walks to the bag.
+    expect(hallsWay(m, a.x, a.y, bag.x, bag.y, BOT_WALK_STEP)).not.toEqual(bag);
+    expect(hallsWay(m, b.x, b.y, bag.x, bag.y, BOT_WALK_STEP)).toEqual(bag);
+    expect(hallsWay(m, a.x, a.y, bag.x, bag.y, BOT_WALK_STEP, true)).toEqual(bag);
+    expect(hallsWay(m, b.x, b.y, bag.x, bag.y, BOT_WALK_STEP, true)).toEqual(bag);
+  });
 });
 
 describe('H4b: the Ashvents on the Halls map', () => {

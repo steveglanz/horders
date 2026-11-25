@@ -102,6 +102,7 @@ describe('OSKELV2: the running press bed', () => {
     expect(h.hp).toBeGreaterThanOrEqual(h.maxHp * (1 - OSKELV2.crush) - 1e-6);
     expect(h.x).toBeLessThan(w.arenaR - 20 - OSKELV2.push + 10);
     expect(w.osCrushHits).toBe(1);
+    expect(w.events.some((e) => e.type === 'slam' && e.source === 'crush')).toBe(true);
     // The upstream rim and the sides are safe.
     const l = w.heroData(1).player;
     l.hp = l.maxHp;
@@ -119,6 +120,24 @@ describe('OSKELV2: the running press bed', () => {
     boss(w, q).x = w.arenaR - 50; boss(w, q).y = 0;
     q.oskelClock(0.05);
     expect(boss(w, q).alive).toBe(true);
+  });
+
+  it('in stage 3 the crush pushes a hero far enough upstream that standing still is not crushed again within 2 s (QA)', () => {
+    const { w, q } = fight();
+    boss(w, q).hp = boss(w, q).maxHp * 0.19;
+    w.osDir = 0;
+    q.oskelClock(0.05);
+    expect(w.osStage).toBe(3);
+    const h = w.heroData(0).player;
+    h.hp = h.maxHp * 10; h.maxHp = h.hp; // survive two crushes, if they came
+    w.heroData(1).player.x = -200; w.heroData(1).player.y = 0;
+    h.x = w.arenaR - 20; h.y = 0;
+    const x0 = h.x;
+    q.oskelClock(0.05);
+    expect(w.osCrushHits).toBe(1);
+    expect(x0 - h.x).toBeGreaterThan(OSKELV2.push);
+    for (let t = 0; t < OSKELV2.pushSecs - 0.1; t += 0.05) q.oskelClock(0.05);
+    expect(w.osCrushHits).toBe(1);
   });
 
   it('bots walk against the belt: a hero holding still drifts far less than the belt would carry it', () => {

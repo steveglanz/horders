@@ -9,16 +9,34 @@
  *   HALLS=1 HALLS_RINGS=1 ...                                            (bots keep clear of sleeping packs in fights)
  */
 import { TICK, World } from '../sim/world';
+import { DUNGEONS } from '../sim/content/dungeon';
 
 let travelTicks = 0;
 let doorAt = 0;
+let doorLevel = 0;
+const doorLevels: number[] = [];
 const runs: { time: number; travel: number; door: number; win: boolean }[] = [];
+// KILNTRASH (design, 25 Nov): seconds from each pack's wake to its clear, split into trash (opener packs, never a named
+// gate) and the rest (named, hard, D), measured the same way with the flag on or off.
+let wokeAt: number[] = [];
+const packTimes = { trash: [] as number[], other: [] as number[] };
+const isTrash = (w: World, k: number) => {
+  const p = w.halls!.packs[k];
+  return p.gate !== 'named' && DUNGEONS[w.dungeonId].openers.includes(p.enc);
+};
 
 /** Call after every step of a run. */
 export function hallsTick(w: World): void {
   if (!w.halls) return;
   if (w.hallsOn && w.phase !== 'fight') travelTicks++;
-  for (const ev of w.events) if (ev.type === 'hallsDoor') doorAt = w.time;
+  for (const ev of w.events) if (ev.type === 'hallsDoor') { doorAt = w.time; doorLevel = w.player.level; }
+  w.halls.packs.forEach((p, k) => {
+    if (p.state === 'awake' && wokeAt[k] === undefined) wokeAt[k] = w.time;
+    if (p.state === 'cleared' && wokeAt[k] !== undefined && wokeAt[k] >= 0) {
+      if (p.enc !== 'shrine') (isTrash(w, k) ? packTimes.trash : packTimes.other).push(w.time - wokeAt[k]);
+      wokeAt[k] = -1;
+    }
+  });
 }
 
 /** Call once a run has ended: prints its Halls line and resets the counters. */
@@ -31,6 +49,9 @@ export function hallsSeed(w: World, win: boolean): void {
   runs.push({ time: w.time, travel, door: doorAt, win });
   travelTicks = 0;
   doorAt = 0;
+  wokeAt = [];
+  if (doorLevel) doorLevels.push(doorLevel);
+  doorLevel = 0;
 }
 
 /** Call at the end: the Halls averages over every run, and over the wins. */
@@ -40,4 +61,8 @@ export function hallsReport(): void {
   const wins = runs.filter((r) => r.win);
   const reached = runs.filter((r) => r.door > 0);
   console.log(`halls: ${runs.length} runs, avg delve ${avg(runs.map((r) => r.time))}s (wins ${avg(wins.map((r) => r.time))}s), avg travel ${avg(runs.map((r) => r.travel))}s, boss door reached ${reached.length}/${runs.length} at avg ${avg(reached.map((r) => r.door))}s`);
+  const { trash, other } = packTimes;
+  const lv = doorLevels.reduce((a, b) => a + b, 0) / Math.max(1, doorLevels.length);
+  console.log(`halls door level: avg ${lv.toFixed(2)}, min ${Math.min(...doorLevels)}, max ${Math.max(...doorLevels)}`);
+  console.log(`halls packs: trash ${trash.length} cleared at avg ${avg(trash)}s (max ${Math.round(Math.max(0, ...trash))}s), named/hard ${other.length} at avg ${avg(other)}s (max ${Math.round(Math.max(0, ...other))}s)`);
 }
