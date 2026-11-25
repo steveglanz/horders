@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -560,6 +560,17 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
         const fitFree = fits[R[i].shape ?? 'round'].filter((f) => !nextDoor.includes(f as never));
         expect(fitFree.includes(t) || (t === 'boiler' && m.vents.some((v) => v.room === i)) || fitFree.length === 0, `seed ${seed} room ${i} ${R[i].shape} ${t}`).toBe(true);
       }
+    }
+  });
+
+  it('the Pressworks kit (H4c, ready before its map is on): its own themes, the press floor at the door, no two neighbours alike', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const m = halls(seed).halls!;
+      hallsThemes(m, seed, () => undefined, 'pressworks');
+      expect(m.rooms[5].theme).toBe('press');
+      expect(m.rooms[2].theme).toBe('shrine');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['press', 'gear', 'plate', 'oil'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
     }
   });
 

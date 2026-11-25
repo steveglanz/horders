@@ -338,6 +338,19 @@ export class HallsView {
       g.fillStyle(0xd0c4bc, 1).fillCircle(x, y, 20);
       g.fillStyle(0xc4b6ae, 1).fillCircle(x - tx * 24 - nx * 6, y - ty * 24 - ny * 6, 13);
       g.fillStyle(0xdacec6, 1).fillCircle(x + tx * 22 - nx * 8, y + ty * 22 - ny * 8, 11);
+    } else if (id === 'press') {
+      g.fillStyle(0x4a4a36, 1).fillRect(x - 24, y - 16, 48, 32);
+      g.lineStyle(7, 0x8a8058, 1).lineBetween(x - tx * 26 + nx * 8, y - ty * 26 + ny * 8, x + tx * 26 + nx * 8, y + ty * 26 + ny * 8);
+      g.fillStyle(0x5a5a42, 1).fillRect(x - 10, y - 10, 20, 20);
+    } else if (id === 'gear') {
+      g.lineStyle(7, 0xa08848, 1).strokeCircle(x + nx * 6, y + ny * 6, 18);
+      g.fillStyle(0x5a4a2a, 1).fillCircle(x + nx * 6, y + ny * 6, 6);
+    } else if (id === 'plate') {
+      g.fillStyle(0x6a5038, 1).fillRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x9a9a80, 1).fillRect(x - tx * 12 - 10, y - ty * 12 - 10, 20, 20).fillRect(x + tx * 12 - 10, y + ty * 12 - 10, 20, 20);
+    } else if (id === 'oil') {
+      g.fillStyle(0x4e5a38, 1).fillCircle(x - tx * 12, y - ty * 12, 11).fillCircle(x + tx * 12, y + ty * 12, 11);
+      g.fillStyle(0x2a2a1e, 1).fillCircle(x - tx * 12, y - ty * 12, 8).fillCircle(x + tx * 12, y + ty * 12, 8);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);

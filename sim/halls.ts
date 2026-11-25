@@ -51,7 +51,7 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme | PressworksTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
@@ -64,6 +64,8 @@ export type WracklineTheme = 'quay' | 'wreck' | 'kelp' | 'sluice';
 export type HammerdeepTheme = 'anvil' | 'chain' | 'quench' | 'ingot';
 /** H4b (visuals, 25 Nov): the Ashvents' rooms: a fumarole field, an obsidian gallery, a cairn walk, a pumice drift. */
 export type AshventsTheme = 'fumarole' | 'obsidian' | 'cairn' | 'pumice';
+/** H4c (visuals, 25 Nov): the Pressworks' rooms: a press floor, a gear room, a plate store, an oil sump. */
+export type PressworksTheme = 'press' | 'gear' | 'plate' | 'oil';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -1088,6 +1090,13 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     fits: { round: ['fumarole', 'pumice', 'cairn'], hall: ['obsidian', 'cairn'], cross: ['cairn', 'fumarole'], ring: ['pumice', 'obsidian'], twin: ['obsidian', 'pumice'] },
     rest: ['cairn', 'pumice', 'obsidian', 'fumarole'],
   },
+  // H4c (visuals, 25 Nov, ready before the map is switched on): oily olive brass like Oskel's arena. The press floor
+  // guards the door, the gear room is the alcove; the plate store is the quiet room and fits any shape.
+  pressworks: {
+    guard: 'press', byLayout: {}, alcove: 'gear',
+    fits: { round: ['press', 'oil', 'plate'], hall: ['gear', 'plate'], cross: ['plate', 'press'], ring: ['oil', 'gear'], twin: ['gear', 'oil'] },
+    rest: ['plate', 'oil', 'gear', 'press'],
+  },
 };
 
 /**
@@ -1099,8 +1108,7 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
  * layout the room rolled (World.hallsLayouts).
  */
 export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
-  // H4 (design's h4-plan.md): a group dungeon without a kit of its own (the Pressworks, for now) takes the Kiln's
-  // themes, as its packs are the Kiln's; the Hammerdeep (H4a) and the Ashvents (H4b) have their own.
+  // H4 (design's h4-plan.md): every dungeon on the map has its own kit; one without (a raid, later) takes the Kiln's.
   const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
