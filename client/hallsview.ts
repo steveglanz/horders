@@ -247,7 +247,7 @@ export class HallsView {
       g.fillStyle(0x2e2624, 1).fillCircle(x - nx * 40, y - ny * 40, 5);
     } else if (id === 'slag') {
       g.fillStyle(0x4a302a, 1).fillCircle(x, y, 26).fillCircle(x + tx * 26, y + ty * 26, 15);
-      g.fillStyle(0xe0a060, 0.9).fillCircle(x, y, 6).fillCircle(x + tx * 26, y + ty * 26, 4);
+      g.fillStyle(0x7a5a48, 1).fillCircle(x, y, 8).fillCircle(x + tx * 26, y + ty * 26, 4);
     } else if (id === 'cooling') {
       g.fillStyle(0x5c666c, 1).fillCircle(x, y, 17);
       g.lineStyle(3, 0x8a989e, 1).lineBetween(x - 12, y, x + 12, y).lineBetween(x, y - 12, x, y + 12);
