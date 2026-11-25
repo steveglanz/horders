@@ -700,6 +700,50 @@ describe('H3b: the Glarewell on the Halls map', () => {
   }, 30000);
 });
 
+describe('Halls: nothing touches through a sealed grate (QA, 25 Nov)', () => {
+  it('a hero pressed on a sealed grate from outside and a foe pressed on it from inside stay apart by more than their radii', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const m = halls(seed).halls!;
+      const c = m.corridors.find((q) => q.a === 0 && q.b === 1)!;
+      const rm = m.rooms[1];
+      rm.lock = HALLS.lockDelay + 1;
+      // The doorway's rim: walk from the corridor's end in room 0 toward room 1's end until room 1's floor starts.
+      let x = c.ax!, y = c.ay!;
+      for (let t = 0; t <= 1 && roomGap(rm, x, y) < 0; t += 0.001) { x = c.ax! + (c.bx! - c.ax!) * t; y = c.ay! + (c.by! - c.ay!) * t; }
+      const ux = (c.bx! - c.ax!), uy = (c.by! - c.ay!), ul = Math.hypot(ux, uy);
+      const hero = { x: x + (ux / ul) * 5, y: y + (uy / ul) * 5, px: x - (ux / ul) * 30, py: y - (uy / ul) * 30 };
+      const foe = { x: x - (ux / ul) * 5, y: y - (uy / ul) * 5, px: x + (ux / ul) * 30, py: y + (uy / ul) * 30 };
+      clampGrates(m, hero, 12);
+      clampGrates(m, foe, 15);
+      expect(Math.hypot(hero.x - foe.x, hero.y - foe.y), `seed ${seed}`).toBeGreaterThan(12 + 15 + 1);
+    }
+  });
+});
+
+describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
+  it('with a pillar dead ahead on its walk, the bot gets past it instead of pressing into it', () => {
+    let tried = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = halls(seed, { dungeon: 'glarewell', tier: 7, hallsBeta: true });
+      const m = w.halls!;
+      const p = w.player;
+      for (let j = 0; j < 30; j++) w.step(botInput(w));
+      if (w.phase === 'fight') continue;
+      const a = m.packs.find((q) => q.role === 'A')!;
+      const wp = hallsWay(m, p.x, p.y, a.x, a.y);
+      const d = Math.hypot(wp.x - p.x, wp.y - p.y);
+      if (d < 200) continue;
+      tried++;
+      const ux = (wp.x - p.x) / d, uy = (wp.y - p.y) / d;
+      w.pillars = [{ x: p.x + ux * 60, y: p.y + uy * 60, r: 26, cracked: false }];
+      const start = Math.hypot(a.x - p.x, a.y - p.y);
+      for (let j = 0; j < 60 * 4 && w.phase !== 'fight'; j++) w.step(botInput(w));
+      expect(Math.hypot(a.x - p.x, a.y - p.y), `seed ${seed}`).toBeLessThan(start - 150);
+    }
+    expect(tried).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
   const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
