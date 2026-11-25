@@ -38,7 +38,7 @@ export interface WallPiece { x: number; y: number; len: number; nx: number; ny: 
 const LOOPS = new WeakMap<HallsMap, Loop[][]>();
 const loopsOf = (m: HallsMap): Loop[][] => LOOPS.get(m) ?? LOOPS.set(m, m.rooms.map(roomLoops)).get(m)!;
 
-/** The Ring room's island is a low hearth (camera rule, agreed with design 25 Nov): it may hide no more than a body. */
+/** The Ring room's island is a low plinth (camera rule, agreed with design 25 Nov): it may hide no more than a body. */
 const HEARTH_H = 0.5;
 
 /**
@@ -86,17 +86,6 @@ function doorGlowTex(): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-/** Banked coals for an island hearth: near-black lumps with a few embers glowing between them, tiled in world space. */
-function coalTex(): THREE.CanvasTexture {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const k = c.getContext('2d')!;
-  k.fillStyle = '#120806'; k.fillRect(0, 0, 128, 128);
-  let s = 5;
-  const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
-  for (let i = 0; i < 60; i++) { k.fillStyle = `rgba(${150 + r() * 105 | 0},${40 + r() * 50 | 0},10,${0.25 + r() * 0.5})`; k.beginPath(); k.arc(r() * 128, r() * 128, 1 + r() * 3, 0, 7); k.fill(); }
-  for (let i = 0; i < 40; i++) { k.fillStyle = `rgba(20,12,10,${0.7 + r() * 0.3})`; k.beginPath(); k.arc(r() * 128, r() * 128, 5 + r() * 8, 0, 7); k.fill(); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
-}
 
 function tileCanvas(color: string): HTMLCanvasElement {
   const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -163,7 +152,7 @@ export interface HallsView {
   theme(i: number): Theme;
 }
 
-export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: string; ground: string; corridorWall?: string; saver: boolean; bad: THREE.Color; corridor: number; doorRoom: number }): HallsView {
+export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: string; ground: string; corridorWall?: string; lensDais?: boolean; saver: boolean; bad: THREE.Color; corridor: number; doorRoom: number }): HallsView {
   const { S, floor: FLOOR } = o;
   const group = new THREE.Group();
   const tex = new THREE.CanvasTexture(tileCanvas(o.tile));
@@ -186,9 +175,11 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     return f;
   };
   const capMat = new THREE.MeshStandardMaterial({ color: '#4a3a34', roughness: 0.8 });
-  const coalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95, emissive: '#ffffff', emissiveIntensity: 0.9 });
-  { const ct = coalTex(); coalMat.map = ct; coalMat.emissiveMap = ct; }
-  const plinthMat = new THREE.MeshStandardMaterial({ color: '#6a5850', roughness: 0.85 });
+  // Islands (the Cross's corner pillars, the Ring's middle) are dark stone plinths in every dungeon, with no glow:
+  // glow means lava (design, 25 Nov: the old coal hearth broke that rule and hid the Glarewell's lens).
+  const plinthMat = new THREE.MeshStandardMaterial({ color: '#3e3836', roughness: 0.85 });
+  const lensMat = new THREE.MeshBasicMaterial({ color: '#f4e2b0' });
+  const brassMat = new THREE.MeshStandardMaterial({ color: '#b8904a', roughness: 0.3, metalness: 0.9 });
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   // Each room and each corridor is a chunk: its floor, its walls and their caps, and a bound for the on-screen check.
@@ -211,12 +202,21 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     for (let k = 1; k < loops.length; k++) shape.holes.push(new THREE.Path(pts(loops[k])));
     const g = new THREE.ShapeGeometry(shape, 4); g.rotateX(-Math.PI / 2); g.translate(0, FLOOR, 0); worldUv(g);
     const mesh = new THREE.Mesh(g, floorFor(themes[i])); mesh.receiveShadow = true; roomChunk[i].g.add(mesh);
-    // Islands (the Ring's hearth): a bed of banked coals level with the hearth's low wall, so the corridor floor that
-    // runs under it never shows, and it reads as something shots can't cross.
+    // Islands: a stone top level with the plinth's low wall, so the corridor floor that runs under it never shows,
+    // and it reads as something shots can't cross.
     for (let k = 1; k < loops.length; k++) {
       const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H + 0.002, 0); worldUv(hg);
-      // A box island (the Cross's pillars: four corners) is a stone plinth; a round one (the Ring) is the coal hearth.
-      roomChunk[i].g.add(new THREE.Mesh(hg, loops[k].length <= 16 ? plinthMat : coalMat));
+      roomChunk[i].g.add(new THREE.Mesh(hg, plinthMat));
+      // The Glarewell's Ring room: its light sits in the middle of the island, so the plinth carries the lens (a brass
+      // rim round a pale gold disc), and you can see where the light is from above.
+      if (o.lensDais && loops[k].length > 16) {
+        let cx = 0, cy = 0; const n = loops[k].length / 2;
+        for (let q = 0; q < loops[k].length; q += 2) { cx += loops[k][q]; cy += loops[k][q + 1]; }
+        cx /= n; cy /= n;
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(0.75, 28), lensMat); disc.rotation.x = -Math.PI / 2; disc.position.set(cx * S, FLOOR + HEARTH_H + 0.01, cy * S);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.07, 6, 28), brassMat); rim.rotation.x = -Math.PI / 2; rim.position.set(cx * S, FLOOR + HEARTH_H + 0.03, cy * S);
+        roomChunk[i].g.add(disc, rim);
+      }
     }
   });
   m.corridors.forEach((c, i) => {

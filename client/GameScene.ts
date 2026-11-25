@@ -9,6 +9,7 @@ import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
+import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -2274,6 +2275,24 @@ export class GameScene extends Phaser.Scene {
     // (H3b: on a Halls map the room's own floor is lit by its theme, so no arena-wide glow.)
     if (w.pillars.length && !w.hallsOn) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
     const light = this.lightAt(now);
+    // On a Halls map the light's room is lit the same pale gold, so its shadows read as in the arena (design, 25 Nov:
+    // a Cross room's wedges were faint), and each wedge stops at the room's wall, where the light is blocked anyway.
+    let wall: number[] | null = null;
+    if (w.pillars.length && w.hallsOn && w.halls) {
+      const room = w.halls.rooms.find((r) => inLoop(roomLoops(r)[0], light.x, light.y));
+      if (room) {
+        wall = roomLoops(room)[0];
+        const pts: Phaser.Math.Vector2[] = [];
+        for (let k = 0; k + 1 < wall.length; k += 2) pts.push(new Phaser.Math.Vector2(wall[k], wall[k + 1]));
+        g.fillStyle(0xffe2a0, 0.07).fillPoints(pts, true);
+      }
+    }
+    /** How far a shadow runs from (x, y) along (ux, uy) before it meets the room's wall (at most L). */
+    const toWall = (x: number, y: number, ux: number, uy: number, L: number): number => {
+      if (!wall) return L;
+      let d = 0; while (d < L && inLoop(wall, x + ux * d, y + uy * d)) d += 8;
+      return Math.min(L, d);
+    };
     // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
     // pillar, so a phone shows which way each shadow now falls before it lands.
     const carried = (w.bossVariant === 'walk' || w.bossEcho === 'walk') && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
@@ -2294,11 +2313,20 @@ export class GameScene extends Phaser.Scene {
         const d = Math.hypot(cx, cy) || 1;
         const ux = cx / d;
         const uy = cy / d;
-        const L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
+        let L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
         const w0 = c.r;
+        // Clipped at the wall along its middle and both edges, so no part of it runs on past the room.
+        if (wall && L > 0) {
+          const wL = c.r + L * GLARE.shadowWiden, ex = (wL - w0) / L;
+          for (const sd of [0, 1, -1]) {
+            // An edge ray: from the pillar's side, widening as it goes.
+            const sx = c.x - uy * w0 * sd, sy = c.y + ux * w0 * sd, dx = ux - uy * ex * sd, dy = uy + ux * ex * sd, dl = Math.hypot(dx, dy);
+            L = Math.min(L, toWall(sx, sy, dx / dl, dy / dl, L * dl) / dl);
+          }
+        }
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
-        g.fillStyle(0x06051a, 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, 0.65).beginPath();
+        g.fillStyle(0x06051a, wall ? 0.7 : 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, wall ? 0.8 : 0.65).beginPath();
         g.moveTo(c.x - uy * w0, c.y + ux * w0);
         g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
         g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
