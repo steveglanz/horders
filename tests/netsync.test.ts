@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World, WorldOptions, SimEvent } from '../sim/world';
 import { botInput } from '../sim/bot';
-import { applySnapshot, snapshot, Snapshot } from '../sim/netsync';
+import { applySnapshot, RESEND_TICKS, snapshot, Snapshot } from '../sim/netsync';
 
 const opts: WorldOptions = { seed: 21, party: [{ cls: 'bulwark' }, { cls: 'lumen' }] };
 
@@ -80,6 +80,41 @@ describe('co-op snapshots', () => {
     // messages should stay well under that so one lost fragment rarely drops a frame.
     expect(biggest).toBeLessThan(48_000);
     console.log('largest snapshot', biggest, 'bytes');
+  });
+});
+
+describe('co-op events survive a lost snapshot', () => {
+  it("a guest that misses snapshots still plays every host event once, and the snapshots stay small", () => {
+    // As client/net/coop.ts: each tick's events ride the next RESEND_TICKS ticks of snapshots (Snapshot.recent).
+    const host = new World(opts);
+    const guest = new World(opts);
+    const batches: { tick: number; events: SimEvent[] }[] = [];
+    const sent: string[] = [], heard: string[] = [];
+    let biggest = 0, n = 0;
+    while (host.state !== 'ended' && host.time < 120) {
+      if (host.state === 'draft') {
+        const h = host.heroes.findIndex((_, i) => host.choicesOf(i).length > 0);
+        host.choose(0, Math.max(0, h));
+      } else {
+        host.step(host.heroes.map(() => botInput(host)));
+        for (const e of host.events) sent.push(JSON.stringify(e));
+        if (host.events.length) batches.push({ tick: host.tick, events: [...host.events] });
+      }
+      while (batches.length && batches[0].tick <= host.tick - RESEND_TICKS) batches.shift();
+      if (host.tick % 2 !== 0) continue;
+      const text = JSON.stringify(snapshot(host, [], batches));
+      biggest = Math.max(biggest, text.length);
+      // Lose one snapshot in three (never two in a row, which RESEND_TICKS covers up to three).
+      if (++n % 3 === 0) continue;
+      applySnapshot(guest, JSON.parse(text) as Snapshot, 1);
+      for (const e of guest.events) heard.push(JSON.stringify(e));
+    }
+    // The last tick's events may still be on their way; everything before them arrived exactly once.
+    const tail = batches.reduce((k, b) => k + b.events.length, 0);
+    expect(sent.length).toBeGreaterThan(100);
+    expect(heard.length).toBeGreaterThanOrEqual(sent.length - tail);
+    expect(heard).toEqual(sent.slice(0, heard.length));
+    expect(biggest).toBeLessThan(48_000);
   });
 });
 
