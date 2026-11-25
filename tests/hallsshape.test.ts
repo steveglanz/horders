@@ -45,7 +45,8 @@ describe('Halls room outlines (client/hallsshape.ts)', () => {
 
   it('uses a generated corridor\'s own ends (40 inside each room), so it never runs through a Ring\'s island', () => {
     const m = map(), ci = m.corridors.findIndex((c) => c.a === 1 && c.b === 3), c = m.corridors[ci], a = m.rooms[1], b = m.rooms[3];
-    expect(corridorEnds(m, c)).toEqual({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+    // Without ends, a corridor runs centre to centre (H1's template now has ends too, so take them off here).
+    expect(corridorEnds(m, { a: c.a, b: c.b })).toEqual({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
     // Room 3 is north of room 1 (smaller y): its doorway is at b.y + b.r, and the end stops 40 inside it.
     m.corridors[ci] = { ...c, ax: a.x, ay: a.y - a.r + 40, bx: b.x, by: b.y + b.r - 40 } as typeof c;
     expect(inCorridor(m, ci, 80, b.x, b.y)).toBe(false);
