@@ -10,8 +10,7 @@ QA's phone check of the staged Oskel (#783) found these, at 320x568 in 2D (shots
    points at it. During a flip warning it points at the next one. It reuses the gold edge arrow (emptyVents) with a
    colour, in 2D and 3D.
 3. **Bolder chevrons.** They are 24 long (was 18) and 6 wide (was 4), at 0.5 alpha (was 0.32), or 0.6 at full speed.
-4. **Stage lines.** "Stage 2: The belt" and "Stage 3: Full speed" are now the slim warning line (hud.warn), like
-   Ondrel's stage 3 (#750), so the floor stays clear. The Downstroke line already was one.
+(The stage 2 and 3 lines becoming slim warning lines is mobile's #792.)
 
 Cost is unchanged: everything is on the floor graphics or the overlay.
 
@@ -19,7 +18,7 @@ Shots: Pressworks t10, seed 3, Bulwark, frozen. From the left:
 - stage 2 with the hero 424 from the centre;
 - a flip warning there;
 - the crush line off screen to the east (red edge arrow);
-- stage 3 running diagonally, with its warning line.
+- stage 3 running diagonally (the stage line in the shot is from mobile's #792, which this branch had while shooting).
 
 3D:
 ![](3d.jpg)
