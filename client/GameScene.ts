@@ -1494,7 +1494,8 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
-            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', "She splits in two. Keep a hero on each flame; the tank's flame still Bellows");
+            // A lone flame flares in 3 s, so this is a slim warning line, not the big banner over the floor (phone pass, 25 Nov).
+            if (ev.phase === 2) this.hud.warn('Stage 2: Twofold', "A hero on each flame; the tank's flame still Bellows");
           } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
@@ -4291,10 +4292,14 @@ export class GameScene extends Phaser.Scene {
       const p = view.project(ev.x, ev.y);
       const px = p ? p.x : cx, py = p ? p.y : -H;
       const ins = 20, pd = 30;
-      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
-      const a = Math.atan2(py - cy, px - cx);
+      // Under the co-op party frames counts as hidden too (phone pass, Ashvents, 25 Nov: a lone flame under them got no
+      // arrow): the arrow then stands just right of the frames, pointing at it.
+      const under = !!p && !!party && px < party.right + 6 && py > party.top - 6 && py < party.bottom + 6;
+      if (p && !under && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      let a = Math.atan2(py - cy, px - cx);
       const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
-      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      let ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      if (under) { ex = party!.right + 24; ey = Math.max(party!.top + 16, Math.min(party!.bottom - 16, py)); a = Math.atan2(py - ey, px - ex); }
       const sz = 16, blink = 0.775 + 0.225 * Math.sin(now / 90);
       g.globalAlpha = 0.6; g.fillStyle = '#000000';
       g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.fill();
