@@ -955,7 +955,7 @@ export class World {
   /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
   /**
    * V2 lava channels. Phase 18 Halls: a map room's strip carries `room` and `heat` (0 cooled crust .. 1 hot): it heats
-   * over HALLS.lavaHeat s while that room's pack is awake and burns only at 1 (undefined heat, an arena run: always hot).
+   * over HALLS.lockDelay s (as its grates drop) while that room's pack is awake and burns only at 1 (undefined heat, an arena run: always hot).
    */
   lava: { x1: number; y1: number; x2: number; y2: number; w: number; room?: number; heat?: number }[] = [];
   /** Kiln vents: they flare one at a time, in turn. */
@@ -1534,8 +1534,9 @@ export class World {
   get moveSpeed(): number {
     const boost = (this.player.hasteT > 0 ? 1.3 : 1) * (1 + 0.05 * this.rank('momentum'));
     const chill = this.player.chill ? 1 - COLD.chillSlow * this.player.chill : 1;
-    // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too), and a resting party runs.
-    const halls = this.moveScale * (this.hallsResting ? HALLS.travelRun : 1);
+    // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too). One number, no travel run
+    // (design, 25 Nov: Steve's "keep it simple").
+    const halls = this.moveScale;
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
   }
   /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
@@ -2492,7 +2493,7 @@ export class World {
     for (const c of this.lava) {
       if (c.room === undefined || c.heat === undefined) continue;
       const hot = m.packs.some((pk) => pk.state === 'awake' && roomAt(m, pk.x, pk.y) === c.room);
-      c.heat = Math.max(0, Math.min(1, c.heat + (hot ? dt : -dt) / HALLS.lavaHeat));
+      c.heat = Math.max(0, Math.min(1, c.heat + (hot ? dt : -dt) / HALLS.lockDelay));
     }
   }
 

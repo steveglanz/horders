@@ -195,7 +195,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(roomAt(m, c.x, c.y)).toBe(3);
     }
   });
-  it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lavaHeat s, and cools once cleared', () => {
+  it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lockDelay s (with the grates), and cools once cleared', () => {
     // Find a seed whose map rolled a lava channel.
     let w: World | null = null;
     for (let seed = 1; seed <= 200 && !w; seed++) { const v = halls(seed); if (v.lava.length) w = v; }
@@ -215,7 +215,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(w!.player.hp).toBe(hp);
       expect(c.heat).toBe(0);
     }
-    // Wake it: heats to 1 over lavaHeat, then burns.
+    // Wake it: heats to 1 over lockDelay, then burns.
     put(w!, pk.x, pk.y + HALLS.reach - 10);
     w!.step(idle);
     expect(pk.state).toBe('awake');
@@ -342,16 +342,17 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     }
   });
 
-  it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
+  it('H2a: heroes and foes move 1.25x faster on a Halls run, resting or not (no travel run); arena runs are unchanged', () => {
     const arena = new World({ seed: 2, tier: 2 });
     const w = halls(2);
     expect(arena.moveScale).toBe(1);
     expect(w.moveScale).toBe(HALLS.moveScale);
-    // Resting from the start (nothing awake), so after the delay the travel run is on too.
     expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    // Catch breath doesn't change speed: one number on the whole run (design, 25 Nov, "keep it simple").
     for (let k = 0; k < Math.round((HALLS.rest.delay + 0.1) * 30); k++) w.step(idle);
     expect(w.hallsResting).toBe(true);
-    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale * HALLS.travelRun, 5);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    expect('travelRun' in HALLS).toBe(false);
     // A woken foe walking at the hero covers 1.25x the ground its def speed gives.
     const a = pack(w, 'A');
     put(w, a.x, a.y + HALLS.reach - 5);
