@@ -1560,6 +1560,10 @@ export class World {
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
   }
   /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
+  /** Share of max health a Sluice Crawler's Bloom heals a foe caught in its burst (less on a Halls run). */
+  get bloomHeal(): number {
+    return this.halls ? FOUNDRY.hallsBloomHeal : FOUNDRY.bloomHeal;
+  }
   get moveScale(): number {
     return this.halls ? HALLS.moveScale : 1;
   }
@@ -8688,7 +8692,7 @@ export class World {
           const o = this.enemies[j];
           // Phase 14 X5: never a named foe (a Swift Sluice Crawler stood in its own Blooms and healed back to full).
           if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
+          const amount = Math.min(o.maxHp - o.hp, o.maxHp * this.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
           this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -8767,7 +8771,7 @@ export class World {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {
             const o = this.enemies[j];
             if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-            const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
+            const amount = Math.min(o.maxHp - o.hp, o.maxHp * this.bloomHeal * this.healTakenMult(o));
             if (amount <= 0) return;
             o.hp += amount;
             this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -9603,6 +9607,12 @@ export const FOUNDRY = {
   bloomDelay: 2.5,
   bloomDamage: 18,
   bloomHeal: 0.25,
+  /**
+   * On a Halls map a sealed room keeps a Crawler close to the hero it follows, so it walks back over its own Blooms
+   * (half of the bursts fed a Crawler, against a third in the arena). Ranged heroes and healers lost those fights to
+   * Burnout (Foundry t4 full: Slagbinder 35 -> 24, Lumen 33 -> 25 of 40). 0.15 brings them back (31, 34). Design, 25 Nov.
+   */
+  hallsBloomHeal: 0.15,
   temperEvery: 6,
   temperMax: 5,
   temperCut: 0.15,
