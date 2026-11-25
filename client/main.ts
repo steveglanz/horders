@@ -298,7 +298,11 @@ function startRun(bounty = false, key = false): void {
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
   // Phase 18 Halls H1: the Kiln map prototype (Settings or ?halls=1). Local play only: the map isn't synced to guests yet.
-  if (hallsWanted() && !hosting && !stress) opts.halls = true;
+  if (hallsWanted() && !hosting && !stress) {
+    opts.halls = true;
+    // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
+    if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;
+  }
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

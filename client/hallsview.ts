@@ -9,7 +9,7 @@ import Phaser from 'phaser';
 import type { World } from '../sim/world';
 import { DOOR_ROOM, HALLS, HallsMap, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
-import { Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
+import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 
 /** The floor's plain greybox colours: warm dark stone, the Kiln's ember rim. */
 const FLOOR = 0x2c211c;
@@ -54,6 +54,8 @@ export class HallsView {
   private mapCanvas: HTMLCanvasElement;
   private mapBtn: HTMLButtonElement;
   private arrow: HTMLDivElement;
+  /** H2b: the "Sealed" tag beside the arrow while you're shut out of a sealed room. */
+  private tag: HTMLDivElement;
   private fadeEl: HTMLDivElement;
   private open = false;
   private mapStamp = '';
@@ -84,7 +86,11 @@ export class HallsView {
     this.arrow = document.createElement('div');
     this.arrow.id = 'hallsArrow';
     this.arrow.hidden = true;
-    hud.append(this.arrow);
+    this.tag = document.createElement('div');
+    this.tag.id = 'hallsSealTag';
+    this.tag.textContent = 'Sealed';
+    this.tag.hidden = true;
+    hud.append(this.arrow, this.tag);
     this.fadeEl = document.createElement('div');
     this.fadeEl.id = 'hallsFade';
     document.body.append(this.fadeEl);
@@ -126,6 +132,7 @@ export class HallsView {
     this.mapBox.remove();
     this.mapBtn.remove();
     this.arrow.remove();
+    this.tag.remove();
     this.fadeEl.remove();
   }
 
@@ -136,6 +143,7 @@ export class HallsView {
     this.mapBox.hidden = true;
     this.mapBtn.hidden = true;
     this.arrow.hidden = true;
+    this.tag.hidden = true;
   }
 
   private fadeStep(dt: number): void {
@@ -303,7 +311,8 @@ export class HallsView {
     const size = f.compact && this.open ? Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.8) : 128;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     // Redrawn about 6 times a second (enough for dots walking), or at once when something changed.
-    const stamp = `${size}|${m.seen.join('')}|${m.packs.map((p) => p.state[1]).join('')}|${Math.floor(f.now / 160)}`;
+    const locks = m.rooms.map((r) => { const l = lockOf(r); return l < 0 ? '-' : l < GRATE_WARN ? 'w' : 's'; }).join('');
+    const stamp = `${size}|${m.seen.join('')}|${m.packs.map((p) => p.state[1]).join('')}|${locks}|${Math.floor(f.now / 160)}`;
     if (stamp === this.mapStamp) return;
     this.mapStamp = stamp;
     const cv = this.mapCanvas;
@@ -333,6 +342,35 @@ export class HallsView {
       ctx.fillStyle = m.seen[i] ? 'rgba(120, 92, 74, 0.95)' : 'rgba(40, 30, 26, 0.9)';
       ctx.fill();
     });
+    // H2b: a sealing or sealed room. Red is bad: its rim turns red (pulsing for the 1 s warning, solid once the grates are
+    // down) and a red bar closes each of its doorways, so a phone shows at a glance which room you can't walk out of
+    // (or, in co-op, into).
+    this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+    const sealing = m.rooms.map((r) => lockOf(r));
+    if (sealing.some((l) => l >= 0)) {
+      const blink = 0.55 + 0.45 * Math.abs(Math.sin(f.now / 140));
+      m.rooms.forEach((r, i) => {
+        const l = sealing[i];
+        if (l < 0 || !m.seen[i]) return;
+        const down = l >= GRATE_WARN;
+        ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), r.r * sc, 0, Math.PI * 2);
+        ctx.strokeStyle = down ? '#ff4d3d' : `rgba(255, 77, 61, ${blink.toFixed(2)})`;
+        ctx.lineWidth = (down ? 2.5 : 2) * dpr;
+        ctx.stroke();
+      });
+      ctx.lineCap = 'butt';
+      for (const gr of this.grates) {
+        const l = sealing[gr.room];
+        if (l < 0 || !m.seen[gr.room]) continue;
+        // A bar across the corridor a few px out from the rim (on the rim it would vanish into the red ring), a little
+        // wider than the corridor so it reads as a gate at phone size.
+        const down = l >= GRATE_WARN, tx = -gr.uy, ty = gr.ux, w = Math.max(4 * dpr, gr.hw * sc * 1.5 + 1.5 * dpr);
+        const cx = X(gr.x) - gr.ux * 5 * dpr, cy = Y(gr.y) - gr.uy * 5 * dpr;
+        ctx.strokeStyle = down ? '#ff4d3d' : `rgba(255, 77, 61, ${blink.toFixed(2)})`;
+        ctx.lineWidth = 3 * dpr;
+        ctx.beginPath(); ctx.moveTo(cx + tx * w, cy + ty * w); ctx.lineTo(cx - tx * w, cy - ty * w); ctx.stroke();
+      }
+    }
     // Packs: red dots asleep (in rooms you have seen), grey once cleared, a red ring while the fight is on.
     for (const pk of m.packs) {
       if (!m.seen[pk.room]) continue;
@@ -361,8 +399,13 @@ export class HallsView {
    * hero is (a side room points back the way it came). Hidden while a fight is on, or when the doorway is in view.
    */
   private drawArrow(m: HallsMap, f: HallsFrame): void {
-    const goal = this.nextGoal(m, f.px, f.py);
-    if (!goal || this.world.phase === 'fight') { this.arrow.hidden = true; return; }
+    // H2b co-op: shut out of a sealed room (the grates dropped with you outside), the arrow turns grey with a "Sealed"
+    // tag and points at that room, so you know where your party is and why you can't reach it yet.
+    const shut = this.shutOut(m, f.px, f.py);
+    const goal = shut ?? (this.world.phase === 'fight' ? null : this.nextGoal(m, f.px, f.py));
+    this.arrow.classList.toggle('sealed', !!shut);
+    this.tag.hidden = true;
+    if (!goal) { this.arrow.hidden = true; return; }
     const wp = hallsWay(m, f.px, f.py, goal.x, goal.y);
     const at = f.project(wp.x, wp.y);
     const W = f.rect.width, H = f.rect.height;
@@ -378,6 +421,22 @@ export class HallsView {
     const ex = W / 2 + Math.cos(a) * r, ey = H / 2 + 15 + Math.sin(a) * r;
     this.arrow.hidden = false;
     this.arrow.style.transform = `translate(${f.rect.left + ex}px, ${f.rect.top + ey}px) rotate(${a}rad)`;
+    if (shut) {
+      // The tag sits just inside the arrow, toward the screen's middle, kept on screen.
+      const tx = Math.max(34, Math.min(W - 34, ex - Math.cos(a) * 34)), ty = Math.max(14, Math.min(H - 14, ey - Math.sin(a) * 26));
+      this.tag.hidden = false;
+      this.tag.style.transform = `translate(${f.rect.left + tx}px, ${f.rect.top + ty}px) translate(-50%, -50%)`;
+    }
+  }
+
+  /** A sealed room (grates down) that your living hero stands outside of, or null. */
+  private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
+    if (this.world.player.hp <= 0) return null;
+    for (const r of m.rooms) {
+      if (lockOf(r) < GRATE_WARN) continue;
+      if (Math.hypot(x - r.x, y - r.y) > r.r) return { x: r.x, y: r.y };
+    }
+    return null;
   }
 
   /** The next main-path room past the furthest one any hero has seen (hallsWay finds the way there from anywhere). */
