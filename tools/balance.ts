@@ -9,6 +9,12 @@ import { buildPoints } from '../sim/content/trees';
 import type { ClassId } from '../sim/content/emberwright';
 import { hallsReport, hallsSeed, hallsTick } from './hallsmeasure';
 import { FIRST_DELVE } from '../sim/content/firstdelve';
+import { TRASH_ON } from '../sim/halls';
+import type { DungeonId } from '../sim/content/dungeon';
+
+// TRASH=glarewell,coldmarrow (measuring only): those maps' openers as trash too, as the Kiln's and the Foundry's are
+// for players (sim/halls.ts TRASH_ON), to grid the next dungeons of the trash rollout before they go on.
+if (process.env.TRASH) TRASH_ON.push(...(process.env.TRASH.split(',') as DungeonId[]));
 
 // FIRST=1 plays a first delve (L1); FD_HP and FD_DMG override its multipliers.
 if (process.env.FD_HP) FIRST_DELVE.hp = Number(process.env.FD_HP);
@@ -52,7 +58,7 @@ const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
 let hpLeft = 0;
 for (const seed of seeds) {
-  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined, halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a', bossV2: process.env.BOSSV2 === '1', hallsBeta: process.env.HALLS_BETA === '1', kilnTrash: process.env.KILNTRASH === '1', trashBeta: process.env.TRASH_BETA === '1', raidTrash: process.env.RAIDTRASH === '1', gunner: process.env.GUNNER === '0' ? false : undefined });
+  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined, halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a', gunner: process.env.GUNNER === '0' ? false : undefined });
   const drive = react ? reactBot(react, skill, { forget: Number(process.env.FORGET ?? 0), stepErr: Number(process.env.STEPERR ?? 0), salt: seed }) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);

@@ -9,8 +9,8 @@ import { botInput } from '../sim/bot';
 type Q = { startEncounter(): void; encounter: number; route: string[]; bossIndex: number; oskelClock(dt: number): void; downT: number; rivetT: number; stampT: number };
 const party = [{ cls: 'lumen' as const, name: 'b' }];
 
-function fight(v2 = true): { w: World; q: Q } {
-  const w = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party, oskelV2: v2 });
+function fight(): { w: World; q: Q } {
+  const w = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   q.route[1] = 'oskel';
@@ -27,16 +27,6 @@ function fight(v2 = true): { w: World; q: Q } {
 const boss = (w: World, q: Q) => w.enemies[q.bossIndex];
 
 describe('OSKELV2: the running press bed', () => {
-  it('is off unless asked for: no stage, no belt at 50%', () => {
-    const { w, q } = fight(false);
-    expect(w.osStage).toBe(0);
-    boss(w, q).hp = boss(w, q).maxHp * 0.5;
-    const y = w.heroData(0).player.y;
-    for (let t = 0; t < 2; t += 0.05) q.oskelClock(0.05);
-    expect(w.osStage).toBe(0);
-    expect(w.heroData(0).player.y).toBe(y);
-  });
-
   it('stage 2 at 55%: the belt carries heroes, foes and the Downstroke plate, but not Oskel', () => {
     const { w, q } = fight();
     expect(w.osStage).toBe(1);
@@ -158,7 +148,7 @@ describe('OSKELV2: the running press bed', () => {
     boss(w, q).hp = boss(w, q).maxHp * 0.5;
     w.osDir = 1.25;
     q.oskelClock(0.05);
-    const g = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party, oskelV2: true });
+    const g = new World({ seed: 4, dungeon: 'pressworks', tier: 10, omens: [], cls: 'bulwark', party });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.osStage).toBe(2);
     expect(g.osDir).toBeCloseTo(1.25, 5);

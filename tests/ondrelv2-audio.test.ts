@@ -11,7 +11,7 @@ type O = {
 };
 
 function fight(): { w: World; q: O; b: number } {
-  const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }], ondrelV2: true });
+  const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party: [{ cls: 'lumen', name: 'b' }] });
   const q = w as unknown as O;
   for (const e of w.enemies) e.alive = false;
   w.stones = [];

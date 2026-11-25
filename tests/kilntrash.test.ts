@@ -1,18 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { KILNTRASH, KILNTRASH_ONE, TRASH_BETA, TRASH_ON, packFoes } from '../sim/halls';
+import { KILNTRASH, KILNTRASH_ONE, TRASH_ON, packFoes } from '../sim/halls';
 import { DUNGEONS, ENCOUNTERS } from '../sim/content/dungeon';
 
 // KILNTRASH (design 25 Nov, /mnt/project-files/horders/design/halls/kiln-trash-plan.md): the Kiln map's opener packs are
 // trash: twice the foes (the Rift and the Ashwall stay at one), each at 30% health, and no bag. The level stays.
+// It is always on (no switch); a test builds the same map without trash by emptying TRASH_ON for one World.
 type Q = { hallsWake(k: number): void; hallsClear(k: number): void };
-const kiln = (seed: number, kilnTrash: boolean) => new World({ seed, dungeon: 'kiln', tier: 2, halls: true, cls: 'duskblade', kilnTrash });
+const bare = <T>(f: () => T): T => {
+  const keep = [...TRASH_ON];
+  TRASH_ON.length = 0;
+  try { return f(); } finally { TRASH_ON.push(...keep); }
+};
+const kiln = (seed: number, trash: boolean) => {
+  const make = () => new World({ seed, dungeon: 'kiln', tier: 2, halls: true, cls: 'duskblade' });
+  return trash ? make() : bare(make);
+};
 
 describe('KILNTRASH: Kiln opener packs as trash', () => {
-  it('is off unless asked for, and never touches another dungeon', () => {
+  it('is on for every Kiln map run, and only the TRASH_ON dungeons get it (a group dungeon keeps full packs)', () => {
+    for (let seed = 1; seed <= 10; seed++) expect(kiln(seed, true).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
     for (let seed = 1; seed <= 10; seed++) expect(kiln(seed, false).halls!.packs.some((p) => p.trash)).toBe(false);
-    const f = new World({ seed: 3, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade', kilnTrash: true });
-    expect(f.halls!.packs.some((p) => p.trash)).toBe(false);
+    const g = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, halls: true, cls: 'bulwark' });
+    expect(g.halls!.packs.some((p) => p.trash)).toBe(false);
   });
 
   it('only opener packs off a named gate are trash, with twice the foes except the single special one', () => {
@@ -82,24 +92,24 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
 });
 
 // Trash rollout (design 25 Nov, /mnt/project-files/horders/design/halls/trash-rollout-plan.md): the Foundry is next,
-// behind ?trashbeta=1 (TRASH_BETA), with the Kiln's numbers. Its single special foes stay at one.
-describe('Trash rollout: the Drowned Foundry behind ?trashbeta', () => {
-  const foundry = (seed: number, more: { kilnTrash?: boolean; trashBeta?: boolean }) => new World({ seed, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade', ...more });
-  it('is on only with trashBeta, and the Kiln still needs only kilnTrash', () => {
-    expect(TRASH_ON).toEqual(['kiln']);
-    expect(TRASH_BETA).toEqual(['foundry']);
-    for (let seed = 1; seed <= 10; seed++) {
-      expect(foundry(seed, { kilnTrash: true }).halls!.packs.some((p) => p.trash)).toBe(false);
-      expect(foundry(seed, { trashBeta: true }).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
-      expect(new World({ seed, dungeon: 'kiln', tier: 2, halls: true, cls: 'duskblade', trashBeta: true }).halls!.packs.some((p) => p.trash)).toBe(false);
-    }
+// with the Kiln's numbers (grid: engineering/foundry-trash-grid.md). Its single special foes stay at one. On for every
+// run since Steve's "Nothing should be a switch" (25 Nov).
+describe('Trash rollout: the Drowned Foundry', () => {
+  const foundry = (seed: number, trash = true) => {
+    const make = () => new World({ seed, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade' });
+    return trash ? make() : bare(make);
+  };
+  it('is on for every run, as the Kiln is; group dungeons and raids keep full packs', () => {
+    expect(TRASH_ON).toEqual(['kiln', 'foundry', 'glarewell']);
+    for (let seed = 1; seed <= 10; seed++) expect(foundry(seed).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
+    for (const d of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) if (DUNGEONS[d].style !== 'solo' || DUNGEONS[d].raid) expect(TRASH_ON, d).not.toContain(d);
   });
 
   it('only its opener packs off a named gate are trash, with twice the foes except the single special one', () => {
     let trash = 0;
     const seen = new Set<string>();
     for (let seed = 1; seed <= 30; seed++) {
-      const on = foundry(seed, { trashBeta: true }), off = foundry(seed, {});
+      const on = foundry(seed), off = foundry(seed, false);
       on.halls!.packs.forEach((p, k) => {
         const q = off.halls!.packs[k];
         expect(p.enc).toBe(q.enc);
@@ -129,7 +139,7 @@ describe('Trash rollout: the Drowned Foundry behind ?trashbeta', () => {
 
   it('a trash pack wakes at 30% health per foe and drops no bag; the other packs get 80%', () => {
     for (let seed = 1; seed <= 6; seed++) {
-      const on = foundry(seed, { trashBeta: true }), off = foundry(seed, {});
+      const on = foundry(seed), off = foundry(seed, false);
       for (const k of [on.halls!.packs.findIndex((p) => p.trash), on.halls!.packs.findIndex((p) => !p.trash && p.foes.length > 0)]) {
         const share = on.halls!.packs[k].trash ? KILNTRASH.hp : KILNTRASH.named;
         const hp = (w: World) => { (w as unknown as Q).hallsWake(k); return w.enemies.filter((e) => e.alive && e.pack === k).map((e) => [e.kind, e.maxHp] as const); };
@@ -146,12 +156,35 @@ describe('Trash rollout: the Drowned Foundry behind ?trashbeta', () => {
   });
 });
 
+// 1.0 M3 (design, 25 Nov): the Glarewell's openers are trash too, with the same numbers. Its Lensbearer, Brandkeeper and
+// Lampeye are each their pack's one mechanic, so they stay at one.
+describe('Trash rollout: the Glarewell', () => {
+  it('its opener packs off a named gate are trash, with twice the foes except the single special one', () => {
+    let trash = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = new World({ seed, dungeon: 'glarewell', tier: 7, halls: true, cls: 'duskblade' });
+      for (const p of w.halls!.packs) {
+        const want = p.gate !== 'named' && DUNGEONS.glarewell.openers.includes(p.enc);
+        expect(!!p.trash, `seed ${seed} ${p.enc}`).toBe(want);
+        if (want) trash++;
+      }
+    }
+    expect(trash).toBeGreaterThan(20);
+    const held = (enc: Parameters<typeof packFoes>[2]) => packFoes(1, 0, enc, 0, 0, true).map((f) => f.kind).sort();
+    expect(held('lensbearer')).toEqual(['lensbearer', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('brandkeeper')).toEqual(['brandkeeper', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('lampeye')).toEqual(['lampeye', 'shade', 'shade', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('shades')).toHaveLength(8);
+    expect(held('shadeCharge')).toEqual(['ashbuck', 'ashbuck', 'shade', 'shade', 'shade', 'shade', 'shade', 'shade']);
+  });
+});
+
 describe('Trash rollout: the Ember Twins keep their pair, and Rekindle keeps the fallen twin\'s health', () => {
   type C = { finishCast(i: number): void };
   it('a trash twin comes back at half of its own (30%) maxHp, not half of a fresh one', () => {
     let checked = 0;
     for (let seed = 1; seed <= 40 && !checked; seed++) {
-      const w = new World({ seed, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade', trashBeta: true });
+      const w = new World({ seed, dungeon: 'foundry', tier: 4, halls: true, cls: 'duskblade' });
       const k = w.halls!.packs.findIndex((p) => p.trash && p.enc === 'twins');
       if (k < 0) continue;
       (w as unknown as Q).hallsWake(k);
