@@ -51,7 +51,7 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
@@ -60,6 +60,8 @@ export type GlarewellTheme = 'lens' | 'orrery' | 'colonnade' | 'mirror';
 export type ColdmarrowTheme = 'hearthless' | 'rime' | 'drift' | 'crypt';
 /** H3d: the Wrackline's quay rooms (engineering's names, 25 Nov, for visuals to rename): a harbour quay, a wreck yard, a kelp bed, a sluice. */
 export type WracklineTheme = 'quay' | 'wreck' | 'kelp' | 'sluice';
+/** H4a (visuals, 25 Nov): the Hammerdeep's cold forge rooms: an anvil hall, a chain gallery, a quench trough, an ingot store. */
+export type HammerdeepTheme = 'anvil' | 'chain' | 'quench' | 'ingot';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -1070,6 +1072,13 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     fits: { round: ['quay', 'wreck', 'kelp'], hall: ['quay'], cross: ['quay'], ring: ['quay'], twin: ['kelp', 'wreck', 'sluice'] },
     rest: ['wreck', 'kelp', 'sluice', 'quay'],
   },
+  // H4a (visuals, 25 Nov): cold forge iron like Ondrel's arena. The anvil hall guards the door, the chain gallery is
+  // the alcove; the ingot store is the quiet room and fits any shape.
+  hammerdeep: {
+    guard: 'anvil', byLayout: {}, alcove: 'chain',
+    fits: { round: ['anvil', 'quench', 'ingot'], hall: ['chain', 'ingot'], cross: ['ingot', 'anvil'], ring: ['quench', 'chain'], twin: ['chain', 'quench'] },
+    rest: ['ingot', 'quench', 'chain', 'anvil'],
+  },
 };
 
 /**
@@ -1081,7 +1090,8 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
  * layout the room rolled (World.hallsLayouts).
  */
 export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
-  // H4 (design's h4-plan.md): the group dungeons take the Kiln's themes (visuals' names), as their packs are the Kiln's.
+  // H4 (design's h4-plan.md): a group dungeon without a kit of its own (the Ashvents, the Pressworks) takes the Kiln's
+  // themes, as their packs are the Kiln's; the Hammerdeep has its own (H4a).
   const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));

@@ -306,6 +306,22 @@ export class HallsView {
     } else if (id === 'kelp') {
       g.lineStyle(4, 0x4a7a52, 0.9);
       for (const o of [-16, -4, 10, 20]) g.lineBetween(x + tx * o, y + ty * o, x + tx * (o + 6) - nx * 34, y + ty * (o + 6) - ny * 34);
+    } else if (id === 'anvil') {
+      g.fillStyle(0x5a4030, 1).fillRect(x - 14, y - 12, 28, 24);
+      g.fillStyle(0x4a4854, 1).fillRect(x - tx * 26 - 7, y - ty * 26 - 7, 14, 14).fillRect(x + tx * 20 - 6, y + ty * 20 - 6, 12, 12);
+      g.lineStyle(10, 0x4a4854, 1).lineBetween(x - tx * 26, y - ty * 26, x + tx * 20, y + ty * 20);
+      g.lineStyle(3, 0x6a4a30, 1).lineBetween(x + tx * 16 - nx * 18, y + ty * 16 - ny * 18, x + tx * 28 - nx * 30, y + ty * 28 - ny * 30);
+    } else if (id === 'chain') {
+      g.lineStyle(8, 0x5a4636, 1).lineBetween(x - tx * 32 + nx * 8, y - ty * 32 + ny * 8, x + tx * 32 + nx * 8, y + ty * 32 + ny * 8);
+      g.lineStyle(3, 0x5a5866, 1);
+      for (const o of [-16, 0, 16]) g.lineBetween(x + tx * o + nx * 8, y + ty * o + ny * 8, x + tx * o - nx * 18, y + ty * o - ny * 18);
+    } else if (id === 'quench') {
+      g.fillStyle(0x3a3a44, 1).fillRect(x - 28, y - 16, 56, 32);
+      g.fillStyle(0x1e2a3a, 1).fillRect(x - 23, y - 11, 46, 22);
+    } else if (id === 'ingot') {
+      g.fillStyle(0x6a5038, 1).fillRect(x - 24, y - 18, 48, 36);
+      g.fillStyle(0x6a6874, 1);
+      for (const o of [-12, 0, 12]) g.fillRect(x + tx * o - 5, y + ty * o - 5, 10, 10);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);
