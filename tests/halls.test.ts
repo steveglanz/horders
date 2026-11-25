@@ -1284,6 +1284,38 @@ describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
     expect(roomGap(rm, foe.x, foe.y)).toBeLessThan(0);
   });
 
+  it('foes in a sealed room only go after heroes inside it, and hold with nobody inside (QA and design, 25 Nov)', () => {
+    const w = halls(2, { invulnerable: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    const q = w.heroData(1).player;
+    q.x = q.px = px + ux * (t + 250); q.y = q.py = py + uy * (t + 250);
+    const hold = [idle, idle];
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(hold);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    const m = w.halls!;
+    const mine = () => w.enemies.map((e, i) => ({ e, i })).filter(({ e }) => e.alive && e.pack !== undefined && m.rooms[m.packs[e.pack].room] === rm);
+    expect(mine().length).toBeGreaterThan(0);
+    // Hero 0 inside, hero 1 outside: every foe of the room closes on hero 0, none on hero 1.
+    const h0 = w.heroData(0).player;
+    const d0 = (e: { x: number; y: number }) => Math.hypot(e.x - h0.x, e.y - h0.y);
+    const before = mine().map(({ e }) => d0(e));
+    for (let k = 0; k < 30; k++) w.step(hold);
+    const after = mine().map(({ e }) => d0(e));
+    expect(after.reduce((a, b) => a + b, 0)).toBeLessThan(before.reduce((a, b) => a + b, 0));
+    // Now nobody inside (hero 0 set outside by hand): the room's foes hold still and cast nothing.
+    h0.x = h0.px = px + ux * (t + 300); h0.y = h0.py = py + uy * (t + 300);
+    w.step(hold);
+    const at = mine().map(({ e }) => [e.x, e.y]);
+    let casts = 0;
+    for (let k = 0; k < 60; k++) {
+      w.step(hold);
+      const ids = new Set(mine().map(({ i }) => i));
+      casts += w.events.filter((ev) => ev.type === 'castStart' && ids.has((ev as { index: number }).index)).length;
+    }
+    mine().forEach(({ e }, k) => { if (at[k]) { expect(e.x).toBeCloseTo(at[k][0], 3); expect(e.y).toBeCloseTo(at[k][1], 3); } });
+    expect(casts).toBe(0);
+  });
+
   it('solo play doesn\'t change: a sealed grate keeps the hero out', () => {
     const w = halls(2, { invulnerable: true });
     const { rm, px, py, ux, uy, t } = sealed(w);
