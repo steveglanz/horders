@@ -2815,7 +2815,7 @@ export class World {
       if (i < 0) return;
       const e = this.enemies[i];
       if (pk.trash) e.maxHp = e.hp = e.maxHp * KILNTRASH.hp;
-      // KILNTRASH.named (design, 25 Nov, measuring): on a map with trash, the other packs' foes at this share of health.
+      // KILNTRASH.named (design, 25 Nov): on a map with trash, the other packs' foes at this share of health.
       else if (KILNTRASH.named !== 1 && this.halls!.packs.some((q) => q.trash)) e.maxHp = e.hp = e.maxHp * KILNTRASH.named;
       if (firstElite < 0 && e.def.rank === 'elite') firstElite = i;
       // As startEncounter: acolytes circle the pack's first foe, and some foes start their ability clocks offset.

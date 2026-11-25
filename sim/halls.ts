@@ -268,10 +268,10 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
  * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
  * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
  * A trash clear still gives a level (design, 25 Nov: its XP step measured worse and was dropped).
- * `named` (design, 25 Nov, being measured; 1 = off): on a map with trash, every other pack's foes and the rare get this
- * share of their health (TUNE=KILNTRASH.named=0.8).
+ * `named` (design, 25 Nov, measured in engineering/kiln-trash-grid.md): on a map with trash, every other pack's foes and
+ * the rare get this share of their health, so named and hard fights take about a minute or less (1 turns it off).
  */
-export const KILNTRASH = { foes: 2, hp: 0.3, named: 1 };
+export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
 export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
 
 export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false): HallsMap {

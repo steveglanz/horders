@@ -66,10 +66,9 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
     }
   });
 
-  it('KILNTRASH.named (off at 1): the other packs\' foes get that share of health on a trash map, never off it', () => {
-    expect(KILNTRASH.named).toBe(1);
-    KILNTRASH.named = 0.8;
-    try {
+  it('KILNTRASH.named (0.8): the other packs\' foes get that share of health on a trash map, never off it', () => {
+    expect(KILNTRASH.named).toBe(0.8);
+    {
       for (let seed = 1; seed <= 6; seed++) {
         const on = kiln(seed, true), base = kiln(seed, false);
         const k = on.halls!.packs.findIndex((p) => !p.trash && p.foes.length > 0);
@@ -78,8 +77,6 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
         expect(a.length).toBe(b.length);
         a.forEach((m, j) => expect(m, `seed ${seed}`).toBeCloseTo(b[j] * 0.8, 3));
       }
-    } finally {
-      KILNTRASH.named = 1;
     }
   });
 });
