@@ -188,6 +188,12 @@ export const SLAG_KIT = {
   allyShellCut: 0.2, allyPlate: 0.5,
   /** Party only: how much harder Brittle foes take hits from the Slagbinder's allies (its own hits use brittleMult). */
   allyBrittle: 1.15,
+  /**
+   * Solo only: a Bellows Slagbinder's damage when alone (design, 25 Nov). It was the slowest class everywhere, and a third
+   * to a half of its Kiln 6/8 losses were the boss timer: 1.2 takes Kiln 8 from 20.7 to 29.0 of 40 (inside the L7 +-15 gate,
+   * +13.3 over the Emberwright: a watch item) and its delve from 624 to 539 s. See docs/skills.md.
+   */
+  soloDmg: 1.2,
   /** Party only: a Bellows Slagbinder's damage when it has allies. */
   partyDmg: 0.7,
   /** The Flue (raid 4) is a damage race, where the Bellows' Brittle and sustain count for less: a lighter party cut there. */
@@ -1510,7 +1516,7 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    const party = this.cls === 'slagbinder' && p.stance !== 'anvil' && this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : 1;
+    const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : SLAG_KIT.soloDmg;
     return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
