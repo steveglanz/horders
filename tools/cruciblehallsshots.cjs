@@ -2,17 +2,17 @@
 // Emberwright, Duskblade), four heroes, at 320x568 or 568x320 in the 3D look: as tools/hammerhallsshots.cjs's halls
 // mode, plus a vent flaring under its circle (2b) and, in portrait, an elite set where 3D draws it under the party
 // frames, which fade (2c). Then (4) every room's 3D draw calls with the four heroes set at its centre and by its far wall
-// (cost bar 96), with a shot of each themed room. Pass `hoard` or `smeltery` for those raids' maps (H5b, H5c).
+// (cost bar 96), with a shot of each themed room. Pass `hoard`, `smeltery` or `flue` for those raids' maps (H5b-d).
 //   halls  (?hallsbeta=1): the party in a corridor and in a fight, the hero stood outside a sealed room (grates let
 //          heroes in, never out: a green "Walk in" tag on the grate), and the map.
-// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [crucible|hoard|smeltery] [maponly] [seed]
+// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [crucible|hoard|smeltery|flue] [maponly] [seed]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const size = ['p320', 'l568'].find((s) => process.argv.includes(s)) || 'p320';
 const seed = Number(process.argv.slice(3).find((a) => /^\d+$/.test(a)) || 3);
 const mode = process.argv.includes('ondrel') ? 'ondrel' : 'halls';
-const RAIDS = { crucible: 8, hoard: 9, smeltery: 10 };
+const RAIDS = { crucible: 8, hoard: 9, smeltery: 10, flue: 11 };
 const raidId = Object.keys(RAIDS).find((k) => process.argv.includes(k)) || 'crucible';
 const raid = { id: raidId, tier: RAIDS[raidId] };
 const v2 = process.argv.includes('v2');
