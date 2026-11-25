@@ -1385,10 +1385,12 @@ describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)
 
 describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
-    expect(HALLS_BETA).toContain('crucible');
-    expect(HALLS_ON).not.toContain('crucible');
-    expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and co-op, phones #800, themes, beds).
+    expect(HALLS_ON).toContain('crucible');
+    expect(HALLS_COOP).toContain('crucible');
+    expect(HALLS_BETA).not.toContain('crucible');
+    expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.crucible;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, cls: 'bulwark', party });
