@@ -761,9 +761,11 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
     expect(tried).toBeGreaterThanOrEqual(3);
   });
 
-  it('bots walk it and go through the door into Nhevra\'s arena', () => {
+  it('bots walk it and go through the door into Nhevra\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
+      // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
+      await new Promise((r) => setTimeout(r, 0));
       const w = cold(seed, { cls: 'slagbinder' });
       run(w, () => !w.hallsOn || w.state === 'ended', 900);
       if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
