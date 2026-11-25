@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 
@@ -53,7 +53,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect([...DUNGEONS.kiln.hard, ...DUNGEONS.kiln.named]).toContain(d.enc);
       expect(d.bags).toBe(2);
       expect(m.mirror).toBe(false);
-      expect(m.packs.map((p) => p.room)).toEqual([1, 2, 3, 3, 4, 5]);
+      // Design, 25 Nov: one pack per room; C has its own room (C_ROOM) between B's and the door guard's.
+      expect(m.packs.map((p) => p.room)).toEqual([1, 2, 3, C_ROOM, 4, 5]);
       // The template (?hallsmap=a) is H1's map, mirrored on odd seeds.
       const t = tmpl(seed).halls!;
       expect(t.mirror).toBe((seed & 1) === 1);
@@ -193,7 +194,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       }
       expect(off - HALLS.reach).toBeGreaterThan(40);
       expect(Math.hypot(pack(w, 'B').x - c.x, pack(w, 'B').y - c.y)).toBeGreaterThan(HALLS.pull + HALLS.spread * 1.25);
-      expect(roomAt(m, c.x, c.y)).toBe(3);
+      expect(roomAt(m, c.x, c.y)).toBe(C_ROOM);
     }
   });
   it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lockDelay s (with the grates), and cools once cleared', () => {
@@ -517,7 +518,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
         if (i !== 2) expect(r.theme).not.toBe('shrine');
       });
       for (const c of m.corridors) expect(R[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(R[c.b].theme);
-      for (const i of [0, 1, 3, 4]) {
+      for (const i of [0, 1, 3, 4, C_ROOM]) {
         const t = R[i].theme!;
         // A fitting theme, or the boiler a vents room takes, or a spare once every fitting one is next door.
         const nextDoor = m.corridors.flatMap((c) => (c.a === i ? [R[c.b].theme] : c.b === i ? [R[c.a].theme] : []));
@@ -598,3 +599,44 @@ describe('H3 plan: a pack waking runs the same fight setup as an arena fight', (
   });
 });
 
+describe('Halls: one pack per room (design, 25 Nov)', () => {
+  it('every generated room holds at most one pack, C in its own main-path room, and the walk stays 3,600-5,600', () => {
+    for (let seed = 1; seed <= 120; seed++) {
+      const g = genHalls(seed);
+      expect(g.tries, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+      const rooms = g.spots.map((p) => p.room);
+      expect(new Set(rooms).size, `seed ${seed}`).toBe(rooms.length);
+      expect(g.spots.find((p) => p.role === 'C')!.room).toBe(C_ROOM);
+      expect(g.rooms[C_ROOM].main).toBe(true);
+      expect(mainRooms(g)).toEqual([0, 1, 3, C_ROOM, 5, DOOR_ROOM]);
+      // C's room is on the walk, between B's and the door guard's: R3 -> R6 -> R5.
+      expect(roomPath(g, 3, 5)).toEqual([3, C_ROOM, 5]);
+      // C's room rolls its own layout, as fight 3 does in the arena.
+      expect(g.layoutRooms).toContainEqual({ room: C_ROOM, slot: 2 });
+      const l = hallsWalkLine(g, g.rooms[0].x, g.rooms[0].y, g.door.x, g.door.y);
+      let walk = 0;
+      for (let k = 1; k < l.length; k++) walk += Math.hypot(l[k].x - l[k - 1].x, l[k].y - l[k - 1].y);
+      expect(walk).toBeGreaterThanOrEqual(3600);
+      expect(walk).toBeLessThanOrEqual(5600);
+    }
+  });
+
+  it('the checker refuses two packs in one room', () => {
+    const g = genRoll(5, 0);
+    const c = g.spots.find((p) => p.role === 'C')!, b = g.spots.find((p) => p.role === 'B')!;
+    const faults = hallsCheck({ rooms: g.rooms, corridors: g.corridors, door: g.door, packs: g.spots.map((p) => (p === c ? { ...c, room: b.room } : p)), layoutRooms: g.layoutRooms });
+    expect(faults).toContain(`room R3 holds 2 packs`);
+  });
+
+  it('a woken B seals only its own room: C sleeps on in the next room', () => {
+    for (const seed of [2, 3, 4]) {
+      const w = halls(seed);
+      const b = pack(w, 'B'), c = pack(w, 'C');
+      put(w, b.x, b.y);
+      w.step(idle);
+      expect(b.state).toBe('awake');
+      expect(c.state).toBe('asleep');
+      expect(c.room).not.toBe(b.room);
+    }
+  });
+});
