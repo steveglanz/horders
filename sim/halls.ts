@@ -210,16 +210,17 @@ const hash = (seed: number, k: number): number => {
  * The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its
  * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged); H3c the Coldmarrow (on 25 Nov once QA, the phone pass
  * #724 #726 and the co-op grate fix #723 were in); H3d the Wrackline (on 25 Nov once QA cleared #727 and the phone pass #734 was in); H4a the Hammerdeep, the first group
- * map (on 25 Nov once QA's two-tab co-op run, the themes #744, the beds #745 and the phone pass #750 were in).
+ * map (on 25 Nov once QA's two-tab co-op run, the themes #744, the beds #745 and the phone pass #750 were in); H4c the
+ * Pressworks (on 25 Nov once the grid, QA solo and co-op, the themes #747 and the phone pass #759 were in).
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['ashvents', 'pressworks'];
+export const HALLS_BETA: DungeonId[] = ['ashvents'];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep'];
+export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -456,15 +457,23 @@ export function clampHalls(m: HallsGeo, o: { x: number; y: number }, r: number):
 }
 
 /** Whether the straight walk from (x1, y1) to (x2, y2) stays inside the map (sampled every 40 units). */
-export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0): boolean {
+export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0, step = 40): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
-  const n = Math.max(1, Math.ceil(d / 40));
+  // `step`: how far apart the line is sampled. Bots check their own walk every BOT_WALK_STEP (see hallsWay).
+  const n = Math.max(1, Math.ceil(d / step));
   for (let k = 1; k < n; k++) {
     const t = k / n;
     if (!inside(m, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, pad)) return false;
   }
   return true;
 }
+
+/**
+ * QA, 25 Nov: bots check their own straight walks (to the goal, to a bag) every 16 units, not 40. At 40 a hole's corner
+ * could fall between samples from one step and not the next, so a bot's way flipped every tick and it stood still short
+ * of the door (Ashvents t8 seed 1). Foes and the walking graph keep 40 (cheaper; a foe chasing a hero doesn't stall).
+ */
+export const BOT_WALK_STEP = 16;
 
 /** The rooms from `from` to `to` along the corridors, both ends included (the map is a tree, so this is the only way). */
 export function roomPath(m: HallsGeo, from: number, to: number): number[] {
@@ -591,10 +600,10 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * next point on the shortest walk through the map's walking graph (round a ring's island, a cross's pillars, the
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
-export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number): { x: number; y: number } {
+export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40): { x: number; y: number } {
   // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
   const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
-  if (clearWalk(m, x, y, tx, ty, pad)) return { x: tx, y: ty };
+  if (clearWalk(m, x, y, tx, ty, pad, step)) return { x: tx, y: ty };
   const nav = navOf(m), n = nav.pts.length;
   const from = seen(m, nav, x, y), to = seen(m, nav, tx, ty);
   let best = Infinity, bi = from[0][0], bj = to[0][0];
