@@ -41,7 +41,7 @@ export const THEMES: Record<ThemeId, Theme> = {
 };
 
 /** H1's template has no theme field: R0 entrance, R1 A, R2 S (side), R3 B/C, R4 D (side), R5 door guard, door alcove. */
-const FALLBACK: ThemeId[] = ['ash', 'cooling', 'shrine', 'bellows', 'ash', 'slag', 'slag'];
+const FALLBACK: ThemeId[] = ['ash', 'cooling', 'shrine', 'bellows', 'ash', 'slag', 'bellows'];
 
 /** A room's theme: HallsRoom.theme from the generator, else the template's fallback by index. */
 export function themeOf(m: HallsMap, i: number): Theme {
