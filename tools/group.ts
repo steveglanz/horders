@@ -34,6 +34,7 @@ const skill = Number(process.env.SKILL ?? 1);
 // REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
 const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
 // HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta).
+// ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md).
 const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
 const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
 if (grants.length) {
@@ -88,7 +89,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, ondrelV2: process.env.ONDRELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
@@ -162,6 +163,7 @@ for (const seed of seeds) {
         const who = k < 0 ? 'none' : `${w.heroes[k].cls}${w.heroData(k).player.stance === 'anvil' ? '(anvil)' : ''}`;
         worstBy[who] = (worstBy[who] ?? 0) + 1;
       }
+      if (ev.type === 'phase' && w.ondrelStage > 0) bump('stage' + ev.phase);
       if (ev.type === 'cleanse') bump('cleanse');
       if (ev.type === 'slagGrip') bump('grip');
       if (ev.type === 'revive') bump('revive');

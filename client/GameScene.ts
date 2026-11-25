@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
@@ -1098,7 +1098,9 @@ export class GameScene extends Phaser.Scene {
       dungeon: w.dungeonId,
       namedAffix: w.namedPlan()?.affix,
       heat: w.heat || undefined,
-      inLava: w.lava.length > 0 && inLavaNow(w),
+      // ONDRELV2: standing in Ondrel's burning slag sizzles like the Kiln's lava.
+      inLava: (w.lava.length > 0 && inLavaNow(w)) || (w.slagPatches.length > 0 && w.player.hp > 0 && w.inSlag(w.player.x, w.player.y)),
+      slag: w.slagPatches,
       inRime: inRimeNow(w),
       sets: setFlagsOf(w.player, (id) => w.setCount(id), behindColossusNow(w)),
       listen: this.listenFrom(w),
@@ -1474,7 +1476,11 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (w.dungeonId === 'glarewell') {
+          if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
+            // ONDRELV2 (design, ondrel-v2.md): one line per stage.
+            if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
+            else this.hud.banner('Stage 3: The last heat', 'The slag bursts. Get clear of it, then burn him');
+          } else if (w.dungeonId === 'glarewell') {
             // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
             else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
@@ -2644,6 +2650,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'vorhulm') this.hoardDraw(g, e, now);
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
+      if (e.kind === 'ondrel' && w.slagPatches.length) this.ondrelSlagDraw(g, now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
@@ -4632,6 +4639,56 @@ export class GameScene extends Phaser.Scene {
       });
     }
   }
+
+  /**
+   * ONDRELV2, the 2D look's burning slag (the 3D look draws its own, client/hd2d/ondrelslag3d.ts, so this is skipped
+   * under the floor bridge): a dark cooled crust cracked by glowing molten seams, with a red rim that breathes slowly,
+   * so it reads as burning floor you can walk over but shouldn't stand in (red = bad). In the last heat each patch
+   * glows, its seams widening and running white-hot while the rim beats faster, until it bursts (the 'slam' event).
+   */
+  private ondrelSlagDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    if (this.bridge) return;
+    const R = ONDRELV2.r;
+    for (const a of this.world.slagPatches) {
+      if (a.glow < 0) continue;
+      const hot = a.glow > 0 ? 1 - a.glow / ONDRELV2.glow : 0;
+      const seams = this.slagSeams(a.x, a.y);
+      const breathe = 0.5 + 0.5 * Math.sin(now / (hot ? 70 - 40 * hot : 420) + a.x);
+      g.fillStyle(0x2a120c, 0.82).fillCircle(a.x, a.y, R);
+      g.fillStyle(0xff5a1a, 0.1 + 0.25 * hot).fillCircle(a.x, a.y, R * 0.6);
+      const seam = hot > 0.6 ? 0xfff0c8 : 0xffa040;
+      for (const [w, col, al] of [[6 + 8 * hot, 0xff4a10, 0.3 + 0.3 * hot], [2 + 2 * hot, seam, 0.85 + 0.15 * breathe]] as [number, number, number][]) {
+        g.lineStyle(w, col, al);
+        for (const line of seams) { g.beginPath(); line.forEach(([x, y], k) => (k ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokePath(); }
+      }
+      g.lineStyle(8, 0x000000, 0.35).strokeCircle(a.x, a.y, R);
+      g.lineStyle(4, DANGER, 0.7 + 0.3 * breathe).strokeCircle(a.x, a.y, R - 1);
+    }
+  }
+
+  /** A slag patch's seams in the 2D look: a jagged ring and six jagged spokes, fixed per patch (seeded by where it lies). */
+  private slagSeams(x: number, y: number): [number, number][][] {
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    let s = this.slagSeamCache.get(key);
+    if (s) return s;
+    let h = (Math.round(x) * 73856093) ^ (Math.round(y) * 19349663);
+    const rnd = () => { h = (h * 1103515245 + 12345) & 0x7fffffff; return h / 0x7fffffff; };
+    const R = ONDRELV2.r;
+    s = [];
+    const ring: [number, number][] = [];
+    for (let k = 0; k <= 14; k++) { const a = (k / 14) * Math.PI * 2, r = R * (0.48 + 0.1 * (k % 14 ? rnd() - 0.5 : 0)); ring.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+    s.push(ring);
+    const a0 = rnd() * Math.PI * 2;
+    for (let k = 0; k < 6; k++) {
+      const a = a0 + (k / 6) * Math.PI * 2 + (rnd() - 0.5) * 0.5, line: [number, number][] = [];
+      for (let j = 0; j <= 4; j++) { const r = R * (0.12 + 0.7 * (j / 4)), o = j ? (rnd() - 0.5) * 0.28 : 0; line.push([x + Math.cos(a + o) * r, y + Math.sin(a + o) * r]); }
+      s.push(line);
+    }
+    if (this.slagSeamCache.size > 32) this.slagSeamCache.clear();
+    this.slagSeamCache.set(key, s);
+    return s;
+  }
+  private slagSeamCache = new Map<string, [number, number][][]>();
 
   /**
    * Ondrel's wind-ups, drawn over the generic telegraphs:

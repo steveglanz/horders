@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -42,6 +42,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const m = w.halls!;
       expect(w.phase).toBe('cleared');
       expect(pack(w, 'A').enc).toBe(w.route[0]);
+      // Tiers 1-3 keep the named gate in the side room (design, 25 Nov; from tier 4 it goes on the main path).
       expect(pack(w, 'B').enc).toBe(w.route[1]);
       expect(pack(w, 'C').enc).toBe(w.route[2]);
       expect(pack(w, 'E').enc).toBe(w.route[3]);
@@ -319,6 +320,14 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     // Duskblade off a Dimhorn 17 from the wall, out in the dark, until its horn called three hounds in on it.
     const hero = JSON.parse(readFileSync(new URL('../tools/heroes/hero-t8.json', import.meta.url), 'utf8'));
     const w = new World({ seed: 38, halls: true, hallsBeta: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
+    // Since the named gate went on the main path (25 Nov) this seed's Dimhorn is in the side room, so put it back as B
+    // (the map it was found on; the rolls and rooms are the same).
+    const m = w.halls!;
+    const b = m.packs.findIndex((q) => q.role === 'B'), s = m.packs.findIndex((q) => q.role === 'S');
+    for (const [k, enc, gate] of [[b, m.packs[s].enc, undefined], [s, m.packs[b].enc, 'named']] as const) {
+      m.packs[k].enc = enc; m.packs[k].gate = gate; m.packs[k].foes = packFoes(38, k, enc, m.packs[k].x, m.packs[k].y);
+    }
+    expect(m.packs[b].enc).toBe('dimhorn');
     let dimhorn: (typeof w.enemies)[number] | undefined;
     const end = w.time + 400;
     while (w.state !== 'ended' && w.time < end && w.player.hp > 0 && !(dimhorn && !dimhorn.alive)) {
@@ -1190,5 +1199,24 @@ describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
     put(w, px + ux * (t + 80), py + uy * (t + 80));
     for (let k = 0; k < 90; k++) w.step({ x: -ux, y: -uy });
     expect(roomGap(rm, w.player.x, w.player.y)).toBeLessThan(0);
+  });
+});
+
+describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)', () => {
+  it('B takes the named fight and the side room keeps the steady one; tiers 1-3 keep the old map', () => {
+    let moved = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const lo = halls(seed, { tier: 3 }), hi = halls(seed, { tier: 4 });
+      const sLo = lo.halls!.packs.find((q) => q.role === 'S')!, bLo = lo.halls!.packs.find((q) => q.role === 'B')!;
+      const sHi = hi.halls!.packs.find((q) => q.role === 'S')!, bHi = hi.halls!.packs.find((q) => q.role === 'B')!;
+      expect(bLo.enc).toBe(lo.route[1]);
+      if (sHi.gate === 'shrine') { expect(bHi.enc).toBe(hi.route[1]); continue; }
+      moved++;
+      expect(bHi.gate).toBe('named');
+      expect(sHi.gate).toBe('steady');
+      expect(sHi.enc).toBe(hi.route[1]);
+      expect(sLo.gate).toBe('named');
+    }
+    expect(moved).toBeGreaterThan(5);
   });
 });
