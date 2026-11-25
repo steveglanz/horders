@@ -60,9 +60,9 @@ describe('Y2: dungeon arrays a guest draws are mirrored', () => {
   });
 
   it('BOSSV2: the Kiln Heat (safe quarter, warning, burning) reaches the guest (QA, 25 Nov)', () => {
-    const host = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2, bossV2: true });
+    const host = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2 });
     host.kmHeat = { safe: 1, warn: 0, on: true };
-    const guest = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2, bossV2: true });
+    const guest = new World({ seed: 5, dungeon: 'kiln', tier: 2, party: [{ cls: 'lumen' }], partySize: 2 });
     applySnapshot(guest, JSON.parse(JSON.stringify(snapshot(host))), 1);
     expect(guest.kmHeat).toEqual({ safe: 1, warn: 0, on: true });
   });

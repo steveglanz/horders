@@ -23,7 +23,7 @@ const step = (w: World, s: number, input = () => idle) => { for (let k = 0; k < 
 
 /** A Kiln fight with only the Kiln Mother up (BOSSV2 on), stage 1, the hero 200 east of her. */
 function mother(more: Partial<ConstructorParameters<typeof World>[0]> = {}): { w: World; q: Q; b: number } {
-  const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright', bossV2: true, ...more });
+  const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright', ...more });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   w.player.x = 200; w.player.y = 0;
@@ -46,11 +46,10 @@ function intoKiln(w: World, q: Q, b: number): void {
   expect(w.kmInKiln).toBe(true);
 }
 
-describe('BOSSV2: the flag', () => {
-  it('is off by default and on the first delve: her fight is today\'s', () => {
-    expect(new World({ seed: 1, tier: 2 }).bossV2).toBe(false);
-    expect(new World({ seed: 1, tier: 1, firstDelve: true, bossV2: true }).bossV2).toBe(false);
-    expect(new World({ seed: 1, tier: 2, bossV2: true }).bossV2).toBe(true);
+describe('BOSSV2: always on', () => {
+  it('is on for every run but the first delve, which keeps her old teaching fight', () => {
+    expect(new World({ seed: 1, tier: 2 }).bossV2).toBe(true);
+    expect(new World({ seed: 1, tier: 1, firstDelve: true }).bossV2).toBe(false);
     const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright' });
     const q = w as unknown as Q;
     for (const e of w.enemies) e.alive = false;
@@ -289,8 +288,10 @@ describe('BOSSV2: on a Halls run', () => {
 });
 
 describe('BOSSV2: Vorhulm the Glutton\'s Gorge', () => {
+  // The first delve keeps the old fight, so its Glutton still casts Gorge.
   function glutton(v2: boolean) {
-    const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright', bossV2: v2 });
+    const w = new World(v2 ? { seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright' } : { seed: 3, dungeon: 'kiln', tier: 1, omens: [], cls: 'emberwright', firstDelve: true });
+    expect(w.bossV2).toBe(v2);
     const q = w as unknown as Q;
     for (const e of w.enemies) e.alive = false;
     w.player.x = 400; w.player.y = 0;
@@ -310,7 +311,7 @@ describe('BOSSV2: Vorhulm the Glutton\'s Gorge', () => {
     expect(e.hp).toBeLessThanOrEqual(hp);
   });
 
-  it('with the flag off it still casts its interruptible Gorge', () => {
+  it('on the first delve it still casts its interruptible Gorge', () => {
     const { q, i, e } = glutton(false);
     let cast = false;
     for (let k = 0; k < 30 * 12 && !cast; k++) { q.runAbilities(i, 1 / 30); if (e.castId === 'gorge') cast = e.interruptible; }

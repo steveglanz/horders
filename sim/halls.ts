@@ -1,7 +1,7 @@
 /**
  * Phase 18 Halls H1 (design spec: /mnt/project-files/horders/design/halls/h1-prototype-spec.md): a WoW-style dungeon
- * map for the Kiln, behind ?halls=1. Rooms joined by corridors, with packs standing asleep in them; walk the map,
- * pick your fights, then go through the boss door into today's Kiln arena.
+ * map (every dungeon and raid now; HALLS_ON). Rooms joined by corridors, with packs standing asleep in them; walk the map,
+ * pick your fights, then go through the boss door into the dungeon's boss arena.
  *
  * This file is pure: the map template, its geometry (where heroes and foes may stand, and how a foe walks round a
  * wall), and the pack plan rolled from a run's route. World (sim/world.ts) owns the state as it plays.
@@ -231,15 +231,8 @@ const hash = (seed: number, k: number): number => {
  * phone pass #813 were in), so every dungeon and raid now has its map.
  */
 export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
-/**
- * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
- * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
- */
-export const HALLS_BETA: DungeonId[] = [];
-/** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents', 'crucible', 'hoard', 'smeltery', 'flue'];
-/** Whether a run of `dungeon` gets a Halls map. */
-export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
+/** Whether a run of `dungeon` gets a Halls map (solo, bot-filled and hosted online co-op alike). */
+export const hallsFor = (dungeon: DungeonId): boolean => HALLS_ON.includes(dungeon);
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
 type Spot = { role: PackRole; room: number; x: number; y: number; guard?: boolean };
@@ -284,14 +277,16 @@ export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
  * spitters and the Ashbuck double as the Kiln's do.
  */
 export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast', 'emberTwin'];
-/** The dungeons whose map's openers are trash (WorldOptions.kilnTrash, on by default in play; ?kilntrash=0 turns it off). */
-export const TRASH_ON: DungeonId[] = ['kiln'];
-/** Trash rollout (design, 25 Nov): built but off for players; a run gets it with WorldOptions.trashBeta (?trashbeta=1, TRASH_BETA=1 in tools). */
-export const TRASH_BETA: DungeonId[] = ['foundry'];
-/** Whether `dungeon`'s map has trash packs (raids have their own switch, raidTrash). */
-export const trashFor = (dungeon: DungeonId, on: boolean, beta: boolean): boolean => (on && TRASH_ON.includes(dungeon)) || (beta && TRASH_BETA.includes(dungeon));
+/**
+ * The dungeons whose map's openers are trash, for every run on the map: the Kiln (design, 25 Nov, kiln-trash-plan.md)
+ * and the Foundry (grid passed, engineering/foundry-trash-grid.md; on since Steve's "nothing should be a switch",
+ * 25 Nov). Group dungeons and raids keep full packs (design's ruling). A measuring tool may push a dungeon here.
+ */
+export const TRASH_ON: DungeonId[] = ['kiln', 'foundry'];
+/** Whether `dungeon`'s map has trash packs. */
+export const trashFor = (dungeon: DungeonId): boolean => TRASH_ON.includes(dungeon);
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false, raidTrash = false, trashBeta = false): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -323,7 +318,6 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   // Tiers 1-3 are the novice tiers (noviceAid) and keep it in the side room (a Kiln t2 Emberwright lost 8 of 80 to it).
   // H5: a raid's map follows the same rule (design, 25 Nov: without it the Crucible's party met Grandmother Slag with
   // 0.8 fewer elite chests than in the arena, engineering/h5a-crucible-grid.md); C, its named fight, guards the door.
-  const raid = !!DUNGEONS[dungeon].raid;
   const onPath = side.kind === 'named' && tier >= 4;
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
@@ -336,7 +330,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const trash = (trashFor(dungeon, kilnTrash, trashBeta) || (raidTrash && raid)) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
+    const trash = trashFor(dungeon) && p.gate !== 'named' && DUNGEONS[dungeon].openers.includes(p.enc);
     const foes = packFoes(seed, k, p.enc, x, y, trash);
     return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.guard ?? s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes, ...(trash ? { trash } : {}) };
   });

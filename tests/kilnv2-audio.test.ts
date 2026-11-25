@@ -19,7 +19,7 @@ function one(w: World): string[] {
   return (w.events as SimEvent[]).map((ev) => cueFor(ev, ctx)?.id ?? '').filter(Boolean);
 }
 function mother(): { w: World; q: Q; b: number } {
-  const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright', bossV2: true });
+  const w = new World({ seed: 3, dungeon: 'kiln', tier: 2, omens: [], cls: 'emberwright' });
   const q = w as unknown as Q;
   for (const e of w.enemies) e.alive = false;
   w.player.x = 200; w.player.y = 0;

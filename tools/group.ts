@@ -15,6 +15,8 @@ import { SET_SLOTS, SET_TUNING, SetId } from '../sim/content/sets';
 import { TALENTS, TalentId } from '../sim/content/emberwright';
 import { toolOmens } from './omenopt';
 import { buildPoints } from '../sim/content/trees';
+import { TRASH_ON } from '../sim/halls';
+import type { DungeonId } from '../sim/content/dungeon';
 
 const classes = (process.env.PARTY ?? 'bulwark,lumen,duskblade,emberwright').split(',') as ClassId[];
 const dir = process.env.HEROES;
@@ -40,10 +42,11 @@ const treePoints = (cls: ClassId, h: HeroProfile) => {
 const skill = Number(process.env.SKILL ?? 1);
 // REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
 const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
-// HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta). RAIDTRASH=1 makes a raid map's openers trash (KILNTRASH=1 the Kiln's, TRASH_BETA=1 the Foundry's).
-// ONDRELV2=1 plays the staged Ondrel (design, ondrel-v2.md). OSKELV2=1 the staged Oskel (oskel-v2.md); it prints crush-line hits.
-// YSMERETV2=1 plays the two-stage Ysmeret (design, ysmeret-v2.md); TUNE=YSMERETV2.split=0 keeps only her Bellow change.
-const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
+// HALLS=1 plays the Halls map. TRASH=crucible (measuring only) makes those maps' openers trash too (sim/halls.ts TRASH_ON).
+// The staged Kiln Mother, Ondrel, Ysmeret and Oskel are always on; a Pressworks run prints Oskel's crush-line hits.
+// TUNE=YSMERETV2.split=0 keeps only Ysmeret's Bellow change.
+const hallsMap = process.env.HALLS === '1';
+if (process.env.TRASH) TRASH_ON.push(...(process.env.TRASH.split(',') as DungeonId[]));
 const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
 if (grants.length) {
   const proto = World.prototype as unknown as { branchRanks(b: string): number; talents: Partial<Record<TalentId, number>>; cls: ClassId };
@@ -175,7 +178,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, halls: hallsMap, hallsBeta, kilnTrash: process.env.KILNTRASH === '1', trashBeta: process.env.TRASH_BETA === '1', raidTrash: process.env.RAIDTRASH === '1', gunner: process.env.GUNNER === '0' ? false : undefined, ondrelV2: process.env.ONDRELV2 === '1', ysmeretV2: process.env.YSMERETV2 === '1', oskelV2: process.env.OSKELV2 === '1', dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, gunner: process.env.GUNNER === '0' ? false : undefined, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: treePoints(main, mp), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
@@ -296,4 +299,4 @@ if (process.env.STIRHURT === '1' && fightHurts.length) {
 }
 if (ytrace) ysReport();
 console.log(`party ${classes.join('+')}: wins ${wins}/${seeds.length}`);
-if (process.env.OSKELV2 === '1') console.log(`oskelv2 beltFights=${os.belt} fullSpeedFights=${os.full} crushHits=${os.hits} perBeltFight=${(os.hits / Math.max(1, os.belt)).toFixed(2)} flips=${os.flips} flipsPerBeltFight=${(os.flips / Math.max(1, os.belt)).toFixed(1)} by=${JSON.stringify(os.by)} beltDownstrokes ok=${os.downOk} missed=${os.downMiss} avgTankToOskel=${(os.tankBoss / Math.max(1, os.ticks)).toFixed(0)} avgTankToHealer=${(os.tankHealer / Math.max(1, os.ticks)).toFixed(0)}`);
+if ((process.env.DUNGEON ?? 'hammerdeep') === 'pressworks') console.log(`oskelv2 beltFights=${os.belt} fullSpeedFights=${os.full} crushHits=${os.hits} perBeltFight=${(os.hits / Math.max(1, os.belt)).toFixed(2)} flips=${os.flips} flipsPerBeltFight=${(os.flips / Math.max(1, os.belt)).toFixed(1)} by=${JSON.stringify(os.by)} beltDownstrokes ok=${os.downOk} missed=${os.downMiss} avgTankToOskel=${(os.tankBoss / Math.max(1, os.ticks)).toFixed(0)} avgTankToHealer=${(os.tankHealer / Math.max(1, os.ticks)).toFixed(0)}`);

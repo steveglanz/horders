@@ -150,7 +150,7 @@ describe('co-op events survive a lost snapshot and a slow guest frame', () => {
 
 describe('H4: hosted co-op stays in step on a Halls map', () => {
   for (const [dungeon, tier] of [['hammerdeep', 4], ['ashvents', 7], ['pressworks', 10]] as const) it(`a guest mirror of a ${dungeon} map run has the host's packs, grates, rooms seen, foes and heroes`, () => {
-    const o: WorldOptions = { seed: 5, tier, dungeon, halls: true, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] };
+    const o: WorldOptions = { seed: 5, tier, dungeon, halls: true, cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] };
     const host = new World(o);
     const guest = new World(o);
     expect(host.halls).toBeTruthy();

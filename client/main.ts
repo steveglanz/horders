@@ -18,8 +18,7 @@ import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './n
 import { MAX_PARTY } from './net/party';
 import { CLASS_ICON, glyph } from './icons';
 import { hd2dMounted, hd2dWanted, loadHd2d, lookWanted, prefetchHd2d } from './hd2d/api';
-import { display, hallsWanted, mountDisplayOptions, onDisplayChange } from './settings';
-import { HALLS_COOP } from '../sim/halls';
+import { display, mountDisplayOptions, onDisplayChange } from './settings';
 import { cloud, queueCloudSave, SUPABASE } from './cloud';
 import { World, WorldOptions } from '../sim/world';
 import { audio } from './audio';
@@ -300,36 +299,11 @@ function startRun(bounty = false, key = false): void {
     const gear = standInGear(equippedItems(hero));
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
-  // Phase 18 Halls: the default wherever a dungeon has a map (hallsFor). H4: the map now reaches guests (netsync's
-  // Snapshot.halls), but hosted online co-op only plays it where QA has played it there (HALLS_COOP), or with ?hallsbeta=1.
-  if (hallsWanted() && !stress && (!hosting || HALLS_COOP.includes(hub.dungeon) || params.get('hallsbeta') === '1')) {
-    opts.halls = true;
-    // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
-    if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;
-    // H3: ?hallsbeta=1 also maps the dungeons whose Halls aren't on for players yet (HALLS_BETA).
-    if (new URLSearchParams(location.search).get('hallsbeta') === '1') opts.hallsBeta = true;
-  }
-  // BOSSV2 (design 25 Nov; Steve okayed it 25 Nov 06:41Z): the three-stage Kiln Mother and the new Gorge, on by default
-  // in local play (the first delve keeps the old fight, in World). Hosted online co-op keeps today's fight until QA
-  // has played it there (design, 25 Nov), so a host opts in with ?bossv2=1; ?bossv2=0 turns it off for comparing.
-  if (hosting ? params.get('bossv2') === '1' : params.get('bossv2') !== '0') opts.bossV2 = true;
-  // ONDRELV2 (design, 25 Nov): the staged Ondrel, on by default in local play and hosted co-op since QA passed it in
-  // hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ondrelv2=0 turns it off for comparing.
-  if (params.get('ondrelv2') !== '0') opts.ondrelV2 = true;
-  // KILNTRASH (design, 25 Nov): the Kiln map's opener packs as trash (twice the foes at 30% health, no bag), on by default
-  // since design's call on its grid (25 Nov); ?kilntrash=0 turns it off for comparing.
-  if (params.get('kilntrash') !== '0') opts.kilnTrash = true;
-  // H5 (design's h5-plan.md): a raid map's openers as trash too, off until it has had a day live in the Kiln.
-  if (params.get('raidtrash') === '1') opts.raidTrash = true;
-  // Trash rollout (design's trash-rollout-plan.md): the next solo dungeons' openers as trash (TRASH_BETA, the Foundry first), off until its grid and QA.
-  if (params.get('trashbeta') === '1') opts.trashBeta = true;
-  // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
-  // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
-  if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;
-  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, on by default in local play and hosted co-op
-  // since its grid (#777, #786), sound (#779), art (#783, #793), QA solo and co-op, and the phone pass (#792). The first
-  // delve keeps the old fight (in World); ?oskelv2=0 turns it off for comparing.
-  if (params.get('oskelv2') !== '0') opts.oskelV2 = true;
+  // Phase 18 Halls: every dungeon with a map (sim/halls.ts HALLS_ON) is played on it, solo, bot-filled and hosted online
+  // co-op alike (the map reaches guests in netsync's Snapshot.halls). Its trash packs (TRASH_ON), and the staged Kiln
+  // Mother, Ondrel, Ysmeret and Oskel, are always on in World: no switch and no URL flag (Steve, 25 Nov: "Nothing should
+  // be a switch"). The first delve keeps its teaching fight (World).
+  if (!stress) opts.halls = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

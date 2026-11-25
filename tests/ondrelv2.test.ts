@@ -11,14 +11,14 @@ type O = {
 };
 const party = [{ cls: 'lumen' as const, name: 'b' }];
 
-function fight(v2 = true): { w: World; q: O; b: number } {
-  const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party, ondrelV2: v2 });
+function fight(): { w: World; q: O; b: number } {
+  const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party });
   const q = w as unknown as O;
   for (const e of w.enemies) e.alive = false;
   w.stones = [];
   const b = q.spawn('ondrel', 0, -200);
   q.bossIndex = b; q.bossSpawned = true;
-  q.ondrelStage = w.ondrelV2 ? 1 : 0;
+  q.ondrelStage = 1;
   q.anvilT = 99; q.choirT = 99;
   w.heroData(0).player.x = 0; w.heroData(0).player.y = 0;
   w.heroData(1).player.x = 400; w.heroData(1).player.y = 0;
@@ -41,15 +41,6 @@ function stage2(w: World, q: O, b: number): void {
 }
 
 describe('ONDRELV2: the staged Ondrel', () => {
-  it('is off unless asked for', () => {
-    const { w, q, b } = fight(false);
-    expect(w.ondrelV2).toBe(false);
-    stage2(w, q, b);
-    anvilfall(w, q, b);
-    expect(q.ondrelStage).toBe(0);
-    expect(w.slagPatches).toHaveLength(0);
-  });
-
   it('stage 1 leaves no slag; stage 2 starts at 60% and every Anvilfall leaves a patch on the tank\'s spot, which blocks nothing', () => {
     const { w, q, b } = fight();
     anvilfall(w, q, b);
@@ -141,9 +132,10 @@ describe('ONDRELV2: the staged Ondrel', () => {
     expect(m.y).toBeGreaterThan(0.9);
   });
 
-  it('under ONDRELV2 only, his health is x hpMult', () => {
-    const hp = (v2: boolean): number => {
-      const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party, ondrelV2: v2 });
+  it('his health is x hpMult', () => {
+    const hp = (mult: number): number => {
+      ONDRELV2.hpMult = mult;
+      const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party });
       const q = w as unknown as O & { startEncounter(): void; encounter: number; route: string[] };
       for (const e of w.enemies) e.alive = false;
       q.route[1] = 'ondrel';
@@ -152,9 +144,8 @@ describe('ONDRELV2: the staged Ondrel', () => {
       return w.enemies[q.bossIndex].maxHp;
     };
     const was = ONDRELV2.hpMult;
-    ONDRELV2.hpMult = 0.9;
     try {
-      expect(hp(true)).toBeCloseTo(hp(false) * 0.9, 0);
+      expect(hp(0.9)).toBeCloseTo(hp(1) * 0.9, 0);
     } finally { ONDRELV2.hpMult = was; }
   });
 
@@ -162,7 +153,7 @@ describe('ONDRELV2: the staged Ondrel', () => {
     const { w, q, b } = fight();
     stage2(w, q, b);
     anvilfall(w, q, b);
-    const g = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party, ondrelV2: true });
+    const g = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party });
     applySnapshot(g, JSON.parse(JSON.stringify(snapshot(w))), 1);
     expect(g.slagPatches).toHaveLength(1);
     expect(g.ondrelStage).toBe(2);

@@ -1,5 +1,5 @@
 /**
- * The staged Ondrel's burning slag (design's "Ondrel v2", engineering's ONDRELV2, behind ?ondrelv2=1) in 3D.
+ * The staged Ondrel's burning slag (design's "Ondrel v2", engineering's ONDRELV2) in 3D.
  *
  * Stage 2: each Anvilfall leaves a flat patch of slag (World.slagPatches, radius ONDRELV2.r). It reads as burning
  * floor you can walk over but shouldn't stand in: a dark cooled crust broken into plates, molten seams glowing between

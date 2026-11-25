@@ -819,28 +819,12 @@ export interface WorldOptions {
   bounty?: number;
   /** P3: a Delver's Key run at this key level (foes tougher per level; pass keyOmens as `omens`). */
   keyLevel?: number;
-  /** Phase 18 Halls H1 (?halls=1): play the dungeon as a map of rooms and sleeping packs (the Kiln only for now; sim/halls.ts). */
+  /** Phase 18 Halls: play the dungeon as a map of rooms and sleeping packs (every dungeon in HALLS_ON; sim/halls.ts). The client always sets it; tools and tests may leave it off for the arena. */
   halls?: boolean;
-  /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
+  /** H2c: a Halls run on H1's hand-made map instead of the generated one (tests and tools only). */
   hallsTemplate?: boolean;
-  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the opener packs of a TRASH_ON map (the Kiln) are trash (sim/halls.ts). */
-  kilnTrash?: boolean;
-  /** Trash rollout (?trashbeta=1, TRASH_BETA=1, design 25 Nov, trash-rollout-plan.md): a TRASH_BETA map's openers (the Foundry's) are trash too. */
-  trashBeta?: boolean;
-  /** H5 (design's h5-plan.md): a raid map's opener packs are trash as the Kiln's (?raidtrash=1, RAIDTRASH=1; off until design's go). */
-  raidTrash?: boolean;
-  /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
-  bossV2?: boolean;
-  /** ONDRELV2 (?ondrelv2=1, design 25 Nov, ondrel-v2.md): Ondrel in three stages, the burning slag and the last heat. */
-  ondrelV2?: boolean;
   /** The Slagbinder as the cannon gunner (default SLAG_GUNNER; false keeps the old Slag Lob and stances, for measuring). */
   gunner?: boolean;
-  /** YSMERETV2 (?ysmeretv2=1, design 25 Nov, ysmeret-v2.md): Ysmeret in two stages, the vents and then two flames. */
-  ysmeretV2?: boolean;
-  /** OSKELV2 (?oskelv2=1, design 25 Nov, oskel-v2.md): Oskel in three stages, the press, the belt and full speed. */
-  oskelV2?: boolean;
-  /** Halls H3: a map for the dungeons still in HALLS_BETA (?hallsbeta=1), off by default. */
-  hallsBeta?: boolean;
 }
 
 export interface RunSummary {
@@ -935,17 +919,12 @@ export class World {
   private fillRng: Rng | null = null;
   /** L1: this is the hero's first delve (FIRST_DELVE). */
   readonly firstDelve: boolean;
-  /** BOSSV2: the three-stage Kiln Mother and the new Gorge (never on the first delve). */
+  /** BOSSV2: the three-stage Kiln Mother and the new Gorge, on every run but the first delve (which keeps the old fight). */
   readonly bossV2: boolean;
-  /** ONDRELV2: the staged Ondrel. */
-  readonly ondrelV2: boolean;
   /** Every Slagbinder in this run is the cannon gunner (no Anvil stance). */
   readonly gunner: boolean;
   /** ONDRELV2: 0 = not a v2 fight, else his stage (1 the hammer, 2 the burning slag, 3 the last heat). */
   ondrelStage = 0;
-  readonly ysmeretV2: boolean;
-  /** OSKELV2: the staged Oskel. */
-  readonly oskelV2: boolean;
   /** OSKELV2: 0 = not a v2 fight, else his stage (1 the press, 2 the belt, 3 full speed). */
   osStage = 0;
   /** OSKELV2 stage 2-3: the way the press bed carries everyone (radians), and the s left until it flips (-1: no flip due). */
@@ -1375,11 +1354,8 @@ export class World {
     this.fillBots = opts.fillBots ?? 0;
     this.partySize = clampParty(opts.partySize ?? 1 + Math.min(MAX_PARTY - 1, opts.party?.length ?? 0));
     this.firstDelve = !!opts.firstDelve && this.dungeonId === 'kiln' && this.tier === 1 && opts.bounty === undefined && !this.keyLevel && this.partySize === 1;
-    this.bossV2 = !!opts.bossV2 && !this.firstDelve;
-    this.ondrelV2 = !!opts.ondrelV2 && !this.firstDelve;
+    this.bossV2 = !this.firstDelve;
     this.gunner = opts.gunner ?? SLAG_GUNNER;
-    this.ysmeretV2 = !!opts.ysmeretV2 && !this.firstDelve;
-    this.oskelV2 = !!opts.oskelV2 && !this.firstDelve;
     if (this.firstDelve) {
       this.keyHp *= FIRST_DELVE.hp;
       this.keyDmg *= FIRST_DELVE.dmg;
@@ -1461,8 +1437,8 @@ export class World {
     }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
-    if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash, !!opts.trashBeta);
+    if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2322,9 +2298,9 @@ export class World {
           this.echoNext = true;
           this.gripT = 0;
           this.slagTickT = 1;
-          this.ondrelStage = this.ondrelV2 ? 1 : 0;
+          this.ondrelStage = 1;
           this.slagPatches = [];
-          if (this.ondrelV2) { e.maxHp *= ONDRELV2.hpMult; e.hp = e.maxHp; }
+          e.maxHp *= ONDRELV2.hpMult; e.hp = e.maxHp;
           e.abilityT = ONDREL.sweepEvery;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2449,7 +2425,7 @@ export class World {
           this.echoNext = true; this.ventMove = this.bossVariant;
           this.scatterT = YSMERET.firstScatter;
           this.bellowT = YSMERET.firstBellow;
-          this.ysStage = this.ysmeretV2 ? 1 : 0;
+          this.ysStage = 1;
           this.ysF0 = this.ysF1 = -1;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -2464,10 +2440,10 @@ export class World {
           this.echoNext = true;
           this.cutCount = 0;
           // OSKELV2: the belt's first way comes from the seed, not the rng, so the rest of the run's draws don't move.
-          this.osStage = this.oskelV2 ? 1 : 0;
+          this.osStage = 1;
           this.osDir = ((this.seed & 7) * Math.PI) / 4;
           this.osFlipT = -1;
-          if (this.oskelV2 && OSKELV2.hpMult !== 1) { e.maxHp *= OSKELV2.hpMult; e.hp = e.maxHp; }
+          if (OSKELV2.hpMult !== 1) { e.maxHp *= OSKELV2.hpMult; e.hp = e.maxHp; }
           this.events.push({ type: 'bossSpawn' });
         }
         if (sp.kind === 'lensbearer') e.abilityT = 4 + j * 3;
