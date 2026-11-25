@@ -4449,6 +4449,61 @@ export class GameScene extends Phaser.Scene {
         g.lineCap = 'butt';
       }
     }
+    // The Pressworks: who is Pressed (took the last Downstroke, can't take the next), the warning ring on a Pressed
+    // hero who steps onto the plate, and the plate's badge (tick, cross, "!"). 2D draws these on overFx, which the 3D
+    // view covers, so on a phone nobody could tell who was Pressed (phone pass, Pressworks Halls, 25 Nov).
+    if (w.dungeonId === 'pressworks') {
+      const dg = '#' + DANGER.toString(16).padStart(6, '0');
+      const now = this.time.now;
+      const plate = w.telegraphs.find((t) => t.alive && t.kind === 'soak' && t.owner === -3);
+      let ok = 0, crushed = false;
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        const onPlate = !!plate && (q.x - plate.x) ** 2 + (q.y - plate.y) ** 2 <= plate.r * plate.r;
+        const left = q.pressedT ?? 0;
+        if (onPlate) { if (left > 0) crushed = true; else ok++; }
+        if (left <= 0) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        if (onPlate) {
+          g.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * Math.sin(now / 70));
+          g.strokeStyle = dg; g.lineWidth = 3 * zb;
+          g.beginPath(); g.ellipse(p.x, p.y, 26 * zb, 11 * zb, 0, 0, Math.PI * 2); g.stroke();
+          g.globalAlpha = 1;
+        }
+        // The 2D mark: a small red plate with a press-down glyph, ringed by the time left.
+        const x = p.x + 24 * zb, y = p.y - 22 * zb, r = 10 * zb, kk = Math.max(0, Math.min(1, left / OSKEL.pressed));
+        g.fillStyle = 'rgba(32,10,14,0.9)'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(90,32,40,0.9)'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = dg; g.lineWidth = 2.5 * zb; g.beginPath(); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * kk); g.stroke();
+        g.fillStyle = dg;
+        g.fillRect(x - 5 * zb, y - 6 * zb, 10 * zb, 3 * zb); g.fillRect(x - 1.25 * zb, y - 3 * zb, 2.5 * zb, 5 * zb);
+        g.beginPath(); g.moveTo(x - 4 * zb, y + 1 * zb); g.lineTo(x + 4 * zb, y + 1 * zb); g.lineTo(x, y + 5 * zb); g.closePath(); g.fill();
+        g.fillRect(x - 5 * zb, y + 5 * zb, 10 * zb, 1.6 * zb);
+      }
+      const bp = plate ? view.project(plate.x, plate.y - plate.r) : null;
+      if (plate && bp && onScreen(bp)) {
+        const bx = bp.x, by = bp.y - 14 * zb, r = 11 * zb;
+        const f = Math.min(1, Math.max(0, plate.t / Math.max(0.01, plate.dur)));
+        const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+        g.fillStyle = crushed || !ok ? 'rgba(32,10,14,0.85)' : 'rgba(16,32,15,0.85)';
+        g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.fill();
+        g.lineCap = 'round';
+        if (crushed || !ok) {
+          g.globalAlpha = 0.6 + 0.4 * blink; g.strokeStyle = dg; g.lineWidth = 2 * zb;
+          g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+          if (crushed) {
+            g.lineWidth = 3 * zb; g.beginPath();
+            g.moveTo(bx - 5 * zb, by - 5 * zb); g.lineTo(bx + 5 * zb, by + 5 * zb); g.moveTo(bx - 5 * zb, by + 5 * zb); g.lineTo(bx + 5 * zb, by - 5 * zb); g.stroke();
+          } else { g.fillStyle = dg; g.fillRect(bx - 1.5 * zb, by - 7 * zb, 3 * zb, 9 * zb); g.fillRect(bx - 1.5 * zb, by + 4 * zb, 3 * zb, 3 * zb); }
+        } else {
+          g.strokeStyle = '#9fe8a8'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke();
+          g.lineWidth = 3 * zb; g.beginPath(); g.moveTo(bx - 5 * zb, by); g.lineTo(bx - 1 * zb, by + 4 * zb); g.lineTo(bx + 6 * zb, by - 4 * zb); g.stroke();
+        }
+        g.lineCap = 'butt';
+      }
+    }
     g.globalAlpha = 1;
   }
 
