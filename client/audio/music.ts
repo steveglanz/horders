@@ -36,7 +36,11 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   // The Wrackline's four (visuals, 25 Nov): every room is a quay of open water with rafts.
   | 'harbourQuay' | 'wreckYard' | 'kelpBed' | 'sluiceGate'
   // The Hammerdeep's four (H4a, 25 Nov): cold forge iron, nothing glowing.
-  | 'anvilHall' | 'chainGallery' | 'quenchTrough' | 'ingotStore';
+  | 'anvilHall' | 'chainGallery' | 'quenchTrough' | 'ingotStore'
+  // The Ashvents' four (H4b, 25 Nov): pale ash and rose stone, nothing burns.
+  | 'fumaroleField' | 'obsidianGallery' | 'cairnWalk' | 'pumiceDrift'
+  // The Pressworks' four (H4c, 25 Nov): olive brass, nothing glows.
+  | 'pressFloor' | 'gearRoom' | 'plateStore' | 'oilSump';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
   'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
@@ -44,6 +48,8 @@ export const ROOM_BEDS: readonly RoomBedKind[] = [
   'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt',
   'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate',
   'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore',
+  'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift',
+  'pressFloor', 'gearRoom', 'plateStore', 'oilSump',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
@@ -538,6 +544,82 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         lp += (hp - lp) * 0.15;
         const s = i / rate;
         raw[i] = lp * 0.04 + (Math.sin(2 * Math.PI * 233 * s) + 0.7 * Math.sin(2 * Math.PI * 311 * s)) * 0.016 + brown * 0.06;
+        break;
+      }
+      case 'fumaroleField': {
+        // Fumarole field, the door guard's room: smoke rising off the vents, a soft breathy rush that lifts four times round
+        // the loop at uneven places; nothing burns.
+        lp += (w - lp) * 0.12;
+        hp = 0.9 * (hp + lp - prev);
+        prev = lp;
+        const lift = [0.04, 0.29, 0.52, 0.76].reduce((m, at) => Math.max(m, t >= at && t < at + 0.16 ? Math.sin((Math.PI * (t - at)) / 0.16) : 0), 0);
+        raw[i] = hp * (0.05 + 0.3 * lift * lift) + brown * 0.12;
+        break;
+      }
+      case 'obsidianGallery': {
+        // Obsidian gallery, by the boss door: rose light breathing off black glass, a dark glassy chord that swells once.
+        const s = i / rate;
+        const breath = 0.3 + 0.7 * Math.pow(Math.sin(t * Math.PI), 2);
+        const glass = Math.sin(2 * Math.PI * 329.6 * s) + 0.6 * Math.sin(2 * Math.PI * 493.9 * s) + 0.35 * Math.sin(2 * Math.PI * 987.8 * s) * breath;
+        raw[i] = glass * 0.04 * breath + brown * 0.08;
+        break;
+      }
+      case 'cairnWalk': {
+        // Cairn walk, the quiet room: a thin cold air between stacked stones, and a faint low hum; nothing moves.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.25;
+        raw[i] = lp * 0.12 + brown * 0.05;
+        break;
+      }
+      case 'pumiceDrift': {
+        // Pumice drift, the palest room: a soft high airy wash, like fine ash settling, that swells faintly once.
+        hp = 0.75 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.5;
+        const swell = 0.6 + 0.4 * Math.pow(Math.sin(t * Math.PI), 2);
+        raw[i] = lp * 0.12 * swell + brown * 0.04;
+        break;
+      }
+      case 'pressFloor': {
+        // Press floor, the door guard's room: a press ram rises on a slow hydraulic hiss and settles with a soft heavy thud.
+        hp = 0.92 * (hp + w - prev);
+        prev = w;
+        const s = i / rate;
+        const rise = t < 0.55 ? Math.sin((Math.PI * t) / 1.1) : 0;
+        const ds = t - 0.62;
+        const thud = ds >= 0 && ds < 0.05 ? Math.exp(-ds * 60) * Math.sin(2 * Math.PI * (70 - ds * 300) * s) : 0;
+        const hum = Math.sin(2 * Math.PI * 233 * s + Math.sin(2 * Math.PI * 4 * s) * 0.5) * 0.012;
+        raw[i] = hp * 0.06 * rise * rise + thud * 0.5 + hum + brown * 0.12;
+        break;
+      }
+      case 'gearRoom': {
+        // Gear room, by the boss door: one great wall gear turning slowly, a low tooth-click about twice a second over a
+        // brass hum.
+        const s = i / rate;
+        const ph = (t * 12) % 1;
+        const tooth = Math.exp(-ph * 90) * (Math.sin(2 * Math.PI * 1760 * s) + 0.6 * Math.sin(2 * Math.PI * 2637 * s));
+        const hum = Math.sin(2 * Math.PI * 293.7 * s) + 0.5 * Math.sin(2 * Math.PI * 440.5 * s);
+        const turn = 0.5 + 0.5 * Math.pow(Math.sin(t * Math.PI * 2), 2);
+        raw[i] = tooth * 0.2 * turn + hum * 0.012 + brown * 0.02;
+        break;
+      }
+      case 'plateStore': {
+        // Plate store, the quiet room: still air between stacked brass plates, a faint metal resonance; nothing moves.
+        hp = 0.985 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.1;
+        const s = i / rate;
+        raw[i] = lp * 0.06 + (Math.sin(2 * Math.PI * 277.2 * s) + 0.6 * Math.sin(2 * Math.PI * 415.3 * s) + 0.3 * Math.sin(2 * Math.PI * 830.6 * s)) * 0.012 + brown * 0.08;
+        break;
+      }
+      case 'oilSump': {
+        // Oil sump: dark, thick oil in a pit, a low sticky drone that swells faintly, and two slow glugs round the loop.
+        lp += (w - lp) * 0.03;
+        const s = i / rate;
+        const swell = 0.6 + 0.4 * Math.pow(Math.sin(t * Math.PI), 2);
+        const glugAt = (c: number) => { const d = t - c; return d >= 0 && d < 0.04 ? Math.sin((Math.PI * d) / 0.04) * Math.sin(2 * Math.PI * (180 + d * 3000) * s) : 0; };
+        raw[i] = lp * 0.5 * swell + (glugAt(0.2) + 0.8 * glugAt(0.68)) * 0.12 + Math.sin(2 * Math.PI * 174.6 * s) * 0.015 * swell + brown * 0.15;
         break;
       }
       case 'shimmer': {
