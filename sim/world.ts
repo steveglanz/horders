@@ -3373,7 +3373,11 @@ export class World {
 
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
-    if (this.hallsOn) { clampHalls(this.halls!, o, r); clampGrates(this.halls!, o, r); }
+    if (this.hallsOn) {
+      clampHalls(this.halls!, o, r);
+      // Co-op only: grates let heroes in, never out (foes and shots still never cross). Solo play doesn't change.
+      clampGrates(this.halls!, o, r, this.heroes.length > 1 && this.heroes.some((h) => h.player === o));
+    }
     else {
       const d = Math.hypot(o.x, o.y);
       const max = this.arenaR - r;
