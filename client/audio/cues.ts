@@ -704,6 +704,8 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   ladle: 'ladleHall', crane: 'craneBay', mould: 'mouldFloor', clinker: 'clinkerHeap',
   // The Hoard raid (H5, visuals #788).
   bunker: 'coalBunker', scale: 'scaleHall', coffer: 'cofferVault', tithe: 'titheStore',
+  // The Smeltery raid (H5, visuals #788).
+  tap: 'tappingFloor', flywheel: 'flywheelHall', billet: 'billetRack', hoist: 'hoistShaft',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
