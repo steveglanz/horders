@@ -2747,6 +2747,8 @@ export class GameScene extends Phaser.Scene {
           const top = e.y - e.def.radius - 14;
           drawBar(e, e.hp, e.maxHp, e.ward, e.castId ? e : undefined, e.x, top);
           if (e.named >= 0) this.namedMark(g, b, e, top, now);
+          // Phones (keep it simple): the foe in the target frame doesn't repeat its name over its head; its bar stays.
+          if (this.hud.compact && w.enemies.indexOf(e) === this.hud.targetShown) continue;
           // C2: a named elite shows its title in the rare colour.
           names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
         }
