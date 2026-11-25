@@ -55,7 +55,7 @@ export class HallsView {
   private mapCanvas: HTMLCanvasElement;
   private mapBtn: HTMLButtonElement;
   private arrow: HTMLDivElement;
-  /** H2b: the "Sealed" tag beside the arrow while you're shut out of a sealed room. */
+  /** H2b: the "Sealed" tag beside the arrow while you're shut out of a sealed room ("Walk in" on its grate in co-op). */
   private tag: HTMLDivElement;
   private fadeEl: HTMLDivElement;
   private open = false;
@@ -75,7 +75,7 @@ export class HallsView {
     this.mapBox = document.createElement('div');
     this.mapBox.id = 'hallsMap';
     this.mapBox.setAttribute('role', 'img');
-    this.mapBox.setAttribute('aria-label', 'Map of the Kiln Depths');
+    this.mapBox.setAttribute('aria-label', `Map of ${world.dungeonDef.name.replace(/^The /, 'the ')}`);
     this.mapCanvas = document.createElement('canvas');
     this.mapBox.append(this.mapCanvas);
     this.mapBtn = document.createElement('button');
@@ -560,13 +560,37 @@ export class HallsView {
     // tag and points at that room, so you know where your party is and why you can't reach it yet.
     const shut = this.shutOut(m, f.px, f.py);
     const goal = shut ?? (this.world.phase === 'fight' ? null : this.nextGoal(m, f.px, f.py));
-    this.arrow.classList.toggle('sealed', !!shut);
+    // Grates let heroes in, never out (#731, co-op only): shut out of your party's room, the arrow and tag turn green
+    // (green is good) and say "Walk in", since the red bars alone read as a wall (phone pass, Hammerdeep Halls, 25 Nov).
+    const walkIn = !!shut && this.world.heroes.length > 1;
+    this.arrow.classList.toggle('sealed', !!shut && !walkIn);
+    this.arrow.classList.toggle('in', walkIn);
+    this.tag.classList.toggle('in', walkIn);
+    const label = walkIn ? 'Walk in' : 'Sealed';
+    if (this.tag.textContent !== label) this.tag.textContent = label;
     this.tag.hidden = true;
     if (!goal) { this.arrow.hidden = true; return; }
     const wp = hallsWay(m, f.px, f.py, goal.x, goal.y);
     const at = f.project(wp.x, wp.y);
     const W = f.rect.width, H = f.rect.height;
     const inset = 40;
+    if (walkIn) {
+      // The room's nearest doorway in view: the tag stands on its grate, so you see where to walk in.
+      this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+      let best: Grate | null = null, bd = Infinity;
+      for (const gr of this.grates) {
+        if (gr.room !== shut!.i) continue;
+        const d = Math.hypot(gr.x - f.px, gr.y - f.py);
+        if (d < bd) { bd = d; best = gr; }
+      }
+      const gp = best ? f.project(best.x + best.ux * 120, best.y + best.uy * 120) : null; // inside, past the bars: clear of them and your hero
+      if (gp && gp.x > 30 && gp.x < W - 30 && gp.y > 60 && gp.y < H - 14) {
+        this.arrow.hidden = true;
+        this.tag.hidden = false;
+        this.tag.style.transform = `translate(${f.rect.left + gp.x}px, ${f.rect.top + gp.y}px) translate(-50%, -50%)`;
+        return;
+      }
+    }
     if (at && at.x > inset && at.x < W - inset && at.y > inset + 50 && at.y < H - inset) { this.arrow.hidden = true; return; }
     const me = f.project(f.px, f.py) ?? { x: W / 2, y: H / 2 };
     // Screen direction from your hero to the way point (a point behind the camera still gives the right side).
@@ -587,13 +611,13 @@ export class HallsView {
   }
 
   /** A sealed room (grates down) that your living hero stands outside of, or null. */
-  private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
+  private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number; i: number } | null {
     if (this.world.player.hp <= 0) return null;
     const here = roomAt(m, x, y);
     for (let i = 0; i < m.rooms.length; i++) {
       const r = m.rooms[i];
       if (lockOf(r) < GRATE_WARN || here === i) continue;
-      return { x: r.x, y: r.y };
+      return { x: r.x, y: r.y, i };
     }
     return null;
   }
