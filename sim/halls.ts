@@ -456,11 +456,9 @@ export function clampHalls(m: HallsGeo, o: { x: number; y: number }, r: number):
 }
 
 /** Whether the straight walk from (x1, y1) to (x2, y2) stays inside the map (sampled every 40 units). */
-export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0, step = 16): boolean {
+export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0, step = 40): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
-  // QA, 25 Nov: a walker's checks sample every 16 units, not 40. At 40 a hole's corner could fall between samples from
-  // one step and not the next, so a bot's way flipped every tick and it stood still short of the door (Ashvents t8
-  // seed 1). The walking graph (navOf) keeps 40: its points don't move, and it is built for every map the checker rolls.
+  // `step`: how far apart the line is sampled. Bots check their own walk every BOT_WALK_STEP (see hallsWay).
   const n = Math.max(1, Math.ceil(d / step));
   for (let k = 1; k < n; k++) {
     const t = k / n;
@@ -468,6 +466,13 @@ export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: n
   }
   return true;
 }
+
+/**
+ * QA, 25 Nov: bots check their own straight walks (to the goal, to a bag) every 16 units, not 40. At 40 a hole's corner
+ * could fall between samples from one step and not the next, so a bot's way flipped every tick and it stood still short
+ * of the door (Ashvents t8 seed 1). Foes and the walking graph keep 40 (cheaper; a foe chasing a hero doesn't stall).
+ */
+export const BOT_WALK_STEP = 16;
 
 /** The rooms from `from` to `to` along the corridors, both ends included (the map is a tree, so this is the only way). */
 export function roomPath(m: HallsGeo, from: number, to: number): number[] {
@@ -536,7 +541,7 @@ function navOf(m: HallsGeo): Nav {
     for (let j = i + 1; j < n; j++) {
       if (!area[i].some((a) => area[j].includes(a))) continue;
       const a = pts[i], b = pts[j];
-      if (!clearWalk(m, a.x, a.y, b.x, b.y, NAV_PAD, 40)) continue;
+      if (!clearWalk(m, a.x, a.y, b.x, b.y, NAV_PAD)) continue;
       const l = Math.hypot(a.x - b.x, a.y - b.y);
       d[i * n + j] = d[j * n + i] = l;
       next[i * n + j] = j;
@@ -594,10 +599,10 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * next point on the shortest walk through the map's walking graph (round a ring's island, a cross's pillars, the
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
-export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number): { x: number; y: number } {
+export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40): { x: number; y: number } {
   // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
   const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
-  if (clearWalk(m, x, y, tx, ty, pad)) return { x: tx, y: ty };
+  if (clearWalk(m, x, y, tx, ty, pad, step)) return { x: tx, y: ty };
   const nav = navOf(m), n = nav.pts.length;
   const from = seen(m, nav, x, y), to = seen(m, nav, tx, ty);
   let best = Infinity, bi = from[0][0], bj = to[0][0];
