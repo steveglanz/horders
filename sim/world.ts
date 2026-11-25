@@ -4549,7 +4549,7 @@ export class World {
     // Bosses pull focus, as they do for the Emberwright's orbs.
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
-      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
+      if (boss.alive && boss.def.rank === 'boss' && !(this.kmStage === 2 && boss.kind === 'kilnMother') && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
       if (this.crawIn(this.lumenRange) >= 0) t = this.crawIn(this.lumenRange);
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
@@ -4996,7 +4996,8 @@ export class World {
     let bestD = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive) continue;
+      // BOSSV2: she can't be hit through stage 2, so blades and light look past her (to the bellows).
+      if (!e.alive || (this.kmStage === 2 && e.kind === 'kilnMother')) continue;
       const d = Math.sqrt(dist2(p.x, p.y, e.x, e.y)) - e.def.radius;
       if (d > maxDist) continue;
       // Big foes count as a little closer, so the blades stay on them.
@@ -5222,7 +5223,7 @@ export class World {
     // Bosses pull focus: the first orb always goes to a boss in range.
     if (this.bossIndex >= 0) {
       const b = this.enemies[this.bossIndex];
-      if (b.alive && b.def.rank === 'boss' && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
+      if (b.alive && b.def.rank === 'boss' && !(this.kmStage === 2 && b.kind === 'kilnMother') && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
     }
     if (this.crawIn(480) >= 0) targets.unshift(this.crawIn(480));
     for (let k = 0; k < n; k++) {

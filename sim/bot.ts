@@ -734,6 +734,15 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
   return { dx: (tx - p.x) / dd, dy: (ty - p.y) / dd };
 }
 
+/** BOSSV2: the point of the safe quarter (centred on angle mid) a hero stands on to break bellows e. */
+function kmStand(e: { x: number; y: number }, mid: number, melee: boolean): { x: number; y: number } {
+  const r = Math.hypot(e.x, e.y), ba = Math.atan2(e.y, e.x);
+  const off = Math.atan2(Math.sin(ba - mid), Math.cos(ba - mid));
+  const a = mid + Math.max(-0.7, Math.min(0.7, off));
+  const rr = Math.max(60, r * Math.cos(ba - a) - (melee ? 30 : 0));
+  return { x: Math.cos(a) * rr, y: Math.sin(a) * rr };
+}
+
 /** BOSSV2 Kiln Mother: where to walk (stage 1 eggs, stage 2 the safe quarter and its bellows), or null. */
 function kmStep(w: World): { dx: number; dy: number } | null {
   if (!w.kmStage || process.env.NOKMV2 === '1') return null;
@@ -751,24 +760,23 @@ function kmStep(w: World): { dx: number; dy: number } | null {
   if (!w.kmInKiln) return null;
   const safe = w.kmHeat.safe, mid = (safe * Math.PI) / 2;
   const inSafe = w.kmQuarter(p.x, p.y) === safe && Math.hypot(p.x, p.y) > 40;
-  // The nearest bellows in the safe quarter (a melee hero) or in it or next to it (a ranged one); stand at the point
-  // of the safe quarter nearest it (inside its edge by 0.08 rad) and let the attacks work on it.
+  // Design (25 Nov): never step onto burning ground for a bellows. A melee hero takes only a bellows standing in the
+  // safe quarter; a ranged one shoots any bellows in reach from the point of the safe quarter nearest it (inside its
+  // edge by 0.08 rad).
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  const reach = w.cls === 'lumen' ? w.lumenRange - 30 : 560;
   let best: { x: number; y: number } | null = null, bd = Infinity;
   for (const e of w.enemies) {
     if (!e.alive || e.kind !== 'kilnBellows') continue;
     const q = w.kmQuarter(e.x, e.y);
-    if (q !== safe && (melee || ((q + 1) % 4 !== safe && (q + 3) % 4 !== safe))) continue;
-    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (melee && q !== safe) continue;
+    const st = kmStand(e, mid, melee);
+    const far = Math.hypot(e.x - st.x, e.y - st.y);
+    if (!melee && far > reach) continue;
+    const d = Math.hypot(st.x - p.x, st.y - p.y) + far;
     if (d < bd) { bd = d; best = e; }
   }
-  if (best) {
-    const r = Math.hypot(best.x, best.y), ba = Math.atan2(best.y, best.x);
-    const off = Math.atan2(Math.sin(ba - mid), Math.cos(ba - mid));
-    const a = mid + Math.max(-0.7, Math.min(0.7, off));
-    const rr = Math.max(60, r * Math.cos(ba - a) - (melee ? 30 : 0));
-    return to(Math.cos(a) * rr, Math.sin(a) * rr);
-  }
+  if (best) { const st = kmStand(best, mid, melee); return to(st.x, st.y); }
   return inSafe ? null : to(Math.cos(mid) * 260, Math.sin(mid) * 260);
 }
 
