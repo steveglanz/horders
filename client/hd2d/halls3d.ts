@@ -285,7 +285,8 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       // Steam: off a Cooling yard post's grille, and off the top of a Foundry boiler's stack.
       if (th.id === 'cooling') steamAt.push({ x, z, y: 0.5, ch: roomChunk[i], ph: k * 1.7 + i });
       if (th.id === 'boiler') steamAt.push({ x, z, y: 1.3 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
-      // ...and off a Hammerdeep quench trough's water.
+      // ...off a Hammerdeep quench trough's water, and smoke off an Ashvents fumarole's mouth.
+      if (th.id === 'fumarole') steamAt.push({ x, z, y: 0.5 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
       if (th.id === 'quench') steamAt.push({ x, z, y: 0.42 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
     });
     mesh.castShadow = !o.saver; mesh.receiveShadow = true;

@@ -51,7 +51,7 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme | WracklineTheme | HammerdeepTheme | AshventsTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
@@ -62,6 +62,8 @@ export type ColdmarrowTheme = 'hearthless' | 'rime' | 'drift' | 'crypt';
 export type WracklineTheme = 'quay' | 'wreck' | 'kelp' | 'sluice';
 /** H4a (visuals, 25 Nov): the Hammerdeep's cold forge rooms: an anvil hall, a chain gallery, a quench trough, an ingot store. */
 export type HammerdeepTheme = 'anvil' | 'chain' | 'quench' | 'ingot';
+/** H4b (visuals, 25 Nov): the Ashvents' rooms: a fumarole field, an obsidian gallery, a cairn walk, a pumice drift. */
+export type AshventsTheme = 'fumarole' | 'obsidian' | 'cairn' | 'pumice';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -1079,6 +1081,13 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     fits: { round: ['anvil', 'quench', 'ingot'], hall: ['chain', 'ingot'], cross: ['ingot', 'anvil'], ring: ['quench', 'chain'], twin: ['chain', 'quench'] },
     rest: ['ingot', 'quench', 'chain', 'anvil'],
   },
+  // H4b (visuals, 25 Nov): pale ash and rose stone like Ysmeret's arena. The fumarole field guards the door and takes a
+  // vents room; the obsidian gallery is the alcove; the cairn walk is the quiet room and fits any shape.
+  ashvents: {
+    guard: 'fumarole', byLayout: { vents: 'fumarole' }, alcove: 'obsidian',
+    fits: { round: ['fumarole', 'pumice', 'cairn'], hall: ['obsidian', 'cairn'], cross: ['cairn', 'fumarole'], ring: ['pumice', 'obsidian'], twin: ['obsidian', 'pumice'] },
+    rest: ['cairn', 'pumice', 'obsidian', 'fumarole'],
+  },
 };
 
 /**
@@ -1090,8 +1099,8 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
  * layout the room rolled (World.hallsLayouts).
  */
 export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
-  // H4 (design's h4-plan.md): a group dungeon without a kit of its own (the Ashvents, the Pressworks) takes the Kiln's
-  // themes, as their packs are the Kiln's; the Hammerdeep has its own (H4a).
+  // H4 (design's h4-plan.md): a group dungeon without a kit of its own (the Pressworks, for now) takes the Kiln's
+  // themes, as its packs are the Kiln's; the Hammerdeep (H4a) and the Ashvents (H4b) have their own.
   const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));

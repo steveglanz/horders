@@ -8,7 +8,7 @@ import type { HallsMap, HallsRoom } from '../sim/halls';
 import { roomPieces, type EdgePiece } from './hallsshape';
 
 /** The Kiln's five (H2d), the Drowned Foundry's four (H3a), the Glarewell's four (H3b), the Coldmarrow's four (H3c), then the Wrackline's four (H3d). Ids are unique across dungeons. */
-export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice' | 'anvil' | 'chain' | 'quench' | 'ingot';
+export type ThemeId = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | 'boiler' | 'cistern' | 'pump' | 'anchor' | 'lens' | 'orrery' | 'colonnade' | 'mirror' | 'hearthless' | 'rime' | 'drift' | 'crypt' | 'quay' | 'wreck' | 'kelp' | 'sluice' | 'anvil' | 'chain' | 'quench' | 'ingot' | 'fumarole' | 'obsidian' | 'cairn' | 'pumice';
 
 export interface Theme {
   id: ThemeId;
@@ -92,6 +92,16 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Iron troughs of dark quench water with steam lifting off them, cool blue light.
   quench: { id: 'quench', floor2d: 0x24272e, name: 'Quench trough', tile: '#586070', cracked: false, wall: '#8890aa', light: '#c0d2ff', lightK: 1.3, swell: 0 },
   // Iron ingots stacked on pallets, cracked worn floor, plain pale light: the quiet room.
+  // H4b, the Ashvents: pale ash floors and rose stone like Ysmeret's arena (renderer ROOMS.ashvents), warm pale light,
+  // nothing glowing (the vents smoke, they don't burn). One quiet motion each, the cairn walk the still room.
+  // Low stone vent cones with smoke rising off them: the door guard's room, and any vents room.
+  fumarole: { id: 'fumarole', floor2d: 0x3a3230, name: 'Fumarole field', tile: '#a09088', cracked: true, wall: '#b8a098', light: '#ffd0b8', lightK: 1.3, swell: 0 },
+  // Tall black obsidian shards against rose walls, a rose light that breathes slowly: the boss door alcove's.
+  obsidian: { id: 'obsidian', floor2d: 0x302828, name: 'Obsidian gallery', tile: '#8e807c', cracked: false, wall: '#a88e8a', light: '#ffc0b4', lightK: 1.3, swell: 0.08 },
+  // Cairns of flat stones along the walls, plain pale light: the quiet room.
+  cairn: { id: 'cairn', floor2d: 0x383230, name: 'Cairn walk', tile: '#a89a92', cracked: false, wall: '#c0a8a0', light: '#ffe0d0', lightK: 1.25, swell: 0 },
+  // Soft pale pumice boulders heaped by the walls, the palest floor, its light swelling faintly.
+  pumice: { id: 'pumice', floor2d: 0x3e3836, name: 'Pumice drift', tile: '#b4a8a2', cracked: false, wall: '#c8b4ac', light: '#fff0e8', lightK: 1.3, swell: 0.06 },
   ingot: { id: 'ingot', floor2d: 0x2a2a2e, name: 'Ingot store', tile: '#6c6a74', cracked: true, wall: '#9692a2', light: '#e4e0f0', lightK: 1.25, swell: 0 },
 };
 
@@ -115,4 +125,4 @@ export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number)
 }
 
 /** How big each theme's prop stands (bellows and slag heaps read too small at 1 from the 3D camera). */
-export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5, anvil: 1.7, chain: 1.6, quench: 1.4, ingot: 1.5 };
+export const PROP_SCALE: Record<ThemeId, number> = { ash: 1, bellows: 1.55, slag: 1.6, cooling: 1, shrine: 1, boiler: 1.3, cistern: 1.2, pump: 1.5, anchor: 1.4, lens: 1.4, orrery: 1.3, colonnade: 1.5, mirror: 1.4, hearthless: 1.5, rime: 1.4, drift: 1.6, crypt: 1.4, quay: 1.4, wreck: 1.5, kelp: 1.5, sluice: 1.5, anvil: 1.7, chain: 1.6, quench: 1.4, ingot: 1.5, fumarole: 1.6, obsidian: 1.5, cairn: 1.4, pumice: 1.5 };
