@@ -1112,7 +1112,9 @@ export class GameScene extends Phaser.Scene {
       roomSounds: this.hd2d?.sounds?.(),
       hallsPacks: w.hallsOn ? w.halls!.packs : undefined,
       hallsResting: w.hallsResting,
-      hallsBed: w.hallsOn && w.player.hp > 0 ? roomBedFor(w.halls, w.player.x, w.player.y) : null,
+      // OSKELV2: from stage 2 the running press bed plays in place of the room's bed (arena or Halls).
+      hallsBed: w.player.hp <= 0 ? null : w.osStage >= 2 ? 'pressBelt' : w.hallsOn ? roomBedFor(w.halls, w.player.x, w.player.y) : null,
+      osFlip: w.osStage === 2 && w.osFlipT > 0,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
