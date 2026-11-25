@@ -7,7 +7,7 @@ import { coachLine } from '../sim/content/firstdelve';
 import { CoopSession, SNAP_SECONDS, cleanLooks } from './net/coop';
 import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
-import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
+import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, ONDRELV2, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
 import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
@@ -1472,7 +1472,11 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (w.dungeonId === 'glarewell') {
+          if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
+            // ONDRELV2 (design, ondrel-v2.md): one line per stage.
+            if (ev.phase === 2) this.hud.banner('Stage 2: The anvil floor', 'Every Anvilfall now leaves its anvil. Drag him off it');
+            else this.hud.banner('Stage 3: The last heat', 'He breaks every anvil. Get clear of them, then burn him');
+          } else if (w.dungeonId === 'glarewell') {
             // Phase 2 names this run's version (it was always Twin Brand, even when she has none).
             if (ev.phase === 2 && w.bossVariant === 'glint') this.hud.banner('Phase 2: Glintfall', 'Light drops on every pillar. Step off your cover until it lands');
             else if (ev.phase === 2 && w.bossVariant === 'walk') this.hud.banner('Phase 2: Carried Light', 'She carries the light now. When a Glare starts, put a pillar between you and her');
@@ -2642,6 +2646,7 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'vorhulm') this.hoardDraw(g, e, now);
       if (e.kind === 'colossus') this.smelteryDraw(g, e, now);
       if (e.kind === 'ondrel' && e.castId) this.ondrelCast(g, e, w.enemies.indexOf(e), now);
+      if (e.kind === 'ondrel' && w.anvils.length) this.anvilDraw(g, now);
       if ((e.kind === 'ysmeret' || (e.kind === 'grandmotherSlag' && e.castId === 'scatter')) && e.castId) this.ysmeretCast(g, e, now);
       if (e.kind === 'nhevra' && e.castId) this.nhevraCast(g, e, now);
       if (e.kind === 'oskel' && e.castId === 'stamp') this.stampMark(g, e, now);
@@ -4628,6 +4633,24 @@ export class GameScene extends Phaser.Scene {
       this.emit(this.smoke, 'puff', undefined, x + (Math.random() - 0.5) * (big ? 40 : 6), y + (Math.random() - 0.5) * (big ? 30 : 6), 0.5 + Math.random() * 0.3, {
         tint: 0x9a8a84, vy: -18, vx: (Math.random() - 0.5) * 20, spin: (Math.random() - 0.5) * 2, rot: Math.random() * 6, sx0: s * 0.6, sx1: s * 1.3,
       });
+    }
+  }
+
+  /**
+   * ONDRELV2: the anvils' floor tells (the anvil itself is drawn as one of World.stones). A hot ring is a red ring that
+   * pulses while it burns; in the last heat each anvil glows brighter until it bursts.
+   */
+  private anvilDraw(g: Phaser.GameObjects.Graphics, now: number): void {
+    for (const a of this.world.anvils) {
+      if (a.hot > 0) {
+        const pulse = 0.55 + 0.25 * Math.sin(now / 120);
+        g.fillStyle(DANGER, 0.14 * pulse).fillCircle(a.x, a.y, ONDRELV2.ringR);
+        g.lineStyle(3, DANGER, pulse).strokeCircle(a.x, a.y, ONDRELV2.ringR);
+      }
+      if (a.glow > 0) {
+        const f = 1 - a.glow / ONDRELV2.glow;
+        g.fillStyle(0xffb24a, 0.12 + 0.3 * f).fillCircle(a.x, a.y, ONDRELV2.r + 14 + 10 * f);
+      }
     }
   }
 

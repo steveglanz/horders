@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -824,6 +824,14 @@ export function botInput(w: World, skill = 1): Input {
   // The Wrackline: when the Ebb warns or pulls, get onto the nearest raft that's afloat and stay near its middle.
   const raft = ebbRaft(w);
   if (raft) return { x: raft.dx, y: raft.dy, cast: raftHop(w, raft.d) ?? botCast(w, skill) };
+  // ONDRELV2: an anvil's hot ring burns, so step out of it, away from the anvil (the tank drags him off it this way).
+  for (const a of w.anvils) {
+    if (a.hot <= 0) continue;
+    const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
+    if (d > ONDRELV2.ringR + 16) continue;
+    const s = w.hallsOn ? hallsSteer(w, dx / d, dy / d) : { x: dx / d, y: dy / d };
+    return { x: s.x, y: s.y, cast: botCast(w, skill) };
+  }
   // The Flue's Summons: get before the throne (inside SUMMONS.radius) before it lands (NOCOURT=1 turns this off for measuring).
   // Step out of a circle first (the Ash Fall falls with the call), then come in.
   const inCircle = w.telegraphs.some((t) => t.alive && t.kind !== 'soak' && t.shape === 'circle' && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < (t.r + 12) ** 2);

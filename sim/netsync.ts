@@ -18,7 +18,7 @@ export const POOLS = ['enemies', 'orbs', 'gems', 'zones', 'telegraphs', 'strikes
  * Small arrays of plain data sent whole. A new array on World must go here, in POOLS, or in
  * NOT_SENT (tests/netsync-coverage.test.ts fails otherwise): the Hoard's embers once missed it.
  */
-export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree', 'stones', 'lava', 'flareVents', 'driftEmbers', 'islands', 'kmEggs', 'kmRings'] as const;
+export const ARRAYS = ['omens', 'vents', 'quests', 'gates', 'paths', 'route', 'coalEmbers', 'pillars', 'rafts', 'colDmg', 'regentDecree', 'stones', 'lava', 'flareVents', 'driftEmbers', 'islands', 'kmEggs', 'kmRings', 'anvils'] as const;
 /**
  * Plain objects on World a guest draws from, sent whole alongside ARRAYS (QA, 25 Nov: BOSSV2's kmHeat never reached
  * guests, so they saw no burning or safe quarters). A new plain object goes here or in NOT_SENT.
