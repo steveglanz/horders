@@ -12,7 +12,7 @@ import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, type RoomBedKind, ThemeId, THEMES } from './music';
 import { TrackPlayer, trackFor } from './tracks';
-import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, flameCues, kmHeatCues, slagCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
+import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, flameCues, flipCue, kmHeatCues, slagCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
 import { uiSoundFor } from './ui';
@@ -101,6 +101,7 @@ class AudioEngine {
   private resting = { on: false };
   private kmHeating = { warn: false, on: false };
   private flaming = { away: [] as number[] };
+  private flipping = { on: false };
   private slagging = { burning: new Map<string, number>(), glowing: new Set<string>() };
   private duckGain = 1;
   private setFlags: Partial<SetFlags> = {};
@@ -380,7 +381,8 @@ class AudioEngine {
       else this.cue(c);
     }
     if (ctx.inRime) this.cue({ id: 'rimeCrackle', jitter: 0.1 });
-    for (const c of flameCues(this.flaming, ctx.ysFlames, ctx.listen)) this.cue(c);
+    for (const c of flameCues(this.flaming, ctx.ysFlames)) this.cue(c);
+    this.cue(flipCue(this.flipping, !!ctx.osFlip));
     this.cue(millCue(ctx));
     // Anvilfall just started winding up on you: a sting on top of the room-wide warning.
     this.cue(targetCue(this.targeted, !!ctx.anvilOnMe));

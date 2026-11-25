@@ -1886,8 +1886,9 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   spitLob: 4.5,
   // +2 (Phase 16): it was 4.0 dB over the Foundry mix, under the slams (busycheck t8 heroes, SEEDS=1-24, n=8).
   chargeWindup: 6.0,
-  // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16).
-  bellowWarn: 3.0,
+  // The Ashvents' Bellow Slam wind-up was 4.0 dB over the mix (busycheck SEEDS=1,2, n=16). +1.3 (25 Nov): QA's Ysmeret v2 pass
+  // measured it 5.2 dB over the duo mix; lifted to about 6.5 dB.
+  bellowWarn: 4.3,
   // YSMERETV2's lone-flame warning shares the ash vent's hiss, which is -29.4 dB alone; raised above the floor (-25.4 dB).
   flameAlone: 4.0,
   // Kiln Draw's inhale is a cast wind-up: right on the floor (-26.5 dB) and only 3.7 dB over the Kiln mix at +1.0.
@@ -1966,7 +1967,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   phaseRaid2: 9.0,
   phaseRaid3: 3.3,
   phaseShadow: 1.8,
-  phaseYsmeret: 1.7,
+  // +1.8 (25 Nov): QA's Ysmeret v2 pass measured her split sting 4.7 dB over the duo mix; lifted to about 6.5 dB.
+  phaseYsmeret: 3.5,
   // Rare and important (once a boss fight), and it lands mid-fight: tools/busycheck.ts had it at about 0 dB over the rest.
   // Raised again (22 Nov W5 polish): 3.4-7.2 dB over raid and group mixes at +4 (heroes-r2 t8, SEEDS=1-4, n=13).
   revivesSpent: 6,

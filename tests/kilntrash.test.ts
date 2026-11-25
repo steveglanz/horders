@@ -4,7 +4,7 @@ import { KILNTRASH, KILNTRASH_ONE, packFoes } from '../sim/halls';
 import { DUNGEONS, ENCOUNTERS } from '../sim/content/dungeon';
 
 // KILNTRASH (design 25 Nov, /mnt/project-files/horders/design/halls/kiln-trash-plan.md): the Kiln map's opener packs are
-// trash: twice the foes (the Rift and the Ashwall stay at one), each at 40% health, and no bag. The level stays.
+// trash: twice the foes (the Rift and the Ashwall stay at one), each at 30% health, and no bag. The level stays.
 type Q = { hallsWake(k: number): void; hallsClear(k: number): void };
 const kiln = (seed: number, kilnTrash: boolean) => new World({ seed, dungeon: 'kiln', tier: 2, halls: true, cls: 'duskblade', kilnTrash });
 
@@ -37,7 +37,7 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
     expect(packFoes(1, 0, 'riftfall', 0, 0, true).map((f) => f.kind).sort()).toEqual(['cinderhound', 'cinderhound', 'cinderhound', 'cinderhound', 'rift']);
   });
 
-  it('a trash pack wakes at 40% health per foe, and its clear gives the level but no bag', () => {
+  it('a trash pack wakes at KILNTRASH.hp (30%) health per foe, and its clear gives the level but no bag', () => {
     const on = kiln(4, true), off = kiln(4, false);
     const k = on.halls!.packs.findIndex((p) => p.trash);
     const hp = (w: World) => { (w as unknown as Q).hallsWake(k); return w.enemies.filter((e) => e.alive && e.pack === k).map((e) => [e.kind, e.maxHp] as const); };

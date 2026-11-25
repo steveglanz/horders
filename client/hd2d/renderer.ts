@@ -761,21 +761,39 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     const poolMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.5)', 'rgba(255,255,255,0)')), color: keyC.clone().multiplyScalar(0.16), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
     const shaftGeo = new THREE.CylinderGeometry(0.3, 0.75, 9, 16, 1, true).translate(0, 4.5, 0);
     const SH = [[2.2, -3.4], [-4.6, -1.2], [4.8, 2.6], [-1.8, 4.4], [0.6, 0.8]];
-    SH.forEach(([sx, sz], k) => {
-      const sh = new THREE.Mesh(shaftGeo, shaftMat); sh.position.set(sx, FLOOR, sz); room.add(sh);
-      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(sx, FLOOR + 0.012, sz); room.add(pool);
-      life.push((t) => { const a = Math.sin(t * 0.21 + k * 1.7); sh.rotation.set(a * 0.05, 0, Math.cos(t * 0.17 + k) * 0.05); pool.scale.setScalar(1 + 0.08 * a); });
+    // Instanced, the shafts one draw call and the pools another (they were ten meshes, a draw call each). Each moves on
+    // its own, so they are never culled as one: the room is always in view.
+    const shafts = new THREE.InstancedMesh(shaftGeo, shaftMat, SH.length), pools = new THREE.InstancedMesh(new THREE.CircleGeometry(0.95, 24), poolMat, SH.length);
+    shafts.frustumCulled = pools.frustumCulled = false; room.add(shafts, pools);
+    const lv = new THREE.Vector3(), ls = new THREE.Vector3(), le = new THREE.Euler(), lq = new THREE.Quaternion(), lm = new THREE.Matrix4();
+    const place = (im: THREE.InstancedMesh, n: number, x: number, y: number, z: number, rx: number, rz: number, s: number) => {
+      lq.setFromEuler(le.set(rx, 0, rz)); im.setMatrixAt(n, lm.compose(lv.set(x, y, z), lq, ls.set(s, s, s)));
+    };
+    life.push((t) => {
+      SH.forEach(([sx, sz], k) => {
+        const a = Math.sin(t * 0.21 + k * 1.7);
+        place(shafts, k, sx, FLOOR, sz, a * 0.05, Math.cos(t * 0.17 + k) * 0.05, 1);
+        place(pools, k, sx, FLOOR + 0.012, sz, -Math.PI / 2, 0, 1 + 0.08 * a);
+      });
+      shafts.instanceMatrix.needsUpdate = pools.instanceMatrix.needsUpdate = true;
     });
     life.push((t) => { shaftMat.opacity = 0.85 + 0.15 * Math.sin(t * 0.5); });
     // Low mist drifting over the floor, tinted by the room's fog, very faint so telegraphs stay clear.
     if (id !== 'wrackline') {
       const mc = new THREE.Color(th.wall).lerp(new THREE.Color(th.fog), 0.35);
       const mistMat = new THREE.MeshBasicMaterial({ map: canvasTex(dotCanvas('rgba(255,255,255,0.55)', 'rgba(255,255,255,0)')), color: mc, transparent: true, opacity: 0.12, depthWrite: false });
-      for (let k = 0; k < 7; k++) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat); m.rotation.x = -Math.PI / 2; m.position.y = FLOOR + 0.08 + k * 0.004; room.add(m);
-        const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
-        life.push((t) => { const a = a0 + t * sp * (k % 2 ? 1 : -1); m.position.x = Math.cos(a) * r0; m.position.z = Math.sin(a) * r0; m.rotation.z = a * 0.5; });
-      }
+      // One instanced mesh (seven planes were seven draw calls). They share one colour, so the order they blend in
+      // changes nothing.
+      const mist = new THREE.InstancedMesh(new THREE.PlaneGeometry(5.5, 3.2), mistMat, 7);
+      mist.frustumCulled = false; room.add(mist);
+      life.push((t) => {
+        for (let k = 0; k < 7; k++) {
+          const r0 = 2 + (k * 1.37) % 5, a0 = k * 2.1, sp = 0.012 + (k % 3) * 0.006;
+          const a = a0 + t * sp * (k % 2 ? 1 : -1);
+          place(mist, k, Math.cos(a) * r0, FLOOR + 0.08 + k * 0.004, Math.sin(a) * r0, -Math.PI / 2, a * 0.5, 1);
+        }
+        mist.instanceMatrix.needsUpdate = true;
+      });
     }
     const forge = id === 'flue' || id === 'kiln' || id === 'hammerdeep' || id === 'pressworks' || id === 'smeltery' || id === 'crucible' || id === 'hoard';
     const wet = id === 'foundry' || id === 'coldmarrow' || id === 'wrackline' || id === 'glarewell';
@@ -876,6 +894,10 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
   /** The handoff's camera angle: up 15.5 and back 13.6 from what it looks at. */
   const camDir = new THREE.Vector3(0, 15.5, 13.6).normalize();
+  // Hero and foe sprites lean back to face the camera. Standing straight up, the camera's 49 degree look down showed
+  // them at two thirds of their drawn height, squat and wide (Steve, 25 Nov: "sometimes looking a little stretched").
+  const SPRITE_TILT = Math.atan2(camDir.y, camDir.z);
+  const tiltCos = Math.cos(SPRITE_TILT), tiltSin = Math.sin(SPRITE_TILT);
 
   scene.add(new THREE.HemisphereLight(th0.hemi[0], th0.hemi[1], th0.hemi[2] * 1.6));
   const key = new THREE.DirectionalLight(th0.key, 1.6);
@@ -945,7 +967,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const mats: Record<string, THREE.MeshStandardMaterial> = {};
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
     const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
-    mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); scene.add(mesh);
+    mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); mesh.rotation.x = -SPRITE_TILT; scene.add(mesh);
     const rc = GOOD.clone(); // was the class colour (RING); Steve, 23 Nov: green = good
     const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
     const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
@@ -962,7 +984,10 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
 
   /* foes */
   const foeGeo = standGeo(0.04);
+  // The sprites lean back by SPRITE_TILT, which would turn their normals up into the lights and wash them out; these
+  // normals point straight at the camera's side of the room (world +z) once leaned, so they light as they did upright.
   const bossGeo = standGeo(BOSS.pad / BOSS.H);
+  for (const g of [heroGeo, foeGeo, bossGeo]) { const n = g.attributes.normal as THREE.BufferAttribute; for (let k = 0; k < n.count; k++) n.setXYZ(k, 0, -tiltSin, tiltCos); }
   const regentMat = spriteMat(F.boss.idle, 0.85);
   const foeMats = new Map<string, THREE.MeshStandardMaterial | null>();
   const foeMat = (key: string, n: number) => {
@@ -1487,13 +1512,14 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const k = swing ? Math.sin(Math.min(1, since / 0.24) * Math.PI) : 0;
       const fx = Math.cos(p.facing ?? 0), fz = Math.sin(p.facing ?? 0);
       const faceNow = swing && Math.abs(fx) > 0.2 ? Math.sign(fx) : face;
-      h.mesh.scale.set(faceNow * HERO.W * HERO_PX * (1 + 0.08 * k), HERO.H * HERO_PX * (1 + (moving ? 0 : 0.03 * Math.sin(t * 2.4 + i)) - 0.05 * k) * (dead ? 0.35 : 1), 1);
+      // The punch and the idle breath kept small, so a hero never reads as stretched (Steve, 25 Nov).
+      h.mesh.scale.set(faceNow * HERO.W * HERO_PX * (1 + 0.04 * k), HERO.H * HERO_PX * (1 + (moving ? 0 : 0.015 * Math.sin(t * 2.4 + i)) - 0.03 * k) * (dead ? 0.35 : 1), 1);
       h.mesh.position.set(x + fx * 0.12 * k, FLOOR + bob, z + fz * 0.12 * k);
       if (h.twin) {
         // Your own hero always draws over allies and foes it overlaps, as in 2D (depth 6 over allies' 5.9): phones saw
         // a Lumen bot a step in front cover you completely. The sprite slides toward the camera along its own view ray,
         // so it stays on the same pixels, shrunk to keep its size; the twin left at the true spot casts the shadow.
-        h.twin.position.copy(h.mesh.position); h.twin.scale.copy(h.mesh.scale); h.twin.visible = true;
+        h.twin.position.copy(h.mesh.position); h.twin.scale.copy(h.mesh.scale); h.twin.rotation.copy(h.mesh.rotation); h.twin.visible = true;
         const lift = Math.min(SELF_LIFT, dist * 0.5);
         h.mesh.position.addScaledVector(camDir, lift);
         h.mesh.scale.multiplyScalar((dist - lift) / dist);
@@ -1516,7 +1542,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
           h.nameW = (nc as HTMLCanvasElement & { inked?: number }).inked ?? 1;
           h.name.scale.set(1.7, 0.425, 1); h.name.renderOrder = 10; scene.add(h.name); h.nameText = nm;
         }
-        h.name!.position.set(x, FLOOR + 1.45, z);
+        // Over the leaning sprite's head (1.45 straight up sat on the head once the sprite leant back).
+        h.name!.position.set(x, FLOOR + 1.62 * tiltCos, z - 1.62 * tiltSin);
       }
     }
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
@@ -1541,7 +1568,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const f = foe(fi++);
       const age = w.time - e.spawnedAt;
       const rise = age < 0.3 ? 0.3 + 0.7 * (age / 0.3) + Math.sin((age / 0.3) * Math.PI) * 0.25 : 1;
-      const hit = e.flash > 0 ? 0.1 : 0;
+      // Kept small (Steve, 25 Nov: sprites "sometimes looking a little stretched"): a hit and a lunge together
+      // used to make a foe 24% wider and 20% shorter, half again its own width for its height.
+      const hit = e.flash > 0 ? 0.04 : 0;
       let fa = foeAtk[i];
       if (!fa || fa.born !== e.spawnedAt) fa = foeAtk[i] = { born: e.spawnedAt, touch: e.touchCd, abil: e.abilityT, at: -9, dx: 0, dz: 1 };
       if (e.touchCd > fa.touch + 0.05 || e.abilityT > fa.abil + 0.05) {
@@ -1553,7 +1582,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       fa.touch = e.touchCd; fa.abil = e.abilityT;
       const sinceAtk = w.time - fa.at;
       const ak = sinceAtk >= 0 && sinceAtk < FOE_ATK ? Math.sin((sinceAtk / FOE_ATK) * Math.PI) : 0;
-      const rear = e.castId ? 0.06 + 0.04 * Math.sin(t * 12) : 0;
+      const rear = e.castId ? 0.03 + 0.02 * Math.sin(t * 12) : 0;
       let wd: number, ht: number;
       if (e.kind === 'regent') {
         f.mesh.geometry = bossGeo; f.mesh.material = regentMat;
@@ -1573,14 +1602,14 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
-      f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.14 * ak), ht * rise * (1 - hit - 0.1 * ak + rear), 1);
+      f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.06 * ak), ht * rise * (1 - hit - 0.05 * ak + rear), 1);
       const reach = Math.min(0.35, (e.def.radius * S) * 0.6) * ak;
       f.mesh.position.set(x + fa.dx * reach, FLOOR, z + fa.dz * reach);
       // Where this foe's head is drawn, for its health and cast bar on the overlay (view.foeHead).
       (foeHeads[i] ??= { x: 0, z: 0, h: 0, at: 0 });
-      foeHeads[i].x = f.mesh.position.x; foeHeads[i].z = f.mesh.position.z; foeHeads[i].h = FLOOR + ht * rise * (1 - 0.04); foeHeads[i].at = frameNo;
+      foeHeads[i].x = f.mesh.position.x; foeHeads[i].z = f.mesh.position.z - ht * rise * 0.96 * tiltSin; foeHeads[i].h = FLOOR + ht * rise * 0.96 * tiltCos; foeHeads[i].at = frameNo;
       if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; bossMesh = f.mesh; }
-      f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak;
+      f.mesh.rotation.set(-SPRITE_TILT, 0, e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak);
       f.mesh.visible = true;
       addFeet(x, z, e.def.radius * S * 1.25 * rise, e.def.radius * S * rise);
       if (e.kind === 'ashwall') {

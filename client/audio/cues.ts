@@ -101,6 +101,8 @@ export interface CueContext {
   kmHeat?: { warn: number; on: boolean };
   /** YSMERETV2 stage 2: each living flame, and how long it has had no hero near (World.ysAway0/1). */
   ysFlames?: readonly { x: number; y: number; away: number }[];
+  /** OSKELV2: the press bed's flip warning is up (World.osFlipT > 0). */
+  osFlip?: boolean;
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -455,6 +457,9 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
       if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
       // Punch Line's nth punch out has radius PUNCH.r + PUNCH.grow * n (55 to 85); Rivets and the Downstroke are 60.
       if (c.dungeon === 'pressworks' && isPunchR(ev.r)) return { id: 'punchHit', jitter: 0.04 };
+      // A hero crushed by the press (a second Downstroke on a Pressed hero, or OSKELV2's crush line) is the only Pressworks
+      // slam of radius CRUSH_R: one heavy press punch.
+      if (c.dungeon === 'pressworks' && ev.r === CRUSH_R) return { id: 'punchHit', vol: 1.3 };
       // Turning Fire's cones are the only Kiln telegraphs as long as KILN_TURN.reach (Kiln Draw's ring is KILN_DRAW.radius).
       if (c.dungeon === 'kiln' && ev.r === KILN_TURN.reach) return { id: 'turnCone' };
       return { id: 'slam' };
@@ -984,21 +989,29 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
  * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
  * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
  */
+/** The radius of the slam the Pressworks' crushes push (sim/world.ts resolveDownstroke and oskelStages; tested). */
+export const CRUSH_R = 50;
+/** OSKELV2 stage 2: the press bed is about to flip (World.osFlipT counting down). Its rising edge is the Sluicetide's
+ *  "the current turns" (tideTurn), must-hear, 1.5 s before the belt runs the other way. */
+export function flipCue(state: { on: boolean }, flipping: boolean): Cue | null {
+  const fire = flipping && !state.on;
+  state.on = flipping;
+  return fire ? { id: 'tideTurn' } : null;
+}
+
 /** flameAlone's length (the ash vent's 1.1 s hiss), so it ends as the lone flame flares. */
 export const FLAME_ALONE_LEAD = 1.1;
 /**
- * YSMERETV2 stage 2: a flame no hero is near builds to its flare at YSMERETV2.flareAfter s. Its warning (flameAlone,
- * panned to the flame) starts so it ends as the flare goes off, and again each time the flame is left alone.
+ * YSMERETV2 stage 2: a flame no hero is near builds to its flare at YSMERETV2.flareAfter s. Its warning (flameAlone)
+ * starts so it ends as the flare goes off, and again each time the flame is left alone. It is must-hear, so it plays
+ * centred like every warning (the mixer never pans PRIORITY cues).
  */
-export function flameCues(state: { away: number[] }, flames: CueContext['ysFlames'], listen?: CueContext['listen']): Cue[] {
+export function flameCues(state: { away: number[] }, flames: CueContext['ysFlames']): Cue[] {
   const out: Cue[] = [];
   const at = YSMERETV2.flareAfter - FLAME_ALONE_LEAD;
   const now = (flames ?? []).map((f) => f.away);
   (flames ?? []).forEach((f, k) => {
-    if (f.away >= at && (state.away[k] ?? 0) < at) {
-      const o = offsetAt(listen, f.x, f.y);
-      out.push({ id: 'flameAlone', pan: o === null ? undefined : o * PAN_MAX });
-    }
+    if (f.away >= at && (state.away[k] ?? 0) < at) out.push({ id: 'flameAlone' });
   });
   state.away = now;
   return out;

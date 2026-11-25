@@ -1112,7 +1112,9 @@ export class GameScene extends Phaser.Scene {
       roomSounds: this.hd2d?.sounds?.(),
       hallsPacks: w.hallsOn ? w.halls!.packs : undefined,
       hallsResting: w.hallsResting,
-      hallsBed: w.hallsOn && w.player.hp > 0 ? roomBedFor(w.halls, w.player.x, w.player.y) : null,
+      // OSKELV2: from stage 2 the running press bed plays in place of the room's bed (arena or Halls).
+      hallsBed: w.player.hp <= 0 ? null : w.osStage >= 2 ? 'pressBelt' : w.hallsOn ? roomBedFor(w.halls, w.player.x, w.player.y) : null,
+      osFlip: w.osStage === 2 && w.osFlipT > 0,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
@@ -1492,9 +1494,14 @@ export class GameScene extends Phaser.Scene {
             // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
             if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
+          } else if (w.dungeonId === 'pressworks' && w.osStage > 0) {
+            // OSKELV2 (design, oskel-v2.md): one line per stage.
+            if (ev.phase === 2) this.hud.banner('Stage 2: The belt', 'The press bed is running. Walk against it, and stay off the crush line');
+            else this.hud.banner('Stage 3: Full speed', 'Full speed. Keep walking');
           } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
-            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', "She splits in two. Keep a hero on each flame; the tank's flame still Bellows");
+            // A lone flame flares in 3 s, so this is a slim warning line, not the big banner over the floor (phone pass, 25 Nov).
+            if (ev.phase === 2) this.hud.warn('Stage 2: Twofold', "A hero on each flame; the tank's flame still Bellows");
           } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
@@ -2785,6 +2792,7 @@ export class GameScene extends Phaser.Scene {
     // same name printed over each stacks into an unreadable block on a phone.
     const names: { x: number; y: number; text: string; color: string }[] = [];
     const bars: World['enemies'] = [];
+    const trash: World['enemies'] = [];
     for (let ei = 0; ei < eEnd; ei++) {
       const e = w.enemies[ei];
       if (!e.alive || (e.def.rank === 'normal' && !e.def.stationary) || e.def.rank === 'boss') continue;
@@ -2794,6 +2802,10 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2, 0xcfe6ff, 0.55 + 0.2 * Math.sin(now / 120)).strokeCircle(e.x, e.y, e.def.radius + 8);
         g.fillStyle(0xcfe6ff, 0.08).fillCircle(e.x, e.y, e.def.radius + 8);
       }
+      // Kiln trash (design, 25 Nov): an opener-pack foe gets a small bar right on it, only once it has been hit, and
+      // trash bars never stack or lift. Doubled packs stacked 6-8 full bars into a column ~100 px above the clump.
+      // One mid-cast keeps the full bar below, so an interrupt target is always marked.
+      if (!e.castId && this.trashFoe(e)) { if (e.hp < e.maxHp) trash.push(e); continue; }
       bars.push(e);
     }
     // Y9: a pile of the same unnamed elite (Nhevra's Snuffers crowding in) shares one bar, so a dozen bars don't
@@ -2854,6 +2866,12 @@ export class GameScene extends Phaser.Scene {
       const top = e.y - e.def.radius - 14;
       drawBar(e, hp, maxHp, ward, undefined, x, top);
       names.push({ x, y: top, text: `${e.def.name} \u00d7${pk.length}`, color: NAME_COLOR[e.def.rank] });
+    }
+    for (const e of trash) {
+      const bw = 30, top = e.y - e.def.radius - 7, hp = Math.max(0, e.hp) / e.maxHp, col = NAME_COLOR[e.def.rank];
+      if (this.hd2d) this.barRecs.push({ i: w.enemies.indexOf(e), pack: false, trash: true, sx: 0, sy: 0, x: e.x, y: e.y, top, bw, hp, col, cast: -1, castCol: '', ward: 0 });
+      b.fillStyle(0x000000, 0.6).fillRect(e.x - bw / 2, top, bw, 4);
+      b.fillStyle(hex(col), 1).fillRect(e.x - bw / 2, top, bw * hp, 4);
     }
     names.sort((a, c) => a.y - c.y);
     const shown: typeof names = [];
@@ -3676,7 +3694,8 @@ export class GameScene extends Phaser.Scene {
       fl.fillStyle(0x000000, 0.2 + 0.35 * f).fillEllipse(gx, gy + 8, 26 + 30 * f, 9 + 10 * f);
       this.hammerShape(o, gx, gy - lift - 10, now / 70, 1.1);
       // A faint arc of where it's going, so the farthest hero sees it's for them.
-      o.lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
+      // (On the floor graphics in 3D, which the bridge carries: overFx is covered there.)
+      (this.bridge ? fl : o).lineStyle(2, 0xffc27a, 0.25 + 0.2 * f).strokeCircle(th.tx, th.ty, 10 + 8 * (1 - f));
       return;
     }
     // Landed: a cracked crater with the hammer head-down in it.
@@ -4169,7 +4188,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** HD-2D: this frame's foe health and cast bars, for the overlay (world units, as drawBar draws them in 2D). */
-  private barRecs: { i: number; pack: boolean; sx: number; sy: number; x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
+  private barRecs: { i: number; pack: boolean; trash?: boolean; sx: number; sy: number; x: number; y: number; top: number; bw: number; hp: number; col: string; cast: number; castCol: string; ward: number }[] = [];
   /** The 3D view's overlay for the phone edge chevrons (it covers the Phaser canvas they are drawn on in 2D). */
   private edgeCanvas: HTMLCanvasElement | null = null;
   /**
@@ -4297,10 +4316,14 @@ export class GameScene extends Phaser.Scene {
       const p = view.project(ev.x, ev.y);
       const px = p ? p.x : cx, py = p ? p.y : -H;
       const ins = 20, pd = 30;
-      if (p && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
-      const a = Math.atan2(py - cy, px - cx);
+      // Under the co-op party frames counts as hidden too (phone pass, Ashvents, 25 Nov: a lone flame under them got no
+      // arrow): the arrow then stands just right of the frames, pointing at it.
+      const under = !!p && !!party && px < party.right + 6 && py > party.top - 6 && py < party.bottom + 6;
+      if (p && !under && px > ins && px < W - ins && py > top + ins && py < H - ins) continue;
+      let a = Math.atan2(py - cy, px - cx);
       const k = Math.min((W / 2 - pd) / Math.abs(Math.cos(a) || 1e-6), ((H - top) / 2 - pd) / Math.abs(Math.sin(a) || 1e-6));
-      const ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      let ex = cx + Math.cos(a) * k, ey = cy + Math.sin(a) * k;
+      if (under) { ex = party!.right + 24; ey = Math.max(party!.top + 16, Math.min(party!.bottom - 16, py)); a = Math.atan2(py - ey, px - ex); }
       const sz = 16, blink = 0.775 + 0.225 * Math.sin(now / 90);
       g.globalAlpha = 0.6; g.fillStyle = '#000000';
       g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.fill();
@@ -4336,6 +4359,15 @@ export class GameScene extends Phaser.Scene {
       // The bar sits just over the foe's drawn sprite (the renderer reports its head), so it reads as that foe's bar.
       // QA, 23 Nov: lifting the 2D offset by a fixed LIFT left bars and names ~60-100 px above short foes.
       const head = view.foeHead?.(r.i);
+      if (r.trash) {
+        // Trash: a small bar right on the foe's head, never stacked or lifted (design, 25 Nov).
+        const tw = r.bw * zb, tx = (head ? head.x : p.x) - tw / 2, ty = head ? head.y - 6 * zb : p.y + (r.top - r.y) * z * LIFT;
+        r.sx = tx + tw / 2; r.sy = ty;
+        if (ty < top) continue;
+        g.globalAlpha = 0.6; g.fillStyle = '#000000'; g.fillRect(tx, ty, tw, 4 * zb);
+        g.globalAlpha = 1; g.fillStyle = r.col; g.fillRect(tx, ty, tw * r.hp, 4 * zb);
+        continue;
+      }
       const h = r.cast >= 0 ? 13 : 6;
       const bw = r.bw * zb;
       let cxp = head && !r.pack ? head.x : p.x;
@@ -4449,7 +4481,7 @@ export class GameScene extends Phaser.Scene {
         if (!p || !onScreen(p)) continue;
         const none = w.revivesLeft <= 0;
         // Above the hero's name, which sits over the body.
-        const x = p.x, y = p.y - (66 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
+        const x = p.x, y = p.y - (90 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
         g.globalAlpha = 0.8; g.fillStyle = none ? '#140c0a' : '#0c1a10';
         g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
         g.globalAlpha = 1; g.strokeStyle = none ? '#8a7d78' : rv; g.lineWidth = 2 * zb;
@@ -4508,8 +4540,9 @@ export class GameScene extends Phaser.Scene {
         if (!shell && !ward) continue;
         const p = view.project(q.x, q.y);
         if (!p || !onScreen(p)) continue;
-        // The hero's body: about 26 px over the feet, 34 wide and 40 tall at zoom 1.
-        const cx = p.x, cy = p.y - 26 * zb, rx = 34 * zb, ry = 40 * zb;
+        // The hero's body: about 36 px over the feet, 34 wide and 52 tall at zoom 1 (the 3D sprite stands at its full
+        // drawn height since it leans to face the camera).
+        const cx = p.x, cy = p.y - 36 * zb, rx = 34 * zb, ry = 52 * zb;
         if (shell) {
           const fade = Math.min(1, ((q.shellUntil ?? 0) - t) / 0.6);
           g.globalAlpha = 0.14 * fade; g.fillStyle = css(SLAG_COOL);
@@ -4556,6 +4589,126 @@ export class GameScene extends Phaser.Scene {
         g.globalAlpha = 0.95; g.strokeStyle = '#f0e8de'; g.lineWidth = 1.5 * zb; line();
         g.globalAlpha = 1; g.lineJoin = 'miter';
       }
+    }
+    // Boss and event marks 2D draws over the sprites (overFx, footGfx, images at depth 5.5), which the 3D view covers.
+    // Drawn on this overlay, so no draw calls. Floor marks of the same casts are on the main graphics (the bridge).
+    {
+      const now = this.time.now;
+      const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
+      const dot = (x: number, y: number, r: number, col: string, a: number) => { g.globalAlpha = a; g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+      // The Crucible, Grandmother Slag's Ladle Pour: the ladle over the target's head, tipping as the cast fills, and
+      // pouring onto them at the end (2D's drawing, at the overlay's scale).
+      const gs = w.enemies.find((e) => e.alive && e.kind === 'grandmotherSlag' && e.castId === 'ladlePour' && e.castDur > 0);
+      const lq = gs ? w.heroData(w.ladlePourTarget).player : undefined;
+      const lp = lq && lq.hp > 0 ? view.project(lq.x, lq.y) : null;
+      if (gs && lp && onScreen(lp)) {
+        const f = gs.castT / gs.castDur, pulse = 0.6 + 0.4 * Math.sin(now / 70);
+        const hx = lp.x - 10 * zb, hy = lp.y - 92 * zb, tip = -0.15 - f * 1.0;
+        const ux = Math.cos(tip), uy = Math.sin(tip);
+        const bx = hx + ux * 22 * zb, by = hy + uy * 22 * zb;
+        const line = (w0: number, col: string, a: number, x0: number, y0: number, x1: number, y1: number) => { g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = w0 * zb; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+        g.lineCap = 'round';
+        dot(bx + 12 * zb, by + 6 * zb, 30 * zb, css(MOLTEN), 0.18 + 0.12 * pulse);
+        line(9, '#140c08', 1, hx - ux * 34 * zb, hy - uy * 34 * zb, bx, by);
+        line(5, '#9a8a80', 1, hx - ux * 34 * zb, hy - uy * 34 * zb, bx, by);
+        dot(bx + 12 * zb, by + 6 * zb, 18 * zb, '#140c08', 1);
+        dot(bx + 12 * zb, by + 6 * zb, 15 * zb, '#6a5a52', 1);
+        dot(bx + 12 * zb, by + 2 * zb, 11 * zb, '#ffb347', 1);
+        dot(bx + 10 * zb, by, 5 * zb, '#fff0b0', 0.9);
+        if (f > 0.7) {
+          const k = (f - 0.7) / 0.3, sx = bx + 26 * zb, sy = by + 4 * zb, ey = sy + (lp.y - 6 * zb - sy) * k;
+          line(9, css(MOLTEN), 0.5, sx, sy, lp.x, ey);
+          line(5, '#ffb347', 1, sx, sy, lp.x, ey);
+          line(2, '#fff0b0', 1, sx, sy, lp.x, ey);
+        }
+        g.lineCap = 'butt';
+      }
+      // The Kiln Mother's Kiln Draw: her furnace mouth swelling with light (14 of her 112 px below the sprite's middle).
+      // The streaming embers and chevrons are floor marks the bridge carries.
+      for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || e.kind !== 'kilnMother' || e.castId !== 'kilnDraw') continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i), h = head ? p.y - head.y : 112 * zb;
+        const my = p.y - h / 2 + 14 * (h / 112), fill = Math.min(1, e.castT / Math.max(0.01, e.castDur));
+        const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+        dot(p.x, my, (26 + 30 * fill) * zb, '#ff8a3a', 0.18 + 0.25 * fill);
+        dot(p.x, my, (12 + 14 * fill) * zb, '#ffe6a0', 0.25 + 0.35 * fill * pulse);
+      }
+      // Coldmarrow: a Frost Warden inside a coal's light, ember cracks glowing through the ice, over its drawn body.
+      if (w.dungeonId === 'coldmarrow') for (let i = 0; i < w.enemies.length; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || e.kind !== 'frostWarden' || this.coalWarmth(e.x, e.y, e.def.radius) <= 0) continue;
+        const p = view.project(e.x, e.y);
+        if (!p || !onScreen(p)) continue;
+        const head = view.foeHead?.(i), r = e.def.radius * zb;
+        const cx = p.x, cy = head ? (p.y + head.y) / 2 : p.y - r;
+        const pulse = 0.55 + 0.35 * Math.sin(now / 110 + i);
+        g.globalAlpha = 0.25 + 0.2 * pulse; g.strokeStyle = css(COAL); g.lineWidth = 3 * zb;
+        g.beginPath(); g.ellipse(cx, cy, r + 6 * zb, (head ? (p.y - head.y) / 2 : r) + 6 * zb, 0, 0, Math.PI * 2); g.stroke();
+        g.globalAlpha = pulse; g.strokeStyle = '#ffb347'; g.lineWidth = 2.5 * zb; g.lineJoin = 'round';
+        for (let c = 0; c < 4; c++) {
+          let a = (i * 2.399 + c * 1.571) % (Math.PI * 2), lx = cx, ly = cy;
+          g.beginPath(); g.moveTo(lx, ly);
+          for (let seg = 0; seg < 3; seg++) { a += seg % 2 ? 0.6 : -0.5; lx += Math.cos(a) * r * 0.32; ly += Math.sin(a) * r * 0.32; g.lineTo(lx, ly); }
+          g.stroke();
+        }
+        g.lineJoin = 'miter';
+      }
+      // A Brood elite's egg sacs round its feet (2D's footGfx), swelling as it is hurt.
+      for (const e of w.enemies) {
+        if (!e.alive || e.named < 0 || AFFIXES[e.affix] !== 'Brood') continue;
+        const r = e.def.radius, hpF = Math.max(0, e.hp) / e.maxHp;
+        for (let k = 0; k < 3; k++) {
+          const a = Math.PI * (0.27 + k * 0.23);
+          const sw = (1 + 0.08 * Math.sin(now / (160 + 120 * hpF) + k * 2) + 0.15 * (1 - hpF)) * zb;
+          const p = view.project(e.x + Math.cos(a) * (r - 2), e.y + r * 0.3 + Math.sin(a) * (r - 2));
+          if (!p || !onScreen(p)) continue;
+          const ex = p.x, ey = p.y - 6 * zb;
+          g.globalAlpha = 0.95; g.fillStyle = '#d8c89a'; g.beginPath(); g.ellipse(ex, ey, 6.5 * sw, 8 * sw, 0, 0, Math.PI * 2); g.fill();
+          g.globalAlpha = 0.9; g.strokeStyle = '#1a1010'; g.lineWidth = 2 * zb; g.stroke();
+          g.globalAlpha = 0.7; g.fillStyle = '#8a9a3a'; g.beginPath(); g.ellipse(ex + zb, ey + 2 * zb, 3 * sw, 4 * sw, 0, 0, Math.PI * 2); g.fill();
+          dot(ex - 2.5 * zb, ey - 4 * zb, 1.8 * zb, '#fff6d8', 0.8);
+        }
+      }
+      // Arena events: a Cave-in's rock falling onto its shadow with dust trickling down ahead of it, and a Cold Snap's
+      // snow (and the dungeon stirring's grit) falling through the view.
+      const ev = w.arenaEvent, A = ARENA_EVENTS;
+      if (ev === 'caveIn' && w.arenaEventStage === 1) {
+        const k = Math.max(0, Math.min(1, 1 - w.arenaEventT / A.caveWarn));
+        const img = this.textures.get(this.stoneKey()).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+        for (const [n, c] of w.caveInSpots().entries()) {
+          const p = view.project(c.x, c.y);
+          if (!p) continue;
+          for (let m = 0; m < (this.lowFx ? 3 : 6); m++) {
+            const u = ((now / 700) + m / 6 + n * 0.31) % 1;
+            dot(p.x + Math.sin(m * 2.3 + n) * 18 * zb, p.y - (220 - 220 * u) * zb, (1.6 + m % 2) * zb, '#b8aca4', 0.6 * (1 - u));
+          }
+          if (k > 0.6) {
+            const f = (k - 0.6) / 0.4, sc = (A.caveRadius / 68) * (1.3 - 0.3 * f) * zb;
+            const iw = img.width * sc, ih = img.height * sc;
+            g.save(); g.globalAlpha = 1; g.translate(p.x, p.y - 260 * (1 - f * f) * zb); g.rotate((1 - f) * (n % 2 ? 0.5 : -0.5));
+            g.drawImage(img, -iw * 0.5, -ih * 0.64, iw, ih); g.restore();
+          }
+        }
+      }
+      const snow = ev === 'coldSnap' && w.arenaEventStage === 1 ? Math.max(0, Math.min(1, 1 - w.arenaEventT / A.snapWarn)) : 0;
+      if (snow > 0) {
+        const N = this.lowFx ? 10 : 24;
+        for (let m = 0; m < N; m++) {
+          const u = ((now / 2600) + m * 0.137) % 1;
+          dot(((m + 0.5) / N) * W + Math.sin(now / 900 + m) * 12 * zb, top + u * (H - top), (1.6 + (m % 3) * 0.6) * zb, '#f2fbff', 0.7 * snow);
+        }
+      }
+      if (this.stirAt >= 0 && now - this.stirAt < 1400 && !this.lowFx) {
+        const k = (now - this.stirAt) / 1400;
+        for (let j = 0; j < 26; j++) {
+          const u = (k * 1.6 + j * 0.137) % 1;
+          dot(((j * 97.31) % 1) * W + (j % 2 ? 6 : -6) * u * zb, top + u * (H - top), (1.4 + (j % 3) * 0.6) * zb, '#b8aca4', 0.55 * (1 - k));
+        }
+      }
+      g.globalAlpha = 1;
     }
     // The Flue: a Decree holder's seal with its countdown ring (gold, then red and beating in the last 3 s), and a Spent
     // hero's cold seal with a grey arc for the time left. 2D draws these over the head on overFx and depth 9.4, which
@@ -5102,6 +5255,14 @@ export class GameScene extends Phaser.Scene {
    * affix shown on the body. Swift trails speed streaks, Vengeful smoulders red faster as it
    * nears death (it bursts where it falls), and Warded already wears the ward bubble.
    */
+  /** Trash (design, 25 Nov, Kiln retune): an unnamed foe of a Halls opener pack (map roles A and B). */
+  private trashFoe(e: World['enemies'][number]): boolean {
+    const m = this.world.halls;
+    if (!m || e.pack === undefined || e.named >= 0) return false;
+    const role = m.packs[e.pack]?.role;
+    return role === 'A' || role === 'B';
+  }
+
   private namedMark(g: Phaser.GameObjects.Graphics, b: Phaser.GameObjects.Graphics, e: World['enemies'][number], top: number, now: number): void {
     const r = e.def.radius;
     const rr = r + 14;
@@ -6627,7 +6788,8 @@ export class GameScene extends Phaser.Scene {
   private ysmeretCast(g: Phaser.GameObjects.Graphics, e: World['enemies'][number], now: number): void {
     const w = this.world;
     const f = Math.min(1, e.castT / e.castDur);
-    const o = this.overFx;
+    // In 3D the main graphics (the floor bridge) carries these; overFx is covered there. 2D keeps them over the sprites.
+    const o = this.bridge ? g : this.overFx;
     if (e.castId === 'scatter') {
       // Each living hero carries an ember ring the size of their burst. Two rings that
       // overlap turn red and are tied together, so a stacked pair can see the problem.

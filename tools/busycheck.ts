@@ -78,6 +78,10 @@ for (const dungeon of dungeons) {
       party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}`, ...gearOf(cls) })),
       // HALLS=1: the delve as a Halls map (sim/halls.ts), where the dungeon has one.
       ...(process.env.HALLS === '1' ? { halls: true } : {}),
+      // YSMERETV2=1 / ONDRELV2=1 / BOSSV2=1: the staged bosses (behind their flags in the client).
+      ...(process.env.YSMERETV2 === '1' ? { ysmeretV2: true } : {}),
+      ...(process.env.ONDRELV2 === '1' ? { ondrelV2: true } : {}),
+      ...(process.env.BOSSV2 === '1' ? { bossV2: true } : {}),
     });
     // SET=kinbound SETN=3: every hero wears that many pieces of a verb set, to hear its proc cues.
     // The sim rebuilds each loadout from gear between fights, so this is re-applied every tick.

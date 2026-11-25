@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World, WorldOptions, SimEvent } from '../sim/world';
 import { botInput } from '../sim/bot';
-import { applySnapshot, snapshot, Snapshot } from '../sim/netsync';
+import { applySnapshot, heardEvents, RESEND_TICKS, snapshot, Snapshot, withHeard } from '../sim/netsync';
 
 const opts: WorldOptions = { seed: 21, party: [{ cls: 'bulwark' }, { cls: 'lumen' }] };
 
@@ -80,6 +80,58 @@ describe('co-op snapshots', () => {
     // messages should stay well under that so one lost fragment rarely drops a frame.
     expect(biggest).toBeLessThan(48_000);
     console.log('largest snapshot', biggest, 'bytes');
+  });
+});
+
+describe('co-op events survive a lost snapshot and a slow guest frame', () => {
+  // As client/net/coop.ts: the host sends each tick's events with the next RESEND_TICKS ticks of snapshots
+  // (Snapshot.recent); the guest keeps every snapshot's batches it hears (heardEvents) and, at each of its frames,
+  // applies the newest snapshot with all of them (withHeard).
+  function run(frameEvery: number) {
+    const host = new World(opts);
+    const guest = new World(opts);
+    const batches: { tick: number; events: SimEvent[] }[] = [];
+    const heard = new Map<number, SimEvent[]>();
+    const sent: string[] = [], got: string[] = [];
+    let biggest = 0, n = 0, latest: Snapshot | null = null;
+    while (host.state !== 'ended' && host.time < 120) {
+      if (host.state === 'draft') {
+        const h = host.heroes.findIndex((_, i) => host.choicesOf(i).length > 0);
+        host.choose(0, Math.max(0, h));
+      } else {
+        host.step(host.heroes.map(() => botInput(host)));
+        for (const e of host.events) sent.push(JSON.stringify(e));
+        if (host.events.length) batches.push({ tick: host.tick, events: [...host.events] });
+        while (batches.length && batches[0].tick <= host.tick - RESEND_TICKS) batches.shift();
+      }
+      if (host.tick % 2 === 0) {
+        const text = JSON.stringify(snapshot(host, [], batches));
+        biggest = Math.max(biggest, text.length);
+        // Lose one snapshot in three (never two in a row).
+        if (++n % 3 !== 0) {
+          const s = JSON.parse(text) as Snapshot;
+          heardEvents(heard, s);
+          if (!latest || s.tick >= latest.tick) latest = s;
+        }
+      }
+      // The guest's frame: only every `frameEvery` host ticks.
+      if (host.tick % frameEvery === 0 && latest) {
+        applySnapshot(guest, withHeard(latest, heard), 1);
+        latest = null;
+        for (const e of guest.events) got.push(JSON.stringify(e));
+      }
+    }
+    if (latest) { applySnapshot(guest, withHeard(latest, heard), 1); for (const e of guest.events) got.push(JSON.stringify(e)); }
+    const tail = batches.reduce((k, b) => k + b.events.length, 0);
+    return { sent, got, tail, biggest };
+  }
+
+  for (const frameEvery of [2, 12, 30]) it(`a guest drawing a frame every ${frameEvery} host ticks plays every host event once, in order`, () => {
+    const { sent, got, tail, biggest } = run(frameEvery);
+    expect(sent.length).toBeGreaterThan(100);
+    expect(got.length).toBeGreaterThanOrEqual(sent.length - tail);
+    expect(got).toEqual(sent.slice(0, got.length));
+    expect(biggest).toBeLessThan(48_000);
   });
 });
 

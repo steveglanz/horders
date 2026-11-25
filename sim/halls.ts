@@ -213,16 +213,17 @@ const hash = (seed: number, k: number): number => {
  * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged); H3c the Coldmarrow (on 25 Nov once QA, the phone pass
  * #724 #726 and the co-op grate fix #723 were in); H3d the Wrackline (on 25 Nov once QA cleared #727 and the phone pass #734 was in); H4a the Hammerdeep, the first group
  * map (on 25 Nov once QA's two-tab co-op run, the themes #744, the beds #745 and the phone pass #750 were in); H4c the
- * Pressworks (on 25 Nov once the grid, QA solo and co-op, the themes #747 and the phone pass #759 were in).
+ * Pressworks (on 25 Nov once the grid, QA solo and co-op, the themes #747 and the phone pass #759 were in); H4b the
+ * Ashvents (on 25 Nov once the stuck-bot fix #760, QA's Ysmeret v2 pass and its fixes #772 and the phone pass #771 were in).
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow', 'wrackline', 'hammerdeep', 'pressworks', 'ashvents'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['ashvents'];
+export const HALLS_BETA: DungeonId[] = [];
 /** The dungeons whose map hosted online co-op plays without ?hallsbeta=1, once QA has played it there in two tabs. */
-export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks'];
+export const HALLS_COOP: DungeonId[] = ['hammerdeep', 'pressworks', 'ashvents'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -254,12 +255,13 @@ export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y
 /**
  * KILNTRASH (design, 25 Nov, /mnt/project-files/horders/design/halls/kiln-trash-plan.md): on the Kiln's map, the packs
  * drawn from its openers list (A, B and the steady side fight, never a named gate) are trash: `foes` times as many foes
- * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health, and they drop no bag. The
+ * (a pack's single special foe, KILNTRASH_ONE, stays at one), each with `hp` of its health (design's plan said 40%;
+ * its lever, 30%, measured 25 Nov: engineering/kiln-trash-grid.md), and they drop no bag. The
  * level and draft per clear stay. Named, hard, D, elites, the rare and the boss don't change.
  * `xp` 1 (design's second step, measured on its own): a trash clear gives half a level and any other fight one and a half,
  * so the usual route (A, B, C, E) still reaches the door at level 5.
  */
-export const KILNTRASH = { foes: 2, hp: 0.4, xp: 0 };
+export const KILNTRASH = { foes: 2, hp: 0.3, xp: 0 };
 export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall'];
 
 export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, kilnTrash = false): HallsMap {

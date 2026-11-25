@@ -12,7 +12,7 @@ import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
 import { POTION_IDS } from '../../sim/content/potions';
-import { Snapshot, snapshot } from '../../sim/netsync';
+import { RESEND_TICKS, Snapshot, heardEvents, snapshot, withHeard } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
 export interface HeroCard {
@@ -114,13 +114,16 @@ export class CoopSession {
   private pids = new Map<string, string>();
   /** Host: the running delve's start options, sent again to a guest who rejoins. */
   private runOpts: WorldOptions | null = null;
-  private events: SimEvent[] = [];
+  /** Host: each tick's events, the last RESEND_TICKS of them, sent again with every snapshot (Snapshot.recent). */
+  private events: { tick: number; events: SimEvent[] }[] = [];
   private lastSnapTick = -1;
   private lastSnapAt = 0;
   private latest: Snapshot | null = null;
   /** Guest: when the last snapshot came in (performance.now()), or when the delve started. */
   private heardAt = 0;
   private fresh = false;
+  /** Guest: event batches from every snapshot heard since the last frame (sim/netsync heardEvents). */
+  private heard = new Map<number, SimEvent[]>();
 
   constructor(
     readonly code: string,
@@ -213,7 +216,8 @@ export class CoopSession {
 
   /** Host: after each step, keep the tick's events for the next snapshot. */
   afterStep(w: World): void {
-    for (const e of w.events) this.events.push(e);
+    if (w.events.length) this.events.push({ tick: w.tick, events: [...w.events] });
+    while (this.events.length && this.events[0].tick <= w.tick - RESEND_TICKS) this.events.shift();
     // A press is done once its ability went on cooldown, or after the queue window.
     this.order.forEach((id, k) => {
       const c = this.casts.get(id);
@@ -238,8 +242,7 @@ export class CoopSession {
     if (!due || !this.party.members.length) return;
     this.lastSnapTick = w.tick;
     this.lastSnapAt = now;
-    const s = snapshot(w, this.events);
-    this.events = [];
+    const s = snapshot(w, [], this.events);
     this.party.broadcast('fast', { t: 'snap', s } satisfies Msg);
   }
 
@@ -285,9 +288,9 @@ export class CoopSession {
 
   /** Guest: the newest snapshot not yet drawn, if any. */
   take(): Snapshot | null {
-    if (!this.fresh) return null;
+    if (!this.fresh || !this.latest) return null;
     this.fresh = false;
-    return this.latest;
+    return withHeard(this.latest, this.heard);
   }
 
   // -------------------------------------------------------------- plumbing
@@ -343,6 +346,7 @@ export class CoopSession {
         this.heardAt = performance.now();
         this.latest = null;
         this.fresh = false;
+        this.heard.clear();
         if (this.me > 0) this.events_.onStart?.(m.opts, this.me);
         break;
       case 'in':
@@ -356,6 +360,7 @@ export class CoopSession {
         break;
       case 'snap':
         this.heardAt = performance.now();
+        if (this.role === 'guest') heardEvents(this.heard, m.s);
         if (this.role === 'guest' && (!this.latest || m.s.tick >= this.latest.tick)) {
           this.latest = m.s;
           this.fresh = true;
