@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
+import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, MAIN_ROOMS, corridorAt, corridorEnds, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 
@@ -62,6 +62,9 @@ export class HallsView {
   private lastDir = { x: 0, y: -1 };
   private fadeT = -1;
   private grates: Grate[] | null = null;
+  /** The corner map's bounds and doorways (world units), worked out once: a map never changes shape. */
+  private bounds: { x0: number; x1: number; y0: number; y1: number } | null = null;
+  private doors: MapDoor[] | null = null;
 
   constructor(private scene: Phaser.Scene, private world: World, private texFor: (kind: EnemyKind) => string, private base: number) {
     this.floor = scene.add.graphics().setDepth(-5);
@@ -308,64 +311,105 @@ export class HallsView {
     this.mapBtn.textContent = this.open ? 'Close' : 'Map';
     this.mapBox.classList.toggle('big', f.compact && this.open);
     if (!show) return;
-    const size = f.compact && this.open ? Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.8) : 128;
+    // The map's bounds in world units (H2c rooms by their outline, H1's by their circle), cached: the map never moves.
+    this.bounds ??= mapBounds(m);
+    const { x0, x1, y0, y1 } = this.bounds;
+    // The sheet takes the map's shape inside its box: generated maps are tall (about 5,000 by 3,000), so a square sheet
+    // would waste the sides of a phone and shrink every room. Desktop's corner map stays inside 128 x 128; a phone's
+    // opened map inside 86% of the width and 62% of the height (clear of the top row and the action bar's top).
+    const big = f.compact && this.open;
+    let boxW = 128, boxH = 128;
+    let place: { left: number; top: number } | null = null;
+    if (big) {
+      // A phone's opened map takes the larger of two clear areas: above the action bar (full width), or beside it
+      // (landscape: the bar holds the bottom right). Both start under the Map button, so the top row stays readable.
+      const W = window.innerWidth, H = window.innerHeight, g = 8;
+      const top = (this.mapBtn.getBoundingClientRect().bottom || 98) + g;
+      const bar = document.getElementById('actionbar')?.getBoundingClientRect();
+      const barTop = bar && bar.height ? bar.top : H, barLeft = bar && bar.width ? bar.left : W;
+      const areas = [
+        { left: 12, top, w: W - 24, h: barTop - g - top },
+        { left: 12, top, w: barLeft - g - 12, h: H - 12 - top },
+      ].filter((a) => a.w > 80 && a.h > 80);
+      const scaleOf = (a: { w: number; h: number }) => Math.min((a.w - 16) / (x1 - x0), (a.h - 16) / (y1 - y0));
+      const a = areas.sort((p, q) => scaleOf(q) - scaleOf(p))[0] ?? { left: 12, top, w: W - 24, h: H - top - 12 };
+      boxW = Math.round(a.w); boxH = Math.round(a.h);
+      place = a;
+    }
+    const fit = Math.min(boxW / (x1 - x0), boxH / (y1 - y0));
+    const cw = Math.max(64, Math.round(Math.min(boxW, (x1 - x0) * fit + 16))), chh = Math.max(64, Math.round(Math.min(boxH, (y1 - y0) * fit + 16)));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     // Redrawn about 6 times a second (enough for dots walking), or at once when something changed.
     const locks = m.rooms.map((r) => { const l = lockOf(r); return l < 0 ? '-' : l < GRATE_WARN ? 'w' : 's'; }).join('');
-    const stamp = `${size}|${m.seen.join('')}|${m.packs.map((p) => p.state[1]).join('')}|${locks}|${Math.floor(f.now / 160)}`;
+    const stamp = `${cw}x${chh}|${m.seen.join('')}|${m.packs.map((p) => p.state[1]).join('')}|${locks}|${Math.floor(f.now / 160)}`;
     if (stamp === this.mapStamp) return;
     this.mapStamp = stamp;
+    // Centred in its clear area (inline, so the stylesheet's centring is only the fallback).
+    if (place) {
+      this.mapBox.style.left = `${Math.round(place.left + (boxW - cw) / 2)}px`;
+      this.mapBox.style.top = `${Math.round(place.top + (boxH - chh) / 2)}px`;
+      this.mapBox.style.transform = 'none';
+      this.mapBox.style.bottom = 'auto';
+    } else this.mapBox.style.left = this.mapBox.style.top = this.mapBox.style.transform = this.mapBox.style.bottom = '';
     const cv = this.mapCanvas;
-    if (cv.width !== size * dpr) { cv.width = cv.height = size * dpr; cv.style.width = cv.style.height = `${size}px`; }
+    if (cv.width !== cw * dpr || cv.height !== chh * dpr) { cv.width = cw * dpr; cv.height = chh * dpr; cv.style.width = `${cw}px`; cv.style.height = `${chh}px`; }
     const ctx = cv.getContext('2d');
     if (!ctx) return;
-    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    for (const r of m.rooms) { x0 = Math.min(x0, r.x - r.r); x1 = Math.max(x1, r.x + r.r); y0 = Math.min(y0, r.y - r.r); y1 = Math.max(y1, r.y + r.r); }
-    const pad = 8 * dpr, S = size * dpr;
-    const sc = Math.min((S - 2 * pad) / (x1 - x0), (S - 2 * pad) / (y1 - y0));
-    const ox = (S - (x1 - x0) * sc) / 2 - x0 * sc, oy = (S - (y1 - y0) * sc) / 2 - y0 * sc;
+    const pad = 8 * dpr, SW = cw * dpr, SH = chh * dpr;
+    const sc = Math.min((SW - 2 * pad) / (x1 - x0), (SH - 2 * pad) / (y1 - y0));
+    const ox = (SW - (x1 - x0) * sc) / 2 - x0 * sc, oy = (SH - (y1 - y0) * sc) / 2 - y0 * sc;
     const X = (x: number) => ox + x * sc, Y = (y: number) => oy + y * sc;
-    ctx.clearRect(0, 0, S, S);
+    // A room's floor as a path: its outline loops (outer wall, then islands, cut out by even-odd), or its circle.
+    const roomPath = (i: number, outerOnly = false) => {
+      const r = m.rooms[i], edge = edgeOf(r);
+      ctx.beginPath();
+      if (!edge) { ctx.arc(X(r.x), Y(r.y), r.r * sc, 0, Math.PI * 2); return; }
+      for (const loop of outerOnly ? edge.slice(0, 1) : edge) {
+        for (let k = 0; k < loop.length; k += 2) (k ? ctx.lineTo(X(loop[k]), Y(loop[k + 1])) : ctx.moveTo(X(loop[k]), Y(loop[k + 1])));
+        ctx.closePath();
+      }
+    };
+    ctx.clearRect(0, 0, SW, SH);
     ctx.fillStyle = 'rgba(12, 8, 6, 0.78)';
-    ctx.fillRect(0, 0, S, S);
-    // Corridors to or between seen rooms, then the seen rooms.
+    ctx.fillRect(0, 0, SW, SH);
+    // Corridors to or between seen rooms (from end to end: H2c's doorways sit off the room centres), then the rooms.
     ctx.strokeStyle = 'rgba(150, 120, 100, 0.85)';
     ctx.lineCap = 'round';
     ctx.lineWidth = Math.max(2, HALLS.corridor * sc);
     for (const c of m.corridors) {
       if (!m.seen[c.a] && !m.seen[c.b]) continue;
-      const a = m.rooms[c.a], b = m.rooms[c.b];
-      ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y)); ctx.lineTo(X(b.x), Y(b.y)); ctx.stroke();
+      const e = corridorEnds(m, c);
+      ctx.beginPath(); ctx.moveTo(X(e.x1), Y(e.y1)); ctx.lineTo(X(e.x2), Y(e.y2)); ctx.stroke();
     }
-    m.rooms.forEach((r, i) => {
-      ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), r.r * sc, 0, Math.PI * 2);
+    m.rooms.forEach((_, i) => {
+      roomPath(i);
       ctx.fillStyle = m.seen[i] ? 'rgba(120, 92, 74, 0.95)' : 'rgba(40, 30, 26, 0.9)';
-      ctx.fill();
+      ctx.fill('evenodd');
     });
-    // H2b: a sealing or sealed room. Red is bad: its rim turns red (pulsing for the 1 s warning, solid once the grates are
-    // down) and a red bar closes each of its doorways, so a phone shows at a glance which room you can't walk out of
-    // (or, in co-op, into).
-    this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+    // H2b: a sealing or sealed room. Red is bad: its outer wall turns red (pulsing for the 1 s warning, solid once the
+    // grates are down) and a red bar closes each of its doorways, so a phone shows at a glance which room you can't walk
+    // out of (or, in co-op, into).
     const sealing = m.rooms.map((r) => lockOf(r));
     if (sealing.some((l) => l >= 0)) {
+      this.doors ??= mapDoors(m);
       const blink = 0.55 + 0.45 * Math.abs(Math.sin(f.now / 140));
-      m.rooms.forEach((r, i) => {
+      m.rooms.forEach((_, i) => {
         const l = sealing[i];
         if (l < 0 || !m.seen[i]) return;
         const down = l >= GRATE_WARN;
-        ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), r.r * sc, 0, Math.PI * 2);
+        roomPath(i, true);
         ctx.strokeStyle = down ? '#ff4d3d' : `rgba(255, 77, 61, ${blink.toFixed(2)})`;
         ctx.lineWidth = (down ? 2.5 : 2) * dpr;
         ctx.stroke();
       });
       ctx.lineCap = 'butt';
-      for (const gr of this.grates) {
-        const l = sealing[gr.room];
-        if (l < 0 || !m.seen[gr.room]) continue;
-        // A bar across the corridor a few px out from the rim (on the rim it would vanish into the red ring), a little
-        // wider than the corridor so it reads as a gate at phone size.
-        const down = l >= GRATE_WARN, tx = -gr.uy, ty = gr.ux, w = Math.max(4 * dpr, gr.hw * sc * 1.5 + 1.5 * dpr);
-        const cx = X(gr.x) - gr.ux * 5 * dpr, cy = Y(gr.y) - gr.uy * 5 * dpr;
+      for (const d of this.doors) {
+        const l = sealing[d.room];
+        if (l < 0 || !m.seen[d.room]) continue;
+        // A bar across the corridor a few px out from the wall (on the wall it would vanish into the red outline), a
+        // little wider than the corridor so it reads as a gate at phone size.
+        const down = l >= GRATE_WARN, tx = -d.uy, ty = d.ux, w = Math.max(4 * dpr, (HALLS.corridor / 2) * sc * 1.5 + 1.5 * dpr);
+        const cx = X(d.x) + d.ux * 5 * dpr, cy = Y(d.y) + d.uy * 5 * dpr;
         ctx.strokeStyle = down ? '#ff4d3d' : `rgba(255, 77, 61, ${blink.toFixed(2)})`;
         ctx.lineWidth = 3 * dpr;
         ctx.beginPath(); ctx.moveTo(cx + tx * w, cy + ty * w); ctx.lineTo(cx - tx * w, cy - ty * w); ctx.stroke();
@@ -432,9 +476,11 @@ export class HallsView {
   /** A sealed room (grates down) that your living hero stands outside of, or null. */
   private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
     if (this.world.player.hp <= 0) return null;
-    for (const r of m.rooms) {
-      if (lockOf(r) < GRATE_WARN) continue;
-      if (Math.hypot(x - r.x, y - r.y) > r.r) return { x: r.x, y: r.y };
+    const here = roomAt(m, x, y);
+    for (let i = 0; i < m.rooms.length; i++) {
+      const r = m.rooms[i];
+      if (lockOf(r) < GRATE_WARN || here === i) continue;
+      return { x: r.x, y: r.y };
     }
     return null;
   }
@@ -447,4 +493,45 @@ export class HallsView {
     const r = m.rooms[MAIN_ROOMS[Math.min(MAIN_ROOMS.length - 1, far + 1)]];
     return { x: r.x, y: r.y };
   }
+}
+
+/** H2c: a room's outline loops (flat x, y lists, outer wall first, then islands), or undefined for H1's circles. */
+function edgeOf(r: HallsRoom): number[][] | undefined {
+  const e = (r as HallsRoom & { edge?: number[][] }).edge;
+  return e && e.length && e[0].length >= 6 ? e : undefined;
+}
+
+/** The whole map's extent in world units: every room's outline (or circle), and every corridor's ends. */
+export function mapBounds(m: HallsMap): { x0: number; x1: number; y0: number; y1: number } {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  const add = (x: number, y: number, r = 0) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); y0 = Math.min(y0, y - r); y1 = Math.max(y1, y + r); };
+  for (const r of m.rooms) {
+    const e = edgeOf(r);
+    if (!e) add(r.x, r.y, r.r);
+    else for (let k = 0; k < e[0].length; k += 2) add(e[0][k], e[0][k + 1]);
+  }
+  for (const c of m.corridors) { const e = corridorEnds(m, c); add(e.x1, e.y1, HALLS.corridor / 2); add(e.x2, e.y2, HALLS.corridor / 2); }
+  return { x0, x1, y0, y1 };
+}
+
+/** A room's doorway on the map: where a corridor leaves its floor, and the way out along the corridor (unit vector). */
+export interface MapDoor { room: number; x: number; y: number; ux: number; uy: number }
+
+/**
+ * Every doorway of every room but the boss door's alcove: walking each corridor's centre line out from its end in a
+ * room until the point leaves that room's floor (roomAt), so it works for any outline, not only circles.
+ */
+export function mapDoors(m: HallsMap): MapDoor[] {
+  const out: MapDoor[] = [];
+  for (const c of m.corridors) {
+    const e = corridorEnds(m, c);
+    for (const [room, sx, sy, tx, ty] of [[c.a, e.x1, e.y1, e.x2, e.y2], [c.b, e.x2, e.y2, e.x1, e.y1]]) {
+      if (room === DOOR_ROOM) continue;
+      const dx = tx - sx, dy = ty - sy, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+      let t = 0;
+      while (t < L && roomAt(m, sx + ux * t, sy + uy * t) === room) t += 8;
+      out.push({ room, x: sx + ux * t, y: sy + uy * t, ux, uy });
+    }
+  }
+  return out;
 }
