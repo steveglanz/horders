@@ -26,8 +26,10 @@ export type BedKind = 'hearth' | 'fire' | 'steam' | 'shimmer' | 'forge' | 'frost
   | RoomBedKind;
 
 /** The five Halls room themes' beds, each from the room's one quiet motion (visuals' theme list, 25 Nov 2026). */
-export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingYard' | 'kilnShrine';
-export const ROOM_BEDS: readonly RoomBedKind[] = ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine'];
+export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingYard' | 'kilnShrine'
+  // The Drowned Foundry's four (visuals, 25 Nov; its shrine side room keeps kilnShrine).
+  | 'boilerRoom' | 'cistern' | 'pumpHall' | 'anchorStore';
+export const ROOM_BEDS: readonly RoomBedKind[] = ['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore'];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
 /** Seconds a room bed takes to fade into the next room's as the hero walks through a doorway. */
@@ -318,6 +320,50 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         raw[i] = lp * 0.25 * flicker + bowl * 0.05 + brown * 0.15;
         break;
       }
+      case 'boilerRoom': {
+        // Boiler room: a low simmer in the brass, and one slow steam puff off a boiler, twice round the loop.
+        hp = 0.9 * (hp + w - prev);
+        prev = w;
+        lp += (w - lp) * 0.08;
+        const ph = (t * 2) % 1;
+        const puff = ph < 0.35 ? Math.pow(Math.sin((Math.PI * ph) / 0.35), 2) : 0;
+        const s = i / rate;
+        const simmer = Math.sin(2 * Math.PI * 196 * s) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 7 * s)) + 0.5 * Math.sin(2 * Math.PI * 392.5 * s);
+        raw[i] = hp * (0.02 + 0.1 * puff) + simmer * 0.04 + lp * 0.15 + brown * 0.15;
+        break;
+      }
+      case 'cistern': {
+        // Cistern: still water, a soft lap against stone that swells and settles once round the loop; drips below.
+        lp += (w - lp) * 0.3;
+        hp = 0.9 * (hp + lp - prev);
+        prev = lp;
+        const swell = 0.4 + 0.6 * Math.pow(Math.sin(t * Math.PI), 2);
+        const lap = 0.7 + 0.3 * Math.sin(2 * Math.PI * 0.5 * (i / rate));
+        raw[i] = hp * 0.35 * swell * lap + brown * 0.1;
+        break;
+      }
+      case 'pumpHall': {
+        // Pump hall: the beam rocks over twice round the loop, a wooden creak as it turns and a muffled push of water.
+        hp = 0.92 * (hp + w - prev);
+        prev = w;
+        lp += (w - lp) * 0.04;
+        const ph = (t * 2) % 1;
+        const s = i / rate;
+        const creakAt = (c: number) => Math.exp(-Math.abs(ph - c) * 30);
+        const creak = Math.sin(2 * Math.PI * 240 * s + Math.sin(2 * Math.PI * 31 * s) * 3) * (creakAt(0.1) + 0.7 * creakAt(0.6));
+        const push = ph > 0.15 && ph < 0.5 ? Math.sin((Math.PI * (ph - 0.15)) / 0.35) : 0;
+        raw[i] = creak * 0.07 + lp * 0.9 * push + brown * 0.25;
+        break;
+      }
+      case 'anchorStore': {
+        // Anchor store: the quiet room. A cold, still air with a faint low hum of chain; nothing moves.
+        hp = 0.97 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.3;
+        const s = i / rate;
+        raw[i] = lp * 0.08 + (Math.sin(2 * Math.PI * 233 * s) + 0.6 * Math.sin(2 * Math.PI * 349 * s)) * 0.012 + brown * 0.1;
+        break;
+      }
       case 'shimmer': {
         // A slow, wide band of airy noise that breathes in and out.
         hp = 0.95 * (hp + w - prev);
@@ -361,13 +407,14 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
     }
   }
   // Halls room beds: ash grains settling, slag bubbles in the channel, wick crackles at the shrine.
-  const grains = kind === 'ashStore' ? 26 : kind === 'slagChannel' ? 7 : kind === 'kilnShrine' ? 9 : 0;
+  const grains = kind === 'ashStore' ? 26 : kind === 'slagChannel' ? 7 : kind === 'kilnShrine' ? 9 : kind === 'cistern' ? 9 : 0;
   for (let k = 0; k < grains; k++) {
     const at = Math.floor(r() * (period - rate * 0.3));
-    const bubble = kind === 'slagChannel';
+    // The cistern's drips are bright plinks into still water; the slag channel's bubbles are low.
+    const bubble = kind === 'slagChannel' || kind === 'cistern';
     const len = Math.floor(rate * (bubble ? 0.14 : 0.006 + r() * 0.01));
     const amp = bubble ? 0.22 : kind === 'ashStore' ? 0.06 + r() * 0.08 : 0.1 + r() * 0.12;
-    const f0 = 140 + r() * 120;
+    const f0 = kind === 'cistern' ? 900 + r() * 700 : 140 + r() * 120;
     let ph = 0;
     for (let i = 0; i < len && at + i < n; i++) {
       const env = Math.pow(1 - i / len, bubble ? 3 : 2);
