@@ -924,7 +924,6 @@ export class World {
   ysAway0 = 0;
   ysAway1 = 0;
   ysBel0 = 0;
-  ysBel1 = 0;
   /** YSMERETV2 stage 2: the flames' one shared health (both show it). */
   ysPool = 0;
   /**
@@ -7732,12 +7731,11 @@ export class World {
       const f = this.enemies[j];
       this.clampArena(f, f.def.radius);
       f.maxHp = f.hp = pool;
-      f.abilityT = YSMERETV2.firstScatter + (YSMERETV2.scatterSync ? 0 : YSMERET.scatterEvery / 2); // half a timer apart, or together
+      f.abilityT = YSMERETV2.firstScatter + YSMERET.scatterEvery / 2; // the two Scatters come half a timer apart
       this.ysAx1 = f.x; this.ysAy1 = f.y;
     }
     this.ysPool = pool;
     this.ysBel0 = YSMERETV2.bellowEvery * 0.5;
-    this.ysBel1 = YSMERETV2.bellowEvery;
     this.ysStage = 2;
     this.bossPhase = 2;
     this.events.push({ type: 'phase', phase: 2 });
@@ -7782,17 +7780,13 @@ export class World {
         this.eachHero(() => { if (this.player.hp > 0) this.hurtPlayer(YSMERET.ventBlast * YSMERETV2.flareMult * this.tierDamage, j, false, 'a lone flame'); }, true);
       }
       if (slot) this.ysAway1 = away; else this.ysAway0 = away;
-      // tankBellow: one timer (ysBel0), run by the flame that holds the tank.
-      const tb = YSMERETV2.tankBellow > 0;
-      const bellows = !tb || slot === tankSlot;
-      const bs = tb ? 0 : slot;
-      let bel = bs ? this.ysBel1 : this.ysBel0;
-      if (YSMERETV2.bellowEvery > 0 && bellows) bel -= dt;
-      if (bs) this.ysBel1 = bel; else this.ysBel0 = bel;
+      // One Bellow timer (ysBel0), run by the flame that holds the tank.
+      const bellows = YSMERETV2.bellowEvery > 0 && slot === tankSlot;
+      if (bellows) this.ysBel0 -= dt;
       if (f.castId || f.stunT > 0) continue;
-      if (YSMERETV2.bellowEvery > 0 && bellows && bel <= 0) {
-        // Bellow Slam on whoever this flame is on (untied, the two flames' timers run half apart, so one target at a time).
-        if (bs) this.ysBel1 = YSMERETV2.bellowEvery; else this.ysBel0 = YSMERETV2.bellowEvery;
+      if (bellows && this.ysBel0 <= 0) {
+        // Bellow Slam on the tank this flame is on.
+        this.ysBel0 = YSMERETV2.bellowEvery;
         this.bellowTarget = this.targetOf(j, 0);
         this.startCast(j, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
         continue;
@@ -10328,20 +10322,17 @@ export const YSMERET = {
  * YSMERETV2 (design 25 Nov, ysmeret-v2.md): starting values. Stage 1 is today's fight, but Bellow Slam waits while her vents
  * are open (`bellowWaits`). At `split` of her health she splits into two flames `apart` px apart (inside a Lumen's heal reach,
  * 500) that share one health (what she had left x `hpMult`). Each stays within `leash` of where it landed, hits with
- * `melee` of her melee damage and casts Scatter Embers on its own timer (offset by half). A flame with no hero within
- * `flareR` for `flareAfter` s flares and hits every hero for YSMERET.ventBlast. `split: 0` keeps stage 1 only.
+ * `melee` of her melee damage and casts Scatter Embers on its own timer (offset by half); only the flame on the tank Bellows
+ * (`bellowEvery`). A flame with no hero within `flareR` for `flareAfter` s flares and hits every hero for YSMERET.ventBlast.
+ * `split: 0` keeps stage 1 only. Tuned 25 Nov (h4b-ashvents-grid.md): hpMult 1.6, bellowEvery 12.
  */
 export const YSMERETV2 = {
   bellowWaits: 1, split: 0.5, apart: 420, melee: 1, firstScatter: 3,
-  hpMult: 1, leash: 40, flareR: 150, flareAfter: 3,
+  hpMult: 1.6, leash: 40, flareR: 150, flareAfter: 3,
   /** A flare hits for YSMERET.ventBlast x this. */
   flareMult: 1,
-  /** Stage 2: each flame Bellow Slams whoever it is on every this many s (0 = none); the two come half a timer apart. */
+  /** Stage 2: the flame holding the tank (her threat target; the first flame with no tank up) Bellow Slams every this many s (0 = none). */
   bellowEvery: 12,
-  /** 1: only the flame on the tank (or the first flame, with no tank up) Bellows, on one timer; 0: each flame on its own. */
-  tankBellow: 1,
-  /** 1: both flames cast Scatter Embers at the same moment; 0: half a timer apart. */
-  scatterSync: 0,
 };
 
 export const OSKEL = {
