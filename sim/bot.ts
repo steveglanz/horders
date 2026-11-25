@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { YSMERETV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1125,6 +1125,7 @@ export function botInput(w: World, skill = 1): Input {
   }
   // The Ashvents (G3): spread out while Scatter Embers is winding up.
   // YSMERETV2 stage 2: either flame's Scatter counts.
+  let beltX = 0, beltY = 0;
   const scatter = w.heroes.length > 1 && process.env.NOSPREAD !== '1' && w.bossIndex >= 0
     && (w.ysStage === 2 ? w.enemies.some((e) => e.alive && e.kind === 'ysmeret' && e.castId === 'scatter')
       : w.enemies[w.bossIndex].alive && w.enemies[w.bossIndex].castId === 'scatter');
@@ -1138,6 +1139,20 @@ export function botInput(w: World, skill = 1): Input {
     const want = melee ? flame.def.radius + 30 : YSMERETV2.flareR * 0.7;
     const k = d > YSMERETV2.flareR - 10 ? 0.5 : 0.12;
     if (d > want) { fx += (dx / d) * k * skill; fy += (dy / d) * k * skill; }
+  }
+  // OSKELV2 stage 2-3 (design's bot rule): walk against the press bed, and keep at least OSKEL_CRUSH_GAP off the crush
+  // line (the downstream rim). A Downstroke taker already walks to its plate, which rides the belt. The walk against it
+  // is a velocity, added after the steering is normalised (as a force it walked bots across the floor at full pace).
+  if (w.osStage >= 2 && process.env.NOBELT !== '1') {
+    const cx = Math.cos(w.osDir), cy = Math.sin(w.osDir);
+    const v = (w.osStage === 3 ? OSKELV2.belt3 : OSKELV2.belt) / Math.max(1, w.moveSpeed);
+    beltX = -cx * v * skill; beltY = -cy * v * skill;
+    const d = Math.hypot(p.x, p.y) || 1;
+    let off = Math.atan2(p.y, p.x) - w.osDir;
+    off = Math.atan2(Math.sin(off), Math.cos(off));
+    if (Math.abs(off) <= OSKELV2.arc / 2 + 0.3 && d > w.arenaR - OSKELV2.depth - OSKEL_CRUSH_GAP) {
+      fx += (-p.x / d - cx) * 0.6 * skill; fy += (-p.y / d - cy) * 0.6 * skill;
+    }
   }
   if (scatter) {
     const near = nearestAlly(w);
@@ -1453,7 +1468,7 @@ export function botInput(w: World, skill = 1): Input {
     fy += (oy / (od || 1)) * k;
   }
   const cast = botCast(w, skill);
-  if ((soaking || onVein) && threat < 0.012) return { x: 0, y: 0, cast };
+  if ((soaking || onVein) && threat < 0.012) return { x: beltX, y: beltY, cast };
 
   // Drift in a slow circle so the bot doesn't pin itself in one spot.
   const a = w.time * 0.15;
@@ -1461,6 +1476,11 @@ export function botInput(w: World, skill = 1): Input {
   fy += Math.sin(a) * 0.002;
   const len = Math.hypot(fx, fy) || 1;
   if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
+  if (beltX || beltY) {
+    // Full pace where the steering points, less the belt's carry; capped at full pace.
+    const ox = fx / len + beltX, oy = fy / len + beltY, ol = Math.max(1, Math.hypot(ox, oy));
+    return { x: ox / ol, y: oy / ol, cast };
+  }
   return { x: fx / len, y: fy / len, cast };
 }
 
@@ -1468,6 +1488,9 @@ export function botInput(w: World, skill = 1): Input {
  * YSMERETV2 stage 2 (design's bot rule): the tank on the flame it held in stage 1 (the most threat), the healer on the
  * other, and any other heroes split evenly, so neither flame is ever left alone long enough to flare.
  */
+/** OSKELV2: how far bots keep off the crush line (design's bot rule). */
+const OSKEL_CRUSH_GAP = 80;
+
 function focusFlame(w: World): Enemy | null {
   const f0 = w.ysF0 >= 0 && w.enemies[w.ysF0].alive ? w.enemies[w.ysF0] : null;
   const f1 = w.ysF1 >= 0 && w.enemies[w.ysF1].alive ? w.enemies[w.ysF1] : null;

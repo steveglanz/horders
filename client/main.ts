@@ -319,6 +319,8 @@ function startRun(bounty = false, key = false): void {
   // YSMERETV2 (design, 25 Nov): the two-stage Ysmeret, on by default in local play and hosted co-op since design measured
   // it and QA passed it in hosted co-op (25 Nov). The first delve keeps the old fight (in World); ?ysmeretv2=0 turns it off.
   if (params.get('ysmeretv2') !== '0') opts.ysmeretV2 = true;
+  // OSKELV2 (design, 25 Nov): the staged Oskel and the running press bed, off until art, sound and QA have seen it.
+  if (params.get('oskelv2') === '1') opts.oskelV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {

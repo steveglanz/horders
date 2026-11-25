@@ -12,7 +12,7 @@ import { Signal, localSignal, supabaseSignal } from './signal';
 import { Input, SimEvent, World, WorldOptions, HeroOptions, HeroLooks, TICK } from '../../sim/world';
 import { GLOWS, TRAILS } from '../../sim/content/season';
 import { POTION_IDS } from '../../sim/content/potions';
-import { RESEND_TICKS, Snapshot, snapshot } from '../../sim/netsync';
+import { RESEND_TICKS, Snapshot, heardEvents, snapshot, withHeard } from '../../sim/netsync';
 
 /** What a guest tells the host about their hero, once linked. */
 export interface HeroCard {
@@ -122,6 +122,8 @@ export class CoopSession {
   /** Guest: when the last snapshot came in (performance.now()), or when the delve started. */
   private heardAt = 0;
   private fresh = false;
+  /** Guest: event batches from every snapshot heard since the last frame (sim/netsync heardEvents). */
+  private heard = new Map<number, SimEvent[]>();
 
   constructor(
     readonly code: string,
@@ -286,9 +288,9 @@ export class CoopSession {
 
   /** Guest: the newest snapshot not yet drawn, if any. */
   take(): Snapshot | null {
-    if (!this.fresh) return null;
+    if (!this.fresh || !this.latest) return null;
     this.fresh = false;
-    return this.latest;
+    return withHeard(this.latest, this.heard);
   }
 
   // -------------------------------------------------------------- plumbing
@@ -344,6 +346,7 @@ export class CoopSession {
         this.heardAt = performance.now();
         this.latest = null;
         this.fresh = false;
+        this.heard.clear();
         if (this.me > 0) this.events_.onStart?.(m.opts, this.me);
         break;
       case 'in':
@@ -357,6 +360,7 @@ export class CoopSession {
         break;
       case 'snap':
         this.heardAt = performance.now();
+        if (this.role === 'guest') heardEvents(this.heard, m.s);
         if (this.role === 'guest' && (!this.latest || m.s.tick >= this.latest.tick)) {
           this.latest = m.s;
           this.fresh = true;
