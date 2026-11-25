@@ -138,6 +138,23 @@ describe('ONDRELV2: the staged Ondrel', () => {
     expect(m.y).toBeGreaterThan(0.9);
   });
 
+  it('under ONDRELV2 only, his health is x hpMult', () => {
+    const hp = (v2: boolean): number => {
+      const w = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, omens: [], cls: 'bulwark', party, ondrelV2: v2 });
+      const q = w as unknown as O & { startEncounter(): void; encounter: number; route: string[] };
+      for (const e of w.enemies) e.alive = false;
+      q.route[1] = 'ondrel';
+      q.encounter = 1;
+      q.startEncounter();
+      return w.enemies[q.bossIndex].maxHp;
+    };
+    const was = ONDRELV2.hpMult;
+    ONDRELV2.hpMult = 0.9;
+    try {
+      expect(hp(true)).toBeCloseTo(hp(false) * 0.9, 0);
+    } finally { ONDRELV2.hpMult = was; }
+  });
+
   it('a co-op guest gets the slag and the stage', () => {
     const { w, q, b } = fight();
     stage2(w, q, b);

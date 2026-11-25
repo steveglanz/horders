@@ -2233,6 +2233,7 @@ export class World {
           this.slagTickT = 1;
           this.ondrelStage = this.ondrelV2 ? 1 : 0;
           this.slagPatches = [];
+          if (this.ondrelV2) { e.maxHp *= ONDRELV2.hpMult; e.hp = e.maxHp; }
           e.abilityT = ONDREL.sweepEvery;
           this.events.push({ type: 'bossSpawn' });
         }
@@ -10219,8 +10220,10 @@ export const ONDRELV2 = {
   stage2: 0.6, stage3: 0.25,
   r: 80, cap: 4, burn: 0.03, tick: 0.5,
   glow: 2.5, burstR: 110, burst: 45,
-  /** Stage 3: his version's move comes every choirEvery x this (0.5 = the enraged timer). */
-  lastChoir: 0.5,
+  /** Stage 3: his version's move comes every choirEvery x this (design 25 Nov: 1, the normal timer; 0.5 measured too hard). */
+  lastChoir: 1,
+  /** His health under ONDRELV2 only, x this (design 25 Nov: the stage costs a number; -15% is the smaller cut that passed all 4 cells). */
+  hpMult: 0.85,
 };
 
 export const ONDREL = {
