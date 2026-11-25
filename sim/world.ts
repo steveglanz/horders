@@ -813,8 +813,10 @@ export interface WorldOptions {
   halls?: boolean;
   /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
   hallsTemplate?: boolean;
-  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the Kiln map's opener packs are trash (sim/halls.ts). */
+  /** KILNTRASH (?kilntrash=1, design 25 Nov, kiln-trash-plan.md): the opener packs of a TRASH_ON map (the Kiln) are trash (sim/halls.ts). */
   kilnTrash?: boolean;
+  /** Trash rollout (?trashbeta=1, TRASH_BETA=1, design 25 Nov, trash-rollout-plan.md): a TRASH_BETA map's openers (the Foundry's) are trash too. */
+  trashBeta?: boolean;
   /** H5 (design's h5-plan.md): a raid map's opener packs are trash as the Kiln's (?raidtrash=1, RAIDTRASH=1; off until design's go). */
   raidTrash?: boolean;
   /** BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the Glutton's Gorge without an interrupt. */
@@ -1444,7 +1446,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, !!opts.kilnTrash, !!opts.raidTrash, !!opts.trashBeta);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
