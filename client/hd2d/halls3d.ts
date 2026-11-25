@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import type { HallsMap } from '../../sim/halls';
 import { SIM } from './simconsts';
 import { grateState, hallsGrates, liftedOf, lockOf } from '../hallsgrates';
-import { Loop, inCorridor, inLoop, inRoom, roomLoops, roomPieces } from '../hallsshape';
+import { Loop, corridorEnds, inCorridor, inLoop, inRoom, roomLoops, roomPieces } from '../hallsshape';
 
 /** Floor tiles: the room's 0.62-unit firebrick tiles (renderer.ts buildRoom), drawn into one repeating texture. */
 const TILE = 0.62;
@@ -58,10 +58,10 @@ export function hallsWalls(m: HallsMap, corridor: number, doorRoom: number): { r
     }
   });
   m.corridors.forEach((c, ci) => {
-    const a = m.rooms[c.a], b = m.rooms[c.b];
-    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const { x1, y1, x2, y2 } = corridorEnds(m, c);
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
     for (const s of [1, -1]) {
-      const nx = -uy * s, ny = ux * s, sx = a.x + nx * hw, sy = a.y + ny * hw;
+      const nx = -uy * s, ny = ux * s, sx = x1 + nx * hw, sy = y1 + ny * hw;
       // Where this side leaves room a's outline and enters room b's, marching out from each centre.
       let t0 = 0; while (t0 < L && inLoop(loops[c.a][0], sx + ux * t0, sy + uy * t0)) t0 += 4;
       let t1 = L; while (t1 > t0 && inLoop(loops[c.b][0], sx + ux * t1, sy + uy * t1)) t1 -= 4;
@@ -177,9 +177,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const chunks: Chunk[] = [];
   const roomChunk = m.rooms.map((r) => { const g = new THREE.Group(); group.add(g); const c = { g, x: r.x * S, z: r.y * S, r: r.r * S + 0.4 }; chunks.push(c); return c; });
   const corChunk = m.corridors.map((c) => {
-    const a = m.rooms[c.a], b = m.rooms[c.b];
+    const { x1, y1, x2, y2 } = corridorEnds(m, c);
     const g = new THREE.Group(); group.add(g);
-    const ch = { g, x: ((a.x + b.x) / 2) * S, z: ((a.y + b.y) / 2) * S, r: (Math.hypot(b.x - a.x, b.y - a.y) / 2) * S + 0.4 };
+    const ch = { g, x: ((x1 + x2) / 2) * S, z: ((y1 + y2) / 2) * S, r: (Math.hypot(x2 - x1, y2 - y1) / 2) * S + 0.4 };
     chunks.push(ch); return ch;
   });
 
@@ -200,9 +200,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     }
   });
   m.corridors.forEach((c, i) => {
-    const a = m.rooms[c.a], b = m.rooms[c.b], L = Math.hypot(b.x - a.x, b.y - a.y);
-    const g = new THREE.PlaneGeometry(L * S, o.corridor * S); g.rotateX(-Math.PI / 2); g.rotateY(-Math.atan2(b.y - a.y, b.x - a.x));
-    g.translate(((a.x + b.x) / 2) * S, FLOOR - 0.004, ((a.y + b.y) / 2) * S); worldUv(g);
+    const { x1, y1, x2, y2 } = corridorEnds(m, c), L = Math.hypot(x2 - x1, y2 - y1);
+    const g = new THREE.PlaneGeometry(L * S, o.corridor * S); g.rotateX(-Math.PI / 2); g.rotateY(-Math.atan2(y2 - y1, x2 - x1));
+    g.translate(((x1 + x2) / 2) * S, FLOOR - 0.004, ((y1 + y2) / 2) * S); worldUv(g);
     const mesh = new THREE.Mesh(g, floorMat); mesh.receiveShadow = true; corChunk[i].g.add(mesh);
   });
 

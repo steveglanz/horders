@@ -4,7 +4,7 @@
  * flat x,y loops in world units, the outer edge first, then any islands (the Ring's hearth). A room without an edge
  * (H1's template) is its bounding circle. Shared by the 2D and 3D looks; no imports beyond types.
  */
-import type { HallsMap, HallsRoom } from '../sim/halls';
+import type { HallsCorridor, HallsMap, HallsRoom } from '../sim/halls';
 
 export type Loop = number[];
 
@@ -34,11 +34,22 @@ export function inRoom(loops: Loop[], x: number, y: number): boolean {
   return true;
 }
 
-/** Whether (x, y) is within a corridor's floor (half its width of the centre line between its rooms' centres). */
+/**
+ * Where a corridor's centre line ends: HallsCorridor ax, ay, bx, by on a generated map (40 inside each room, just past
+ * its doorway, so a corridor into a Ring never cuts through the island), else the rooms' centres (H1's template).
+ * The same rule as sim/halls.ts corridorEnds, kept here so the 3D bundle needs no sim code.
+ */
+export function corridorEnds(m: HallsMap, c: HallsCorridor): { x1: number; y1: number; x2: number; y2: number } {
+  const e = c as HallsCorridor & { ax?: number; ay?: number; bx?: number; by?: number };
+  const a = m.rooms[c.a], b = m.rooms[c.b];
+  return { x1: e.ax ?? a.x, y1: e.ay ?? a.y, x2: e.bx ?? b.x, y2: e.by ?? b.y };
+}
+
+/** Whether (x, y) is within a corridor's floor (half its width of its centre line). */
 export function inCorridor(m: HallsMap, ci: number, hw: number, x: number, y: number): boolean {
-  const c = m.corridors[ci], a = m.rooms[c.a], b = m.rooms[c.b], vx = b.x - a.x, vy = b.y - a.y;
-  const t = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1)));
-  return (x - a.x - vx * t) ** 2 + (y - a.y - vy * t) ** 2 <= hw * hw;
+  const { x1, y1, x2, y2 } = corridorEnds(m, m.corridors[ci]), vx = x2 - x1, vy = y2 - y1;
+  const t = Math.max(0, Math.min(1, ((x - x1) * vx + (y - y1) * vy) / (vx * vx + vy * vy || 1)));
+  return (x - x1 - vx * t) ** 2 + (y - y1 - vy * t) ** 2 <= hw * hw;
 }
 
 /** One wall piece: centre and length (world units), outward normal (away from the floor), and whether it rings an island. */

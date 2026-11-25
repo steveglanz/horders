@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { HALLS, HallsMap } from '../sim/halls';
-import { inCorridor, inRoom, roomLoops, roomPieces } from '../client/hallsshape';
+import { corridorEnds, inCorridor, inRoom, roomLoops, roomPieces } from '../client/hallsshape';
 
 const map = (): HallsMap => new World({ seed: 2, tier: 2, halls: true }).halls!;
 const circ = (cx: number, cy: number, r: number, n = 32) => { const o: number[] = []; for (let k = 0; k < n; k++) { const a = (k / n) * 2 * Math.PI; o.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } return o; };
@@ -41,5 +41,14 @@ describe('Halls room outlines (client/hallsshape.ts)', () => {
     expect(doors.length).toBeGreaterThan(0);
     for (const p of ps) if (!p.island) for (const ci of doors) expect(inCorridor(m, ci, hw - 4, p.x + p.nx * 4, p.y + p.ny * 4)).toBe(false);
     expect(ps.filter((p) => p.island).length).toBe(16);
+  });
+
+  it('uses a generated corridor\'s own ends (40 inside each room), so it never runs through a Ring\'s island', () => {
+    const m = map(), ci = m.corridors.findIndex((c) => c.a === 1 && c.b === 3), c = m.corridors[ci], a = m.rooms[1], b = m.rooms[3];
+    expect(corridorEnds(m, c)).toEqual({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+    // Room 3 is north of room 1 (smaller y): its doorway is at b.y + b.r, and the end stops 40 inside it.
+    m.corridors[ci] = { ...c, ax: a.x, ay: a.y - a.r + 40, bx: b.x, by: b.y + b.r - 40 } as typeof c;
+    expect(inCorridor(m, ci, 80, b.x, b.y)).toBe(false);
+    expect(inCorridor(m, ci, 80, b.x, b.y + b.r + 20)).toBe(true);
   });
 });
