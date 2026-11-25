@@ -103,6 +103,9 @@ export class Hud {
   showPerf = false;
   /** Saves the hero after the end screen's "Equip upgrade" changed what it wears (set by main.ts). */
   onGearChange?: () => void;
+  /** Halls: whether this hero has been shown encounter `id`'s fight tip before, and marking it shown (main.ts, the hero save). */
+  tipSeen?: (id: string) => boolean;
+  markTip?: (id: string) => void;
 
   constructor() {
     $('pauseBtn').addEventListener('click', () => this.handlers?.onPause());
@@ -243,6 +246,9 @@ export class Hud {
     $('level').textContent = String(p.level);
     $('timer').textContent = fmt(w.time);
     $('kills').textContent = String(w.kills);
+    // Halls (keep it simple, Steve 25 Nov): a dungeon you walk through counts packs, not kills, so the top row drops
+    // "· N slain" on the map; the boss arena after the door shows it again.
+    $('killsBit').hidden = w.hallsOn;
     $('killsLabel').textContent = w.stress ? 'kills' : 'slain';
     let next = '';
     if (w.stress) next = 'Stress test';
@@ -250,7 +256,7 @@ export class Hud {
       // Phase 18 Halls H1: between fights on the map, the goal (the door guard is the one pack that can't be skipped).
       const guard = w.halls!.packs.find((p) => p.guard);
       next = guard && guard.state !== 'cleared' ? 'Find the door guard' : 'The boss door is open';
-    } else if (w.hallsOn) next = `Fight · ${w.halls!.packs.filter((p) => p.state === 'cleared').length} packs cleared`;
+    } else if (w.hallsOn) next = ''; // In a fight the target frame says it all; the room's grates say why you can't leave.
     else if (w.phase === 'choose') next = `Choose a path · ${Math.ceil(w.phaseT)}`;
     else if (w.phase === 'intro') next = `Fight ${w.encounter + 1} of ${w.route.length} · ${Math.ceil(w.phaseT)}`; // a countdown, as "Choose a path · 6"
     else if (w.inShadow) next = `World boss shadow: ${Math.ceil(w.shadowLeft)}s left`;
@@ -385,6 +391,9 @@ export class Hud {
     this.placeDing();
   }
 
+  /** The foe the target frame shows (enemy index, -1 for none): on phones its name isn't repeated over its head. */
+  targetShown = -1;
+
   private targetIndex(w: World): number {
     if (w.bossIndex >= 0) {
       const b = w.enemies[w.bossIndex];
@@ -406,6 +415,7 @@ export class Hud {
 
   private updateTarget(w: World): void {
     const i = this.targetIndex(w);
+    this.targetShown = i;
     const box = $('target');
     if (i < 0) {
       box.hidden = true;

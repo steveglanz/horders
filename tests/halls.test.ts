@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, genHalls, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
+import { readFileSync } from 'node:fs';
 
 const idle = { x: 0, y: 0 };
 /** A spec coordinate at the template's scale. */
@@ -195,7 +196,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(roomAt(m, c.x, c.y)).toBe(3);
     }
   });
-  it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lavaHeat s, and cools once cleared', () => {
+  it('a room\'s lava is harmless crust until its pack wakes, heats over HALLS.lockDelay s (with the grates), and cools once cleared', () => {
     // Find a seed whose map rolled a lava channel.
     let w: World | null = null;
     for (let seed = 1; seed <= 200 && !w; seed++) { const v = halls(seed); if (v.lava.length) w = v; }
@@ -215,7 +216,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       expect(w!.player.hp).toBe(hp);
       expect(c.heat).toBe(0);
     }
-    // Wake it: heats to 1 over lavaHeat, then burns.
+    // Wake it: heats to 1 over lockDelay, then burns.
     put(w!, pk.x, pk.y + HALLS.reach - 10);
     w!.step(idle);
     expect(pk.state).toBe('awake');
@@ -342,16 +343,17 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     }
   });
 
-  it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
+  it('H2a: heroes and foes move 1.25x faster on a Halls run, resting or not (no travel run); arena runs are unchanged', () => {
     const arena = new World({ seed: 2, tier: 2 });
     const w = halls(2);
     expect(arena.moveScale).toBe(1);
     expect(w.moveScale).toBe(HALLS.moveScale);
-    // Resting from the start (nothing awake), so after the delay the travel run is on too.
     expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    // Catch breath doesn't change speed: one number on the whole run (design, 25 Nov, "keep it simple").
     for (let k = 0; k < Math.round((HALLS.rest.delay + 0.1) * 30); k++) w.step(idle);
     expect(w.hallsResting).toBe(true);
-    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale * HALLS.travelRun, 5);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    expect('travelRun' in HALLS).toBe(false);
     // A woken foe walking at the hero covers 1.25x the ground its def speed gives.
     const a = pack(w, 'A');
     put(w, a.x, a.y + HALLS.reach - 5);
@@ -490,3 +492,57 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(matched).toBeGreaterThan(0);
   });
 });
+
+describe('H2b: hero shots stop at sealed grates', () => {
+  it('an orb crossing a sealed room\'s rim dies; inside the room, or with the room open, it flies on', () => {
+    const w = halls(2);
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[a.room];
+    put(w, a.x, a.y + HALLS.reach - 5);
+    for (let k = 0; k < Math.round((HALLS.lockDelay + 0.2) * 30) && (rm.lock ?? -1) < HALLS.lockDelay; k++) w.step(idle);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    // Each corridor end at this room: a point just inside the rim and one just outside, on the corridor's line.
+    const c = m.corridors.find((k) => k.a === a.room || k.b === a.room)!;
+    const e = corridorEnds(m, c);
+    // From this room's port (inside its floor) along the corridor, out to the rim.
+    const [sx, sy, fx, fy] = c.a === a.room ? [e.x1, e.y1, e.x2, e.y2] : [e.x2, e.y2, e.x1, e.y1];
+    const ux = (fx - sx) / Math.hypot(fx - sx, fy - sy), uy = (fy - sy) / Math.hypot(fx - sx, fy - sy);
+    expect(roomGap(rm, sx, sy)).toBeGreaterThanOrEqual(0);
+    let t = 0;
+    while (t < 4000 && roomGap(rm, sx + ux * t, sy + uy * t) >= 0) t += 2;
+    const ins = { x: sx + ux * (t - 20), y: sy + uy * (t - 20) }, out = { x: sx + ux * (t + 20), y: sy + uy * (t + 20) };
+    expect(grateCut(m, ins.x, ins.y, out.x, out.y)).toBe(true);
+    expect(grateCut(m, out.x, out.y, ins.x, ins.y)).toBe(true);
+    expect(grateCut(m, sx, sy, ins.x, ins.y)).toBe(false);
+    // In the world: an orb fired from just inside, outward at speed, is gone next tick.
+    const orb = w.orbs.find((q) => !q.alive)!;
+    Object.assign(orb, { alive: true, x: ins.x, y: ins.y, px: ins.x, py: ins.y, vx: ux * 1500, vy: uy * 1500, life: 2, target: -1, dmg: 1, owner: 0, pierce: 0, lastHit: -1 });
+    w.step(idle);
+    expect(orb.alive).toBe(false);
+    // With the room open, the same step is no cut.
+    const lock = rm.lock;
+    rm.lock = -1;
+    expect(grateCut(m, ins.x, ins.y, out.x, out.y)).toBe(false);
+    rm.lock = lock;
+  });
+});
+
+describe('H3 plan: a pack waking runs the same fight setup as an arena fight', () => {
+  it('hallsWake and startEncounter share fightSetup, so a dungeon\'s per-fight setup runs when a pack wakes', () => {
+    const w = halls(2);
+    w.player.haloUsed = true;
+    w.player.windUsed = true;
+    const a = pack(w, 'A');
+    put(w, a.x, a.y + HALLS.reach - 5);
+    w.step(idle);
+    expect(a.state).toBe('awake');
+    expect(w.phase).toBe('fight');
+    expect(w.player.haloUsed).toBe(false);
+    expect(w.player.windUsed).toBe(false);
+    const src = readFileSync('sim/world.ts', 'utf8');
+    expect(src).toContain('if (first) this.fightSetup(def);');
+    expect(src.match(/this\.fightSetup\(def\)/g)!.length).toBe(2);
+  });
+});
+

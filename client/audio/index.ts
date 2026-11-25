@@ -11,6 +11,7 @@ import { lootCues, rewardCues } from './rewards';
 import { render } from './synth';
 import { SOUNDS, SoundId } from './sounds';
 import { MusicPlayer, type RoomBedKind, ThemeId, THEMES } from './music';
+import { TrackPlayer, trackFor } from './tracks';
 import { BellyState, bellyCues, edgeCue, gazeCues, restCue, roomCues, millCue, islandCues, withoutBankedSoaks, BELLY, DRY, Cue, CueContext, cueFor, DUCK, DEEP_DUCK, ebbCue, landCueFor, pressedCue, spentCue, panFor, partyCues, SetFlags, setCues, PRIORITY, ReviveState, reviveCues, targetCue, THROTTLE } from './cues';
 import type { SimEvent } from '../../sim/world';
 import { buzzFor, BUZZ, Haptics } from './haptics';
@@ -82,6 +83,8 @@ class AudioEngine {
   private wantTheme: ThemeId | null = null;
   private wantIntensity = 0;
   private wantRoomBed: RoomBedKind | null = null;
+  /** Steve's Suno songs (tracks.ts), in place of the synth themes; null where the browser can't play them. */
+  private tracks: TrackPlayer | null = null;
   private listeners = new Set<() => void>();
   private wasDown: boolean[] = [];
   private targeted = { on: false };
@@ -129,6 +132,7 @@ class AudioEngine {
       if (!this.ctx) return;
       if (document.hidden) void this.ctx.suspend();
       else if (!this.settings.muted) void this.ctx.resume();
+      this.tracks?.hold(document.hidden);
     });
     // A soft tick on every button press, so the menus feel physical.
     document.addEventListener('click', (e) => {
@@ -182,7 +186,12 @@ class AudioEngine {
       silent.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
       silent.connect(ctx.destination);
       silent.start(0);
-      this.music.play(this.wantTheme);
+      try {
+        this.tracks = new TrackPlayer(ctx, this.musicBus, () => this.applyTheme());
+      } catch {
+        this.tracks = null; // no media element routing here: the synth themes play instead
+      }
+      this.applyTheme();
       this.music.setIntensity(this.wantIntensity);
       this.music.setRoomBed(this.wantRoomBed);
       // Build the sounds a few at a time in the background, combat sounds
@@ -407,9 +416,21 @@ class AudioEngine {
       this.belly.frequency.setTargetAtTime(BELLY.open, this.ctx.currentTime, 0.1);
     }
     this.wantTheme = id;
-    this.music?.play(id);
+    this.applyTheme();
     // The end screen and the hub have no room: a Halls room bed never outlives its delve.
     if (id === null || id.startsWith('hub')) this.roomBed(null);
+  }
+
+  /** Plays the wanted place's song (tracks.ts), or its synth theme when the song can't play. */
+  private applyTheme(): void {
+    const tr = trackFor(this.wantTheme);
+    if (this.tracks && tr && this.tracks.can(tr)) {
+      this.music?.play(null);
+      this.tracks.play(tr);
+    } else {
+      this.tracks?.play(null);
+      this.music?.play(this.wantTheme);
+    }
   }
 
   /** Halls: the quiet bed of the room the hero stands in (roomBedFor), or null in a corridor, the boss arena or off the map. */

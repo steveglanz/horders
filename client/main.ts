@@ -47,6 +47,8 @@ const save = () => {
   queueCloudSave(() => hero);
 };
 hud.onGearChange = save;
+hud.tipSeen = (id) => !!hero.tipsSeen?.includes(id);
+hud.markTip = (id) => { if (hero.tipsSeen?.includes(id)) return; (hero.tipsSeen ??= []).push(id); save(); };
 const hub = new Hub(() => hero, save);
 hub.tier = hero.maxTier;
 hub.render();
@@ -297,7 +299,7 @@ function startRun(bounty = false, key = false): void {
     const gear = standInGear(equippedItems(hero));
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
-  // Phase 18 Halls H1: the Kiln map prototype (Settings or ?halls=1). Local play only: the map isn't synced to guests yet.
+  // Phase 18 Halls: the default wherever a dungeon has a map (hallsFor). Local play only: the map isn't synced to guests yet.
   if (hallsWanted() && !hosting && !stress) {
     opts.halls = true;
     // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).

@@ -24,8 +24,6 @@ export const HALLS = {
   fade: 0.8,
   /** The camera leads this far ahead along a corridor. */
   lead: 120,
-  /** A room's rolled lava is cooled crust until its pack wakes, then heats to burning over this long (s). */
-  lavaHeat: 1,
   /**
    * Bots in a fight keep this far from another sleeping pack's centre: past `pull`, so the foes chasing them don't
    * wake it (that, not the hero stepping in its ring, was most double pulls).
@@ -38,9 +36,10 @@ export const HALLS = {
   rest: { delay: 3, hp: 0.01, res: 4 },
   /** H2a: heroes and foes move this much faster on a Halls run, its boss fight included (shots and casts don't change). */
   moveScale: 1.25,
-  /** H2a: and heroes this much faster again while catching their breath (nothing awake for rest.delay s). */
-  travelRun: 1.2,
-  /** H2b: a room seals this long after a pack in it wakes (the doorways glow red until then). */
+  /**
+   * H2b: a room seals this long after a pack in it wakes (the doorways glow red until then). Its rolled lava, cooled
+   * crust while the pack sleeps, heats to burning over the same time, so the room goes hot in one moment.
+   */
   lockDelay: 1.0,
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
@@ -357,6 +356,18 @@ export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number;
       o.y -= n.y * (r + g);
     }
   }
+}
+
+/**
+ * H2b: does a step from (ax, ay) to (bx, by) cross a sealed room's grates (in to out or out to in)? Hero shots stop
+ * there, so nothing crosses a sealed room's doorways (h2-plan.md, "Room lock").
+ */
+export function grateCut(m: HallsGeo, ax: number, ay: number, bx: number, by: number): boolean {
+  for (const rm of m.rooms) {
+    if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
+    if ((roomGap(rm, ax, ay) >= 0) !== (roomGap(rm, bx, by) >= 0)) return true;
+  }
+  return false;
 }
 
 /** Which corridor (index) holds (x, y) with `pad` to spare, or -1. */

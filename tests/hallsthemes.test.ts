@@ -24,12 +24,12 @@ describe('Halls H2d room themes (client/hallsthemes.ts)', () => {
     }
   });
 
-  it('stands props only along far and side walls, at most 7 a room, none in the boss door alcove', () => {
+  it('stands props only along far and side walls, at most 4 a room, none in the boss door alcove', () => {
     const m = map();
     expect(themeSpots(m, DOOR_ROOM, HALLS.corridor / 2, DOOR_ROOM)).toEqual([]);
     for (let i = 0; i < m.rooms.length; i++) {
       const s = themeSpots(m, i, HALLS.corridor / 2, DOOR_ROOM);
-      expect(s.length).toBeLessThanOrEqual(7);
+      expect(s.length).toBeLessThanOrEqual(4);
       for (const p of s) { expect(p.island).toBe(false); expect(p.ny).toBeLessThan(0.35); }
     }
   });

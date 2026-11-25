@@ -661,7 +661,11 @@ export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VE
 /** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
 /** Engineering's room theme ids (HallsRoom.theme, H2d) and the bed each plays: Ash store, Bellows hall, Slag channel,
  *  Cooling yard, Kiln shrine. */
-export const ROOM_THEME_BED: Record<string, RoomBedKind> = { ash: 'ashStore', bellows: 'bellowsHall', slag: 'slagChannel', cooling: 'coolingYard', shrine: 'kilnShrine' };
+export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
+  ash: 'ashStore', bellows: 'bellowsHall', slag: 'slagChannel', cooling: 'coolingYard', shrine: 'kilnShrine',
+  // The Drowned Foundry (H3a; its shrine side room is 'shrine' too).
+  boiler: 'boilerRoom', cistern: 'cistern', pump: 'pumpHall', anchor: 'anchorStore',
+};
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
 /**

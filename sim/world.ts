@@ -20,11 +20,11 @@ import { BOUNTY } from './content/bounty';
 import { FIRST_DELVE } from './content/firstdelve';
 import { POTION, POTION_IDS, PotionId } from './content/potions';
 import { SETS, SET_SLOTS, SET_TUNING, SetId, setForDungeon } from './content/sets';
-import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
+import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterDef, EncounterId, GateKind, rollFork, rollRoute } from './content/dungeon';
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -955,7 +955,7 @@ export class World {
   /** Lava channels: a strip from (x1, y1) to (x2, y2), `w` wide, that burns a hero standing in it. */
   /**
    * V2 lava channels. Phase 18 Halls: a map room's strip carries `room` and `heat` (0 cooled crust .. 1 hot): it heats
-   * over HALLS.lavaHeat s while that room's pack is awake and burns only at 1 (undefined heat, an arena run: always hot).
+   * over HALLS.lockDelay s (as its grates drop) while that room's pack is awake and burns only at 1 (undefined heat, an arena run: always hot).
    */
   lava: { x1: number; y1: number; x2: number; y2: number; w: number; room?: number; heat?: number }[] = [];
   /** Kiln vents: they flare one at a time, in turn. */
@@ -1534,8 +1534,9 @@ export class World {
   get moveSpeed(): number {
     const boost = (this.player.hasteT > 0 ? 1.3 : 1) * (1 + 0.05 * this.rank('momentum'));
     const chill = this.player.chill ? 1 - COLD.chillSlow * this.player.chill : 1;
-    // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too), and a resting party runs.
-    const halls = this.moveScale * (this.hallsResting ? HALLS.travelRun : 1);
+    // Halls H2a: everything moves HALLS.moveScale faster on a Halls run (its boss fight too). One number, no travel run
+    // (design, 25 Nov: Steve's "keep it simple").
+    const halls = this.moveScale;
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
   }
   /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
@@ -1943,8 +1944,12 @@ export class World {
     this.use(at);
   }
 
-  private startEncounter(): void {
-    const def = this.encounterDef;
+  /**
+   * The start of a fight, shared by an arena fight (startEncounter) and a Halls pack waking with nothing else awake
+   * (hallsWake), so each dungeon's per-fight setup runs on both (design, H3 plan: Coldmarrow's full Hearthcoal, the
+   * Glarewell's fresh pillars, the Wrackline's rafts).
+   */
+  private fightSetup(def: EncounterDef): void {
     this.phase = 'fight';
     this.fightStartedAt = this.time;
     for (let k = 0; k < this.heroes.length; k++) { const q = this.heroPlayer(k); q.hurtBy = {}; q.lastHurtBy = undefined; }
@@ -1978,7 +1983,6 @@ export class World {
     this.burnoutOn = false;
     this.player.haloUsed = false;
     this.player.windUsed = false;
-    const p = this.player;
     // Glarewell: fresh pillars every fight (a cracked pillar only stays down for that fight).
     this.pillars = this.dungeonId === 'glarewell'
       ? [0, 1, 2, 3].map((k) => {
@@ -1986,12 +1990,18 @@ export class World {
         return { x: Math.cos(a) * GLARE.pillarRing, y: Math.sin(a) * GLARE.pillarRing, r: GLARE.pillarRadius, cracked: false };
       })
       : [];
-    this.rollLayout(def.id);
-    this.rollArenaEvent(def.id);
-    this.rollStir(def.id);
     this.markT = 0;
     this.markQueued = 0;
     this.lampBeam = null;
+  }
+
+  private startEncounter(): void {
+    const def = this.encounterDef;
+    this.fightSetup(def);
+    const p = this.player;
+    this.rollLayout(def.id);
+    this.rollArenaEvent(def.id);
+    this.rollStir(def.id);
     // Enter from the far side of the arena.
     const base = Math.atan2(-p.y, -p.x) + this.rng.range(-0.6, 0.6);
     const all = def.spawns.reduce((a, s) => a + s.n, 0);
@@ -2492,7 +2502,7 @@ export class World {
     for (const c of this.lava) {
       if (c.room === undefined || c.heat === undefined) continue;
       const hot = m.packs.some((pk) => pk.state === 'awake' && roomAt(m, pk.x, pk.y) === c.room);
-      c.heat = Math.max(0, Math.min(1, c.heat + (hot ? dt : -dt) / HALLS.lavaHeat));
+      c.heat = Math.max(0, Math.min(1, c.heat + (hot ? dt : -dt) / HALLS.lockDelay));
     }
   }
 
@@ -2573,19 +2583,7 @@ export class World {
       return;
     }
     this.encounter = pk.slot;
-    if (first) {
-      this.phase = 'fight';
-      this.fightStartedAt = this.time;
-      for (let h = 0; h < this.heroes.length; h++) { const q = this.heroPlayer(h); q.hurtBy = {}; q.lastHurtBy = undefined; }
-      this.burnoutWarned = false;
-      this.burnoutTickT = 0;
-      this.burnoutOn = false;
-      this.player.haloUsed = false;
-      this.player.windUsed = false;
-      this.markT = 0;
-      this.markQueued = 0;
-      this.lampBeam = null;
-    }
+    if (first) this.fightSetup(def);
     this.hallsWaking = k;
     let lead = -1;
     let firstElite = -1;
@@ -5272,7 +5270,8 @@ export class World {
       o.x += o.vx * dt;
       o.y += o.vy * dt;
       o.life -= dt;
-      if (o.life <= 0) {
+      // Halls H2b: a hero's shot stops at a sealed room's grates, as foes and heroes do.
+      if (o.life <= 0 || (this.hallsOn && grateCut(this.halls!, o.px, o.py, o.x, o.y))) {
         o.alive = false;
         continue;
       }
