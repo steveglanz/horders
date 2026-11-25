@@ -51,6 +51,9 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 /** H2c: the five room shapes the generator picks from (design's h2-plan.md, "Rooms"). */
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
+/** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine';
+
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
 
@@ -73,6 +76,11 @@ export interface HallsRoom {
    * island. Every generated room has one; template rooms don't (draw the circle).
    */
   edge?: number[][];
+  /**
+   * H2d: the room's look (floor, walls, props, light, sound bed): Ash store, Bellows hall, Slag channel, Cooling yard,
+   * Kiln shrine. Names and art are visuals' (client/hallsthemes.ts); hallsThemes rolls it.
+   */
+  theme?: RoomTheme;
   /** H2c: walking waypoints on the room's floor (hallsWay); undefined is its centre. */
   nav?: [number, number][];
   /** H2b: seconds since the room began to seal (grates drop at HALLS.lockDelay), or -1 / undefined while open. */
@@ -947,4 +955,40 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
   }
   if (roomAt(m, start.x, start.y, 30) !== 0) out.push('the entrance has no floor at its centre');
   return out;
+}
+
+// ---------------------------------------------------------------- H2d themes
+
+/** Which themes suit which shape (design's h2-plan.md, H2d table "Fits"). */
+const THEME_FITS: Record<RoomShape, RoomTheme[]> = {
+  round: ['ash', 'slag', 'cooling'],
+  hall: ['ash', 'bellows'],
+  cross: ['slag', 'ash'],
+  ring: ['cooling', 'ash'],
+  twin: ['bellows', 'ash'],
+};
+
+/**
+ * H2d: rolls each room's theme (design's h2-plan.md, H2d), from hashes of the seed alone. R2 (S, the shrine or named
+ * room) is the Kiln shrine, and the shrine is nowhere else. The door guard's room is always the Slag channel, the
+ * hottest look before the boss. A room that rolled the lava layout is a Slag channel and one that rolled vents a Cooling
+ * yard, unless a neighbour already has it; any other room takes a theme that fits its shape. No two rooms joined by a
+ * corridor share a theme. `layout(room)` is the layout the room rolled (World.hallsLayouts).
+ */
+export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined): void {
+  const R = m.rooms;
+  const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
+  const free = (i: number, t: RoomTheme) => near(i).every((j) => R[j].theme !== t);
+  for (const r of R) r.theme = undefined;
+  R[2].theme = 'shrine';
+  R[5].theme = 'slag';
+  for (const i of [3, 1, 4, 0, DOOR_ROOM]) {
+    const lay = layout(i);
+    const want: RoomTheme | undefined = lay === 'channel' ? 'slag' : lay === 'vents' ? 'cooling' : undefined;
+    if (want && free(i, want)) { R[i].theme = want; continue; }
+    const fits = (i === DOOR_ROOM ? ['bellows' as RoomTheme] : THEME_FITS[R[i].shape ?? 'round']).filter((t) => free(i, t));
+    const rest = (['ash', 'bellows', 'slag', 'cooling'] as RoomTheme[]).filter((t) => free(i, t));
+    const pool = fits.length ? fits : rest;
+    R[i].theme = pool[hash(seed ^ 0x54686d65, i) % pool.length];
+  }
 }
