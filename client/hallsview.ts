@@ -357,9 +357,13 @@ export class HallsView {
    * your party as green dots (green is good). Phones keep it behind a Map button; a tap shows the whole map.
    */
   private drawMap(m: HallsMap, f: HallsFrame): void {
+    // Phones (keep it simple, Steve 25 Nov): no map in a fight. The Map button sat on the target frame's corner, and a
+    // fight is no time to read a map; a map left open closes when a pack wakes.
+    const fighting = f.compact && this.world.phase === 'fight';
+    if (fighting && this.open) { this.open = false; this.mapStamp = ''; }
     const show = !f.compact || this.open;
     this.mapBox.hidden = !show;
-    this.mapBtn.hidden = !f.compact;
+    this.mapBtn.hidden = !f.compact || fighting;
     this.mapBtn.textContent = this.open ? 'Close' : 'Map';
     this.mapBox.classList.toggle('big', f.compact && this.open);
     if (!show) return;
