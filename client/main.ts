@@ -307,8 +307,10 @@ function startRun(bounty = false, key = false): void {
     // H3: ?hallsbeta=1 also maps the dungeons whose Halls aren't on for players yet (HALLS_BETA).
     if (new URLSearchParams(location.search).get('hallsbeta') === '1') opts.hallsBeta = true;
   }
-  // BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the new Gorge, local play only until Steve okays it.
-  if (params.get('bossv2') === '1' && !hosting) opts.bossV2 = true;
+  // BOSSV2 (design 25 Nov; Steve okayed it 25 Nov 06:41Z): the three-stage Kiln Mother and the new Gorge, on by default
+  // in local play (the first delve keeps the old fight, in World). Hosted online co-op keeps today's fight until it's
+  // been played there; ?bossv2=0 turns it off for comparing.
+  if (params.get('bossv2') !== '0' && !hosting) opts.bossV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
