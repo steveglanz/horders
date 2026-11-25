@@ -8214,7 +8214,9 @@ export class World {
       } else e.abilityT = 0.5;
     } else if (e.kind === 'sluiceCrawler') {
       e.abilityT = FOUNDRY.bloomEvery;
-      this.addTelegraph('circle', p.x, p.y, FOUNDRY.bloomRadius, 0, 0, FOUNDRY.bloomDelay, FOUNDRY.bloomDamage, 'bloom', -1);
+      // Design, 25 Nov: on a Halls run the burst comes 1/moveScale sooner (2.0 s), so a crawler at 1.25x speed gets no
+      // longer to walk its friends in than in the arena; the hero, at 1.25x too, covers the same escape distance.
+      this.addTelegraph('circle', p.x, p.y, FOUNDRY.bloomRadius, 0, 0, FOUNDRY.bloomDelay / this.moveScale, FOUNDRY.bloomDamage, 'bloom', -1);
     }
   }
 

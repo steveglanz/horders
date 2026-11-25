@@ -536,6 +536,19 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     }
   });
 
+  it('a Sluice Crawler\'s Bloom bursts after 2.5 s / moveScale on the map (2.0 s), 2.5 s in the arena (design, 25 Nov)', () => {
+    const first = (w: World) => {
+      let dur = -1;
+      run(w, () => { const t = w.telegraphs.find((q) => q.alive && q.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
+      return dur;
+    };
+    expect(first(halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' }))).toBeCloseTo(2.5 / HALLS.moveScale, 6);
+    // The arena: the first seed whose route has crawlers before the bot falls.
+    let arena = -1;
+    for (let seed = 1; seed <= 20 && arena < 0; seed++) arena = first(new World({ seed, tier: 4, dungeon: 'foundry', cls: 'bulwark' }));
+    expect(arena).toBeCloseTo(2.5, 6);
+  });
+
   it('bots walk it and go through the door into Maelra\'s arena (seeds the bot wins on the map)', () => {
     for (const seed of [9, 10]) {
       const w = halls(seed, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
