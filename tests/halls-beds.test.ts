@@ -69,11 +69,14 @@ describe('which room bed plays where (roomBedFor)', () => {
   const w = new World({ seed: 3, tier: 2, halls: true, cls: 'emberwright' });
   const m = w.halls!;
 
-  it('a room plays its theme\'s bed; until H2d rolls themes, one from the room\'s index', () => {
+  it('a room plays its theme\'s bed (HallsRoom.theme, rolled in the sim since H2d), or one from its index without one', () => {
     const r0 = m.rooms[0];
-    expect(roomBedFor(m, r0.x, r0.y)).toBe('ashStore');
-    expect(roomBedFor(m, m.rooms[1].x, m.rooms[1].y)).toBe('bellowsHall');
-    const themed = { ...m, rooms: m.rooms.map((r, i) => (i === 0 ? { ...r, theme: 'shrine' } : r)) };
+    expect(roomBedFor(m, r0.x, r0.y)).toBe(ROOM_THEME_BED[m.rooms[0].theme!]);
+    expect(roomBedFor(m, m.rooms[1].x, m.rooms[1].y)).toBe(ROOM_THEME_BED[m.rooms[1].theme!]);
+    const bare = { ...m, rooms: m.rooms.map((r) => ({ ...r, theme: undefined })) };
+    expect(roomBedFor(bare, r0.x, r0.y)).toBe('ashStore');
+    expect(roomBedFor(bare, m.rooms[1].x, m.rooms[1].y)).toBe('bellowsHall');
+    const themed = { ...m, rooms: m.rooms.map((r, i) => (i === 0 ? { ...r, theme: 'shrine' as const } : r)) };
     expect(roomBedFor(themed, r0.x, r0.y)).toBe('kilnShrine');
     expect(Object.values(ROOM_THEME_BED).sort()).toEqual([...ROOM_BEDS].sort());
   });

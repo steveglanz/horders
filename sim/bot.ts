@@ -6,7 +6,7 @@ import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OV
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
-import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, roomGap, roomInward, wallPush } from './halls';
+import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
 
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -1332,7 +1332,36 @@ export function botInput(w: World, skill = 1): Input {
   fx += Math.cos(a) * 0.002;
   fy += Math.sin(a) * 0.002;
   const len = Math.hypot(fx, fy) || 1;
+  if (w.hallsOn) { const s = hallsSteer(w, fx / len, fy / len); return { x: s.x, y: s.y, cast }; }
   return { x: fx / len, y: fy / len, cast };
+}
+
+/**
+ * H2c: in a fight on a Halls map, a move that runs into a wall slides along it, and in a corner it breaks out the way
+ * that leads least toward the nearest foe (a Hall's or a Cross's corner otherwise pins a kiting bot: seed 8, a
+ * Slagbinder held in a Hall's corner by two husks). The arena's round wall never needed it.
+ */
+function hallsSteer(w: World, fx: number, fy: number): { x: number; y: number } {
+  const m = w.halls!, p = w.player, r = 18;
+  // Inside a sealed room (or one sealing), its grates are walls too.
+  const sealed = m.rooms.find((rm) => rm.lock !== undefined && rm.lock >= 0 && roomGap(rm, p.x, p.y) >= 0);
+  const at = (x: number, y: number) => (sealed ? roomGap(sealed, x, y) >= r : inside(m, x, y, r));
+  const ok = (dx: number, dy: number) => at(p.x + dx * 60, p.y + dy * 60) && at(p.x + dx * 120, p.y + dy * 120);
+  if (ok(fx, fy)) return { x: fx, y: fy };
+  let nx = 0, ny = 0, nd = Infinity;
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < nd) { nd = d; nx = (e.x - p.x) / (d || 1); ny = (e.y - p.y) / (d || 1); }
+  }
+  let bx = fx, by = fy, best = -Infinity;
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * 2 * Math.PI, dx = Math.cos(a), dy = Math.sin(a);
+    if (!ok(dx, dy)) continue;
+    const score = dx * fx + dy * fy - (nd < 300 ? 0.6 * Math.max(0, dx * nx + dy * ny) : 0);
+    if (score > best) { best = score; bx = dx; by = dy; }
+  }
+  return { x: bx, y: by };
 }
 
 const NEW_CAPS: TalentId[] = [

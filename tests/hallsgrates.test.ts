@@ -46,6 +46,8 @@ describe('Halls H2b ember grates (client/hallsgrates.ts)', () => {
 
   it('stands just outside a shaped room, in the corridor', () => {
     const mm = new World({ seed: 2, tier: 2, halls: true, hallsTemplate: true }).halls!, i = 1, r = mm.rooms[i];
+    // Corridors centre to centre, as this test's made-up Hall outline assumes (the template's own ends fit its circle).
+    mm.corridors = mm.corridors.map(({ a, b }) => ({ a, b }));
     mm.rooms[i] = { ...r, edge: [[r.x - 250, r.y - 430, r.x + 250, r.y - 430, r.x + 250, r.y + 430, r.x - 250, r.y + 430]] } as typeof r;
     const loops = roomLoops(mm.rooms[i]);
     const mine = hallsGrates(mm, HALLS.corridor, DOOR_ROOM).filter((g) => g.room === i);

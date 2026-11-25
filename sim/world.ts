@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollR
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -2342,12 +2342,14 @@ export class World {
     this.lava = [];
     this.flareVents = [];
     this.layout = 'open';
+    const rolled = new Map<number, string>();
     for (const { room, slot } of m.layoutRooms) {
       const rm = m.rooms[room];
       const id = this.route[slot];
       const h = this.layoutHash(slot);
       if (h === undefined || !this.layoutRolls(id)) continue;
       const lay = this.layoutAt(slot, id);
+      rolled.set(room, lay);
       let turn = ((h >>> 8) % 360) * (Math.PI / 180);
       // H2c: placed round the room's layout frame; a piece that would stand off the floor (in a cross's pillar, on a
       // ring's island) is left out. A round room is placed exactly as H1's.
@@ -2389,6 +2391,8 @@ export class World {
         }
       }
     }
+    // H2d: each room's theme, matched to the layout it rolled.
+    hallsThemes(m, this.seed, (r) => rolled.get(r));
   }
 
   /**

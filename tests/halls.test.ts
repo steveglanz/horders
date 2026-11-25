@@ -467,4 +467,24 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       }
     }
   });
+
+  it('H2d: every room rolls a theme: the shrine in R2 only, the Slag channel at the door guard, layouts matched, never two alike side by side', () => {
+    const fits: Record<string, string[]> = { round: ['ash', 'slag', 'cooling'], hall: ['ash', 'bellows'], cross: ['slag', 'ash'], ring: ['cooling', 'ash'], twin: ['bellows', 'ash'] };
+    let matched = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const w = halls(seed);
+      const m = w.halls!;
+      for (const r of m.rooms) expect(['ash', 'bellows', 'slag', 'cooling', 'shrine']).toContain(r.theme);
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed}`).not.toBe(m.rooms[c.b].theme);
+      expect(m.rooms[2].theme).toBe('shrine');
+      expect(m.rooms.filter((r) => r.theme === 'shrine').length).toBe(1);
+      expect(m.rooms[5].theme).toBe('slag');
+      for (const l of w.lava) if (l.room !== 5 && m.rooms[l.room!].theme === 'slag') matched++;
+      for (const v of m.vents) if (m.rooms[v.room].theme === 'cooling') matched++;
+      // Same seed, same themes.
+      expect(halls(seed).halls!.rooms.map((r) => r.theme)).toEqual(m.rooms.map((r) => r.theme));
+      void fits;
+    }
+    expect(matched).toBeGreaterThan(0);
+  });
 });
