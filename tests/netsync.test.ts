@@ -82,3 +82,46 @@ describe('co-op snapshots', () => {
     console.log('largest snapshot', biggest, 'bytes');
   });
 });
+
+describe('H4: hosted co-op stays in step on a Halls map', () => {
+  it('a guest mirror of a Hammerdeep map run has the host\'s packs, grates, rooms seen, foes and heroes', () => {
+    const o: WorldOptions = { seed: 5, tier: 4, dungeon: 'hammerdeep', halls: true, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] };
+    const host = new World(o);
+    const guest = new World(o);
+    expect(host.halls).toBeTruthy();
+    expect(JSON.stringify(guest.halls!.rooms.map((r) => [r.x, r.y, r.r, r.theme]))).toBe(JSON.stringify(host.halls!.rooms.map((r) => [r.x, r.y, r.r, r.theme])));
+    let events: SimEvent[] = [];
+    let sealedSeen = 0, wokeSeen = 0;
+    const check = () => {
+      const hm = host.halls!, gm = guest.halls!;
+      expect(gm.packs.map((p) => p.state)).toEqual(hm.packs.map((p) => p.state));
+      expect(gm.rooms.map((r) => r.lock ?? -1)).toEqual(hm.rooms.map((r) => r.lock ?? -1));
+      expect(gm.seen).toEqual(hm.seen);
+      expect(guest.hallsOn).toBe(host.hallsOn);
+      expect(guest.phase).toBe(host.phase);
+      host.enemies.forEach((e, i) => { if (e.alive) expect(guest.enemies[i].x).toBeCloseTo(e.x, 1); });
+      host.heroes.forEach((_, i) => expect(guest.hero(i).player.x).toBeCloseTo(host.hero(i).player.x, 1));
+      if (hm.rooms.some((r) => (r.lock ?? -1) >= 0)) sealedSeen++;
+      if (hm.packs.some((p) => p.state === 'awake')) wokeSeen++;
+    };
+    while (host.state !== 'ended' && host.time < 240 && host.hallsOn) {
+      if (host.state === 'draft') {
+        const h = host.heroes.findIndex((_, i) => host.choicesOf(i).length > 0);
+        host.choose(0, Math.max(0, h));
+      } else {
+        host.step(host.heroes.map((_, i) => { host.use(i); const inp = botInput(host); host.use(0); return inp; }));
+        events.push(...host.events);
+      }
+      if (host.tick % 2 === 0) {
+        applySnapshot(guest, JSON.parse(JSON.stringify(snapshot(host, events))) as Snapshot, 1);
+        events = [];
+        guest.use(0);
+        check();
+      }
+    }
+    expect(sealedSeen).toBeGreaterThan(50);
+    expect(wokeSeen).toBeGreaterThan(50);
+    expect(host.halls!.packs.some((p) => p.state === 'cleared')).toBe(true);
+  }, 60000);
+});
+

@@ -210,7 +210,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['wrackline'];
+export const HALLS_BETA: DungeonId[] = ['wrackline', 'hammerdeep'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -1070,6 +1070,7 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
  * layout the room rolled (World.hallsLayouts).
  */
 export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
+  // H4 (design's h4-plan.md): the group dungeons take the Kiln's themes (visuals' names), as their packs are the Kiln's.
   const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));

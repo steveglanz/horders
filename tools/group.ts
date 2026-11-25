@@ -6,7 +6,7 @@
 import * as WORLD from '../sim/world';
 import { World, WorldOptions } from '../sim/world';
 import { ENEMIES } from '../sim/content/enemies';
-import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
+import { BOT_PARTY, botChoose, botInput, reactBot } from '../sim/bot';
 import { existsSync, readFileSync } from 'fs';
 import { equippedItems, HeroProfile } from '../sim/hero';
 import type { ClassId } from '../sim/content/emberwright';
@@ -31,6 +31,10 @@ const profile = (cls: ClassId): HeroProfile | null => {
   return f && existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
 };
 const skill = Number(process.env.SKILL ?? 1);
+// REACT=0.3 FORGET=0.2 STEPERR=0.5 (as tools/balance.ts) gives each hero reactBot's reaction time and mistakes: average skill.
+const react = Number(process.env.REACT ?? 0), forget = Number(process.env.FORGET ?? 0), stepErr = Number(process.env.STEPERR ?? 0);
+// HALLS=1 plays the Halls map (HALLS_BETA=1 for one still in beta).
+const hallsMap = process.env.HALLS === '1', hallsBeta = process.env.HALLS_BETA === '1';
 const grants = (process.env.GRANT ?? '').split(',').filter(Boolean).map((kv) => kv.split(':')).map(([id, r]) => [id as TalentId, Number(r ?? 1)] as const);
 if (grants.length) {
   const proto = World.prototype as unknown as { branchRanks(b: string): number; talents: Partial<Record<TalentId, number>>; cls: ClassId };
@@ -84,7 +88,7 @@ for (const seed of seeds) {
   const [main, ...rest] = classes;
   const mp = profile(main);
   const opts: WorldOptions = {
-    seed, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
+    seed, halls: hallsMap, hallsBeta, dungeon: (process.env.DUNGEON as 'hammerdeep') ?? 'hammerdeep', tier: Number(process.env.TIER ?? 4), omens: toolOmens(Number(process.env.TIER ?? 4), seed), cls: main, stance: process.env.STANCE as 'anvil' | undefined, alt: altFor(main),
     ...(mp ? { gear: tagSet(equippedItems(mp)), passives: mp.passives, heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
     party: rest.map((cls, k) => {
       const hp = profile(cls);
@@ -111,7 +115,9 @@ for (const seed of seeds) {
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0;
   const deaths: string[] = [];
-  while (w.state !== 'ended' && w.time < 900) {
+  const drive = w.heroes.map((_, i) => (react || forget || stepErr ? reactBot(react, skill, { forget, stepErr, salt: seed * 16 + i }) : (x: World) => botInput(x, skill)));
+  // A map run walks between its fights, so it gets longer before it counts as stuck.
+  while (w.state !== 'ended' && w.time < (hallsMap ? 1500 : 900)) {
     if (w.state === 'draft') {
       const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
       w.use(h);
@@ -122,7 +128,7 @@ for (const seed of seeds) {
     }
     const inputs = w.heroes.map((_, i) => {
       w.use(i);
-      const inp = botInput(w, skill);
+      const inp = drive[i](w);
       w.use(0);
       return inp;
     });

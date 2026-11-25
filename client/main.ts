@@ -299,8 +299,9 @@ function startRun(bounty = false, key = false): void {
     const gear = standInGear(equippedItems(hero));
     Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: hero.passives })), partySize: 1 + fill.length, fillBots: fill.length });
   }
-  // Phase 18 Halls: the default wherever a dungeon has a map (hallsFor). Local play only: the map isn't synced to guests yet.
-  if (hallsWanted() && !hosting && !stress) {
+  // Phase 18 Halls: the default wherever a dungeon has a map (hallsFor). H4: the map now reaches guests (netsync's
+  // Snapshot.halls), but hosted online co-op only plays it with ?hallsbeta=1 until QA has played it there.
+  if (hallsWanted() && !stress && (!hosting || params.get('hallsbeta') === '1')) {
     opts.halls = true;
     // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
     if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;
