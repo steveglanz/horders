@@ -51,11 +51,13 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme | ColdmarrowTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 /** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
 export type GlarewellTheme = 'lens' | 'orrery' | 'colonnade' | 'mirror';
+/** H3c: the Coldmarrow's rooms (engineering's names, 25 Nov, for visuals to rename): a dead hearth, rime, snowdrift, a cold crypt. */
+export type ColdmarrowTheme = 'hearthless' | 'rime' | 'drift' | 'crypt';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -202,7 +204,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry'];
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['glarewell'];
+export const HALLS_BETA: DungeonId[] = ['glarewell', 'coldmarrow'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -1030,6 +1032,12 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     guard: 'lens', byLayout: {}, alcove: 'orrery',
     fits: { round: ['lens', 'orrery'], hall: ['mirror', 'lens'], cross: ['colonnade'], ring: ['colonnade', 'orrery'], twin: ['mirror', 'orrery'] },
     rest: ['orrery', 'colonnade', 'mirror', 'lens'],
+  },
+  // H3c: the dead hearth guards the door, the crypt is the alcove and the cross room; any shape (design's h3-plan.md).
+  coldmarrow: {
+    guard: 'hearthless', byLayout: {}, alcove: 'crypt',
+    fits: { round: ['hearthless', 'rime', 'drift'], hall: ['crypt', 'rime'], cross: ['crypt'], ring: ['hearthless', 'drift'], twin: ['drift', 'crypt'] },
+    rest: ['rime', 'drift', 'crypt', 'hearthless'],
   },
 };
 
