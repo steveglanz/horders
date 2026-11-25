@@ -53,26 +53,16 @@ describe('KILNTRASH: Kiln opener packs as trash', () => {
     }
   });
 
-  it('the XP step (KILNTRASH.xp): half a level per trash clear and one and a half per other fight, so A, B, C, E still give 4', () => {
-    KILNTRASH.xp = 1;
-    try {
-      for (let seed = 1; seed <= 10; seed++) {
-        const w = kiln(seed, true);
-        const m = w.halls!;
-        const order = (['A', 'B', 'C', 'E'] as const).map((r) => m.packs.findIndex((p) => p.role === r));
-        const steps: number[] = [];
-        for (const k of order) {
-          const before = w.player.level + (w.player.levelPart ?? 0);
-          (w as unknown as Q).hallsClear(k);
-          steps.push(w.player.level + (w.player.levelPart ?? 0) - before);
-          expect(w.player.pendingLevels).toBe(w.player.level - 1);
-        }
-        expect(steps, `seed ${seed}`).toEqual(order.map((k) => (m.packs[k].trash ? 0.5 : 1.5)));
-        const trash = order.filter((k) => m.packs[k].trash).length;
-        if (trash === 2) expect(w.player.level).toBe(5);
+  it('every clear on the trash map gives one level, trash or not (design, 25 Nov: the XP step was dropped)', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = kiln(seed, true);
+      const m = w.halls!;
+      for (const k of (['A', 'B', 'C', 'E'] as const).map((r) => m.packs.findIndex((p) => p.role === r))) {
+        const before = w.player.level;
+        (w as unknown as Q).hallsClear(k);
+        expect(w.player.level - before, `seed ${seed} ${m.packs[k].role}`).toBe(1);
       }
-    } finally {
-      KILNTRASH.xp = 0;
+      expect(w.player.level).toBe(5);
     }
   });
 });
