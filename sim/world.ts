@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollR
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsWay, roomAt, KILN_HALLS_A } from './halls';
+import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -792,6 +792,8 @@ export interface WorldOptions {
   keyLevel?: number;
   /** Phase 18 Halls H1 (?halls=1): play the dungeon as a map of rooms and sleeping packs (the Kiln only for now; sim/halls.ts). */
   halls?: boolean;
+  /** H2c: a Halls run on H1's hand-made map (?hallsmap=a) instead of the generated one. */
+  hallsTemplate?: boolean;
 }
 
 export interface RunSummary {
@@ -1347,7 +1349,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q));
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -2334,26 +2336,50 @@ export class World {
     this.lava = [];
     this.flareVents = [];
     this.layout = 'open';
-    for (const { room, slot } of KILN_HALLS_A.layoutRooms) {
+    for (const { room, slot } of m.layoutRooms) {
       const rm = m.rooms[room];
       const id = this.route[slot];
       const h = this.layoutHash(slot);
       if (h === undefined || !this.layoutRolls(id)) continue;
       const lay = this.layoutAt(slot, id);
-      const turn = ((h >>> 8) % 360) * (Math.PI / 180);
-      const s = rm.r / ARENA;
+      let turn = ((h >>> 8) % 360) * (Math.PI / 180);
+      // H2c: placed round the room's layout frame; a piece that would stand off the floor (in a cross's pillar, on a
+      // ring's island) is left out. A round room is placed exactly as H1's.
+      const f = layoutFrame(rm);
+      const s = f.r / ARENA;
+      const shaped = !!(rm.parts || rm.holes);
+      const onFloor = (x: number, y: number, r: number) => !shaped || roomGap(rm, x, y) >= r + 20;
       if (lay === 'pillars') {
         for (let k = 0; k < LAYOUT.stoneCount; k++) {
           const a = turn + (k * 2 * Math.PI) / LAYOUT.stoneCount;
-          this.stones.push({ x: rm.x + Math.cos(a) * LAYOUT.stoneRing * s, y: rm.y + Math.sin(a) * LAYOUT.stoneRing * s, r: LAYOUT.stoneRadius });
+          const x = f.x + Math.cos(a) * LAYOUT.stoneRing * s, y = f.y + Math.sin(a) * LAYOUT.stoneRing * s;
+          if (onFloor(x, y, LAYOUT.stoneRadius)) this.stones.push({ x, y, r: LAYOUT.stoneRadius });
         }
       } else if (lay === 'channel') {
-        const L = rm.r - 40;
-        this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth, room, heat: 0 });
+        if (!shaped) {
+          const L = rm.r - 40;
+          this.lava.push({ x1: rm.x + Math.cos(turn) * L, y1: rm.y + Math.sin(turn) * L, x2: rm.x - Math.cos(turn) * L, y2: rm.y - Math.sin(turn) * L, w: LAYOUT.lavaWidth, room, heat: 0 });
+        } else {
+          // Along one of the room's axes (a hall's or a cross's arm), across the whole floor, in runs that keep 40 off
+          // every wall and island past its own half width (a ring's channel is two runs either side of its hearth).
+          turn = Math.round(turn / (Math.PI / 2)) * (Math.PI / 2);
+          const ux = Math.cos(turn), uy = Math.sin(turn);
+          let run: number | null = null;
+          for (let t = -rm.r * 2; t <= rm.r * 2 + 10; t += 10) {
+            const ok = t <= rm.r * 2 && roomGap(rm, f.x + ux * t, f.y + uy * t) >= 40 + LAYOUT.lavaWidth / 2;
+            if (ok && run === null) run = t;
+            if (!ok && run !== null) {
+              const t1 = t - 10;
+              if (t1 - run >= 120) this.lava.push({ x1: f.x + ux * run, y1: f.y + uy * run, x2: f.x + ux * t1, y2: f.y + uy * t1, w: LAYOUT.lavaWidth, room, heat: 0 });
+              run = null;
+            }
+          }
+        }
       } else if (lay === 'vents') {
         for (let k = 0; k < LAYOUT.ventCount; k++) {
           const a = turn + (k * 2 * Math.PI) / LAYOUT.ventCount;
-          m.vents.push({ room, x: rm.x + Math.cos(a) * LAYOUT.ventRing * s, y: rm.y + Math.sin(a) * LAYOUT.ventRing * s });
+          const x = f.x + Math.cos(a) * LAYOUT.ventRing * s, y = f.y + Math.sin(a) * LAYOUT.ventRing * s;
+          if (onFloor(x, y, 30)) m.vents.push({ room, x, y });
         }
       }
     }
@@ -2367,7 +2393,7 @@ export class World {
    */
   private hallsLocks(dt: number): void {
     const m = this.halls!;
-    const packRoom = (k: number) => roomAt(m, m.packs[k].x, m.packs[k].y);
+    const packRoom = (k: number) => m.packs[k].room;
     m.rooms.forEach((rm, i) => {
       const awake = m.packs.some((pk, k) => pk.state === 'awake' && packRoom(k) === i);
       if (rm.lock === undefined || rm.lock < 0) {
@@ -2392,13 +2418,13 @@ export class World {
       for (let h = 0; h < this.heroes.length; h++) {
         const q = this.heroPlayer(h);
         if (q.hp <= 0) continue;
-        const d = Math.hypot(q.x - rm.x, q.y - rm.y);
-        if (d > rm.r && d <= rm.r + HALLS.corridor / 2 && corridorAt(m, q.x, q.y) >= 0) {
-          const k = (rm.r - 20) / (d || 1);
-          q.x = q.px = rm.x + (q.x - rm.x) * k;
-          q.y = q.py = rm.y + (q.y - rm.y) * k;
+        const g = roomGap(rm, q.x, q.y);
+        if (g < 0 && g >= -HALLS.corridor / 2 && corridorAt(m, q.x, q.y) >= 0) {
+          const to = roomClamp(rm, q.x, q.y, 20);
+          q.x = q.px = to.x;
+          q.y = q.py = to.y;
         }
-        if (Math.hypot(q.x - rm.x, q.y - rm.y) <= rm.r) inside++;
+        if (roomGap(rm, q.x, q.y) >= 0) inside++;
       }
       if (!inside) {
         // Everyone walked away: the room's awake packs leash.
@@ -2415,11 +2441,10 @@ export class World {
       // The room's own foes caught outside are brought in through the nearest doorway.
       for (const e of this.enemies) {
         if (!e.alive || e.pack === undefined || packRoom(e.pack) !== i) continue;
-        const d = Math.hypot(e.x - rm.x, e.y - rm.y);
-        if (d <= rm.r - e.def.radius) continue;
-        const k = (rm.r - e.def.radius - 10) / (d || 1);
-        e.x = e.px = rm.x + (e.x - rm.x) * k;
-        e.y = e.py = rm.y + (e.y - rm.y) * k;
+        if (roomGap(rm, e.x, e.y) >= e.def.radius) continue;
+        const to = roomClamp(rm, e.x, e.y, e.def.radius + 10);
+        e.x = e.px = to.x;
+        e.y = e.py = to.y;
       }
       this.events.push({ type: 'hallsGrateDrop', room: i });
     });

@@ -3,7 +3,7 @@ import { World } from '../sim/world';
 import { HALLS, HallsMap } from '../sim/halls';
 import { corridorEnds, inCorridor, inRoom, roomLoops, roomPieces } from '../client/hallsshape';
 
-const map = (): HallsMap => new World({ seed: 2, tier: 2, halls: true }).halls!;
+const map = (): HallsMap => new World({ seed: 2, tier: 2, halls: true, hallsTemplate: true }).halls!;
 const circ = (cx: number, cy: number, r: number, n = 32) => { const o: number[] = []; for (let k = 0; k < n; k++) { const a = (k / n) * 2 * Math.PI; o.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } return o; };
 
 describe('Halls room outlines (client/hallsshape.ts)', () => {

@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampHalls, hallsWay, inside, roomAt, roomPath } from '../sim/halls';
+import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, genHalls, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 
 const idle = { x: 0, y: 0 };
 /** A spec coordinate at the template's scale. */
 const K = (v: number) => v * KILN_SCALE;
 const halls = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => new World({ seed, tier: 2, halls: true, ...more });
+/** H1's hand-made map (?hallsmap=a). */
+const tmpl = (seed = 2, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { hallsTemplate: true, ...more });
+const clampGratesOf = (m: Parameters<typeof clampGrates>[0], o: { x: number; y: number }) => clampGrates(m, o, 14);
+const ROUTE = ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[];
 const pack = (w: World, role: string) => w.halls!.packs.find((p) => p.role === role)!;
 /** Puts the hero at (x, y) as if they walked there. */
 const put = (w: World, x: number, y: number) => { w.player.x = w.player.px = x; w.player.y = w.player.py = y; };
@@ -47,9 +51,13 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const d = pack(w, 'D');
       expect([...DUNGEONS.kiln.hard, ...DUNGEONS.kiln.named]).toContain(d.enc);
       expect(d.bags).toBe(2);
-      expect(m.mirror).toBe((seed & 1) === 1);
-      expect(m.rooms[1].x).toBe(0);
-      expect(m.rooms[2].x).toBe(m.mirror ? K(850) : K(-850));
+      expect(m.mirror).toBe(false);
+      expect(m.packs.map((p) => p.room)).toEqual([1, 2, 3, 3, 4, 5]);
+      // The template (?hallsmap=a) is H1's map, mirrored on odd seeds.
+      const t = tmpl(seed).halls!;
+      expect(t.mirror).toBe((seed & 1) === 1);
+      expect(t.rooms[1].x).toBe(0);
+      expect(t.rooms[2].x).toBe(t.mirror ? K(850) : K(-850));
       // Asleep: nothing is in the world's enemy list until a pack wakes.
       expect(w.aliveEnemies).toBe(0);
       expect(m.packs.every((p) => p.state === 'asleep')).toBe(true);
@@ -62,7 +70,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('keeps heroes and foes inside the rooms and corridors', () => {
-    const m = buildHalls(2, ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[], 'kiln', () => 0, () => false);
+    const m = buildHalls(2, ROUTE, 'kiln', () => 0, () => false, true);
     // Between R1 and R3 off the corridor: pulled back in.
     const o = { x: K(300), y: K(-1350) };
     expect(inside(m, o.x, o.y, 14)).toBe(false);
@@ -79,16 +87,17 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('walks round walls room to room (foes and bots share the way)', () => {
-    const m = buildHalls(2, ['pack', 'wardens', 'brute', 'acolytes', 'kilnMother'] as EncounterId[], 'kiln', () => 0, () => false);
+    const m = buildHalls(2, ROUTE, 'kiln', () => 0, () => false, true);
     expect(roomPath(m, 2, 5)).toEqual([2, 1, 3, 5]);
     // From R2 to R5 the first step is the mouth of the corridor back to R1, not a line through the wall.
     const wp = hallsWay(m, m.rooms[2].x, m.rooms[2].y, m.rooms[5].x, m.rooms[5].y);
     expect(Math.hypot(wp.x - m.rooms[1].x, wp.y - m.rooms[1].y)).toBeLessThan(Math.hypot(m.rooms[2].x - m.rooms[1].x, m.rooms[2].y - m.rooms[1].y));
     // In the same room, straight at it.
     expect(hallsWay(m, 0, K(-900), 100, K(-1000))).toEqual({ x: 100, y: K(-1000) });
-    // A walker in the R1-R2 corridor heading for R3 goes back to R1 (the stuck-bot case, seed 4).
+    // A walker in the R1-R2 corridor heading for R3 goes back toward R1 (the stuck-bot case, seed 4).
     const mid = { x: (m.rooms[1].x + m.rooms[2].x) / 2, y: (m.rooms[1].y + m.rooms[2].y) / 2 };
-    expect(hallsWay(m, mid.x, mid.y, m.rooms[3].x, m.rooms[3].y)).toEqual({ x: m.rooms[1].x, y: m.rooms[1].y });
+    const back = hallsWay(m, mid.x, mid.y, m.rooms[3].x, m.rooms[3].y);
+    expect(Math.hypot(back.x - m.rooms[1].x, back.y - m.rooms[1].y)).toBeLessThan(Math.hypot(mid.x - m.rooms[1].x, mid.y - m.rooms[1].y));
   });
 
   it('wakes a pack when a hero steps into its ring, spawning its foes where they stood', () => {
@@ -110,7 +119,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('clearing a pack is a clear as today: a level and a draft once nothing is awake', () => {
-    const w = halls(2);
+    const w = tmpl(2);
     const a = pack(w, 'A');
     put(w, a.x, a.y + 150);
     run(w, () => a.state === 'cleared', 120);
@@ -128,8 +137,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     const m = w.halls!;
     // E stands in the doorway: its ring spans the corridor where it leaves R5, so the way to the door goes through it.
     const e = pack(w, 'E');
-    const north = m.rooms[5].y - m.rooms[5].r;
-    for (const x of [-HALLS.corridor / 2, 0, HALLS.corridor / 2]) expect(Math.hypot(x - e.x, north - e.y)).toBeLessThan(HALLS.reach);
+    expect(hallsCheck(m).filter((f) => f.includes('door guard'))).toEqual([]);
     put(w, m.door.x, m.door.y);
     w.step(idle);
     // At the door with the guard still asleep: nothing happens.
@@ -174,8 +182,15 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const w = halls(seed);
       const m = w.halls!;
       const c = pack(w, 'C');
-      // The main path through R3 runs along its centre line (x = 0); C stands far enough off it.
-      expect(Math.abs(c.x) - HALLS.reach).toBeGreaterThan(40);
+      // C stands far enough off the walk from the entrance to the boss door.
+      const line = hallsWalkLine(m, m.rooms[0].x, m.rooms[0].y, m.door.x, m.door.y);
+      let off = Infinity;
+      for (let k = 1; k < line.length; k++) {
+        const a = line[k - 1], b = line[k], vx = b.x - a.x, vy = b.y - a.y;
+        const t = Math.max(0, Math.min(1, ((c.x - a.x) * vx + (c.y - a.y) * vy) / (vx * vx + vy * vy || 1)));
+        off = Math.min(off, Math.hypot(c.x - a.x - vx * t, c.y - a.y - vy * t));
+      }
+      expect(off - HALLS.reach).toBeGreaterThan(40);
       expect(Math.hypot(pack(w, 'B').x - c.x, pack(w, 'B').y - c.y)).toBeGreaterThan(HALLS.pull + HALLS.spread * 1.25);
       expect(roomAt(m, c.x, c.y)).toBe(3);
     }
@@ -272,7 +287,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
 
   it('H2b: a hero in the doorway when the grates drop is pushed in; walking away before then leashes the pack', () => {
     // Doorway: wake A, then stand in the R0-R1 corridor mouth just outside R1's rim.
-    const w = halls(2, { invulnerable: true });
+    const w = tmpl(2, { invulnerable: true });
     const m = w.halls!;
     const a = pack(w, 'A');
     const rm = m.rooms[1];
@@ -283,7 +298,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(Math.hypot(w.player.x - rm.x, w.player.y - rm.y)).toBeLessThanOrEqual(rm.r);
     expect(a.state).toBe('awake');
     // Leash: wake it, then be well down the corridor when the grates drop.
-    const v = halls(2, { invulnerable: true });
+    const v = tmpl(2, { invulnerable: true });
     const b = pack(v, 'A');
     const r1 = v.halls!.rooms[1];
     put(v, b.x, b.y + HALLS.reach - 10);
@@ -321,6 +336,104 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const moved = Math.hypot(e.x - x0, e.y - y0);
       expect(moved).toBeGreaterThan(e.def.speed * (1 / 30) * 1.1);
       void far;
+    }
+  });
+
+  it('H2c: every seed from 1 to 2000 rolls a map that passes design\'s checker, from hashes of the seed alone', () => {
+    const shapes = new Set<string>();
+    for (let seed = 1; seed <= 2000; seed++) {
+      const g = genHalls(seed);
+      expect(g.tries, `seed ${seed} fell back to the template`).toBeGreaterThanOrEqual(0);
+      expect(hallsCheck({ ...g, packs: g.spots }), `seed ${seed}`).toEqual([]);
+      for (const r of g.rooms) shapes.add(`${r.id}:${r.shape}`);
+    }
+    // Every shape turns up where it may: the four fight shapes for A, E and the side rooms, round or twin for B and C.
+    for (const id of ['R1', 'R2', 'R4', 'R5']) for (const sh of ['round', 'hall', 'cross', 'ring']) expect(shapes).toContain(`${id}:${sh}`);
+    expect(shapes).toContain('R3:round');
+    expect(shapes).toContain('R3:twin');
+    expect(shapes).toContain('R0:hall');
+    // Seeded: the same seed builds the same map, and the run's rng is drawn exactly as on the template.
+    expect(JSON.stringify(genHalls(77))).toBe(JSON.stringify(genHalls(77)));
+    expect(JSON.stringify(genHalls(77).rooms)).not.toBe(JSON.stringify(genHalls(78).rooms));
+    const calls = (template: boolean) => {
+      let n = 0;
+      buildHalls(9, ROUTE, 'kiln', () => { n++; return 0; }, () => { n++; return false; }, template);
+      return n;
+    };
+    expect(calls(false)).toBe(calls(true));
+  }, 30000);
+
+  it('H2c: every pack\'s foes stand on its room\'s floor, and every layout piece on the floor of its room', () => {
+    for (let seed = 1; seed <= 80; seed++) {
+      const w = halls(seed);
+      const m = w.halls!;
+      for (const p of m.packs) {
+        expect(roomAt(m, p.x, p.y)).toBe(p.room);
+        for (const f of p.foes) expect(roomGap(m.rooms[p.room], f.x, f.y), `seed ${seed} ${p.role}`).toBeGreaterThan(20);
+      }
+      for (const s of w.stones) expect(roomAt(m, s.x, s.y, s.r)).toBeGreaterThanOrEqual(0);
+      for (const v of m.vents) expect(roomAt(m, v.x, v.y)).toBe(v.room);
+      for (const l of w.lava) for (const t of [0, 0.5, 1]) expect(roomAt(m, l.x1 + (l.x2 - l.x1) * t, l.y1 + (l.y2 - l.y1) * t, 30)).toBe(l.room);
+    }
+  });
+
+  it('H2c: walkers go round a ring\'s hearth island, never through it, and stay out of it', () => {
+    let rings = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const m = buildHalls(seed, ROUTE, 'kiln', () => 0, () => false);
+      m.rooms.forEach((rm, i) => {
+        if (rm.shape !== 'ring') return;
+        rings++;
+        const [hx, hy, hr] = (rm.holes![0] as { c: [number, number, number] }).c;
+        // From the south of the ring to the north of it.
+        const line = hallsWalkLine(m, hx, hy + rm.r - 60, hx, hy - rm.r + 60);
+        for (let k = 1; k < line.length; k++) {
+          for (let t = 0; t <= 1; t += 0.05) {
+            const x = line[k - 1].x + (line[k].x - line[k - 1].x) * t, y = line[k - 1].y + (line[k].y - line[k - 1].y) * t;
+            expect(Math.hypot(x - hx, y - hy), `seed ${seed} room ${i}`).toBeGreaterThan(hr);
+          }
+        }
+        // Standing on the island: pushed off it.
+        const o = { x: hx + 10, y: hy };
+        clampHalls(m, o, 14);
+        expect(Math.hypot(o.x - hx, o.y - hy)).toBeGreaterThanOrEqual(hr + 13);
+      });
+    }
+    expect(rings).toBeGreaterThan(5);
+  });
+
+  it('H2c: bots walk generated maps of every shape to the boss', () => {
+    const seen = new Set<string>();
+    for (const seed of [1, 3, 5, 8]) {
+      const w = halls(seed, { invulnerable: true, cls: 'duskblade' });
+      for (const r of w.halls!.rooms) seen.add(r.shape ?? 'round');
+      run(w, () => w.bossSpawned, 600);
+      expect(w.bossSpawned, `seed ${seed}`).toBe(true);
+    }
+    for (const sh of ['round', 'hall', 'cross', 'ring', 'twin']) expect(seen).toContain(sh);
+  });
+
+  it('H2c: a sealed room of any shape keeps heroes in and out at its wall', () => {
+    for (const seed of [1, 2, 3, 8]) {
+      const m = buildHalls(seed, ROUTE, 'kiln', () => 0, () => false);
+      for (const rm of m.rooms) {
+        if (!rm.parts && !rm.holes) continue;
+        rm.lock = HALLS.lockDelay;
+        // Just inside a doorway: kept inside by its own radius.
+        const c = m.corridors.find((q) => m.rooms[q.a] === rm || m.rooms[q.b] === rm)!;
+        const inA = m.rooms[c.a] === rm;
+        const px = inA ? c.ax! : c.bx!, py = inA ? c.ay! : c.by!, ox = inA ? c.bx! : c.ax!, oy = inA ? c.by! : c.ay!;
+        const d = Math.hypot(ox - px, oy - py);
+        // Walk out along the corridor to 5 past the wall: the grate keeps the walker 14 inside.
+        let t = 0;
+        while (roomGap(rm, px + ((ox - px) / d) * t, py + ((oy - py) / d) * t) > -5) t += 1;
+        const o = { x: px + ((ox - px) / d) * t, y: py + ((oy - py) / d) * t };
+        clampHalls(m, o, 14);
+        // (clampGrates is what World runs after clampHalls)
+        clampGratesOf(m, o);
+        expect(Math.abs(roomGap(rm, o.x, o.y))).toBeGreaterThanOrEqual(13);
+        rm.lock = -1;
+      }
     }
   });
 });

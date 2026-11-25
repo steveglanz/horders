@@ -6,7 +6,7 @@ import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OV
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
-import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, wallPush } from './halls';
+import { HALLS, HallsPack, PackRole, clearWalk, hallsWay, roomGap, roomInward, wallPush } from './halls';
 
 export const BOT_PRIORITY: TalentId[] = [
   'conflagration', 'phoenixLance', 'ringOfAsh', 'cinderTide', 'searingBloom', 'ashenMantle', 'extraOrb', 'quickcast', 'ignition', 'searingBurn', 'heatSink',
@@ -957,10 +957,11 @@ export function botInput(w: World, skill = 1): Input {
   if (w.hallsOn) {
     for (const rm of w.halls!.rooms) {
       if (rm.lock === undefined || rm.lock < 0 || rm.lock >= HALLS.lockDelay) continue;
-      const dx = rm.x - p.x, dy = rm.y - p.y, d = Math.hypot(dx, dy) || 1;
-      if (d > rm.r + HALLS.corridor || d < rm.r - 90) continue;
-      fx += (dx / d) * 2 * Math.max(0.5, Math.hypot(fx, fy));
-      fy += (dy / d) * 2 * Math.max(0.5, Math.hypot(fx, fy));
+      const g = roomGap(rm, p.x, p.y);
+      if (g < -HALLS.corridor || g > 90) continue;
+      const n = roomInward(rm, p.x, p.y);
+      fx += n.x * 2 * Math.max(0.5, Math.hypot(fx, fy));
+      fy += n.y * 2 * Math.max(0.5, Math.hypot(fx, fy));
     }
   }
   // Halls, HALLS_RINGS=1 (measuring only, off by default): in a fight, keep clear of other sleeping packs, as of lava (a
