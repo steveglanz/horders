@@ -924,6 +924,59 @@ export const SOUNDS = {
      { wave: 'sine', f: 70, f2: 95, dur: 1.0, vol: 0.12, a: 0.4, curve: 1.4 },
      { wave: 'tri', f: note(-17), f2: note(-19), dur: 0.7, delay: 0.25, vol: 0.06, a: 0.2, lp: 1500, curve: 1.5 }],
   ),
+  // ---- Halls (Phase 18): a delve you walk through (sim/halls.ts). Plan: /mnt/project-files/horders/sound/halls-sound-plan.md ----
+  /** A sleeping pack wakes (hallsWake): a short rising snarl and a stamp, the fight starts now. */
+  packWake: join(
+    [{ wave: 'saw', f: 150, f2: 300, dur: 0.34, vol: 0.3, a: 0.03, lp: 1800, lp2: 4200, curve: 1.3, vib: [26, 0.05] },
+     { wave: 'saw', f: 225, f2: 450, dur: 0.3, vol: 0.12, a: 0.03, lp: 2600, curve: 1.4, vib: [31, 0.05] },
+     { wave: 'noise', f: 0, dur: 0.3, vol: 0.22, a: 0.03, lp: 4500, hp: 900, curve: 1.6, trem: [24, 0.5] }],
+    [{ wave: 'sine', f: 120, f2: 60, dur: 0.14, delay: 0.3, vol: 0.26 },
+     { wave: 'noise', f: 0, dur: 0.07, delay: 0.3, vol: 0.2, lp: 2200, hp: 400, curve: 3 }],
+  ),
+  /** A second pack wakes while one is already awake (you pulled two): the same snarl, with a sharp alarm tick on top. */
+  packWakeExtra: join(
+    [{ wave: 'saw', f: 150, f2: 300, dur: 0.34, vol: 0.3, a: 0.03, lp: 1800, lp2: 4200, curve: 1.3, vib: [26, 0.05] },
+     { wave: 'saw', f: 225, f2: 450, dur: 0.3, vol: 0.12, a: 0.03, lp: 2600, curve: 1.4, vib: [31, 0.05] },
+     { wave: 'noise', f: 0, dur: 0.3, vol: 0.22, a: 0.03, lp: 4500, hp: 900, curve: 1.6, trem: [24, 0.5] }],
+    ...[0, 0.11].map((d) => [{ wave: 'square' as const, f: note(19), dur: 0.06, delay: d, vol: 0.12, lp: 5000, curve: 2.5 }]),
+    [{ wave: 'sine', f: 120, f2: 60, dur: 0.14, delay: 0.3, vol: 0.26 }],
+  ),
+  /** The boss door closes behind you (hallsDoor, the fade into the boss arena): stone and iron slam, a long rumble. */
+  doorSeal: join(
+    boom(48, 1.1, 0.55),
+    clang(note(-14), 0.3, 0.6),
+    [{ wave: 'noise', f: 0, dur: 0.18, vol: 0.26, lp: 2600, hp: 300, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.9, delay: 0.12, vol: 0.08, a: 0.1, lp: 900, hp: 150, curve: 1.5 }],
+  ),
+  /** Catch breath starts (World.hallsResting: nothing awake for a few seconds, hp and resource come back): a slow, soft
+   *  out-breath and a warm low chime. Quiet, never over the fight that just ended. */
+  catchBreath: join(
+    [{ wave: 'noise', f: 0, dur: 0.9, vol: 0.07, a: 0.35, lp: 2400, lp2: 900, hp: 400, curve: 1.6 }],
+    chime(C5, 0.25, 0.1, 0.9),
+    chime(G5, 0.4, 0.06, 0.8),
+  ),
+  /** A room starts to seal (hallsGrateWarn, the same moment a pack in it wakes): ember grates in the doorways glow red for
+   *  1.0 s, then drop. A hot hiss and a rattle of iron swell under the wake snarl and peak as the bars fall. */
+  grateWarn: [
+    { wave: 'noise', f: 0, dur: 1.0, delay: 0.05, vol: 0.13, a: 0.85, lp: 1800, lp2: 6000, hp: 1100, curve: 3 },
+    { wave: 'square', f: note(-2), dur: 0.85, delay: 0.15, vol: 0.05, a: 0.65, lp: 2400, curve: 2.5, trem: [17, 0.9] },
+    { wave: 'saw', f: note(-14), f2: note(-9), dur: 0.9, delay: 0.1, vol: 0.06, a: 0.75, lp: 1400, curve: 3 },
+  ],
+  /** The grates drop (hallsGrateDrop): iron bars slam into the floor of every doorway. The room is locked until it clears. */
+  grateDrop: join(
+    clang(note(-9), 0.36, 0.55),
+    clang(note(-4) * 1.03, 0.2, 0.4),
+    [{ wave: 'sine', f: 110, f2: 55, dur: 0.18, vol: 0.3 },
+     { wave: 'noise', f: 0, dur: 0.12, vol: 0.28, lp: 3600, hp: 350, curve: 3 },
+     { wave: 'noise', f: 0, dur: 0.08, delay: 0.07, vol: 0.12, lp: 3000, hp: 600, curve: 3 }],
+  ),
+  /** The room clears and the grates sink (hallsGrateLift): a grinding scrape of iron going down and a light, open clink. */
+  grateLift: join(
+    [{ wave: 'saw', f: note(-2), f2: note(-11), dur: 0.55, vol: 0.14, a: 0.06, lp: 2600, curve: 1.6, trem: [23, 0.6] },
+     { wave: 'noise', f: 0, dur: 0.55, vol: 0.2, a: 0.06, lp: 4500, lp2: 1800, hp: 900, curve: 1.6, trem: [23, 0.5] },
+     { wave: 'sine', f: 140, f2: 70, dur: 0.12, delay: 0.5, vol: 0.2 }],
+    clang(E5, 0.14, 0.4).map((v) => ({ ...v, delay: 0.52 })),
+  ),
   /** A hit glances off the Ashwall's shield (its front, or a foe sheltered behind it): a dull, damped thunk with no ring,
    *  so "that did little" is heard without looking. Takes the place of the hit sound. */
   glance: [
@@ -1871,6 +1924,8 @@ const PHONE_LIFT: Partial<Record<SoundId, number>> = {
   gaze1: 3.0, gaze2: 3.0, gaze3: 3.0, gaze4: 3.0, gaze5: 3.0, searingWarn: 3.0, // U2 Lampeye: see busycheck in the PR
   dimhornCall: 4.5, dimhornSilenced: 2.0, // U2 Dimhorn: the call 7.8 dB over the Coldmarrow party mix (t8 heroes, forced, callAt 2, n=14), 20.2 solo
   conchWarn: 4.0, conchSwell: 2.0, // U2 Conchblower: the shell note 10.9 dB over the Wrackline party mix (t8 heroes, forced, n=161), 17.0 solo
+  packWake: 5.0, packWakeExtra: 5.0, doorSeal: 2.0, catchBreath: 2.0, // Halls: see busycheck HALLS=1 in the PR
+  grateWarn: 3.0, grateDrop: 3.0, grateLift: 2.0, // Halls H2b room lock
   echoSting: 1.0, // U1 echo: about -29.6 dB, under every warning it rides with (busycheck, Kiln t8, echoes forced, seeds 1-8: the move's own warning loses 0.1 dB with it)
   titheWarn: 3.0, titheShared: 3.5, titheMissed: 2.0, // Y3 Tithe: warning 6.3 dB over the Flue raid mix (busycheck t8 heroes, SEEDS=1-6, n=67); missed 6.1 dB (TITHE.need forced to 9 so every one misses, SEEDS=1-3, n=18); shared level with soakOk
   millWarn: 5.0, millStart: 3.0, millGrind: 4.5, millEnd: 4.0, // Y3 Millstone: the warning 6.8 dB over the Smeltery raid mix (busycheck t8 heroes, SEEDS=1-6, n=24); start level with slam, the grind (every 0.5 s) a little under it

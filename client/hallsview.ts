@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import type { World } from '../sim/world';
 import { DOOR_ROOM, HALLS, HallsMap, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
+import { Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 
 /** The floor's plain greybox colours: warm dark stone, the Kiln's ember rim. */
 const FLOOR = 0x2c211c;
@@ -58,6 +59,7 @@ export class HallsView {
   private mapStamp = '';
   private lastDir = { x: 0, y: -1 };
   private fadeT = -1;
+  private grates: Grate[] | null = null;
 
   constructor(private scene: Phaser.Scene, private world: World, private texFor: (kind: EnemyKind) => string, private base: number) {
     this.floor = scene.add.graphics().setDepth(-5);
@@ -220,10 +222,44 @@ export class HallsView {
       }
     }
     for (let k = n; k < this.sleepers.length; k++) this.sleepers[k].setVisible(false);
+    this.drawGrates(m, f, g);
     // The boss door glows gold once the door guard falls.
     const guard = m.packs.find((p) => p.guard);
     const dr = m.rooms[DOOR_ROOM];
     if (guard?.state === 'cleared') g.lineStyle(6, 0xffc861, 0.55 + 0.25 * Math.sin(f.now / 300)).strokeRect(dr.x - 74, dr.y - dr.r - 22, 148, 38);
+  }
+
+  /**
+   * H2b ember grates (client/hallsgrates.ts): a sealing room's doorways glow red for 1 s (red is bad), then a row of
+   * iron bars, hot at the tips, drops across each; they lift once the room is cleared. The 3D look draws its own.
+   */
+  private drawGrates(m: HallsMap, f: HallsFrame, g: Phaser.GameObjects.Graphics): void {
+    this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+    for (const gr of this.grates) {
+      const r = m.rooms[gr.room], lock = lockOf(r);
+      const st = grateState(lock, liftedOf(r));
+      if (st.glow <= 0.001 && st.drop <= 0.001) continue;
+      const tx = -gr.uy, ty = gr.ux, w = gr.hw;
+      const pulse = lock >= 0 && st.drop === 0 ? 0.75 + 0.25 * Math.sin((f.now / 1000) * (8 + 10 * st.glow)) : 1;
+      // The warning band across the doorway, on the floor.
+      const d = 20;
+      g.fillStyle(DANGER, 0.65 * st.glow * pulse).fillPoints([
+        new Phaser.Math.Vector2(gr.x + tx * w - gr.ux * d, gr.y + ty * w - gr.uy * d),
+        new Phaser.Math.Vector2(gr.x - tx * w - gr.ux * d, gr.y - ty * w - gr.uy * d),
+        new Phaser.Math.Vector2(gr.x - tx * w + gr.ux * d, gr.y - ty * w + gr.uy * d),
+        new Phaser.Math.Vector2(gr.x + tx * w + gr.ux * d, gr.y + ty * w + gr.uy * d),
+      ], true);
+      if (st.drop <= 0.001) continue;
+      // The bars: a dark iron rail across, with a hot red tip at each bar; slides in from the corridor side as it drops.
+      const s = (1 - st.drop) * 40, cx = gr.x - gr.ux * s, cy = gr.y - gr.uy * s, a = Math.min(1, st.drop * 1.4);
+      g.lineStyle(18, 0x2a2220, a).lineBetween(cx + tx * w, cy + ty * w, cx - tx * w, cy - ty * w);
+      g.lineStyle(4, 0x6a5650, a).lineBetween(cx + tx * w, cy + ty * w, cx - tx * w, cy - ty * w);
+      const n = Math.max(3, Math.round((2 * w) / 18));
+      for (let b = 0; b < n; b++) {
+        const off = ((b + 0.5) / n - 0.5) * 2 * w;
+        g.fillStyle(DANGER, a * (0.55 + 0.45 * st.glow)).fillCircle(cx + tx * off, cy + ty * off, 4.5);
+      }
+    }
   }
 
   /**

@@ -953,6 +953,16 @@ export function botInput(w: World, skill = 1): Input {
     fx += (ox / d) * 0.3 * side;
     fy += (oy / d) * 0.3 * side;
   }
+  // Halls H2b: while a room is sealing, stay well inside it (walking out before the grates drop leashes the pack).
+  if (w.hallsOn) {
+    for (const rm of w.halls!.rooms) {
+      if (rm.lock === undefined || rm.lock < 0 || rm.lock >= HALLS.lockDelay) continue;
+      const dx = rm.x - p.x, dy = rm.y - p.y, d = Math.hypot(dx, dy) || 1;
+      if (d > rm.r + HALLS.corridor || d < rm.r - 90) continue;
+      fx += (dx / d) * 2 * Math.max(0.5, Math.hypot(fx, fy));
+      fy += (dy / d) * 2 * Math.max(0.5, Math.hypot(fx, fy));
+    }
+  }
   // Halls, HALLS_RINGS=1 (measuring only, off by default): in a fight, keep clear of other sleeping packs, as of lava (a
   // player sees a ring from 400 away). It halves double pulls (Kiln t2 Emberwright average bot, seeds 1-300: 130 -> 67
   // runs with one) but doesn't add wins (79 -> 71 of 300, noise), so it stays a switch until design rules on it.

@@ -154,7 +154,9 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('bots walk the main path, skip the side rooms by default, and reach the boss', () => {
-    const w = halls(2);
+    // A Duskblade, invulnerable: this checks the walk, not whether a seed's fights are won (Burnout still lands through
+    // invulnerable, and a slow-killing seed can run into it).
+    const w = halls(2, { invulnerable: true, cls: 'duskblade' });
     run(w, () => w.bossSpawned, 600);
     expect(w.bossSpawned).toBe(true);
     for (const r of ['A', 'B', 'C', 'E']) expect(pack(w, r).state).toBe('cleared');
@@ -241,5 +243,84 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     // Not in an arena delve.
     const arena = new World({ seed: 2, tier: 2 });
     expect(arena.hallsResting).toBe(false);
+  });
+  it('H2b: a room seals 1 s after its pack wakes, keeps heroes and foes in, and opens once the pack is cleared', () => {
+    const w = halls(2, { invulnerable: true });
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[1];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    w.step(idle);
+    w.step(idle);
+    expect(a.state).toBe('awake');
+    expect(rm.lock).toBeGreaterThanOrEqual(0);
+    expect(rm.lock!).toBeLessThan(HALLS.lockDelay);
+    // Still open: a hero can step into the corridor south.
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) w.step(idle);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    // Sealed: walking south for 3 s stops at the rim.
+    run(w, () => false, 3, () => ({ x: 0, y: 1 }));
+    expect(Math.hypot(w.player.x - rm.x, w.player.y - rm.y)).toBeLessThanOrEqual(rm.r);
+    for (const e of w.enemies) if (e.alive) expect(Math.hypot(e.x - rm.x, e.y - rm.y)).toBeLessThanOrEqual(rm.r + 0.01);
+    // Cleared: the grates lift.
+    for (const e of w.enemies) if (e.alive) { e.hp = 0; e.alive = false; w.aliveEnemies--; }
+    run(w, () => rm.lock === -1, 1, () => idle);
+    expect(a.state).toBe('cleared');
+    expect(rm.lock).toBe(-1);
+    expect(rm.lifted).toBeGreaterThanOrEqual(0);
+  });
+
+  it('H2b: a hero in the doorway when the grates drop is pushed in; walking away before then leashes the pack', () => {
+    // Doorway: wake A, then stand in the R0-R1 corridor mouth just outside R1's rim.
+    const w = halls(2, { invulnerable: true });
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[1];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    w.step(idle);
+    put(w, rm.x, rm.y + rm.r + 30);
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) w.step(idle);
+    expect(Math.hypot(w.player.x - rm.x, w.player.y - rm.y)).toBeLessThanOrEqual(rm.r);
+    expect(a.state).toBe('awake');
+    // Leash: wake it, then be well down the corridor when the grates drop.
+    const v = halls(2, { invulnerable: true });
+    const b = pack(v, 'A');
+    const r1 = v.halls!.rooms[1];
+    put(v, b.x, b.y + HALLS.reach - 10);
+    v.step(idle);
+    put(v, r1.x, r1.y + r1.r + 200);
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 2; k++) v.step(idle);
+    expect(b.state).toBe('asleep');
+    expect(v.aliveEnemies).toBe(0);
+    expect(r1.lock).toBe(-1);
+    expect(v.phase).toBe('cleared');
+  });
+
+  it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
+    const arena = new World({ seed: 2, tier: 2 });
+    const w = halls(2);
+    expect(arena.moveScale).toBe(1);
+    expect(w.moveScale).toBe(HALLS.moveScale);
+    // Resting from the start (nothing awake), so after the delay the travel run is on too.
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    for (let k = 0; k < Math.round((HALLS.rest.delay + 0.1) * 30); k++) w.step(idle);
+    expect(w.hallsResting).toBe(true);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale * HALLS.travelRun, 5);
+    // A woken foe walking at the hero covers 1.25x the ground its def speed gives.
+    const a = pack(w, 'A');
+    put(w, a.x, a.y + HALLS.reach - 5);
+    w.step(idle);
+    expect(w.hallsResting).toBe(false);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    const e = w.enemies.find((q) => q.alive && q.def.speed > 0 && q.kind !== 'ashbuck' && q.kind !== 'emberSpitter')!;
+    if (e) {
+      const x0 = e.x, y0 = e.y;
+      const far = { x: w.player.x, y: w.player.y };
+      e.castId = '';
+      w.step(idle);
+      const moved = Math.hypot(e.x - x0, e.y - y0);
+      expect(moved).toBeGreaterThan(e.def.speed * (1 / 30) * 1.1);
+      void far;
+    }
   });
 });

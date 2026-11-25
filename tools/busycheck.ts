@@ -9,7 +9,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { edgeCue, gazeCues, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
+import { edgeCue, gazeCues, landCueFor, restCue, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -76,6 +76,8 @@ for (const dungeon of dungeons) {
       seed, dungeon, tier: Number(process.env.TIER ?? 0) || (TIER[dungeon] ?? 4), omens: [], cls: main,
       ...(mp ? { ...gearOf(main), heroLevel: mp.level, nextItemId: mp.nextItemId } : {}),
       party: rest.map((cls, k) => ({ cls, name: `${cls}${k + 1}`, ...gearOf(cls) })),
+      // HALLS=1: the delve as a Halls map (sim/halls.ts), where the dungeon has one.
+      ...(process.env.HALLS === '1' ? { halls: true } : {}),
     });
     // SET=kinbound SETN=3: every hero wears that many pieces of a verb set, to hear its proc cues.
     // The sim rebuilds each loadout from gear between fights, so this is re-applied every tick.
@@ -100,7 +102,9 @@ for (const dungeon of dungeons) {
     const perSecond = new Map<number, number>();
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const room = { drip: 0, chain: 0 }, touch: number[] = [];
-    const gaze = { lv: [] as number[] };
+    const gaze = { lv: [] as number[] }, resting = { on: false };
+    // Cues that land a set time after their event (landCueFor, as AudioEngine's `later` queue plays them).
+    let later: { at: number; id: SoundId; vol?: number }[] = [];
     const play = (id: SoundId, t: number, vol = 1) => {
       for (let k = ends.length - 1; k >= 0; k--) if (ends[k].t <= t) ends.splice(k, 1);
       const gap = THROTTLE[id];
@@ -136,11 +140,15 @@ for (const dungeon of dungeons) {
       });
       wearSet();
       w.step(inputs);
-      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, whirl: dungeon === 'wrackline' && w.whirl, namedAffix: w.namedPlan()?.affix };
+      const ctx = { cls: w.cls, acting: w.acting, dungeon, boss: w.bossIndex >= 0 ? w.enemies[w.bossIndex]?.kind : undefined, colossus: colossusCue(w), outsurge: dungeon === 'wrackline' && w.outsurge, whirl: dungeon === 'wrackline' && w.whirl, namedAffix: w.namedPlan()?.affix, hallsPacks: w.hallsOn ? w.halls!.packs : undefined };
       for (const ev of withoutBankedSoaks(w.events)) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
+        const land = landCueFor(ev, dungeon);
+        if (land) later.push({ at: w.time + (land.after ?? 0), id: land.id, vol: land.vol });
       }
+      for (const l of later) if (l.at <= w.time) play(l.id, w.time, l.vol);
+      later = later.filter((l) => l.at > w.time);
       for (const c of partyCues(wasDown, w.heroes.map((_, i) => w.heroData(i).player.hp), w.acting)) play(c.id, w.time);
       const mc = millCue(ctx);
       if (mc) play(mc.id, w.time, mc.vol);
@@ -152,6 +160,8 @@ for (const dungeon of dungeons) {
       if (sc) play(sc.id, w.time, sc.vol);
       const gc = gazeCues(gaze, w.enemies.filter((e) => e.alive && e.kind === 'lampeye').map((e) => ({ aux: e.aux, sees: w.player.hp > 0 && w.lampeyeSees(e, w.player.x, w.player.y) })));
       if (gc) play(gc.id, w.time, gc.vol);
+      const rc = restCue(resting, w.hallsResting, w.halls?.packs);
+      if (rc) play(rc.id, w.time, rc.vol);
       for (const c of islandCues(isl, w.islands, myIsland(w))) play(c.id, w.time, c.vol);
       // The 3D room (client/hd2d/renderer.ts): every foe's melee lunge (its touch timer reset; no on-screen cull, so
       // this is the busy case), and a drip or chain offered each tick (roomCues keeps only one now and then).
