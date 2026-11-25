@@ -91,8 +91,8 @@ export const TREE = {
 
 export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   // Bulwark, Anvil Skin branch: holding the line.
-  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
-  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '3% less damage taken per point.', tip: 'Take less from every hit. 3% less damage per point, 9% at 3 points.' },
+  bulk: { id: 'bulk', cls: 'bulwark', branch: 'bastion', name: 'Bulk', maxRank: 3, text: '+10 max health per point.', tip: 'More health. +10 max health per point, +30 at 3 points.' },
+  brace: { id: 'brace', cls: 'bulwark', branch: 'bastion', name: 'Brace', maxRank: 3, text: '2% less damage taken per point.', tip: 'Take less from every hit. 2% less damage per point, 6% at 3 points.' },
   damper: { id: 'damper', cls: 'bulwark', branch: 'bastion', name: 'Damper', maxRank: 2, text: 'Smother costs 3 less Resolve per point.', tip: 'Catching a Sluice Crawler\'s bloom on the shield costs 3 less Resolve per point (10 to 4 at 2 points).' },
   bedrock: { id: 'bedrock', cls: 'bulwark', branch: 'bastion', name: 'Bedrock', maxRank: 1, keystone: true, text: 'Anvil Skin recharges 6s faster.', tip: 'Keystone. Anvil Skin comes back every 14s instead of 20s.' },
   // Bulwark, the thorns branch (the run draft's Spite branch, id retribution).
