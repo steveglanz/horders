@@ -498,9 +498,10 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
   const FOUNDRY_THEMES = ['boiler', 'cistern', 'pump', 'anchor', 'shrine'];
   const fits: Record<string, string[]> = { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], twin: ['cistern', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'] };
 
-  it('is off for players until design turns it on: only ?hallsbeta=1 (hallsBeta) gives the Foundry a map', () => {
-    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).toBeNull();
+  it('is on for players since skills closed its crawler split (#706, 25 Nov), with or without ?hallsbeta=1', () => {
+    expect(halls(3, { dungeon: 'foundry', tier: 4 }).halls).not.toBeNull();
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
+    expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
     expect(halls(3, { dungeon: 'glarewell', tier: 7 }).halls).toBeNull();
   });
@@ -697,6 +698,29 @@ describe('H3b: the Glarewell on the Halls map', () => {
       expect(w.route[w.encounter]).toBe('lensmother');
     }
   }, 30000);
+});
+
+describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
+  it('the arena step and hallsClock both run dungeonClocks, and no dungeon clock is called anywhere else (design, 25 Nov)', () => {
+    const src = readFileSync(new URL('../sim/world.ts', import.meta.url), 'utf8');
+    const body = (name: string) => {
+      const at = src.indexOf(`  private ${name}(dt: number): void {`);
+      expect(at, name).toBeGreaterThan(0);
+      return src.slice(at, src.indexOf('\n  }\n', at));
+    };
+    expect(body('hallsClock')).toContain('this.dungeonClocks(dt)');
+    expect(body('dungeon')).toContain('this.dungeonClocks(dt)');
+    const clocks = body('dungeonClocks');
+    // Every per-dungeon clock call (this.xClock(dt), this.runGlarewell(dt)) lives in dungeonClocks alone.
+    const calls = [...src.matchAll(/this\.(\w+Clock|runGlarewell)\(dt\)/g)].map((m) => m[1]);
+    const shared = new Set(['layoutClock', 'arenaEventClock', 'burnoutClock', 'reinforceClock', 'hallsClock', 'lensmotherClock', 'kmClock']);
+    for (const c of new Set(calls)) {
+      if (shared.has(c)) continue;
+      const n = calls.filter((x) => x === c).length;
+      expect(clocks, c).toContain(`this.${c}(dt)`);
+      expect(n, `${c} is called outside dungeonClocks`).toBe(1);
+    }
+  });
 });
 
 describe('H2b: hero shots stop at sealed grates', () => {

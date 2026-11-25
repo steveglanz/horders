@@ -1561,6 +1561,10 @@ export class World {
     return this.classDef.speed * (1 + 0.06 * this.rank('magnetism') + 0.07 * this.rank('nimble')) * this.loadout.speedMult * boost * chill * halls;
   }
   /** Halls H2a (Steve, 25 Nov: "monster and player movements are very slow"): the move speed scale, 1 off a Halls run. */
+  /** Share of max health a Sluice Crawler's Bloom heals a foe caught in its burst (less on a Halls run). */
+  get bloomHeal(): number {
+    return this.halls ? FOUNDRY.hallsBloomHeal : FOUNDRY.bloomHeal;
+  }
   get moveScale(): number {
     return this.halls ? HALLS.moveScale : 1;
   }
@@ -1852,21 +1856,32 @@ export class World {
       return;
     }
     if (this.phase === 'fight') this.runOmens(dt);
-    if (this.phase === 'fight' && this.pillars.length) this.runGlarewell(dt);
+    if (this.phase === 'fight') this.dungeonClocks(dt);
     if (this.phase === 'fight' && this.layout !== 'open') this.layoutClock(dt);
     if (this.phase === 'fight' && this.arenaEvent) this.arenaEventClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'hammerdeep') this.ondrelClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'ashvents') this.ysmeretClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'pressworks') this.oskelClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'coldmarrow') this.coldClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'wrackline') this.wrackClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'crucible') this.slagClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'hoard') this.coalClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'smeltery') this.colossusClock(dt);
-    if (this.phase === 'fight' && this.dungeonId === 'flue') this.regentClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
     if (this.phase === 'fight' && this.reinforceN > 0 && !this.victory) this.reinforceClock(dt);
     if (this.phase === 'fight' && this.aliveEnemies === 0 && this.reinforceN === 0 && (!this.victory || this.shadowPending)) this.clearEncounter();
+  }
+
+  /**
+   * Each dungeon's own per-tick fight clock. The arena's step and a Halls fight (hallsClock) both run it, so a
+   * dungeon's mechanics can't run in one and not the other (H3b: the Glarewell's Brands never burst on the map
+   * while this lived in the arena's step alone). Arena events stay arena-only (design, 25 Nov).
+   */
+  private dungeonClocks(dt: number): void {
+    switch (this.dungeonId) {
+      case 'glarewell': if (this.pillars.length || this.hallsOn) this.runGlarewell(dt); break;
+      case 'hammerdeep': this.ondrelClock(dt); break;
+      case 'ashvents': this.ysmeretClock(dt); break;
+      case 'pressworks': this.oskelClock(dt); break;
+      case 'coldmarrow': this.coldClock(dt); break;
+      case 'wrackline': this.wrackClock(dt); break;
+      case 'crucible': this.slagClock(dt); break;
+      case 'hoard': this.coalClock(dt); break;
+      case 'smeltery': this.colossusClock(dt); break;
+      case 'flue': this.regentClock(dt); break;
+    }
   }
 
   /** A won delve with a living world boss goes on to the shadow fight. */
@@ -2585,8 +2600,7 @@ export class World {
     if (this.lava.length) this.hallsLavaHeat(dt);
     if (this.phase === 'fight') {
       this.runOmens(dt);
-      // H3b: Brands burst and the Twin Lamps' beam burns on the map too (the arena runs this from its own step).
-      if (this.dungeonId === 'glarewell') this.runGlarewell(dt);
+      this.dungeonClocks(dt);
       if (this.lava.length || this.flareVents.length) this.layoutClock(dt);
       if (this.aliveEnemies > 0 && !this.victory) this.burnoutClock(dt);
       for (let k = 0; k < m.packs.length; k++) {
@@ -4579,7 +4593,7 @@ export class World {
     // Bosses pull focus, as they do for the Emberwright's orbs.
     if (this.bossIndex >= 0) {
       const boss = this.enemies[this.bossIndex];
-      if (boss.alive && boss.def.rank === 'boss' && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
+      if (boss.alive && boss.def.rank === 'boss' && !(this.kmStage === 2 && boss.kind === 'kilnMother') && dist2(p.x, p.y, boss.x, boss.y) < this.lumenRange * this.lumenRange) t = this.bossIndex;
       if (this.crawIn(this.lumenRange) >= 0) t = this.crawIn(this.lumenRange);
     }
     // Sunmote is a single bolt with no spread, so unlike orbs or swings it never touches the
@@ -5026,7 +5040,8 @@ export class World {
     let bestD = Infinity;
     for (let i = 0; i < this.enemies.length; i++) {
       const e = this.enemies[i];
-      if (!e.alive) continue;
+      // BOSSV2: she can't be hit through stage 2, so blades and light look past her (to the bellows).
+      if (!e.alive || (this.kmStage === 2 && e.kind === 'kilnMother')) continue;
       const d = Math.sqrt(dist2(p.x, p.y, e.x, e.y)) - e.def.radius;
       if (d > maxDist) continue;
       // Big foes count as a little closer, so the blades stay on them.
@@ -5252,7 +5267,7 @@ export class World {
     // Bosses pull focus: the first orb always goes to a boss in range.
     if (this.bossIndex >= 0) {
       const b = this.enemies[this.bossIndex];
-      if (b.alive && b.def.rank === 'boss' && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
+      if (b.alive && b.def.rank === 'boss' && !(this.kmStage === 2 && b.kind === 'kilnMother') && dist2(p.x, p.y, b.x, b.y) < 480 * 480) targets.unshift(this.bossIndex);
     }
     if (this.crawIn(480) >= 0) targets.unshift(this.crawIn(480));
     for (let k = 0; k < n; k++) {
@@ -5397,6 +5412,12 @@ export class World {
       if (e.def.stationary) {
         this.runStationary(i, dt);
         continue;
+      }
+      // BOSSV2 stage 2 (QA, 25 Nov): no hero's stun or shove lands on her on the walk or in the kiln. A stun would
+      // stop her clocks here (the kiln's 40 s among them), and a shove would move her off the kiln mouth.
+      if (e.kind === 'kilnMother' && this.kmStage === 2) {
+        e.stunT = 0;
+        if (this.kmInKiln) { e.x = 0; e.y = this.kmSpotY(); }
       }
       if (e.stunT > 0) {
         e.stunT -= dt;
@@ -8725,7 +8746,7 @@ export class World {
           const o = this.enemies[j];
           // Phase 14 X5: never a named foe (a Swift Sluice Crawler stood in its own Blooms and healed back to full).
           if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
+          const amount = Math.min(o.maxHp - o.hp, o.maxHp * this.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
           this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -8804,7 +8825,7 @@ export class World {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {
             const o = this.enemies[j];
             if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-            const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
+            const amount = Math.min(o.maxHp - o.hp, o.maxHp * this.bloomHeal * this.healTakenMult(o));
             if (amount <= 0) return;
             o.hp += amount;
             this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -9640,6 +9661,12 @@ export const FOUNDRY = {
   bloomDelay: 2.5,
   bloomDamage: 18,
   bloomHeal: 0.25,
+  /**
+   * On a Halls map a sealed room keeps a Crawler close to the hero it follows, so it walks back over its own Blooms
+   * (half of the bursts fed a Crawler, against a third in the arena). Ranged heroes and healers lost those fights to
+   * Burnout (Foundry t4 full: Slagbinder 35 -> 24, Lumen 33 -> 25 of 40). 0.15 brings them back (31, 34). Design, 25 Nov.
+   */
+  hallsBloomHeal: 0.15,
   temperEvery: 6,
   temperMax: 5,
   temperCut: 0.15,

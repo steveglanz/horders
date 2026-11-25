@@ -30,6 +30,18 @@ for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   for (const k of keys.slice(1, -1)) o = o[k] as Record<string, unknown>;
   o[keys[keys.length - 1]] = Number(v);
 }
+// KMSTAT=1 (BOSSV2): prints the kiln stages, how many ended with all 3 bellows broken, and Kiln Heat's hp loss per stage.
+const kmStat = { stages: 0, broken: 0, heat: 0 };
+if (process.env.KMSTAT === '1') {
+  const proto = World.prototype as unknown as { hurtPlayer(this: World, amount: number, ...rest: unknown[]): unknown };
+  const orig = proto.hurtPlayer;
+  proto.hurtPlayer = function (this: World, amount: number, ...rest: unknown[]) {
+    const before = this.player.hp;
+    const r = orig.call(this, amount, ...rest);
+    if (rest[2] === 'Kiln Heat') kmStat.heat += Math.max(0, before - this.player.hp) / this.player.maxHp;
+    return r;
+  };
+}
 const skill = Number(process.env.SKILL ?? 1);
 const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
@@ -49,6 +61,7 @@ for (const seed of seeds) {
       if (ev.type === 'blink') bump('blink');
       if (ev.type === 'interrupt') bump('int:' + ev.name);
       if (ev.type === 'castDone') bump('cast:' + ev.name);
+      if (ev.type === 'castDone' && (ev.id === 'kmFallen' || ev.id === 'kmOut')) { kmStat.stages++; if (ev.id === 'kmFallen') kmStat.broken++; }
       if (ev.type === 'soak') bump(ev.ok ? 'soakOk' : 'soakFail');
       if (ev.type === 'quest') bump('quest');
       if (ev.type === 'loot') bump('loot');
@@ -70,3 +83,4 @@ for (const seed of seeds) {
 hallsReport();
 console.log(`wins ${wins}/${seeds.length}`);
 console.log(`avg hp left on wins ${Math.round(hpLeft / Math.max(1, wins))}`);
+if (process.env.KMSTAT === '1') console.log(`kiln stages ${kmStat.stages}, all bellows broken ${kmStat.broken}, Kiln Heat hp lost per stage ${((100 * kmStat.heat) / Math.max(1, kmStat.stages)).toFixed(1)}%`);

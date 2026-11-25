@@ -196,14 +196,15 @@ const hash = (seed: number, k: number): number => {
   return (h ^ (h >>> 16)) >>> 0;
 };
 
-/** Whether `dungeon` has a Halls map yet (H1: the Kiln; H3a: the Drowned Foundry). */
+/** The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its crawler split). */
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry'];
 /**
- * The dungeons whose Halls map is still off by default (design, 25 Nov: the Foundry's map is built, but it waits until
- * skills close a melee/ranged split in its crawler fights). A run gets one only with WorldOptions.hallsBeta
+ * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['foundry', 'glarewell'];
-export const hallsFor = (dungeon: DungeonId, beta = false): boolean => dungeon === 'kiln' || (beta && HALLS_BETA.includes(dungeon));
+export const HALLS_BETA: DungeonId[] = ['glarewell'];
+/** Whether a run of `dungeon` gets a Halls map. */
+export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
 type Spot = { role: PackRole; room: number; x: number; y: number };
