@@ -1335,7 +1335,7 @@ export class GameScene extends Phaser.Scene {
           else if (ev.name === 'Snuff') this.hud.warn('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
           else if (ev.name === 'Long Night') this.hud.warn('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
           else if (ev.name === 'Snuffer Tide') this.hud.warn('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
-          else if (ev.name === 'Thin Ice') this.hud.warn('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
+          else if (ev.name === 'Thin Ice') this.hud.warn('Thin Ice!', "The river cracks. Stay off open water. She's stuck and hurts more while it's open.");
           else if (ev.name === 'Frost Lace' && !this.laceShown) {
             // Once a fight: the Weaver casts it every few seconds, and its cast bar says the rest.
             this.laceShown = true;
@@ -4282,17 +4282,26 @@ export class GameScene extends Phaser.Scene {
       // QA, 23 Nov: lifting the 2D offset by a fixed LIFT left bars and names ~60-100 px above short foes.
       const head = view.foeHead?.(r.i);
       const h = r.cast >= 0 ? 13 : 6;
-      const bw = r.bw * zb, cxp = head && !r.pack ? head.x : p.x;
+      const bw = r.bw * zb;
+      let cxp = head && !r.pack ? head.x : p.x;
       let y = head ? head.y - (h + 4) * zb : p.y + (r.top - r.y) * z * LIFT;
-      const x = cxp - bw / 2;
       // Foes bunched together: a bar (with its name above it) that would land on one already placed steps up above
       // it, so each name stays with its own bar (QA on #602: "Ember Spitter" and "Ashwall" printed on top of each other).
-      const nameH = 16 * zb, half = Math.max(bw / 2, 48 * zb);
-      for (let k = 0; k < 6; k++) {
+      // The box is the bar, or its name where that is wider (measured, not a fixed 96 px: phone pass 25 Nov, a Dimhorn
+      // 50 px from two Snuffers had its bar stacked 75 px above it). A small overlap nudges the bar sideways instead.
+      const plate = this.plates.find((t) => t.visible && t.text && Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
+      let tw = 0;
+      if (plate) { g.font = `${plate.style.fontStyle || ''} ${parseFloat(String(plate.style.fontSize)) * z * plate.scaleY}px ${plate.style.fontFamily}`; tw = g.measureText(plate.text).width; }
+      const nameH = plate ? 16 * zb : 0, half = Math.max(bw / 2, tw / 2 + 3 * zb);
+      for (let k = 0; k < 8; k++) {
         const hit = placed.find((q) => cxp - half < q.r && q.l < cxp + half && y - nameH < q.b && q.t < y + h * zb);
         if (!hit) break;
-        y = hit.t - h * zb - 3 * zb;
+        const left = cxp <= (hit.l + hit.r) / 2;
+        const shift = left ? cxp + half - hit.l : hit.r - (cxp - half);
+        if (shift <= 14 * zb) cxp += left ? -(shift + 1) : shift + 1;
+        else y = hit.t - h * zb - 3 * zb;
       }
+      const x = cxp - bw / 2;
       placed.push({ l: cxp - half, r: cxp + half, t: y - nameH, b: y + h * zb });
       r.sx = cxp; r.sy = y;
       // Under the top row or a full-width panel the bar goes with its name (below), so neither clutters the HUD.
