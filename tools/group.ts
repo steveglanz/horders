@@ -90,7 +90,7 @@ const worstBy: Record<string, number> = {};
 // whether the tank stands in a vent when Bellow Slam lands.
 const ytrace = process.env.YTRACE === '1';
 const yt = { fights: 0, wins: 0, firstRole: {} as Record<string, number>, firstCause: {} as Record<string, number>, cause: {} as Record<string, number>,
-  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, outs: 0, relit: 0, s2ticks: 0, s2same: 0, s2tankOnBig: 0, s2time: [] as number[], s2start: 0, otherAtOut: [] as number[], otherAtRelight: [] as number[], vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
+  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, s2ticks: 0, s2same: 0, s2time: [] as number[], s2start: 0, flares: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
 let ysFirst = false, ysOn = false;
 const role = (cls: string) => (cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'dps');
 const bump2 = (o: Record<string, number>, k: string) => (o[k] = (o[k] ?? 0) + 1);
@@ -107,17 +107,10 @@ function ysTick(w: World, before: number[]): void {
       const up = w.heroes.map((_, k) => k).filter((k) => w.hero(k).player.hp > 0);
       yt.s2ticks++;
       if (up.length > 1 && up.every((k) => near(k) === near(up[0]))) yt.s2same++;
-      const t = w.heroes.findIndex((h) => h.cls === 'bulwark');
-      const big = fl[0].hp >= fl[1].hp ? 0 : 1;
-      if (t >= 0 && w.hero(t).player.hp > 0 && near(t) === big) yt.s2tankOnBig++;
     }
   }
   for (const ev of w.events) {
-    if (ev.type === 'ysFlame') {
-      const o = w.enemies.find((e) => e.alive && e.kind === 'ysmeret');
-      if (ev.lit) yt.relit++; else { yt.outs++; if (o) yt.otherAtOut.push(Math.round((100 * o.hp) / o.maxHp)); }
-      if (ev.lit && o) yt.otherAtRelight.push(Math.round((100 * o.hp) / o.maxHp));
-    }
+    if (ev.type === 'ysFlare') yt.flares++;
     if (ev.type === 'soak' && ev.owner === -2) { yt.vents++; if (!ev.ok) yt.ventsMissed++; }
     if (ev.type === 'castDone' && ev.name === 'Bellow Slam') {
       yt.bellows++;
@@ -156,7 +149,7 @@ function ysReport(): void {
   console.log(`ytrace firstDeath role=${JSON.stringify(yt.firstRole)} herHpAtFirstDeath avg=${avg(yt.firstAt)}% median=${med(yt.firstAt)}%  herHpAtLoss avg=${avg(yt.endAt)}%`);
   console.log(`ytrace firstDeathCause=${JSON.stringify(yt.firstCause)}`);
   console.log(`ytrace allDeaths=${JSON.stringify(yt.cause)}`);
-  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flamesOut=${yt.outs} relit=${yt.relit} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}% tankNearBiggerFlame=${(100 * yt.s2tankOnBig / Math.max(1, yt.s2ticks)).toFixed(0)}% otherFlameHpAtOut avg=${avg(yt.otherAtOut)}% median=${med(yt.otherAtOut)}% otherAtRelight avg=${avg(yt.otherAtRelight)}%`);
+  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flares=${yt.flares} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}%`);
 }
 for (const seed of seeds) {
   const [main, ...rest] = classes;

@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { YSMERETV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_ABILITIES } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -1119,7 +1119,10 @@ export function botInput(w: World, skill = 1): Input {
   if (flame) {
     const dx = flame.x - p.x, dy = flame.y - p.y;
     const d = Math.hypot(dx, dy) || 1;
-    if (d > flame.def.radius + (melee ? 30 : 160)) { fx += (dx / d) * 0.12 * skill; fy += (dy / d) * 0.12 * skill; }
+    // Melee closes in; a ranged hero holds inside the flare range (YSMERETV2.flareR), and hurries if it has drifted out.
+    const want = melee ? flame.def.radius + 30 : YSMERETV2.flareR * 0.7;
+    const k = d > YSMERETV2.flareR - 10 ? 0.5 : 0.12;
+    if (d > want) { fx += (dx / d) * k * skill; fy += (dy / d) * k * skill; }
   }
   if (scatter) {
     const near = nearestAlly(w);
@@ -1430,22 +1433,21 @@ export function botInput(w: World, skill = 1): Input {
   return { x: fx / len, y: fy / len, cast };
 }
 
-/** YSMERETV2 stage 2: the flame this bot should be on (see botInput). */
+/**
+ * YSMERETV2 stage 2 (design's bot rule): the tank on the flame it held in stage 1 (the most threat), the healer on the
+ * other, and any other heroes split evenly, so neither flame is ever left alone long enough to flare.
+ */
 function focusFlame(w: World): Enemy | null {
-  let lo: Enemy | null = null, hi: Enemy | null = null;
-  for (const e of w.enemies) {
-    if (!e.alive || e.kind !== 'ysmeret') continue;
-    if (!lo || e.hp < lo.hp) lo = e;
-    if (!hi || e.hp > hi.hp) hi = e;
-  }
-  if (w.isTank(w.acting)) return hi;
-  // Everyone else burns the one with less, but only once the two are close: killing the small one while the big one is
-  // far ahead leaves too much to burn in the window, and it relights (the trace, 25 Nov: a full-skill duo let 116 of 131
-  // flames relight at t7). So first even them out on the big one, then finish the small one and turn to the other.
-  return hi && lo && hi.hp > lo.hp * FLAME_EVEN ? hi : lo;
+  const f0 = w.ysF0 >= 0 && w.enemies[w.ysF0].alive ? w.enemies[w.ysF0] : null;
+  const f1 = w.ysF1 >= 0 && w.enemies[w.ysF1].alive ? w.enemies[w.ysF1] : null;
+  if (!f0 || !f1) return f0 ?? f1;
+  if (w.isTank(w.acting)) return f0;
+  if (w.cls === 'lumen') return f1;
+  // The others alternate, the first one with the tank.
+  let n = 0;
+  for (let k = 0; k < w.acting; k++) if (!w.isTank(k) && w.heroes[k].cls !== 'lumen') n++;
+  return n % 2 === 0 ? f0 : f1;
 }
-/** YSMERETV2 bots: the bigger flame counts as "close" to the smaller within this much more health. */
-const FLAME_EVEN = 1.15;
 
 /**
  * H2c: in a fight on a Halls map, a move that runs into a wall slides along it, and in a corner it breaks out the way

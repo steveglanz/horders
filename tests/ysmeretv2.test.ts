@@ -66,7 +66,7 @@ describe('YSMERETV2: the Twofold Flame', () => {
     } finally { YSMERETV2.split = was; }
   });
 
-  it('at 50% she splits into two flames 300 apart, half her health each, with her vents gone', () => {
+  it('at 50% she splits into two flames 420 apart that share her health, with her vents gone', () => {
     const { w, q } = fight();
     q.twinVentT = 0; q.ysmeretClock(0.05);
     expect(ventsOpen(w)).toBe(true);
@@ -78,66 +78,88 @@ describe('YSMERETV2: the Twofold Flame', () => {
     expect(w.events.some((e) => e.type === 'phase' && e.phase === 2)).toBe(true);
     const f = flames(w);
     expect(f).toHaveLength(2);
-    expect(f[0].hp + f[1].hp).toBeCloseTo(left * YSMERETV2.hpMult, 3);
+    for (const x of f) expect(x.hp).toBeCloseTo(left * YSMERETV2.hpMult, 3);
     expect(Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y)).toBeCloseTo(YSMERETV2.apart, 0);
     expect(ventsOpen(w)).toBe(false);
-    // No vents and no Bellow from here, and the two Scatters come half a timer apart.
-    const casts: number[] = [];
-    for (let t = 0; t < 30; t += 0.05) {
-      for (const e of w.enemies) if (!YSMERETV2.bellow2 && e.alive && e.kind === 'ysmeret' && e.castId === 'bellowSlam') throw new Error('Bellow in stage 2');
-      q.ysmeretClock(0.05);
-      for (const e of w.enemies) if (e.alive && e.kind === 'ysmeret') { e.abilityT -= 0.05; if (e.castId === 'scatter') { casts.push(t); e.castId = ''; } }
-      expect(ventsOpen(w)).toBe(false);
-    }
-    expect(casts.length).toBeGreaterThanOrEqual(3);
-    expect(casts[1] - casts[0]).toBeCloseTo(YSMERET.scatterEvery / 2, 0);
+    // Hitting either one takes it off both.
+    f[0].hp -= 100; f[1].hp -= 50;
+    q.ysmeretClock(0.05);
+    expect(f[0].hp).toBeCloseTo(left * YSMERETV2.hpMult - 150, 3);
+    expect(f[1].hp).toBeCloseTo(f[0].hp, 3);
   });
 
-  it('when one flame goes out the other has 10 s, or the first relights at 50% of its health; killing both in time wins', () => {
+  it('stage 2: no vents, each flame Bellows and Scatters on its own timer (half apart), and each flame stays where it landed', () => {
     const { w, q } = fight();
     const b = w.enemies[q.bossIndex];
     b.hp = b.maxHp * 0.5;
     q.ysmeretClock(0.05);
-    let [a] = flames(w);
-    const ia = w.enemies.indexOf(a);
-    const max = a.maxHp;
-    q.killEnemy(ia);
-    expect(w.victory).toBe(false);
-    expect(flames(w)).toHaveLength(1);
-    expect(q.bossIndex).toBe(w.enemies.indexOf(flames(w)[0]));
-    for (let t = 0; t < YSMERETV2.window + 0.1; t += 0.05) q.ysmeretClock(0.05);
-    expect(flames(w)).toHaveLength(2);
-    expect(w.events.some((e) => e.type === 'ysFlame' && e.lit)).toBe(true);
-    const relit = flames(w).find((f) => f.hp < f.maxHp)!;
-    expect(relit.hp / relit.maxHp).toBeCloseTo(YSMERETV2.relight, 3);
-    expect(relit.maxHp).toBeCloseTo(max, 3);
-    // Now both inside the window: a win.
-    [a] = flames(w);
+    const f = flames(w);
+    const home = f.map((x) => ({ x: x.x, y: x.y }));
+    const casts: number[] = [];
+    const bellows: number[] = [];
+    for (let t = 0; t < 30; t += 0.05) {
+      // Keep a hero on each so nothing flares.
+      w.heroData(0).player.x = f[0].x; w.heroData(0).player.y = f[0].y + 60;
+      w.heroData(1).player.x = f[1].x; w.heroData(1).player.y = f[1].y + 60;
+      f[0].x += 5; f[1].y += 5; // try to walk off
+      q.ysmeretClock(0.05);
+      for (const e of f) { if (e.castId === 'bellowSlam') { bellows.push(t); e.castId = ''; } e.abilityT -= 0.05; if (e.castId === 'scatter') { casts.push(t); e.castId = ''; } }
+      expect(ventsOpen(w)).toBe(false);
+    }
+    f.forEach((e, k) => expect(Math.hypot(e.x - home[k].x, e.y - home[k].y)).toBeLessThanOrEqual(YSMERETV2.leash + 0.01));
+    expect(w.events.some((e) => e.type === 'ysFlare')).toBe(false);
+    expect(casts.length).toBeGreaterThanOrEqual(3);
+    expect(casts[1] - casts[0]).toBeCloseTo(YSMERET.scatterEvery / 2, 0);
+    // Each flame Bellows on its own timer, the two half a timer apart.
+    expect(bellows.length).toBeGreaterThanOrEqual(3);
+    expect(bellows[1] - bellows[0]).toBeCloseTo(YSMERETV2.bellowEvery / 2, 0);
+  });
+
+  it('a flame with no hero near it for 3 s flares and hits every hero', () => {
+    const { w, q } = fight();
+    const b = w.enemies[q.bossIndex];
+    b.hp = b.maxHp * 0.5;
+    q.ysmeretClock(0.05);
+    const f = flames(w);
+    let flares = 0;
+    for (let t = 0; t < YSMERETV2.flareAfter + 0.2; t += 0.05) {
+      for (const k of [0, 1]) { const p = w.heroData(k).player; p.x = f[0].x; p.y = f[0].y + 60; p.hp = p.maxHp; }
+      w.events.length = 0;
+      q.ysmeretClock(0.05);
+      if (w.events.some((e) => e.type === 'ysFlare')) {
+        flares++;
+        for (const k of [0, 1]) expect(w.heroData(k).player.hp).toBeLessThan(w.heroData(k).player.maxHp);
+      }
+    }
+    expect(flares).toBe(1);
+  });
+
+  it('they go out together: one flame down is the win', () => {
+    const { w, q } = fight();
+    const b = w.enemies[q.bossIndex];
+    b.hp = b.maxHp * 0.5;
+    q.ysmeretClock(0.05);
+    const [a] = flames(w);
+    a.hp = 0;
     q.killEnemy(w.enemies.indexOf(a));
-    expect(w.victory).toBe(false);
-    for (let t = 0; t < 3; t += 0.05) q.ysmeretClock(0.05);
-    q.killEnemy(w.enemies.indexOf(flames(w)[0]));
+    expect(flames(w)).toHaveLength(0);
     expect(w.victory).toBe(true);
   });
 
-  it('bots: the tank walks to the flame with more health; the healer evens them out first, then takes the one with less', () => {
+  it('bots: the tank on the flame it held, the healer on the other', () => {
     const { w, q } = fight();
     const b = w.enemies[q.bossIndex];
     b.hp = b.maxHp * 0.5;
     q.ysmeretClock(0.05);
-    const [f0, f1] = flames(w);
+    const f0 = w.enemies[w.ysF0], f1 = w.enemies[w.ysF1];
     f0.x = -400; f0.y = 0; f1.x = 400; f1.y = 0; f0.castId = ''; f1.castId = '';
-    f0.hp = f0.maxHp * 0.3; // f1 has more
     for (const k of [0, 1]) { const p = w.heroData(k).player; p.x = 0; p.y = 0; }
     w.telegraphs.length = 0;
     w.use(0); const tank = botInput(w, 1);
-    w.use(1); const far = botInput(w, 1);
-    f0.hp = f1.hp * 0.95; // now close: the healer finishes the smaller one
-    const close = botInput(w, 1);
+    w.use(1); const heal = botInput(w, 1);
     w.use(0);
-    expect(tank.x).toBeGreaterThan(0.3);
-    expect(far.x).toBeGreaterThan(0.3);
-    expect(close.x).toBeLessThan(-0.3);
+    expect(tank.x).toBeLessThan(-0.3);
+    expect(heal.x).toBeGreaterThan(0.3);
   });
 
   it('a co-op guest gets the stage and both flames', () => {

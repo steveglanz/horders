@@ -1479,7 +1479,7 @@ export class GameScene extends Phaser.Scene {
         case 'phase':
           if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
-            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', 'She splits in two. Kill both flames close together, or the first one relights');
+            if (ev.phase === 2) this.hud.banner('Stage 2: Twofold', 'She splits in two. Keep a hero on each flame');
           } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
