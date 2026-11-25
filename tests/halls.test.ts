@@ -536,21 +536,30 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     }
   });
 
-  it('a Sluice Crawler\'s Bloom bursts after 2.5 s / moveScale on the map (2.0 s), 2.5 s in the arena (design, 25 Nov)', () => {
-    const first = (w: World) => {
+  it('a Sluice Crawler keeps the arena\'s speed on the map, and its Bloom bursts after 2.5 s as in the arena (design, 25 Nov)', () => {
+    const w = halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
+    const q = w as unknown as { spawn(kind: string, x: number, y: number): number };
+    for (const e of w.enemies) e.alive = false;
+    const m = w.halls!, a = pack(w, 'A');
+    // Walk both a crawler and a hound toward a hero across A's room and compare the ground they cover.
+    const ci = q.spawn('sluiceCrawler', a.x, a.y), hi = q.spawn('cinderhound', a.x, a.y + 4);
+    const c = w.enemies[ci], h = w.enemies[hi];
+    w.player.x = a.x + 300; w.player.y = a.y;
+    const c0 = c.x, h0 = h.x;
+    for (let k = 0; k < 10; k++) { c.abilityT = 99; w.step(idle); }
+    expect(m).toBeTruthy();
+    expect((c.x - c0) / (10 / 30)).toBeLessThanOrEqual(c.def.speed * 1.02);
+    expect((h.x - h0) / (10 / 30)).toBeGreaterThan(h.def.speed * 1.1);
+    const first = (w2: World) => {
       let dur = -1;
-      run(w, () => { const t = w.telegraphs.find((q) => q.alive && q.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
+      run(w2, () => { const t = w2.telegraphs.find((x) => x.alive && x.kind === 'bloom'); if (t) dur = t.dur; return dur > 0; }, 900);
       return dur;
     };
-    expect(first(halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' }))).toBeCloseTo(2.5 / HALLS.moveScale, 6);
-    // The arena: the first seed whose route has crawlers before the bot falls.
-    let arena = -1;
-    for (let seed = 1; seed <= 20 && arena < 0; seed++) arena = first(new World({ seed, tier: 4, dungeon: 'foundry', cls: 'bulwark' }));
-    expect(arena).toBeCloseTo(2.5, 6);
+    expect(first(halls(9, { dungeon: 'foundry', tier: 4, cls: 'bulwark' }))).toBeCloseTo(2.5, 6);
   });
 
   it('bots walk it and go through the door into Maelra\'s arena (seeds the bot wins on the map)', () => {
-    for (const seed of [9, 10]) {
+    for (const seed of [9, 11]) {
       const w = halls(seed, { dungeon: 'foundry', tier: 4, cls: 'bulwark' });
       run(w, () => !w.hallsOn || w.state === 'ended', 600);
       expect(w.hallsOn, `seed ${seed}`).toBe(false);

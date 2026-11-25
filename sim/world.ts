@@ -5466,8 +5466,11 @@ export class World {
         continue;
       }
 
-      e.x += mx * dt * this.moveScale;
-      e.y += my * dt * this.moveScale;
+      // Design, 25 Nov (H3a): on a Halls map a Sluice Crawler keeps the arena's speed. At 1.25x it walked its friends into
+      // its own Bloom before the burst (inside a Bloom 52% of the time vs 34% in the arena).
+      const ms = e.kind === 'sluiceCrawler' ? 1 : this.moveScale;
+      e.x += mx * dt * ms;
+      e.y += my * dt * ms;
       this.clampArena(e, e.def.radius);
       // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
       if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
@@ -8214,9 +8217,7 @@ export class World {
       } else e.abilityT = 0.5;
     } else if (e.kind === 'sluiceCrawler') {
       e.abilityT = FOUNDRY.bloomEvery;
-      // Design, 25 Nov: on a Halls run the burst comes 1/moveScale sooner (2.0 s), so a crawler at 1.25x speed gets no
-      // longer to walk its friends in than in the arena; the hero, at 1.25x too, covers the same escape distance.
-      this.addTelegraph('circle', p.x, p.y, FOUNDRY.bloomRadius, 0, 0, FOUNDRY.bloomDelay / this.moveScale, FOUNDRY.bloomDamage, 'bloom', -1);
+      this.addTelegraph('circle', p.x, p.y, FOUNDRY.bloomRadius, 0, 0, FOUNDRY.bloomDelay, FOUNDRY.bloomDamage, 'bloom', -1);
     }
   }
 
