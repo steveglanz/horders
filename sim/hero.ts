@@ -243,7 +243,7 @@ export function loadoutFrom(passives: Partial<Record<PointId, number>>, items: I
   for (const [id, n] of Object.entries(passives)) if (isTreeNode(id)) treePts += n ?? 0;
   return {
     dmgMult: (1 + t.power / 100) * (1 + 0.03 * p('might')),
-    maxHpBonus: Math.round(t.vitality + 8 * p('fortitude') + TREE.bulkHp * (passives.bulk ?? 0) + TREE.hardyHp * (passives.hardy ?? 0) + TREE.warmthHp * (passives.warmth ?? 0) + TREE.sturdyHp * (passives.sturdy ?? 0) + TREE.pointHp * treePts),
+    maxHpBonus: Math.round(t.vitality + 8 * p('fortitude') + TREE.bulkHp * (passives.bulk ?? 0) + TREE.hardyHp * (passives.hardy ?? 0) + TREE.warmthHp * (passives.warmth ?? 0) + TREE.sturdyHp * (passives.sturdy ?? 0) + TREE.heftHp * (passives.heft ?? 0) + TREE.pointHp * treePts),
     hasteMult: (1 + t.haste / 100) * (1 + 0.02 * p('alacrity')),
     critBonus: t.crit / 100,
     speedMult: (1 + t.swiftness / 100) * (1 + TREE.strideSpeed * (passives.stride ?? 0)),

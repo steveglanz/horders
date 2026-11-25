@@ -1690,7 +1690,9 @@ export class World {
     const base = this.abilities[slot]?.cooldown ?? 0;
     if (this.isAlt(slot)) return base;
     if (this.cls === 'slagbinder') {
-      if (slot === 0) return base - this.rank('quickset');
+      if (slot === 0) return base - this.rank('quickset') - TREE.ladleCd * this.tree('ladle');
+      // Recoil never drops below 1s.
+      if (slot === 1) return Math.max(1, base - TREE.springCd * this.tree('spring'));
       if (slot === 2) return base + (this.hasMythic('clinkerCrown') ? 4 : 0);
       return base;
     }
@@ -3811,7 +3813,7 @@ export class World {
     if (ownShell || this.shellCovers(p)) amount *= 1 - (ownShell ? SLAG_KIT.shellCut : SLAG_KIT.allyShellCut) - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
-    if (this.cls === 'slagbinder') amount *= 1 - 0.04 * this.rank('slagScales');
+    if (this.cls === 'slagbinder') amount *= (1 - 0.04 * this.rank('slagScales')) * (1 - TREE.shaleCut * this.tree('shale'));
     if (this.cls === 'emberwright') amount *= (1 - 0.04 * this.rank('sootCloak')) * (1 - TREE.sootCut * this.tree('soot'));
     if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));
     // Muster: in a party, heroes near the Bulwark take less.
@@ -4424,7 +4426,7 @@ export class World {
 
   /** How long Brittle lasts from this hero. */
   private get brittleTime(): number {
-    return (SLAG_KIT.brittleTime + 2 * this.rank('brittleMind')) * (this.hasMythic('clinkerCrown') ? 2 : 1);
+    return (SLAG_KIT.brittleTime + 2 * this.rank('brittleMind') + TREE.flawTime * this.tree('flaw')) * (this.hasMythic('clinkerCrown') ? 2 : 1);
   }
 
   private makeBrittle(i: number): void {
@@ -4474,7 +4476,7 @@ export class World {
       q.plate = 0;
       q.plateAmt = 0;
       const r = (SLAG_KIT.plateBurstR + 15 * this.rank('wideSpatter')) * (this.hasMythic('moltenCore') ? 1.5 : 1);
-      const dmg = SLAG_KIT.plateBurst * (1 + 0.3 * this.rank('searingShell') + 0.1 * this.rank('wideSpatter')) * this.dmgMult;
+      const dmg = SLAG_KIT.plateBurst * (1 + 0.3 * this.rank('searingShell') + 0.1 * this.rank('wideSpatter') + TREE.blastBurst * this.tree('blast')) * this.dmgMult;
       this.forEachNear(q.x, q.y, r + 40, (i) => {
         const e = this.enemies[i];
         if (dist2(q.x, q.y, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, dmg, true);
@@ -4485,7 +4487,7 @@ export class World {
 
   private get plateAmount(): number {
     const p = this.player;
-    return p.maxHp * SLAG_KIT.plateShare * (1 + 0.2 * this.rank('thickPour') + 0.1 * this.rank('deepCoat')) * (p.stance === 'anvil' ? SLAG_KIT.anvilPlate : 1);
+    return p.maxHp * SLAG_KIT.plateShare * (1 + 0.2 * this.rank('thickPour') + 0.1 * this.rank('deepCoat') + TREE.coatPlate * this.tree('coat')) * (p.stance === 'anvil' ? SLAG_KIT.anvilPlate : 1);
   }
 
   /** The most hurt living ally (not the acting hero) within r, or -1. */
@@ -4639,7 +4641,7 @@ export class World {
         }
       }
     }
-    p.volleyT += (this.gunner ? SLAG_KIT.cannonEvery : SLAG_KIT.lobEvery) / this.loadout.hasteMult / (1 + 0.1 * this.rank('fastLadle'));
+    p.volleyT += (this.gunner ? SLAG_KIT.cannonEvery : SLAG_KIT.lobEvery) / this.loadout.hasteMult / (1 + 0.1 * this.rank('fastLadle')) / (1 + TREE.reloadHaste * this.tree('reload'));
     if (p.volleyT < 0) p.volleyT = 0;
     p.lobs = (p.lobs ?? 0) + 1;
     if (this.gunner) {
@@ -4674,7 +4676,7 @@ export class World {
     this.events.push({ type: 'cannon', x1: p.x, y1: p.y, x2: p.x + ux * L, y2: p.y + uy * L });
     const brittle = (e.brittleUntil ?? 0) > this.time;
     const mult = (1 + 0.3 * this.rank('heavyLob')) * (brittle && this.rank('shatterpoint') > 0 ? SLAG_KIT.shatterMult : 1);
-    const dmg = SLAG_KIT.cannonDamage * mult * this.dmgMult;
+    const dmg = SLAG_KIT.cannonDamage * mult * (1 + TREE.boreCannon * this.tree('bore')) * this.dmgMult;
     this.damageEnemy(t, dmg, true);
     this.addHeat(SLAG_KIT.cannonSlag + 3 * this.rank('denseGlob') + (brittle && this.hasWeaponFx('temperedLob') ? 3 : 0));
     if (e.alive && this.hasWeaponFx('clingingSlag')) {
@@ -6722,6 +6724,11 @@ export class World {
     if (this.tree('steadfast') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.steadfastDmg;
     if (this.tree('glow') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.glowDmg;
     if (this.tree('serene') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.sereneDmg;
+    if (this.tree('core') > 0 && this.player.hp >= this.player.maxHp * 0.5) dmg *= 1 + TREE.coreDmg;
+    // Glaze (Slagbinder tree keystone): harder hits while the Slagbinder's own plating holds.
+    if (this.tree('glaze') > 0 && (this.player.plate ?? 0) > 0 && (this.player.plateUntil ?? -1) > this.time) dmg *= 1 + TREE.glazeDmg;
+    // Breach (Slagbinder tree keystone): harder on a Brittle foe.
+    if (this.tree('breach') > 0 && (e.brittleUntil ?? 0) > this.time) dmg *= 1 + TREE.breachDmg;
     // Refrain (Lumen tree keystone): harder on a foe standing in the Lumen's Sanctuary.
     if (this.tree('refrain') > 0 && this.player.sanctT > 0 && dist2(this.player.sanctX, this.player.sanctY, e.x, e.y) <= (this.sanctuaryRadius + e.def.radius) ** 2) dmg *= 1 + TREE.refrainDmg;
     // Character tree, Kickback: harder on a foe that hit this hero in the last few seconds.
