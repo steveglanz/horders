@@ -5193,18 +5193,24 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     const pulling = w.ebbT > 0;
     const warn = w.ebbWarnT > 0;
+    // H3d: on a Halls map the drain sits in the woken room (World.wrackX/Y, wrackRoom; -1 or absent in the arena), and
+    // the Ebb's streaks run in from that room's rim, not the arena's.
+    const wx = w as unknown as { wrackX?: number; wrackY?: number; wrackRoom?: number };
+    const ox = wx.wrackX ?? 0, oy = wx.wrackY ?? 0;
+    const room = (wx.wrackRoom ?? -1) >= 0 ? w.halls?.rooms[wx.wrackRoom!] : undefined;
+    const RIM = room ? Math.min(ARENA, room.r - 20) : ARENA;
     // The drain: a dark whirlpool on the floor that turns, faster while the water pulls.
     // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
     // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
     if (!this.drainImg) this.drainImg = this.add.image(0, 0, 'drain').setDepth(0.8);
     // Y6 the Whirl: the drain turns the way the water will carry you (whirlDir 1 is clockwise on screen).
     const spinDir = w.whirl ? w.whirlDir : -1;
-    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
+    this.drainImg.setVisible(true).setPosition(ox, oy).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
     if (pulling && !this.lowFx) {
       // Foam spun off the drain's rim.
       for (let k = 0; k < 3; k++) {
         const a = spinDir * (now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
-        g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(0, 0, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
+        g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(ox, oy, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
       }
     }
     if (warn || pulling) {
@@ -5218,22 +5224,22 @@ export class GameScene extends Phaser.Scene {
         const outward = w.outsurge;
         if (w.whirl) {
           // Y3 the Whirl: streaks run round the drain the way it turns (the arrowed eddies are drawn below, whirlDraw).
-          const rr = WRACK.drainR + 60 + ((k * 97) % (ARENA - WRACK.drainR - 90));
+          const rr = WRACK.drainR + 60 + ((k * 97) % (RIM - WRACK.drainR - 90));
           const a0 = a + w.whirlDir * t * 1.4;
           const a1 = a0 - w.whirlDir * (pulling ? 0.22 : 0.12);
           const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
-          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(Math.cos(a1) * rr, Math.sin(a1) * rr, Math.cos(a0) * rr, Math.sin(a0) * rr);
-          g.fillStyle(0xeafaff, al).fillCircle(Math.cos(a0) * rr, Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
+          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(ox + Math.cos(a1) * rr, oy + Math.sin(a1) * rr, ox + Math.cos(a0) * rr, oy + Math.sin(a0) * rr);
+          g.fillStyle(0xeafaff, al).fillCircle(ox + Math.cos(a0) * rr, oy + Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
           continue;
         }
-        const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
+        const r0 = outward ? WRACK.drainR + t * (RIM - WRACK.drainR) : RIM - t * (RIM - WRACK.drainR);
         const len = pulling ? 80 : 44;
-        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
+        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(RIM, r0 + len);
         const cx = Math.cos(a), cy = Math.sin(a);
         const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
-        g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(cx * r0, cy * r0, cx * r1, cy * r1);
-        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + (outward ? -1 : 1) * len * 0.4), cy * (r0 + (outward ? -1 : 1) * len * 0.4));
-        g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
+        g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(ox + cx * r0, oy + cy * r0, ox + cx * r1, oy + cy * r1);
+        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(ox + cx * r0, oy + cy * r0, ox + cx * (r0 + (outward ? -1 : 1) * len * 0.4), oy + cy * (r0 + (outward ? -1 : 1) * len * 0.4));
+        g.fillStyle(0xeafaff, al).fillCircle(ox + cx * r0, oy + cy * r0, pulling ? 2.6 : 1.8);
       }
     }
     // Y6: the Whirl's eddies lie on the water under the rafts (0.85; rafts 0.9), so a raft, which the water can't carry, stays clear.

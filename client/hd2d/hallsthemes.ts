@@ -16,6 +16,7 @@ export { THEMES, PROP_SCALE, themeOf, themeSpots, type Theme, type ThemeId } fro
 
 /** Paints a theme's floor tiles: the room's brick pattern in its colour, with cracks for the cracked ones. */
 export function themeTileCanvas(th: Theme, paint: (color: string) => HTMLCanvasElement): HTMLCanvasElement {
+  if (th.water) return waterCanvas(th.tile);
   const c = paint(th.tile);
   if (!th.cracked) return c;
   const k = c.getContext('2d')!;
@@ -27,6 +28,22 @@ export function themeTileCanvas(th: Theme, paint: (color: string) => HTMLCanvasE
     k.beginPath(); k.moveTo(x, y);
     for (let j = 0; j < 4; j++) { x += (r() - 0.5) * 30; y += (r() - 0.5) * 30; k.lineTo(x, y); }
     k.stroke();
+  }
+  return c;
+}
+
+/** Open water for a quay floor: the water's colour, a little darker in soft patches, with pale ripple lines (tiles). */
+function waterCanvas(color: string): HTMLCanvasElement {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const k = c.getContext('2d')!;
+  k.fillStyle = color; k.fillRect(0, 0, 128, 128);
+  let s = 29;
+  const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  for (let i = 0; i < 10; i++) { k.fillStyle = 'rgba(0,10,14,0.18)'; k.beginPath(); k.ellipse(r() * 128, r() * 128, 14 + r() * 20, 6 + r() * 8, 0, 0, 7); k.fill(); }
+  k.strokeStyle = 'rgba(200,240,250,0.22)'; k.lineWidth = 1.4;
+  for (let i = 0; i < 14; i++) {
+    const x = r() * 128, y = r() * 128, w = 10 + r() * 16;
+    for (const dx of [0, 128, -128]) for (const dy of [0, 128, -128]) { k.beginPath(); k.arc(x + dx, y + dy, w, Math.PI * 1.15, Math.PI * 1.85); k.stroke(); }
   }
   return c;
 }
@@ -149,6 +166,30 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#4a4e5e', 0, 0.22, 0, 1.0, 0.44, 0.46));
     parts.push(part(box, '#5c6072', 0, 0.48, 0, 0.94, 0.08, 0.42));
     parts.push(part(box, '#c4d0e0', 0, 0.53, 0, 0.7, 0.02, 0.26));
+  } else if (id === 'quay') {
+    // A stone bollard with a coil of rope round its foot, and a lantern on a post beside it (its glass pale, not lit red).
+    parts.push(part(cyl, '#5a6062', 0, 0.25, 0, 0.36, 0.5, 0.36));
+    parts.push(part(ball, '#6a7072', 0, 0.52, 0, 0.42, 0.2, 0.42));
+    parts.push(part(cyl, '#a08a64', 0, 0.08, 0, 0.56, 0.12, 0.56));
+    parts.push(part(box, '#3a3230', 0.45, 0.5, -0.05, 0.06, 1.0, 0.06));
+    parts.push(part(box, '#fff0c8', 0.45, 1.05, -0.05, 0.14, 0.16, 0.14));
+  } else if (id === 'wreck') {
+    // Three hull ribs curving up out of the water and a barrel on its side.
+    const rib = new THREE.TorusGeometry(0.5, 0.05, 5, 10, Math.PI * 0.6);
+    for (const x of [-0.3, 0, 0.3]) { const g = rib.clone(); g.rotateY(Math.PI / 2); g.rotateX(-0.2); parts.push(part(g, '#5a4434', x, 0, -0.1)); }
+    const barrel = new THREE.CylinderGeometry(0.5, 0.5, 1, 10); barrel.rotateZ(Math.PI / 2);
+    parts.push(part(barrel, '#7a5a3c', 0.45, 0.14, 0.3, 0.38, 0.28, 0.28));
+  } else if (id === 'kelp') {
+    // Kelp fronds, tall thin blades leaning a little (the whole clump sways slowly).
+    for (const [x, z, h, c] of [[-0.25, 0, 0.9, '#3e6a4a'], [0, 0.1, 1.2, '#4a7a52'], [0.22, -0.05, 0.8, '#3a5e44'], [0.08, 0.25, 0.6, '#46724e']] as const) {
+      parts.push(part(cone, c, x, h / 2, z, 0.12, h, 0.06));
+    }
+  } else if (id === 'sluice') {
+    // A sluice gate: two iron posts, a gate panel between them and a wheel on top.
+    parts.push(part(box, '#3e4446', -0.42, 0.6, -0.1, 0.1, 1.2, 0.1), part(box, '#3e4446', 0.42, 0.6, -0.1, 0.1, 1.2, 0.1));
+    parts.push(part(box, '#5c5448', 0, 0.4, -0.1, 0.76, 0.7, 0.06));
+    const wheel = new THREE.TorusGeometry(0.22, 0.03, 5, 16);
+    parts.push(part(wheel, '#6e7a7c', 0, 1.32, -0.06));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));
@@ -175,6 +216,8 @@ export function propMotion(id: ThemeId, t: number, ph: number): { sy: number; ry
   if (id === 'orrery') return { sy: 1, ry: t * 0.1 + ph };
   if (id === 'bellows') return { sy: 1 + 0.1 * Math.sin(t * 2 * Math.PI * THEMES.bellows.swell + ph) };
   // The Foundry's pumps stroke as slowly as the bellows breathe.
+  // The Kelp bed's fronds sway, as slowly as the water moves.
+  if (id === 'kelp') return { sy: 1 + 0.06 * Math.sin(t * 2 * Math.PI * 0.15 + ph) };
   if (id === 'pump') return { sy: 1 + 0.07 * Math.sin(t * 2 * Math.PI * 0.2 + ph) };
   return { sy: 1 };
 }
