@@ -1,17 +1,20 @@
 // The Crucible raid on the Halls map on phones (H5a, design 25 Nov): a Bulwark with three bot allies (Lumen,
 // Emberwright, Duskblade), four heroes, at 320x568 or 568x320 in the 3D look: as tools/hammerhallsshots.cjs's halls
 // mode, plus a vent flaring under its circle (2b) and, in portrait, an elite set where 3D draws it under the party
-// frames, which fade (2c). Pass `hoard` for the Hoard raid's map (H5b) instead.
+// frames, which fade (2c). Then (4) every room's 3D draw calls with the four heroes set at its centre and by its far wall
+// (cost bar 96), with a shot of each themed room. Pass `hoard` or `smeltery` for those raids' maps (H5b, H5c).
 //   halls  (?hallsbeta=1): the party in a corridor and in a fight, the hero stood outside a sealed room (grates let
 //          heroes in, never out: a green "Walk in" tag on the grate), and the map.
-// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [hoard] [maponly] [seed]
+// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [crucible|hoard|smeltery] [maponly] [seed]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const size = ['p320', 'l568'].find((s) => process.argv.includes(s)) || 'p320';
 const seed = Number(process.argv.slice(3).find((a) => /^\d+$/.test(a)) || 3);
 const mode = process.argv.includes('ondrel') ? 'ondrel' : 'halls';
-const raid = process.argv.includes('hoard') ? { id: 'hoard', tier: 9 } : { id: 'crucible', tier: 8 };
+const RAIDS = { crucible: 8, hoard: 9, smeltery: 10 };
+const raidId = Object.keys(RAIDS).find((k) => process.argv.includes(k)) || 'crucible';
+const raid = { id: raidId, tier: RAIDS[raidId] };
 const v2 = process.argv.includes('v2');
 fs.mkdirSync(out, { recursive: true });
 const dist = process.env.DIST || 'dist';
@@ -134,6 +137,24 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
       await page.waitForFunction(() => { const s = window.__ember.scene(); const w = s.world; if (w.ondrelStage >= 3 && w.slagPatches.some((a) => a.glow > 0)) { s.warp = 0; return true; } return false; }, null, { timeout: 1500000, polling: 30 }).catch(() => errs.push('no burst glow'));
       await page.waitForTimeout(1200);
       await shot('3-burst-warn');
+    }
+  }
+  if (mode === 'halls' && !process.argv.includes('maponly')) {
+    // 4: draw calls per room, the four heroes bunched at the centre, then by the far wall where the theme props stand.
+    const rooms = await page.evaluate(() => window.__ember.scene().world.halls.rooms.map((r, i) => ({ i, theme: r.theme ?? null, x: r.x, y: r.y, r: r.r ?? 300 })));
+    report.costs = [];
+    for (const rm of rooms) {
+      for (const spot of ['centre', 'wall']) {
+        await page.evaluate(({ rm, spot }) => {
+          const s = window.__ember.scene(), w = s.world; s.autopilot = false; s.warp = 0;
+          const y0 = spot === 'centre' ? rm.y : rm.y - rm.r * 0.75;
+          for (let k = 0; k < w.heroes.length; k++) { const p = w.heroData(k).player; p.x = p.px = rm.x + (k - 1.5) * 24; p.y = p.py = y0 + (k % 2) * 20; }
+        }, { rm, spot });
+        await page.waitForTimeout(2500);
+        const calls = await page.evaluate(async () => { const v = window.__ember.scene().hd2d; let hi = 0; for (let n = 0; n < 20; n++) { await new Promise((r) => requestAnimationFrame(r)); hi = Math.max(hi, v.stats().calls); } return hi; });
+        report.costs.push(`room ${rm.i} ${rm.theme ?? '-'} ${spot}: ${calls}`);
+        if (spot === 'centre' && rm.theme) await page.screenshot({ path: path.join(out, `${size}-${raid.id}-4-room${rm.i}-${rm.theme}.png`) });
+      }
     }
   }
   report.banners = await page.evaluate(() => window.__banners);
