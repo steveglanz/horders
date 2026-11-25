@@ -432,9 +432,11 @@ export class HallsView {
   /** A sealed room (grates down) that your living hero stands outside of, or null. */
   private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
     if (this.world.player.hp <= 0) return null;
-    for (const r of m.rooms) {
-      if (lockOf(r) < GRATE_WARN) continue;
-      if (Math.hypot(x - r.x, y - r.y) > r.r) return { x: r.x, y: r.y };
+    const here = roomAt(m, x, y);
+    for (let i = 0; i < m.rooms.length; i++) {
+      const r = m.rooms[i];
+      if (lockOf(r) < GRATE_WARN || here === i) continue;
+      return { x: r.x, y: r.y };
     }
     return null;
   }
