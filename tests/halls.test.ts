@@ -1385,7 +1385,7 @@ describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)
 
 describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta: A and B hold the two openers, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
+  it('is behind ?hallsbeta: A holds an opener, B the other or the named gate, C (the named fight) guards the boss door, no D or E room, and every room is big', () => {
     expect(HALLS_BETA).toContain('crucible');
     expect(HALLS_ON).not.toContain('crucible');
     expect(halls(3, { dungeon: 'crucible', tier: 8, cls: 'bulwark', party }).halls).toBeNull();
@@ -1402,9 +1402,15 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
       expect(m.packs.map((p) => p.role).sort()).toEqual(['A', 'B', 'C', 'S']);
       const pk = (r: string) => m.packs.find((p) => p.role === r)!;
       expect(pk('A').enc).toBe(w.route[0]);
-      expect(pk('B').enc).toBe(w.route[1]);
       expect(openers).toContain(pk('A').enc);
-      expect(openers).toContain(pk('B').enc);
+      // H4a's rule on a raid too (design, 25 Nov): a named gate goes in B on the path, and the steady opener to S.
+      if (pk('B').gate === 'named') {
+        expect(named).toContain(pk('B').enc);
+        expect(pk('S').enc).toBe(w.route[1]);
+        expect(pk('S').gate).toBe('steady');
+      } else {
+        expect(pk('B').enc).toBe(w.route[1]);
+      }
       expect(pk('C').enc).toBe(w.route[2]);
       expect(named).toContain(pk('C').enc);
       expect(m.packs.filter((p) => p.guard)).toEqual([pk('C')]);
@@ -1427,7 +1433,7 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
       const m = halls(seed, { dungeon: 'crucible', tier: 8, hallsBeta: true, raidTrash: true, cls: 'bulwark', party }).halls!;
       const pk = (r: string) => m.packs.find((p) => p.role === r)!;
       expect(pk('A').trash).toBe(true);
-      expect(pk('B').trash).toBe(true);
+      expect(!!pk('B').trash).toBe(pk('B').gate !== 'named');
       expect(pk('C').trash).toBeFalsy();
     }
   });
