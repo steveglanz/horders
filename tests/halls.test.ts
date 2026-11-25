@@ -33,8 +33,8 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    // A raid has no map.
-    expect(new World({ seed: 2, tier: 9, halls: true, dungeon: 'hoard' }).halls).toBeNull();
+    // A raid still in HALLS_BETA has no map without ?hallsbeta=1.
+    expect(new World({ seed: 2, tier: 10, halls: true, dungeon: 'smeltery' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -531,7 +531,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'hoard', tier: 9 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'smeltery', tier: 10 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -1458,10 +1458,12 @@ describe('H5a: the Crucible on the Halls map (design, h5-plan.md)', () => {
 
 describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta with the raid layout, H4a\'s named gate rule, and its own themes from #788', () => {
-    expect(HALLS_BETA).toContain('hoard');
-    expect(HALLS_ON).not.toContain('hoard');
-    expect(halls(3, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #807).
+    expect(HALLS_ON).toContain('hoard');
+    expect(HALLS_COOP).toContain('hoard');
+    expect(HALLS_BETA).not.toContain('hoard');
+    expect(halls(3, { dungeon: 'hoard', tier: 9, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.hoard;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'hoard', tier: 9, hallsBeta: true, cls: 'bulwark', party });
