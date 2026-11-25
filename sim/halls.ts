@@ -51,9 +51,11 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme;
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme | GlarewellTheme;
 /** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
 export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
+/** H3b (visuals, 25 Nov): the Glarewell's rooms: lens gallery, star vault, shade colonnade, mirror hall. */
+export type GlarewellTheme = 'lens' | 'orrery' | 'colonnade' | 'mirror';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -200,7 +202,7 @@ export const HALLS_ON: DungeonId[] = ['kiln', 'foundry'];
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = [];
+export const HALLS_BETA: DungeonId[] = ['glarewell'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -232,7 +234,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     door = { x: mx(T.door.x), y: T.door.y };
     layoutRooms = T.layoutRooms.map((l) => ({ ...l }));
   } else {
-    ({ rooms, corridors, spots, door, layoutRooms } = genHalls(seed));
+    ({ rooms, corridors, spots, door, layoutRooms } = genHalls(seed, dungeon));
   }
   const fork = rollFork(route, 1, pick, chance, dungeon);
   const side = fork ? fork[1] : { kind: 'shrine' as GateKind, encounter: 'shrine' as EncounterId };
@@ -788,11 +790,14 @@ export const mainRooms = (m: { rooms: unknown[] }): number[] => (m.rooms.length 
  * can't join B's fight; C still stands 260 off the walk (the far half of a twin, or the side of a big round room), so a
  * careful hero walks past it.
  */
-function genOnce(rnd: () => number): GenMap {
+/** Per dungeon, the shapes an any-shape room rolls from (design, 25 Nov: the Glarewell weights up Cross and Ring, which give cover). */
+const ANY_SHAPES: Partial<Record<DungeonId, RoomShape[]>> = { glarewell: ['round', 'hall', 'cross', 'cross', 'ring', 'ring'] };
+
+function genOnce(rnd: () => number, dungeon: DungeonId = 'kiln'): GenMap {
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
-  const anyShape: RoomShape[] = ['round', 'hall', 'cross', 'ring'];
+  const anyShape: RoomShape[] = ANY_SHAPES[dungeon] ?? ['round', 'hall', 'cross', 'ring'];
   const r0 = genRoom('R0', true, pick<RoomShape>(['round', 'round', 'hall']), rnd, { r: [390, 450] });
   // Design, 25 Nov: A's room is Round or Ring, so the first sealed fight is in a simple room.
   const r1 = genRoom('R1', true, pick<RoomShape>(['round', 'ring']), rnd, { spotSide: sgn() });
@@ -853,9 +858,9 @@ function genOnce(rnd: () => number): GenMap {
 }
 
 /** Roll `t` of seed `seed`'s layout (before the checker). */
-export function genRoll(seed: number, t: number): GenMap {
+export function genRoll(seed: number, t: number, dungeon: DungeonId = 'kiln'): GenMap {
   let k = 0;
-  const g = genOnce(() => hash(seed ^ 0x47656e48, t * 4096 + k++) / 4294967296);
+  const g = genOnce(() => hash(seed ^ 0x47656e48, t * 4096 + k++) / 4294967296, dungeon);
   g.tries = t;
   return g;
 }
@@ -867,9 +872,9 @@ export const genFaults = (g: GenMap): string[] => hallsCheck({ rooms: g.rooms, c
  * H2c: this seed's map. Rolls a layout from hashes of the seed alone (the run's rng is untouched, so co-op stays in step)
  * and re-rolls until design's checker passes; after HALLS_GEN.tries it falls back to the template.
  */
-export function genHalls(seed: number): GenMap {
+export function genHalls(seed: number, dungeon: DungeonId = 'kiln'): GenMap {
   for (let t = 0; t < G.tries; t++) {
-    const g = genRoll(seed, t);
+    const g = genRoll(seed, t, dungeon);
     if (!genFaults(g).length) return g;
   }
   const T = KILN_HALLS_A;
@@ -1019,6 +1024,12 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
     guard: 'boiler', byLayout: { vents: 'boiler' }, alcove: 'anchor',
     fits: { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'], twin: ['cistern', 'pump', 'anchor'] },
     rest: ['anchor', 'cistern', 'pump', 'boiler'],
+  },
+  // H3b (visuals, 25 Nov): the lens gallery guards the door, the star vault is the alcove, the colonnade is the cover room.
+  glarewell: {
+    guard: 'lens', byLayout: {}, alcove: 'orrery',
+    fits: { round: ['lens', 'orrery'], hall: ['mirror', 'lens'], cross: ['colonnade'], ring: ['colonnade', 'orrery'], twin: ['mirror', 'orrery'] },
+    rest: ['orrery', 'colonnade', 'mirror', 'lens'],
   },
 };
 
