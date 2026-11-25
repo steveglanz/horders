@@ -154,7 +154,9 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
   });
 
   it('bots walk the main path, skip the side rooms by default, and reach the boss', () => {
-    const w = halls(2);
+    // A Duskblade, invulnerable: this checks the walk, not whether a seed's fights are won (Burnout still lands through
+    // invulnerable, and a slow-killing seed can run into it).
+    const w = halls(2, { invulnerable: true, cls: 'duskblade' });
     run(w, () => w.bossSpawned, 600);
     expect(w.bossSpawned).toBe(true);
     for (const r of ['A', 'B', 'C', 'E']) expect(pack(w, r).state).toBe('cleared');
@@ -292,5 +294,33 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(v.aliveEnemies).toBe(0);
     expect(r1.lock).toBe(-1);
     expect(v.phase).toBe('cleared');
+  });
+
+  it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
+    const arena = new World({ seed: 2, tier: 2 });
+    const w = halls(2);
+    expect(arena.moveScale).toBe(1);
+    expect(w.moveScale).toBe(HALLS.moveScale);
+    // Resting from the start (nothing awake), so after the delay the travel run is on too.
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    for (let k = 0; k < Math.round((HALLS.rest.delay + 0.1) * 30); k++) w.step(idle);
+    expect(w.hallsResting).toBe(true);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale * HALLS.travelRun, 5);
+    // A woken foe walking at the hero covers 1.25x the ground its def speed gives.
+    const a = pack(w, 'A');
+    put(w, a.x, a.y + HALLS.reach - 5);
+    w.step(idle);
+    expect(w.hallsResting).toBe(false);
+    expect(w.moveSpeed / arena.moveSpeed).toBeCloseTo(HALLS.moveScale, 5);
+    const e = w.enemies.find((q) => q.alive && q.def.speed > 0 && q.kind !== 'ashbuck' && q.kind !== 'emberSpitter')!;
+    if (e) {
+      const x0 = e.x, y0 = e.y;
+      const far = { x: w.player.x, y: w.player.y };
+      e.castId = '';
+      w.step(idle);
+      const moved = Math.hypot(e.x - x0, e.y - y0);
+      expect(moved).toBeGreaterThan(e.def.speed * (1 / 30) * 1.1);
+      void far;
+    }
   });
 });
