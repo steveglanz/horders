@@ -913,6 +913,8 @@ export class World {
   /** BOSSV2 stage 3: eruption rings rolling out from her, each with two gaps [centre, width, centre, width] (radians). */
   kmRings: { x: number; y: number; r: number; w: number; gaps: number[]; alive: boolean; hit: number }[] = Array.from({ length: 3 }, () => ({ x: 0, y: 0, r: 0, w: 0, gaps: [0, 0, 0, 0], alive: false, hit: 0 }));
   private kmClock = { swipe: 0, egg: 0, kiln: 0, heat: 0, tick: 0, rings: 0, ringNext: 0, vuln: 0 };
+  /** BOSSV2, for the bot: seconds until the kiln stage's safe quarter next steps, and the warning it then gets. */
+  get kmStepIn(): { next: number; warn: number } { return { next: this.kmClock.heat, warn: this.kmShow(KILN_V2.heatWarn) }; }
   readonly partySize: number;
   readonly grit: number;
   /** Current arena radius (Maelra's Rising Water shrinks it). */
