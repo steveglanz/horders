@@ -301,3 +301,28 @@ describe('BOSSV2: Vorhulm the Glutton\'s Gorge', () => {
     expect(cast).toBe(true);
   });
 });
+
+describe('BOSSV2 stage 3: the basic attacks\' pace (design, 25 Nov)', () => {
+  it('today\'s phase 2 pace from when she comes out (3.2 s, 7 Ashlings), today\'s phase 3 pace below 30% (2.4 s, 10)', () => {
+    for (const [share, gap, ash] of [[0.6, 3.2, 7], [0.25, 2.4, 10]] as const) {
+      const { w, q, b } = mother();
+      intoKiln(w, q, b);
+      for (let k = 0; k < w.enemies.length; k++) if (w.enemies[k].alive && w.enemies[k].kind === 'kilnBellows') q.damageEnemy(k, 1e6, false);
+      one(w);
+      const e = w.enemies[b];
+      e.stunT = 0; e.hp = e.maxHp * share; e.aux = 99;
+      (q as unknown as { brandT: number }).brandT = 99;
+      let seen = 0;
+      for (let k = 0; k < 40 && seen < 1; k++) {
+        e.abilityT = 0;
+        const before = w.enemies.filter((o) => o.alive && o.kind === 'ashling').length;
+        q.runBoss(b, 0.01);
+        expect(e.abilityT).toBeCloseTo(gap, 9);
+        const n = w.enemies.filter((o) => o.alive && o.kind === 'ashling').length - before;
+        if (n > 0) { expect(n).toBe(ash); seen++; }
+        for (const o of w.enemies) if (o.alive && o.kind === 'ashling') o.alive = false;
+      }
+      expect(seen).toBe(1);
+    }
+  });
+});
