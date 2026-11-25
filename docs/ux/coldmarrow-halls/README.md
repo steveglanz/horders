@@ -11,9 +11,9 @@ wakes, the tool takes the hero off autopilot, so the call goes off.
   75px above it (`before-p320-3-dark-call`). The box is now the bar, or its measured name where that is wider, and an
   overlap of 14px or less nudges the bar sideways instead of up (`p320-3-dark-call`).
 
-## Reported, not changed
+- The Dark Call now has a warning line (design's text): "Dark Call! Get your coal's light on the Dimhorn" (`p320-3-dark-call`).
 
-- The Dark Call shows no warning line and no cast bar unless the Dimhorn is targeted. The signs are its horn's rings
-  and the small cast bar under its health bar.
+## Reported, not changed (passed to visuals)
+
 - The coal light round the hero reads as a faint thin ring on the darker floors.
 - Rimehounds are near-black on the dark floor. You see their bars and a speck of red ring (`l568-4-hounds-in`).
