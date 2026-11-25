@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -53,6 +53,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     glarewell: ['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'kilnShrine'],
     coldmarrow: ['deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'kilnShrine'],
     wrackline: ['harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'kilnShrine'],
+    hammerdeep: ['anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'kilnShrine'],
   } as const;
 
   it('within one dungeon, every room bed sounds different from the others on a phone', () => {
@@ -78,6 +79,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     for (const busy of ['deadHearth', 'rimeHall', 'snowdriftCave'] as const) expect(m(busy)).toBeGreaterThan(2 * m('coldCrypt'));
     // The Wrackline: the hulls creak and the kelp sways; the quay laps gently and the sluice pours steadily.
     for (const busy of ['wreckYard', 'kelpBed'] as const) for (const still of ['harbourQuay', 'sluiceGate'] as const) expect(m(busy)).toBeGreaterThan(2 * m(still));
+    // The Hammerdeep: the lanterns breathe, the chains swing, the steam lifts; the ingot store is still.
+    for (const busy of ['anvilHall', 'chainGallery', 'quenchTrough'] as const) expect(m(busy)).toBeGreaterThan(2 * m('ingotStore'));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
@@ -106,6 +109,7 @@ describe('which room bed plays where (roomBedFor)', () => {
     expect([ROOM_THEME_BED.lens, ROOM_THEME_BED.orrery, ROOM_THEME_BED.colonnade, ROOM_THEME_BED.mirror]).toEqual(['lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall']);
     expect([ROOM_THEME_BED.hearthless, ROOM_THEME_BED.rime, ROOM_THEME_BED.drift, ROOM_THEME_BED.crypt]).toEqual(['deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt']);
     expect([ROOM_THEME_BED.quay, ROOM_THEME_BED.wreck, ROOM_THEME_BED.kelp, ROOM_THEME_BED.sluice]).toEqual(['harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate']);
+    expect([ROOM_THEME_BED.anvil, ROOM_THEME_BED.chain, ROOM_THEME_BED.quench, ROOM_THEME_BED.ingot]).toEqual(['anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore']);
   });
 
   it('a corridor, the boss door alcove and anywhere off the map are quiet', () => {
