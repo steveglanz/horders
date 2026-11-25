@@ -44,7 +44,7 @@ const part = (g: THREE.BufferGeometry, color: string, x: number, y: number, z: n
 
 /**
  * Each theme's prop as one geometry with vertex colours, standing on y = 0 with its back to -z (the wall), in 3D units.
- * Bright parts (hot tips, flames) are near-white in colour so they read as lit; the prop material adds a little glow.
+ * Only the shrine's candle flames are near-white; nothing else glows, since on the map glow and red mean danger.
  */
 export function themeProp(id: ThemeId): THREE.BufferGeometry {
   const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 10, 7), cone = new THREE.ConeGeometry(0.5, 1, 10), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
@@ -63,11 +63,11 @@ export function themeProp(id: ThemeId): THREE.BufferGeometry {
     parts.push(part(box, '#2e2624', 0, 0.26, 0.42, 0.14, 0.14, 0.3));
     parts.push(part(box, '#3a2a22', 0, 0.62, -0.28, 0.08, 0.36, 0.08));
   } else if (id === 'slag') {
-    // A slag heap with a hot, glowing tip, and a smaller one beside it.
+    // A slag heap with a lighter, cooled crust on top, and a smaller one beside it (no glow: on the map, glow means lava).
     parts.push(part(cone, '#4a302a', 0, 0.28, 0, 0.9, 0.56, 0.9));
-    parts.push(part(cone, '#e0a060', 0, 0.5, 0, 0.26, 0.14, 0.26));
+    parts.push(part(cone, '#7a5a48', 0, 0.5, 0, 0.26, 0.14, 0.26));
     parts.push(part(cone, '#442c26', 0.5, 0.17, 0.2, 0.5, 0.34, 0.5));
-    parts.push(part(cone, '#d88a50', 0.5, 0.3, 0.2, 0.14, 0.08, 0.14));
+    parts.push(part(cone, '#6e5040', 0.5, 0.3, 0.2, 0.14, 0.08, 0.14));
   } else if (id === 'cooling') {
     // A steam post: a squat iron drum with a grille top.
     parts.push(part(cyl, '#5c666c', 0, 0.22, 0, 0.5, 0.44, 0.5));

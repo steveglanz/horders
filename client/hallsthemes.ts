@@ -32,7 +32,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   ash: { id: 'ash', floor2d: 0x36312d, name: 'Ash store', tile: '#80756e', cracked: false, wall: '#8a7c74', light: '#ffc89a', lightK: 1.2, swell: 0 },
   // Big leather bellows against the walls that breathe slowly; orange light swelling with them.
   bellows: { id: 'bellows', floor2d: 0x2c211c, name: 'Bellows hall', tile: '#7c4c3a', cracked: false, wall: '#9a5a44', light: '#ffa050', lightK: 1.3, swell: 0.22 },
-  // Dark basalt and slag heaps with hot tips; the room's lava layout glows from below.
+  // Dark basalt and cooled slag heaps; the room's lava layout glows from below.
   slag: { id: 'slag', floor2d: 0x261b17, name: 'Slag channel', tile: '#5c4038', cracked: true, wall: '#6a4034', light: '#ff7a3a', lightK: 1.25, swell: 0.12 },
   // Pale cracked tiles, steam posts: cool blue-grey, the one cold-lit room in the Kiln.
   cooling: { id: 'cooling', floor2d: 0x2a3134, name: 'Cooling yard', tile: '#8a969c', cracked: true, wall: '#78848a', light: '#cfe2ff', lightK: 1.3, swell: 0 },
@@ -49,13 +49,13 @@ export function themeOf(m: HallsMap, i: number): Theme {
   return THEMES[(t && t in THEMES ? t : FALLBACK[i % FALLBACK.length]) as ThemeId];
 }
 
-/** Where a room's props stand: every third piece of its far and side walls (never the low near ledge or an island),
- * starting at a hash of the room, at most 7, so the middle of the room stays clear for the fight. None in the alcove. */
+/** Where a room's props stand: every fourth piece of its far and side walls (never the low near ledge or an island),
+ * starting at a hash of the room, at most 4 (Steve, 25 Nov: keep it simple, quiet rooms over busy ones), so the middle of the room stays clear for the fight. None in the alcove. */
 export function themeSpots(m: HallsMap, i: number, hw: number, doorRoom: number): EdgePiece[] {
   if (i === doorRoom) return [];
   const spots = roomPieces(m, i, hw).filter((p) => !p.island && p.ny < 0.35);
   const pick: EdgePiece[] = [];
-  for (let k = (i * 7) % 3; k < spots.length && pick.length < 7; k += 3) pick.push(spots[k]);
+  for (let k = (i * 7) % 4; k < spots.length && pick.length < 4; k += 4) pick.push(spots[k]);
   return pick;
 }
 
