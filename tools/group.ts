@@ -90,7 +90,7 @@ const worstBy: Record<string, number> = {};
 // whether the tank stands in a vent when Bellow Slam lands.
 const ytrace = process.env.YTRACE === '1';
 const yt = { fights: 0, wins: 0, firstRole: {} as Record<string, number>, firstCause: {} as Record<string, number>, cause: {} as Record<string, number>,
-  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, s2ticks: 0, s2same: 0, s2time: [] as number[], s2start: 0, flares: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
+  firstAt: [] as number[], endAt: [] as number[], enraged: 0, split: 0, s2ticks: 0, s2same: 0, s2time: [] as number[], s2start: 0, s2pair: 0, s2hurt: {} as Record<string, number>, s2gain: {} as Record<string, number>, s2reach: 0, s2dist: 0, flares: 0, vents: 0, ventsMissed: 0, bellows: 0, bellowInVent: 0, deadAll: 0 };
 let ysFirst = false, ysOn = false;
 const role = (cls: string) => (cls === 'bulwark' ? 'tank' : cls === 'lumen' ? 'healer' : 'dps');
 const bump2 = (o: Record<string, number>, k: string) => (o[k] = (o[k] ?? 0) + 1);
@@ -107,6 +107,16 @@ function ysTick(w: World, before: number[]): void {
       const up = w.heroes.map((_, k) => k).filter((k) => w.hero(k).player.hp > 0);
       yt.s2ticks++;
       if (up.length > 1 && up.every((k) => near(k) === near(up[0]))) yt.s2same++;
+      // Can the healer reach the tank? (LUMEN_RANGE 500, before Long Note ranks.)
+      const ti = w.heroes.findIndex((h) => h.cls === 'bulwark'), li = w.heroes.findIndex((h) => h.cls === 'lumen');
+      if (ti >= 0 && li >= 0 && up.includes(ti) && up.includes(li)) {
+        const a = w.hero(ti).player, c = w.hero(li).player, d = Math.hypot(a.x - c.x, a.y - c.y);
+        yt.s2pair++; yt.s2dist += d; if (d <= 500) yt.s2reach++;
+        for (const k of [ti, li]) {
+          const dh = w.hero(k).player.hp - before[k], r = role(w.heroes[k].cls);
+          if (dh > 0) yt.s2gain[r] = (yt.s2gain[r] ?? 0) + dh; else yt.s2hurt[r] = (yt.s2hurt[r] ?? 0) - dh;
+        }
+      }
     }
   }
   for (const ev of w.events) {
@@ -149,7 +159,8 @@ function ysReport(): void {
   console.log(`ytrace firstDeath role=${JSON.stringify(yt.firstRole)} herHpAtFirstDeath avg=${avg(yt.firstAt)}% median=${med(yt.firstAt)}%  herHpAtLoss avg=${avg(yt.endAt)}%`);
   console.log(`ytrace firstDeathCause=${JSON.stringify(yt.firstCause)}`);
   console.log(`ytrace allDeaths=${JSON.stringify(yt.cause)}`);
-  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flares=${yt.flares} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}%`);
+  if (yt.split) console.log(`ytrace stage2 reached=${yt.split} avgSecs=${avg(yt.s2time)} flares=${yt.flares} bothHeroesNearSameFlame=${(100 * yt.s2same / Math.max(1, yt.s2ticks)).toFixed(0)}% tankInHealReach=${(100 * yt.s2reach / Math.max(1, yt.s2pair)).toFixed(0)}% tankHealerDist=${(yt.s2dist / Math.max(1, yt.s2pair)).toFixed(0)}`);
+  if (yt.split) console.log(`ytrace stage2 (tank and healer both up) net hp lost=${JSON.stringify(Object.fromEntries(Object.entries(yt.s2hurt).map(([k, v]) => [k, Math.round(v)])))} hp gained=${JSON.stringify(Object.fromEntries(Object.entries(yt.s2gain).map(([k, v]) => [k, Math.round(v)])))}`);
 }
 for (const seed of seeds) {
   const [main, ...rest] = classes;

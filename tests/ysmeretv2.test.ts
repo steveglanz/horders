@@ -97,22 +97,24 @@ describe('YSMERETV2: the Twofold Flame', () => {
     const home = f.map((x) => ({ x: x.x, y: x.y }));
     const casts: number[] = [];
     const bellows: number[] = [];
+    const from = new Set<number>();
     for (let t = 0; t < 30; t += 0.05) {
       // Keep a hero on each so nothing flares.
       w.heroData(0).player.x = f[0].x; w.heroData(0).player.y = f[0].y + 60;
       w.heroData(1).player.x = f[1].x; w.heroData(1).player.y = f[1].y + 60;
       f[0].x += 5; f[1].y += 5; // try to walk off
       q.ysmeretClock(0.05);
-      for (const e of f) { if (e.castId === 'bellowSlam') { bellows.push(t); e.castId = ''; } e.abilityT -= 0.05; if (e.castId === 'scatter') { casts.push(t); e.castId = ''; } }
+      for (const [k, e] of f.entries()) { if (e.castId === 'bellowSlam') { bellows.push(t); from.add(k); e.castId = ''; } e.abilityT -= 0.05; if (e.castId === 'scatter') { casts.push(t); e.castId = ''; } }
       expect(ventsOpen(w)).toBe(false);
     }
     f.forEach((e, k) => expect(Math.hypot(e.x - home[k].x, e.y - home[k].y)).toBeLessThanOrEqual(YSMERETV2.leash + 0.01));
     expect(w.events.some((e) => e.type === 'ysFlare')).toBe(false);
     expect(casts.length).toBeGreaterThanOrEqual(3);
     expect(casts[1] - casts[0]).toBeCloseTo(YSMERET.scatterEvery / 2, 0);
-    // Each flame Bellows on its own timer, the two half a timer apart.
-    expect(bellows.length).toBeGreaterThanOrEqual(3);
-    expect(bellows[1] - bellows[0]).toBeCloseTo(YSMERETV2.bellowEvery / 2, 0);
+    // Only the flame on the tank (hero 0, the Bulwark, stands on flame 0) Bellows, on one timer.
+    expect(bellows.length).toBeGreaterThanOrEqual(2);
+    expect(bellows[1] - bellows[0]).toBeCloseTo(YSMERETV2.bellowEvery, 0);
+    expect([...from]).toEqual([0]);
   });
 
   it('a flame with no hero near it for 3 s flares and hits every hero', () => {

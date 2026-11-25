@@ -7752,6 +7752,14 @@ export class World {
     let lost = 0;
     for (const j of [this.ysF0, this.ysF1]) if (j >= 0 && this.enemies[j].alive && this.enemies[j].kind === 'ysmeret') lost += Math.max(0, this.ysPool - this.enemies[j].hp);
     this.ysPool = Math.max(1, this.ysPool - lost);
+    // The flame that holds the tank (her threat target); with no tank up, the first flame.
+    let tankSlot = 0;
+    for (const [slot, j] of [[0, this.ysF0], [1, this.ysF1]] as const) {
+      if (j < 0 || !this.enemies[j].alive || this.enemies[j].kind !== 'ysmeret') continue;
+      const t = this.targetOf(j, 0);
+      if (t >= 0 && this.isTank(t) && this.heroPlayer(t).hp > 0) { tankSlot = slot; break; }
+    }
+    if (tankSlot === 0 && !(this.ysF0 >= 0 && this.enemies[this.ysF0].alive)) tankSlot = 1;
     for (const [slot, j] of [[0, this.ysF0], [1, this.ysF1]] as const) {
       if (j < 0) continue;
       const f = this.enemies[j];
@@ -7774,13 +7782,17 @@ export class World {
         this.eachHero(() => { if (this.player.hp > 0) this.hurtPlayer(YSMERET.ventBlast * YSMERETV2.flareMult * this.tierDamage, j, false, 'a lone flame'); }, true);
       }
       if (slot) this.ysAway1 = away; else this.ysAway0 = away;
-      let bel = slot ? this.ysBel1 : this.ysBel0;
-      if (YSMERETV2.bellowEvery > 0) bel -= dt;
-      if (slot) this.ysBel1 = bel; else this.ysBel0 = bel;
+      // tankBellow: one timer (ysBel0), run by the flame that holds the tank.
+      const tb = YSMERETV2.tankBellow > 0;
+      const bellows = !tb || slot === tankSlot;
+      const bs = tb ? 0 : slot;
+      let bel = bs ? this.ysBel1 : this.ysBel0;
+      if (YSMERETV2.bellowEvery > 0 && bellows) bel -= dt;
+      if (bs) this.ysBel1 = bel; else this.ysBel0 = bel;
       if (f.castId || f.stunT > 0) continue;
-      if (YSMERETV2.bellowEvery > 0 && bel <= 0) {
-        // Bellow Slam on whoever this flame is on (the two flames' timers run half apart, so one target at a time).
-        if (slot) this.ysBel1 = YSMERETV2.bellowEvery; else this.ysBel0 = YSMERETV2.bellowEvery;
+      if (YSMERETV2.bellowEvery > 0 && bellows && bel <= 0) {
+        // Bellow Slam on whoever this flame is on (untied, the two flames' timers run half apart, so one target at a time).
+        if (bs) this.ysBel1 = YSMERETV2.bellowEvery; else this.ysBel0 = YSMERETV2.bellowEvery;
         this.bellowTarget = this.targetOf(j, 0);
         this.startCast(j, 'bellowSlam', 'Bellow Slam', YSMERET.bellowCast, false);
         continue;
@@ -10326,6 +10338,8 @@ export const YSMERETV2 = {
   flareMult: 1,
   /** Stage 2: each flame Bellow Slams whoever it is on every this many s (0 = none); the two come half a timer apart. */
   bellowEvery: 12,
+  /** 1: only the flame on the tank (or the first flame, with no tank up) Bellows, on one timer; 0: each flame on its own. */
+  tankBellow: 1,
 };
 
 export const OSKEL = {
