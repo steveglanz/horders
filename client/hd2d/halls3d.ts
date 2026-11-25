@@ -185,6 +185,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const capMat = new THREE.MeshStandardMaterial({ color: '#4a3a34', roughness: 0.8 });
   const coalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95, emissive: '#ffffff', emissiveIntensity: 0.9 });
   { const ct = coalTex(); coalMat.map = ct; coalMat.emissiveMap = ct; }
+  const plinthMat = new THREE.MeshStandardMaterial({ color: '#6a5850', roughness: 0.85 });
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   // Each room and each corridor is a chunk: its floor, its walls and their caps, and a bound for the on-screen check.
@@ -210,8 +211,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     // Islands (the Ring's hearth): a bed of banked coals level with the hearth's low wall, so the corridor floor that
     // runs under it never shows, and it reads as something shots can't cross.
     for (let k = 1; k < loops.length; k++) {
-      const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H - 0.02, 0); worldUv(hg);
-      roomChunk[i].g.add(new THREE.Mesh(hg, coalMat));
+      const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H + 0.002, 0); worldUv(hg);
+      // A box island (the Cross's pillars: four corners) is a stone plinth; a round one (the Ring) is the coal hearth.
+      roomChunk[i].g.add(new THREE.Mesh(hg, loops[k].length <= 16 ? plinthMat : coalMat));
     }
   });
   m.corridors.forEach((c, i) => {
@@ -244,7 +246,8 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
     const wallCol = new THREE.Color(chunkWall.get(ch) ?? CORRIDOR_WALL);
     const walls = new THREE.InstancedMesh(box, wallMat, list.length), caps = new THREE.InstancedMesh(box, capMat, list.length);
     list.forEach((p, k) => {
-      const h = Math.max(NEAR_H, Math.min(p.island ? HEARTH_H : wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
+      // Islands stand HEARTH_H all round (low enough by design, so the clearance cap would only make them uneven).
+      const h = p.island ? HEARTH_H : Math.max(NEAR_H, Math.min(wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
       // Along the rim: local x runs along the wall (the tangent), so it turns by the normal's angle.
       e.set(0, -Math.atan2(p.ny, p.nx) + Math.PI / 2, 0); q.setFromEuler(e);
       const px = (p.x + p.nx * (WALL_T / S / 2)) * S, pz = (p.y + p.ny * (WALL_T / S / 2)) * S;
