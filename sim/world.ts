@@ -1673,6 +1673,7 @@ export class World {
       this.updateDrops();
       this.updateVeins(dt);
       this.updateGems(dt);
+      if (this.hallsOn && this.ebbT > 0) this.raftsClear();
       this.noteEcho();
       this.checkEnd();
       return;
@@ -1697,6 +1698,7 @@ export class World {
     this.updatePartyVeins(dt);
     this.updatePartyGems(dt);
     this.updateRevives(dt);
+    if (this.hallsOn && this.ebbT > 0) this.raftsClear();
     this.noteEcho();
     this.checkEnd();
   }
@@ -2745,6 +2747,16 @@ export class World {
       if (f.kind === 'ashmaw') { this.rareSpawned = true; this.rareIndex = i; }
     });
     this.hallsWaking = -1;
+    // H3d: a raft that would start on one of the pack's rifts slides along its circle until it's clear.
+    if (this.dungeonId === 'wrackline' && first) {
+      for (const r of this.rafts) {
+        for (let k = 1; k <= 60 && this.raftOnRift(r.x, r.y); k++) {
+          const a = r.a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.05;
+          const x = this.wrackX + Math.cos(a) * r.ring, y = this.wrackY + Math.sin(a) * r.ring;
+          if (!this.raftOnRift(x, y)) { r.a = a; r.x = x; r.y = y; }
+        }
+      }
+    }
     // C2: the delve's named elite still hides in one of the main-path fights (namedAt is a route slot).
     if (pk.main) this.rollNamed(firstElite);
     const vents = m.vents.filter((v) => v.room === pk.room);
@@ -7379,6 +7391,22 @@ export class World {
     }
   }
 
+  /**
+   * H3d (QA and design, 25 Nov): on a Halls map, while the Ebb pulls, the last thing each step does is push every foe but
+   * a boss off an afloat raft, stunned or shoved ones too (their own move skips the push or comes before the shove).
+   * Rafts turn back at rifts, so no raft sits on one.
+   */
+  private raftsClear(): void {
+    if (!this.rafts.length) return;
+    for (const e of this.enemies) if (e.alive && e.def.rank !== 'boss' && !e.def.stationary) this.keepOffRafts(e);
+  }
+
+  /** H3d: would a raft centred at (x, y) sit on a standing foe (a rift)? */
+  private raftOnRift(x: number, y: number): boolean {
+    for (const e of this.enemies) if (e.alive && e.def.stationary && e.def.rank !== 'boss' && (e.x - x) ** 2 + (e.y - y) ** 2 < (WRACK.raftR + e.def.radius) ** 2) return true;
+    return false;
+  }
+
   /** Is this spot on a raft that's afloat? */
   onRaft(x: number, y: number): boolean {
     for (const r of this.rafts) if (r.sunkT <= 0 && dist2(x, y, r.x, r.y) <= WRACK.raftR * WRACK.raftR) return true;
@@ -7401,7 +7429,12 @@ export class World {
     const riptide = this.wrackPhase >= 2 && !out && !whirl;
     const drift = WRACK.drift * (riptide ? WRACK.riptideDrift : 1) * (this.heat === 'slackWater' ? HEAT_TUNING.slackDrift : 1);
     for (const r of this.rafts) {
-      r.a += (r.dir * drift * dt) / r.ring;
+      // H3d (design, 25 Nov): on a Halls map a rift blocks a drifting raft like a wall: it turns back the way it came.
+      if (this.hallsOn) {
+        const na = r.a + (r.dir * drift * dt) / r.ring;
+        if (this.raftOnRift(this.wrackX + Math.cos(na) * r.ring, this.wrackY + Math.sin(na) * r.ring)) r.dir = -r.dir;
+        else r.a = na;
+      } else r.a += (r.dir * drift * dt) / r.ring;
       r.x = this.wrackX + Math.cos(r.a) * r.ring;
       r.y = this.wrackY + Math.sin(r.a) * r.ring;
       if (r.sunkT > 0) r.sunkT = Math.max(0, r.sunkT - dt);

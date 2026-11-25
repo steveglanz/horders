@@ -803,6 +803,34 @@ describe('H3d: the Wrackline on the Halls map', () => {
     }
   });
 
+  it('QA, 25 Nov: in bot runs no foe (stunned or not) is ever on an afloat raft in the Ebb, and no raft sits on a rift', async () => {
+    let ebbTicks = 0, riftTicks = 0;
+    // Seeds 2, 3 and 5 have the Rift in the Wrack.
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      await new Promise((r) => setTimeout(r, 0));
+      const w = wrack(seed, { cls: seed % 2 ? 'bulwark' : 'emberwright', tier: 2 });
+      const end = w.time + 400;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+        w.step(botInput(w));
+        if (w.phase !== 'fight') continue;
+        for (const r of w.rafts) {
+          if (r.sunkT > 0) continue;
+          for (const e of w.enemies) {
+            if (!e.alive || e.def.rank === 'boss') continue;
+            const d = Math.hypot(e.x - r.x, e.y - r.y);
+            if (e.def.stationary) riftTicks++;
+            if (e.def.stationary) expect(d, `seed ${seed} t ${w.time.toFixed(1)} ${e.kind}`).toBeGreaterThanOrEqual(78 + e.def.radius - 0.5);
+            else if (w.ebbT > 0) expect(d, `seed ${seed} t ${w.time.toFixed(1)} ${e.kind} stun ${e.stunT}`).toBeGreaterThanOrEqual(78);
+          }
+        }
+        if (w.ebbT > 0) ebbTicks++;
+      }
+    }
+    expect(ebbTicks).toBeGreaterThan(100);
+    expect(riftTicks).toBeGreaterThan(100);
+  }, 60000);
+
   it('bots walk it and go through the door into Hessa\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
