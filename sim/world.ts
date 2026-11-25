@@ -603,7 +603,7 @@ export type SimEvent =
   | { type: 'brandBurst'; x: number; y: number; r: number }
   | { type: 'pillarCrack'; index: number }
   | { type: 'strike'; x: number; y: number; r: number }
-  | { type: 'slam'; x: number; y: number; r: number }
+  | { type: 'slam'; x: number; y: number; r: number; /** What landed, where a sound or draw needs to tell slams apart: 'slagBurst' is Ondrel v2's stage 3 burst. */ source?: 'slagBurst' }
   /** V1: an Ember Spitter lobbed a fire circle from (x1, y1) to (x2, y2); an Ashbuck started down its lane. */
   | { type: 'spitLob'; index: number; x1: number; y1: number; x2: number; y2: number }
   | { type: 'charge'; index: number }
@@ -8580,7 +8580,7 @@ export class World {
     }
     this.use(at);
     if (this.slagPatches.some((a) => a.glow < 0)) {
-      for (const a of this.slagPatches) if (a.glow < 0) this.events.push({ type: 'slam', x: a.x, y: a.y, r: ONDRELV2.burstR });
+      for (const a of this.slagPatches) if (a.glow < 0) this.events.push({ type: 'slam', x: a.x, y: a.y, r: ONDRELV2.burstR, source: 'slagBurst' });
       this.slagPatches = this.slagPatches.filter((a) => a.glow >= 0);
     }
   }

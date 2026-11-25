@@ -109,8 +109,11 @@ describe('ONDRELV2: the staged Ondrel', () => {
     expect(q.ondrelStage).toBe(3);
     expect(w.slagPatches.every((a) => a.glow > 0)).toBe(true);
     expect(w.telegraphs.filter((t) => t.alive && t.r === ONDRELV2.burstR)).toHaveLength(2);
-    for (let t = 0; t < ONDRELV2.glow + 0.1; t += 0.05) q.ondrelClock(0.05);
+    w.events.length = 0;
+    const slams: typeof w.events = [];
+    for (let t = 0; t < ONDRELV2.glow + 0.1; t += 0.05) { q.ondrelClock(0.05); slams.push(...w.events.filter((e) => e.type === 'slam')); w.events.length = 0; }
     expect(w.slagPatches).toHaveLength(0);
+    expect(slams.filter((e) => e.type === 'slam' && e.source === 'slagBurst')).toHaveLength(2);
     anvilfall(w, q, b);
     expect(w.slagPatches).toHaveLength(0);
     q.choirT = 0;
