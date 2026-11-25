@@ -12,7 +12,7 @@ describe('Halls H2d room themes (client/hallsthemes.ts)', () => {
     for (const c of m.corridors) expect(themeOf(m, c.a).id).not.toBe(themeOf(m, c.b).id);
     m.rooms[1] = { ...m.rooms[1], theme: 'shrine' } as (typeof m.rooms)[number];
     expect(themeOf(m, 1).id).toBe('shrine');
-    m.rooms[1] = { ...m.rooms[1], theme: 'nonsense' } as (typeof m.rooms)[number];
+    m.rooms[1] = { ...m.rooms[1], theme: 'nonsense' } as unknown as (typeof m.rooms)[number];
     expect(Object.keys(THEMES)).toContain(themeOf(m, 1).id);
   });
 
