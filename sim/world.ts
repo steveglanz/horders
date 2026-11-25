@@ -9865,10 +9865,14 @@ export const GLARE = {
   firstCrack: 3,
   crackDelay: 2.5,
   enrageAfter: 180,
-  /** The Lens Sweep cone between Glares: every so many seconds, and its damage. */
-  sweepEvery: 1.7,
+  /**
+   * The Lens Sweep cone between Glares: every so many seconds, and its damage. It reaches 300 px, so it only ever
+   * lands on melee: 1.0 M3 (25 Nov) cut it from every 1.7 s at 26 to every 2.4 s at 10, as at average skill it walled
+   * the Bulwark and Duskblade (1-2 of 20 at t7/t8) while ranged classes won 20 of 20.
+   */
+  sweepEvery: 2.4,
   sweepEveryEnraged: 1,
-  sweepDamage: 26,
+  sweepDamage: 10,
   /** The cone: its warning (s), reach (px) and full width (degrees). */
   sweepCast: 1.1, sweepRange: 300, sweepArc: 60,
 };
