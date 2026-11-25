@@ -1236,7 +1236,9 @@ export function botInput(w: World, skill = 1): Input {
     // out cost more than the heal (Foundry t6 arena: Emberwright full 89 -> 44 of 120; leading only one already inside,
     // Lumen avg 42 -> 28), so a solo hero steps out as from any ring.
     const feed = t.kind === 'bloom' && w.heroes.length > 1 && w.cls !== 'bulwark' && process.env.NODRAG !== '1' ? bloomFeeder(w, t, p) : null;
-    if (feed && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
+    // A ranged hero doesn't walk on to lead one already in it: that left a gearless Lumen alone with the hounds of the
+    // Ashvents' Crawler opener (the H4b door test, 9 -> 7 of 16 seeds); a melee hero, whom it follows in contact, does.
+    if (feed && (melee || !feed.inside) && d < t.r + (feed.inside ? BLOOM_DRAG : 40)) {
       // One already in it follows you: walk on until it trails out too. One outside walks after you: leave on its
       // side, so its way to you never crosses the ring.
       const fx0 = feed.inside ? dx / d : (feed.e.x - t.x) / (Math.hypot(feed.e.x - t.x, feed.e.y - t.y) || 1);
