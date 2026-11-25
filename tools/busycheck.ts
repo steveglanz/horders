@@ -9,7 +9,7 @@
 //   so bosses reach their later phases (the skills team's heroes-r2).
 import { World } from '../sim/world';
 import { BOT_PARTY, botChoose, botInput } from '../sim/bot';
-import { edgeCue, gazeCues, restCue, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
+import { edgeCue, gazeCues, landCueFor, restCue, roomCues, type RoomSound, millCue, withoutBankedSoaks, islandCues, myIsland, spentCue, behindColossusNow, bellyCues, colossusCue, cueFor, ebbCue, pressedCue, partyCues, reviveCues, setCues, setFlagsOf, THROTTLE, PRIORITY, DUCK, DEEP_DUCK } from '../client/audio/cues';
 import { SOUNDS, SoundId } from '../client/audio/sounds';
 import { recipeLength, render } from '../client/audio/synth';
 import type { ClassId } from '../sim/content/emberwright';
@@ -103,6 +103,8 @@ for (const dungeon of dungeons) {
     const plays: { id: SoundId; t: number; vol: number }[] = [];
     const room = { drip: 0, chain: 0 }, touch: number[] = [];
     const gaze = { lv: [] as number[] }, resting = { on: false };
+    // Cues that land a set time after their event (landCueFor, as AudioEngine's `later` queue plays them).
+    let later: { at: number; id: SoundId; vol?: number }[] = [];
     const play = (id: SoundId, t: number, vol = 1) => {
       for (let k = ends.length - 1; k >= 0; k--) if (ends[k].t <= t) ends.splice(k, 1);
       const gap = THROTTLE[id];
@@ -142,7 +144,11 @@ for (const dungeon of dungeons) {
       for (const ev of withoutBankedSoaks(w.events)) {
         const c = cueFor(ev, ctx);
         if (c) play(c.id, w.time, c.vol);
+        const land = landCueFor(ev, dungeon);
+        if (land) later.push({ at: w.time + (land.after ?? 0), id: land.id, vol: land.vol });
       }
+      for (const l of later) if (l.at <= w.time) play(l.id, w.time, l.vol);
+      later = later.filter((l) => l.at > w.time);
       for (const c of partyCues(wasDown, w.heroes.map((_, i) => w.heroData(i).player.hp), w.acting)) play(c.id, w.time);
       const mc = millCue(ctx);
       if (mc) play(mc.id, w.time, mc.vol);
