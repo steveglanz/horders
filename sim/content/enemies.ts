@@ -86,5 +86,5 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   hessa: { id: 'hessa', name: 'Hessa of the Ebb', hp: 3400, speed: 0, damage: 9, radius: 44, xp: 0, rank: 'boss', title: 'Boss' },
   kilnMother: { id: 'kilnMother', name: 'Smolderhusk, the Kiln Mother', hp: 3800, speed: 30, damage: 25, radius: 42, xp: 0, rank: 'boss', title: 'Boss' },
   /** BOSSV2 (design, 25 Nov): the Kiln Mother's stage 2 bellows. They don't attack; break all 3 and she falls out stunned. */
-  kilnBellows: { id: 'kilnBellows', name: 'Kiln Bellows', hp: 300, speed: 0, damage: 0, radius: 24, xp: 0, rank: 'normal', stationary: true },
+  kilnBellows: { id: 'kilnBellows', name: 'Kiln Bellows', hp: 200, speed: 0, damage: 0, radius: 24, xp: 0, rank: 'normal', stationary: true },
 };
