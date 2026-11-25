@@ -261,23 +261,43 @@ function drawDuskblade(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[25.6, 14 + bob], [28.4, 14 + bob]], 0.85, '#e0465a');
 }
 
-/** Ashling: a small hunched imp of cinders. */
+/** Ashling: a small hunched imp of cinders: swept-back horns, a wide fanged grin, and long clawed arms reaching ahead. */
 function drawAshling(ctx: Ctx, _s: number, f: number): void {
   const hop = [0, -1.5, -2, -0.6][f];
   const leg = [1, 0, -1, 0][f];
-  limb(ctx, 9, 17 + hop, 8 - leg, 21, 1.6, '#2c242f');
-  limb(ctx, 14, 17 + hop, 15 + leg, 21, 1.6, '#2c242f');
-  // Body.
-  ell(ctx, 12, 13.5 + hop, 6.6, 5.6);
+  // Bent, digitigrade legs.
+  limb(ctx, 8, 16 + hop, 6 - leg, 21.5, 1.6, '#2c242f');
+  limb(ctx, 12, 17 + hop, 13 + leg, 21.5, 1.6, '#2c242f');
+  // Back arm, trailing.
+  limb(ctx, 8, 13 + hop, 4, 17 + hop + leg, 1.3, '#2a222d');
+  // Body: a hunched, pointed back.
+  ctx.beginPath();
+  ctx.moveTo(5, 16 + hop);
+  ctx.quadraticCurveTo(5, 8 + hop, 11, 8.5 + hop);
+  ctx.quadraticCurveTo(16, 10 + hop, 15.5, 15 + hop);
+  ctx.quadraticCurveTo(11, 19 + hop, 5, 16 + hop);
+  ctx.closePath();
   shade(ctx, '#7a6a80', '#2e2632', 8, 19, 1.1);
-  // Horns.
+  // Head thrust forward, horns swept back.
   ctx.fillStyle = '#1d161f';
-  ctx.beginPath(); ctx.moveTo(10, 9 + hop); ctx.lineTo(8, 4.5 + hop); ctx.lineTo(12, 8.5 + hop); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(14, 8.6 + hop); ctx.lineTo(16.5, 4.4 + hop); ctx.lineTo(16, 9.5 + hop); ctx.fill();
-  // Claw reaching forward.
-  limb(ctx, 16, 14 + hop, 20, 13 + hop - leg, 1.4, '#3a3040');
-  cracks(ctx, [[[8, 13 + hop], [10, 15 + hop], [9, 17 + hop]]], '#ff7a3c', 0.8);
-  eyes(ctx, [[13.6, 12 + hop], [16.4, 12 + hop]], 1.1, '#ff5a3c');
+  ctx.beginPath(); ctx.moveTo(13, 8.5 + hop); ctx.quadraticCurveTo(9, 6 + hop, 7, 2.5 + hop); ctx.quadraticCurveTo(11.5, 5 + hop, 15, 7.5 + hop); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(16, 8 + hop); ctx.quadraticCurveTo(14.5, 4.5 + hop, 12.5, 2 + hop); ctx.quadraticCurveTo(17, 4.5 + hop, 18, 8 + hop); ctx.fill();
+  ell(ctx, 17, 11 + hop, 4, 3.2);
+  shade(ctx, '#857489', '#332a37', 8, 14, 1.1);
+  // A wide grin full of teeth.
+  ctx.fillStyle = '#16070a';
+  ctx.beginPath(); ctx.moveTo(15, 12.2 + hop); ctx.lineTo(21, 11.4 + hop); ctx.lineTo(19.5, 13.8 + hop); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f2e8d8';
+  for (const x of [16.5, 18.2, 19.9]) { ctx.beginPath(); ctx.moveTo(x - 0.5, 12.1 + hop - (x - 16) * 0.12); ctx.lineTo(x, 13.4 + hop); ctx.lineTo(x + 0.5, 12 + hop - (x - 16) * 0.12); ctx.fill(); }
+  // Front arm, long, its claws reaching ahead.
+  limb(ctx, 14, 14 + hop, 20.5, 16 + hop - leg, 1.4, '#3a3040');
+  ctx.strokeStyle = '#e8dcc8'; ctx.lineWidth = 0.7;
+  for (const d of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(20.5, 16 + hop - leg); ctx.lineTo(22.6, 16 + hop - leg + d * 1.2 + 0.6); ctx.stroke(); }
+  cracks(ctx, [[[7, 11 + hop], [9, 13.5 + hop], [8, 16 + hop]]], '#ff7a3c', 0.8);
+  // Slanted eyes under a hard brow.
+  ctx.save(); ctx.fillStyle = '#ff5a3c'; ctx.shadowColor = '#ff5a3c'; ctx.shadowBlur = 3;
+  for (const x of [16.4, 19]) { ctx.beginPath(); ctx.moveTo(x - 1.1, 9.4 + hop); ctx.lineTo(x + 1.2, 9.9 + hop); ctx.lineTo(x - 0.7, 10.8 + hop); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
 }
 
 /** Slagling (the raid): a squat blob of molten slag, its crust cooling dark over a bright core. */
@@ -316,37 +336,52 @@ function drawSlagling(ctx: Ctx, _s: number, f: number): void {
   eyes(ctx, [[10.5, 12.5 + sq], [15.5, 12.5 + sq]], 1, '#ffe08a');
 }
 
-/** Cinderhound: a lean, smouldering hound in side view. */
+/** Cinderhound: a lean, smouldering hound in side view: head low, jaws open on its fangs, hackles of cinder spikes. */
 function drawHound(ctx: Ctx, _s: number, f: number): void {
   const a = [0.5, 0.15, -0.5, -0.15][f];
   const bob = [0, -0.8, 0, -0.8][f];
-  const legs: [number, number][] = [[11, a], [14, -a], [22, -a], [25, a]];
+  const legs: [number, number][] = [[10, a], [13, -a], [22, -a], [25, a]];
   for (const [x, k] of legs) limb(ctx, x, 21 + bob, x + Math.sin(k) * 5, 29, 2, '#38190f');
-  // Flame tail.
+  // Flame tail, low and straight out behind.
   ctx.save();
-  ctx.strokeStyle = '#5a2a18';
-  ctx.lineWidth = 2.4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(9, 18 + bob);
-  ctx.quadraticCurveTo(3, 15 + bob, 4, 9 + bob - a * 2);
-  ctx.stroke();
+  ctx.strokeStyle = '#5a2a18'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(9, 18 + bob); ctx.quadraticCurveTo(4, 17 + bob, 2.5, 13 + bob - a * 2); ctx.stroke();
   ctx.restore();
-  softGlow(ctx, 4, 9 + bob - a * 2, 4, 'rgba(255,190,80,0.95)');
-  // Body.
-  ell(ctx, 17.5, 19 + bob, 10, 5.4);
-  shade(ctx, '#a4502c', '#3a170d', 13, 25);
-  // Neck and head.
-  ell(ctx, 27, 15 + bob, 5, 4.4);
-  shade(ctx, '#b0582f', '#41190e', 10, 20);
+  softGlow(ctx, 2.5, 13 + bob - a * 2, 3.6, 'rgba(255,190,80,0.95)');
+  // Hackles: a ridge of cinder spikes along the spine, highest at the shoulders.
+  for (const [x, h] of [[12, 3], [15, 4], [18, 5], [21, 5.5], [24, 4.5]] as [number, number][]) {
+    ctx.beginPath(); ctx.moveTo(x - 1.6, 15 + bob); ctx.lineTo(x + 0.6, 15 + bob - h); ctx.lineTo(x + 1.6, 15 + bob); ctx.closePath();
+    shade(ctx, '#ff9a4a', '#5a2414', 15 - h, 15, 0.9);
+  }
+  // Body: lean, with a tucked belly.
   ctx.beginPath();
-  ctx.moveTo(29, 13.5 + bob); ctx.lineTo(34.5, 16 + bob); ctx.lineTo(30, 18.5 + bob); ctx.closePath();
-  shade(ctx, '#9a4a28', '#3a170d', 13, 19, 1.1);
-  // Ears.
+  ctx.moveTo(8, 18 + bob);
+  ctx.quadraticCurveTo(14, 13 + bob, 25, 14 + bob);
+  ctx.quadraticCurveTo(29, 17 + bob, 26, 22 + bob);
+  ctx.quadraticCurveTo(19, 21 + bob, 15, 23 + bob);
+  ctx.quadraticCurveTo(9, 23 + bob, 8, 18 + bob);
+  ctx.closePath();
+  shade(ctx, '#a4502c', '#3a170d', 13, 24);
+  // Head held low, a long snout, jaws gaping.
+  ell(ctx, 27.5, 17.5 + bob, 5, 4.2);
+  shade(ctx, '#b0582f', '#41190e', 13, 22);
+  ctx.beginPath(); ctx.moveTo(28, 14.6 + bob); ctx.lineTo(35.6, 16.4 + bob); ctx.lineTo(35, 18 + bob); ctx.lineTo(29, 18.6 + bob); ctx.closePath();
+  shade(ctx, '#a85430', '#3a170d', 14, 19, 1);
+  ctx.beginPath(); ctx.moveTo(28.5, 20.2 + bob); ctx.lineTo(34.4, 23.4 + bob); ctx.lineTo(33.4, 24.4 + bob); ctx.lineTo(28, 22.2 + bob); ctx.closePath();
+  shade(ctx, '#8a3e20', '#341509', 20, 24, 1);
+  ctx.fillStyle = '#1c0604';
+  ctx.beginPath(); ctx.moveTo(29, 18.6 + bob); ctx.lineTo(35, 18 + bob); ctx.lineTo(34.4, 23.4 + bob); ctx.lineTo(28.5, 20.2 + bob); ctx.closePath(); ctx.fill();
+  softGlow(ctx, 31.5, 20 + bob, 2.4, 'rgba(255,170,60,0.85)');
+  ctx.fillStyle = '#f4ead8';
+  for (const x of [30.4, 32.2, 34]) { ctx.beginPath(); ctx.moveTo(x - 0.55, 18.5 + bob - (x - 30) * 0.1); ctx.lineTo(x, 20.4 + bob); ctx.lineTo(x + 0.55, 18.4 + bob - (x - 30) * 0.1); ctx.fill(); }
+  for (const x of [30, 32.6]) { ctx.beginPath(); ctx.moveTo(x - 0.5, 21 + bob + (x - 30) * 0.5); ctx.lineTo(x + 0.2, 19.4 + bob + (x - 30) * 0.4); ctx.lineTo(x + 0.7, 21.1 + bob + (x - 30) * 0.5); ctx.fill(); }
+  // Ears pinned back.
   ctx.fillStyle = '#2c1209';
-  ctx.beginPath(); ctx.moveTo(24, 12 + bob); ctx.lineTo(24.5, 7 + bob); ctx.lineTo(27, 11 + bob); ctx.fill();
-  cracks(ctx, [[[10, 15.5 + bob], [14, 14.5 + bob], [18, 15 + bob], [23, 14 + bob]]], '#ffb347', 1);
-  eyes(ctx, [[29.5, 14 + bob]], 1.1, '#ffd23c');
+  ctx.beginPath(); ctx.moveTo(25.5, 15.5 + bob); ctx.lineTo(22.5, 12 + bob); ctx.lineTo(27.5, 14.6 + bob); ctx.fill();
+  cracks(ctx, [[[10, 18 + bob], [14, 16.5 + bob], [19, 17 + bob], [24, 16 + bob]]], '#ffb347', 1);
+  ctx.save(); ctx.fillStyle = '#ffd23c'; ctx.shadowColor = '#ffd23c'; ctx.shadowBlur = 3;
+  ctx.beginPath(); ctx.moveTo(28, 15.4 + bob); ctx.lineTo(31.2, 16 + bob); ctx.lineTo(28.4, 17 + bob); ctx.closePath(); ctx.fill();
+  ctx.restore();
 }
 
 /**
@@ -425,36 +460,86 @@ function drawAshbuck(ctx: Ctx, _s: number, f: number): void {
   softGlow(ctx, 54.5, 23.5 + bob, 2.6, 'rgba(255,150,60,0.9)');
 }
 
-/** Hollow Warden: a hulking guardian of dark stone with pink runes. */
+/**
+ * Hollow Warden: a hunched brute of dark stone with pink runes (Steve, 25 Nov: foes must look "intentionally menacing
+ * and creature like"). Head thrust low and forward under a jagged spined back, an underbite of fangs, slit eyes, and
+ * long arms that end in three hooked claws, the front one raised to slam. Faces right.
+ */
 function drawWarden(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
   const swing = [1.5, 0, -1.5, 0][f];
-  // Legs.
-  ctx.fillStyle = '#211a20';
-  ell(ctx, 21 - swing, 45, 5, 4); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke();
-  ell(ctx, 33 + swing, 45, 5, 4); ctx.fill(); ctx.stroke();
-  // Back arm.
-  ell(ctx, 12, 31 + bob - swing, 6, 9, 0.2);
-  shade(ctx, '#4a3c48', '#1d171c', 22, 40);
-  // Torso.
-  ell(ctx, 27, 28 + bob, 15, 13.5);
-  shade(ctx, '#5c4b59', '#1f191e', 15, 42, 1.6);
-  // Plates on the torso.
+  const claw = (x: number, y: number, dir: number, col: string) => {
+    ctx.save(); ctx.fillStyle = col; ctx.strokeStyle = INK; ctx.lineWidth = 0.9;
+    for (const [dx, dy] of [[-2.6, 0], [0, 0.8], [2.6, 0]]) {
+      ctx.beginPath(); ctx.moveTo(x + dx - 1.2, y + dy); ctx.quadraticCurveTo(x + dx + dir * 1.5, y + dy + 3.5, x + dx + dir * 3, y + dy + 5.2); ctx.lineTo(x + dx + 1.2, y + dy); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  // Legs: short, bowed and clawed.
+  ctx.fillStyle = '#211a20'; ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+  ell(ctx, 19 - swing, 46, 5, 3.6); ctx.fill(); ctx.stroke();
+  ell(ctx, 32 + swing, 46, 5, 3.6); ctx.fill(); ctx.stroke();
+  claw(22 - swing, 46.5, 1, '#d8cbb8'); claw(35 + swing, 46.5, 1, '#d8cbb8');
+  // Back arm, hanging to the floor.
+  limb(ctx, 14, 25 + bob, 10, 40 + bob - swing, 6.5, '#3a2f38');
+  ell(ctx, 10, 41 + bob - swing, 4.5, 3.6); shade(ctx, '#4a3c48', '#1d171c', 37, 45);
+  claw(10, 43 + bob - swing, 1, '#cfc2ae');
+  // Spines along the back: jagged slabs of stone.
   ctx.save();
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(15, 26 + bob); ctx.quadraticCurveTo(27, 32 + bob, 39, 26 + bob); ctx.stroke();
+  for (const [x, y, h, r] of [[12, 22, 9, -0.7], [17, 15, 11, -0.4], [24, 11, 10, -0.15], [31, 12, 7, 0.1]] as const) {
+    ctx.save(); ctx.translate(x, y + bob); ctx.rotate(r);
+    ctx.beginPath(); ctx.moveTo(-3, 2); ctx.lineTo(-0.6, -h); ctx.lineTo(3, 2); ctx.closePath();
+    shade(ctx, '#7a6576', '#2a2128', -h, 2, 1.1);
+    ctx.restore();
+  }
   ctx.restore();
-  // Head sunk into the shoulders.
-  ell(ctx, 31, 15.5 + bob, 6.2, 5.4);
-  shade(ctx, '#6b5868', '#2b2229', 10, 21);
-  // Front arm with a huge fist.
-  ell(ctx, 42, 31 + bob + swing, 6.5, 9.5, -0.2);
-  shade(ctx, '#5c4b59', '#221b21', 22, 41);
-  ell(ctx, 44, 40 + bob + swing, 5.5, 4.5);
-  shade(ctx, '#4d3f4b', '#1a1418', 36, 45);
-  cracks(ctx, [[[23, 22 + bob], [26, 27 + bob], [24, 32 + bob]], [[29, 23 + bob], [30, 30 + bob]]], '#ff3b6b', 1.2);
-  eyes(ctx, [[30, 15 + bob], [34, 15 + bob]], 1.2, '#ff3b6b');
+  // Torso: a hunched hump, high at the back, sloping down to the head.
+  ctx.beginPath();
+  ctx.moveTo(9, 30 + bob);
+  ctx.quadraticCurveTo(12, 14 + bob, 26, 15 + bob);
+  ctx.quadraticCurveTo(38, 16 + bob, 42, 26 + bob);
+  ctx.quadraticCurveTo(41, 39 + bob, 30, 42 + bob);
+  ctx.quadraticCurveTo(14, 43 + bob, 9, 30 + bob);
+  ctx.closePath();
+  shade(ctx, '#5c4b59', '#1f191e', 14, 43, 1.6);
+  // Ribs of stone down the flank.
+  ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.1;
+  for (const x of [15, 20, 25, 30]) { ctx.beginPath(); ctx.moveTo(x, 24 + bob); ctx.quadraticCurveTo(x - 2.5, 32 + bob, x + 1, 40 + bob); ctx.stroke(); }
+  ctx.restore();
+  // Front arm, reaching down and forward, its claws spread for the slam.
+  limb(ctx, 34, 27 + bob, 43, 38 + bob + swing, 7.5, '#5c4b59');
+  ell(ctx, 44, 40 + bob + swing, 5.2, 4.2); shade(ctx, '#4d3f4b', '#1a1418', 36, 45);
+  claw(45, 42 + bob + swing, 1, '#e4d8c4');
+  // Head thrust forward from the hump: a wedge skull, a heavy brow, and a gaping jaw of fangs.
+  ctx.beginPath();
+  ctx.moveTo(33, 18 + bob);
+  ctx.lineTo(47, 16 + bob);
+  ctx.quadraticCurveTo(53, 18 + bob, 52, 22 + bob);
+  ctx.lineTo(37, 25 + bob);
+  ctx.closePath();
+  shade(ctx, '#6b5868', '#2b2229', 15, 25);
+  // Lower jaw, hanging open.
+  ctx.beginPath();
+  ctx.moveTo(36, 25 + bob);
+  ctx.lineTo(51, 24 + bob);
+  ctx.lineTo(49, 29.5 + bob);
+  ctx.lineTo(38, 30 + bob);
+  ctx.closePath();
+  shade(ctx, '#5c4b59', '#241c22', 24, 30);
+  ctx.fillStyle = '#1a070c';
+  ctx.beginPath(); ctx.moveTo(38, 23.4 + bob); ctx.lineTo(51.5, 21.8 + bob); ctx.lineTo(50.5, 24.6 + bob); ctx.lineTo(38.5, 26 + bob); ctx.closePath(); ctx.fill();
+  softGlow(ctx, 45, 24.2 + bob, 3, 'rgba(255,59,107,0.55)');
+  ctx.fillStyle = '#f0e6d4';
+  for (const x of [40.5, 43.5, 46.5, 49.5]) { ctx.beginPath(); ctx.moveTo(x - 0.8, 23.3 + bob - (x - 40) * 0.17); ctx.lineTo(x + 0.2, 25.6 + bob); ctx.lineTo(x + 0.8, 23.1 + bob - (x - 40) * 0.17); ctx.closePath(); ctx.fill(); }
+  for (const x of [39.5, 49]) { ctx.beginPath(); ctx.moveTo(x - 0.9, 26.3 + bob); ctx.lineTo(x + 0.6, 21.6 + bob); ctx.lineTo(x + 1, 26 + bob); ctx.closePath(); ctx.fill(); }
+  // Brow ridge over the eyes.
+  ctx.fillStyle = '#251c22';
+  ctx.beginPath(); ctx.moveTo(34, 17.6 + bob); ctx.lineTo(48, 15.6 + bob); ctx.lineTo(47, 18.4 + bob); ctx.lineTo(35, 20.2 + bob); ctx.closePath(); ctx.fill();
+  cracks(ctx, [[[20, 21 + bob], [23, 27 + bob], [21, 33 + bob]], [[28, 20 + bob], [29, 28 + bob], [27, 36 + bob]]], '#ff3b6b', 1.2);
+  // Slit eyes, angled down to the snout.
+  ctx.save(); ctx.fillStyle = '#ff3b6b'; ctx.shadowColor = '#ff3b6b'; ctx.shadowBlur = 4;
+  for (const x of [39, 44]) { ctx.beginPath(); ctx.moveTo(x - 2, 19.4 + bob); ctx.lineTo(x + 2.2, 19.6 + bob); ctx.lineTo(x - 1.4, 21.2 + bob); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
 }
 
 /** Cinder Brute: a horned brute with molten fists. */
