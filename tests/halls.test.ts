@@ -786,6 +786,23 @@ describe('H3d: the Wrackline on the Halls map', () => {
     expect(p.hp).toBeGreaterThanOrEqual(hp);
   });
 
+  it('while the Ebb pulls, no foe can climb onto an afloat raft on the map (design, 25 Nov); out of the Ebb they can', () => {
+    for (const ebbOn of [true, false]) {
+      const w = wrack(5);
+      wake(w);
+      const ebb = w as unknown as { ebbT: number; ebbWarnT: number; tideClockT: number };
+      ebb.ebbWarnT = 0; ebb.ebbT = ebbOn ? 4 : 0; ebb.tideClockT = 99;
+      const r = w.rafts[0];
+      const e = w.enemies.find((q) => q.alive && q.kind !== 'shoalLurker' && q.def.rank !== 'boss')!;
+      e.x = r.x + 10; e.y = r.y;
+      put(w, r.x + 40, r.y + 40);
+      w.step(idle);
+      const d = Math.hypot(e.x - r.x, e.y - r.y);
+      if (ebbOn) expect(d).toBeGreaterThanOrEqual(78);
+      else expect(d).toBeLessThan(78);
+    }
+  });
+
   it('bots walk it and go through the door into Hessa\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {

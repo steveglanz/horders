@@ -5628,7 +5628,9 @@ export class World {
       e.y += my * dt * ms;
       this.clampArena(e, e.def.radius);
       // The Wrackline: Shoal Lurkers swim; they can't climb onto a raft, so they circle its edge.
-      if (e.kind === 'shoalLurker' && this.rafts.length) this.keepOffRafts(e);
+      // H3d (design, 25 Nov): on a Halls map, while the Ebb pulls, no foe can climb onto an afloat raft (the Lurkers' rule
+      // for every foe but a boss), so a hero on a raft is safe until the water stops. The arena keeps its rule.
+      if ((e.kind === 'shoalLurker' || (this.hallsOn && this.ebbT > 0 && e.def.rank !== 'boss')) && this.rafts.length) this.keepOffRafts(e);
 
       if (e.def.rank !== 'normal') this.runAbilities(i, dt);
 
