@@ -201,6 +201,8 @@ for (const seed of seeds) {
   const c: Record<string, number> = {};
   const bump = (k: string, n = 1) => (c[k] = (c[k] ?? 0) + n);
   let bossAt = 0;
+  // The door state (design, 25 Nov): elite chests opened, named foes met, talent ranks, level and hp% per hero when the boss spawns.
+  let chests = 0, named = 0, door = '';
   const deaths: string[] = [];
   const drive = w.heroes.map((_, i) => (react || forget || stepErr ? reactBot(react, skill, { forget, stepErr, salt: seed * 16 + i }) : (x: World) => botInput(x, skill)));
   // A map run walks between its fights, so it gets longer before it counts as stuck.
@@ -232,7 +234,13 @@ for (const seed of seeds) {
       }
       for (const ev of w.events) if (ev.type === 'soak' && ev.owner === -3) { if (ev.ok) os.downOk++; else os.downMiss++; }
     }
-    if (w.bossSpawned && !bossAt) bossAt = w.time;
+    if (w.bossSpawned && !bossAt) {
+      bossAt = w.time;
+      const ranks = w.heroes.map((_, i) => Object.values(w.heroData(i).talents as Record<string, number>).reduce((a, b) => a + b, 0));
+      const lv = w.heroes.map((_, i) => w.hero(i).player.level);
+      const hp = w.heroes.map((_, i) => Math.round((100 * Math.max(0, w.hero(i).player.hp)) / w.hero(i).player.maxHp));
+      door = `door chests=${chests} named=${named} ranks=${ranks.join('/')} level=${lv.join('/')} hp=${hp.join('/')}`;
+    }
     if (ytrace && w.bossSpawned && w.bossIndex >= 0) ysTick(w, before);
     w.heroes.forEach((_, i) => {
       if (before[i] > 0 && w.hero(i).player.hp <= 0) {
@@ -241,6 +249,8 @@ for (const seed of seeds) {
       }
     });
     for (const ev of w.events) {
+      if (ev.type === 'chest' && !bossAt) chests++;
+      if (ev.type === 'namedSpawn' && !bossAt) named++;
       if (ev.type === 'castDone' && ev.name === 'Long Night') {
         // Coldmarrow: did standing in someone else's brighter light soften the Long Night?
         const warm = (w as unknown as { warmthAt(x: number, y: number): number });
@@ -277,7 +287,7 @@ for (const seed of seeds) {
   if (s.victory) wins++;
   if (ytrace) ysEnd(w, s.victory);
   const alive = w.heroes.map((_, i) => (w.hero(i).player.hp > 0 ? 'up' : 'down')).join('/');
-  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} heroes=${alive} boss=${w.bossIndex >= 0 ? Math.round((100 * w.enemies[w.bossIndex].hp) / w.enemies[w.bossIndex].maxHp) + '%' : '-'} deaths=${deaths.join(',')} ${JSON.stringify(c)}`);
+  console.log(`seed ${seed}: ${s.victory ? 'WIN ' : 'LOSS'} t=${s.time.toFixed(0)} boss=${bossAt ? (s.time - bossAt).toFixed(0) + 's' : '-'} fights=${w.encounter} heroes=${alive} boss=${w.bossIndex >= 0 ? Math.round((100 * w.enemies[w.bossIndex].hp) / w.enemies[w.bossIndex].maxHp) + '%' : '-'} deaths=${deaths.join(',')} ${door} ${JSON.stringify(c)}`);
 }
 if (process.env.STIRHURT === '1' && fightHurts.length) {
   const q = [...fightHurts].sort((x, y) => x - y);
