@@ -1343,7 +1343,7 @@ export class GameScene extends Phaser.Scene {
             this.hud.warn('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
           }
           // The Wrackline.
-          else if (ev.name === 'The Ebb') this.hud.warn('The Ebb!', 'The water is about to pull. Get on a raft');
+          else if (ev.name === 'The Ebb') this.hud.warn('The Ebb!', w.hallsOn ? 'Get on a raft: the water keeps them off until it stops.' : 'The water is about to pull. Get on a raft');
           else if (ev.name === 'Sink') this.hud.warn('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
           else if (ev.name === 'Call the Shoal') this.hud.warn('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
           // The raid: Grandmother Slag.

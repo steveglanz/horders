@@ -1631,6 +1631,22 @@ function hallsWalk(w: World): Input {
     const edge = HALLS.reach + 80;
     if (d < edge) { const k = 1.5 * (1 - (d - HALLS.reach) / 80); fx += (dx / d) * Math.max(0, k); fy += (dy / d) * Math.max(0, k); }
   }
+  // QA, 25 Nov: a standing pillar (the Glarewell's stay up in a cleared room) dead ahead is walked round, not pressed
+  // into: the push out of a pillar is straight back along the walk, so heading at its middle the hero never got past.
+  for (const c of w.pillars) {
+    if (c.cracked) continue;
+    const dx = c.x - p.x, dy = c.y - p.y;
+    const ahead = dx * fx + dy * fy;
+    if (ahead <= 0 || ahead > c.r + 120) continue;
+    const across = fx * dy - fy * dx;
+    const clear = c.r + 30;
+    if (Math.abs(across) >= clear) continue;
+    // The pillar is on the left of the walk (across > 0): step right, and the other way round.
+    const k = 1.2 * (1 - Math.abs(across) / clear) + 0.4;
+    const sx = across > 0 ? fy : -fy, sy = across > 0 ? -fx : fx;
+    fx += sx * k;
+    fy += sy * k;
+  }
   const wall = wallPush(m, p.x, p.y, 40);
   fx += wall.x * wall.k * 0.5;
   fy += wall.y * wall.k * 0.5;
