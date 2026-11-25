@@ -223,6 +223,19 @@ type Spot = { role: PackRole; room: number; x: number; y: number };
  * shrine), and D a hard or named fight not already on the map. `pick` and `chance` are the run's rng, as for rollFork.
  * H2c: the rooms come from genHalls (hashes of the seed only); `template` keeps H1's hand-made KILN_HALLS_A.
  */
+/** Where the foes of the map's `k`th pack (encounter `enc`, standing at x, y) sleep: round its spot, turned by the seed. */
+export function packFoes(seed: number, k: number, enc: EncounterId, x: number, y: number): { kind: EnemyKind; x: number; y: number }[] {
+  const kinds: EnemyKind[] = [];
+  for (const sp of ENCOUNTERS[enc].spawns) for (let j = 0; j < sp.n; j++) kinds.push(sp.kind);
+  const turn = ((hash(seed, k) >>> 4) % 360) * (Math.PI / 180);
+  return kinds.map((kind, j) => {
+    if (kinds.length === 1) return { kind, x, y };
+    const a = turn + (j * 2 * Math.PI) / kinds.length;
+    const r = HALLS.spread * (j % 2 ? 1.25 : 1);
+    return { kind, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
+  });
+}
+
 export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
@@ -250,9 +263,9 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const { hard, named } = DUNGEONS[dungeon];
   const pool = [...hard, ...named].filter((e, i, a) => !used.has(e) && a.indexOf(e) === i);
   const dEnc = pool.length ? pool[pick(pool.length)] : route[3];
-  // H4a (design, 25 Nov): in a group dungeon a named gate goes on the main path, as an arena party takes it (its Brutes'
-  // elite chests are drafts a party needs for the boss), and the side room keeps the steady fight instead.
-  const onPath = DUNGEONS[dungeon].style === 'group' && side.kind === 'named';
+  // H4a (design, 25 Nov): on every map a named gate goes on the main path, as an arena run takes it (its Brutes' elite
+  // chests are drafts the party needs for the boss), and the side room keeps the steady fight instead.
+  const onPath = side.kind === 'named';
   const plan: Record<PackRole, { enc: EncounterId; slot: number; main: boolean; bags: number; gate?: GateKind }> = {
     A: { enc: route[0], slot: 0, main: true, bags: 1 },
     B: onPath ? { enc: side.encounter, slot: 1, main: true, bags: 1, gate: 'named' } : { enc: route[1], slot: 1, main: true, bags: 1 },
@@ -264,15 +277,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
   const packs: HallsPack[] = spots.map((s, k) => {
     const p = plan[s.role];
     const { x, y } = s;
-    const kinds: EnemyKind[] = [];
-    for (const sp of ENCOUNTERS[p.enc].spawns) for (let j = 0; j < sp.n; j++) kinds.push(sp.kind);
-    const turn = ((hash(seed, k) >>> 4) % 360) * (Math.PI / 180);
-    const foes = kinds.map((kind, j) => {
-      if (kinds.length === 1) return { kind, x, y };
-      const a = turn + (j * 2 * Math.PI) / kinds.length;
-      const r = HALLS.spread * (j % 2 ? 1.25 : 1);
-      return { kind, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
-    });
+    const foes = packFoes(seed, k, p.enc, x, y);
     return { role: s.role, room: s.room, x, y, enc: p.enc, slot: p.slot, main: p.main, guard: s.role === 'E', gate: p.gate, bags: p.bags, state: 'asleep', foes };
   });
   return { rooms, corridors, packs, door, mirror, layoutRooms, seen: rooms.map((_, i) => i === 0), done: false, vents: [] };
