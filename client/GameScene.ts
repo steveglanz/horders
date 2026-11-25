@@ -1805,6 +1805,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     return e.kind === 'worldShadow' ? shadowSheet(w.worldBoss).key : e.kind === 'grandmotherSlag' ? (this.textures.exists('slagCroneRaid') ? 'slagCroneRaid' : 'slagCrone')
       : e.kind === 'slagling' && !this.textures.exists('slagling') ? 'ashling' : e.kind === 'emberTwin' && i % 2 ? 'emberTwinB' : e.kind === 'ondrel' && !this.textures.exists('ondrel') ? 'kilnMother'
+      : e.kind === 'kilnBellows' && !this.textures.exists('kilnBellows') ? 'rift'
       // Old Vorhulm and his Craw borrow the Vorhulm rare's and the rift's sheets until their own land.
       // The Cinder Colossus in person (raid 3) wears the 192 raid sheet, cracked in Meltdown; 'colossus' is his shadow's.
       : e.kind === 'colossus' ? (w.bossPhase >= 3 ? 'colossusMelt' : 'colossusRaid')

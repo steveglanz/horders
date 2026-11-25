@@ -305,6 +305,8 @@ function startRun(bounty = false, key = false): void {
     // H2c: ?hallsmap=a plays H1's hand-made map instead of the generated one (for comparing).
     if (new URLSearchParams(location.search).get('hallsmap') === 'a') opts.hallsTemplate = true;
   }
+  // BOSSV2 (?bossv2=1, design 25 Nov): the three-stage Kiln Mother and the new Gorge, local play only until Steve okays it.
+  if (params.get('bossv2') === '1' && !hosting) opts.bossV2 = true;
   const runOpts = hosting ? coop!.startRun(opts) : opts;
   syncLobby();
   game.scene.start('game', {
