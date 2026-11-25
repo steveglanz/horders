@@ -66,7 +66,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   it('each keeps its room\'s one quiet motion: the bellows breathe and the steam puffs; ash and candle stay still', () => {
     const m = (k: (typeof ROOM_BEDS)[number]) => motion(beds[k]);
     for (const busy of ['bellowsHall', 'coolingYard'] as const) for (const still of ['ashStore', 'kilnShrine'] as const) expect(m(busy)).toBeGreaterThan(m(still));
-    // The Foundry: the boiler puffs, the cistern's light swells, the pump beam rocks; the anchor store doesn't move at all.
+    // The Foundry: the boiler puffs, the cistern's light swells, the pumps stroke; the anchor store doesn't move at all.
     for (const busy of ['boilerRoom', 'cistern', 'pumpHall'] as const) expect(m(busy)).toBeGreaterThan(2 * m('anchorStore'));
     expect(m('anchorStore')).toBeLessThan(m('kilnShrine'));
   });

@@ -343,7 +343,7 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         break;
       }
       case 'pumpHall': {
-        // Pump hall: the beam rocks over twice round the loop, a wooden creak as it turns and a muffled push of water.
+        // Pump hall: the pumps stroke slowly up and down twice round the loop: a creak as each stroke turns, a muffled push of water.
         hp = 0.92 * (hp + w - prev);
         prev = w;
         lp += (w - lp) * 0.04;
