@@ -9,6 +9,7 @@ import { applySnapshot } from '../sim/netsync';
 import Phaser from 'phaser';
 import { ASHWALL, BALLAST, DIMHORN, LAMPEYE, SUMMONS, BANK, BRIM, ARENA_EVENTS, TICK, World, Input, SimEvent, type Enemy, WorldOptions, VEIN_TIME, ARENA, GLARE, CARRIED_LIGHT, CREEPING_RIME, OVERFLOW, INHALE, MILL, MAELRA_SEAL, REVIVE_RADIUS, YSMERET, COLD, SLAG_KIT, ALT_KIT, WRACK, OSKEL, COAL as VORHULM, COLO, REGENT, LAYOUT, KILN_DRAW, EMBERDRIFT, IRONLOAD, OUTSURGE, ARENA_EVENT_INFO, WAVE_SHAPE_INFO, WAVES, STIR_INFO, versionLive } from '../sim/world';
 import { HallsView } from './hallsview';
+import { inLoop, roomLoops } from './hallsshape';
 import { BANKED_TIP, INHALE_TIP, BRIMMING_TIP, OVERFLOW_TIP, COURT_TIP, TITHE_TIP, PLATE_SHIFT_TIP, MILLSTONE_TIP, EMBERDRIFT_TIP, CREEPING_RIME_TIP, DIECUT_TIP, PUNCH_TIP, ENCOUNTERS, GLINTFALL_TIP, CARRIED_LIGHT_TIP, IRONLOAD_TIP, HOMEWARD_TIP, ROLLING_TIP, KILN_DRAW_TIP, TURNING_FIRE_TIP, SEALED_VENTS_TIP, OUTSURGE_TIP, WHIRL_TIP, SLUICETIDE_TIP, WANDER_TIP } from '../sim/content/dungeon';
 import { BOSS_VERSION_NAME } from '../sim/runshape';
 import { HEATS } from '../sim/content/heat';
@@ -431,6 +432,9 @@ export class GameScene extends Phaser.Scene {
   private resFloor = false;
   private fxCheckAt = 0;
   private vignette: HTMLElement | null = null;
+  /** The 3D view's Glare and boss flash: a screen-wide wash, its opacity set each frame. */
+  private flashFx: HTMLElement | null = null;
+  private flashShown = -1;
   /** The Coldmarrow: the additive Hearthcoal light layer, and the frost creeping in from the screen edge. */
   private coalLights: Phaser.GameObjects.Image[] = [];
   private frost: HTMLElement | null = null;
@@ -644,6 +648,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.vignette = document.getElementById('vignette');
+    this.flashFx = document.getElementById('flashFx');
+    this.flashShown = -1;
     // Foundry steam vents and fork gates (pooled; most runs never show them).
     for (let k = 0; k < 4; k++) this.ventSprites.push(this.add.image(0, 0, 'vent', '0').setScale(BASE).setVisible(false).setDepth(1.4));
     // Glarewell pillars stand above the floor and the shadows they cast.
@@ -687,6 +693,7 @@ export class GameScene extends Phaser.Scene {
 
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => {
+      if (this.flashFx) this.flashFx.style.opacity = '0'; // a run that ends mid-flash must not leave the screen washed
       this.halls?.destroy();
       this.halls = null;
       this.hd2d?.destroy();
@@ -1064,7 +1071,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     // The raid: Ladle Pour Seared the other tank, so this tank takes the boss.
     const swap = w.swapCue;
-    if (swap && !this.swapShown) this.hud.banner('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
+    if (swap && !this.swapShown) this.hud.warn('Swap tanks!', `The other tank is Seared. Take her with ${w.abilities[3].name}`);
     this.swapShown = swap;
     audio.events(events, {
       cls: w.cls,
@@ -1316,42 +1323,43 @@ export class GameScene extends Phaser.Scene {
           }
           break;
         case 'castStart':
-          if (ev.name === 'Glare') this.hud.banner('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
-          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.banner(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
-          else if (ev.name === 'Molten Cataclysm') this.hud.banner('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
-          else if (ev.name === 'Anvilfall') this.hud.banner('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
-          else if (ev.name === 'Choir of Iron') this.hud.banner('Choir of Iron!', 'The whole party is hit. Healers: get ready');
-          else if (ev.name === 'Twin Vents') this.hud.banner('Twin Vents!', 'Split up: someone in each gold vent');
-          else if (ev.name === 'Downstroke') this.hud.banner('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
-          else if (ev.name === 'Stamp') this.hud.banner('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
-          else if (ev.name === 'Scatter Embers') this.hud.banner('Scatter Embers!', 'Spread out: keep your ring off everyone else');
-          else if (ev.name === 'Snuff') this.hud.banner('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
-          else if (ev.name === 'Long Night') this.hud.banner('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
-          else if (ev.name === 'Snuffer Tide') this.hud.banner('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
-          else if (ev.name === 'Thin Ice') this.hud.banner('Thin Ice!', "The river cracks. Stay off the open water. She can't move while it's open, and takes more damage");
+          if (ev.name === 'Glare') this.hud.warn('Glare!', `Hide behind a pillar${w.dungeonId === 'glarewell' && w.enemies.some((o) => o.alive && o.castId === 'glare' && o.kind === 'lensbearer') ? `, or ${w.abilities[3].name} it` : ''}`);
+          else if (ev.name === 'Brand' || ev.name === 'Twin Brand') this.hud.warn(ev.name === 'Twin Brand' ? 'Twin Brand!' : 'Branded!', 'Get clear of pillars and enemies before it bursts');
+          else if (ev.name === 'Molten Cataclysm') this.hud.warn('Molten Cataclysm!', `Interrupt it with ${w.abilities[3].name}, or brace for impact`);
+          else if (ev.name === 'Anvilfall') this.hud.warn('Anvilfall!', this.hud.compact ? 'Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them' : 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now. Everyone else: heal them');
+          else if (ev.name === 'Choir of Iron') this.hud.warn('Choir of Iron!', 'The whole party is hit. Healers: get ready');
+          else if (ev.name === 'Twin Vents') this.hud.warn('Twin Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Downstroke') this.hud.warn('Downstroke!', (w.player.pressedT ?? 0) > 0 ? "You're Pressed: stay out of this one" : 'One hero who is not Pressed stands under the plate. Take turns');
+          else if (ev.name === 'Stamp') this.hud.warn('Stamp!', 'A huge hit on its target. Tanks: Anvil Skin or Cooling Shell now');
+          else if (ev.name === 'Scatter Embers') this.hud.warn('Scatter Embers!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Snuff') this.hud.warn('Snuff!', `${w.abilities[3].name} it, or every Hearthcoal dims`);
+          else if (ev.name === 'Long Night') this.hud.warn('The Long Night!', w.heroes.length > 1 ? "It can't be stopped. Huddle up in the brightest light: every ally close by takes some of the cold" : "It can't be stopped. Get into the brightest light you can");
+          else if (ev.name === 'Dark Call') this.hud.warn('Dark Call!', "Get your coal's light on the Dimhorn");
+          else if (ev.name === 'Snuffer Tide') this.hud.warn('Snuffer Tide!', 'Kill the Snuffers before they drink your light');
+          else if (ev.name === 'Thin Ice') this.hud.warn('Thin Ice!', "The river cracks. Stay off open water. She's stuck and takes more damage.");
           else if (ev.name === 'Frost Lace' && !this.laceShown) {
             // Once a fight: the Weaver casts it every few seconds, and its cast bar says the rest.
             this.laceShown = true;
-            this.hud.banner('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
+            this.hud.warn('Frost Lace!', `Step out of the ring, or ${w.abilities[3].name} the Weaver`);
           }
           // The Wrackline.
-          else if (ev.name === 'The Ebb') this.hud.banner('The Ebb!', 'The water is about to pull. Get on a raft');
-          else if (ev.name === 'Sink') this.hud.banner('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
-          else if (ev.name === 'Call the Shoal') this.hud.banner('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
+          else if (ev.name === 'The Ebb') this.hud.warn('The Ebb!', w.hallsOn ? 'Get on a raft: the water keeps them off until it stops.' : 'The water is about to pull. Get on a raft');
+          else if (ev.name === 'Sink') this.hud.warn('Sink!', `${w.abilities[3].name} it, or the marked raft goes under`);
+          else if (ev.name === 'Call the Shoal') this.hud.warn('Call the Shoal!', "Lurkers swim in. They can't climb onto a raft");
           // The raid: Grandmother Slag.
-          else if (ev.name === 'Ladle Pour') this.hud.banner('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
-          else if (ev.name === 'The Pour') this.hud.banner('The Pour!', 'Molten lanes: step out of the red');
-          else if (ev.name === 'Crucible Vents') this.hud.banner('Crucible Vents!', 'Split up: someone in each gold vent');
-          else if (ev.name === 'Cinder Marks') this.hud.banner('Cinder Marks!', 'Spread out: keep your ring off everyone else');
-          else if (ev.name === 'Last Ember') this.hud.banner('Last Ember!', 'She burns everything. Finish her now');
+          else if (ev.name === 'Ladle Pour') this.hud.warn('Ladle Pour!', 'A huge hit on the tank. Healers: heal the Ladle Burn off them');
+          else if (ev.name === 'The Pour') this.hud.warn('The Pour!', 'Molten lanes: step out of the red');
+          else if (ev.name === 'Crucible Vents') this.hud.warn('Crucible Vents!', 'Split up: someone in each gold vent');
+          else if (ev.name === 'Cinder Marks') this.hud.warn('Cinder Marks!', 'Spread out: keep your ring off everyone else');
+          else if (ev.name === 'Last Ember') this.hud.warn('Last Ember!', 'She burns everything. Finish her now');
           // Raid 3: the Cinder Colossus.
-          else if (ev.name === 'Wheel') this.hud.banner('Wheel!', 'He is turning on someone. Get out of his front');
-          else if (ev.name === 'Pour Out') this.hud.banner('Pour Out!', "It can't be stopped. Finish him now");
+          else if (ev.name === 'Wheel') this.hud.warn('Wheel!', 'He is turning on someone. Get out of his front');
+          else if (ev.name === 'Pour Out') this.hud.warn('Pour Out!', "It can't be stopped. Finish him now");
           // Raid 4: the Furnace Regent.
-          else if (ev.name === 'Last Word') this.hud.banner('Last Word!', 'Kill him before he finishes');
+          else if (ev.name === 'Last Word') this.hud.warn('Last Word!', 'Kill him before he finishes');
           // Raid 2: Old Vorhulm.
-          else if (ev.name === 'Swallow') this.hud.banner('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
-          else if (ev.name === 'Last Meal') this.hud.banner('Last Meal!', "It can't be stopped. Finish him now");
+          else if (ev.name === 'Swallow') this.hud.warn('Swallow!', (w.player.swallowT ?? 0) > 0 ? "You're inside. Hold on: your party is breaking the Craw" : 'Break the Craw on his side to get them out');
+          else if (ev.name === 'Last Meal') this.hud.warn('Last Meal!', "It can't be stopped. Finish him now");
           break;
         case 'interrupt':
           this.floatText(ev.x, ev.y - 40, 'Interrupted!', '#8fd8ff', 18);
@@ -1628,7 +1636,7 @@ export class GameScene extends Phaser.Scene {
         case 'waveShape':
           // Phase 15 Y1: a held pack about to come gets its own banner. A pincer or ring is named in the fight's
           // own banner (encounterStart), which comes after 'start' and would replace a banner here.
-          if (ev.stage === 'warn') this.hud.banner(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
+          if (ev.stage === 'warn') this.hud.warn(WAVE_SHAPE_INFO[ev.id].name, WAVE_SHAPE_INFO[ev.id].tip);
           {
             // Y6: a ring closing in round the hero, chevrons squeezing in from both flanks, or the gate the held pack
             // comes through (pulsing for its 2 s warning) and a burst as it arrives.
@@ -1659,7 +1667,7 @@ export class GameScene extends Phaser.Scene {
           // Phase 14 X3: the warning gets a banner. X6: what each event looks like as it lands (its warning is drawn
           // each frame in arenaEventDraw).
           // The warning wins over a fight's banner chain (stir, wave, named foe), which resumes after it.
-          if (ev.stage === 'warn') this.hud.banner(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, false, this.hud.pendingBanner());
+          if (ev.stage === 'warn') this.hud.warn(ARENA_EVENT_INFO[ev.id].name, ARENA_EVENT_INFO[ev.id].tip, this.hud.pendingBanner());
           else if (ev.stage === 'land' && ev.id === 'caveIn') {
             this.shakeBy(0.35);
             for (const c of w.caveInSpots()) {
@@ -2274,6 +2282,24 @@ export class GameScene extends Phaser.Scene {
     // (H3b: on a Halls map the room's own floor is lit by its theme, so no arena-wide glow.)
     if (w.pillars.length && !w.hallsOn) g.fillStyle(0xffe2a0, 0.07).fillCircle(0, 0, w.arenaR ?? ARENA);
     const light = this.lightAt(now);
+    // On a Halls map the light's room is lit the same pale gold, so its shadows read as in the arena (design, 25 Nov:
+    // a Cross room's wedges were faint), and each wedge stops at the room's wall, where the light is blocked anyway.
+    let wall: number[] | null = null;
+    if (w.pillars.length && w.hallsOn && w.halls) {
+      const room = w.halls.rooms.find((r) => inLoop(roomLoops(r)[0], light.x, light.y));
+      if (room) {
+        wall = roomLoops(room)[0];
+        const pts: Phaser.Math.Vector2[] = [];
+        for (let k = 0; k + 1 < wall.length; k += 2) pts.push(new Phaser.Math.Vector2(wall[k], wall[k + 1]));
+        g.fillStyle(0xffe2a0, 0.07).fillPoints(pts, true);
+      }
+    }
+    /** How far a shadow runs from (x, y) along (ux, uy) before it meets the room's wall (at most L). */
+    const toWall = (x: number, y: number, ux: number, uy: number, L: number): number => {
+      if (!wall) return L;
+      let d = 0; while (d < L && inLoop(wall, x + ux * d, y + uy * d)) d += 8;
+      return Math.min(L, d);
+    };
     // Y6 Carried Light: while her Glare is coming from a carried light, pale beams run from the light to every whole
     // pillar, so a phone shows which way each shadow now falls before it lands.
     const carried = (w.bossVariant === 'walk' || w.bossEcho === 'walk') && (light.x !== 0 || light.y !== 0) && w.enemies.some((o) => o.alive && o.castId === 'glare');
@@ -2294,11 +2320,20 @@ export class GameScene extends Phaser.Scene {
         const d = Math.hypot(cx, cy) || 1;
         const ux = cx / d;
         const uy = cy / d;
-        const L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
+        let L = d < CARRIED_LIGHT.minD ? 0 : w.shadowLen;
         const w0 = c.r;
+        // Clipped at the wall along its middle and both edges, so no part of it runs on past the room.
+        if (wall && L > 0) {
+          const wL = c.r + L * GLARE.shadowWiden, ex = (wL - w0) / L;
+          for (const sd of [0, 1, -1]) {
+            // An edge ray: from the pillar's side, widening as it goes.
+            const sx = c.x - uy * w0 * sd, sy = c.y + ux * w0 * sd, dx = ux - uy * ex * sd, dy = uy + ux * ex * sd, dl = Math.hypot(dx, dy);
+            L = Math.min(L, toWall(sx, sy, dx / dl, dy / dl, L * dl) / dl);
+          }
+        }
         const w1 = c.r + L * GLARE.shadowWiden;
         // Y9: the edge thickens with the phone text scale and is brighter, so the safe wedge reads on a 360 px phone.
-        g.fillStyle(0x06051a, 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, 0.65).beginPath();
+        g.fillStyle(0x06051a, wall ? 0.7 : 0.62).lineStyle(2.5 * this.textK, 0x9aaaff, wall ? 0.8 : 0.65).beginPath();
         g.moveTo(c.x - uy * w0, c.y + ux * w0);
         g.lineTo(c.x + ux * L - uy * w1, c.y + uy * L + ux * w1);
         g.lineTo(c.x + ux * L + uy * w1, c.y + uy * L - ux * w1);
@@ -2342,15 +2377,22 @@ export class GameScene extends Phaser.Scene {
         g.strokePath();
       }
     }
+    // In 3D the world graphics are painted onto the floor's square canvas, so a world-space flash lit a hard-edged
+    // pale square over the void and the corridors round a Halls room (phone pass, 25 Nov). There the flash is a
+    // screen-wide wash (#flashFx) instead; 2D keeps drawing it into the world.
+    let wash = 0;
     if (this.glareFlash > 0) {
       // Bright enough to sting, faint enough that you can still see the fight.
       this.glareFlash = Math.max(0, this.glareFlash - this.game.loop.delta / 450);
-      g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
+      if (this.hd2d) wash = Math.max(wash, 0.55 * this.glareFlash);
+      else g.fillStyle(0xfff0c0, 0.55 * this.glareFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
     if (this.bossFlash > 0) {
       this.bossFlash = Math.max(0, this.bossFlash - this.game.loop.delta / 700);
-      g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
+      if (this.hd2d) wash = Math.max(wash, 0.6 * this.bossFlash * this.bossFlash);
+      else g.fillStyle(0xfff4dc, 0.6 * this.bossFlash * this.bossFlash).fillCircle(w.player.x, w.player.y, 2000);
     }
+    if (this.flashFx && wash !== this.flashShown) { this.flashShown = wash; this.flashFx.style.opacity = wash.toFixed(3); }
     this.layoutDraw(g, now);
     this.edgeDraw(now);
     this.wanderDraw(now);
@@ -4241,17 +4283,26 @@ export class GameScene extends Phaser.Scene {
       // QA, 23 Nov: lifting the 2D offset by a fixed LIFT left bars and names ~60-100 px above short foes.
       const head = view.foeHead?.(r.i);
       const h = r.cast >= 0 ? 13 : 6;
-      const bw = r.bw * zb, cxp = head && !r.pack ? head.x : p.x;
+      const bw = r.bw * zb;
+      let cxp = head && !r.pack ? head.x : p.x;
       let y = head ? head.y - (h + 4) * zb : p.y + (r.top - r.y) * z * LIFT;
-      const x = cxp - bw / 2;
       // Foes bunched together: a bar (with its name above it) that would land on one already placed steps up above
       // it, so each name stays with its own bar (QA on #602: "Ember Spitter" and "Ashwall" printed on top of each other).
-      const nameH = 16 * zb, half = Math.max(bw / 2, 48 * zb);
-      for (let k = 0; k < 6; k++) {
+      // The box is the bar, or its name where that is wider (measured, not a fixed 96 px: phone pass 25 Nov, a Dimhorn
+      // 50 px from two Snuffers had its bar stacked 75 px above it). A small overlap nudges the bar sideways instead.
+      const plate = this.plates.find((t) => t.visible && t.text && Math.abs(r.x - t.x) < 1 && Math.abs(r.top - (t.y + 2)) < 1);
+      let tw = 0;
+      if (plate) { g.font = `${plate.style.fontStyle || ''} ${parseFloat(String(plate.style.fontSize)) * z * plate.scaleY}px ${plate.style.fontFamily}`; tw = g.measureText(plate.text).width; }
+      const nameH = plate ? 16 * zb : 0, half = Math.max(bw / 2, tw / 2 + 3 * zb);
+      for (let k = 0; k < 8; k++) {
         const hit = placed.find((q) => cxp - half < q.r && q.l < cxp + half && y - nameH < q.b && q.t < y + h * zb);
         if (!hit) break;
-        y = hit.t - h * zb - 3 * zb;
+        const left = cxp <= (hit.l + hit.r) / 2;
+        const shift = left ? cxp + half - hit.l : hit.r - (cxp - half);
+        if (shift <= 14 * zb) cxp += left ? -(shift + 1) : shift + 1;
+        else y = hit.t - h * zb - 3 * zb;
       }
+      const x = cxp - bw / 2;
       placed.push({ l: cxp - half, r: cxp + half, t: y - nameH, b: y + h * zb });
       r.sx = cxp; r.sy = y;
       // Under the top row or a full-width panel the bar goes with its name (below), so neither clutters the HUD.
@@ -5193,18 +5244,24 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     const pulling = w.ebbT > 0;
     const warn = w.ebbWarnT > 0;
+    // H3d: on a Halls map the drain sits in the woken room (World.wrackX/Y, wrackRoom; -1 or absent in the arena), and
+    // the Ebb's streaks run in from that room's rim, not the arena's.
+    const wx = w as unknown as { wrackX?: number; wrackY?: number; wrackRoom?: number };
+    const ox = wx.wrackX ?? 0, oy = wx.wrackY ?? 0;
+    const room = (wx.wrackRoom ?? -1) >= 0 ? w.halls?.rooms[wx.wrackRoom!] : undefined;
+    const RIM = room ? Math.min(ARENA, room.r - 20) : ARENA;
     // The drain: a dark whirlpool on the floor that turns, faster while the water pulls.
     // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
     // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
     if (!this.drainImg) this.drainImg = this.add.image(0, 0, 'drain').setDepth(0.8);
     // Y6 the Whirl: the drain turns the way the water will carry you (whirlDir 1 is clockwise on screen).
     const spinDir = w.whirl ? w.whirlDir : -1;
-    this.drainImg.setVisible(true).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
+    this.drainImg.setVisible(true).setPosition(ox, oy).setScale((WRACK.drainR * 2.3) / 256).setRotation(spinDir * (now / 1000) * (pulling ? 2.6 : warn ? 1.2 : 0.5)).setAlpha(pulling ? 1 : 0.85);
     if (pulling && !this.lowFx) {
       // Foam spun off the drain's rim.
       for (let k = 0; k < 3; k++) {
         const a = spinDir * (now / 1000) * 2.6 + (k * 2 * Math.PI) / 3;
-        g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(0, 0, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
+        g.lineStyle(2, 0xbfe9ff, 0.5).beginPath().arc(ox, oy, WRACK.drainR * 1.02, a, a + 0.7).strokePath();
       }
     }
     if (warn || pulling) {
@@ -5218,22 +5275,22 @@ export class GameScene extends Phaser.Scene {
         const outward = w.outsurge;
         if (w.whirl) {
           // Y3 the Whirl: streaks run round the drain the way it turns (the arrowed eddies are drawn below, whirlDraw).
-          const rr = WRACK.drainR + 60 + ((k * 97) % (ARENA - WRACK.drainR - 90));
+          const rr = WRACK.drainR + 60 + ((k * 97) % (RIM - WRACK.drainR - 90));
           const a0 = a + w.whirlDir * t * 1.4;
           const a1 = a0 - w.whirlDir * (pulling ? 0.22 : 0.12);
           const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
-          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(Math.cos(a1) * rr, Math.sin(a1) * rr, Math.cos(a0) * rr, Math.sin(a0) * rr);
-          g.fillStyle(0xeafaff, al).fillCircle(Math.cos(a0) * rr, Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
+          g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(ox + Math.cos(a1) * rr, oy + Math.sin(a1) * rr, ox + Math.cos(a0) * rr, oy + Math.sin(a0) * rr);
+          g.fillStyle(0xeafaff, al).fillCircle(ox + Math.cos(a0) * rr, oy + Math.sin(a0) * rr, pulling ? 2.6 : 1.8);
           continue;
         }
-        const r0 = outward ? WRACK.drainR + t * (ARENA - WRACK.drainR) : ARENA - t * (ARENA - WRACK.drainR);
+        const r0 = outward ? WRACK.drainR + t * (RIM - WRACK.drainR) : RIM - t * (RIM - WRACK.drainR);
         const len = pulling ? 80 : 44;
-        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(ARENA, r0 + len);
+        const r1 = outward ? Math.max(WRACK.drainR, r0 - len) : Math.min(RIM, r0 + len);
         const cx = Math.cos(a), cy = Math.sin(a);
         const al = pulling ? 0.6 : 0.3 + 0.25 * Math.sin(now / 90);
-        g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(cx * r0, cy * r0, cx * r1, cy * r1);
-        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(cx * r0, cy * r0, cx * (r0 + (outward ? -1 : 1) * len * 0.4), cy * (r0 + (outward ? -1 : 1) * len * 0.4));
-        g.fillStyle(0xeafaff, al).fillCircle(cx * r0, cy * r0, pulling ? 2.6 : 1.8);
+        g.lineStyle(pulling ? 4 : 2, 0x7fd0e0, al * 0.45).lineBetween(ox + cx * r0, oy + cy * r0, ox + cx * r1, oy + cy * r1);
+        g.lineStyle(pulling ? 2 : 1.5, 0xbfe9ff, al).lineBetween(ox + cx * r0, oy + cy * r0, ox + cx * (r0 + (outward ? -1 : 1) * len * 0.4), oy + cy * (r0 + (outward ? -1 : 1) * len * 0.4));
+        g.fillStyle(0xeafaff, al).fillCircle(ox + cx * r0, oy + cy * r0, pulling ? 2.6 : 1.8);
       }
     }
     // Y6: the Whirl's eddies lie on the water under the rafts (0.85; rafts 0.9), so a raft, which the water can't carry, stays clear.
