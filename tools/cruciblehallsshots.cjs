@@ -1,15 +1,17 @@
 // The Crucible raid on the Halls map on phones (H5a, design 25 Nov): a Bulwark with three bot allies (Lumen,
 // Emberwright, Duskblade), four heroes, at 320x568 or 568x320 in the 3D look: as tools/hammerhallsshots.cjs's halls
-// mode, plus a vent flaring under its circle (2b).
+// mode, plus a vent flaring under its circle (2b) and, in portrait, an elite set where 3D draws it under the party
+// frames, which fade (2c). Pass `hoard` for the Hoard raid's map (H5b) instead.
 //   halls  (?hallsbeta=1): the party in a corridor and in a fight, the hero stood outside a sealed room (grates let
 //          heroes in, never out: a green "Walk in" tag on the grate), and the map.
-// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [maponly] [seed]
+// Usage: npm run build && node tools/cruciblehallsshots.cjs <outDir> [p320|l568] [hoard] [maponly] [seed]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || 'tools/shots';
 const size = ['p320', 'l568'].find((s) => process.argv.includes(s)) || 'p320';
 const seed = Number(process.argv.slice(3).find((a) => /^\d+$/.test(a)) || 3);
 const mode = process.argv.includes('ondrel') ? 'ondrel' : 'halls';
+const raid = process.argv.includes('hoard') ? { id: 'hoard', tier: 9 } : { id: 'crucible', tier: 8 };
 const v2 = process.argv.includes('v2');
 fs.mkdirSync(out, { recursive: true });
 const dist = process.env.DIST || 'dist';
@@ -34,13 +36,13 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
   await page.evaluate(() => document.getElementById('startBtn').click());
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 120000 });
   await page.evaluate(() => { const s = window.__ember.scene(); const hud = s.hud; window.__banners = []; const orig = hud.banner.bind(hud); hud.banner = (t, sub, ...a) => { window.__banners.push(`${Math.round(window.__ember.scene().world.time * 10) / 10} ${t} | ${sub}`); return orig(t, sub, ...a); }; });
-  await page.evaluate(({ seed, mode, v2 }) => {
+  await page.evaluate(({ seed, mode, v2, raid }) => {
     const s = window.__ember.scene(); s.warp = 1;
     const party = [{ cls: 'lumen', name: 'Lumen (bot)' }, { cls: 'emberwright', name: 'Emberwright (bot)' }, { cls: 'duskblade', name: 'Duskblade (bot)' }];
-    const opts = { cls: 'bulwark', dungeon: 'crucible', tier: 8, invulnerable: true, seed, party, partySize: 4, fillBots: 3 };
+    const opts = { cls: 'bulwark', dungeon: raid.id, tier: raid.tier, invulnerable: true, seed, party, partySize: 4, fillBots: 3 };
     if (mode === 'halls') Object.assign(opts, { halls: true, hallsBeta: true }); else Object.assign(opts, { route: ['ondrel'], ondrelV2: v2 });
     s.scene.restart({ opts, hud: s.hud, onEnd: () => {} });
-  }, { seed, mode, v2 });
+  }, { seed, mode, v2, raid });
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 2, null, { timeout: 120000 });
   const info = () => page.evaluate(() => {
     const s = window.__ember.scene(), w = s.world, v = s.hd2d;
@@ -52,7 +54,7 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     };
   });
   const report = {};
-  const shot = async (name) => { await page.screenshot({ path: path.join(out, `${size}-crucible-${name}.png`) }); report[name] = await info(); };
+  const shot = async (name) => { await page.screenshot({ path: path.join(out, `${size}-${raid.id}-${name}.png`) }); report[name] = await info(); };
   await page.evaluate(() => { const s = window.__ember.scene(); s.autopilot = true; s.autoPick = true; s.warp = 1; });
   if (mode === 'halls') {
     await page.waitForTimeout(2500);
@@ -75,6 +77,30 @@ const VIEW = { p320: { width: 320, height: 568 }, l568: { width: 568, height: 32
     await page.waitForFunction(() => { const s = window.__ember.scene(); const w = s.world; if (w.events.some((e) => e.type === 'ventFlare') || w.telegraphs.some((t) => t.alive && t.owner === -1 && t.t > t.dur * 0.4)) { s.warp = 0; return true; } return false; }, null, { timeout: 900000, polling: 30 }).catch(() => errs.push('no vent flare'));
     await page.waitForTimeout(1200);
     await shot('2b-vent-flare');
+    report['2b-vent-flare'].partyFaded = await page.evaluate(() => document.getElementById('party').classList.contains('under'));
+    // 2c (portrait): an elite set down where the 3D view draws it under the party frames, which then fade.
+    if (size === 'p320') {
+      report.under = await page.evaluate(() => {
+        const s = window.__ember.scene(), w = s.world, v = s.hd2d;
+        const e = w.enemies.find((q) => q.alive && q.def.rank !== 'normal'); if (!e || !v) return 'no elite';
+        const pr = document.getElementById('party').getBoundingClientRect(), c = s.game.canvas.getBoundingClientRect();
+        const gx = (pr.left + pr.right) / 2 - c.left, gy = (pr.top + pr.bottom) / 2 - c.top;
+        let best = null, bd = Infinity;
+        for (let dx = -900; dx <= 900; dx += 15) for (let dy = -900; dy <= 900; dy += 15) {
+          const q = v.project(w.player.x + dx, w.player.y + dy); if (!q) continue;
+          const d = Math.hypot(q.x - gx, q.y - gy); if (d < bd) { bd = d; best = [w.player.x + dx, w.player.y + dy]; }
+        }
+        e.x = e.px = best[0]; e.y = e.py = best[1]; e.speed0 = e.def.speed; window.__underFoe = w.enemies.indexOf(e);
+        return { foe: e.def.name, miss: Math.round(bd) };
+      });
+      await page.evaluate(() => { const s = window.__ember.scene(), w = s.world, e = w.enemies[window.__underFoe]; s.warp = 0.05; window.__pin = setInterval(() => { if (e && window.__pinAt) { e.x = e.px = window.__pinAt[0]; e.y = e.py = window.__pinAt[1]; } }, 16); window.__pinAt = [e.x, e.y]; });
+      await page.waitForTimeout(1500);
+      await page.evaluate(() => { window.__ember.scene().warp = 0; });
+      await page.waitForTimeout(600);
+      await shot('2c-elite-under-frames');
+      report['2c-elite-under-frames'].partyFaded = await page.evaluate(() => document.getElementById('party').classList.contains('under'));
+      await page.evaluate(() => { clearInterval(window.__pin); window.__pinAt = null; });
+    }
     // 3: the hero set down in the corridor just outside the sealed room's doorway (allies stay inside).
     await page.evaluate(() => {
       const s = window.__ember.scene(); const w = s.world; const m = w.halls;
