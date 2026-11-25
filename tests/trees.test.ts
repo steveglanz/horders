@@ -11,10 +11,14 @@ describe('character trees (class progression brief)', () => {
     expect(TREE_CLASSES).toEqual([]);
   });
 
-  it('the Bulwark tree has 3 nodes and a keystone in each of its run-draft branches', () => {
-    const nodes = treeOf('bulwark');
+  it.each([
+    ['bulwark', ['bastion', 'retribution', 'vanguard']],
+    ['duskblade', ['bloodletting', 'tempo', 'guard']],
+  ] as const)('the %s tree has 3 nodes and a keystone in each of its run-draft branches', (cls, branches) => {
+    const nodes = treeOf(cls);
     expect(nodes).toHaveLength(12);
-    for (const b of ['bastion', 'retribution', 'vanguard'] as const) {
+    expect(Object.keys(TREE_BUILDS[cls]!).sort()).toEqual([...branches].sort());
+    for (const b of branches) {
       const inB = nodes.filter((n) => n.branch === b);
       expect(inB.filter((n) => n.keystone)).toHaveLength(1);
       expect(inB.filter((n) => !n.keystone)).toHaveLength(3);
@@ -98,5 +102,40 @@ describe('character trees (class progression brief)', () => {
       expect(n.text.length).toBeGreaterThan(5);
       expect(n.tip.length).toBeGreaterThan(n.text.length);
     }
+  });
+
+  it('Duskblade tree: Hardy adds health, Pace swings faster, Whet crits more, Cadence and Footwork cut cooldowns', () => {
+    expect(loadoutFrom({ hardy: 2 }, []).maxHpBonus).toBe(2 * TREE.hardyHp + 2 * TREE.pointHp);
+    const base = new World({ seed: 1, cls: 'duskblade' });
+    const tree = new World({ seed: 1, cls: 'duskblade', passives: { pace: 3, whet: 3, footwork: 2, cadence: 1, gash: 3 } as never });
+    expect(tree.swingCooldown).toBeCloseTo(base.swingCooldown / (1 + 3 * TREE.paceHaste), 6);
+    expect(tree.critChance).toBeCloseTo(base.critChance + 3 * TREE.whetCrit, 6);
+    expect(tree.bleedMult).toBeCloseTo(base.bleedMult * (1 + 3 * TREE.gashBleed), 6);
+    const cd = (w: World, slot: number) => (w as unknown as { baseCooldown(s: number): number }).baseCooldown(slot);
+    expect(cd(base, 1) - cd(tree, 1)).toBeCloseTo(2 * TREE.footworkCd, 6);
+    expect(cd(base, 2) - cd(tree, 2)).toBeCloseTo(TREE.cadenceCd, 6);
+  });
+
+  it('Duskblade tree: Steadfast hits harder only above half health, Torrent only on bleeding foes, and Sidestep stays at 1s or more', () => {
+    const hit = (passives: Record<string, number>, hpShare: number, bleeding: boolean) => {
+      const w = new World({ seed: 1, cls: 'duskblade', passives: passives as never });
+      const wi = w as unknown as { spawn(k: string, x: number, y: number): number; enemies: { hp: number; burnT: number }[]; damageEnemy(i: number, a: number, c: boolean): void };
+      const i = wi.spawn('cinderBrute', 400, 0);
+      const e = wi.enemies[i];
+      e.burnT = bleeding ? 5 : 0;
+      w.player.hp = w.player.maxHp * hpShare;
+      const before = e.hp;
+      wi.damageEnemy(i, 100, false);
+      return before - e.hp;
+    };
+    expect(hit({}, 0.9, false)).toBeGreaterThan(0);
+    expect(hit({ steadfast: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false) * (1 + TREE.steadfastDmg), 6);
+    expect(hit({ steadfast: 1 }, 0.4, false)).toBeCloseTo(hit({}, 0.4, false), 6);
+    expect(hit({ torrent: 1 }, 0.9, true)).toBeCloseTo(hit({}, 0.9, true) * (1 + TREE.torrentDmg), 6);
+    expect(hit({ torrent: 1 }, 0.9, false)).toBeCloseTo(hit({}, 0.9, false), 6);
+    const w = new World({ seed: 1, cls: 'duskblade', passives: { footwork: 2 } as never });
+    const wi = w as unknown as { baseCooldown(s: number): number; rank(id: string): number };
+    wi.rank = (id: string) => (id === 'evasion' ? 3 : 0);
+    expect(wi.baseCooldown(1)).toBe(1);
   });
 });
