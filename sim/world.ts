@@ -9444,7 +9444,7 @@ export const KILN_V2 = {
   walkIn: 4,
   /** She stands this far inside the north wall (y = -480 in the 560 arena). */
   mouthIn: 80,
-  heatEvery: 6, heatWarn: 1.5, heatTick: 0.5, heatShare: 0.04,
+  heatEvery: 6, heatWarn: 2.5, heatTick: 0.5, heatShare: 0.04,
   bellowsRing: 380, bellowsAt: [210, 330, 90],
   kilnMax: 40, stun: 8, stunTaken: 2,
   /** Fallen out, she lands this far in front of her kiln spot. Engineering's pick. */
