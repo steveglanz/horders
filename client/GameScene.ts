@@ -2231,20 +2231,21 @@ export class GameScene extends Phaser.Scene {
               if (img) { rx = img.x; ry = img.y; found = true; }
             }
           }
-          if (found) o.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
+          // The tether and the progress ring are floor marks (main graphics), so the floor bridge shows them in 3D too.
+          if (found) g.lineStyle(3, REVIVE, 0.55 + 0.3 * pulse).lineBetween(rx, ry, x, y);
           // A boss pick-up takes 9 s, so it counts down under the circle.
           if (w.bossUp && !reviveShown) {
             reviveShown = true;
             this.reviveText.setVisible(true).setPosition(x, y + 6 + R + 4).setText(`Reviving ${Math.max(0, w.reviveSeconds * (1 - t)).toFixed(1)}`);
           }
           const a1 = -Math.PI / 2 + t * Math.PI * 2;
-          o.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
-          o.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
+          g.lineStyle(6, REVIVE, 0.95).beginPath().arc(x, y + 6, R, -Math.PI / 2, a1, false).strokePath();
+          g.fillStyle(0xf2fff0, 1).fillCircle(x + Math.cos(a1) * R, y + 6 + Math.sin(a1) * R, 4.5);
           if (!this.lowFx && Math.random() < 0.35) {
             this.emit(this.fx, 'spark', undefined, x + (Math.random() - 0.5) * 30, y + 10, 0.7, { tint: REVIVE, vx: (Math.random() - 0.5) * 20, vy: -70 - Math.random() * 50, drag: 0.97, sx0: 1.6, sx1: 0.3 });
           }
         } else {
-          // A bobbing cross over the body asks for help.
+          // A bobbing cross over the body asks for help (the 3D overlay draws its own: drawLabels3d).
           const by = y - 62 + Math.sin(now / 300) * 3;
           o.fillStyle(0x0c1a10, 0.75).fillCircle(x, by, 11);
           o.lineStyle(2, REVIVE, 0.9).strokeCircle(x, by, 11);
@@ -4430,6 +4431,63 @@ export class GameScene extends Phaser.Scene {
     // Hammerdeep (and the Crucible): Sundered, the tank swap's cue, as the 2D mark (a cracked red ring beside the hero).
     // The floor bridge flattened it onto the floor at a third of its size, unreadable on a phone (phone pass, 25 Nov).
     const w = this.world;
+    // G6 revive: the bobbing green "+" over a downed hero nobody is reviving yet, or the grey struck-through cross when
+    // a boss allows no more revives. 2D draws these on overFx, which the 3D view covers (sweep, docs/art/oskel-3d). The
+    // revive circle, tether and progress ring are floor marks the bridge carries.
+    if (w.heroes.length > 1) {
+      const now = this.time.now;
+      const rv = '#' + REVIVE.toString(16).padStart(6, '0');
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp > 0 || (w.revivesLeft > 0 && (q.reviveT ?? 0) > 0)) continue;
+        const p = view.project(q.x, q.y);
+        if (!p || !onScreen(p)) continue;
+        const none = w.revivesLeft <= 0;
+        // Above the hero's name, which sits over the body.
+        const x = p.x, y = p.y - (66 + (none ? 0 : 3 * Math.sin(now / 300))) * zb, r = 11 * zb;
+        g.globalAlpha = 0.8; g.fillStyle = none ? '#140c0a' : '#0c1a10';
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.strokeStyle = none ? '#8a7d78' : rv; g.lineWidth = 2 * zb;
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = none ? '#8a7d78' : rv;
+        g.fillRect(x - 6 * zb, y - 2 * zb, 12 * zb, 4 * zb); g.fillRect(x - 2 * zb, y - 6 * zb, 4 * zb, 12 * zb);
+        if (none) {
+          g.strokeStyle = '#ff6b6b'; g.lineWidth = 2.5 * zb; g.lineCap = 'round';
+          g.beginPath(); g.moveTo(x - 8 * zb, y + 8 * zb); g.lineTo(x + 8 * zb, y - 8 * zb); g.stroke(); g.lineCap = 'butt';
+        }
+      }
+    }
+    // Ysmeret's (and Grandmother Slag's) vents: the badge over each, a green tick while a hero covers it and a blinking
+    // red "!" while it is empty, as 2D's ventMark (its rings are floor marks the bridge carries).
+    if (w.dungeonId === 'ashvents' || w.dungeonId === 'crucible') {
+      const now = this.time.now;
+      const dg = '#' + DANGER.toString(16).padStart(6, '0');
+      for (const t of w.telegraphs) {
+        if (!t.alive || t.kind !== 'soak' || t.owner !== -2) continue;
+        let covered = false;
+        for (let k = 0; k < w.heroes.length && !covered; k++) {
+          const q = w.heroData(k).player;
+          if (q.hp > 0 && (q.x - t.x) ** 2 + (q.y - t.y) ** 2 <= t.r * t.r) covered = true;
+        }
+        const bp = view.project(t.x, t.y - t.r);
+        if (!bp || !onScreen(bp)) continue;
+        const bx = bp.x, by = bp.y - 14 * zb, r = 11 * zb;
+        const f = Math.min(1, Math.max(0, t.t / Math.max(0.01, t.dur)));
+        const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
+        g.fillStyle = covered ? 'rgba(16,32,15,0.85)' : 'rgba(32,10,14,0.85)';
+        g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.fill();
+        g.lineCap = 'round';
+        if (covered) {
+          g.strokeStyle = '#9fe8a8'; g.lineWidth = 2 * zb; g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke();
+          g.lineWidth = 3 * zb; g.beginPath(); g.moveTo(bx - 5 * zb, by); g.lineTo(bx - 1 * zb, by + 4 * zb); g.lineTo(bx + 6 * zb, by - 4 * zb); g.stroke();
+        } else {
+          g.globalAlpha = 0.6 + 0.4 * blink; g.strokeStyle = dg; g.lineWidth = 2 * zb;
+          g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+          g.fillStyle = dg; g.fillRect(bx - 1.5 * zb, by - 7 * zb, 3 * zb, 9 * zb); g.fillRect(bx - 1.5 * zb, by + 4 * zb, 3 * zb, 3 * zb);
+        }
+        g.lineCap = 'butt';
+      }
+    }
     if (w.dungeonId === 'hammerdeep' || w.dungeonId === 'crucible') {
       const dg = '#' + DANGER.toString(16).padStart(6, '0');
       for (let k = 0; k < w.heroes.length; k++) {
@@ -4820,14 +4878,14 @@ export class GameScene extends Phaser.Scene {
       const o = this.overFx;
       // A shadow that grows and darkens as the anvil comes down.
       g.fillStyle(0x000000, 0.25 + 0.35 * f).fillEllipse(t.x, t.y + 18, 40 + 50 * f, 14 + 18 * f);
-      // A closing reticle in the boss's red.
+      // A closing reticle in the boss's red: a floor mark (main graphics), so the bridge shows it in 3D too.
       const r = 110 - 60 * f;
-      o.lineStyle(3, DANGER, 0.85 * close).strokeCircle(t.x, t.y, r);
+      g.lineStyle(3, DANGER, 0.85 * close).strokeCircle(t.x, t.y, r);
       for (let k = 0; k < 4; k++) {
         const a = (k * Math.PI) / 2 + now / 900;
-        o.lineBetween(t.x + Math.cos(a) * (r + 6), t.y + Math.sin(a) * (r + 6), t.x + Math.cos(a) * (r + 20), t.y + Math.sin(a) * (r + 20));
+        g.lineBetween(t.x + Math.cos(a) * (r + 6), t.y + Math.sin(a) * (r + 6), t.x + Math.cos(a) * (r + 20), t.y + Math.sin(a) * (r + 20));
       }
-      // The anvil itself, falling from above the target.
+      // The anvil itself, falling from above the target (3D: anvil3d.ts).
       const ay = t.y - 46 - (1 - f) * (1 - f) * 150;
       const ax = t.x;
       const pts = [
@@ -6406,17 +6464,19 @@ export class GameScene extends Phaser.Scene {
     const bx = t.x;
     const by = t.y - t.r - 16;
     if (!covered) this.emptyVents.push({ x: t.x, y: t.y });
+    // The covered gold ring and an empty vent's red dashes are floor marks (main graphics, so the bridge shows them in
+    // 3D); the badge over the vent stays above the sprites, and the 3D overlay draws its own (drawLabels3d).
     if (covered) {
-      o.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
+      g.lineStyle(4, SOAK, 0.95).strokeCircle(t.x, t.y, t.r);
       o.fillStyle(0x10200f, 0.85).fillCircle(bx, by, 11);
       o.lineStyle(2, 0x9fe8a8, 1).strokeCircle(bx, by, 11);
       o.lineStyle(3, 0x9fe8a8, 1).beginPath().moveTo(bx - 5, by).lineTo(bx - 1, by + 4).lineTo(bx + 6, by - 4).strokePath();
     } else {
       const blink = 0.5 + 0.5 * Math.sin(now / (f > 0.6 ? 60 : 140));
-      o.lineStyle(3, DANGER, 0.4 + 0.5 * blink);
+      g.lineStyle(3, DANGER, 0.4 + 0.5 * blink);
       for (let d = 0; d < 16; d++) {
         const a0 = (d * Math.PI * 2) / 16 - now / 2000;
-        o.beginPath().arc(t.x, t.y, t.r + 8, a0, a0 + 0.22, false).strokePath();
+        g.beginPath().arc(t.x, t.y, t.r + 8, a0, a0 + 0.22, false).strokePath();
       }
       o.fillStyle(0x200a0e, 0.85).fillCircle(bx, by, 11);
       o.lineStyle(2, DANGER, 0.6 + 0.4 * blink).strokeCircle(bx, by, 11);

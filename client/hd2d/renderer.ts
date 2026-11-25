@@ -31,6 +31,7 @@ import { SIM } from './simconsts';
 import { buildHalls3d, type HallsView } from './halls3d';
 import { buildKm3d, makeKmBellows } from './kilnmother3d';
 import { buildSlag3d } from './ondrelslag3d';
+import { buildAnvil3d } from './anvil3d';
 import { buildOskel3d } from './oskel3d';
 import type { HallsMap } from '../../sim/halls';
 
@@ -1173,6 +1174,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   // ONDRELV2, the staged Ondrel's burning slag patches and their bursts (ondrelslag3d.ts); nothing drawn without patches.
   const slag = buildSlag3d({ S, floor: FLOOR, r: SIM.ondrelSlagR, burstR: SIM.ondrelBurstR, glowT: SIM.ondrelGlow, bad: BAD });
   scene.add(slag.group);
+  // Ondrel's Anvilfall anvil (anvil3d.ts): 2D draws it above the floor layer, so the bridge never carried it.
+  const anvil = buildAnvil3d({ S, floor: FLOOR });
+  scene.add(anvil.group);
   // Oskel's falling Rivets and Stamp die (oskel3d.ts): 2D draws them above the floor layer, so the bridge never carried them.
   const oskel = buildOskel3d({ S, floor: FLOOR, rivetR: SIM.oskelRivetR });
   scene.add(oskel.group);
@@ -1886,6 +1890,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (const h of heard.splice(0)) if (sfx.length < 32) sfx.push({ kind: h.kind, x: (h.x * w.arenaR) / ROOM_R, y: (h.z * w.arenaR) / ROOM_R });
     glows.forEach((g, i) => g.color.copy(g.userData.base as THREE.Color).multiplyScalar(0.86 + 0.08 * Math.sin(t * 5 + i * 2.3) + 0.06 * Math.sin(t * 13 + i)));
     slag.update(w, t, dt);
+    anvil.update(w, a, t);
     oskel.update(w, a);
     { const me = w.heroData(0).player, mk = km.update(w, t, me.x, me.y); if (kilnMouth && mk !== 1) kilnMouth.color.multiplyScalar(mk); }
     for (let i = 0; i < N; i++) {
