@@ -1397,7 +1397,7 @@ export class World {
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId, !!opts.hallsBeta) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate);
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
@@ -3388,7 +3388,11 @@ export class World {
 
   private clampArena(o: { x: number; y: number }, r: number): void {
     if (this.stress) return;
-    if (this.hallsOn) { clampHalls(this.halls!, o, r); clampGrates(this.halls!, o, r); }
+    if (this.hallsOn) {
+      clampHalls(this.halls!, o, r);
+      // Co-op only: grates let heroes in, never out (foes and shots still never cross). Solo play doesn't change.
+      clampGrates(this.halls!, o, r, this.heroes.length > 1 && this.heroes.some((h) => h.player === o));
+    }
     else {
       const d = Math.hypot(o.x, o.y);
       const max = this.arenaR - r;

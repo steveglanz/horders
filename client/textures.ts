@@ -739,8 +739,26 @@ const RIME_HI = '#eaf6ff';
 const RIME = '#9cc8ec';
 const RIME_LO = '#2a3a5a';
 
-/** Rimehound: a pale, low-slung hound with a ridge of frost spikes down its back. Faces right. */
-function drawRimehound(ctx: Ctx, _s: number, f: number): void {
+/**
+ * Rimehound: a pale, low-slung hound with a ridge of frost spikes down its back. Faces right. On a phone it is only a
+ * few px across, and its ink outline made it read near-black on the dark Coldmarrow floors (design 25 Nov, phone pass),
+ * so it wears a pale rime edge round its whole outline: drawn once off-canvas, its silhouette stamped out in rime
+ * just outside it, then the hound on top. The 3D view crops the same frames, so it gets the edge too.
+ */
+function drawRimehound(ctx: Ctx, s: number, f: number): void {
+  const m = ctx.getTransform(), k = m.a, px = Math.ceil(s * k);
+  const body = document.createElement('canvas'); body.width = body.height = px;
+  const b = body.getContext('2d')!; b.scale(k, k); rimehoundBody(b, f);
+  const sil = document.createElement('canvas'); sil.width = sil.height = px;
+  const sc = sil.getContext('2d')!; sc.drawImage(body, 0, 0); sc.globalCompositeOperation = 'source-in'; sc.fillStyle = RIME_HI; sc.fillRect(0, 0, px, px);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, m.e, m.f);
+  const d = 1.6 * k;
+  for (let a = 0; a < 8; a++) ctx.drawImage(sil, Math.round(Math.cos((a * Math.PI) / 4) * d), Math.round(Math.sin((a * Math.PI) / 4) * d));
+  ctx.drawImage(body, 0, 0);
+  ctx.restore();
+}
+
+function rimehoundBody(ctx: Ctx, f: number): void {
   const a = [0.5, 0.15, -0.5, -0.15][f];
   const bob = [0, -0.8, 0, -0.8][f];
   for (const [x, k] of [[11, a], [14, -a], [22, -a], [25, a]] as [number, number][]) limb(ctx, x, 22 + bob, x + Math.sin(k) * 5, 30, 2, '#5a6a84');

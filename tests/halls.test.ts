@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -33,7 +33,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 13, halls: true, dungeon: 'wrackline' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 4, halls: true, dungeon: 'hammerdeep' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -42,6 +42,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
       const m = w.halls!;
       expect(w.phase).toBe('cleared');
       expect(pack(w, 'A').enc).toBe(w.route[0]);
+      // Tiers 1-3 keep the named gate in the side room (design, 25 Nov; from tier 4 it goes on the main path).
       expect(pack(w, 'B').enc).toBe(w.route[1]);
       expect(pack(w, 'C').enc).toBe(w.route[2]);
       expect(pack(w, 'E').enc).toBe(w.route[3]);
@@ -319,6 +320,14 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     // Duskblade off a Dimhorn 17 from the wall, out in the dark, until its horn called three hounds in on it.
     const hero = JSON.parse(readFileSync(new URL('../tools/heroes/hero-t8.json', import.meta.url), 'utf8'));
     const w = new World({ seed: 38, halls: true, hallsBeta: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
+    // Since the named gate went on the main path (25 Nov) this seed's Dimhorn is in the side room, so put it back as B
+    // (the map it was found on; the rolls and rooms are the same).
+    const m = w.halls!;
+    const b = m.packs.findIndex((q) => q.role === 'B'), s = m.packs.findIndex((q) => q.role === 'S');
+    for (const [k, enc, gate] of [[b, m.packs[s].enc, undefined], [s, m.packs[b].enc, 'named']] as const) {
+      m.packs[k].enc = enc; m.packs[k].gate = gate; m.packs[k].foes = packFoes(38, k, enc, m.packs[k].x, m.packs[k].y);
+    }
+    expect(m.packs[b].enc).toBe('dimhorn');
     let dimhorn: (typeof w.enemies)[number] | undefined;
     const end = w.time + 400;
     while (w.state !== 'ended' && w.time < end && w.player.hp > 0 && !(dimhorn && !dimhorn.alive)) {
@@ -521,7 +530,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -730,8 +739,8 @@ describe('H3d: the Wrackline on the Halls map', () => {
     return { k, pk };
   };
 
-  it('is off for players until design turns it on; every room is a Round or Twin quay, with its own fights and Hessa behind the door', () => {
-    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).toBeNull();
+  it('is on for players (design, 25 Nov); every room is a Round or Twin quay, with its own fights and Hessa behind the door', () => {
+    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).not.toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.wrackline;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 120; seed++) {
@@ -1142,5 +1151,72 @@ describe('Halls: one pack per room (design, 25 Nov)', () => {
       expect(c.state).toBe('asleep');
       expect(c.room).not.toBe(b.room);
     }
+  });
+});
+
+describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
+  /** Seals the A pack's room with hero 0 inside; returns the room and a doorway line (u points out, `t` is the rim). */
+  function sealed(w: World) {
+    const m = w.halls!;
+    const a = m.packs.find((q) => q.role === 'A')!;
+    const rm = m.rooms[roomAt(m, a.x, a.y)];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    const c = m.corridors.find((q) => m.rooms[q.a] === rm || m.rooms[q.b] === rm)!;
+    const inA = m.rooms[c.a] === rm;
+    const px = inA ? c.ax! : c.bx!, py = inA ? c.ay! : c.by!, ox = inA ? c.bx! : c.ax!, oy = inA ? c.by! : c.ay!;
+    const len = Math.hypot(ox - px, oy - py), ux = (ox - px) / len, uy = (oy - py) / len;
+    let t = 0;
+    while (roomGap(rm, px + ux * t, py + uy * t) > 0) t += 1;
+    return { rm, px, py, ux, uy, t };
+  }
+
+  it('in co-op a hero shut outside walks in through a grate, and then can\'t walk out; foes still can\'t cross', () => {
+    const w = halls(2, { invulnerable: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    const q = w.heroData(1).player;
+    q.x = q.px = px + ux * (t + 250); q.y = q.py = py + uy * (t + 250);
+    const hold = [idle, idle];
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(hold);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 starts outside').toBeLessThan(0);
+    // Walk in along the corridor.
+    for (let k = 0; k < 90; k++) w.step([idle, { x: -ux, y: -uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 walked in').toBeGreaterThanOrEqual(0);
+    // And out again: the grate holds.
+    for (let k = 0; k < 120; k++) w.step([idle, { x: ux, y: uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 can\'t walk out').toBeGreaterThanOrEqual(0);
+    // A foe outside is still kept out.
+    const foe = { x: px - ux * 5, y: py - uy * 5, px: px + ux * (t + 40), py: py + uy * (t + 40) };
+    clampGrates(w.halls!, foe, 15);
+    expect(roomGap(rm, foe.x, foe.y)).toBeLessThan(0);
+  });
+
+  it('solo play doesn\'t change: a sealed grate keeps the hero out', () => {
+    const w = halls(2, { invulnerable: true });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    w.step(idle);
+    rm.lock = HALLS.lockDelay + 1; // sealed (solo, the hero is never outside a seal, so set it by hand)
+    put(w, px + ux * (t + 80), py + uy * (t + 80));
+    for (let k = 0; k < 90; k++) w.step({ x: -ux, y: -uy });
+    expect(roomGap(rm, w.player.x, w.player.y)).toBeLessThan(0);
+  });
+});
+
+describe('Halls: from tier 4 a named gate goes on the main path (design, 25 Nov)', () => {
+  it('B takes the named fight and the side room keeps the steady one; tiers 1-3 keep the old map', () => {
+    let moved = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const lo = halls(seed, { tier: 3 }), hi = halls(seed, { tier: 4 });
+      const sLo = lo.halls!.packs.find((q) => q.role === 'S')!, bLo = lo.halls!.packs.find((q) => q.role === 'B')!;
+      const sHi = hi.halls!.packs.find((q) => q.role === 'S')!, bHi = hi.halls!.packs.find((q) => q.role === 'B')!;
+      expect(bLo.enc).toBe(lo.route[1]);
+      if (sHi.gate === 'shrine') { expect(bHi.enc).toBe(hi.route[1]); continue; }
+      moved++;
+      expect(bHi.gate).toBe('named');
+      expect(sHi.gate).toBe('steady');
+      expect(sHi.enc).toBe(hi.route[1]);
+      expect(sLo.gate).toBe('named');
+    }
+    expect(moved).toBeGreaterThan(5);
   });
 });

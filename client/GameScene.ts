@@ -518,6 +518,8 @@ export class GameScene extends Phaser.Scene {
     this.driftFallAt = -1e9;
     this.pillarSprites = [];
     this.glareFlash = 0;
+    this.raftPrev = [];
+    this.shoves = [];
     this.warmSeen = 0;
     this.glowId = data.glow;
     this.heroGlow = undefined;
@@ -5263,6 +5265,39 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Where each foe stood last frame and whether it was on an afloat raft, for the Ebb's shove (by enemy index). */
+  private raftPrev: { x: number; y: number; on: boolean }[] = [];
+  private shoves: { x0: number; y0: number; x: number; y: number; t: number }[] = [];
+
+  /**
+   * H3d (#725): on a Halls map the Ebb pushes every foe off an afloat raft in a single step, which on a phone read as a
+   * jump. Phone pass, 25 Nov: a foe that leaves a raft that way gets a splash where it lands and a short wake back to
+   * where it stood, so it reads as a shove.
+   */
+  private shoveDraw(g: Phaser.GameObjects.Graphics, pulling: boolean): void {
+    const w = this.world;
+    for (let i = 0; i < w.enemies.length; i++) {
+      const e = w.enemies[i];
+      const on = e.alive && w.onRaft(e.x, e.y);
+      const was = this.raftPrev[i];
+      if (pulling && w.hallsOn && e.alive && was?.on && !on && Math.hypot(e.x - was.x, e.y - was.y) > 8) {
+        this.shoves.push({ x0: was.x, y0: was.y, x: e.x, y: e.y, t: w.time });
+      }
+      this.raftPrev[i] = { x: e.x, y: e.y, on };
+    }
+    this.raftPrev.length = w.enemies.length;
+    // Timed on the world's clock (0.45 s), so a slow frame can't skip it and a pause holds it.
+    const LIFE = 0.45;
+    this.shoves = this.shoves.filter((s) => w.time - s.t < LIFE && w.time >= s.t);
+    for (const s of this.shoves) {
+      const k = (w.time - s.t) / LIFE;
+      // Bold enough for the 3D floor, which carries this at about a third of its size on a Halls map.
+      g.lineStyle(14 * (1 - k) + 4, 0xd8fbff, 0.75 * (1 - k)).lineBetween(s.x0, s.y0, s.x, s.y);
+      g.fillStyle(0xd8fbff, 0.35 * (1 - k)).fillCircle(s.x, s.y, 30 + 40 * k);
+      g.lineStyle(7, 0xffffff, 0.9 * (1 - k)).strokeCircle(s.x, s.y, 30 + 40 * k);
+    }
+  }
+
   private wrackDraw(g: Phaser.GameObjects.Graphics, now: number): void {
     const w = this.world;
     const pulling = w.ebbT > 0;
@@ -5273,6 +5308,7 @@ export class GameScene extends Phaser.Scene {
     const ox = wx.wrackX ?? 0, oy = wx.wrackY ?? 0;
     const room = (wx.wrackRoom ?? -1) >= 0 ? w.halls?.rooms[wx.wrackRoom!] : undefined;
     const RIM = room ? Math.min(ARENA, room.r - 20) : ARENA;
+    this.shoveDraw(g, pulling);
     // The drain: a dark whirlpool on the floor that turns, faster while the water pulls.
     // The Wrackline's images lie on the floor itself, under every ground effect (burn zones at depth 1)
     // and the telegraph layer (depth 2), so a zone on a raft or a Sink circle always shows on top.
@@ -5936,20 +5972,24 @@ export class GameScene extends Phaser.Scene {
         const flick = 1 + 0.025 * Math.sin(now / 90 + k * 2) + 0.015 * Math.sin(now / 37 + k);
         // Brighter while the coal is full, and brighter still against the Long Night.
         light?.setVisible(true).setPosition(x, y).setDisplaySize(r * 2 * flick, r * 2 * flick).setAlpha(Math.min(1, (0.6 + 0.4 * q.coal) * (1 + 0.6 * night)));
-        // The edge: a slowly turning dashed ring, pulsing red-orange when the coal runs low.
+        // The edge (design 25 Nov, phone pass): the whole map is about staying inside this light, so its edge must read
+        // at 320 px on the darkest floors. A solid warm line over a dark under-stroke, with a pale hot core; it pulses
+        // red-orange when the coal runs low. The light itself flickers, so the line stays still: quiet, not busy.
         const low = q.coal < 0.25 ? 0.5 + 0.5 * Math.sin(now / 120) : 0;
         const edge = low ? 0xff5a3a : 0xffb070;
-        const n = 28;
-        const rot = now / 4000 + k;
-        g.lineStyle(2, edge, 0.35 + 0.35 * q.coal + 0.3 * low);
+        g.lineStyle(10, 0x000000, 0.32).strokeCircle(x, y, r);
+        g.lineStyle(4.5, edge, 0.7 + 0.2 * q.coal + 0.1 * low).strokeCircle(x, y, r);
+        g.lineStyle(1.5, low ? 0xffd0c0 : 0xffe8c8, 0.85).strokeCircle(x, y, r);
+      } else {
+        light?.setVisible(false);
+        // Out: a broken cold ring where the light was, slowly turning, so "no light" never reads like a lit edge.
+        const n = 20, rot = now / 6000 + k;
+        g.lineStyle(9, 0x000000, 0.3).strokeCircle(x, y, r);
+        g.lineStyle(3.5, 0xbcd4f0, 0.75);
         for (let d = 0; d < n; d++) {
           const a0 = rot + (d / n) * Math.PI * 2;
           g.beginPath().arc(x, y, r, a0, a0 + (Math.PI * 2) / n * 0.55, false).strokePath();
         }
-      } else {
-        light?.setVisible(false);
-        // Out: a cold grey ring where the light was.
-        g.lineStyle(1.5, 0x9fb6d0, 0.35).strokeCircle(x, y, r);
       }
       if (k !== w.acting) continue;
       // Your coal gauge: an arc under your feet that empties as the coal burns down.
