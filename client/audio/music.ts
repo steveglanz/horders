@@ -40,7 +40,9 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   // The Ashvents' four (H4b, 25 Nov): pale ash and rose stone, nothing burns.
   | 'fumaroleField' | 'obsidianGallery' | 'cairnWalk' | 'pumiceDrift'
   // The Pressworks' four (H4c, 25 Nov): olive brass, nothing glows.
-  | 'pressFloor' | 'gearRoom' | 'plateStore' | 'oilSump';
+  | 'pressFloor' | 'gearRoom' | 'plateStore' | 'oilSump'
+  // OSKELV2 (design, 25 Nov): the running press bed under Oskel in stages 2 and 3, played as a room bed.
+  | 'pressBelt';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine',
   'boilerRoom', 'cistern', 'pumpHall', 'anchorStore',
@@ -50,6 +52,7 @@ export const ROOM_BEDS: readonly RoomBedKind[] = [
   'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore',
   'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift',
   'pressFloor', 'gearRoom', 'plateStore', 'oilSump',
+  'pressBelt',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
 export const ROOM_BED_VOL = 0.16;
@@ -579,6 +582,18 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         lp += (hp - lp) * 0.5;
         const swell = 0.6 + 0.4 * Math.pow(Math.sin(t * Math.PI), 2);
         raw[i] = lp * 0.12 * swell + brown * 0.04;
+        break;
+      }
+      case 'pressBelt': {
+        // The running press bed: a low steady rumble of rollers, a soft clack as each roller seam passes, four a second.
+        lp += (w - lp) * 0.05;
+        hp = 0.9 * (hp + lp - prev);
+        prev = lp;
+        const s = i / rate;
+        const ph = (t * 24) % 1;
+        const clack = Math.exp(-ph * 70) * (Math.sin(2 * Math.PI * 620 * s) + 0.5 * Math.sin(2 * Math.PI * 930 * s));
+        const hum = Math.sin(2 * Math.PI * 110 * s) + 0.7 * Math.sin(2 * Math.PI * 220.5 * s) + 0.4 * Math.sin(2 * Math.PI * 330 * s);
+        raw[i] = hp * 0.35 + clack * 0.06 + hum * 0.02 + brown * 0.15;
         break;
       }
       case 'pressFloor': {
