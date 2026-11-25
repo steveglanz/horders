@@ -273,16 +273,17 @@ export const KILNTRASH = { foes: 2, hp: 0.3, named: 0.8 };
 /**
  * A pack's special foes, which keep their count in a trash pack: the Kiln's Rift and Ashwall, and (trash rollout,
  * design 25 Nov, trash-rollout-plan.md) the Foundry's Glass Warden (Mirror Ward), Sluice Crawler (its blue ring), the
- * Ballast, and the Ember Twins (the pair is the mechanic: with four, each death starts another Rekindle). Hounds,
- * spitters and the Ashbuck double as the Kiln's do.
+ * Ballast, and the Ember Twins (the pair is the mechanic: with four, each death starts another Rekindle); the Glarewell's
+ * Lensbearer (Glare), Brandkeeper (Brand) and Lampeye (gaze), each its pack's one mechanic. Hounds, spitters, Shades and
+ * the Ashbuck double as the Kiln's do.
  */
-export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast', 'emberTwin'];
+export const KILNTRASH_ONE: EnemyKind[] = ['rift', 'ashwall', 'glassWarden', 'sluiceCrawler', 'ballast', 'emberTwin', 'lensbearer', 'brandkeeper', 'lampeye'];
 /**
  * The dungeons whose map's openers are trash, for every run on the map: the Kiln (design, 25 Nov, kiln-trash-plan.md)
  * and the Foundry (grid passed, engineering/foundry-trash-grid.md; on since Steve's "nothing should be a switch",
- * 25 Nov). Group dungeons and raids keep full packs (design's ruling). A measuring tool may push a dungeon here.
+ * 25 Nov), and the Glarewell (1.0 M3, design grid 25 Nov: design/halls/trash-rollout-plan.md). Group dungeons and raids keep full packs (design's ruling). A measuring tool may push a dungeon here.
  */
-export const TRASH_ON: DungeonId[] = ['kiln', 'foundry'];
+export const TRASH_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
 /** Whether `dungeon`'s map has trash packs. */
 export const trashFor = (dungeon: DungeonId): boolean => TRASH_ON.includes(dungeon);
 

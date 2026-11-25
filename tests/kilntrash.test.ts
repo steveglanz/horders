@@ -18,10 +18,10 @@ const kiln = (seed: number, trash: boolean) => {
 };
 
 describe('KILNTRASH: Kiln opener packs as trash', () => {
-  it('is on for every Kiln map run, and only the TRASH_ON dungeons get it', () => {
+  it('is on for every Kiln map run, and only the TRASH_ON dungeons get it (a group dungeon keeps full packs)', () => {
     for (let seed = 1; seed <= 10; seed++) expect(kiln(seed, true).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
     for (let seed = 1; seed <= 10; seed++) expect(kiln(seed, false).halls!.packs.some((p) => p.trash)).toBe(false);
-    const g = new World({ seed: 3, dungeon: 'glarewell', tier: 7, halls: true, cls: 'duskblade' });
+    const g = new World({ seed: 3, dungeon: 'hammerdeep', tier: 6, halls: true, cls: 'bulwark' });
     expect(g.halls!.packs.some((p) => p.trash)).toBe(false);
   });
 
@@ -100,7 +100,7 @@ describe('Trash rollout: the Drowned Foundry', () => {
     return trash ? make() : bare(make);
   };
   it('is on for every run, as the Kiln is; group dungeons and raids keep full packs', () => {
-    expect(TRASH_ON).toEqual(['kiln', 'foundry']);
+    expect(TRASH_ON).toEqual(['kiln', 'foundry', 'glarewell']);
     for (let seed = 1; seed <= 10; seed++) expect(foundry(seed).halls!.packs.some((p) => p.trash), `seed ${seed}`).toBe(true);
     for (const d of Object.keys(DUNGEONS) as (keyof typeof DUNGEONS)[]) if (DUNGEONS[d].style !== 'solo' || DUNGEONS[d].raid) expect(TRASH_ON, d).not.toContain(d);
   });
@@ -153,6 +153,29 @@ describe('Trash rollout: the Drowned Foundry', () => {
       expect(on.drops.filter((d) => d.alive).length).toBe(bags);
       expect(on.player.level).toBe(lvl + 1);
     }
+  });
+});
+
+// 1.0 M3 (design, 25 Nov): the Glarewell's openers are trash too, with the same numbers. Its Lensbearer, Brandkeeper and
+// Lampeye are each their pack's one mechanic, so they stay at one.
+describe('Trash rollout: the Glarewell', () => {
+  it('its opener packs off a named gate are trash, with twice the foes except the single special one', () => {
+    let trash = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = new World({ seed, dungeon: 'glarewell', tier: 7, halls: true, cls: 'duskblade' });
+      for (const p of w.halls!.packs) {
+        const want = p.gate !== 'named' && DUNGEONS.glarewell.openers.includes(p.enc);
+        expect(!!p.trash, `seed ${seed} ${p.enc}`).toBe(want);
+        if (want) trash++;
+      }
+    }
+    expect(trash).toBeGreaterThan(20);
+    const held = (enc: Parameters<typeof packFoes>[2]) => packFoes(1, 0, enc, 0, 0, true).map((f) => f.kind).sort();
+    expect(held('lensbearer')).toEqual(['lensbearer', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('brandkeeper')).toEqual(['brandkeeper', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('lampeye')).toEqual(['lampeye', 'shade', 'shade', 'shade', 'shade', 'shade', 'shade']);
+    expect(held('shades')).toHaveLength(8);
+    expect(held('shadeCharge')).toEqual(['ashbuck', 'ashbuck', 'shade', 'shade', 'shade', 'shade', 'shade', 'shade']);
   });
 });
 
