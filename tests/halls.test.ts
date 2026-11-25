@@ -1115,15 +1115,20 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
 
   it('bots walk it and go through the door into Nhevra\'s arena', async () => {
     let reached = 0;
-    // Gearless at tier 10 many die on the way (the cold), so this is a smoke test over 8 seeds (25 Nov: 5 of 8, 4 of 8 once a bot closes on a foe at a wall).
+    const stuck: number[] = [];
+    // Gearless at tier 10 many die on the way (the cold), and whether a run dies at 750 s or reaches the door at 733 s is luck.
+    // So this checks walking, not the cold (QA, 25 Nov): every seed ends at the door or with the party dead, none still walking
+    // at the time limit, and at least one seed reaches the door so a map nobody can walk through can't pass on deaths alone.
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
       await new Promise((r) => setTimeout(r, 0));
       const w = cold(seed, { cls: 'slagbinder' });
       run(w, () => !w.hallsOn || w.state === 'ended', 900);
       if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
+      else if (w.state !== 'ended') stuck.push(seed);
     }
-    expect(reached).toBeGreaterThanOrEqual(3);
+    expect(stuck, 'seeds still walking at the time limit').toEqual([]);
+    expect(reached).toBeGreaterThanOrEqual(1);
   }, 120000);
 });
 

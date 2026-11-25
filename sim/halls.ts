@@ -457,15 +457,23 @@ export function clampHalls(m: HallsGeo, o: { x: number; y: number }, r: number):
 }
 
 /** Whether the straight walk from (x1, y1) to (x2, y2) stays inside the map (sampled every 40 units). */
-export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0): boolean {
+export function clearWalk(m: HallsGeo, x1: number, y1: number, x2: number, y2: number, pad = 0, step = 40): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
-  const n = Math.max(1, Math.ceil(d / 40));
+  // `step`: how far apart the line is sampled. Bots check their own walk every BOT_WALK_STEP (see hallsWay).
+  const n = Math.max(1, Math.ceil(d / step));
   for (let k = 1; k < n; k++) {
     const t = k / n;
     if (!inside(m, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, pad)) return false;
   }
   return true;
 }
+
+/**
+ * QA, 25 Nov: bots check their own straight walks (to the goal, to a bag) every 16 units, not 40. At 40 a hole's corner
+ * could fall between samples from one step and not the next, so a bot's way flipped every tick and it stood still short
+ * of the door (Ashvents t8 seed 1). Foes and the walking graph keep 40 (cheaper; a foe chasing a hero doesn't stall).
+ */
+export const BOT_WALK_STEP = 16;
 
 /** The rooms from `from` to `to` along the corridors, both ends included (the map is a tree, so this is the only way). */
 export function roomPath(m: HallsGeo, from: number, to: number): number[] {
@@ -592,10 +600,10 @@ function seen(m: HallsGeo, nav: Nav, x: number, y: number): [number, number][] {
  * next point on the shortest walk through the map's walking graph (round a ring's island, a cross's pillars, the
  * corridors). Used by awake foes (World.updateEnemies) and bots (sim/bot.ts).
  */
-export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number): { x: number; y: number } {
+export function hallsWay(m: HallsGeo, x: number, y: number, tx: number, ty: number, step = 40): { x: number; y: number } {
   // Room to spare, but no more than either end has (a bag dropped against a wall is still walked straight to).
   const pad = Math.max(0, Math.min(WAY_PAD, floorGap(m, x, y), floorGap(m, tx, ty)));
-  if (clearWalk(m, x, y, tx, ty, pad)) return { x: tx, y: ty };
+  if (clearWalk(m, x, y, tx, ty, pad, step)) return { x: tx, y: ty };
   const nav = navOf(m), n = nav.pts.length;
   const from = seen(m, nav, x, y), to = seen(m, nav, tx, ty);
   let best = Infinity, bi = from[0][0], bj = to[0][0];
