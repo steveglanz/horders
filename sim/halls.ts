@@ -224,13 +224,15 @@ export function roomAt(m: HallsMap, x: number, y: number, pad = 0): number {
 
 /**
  * H2b: keeps `o` (radius `r`) on its side of every sealed room's grates: inside a sealed room it stays inside, and
- * outside one it can't come in.
+ * outside one it can't come in. The side is where `o` started the tick (`px`, `py`, when it has them), so a dash or
+ * leap that lands past the grates (Blink, Glimmer Step, Interpose, Sidestep, Charge) stops at them instead.
  */
-export function clampGrates(m: HallsMap, o: { x: number; y: number }, r: number): void {
+export function clampGrates(m: HallsMap, o: { x: number; y: number; px?: number; py?: number }, r: number): void {
   for (const rm of m.rooms) {
     if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
     const dx = o.x - rm.x, dy = o.y - rm.y, d = Math.hypot(dx, dy) || 1;
-    if (d <= rm.r) {
+    const was = o.px !== undefined && o.py !== undefined ? Math.hypot(o.px - rm.x, o.py - rm.y) : d;
+    if (was <= rm.r) {
       const max = rm.r - r;
       if (d > max) { o.x = rm.x + (dx / d) * max; o.y = rm.y + (dy / d) * max; }
     } else if (d < rm.r + r) {

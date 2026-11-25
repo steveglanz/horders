@@ -296,6 +296,28 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(v.phase).toBe('cleared');
   });
 
+  it('H2b: no dash or leap carries a hero through a sealed room\'s grates, out or in', () => {
+    const moves: [string, string][] = [['emberwright', 'blink'], ['lumen', 'glimmerStep'], ['slagbinder', 'interpose'], ['duskblade', 'sidestep']];
+    for (const [cls, fn] of moves) {
+      for (const out of [true, false]) {
+        const w = halls(2, { invulnerable: true, cls: cls as never });
+        const a = pack(w, 'A');
+        const rm = w.halls!.rooms[1];
+        put(w, a.x, a.y + HALLS.reach - 10);
+        for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(idle);
+        expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+        // Just inside the south doorway, leaping south; or just outside it in the corridor, leaping north.
+        put(w, rm.x, rm.y + (out ? rm.r - 20 : rm.r + 60));
+        w.player.facing = out ? Math.PI / 2 : -Math.PI / 2;
+        (w as unknown as Record<string, (i: { x: number; y: number }) => void>)[fn]({ x: 0, y: out ? 1 : -1 });
+        w.step(idle);
+        const d = Math.hypot(w.player.x - rm.x, w.player.y - rm.y);
+        if (out) expect(d, `${cls} ${fn} out`).toBeLessThanOrEqual(rm.r);
+        else expect(d, `${cls} ${fn} in`).toBeGreaterThan(rm.r);
+      }
+    }
+  });
+
   it('H2a: heroes and foes move 1.25x faster on a Halls run, heroes 1.2x more while resting; arena runs are unchanged', () => {
     const arena = new World({ seed: 2, tier: 2 });
     const w = halls(2);
