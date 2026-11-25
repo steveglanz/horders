@@ -102,7 +102,11 @@ function shieldCast(w: World, skill: number): number | undefined {
   if (c >= 0 && can(w, 1)) {
     const e = w.enemies[c];
     const d = Math.hypot(e.x - p.x, e.y - p.y) - e.def.radius;
-    if (d > 140 && (e.def.rank !== 'normal' || near === 0)) return 1;
+    // Don't Charge into red marks: Charge stops at the target's edge, which is where a boss drops them on you.
+    const len = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+    const lx = p.x + ((e.x - p.x) / len) * d, ly = p.y + ((e.y - p.y) / len) * d;
+    const marked = w.telegraphs.some((t) => t.alive && t.kind === 'hit' && t.shape === 'circle' && (t.x - lx) ** 2 + (t.y - ly) ** 2 < (t.r + 14) ** 2);
+    if (d > 140 && (e.def.rank !== 'normal' || near === 0) && !marked) return 1;
   }
   return undefined;
 }
