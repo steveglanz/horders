@@ -700,6 +700,8 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   fumarole: 'fumaroleField', obsidian: 'obsidianGallery', cairn: 'cairnWalk', pumice: 'pumiceDrift',
   // The Pressworks (H4c).
   press: 'pressFloor', gear: 'gearRoom', plate: 'plateStore', oil: 'oilSump',
+  // The Crucible raid (H5, visuals #788).
+  ladle: 'ladleHall', crane: 'craneBay', mould: 'mouldFloor', clinker: 'clinkerHeap',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
