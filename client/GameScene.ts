@@ -240,7 +240,7 @@ export class GameScene extends Phaser.Scene {
   /** Test hooks: autopilot plays the run; warp runs extra ticks per frame. */
   autopilot = false;
   /** Ashvents vents with nobody in them this frame (for the edge arrows). */
-  private emptyVents: { x: number; y: number }[] = [];
+  private emptyVents: { x: number; y: number; col?: number }[] = [];
   /** Co-op session, or null for solo. */
   coop: CoopSession | null = null;
   /** Guest: seconds since the last snapshot, for smoothing between them. */
@@ -1496,8 +1496,10 @@ export class GameScene extends Phaser.Scene {
             else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
           } else if (w.dungeonId === 'pressworks' && w.osStage > 0) {
             // OSKELV2 (design, oskel-v2.md): one line per stage.
-            if (ev.phase === 2) this.hud.banner('Stage 2: The belt', 'The press bed is running. Walk against it, and stay off the crush line');
-            else this.hud.banner('Stage 3: Full speed', 'Full speed. Keep walking');
+            // Slim warning lines, not the big banner over the floor (QA phone check, 25 Nov): the belt and the crush line
+            // need the floor clear, as Ondrel's stage 3 (#750).
+            if (ev.phase === 2) this.hud.warn('Stage 2: The belt', 'The press bed is running. Walk against it, and stay off the crush line');
+            else this.hud.warn('Stage 3: Full speed', 'Full speed. Keep walking');
           } else if (w.dungeonId === 'ashvents' && w.ysStage > 0) {
             // YSMERETV2 (design, ysmeret-v2.md): her stage 2.
             // A lone flame flares in 3 s, so this is a slim warning line, not the big banner over the floor (phone pass, 25 Nov).
@@ -2520,11 +2522,11 @@ export class GameScene extends Phaser.Scene {
       const label = gate.kind === 'named' ? `${name}\nHarder · better loot` : gate.kind === 'shrine' ? 'Shrine\nHeal · level · no loot' : name;
       setColorIf(txt.setVisible(true).setText(label), '#' + col.toString(16).padStart(6, '0')).setPosition(gate.x, gate.y - gate.r - 34);
     });
-    if (w.dungeonId === 'pressworks' && w.osStage >= 2 && !this.bossFell) this.oskelBelt(g, now);
     let soakShown = false;
     // Telegraph edges thicken with the phone text scale, so a zoomed-out world keeps a 2px edge.
     const lk = this.textK;
     this.emptyVents.length = 0;
+    if (w.dungeonId === 'pressworks' && w.osStage >= 2 && !this.bossFell) this.oskelBelt(g, now);
     // In 3D the view draws the plain circles and cones itself, so the floor bridge keeps only the marks drawn over them.
     const plain = !this.bridge;
     for (const t of w.telegraphs) {
@@ -2781,8 +2783,8 @@ export class GameScene extends Phaser.Scene {
       // It pulses but never fades below 0.55, so a still frame (or a glance) always catches it.
       const blink = 0.775 + 0.225 * Math.sin(now / 90);
       b.fillStyle(0x000000, 0.6).fillCircle(ex, ey, sz * 1.25);
-      b.lineStyle(2 / cam.zoom, SOAK, blink).strokeCircle(ex, ey, sz * 1.25);
-      b.fillStyle(SOAK, blink).fillTriangle(
+      b.lineStyle(2 / cam.zoom, ev.col ?? SOAK, blink).strokeCircle(ex, ey, sz * 1.25);
+      b.fillStyle(ev.col ?? SOAK, blink).fillTriangle(
         ex + Math.cos(a) * sz, ey + Math.sin(a) * sz,
         ex + Math.cos(a + 2.4) * sz * 0.8, ey + Math.sin(a + 2.4) * sz * 0.8,
         ex + Math.cos(a - 2.4) * sz * 0.8, ey + Math.sin(a - 2.4) * sz * 0.8,
@@ -4313,6 +4315,7 @@ export class GameScene extends Phaser.Scene {
       g.closePath(); g.fill();
     }
     // An empty vent or a lone Ysmeret flame off screen: the gold arrow 2D draws (emptyVents), placed with the 3D camera.
+    // Oskel v2's crush line gets a red one (ev.col).
     for (const ev of this.emptyVents) {
       const p = view.project(ev.x, ev.y);
       const px = p ? p.x : cx, py = p ? p.y : -H;
@@ -4328,7 +4331,7 @@ export class GameScene extends Phaser.Scene {
       const sz = 16, blink = 0.775 + 0.225 * Math.sin(now / 90);
       g.globalAlpha = 0.6; g.fillStyle = '#000000';
       g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.fill();
-      const gold = '#' + SOAK.toString(16).padStart(6, '0');
+      const gold = '#' + (ev.col ?? SOAK).toString(16).padStart(6, '0');
       g.globalAlpha = blink; g.strokeStyle = gold; g.lineWidth = 2;
       g.beginPath(); g.arc(ex, ey, sz * 1.25, 0, Math.PI * 2); g.stroke();
       tri(ex, ey, a, sz, gold, blink);
@@ -6611,8 +6614,8 @@ export class GameScene extends Phaser.Scene {
     const speed = fast ? OSKELV2.belt3 : OSKELV2.belt;
     const flipping = w.osFlipT > 0;
     // Streaks: rows of chevrons across the belt, sliding downstream. Inside the rim only.
-    const gap = 80, off = ((w.time * speed) % gap + gap) % gap, ch = 18;
-    g.lineStyle(4, 0xf0c66a, flipping ? 0.12 : fast ? 0.42 : 0.32);
+    const gap = 80, off = ((w.time * speed) % gap + gap) % gap, ch = 24;
+    g.lineStyle(6, 0xf0c66a, flipping ? 0.15 : fast ? 0.6 : 0.5);
     for (let a = -R; a <= R; a += gap) {
       for (let b = -R + gap / 2; b <= R; b += gap) {
         const u = a + off, x = cx * u + nx * b, y = cy * u + ny * b;
@@ -6639,15 +6642,26 @@ export class GameScene extends Phaser.Scene {
     };
     const pulse = 0.5 + 0.5 * Math.sin(now / 160);
     band(dir, 0.3 + 0.12 * pulse, 0.85, true);
+    // The crush line off screen (or the next one, while a flip is due) gets a red arrow at the edge of the view.
+    const next = flipping ? dir + Math.PI : dir, er = R - OSKELV2.depth / 2;
+    this.emptyVents.push({ x: Math.cos(next) * er, y: Math.sin(next) * er, col: DANGER });
     if (flipping) {
-      const blink = 0.55 + 0.45 * Math.sin(now / 70);
+      // Never below 0.6, so a still frame (or a glance) always catches it.
+      const blink = 0.8 + 0.2 * Math.sin(now / 70);
       band(dir + Math.PI, 0, 0.5 * blink, false);
-      // Big arrows the new way, through the middle of the floor.
-      const ux = -cx, uy = -cy, L = 34;
-      g.fillStyle(0xffffff, 0.55 * blink);
-      for (let k = -2; k <= 2; k++) {
-        const px = ux * k * 110, py = uy * k * 110;
-        g.fillTriangle(px + ux * L, py + uy * L, px - ux * L * 0.4 + nx * L, py - uy * L * 0.4 + ny * L, px - ux * L * 0.4 - nx * L, py - uy * L * 0.4 - ny * L);
+      // Big arrows the new way, under every living hero (QA's phone check, 25 Nov: the party fights near Oskel and
+      // the rim, so arrows through the middle of the floor were usually off screen).
+      const ux = -cx, uy = -cy;
+      const arrow = (px: number, py: number, L: number) => g.fillTriangle(px + ux * L, py + uy * L, px - ux * L * 0.4 + nx * L, py - uy * L * 0.4 + ny * L, px - ux * L * 0.4 - nx * L, py - uy * L * 0.4 - ny * L);
+      for (let k = 0; k < w.heroes.length; k++) {
+        const q = w.heroData(k).player;
+        if (q.hp <= 0) continue;
+        // A dark edge under each white arrow, so it reads on the pale 3D press bed too.
+        for (const d of [-58, 58]) {
+          const px = q.x + ux * d, py = q.y + uy * d;
+          g.fillStyle(0x000000, 0.5 * blink); arrow(px - ux * 3, py - uy * 3, 46);
+          g.fillStyle(0xffffff, 0.9 * blink); arrow(px, py, 38);
+        }
       }
     }
   }
