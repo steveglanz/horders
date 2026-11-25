@@ -1478,7 +1478,12 @@ export class GameScene extends Phaser.Scene {
           this.floatText(ev.x, ev.y - 40, `+${Math.round(ev.amount)}`, '#7dffb0', 18);
           break;
         case 'phase':
-          if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
+          if (w.bossIndex >= 0 && w.enemies[w.bossIndex]?.kind === 'worldShadow') {
+            // QA, 25 Nov: a world boss's Shadow fights as the Kiln Mother does (Acolytes, then faster casts) in every
+            // dungeon, but took the dungeon boss's lines: after a staged Ondrel it read "Stage 2: Burning slag".
+            if (ev.phase === 2) this.hud.banner('Phase 2: Ember Acolytes', 'Kill the healers, and stand in the gold circles');
+            else this.hud.banner('Phase 3: The kiln cracks', `She casts faster. Keep ${w.abilities[3].name} ready`);
+          } else if (w.dungeonId === 'hammerdeep' && w.ondrelStage > 0) {
             // ONDRELV2 (design, ondrel-v2.md): one line per stage.
             if (ev.phase === 2) this.hud.banner('Stage 2: Burning slag', 'Every Anvilfall leaves burning slag. Drag him off it');
             // Stage 3 gives 2.5 s to step out of the glowing slag: a slim warning line up top, as cast warnings are
