@@ -45,6 +45,7 @@ export const NOT_SENT: Record<string, string> = {
   talents: 'per hero, sent in Snapshot.heroes',
   player: 'per hero, sent in Snapshot.heroes',
   kmClock: 'BOSSV2 timers only the host steps; guests draw kmHeat, kmEggs and kmRings',
+  halls: 'H4: the guest builds the same map from the start options; its moving parts ride in Snapshot.halls',
 };
 /** Fields a guest keeps for itself. */
 const LOCAL = new Set(['acting', 'stress']);
@@ -63,6 +64,12 @@ export interface Snapshot {
   strikeOwner?: number[];
   /** The boss's threat table, so a guest's bossTarget, tauntCue and swapCue see who the boss is on. */
   bossThreat?: ThreatTable;
+  /**
+   * H4: a Halls map's moving parts. The guest builds the same map from the same start options (the generator only
+   * hashes the seed), so only what changes is sent: each room's lock and lift clocks, each pack's state, the rooms
+   * seen, and whether the map is done.
+   */
+  halls?: { lock: (number | null)[]; lifted: (number | null)[]; packs: string[]; seen: boolean[]; done: boolean };
 }
 
 type Bag = Record<string, unknown>;
@@ -96,7 +103,11 @@ export function snapshot(w: World, events: SimEvent[] = []): Snapshot {
   const heroes = w.heroes.map((_, i) => w.heroData(i));
   const so = W.strikeOwner as Int8Array | undefined;
   const bossThreat = w.bossIndex >= 0 ? w.threat[w.bossIndex] : undefined;
-  return { tick: w.tick, scalars, pools, arrays, heroes, events, strikeOwner: so ? Array.from(so) : undefined, bossThreat };
+  const m = w.halls;
+  const halls = m
+    ? { lock: m.rooms.map((r) => r.lock ?? null), lifted: m.rooms.map((r) => r.lifted ?? null), packs: m.packs.map((p) => p.state), seen: [...m.seen], done: m.done }
+    : undefined;
+  return { tick: w.tick, scalars, pools, arrays, heroes, events, strikeOwner: so ? Array.from(so) : undefined, bossThreat, halls };
 }
 
 /**
@@ -139,6 +150,13 @@ export function applySnapshot(w: World, s: Snapshot, me: number): void {
   const so = W.strikeOwner as Int8Array | undefined;
   if (so && s.strikeOwner) so.set(s.strikeOwner);
   if (s.bossThreat && w.bossIndex >= 0 && w.bossIndex < w.threat.length) w.threat[w.bossIndex] = JSON.parse(JSON.stringify(s.bossThreat));
+  const m = w.halls;
+  if (m && s.halls && s.halls.packs.length === m.packs.length) {
+    m.rooms.forEach((r, i) => { r.lock = s.halls!.lock[i] ?? undefined; r.lifted = s.halls!.lifted[i] ?? undefined; });
+    m.packs.forEach((p, i) => { p.state = s.halls!.packs[i] as typeof p.state; });
+    m.seen = s.halls.seen;
+    m.done = s.halls.done;
+  }
   w.events = s.events;
   w.use(Math.min(me, w.heroes.length - 1));
 }

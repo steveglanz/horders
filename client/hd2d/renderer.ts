@@ -1089,13 +1089,21 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     u.k.value.set(kx, ky);
   };
   const RIM_GROW = 0.05;
+  // The Coldmarrow is the darkest floor (design 25 Nov, phone pass: Rimehounds read near-black at 320 px). Seen from
+  // above, a low-slung hound is a thin sliver of sprite over its black blob shadow, so there its red ring is brighter
+  // and wider and the blob lighter: the ring, not a dark hole, says where the foe is. Same meshes, no extra draws.
+  const darkRoom = rid === 'coldmarrow';
+  const foeRingGeo = new THREE.RingGeometry(0.86, 1, 40), foeRingDark = new THREE.RingGeometry(0.76, 1, 40);
+  const foeBlobMat = darkRoom ? (() => { const m = blobMat.clone(); m.opacity = 0.45; return m; })() : blobMat;
+  /** Foes made of rime or pale stone glow more of their own colour, so they read pale on the dark floor. */
+  const FOE_GLOW: Partial<Record<string, number>> = { rimehound: 0.8 };
   const foes: FoeS[] = [];
   const foe = (i: number): FoeS => {
     let f = foes[i];
     if (!f) {
       const mesh = new THREE.Mesh(foeGeo, regentMat); mesh.castShadow = !saver; scene.add(mesh);
-      const blob = flat(circle, blobMat, 0.005);
-      const ring = flat(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: 0.6, depthWrite: false }), 0.031);
+      const blob = flat(circle, foeBlobMat, 0.005);
+      const ring = flat(darkRoom ? foeRingDark : foeRingGeo, new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: darkRoom ? 0.95 : 0.6, depthWrite: false }), 0.031);
       const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, rimMat(BAD, true)); rim.renderOrder = 6; scene.add(rim);
       f = foes[i] = { mesh, blob, ring, rim };
     }
@@ -1139,7 +1147,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (!mat) return;
       const d = (mat.map as THREE.Texture).userData as { w: number; h: number };
       const mesh = new THREE.Mesh(foeGeo, mat); mesh.castShadow = !saver; scene.add(mesh);
-      const blob = flat(circle, blobMat, 0.005);
+      const blob = flat(circle, foeBlobMat, 0.005);
       const ring = flat(sleepRingGeo, sleepRingMat, 0.031);
       sleepers.push({ pack: k, x: f.x * S, z: f.y * S, mesh, blob, ring, wd: d.w * A.texScale * S, ht: d.h * A.texScale * S, ph: k * 1.3 + j * 0.7 });
     }));
@@ -1489,7 +1497,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
-        m.emissiveIntensity = e.flash > 0 ? 0.7 : 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
+        m.emissiveIntensity = e.flash > 0 ? Math.max(0.7, FOE_GLOW[e.kind] ?? 0) : FOE_GLOW[e.kind] ?? 0.34; // 0.22 hid foes on the dark floor (Steve, 23 Nov)
       }
       const flip = !e.def.stationary && x > cx ? -1 : 1;
       f.mesh.scale.set(flip * wd * rise * (1 + hit + 0.14 * ak), ht * rise * (1 - hit - 0.1 * ak + rear), 1);
