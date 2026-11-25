@@ -952,7 +952,18 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   /* heroes */
   const F = artFrames(true) as Record<string, Record<string, Frame>>;
   const heroGeo = standGeo(HERO.pad / HERO.H);
-  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string; nameW?: number;
+  // Every hero's green ring, its faint disc and its blob shadow are three instanced meshes for the whole party, not three
+  // meshes each: a raid party of four cost 21 draws over solo, 7 a hero (design, H5 raid trash, 25 Nov).
+  // The colour is GOOD (#5dff8a), declared further down.
+  const MAX_HEROES = 8;
+  const heroFlat = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
+    const im = new THREE.InstancedMesh(geo, mat, MAX_HEROES); im.frustumCulled = false; im.renderOrder = 2; im.count = 0; scene.add(im); return im;
+  };
+  const heroRings = heroFlat(new THREE.RingGeometry(0.4, 0.5, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5dff8a').multiplyScalar(1.3), transparent: true, depthWrite: false }));
+  const heroDiscs = heroFlat(new THREE.CircleGeometry(0.4, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5dff8a'), transparent: true, opacity: 0.18, depthWrite: false }));
+  const heroBlobs = heroFlat(circle.clone().rotateX(-Math.PI / 2), blobMat);
+  const hfM = new THREE.Matrix4();
+  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; name: THREE.Sprite | null; nameText: string; nameW?: number;
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
     atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
     /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
@@ -968,19 +979,15 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (const p of Object.keys(set)) mats[p] = spriteMat(set[p], 1.8);
     const mesh = new THREE.Mesh(heroGeo, mats.idle); mesh.castShadow = i !== 0;
     mesh.scale.set(HERO.W * HERO_PX, HERO.H * HERO_PX, 1); mesh.rotation.x = -SPRITE_TILT; scene.add(mesh);
-    const rc = GOOD.clone(); // was the class colour (RING); Steve, 23 Nov: green = good
-    const ring = flat(new THREE.RingGeometry(0.4, 0.5, 48), new THREE.MeshBasicMaterial({ color: rc.clone().multiplyScalar(1.3), transparent: true, depthWrite: false }), 0.03);
-    const disc = flat(new THREE.CircleGeometry(0.4, 48), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.18, depthWrite: false }), 0.028);
-    const blob = flat(circle, blobMat, 0.006); blob.scale.setScalar(0.48);
     const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(heroGeo, rimMat(GOOD, false)); rim.renderOrder = 4; scene.add(rim);
-    const h: HeroS = { cls, mesh, mats, blob, ring, disc, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
+    const h: HeroS = { cls, mesh, mats, rim, name: null, nameText: '', atkAt: -9, lastVolley: 0, lastSwings: 0, lastCds: [] };
     if (i === 0) {
       const tm = new THREE.MeshBasicMaterial({ map: mats.idle.map, alphaTest: 0.5, side: THREE.DoubleSide, colorWrite: false, depthWrite: false });
       h.twin = new THREE.Mesh(heroGeo, tm); h.twin.castShadow = true; scene.add(h.twin);
     }
     heroes[i] = h; return h;
   };
-  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.blob, h.ring, h.disc, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
+  const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -1377,6 +1384,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const stoneMat = brickStone ? new THREE.MeshStandardMaterial({ map: canvasTex(brickCanvas(), { repeat: [1, 2] }), color: '#ffd0b4', emissive: new THREE.Color('#2a1008'), roughness: 0.9 }) : basalt.clone();
   if (!brickStone) (stoneMat as THREE.MeshStandardMaterial).color.set(th0.tile).multiplyScalar(1.15);
   const STONE_H = 1.4;
+  const UP_Y = new THREE.Vector3(0, 1, 0);
 
   /* embers */
   const N = saver ? 60 : 120, pos = new Float32Array(N * 3), vel = new Float32Array(N);
@@ -1474,21 +1482,28 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     const sig = w.pillars.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';') + '|' + w.stones.map((p) => `${p.x | 0},${p.y | 0},${p.r | 0}`).join(';');
     if (sig !== pillarSig) {
       pillarSig = sig;
+      for (const c of pillarGroup.children) (c as THREE.InstancedMesh).dispose();
       pillarGroup.clear();
-      for (const p of w.pillars) {
-        if (p.fixed) continue; // H3b: a Cross room's own stone pillar; the room kit draws it
-        const m = new THREE.Mesh(pillarGeo, basalt); m.position.set(p.x * S, 1.1, p.y * S); m.scale.set(p.r * S, 2.2, p.r * S);
-        m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
-      }
-      for (const p of w.stones) {
-        const m = new THREE.Mesh(stoneGeo, stoneMat); m.position.set(p.x * S, FLOOR + STONE_H / 2, p.y * S); m.scale.set(p.r * S, STONE_H, p.r * S);
-        m.rotation.y = ((p.x * 7 + p.y * 13) % 6) * 0.5;
-        m.castShadow = m.receiveShadow = true; pillarGroup.add(m);
-      }
+      // One instanced mesh for the pillars and one for the stones (a draw and a shadow draw each), not a mesh apiece:
+      // a Halls room with 8 stones in view cost 13 draws (H5 raid trash cost check, 25 Nov).
+      const batch = (geo: THREE.BufferGeometry, mat: THREE.Material, list: { x: number; y: number; r: number }[], y: number, h: number, turn: boolean) => {
+        if (!list.length) return;
+        const im = new THREE.InstancedMesh(geo, mat, list.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+        list.forEach((p, k) => {
+          q.setFromAxisAngle(UP_Y, turn ? ((p.x * 7 + p.y * 13) % 6) * 0.5 : 0);
+          im.setMatrixAt(k, m4.compose(v.set(p.x * S, y, p.y * S), q, sc.set(p.r * S, h, p.r * S)));
+        });
+        im.computeBoundingSphere();
+        im.castShadow = im.receiveShadow = true; pillarGroup.add(im);
+      };
+      // H3b: a Cross room's own stone pillar (fixed) is drawn by the room kit.
+      batch(pillarGeo, basalt, w.pillars.filter((p) => !p.fixed), 1.1, 2.2, false);
+      batch(stoneGeo, stoneMat, w.stones, FLOOR + STONE_H / 2, STONE_H, true);
     }
 
     // Heroes.
     let cx = 0, cz = 0;
+    let nRing = 0, nBlob = 0;
     for (let i = 0; i < w.heroes.length; i++) {
       const cls = w.heroes[i].cls;
       let h = heroes[i];
@@ -1528,9 +1543,11 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
       h.mesh.visible = true;
       (h.mats.idle as THREE.MeshStandardMaterial).opacity = 1;
-      h.blob.position.set(x, FLOOR + 0.006, z);
-      h.ring.position.set(x, FLOOR + 0.03, z); h.disc.position.set(x, FLOOR + 0.028, z);
-      h.ring.visible = h.disc.visible = !dead;
+      if (nBlob < MAX_HEROES) heroBlobs.setMatrixAt(nBlob++, hfM.makeScale(0.48, 1, 0.48).setPosition(x, FLOOR + 0.006, z));
+      if (!dead && nRing < MAX_HEROES) {
+        heroRings.setMatrixAt(nRing, hfM.makeTranslation(x, FLOOR + 0.03, z));
+        heroDiscs.setMatrixAt(nRing++, hfM.makeTranslation(x, FLOOR + 0.028, z));
+      }
       outline(h.rim, h.mesh, RIM_GROW); if (dead) h.rim.visible = false;
       // The Hoard: a hero the Craw has swallowed is inside Vorhulm, as 2D fades them out (hoardHeroes); their class-colour
       // ring on his belly is a floor mark the bridge carries.
@@ -1549,6 +1566,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
     }
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
+    heroRings.count = heroDiscs.count = nRing; heroBlobs.count = nBlob;
+    heroRings.instanceMatrix.needsUpdate = heroDiscs.instanceMatrix.needsUpdate = heroBlobs.instanceMatrix.needsUpdate = true;
     unstackNames();
 
     // Foes.
