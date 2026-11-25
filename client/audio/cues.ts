@@ -574,10 +574,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     }
     // Halls: through the boss door, which closes behind the party (the boss's own sting follows when it steps in).
     case 'hallsDoor': return { id: 'doorSeal' };
-    // Halls H2b room lock: cues in the next sound PR.
-    case 'hallsGrateWarn': return null;
-    case 'hallsGrateDrop': return null;
-    case 'hallsGrateLift': return null;
+    // Halls H2b room lock: the doorway grates glow (warn, with the wake), drop 1.0 s later, and sink once the room clears.
+    case 'hallsGrateWarn': return { id: 'grateWarn' };
+    case 'hallsGrateDrop': return { id: 'grateDrop' };
+    case 'hallsGrateLift': return null; // landCueFor: just after the clear's level-up, which would cover it
+    // Everyone walked out before the drop: the pack goes back to sleep with no sound, like sneaking past one.
     case 'hallsLeash': return null;
     case 'end': return { id: ev.victory ? 'victory' : 'defeat' };
   }
@@ -654,9 +655,14 @@ export const VENT_SOUNDS: Record<string, { warn: SoundId; land: SoundId; sting: 
 export const ventSounds = (dungeon?: string) => VENT_SOUNDS[dungeon ?? ''] ?? VENT_SOUNDS.kiln;
 
 /** The second half of a telegraphed hit: the sound of it landing, played later in game time (Cue.after). */
+/** Halls: seconds after hallsGrateLift that its sound plays (the clear's levelUp is 1.24 s long and covered it at 0 s). */
+export const GRATE_LIFT_AFTER = 0.9;
+
 export function landCueFor(ev: SimEvent, dungeon?: string): Cue | null {
   if (ev.type === 'spitLob') return { id: 'spitLand', after: VARIETY.lobLand, jitter: 0.04 };
   if (ev.type === 'ventFlare') return { id: ventSounds(dungeon).land, after: LAYOUT.ventCast, jitter: 0.04 };
+  // Halls: the grates sink as the room clears, heard once the clear's level-up chord (1.2 s) has mostly rung out.
+  if (ev.type === 'hallsGrateLift') return { id: 'grateLift', after: GRATE_LIFT_AFTER };
   return null;
 }
 
