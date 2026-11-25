@@ -8,6 +8,7 @@ import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwri
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 import { SET_TUNING, type SetId } from '../../sim/content/sets';
+import { ENCOUNTERS, type EncounterId } from '../../sim/content/dungeon';
 
 export interface Cue {
   id: SoundId;
@@ -50,6 +51,10 @@ export interface CueContext {
    * In the 3D view (perspective, framed differently from 2D) `screen` projects a floor point to screen px and
    * `screenHalf` is half the view's width in px: a sound then pans by where it shows on screen, not by world x.
    */
+  /** Halls: each pack's encounter and state (World.halls.packs), so a wake can tell a shrine and "you pulled two". */
+  hallsPacks?: readonly { enc: string; state: string }[];
+  /** Halls: the party is catching its breath on the map (World.hallsResting). */
+  hallsResting?: boolean;
   /** The Glarewell's Lampeyes: each one's gaze (Enemy.aux, s toward LAMPEYE.full) and whether it can see this screen's hero. */
   gaze?: readonly { aux: number; sees: boolean }[];
   /** The 3D view's room life and foe lunges since the last tick (Hd2dView.sounds), for roomCues. Absent in 2D. */
@@ -561,9 +566,15 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // Today's Heat: a sting with the first fight's banner. The floor Heats already sound their layout sting then.
     case 'encounterStart': return ev.index === 0 && c.heat && !FLOOR_HEATS.has(c.heat) ? { id: HEAT_STING[c.dungeon ?? ''] ?? 'heatSting' } : null;
     case 'encounterClear': return null; // the run's end and the talent draft carry their own sounds
-    // Phase 18 Halls H1: sound is out of scope for the prototype (a pack's fight starts with encounterStart as today).
-    case 'hallsWake': return null;
-    case 'hallsDoor': return null;
+    // Halls: a pack wakes (a shrine has no foes, and its clear carries the sound); a second pack awake at once is "you pulled two".
+    case 'hallsWake': {
+      const pk = c.hallsPacks?.[ev.pack];
+      if (!pk || !ENCOUNTERS[pk.enc as EncounterId]?.spawns.length) return null;
+      return { id: c.hallsPacks!.filter((q) => q.state === 'awake').length >= 2 ? 'packWakeExtra' : 'packWake' };
+    }
+    // Halls: through the boss door, which closes behind the party (the boss's own sting follows when it steps in).
+    case 'hallsDoor': return { id: 'doorSeal' };
+    // Halls H2b room lock: cues in the next sound PR.
     case 'hallsGrateWarn': return null;
     case 'hallsGrateDrop': return null;
     case 'hallsGrateLift': return null;
@@ -908,6 +919,17 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
   return best > 0 ? { id: GAZE_STEPS[best - 1] } : null;
 }
 
+/**
+ * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
+ * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
+ */
+export function restCue(state: { on: boolean }, resting: boolean, packs?: readonly { state: string }[]): Cue | null {
+  const was = state.on;
+  state.on = resting && !!packs?.some((pk) => pk.state === 'cleared');
+  resting = state.on;
+  return resting && !was ? { id: 'catchBreath' } : null;
+}
+
 export function spentCue(state: { on: boolean }, spent: boolean): Cue | null {
   const was = state.on;
   state.on = spent;
@@ -942,7 +964,7 @@ export const ROLLING_VENTS = 'Rolling Vents';
 export const PRIORITY: ReadonlySet<SoundId> = new Set<SoundId>([
   ...Object.values(CAST_SOUNDS).flatMap((s) => (s.start ? [s.start] : [])),
   'castWarn', 'wanderVentWarn', 'rollVentWarn', 'ventRollNext', 'ventRollLast', ...ARENA_WARN_PRIORITY, 'reinforceWarn', ...Object.values(AFFIX_SPAWN), 'targeted', 'interrupt', 'bossSpawn', 'phase', 'enrage', 'burnoutWarn', 'burnout',
-  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
+  'ebbPull', 'outsurgeWarn', 'outsurgePull', 'whirlWarn', 'whirlPull', 'homeBack', 'inhaleDraw', 'titheMissed', 'gaze1', 'gaze2', 'gaze3', 'gaze4', 'gaze5', 'packWake', 'packWakeExtra', 'overflowWarn', 'overflowRise', 'tideTurn', 'steamMoveWarn', 'swallowed', 'pressed', 'pressedClear', 'wheelOnMe', 'decreeOnMe', 'selfDown', 'allyDown', 'roleDown', 'revivesSpent', 'reviveStart', 'namedSpawn',
   ...Object.values(PHASE_STING).flat(),
   ...Object.values(SHADOW_STING),
 ]);

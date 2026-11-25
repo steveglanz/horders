@@ -1092,6 +1092,8 @@ export class GameScene extends Phaser.Scene {
       listen: this.listenFrom(w),
       arenaR: w.arenaR,
       roomSounds: this.hd2d?.sounds?.(),
+      hallsPacks: w.hallsOn ? w.halls!.packs : undefined,
+      hallsResting: w.hallsResting,
       roles: w.heroes.length > 1 ? w.heroes.map((h, i) => roleOf(CLASSES[h.cls].role, w.heroData(i).player.stance)) : undefined,
       revive: w.heroes.length > 1 ? { t: w.heroes.map((_, i) => w.heroData(i).player.reviveT ?? 0), need: w.reviveSeconds, left: w.revivesLeft } : undefined,
     });
