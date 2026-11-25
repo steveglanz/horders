@@ -36,6 +36,10 @@ export const HALLS = {
    * resource builds `res` a second faster than its own regen (design, 24 Nov: aims at the arena's arrival state).
    */
   rest: { delay: 3, hp: 0.01, res: 4 },
+  /** H2a: heroes and foes move this much faster on a Halls run, its boss fight included (shots and casts don't change). */
+  moveScale: 1.25,
+  /** H2a: and heroes this much faster again while catching their breath (nothing awake for rest.delay s). */
+  travelRun: 1.2,
   /** How far apart a sleeping pack stands round its centre. */
   spread: 64,
 };
