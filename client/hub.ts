@@ -1,7 +1,7 @@
 /** Title-screen hero hub: level, gear, passive points, tier select and bags. */
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
-  HeroProfile, characterOf, switchClass, lootUpgrades, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
+  HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, PASSIVES, PassiveId, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
   grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor,
 } from '../sim/hero';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
@@ -1112,6 +1112,7 @@ export class Hub {
       const wornItems = sorted.filter((i) => worn.has(i.id));
       const spare = sorted.filter((i) => !worn.has(i.id));
       $('bagList').innerHTML = `<div class="sec-h"><span>Equipped</span><span class="gold">Gear score ${gearScore(h)}</span></div>`
+        + this.equipBestBtn(h)
         + (wornItems.length ? `<div class="igrid">${wornItems.map(tile).join('')}</div>` : '<div class="muted small">Nothing yet. Equip loot from your bag.</div>')
         + `<div class="sec-h"><span>Bag</span>${plan.items.length ? this.salvageAllBtn(plan) : `<span class="muted">${spare.length ? 'Tap an item · hold for stats' : ''}</span>`}</div>`
         + (spare.length ? `<div class="igrid">${spare.map(tile).join('')}</div>` : '<div class="muted small">Nothing spare. Loot drops during delves.</div>');
@@ -1121,13 +1122,22 @@ export class Hub {
         b.addEventListener('click', () => this.openItem(it.id));
       });
     } else {
-      $('bagList').innerHTML = (plan.items.length ? `<div class="sa-bar"><span class="muted small">${plan.items.length} spare ${plan.items.length === 1 ? 'item is' : 'items are'} no better than what you wear</span>${this.salvageAllBtn(plan)}</div>` : '') + sorted.map((it) => {
+      $('bagList').innerHTML = this.equipBestBtn(h) + (plan.items.length ? `<div class="sa-bar"><span class="muted small">${plan.items.length} spare ${plan.items.length === 1 ? 'item is' : 'items are'} no better than what you wear</span>${this.salvageAllBtn(plan)}</div>` : '') + sorted.map((it) => {
         const isWorn = worn.has(it.id);
         return `<div class="item" data-it="${it.id}" style="--rc:${RARITY[it.rarity].color}">${itemHtml(it, isWorn ? '<span class="tagE">Equipped</span>' : '', wornSets)}<div class="acts">${this.itemActs(it, isWorn)}</div></div>`;
       }).join('') || '<div class="muted">Your bags are empty. Loot drops during delves.</div>';
       this.bindActs($('bagList'), () => this.openBag());
     }
     $('bagList').querySelector<HTMLButtonElement>('[data-sall]')?.addEventListener('click', () => this.openSalvageAll());
+    $('bagList').querySelector<HTMLButtonElement>('[data-ebest]')?.addEventListener('click', () => {
+      const before = gearScore(h);
+      const { items } = equipBest(h);
+      if (!items.length) return;
+      this.save();
+      this.openBag();
+      this.equipFlourish(items[items.length - 1].id, gearScore(h) - before);
+      for (const it of items.slice(0, -1)) this.equipFlourish(it.id, 0);
+    });
     $('bag').hidden = false;
   }
 
@@ -1139,6 +1149,19 @@ export class Hub {
       + `<span class="ig">${glyph(SLOT_ICON[it.slot], 26)}</span><span class="il">${it.ilvl}</span>`
       + (it.set ? `<span class="is" style="color:${SET_COLOR}">${glyph(SET_ICON[it.set], 11)}</span>` : '')
       + (isWorn ? '<span class="ie">E</span>' : '') + (tap && this.freshIds.has(it.id) ? '<i class="inew" aria-hidden="true"></i>' : '') + `</${tag}>`;
+  }
+
+  /**
+   * "Equip best" (Steve, 25 Nov): one tap puts on the highest gear-score piece in every slot. Shown only while the bag
+   * holds something better than what is worn, with how many pieces it puts on; green, as an upgrade is good.
+   */
+  private equipBestBtn(h: HeroProfile): string {
+    const ups = lootUpgrades(h, h.inventory);
+    if (!ups.length) return '';
+    // It counts the pieces rather than a score: the header's gear score is the average item level, while upgrades are
+    // picked by itemScore (the "+N" on item cards), so a score here wouldn't match what the header then shows.
+    const n = ups.length;
+    return `<button class="sbtn ebest" data-ebest data-sfx="open" aria-label="Equip best: ${n} ${n === 1 ? 'upgrade' : 'upgrades'}">Equip best<span class="gain">${n} ${n === 1 ? 'upgrade' : 'upgrades'}</span></button>`;
   }
 
   private salvageAllBtn(plan: { items: Item[]; embers: number }): string {
