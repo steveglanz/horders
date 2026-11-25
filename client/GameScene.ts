@@ -1714,7 +1714,19 @@ export class GameScene extends Phaser.Scene {
           const title = ev.id === 'worldShadow' && w.worldBoss ? `Shadow of ${w.worldBoss}` : def.name;
           const named = events.find((e) => e.type === 'namedSpawn');
           const namedNext = named?.type === 'namedSpawn' ? { title: named.name, sub: namedLine(named.affix) } : undefined;
-          if (this.hud.compact && !coach && (omens || heat)) {
+          if (w.hallsOn && !coach && !omens && !heat) {
+            // Halls (keep it simple, design 25 Nov, every screen): a pack's tip shows only the first time this hero meets
+            // that encounter, then just its name. A named foe folds into the same banner instead of a second one.
+            const met = this.hud.tipSeen?.(ev.id) ?? false;
+            if (!met) this.hud.markTip?.(ev.id);
+            const lines = [met ? '' : (this.hud.compact ? PHONE_TIP[tip] ?? tip : tip) + ground, named?.type === 'namedSpawn'
+              // Phones keep it to the name and trait (the target frame says NAMED and the trait too), so a first meeting's
+              // tip plus the named line still fits the 4-line banner at 320 wide; other screens get the trait's line.
+              ? (this.hud.compact ? `Named: ${named.name} (${named.affix}).` : `${named.name}: ${namedLine(named.affix).replace(/^A named/, 'a named')}`) : '']
+              .map((l) => l.trim()).filter(Boolean);
+            if (met && ground.trim()) lines.unshift(ground.trim());
+            this.hud.banner(title, lines.join(' '));
+          } else if (this.hud.compact && !coach && (omens || heat)) {
             // Phones: the fight tip and floor line first, then the Omens and Heat on a banner of their own,
             // so neither is cut off (a tip, a floor line, the Heat and four Omens don't fit even 4 lines at 320 wide).
             // The Omens banner names them only (details in pause); a Heat on its own has room for its line.
@@ -2747,6 +2759,8 @@ export class GameScene extends Phaser.Scene {
           const top = e.y - e.def.radius - 14;
           drawBar(e, e.hp, e.maxHp, e.ward, e.castId ? e : undefined, e.x, top);
           if (e.named >= 0) this.namedMark(g, b, e, top, now);
+          // Phones (keep it simple): the foe in the target frame doesn't repeat its name over its head; its bar stays.
+          if (this.hud.compact && w.enemies.indexOf(e) === this.hud.targetShown) continue;
           // C2: a named elite shows its title in the rare colour.
           names.push({ x: e.x, y: top, text: e.named >= 0 ? w.namedName(w.enemies.indexOf(e)) : e.def.name, color: NAME_COLOR[e.named >= 0 ? 'rare' : e.def.rank] });
         }
