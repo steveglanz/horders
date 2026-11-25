@@ -940,7 +940,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     }
     return m;
   };
-  type FoeS = { mesh: THREE.Mesh; blob: THREE.Mesh; ring: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS; bellows?: ReturnType<typeof makeKmBellows>; gorge?: THREE.Mesh };
+  type FoeS = { mesh: THREE.Mesh; rim: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>; shield?: THREE.Mesh; anchor?: THREE.Group; eye?: EyeS; horn?: HornS; conch?: ConchS; bellows?: ReturnType<typeof makeKmBellows>; gorge?: THREE.Mesh };
   // Phase 16 U2, the Ballast (design #606): an iron anchor on a chain at its side. It drops as Enemy.aux counts up to
   // BALLAST.plantDelay, bites into the floor once planted, and heaves up and glows while it winds up its slam.
   const anchorIron = new THREE.MeshStandardMaterial({ color: '#5a6470', roughness: 0.5, metalness: 0.85, emissive: new THREE.Color('#ff9040'), emissiveIntensity: 0 });
@@ -1097,15 +1097,34 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const foeBlobMat = darkRoom ? (() => { const m = blobMat.clone(); m.opacity = 0.45; return m; })() : blobMat;
   /** Foes made of rime or pale stone glow more of their own colour, so they read pale on the dark floor. */
   const FOE_GLOW: Partial<Record<string, number>> = { rimehound: 0.8 };
+  // Every foe's blob shadow and red ring are two instanced meshes, one draw each for the whole room (they were two
+  // meshes a foe: 12 draws for six foes). Same geometry, material and height as before, so they look the same; the
+  // blobs are made first so the rings still draw over them. Grown (and remade) when more foes are up than fit.
+  const ringMat = new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: darkRoom ? 0.95 : 0.6, depthWrite: false });
+  const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const feetOf = (geo: THREE.BufferGeometry, mat: THREE.Material, n: number) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.renderOrder = 2; m.frustumCulled = false; scene.add(m); return m; };
+  let feetCap = 32, foeBlobs = feetOf(circle, foeBlobMat, feetCap), foeRings = feetOf(darkRoom ? foeRingDark : foeRingGeo, ringMat, feetCap);
+  let feetN = 0;
+  const footM = new THREE.Matrix4(), footP = new THREE.Vector3(), footS = new THREE.Vector3();
+  /** Puts foe feet number feetN (blob of radius br, ring of radius rr) at x, z. */
+  const addFeet = (x: number, z: number, br: number, rr: number) => {
+    if (feetN >= feetCap) {
+      feetCap *= 2;
+      const nb = feetOf(circle, foeBlobMat, feetCap), nr = feetOf(foeRings.geometry, ringMat, feetCap);
+      for (let k = 0; k < feetN; k++) { foeBlobs.getMatrixAt(k, footM); nb.setMatrixAt(k, footM); foeRings.getMatrixAt(k, footM); nr.setMatrixAt(k, footM); }
+      scene.remove(foeBlobs, foeRings); foeBlobs.dispose(); foeRings.dispose(); foeBlobs = nb; foeRings = nr;
+    }
+    foeBlobs.setMatrixAt(feetN, footM.compose(footP.set(x, FLOOR + 0.005, z), flatQ, footS.set(br, br, br)));
+    foeRings.setMatrixAt(feetN, footM.compose(footP.set(x, FLOOR + 0.031, z), flatQ, footS.set(rr, rr, rr)));
+    feetN++;
+  };
   const foes: FoeS[] = [];
   const foe = (i: number): FoeS => {
     let f = foes[i];
     if (!f) {
       const mesh = new THREE.Mesh(foeGeo, regentMat); mesh.castShadow = !saver; scene.add(mesh);
-      const blob = flat(circle, foeBlobMat, 0.005);
-      const ring = flat(darkRoom ? foeRingDark : foeRingGeo, new THREE.MeshBasicMaterial({ color: BAD.clone().multiplyScalar(1.2), transparent: true, opacity: darkRoom ? 0.95 : 0.6, depthWrite: false }), 0.031);
       const rim = new THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>(foeGeo, rimMat(BAD, true)); rim.renderOrder = 6; scene.add(rim);
-      f = foes[i] = { mesh, blob, ring, rim };
+      f = foes[i] = { mesh, rim };
     }
     return f;
   };
@@ -1451,6 +1470,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
 
     // Foes.
+    feetN = 0;
     let fi = 0, bossOn = false, bossX = 0, bossZ = 0, bossH = 0, bossR = 0;
     // Steve, 23 Nov: enemies had no attack animation. A foe attacks when its touch timer resets (a melee hit, the
     // 0.6 s touchCd) or its ability timer jumps back up (a shot, a summon, a boss move): it lunges at the nearest hero
@@ -1493,7 +1513,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const moving = (e.x - e.px) ** 2 + (e.y - e.py) ** 2 > 0.01;
         const fr = n > 1 && (moving || e.def.rank !== 'normal') ? Math.floor(t * (moving ? 7 : 4) + i * 1.7) % n : 0;
         const m = foeMat(key, fr);
-        if (!m) { f.mesh.visible = f.blob.visible = f.ring.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } hideExtra(f); continue; }
+        if (!m) { f.mesh.visible = f.rim.visible = false; if (f.shield) f.shield.visible = false; if (f.anchor) f.anchor.visible = false; if (f.eye) { f.eye.g.visible = false; f.eye.beam.visible = false; } if (f.horn) f.horn.g.visible = false; if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; } hideExtra(f); continue; }
         f.mesh.geometry = foeGeo; f.mesh.material = m;
         const d = (m.map as THREE.Texture).userData as { w: number; h: number };
         wd = d.w * A.texScale * S; ht = d.h * A.texScale * S;
@@ -1509,8 +1529,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       if (i === w.bossIndex) { bossX = x; bossZ = z; bossH = ht * rise; bossR = e.def.radius * S; bossMesh = f.mesh; }
       f.mesh.rotation.z = e.stunT > 0 ? Math.sin(t * 16) * 0.1 : -fa.dx * 0.22 * ak;
       f.mesh.visible = true;
-      f.blob.visible = true; f.blob.position.set(x, FLOOR + 0.005, z); f.blob.scale.setScalar(e.def.radius * S * 1.25 * rise);
-      f.ring.visible = true; f.ring.position.set(x, FLOOR + 0.031, z); f.ring.scale.setScalar(e.def.radius * S * rise);
+      addFeet(x, z, e.def.radius * S * 1.25 * rise, e.def.radius * S * rise);
       if (e.kind === 'ashwall') {
         if (!f.shield) { f.shield = new THREE.Mesh(shieldGeo, shieldMat); f.shield.castShadow = !saver; scene.add(f.shield); }
         const r = e.def.radius * S, fx = Math.cos(e.aux), fz = Math.sin(e.aux);
@@ -1622,7 +1641,8 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       } else if (f.conch) { f.conch.g.visible = false; f.conch.ripple.visible = false; }
       outline(f.rim, f.mesh, RIM_GROW);
     }
-    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].blob.visible = false; foes[i].ring.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } hideExtra(foes[i]); }
+    foeBlobs.count = foeRings.count = feetN; foeBlobs.instanceMatrix.needsUpdate = foeRings.instanceMatrix.needsUpdate = true;
+    for (let i = fi; i < foes.length; i++) { foes[i].mesh.visible = false; foes[i].rim.visible = false; if (foes[i].shield) foes[i].shield!.visible = false; if (foes[i].anchor) foes[i].anchor!.visible = false; if (foes[i].eye) { foes[i].eye!.g.visible = false; foes[i].eye!.beam.visible = false; } if (foes[i].horn) foes[i].horn!.g.visible = false; if (foes[i].conch) { foes[i].conch!.g.visible = false; foes[i].conch!.ripple.visible = false; } hideExtra(foes[i]); }
     bossLight.intensity = bossOn ? 10 * (0.8 + 0.2 * Math.sin(t * 1.6)) : 0;
     const echoAge = w.time - (A.echoAt?.() ?? -Infinity);
     const echoing = !!bossMesh && echoAge >= 0 && echoAge < ECHO_GHOST;
