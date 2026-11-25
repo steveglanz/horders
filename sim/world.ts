@@ -8445,7 +8445,7 @@ export class World {
           const o = this.enemies[j];
           // Phase 14 X5: never a named foe (a Swift Sluice Crawler stood in its own Blooms and healed back to full).
           if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-          const amount = Math.min(o.maxHp - o.hp, o.maxHp * (this.halls ? FOUNDRY.bloomHealHalls : FOUNDRY.bloomHeal) * this.healTakenMult(o));
+          const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
           if (amount <= 0) return;
           o.hp += amount;
           this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -8524,7 +8524,7 @@ export class World {
           this.forEachNear(t.x, t.y, t.r + 40, (j) => {
             const o = this.enemies[j];
             if (!o.alive || o.def.rank === 'normal' || o.named >= 0 || dist2(o.x, o.y, t.x, t.y) > (t.r + o.def.radius) ** 2) return;
-            const amount = Math.min(o.maxHp - o.hp, o.maxHp * (this.halls ? FOUNDRY.bloomHealHalls : FOUNDRY.bloomHeal) * this.healTakenMult(o));
+            const amount = Math.min(o.maxHp - o.hp, o.maxHp * FOUNDRY.bloomHeal * this.healTakenMult(o));
             if (amount <= 0) return;
             o.hp += amount;
             this.events.push({ type: 'heal', x: o.x, y: o.y, amount });
@@ -9331,11 +9331,6 @@ export const FOUNDRY = {
   bloomDelay: 2.5,
   bloomDamage: 18,
   bloomHeal: 0.25,
-  /**
-   * H3a (design, 25 Nov): a Bloom's heal on the Halls map. The map's rooms make crawlers heal ~4.7x as often as in the
-   * arena, so its one number is lower; it becomes the Foundry's value once Halls replaces the arena Foundry.
-   */
-  bloomHealHalls: 0.125,
   temperEvery: 6,
   temperMax: 5,
   temperCut: 0.15,

@@ -194,12 +194,6 @@ const hash = (seed: number, k: number): number => {
   return (h ^ (h >>> 16)) >>> 0;
 };
 
-/**
- * H3a (design, 25 Nov): a dungeon's generated rooms are this much bigger (radius), the generator's other rules unchanged.
- * The Foundry's Sluice Crawlers heal from Blooms left where the hero stood, and kiting in a small room walks back over them.
- */
-export const HALLS_ROOM_SCALE: Partial<Record<DungeonId, number>> = { foundry: 1.2 };
-
 /** Whether `dungeon` has a Halls map yet (H1: the Kiln; H3a: the Drowned Foundry). */
 export const hallsFor = (dungeon: DungeonId): boolean => dungeon === 'kiln' || dungeon === 'foundry';
 
@@ -231,7 +225,7 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     door = { x: mx(T.door.x), y: T.door.y };
     layoutRooms = T.layoutRooms.map((l) => ({ ...l }));
   } else {
-    ({ rooms, corridors, spots, door, layoutRooms } = genHalls(seed, HALLS_ROOM_SCALE[dungeon] ?? 1));
+    ({ rooms, corridors, spots, door, layoutRooms } = genHalls(seed));
   }
   const fork = rollFork(route, 1, pick, chance, dungeon);
   const side = fork ? fork[1] : { kind: 'shrine' as GateKind, encounter: 'shrine' as EncounterId };
@@ -745,22 +739,6 @@ function genRoom(id: string, main: boolean, shape: RoomShape, rnd: () => number,
   return { room: { id, main, shape: 'round', x: 0, y: 0, r, edge: [loop(0, 0, r)], nav: [[0, 0]] }, ax: 0, ay: 0, ext: { n: r, s: r, e: r, w: r }, spot: [0, 0] };
 }
 
-/** H3a: grows room g about its path axis by `k` (its floor, walls, nav, pack spots and extents). */
-function scaleRoom(g: GenRoom, k: number): GenRoom {
-  if (k === 1) return g;
-  const rm = g.room, m = (v: number) => Math.round(v * k);
-  rm.x = m(rm.x); rm.y = m(rm.y); rm.r = m(rm.r);
-  const sp = (p: RoomPart): RoomPart => ('c' in p ? { c: [m(p.c[0]), m(p.c[1]), m(p.c[2])] } : { b: [m(p.b[0]), m(p.b[1]), m(p.b[2]), m(p.b[3])] });
-  rm.parts = rm.parts?.map(sp);
-  rm.holes = rm.holes?.map(sp);
-  rm.edge = rm.edge?.map((l) => l.map(m));
-  rm.nav = rm.nav?.map(([x, y]) => [m(x), m(y)]);
-  g.ext = { n: m(g.ext.n), s: m(g.ext.s), e: m(g.ext.e), w: m(g.ext.w) };
-  g.spot = [m(g.spot[0]), m(g.spot[1])];
-  if (g.spot2) g.spot2 = [m(g.spot2[0]), m(g.spot2[1])];
-  return g;
-}
-
 function shiftRoom(g: GenRoom, dx: number, dy: number): GenRoom {
   const rm = g.room;
   rm.x += dx; rm.y += dy;
@@ -792,7 +770,7 @@ export interface GenMap {
 }
 
 /** One roll of the layout from `rnd`, in the template's room order: R0 entrance, R1 (A), R2 (S), R3 (B, C), R4 (D), R5 (E), door. */
-function genOnce(rnd: () => number, scale = 1): GenMap {
+function genOnce(rnd: () => number): GenMap {
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
   const len = (lh: [number, number]) => lh[0] + (lh[1] - lh[0]) * rnd();
@@ -807,8 +785,6 @@ function genOnce(rnd: () => number, scale = 1): GenMap {
   const sSide = sgn();
   const r2 = genRoom('R2', false, pick(anyShape), rnd, { r: [390, 500], spotSide: sSide });
   const r4 = genRoom('R4', false, pick(anyShape), rnd, { r: [390, 500], spotSide: -cs });
-  // H3a: a dungeon's room scale (HALLS_ROOM_SCALE) grows every room but the door alcove; corridors stay as rolled.
-  for (const g of [r0, r1, r3, r5, r2, r4]) scaleRoom(g, scale);
   // The main path, south to north (north is -y), each room's axis drifting a little from the last.
   const chain = [r0, r1, r3, r5];
   for (let k = 1; k < chain.length; k++) {
@@ -856,9 +832,9 @@ function genOnce(rnd: () => number, scale = 1): GenMap {
 }
 
 /** Roll `t` of seed `seed`'s layout (before the checker). */
-export function genRoll(seed: number, t: number, scale = 1): GenMap {
+export function genRoll(seed: number, t: number): GenMap {
   let k = 0;
-  const g = genOnce(() => hash(seed ^ 0x47656e48, t * 4096 + k++) / 4294967296, scale);
+  const g = genOnce(() => hash(seed ^ 0x47656e48, t * 4096 + k++) / 4294967296);
   g.tries = t;
   return g;
 }
@@ -870,9 +846,9 @@ export const genFaults = (g: GenMap): string[] => hallsCheck({ rooms: g.rooms, c
  * H2c: this seed's map. Rolls a layout from hashes of the seed alone (the run's rng is untouched, so co-op stays in step)
  * and re-rolls until design's checker passes; after HALLS_GEN.tries it falls back to the template.
  */
-export function genHalls(seed: number, scale = 1): GenMap {
+export function genHalls(seed: number): GenMap {
   for (let t = 0; t < G.tries; t++) {
-    const g = genRoll(seed, t, scale);
+    const g = genRoll(seed, t);
     if (!genFaults(g).length) return g;
   }
   const T = KILN_HALLS_A;
