@@ -34,7 +34,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
     // A raid still in HALLS_BETA has no map without ?hallsbeta=1.
-    expect(new World({ seed: 2, tier: 10, halls: true, dungeon: 'smeltery' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 11, halls: true, dungeon: 'flue' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -531,7 +531,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'smeltery', tier: 10 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'flue', tier: 11 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -1503,10 +1503,12 @@ describe('H5b: the Hoard on the Halls map (design, h5-plan.md)', () => {
 
 describe('H5c: the Smeltery on the Halls map (design, h5-plan.md)', () => {
   const party = [{ cls: 'lumen' as const }, { cls: 'duskblade' as const }, { cls: 'emberwright' as const }];
-  it('is behind ?hallsbeta with the raid layout, H4a\'s named gate rule, and its own themes from #788 (tap guards the door, flywheel is the alcove)', () => {
-    expect(HALLS_BETA).toContain('smeltery');
-    expect(HALLS_ON).not.toContain('smeltery');
-    expect(halls(3, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party }).halls).toBeNull();
+  it('is on for players with the raid layout, H4a\'s named gate rule, and its own themes from #788 (tap guards the door, flywheel is the alcove)', () => {
+    // On for players and hosted co-op since 25 Nov (design: grid, QA solo and four-tab co-op, phones #811).
+    expect(HALLS_ON).toContain('smeltery');
+    expect(HALLS_COOP).toContain('smeltery');
+    expect(HALLS_BETA).not.toContain('smeltery');
+    expect(halls(3, { dungeon: 'smeltery', tier: 10, cls: 'bulwark', party }).halls).not.toBeNull();
     const { openers, named, boss } = DUNGEONS.smeltery;
     for (let seed = 1; seed <= 60; seed++) {
       const w = halls(seed, { dungeon: 'smeltery', tier: 10, hallsBeta: true, cls: 'bulwark', party });
