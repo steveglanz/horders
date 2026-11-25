@@ -7,7 +7,7 @@
  */
 import Phaser from 'phaser';
 import type { World } from '../sim/world';
-import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, MAIN_ROOMS, corridorAt, hallsWay, roomAt } from '../sim/halls';
+import { DOOR_ROOM, HALLS, HallsMap, HallsRoom, corridorAt, mainRooms, hallsWay, roomAt } from '../sim/halls';
 import type { EnemyKind } from '../sim/content/enemies';
 import { GRATE_WARN, Grate, grateState, hallsGrates, liftedOf, lockOf } from './hallsgrates';
 import { corridorEnds, inLoop, inRoom, roomLoops } from './hallsshape';
@@ -266,6 +266,22 @@ export class HallsView {
     } else if (id === 'anchor') {
       g.lineStyle(6, 0x3e4446, 1).lineBetween(x + nx * 14, y + ny * 14, x - nx * 22, y - ny * 22).lineBetween(x - nx * 22 - tx * 14, y - ny * 22 - ty * 14, x - nx * 22 + tx * 14, y - ny * 22 + ty * 14);
       g.lineStyle(4, 0x555c5e, 1).strokeCircle(x + tx * 22, y + ty * 22, 10);
+    } else if (id === 'lens') {
+      g.fillStyle(0xb8904a, 1).fillCircle(x, y, 18);
+      g.fillStyle(0xf4e6c0, 0.9).fillCircle(x, y, 13);
+      g.fillStyle(0xffe6b0, 0.12).fillCircle(x - nx * 14, y - ny * 14, 26);
+    } else if (id === 'orrery') {
+      g.fillStyle(0x5a5670, 1).fillCircle(x, y, 20);
+      g.lineStyle(3, 0xc8a058, 1).strokeEllipse(x, y, 34, 16).strokeEllipse(x, y, 16, 34);
+      g.fillStyle(0xe8e0ff, 1).fillCircle(x, y, 6);
+    } else if (id === 'colonnade') {
+      g.fillStyle(0x6e6a84, 1).fillRect(x - 22, y - 22, 44, 44);
+      g.fillStyle(0x8a84a4, 1).fillCircle(x, y, 17);
+      g.fillStyle(0x7c7898, 1).fillEllipse(x + tx * 34 - nx * 10, y + ty * 34 - ny * 10, 34, 20);
+    } else if (id === 'mirror') {
+      g.fillStyle(0xb8904a, 1).fillRect(x - tx * 24 - 4, y - ty * 24 - 4, 8, 8).fillRect(x + tx * 24 - 4, y + ty * 24 - 4, 8, 8);
+      g.lineStyle(8, 0xb8904a, 1).lineBetween(x - tx * 24, y - ty * 24, x + tx * 24, y + ty * 24);
+      g.lineStyle(4, 0xdde4f4, 1).lineBetween(x - tx * 20, y - ty * 20, x + tx * 20, y + ty * 20);
     } else {
       g.fillStyle(0x8a6a4a, 1).fillRect(x + nx * 10 - 22, y + ny * 10 - 22, 44, 44);
       g.fillStyle(0x3a2a1e, 1).fillRect(x + nx * 10 - 12, y + ny * 10 - 12, 24, 24);
@@ -559,8 +575,9 @@ export class HallsView {
   private nextGoal(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
     if (roomAt(m, x, y) === DOOR_ROOM) return null;
     let far = 0;
-    MAIN_ROOMS.forEach((r, i) => { if (m.seen[r]) far = i; });
-    const r = m.rooms[MAIN_ROOMS[Math.min(MAIN_ROOMS.length - 1, far + 1)]];
+    const main = mainRooms(m);
+    main.forEach((r, i) => { if (m.seen[r]) far = i; });
+    const r = m.rooms[main[Math.min(main.length - 1, far + 1)]];
     return { x: r.x, y: r.y };
   }
 }

@@ -163,7 +163,7 @@ export interface HallsView {
   theme(i: number): Theme;
 }
 
-export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: string; ground: string; saver: boolean; bad: THREE.Color; corridor: number; doorRoom: number }): HallsView {
+export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: string; ground: string; corridorWall?: string; saver: boolean; bad: THREE.Color; corridor: number; doorRoom: number }): HallsView {
   const { S, floor: FLOOR } = o;
   const group = new THREE.Group();
   const tex = new THREE.CanvasTexture(tileCanvas(o.tile));
@@ -171,7 +171,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.88, metalness: 0.02 });
   // Walls are white here and coloured per instance: the corridors keep the Kiln's brick, rooms take their theme's.
   const wallMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.92 });
-  const CORRIDOR_WALL = '#9a5a44';
+  const CORRIDOR_WALL = o.corridorWall ?? '#9a5a44';
   const themes = m.rooms.map((_, i) => themeOf(m, i));
   const themeFloor = new Map<ThemeId, THREE.MeshStandardMaterial>();
   const floorFor = (th: Theme) => {
@@ -298,13 +298,14 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   })();
   const steam = new THREE.Points(steamGeo, new THREE.PointsMaterial({ map: steamTex, size: 0.9, transparent: true, depthWrite: false, opacity: 0.5 }));
   steam.frustumCulled = false; steam.visible = false; if (steamAt.length) group.add(steam);
-  const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion();
+  const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion(), pr2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
   const roomLife = (t: number) => {
     for (const pr of props) {
-      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump')) continue;
+      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery')) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
-        const { sy } = propMotion(pr.id, t, k * 1.3);
+        const { sy, ry } = propMotion(pr.id, t, k * 1.3);
+        if (ry) pq.multiply(pr2.setFromAxisAngle(UP, ry));
         pm.compose(pp, pq, ps.set(ps.x, ps.y * sy, ps.z)); pr.mesh.setMatrixAt(k, pm);
       });
       pr.mesh.instanceMatrix.needsUpdate = true;

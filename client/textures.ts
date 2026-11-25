@@ -2504,6 +2504,21 @@ function drawVent(ctx: Ctx, s: number, f: number): void {
   softGlow(ctx, c, c - 6, 22, `rgba(230,245,255,${0.35 * heat})`);
 }
 
+/** The Kiln Mother's great bellows (three-stage fight, stage 2): two boards and the leather between, breathing. */
+function drawKilnBellows(ctx: Ctx, s: number, f: number): void {
+  const c = s / 2, b = [0, 0.5, 1, 0.5][f];
+  const h = 12 + 5 * b, top = c + 12 - h;
+  ell(ctx, c, c + 18, 22, 6); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  ctx.fillStyle = '#5a3424'; ctx.fillRect(c - 22, c + 12, 44, 5);
+  ctx.fillStyle = '#a8683e'; ctx.beginPath();
+  ctx.moveTo(c - 20, c + 12); ctx.lineTo(c - 18, top + 3); ctx.lineTo(c + 18, top + 3); ctx.lineTo(c + 20, c + 12); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#6e3e22'; ctx.lineWidth = 1.2;
+  for (const k of [0.33, 0.66]) { const y = c + 12 - (c + 12 - top - 3) * k; ctx.beginPath(); ctx.moveTo(c - 19, y); ctx.lineTo(c + 19, y); ctx.stroke(); }
+  ctx.fillStyle = '#5a3424'; ctx.fillRect(c - 22, top, 44, 5);
+  ctx.fillStyle = '#3a2a22'; ctx.fillRect(c - 2, top - 10, 4, 10);
+  ctx.fillStyle = '#2e2624'; ctx.beginPath(); ctx.moveTo(c - 4, c + 14); ctx.lineTo(c + 4, c + 14); ctx.lineTo(c + 2, c + 24); ctx.lineTo(c - 2, c + 24); ctx.closePath(); ctx.fill();
+}
+
 /** Steam cloud puff for vents and Maelra's nozzle (white, tinted per use). */
 function drawSteam(ctx: Ctx, s: number): void {
   for (const [x, y, r] of [[s * 0.5, s * 0.6, s * 0.3], [s * 0.32, s * 0.5, s * 0.22], [s * 0.68, s * 0.48, s * 0.24], [s * 0.5, s * 0.32, s * 0.24]]) {
@@ -2935,6 +2950,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   sheet(scene, 'cinderBrute', 64, 4, drawBrute);
   sheet(scene, 'ashmaw', 60, 4, drawAshmaw);
   sheet(scene, 'kilnMother', 112, 4, drawKiln);
+  sheet(scene, 'kilnBellows', 56, 4, drawKilnBellows);
   sheet(scene, 'acolyte', 34, 4, drawAcolyte);
   sheet(scene, 'emberSpitter', 50, 4, (ctx, sz, f) => { ctx.scale(1.25, 1.25); drawSpitter(ctx, sz, f); });
   sheet(scene, 'ashbuck', 56, 4, drawAshbuck);

@@ -730,6 +730,44 @@ export function colossusFlank(w: World): { dx: number; dy: number } | null {
   return { dx: (tx - p.x) / dd, dy: (ty - p.y) / dd };
 }
 
+/** BOSSV2 Kiln Mother: where to walk (stage 1 eggs, stage 2 the safe quarter and its bellows), or null. */
+function kmStep(w: World): { dx: number; dy: number } | null {
+  if (!w.kmStage || process.env.NOKMV2 === '1') return null;
+  const p = w.player;
+  const to = (x: number, y: number, stop = 6) => { const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy); return d < stop ? { dx: 0, dy: 0 } : { dx: dx / d, dy: dy / d }; };
+  if (w.kmStage === 1) {
+    let best: { x: number; y: number } | null = null, bd = Infinity;
+    for (const g of w.kmEggs) {
+      if (!g.alive || g.dur - g.t > 4) continue;
+      const d = Math.hypot(g.x - p.x, g.y - p.y);
+      if (d < bd) { bd = d; best = g; }
+    }
+    return best ? to(best.x, best.y, 0) : null;
+  }
+  if (!w.kmInKiln) return null;
+  const safe = w.kmHeat.safe, mid = (safe * Math.PI) / 2;
+  const inSafe = w.kmQuarter(p.x, p.y) === safe && Math.hypot(p.x, p.y) > 40;
+  // The nearest bellows in the safe quarter (a melee hero) or in it or next to it (a ranged one); stand at the point
+  // of the safe quarter nearest it (inside its edge by 0.08 rad) and let the attacks work on it.
+  const melee = w.cls === 'duskblade' || w.cls === 'bulwark';
+  let best: { x: number; y: number } | null = null, bd = Infinity;
+  for (const e of w.enemies) {
+    if (!e.alive || e.kind !== 'kilnBellows') continue;
+    const q = w.kmQuarter(e.x, e.y);
+    if (q !== safe && (melee || ((q + 1) % 4 !== safe && (q + 3) % 4 !== safe))) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  if (best) {
+    const r = Math.hypot(best.x, best.y), ba = Math.atan2(best.y, best.x);
+    const off = Math.atan2(Math.sin(ba - mid), Math.cos(ba - mid));
+    const a = mid + Math.max(-0.7, Math.min(0.7, off));
+    const rr = Math.max(60, r * Math.cos(ba - a) - (melee ? 30 : 0));
+    return to(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  return inSafe ? null : to(Math.cos(mid) * 260, Math.sin(mid) * 260);
+}
+
 export function botInput(w: World, skill = 1): Input {
   const p = w.player;
   if (w.phase === 'choose' && w.gates.length) {
@@ -822,6 +860,10 @@ export function botInput(w: World, skill = 1): Input {
     const d = Math.hypot(c.x - p.x, c.y - p.y) || 1;
     if (d > 280) return { x: (c.x - p.x) / d, y: (c.y - p.y) / d, cast: botCast(w, skill) };
   }
+  // BOSSV2 Kiln Mother: stamp an egg that's close to hatching; in the kiln, keep to the safe quarter and break the
+  // bellows from it (design's kiln-mother-v2.md, "Bots"; NOKMV2=1 turns this off for measuring).
+  const km = kmStep(w);
+  if (km) return { x: km.dx, y: km.dy, cast: botCast(w, skill) };
   let fx = 0;
   let fy = 0;
   const melee = w.cls === 'duskblade' || w.cls === 'bulwark';

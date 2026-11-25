@@ -51,7 +51,9 @@ export type PackRole = 'A' | 'B' | 'C' | 'D' | 'E' | 'S';
 export type RoomShape = 'round' | 'hall' | 'cross' | 'ring' | 'twin';
 
 /** H2d: the five Kiln room themes (visuals' ids, client/hallsthemes.ts ThemeId). */
-export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine';
+export type RoomTheme = 'ash' | 'bellows' | 'slag' | 'cooling' | 'shrine' | FoundryTheme;
+/** H3a: the four Drowned Foundry room themes (visuals' ids, 25 Nov); R2 stays the shrine. */
+export type FoundryTheme = 'boiler' | 'cistern' | 'pump' | 'anchor';
 
 /** H2c: a walkable piece of a room's floor: a circle {c: [x, y, r]} or an axis-aligned box {b: [x, y, half w, half h]}. */
 export type RoomPart = { c: [number, number, number] } | { b: [number, number, number, number] };
@@ -192,8 +194,14 @@ const hash = (seed: number, k: number): number => {
   return (h ^ (h >>> 16)) >>> 0;
 };
 
-/** Whether `dungeon` has a Halls map yet (H1: the Kiln only). */
-export const hallsFor = (dungeon: DungeonId): boolean => dungeon === 'kiln';
+/** Whether `dungeon` has a Halls map yet (H1: the Kiln; H3a: the Drowned Foundry). */
+/**
+ * The dungeons whose Halls map is still off by default (design, 25 Nov: the Foundry's map is built, but it waits until
+ * skills close a melee/ranged split in its crawler fights). A run gets one only with WorldOptions.hallsBeta
+ * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
+ */
+export const HALLS_BETA: DungeonId[] = ['foundry'];
+export const hallsFor = (dungeon: DungeonId, beta = false): boolean => dungeon === 'kiln' || (beta && HALLS_BETA.includes(dungeon));
 
 /** Where a map's packs stand before they are rolled (template spots, or the generator's). */
 type Spot = { role: PackRole; room: number; x: number; y: number };
@@ -628,8 +636,8 @@ export function layoutFrame(rm: HallsRoom): { x: number; y: number; r: number } 
  * Design's room sizes (h2-plan.md, H2c "Rooms"): round radius 390-550, hall 700-900 long by 420-520 wide (long axis
  * north-south), cross a 900 box with four 200-square pillars set 120 in from its walls (260-wide arms between them,
  * a loop round each), ring radius 520 round a 160 hearth island, twin two rounds of
- * radius 360-420 meeting in a 300-wide gap. Corridors 300-700 (main path; design's length rule keeps them short) and
- * east-west ones 300-400. Doorways end `port` inside a room's wall.
+ * radius 360-420 meeting in a 300-wide gap. Main-path corridors 300-400 (design, 25 Nov: short, so the walk stays
+ * inside 3,600-5,600 now C has its own room; the checker allows 300-700) and east-west ones 300-400. Doorways end `port` inside a room's wall.
  */
 export const HALLS_GEN = {
   round: [390, 550] as [number, number],
@@ -644,7 +652,7 @@ export const HALLS_GEN = {
   twin: [360, 420] as [number, number],
   twinGap: 300,
   /** Main-path corridors (rim to rim) and side ones (east-west). */
-  corridor: [300, 600] as [number, number],
+  corridor: [300, 400] as [number, number],
   sideCorridor: [300, 400] as [number, number],
   /** A main corridor's sideways drift, at most this share of its length (they run mostly north-south). */
   drift: 0.35,
@@ -767,7 +775,18 @@ export interface GenMap {
   tries: number;
 }
 
-/** One roll of the layout from `rnd`, in the template's room order: R0 entrance, R1 (A), R2 (S), R3 (B, C), R4 (D), R5 (E), door. */
+/** Room index of C's own room on a generated map (design, 25 Nov: one pack per room); H1's template has none. */
+export const C_ROOM = 7;
+
+/** The main-path room order the bots and the edge arrow follow: R0, R1, R3, C's room (generated maps), R5, door. */
+export const mainRooms = (m: { rooms: unknown[] }): number[] => (m.rooms.length > C_ROOM ? [0, 1, 3, C_ROOM, 5, DOOR_ROOM] : MAIN_ROOMS);
+
+/**
+ * One roll of the layout from `rnd`: R0 entrance, R1 (A), R2 (S), R3 (B), R4 (D), R5 (E), the door alcove, then R6
+ * (C, index C_ROOM) between R3 and R5. Design, 25 Nov: one pack per room, so a sealed room only ever holds one pack and C
+ * can't join B's fight; C still stands 260 off the walk (the far half of a twin, or the side of a big round room), so a
+ * careful hero walks past it.
+ */
 function genOnce(rnd: () => number): GenMap {
   const pick = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   const sgn = () => (rnd() < 0.5 ? -1 : 1);
@@ -776,57 +795,60 @@ function genOnce(rnd: () => number): GenMap {
   const r0 = genRoom('R0', true, pick<RoomShape>(['round', 'round', 'hall']), rnd, { r: [390, 450] });
   // Design, 25 Nov: A's room is Round or Ring, so the first sealed fight is in a simple room.
   const r1 = genRoom('R1', true, pick<RoomShape>(['round', 'ring']), rnd, { spotSide: sgn() });
+  // B's room: any shape; a twin keeps both halves, with B in the half on the walk.
+  const bs = sgn();
+  const r3 = genRoom('R3', true, pick<RoomShape>([...anyShape, 'twin']), rnd, { cSide: bs, spotSide: sgn() });
+  // C's room: a round one big enough for C to stand 260 off the walk with floor round its foes, or a twin (C in the far half).
   const cs = sgn();
-  // B and C share a room: a round one big enough for C to stand 260 off the walk and B's foes outside C's pull, or a twin.
-  const r3 = genRoom('R3', true, pick<RoomShape>(['round', 'twin']), rnd, { r: [530, 550], cSide: cs });
+  const r6 = genRoom('R6', true, pick<RoomShape>(['round', 'twin']), rnd, { r: [470, 510], cSide: cs });
   const r5 = genRoom('R5', true, pick(anyShape), rnd, { spotSide: sgn() });
   const sSide = sgn();
   const r2 = genRoom('R2', false, pick(anyShape), rnd, { r: [390, 500], spotSide: sSide });
-  const r4 = genRoom('R4', false, pick(anyShape), rnd, { r: [390, 500], spotSide: -cs });
+  const r4 = genRoom('R4', false, pick(anyShape), rnd, { r: [390, 500], spotSide: -bs });
   // The main path, south to north (north is -y), each room's axis drifting a little from the last.
-  const chain = [r0, r1, r3, r5];
+  const chain = [r0, r1, r3, r6, r5];
   for (let k = 1; k < chain.length; k++) {
     const a = chain[k - 1], b = chain[k];
     const gap = len(G.corridor);
     const drift = (rnd() * 2 - 1) * gap * G.drift;
     shiftRoom(b, a.ax + drift, a.ay - a.ext.n - gap - b.ext.s);
   }
-  // Side rooms: S off A's room (either side), D off B and C's room on the side away from C.
+  // Side rooms: S off A's room (either side), D off B's room (away from a twin's second half).
   const branch = (parent: GenRoom, child: GenRoom, side: number) => {
     const gap = len(G.sideCorridor);
     const out = side > 0 ? parent.ext.e : parent.ext.w, back = side > 0 ? child.ext.w : child.ext.e;
     shiftRoom(child, parent.ax + side * (out + gap + back), parent.ay);
   };
   branch(r1, r2, sSide);
-  branch(r3, r4, -cs);
+  branch(r3, r4, -bs);
   const doorY = r5.ay - r5.ext.n - G.alcoveGap - G.alcove;
   const alcove: HallsRoom = { id: 'door', main: true, shape: 'round', x: r5.ax, y: doorY, r: G.alcove, edge: [loop(r5.ax, doorY, G.alcove, 24)], nav: [[r5.ax, doorY]] };
-  const rooms = [r0.room, r1.room, r2.room, r3.room, r4.room, r5.room, alcove];
+  const rooms = [r0.room, r1.room, r2.room, r3.room, r4.room, r5.room, alcove, r6.room];
   const cor = (a: number, b: number, pa: [number, number], pb: [number, number]): HallsCorridor => ({ a, b, ax: pa[0], ay: pa[1], bx: pb[0], by: pb[1] });
   const sideOut: Side = sSide > 0 ? 'e' : 'w', sideIn: Side = sSide > 0 ? 'w' : 'e';
-  const dOut: Side = -cs > 0 ? 'e' : 'w', dIn: Side = -cs > 0 ? 'w' : 'e';
+  const dOut: Side = -bs > 0 ? 'e' : 'w', dIn: Side = -bs > 0 ? 'w' : 'e';
   const corridors = [
     cor(0, 1, port(r0, 'n'), port(r1, 's')),
     cor(1, 3, port(r1, 'n'), port(r3, 's')),
     cor(1, 2, port(r1, sideOut), port(r2, sideIn)),
     cor(3, 4, port(r3, dOut), port(r4, dIn)),
-    cor(3, 5, port(r3, 'n'), port(r5, 's')),
+    cor(3, C_ROOM, port(r3, 'n'), port(r6, 's')),
+    cor(C_ROOM, 5, port(r6, 'n'), port(r5, 's')),
     cor(5, 6, port(r5, 'n'), [r5.ax, doorY]),
   ];
-  // B and C: a twin's halves, or in a round room B just south of the middle and C across, north and to its side.
-  let B: [number, number], C: [number, number];
-  if (r3.spot2) { B = r3.spot; C = r3.spot2; }
-  else { const r = r3.room.r; B = [r3.ax - cs * 0.15 * r, r3.ay + 0.5 * r]; C = [r3.ax + cs * 0.6 * r, r3.ay - 0.5 * r]; }
+  // C: a twin's far half, or in a round room off to its side, level with the middle.
+  const C: [number, number] = r6.spot2 ?? [r6.ax + cs * 0.62 * r6.room.r, r6.ay];
   const spots: Spot[] = [
     { role: 'A', room: 1, x: r1.spot[0], y: r1.spot[1] },
     { role: 'S', room: 2, x: r2.spot[0], y: r2.spot[1] },
-    { role: 'B', room: 3, x: B[0], y: B[1] },
-    { role: 'C', room: 3, x: C[0], y: C[1] },
+    { role: 'B', room: 3, x: r3.spot[0], y: r3.spot[1] },
+    { role: 'C', room: C_ROOM, x: C[0], y: C[1] },
     { role: 'D', room: 4, x: r4.spot[0], y: r4.spot[1] },
     { role: 'E', room: 5, x: r5.ax, y: r5.ay - r5.ext.n + G.guardIn },
   ];
   for (const s of spots) { s.x = Math.round(s.x); s.y = Math.round(s.y); }
-  return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms: [{ room: 1, slot: 0 }, { room: 3, slot: 1 }, { room: 5, slot: 3 }], tries: 0 };
+  const layoutRooms = [{ room: 1, slot: 0 }, { room: 3, slot: 1 }, { room: C_ROOM, slot: 2 }, { room: 5, slot: 3 }];
+  return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms, tries: 0 };
 }
 
 /** Roll `t` of seed `seed`'s layout (before the checker). */
@@ -878,7 +900,8 @@ function segSeg(a: { x1: number; y1: number; x2: number; y2: number }, b: { x1: 
  * 300-700 rim to rim (east-west ones at most 400, main ones mostly north-south); the walk from the entrance to the boss
  * door is 3,600-5,600; C stands 260 off that walk; packs in different rooms are 700 apart; the door guard's ring spans
  * the doorway to the boss door; A, B, C and E stand on reachable floor with room for their foes; layout rooms are 420
- * across; A's room is Round or Ring (design, 25 Nov: the first sealed fight is in a simple room).
+ * across; A's room is Round or Ring (design, 25 Nov: the first sealed fight is in a simple room); no room holds two
+ * packs (design, 25 Nov).
  */
 export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs: Spot[]; layoutRooms: { room: number; slot: number }[] }): string[] {
   const out: string[] = [];
@@ -930,6 +953,11 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
   let off = Infinity;
   for (let k = 1; k < line.length; k++) { const q = segClosest(C.x, C.y, line[k - 1].x, line[k - 1].y, line[k].x, line[k].y); off = Math.min(off, Math.hypot(C.x - q.x, C.y - q.y)); }
   if (off < G.cOff) out.push(`C stands ${Math.round(off)} off the walk`);
+  // Design, 25 Nov: one pack per room, so a sealed room only ever holds one fight.
+  for (const p of m.packs) {
+    const n = m.packs.filter((q) => q.room === p.room).length;
+    if (n > 1 && p === m.packs.find((q) => q.room === p.room)) out.push(`room ${R[p.room].id} holds ${n} packs`);
+  }
   for (let i = 0; i < m.packs.length; i++) {
     for (let j = i + 1; j < m.packs.length; j++) {
       const a = m.packs[i], b = m.packs[j];
@@ -974,34 +1002,47 @@ export function hallsCheck(m: HallsGeo & { door: { x: number; y: number }; packs
 // ---------------------------------------------------------------- H2d themes
 
 /** Which themes suit which shape (design's h2-plan.md, H2d table "Fits"). */
-const THEME_FITS: Record<RoomShape, RoomTheme[]> = {
-  round: ['ash', 'slag', 'cooling'],
-  hall: ['ash', 'bellows'],
-  cross: ['slag', 'ash'],
-  ring: ['cooling', 'ash'],
-  twin: ['bellows', 'ash'],
+/**
+ * Each dungeon's room themes: the door guard's room, the theme a vents or lava room takes, the boss door alcove's, the
+ * themes that fit each shape and the spares. Every map's R2 is the shrine.
+ */
+interface ThemeKit { guard: RoomTheme; byLayout: Partial<Record<string, RoomTheme>>; alcove: RoomTheme; fits: Record<RoomShape, RoomTheme[]>; rest: RoomTheme[] }
+const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
+  kiln: {
+    guard: 'slag', byLayout: { channel: 'slag', vents: 'cooling' }, alcove: 'bellows',
+    fits: { round: ['ash', 'slag', 'cooling'], hall: ['ash', 'bellows'], cross: ['slag', 'ash'], ring: ['cooling', 'ash'], twin: ['bellows', 'ash'] },
+    rest: ['ash', 'bellows', 'slag', 'cooling'],
+  },
+  // H3a (visuals, 25 Nov): the boiler guards the door and pairs with vents; the anchor fits any shape and is the spare.
+  foundry: {
+    guard: 'boiler', byLayout: { vents: 'boiler' }, alcove: 'anchor',
+    fits: { round: ['boiler', 'cistern', 'anchor'], hall: ['boiler', 'pump', 'anchor'], cross: ['anchor'], ring: ['anchor'], twin: ['cistern', 'pump', 'anchor'] },
+    rest: ['anchor', 'cistern', 'pump', 'boiler'],
+  },
 };
 
 /**
  * H2d: rolls each room's theme (design's h2-plan.md, H2d), from hashes of the seed alone. R2 (S, the shrine or named
- * room) is the Kiln shrine, and the shrine is nowhere else. The door guard's room is always the Slag channel, the
- * hottest look before the boss. A room that rolled the lava layout is a Slag channel and one that rolled vents a Cooling
- * yard, unless a neighbour already has it; any other room takes a theme that fits its shape. No two rooms joined by a
- * corridor share a theme. `layout(room)` is the layout the room rolled (World.hallsLayouts).
+ * room) is the shrine, and the shrine is nowhere else. The door guard's room is always the dungeon's guard theme (the
+ * Kiln's Slag channel, the Foundry's boiler). A room that rolled a layout with a theme of its own (the Kiln: lava is a
+ * Slag channel, vents a Cooling yard; the Foundry: vents are a boiler) takes it unless a neighbour already has it; any
+ * other room takes a theme that fits its shape. No two rooms joined by a corridor share a theme. `layout(room)` is the
+ * layout the room rolled (World.hallsLayouts).
  */
-export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined): void {
+export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
+  const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
   const free = (i: number, t: RoomTheme) => near(i).every((j) => R[j].theme !== t);
   for (const r of R) r.theme = undefined;
   R[2].theme = 'shrine';
-  R[5].theme = 'slag';
-  for (const i of [3, 1, 4, 0, DOOR_ROOM]) {
+  R[5].theme = kit.guard;
+  for (const i of [3, ...(R.length > C_ROOM ? [C_ROOM] : []), 1, 4, 0, DOOR_ROOM]) {
     const lay = layout(i);
-    const want: RoomTheme | undefined = lay === 'channel' ? 'slag' : lay === 'vents' ? 'cooling' : undefined;
+    const want = lay === undefined ? undefined : kit.byLayout[lay];
     if (want && free(i, want)) { R[i].theme = want; continue; }
-    const fits = (i === DOOR_ROOM ? ['bellows' as RoomTheme] : THEME_FITS[R[i].shape ?? 'round']).filter((t) => free(i, t));
-    const rest = (['ash', 'bellows', 'slag', 'cooling'] as RoomTheme[]).filter((t) => free(i, t));
+    const fits = (i === DOOR_ROOM ? [kit.alcove] : kit.fits[R[i].shape ?? 'round']).filter((t) => free(i, t));
+    const rest = kit.rest.filter((t) => free(i, t));
     const pool = fits.length ? fits : rest;
     R[i].theme = pool[hash(seed ^ 0x54686d65, i) % pool.length];
   }
