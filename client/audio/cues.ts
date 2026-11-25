@@ -669,6 +669,8 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   lens: 'lensGallery', orrery: 'starVault', colonnade: 'shadeColonnade', mirror: 'mirrorHall',
   // The Coldmarrow (H3c).
   hearthless: 'deadHearth', rime: 'rimeHall', drift: 'snowdriftCave', crypt: 'coldCrypt',
+  // The Wrackline (H3d).
+  quay: 'harbourQuay', wreck: 'wreckYard', kelp: 'kelpBed', sluice: 'sluiceGate',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
