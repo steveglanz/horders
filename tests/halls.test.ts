@@ -4,6 +4,7 @@ import { botChoose, botInput, hallsOrder } from '../sim/bot';
 import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
+import { equippedItems } from '../sim/hero';
 
 const idle = { x: 0, y: 0 };
 /** A spec coordinate at the template's scale. */
@@ -32,7 +33,7 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(w.phase).toBe('intro');
     expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
-    expect(new World({ seed: 2, tier: 10, halls: true, dungeon: 'coldmarrow' }).halls).toBeNull();
+    expect(new World({ seed: 2, tier: 13, halls: true, dungeon: 'wrackline' }).halls).toBeNull();
   });
 
   it('places today\'s route as packs: A, B the openers, C the named slot, E the hard slot guarding the door', () => {
@@ -313,6 +314,23 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(v.phase).toBe('cleared');
   });
 
+  it('a melee bot closes on a Dimhorn hugging a sealed room\'s wall, so its Dark Call never lands (skills, 25 Nov)', async () => {
+    // Seed 38, the Coldmarrow at tier 11 with tools/heroes/hero-t8.json: hallsSteer's 120-unit look-ahead held the
+    // Duskblade off a Dimhorn 17 from the wall, out in the dark, until its horn called three hounds in on it.
+    const hero = JSON.parse(readFileSync(new URL('../tools/heroes/hero-t8.json', import.meta.url), 'utf8'));
+    const w = new World({ seed: 38, halls: true, hallsBeta: true, dungeon: 'coldmarrow', tier: 11, cls: 'duskblade', gear: equippedItems(hero), passives: hero.passives, heroLevel: hero.level, nextItemId: hero.nextItemId });
+    let dimhorn: (typeof w.enemies)[number] | undefined;
+    const end = w.time + 400;
+    while (w.state !== 'ended' && w.time < end && w.player.hp > 0 && !(dimhorn && !dimhorn.alive)) {
+      if (w.state === 'draft') { w.choose(botChoose(w)); continue; }
+      w.step(botInput(w));
+      dimhorn ??= w.enemies.find((e) => e.alive && e.kind === 'dimhorn');
+    }
+    expect(dimhorn, 'the map has a Dimhorn').toBeDefined();
+    expect(dimhorn!.alive, 'the Dimhorn falls').toBe(false);
+    expect(dimhorn!.aux2, 'Dark Calls landed').toBe(0);
+  }, 60000);
+
   it('H2b: no dash or leap carries a hero through a sealed room\'s grates, out or in', () => {
     const moves: [string, string][] = [['emberwright', 'blink'], ['lumen', 'glimmerStep'], ['slagbinder', 'interpose'], ['duskblade', 'sidestep']];
     for (const [cls, fn] of moves) {
@@ -503,7 +521,7 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     expect(halls(3, { dungeon: 'foundry', tier: 4, hallsBeta: true }).halls).not.toBeNull();
     expect(new World({ seed: 3, tier: 4, dungeon: 'foundry' }).halls).toBeNull();
     expect(halls(3, { hallsBeta: true }).halls).not.toBeNull();
-    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+    expect(halls(3, { dungeon: 'wrackline', tier: 13 }).halls).toBeNull();
   });
 
   it('gets a map: the Foundry\'s own fights as packs, its themes, and Maelra behind the door', () => {
@@ -831,6 +849,20 @@ describe('H3d: the Wrackline on the Halls map', () => {
     expect(riftTicks).toBeGreaterThan(100);
   }, 60000);
 
+  it('QA, 25 Nov: a foe pinched between two rafts that nearly touch is pushed clear of both', () => {
+    const w = wrack(5);
+    wake(w);
+    const [a, b] = w.rafts;
+    // Two rafts side by side, 150 apart (each 78 across the middle), and a foe in the gap between them.
+    b.x = a.x + 150; b.y = a.y;
+    const e = w.enemies.find((q) => q.alive && q.def.rank !== 'boss' && !q.def.stationary)!;
+    for (const [ox, oy] of [[75, 0], [75, 20], [60, -10], [90, 5]]) {
+      e.x = a.x + ox; e.y = a.y + oy;
+      (w as unknown as { raftsClear(): void }).raftsClear();
+      for (const r of [a, b]) expect(Math.hypot(e.x - r.x, e.y - r.y), `${ox},${oy}`).toBeGreaterThanOrEqual(78);
+    }
+  });
+
   it('bots walk it and go through the door into Hessa\'s arena', async () => {
     let reached = 0;
     for (const seed of [1, 2, 3, 4]) {
@@ -888,12 +920,44 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
   });
 });
 
+describe('H4a: the Hammerdeep on the Halls map', () => {
+  it('is off for players until design turns it on; a party gets its own fights, the Kiln themes and Ondrel behind the door', () => {
+    expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.hammerdeep;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['ash', 'bellows', 'slag', 'cooling'], `seed ${seed} room ${i}`).toContain(r.theme); });
+    }
+  });
+
+  it('a Bulwark and Lumen bot duo walks it and goes through the door into Ondrel\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      const w = halls(seed, { dungeon: 'hammerdeep', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.hammerdeep.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
 describe('H3c: the Coldmarrow on the Halls map', () => {
   const COLD_THEMES = ['hearthless', 'rime', 'drift', 'crypt'];
   const cold = (seed: number, more: Partial<ConstructorParameters<typeof World>[0]> = {}) => halls(seed, { dungeon: 'coldmarrow', tier: 10, hallsBeta: true, ...more });
 
-  it('is off for players until design turns it on, and gets its own fights, themes and Nhevra behind the door', () => {
-    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).toBeNull();
+  it('is on for players (design, 25 Nov), and gets its own fights, themes and Nhevra behind the door', () => {
+    expect(halls(3, { dungeon: 'coldmarrow', tier: 10 }).halls).not.toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.coldmarrow;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
     for (let seed = 1; seed <= 120; seed++) {
@@ -951,15 +1015,16 @@ describe('H3c: the Coldmarrow on the Halls map', () => {
 
   it('bots walk it and go through the door into Nhevra\'s arena', async () => {
     let reached = 0;
-    for (const seed of [1, 2, 3, 4]) {
+    // Gearless at tier 10 many die on the way (the cold), so this is a smoke test over 8 seeds (25 Nov: 5 of 8, 4 of 8 once a bot closes on a foe at a wall).
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       // Yield between seeds: one long synchronous test starves vitest's worker RPC on CI ("Timeout calling onTaskUpdate").
       await new Promise((r) => setTimeout(r, 0));
       const w = cold(seed, { cls: 'slagbinder' });
       run(w, () => !w.hallsOn || w.state === 'ended', 900);
       if (!w.hallsOn && w.route[w.encounter] === 'nhevra') reached++;
     }
-    expect(reached).toBeGreaterThanOrEqual(2);
-  }, 60000);
+    expect(reached).toBeGreaterThanOrEqual(3);
+  }, 120000);
 });
 
 describe('H3: every dungeon\'s fight clock runs on a Halls map too', () => {
@@ -1077,5 +1142,53 @@ describe('Halls: one pack per room (design, 25 Nov)', () => {
       expect(c.state).toBe('asleep');
       expect(c.room).not.toBe(b.room);
     }
+  });
+});
+
+describe('Halls: grates let heroes in, never out (design, 25 Nov)', () => {
+  /** Seals the A pack's room with hero 0 inside; returns the room and a doorway line (u points out, `t` is the rim). */
+  function sealed(w: World) {
+    const m = w.halls!;
+    const a = m.packs.find((q) => q.role === 'A')!;
+    const rm = m.rooms[roomAt(m, a.x, a.y)];
+    put(w, a.x, a.y + HALLS.reach - 10);
+    const c = m.corridors.find((q) => m.rooms[q.a] === rm || m.rooms[q.b] === rm)!;
+    const inA = m.rooms[c.a] === rm;
+    const px = inA ? c.ax! : c.bx!, py = inA ? c.ay! : c.by!, ox = inA ? c.bx! : c.ax!, oy = inA ? c.by! : c.ay!;
+    const len = Math.hypot(ox - px, oy - py), ux = (ox - px) / len, uy = (oy - py) / len;
+    let t = 0;
+    while (roomGap(rm, px + ux * t, py + uy * t) > 0) t += 1;
+    return { rm, px, py, ux, uy, t };
+  }
+
+  it('in co-op a hero shut outside walks in through a grate, and then can\'t walk out; foes still can\'t cross', () => {
+    const w = halls(2, { invulnerable: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    const q = w.heroData(1).player;
+    q.x = q.px = px + ux * (t + 250); q.y = q.py = py + uy * (t + 250);
+    const hold = [idle, idle];
+    for (let k = 0; k < Math.round(HALLS.lockDelay * 30) + 3; k++) w.step(hold);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 starts outside').toBeLessThan(0);
+    // Walk in along the corridor.
+    for (let k = 0; k < 90; k++) w.step([idle, { x: -ux, y: -uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 walked in').toBeGreaterThanOrEqual(0);
+    // And out again: the grate holds.
+    for (let k = 0; k < 120; k++) w.step([idle, { x: ux, y: uy }]);
+    expect(roomGap(rm, q.x, q.y), 'hero 1 can\'t walk out').toBeGreaterThanOrEqual(0);
+    // A foe outside is still kept out.
+    const foe = { x: px - ux * 5, y: py - uy * 5, px: px + ux * (t + 40), py: py + uy * (t + 40) };
+    clampGrates(w.halls!, foe, 15);
+    expect(roomGap(rm, foe.x, foe.y)).toBeLessThan(0);
+  });
+
+  it('solo play doesn\'t change: a sealed grate keeps the hero out', () => {
+    const w = halls(2, { invulnerable: true });
+    const { rm, px, py, ux, uy, t } = sealed(w);
+    w.step(idle);
+    rm.lock = HALLS.lockDelay + 1; // sealed (solo, the hero is never outside a seal, so set it by hand)
+    put(w, px + ux * (t + 80), py + uy * (t + 80));
+    for (let k = 0; k < 90; k++) w.step({ x: -ux, y: -uy });
+    expect(roomGap(rm, w.player.x, w.player.y)).toBeLessThan(0);
   });
 });

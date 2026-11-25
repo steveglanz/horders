@@ -202,14 +202,15 @@ const hash = (seed: number, k: number): number => {
 
 /**
  * The dungeons with a Halls map for players: H1 the Kiln; H3a the Drowned Foundry (on 25 Nov once skills' #706 closed its
- * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged).
+ * crawler split); H3b the Glarewell (on 25 Nov once QA and the phone pass cleared it and phones' #720 merged); H3c the Coldmarrow (on 25 Nov once QA, the phone pass
+ * #724 #726 and the co-op grate fix #723 were in).
  */
-export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell'];
+export const HALLS_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarrow'];
 /**
  * The dungeons whose Halls map is built but still off by default. A run gets one only with WorldOptions.hallsBeta
  * (?hallsbeta=1, HALLS_BETA=1 in tools/balance.ts).
  */
-export const HALLS_BETA: DungeonId[] = ['coldmarrow', 'wrackline'];
+export const HALLS_BETA: DungeonId[] = ['wrackline', 'hammerdeep'];
 /** Whether a run of `dungeon` gets a Halls map. */
 export const hallsFor = (dungeon: DungeonId, beta = false): boolean => HALLS_ON.includes(dungeon) || (beta && HALLS_BETA.includes(dungeon));
 
@@ -351,13 +352,14 @@ export function roomAt(m: HallsGeo, x: number, y: number, pad = 0): number {
 
 /**
  * H2b: a sealed room's grates (rm.lock past HALLS.lockDelay) close its doorways: nothing inside its floor gets out, and
- * nothing outside gets in. `o` (radius `r`) is kept wholly on its own side of the room's wall. The side is where `o`
+ * nothing outside gets in (`letIn`, co-op heroes only: design 25 Nov, "Grates let heroes in, never out"). `o` (radius `r`)
+ * is kept wholly on its own side of the room's wall. The side is where `o`
  * started the tick (`px`, `py`, when it has them), so a dash or leap that lands past the grates (Blink, Glimmer Step,
  * Interpose, Sidestep, Charge, Rending Dash) stops at them instead.
  */
 /** How far off a sealed grate clampGrates keeps anything, on either side. */
 export const GRATE_SKIN = 2;
-export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number): void {
+export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number; py?: number }, r: number, letIn = false): void {
   for (const rm of m.rooms) {
     if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
     const from = o.px !== undefined && o.py !== undefined;
@@ -373,7 +375,8 @@ export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number;
       o.x = q.x;
       o.y = q.y;
     } else {
-      if (g <= -k) continue;
+      // Design, 25 Nov ("Grates let heroes in, never out"): in co-op a hero shut outside can walk in through a grate.
+      if (g <= -k || letIn) continue;
       const n = roomInward(rm, o.x, o.y);
       o.x -= n.x * (k + g);
       o.y -= n.y * (k + g);
@@ -1069,6 +1072,7 @@ const THEME_KITS: Partial<Record<DungeonId, ThemeKit>> = {
  * layout the room rolled (World.hallsLayouts).
  */
 export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) => string | undefined, dungeon: DungeonId = 'kiln'): void {
+  // H4 (design's h4-plan.md): the group dungeons take the Kiln's themes (visuals' names), as their packs are the Kiln's.
   const kit = THEME_KITS[dungeon] ?? THEME_KITS.kiln!;
   const R = m.rooms;
   const near = (i: number) => m.corridors.flatMap((c) => (c.a === i ? [c.b] : c.b === i ? [c.a] : []));
