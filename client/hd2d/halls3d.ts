@@ -285,6 +285,9 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
       // Steam: off a Cooling yard post's grille, and off the top of a Foundry boiler's stack.
       if (th.id === 'cooling') steamAt.push({ x, z, y: 0.5, ch: roomChunk[i], ph: k * 1.7 + i });
       if (th.id === 'boiler') steamAt.push({ x, z, y: 1.3 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
+      // ...off a Hammerdeep quench trough's water, and smoke off an Ashvents fumarole's mouth.
+      if (th.id === 'fumarole') steamAt.push({ x, z, y: 0.5 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
+      if (th.id === 'quench') steamAt.push({ x, z, y: 0.42 * sc, ch: roomChunk[i], ph: k * 1.7 + i });
     });
     mesh.castShadow = !o.saver; mesh.receiveShadow = true;
     roomChunk[i].g.add(mesh);
@@ -301,16 +304,20 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   })();
   const steam = new THREE.Points(steamGeo, new THREE.PointsMaterial({ map: steamTex, size: 0.9, transparent: true, depthWrite: false, opacity: 0.5 }));
   steam.frustumCulled = false; steam.visible = false; if (steamAt.length) group.add(steam);
+  const sw1 = new THREE.Matrix4(), sw2 = new THREE.Matrix4();
   const pm = new THREE.Matrix4(), ps = new THREE.Vector3(), pp = new THREE.Vector3(), pq = new THREE.Quaternion(), pr2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
   const roomLife = (t: number) => {
     for (const tx of waterTex) { tx.offset.x = (t * 0.012) % 1; tx.offset.y = (t * 0.007) % 1; }
     for (const pr of props) {
-      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp')) continue;
+      if (!pr.ch.g.visible || (pr.id !== 'bellows' && pr.id !== 'pump' && pr.id !== 'orrery' && pr.id !== 'kelp' && pr.id !== 'chain' && pr.id !== 'gear' && pr.id !== 'press')) continue;
       pr.at.forEach((base, k) => {
         base.decompose(pp, pq, ps);
-        const { sy, ry } = propMotion(pr.id, t, k * 1.3);
+        const { sy, ry, swing, swingAt } = propMotion(pr.id, t, k * 1.3);
         if (ry) pq.multiply(pr2.setFromAxisAngle(UP, ry));
-        pm.compose(pp, pq, ps.set(ps.x, ps.y * sy, ps.z)); pr.mesh.setMatrixAt(k, pm);
+        pm.compose(pp, pq, ps.set(ps.x, ps.y * sy, ps.z));
+        // A swing turns the prop about its local z (its back faces the wall on -z) from swingAt, so it sways along the wall.
+        if (swing) pm.multiply(sw1.makeTranslation(0, swingAt ?? 0, 0)).multiply(sw2.makeRotationZ(swing)).multiply(sw1.makeTranslation(0, -(swingAt ?? 0), 0));
+        pr.mesh.setMatrixAt(k, pm);
       });
       pr.mesh.instanceMatrix.needsUpdate = true;
     }

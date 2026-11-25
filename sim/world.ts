@@ -10222,7 +10222,7 @@ export const OSKEL = {
  * parties 4-16 of 80 (engineering/h4a-hammerdeep-grid.md), so design dropped them.
  */
 export const ONDRELV2 = {
-  stage2: 0.6, stage3: 0.25,
+  stage2: 0.6, stage3: 0.15, // stage 3 from 15% (design 25 Nov: 25% -> 15%, a little more slag at no cost: 4 cells 71/45/77/80 of 80)
   r: 80, cap: 4, burn: 0.03, tick: 0.5,
   glow: 2.5, burstR: 110, burst: 45,
   /** Stage 3: his version's move comes every choirEvery x this (design 25 Nov: 1, the normal timer; 0.5 measured too hard). */

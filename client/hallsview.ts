@@ -55,7 +55,7 @@ export class HallsView {
   private mapCanvas: HTMLCanvasElement;
   private mapBtn: HTMLButtonElement;
   private arrow: HTMLDivElement;
-  /** H2b: the "Sealed" tag beside the arrow while you're shut out of a sealed room. */
+  /** H2b: the "Sealed" tag beside the arrow while you're shut out of a sealed room ("Walk in" on its grate in co-op). */
   private tag: HTMLDivElement;
   private fadeEl: HTMLDivElement;
   private open = false;
@@ -75,7 +75,7 @@ export class HallsView {
     this.mapBox = document.createElement('div');
     this.mapBox.id = 'hallsMap';
     this.mapBox.setAttribute('role', 'img');
-    this.mapBox.setAttribute('aria-label', 'Map of the Kiln Depths');
+    this.mapBox.setAttribute('aria-label', `Map of ${world.dungeonDef.name.replace(/^The /, 'the ')}`);
     this.mapCanvas = document.createElement('canvas');
     this.mapBox.append(this.mapCanvas);
     this.mapBtn = document.createElement('button');
@@ -306,6 +306,51 @@ export class HallsView {
     } else if (id === 'kelp') {
       g.lineStyle(4, 0x4a7a52, 0.9);
       for (const o of [-16, -4, 10, 20]) g.lineBetween(x + tx * o, y + ty * o, x + tx * (o + 6) - nx * 34, y + ty * (o + 6) - ny * 34);
+    } else if (id === 'anvil') {
+      g.fillStyle(0x5a4030, 1).fillRect(x - 14, y - 12, 28, 24);
+      g.fillStyle(0x4a4854, 1).fillRect(x - tx * 26 - 7, y - ty * 26 - 7, 14, 14).fillRect(x + tx * 20 - 6, y + ty * 20 - 6, 12, 12);
+      g.lineStyle(10, 0x4a4854, 1).lineBetween(x - tx * 26, y - ty * 26, x + tx * 20, y + ty * 20);
+      g.lineStyle(3, 0x6a4a30, 1).lineBetween(x + tx * 16 - nx * 18, y + ty * 16 - ny * 18, x + tx * 28 - nx * 30, y + ty * 28 - ny * 30);
+    } else if (id === 'chain') {
+      g.lineStyle(8, 0x5a4636, 1).lineBetween(x - tx * 32 + nx * 8, y - ty * 32 + ny * 8, x + tx * 32 + nx * 8, y + ty * 32 + ny * 8);
+      g.lineStyle(3, 0x5a5866, 1);
+      for (const o of [-16, 0, 16]) g.lineBetween(x + tx * o + nx * 8, y + ty * o + ny * 8, x + tx * o - nx * 18, y + ty * o - ny * 18);
+    } else if (id === 'quench') {
+      g.fillStyle(0x3a3a44, 1).fillRect(x - 28, y - 16, 56, 32);
+      g.fillStyle(0x1e2a3a, 1).fillRect(x - 23, y - 11, 46, 22);
+    } else if (id === 'ingot') {
+      g.fillStyle(0x6a5038, 1).fillRect(x - 24, y - 18, 48, 36);
+      g.fillStyle(0x6a6874, 1);
+      for (const o of [-12, 0, 12]) g.fillRect(x + tx * o - 5, y + ty * o - 5, 10, 10);
+    } else if (id === 'fumarole') {
+      g.fillStyle(0x6e5e5a, 1).fillCircle(x, y, 24).fillCircle(x + tx * 26 - nx * 8, y + ty * 26 - ny * 8, 13);
+      g.fillStyle(0x2a2220, 1).fillCircle(x, y, 8);
+      g.fillStyle(0xe8e0dc, 0.14).fillCircle(x - nx * 6, y - ny * 6 - 20, 22);
+    } else if (id === 'obsidian') {
+      g.fillStyle(0x2a2228, 1);
+      for (const o of [-14, 2, 16]) g.fillTriangle(x + tx * (o - 6), y + ty * (o - 6), x + tx * (o + 6), y + ty * (o + 6), x + tx * o - nx * 30, y + ty * o - ny * 30);
+    } else if (id === 'cairn') {
+      g.fillStyle(0x8a7a74, 1).fillCircle(x, y, 18);
+      g.fillStyle(0x9a8a84, 1).fillCircle(x, y, 12);
+      g.fillStyle(0x8a7a74, 1).fillCircle(x, y, 6);
+      g.fillStyle(0x8e7e78, 1).fillCircle(x + tx * 26 - nx * 8, y + ty * 26 - ny * 8, 9);
+    } else if (id === 'pumice') {
+      g.fillStyle(0xd0c4bc, 1).fillCircle(x, y, 20);
+      g.fillStyle(0xc4b6ae, 1).fillCircle(x - tx * 24 - nx * 6, y - ty * 24 - ny * 6, 13);
+      g.fillStyle(0xdacec6, 1).fillCircle(x + tx * 22 - nx * 8, y + ty * 22 - ny * 8, 11);
+    } else if (id === 'press') {
+      g.fillStyle(0x4a4a36, 1).fillRect(x - 24, y - 16, 48, 32);
+      g.lineStyle(7, 0x8a8058, 1).lineBetween(x - tx * 26 + nx * 8, y - ty * 26 + ny * 8, x + tx * 26 + nx * 8, y + ty * 26 + ny * 8);
+      g.fillStyle(0x5a5a42, 1).fillRect(x - 10, y - 10, 20, 20);
+    } else if (id === 'gear') {
+      g.lineStyle(7, 0xa08848, 1).strokeCircle(x + nx * 6, y + ny * 6, 18);
+      g.fillStyle(0x5a4a2a, 1).fillCircle(x + nx * 6, y + ny * 6, 6);
+    } else if (id === 'plate') {
+      g.fillStyle(0x6a5038, 1).fillRect(x - 26, y - 18, 52, 36);
+      g.fillStyle(0x9a9a80, 1).fillRect(x - tx * 12 - 10, y - ty * 12 - 10, 20, 20).fillRect(x + tx * 12 - 10, y + ty * 12 - 10, 20, 20);
+    } else if (id === 'oil') {
+      g.fillStyle(0x4e5a38, 1).fillCircle(x - tx * 12, y - ty * 12, 11).fillCircle(x + tx * 12, y + ty * 12, 11);
+      g.fillStyle(0x2a2a1e, 1).fillCircle(x - tx * 12, y - ty * 12, 8).fillCircle(x + tx * 12, y + ty * 12, 8);
     } else if (id === 'sluice') {
       g.lineStyle(10, 0x3e4446, 1).lineBetween(x - tx * 28, y - ty * 28, x + tx * 28, y + ty * 28);
       g.lineStyle(3, 0x6e7a7c, 1).strokeCircle(x - nx * 10, y - ny * 10, 10);
@@ -560,13 +605,37 @@ export class HallsView {
     // tag and points at that room, so you know where your party is and why you can't reach it yet.
     const shut = this.shutOut(m, f.px, f.py);
     const goal = shut ?? (this.world.phase === 'fight' ? null : this.nextGoal(m, f.px, f.py));
-    this.arrow.classList.toggle('sealed', !!shut);
+    // Grates let heroes in, never out (#731, co-op only): shut out of your party's room, the arrow and tag turn green
+    // (green is good) and say "Walk in", since the red bars alone read as a wall (phone pass, Hammerdeep Halls, 25 Nov).
+    const walkIn = !!shut && this.world.heroes.length > 1;
+    this.arrow.classList.toggle('sealed', !!shut && !walkIn);
+    this.arrow.classList.toggle('in', walkIn);
+    this.tag.classList.toggle('in', walkIn);
+    const label = walkIn ? 'Walk in' : 'Sealed';
+    if (this.tag.textContent !== label) this.tag.textContent = label;
     this.tag.hidden = true;
     if (!goal) { this.arrow.hidden = true; return; }
     const wp = hallsWay(m, f.px, f.py, goal.x, goal.y);
     const at = f.project(wp.x, wp.y);
     const W = f.rect.width, H = f.rect.height;
     const inset = 40;
+    if (walkIn) {
+      // The room's nearest doorway in view: the tag stands on its grate, so you see where to walk in.
+      this.grates ??= hallsGrates(m, HALLS.corridor, DOOR_ROOM);
+      let best: Grate | null = null, bd = Infinity;
+      for (const gr of this.grates) {
+        if (gr.room !== shut!.i) continue;
+        const d = Math.hypot(gr.x - f.px, gr.y - f.py);
+        if (d < bd) { bd = d; best = gr; }
+      }
+      const gp = best ? f.project(best.x + best.ux * 120, best.y + best.uy * 120) : null; // inside, past the bars: clear of them and your hero
+      if (gp && gp.x > 30 && gp.x < W - 30 && gp.y > 60 && gp.y < H - 14) {
+        this.arrow.hidden = true;
+        this.tag.hidden = false;
+        this.tag.style.transform = `translate(${f.rect.left + gp.x}px, ${f.rect.top + gp.y}px) translate(-50%, -50%)`;
+        return;
+      }
+    }
     if (at && at.x > inset && at.x < W - inset && at.y > inset + 50 && at.y < H - inset) { this.arrow.hidden = true; return; }
     const me = f.project(f.px, f.py) ?? { x: W / 2, y: H / 2 };
     // Screen direction from your hero to the way point (a point behind the camera still gives the right side).
@@ -587,13 +656,13 @@ export class HallsView {
   }
 
   /** A sealed room (grates down) that your living hero stands outside of, or null. */
-  private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number } | null {
+  private shutOut(m: HallsMap, x: number, y: number): { x: number; y: number; i: number } | null {
     if (this.world.player.hp <= 0) return null;
     const here = roomAt(m, x, y);
     for (let i = 0; i < m.rooms.length; i++) {
       const r = m.rooms[i];
       if (lockOf(r) < GRATE_WARN || here === i) continue;
-      return { x: r.x, y: r.y };
+      return { x: r.x, y: r.y, i };
     }
     return null;
   }

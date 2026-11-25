@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
+import { C_ROOM, DOOR_ROOM, HALLS, clearWalk, layoutFrame, genRoll, mainRooms, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsThemes, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath, packFoes } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 import { readFileSync } from 'node:fs';
 import { equippedItems } from '../sim/hero';
@@ -563,6 +563,17 @@ describe('H3a: the Drowned Foundry on the Halls map', () => {
     }
   });
 
+  it('the Pressworks kit (H4c, ready before its map is on): its own themes, the press floor at the door, no two neighbours alike', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const m = halls(seed).halls!;
+      hallsThemes(m, seed, () => undefined, 'pressworks');
+      expect(m.rooms[5].theme).toBe('press');
+      expect(m.rooms[2].theme).toBe('shrine');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['press', 'gear', 'plate', 'oil'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
   it('the Kiln\'s themes are unchanged by the per-dungeon kits', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const R = halls(seed).halls!.rooms;
@@ -930,7 +941,7 @@ describe('Halls: the bot walks round a standing pillar (QA, 25 Nov)', () => {
 });
 
 describe('H4a: the Hammerdeep on the Halls map', () => {
-  it('is off for players until design turns it on; a party gets its own fights, the Kiln themes and Ondrel behind the door', () => {
+  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ondrel behind the door', () => {
     expect(halls(3, { dungeon: 'hammerdeep', tier: 4 }).halls).toBeNull();
     const { openers, named, hard, boss } = DUNGEONS.hammerdeep;
     const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
@@ -941,7 +952,10 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
       expect(w.route[4]).toBe(boss);
       for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
       expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
-      m.rooms.forEach((r, i) => { if (i !== 2) expect(['ash', 'bellows', 'slag', 'cooling'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      // H4a (visuals, 25 Nov): the Hammerdeep's own cold forge themes; the anvil hall guards the door.
+      expect(m.rooms[5].theme).toBe('anvil');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['anvil', 'chain', 'quench', 'ingot'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
     }
   });
 
@@ -956,6 +970,77 @@ describe('H4a: the Hammerdeep on the Halls map', () => {
         w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
       }
       if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.hammerdeep.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
+describe('H4b: the Ashvents on the Halls map', () => {
+  it('is off for players until design turns it on; a party gets its own fights, its own themes and Ysmeret behind the door', () => {
+    expect(halls(3, { dungeon: 'ashvents', tier: 7 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.ashvents;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'ashvents', tier: 7, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      // H4b (visuals, 25 Nov): the Ashvents' own themes; the fumarole field guards the door.
+      expect(m.rooms[5].theme).toBe('fumarole');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['fumarole', 'obsidian', 'cairn', 'pumice'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a Bulwark and Lumen bot duo walks it and goes through the door into Ysmeret\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      const w = halls(seed, { dungeon: 'ashvents', tier: 7, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.ashvents.boss) reached++;
+    }
+    expect(reached).toBeGreaterThanOrEqual(2);
+  }, 60000);
+});
+
+describe('H4c: the Pressworks on the Halls map', () => {
+  it('is off for players until design turns it on; a party gets its own fights, its own themes and Oskel behind the door', () => {
+    expect(halls(3, { dungeon: 'pressworks', tier: 10 }).halls).toBeNull();
+    const { openers, named, hard, boss } = DUNGEONS.pressworks;
+    const mine = new Set<string>([...openers, ...named, ...hard, 'shrine']);
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = halls(seed, { dungeon: 'pressworks', tier: 10, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const m = w.halls!;
+      expect(m, `seed ${seed}`).toBeTruthy();
+      expect(w.route[4]).toBe(boss);
+      for (const p of m.packs) expect(mine.has(p.enc), `seed ${seed} ${p.enc}`).toBe(true);
+      expect(hallsCheck(m), `seed ${seed}`).toEqual([]);
+      // H4c (visuals, 25 Nov): the Pressworks' own themes; the press floor guards the door.
+      expect(m.rooms[5].theme).toBe('press');
+      m.rooms.forEach((r, i) => { if (i !== 2) expect(['press', 'gear', 'plate', 'oil'], `seed ${seed} room ${i}`).toContain(r.theme); });
+      for (const c of m.corridors) expect(m.rooms[c.a].theme, `seed ${seed} ${c.a}-${c.b}`).not.toBe(m.rooms[c.b].theme);
+    }
+  });
+
+  it('a Bulwark and Lumen bot duo walks it and goes through the door into Oskel\'s arena', async () => {
+    let reached = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      await new Promise((r) => setTimeout(r, 0));
+      // Tier 4: without gear a duo dies to its tier-10 trash before the door; this checks the walk, not the numbers.
+      const w = halls(seed, { dungeon: 'pressworks', tier: 4, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }] });
+      const end = w.time + 900;
+      while (w.state !== 'ended' && w.time < end && w.hallsOn) {
+        if (w.state === 'draft') { const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0)); w.use(h); const c = botChoose(w); w.use(0); w.choose(c, h); continue; }
+        w.step(w.heroes.map((_, i) => { w.use(i); const inp = botInput(w); w.use(0); return inp; }));
+      }
+      if (!w.hallsOn && w.route[w.encounter] === DUNGEONS.pressworks.boss) reached++;
     }
     expect(reached).toBeGreaterThanOrEqual(2);
   }, 60000);

@@ -97,6 +97,8 @@ export interface CueContext {
   inRime?: boolean;
   /** ONDRELV2: Ondrel's burning slag (World.slagPatches; glow > 0 while it counts down to its burst in the last heat). */
   slag?: readonly SlagPatch[];
+  /** BOSSV2: the Kiln Mother's heated quarters (World.kmHeat, cleared outside her kiln), set only in her fight. */
+  kmHeat?: { warn: number; on: boolean };
 }
 
 /** The verb-set states the client reads off World.player (sim/content/sets.ts), each already gated on the pieces worn. */
@@ -420,6 +422,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'kill': {
       // The Hoard: breaking the Craw frees the swallowed hero.
       if (ev.kind === 'craw') return { id: 'crawBreak' };
+      // BOSSV2: a Kiln Bellows broken, like a Rift closing.
+      if (ev.kind === 'kilnBellows') return { id: 'riftClosed' };
       const rank = ENEMIES[ev.kind]?.rank;
       if (rank === 'boss' || rank === 'rare') return { id: 'bigKill' };
       if (rank === 'elite') return { id: 'explode', vol: 0.8, jitter: 0.1 };
@@ -442,6 +446,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'strike': return { id: 'explode', jitter: 0.12 };
     // Ironload lands as a slam the size of IRONLOAD.radius in the Hammerdeep: its own crushing weight.
     case 'slam':
+      // ONDRELV2: the last heat's slag bursting is the Crucible's slag splash. It is as wide as Ironload, so it says so (#738).
+      if (ev.source === 'slagBurst') return { id: 'slagBurst' };
       if (c.dungeon === 'hammerdeep' && ev.r === IRONLOAD.radius) return { id: 'ironload' };
       // Die Cut's half-floor cone is the only slam the size of the whole arena twice over.
       if (c.dungeon === 'pressworks' && ev.r === DIECUT_R) return { id: 'dieCut' };
@@ -491,6 +497,11 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'slagGrip': return { id: 'slag', vol: 0.55 + 0.1 * ev.stacks, jitter: 0.06 };
     case 'cleanse': return { id: 'cleanse' };
     case 'castDone':
+      // BOSSV2's Kiln Mother (design 25 Nov: reuse only). An egg hatching spits like a Rift; break all three bellows and she
+      // falls out stunned, the "hit it now" surge; out on her own, her phase sting for stage 3.
+      if (ev.id === 'kmEggHatch') return { id: 'riftSpit' };
+      if (ev.id === 'kmFallen') return { id: 'surgeReady' };
+      if (ev.id === 'kmOut') return { id: 'phaseKiln', vol: 1.15 };
       if (ev.id === 'wheel' || ev.id === 'millstone') return null;
       if (ev.id === 'churn') return null;
       // A Dark Call that lands is heard as the pack arriving (reinforceLand), a Conch Call as its swell (conchBlown), not a cast click.
@@ -673,6 +684,12 @@ export const ROOM_THEME_BED: Record<string, RoomBedKind> = {
   hearthless: 'deadHearth', rime: 'rimeHall', drift: 'snowdriftCave', crypt: 'coldCrypt',
   // The Wrackline (H3d).
   quay: 'harbourQuay', wreck: 'wreckYard', kelp: 'kelpBed', sluice: 'sluiceGate',
+  // The Hammerdeep (H4a).
+  anvil: 'anvilHall', chain: 'chainGallery', quench: 'quenchTrough', ingot: 'ingotStore',
+  // The Ashvents (H4b).
+  fumarole: 'fumaroleField', obsidian: 'obsidianGallery', cairn: 'cairnWalk', pumice: 'pumiceDrift',
+  // The Pressworks (H4c).
+  press: 'pressFloor', gear: 'gearRoom', plate: 'plateStore', oil: 'oilSump',
 };
 const THEME_BY_INDEX = ['ash', 'bellows', 'slag', 'cooling', 'shrine'];
 
@@ -963,6 +980,22 @@ export function gazeCues(state: { lv: number[] }, eyes: readonly { aux: number; 
  * Halls: a soft cue as Catch breath starts (World.hallsResting turns on); silent when it ends (a pack woke, which has its
  * own cue). Design (25 Nov): only once the first pack is cleared, so a fresh delve's quiet walk in doesn't open with it.
  */
+/** kilnVentWarn's length (its 1.1 s rumble-hiss), so it ends as the quarters start to burn. */
+export const KM_HEAT_LEAD = 1.1;
+/**
+ * BOSSV2: the Kiln Mother's floor heat, from the Kiln's vent sounds (design 25 Nov: reuse only). When three quarters
+ * are shown, the vent warning is timed to end as they burn; when they burn, the lava flare.
+ */
+export function kmHeatCues(state: { warn: boolean; on: boolean }, h: { warn: number; on: boolean } | undefined): Cue[] {
+  const warn = !!h && h.warn > 0, on = !!h && h.on;
+  const out: Cue[] = [];
+  if (warn && !state.warn) out.push({ id: 'kilnVentWarn', after: Math.max(0, h!.warn - KM_HEAT_LEAD) });
+  if (on && !state.on) out.push({ id: 'lavaFlare' });
+  state.warn = warn;
+  state.on = on;
+  return out;
+}
+
 /** ONDRELV2 (design 25 Nov, ondrel-v2.md): one patch of Ondrel's slag, as World.slagPatches holds it. */
 export interface SlagPatch { x: number; y: number; glow: number }
 /** How long slagVentWarn runs (its 1.1 s hiss with bubbles), so it ends as the slag bursts. */
@@ -972,7 +1005,7 @@ const slagKey = (a: { x: number; y: number }) => `${Math.round(a.x)},${Math.roun
 /**
  * ONDRELV2's slag, from reused sounds only (Steve, 25 Nov: keep it simple). A new patch landing under an Anvilfall
  * flares like the Kiln's lava (lavaFlare). When the last heat makes them glow, the Crucible's slag-vent warning
- * (slagVentWarn) is timed to end as they burst. `state` keeps last tick's patches, for these edges and for slagBurstAt.
+ * (slagVentWarn) is timed to end as they burst (the burst itself is its slam, source 'slagBurst'). `state` keeps last tick's patches, for these edges.
  */
 export function slagCues(state: { burning: Map<string, number>; glowing: Set<string> }, patches: readonly SlagPatch[], listen?: CueContext['listen']): Cue[] {
   const out: Cue[] = [];
@@ -997,11 +1030,6 @@ export function slagCues(state: { burning: Map<string, number>; glowing: Set<str
   state.burning = burning;
   state.glowing = glowing;
   return out;
-}
-
-/** Whether a slam is one of last tick's glowing patches bursting (the sim drops the patch as it bursts), not Ironload. */
-export function slagBurstAt(state: { glowing: Set<string> }, ev: SimEvent): boolean {
-  return ev.type === 'slam' && state.glowing.size > 0 && state.glowing.has(slagKey(ev));
 }
 
 export function restCue(state: { on: boolean }, resting: boolean, packs?: readonly { state: string }[]): Cue | null {

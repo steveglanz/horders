@@ -207,7 +207,10 @@ function nameCanvas(text: string, color: string) {
   const c = mk(256, 64), k = c.getContext('2d')!;
   k.font = '600 28px "Iowan Old Style", Palatino, Georgia, serif'; k.textAlign = 'center'; k.textBaseline = 'middle';
   k.lineWidth = 7; k.strokeStyle = '#120b0a'; k.lineJoin = 'round'; k.strokeText(text, 128, 34);
-  k.fillStyle = color; k.fillText(text, 128, 34); return c;
+  k.fillStyle = color; k.fillText(text, 128, 34);
+  // The inked width (with the outline), as a share of the canvas, so names can be kept from printing over each other.
+  (c as HTMLCanvasElement & { inked?: number }).inked = Math.min(1, (k.measureText(text).width + 8) / 256);
+  return c;
 }
 
 /* ---------- the room ---------- */
@@ -890,10 +893,42 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
   const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false });
   const circle = new THREE.CircleGeometry(1, 24);
 
+  /**
+   * Phone pass, Hammerdeep Halls (25 Nov): a party bunched in a tight room printed its allies' names on top of each
+   * other ("Slagbinder" over "Lumen", neither readable at 320 px). As in 2D (GameScene.unstackLabels), lower names keep
+   * their place and a name that would land on one already placed lifts just clear of it, in screen space.
+   */
+  const nameBox = new THREE.Vector3(), nameTop = new THREE.Vector3();
+  function unstackNames(): void {
+    const vw = host.clientWidth || window.innerWidth, vh = host.clientHeight || window.innerHeight;
+    const list: { s: THREE.Sprite; x: number; y: number; hw: number; hh: number; ppu: number }[] = [];
+    for (const h of heroes) {
+      if (!h?.name || !h.mesh.visible) continue;
+      nameBox.copy(h.name.position).project(camera);
+      nameTop.copy(h.name.position); nameTop.y += 0.425; nameTop.project(camera);
+      const ppu = Math.abs(nameTop.y - nameBox.y) * vh / 2 / 0.425;
+      if (!(ppu > 0) || nameBox.z > 1) continue;
+      list.push({ s: h.name, x: (nameBox.x + 1) * vw / 2, y: (1 - nameBox.y) * vh / 2, hw: (h.nameW ?? 1) * 1.7 * ppu / 2, hh: 0.2 * ppu, ppu });
+    }
+    if (list.length < 2) return;
+    list.sort((a, b) => b.y - a.y);
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
+    for (const n of list) {
+      let y = n.y;
+      for (let pass = 0; pass < 4; pass++) {
+        const hit = placed.find((q) => n.x - n.hw < q.r && n.x + n.hw > q.l && y - n.hh < q.b && y + n.hh > q.t);
+        if (!hit) break;
+        y = hit.t - n.hh - 1;
+      }
+      if (y !== n.y) n.s.position.y += (n.y - y) / n.ppu;
+      placed.push({ l: n.x - n.hw, r: n.x + n.hw, t: y - n.hh, b: y + n.hh });
+    }
+  }
+
   /* heroes */
   const F = artFrames(true) as Record<string, Record<string, Frame>>;
   const heroGeo = standGeo(HERO.pad / HERO.H);
-  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string;
+  type HeroS = { cls: string; mesh: THREE.Mesh; mats: Record<string, THREE.MeshStandardMaterial>; blob: THREE.Mesh; ring: THREE.Mesh; disc: THREE.Mesh; name: THREE.Sprite | null; nameText: string; nameW?: number;
     /** Attack pose: when the last attack began (run time), and what the hero's attack timers read last frame. */
     atkAt: number; lastVolley: number; lastSwings: number; lastCds: number[];
     /** Your own hero only: an invisible twin at the true spot that casts the shadow, since the drawn sprite is lifted. */
@@ -1465,13 +1500,16 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
         const nm = A.heroName(i);
         if (nm !== h.nameText) {
           if (h.name) scene.remove(h.name);
-          h.name = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(nameCanvas(nm, RING[cls] ?? '#ffc861')), depthTest: false, transparent: true }));
+          const nc = nameCanvas(nm, RING[cls] ?? '#ffc861');
+          h.name = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(nc), depthTest: false, transparent: true }));
+          h.nameW = (nc as HTMLCanvasElement & { inked?: number }).inked ?? 1;
           h.name.scale.set(1.7, 0.425, 1); h.name.renderOrder = 10; scene.add(h.name); h.nameText = nm;
         }
         h.name!.position.set(x, FLOOR + 1.45, z);
       }
     }
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
+    unstackNames();
 
     // Foes.
     feetN = 0;

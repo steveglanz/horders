@@ -84,8 +84,8 @@ describe('co-op snapshots', () => {
 });
 
 describe('H4: hosted co-op stays in step on a Halls map', () => {
-  it('a guest mirror of a Hammerdeep map run has the host\'s packs, grates, rooms seen, foes and heroes', () => {
-    const o: WorldOptions = { seed: 5, tier: 4, dungeon: 'hammerdeep', halls: true, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] };
+  for (const [dungeon, tier] of [['hammerdeep', 4], ['ashvents', 7], ['pressworks', 10]] as const) it(`a guest mirror of a ${dungeon} map run has the host's packs, grates, rooms seen, foes and heroes`, () => {
+    const o: WorldOptions = { seed: 5, tier, dungeon, halls: true, hallsBeta: true, cls: 'bulwark', party: [{ cls: 'lumen' }, { cls: 'duskblade' }] };
     const host = new World(o);
     const guest = new World(o);
     expect(host.halls).toBeTruthy();
