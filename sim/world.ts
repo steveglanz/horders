@@ -24,7 +24,7 @@ import { DUNGEONS, DungeonId, ENCOUNTERS, EncounterId, GateKind, rollFork, rollR
 import { OMENS, OMEN_TUNING, OmenId, omensFor } from './content/omens';
 import { HEATS, HEAT_TUNING, HeatId, heatFits } from './content/heat';
 import { clampParty, partyHealth, gritMult, GRIT, MAX_PARTY } from './content/scaling';
-import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
+import { HALLS, HallsMap, buildHalls, clampGrates, clampHalls, corridorAt, grateCut, hallsFor, hallsThemes, hallsWay, layoutFrame, roomAt, roomClamp, roomGap } from './halls';
 import { ThreatTable, damageThreat, dropHero, healThreat, newThreat, scaleThreat, taunt, updateTarget, THREAT } from './threat';
 
 export const TICK = 1 / 30;
@@ -5273,7 +5273,8 @@ export class World {
       o.x += o.vx * dt;
       o.y += o.vy * dt;
       o.life -= dt;
-      if (o.life <= 0) {
+      // Halls H2b: a hero's shot stops at a sealed room's grates, as foes and heroes do.
+      if (o.life <= 0 || (this.hallsOn && grateCut(this.halls!, o.px, o.py, o.x, o.y))) {
         o.alive = false;
         continue;
       }

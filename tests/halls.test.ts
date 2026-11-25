@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { botChoose, botInput, hallsOrder } from '../sim/bot';
-import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, genHalls, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
+import { DOOR_ROOM, HALLS, KILN_SCALE, buildHalls, clampGrates, clampHalls, corridorEnds, genHalls, grateCut, hallsCheck, hallsWay, hallsWalkLine, inside, roomAt, roomGap, roomPath } from '../sim/halls';
 import { DUNGEONS, EncounterId } from '../sim/content/dungeon';
 
 const idle = { x: 0, y: 0 };
@@ -491,3 +491,39 @@ describe('Phase 18 Halls H1: the Kiln map', () => {
     expect(matched).toBeGreaterThan(0);
   });
 });
+
+describe('H2b: hero shots stop at sealed grates', () => {
+  it('an orb crossing a sealed room\'s rim dies; inside the room, or with the room open, it flies on', () => {
+    const w = halls(2);
+    const m = w.halls!;
+    const a = pack(w, 'A');
+    const rm = m.rooms[a.room];
+    put(w, a.x, a.y + HALLS.reach - 5);
+    for (let k = 0; k < Math.round((HALLS.lockDelay + 0.2) * 30) && (rm.lock ?? -1) < HALLS.lockDelay; k++) w.step(idle);
+    expect(rm.lock!).toBeGreaterThanOrEqual(HALLS.lockDelay);
+    // Each corridor end at this room: a point just inside the rim and one just outside, on the corridor's line.
+    const c = m.corridors.find((k) => k.a === a.room || k.b === a.room)!;
+    const e = corridorEnds(m, c);
+    // From this room's port (inside its floor) along the corridor, out to the rim.
+    const [sx, sy, fx, fy] = c.a === a.room ? [e.x1, e.y1, e.x2, e.y2] : [e.x2, e.y2, e.x1, e.y1];
+    const ux = (fx - sx) / Math.hypot(fx - sx, fy - sy), uy = (fy - sy) / Math.hypot(fx - sx, fy - sy);
+    expect(roomGap(rm, sx, sy)).toBeGreaterThanOrEqual(0);
+    let t = 0;
+    while (t < 4000 && roomGap(rm, sx + ux * t, sy + uy * t) >= 0) t += 2;
+    const ins = { x: sx + ux * (t - 20), y: sy + uy * (t - 20) }, out = { x: sx + ux * (t + 20), y: sy + uy * (t + 20) };
+    expect(grateCut(m, ins.x, ins.y, out.x, out.y)).toBe(true);
+    expect(grateCut(m, out.x, out.y, ins.x, ins.y)).toBe(true);
+    expect(grateCut(m, sx, sy, ins.x, ins.y)).toBe(false);
+    // In the world: an orb fired from just inside, outward at speed, is gone next tick.
+    const orb = w.orbs.find((q) => !q.alive)!;
+    Object.assign(orb, { alive: true, x: ins.x, y: ins.y, px: ins.x, py: ins.y, vx: ux * 1500, vy: uy * 1500, life: 2, target: -1, dmg: 1, owner: 0, pierce: 0, lastHit: -1 });
+    w.step(idle);
+    expect(orb.alive).toBe(false);
+    // With the room open, the same step is no cut.
+    const lock = rm.lock;
+    rm.lock = -1;
+    expect(grateCut(m, ins.x, ins.y, out.x, out.y)).toBe(false);
+    rm.lock = lock;
+  });
+});
+
