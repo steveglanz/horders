@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import type { HallsMap } from '../../sim/halls';
 import { SIM } from './simconsts';
 import { grateState, hallsGrates, liftedOf, lockOf } from '../hallsgrates';
+import { Loop, inCorridor, inLoop, inRoom, roomLoops, roomPieces } from '../hallsshape';
 
 /** Floor tiles: the room's 0.62-unit firebrick tiles (renderer.ts buildRoom), drawn into one repeating texture. */
 const TILE = 0.62;
@@ -29,46 +30,46 @@ export function wallHeight(nz: number): number {
   return NEAR_H;
 }
 
-/** One wall piece: centre (world units), length (world units), outward normal (world x, y). */
-export interface WallPiece { x: number; y: number; len: number; nx: number; ny: number }
+/** One wall piece: centre (world units), length (world units), outward normal (world x, y), and whether it rings an island. */
+export interface WallPiece { x: number; y: number; len: number; nx: number; ny: number; island?: boolean }
+
+/** Each map's room outlines, worked out once (client/hallsshape.ts). */
+const LOOPS = new WeakMap<HallsMap, Loop[][]>();
+const loopsOf = (m: HallsMap): Loop[][] => LOOPS.get(m) ?? LOOPS.set(m, m.rooms.map(roomLoops)).get(m)!;
+
+/** The Ring room's island is a low hearth (camera rule, agreed with design 25 Nov): it may hide no more than a body. */
+const HEARTH_H = 0.5;
 
 /**
- * The map's walls as straight pieces about 70 world units long: each room's rim, leaving a gap where a corridor meets
- * it (and the door alcove's north side, where the boss door stands), and both sides of each corridor between the rooms.
+ * The map's walls as straight pieces about 70 world units long: each room's outline, leaving a gap where a corridor
+ * meets it (and the door alcove's north side, where the boss door stands), and both sides of each corridor between the
+ * rooms. Any room shape works: the outline is HallsRoom.edge, or the room's circle when there is none.
  */
 export function hallsWalls(m: HallsMap, corridor: number, doorRoom: number): { room: number; corridor: number; p: WallPiece }[] {
   const out: { room: number; corridor: number; p: WallPiece }[] = [];
-  const hw = corridor / 2;
-  m.rooms.forEach((r, i) => {
-    const gaps: [number, number][] = [];
-    for (const c of m.corridors) {
-      if (c.a !== i && c.b !== i) continue;
-      const o = m.rooms[c.a === i ? c.b : c.a];
-      gaps.push([Math.atan2(o.y - r.y, o.x - r.x), Math.asin(Math.min(1, hw / r.r))]);
-    }
+  const hw = corridor / 2, loops = loopsOf(m);
+  m.rooms.forEach((_, i) => {
     // The door alcove: the boss door spans it across its middle, so only its south half gets a rim (a low near ledge),
     // leaving the corridor's mouth open. Its north half lies behind the door.
     const half = i === doorRoom;
-    const n = Math.max(8, Math.ceil((2 * Math.PI * r.r) / 70));
-    for (let k = 0; k < n; k++) {
-      const a = (k + 0.5) * ((2 * Math.PI) / n) - Math.PI;
-      if (gaps.some(([g, h]) => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) < h)) continue;
-      if (half && Math.sin(a) <= 0.05) continue;
-      const nx = Math.cos(a), ny = Math.sin(a);
-      out.push({ room: i, corridor: -1, p: { x: r.x + nx * r.r, y: r.y + ny * r.r, len: ((2 * Math.PI * r.r) / n) * 1.04, nx, ny } });
+    for (const p of roomPieces(m, i, hw)) {
+      if (half && !p.island && p.ny <= 0.05) continue;
+      out.push({ room: i, corridor: -1, p: { x: p.x, y: p.y, len: p.len * 1.04, nx: p.nx, ny: p.ny, island: p.island } });
     }
   });
   m.corridors.forEach((c, ci) => {
     const a = m.rooms[c.a], b = m.rooms[c.b];
     const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const t0 = Math.sqrt(Math.max(0, a.r * a.r - hw * hw)), t1 = L - Math.sqrt(Math.max(0, b.r * b.r - hw * hw));
-    if (t1 <= t0) return;
-    const n = Math.max(1, Math.round((t1 - t0) / 70)), step = (t1 - t0) / n;
     for (const s of [1, -1]) {
-      const nx = -uy * s, ny = ux * s;
+      const nx = -uy * s, ny = ux * s, sx = a.x + nx * hw, sy = a.y + ny * hw;
+      // Where this side leaves room a's outline and enters room b's, marching out from each centre.
+      let t0 = 0; while (t0 < L && inLoop(loops[c.a][0], sx + ux * t0, sy + uy * t0)) t0 += 4;
+      let t1 = L; while (t1 > t0 && inLoop(loops[c.b][0], sx + ux * t1, sy + uy * t1)) t1 -= 4;
+      if (t1 - t0 < 8) continue;
+      const n = Math.max(1, Math.round((t1 - t0) / 70)), step = (t1 - t0) / n;
       for (let k = 0; k < n; k++) {
         const t = t0 + (k + 0.5) * step;
-        out.push({ room: -1, corridor: ci, p: { x: a.x + ux * t + nx * hw, y: a.y + uy * t + ny * hw, len: step * 1.02, nx, ny } });
+        out.push({ room: -1, corridor: ci, p: { x: sx + ux * t, y: sy + uy * t, len: step * 1.02, nx, ny } });
       }
     }
   });
@@ -82,6 +83,18 @@ function doorGlowTex(): THREE.CanvasTexture {
   g.addColorStop(0, '#fff2c4'); g.addColorStop(0.45, '#ffb24a'); g.addColorStop(1, '#c8500e');
   k.fillStyle = g; k.fillRect(0, 0, 64, 96);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+/** Banked coals for an island hearth: near-black lumps with a few embers glowing between them, tiled in world space. */
+function coalTex(): THREE.CanvasTexture {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const k = c.getContext('2d')!;
+  k.fillStyle = '#120806'; k.fillRect(0, 0, 128, 128);
+  let s = 5;
+  const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  for (let i = 0; i < 60; i++) { k.fillStyle = `rgba(${150 + r() * 105 | 0},${40 + r() * 50 | 0},10,${0.25 + r() * 0.5})`; k.beginPath(); k.arc(r() * 128, r() * 128, 1 + r() * 3, 0, 7); k.fill(); }
+  for (let i = 0; i < 40; i++) { k.fillStyle = `rgba(20,12,10,${0.7 + r() * 0.3})`; k.beginPath(); k.arc(r() * 128, r() * 128, 5 + r() * 8, 0, 7); k.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 
 function tileCanvas(color: string): HTMLCanvasElement {
@@ -104,15 +117,15 @@ function tileCanvas(color: string): HTMLCanvasElement {
   return c;
 }
 
-/** Whether (x, y) is on the map's floor: in a room, or within half a corridor's width of its centre line. */
+/** Whether (x, y) is on the map's floor: in a room (off its islands), or within half a corridor's width of its centre line. */
 export function onFloor(m: HallsMap, corridor: number, x: number, y: number): boolean {
-  for (const r of m.rooms) if ((x - r.x) ** 2 + (y - r.y) ** 2 <= r.r * r.r) return true;
-  const hw = corridor / 2;
-  for (const c of m.corridors) {
-    const a = m.rooms[c.a], b = m.rooms[c.b], vx = b.x - a.x, vy = b.y - a.y;
-    const t = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1)));
-    if ((x - a.x - vx * t) ** 2 + (y - a.y - vy * t) ** 2 <= hw * hw) return true;
+  const loops = loopsOf(m);
+  for (let i = 0; i < m.rooms.length; i++) {
+    const r = m.rooms[i];
+    if ((x - r.x) ** 2 + (y - r.y) ** 2 <= r.r * r.r && inRoom(loops[i], x, y)) return true;
   }
+  const hw = corridor / 2;
+  for (let ci = 0; ci < m.corridors.length; ci++) if (inCorridor(m, ci, hw, x, y)) return true;
   return false;
 }
 
@@ -155,6 +168,8 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   const floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.88, metalness: 0.02 });
   const wallMat = new THREE.MeshStandardMaterial({ color: '#9a5a44', roughness: 0.92 });
   const capMat = new THREE.MeshStandardMaterial({ color: '#4a3a34', roughness: 0.8 });
+  const coalMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95, emissive: '#ffffff', emissiveIntensity: 0.9 });
+  { const ct = coalTex(); coalMat.map = ct; coalMat.emissiveMap = ct; }
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   // Each room and each corridor is a chunk: its floor, its walls and their caps, and a bound for the on-screen check.
@@ -169,9 +184,20 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   });
 
   // Floors. Corridors sit a hair under the rooms, so where they overlap the room wins without flicker.
-  m.rooms.forEach((r, i) => {
-    const g = new THREE.CircleGeometry(r.r * S, 56); g.rotateX(-Math.PI / 2); g.translate(r.x * S, FLOOR, r.y * S); worldUv(g);
+  loopsOf(m).forEach((loops, i) => {
+    // The outline as a flat shape (islands as holes), laid on the floor: shape y is minus world y, so after the turn
+    // onto the ground it lands at +z = world y.
+    const pts = (l: Loop) => { const v: THREE.Vector2[] = []; for (let k = 0; k < l.length; k += 2) v.push(new THREE.Vector2(l[k] * S, -l[k + 1] * S)); return v; };
+    const shape = new THREE.Shape(pts(loops[0]));
+    for (let k = 1; k < loops.length; k++) shape.holes.push(new THREE.Path(pts(loops[k])));
+    const g = new THREE.ShapeGeometry(shape, 4); g.rotateX(-Math.PI / 2); g.translate(0, FLOOR, 0); worldUv(g);
     const mesh = new THREE.Mesh(g, floorMat); mesh.receiveShadow = true; roomChunk[i].g.add(mesh);
+    // Islands (the Ring's hearth): a bed of banked coals level with the hearth's low wall, so the corridor floor that
+    // runs under it never shows, and it reads as something shots can't cross.
+    for (let k = 1; k < loops.length; k++) {
+      const hg = new THREE.ShapeGeometry(new THREE.Shape(pts(loops[k])), 4); hg.rotateX(-Math.PI / 2); hg.translate(0, FLOOR + HEARTH_H - 0.02, 0); worldUv(hg);
+      roomChunk[i].g.add(new THREE.Mesh(hg, coalMat));
+    }
   });
   m.corridors.forEach((c, i) => {
     const a = m.rooms[c.a], b = m.rooms[c.b], L = Math.hypot(b.x - a.x, b.y - a.y);
@@ -197,7 +223,7 @@ export function buildHalls3d(m: HallsMap, o: { S: number; floor: number; tile: s
   for (const [ch, list] of byChunk) {
     const walls = new THREE.InstancedMesh(box, wallMat, list.length), caps = new THREE.InstancedMesh(box, capMat, list.length);
     list.forEach((p, k) => {
-      const h = Math.max(NEAR_H, Math.min(wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
+      const h = Math.max(NEAR_H, Math.min(p.island ? HEARTH_H : wallHeight(p.ny), clearance(m, o.corridor, p, S))), len = p.len * S;
       // Along the rim: local x runs along the wall (the tangent), so it turns by the normal's angle.
       e.set(0, -Math.atan2(p.ny, p.nx) + Math.PI / 2, 0); q.setFromEuler(e);
       const px = (p.x + p.nx * (WALL_T / S / 2)) * S, pz = (p.y + p.ny * (WALL_T / S / 2)) * S;
