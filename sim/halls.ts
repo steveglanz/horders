@@ -358,6 +358,18 @@ export function clampGrates(m: HallsGeo, o: { x: number; y: number; px?: number;
   }
 }
 
+/**
+ * H2b: does a step from (ax, ay) to (bx, by) cross a sealed room's grates (in to out or out to in)? Hero shots stop
+ * there, so nothing crosses a sealed room's doorways (h2-plan.md, "Room lock").
+ */
+export function grateCut(m: HallsGeo, ax: number, ay: number, bx: number, by: number): boolean {
+  for (const rm of m.rooms) {
+    if (rm.lock === undefined || rm.lock < HALLS.lockDelay) continue;
+    if ((roomGap(rm, ax, ay) >= 0) !== (roomGap(rm, bx, by) >= 0)) return true;
+  }
+  return false;
+}
+
 /** Which corridor (index) holds (x, y) with `pad` to spare, or -1. */
 export function corridorAt(m: HallsGeo, x: number, y: number, pad = 0): number {
   const hw = HALLS.corridor / 2 - pad;
