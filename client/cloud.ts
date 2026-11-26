@@ -2,7 +2,10 @@
  * Online features: cloud hero saves and the shared world boss, on Supabase.
  *
  * Players sign in anonymously (no account or password); the session lives in
- * browser storage. The page only holds the publishable key, which is safe to
+ * browser storage. Every storage area is its own player: a browser, an iPhone
+ * Home Screen web app (WebKit keeps its storage apart from Safari, webkit.org
+ * bug 181849) and the store app. A link code (migration 0009) joins two of them
+ * to one cloud save. The page only holds the publishable key, which is safe to
  * ship: every table has row level security and the boss changes only through
  * server functions that clamp what a run can claim.
  *
@@ -53,6 +56,8 @@ export interface StrikeResult {
 
 let session: Session | null = readSession();
 let online: boolean | null = null; // null until the first call settles
+/** Whether the server has link codes (supabase/migrations/0009); null until a save call settles. */
+let linkable: boolean | null = null;
 
 function readSession(): Session | null {
   try {
@@ -140,9 +145,27 @@ export const cloud = {
     return online;
   },
 
+  /** false when the server is too old for link codes (before migration 0009). */
+  get linkable(): boolean | null {
+    return linkable;
+  },
+
+  /**
+   * This place's hero, or the linked save's hero once a link code joined it to another place.
+   * Falls back to the plain hero_saves row on a server from before migration 0009.
+   */
   async loadHero(): Promise<HeroProfile | null> {
     try {
       if (!(await ensureSession())) return null;
+      if (linkable !== false) {
+        const res = await request('/rest/v1/rpc/load_save', { method: 'POST', body: '{}' });
+        if (res.ok) {
+          linkable = true;
+          return ((await res.json()) as { hero: HeroProfile | null }).hero ?? null;
+        }
+        if (res.status !== 404) return null;
+        linkable = false;
+      }
       const res = await request('/rest/v1/hero_saves?select=hero');
       if (!res.ok) return null;
       const rows = (await res.json()) as { hero: HeroProfile }[];
@@ -156,6 +179,15 @@ export const cloud = {
     try {
       const s = await ensureSession();
       if (!s) return false;
+      if (linkable !== false) {
+        const res = await request('/rest/v1/rpc/store_save', { method: 'POST', body: JSON.stringify({ p_hero: hero }) });
+        if (res.ok) {
+          linkable = true;
+          return !!((await res.json()) as { ok?: boolean }).ok;
+        }
+        if (res.status !== 404) return false;
+        linkable = false;
+      }
       const res = await request('/rest/v1/hero_saves?on_conflict=user_id', {
         method: 'POST',
         headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -165,6 +197,19 @@ export const cloud = {
     } catch {
       return false;
     }
+  },
+
+  /** A one-use code (15 minutes) another place types to share this hero. Null when offline or before 0009. */
+  makeLinkCode(): Promise<{ ok: boolean; code: string; expires_in: number } | null> {
+    return rpc('make_link_code', {});
+  },
+
+  /**
+   * Joins this place to the save a link code came from and returns that save's hero
+   * (null hero when the other place never saved). Null when offline or before 0009.
+   */
+  redeemLinkCode(code: string): Promise<{ ok: boolean; reason?: 'bad_code'; same?: boolean; hero?: HeroProfile | null } | null> {
+    return rpc('redeem_link_code', { p_code: code });
   },
 
   bossStatus(): Promise<BossStatus | null> {
@@ -202,8 +247,9 @@ export const cloud = {
   },
 
   /**
-   * Delete my account (supabase/migrations/0008): removes this player's auth user, cloud save,
-   * world boss strikes and leaderboard rows on the server, then forgets the session here.
+   * Delete my account (supabase/migrations/0008, links since 0009): removes this player's auth user,
+   * cloud save, links, world boss strikes and leaderboard rows on the server, then forgets the session
+   * here. Places linked to this hero keep their own copy and save on their own again.
    * True when nothing is left on the server (also when this browser never signed in).
    */
   async deleteAccount(): Promise<boolean> {

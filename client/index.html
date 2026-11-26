@@ -937,6 +937,12 @@
   .sheet-head b { font: 600 20px var(--serif); }
   .sheet-x { font-size: 24px; }
   .sheet .how { margin-top: 14px; }
+  .linkbox { text-align: left; }
+  .linkbox p { margin: 6px 0; }
+  .link-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  #linkCode { font-size: 20px; letter-spacing: 0.12em; color: var(--gold); font-variant-numeric: tabular-nums; }
+  #linkInput { flex: 1 1 140px; min-width: 0; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.35); color: var(--ink); font: inherit; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+  #linkInput::placeholder { text-transform: none; letter-spacing: normal; color: var(--muted); }
   .sheet .how summary { min-height: 44px; display: flex; align-items: center; }
   .sheet .foot-note { margin-top: 16px; }
   .sheet .linkbtn { min-height: 44px; padding: 0 6px; }
@@ -1613,6 +1619,13 @@
     <div class="sheet-head"><b>Settings</b><button class="round sheet-x" aria-label="Close" data-sfx="back">&times;</button></div>
     <div class="sec-h"><span>Display</span></div>
     <div class="opts" id="hubOpts"></div>
+    <div class="sec-h"><span>Play on another device</span></div>
+    <div class="linkbox">
+      <p class="small muted">Your browser, a Home Screen app and the store app each keep their own hero. Link them to share one: get a code here, then type it in the other place.</p>
+      <div class="link-row"><button class="pill" id="linkMakeBtn">Get a link code</button><b id="linkCode" aria-live="polite"></b></div>
+      <div class="link-row"><input id="linkInput" type="text" inputmode="text" placeholder="Enter a code" maxlength="9" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-label="Link code"><button class="pill" id="linkUseBtn">Link</button></div>
+      <p class="small" id="linkMsg" aria-live="polite"></p>
+    </div>
     <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
 <div class="sec-h"><span>Start over</span></div>
     <div id="startOver" class="start-over"></div>
