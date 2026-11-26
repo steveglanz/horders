@@ -2,7 +2,7 @@
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree, altsPicked,
+  grantBossReward, charactersMade, resetCharacter, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree, altsPicked,
 } from '../sim/hero';
 import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode, treeOf } from '../sim/content/trees';
 import { BRANCH_NAMES } from '../sim/content/emberwright';
@@ -79,6 +79,8 @@ export class Hub {
   onBounty: () => void = () => {};
   /** A world boss reward was claimed (an Epic): main.ts plays its chime. */
   onClaimed: () => void = () => {};
+  /** Settings > Start over > Reset all progress, after its confirm (main.ts swaps in the new hero). */
+  onResetAll: () => void = () => {};
   /** Set by main: starts a Delver's Key run in the picked dungeon. */
   onKey: () => void = () => {};
   /** Set by main: the classes in your party (empty when you play alone). */
@@ -125,7 +127,7 @@ export class Hub {
     const sheet = $('settings');
     const snd = $('bagBtn').parentElement;
     if (snd && snd !== $('title').querySelector('.hub-top')) snd.append($('setBtn'));
-    $('setBtn').addEventListener('click', () => { sheet.hidden = false; });
+    $('setBtn').addEventListener('click', () => { this.renderStartOver(); sheet.hidden = false; });
     sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
     sheet.querySelector('.sheet-x')!.addEventListener('click', () => { sheet.hidden = true; });
     const gen = $('sheet');
@@ -1221,6 +1223,48 @@ export class Hub {
       $('sheet').hidden = true;
       this.openBag();
       this.emberGain(before, got.embers);
+    });
+  }
+
+  /**
+   * Settings > Start over: one row per class you have made, plus Reset all progress. Each opens a
+   * confirm sheet that says what goes and what stays. The online account and leaderboard times stay
+   * (Delete my account removes those).
+   */
+  private renderStartOver(): void {
+    const root = $('startOver');
+    const h = this.hero();
+    const rows = charactersMade(h).filter((c) => c.level > 1 || c.runs > 0);
+    root.innerHTML = (rows.length
+      ? rows.map((c) => `<div class="so-row"><span class="so-name">${CLASSES[c.cls].name}<span class="muted"> · level ${c.level}</span></span><button class="sbtn danger" data-reset-cls="${c.cls}" data-sfx="open" aria-label="Reset ${CLASSES[c.cls].name}">Reset</button></div>`).join('')
+      : '<div class="hint">No hero has progress to reset yet.</div>')
+      + '<button class="sbtn danger so-all" data-reset-all data-sfx="open">Reset all progress</button>';
+    root.querySelectorAll<HTMLButtonElement>('[data-reset-cls]').forEach((b) =>
+      b.addEventListener('click', () => this.confirmReset(b.dataset.resetCls as ClassId)));
+    root.querySelector<HTMLButtonElement>('[data-reset-all]')!.addEventListener('click', () => this.confirmReset(null));
+  }
+
+  /** The confirm step for a reset: one class (cls) or everything (null). */
+  private confirmReset(cls: ClassId | null): void {
+    const name = cls ? CLASSES[cls].name : '';
+    const body = cls
+      ? `<p>Your ${name} goes back to level 1 and starts with the first delve again. Its talents, gear, bags, Delver's Keys and records are erased.</p>`
+        + `<p class="hint">Stays: your other heroes, the shared embers, your collection, titles, deeds and season, and your leaderboard times.</p>`
+      : `<p>Every hero goes back to level 1 and the game starts again from the first delve. All gear, embers, keys, collection, titles, deeds and season progress are erased, here and in your cloud save.</p>`
+        + `<p class="hint">Stays: your online account, your leaderboard times and your display settings. To remove those too, use Delete my account.</p>`;
+    openSheet(cls ? `Reset ${name}?` : 'Reset all progress?', body
+      + `<div class="sheet-acts"><button class="sbtn" data-rs-no data-sfx="back">Cancel</button><button class="sbtn danger rs-go" data-rs-go data-sfx="click">${cls ? `Reset ${name}` : 'Reset everything'}</button></div>`
+      + '<div class="hint">This can\'t be undone.</div>');
+    $('sheetBody').querySelector('[data-rs-no]')!.addEventListener('click', () => { $('sheet').hidden = true; });
+    $('sheetBody').querySelector('[data-rs-go]')!.addEventListener('click', () => {
+      $('sheet').hidden = true;
+      $('settings').hidden = true;
+      if (!cls) { this.onResetAll(); return; }
+      const h = this.hero();
+      resetCharacter(h, cls);
+      if ((h.cls ?? 'emberwright') === cls) this.tier = topTier(h.maxTier);
+      this.save();
+      this.render();
     });
   }
 
