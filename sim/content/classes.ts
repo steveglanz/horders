@@ -95,12 +95,12 @@ export function slotOpen(slot: number, level: number | undefined): boolean {
  * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
  * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".
  */
-export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather' | 'sunlance' | 'canopy' | 'emberDart' | 'whiteHeat';
+export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather' | 'sunlance' | 'canopy' | 'emberDart' | 'whiteHeat' | 'slagSpray' | 'slagMortar';
 export interface AltOption { id: AltId; slot: number; level: number; replaces: string; def: AbilityDef }
 export const ALT_UNLOCK_LEVEL = 8;
 export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
   emberwright: [
-    { id: 'emberWard', slot: 1, level: 8, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
+    { id: 'emberWard', slot: 1, level: 8, replaces: 'Blink', def: { name: 'Ember Mantle', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
     { id: 'emberDart', slot: 0, level: 12, replaces: 'Flame Wave', def: { name: 'Ember Dart', key: 'Q', cost: 25, cooldown: 4, text: 'Throw a dart of fire at your target for 110, and it burns for 4s. Better on one big foe; Flame Wave is better on packs and knocks them back.' } },
     { id: 'whiteHeat', slot: 2, level: 16, replaces: 'Combustion', def: { name: 'White Heat', key: 'R', cost: 60, cooldown: 20, text: 'Burst into white heat: 200 to every foe within 200 of you and to the nearest big foe in reach, and they burn for 4s; normal foes are thrown back. Better when the press is on you; Combustion blasts a crowd far off and boosts your party.' } },
   ],
@@ -121,6 +121,8 @@ export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
   ],
   slagbinder: [
     { id: 'cinderSump', slot: 1, level: 8, replaces: 'Recoil', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
+    { id: 'slagSpray', slot: 0, level: 12, replaces: 'Molten Plating', def: { name: 'Slag Spray', key: 'Q', cost: 30, cooldown: 6, text: 'Spray molten slag ahead: 75 to every foe in the cone, they turn Brittle and small foes are shoved back. The splashback plates you at half thickness. Better on packs; Molten Plating is the thicker ward and can plate an ally.' } },
+    { id: 'slagMortar', slot: 2, level: 16, replaces: 'Cooling Shell', def: { name: 'Slag Mortar', key: 'R', cost: 60, cooldown: 20, text: 'Fire a mortar shell at the nearest big foe in reach: 110 to every foe where it lands, they turn Brittle, and small foes are stunned for 1s. You give up Cooling Shell\'s damage cut and its cover for allies.' } },
   ],
 };
 /** Each class's first option (level 8). */

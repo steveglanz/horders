@@ -134,7 +134,7 @@ const CUT = 'M17.7 6.3A8 8 0 1 1 13.5 4.1 M14.5 2.5l7 7';
  * Ability-option glyphs (ALT_ABILITIES in sim/content/classes.ts), shown in the swapped slot.
  */
 export const ALT_GLYPH: Record<AltId, string> = {
-  // Ember Ward: a hero wrapped in flame tongues (Quench already owns the drop in a ring).
+  // Ember Mantle: a hero wrapped in flame tongues (Quench already owns the drop in a ring).
   emberWard: 'M12 9.5a2.3 2.3 0 1 1 0 4.6a2.3 2.3 0 1 1 0-4.6Z M8.2 20.5c.7-2.4 2-3.6 3.8-3.6s3.1 1.2 3.8 3.6 M5 19C2.2 14.8 3 9 7.6 4.6c-.2 2.2.4 3.7 1.8 4.6 M19 19c2.8-4.2 2-10-2.6-14.4.2 2.2-.4 3.7-1.8 4.6',
   // Hamstring: a blade cuts through the stride, so the arrow of movement is broken.
   hamstring: 'M2.5 15.5h5 M14 15.5h4.5 M16.5 12.5l3 3-3 3 M16.5 2.5 10 17.5 M7.6 16.2l5 2.2 M10.1 17.3 9 20.5',
@@ -156,6 +156,10 @@ export const ALT_GLYPH: Record<AltId, string> = {
   sunlance: 'M3.5 20.5 16 8 M16 8l1.5-4.5L20 6l-4.5 1.5 M19 2.5v2 M21.5 5h-2 M6.5 14.5l3 3',
   // Canopy: a dome of light over the ground, with rays above it.
   canopy: 'M3.5 18.5a8.5 8.5 0 0 1 17 0Z M2.5 18.5h19 M12 3.5v3 M5.6 6.1l1.8 1.8 M18.4 6.1l-1.8 1.8',
+  // Slag Spray: a cannon mouth throwing a fan of slag drops.
+  slagSpray: 'M3 10h6v4H3Z M9 9.5l2 1v3l-2 1 M14 7.5a1.2 1.2 0 1 1 0 .1 M17 11.5a1.2 1.2 0 1 1 0 .1 M14 16.5a1.2 1.2 0 1 1 0 .1 M20 8a1 1 0 1 1 0 .1 M20 15.5a1 1 0 1 1 0 .1',
+  // Slag Mortar: a shell arcing down onto a burst.
+  slagMortar: 'M3.5 19c3-11 10-14 14-11 M17.5 8l-2.5-.5 M17.5 8l.2 2.5 M12 20.5h9 M16.5 20.5l-2-3 M16.5 20.5l2-3 M16.5 20.5v-4',
   // Ember Dart: a slim dart in flight with a flame trailing off its tail.
   emberDart: 'M20.5 3.5 11 13 M20.5 3.5l-5.5 1.2 M20.5 3.5l-1.2 5.5 M11 13c-2.5-.5-4.5.5-5.5 2.5 1.5-.3 2.5.2 3 1-1.5.8-2.5 2.2-2.8 4.5 2.3-.3 3.7-1.3 4.5-2.8.8.5 1.3 1.5 1 3 2-1 3-3 2.5-5.5Z',
   // White Heat: a white-hot core bursting outward in every direction.

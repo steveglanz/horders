@@ -186,6 +186,35 @@ describe('ability options', () => {
     expect(w.enemies[big].hp).toBeLessThan(1e6);
   });
 
+  it('Slag Spray hits the cone, makes it Brittle and plates the gunner; Slag Mortar lands on the big foe in reach', () => {
+    const w = new World({ seed: 5, cls: 'slagbinder', alts: ['slagSpray', 'slagMortar'], tier: 4, omens: [] });
+    for (const e of w.enemies) e.alive = false;
+    const inner = w as unknown as Inner;
+    expect(w.abilities.map((d) => d.name)).toEqual(['Slag Spray', 'Recoil', 'Slag Mortar', 'Clinker']);
+    const front = inner.spawn('slagling', w.player.x + 150, w.player.y);
+    const behind = inner.spawn('slagling', w.player.x - 150, w.player.y);
+    for (const i of [front, behind]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    inner.castAlt({ x: 0, y: 0 }, 0);
+    expect(w.enemies[front].hp).toBeLessThan(1e6);
+    expect(w.enemies[front].brittleUntil ?? 0).toBeGreaterThan(w.time);
+    expect(w.enemies[front].x).toBeCloseTo(w.player.x + 150 + ALT_KIT.sprayShove);
+    expect(w.enemies[behind].hp).toBe(1e6);
+    expect(w.player.plate ?? 0).toBeGreaterThan(0);
+    // The mortar picks the big foe over a nearer small one, and hits what stands beside it.
+    for (const i of [front, behind]) w.enemies[i].alive = false;
+    const small = inner.spawn('slagling', w.player.x + 100, w.player.y);
+    const big = inner.spawn('cinderBrute', w.player.x + 400, w.player.y);
+    const beside = inner.spawn('slagling', w.player.x + 450, w.player.y);
+    for (const i of [small, big, beside]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    inner.castAlt({ x: 0, y: 0 }, 2);
+    expect(w.enemies[small].hp).toBe(1e6);
+    expect(w.enemies[big].hp).toBeLessThan(1e6);
+    expect(w.enemies[beside].hp).toBeLessThan(1e6);
+    expect(w.enemies[beside].stunT).toBeGreaterThan(0);
+  });
+
   it('never drafts talents for the replaced ability', () => {
     for (const cls of CLASS_IDS) {
       const slot = ALT_ABILITIES[cls].slot;
@@ -200,7 +229,7 @@ describe('ability options', () => {
     }
   });
 
-  it('Ember Ward stops a blow and burns the attacker, but not Glare or an unblockable tick', () => {
+  it('Ember Mantle stops a blow and burns the attacker, but not Glare or an unblockable tick', () => {
     const { w, inner } = world('emberwright');
     const src = inner.spawn('cinderBrute', w.player.x + 50, w.player.y);
     inner.rebuildHash();
