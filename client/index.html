@@ -1390,6 +1390,12 @@
   .sa-grid .itile { min-height: 44px; border-radius: 10px; }
   .sa-grid .itile .ig svg { width: 20px; height: 20px; }
   .sheet-acts .sbtn.sa-go { flex: 2 1 55%; flex-basis: auto; }
+  .start-over { display: grid; gap: 8px; text-align: left; }
+  .so-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .so-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .so-row .sbtn { min-height: 44px; padding: 0 16px; flex: none; }
+  .start-over .so-all { min-height: 44px; width: 100%; }
+  .sheet-acts .sbtn.rs-go { flex: 2 1 55%; }
   .pill.ember { position: relative; }
   .pill.gain { animation: purseGain 0.9s ease-out; }
   .pill-up { position: absolute; right: 10px; top: -4px; font-style: normal; font-weight: 800; color: var(--gold); text-shadow: 0 0 8px rgba(255,140,40,0.8); pointer-events: none; animation: purseUp 1.2s ease-out forwards; }
@@ -1608,7 +1614,9 @@
     <div class="sec-h"><span>Display</span></div>
     <div class="opts" id="hubOpts"></div>
     <details class="how"><summary>How to play</summary>Each delve is a short dungeon: four tough fights, then its boss. Move with WASD or drag on a touch screen; your basic attack fires on its own. Spend your class's Heat, Momentum, Resolve or Radiance on your action bar (Q, E, R, F or the thumb buttons), dodge the red, and interrupt with F when an enemy cast bar turns blue. Every fight cleared is a level, a talent and a loot bag, and your hero keeps the gear.</details>
-<div class="small muted foot-note">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="resetBtn">Reset hero</button> · <button class="linkbtn" id="deleteAcctBtn">Delete my account</button></div>
+<div class="sec-h"><span>Start over</span></div>
+    <div id="startOver" class="start-over"></div>
+<div class="small muted foot-note">Alpha build. <span id="saveNote">Your hero saves in this browser.</span> <a href="?stress=1" id="stressLink">Run the stress test</a> · <button class="linkbtn" id="deleteAcctBtn">Delete my account</button></div>
   </div>
 </div>
 

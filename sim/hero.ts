@@ -109,6 +109,8 @@ export interface HeroProfile {
   seen?: string[];
   /** Halls (keep it simple, 25 Nov): encounters whose fight tip this account has already been shown on a Halls map. */
   tipsSeen?: string[];
+  /** How many times this save was reset (resetCharacter / resetProgress). The higher count wins in newerHero, so an old cloud or local copy never brings back progress the player chose to erase. */
+  resets?: number;
 }
 
 /** What belongs to one class's character. The rest (class choice, item ids, Forge seed, daily bounty) is shared. */
@@ -165,6 +167,37 @@ export function switchClass(h: HeroProfile, cls: ClassId): void {
   Object.assign(h, freshCharacter(), next);
   h.roster = roster;
   h.cls = cls;
+}
+
+/**
+ * Start one class over: its level, talents, gear, bags, keys and records go back to a fresh level 1.
+ * Everything account-wide stays (the shared ember purse, collection, titles, deeds, season, the other classes).
+ */
+export function resetCharacter(h: HeroProfile, cls: ClassId): void {
+  if ((h.cls ?? 'emberwright') === cls) {
+    for (const k of CHARACTER_KEYS) delete h[k];
+    Object.assign(h, freshCharacter());
+  } else if (h.roster?.[cls]) {
+    const roster = { ...h.roster };
+    delete roster[cls];
+    h.roster = roster;
+  }
+  h.resets = (h.resets ?? 0) + 1;
+}
+
+/** Start the whole account over: a brand new hero, keeping only the reset count (see newerHero). */
+export function resetProgress(h: HeroProfile): HeroProfile {
+  return { ...newHero(), resets: (h.resets ?? 0) + 1 };
+}
+
+/** Every class that has a character, the one being played first: for the Settings "Start over" list. */
+export function charactersMade(h: HeroProfile): { cls: ClassId; level: number; runs: number }[] {
+  const cur = h.cls ?? 'emberwright';
+  const out = [{ cls: cur, level: h.level, runs: h.runs ?? 0 }];
+  for (const [cls, c] of Object.entries(h.roster ?? {}) as [ClassId, Character][]) {
+    if (c && cls !== cur) out.push({ cls, level: c.level ?? 1, runs: c.runs ?? 0 });
+  }
+  return out;
 }
 
 /** The character for `cls`, whether it is being played or waiting in the roster. */
@@ -781,6 +814,8 @@ export function grantBossReward(hero: HeroProfile, bossId: number, damage: numbe
 
 /** Which of two saves of the same hero has made more progress. */
 export function newerHero(a: HeroProfile, b: HeroProfile): HeroProfile {
+  // A reset is the player's choice: the copy made after more resets wins, whatever its progress.
+  if ((a.resets ?? 0) !== (b.resets ?? 0)) return (a.resets ?? 0) > (b.resets ?? 0) ? a : b;
   const ta = totals(a);
   const tb = totals(b);
   if (ta.runs !== tb.runs) return ta.runs > tb.runs ? a : b;
