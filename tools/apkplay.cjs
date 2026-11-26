@@ -45,7 +45,12 @@ async function openPage() {
     // "performing click action"), so tap the real screen through adb, the way a finger would.
     // The WebView's bounds on screen come from the Android view tree; the element's box is in CSS px.
     tapEl: async (sel) => {
-      const wv = await device.info({ clazz: 'android.webkit.WebView' });
+      // uiautomator dump, not device.info(), which needs Playwright's separate driver APK.
+      await device.shell('uiautomator dump /sdcard/ui.xml');
+      const xml = (await device.shell('cat /sdcard/ui.xml')).toString();
+      const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+      if (!m) throw new Error('no WebView in the view tree: ' + xml.slice(0, 500));
+      const wv = { bounds: { x: +m[1], y: +m[2], width: m[3] - m[1], height: m[4] - m[2] } };
       const r = await page.evaluate((q) => { const b = document.querySelector(q).getBoundingClientRect();
         return { x: b.x + b.width / 2, y: b.y + b.height / 2, dpr: devicePixelRatio }; }, sel);
       const x = Math.round(wv.bounds.x + r.x * r.dpr), y = Math.round(wv.bounds.y + r.y * r.dpr);
