@@ -299,6 +299,14 @@ function altPress(w: World, id: AltId): number | undefined {
     for (const e of w.enemies) if (e.alive && e.def.rank === 'normal' && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 260 * 260) inReach++;
     return inReach >= 3 || (bigNear && hurt > 0.2) ? a.slot : undefined;
   }
+  if (id === 'sunlance') {
+    // Sunlance: on cooldown at anything in range (it is the Lumen's Q damage now), sooner when hurt for its heal.
+    return w.bladeTarget(w.lumenRange) >= 0 ? a.slot : undefined;
+  }
+  if (id === 'canopy') {
+    // Canopy: like Sanctuary, when a big foe is close or someone is hurt; the dome is for taking hits.
+    return bigNear || hurt > 0.3 || (party && allyLow(150, 0.6)) ? a.slot : undefined;
+  }
   if (w.cls === 'emberwright') {
     // Ember Ward: before the press reaches you, or when a big foe is close.
     if ((p.plateUntil ?? -1) > w.time) return undefined;

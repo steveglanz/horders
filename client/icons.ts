@@ -152,6 +152,10 @@ export const ALT_GLYPH: Record<AltId, string> = {
   clout: 'M14 3.5l6.5 6.5 M15.5 8.5 7 17 M12.5 4.5l7 7-2.5 2.5-7-7Z M3.5 20.5l2-2 M2.5 16.5h3 M7.5 21.5v-3',
   // Gather: arrows from every side drawn in to a shield at the centre.
   gather: 'M12 8.5l3 1.2v2.3c0 2-1.3 3.3-3 4c-1.7-.7-3-2-3-4V9.7Z M2.5 12h4 M4.5 10l2 2-2 2 M21.5 12h-4 M19.5 10l-2 2 2 2 M12 2.5v3 M10.5 4l1.5 1.5L13.5 4 M12 21.5v-2.5',
+  // Sunlance: a long spear of light with a star at its tip.
+  sunlance: 'M3.5 20.5 16 8 M16 8l1.5-4.5L20 6l-4.5 1.5 M19 2.5v2 M21.5 5h-2 M6.5 14.5l3 3',
+  // Canopy: a dome of light over the ground, with rays above it.
+  canopy: 'M3.5 18.5a8.5 8.5 0 0 1 17 0Z M2.5 18.5h19 M12 3.5v3 M5.6 6.1l1.8 1.8 M18.4 6.1l-1.8 1.8',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {

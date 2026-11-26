@@ -516,7 +516,7 @@ export class Hud {
     if (p.shieldT > 0) out.push('<span class="buff" style="--bc:#8fd8ff">Shielded</span>');
     if (p.hasteT > 0) out.push('<span class="buff" style="--bc:#ffb04a">Hot Heels</span>');
     if (p.bastionT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Anvil Skin</span>');
-    if (p.sanctT > 0) out.push('<span class="buff" style="--bc:#ffd27a">Sanctuary</span>');
+    if (p.sanctT > 0) out.push(p.canopy ? '<span class="buff" style="--bc:#a8d0ff">Canopy</span>' : '<span class="buff" style="--bc:#ffd27a">Sanctuary</span>');
     if (p.brilliance >= 1) out.push(`<span class="buff" style="--bc:#fff2b0">Brilliance ${Math.floor(p.brilliance)}</span>`);
     if (p.ward > 0.5) out.push(`<span class="buff" style="--bc:#dfe7f2">Ward ${Math.ceil(p.ward)}</span>`);
     if (p.heat >= w.abilityCost(2) && p.cds[2] <= 0) out.push(`<span class="buff" style="--bc:#ff8a3d">${w.abilities[2].name} ready</span>`);
