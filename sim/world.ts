@@ -10464,8 +10464,10 @@ export const SLUICETIDE = { drift: 45, turnEvery: 8 };
  * Maelra's hits between casts: a circle under the hero and a 300 px cone. The cone only ever lands on melee, so 1.0 M3
  * (25 Nov) cut it 28 -> 10, as at average skill she walled the Bulwark and Duskblade at t6 (7 and 3 of 20) while ranged
  * classes won 16-18 of 20. Same fix as the Lensmother's Lens Sweep (GLARE.sweepDamage).
+ * 1.0 M3 (26 Nov): the circle under the hero then made every Duskblade loss at t6 (average skill, 6 of 6 killing
+ * blows), so it went 32 -> 22: t6 seeds 21-60 Duskblade 21 -> 30, Emberwright 23 -> 33 of 40; t9 stays hard (1-15 of 20).
  */
-export const MAELRA_HITS = { circle: 32, cone: 10 };
+export const MAELRA_HITS = { circle: 22, cone: 10 };
 export const MAELRA_ECHO = { first: 2, on: 12, off: 10 };
 /** Maelra's versions that can echo: rising water is in every version but the Sluicetide already. */
 export const MAELRA_ECHOES: MaelraVariant[] = ['tide', 'seal'];
