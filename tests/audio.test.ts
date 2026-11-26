@@ -650,7 +650,7 @@ describe('audio', () => {
     expect(src).toContain('mound.position.set(Math.sin(a) * (9.4 + r * 0.25)');
     expect(src).toMatch(/\[\[Math\.PI, 3\.2\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.6/); // the Coldmarrow's arches
     expect(src).toMatch(/\[\[Math\.PI, 3\.0\], \[Math\.PI - 0\.8, 2\.2\], \[Math\.PI \+ 0\.8, 2\.2\]\] as const\) \{\n\s+const g = new THREE\.Group\(\); g\.position\.set\(Math\.sin\(a\) \* 9\.5/); // the presses
-    expect(src).toContain('for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {\n      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.9'); // the ore carts
+    expect(src).toContain('for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {\n      cart.position.set(Math.sin(a) * 9.9'); // the ore carts
     expect(src).toContain('wg.position.set(0, -0.2, -9.6)'); // the Wrackline's hull
     expect(src).toContain('[Math.PI - 0.7, Math.PI - 1.0, Math.PI - 1.3, Math.PI + 0.7, Math.PI + 1.0, Math.PI + 1.3]'); // its posts
     expect(src).toContain('new THREE.Vector3(Math.sin(a) * 8.9, 0.9, Math.cos(a) * 8.9)');

@@ -376,12 +376,15 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     }
     // The throne stands outside the floor, against the back wall, so it never hides a fight.
     const throne = new THREE.Group(); throne.position.set(0, FLOOR, -9.1);
-    const tb = new THREE.Mesh(new THREE.BoxGeometry(3.0, 4.2, 0.6), iron); tb.position.y = 2.1; throne.add(tb);
-    const tt = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.3, 0.8), brass); tt.position.y = 4.25; throne.add(tt);
+    // One mesh per material (26 Nov): six meshes with shadows were 12 draws, and the Flue arena's north rim with
+    // four heroes reached 106 of 96.
+    const brassParts: THREE.BufferGeometry[] = [new THREE.BoxGeometry(3.3, 0.3, 0.8).translate(0, 4.25, 0)], flameParts: THREE.BufferGeometry[] = [];
     for (const x of [-1.55, 1.55]) {
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 4.6, 8), brass); p.position.set(x, 2.3, 0.15); throne.add(p);
-      const f = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 8), chimInner); f.position.set(x, 4.9, 0.15); throne.add(f);
+      brassParts.push(new THREE.CylinderGeometry(0.2, 0.24, 4.6, 8).translate(x, 2.3, 0.15));
+      flameParts.push(new THREE.ConeGeometry(0.22, 0.6, 8).translate(x, 4.9, 0.15));
     }
+    throne.add(new THREE.Mesh(new THREE.BoxGeometry(3.0, 4.2, 0.6).translate(0, 2.1, 0), iron), new THREE.Mesh(mergeGeometries(brassParts), brass), new THREE.Mesh(mergeGeometries(flameParts), chimInner));
+    for (const g of [...brassParts, ...flameParts]) g.dispose();
     throne.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; }); room.add(throne);
   } else if (id === 'glarewell') {
     // The great lens, high at the back in a brass ring on two arms, glowing pale gold (the light that burns),
@@ -505,13 +508,20 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     body.castShadow = body.receiveShadow = true; room.add(fg);
     const rail = new THREE.Mesh(new THREE.TorusGeometry(9.9, 0.06, 4, 64, 2.4), castI); rail.rotation.x = Math.PI / 2; rail.rotation.z = -Math.PI / 2 - 1.2; rail.position.y = 0.05; room.add(rail);
     const ore = new THREE.MeshStandardMaterial({ color: '#5a4a40', roughness: 0.9, map: grain });
+    // The four carts as two meshes, iron and ore (26 Nov): a mesh per tub, load and wheel, each with a shadow, was 32
+    // draws, and the Smeltery arena's north rim with four heroes reached 102 of 96. Same shapes, places and materials.
+    const cartIron: THREE.BufferGeometry[] = [], cartOre: THREE.BufferGeometry[] = [];
+    const cart = new THREE.Object3D(), part = new THREE.Object3D();
+    const bake = (geo: THREE.BufferGeometry, into: THREE.BufferGeometry[]) => { part.updateMatrix(); into.push(geo.applyMatrix4(part.matrix).applyMatrix4(cart.matrix)); part.position.set(0, 0, 0); part.rotation.set(0, 0, 0); part.scale.set(1, 1, 1); };
     for (const a of [Math.PI - 0.55, Math.PI - 0.95, Math.PI + 0.6, Math.PI + 1.0]) {
-      const g = new THREE.Group(); g.position.set(Math.sin(a) * 9.9, 0, Math.cos(a) * 9.9); g.rotation.y = a + Math.PI / 2;
-      const tub = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.55, 0.8, 8, 1, true), castI); tub.position.y = 0.75; g.add(tub);
-      const load = new THREE.Mesh(new THREE.SphereGeometry(0.66, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), ore); load.position.y = 1.05; load.scale.y = 0.6; g.add(load);
-      for (const z of [-0.45, 0.45]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 10), castI); wh.rotation.x = Math.PI / 2; wh.rotation.z = Math.PI / 2; wh.position.set(z, 0.22, 0); g.add(wh); }
-      g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true; });
-      room.add(g);
+      cart.position.set(Math.sin(a) * 9.9, 0, Math.cos(a) * 9.9); cart.rotation.y = a + Math.PI / 2; cart.updateMatrix();
+      part.position.y = 0.75; bake(new THREE.CylinderGeometry(0.75, 0.55, 0.8, 8, 1, true), cartIron);
+      part.position.y = 1.05; part.scale.y = 0.6; bake(new THREE.SphereGeometry(0.66, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), cartOre);
+      for (const z of [-0.45, 0.45]) { part.rotation.set(Math.PI / 2, 0, Math.PI / 2); part.position.set(z, 0.22, 0); bake(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 10), cartIron); }
+    }
+    for (const [parts, mat] of [[cartIron, castI], [cartOre, ore]] as const) {
+      const mesh = new THREE.Mesh(mergeGeometries(parts), mat); mesh.castShadow = mesh.receiveShadow = true; room.add(mesh);
+      for (const g of parts) g.dispose();
     }
   } else if (id === 'wrackline') {
     // A wrecked hull against the back wall (wrackWreck): a keel and ribs of dark wet timber, a broken mast; and
@@ -572,11 +582,12 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
     const arch = canvasTex(archCanvas());
     for (const [a, r] of [[Math.PI, 2.3], [Math.PI - 0.8, 1.65], [Math.PI + 0.8, 1.65]] as const) {
       const g = new THREE.Group(); g.position.set(Math.sin(a) * (9.2 + r * 0.25), 0, Math.cos(a) * (9.2 + r * 0.25)); g.lookAt(0, 0, 0);
-      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.08, r * 1.14, 0.5, 20), basalt); plinth.position.y = 0.1; g.add(plinth);
-      const drum = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 0.55, 24, 1, true), kb); drum.position.y = 0.35 + r * 0.275; g.add(drum);
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), kb); dome.position.y = 0.35 + r * 0.55; g.add(dome);
-      const stack = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.22, r * 0.9, 10), kb); stack.position.y = 0.35 + r * 1.5; g.add(stack);
-      const lip = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.24, r * 0.24, 0.12, 10), basalt); lip.position.y = 0.35 + r * 1.95; g.add(lip);
+      // One mesh per material (26 Nov): the plinth and lip are basalt, the drum, dome and stack brick. Six meshes a
+      // kiln, each casting a shadow, were 11 draws a kiln and 94-96 of 96 with the camera at the arena's north rim.
+      const stone = [new THREE.CylinderGeometry(r * 1.08, r * 1.14, 0.5, 20).translate(0, 0.1, 0), new THREE.CylinderGeometry(r * 0.24, r * 0.24, 0.12, 10).translate(0, 0.35 + r * 1.95, 0)];
+      const brickParts = [new THREE.CylinderGeometry(r, r, r * 0.55, 24, 1, true).translate(0, 0.35 + r * 0.275, 0), new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.35 + r * 0.55, 0), new THREE.CylinderGeometry(r * 0.18, r * 0.22, r * 0.9, 10).translate(0, 0.35 + r * 1.5, 0)];
+      g.add(new THREE.Mesh(mergeGeometries(stone), basalt), new THREE.Mesh(mergeGeometries(brickParts), kb));
+      for (const q of [...stone, ...brickParts]) q.dispose();
       const gm = new THREE.MeshBasicMaterial({ map: arch, transparent: true, color: new THREE.Color(1, 1, 1) }); gm.userData.base = gm.color.clone(); glows.push(gm);
       if (a === Math.PI) kilnMouth = gm; // the great kiln the three-stage Kiln Mother climbs into (kilnmother3d.ts)
       const mouth = new THREE.Mesh(new THREE.PlaneGeometry(r * 0.75, r * 0.94), gm); mouth.position.set(0, 0.36 + r * 0.47, r + 0.02); g.add(mouth);
@@ -589,15 +600,21 @@ function buildRoom(scene: THREE.Scene, saver: boolean, addLight: (c: string, i: 
   // Only the back braziers: the handoff's two front ones stood between this camera and the fight, and side ones
   // (PI ± 1.55) came within a metre of the camera when your hero stood at that side (mobile's 568x320 check, 23 Nov).
   // The Foundry is drowned: no braziers, its teal lamps and gauges light it.
+  // The braziers' iron (bowl and stem) and coals are one mesh each for all four (26 Nov); only the flames, which
+  // flicker one by one, stay a mesh each. A mesh per part was 4 draws a brazier, and the Flue arena's north rim with
+  // four heroes stayed over 96 without this.
+  const brIron: THREE.BufferGeometry[] = [], brCoals: THREE.BufferGeometry[] = [];
   for (const a of id === 'foundry' || id === 'hammerdeep' || id === 'glarewell' || id === 'coldmarrow' || id === 'wrackline' ? [] : [Math.PI - 0.5, Math.PI + 0.5, Math.PI - 1.1, Math.PI + 1.1]) {
-    const g = new THREE.Group(); g.position.set(Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62);
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10), iron); bowl.position.y = 0.75; g.add(bowl);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6), iron); stem.position.y = 0.3; g.add(stem);
-    const coals = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 10), chimMouth); coals.position.y = 0.95; g.add(coals);
+    const [bx, by, bz] = [Math.sin(a) * 8.62, 0.22, Math.cos(a) * 8.62];
+    brIron.push(new THREE.CylinderGeometry(0.5, 0.26, 0.4, 10).translate(bx, by + 0.75, bz), new THREE.CylinderGeometry(0.08, 0.14, 0.6, 6).translate(bx, by + 0.3, bz));
+    brCoals.push(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 10).translate(bx, by + 0.95, bz));
     const fl = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.0, 8), new THREE.MeshBasicMaterial({ map: flameTex, color: new THREE.Color(0.9, 0.9, 0.9), transparent: true, opacity: 0.92 }));
-    fl.position.y = 1.45; g.add(fl); flames.push(fl);
-    bowl.castShadow = stem.castShadow = true;
-    room.add(g);
+    fl.position.set(bx, by + 1.45, bz); room.add(fl); flames.push(fl);
+  }
+  if (brIron.length) {
+    const bowls = new THREE.Mesh(mergeGeometries(brIron), iron); bowls.castShadow = true; room.add(bowls);
+    room.add(new THREE.Mesh(mergeGeometries(brCoals), chimMouth));
+    for (const q of [...brIron, ...brCoals]) q.dispose();
   }
   // Steve, 23 Nov: "the environment still seems empty and very dark". Props and floor detail, every set one
   // instanced batch (one draw call each), placed from a fixed seed so the room looks the same every run.
