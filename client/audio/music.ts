@@ -47,6 +47,8 @@ export type RoomBedKind = 'ashStore' | 'bellowsHall' | 'slagChannel' | 'coolingY
   | 'coalBunker' | 'scaleHall' | 'cofferVault' | 'titheStore'
   // The Smeltery raid's four (H5, visuals #788): blue steel under warm taphole light.
   | 'tappingFloor' | 'flywheelHall' | 'billetRack' | 'hoistShaft'
+  // The Flue raid's four (H5d, visuals #788): sooty brick under warm amber light.
+  | 'fireboxRow' | 'damperHall' | 'sootChamber' | 'sweepsGallery'
   // OSKELV2 (design, 25 Nov): the running press bed under Oskel in stages 2 and 3, played as a room bed.
   | 'pressBelt';
 export const ROOM_BEDS: readonly RoomBedKind[] = [
@@ -61,6 +63,7 @@ export const ROOM_BEDS: readonly RoomBedKind[] = [
   'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap',
   'coalBunker', 'scaleHall', 'cofferVault', 'titheStore',
   'tappingFloor', 'flywheelHall', 'billetRack', 'hoistShaft',
+  'fireboxRow', 'damperHall', 'sootChamber', 'sweepsGallery',
   'pressBelt',
 ];
 /** A room bed's loudness under the theme (a dungeon theme's own bed runs 0.35-0.4): heard in a quiet room, gone in a fight. */
@@ -772,6 +775,48 @@ export function bedSamples(kind: BedKind, rate: number, seconds = 6, seed = 7): 
         const creakAt = (c: number) => Math.exp(-Math.abs(t - c) * 30);
         const creak = Math.sin(2 * Math.PI * 440 * s + Math.sin(2 * Math.PI * 11 * s) * 5) * (creakAt(0.25) + 0.8 * creakAt(0.75));
         raw[i] = hp * 0.4 * sway + creak * 0.09 + brown * 0.08;
+        break;
+      }
+      case 'fireboxRow': {
+        // Firebox row, the door guard's room: amber light breathes like bellows behind the iron fire doors. A crackling fire
+        // roar drawn in and let out three times round the loop, a soft door rattle on each breath out.
+        lp += (w - lp) * 0.2;
+        const s = i / rate;
+        const ph = (t * 3) % 1;
+        const breath = 0.2 + 0.8 * Math.pow(Math.sin(Math.PI * ph), 3);
+        const rattle = Math.sin(2 * Math.PI * 523 * s) * Math.exp(-Math.abs(ph - 0.62) * 40);
+        raw[i] = lp * 0.55 * breath + rattle * 0.05 + Math.sin(2 * Math.PI * 130.8 * s) * 0.018 * breath + brown * 0.1;
+        break;
+      }
+      case 'damperHall': {
+        // Damper hall, the boss door alcove's: a big damper plate rocks slowly on its pivot. A hollow draught that opens
+        // and closes once round the loop, with a dull iron knock as the plate tips back at each end.
+        lp += (w - lp) * 0.035;
+        hp = 0.92 * (hp + lp - prev);
+        prev = lp;
+        const s = i / rate;
+        const rock = 0.25 + 0.75 * Math.pow(Math.sin(t * Math.PI), 2);
+        const knockAt = (c: number) => Math.exp(-Math.abs(t - c) * 45);
+        const knock = (Math.sin(2 * Math.PI * 196 * s) + 0.5 * Math.sin(2 * Math.PI * 311 * s)) * (knockAt(0.02) + knockAt(0.98) + 0.8 * knockAt(0.5));
+        raw[i] = hp * 0.45 * rock + knock * 0.07 + brown * 0.08;
+        break;
+      }
+      case 'sootChamber': {
+        // Soot chamber: soot sifts down from the stack in slow drifts, the pale light barely breathing. A fine, high
+        // dry hiss that thickens twice round the loop over a dull, muffled hush.
+        hp = 0.85 * (hp + w - prev);
+        prev = w;
+        lp += (hp - lp) * 0.45;
+        const drift = 0.3 + 0.7 * Math.pow(0.5 - 0.5 * Math.cos(t * Math.PI * 4), 2);
+        raw[i] = lp * 0.12 * drift + brown * 0.14;
+        break;
+      }
+      case 'sweepsGallery': {
+        // Sweeps' gallery, the quiet room: brushes and ladders leant on warm brick, still air, a faint low warmth from
+        // the flue behind the wall; nothing moves.
+        lp += (w - lp) * 0.08;
+        const s = i / rate;
+        raw[i] = lp * 0.07 + (Math.sin(2 * Math.PI * 220 * s) + 0.5 * Math.sin(2 * Math.PI * 329.6 * s)) * 0.013 + brown * 0.08;
         break;
       }
       case 'shimmer': {

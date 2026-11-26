@@ -32,7 +32,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
   const beds = Object.fromEntries(ROOM_BEDS.map((k) => [k, bedSamples(k, R)]));
 
   it('one bed per theme, each a clean loop a phone can play', () => {
-    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'coalBunker', 'scaleHall', 'cofferVault', 'titheStore', 'tappingFloor', 'flywheelHall', 'billetRack', 'hoistShaft', 'pressBelt']);
+    expect([...ROOM_BEDS]).toEqual(['ashStore', 'bellowsHall', 'slagChannel', 'coolingYard', 'kilnShrine', 'boilerRoom', 'cistern', 'pumpHall', 'anchorStore', 'lensGallery', 'starVault', 'shadeColonnade', 'mirrorHall', 'deadHearth', 'rimeHall', 'snowdriftCave', 'coldCrypt', 'harbourQuay', 'wreckYard', 'kelpBed', 'sluiceGate', 'anvilHall', 'chainGallery', 'quenchTrough', 'ingotStore', 'fumaroleField', 'obsidianGallery', 'cairnWalk', 'pumiceDrift', 'pressFloor', 'gearRoom', 'plateStore', 'oilSump', 'ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'coalBunker', 'scaleHall', 'cofferVault', 'titheStore', 'tappingFloor', 'flywheelHall', 'billetRack', 'hoistShaft', 'fireboxRow', 'damperHall', 'sootChamber', 'sweepsGallery', 'pressBelt']);
     for (const k of ROOM_BEDS) {
       const x = beds[k];
       expect(x.every(Number.isFinite), k).toBe(true);
@@ -60,6 +60,7 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     crucible: ['ladleHall', 'craneBay', 'mouldFloor', 'clinkerHeap', 'kilnShrine'],
     hoard: ['coalBunker', 'scaleHall', 'cofferVault', 'titheStore', 'kilnShrine'],
     smeltery: ['tappingFloor', 'flywheelHall', 'billetRack', 'hoistShaft', 'kilnShrine'],
+    flue: ['fireboxRow', 'damperHall', 'sootChamber', 'sweepsGallery', 'kilnShrine'],
     // OSKELV2: the running press bed plays in place of the room's bed, so it is never beside another.
     oskelBelt: ['pressBelt'],
   } as const;
@@ -99,6 +100,8 @@ describe('Halls room beds (visuals\' five room themes, 25 Nov)', () => {
     for (const busy of ['coalBunker', 'scaleHall', 'cofferVault'] as const) expect(m(busy)).toBeGreaterThan(2 * m('titheStore'));
     // The Smeltery: the taphole light breathes, the flywheel turns, the hook sways; the billet rack is still.
     for (const busy of ['tappingFloor', 'flywheelHall', 'hoistShaft'] as const) expect(m(busy)).toBeGreaterThan(2 * m('billetRack'));
+    // The Flue: the firebox light breathes, the damper rocks, the soot sifts; the sweeps' gallery is still.
+    for (const busy of ['fireboxRow', 'damperHall', 'sootChamber'] as const) expect(m(busy)).toBeGreaterThan(2 * m('sweepsGallery'));
   });
 
   it('sits under every dungeon theme\'s own bed and fades between rooms in a stride or two', () => {
