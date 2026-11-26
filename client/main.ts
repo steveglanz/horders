@@ -55,26 +55,47 @@ const hub = new Hub(() => hero, save);
 hub.tier = topTier(hero.maxTier);
 hub.render();
 
-// Pull the cloud save (if any) and keep whichever copy has made more progress.
-void (async () => {
-  const loaded = await cloud.loadHero();
+// Pull the cloud save (if any) and keep whichever copy has made more progress. It runs at start,
+// whenever the game comes back to the front on the hub (another place may have played since), and
+// after a link code joins this place to another place's hero. Returns the copy kept.
+type Kept = 'cloud' | 'here' | 'none';
+function mergeCloud(loaded: HeroProfile | null): Kept {
   // P5: a cloud save from before the shared purse folds its per-class embers in too.
   const remote = loaded && loaded.version === 1 && Array.isArray(loaded.inventory) ? toTree(shareEmbers(loaded)) : loaded;
+  let kept: Kept = 'none';
   if (remote && remote.version === 1 && Array.isArray(remote.inventory)) {
     const best = newerHero(hero, remote);
     if (best === remote && el('title').hidden === false) {
       hero = { ...hero, ...remote };
       saveHero(hero);
       hub.tier = topTier(hero.maxTier);
+      kept = 'cloud';
     } else if (best !== remote) {
       void cloud.saveHero(hero);
+      kept = 'here';
     }
   } else if (cloud.online) {
     void cloud.saveHero(hero);
+    kept = 'here';
   }
   hub.render();
+  return kept;
+}
+void (async () => {
+  mergeCloud(await cloud.loadHero());
   await hub.refreshBoss();
 })();
+let pulling = false;
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || pulling || el('title').hidden) return;
+  pulling = true;
+  try {
+    const loaded = await cloud.loadHero();
+    if (!el('title').hidden) mergeCloud(loaded);
+  } finally {
+    pulling = false;
+  }
+});
 
 // Render at device resolution, capped at 2x for fill-rate; ?lowres=1 opts out and
 // ?hires=1 lifts the cap to 3x (store screenshots, tools/storeshots.cjs).
@@ -360,6 +381,55 @@ el('resetBtn').addEventListener('click', () => {
   hub.tier = 1;
   save();
   hub.render();
+});
+// Link codes (migration 0009): every storage area (a browser, an iPhone Home Screen app, the store
+// app) is its own anonymous player, so a code from one place joins another place to the same save.
+const linkMsg = (t: string) => { el('linkMsg').textContent = t; };
+const shortCode = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
+el('linkMakeBtn').addEventListener('click', async () => {
+  const btn = el('linkMakeBtn') as HTMLButtonElement;
+  if (btn.disabled) return;
+  btn.disabled = true;
+  linkMsg('');
+  // The code points at the cloud save, so put this hero there first.
+  await cloud.saveHero(hero);
+  const r = await cloud.makeLinkCode();
+  btn.disabled = false;
+  if (!r?.ok) {
+    el('linkCode').textContent = '';
+    linkMsg(cloud.online === false ? 'Could not reach the server. Go online and try again.' : 'Linking is not ready yet. Try again later.');
+    return;
+  }
+  el('linkCode').textContent = shortCode(r.code);
+  linkMsg(`Type this code in the other place within ${Math.round(r.expires_in / 60)} minutes. It works once.`);
+});
+el('linkUseBtn').addEventListener('click', async () => {
+  const btn = el('linkUseBtn') as HTMLButtonElement;
+  const input = el('linkInput') as HTMLInputElement;
+  const code = input.value.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  if (btn.disabled) return;
+  if (code.length !== 8) {
+    linkMsg('A link code has 8 letters and numbers.');
+    return;
+  }
+  btn.disabled = true;
+  linkMsg('Linking...');
+  const r = await cloud.redeemLinkCode(code);
+  btn.disabled = false;
+  if (!r) {
+    linkMsg(cloud.online === false ? 'Could not reach the server. Go online and try again.' : 'Linking is not ready yet. Try again later.');
+    return;
+  }
+  if (!r.ok) {
+    linkMsg('That code is wrong or has run out. Get a new one in the other place.');
+    return;
+  }
+  input.value = '';
+  el('linkCode').textContent = '';
+  const kept = mergeCloud(r.hero ?? null);
+  linkMsg(r.same ? 'This place already shares that hero.'
+    : kept === 'cloud' ? 'Linked. This place now plays the hero from the other place.'
+    : 'Linked. Both places now share this hero, since it has made more progress.');
 });
 // Delete my account (store rule, 1.0 M6): erases the online account and every row it owns, then the
 // hero and tips in this browser. Like Reset it takes a second tap; display settings stay.
