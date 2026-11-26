@@ -237,6 +237,8 @@ export const ALT_KIT = {
   gatherRadius: 260, gatherTime: 4, gatherCut: 0.2, gatherResolve: 10, gatherStunBig: 0.8,
   /** Sunlance (Lumen Q, level 12) and Canopy (Lumen R, level 16; reuses Sanctuary's ground, radius and timer). */
   sunlanceDamage: 95, sunlanceHeal: 15, canopyCut: 0.25, canopyBurn: 0.5,
+  /** Ember Dart (Emberwright Q, level 12) and White Heat (Emberwright R, level 16). */
+  emberDartDamage: 110, emberDartBurn: 15, emberDartBurnTime: 4, emberDartRange: 400, whiteHeatDamage: 200, whiteHeatRadius: 200, whiteHeatShove: 80, whiteHeatBurn: 20, whiteHeatBurnTime: 4, whiteHeatLeap: 450,
 };
 
 /** A hero's ability options for a run: `alts` by id (cleaned), else `alt` as the class's level-8 option. */
@@ -1757,6 +1759,9 @@ export class World {
       if (id === 'gather') return base - TREE.ramCd * this.tree('ram');
       // Chime (Lumen tree) speeds Canopy like the Sanctuary it replaces.
       if (id === 'canopy') return base - TREE.chimeCd * this.tree('chime');
+      // Fan and Primer (Emberwright tree) speed Ember Dart and White Heat like Flame Wave and Combustion.
+      if (id === 'emberDart') return base - TREE.fanCd * this.tree('fan');
+      if (id === 'whiteHeat') return base - TREE.primerCd * this.tree('primer');
       return base;
     }
     if (this.cls === 'slagbinder') {
@@ -4401,6 +4406,17 @@ export class World {
 
   // ---------------------------------------------------------------- ability options
 
+  /** One White Heat hit: the damage and its burn. */
+  private whiteHeatHit(i: number, dmg: number): void {
+    const e = this.enemies[i];
+    this.damageEnemy(i, dmg, true);
+    if (e.alive) {
+      e.burnDps = Math.max(e.burnDps, ALT_KIT.whiteHeatBurn * this.dmgMult);
+      e.burnT = Math.max(e.burnT, ALT_KIT.whiteHeatBurnTime);
+      e.burnBy = this.acting;
+    }
+  }
+
   /** Casts the ability option in `slot` (ALT_OPTIONS). */
   private castAlt(input: Input, slot: number): void {
     const p = this.player;
@@ -4443,6 +4459,59 @@ export class World {
     }
     if (id === 'canopy') {
       this.sanctuary(true);
+      return;
+    }
+    if (id === 'emberDart') {
+      // Ember Dart: one dart of fire at the target and a burn; Flame Wave's single-target answer. Char (tree) works on it.
+      const t = this.nearestEnemies(p.x, p.y, 1, ALT_KIT.emberDartRange)[0];
+      if (t === undefined) return;
+      const e = this.enemies[t];
+      p.facing = Math.atan2(e.y - p.y, e.x - p.x);
+      const lance = this.lances.find((l) => !l.alive);
+      if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2: e.x, y2: e.y, life: 0.2 });
+      this.damageEnemy(t, ALT_KIT.emberDartDamage * (1 + TREE.charWave * this.tree('char')) * this.dmgMult, true);
+      if (e.alive) {
+        e.burnDps = Math.max(e.burnDps, ALT_KIT.emberDartBurn * this.dmgMult);
+        e.burnT = Math.max(e.burnT, ALT_KIT.emberDartBurnTime);
+        e.burnBy = this.acting;
+      }
+      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
+      return;
+    }
+    if (id === 'whiteHeat') {
+      // White Heat: a burst all around the Emberwright that throws the press back, and a tongue of it leaps to the
+      // nearest big foe in reach (Combustion's job on elites and bosses).
+      const r = ALT_KIT.whiteHeatRadius;
+      const dmg = ALT_KIT.whiteHeatDamage * (1 + 0.2 * this.rank('heatSink')) * this.dmgMult;
+      let big = -1;
+      let bigD = ALT_KIT.whiteHeatLeap ** 2;
+      for (let i = 0; i < this.enemies.length; i++) {
+        const e = this.enemies[i];
+        if (!e.alive || e.def.rank === 'normal') continue;
+        const d = dist2(p.x, p.y, e.x, e.y);
+        if (d < bigD) { bigD = d; big = i; }
+      }
+      let bigHit = false;
+      this.forEachNear(p.x, p.y, r + 40, (i) => {
+        const e = this.enemies[i];
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d > r + e.def.radius) return;
+        if (e.def.rank === 'normal' && !e.def.stationary) {
+          e.x += (dx / d) * ALT_KIT.whiteHeatShove;
+          e.y += (dy / d) * ALT_KIT.whiteHeatShove;
+        }
+        if (i === big) bigHit = true;
+        this.whiteHeatHit(i, dmg);
+      });
+      if (big >= 0 && !bigHit) {
+        const e = this.enemies[big];
+        const lance = this.lances.find((l) => !l.alive);
+        if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2: e.x, y2: e.y, life: 0.2 });
+        this.whiteHeatHit(big, dmg);
+      }
+      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
     if (id === 'clout') {

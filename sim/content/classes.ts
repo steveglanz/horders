@@ -95,12 +95,14 @@ export function slotOpen(slot: number, level: number | undefined): boolean {
  * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
  * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".
  */
-export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather' | 'sunlance' | 'canopy';
+export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather' | 'sunlance' | 'canopy' | 'emberDart' | 'whiteHeat';
 export interface AltOption { id: AltId; slot: number; level: number; replaces: string; def: AbilityDef }
 export const ALT_UNLOCK_LEVEL = 8;
 export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
   emberwright: [
     { id: 'emberWard', slot: 1, level: 8, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
+    { id: 'emberDart', slot: 0, level: 12, replaces: 'Flame Wave', def: { name: 'Ember Dart', key: 'Q', cost: 25, cooldown: 4, text: 'Throw a dart of fire at your target for 110, and it burns for 4s. Better on one big foe; Flame Wave is better on packs and knocks them back.' } },
+    { id: 'whiteHeat', slot: 2, level: 16, replaces: 'Combustion', def: { name: 'White Heat', key: 'R', cost: 60, cooldown: 20, text: 'Burst into white heat: 200 to every foe within 200 of you and to the nearest big foe in reach, and they burn for 4s; normal foes are thrown back. Better when the press is on you; Combustion blasts a crowd far off and boosts your party.' } },
   ],
   duskblade: [
     { id: 'hamstring', slot: 0, level: 8, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },

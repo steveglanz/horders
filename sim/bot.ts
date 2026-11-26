@@ -307,6 +307,22 @@ function altPress(w: World, id: AltId): number | undefined {
     // Canopy: like Sanctuary, when a big foe is close or someone is hurt; the dome is for taking hits.
     return bigNear || hurt > 0.3 || (party && allyLow(150, 0.6)) ? a.slot : undefined;
   }
+  if (id === 'emberDart') {
+    // Ember Dart: on cooldown at anything in reach (it is the Emberwright's Q damage now).
+    return w.enemies.some((e) => e.alive && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 380 * 380) ? a.slot : undefined;
+  }
+  if (id === 'whiteHeat') {
+    // White Heat: when a pack is in the burst, or a big foe is in the leap's reach.
+    let inBurst = 0;
+    let bigInReach = false;
+    for (const e of w.enemies) {
+      if (!e.alive) continue;
+      const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+      if (d2 < 190 * 190) inBurst++;
+      if (e.def.rank !== 'normal' && d2 < 440 * 440) bigInReach = true;
+    }
+    return inBurst >= 3 || bigInReach ? a.slot : undefined;
+  }
   if (w.cls === 'emberwright') {
     // Ember Ward: before the press reaches you, or when a big foe is close.
     if ((p.plateUntil ?? -1) > w.time) return undefined;

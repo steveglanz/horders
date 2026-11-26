@@ -156,6 +156,10 @@ export const ALT_GLYPH: Record<AltId, string> = {
   sunlance: 'M3.5 20.5 16 8 M16 8l1.5-4.5L20 6l-4.5 1.5 M19 2.5v2 M21.5 5h-2 M6.5 14.5l3 3',
   // Canopy: a dome of light over the ground, with rays above it.
   canopy: 'M3.5 18.5a8.5 8.5 0 0 1 17 0Z M2.5 18.5h19 M12 3.5v3 M5.6 6.1l1.8 1.8 M18.4 6.1l-1.8 1.8',
+  // Ember Dart: a slim dart in flight with a flame trailing off its tail.
+  emberDart: 'M20.5 3.5 11 13 M20.5 3.5l-5.5 1.2 M20.5 3.5l-1.2 5.5 M11 13c-2.5-.5-4.5.5-5.5 2.5 1.5-.3 2.5.2 3 1-1.5.8-2.5 2.2-2.8 4.5 2.3-.3 3.7-1.3 4.5-2.8.8.5 1.3 1.5 1 3 2-1 3-3 2.5-5.5Z',
+  // White Heat: a white-hot core bursting outward in every direction.
+  whiteHeat: 'M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6Z M12 2.5v3.5 M12 18v3.5 M2.5 12H6 M18 12h3.5 M5.3 5.3l2.5 2.5 M16.2 16.2l2.5 2.5 M18.7 5.3l-2.5 2.5 M7.8 16.2l-2.5 2.5',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {
