@@ -2166,21 +2166,44 @@ function drawSlagCrone(ctx: Ctx, s: number, f: number): void {
   ctx.fill();
   ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.stroke();
   ctx.restore();
-  // Back arm leaning on a staff of fused rebar.
+  // Cooled slag spurs jutting along the hunched spine.
+  spikes(ctx, [[c - 34, 44, c - 28, 40, c - 42, 30], [c - 26, 39, c - 19, 36, c - 30, 23], [c - 17, 35, c - 10, 33, c - 18, 20], [c - 8, 33, c - 2, 33, c - 6, 22]], '#6a5a54', '#1f1917', 1.3);
+  // Back arm leaning on a staff of fused rebar, bony talons wrapped round it.
   limb(ctx, c - 24, 56, c - 36, 82, 6, '#3d3331');
   limb(ctx, c - 38, 30, c - 36, 122, 3.4, '#2a2624');
-  // Head jutting forward: a hooded skull-face with ember eyes and a long chin.
+  spikes(ctx, [[c - 36, 80, c - 33, 82, c - 42, 86], [c - 35, 84, c - 32, 86, c - 41, 91], [c - 38, 84, c - 35, 87, c - 31, 92]], '#d8c8b8', '#5a4a40', 0.9);
+  // Head jutting forward: a peaked hood over a gaunt hag's face, hooked nose, slit ember eyes and a jutting chin.
   ctx.beginPath();
-  ctx.moveTo(c + 4, 26);
-  ctx.quadraticCurveTo(c + 14, 10, c + 30, 18);
-  ctx.quadraticCurveTo(c + 38, 30, c + 30, 42);
-  ctx.quadraticCurveTo(c + 18, 46, c + 8, 40);
+  ctx.moveTo(c + 4, 34);
+  ctx.quadraticCurveTo(c + 3, 18, c - 3, 5);
+  ctx.quadraticCurveTo(c + 18, 7, c + 32, 18);
+  ctx.quadraticCurveTo(c + 40, 30, c + 32, 44);
+  ctx.quadraticCurveTo(c + 18, 48, c + 6, 42);
   ctx.closePath();
-  shade(ctx, '#6a5a54', '#2a221f', 10, 46, 1.8);
-  ell(ctx, c + 26, 30, 7, 8); ctx.fillStyle = '#c9b8a8'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = INK; ctx.stroke();
-  ctx.fillStyle = '#1a0e0a';
-  ell(ctx, c + 26, 37, 3, 1.4); ctx.fill();
-  eyes(ctx, [[c + 23.5, 28], [c + 29, 28]], 1.8, '#ffb347');
+  shade(ctx, '#6a5a54', '#2a221f', 5, 46, 1.8);
+  ell(ctx, c + 27, 31, 9, 12); ctx.fillStyle = '#120a08'; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(c + 21, 22);
+  ctx.quadraticCurveTo(c + 28, 19, c + 32, 23);
+  ctx.lineTo(c + 34, 28);
+  ctx.lineTo(c + 40, 33);
+  ctx.lineTo(c + 34.5, 34);
+  ctx.lineTo(c + 34, 37);
+  ctx.lineTo(c + 32.5, 40);
+  ctx.lineTo(c + 37, 44);
+  ctx.lineTo(c + 30, 44.5);
+  ctx.quadraticCurveTo(c + 22, 42, c + 21, 33);
+  ctx.closePath();
+  shade(ctx, '#c9b8a8', '#6e5d52', 19, 45, 1.2);
+  ctx.fillStyle = '#2a1610';
+  for (const x of [c + 25, c + 30.5]) { ell(ctx, x, 28.4, 2.8, 1.8, 0.25); ctx.fill(); }
+  // A crooked grin of fangs.
+  ctx.beginPath(); ctx.moveTo(c + 24, 36); ctx.lineTo(c + 34, 35.4); ctx.lineTo(c + 33, 38.6); ctx.lineTo(c + 25, 38.4); ctx.closePath(); ctx.fillStyle = '#1a0e0a'; ctx.fill();
+  fangRow(ctx, c + 24.5, c + 33.5, 35.8, 4, 1.9, '#e8dccb');
+  fangRow(ctx, c + 25.5, c + 32.5, 38.5, 3, -1.6, '#e8dccb');
+  slitEyes(ctx, [[c + 25, 28.2], [c + 30.6, 27.8]], 1.3, '#ffb347');
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(c + 22, 25); ctx.lineTo(c + 33, 27.4); ctx.stroke();
   // Wild ash hair.
   ctx.save();
   ctx.strokeStyle = '#9a8f88';
@@ -2193,6 +2216,8 @@ function drawSlagCrone(ctx: Ctx, s: number, f: number): void {
   // Front arm holding out a ladle of molten slag that drips.
   limb(ctx, c + 14, 54, c + 34, 62, 6, '#4a3e3a');
   limb(ctx, c + 34, 62, c + 52, 58 + sway * 0.5, 2.4, '#3a3230');
+  const hy = 58 + sway * 0.5;
+  spikes(ctx, [[c + 45, hy - 2, c + 48, hy - 2, c + 50, hy - 8], [c + 44, hy + 1, c + 47, hy + 2, c + 51, hy + 5], [c + 41, hy + 1, c + 44, hy + 2, c + 44, hy + 7]], '#d8c8b8', '#5a4a40', 0.9);
   softGlow(ctx, c + 54, 62 + sway * 0.5, 16, 'rgba(255,150,60,0.9)');
   ell(ctx, c + 54, 62 + sway * 0.5, 8, 4.4);
   shade(ctx, '#fff0b0', '#e0601f', 58, 66, 1.4);
@@ -2341,18 +2366,39 @@ function drawRegent(ctx: Ctx, s: number, f: number): void {
   ell(ctx, c + 30, 26, 3, 3);
   ctx.save(); ctx.fillStyle = '#ffd08a'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6; ctx.fill(); ctx.restore();
   ell(ctx, c + 29, 66, 4.5, 4); shade(ctx, '#5a5456', '#2a2628', 62, 70, 1.4);
+  // Iron talons on the gauntlet, curled round the poker.
+  spikes(ctx, [[c + 31, 63, c + 33, 65, c + 37, 61], [c + 32, 66, c + 33, 68, c + 38, 67], [c + 30, 69, c + 32, 69, c + 34, 74]], '#9a9294', '#2a2628', 0.9);
+  // Spiked pauldrons over both shoulders.
+  for (const sx of [-1, 1]) {
+    const px = c + sx * 15;
+    spikes(ctx, [[px - 5, 40, px - 1, 38, px - 4 + sx * -2, 29], [px + 1, 38, px + 5, 40, px + 4 + sx * 4, 30], [px + sx * 5, 42, px + sx * 7, 46, px + sx * 13, 40]], '#7a7274', '#1e1c1e', 1.1);
+    ell(ctx, px, 43, 7.5, 5);
+    shade(ctx, '#6a6466', '#1e1c1e', 38, 48, 1.6);
+    ctx.fillStyle = '#c8a050'; ell(ctx, px, 43, 1.4, 1.4); ctx.fill();
+  }
   // Head and crown drawn a third wider, so the crown reads at game scale.
   ctx.save();
   ctx.translate(c, 0);
   ctx.scale(1.35, 1);
   ctx.translate(-c, 0);
-  // The head: an iron box with a grated face, a stack collar beneath.
-  ctx.beginPath(); ctx.rect(c - 9, 18, 18, 20);
-  shade(ctx, '#5a5456', '#1e1c1e', 18, 38, 1.8);
+  // Two swept-back iron horns behind the crown.
+  spikes(ctx, [[c - 10.5, 27, c - 8, 15, c - 18, 3], [c + 8, 15, c + 10.5, 27, c + 18, 3]], '#b0a8a8', '#3a3436', 1.1);
+  // The head: an iron helm tapering to a jaw, a furnace maw of iron fangs, and slit eyes glaring in a V.
+  ctx.beginPath();
+  ctx.moveTo(c - 9, 18); ctx.lineTo(c + 9, 18); ctx.lineTo(c + 10, 29); ctx.lineTo(c + 5, 39); ctx.lineTo(c - 5, 39); ctx.lineTo(c - 10, 29);
+  ctx.closePath();
+  shade(ctx, '#5a5456', '#1e1c1e', 18, 39, 1.8);
   ctx.save();
   ctx.fillStyle = '#ffb347'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 5;
-  for (const y of [24, 28.5, 33]) ctx.fillRect(c - 4, y, 12, 1.8);
+  for (const sx of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(c + sx * 7.5, 22.6); ctx.lineTo(c + sx * 1.2, 25.4); ctx.lineTo(c + sx * 6.5, 26.4); ctx.closePath(); ctx.fill();
+  }
+  ctx.beginPath(); ctx.rect(c - 5, 30, 10, 6); ctx.fill();
   ctx.restore();
+  fangRow(ctx, c - 5, c + 5, 30, 4, 2.8, '#c8c0bc');
+  fangRow(ctx, c - 4.5, c + 4.5, 36, 3, -2.4, '#c8c0bc');
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(c - 9, 21); ctx.lineTo(c - 1, 24.6); ctx.moveTo(c + 9, 21); ctx.lineTo(c + 1, 24.6); ctx.stroke();
   // The crown: five flame tongues on a brass circlet.
   const tips: [number, number][] = [[c - 8, 4 + flick], [c - 4, 0 - flick], [c, 2 + flick * 0.5], [c + 4, -1 + flick], [c + 8, 4 - flick * 0.5]];
   ctx.save();
@@ -2821,18 +2867,22 @@ function drawMaelra(ctx: Ctx, s: number, f: number): void {
   // Shoulders and arms of kelp-wrapped iron.
   limb(ctx, c - 30, 44, c - 46, 70 + pump, 9, '#2c3e3a');
   limb(ctx, c + 30, 44, c + 46, 70 + pump, 9, '#2c3e3a');
+  // Iron hands with hooked claws curling down, and barnacle spikes along both shoulders.
   for (const sx of [-1, 1]) {
-    ell(ctx, c + sx * 47, 74 + pump, 7, 6);
-    shade(ctx, '#7a8088', '#2a2d33', 68 + pump, 80 + pump, 1.4);
+    const hx = c + sx * 47, hy = 74 + pump;
+    spikes(ctx, [[hx - 5, hy + 3, hx - 2, hy + 5, hx - 6 + sx * 1, hy + 14], [hx - 1.5, hy + 5, hx + 1.5, hy + 5, hx + sx * 2, hy + 16], [hx + 2, hy + 5, hx + 5, hy + 3, hx + 6 + sx * 2, hy + 13]], '#c8d0d4', '#3a3f44', 1);
+    ell(ctx, hx, hy, 7, 6);
+    shade(ctx, '#7a8088', '#2a2d33', hy - 6, hy + 6, 1.4);
+    spikes(ctx, [[c + sx * 24, 46, c + sx * 29, 44, c + sx * 30, 33], [c + sx * 31, 45, c + sx * 36, 48, c + sx * 41, 38], [c + sx * 38, 52, c + sx * 42, 56, c + sx * 49, 50]], '#8aa8a0', '#1a2a28', 1.1);
   }
-  // Hooded head with kelp hair.
+  // A peaked hood with a torn, ragged rim and kelp hair.
   ctx.beginPath();
   ctx.moveTo(c - 26, 50);
-  ctx.quadraticCurveTo(c - 30, 14, c, 10);
-  ctx.quadraticCurveTo(c + 30, 14, c + 26, 50);
-  ctx.quadraticCurveTo(c, 42, c - 26, 50);
+  ctx.quadraticCurveTo(c - 30, 16, c, 3);
+  ctx.quadraticCurveTo(c + 30, 16, c + 26, 50);
+  ctx.lineTo(c + 19, 45); ctx.lineTo(c + 14, 50); ctx.lineTo(c + 7, 44); ctx.lineTo(c, 49); ctx.lineTo(c - 7, 44); ctx.lineTo(c - 14, 50); ctx.lineTo(c - 19, 45);
   ctx.closePath();
-  shade(ctx, '#2f5550', '#0f1d1b', 10, 50, 2);
+  shade(ctx, '#2f5550', '#0f1d1b', 3, 50, 2);
   ctx.save();
   ctx.strokeStyle = '#3f7a52';
   ctx.lineWidth = 2;
@@ -2844,13 +2894,32 @@ function drawMaelra(ctx: Ctx, s: number, f: number): void {
     ctx.stroke();
   }
   ctx.restore();
-  // Face: pale, drowned, with a riveted iron jaw.
-  ell(ctx, c, 30, 13, 14);
-  shade(ctx, '#b8d6cf', '#5d7f78', 16, 44, 1.6);
-  ctx.beginPath(); ctx.rect(c - 9, 34, 18, 8); shade(ctx, '#6a7078', '#2a2e33', 34, 42, 1.2);
+  // Face: a gaunt drowned skull deep in the hood's shadow, sunken sockets, a gaping maw of needle teeth over a
+  // riveted iron jaw.
+  ell(ctx, c, 30, 14, 16); ctx.fillStyle = '#050c0b'; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(c - 11, 21); ctx.quadraticCurveTo(c, 16, c + 11, 21);
+  ctx.lineTo(c + 9, 33); ctx.lineTo(c + 5, 41); ctx.lineTo(c - 5, 41); ctx.lineTo(c - 9, 33);
+  ctx.closePath();
+  shade(ctx, '#a6c4bc', '#3d5b55', 16, 41, 1.6);
+  ctx.fillStyle = '#081211';
+  for (const sx of [-1, 1]) { ell(ctx, c + sx * 5, 27, 4.2, 2.8, sx * 0.35); ctx.fill(); }
+  ctx.beginPath(); ctx.moveTo(c - 1, 31); ctx.lineTo(c + 1, 31); ctx.lineTo(c, 29); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.rect(c - 6, 33, 12, 7); ctx.fillStyle = '#140808'; ctx.fill();
+  fangRow(ctx, c - 6, c + 6, 33, 5, 3.2, '#dfe8e4');
+  fangRow(ctx, c - 5, c + 5, 40, 4, -2.8, '#dfe8e4');
+  ctx.beginPath(); ctx.rect(c - 9, 40, 18, 4); shade(ctx, '#6a7078', '#2a2e33', 40, 44, 1.2);
   ctx.fillStyle = '#e8eef0';
-  for (const x of [c - 6, c, c + 6]) { ell(ctx, x, 38, 0.9, 0.9); ctx.fill(); }
-  eyes(ctx, [[c - 5, 27], [c + 5, 27]], 2.2, '#5ff0ff');
+  for (const x of [c - 6, c, c + 6]) { ell(ctx, x, 42, 0.8, 0.8); ctx.fill(); }
+  // Cold cyan eyes, slanted into a glare toward the middle.
+  ctx.save();
+  ctx.fillStyle = '#5ff0ff'; ctx.shadowColor = '#5ff0ff'; ctx.shadowBlur = 5;
+  for (const sx of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(c + sx * 8, 25.4); ctx.lineTo(c + sx * 1.8, 27.6); ctx.lineTo(c + sx * 6.5, 28.6); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(c - 10, 23); ctx.lineTo(c - 1.5, 26.4); ctx.moveTo(c + 10, 23); ctx.lineTo(c + 1.5, 26.4); ctx.stroke();
   // Water dripping down the pleats.
   ctx.save();
   ctx.fillStyle = 'rgba(140,230,255,0.75)';
@@ -3199,6 +3268,12 @@ function drawLensmother(ctx: Ctx, s: number, f: number): void {
   // Halo: six small lenses on a thin brass ring behind the head.
   ctx.save(); ctx.strokeStyle = 'rgba(200,150,70,0.8)'; ctx.lineWidth = 1.6;
   ell(ctx, c, 26, 24, 20); ctx.stroke(); ctx.restore();
+  // Brass thorns between the lenses, pointing out like a crown of rays.
+  for (let k = 0; k < 5; k++) {
+    const a = Math.PI + ((k + 0.5) / 5) * Math.PI, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
+    const bx = c + ca * 24, by = 26 + sa * 20;
+    spikes(ctx, [[bx + px * 2.2, by + py * 2.2, bx - px * 2.2, by - py * 2.2, c + ca * (34 + breathe), 26 + sa * (30 + breathe)]], '#f0d088', '#6a4418', 1);
+  }
   for (let k = 0; k < 6; k++) {
     const a = Math.PI + (k / 5) * Math.PI;
     lens(ctx, c + Math.cos(a) * 24, 26 + Math.sin(a) * 20, 3 + (k % 2) * 0.6 + breathe * 0.15, 1.1);
@@ -3207,8 +3282,8 @@ function drawLensmother(ctx: Ctx, s: number, f: number): void {
   ctx.beginPath();
   ctx.moveTo(c, 24);
   ctx.quadraticCurveTo(c + 42, 38, c + 48, s - 8);
-  ctx.quadraticCurveTo(c + 24, s - 3, c, s - 5);
-  ctx.quadraticCurveTo(c - 24, s - 3, c - 48, s - 8);
+  // A tattered hem: torn into ragged points.
+  for (let k = 1; k <= 12; k++) { const x = c + 48 - k * 8; ctx.lineTo(x + 4, s - (k % 3 === 1 ? 1 : 3)); ctx.lineTo(x, s - (k === 12 ? 8 : 10 - (k % 2) * 2)); }
   ctx.quadraticCurveTo(c - 42, 38, c, 24);
   ctx.closePath();
   shade(ctx, '#423c7c', '#100d22', 24, s - 4, 2);
@@ -3236,6 +3311,9 @@ function drawLensmother(ctx: Ctx, s: number, f: number): void {
     ctx.closePath();
     shade(ctx, '#3a3470', '#16132c', 30, 60, 1.4);
     lens(ctx, c + sx * 48, 27 - breathe, 5);
+    // Long talons clutching the lens from below.
+    const hx = c + sx * 48, hy = 27 - breathe;
+    spikes(ctx, [[hx - 3.5, hy + 6, hx - 1, hy + 7, hx - 6.5, hy - 2], [hx - 1, hy + 7, hx + 1.5, hy + 7, hx, hy - 4], [hx + 1.5, hy + 7, hx + 4, hy + 6, hx + 6.5, hy - 2]], '#cfc6e8', '#2a2450', 0.9);
   }
   // The face: one great lens with iris rings and a burning pupil.
   softGlow(ctx, c, 28, 24 + breathe, 'rgba(255,240,190,0.95)');
@@ -3244,10 +3322,19 @@ function drawLensmother(ctx: Ctx, s: number, f: number): void {
   ctx.strokeStyle = 'rgba(200,140,60,0.55)'; ctx.lineWidth = 1;
   ell(ctx, c + 1, 29, 9, 9); ctx.stroke();
   ell(ctx, c + 1.5, 29, 6.2, 6.2); ctx.stroke();
+  // A burning slit pupil, like a predator's.
   ctx.fillStyle = '#ff9a3c'; ctx.shadowColor = '#ff7a1f'; ctx.shadowBlur = 8;
   ell(ctx, c + 2, 29, 4 + breathe * 0.4, 4 + breathe * 0.4); ctx.fill();
-  ctx.fillStyle = '#fff4d8'; ctx.shadowBlur = 0;
-  ell(ctx, c + 2, 29, 1.4, 1.4); ctx.fill();
+  ctx.fillStyle = '#1a0806'; ctx.shadowBlur = 0;
+  ell(ctx, c + 2, 29, 1.1, 3.8); ctx.fill();
+  ctx.restore();
+  // Heavy lids closing in from above and below into a V-shaped glare, clipped to the lens.
+  ctx.save();
+  ell(ctx, c, 28, 15.5, 15.5); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(c - 17, 10); ctx.lineTo(c + 17, 10); ctx.lineTo(c + 17, 20); ctx.lineTo(c + 2, 25.5); ctx.lineTo(c - 17, 19); ctx.closePath();
+  shade(ctx, '#4a4288', '#1a1636', 10, 25, 1.4);
+  ctx.beginPath(); ctx.moveTo(c - 17, 46); ctx.lineTo(c + 17, 46); ctx.lineTo(c + 17, 37); ctx.quadraticCurveTo(c, 34, c - 17, 37); ctx.closePath();
+  shade(ctx, '#3a3470', '#16132c', 34, 46, 1.4);
   ctx.restore();
 }
 
