@@ -201,6 +201,19 @@ export const cloud = {
     return rpc<BountyBoard>('top_bounty', { p_tier: tier, p_limit: limit }, !!session);
   },
 
+  /**
+   * Delete my account (supabase/migrations/0008): removes this player's auth user, cloud save,
+   * world boss strikes and leaderboard rows on the server, then forgets the session here.
+   * True when nothing is left on the server (also when this browser never signed in).
+   */
+  async deleteAccount(): Promise<boolean> {
+    if (!session) return true;
+    const r = await rpc<{ ok: boolean }>('delete_my_account', {});
+    if (!r?.ok) return false;
+    writeSession(null);
+    return true;
+  },
+
   /** The top keys for a dungeon, and your own row once you have one. */
   topKeys(dungeon: string, limit = 10): Promise<KeyBoard | null> {
     return rpc<KeyBoard>('top_keys', { p_dungeon: dungeon, p_limit: limit }, !!session);

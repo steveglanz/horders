@@ -360,6 +360,36 @@ el('resetBtn').addEventListener('click', () => {
   save();
   hub.render();
 });
+// Delete my account (store rule, 1.0 M6): erases the online account and every row it owns, then the
+// hero and tips in this browser. Like Reset it takes a second tap; display settings stay.
+let deleteArmed: ReturnType<typeof setTimeout> | null = null;
+el('deleteAcctBtn').addEventListener('click', async () => {
+  const btn = el('deleteAcctBtn') as HTMLButtonElement;
+  if (btn.disabled) return;
+  if (!deleteArmed) {
+    btn.textContent = 'Tap again to delete your hero and online data for good';
+    deleteArmed = setTimeout(() => { deleteArmed = null; btn.textContent = 'Delete my account'; }, 5000);
+    return;
+  }
+  clearTimeout(deleteArmed);
+  deleteArmed = null;
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  if (!(await cloud.deleteAccount())) {
+    btn.disabled = false;
+    btn.textContent = 'Could not reach the server. Go online and try again';
+    setTimeout(() => { btn.textContent = 'Delete my account'; }, 5000);
+    return;
+  }
+  hero = resetHero();
+  try {
+    localStorage.removeItem('horders.coach.v1');
+    localStorage.removeItem('horders.tips.v1');
+  } catch {
+    // Nothing stored to clear.
+  }
+  location.reload();
+});
 el('againBtn').addEventListener('click', () => startRun(lastBounty, lastKey));
 // A claimed world boss reward is an Epic: the hub's biggest chime (it respects mute like every sound).
 hub.onClaimed = () => audio.play('bossClaim');
