@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Horders</string>
+    <string name="title_activity_main">Horders</string>
+    <string name="package_name">com.steveglanz.horders</string>
+    <string name="custom_url_scheme">com.steveglanz.horders</string>
+</resources>
