@@ -167,23 +167,23 @@ export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
   return out;
 }
 
-/** Each ability option (sim ALT_OPTIONS). Wide Cut, Quicken, Clout, Gather, Sunlance, Canopy, Ember Dart, White Heat, Slag Spray and Slag Mortar borrow sounds until sound makes their own. */
+/** Each ability option (sim ALT_OPTIONS). The level 8 options kept their own sounds; the level 12 and 16 ones have their own since the M4 pass (26 Nov). */
 const ALT_ABILITY: Record<AltId, SoundId> = {
   emberWard: 'emberWard',
   hamstring: 'hamstring',
   muster: 'rallyingCry',
   glowPool: 'lightwell',
   cinderSump: 'slagPit',
-  wideCut: 'duskExecute',
-  quicken: 'hamstring',
-  clout: 'bulwarkSlam',
-  gather: 'rallyingCry',
-  sunlance: 'lumenBurst',
-  canopy: 'lumenSanctuary',
-  emberDart: 'emberWave',
-  whiteHeat: 'emberNova',
-  slagSpray: 'slagLob',
-  slagMortar: 'slagPit',
+  wideCut: 'wideCut',
+  quicken: 'quicken',
+  clout: 'clout',
+  gather: 'gatherPull',
+  sunlance: 'sunlance',
+  canopy: 'canopy',
+  emberDart: 'emberDart',
+  whiteHeat: 'whiteHeat',
+  slagSpray: 'slagSpray',
+  slagMortar: 'slagMortar',
 };
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {
@@ -498,8 +498,8 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'parry': return { id: 'parry' };
     case 'mote': return { id: 'mote', jitter: 0.2 };
     case 'lob': return { id: 'slagLob', jitter: 0.15 };
-    // The gunner's Cannon: the Slag Lob sound, louder, until sound gives it its own.
-    case 'cannon': return { id: 'slagLob', jitter: 0.05, vol: 1.3 };
+    // The gunner's Cannon: its own heavy shot. A shot every 1.6 s, so an ordinary cue at vol 0.8, as loud on a phone as the old Slag Lob placeholder at 1.3, and must-hear cues keep their margin (busycheck, 26 Nov).
+    case 'cannon': return { id: 'cannonShot', jitter: 0.05, vol: 0.8 };
     case 'plate': return { id: 'slagPlate', vol: mine(ev.hero) ? 1 : 0.8 };
     case 'brittle': return { id: 'brittle', jitter: 0.1 };
     // Hessa's Outsurge keeps the Ebb's cast id, so its own wind-up keys on World.outsurge.
@@ -1191,6 +1191,7 @@ export const THROTTLE: Partial<Record<SoundId, number>> = {
   swing: 0.07,
   mote: 0.09,
   slagLob: 0.09,
+  cannonShot: 0.12,
   brittle: 0.12,
   heal: 0.5,
   explode: 0.09,

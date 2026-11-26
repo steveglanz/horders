@@ -205,14 +205,98 @@ export const SOUNDS = {
     horn(note(-9), 0.8, 0.36).map((v) => ({ ...v, delay: 0.25 })),
     boom(70, 0.4, 0.4),
   ),
-  /** Glow Pool: a spring of light opens, a bright rising arpeggio with shimmer. */
+  /** Glow Pool: a spring of light opens, a bright rising arpeggio with shimmer, then bubbles welling up. */
   lightwell: join(chime(C5, 0, 0.22, 0.9), chime(G5, 0.1, 0.2, 0.9), chime(C6, 0.2, 0.2, 1.0), chime(E6, 0.3, 0.16, 1.1), [
-    { wave: 'noise', f: 0, dur: 1.0, vol: 0.08, a: 0.4, lp: 10000, hp: 5000, trem: [5, 0.5] },
-  ]),
+    { wave: 'noise', f: 0, dur: 1.0, vol: 0.12, a: 0.4, lp: 10000, hp: 5000, trem: [5, 0.5] },
+  ],
+  // The spring welling up: small bright bubbles after the notes, so it never reads as Sanctuary's arpeggio (M4, 26 Nov).
+  ...[0.42, 0.55, 0.66, 0.78, 0.88].map((d, k) => [{ wave: 'sine' as const, f: 1500 + k * 120, f2: 2600 + k * 150, dur: 0.06, delay: d, vol: 0.13, curve: 2 }])),
   /** Cinder Sump: a pool of slag spreads, glugging and bubbling. */
   slagPit: join(
     [{ wave: 'noise', f: 0, dur: 0.7, vol: 0.22, a: 0.08, lp: 1800, lp2: 600, trem: [9, 0.6] }],
     ...[0.05, 0.2, 0.33, 0.5, 0.62].map((d, k) => [{ wave: 'sine' as const, f: 260 + k * 40, f2: 520 + k * 60, dur: 0.07, delay: d, vol: 0.16, curve: 2 }]),
+  ),
+
+  // The gunner's Cannon (PR #821): one heavy shot every 1.6 s, so it is short and punchy, not a boss boom.
+  /** Cannon: a hard muzzle crack, a deep barrel thump with a growl a phone can carry, and the shot tearing away. */
+  cannonShot: join(
+    [{ wave: 'noise', f: 0, dur: 0.035, vol: 0.5, lp: 9000, hp: 1800, curve: 3 }],
+    [{ wave: 'square', f: 190, f2: 70, dur: 0.16, vol: 0.2, lp: 1800, lp2: 500, curve: 2.2 },
+     { wave: 'sine', f: 120, f2: 45, dur: 0.28, vol: 0.32, curve: 2 },
+     { wave: 'saw', f: 330, f2: 150, dur: 0.18, vol: 0.18, lp: 2200, lp2: 600, curve: 2.4 },
+     { wave: 'noise', f: 0, dur: 0.3, delay: 0.02, vol: 0.3, lp: 3000, lp2: 400, curve: 2.6 }],
+    whoosh(4500, 1500, 0.2, 0.12).map((v) => ({ ...v, delay: 0.05 })),
+  ),
+
+  // The level 12 and 16 ability options (PRs #836-#840), each its own sound, unlike the ability it replaces.
+  /** Wide Cut: blades spin all the way round (three fast whips) and ring off. */
+  wideCut: join(
+    ...[0, 0.08, 0.16].map((d, k) => whoosh(6500 - k * 800, 1600, 0.1, 0.24).map((v) => ({ ...v, delay: d }))),
+    [{ wave: 'saw', f: 700, f2: 300, dur: 0.24, vol: 0.12, lp: 4000, curve: 2 }],
+    clang(1900, 0.16, 0.4).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.2 })),
+  ),
+  /** Quicken: the blades start ticking, faster and higher, under a rising whir. */
+  quicken: join(
+    ...[0, 0.09, 0.16, 0.215, 0.26, 0.3, 0.335].map((d, k) => [{ wave: 'tri' as const, f: 1300 + k * 160, dur: 0.03, delay: d, vol: 0.16, curve: 3 },
+      { wave: 'noise' as const, f: 0, dur: 0.02, delay: d, vol: 0.12, lp: 8000, hp: 3000, curve: 3 }]),
+    [{ wave: 'saw', f: 300, f2: 900, dur: 0.4, vol: 0.08, a: 0.1, lp: 3000, curve: 1.4 }],
+  ),
+  /** Clout: a blunt club blow (a thick wooden-iron thump) and a dazed wobble as the foe is stunned. */
+  clout: join(
+    [{ wave: 'tri', f: 260, f2: 110, dur: 0.14, vol: 0.4, curve: 2.4 },
+     { wave: 'square', f: 180, f2: 90, dur: 0.1, vol: 0.14, lp: 1500, curve: 2.5 },
+     { wave: 'noise', f: 0, dur: 0.07, vol: 0.45, lp: 2200, lp2: 600, curve: 2.5 }],
+    [{ wave: 'sine', f: 1100, dur: 0.5, delay: 0.1, vol: 0.14, a: 0.02, curve: 1.4, vib: [9, 0.05] },
+     { wave: 'sine', f: 1650, dur: 0.35, delay: 0.12, vol: 0.06, a: 0.02, curve: 1.8, vib: [9, 0.05] }],
+  ),
+  /** Gather: a pull that drags in toward you (a falling, swelling rush) and slams home on the shield. ('gather' is the loot pickup.) */
+  gatherPull: join(
+    [{ wave: 'noise', f: 0, dur: 0.38, vol: 0.32, a: 0.3, lp: 1200, lp2: 4800, hp: 400, curve: 0.8 },
+     { wave: 'saw', f: 520, f2: 200, dur: 0.38, vol: 0.1, a: 0.25, lp: 2500, curve: 0.9 }],
+    clang(380, 0.36, 0.45).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.36 })),
+    [{ wave: 'sine', f: 110, f2: 60, dur: 0.2, delay: 0.36, vol: 0.25 }],
+  ),
+  /** Sunlance: a thin beam of light thrown fast (a rising glassy streak), striking with a bright ping. */
+  sunlance: join(
+    [{ wave: 'sine', f: 900, f2: 2600, dur: 0.12, vol: 0.18, curve: 1.2 },
+     { wave: 'noise', f: 0, dur: 0.12, vol: 0.1, a: 0.02, lp: 9000, hp: 3500, curve: 1.5 }],
+    chime(E6, 0.11, 0.2, 0.35),
+  ),
+  /** Canopy: a dome of light settles over the party: one wide, held chord that swells and hums, with no rising notes (it does not heal). */
+  canopy: join(
+    [{ wave: 'tri', f: C5, dur: 1.3, vol: 0.14, a: 0.35, curve: 1.3, trem: [3, 0.25] },
+     { wave: 'tri', f: G5, dur: 1.3, vol: 0.12, a: 0.4, curve: 1.3, trem: [3, 0.25] },
+     { wave: 'sine', f: C6, dur: 1.2, vol: 0.1, a: 0.45, curve: 1.4 },
+     { wave: 'noise', f: 0, dur: 1.2, vol: 0.06, a: 0.5, lp: 7000, hp: 3000, curve: 1.2 }],
+    clang(C6, 0.12, 0.7).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.3 })),
+  ),
+  /** Ember Dart: a small fire dart hisses off and pops on the target, then a short crackle as it burns. */
+  emberDart: join(
+    whoosh(2000, 7000, 0.12, 0.22),
+    [{ wave: 'sine', f: 600, f2: 1400, dur: 0.1, vol: 0.12, curve: 2 },
+     { wave: 'noise', f: 0, dur: 0.05, delay: 0.12, vol: 0.32, lp: 5000, hp: 900, curve: 3 }],
+    ...[0.2, 0.27, 0.36].map((d) => [{ wave: 'noise' as const, f: 0, dur: 0.025, delay: d, vol: 0.14, lp: 8000, hp: 2500, curve: 3 }]),
+  ),
+  /** White Heat: a blinding flash of heat around you, a bright searing roar rather than Combustion's deep boom, with a spark leaping off. */
+  whiteHeat: join(
+    [{ wave: 'noise', f: 0, dur: 0.55, vol: 0.4, a: 0.02, lp: 10000, lp2: 2500, hp: 1200, curve: 1.8 },
+     { wave: 'saw', f: 440, f2: 220, dur: 0.45, vol: 0.12, lp: 3500, curve: 1.8, vib: [17, 0.04] },
+     { wave: 'sine', f: 160, f2: 70, dur: 0.3, vol: 0.2, curve: 2 }],
+    [{ wave: 'square', f: 1800, f2: 3200, dur: 0.08, delay: 0.25, vol: 0.08, lp: 7000, curve: 2.5 }],
+  ),
+  /** Slag Spray: molten slag sprays out in a wet, sputtering hiss and spatters down. */
+  slagSpray: join(
+    [{ wave: 'noise', f: 0, dur: 0.4, vol: 0.32, a: 0.02, lp: 6000, lp2: 1600, hp: 700, curve: 1.6, trem: [28, 0.55] },
+     { wave: 'saw', f: 220, f2: 140, dur: 0.3, vol: 0.1, lp: 1500, curve: 2 }],
+    ...[0.22, 0.3, 0.37, 0.45].map((d, k) => [{ wave: 'sine' as const, f: 900 - k * 90, f2: 350, dur: 0.05, delay: d, vol: 0.14, curve: 2 }]),
+  ),
+  /** Slag Mortar: a hollow tube thunk, the shell whistling down, then a crunching blast where it lands. */
+  slagMortar: join(
+    [{ wave: 'sine', f: 240, f2: 110, dur: 0.12, vol: 0.32, curve: 2.2 },
+     { wave: 'noise', f: 0, dur: 0.06, vol: 0.3, lp: 1800, curve: 2.5 }],
+    [{ wave: 'sine', f: 2200, f2: 900, dur: 0.42, delay: 0.12, vol: 0.09, a: 0.05, curve: 0.9 }],
+    boom(55, 0.5, 0.6).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.55 })),
+    [{ wave: 'noise', f: 0, dur: 0.12, delay: 0.56, vol: 0.28, lp: 6000, hp: 1500, curve: 2.5 }],
   ),
 
   // ---- interrupts and enemy casts

@@ -79,8 +79,8 @@ describe('audio', () => {
         }
       }
     });
-    // The core moments of a run all make a sound.
-    for (const id of ['hit', 'levelUp', 'emberWave', 'duskDash', 'bulwarkSlam', 'lumenBurst', 'slagLob', 'slagPlate'] as SoundId[]) expect(heard, id).toContain(id);
+    // The core moments of a run all make a sound (the gunner's Cannon replaced the Slag Lob, PR #821).
+    for (const id of ['hit', 'levelUp', 'emberWave', 'duskDash', 'bulwarkSlam', 'lumenBurst', 'cannonShot', 'slagPlate'] as SoundId[]) expect(heard, id).toContain(id);
     // Four bot runs of up to 150 s each: about 2.4 s locally and 3.7 s on CI on main, so the 5 s default is too tight.
   }, 20000);
 
