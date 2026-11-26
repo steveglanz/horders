@@ -1001,6 +1001,10 @@ export class World {
    * hero standing in it until stage 3; then `glow` counts down to its burst (0 = still burning).
    */
   slagPatches: { x: number; y: number; tick: number; glow: number }[] = [];
+  /** Someone in the party has an interrupt (Bulwark, Duskblade, Emberwright) with F unlocked. Set at the start. */
+  partyKick = false;
+  /** Someone in the party has F unlocked (an interrupt or a stun). Set at the start. */
+  partyF = false;
   /** BOSSV2 Kiln Mother: 0 = not a v2 fight, else her stage (1 the duel, 2 in the kiln, 3 the last fire). */
   kmStage = 0;
   /** BOSSV2: she's inside the kiln (stage 2; she can't be hit all through stage 2, the walk in too). */
@@ -1486,6 +1490,9 @@ export class World {
         p.xpToNext = xpFor(p.level);
       }
     }
+    // Foes adapt to the party (Steve, 26 Nov): who can stop a cast is fixed at the start (partyStops).
+    this.partyKick = this.heroes.some((h) => h.classDef.kick && slotOpen(3, h.player.unlockLevel));
+    this.partyF = this.heroes.some((h) => slotOpen(3, h.player.unlockLevel));
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
     if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
@@ -4220,7 +4227,15 @@ export class World {
    * any alone too (solo bosses are tuned for every class), but in a party a boss shrugs it off: its casts need an interrupter.
    */
   canStop(e: { interruptible: boolean; def: { rank: string } }): boolean {
-    return e.interruptible && (this.classDef.kick || e.def.rank !== 'boss' || this.heroes.length === 1);
+    return e.interruptible && this.unlocked(3) && (this.classDef.kick || e.def.rank !== 'boss' || this.heroes.length === 1);
+  }
+
+  /**
+   * Whether anyone in the party can stop this foe's casts with F: an interrupt stops any, a stun any but a boss's in a
+   * party (canStop). A foe facing a party that can't skips its STOP_ONLY casts and uses its other skills (Steve, 26 Nov).
+   */
+  partyStops(e: { def: { rank: string } }): boolean {
+    return e.def.rank === 'boss' ? this.partyKick || (this.heroes.length === 1 && this.partyF) : this.partyF;
   }
 
   /** The enemy the acting hero's F would stop right now (interrupt, or the Lumen's and Slagbinder's stun), or -1. */
@@ -6244,14 +6259,17 @@ export class World {
     }
   }
 
-  private startCast(i: number, id: string, name: string, dur: number, interruptible: boolean): void {
+  /** Starts a cast; false (and no cast) for a STOP_ONLY cast nobody in the party can stop (partyStops). */
+  private startCast(i: number, id: string, name: string, dur: number, interruptible: boolean): boolean {
     const e = this.enemies[i];
+    if (interruptible && STOP_ONLY.has(id) && !this.partyStops(e)) return false;
     e.castId = id;
     e.castName = name;
     e.castT = 0;
     e.castDur = this.hasOmen('quickened') ? dur * OMEN_TUNING.quickenedCast : dur;
     e.interruptible = interruptible;
     this.events.push({ type: 'castStart', index: i, id, name });
+    return true;
   }
 
   private cancelCast(i: number): void {
@@ -6669,10 +6687,10 @@ export class World {
       if (e.abilityT <= 0) {
         e.abilityT = 5;
         e.aux++;
-        if (e.aux % 2 === 0) {
-          // BOSSV2: no Gorge cast; it Gorges on its own when nobody hits it (below).
-          if (!this.bossV2) this.startCast(i, 'gorge', 'Gorge', 2.2, true);
-        } else {
+        // BOSSV2: no Gorge cast; it Gorges on its own when nobody hits it (above). Nobody to stop it: it spits instead.
+        if (e.aux % 2 === 0 && !this.bossV2 && this.partyStops(e)) {
+          this.startCast(i, 'gorge', 'Gorge', 2.2, true);
+        } else if (e.aux % 2 === 1 || !this.bossV2) {
           const ang = Math.atan2(p.y - e.y, p.x - e.x);
           this.startCast(i, 'spit', 'Ash Spit', 1.0, false);
           this.addTelegraph('cone', e.x, e.y, 260, ang, (60 * Math.PI) / 180, 1.0, 22, 'hit', i);
@@ -9415,7 +9433,7 @@ export class World {
     if (e.abilityT > 0) return;
     if (e.kind === 'glassWarden') {
       e.aux++;
-      if (e.aux % 2 === 1 && e.aux2 <= 0) {
+      if (e.aux % 2 === 1 && e.aux2 <= 0 && this.partyStops(e)) {
         e.abilityT = 4.5;
         this.startCast(i, 'mirror', 'Mirror Ward', FOUNDRY.mirrorCast, true);
       } else if (dist2(p.x, p.y, e.x, e.y) < 220 * 220) {
@@ -10421,6 +10439,14 @@ export const KILN_V2 = {
   ringN: 2, ringEvery: 1, ringSpeed: 140, ringW: 24, ringGap: (60 * Math.PI) / 180, ringDamage: 40,
   gorgeQuiet: 3, gorgeHeal: 0.08,
 };
+
+/**
+ * Interruptible casts whose only answer is stopping them (no floor telegraph to step out of). When nobody in the party
+ * can stop the caster (World.partyStops: no unlocked F, or a boss in a party with no interrupter) the foe doesn't use
+ * them and goes on with its other skills (Steve, 26 Nov: "if you don't have an interrupt, they shouldn't use that skill").
+ * Casts with a telegraph (Ground Pound, Frost Lace, Haul, Sink, a Lensbearer's Glare) stay: they are dodged instead.
+ */
+export const STOP_ONLY = new Set(['cataclysm', 'gorge', 'coalGorge', 'snuff', 'conchCall', 'mirror', 'rekindle', 'undertow']);
 
 export type KilnVariant = 'cataclysm' | 'draw' | 'turning';
 export const KILN_VARIANTS: KilnVariant[] = ['cataclysm', 'draw', 'turning'];
