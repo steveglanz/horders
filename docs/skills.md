@@ -647,12 +647,14 @@ Each class has two Mythics of its own, on top of the shared four. A Mythic shoul
 Tests are in `tests/mythics.test.ts`.
 
 ## Ability options (a second ability per slot)
-Each class earns up to three options, at hero levels 8, 12 and 16, each for a different slot, so by level 16 Q, E and R each offer two abilities. The interrupt (F) is never swapped. Each pick is made in the hub under the class picker (one two-button row per unlocked option, and a note for the next one), locked for the run, and saved per character (`alts`, a list of option ids, in CHARACTER_KEYS and the co-op HeroCard; old saves' `alt: true` reads as the level-8 option). Definitions are in `ALT_OPTIONS` in sim/content/classes.ts (`ALT_ABILITIES` is each class's level-8 option), and tuning is in `ALT_KIT` in sim/world.ts. Classes get their level-12 and level-16 options one class per PR; the Duskblade is first.
+Each class earns up to three options, at hero levels 8, 12 and 16, each for a different slot, so by level 16 Q, E and R each offer two abilities. The interrupt (F) is never swapped. Each pick is made in the hub under the class picker (one two-button row per unlocked option, and a note for the next one), locked for the run, and saved per character (`alts`, a list of option ids, in CHARACTER_KEYS and the co-op HeroCard; old saves' `alt: true` reads as the level-8 option). Definitions are in `ALT_OPTIONS` in sim/content/classes.ts (`ALT_ABILITIES` is each class's level-8 option), and tuning is in `ALT_KIT` in sim/world.ts. Classes get their level-12 and level-16 options one class per PR; the Duskblade and the Bulwark have theirs.
 
 | Class | Level | Slot | Replaces | Option | Cost / cooldown | What it does |
 |---|---|---|---|---|---|---|
 | Duskblade | 12 | R | Execution | Wide Cut | 60 / 18 s | A spin: 110 damage and a 4 s bleed (10 a second) to every foe within 150 px. For packs; Execution stays better on one big foe. |
 | Duskblade | 16 | E | Sidestep | Quicken | 0 / 12 s | For 5 s the blades swing 40% faster. You give up Sidestep's dodge and mend. |
+| Bulwark | 12 | Q | Rim Smash | Clout | 25 / 5 s | One blow on the foe in front: 120 damage (50 to foes within 90 px of it), a 1 s stun (0.3 s on big foes), a shove like Rim Smash's (so it can still steer Sluice Crawlers out of blooms), and the Bulwark mends half the damage dealt. For one big foe; Rim Smash stays better on packs. Taunts in a party. Hard Knocks and Shield Echo are not drafted with it. |
+| Bulwark | 16 | E | Charge | Gather | 0 / 12 s | Drags every normal foe within 260 px to the shield and taunts everything in reach (big foes are taunted and stunned for 0.8 s, not moved); 20% less damage taken for 4 s and 10 Resolve, like Charge. Ram and Onrush (tree) work on it as on Charge. Plough Through, Full Weight and Shield Wake are not drafted with it. You give up Charge's rush and stun. |
 
 The level-8 options:
 

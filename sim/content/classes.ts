@@ -95,7 +95,7 @@ export function slotOpen(slot: number, level: number | undefined): boolean {
  * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
  * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".
  */
-export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken';
+export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather';
 export interface AltOption { id: AltId; slot: number; level: number; replaces: string; def: AbilityDef }
 export const ALT_UNLOCK_LEVEL = 8;
 export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
@@ -109,6 +109,8 @@ export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
   ],
   bulwark: [
     { id: 'muster', slot: 2, level: 8, replaces: 'Anvil Skin', def: { name: 'Muster', key: 'R', cost: 50, cooldown: 20, text: 'For 5s, heroes near you take 25% less damage. Alone, you mend 15% of your health instead.' } },
+    { id: 'clout', slot: 0, level: 12, replaces: 'Rim Smash', def: { name: 'Clout', key: 'Q', cost: 25, cooldown: 5, text: 'Club the foe in front for 120 (50 to foes pressed against it), stun and shove it back, and mend half the damage dealt. Better on one big foe; Rim Smash is better on packs.' } },
+    { id: 'gather', slot: 1, level: 16, replaces: 'Charge', def: { name: 'Gather', key: 'E', cost: 0, cooldown: 12, text: 'Drag every foe within 260 to your shield and hold their eyes on you; for 4s you take 20% less damage, and you gain 10 Resolve. Big foes are not moved but are stunned briefly. You give up Charge\'s rush and stun.' } },
   ],
   lumen: [
     { id: 'glowPool', slot: 1, level: 8, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },

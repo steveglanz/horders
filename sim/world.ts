@@ -232,6 +232,9 @@ export const ALT_KIT = {
   pitTime: 5, pitRadius: 80, pitDps: 10, pitSlowNormal: 0.4, pitRange: 360,
   /** Wide Cut (Duskblade R, level 12) and Quicken (Duskblade E, level 16). */
   wideCutDamage: 110, wideCutRadius: 150, wideCutBleed: 10, quickenTime: 5, quickenHaste: 0.4,
+  /** Clout (Bulwark Q, level 12) and Gather (Bulwark E, level 16). */
+  cloutDamage: 120, cloutSplash: 50, cloutSplashR: 90, cloutMend: 0.5, cloutStun: 1, cloutStunBig: 0.3,
+  gatherRadius: 260, gatherTime: 4, gatherCut: 0.2, gatherResolve: 10, gatherStunBig: 0.8,
 };
 
 /** A hero's ability options for a run: `alts` by id (cleaned), else `alt` as the class's level-8 option. */
@@ -497,6 +500,8 @@ export interface Player {
   /** Muster, Glow Pool, Cinder Sump and Quicken timers and positions. */
   cryUntil?: number;
   quickUntil?: number;
+  /** Gather (Bulwark E option): takes less damage until then. */
+  gatherUntil?: number;
   wellUntil?: number;
   wellX?: number;
   wellY?: number;
@@ -1740,7 +1745,8 @@ export class World {
 
   private baseCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
-    if (this.isAlt(slot)) return base;
+    // Ram (Bulwark tree) speeds Gather like the Charge it replaces.
+    if (this.isAlt(slot)) return this.altAt(slot)?.id === 'gather' ? base - TREE.ramCd * this.tree('ram') : base;
     if (this.cls === 'slagbinder') {
       if (slot === 0) return base - this.rank('quickset') - TREE.ladleCd * this.tree('ladle');
       // Recoil never drops below 1s.
@@ -3877,6 +3883,8 @@ export class World {
     if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));
     // Muster: in a party, heroes near the Bulwark take less.
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
+    // Gather: the Bulwark braces for the pack it pulled in.
+    if ((p.gatherUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.gatherCut;
     // Lee Side (party card): heroes close to a Bulwark that took it take less.
     if (this.heroes.length > 1) amount *= 1 - PARTY_CARDS.leeCut * this.allyRank('leeSide', p, PARTY_CARDS.leeRadius);
     // Cover (character tree): heroes close to a Bulwark with it take less.
@@ -4402,6 +4410,63 @@ export class World {
     if (id === 'quicken') {
       p.quickUntil = this.time + ALT_KIT.quickenTime;
       this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r: 40 });
+      return;
+    }
+    if (id === 'clout') {
+      // Clout: one heavy blow on the foe in front that mends the Bulwark. Rim Smash's pack answer, for one big foe.
+      const t = this.bladeTarget(this.sweepReach + 40);
+      if (t < 0) return;
+      const e = this.enemies[t];
+      p.facing = Math.atan2(e.y - p.y, e.x - p.x);
+      if (this.threat.length) taunt(this.threat[t], this.heroes[this.acting].id);
+      // The blow carries into foes pressed against the target (no stun on them); the mend counts everything it dealt.
+      let dealt = 0;
+      const sr = ALT_KIT.cloutSplashR;
+      this.forEachNear(e.x, e.y, sr + 40, (i) => {
+        const o = this.enemies[i];
+        if (i !== t && dist2(e.x, e.y, o.x, o.y) > (sr + o.def.radius) ** 2) return;
+        const hp0 = o.hp;
+        this.damageEnemy(i, (i === t ? ALT_KIT.cloutDamage : ALT_KIT.cloutSplash) * this.dmgMult, true);
+        dealt += Math.max(0, hp0 - Math.max(0, o.hp));
+      });
+      this.healPlayer(dealt * ALT_KIT.cloutMend);
+      if (e.alive && !e.def.stationary) {
+        e.stunT = Math.max(e.stunT, e.def.rank === 'normal' ? ALT_KIT.cloutStun : ALT_KIT.cloutStunBig);
+        // Like Rim Smash, the blow shoves the foe back (big foes the most), so it can still steer them out of blooms.
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const push = e.def.rank === 'normal' ? 50 : e.def.rank === 'boss' ? 70 : 90;
+        e.x += (dx / d) * push;
+        e.y += (dy / d) * push;
+        this.clampArena(e, e.def.radius);
+      }
+      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 40 });
+      return;
+    }
+    if (id === 'gather') {
+      // Gather: drag the pack in to the shield and taunt it (big foes are taunted but not moved), and brace.
+      const r = ALT_KIT.gatherRadius;
+      p.gatherUntil = this.time + ALT_KIT.gatherTime;
+      if (this.tree('onrush') > 0) p.onrushT = TREE.onrushTime;
+      this.forEachNear(p.x, p.y, r + 40, (i) => {
+        const e = this.enemies[i];
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d > r + e.def.radius) return;
+        if (this.threat.length) taunt(this.threat[i], this.heroes[this.acting].id);
+        // Big foes are not moved, but are rocked like Charge's target (Foundry 8: 21 -> 23-24 of 40 with it).
+        if (!e.def.stationary && e.def.rank !== 'normal') e.stunT = Math.max(e.stunT, ALT_KIT.gatherStunBig);
+        if (e.def.stationary || e.def.rank !== 'normal' || e.named >= 0) return;
+        const pull = Math.max(0, d - e.def.radius - PLAYER_RADIUS - 6);
+        e.x -= (dx / d) * pull;
+        e.y -= (dy / d) * pull;
+        this.clampArena(e, e.def.radius);
+      });
+      // Like Charge, it builds Resolve for Anvil Skin.
+      this.addHeat(ALT_KIT.gatherResolve);
+      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
     if (this.cls === 'emberwright') {

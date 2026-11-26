@@ -283,6 +283,22 @@ function altPress(w: World, id: AltId): number | undefined {
     if ((p.quickUntil ?? -1) > w.time) return undefined;
     return w.bladeTarget(w.swingReach + 30) >= 0 ? a.slot : undefined;
   }
+  if (id === 'clout') {
+    // Clout: on a big foe in reach, or a lone foe when hurt; Rim Smash's pack stun is gone, so also on any foe touching.
+    const t = w.bladeTarget(w.sweepReach + 40);
+    if (t < 0) return undefined;
+    return w.enemies[t].def.rank !== 'normal' || touching >= 1 || hurt > 0.2 ? a.slot : undefined;
+  }
+  if (id === 'gather') {
+    // Gather: take the boss back on the taunt cue, pull a loose pack in, or brace when a big foe is on you.
+    if (w.tauntCue) {
+      const b = w.enemies[w.bossIndex];
+      if (b?.alive && Math.hypot(b.x - p.x, b.y - p.y) - b.def.radius < 260) return a.slot;
+    }
+    let inReach = 0;
+    for (const e of w.enemies) if (e.alive && e.def.rank === 'normal' && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 260 * 260) inReach++;
+    return inReach >= 3 || (bigNear && hurt > 0.2) ? a.slot : undefined;
+  }
   if (w.cls === 'emberwright') {
     // Ember Ward: before the press reaches you, or when a big foe is close.
     if ((p.plateUntil ?? -1) > w.time) return undefined;

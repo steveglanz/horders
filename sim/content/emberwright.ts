@@ -200,7 +200,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Spite (id retribution): thorns and anger
   spikedShield: { id: 'spikedShield', cls: 'bulwark', name: 'Spiked Shield', branch: 'retribution', maxRank: 3, text: 'Enemies that hit you take 8 damage back.' },
   vengeance: { id: 'vengeance', cls: 'bulwark', name: 'Rancor', branch: 'retribution', maxRank: 3, text: '+4% damage for every 10% of health you are missing.' },
-  shieldEcho: { id: 'shieldEcho', cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Rim Smash strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
+  shieldEcho: { id: 'shieldEcho', ability: 0, cls: 'bulwark', name: 'Shield Echo', branch: 'retribution', maxRank: 2, text: 'Rim Smash strikes again 0.4s later for half damage. Rank 2: each slam also builds 10 Resolve.' },
   hardKnocks: { id: 'hardKnocks', ability: 0, cls: 'bulwark', name: 'Hard Knocks', branch: 'retribution', deep: true, maxRank: 3, text: 'Rim Smash deals 20% more damage.' },
   grimTally: { id: 'grimTally', cls: 'bulwark', name: 'Grim Tally', branch: 'retribution', deep: true, maxRank: 2, text: 'Hits you take build 25% more Resolve.' },
   thornwall: { id: 'thornwall', cls: 'bulwark', name: 'Thornwall', branch: 'retribution', maxRank: 1, capstone: true, text: 'You always turn back 15% of each hit, and damage you turn back hits every enemy around you.' },
@@ -208,11 +208,11 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   // Vanguard: cleave and charge
   wideSweep: { id: 'wideSweep', cls: 'bulwark', name: 'Wide Sweep', branch: 'vanguard', maxRank: 2, text: 'Shield Sweep swings wider and farther. Rank 2: a full circle.', tip: "Shield Sweep reaches 15 farther per rank. Its arc grows from 150 degrees to 250 at rank 1, then a full circle at rank 2." },
   momentum: { id: 'momentum', cls: 'bulwark', name: 'Momentum', branch: 'vanguard', maxRank: 3, text: '+5% move speed; Charge recharges 2s faster.' },
-  batteringRam: { id: 'batteringRam', cls: 'bulwark', name: 'Plough Through', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.', tip: "Charge also hits everything in its path for 25 per rank and stuns them for 0.5s." },
+  batteringRam: { id: 'batteringRam', ability: 1, cls: 'bulwark', name: 'Plough Through', branch: 'vanguard', maxRank: 2, text: 'Charge hits and stuns everything in its path.', tip: "Charge also hits everything in its path for 25 per rank and stuns them for 0.5s." },
   broadShoulders: { id: 'broadShoulders', cls: 'bulwark', name: 'Broad Shoulders', branch: 'vanguard', deep: true, maxRank: 3, text: 'Shield Sweep swings 8% more often.' },
   fullWeight: { id: 'fullWeight', ability: 1, cls: 'bulwark', name: 'Full Weight', branch: 'vanguard', deep: true, maxRank: 2, text: 'Charge hits 50% harder.' },
   warpath: { id: 'warpath', cls: 'bulwark', name: 'Warpath', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Every 4th Shield Sweep sends out a shockwave for double damage.' },
-  shieldWake: { id: 'shieldWake', cls: 'bulwark', name: 'Shield Wake', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Charge lands with a shockwave that hits and stuns everything close.', tip: "Where Charge lands, a shockwave hits every foe within 120 px for 50 damage and stuns it for 1s." },
+  shieldWake: { id: 'shieldWake', ability: 1, cls: 'bulwark', name: 'Shield Wake', branch: 'vanguard', maxRank: 1, capstone: true, text: 'Charge lands with a shockwave that hits and stuns everything close.', tip: "Where Charge lands, a shockwave hits every foe within 120 px for 50 damage and stuns it for 1s." },
 
   // Lumen. Dawn: healing turned into damage
   kindledLight: { id: 'kindledLight', cls: 'lumen', name: 'Kindled Light', branch: 'dawn', maxRank: 3, text: 'Overhealing stores 30% more Brilliance.' },
