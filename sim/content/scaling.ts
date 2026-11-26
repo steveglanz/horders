@@ -5,6 +5,19 @@
  * Background and sources: docs/design/group-play.md.
  */
 
+/**
+ * Steve, 26 Nov 2026: the tier ladder tops out at tier 15. Everything new (dungeons, raids, Omens, the loot
+ * ladder and the Mythic first clear) has arrived by then; past it foes only grew bigger numbers. Delver's Keys
+ * stay the endless ladder. A hero's stored maxTier is the highest tier unlocked, and MAX_TIER + 1 means tier
+ * 15 is beaten (so keys, bounties and first-clear loot still know that).
+ */
+export const MAX_TIER = 15;
+
+/** The highest tier a hero can pick, from their stored maxTier. */
+export function topTier(maxTier: number): number {
+  return Math.max(1, Math.min(MAX_TIER, maxTier));
+}
+
 /** Party sizes the game is tuned for (co-op is planned for 2 to 4). */
 export const MAX_PARTY = 4;
 

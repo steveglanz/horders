@@ -11,7 +11,7 @@ import type { DungeonId } from './content/dungeon';
 import { KEYS, keyEmbers, keyStep } from './content/keys';
 import { WeeklyQuest, WeeklyRun, WeeklyState, weekState, weeklyStep, weeklyTitle } from './content/weekly';
 import { Rng } from './rng';
-import { GRIT } from './content/scaling';
+import { GRIT, MAX_TIER } from './content/scaling';
 import { bountyEmbers } from './content/bounty';
 import { ClassId } from './content/emberwright';
 import { ALT_OPTIONS, AltId, cleanAlts } from './content/classes';
@@ -448,7 +448,7 @@ export function applyRun(
     else if (attempt) hero.grit = { key, stacks: Math.min(GRIT.maxStacks, (hero.grit?.key === key ? hero.grit.stacks : 0) + 1) };
     if (s.victory) {
       hero.wins++;
-      if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = (s.tier ?? 1) + 1;
+      if ((s.tier ?? 1) >= hero.maxTier) hero.maxTier = Math.min(MAX_TIER + 1, (s.tier ?? 1) + 1);
     }
   }
   const weekly = s.week !== undefined ? applyWeekly(hero, s, maxTierBefore) : undefined;

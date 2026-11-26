@@ -6,6 +6,7 @@
  */
 import { Rng } from '../rng';
 import { DUNGEONS, DungeonId, WEEKLY_DUNGEON_IDS } from './dungeon';
+import { topTier } from './scaling';
 
 export type WeeklyId = 'wins' | 'interrupts' | 'named' | 'dungeon' | 'kills' | 'bounties' | 'wall' | 'party';
 
@@ -137,7 +138,7 @@ export function weeklyStep(q: WeeklyQuest, r: WeeklyRun): number {
     case 'dungeon': return r.victory && !r.bounty && r.dungeon === q.dungeon ? 1 : 0;
     case 'kills': return r.kills;
     case 'bounties': return r.victory && r.bounty ? 1 : 0;
-    case 'wall': return r.victory && !r.bounty && r.tier >= r.maxTier ? 1 : 0;
+    case 'wall': return r.victory && !r.bounty && r.tier >= topTier(r.maxTier) ? 1 : 0;
     case 'party': return r.victory && r.group && (r.realHeroes ?? 1) >= 2 ? 1 : 0;
   }
 }

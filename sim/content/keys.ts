@@ -6,6 +6,7 @@
  * docs/design/keys.md.
  */
 import { OMEN_IDS, OmenId, omenCount, omenOrder } from './omens';
+import { MAX_TIER } from './scaling';
 
 export const KEYS = {
   /** Keys open once the hero has unlocked this tier (two Omens by then). */
@@ -25,7 +26,7 @@ export const KEYS = {
 
 /** The tier a key run is played at: the hero's best beaten tier. */
 export function keyTier(maxTier: number): number {
-  return Math.max(1, maxTier - 1);
+  return Math.max(1, Math.min(MAX_TIER, maxTier - 1));
 }
 
 /** The key run's Omens: the week's tier Omens plus one more every `levelsPerOmen` key levels, up to all five. */
