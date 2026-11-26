@@ -25,7 +25,7 @@ async function openPage() {
     const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
     const page = await b.newPage({ viewport: { width: 412, height: 915 }, hasTouch: true });
     await page.goto('file://' + path.resolve('dist/index.html') + '?seed=1');
-    return { page, close: () => b.close(), shot: (f) => page.screenshot({ path: f }) };
+    return { page, close: () => b.close(), shot: (f) => page.screenshot({ path: f }), tapEl: (sel) => page.tap(sel) };
   }
   const { _android } = require('playwright-core');
   const [device] = await _android.devices();
@@ -41,13 +41,24 @@ async function openPage() {
   return {
     page,
     close: () => device.close(),
+    // CDP mouse and touch input hangs in the emulator's WebView (26 Nov: page.click timed out on
+    // "performing click action"), so tap the real screen through adb, the way a finger would.
+    // The WebView's bounds on screen come from the Android view tree; the element's box is in CSS px.
+    tapEl: async (sel) => {
+      const wv = await device.info({ clazz: 'android.webkit.WebView' });
+      const r = await page.evaluate((q) => { const b = document.querySelector(q).getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2, dpr: devicePixelRatio }; }, sel);
+      const x = Math.round(wv.bounds.x + r.x * r.dpr), y = Math.round(wv.bounds.y + r.y * r.dpr);
+      log('tap', sel, 'at', x, y, 'webview bounds', JSON.stringify(wv.bounds));
+      await device.shell(`input tap ${x} ${y}`);
+    },
     // The device screenshot shows the whole screen as a player sees it, WebGL included.
     shot: async (f) => fs.writeFileSync(f, await device.screenshot()),
   };
 }
 
 (async () => {
-  const { page, close, shot } = await openPage();
+  const { page, close, shot, tapEl } = await openPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
@@ -59,7 +70,7 @@ async function openPage() {
   await page.locator('#startBtn').waitFor({ state: 'visible', timeout: 60000 });
   await page.waitForTimeout(1500);
   await shot(`${out}/1-hub.png`);
-  await page.locator('#startBtn').tap().catch(() => page.click('#startBtn'));
+  await tapEl('#startBtn');
   await page.waitForFunction(() => window.__ember.scene()?.world?.tick > 0, null, { timeout: 120000 });
   await page.waitForTimeout(3000);
   await shot(`${out}/2-delve.png`);
