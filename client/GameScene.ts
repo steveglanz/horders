@@ -5497,6 +5497,20 @@ export class GameScene extends Phaser.Scene {
       this.floatText(x, y - 40, name, '#fff0b0', 18);
       return;
     }
+    if (opt.id === 'emberDart') {
+      // Ember Dart: the dart itself is drawn from w.lances; a small fiery burst where it lands.
+      this.impact(x, y, 1);
+      this.ring(x, y, 24, 0xff8a3a, 0.3);
+      this.floatText(x, y - 40, name, '#ffb070', 18);
+      return;
+    }
+    if (opt.id === 'whiteHeat') {
+      // White Heat: a white-hot ring bursting out to its reach.
+      this.emit(this.fx, 'ring', undefined, x, y, 0.4, { tint: 0xfff0d8, sx0: 0.15, sx1: (r * 2) / 128 });
+      this.ring(x, y, r, 0xffc890, 0.4);
+      this.floatText(x, y - 40, name, '#fff0d8', 18);
+      return;
+    }
     if (opt.id === 'canopy') {
       // Canopy: a pale blue-gold dome rises over the ground (drawn each frame like Sanctuary, in its own colour).
       this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 30, angle: 0, color: 0xcfe8ff, life: 0.6 });

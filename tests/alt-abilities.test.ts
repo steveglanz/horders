@@ -155,6 +155,37 @@ describe('ability options', () => {
     expect(hp - w.player.hp).toBeCloseTo(plain * (1 - ALT_KIT.canopyCut));
   });
 
+  it('Ember Dart hits one foe and burns it; White Heat bursts around the hero and throws foes back', () => {
+    const w = new World({ seed: 5, cls: 'emberwright', alts: ['emberDart', 'whiteHeat'], tier: 4, omens: [] });
+    for (const e of w.enemies) e.alive = false;
+    const inner = w as unknown as Inner;
+    expect(w.abilities.map((d) => d.name)).toEqual(['Ember Dart', 'Blink', 'White Heat', 'Quench']);
+    const t = inner.spawn('slagling', w.player.x + 200, w.player.y);
+    const side = inner.spawn('slagling', w.player.x + 230, w.player.y + 40);
+    for (const i of [t, side]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    inner.castAlt({ x: 0, y: 0 }, 0);
+    const hit = [t, side].filter((i) => w.enemies[i].hp < 1e6);
+    expect(hit).toEqual([t]);
+    expect(w.enemies[t].burnT).toBeGreaterThan(0);
+    const near = inner.spawn('slagling', w.player.x + 100, w.player.y);
+    const far = inner.spawn('slagling', w.player.x + ALT_KIT.whiteHeatRadius + 150, w.player.y);
+    for (const i of [near, far]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    inner.castAlt({ x: 0, y: 0 }, 2);
+    expect(w.enemies[near].hp).toBeLessThan(1e6);
+    expect(w.enemies[near].x).toBeCloseTo(w.player.x + 100 + ALT_KIT.whiteHeatShove);
+    expect(w.enemies[far].hp).toBe(1e6);
+    // The leap: a big foe out past the burst still takes the hit.
+    for (const i of [t, side, near, far]) w.enemies[i].alive = false;
+    const big = inner.spawn('cinderBrute', w.player.x + 350, w.player.y);
+    w.enemies[big].hp = w.enemies[big].maxHp = 1e6;
+    inner.rebuildHash();
+    w.player.cds[2] = 0;
+    inner.castAlt({ x: 0, y: 0 }, 2);
+    expect(w.enemies[big].hp).toBeLessThan(1e6);
+  });
+
   it('never drafts talents for the replaced ability', () => {
     for (const cls of CLASS_IDS) {
       const slot = ALT_ABILITIES[cls].slot;

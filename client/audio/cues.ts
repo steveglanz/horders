@@ -167,7 +167,7 @@ export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
   return out;
 }
 
-/** Each ability option (sim ALT_OPTIONS). Wide Cut, Quicken, Clout, Gather, Sunlance and Canopy borrow sounds until sound makes their own. */
+/** Each ability option (sim ALT_OPTIONS). Wide Cut, Quicken, Clout, Gather, Sunlance, Canopy, Ember Dart and White Heat borrow sounds until sound makes their own. */
 const ALT_ABILITY: Record<AltId, SoundId> = {
   emberWard: 'emberWard',
   hamstring: 'hamstring',
@@ -180,6 +180,8 @@ const ALT_ABILITY: Record<AltId, SoundId> = {
   gather: 'rallyingCry',
   sunlance: 'lumenBurst',
   canopy: 'lumenSanctuary',
+  emberDart: 'emberWave',
+  whiteHeat: 'emberNova',
 };
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {

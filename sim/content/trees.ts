@@ -150,14 +150,14 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   footwork: { id: 'footwork', cls: 'duskblade', branch: 'guard', name: 'Footwork', maxRank: 2, text: 'Sidestep recharges 1s faster per point.', tip: 'Sidestep comes back 1s sooner per point, 2s at 2 points. Each Sidestep also mends a little.' },
   steadfast: { id: 'steadfast', cls: 'duskblade', branch: 'guard', name: 'Steadfast', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Guard helps you stay there.' },
   // Emberwright, Wildfire branch: Flame Wave and burning foes.
-  char: { id: 'char', cls: 'emberwright', branch: 'wildfire', name: 'Char', maxRank: 3, text: 'Flame Wave hits 8% harder per point.', tip: 'Flame Wave deals 8% more damage per point, 24% at 3 points.' },
+  char: { id: 'char', cls: 'emberwright', branch: 'wildfire', name: 'Char', maxRank: 3, text: 'Flame Wave (or Ember Dart) hits 8% harder per point.', tip: 'Flame Wave or Ember Dart deals 8% more damage per point, 24% at 3 points.' },
   tinder: { id: 'tinder', cls: 'emberwright', branch: 'wildfire', name: 'Tinder', maxRank: 2, text: 'Flame Wave costs 5 less Heat per point.', tip: 'Flame Wave costs 5 less Heat per point, 30 to 20 at 2 points.' },
-  fan: { id: 'fan', cls: 'emberwright', branch: 'wildfire', name: 'Fan', maxRank: 3, text: 'Flame Wave recharges 0.4s faster per point.', tip: 'Flame Wave comes back 0.4s sooner per point, 1.2s at 3 points.' },
+  fan: { id: 'fan', cls: 'emberwright', branch: 'wildfire', name: 'Fan', maxRank: 3, text: 'Flame Wave (or Ember Dart) recharges 0.4s faster per point.', tip: 'Flame Wave or Ember Dart comes back 0.4s sooner per point, 1.2s at 3 points.' },
   ablaze: { id: 'ablaze', cls: 'emberwright', branch: 'wildfire', name: 'Ablaze', maxRank: 1, keystone: true, text: 'Burning foes take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe that is burning.' },
   // Emberwright, Kindling branch: faster orbs and crits.
   brisk: { id: 'brisk', cls: 'emberwright', branch: 'kindling', name: 'Brisk', maxRank: 3, text: 'Cinder Volley fires 4% faster per point.', tip: 'Cinder Volley fires 4% faster per point, 12% at 3 points.' },
   spark: { id: 'spark', cls: 'emberwright', branch: 'kindling', name: 'Spark', maxRank: 3, text: '+3% chance to crit per point.', tip: '3% more chance per point to crit for double damage, 9% at 3 points.' },
-  primer: { id: 'primer', cls: 'emberwright', branch: 'kindling', name: 'Primer', maxRank: 2, text: 'Combustion recharges 1.5s faster per point.', tip: 'Combustion comes back 1.5s sooner per point, 3s at 2 points.' },
+  primer: { id: 'primer', cls: 'emberwright', branch: 'kindling', name: 'Primer', maxRank: 2, text: 'Combustion (or White Heat) recharges 1.5s faster per point.', tip: 'Combustion or White Heat comes back 1.5s sooner per point, 3s at 2 points.' },
   glint: { id: 'glint', cls: 'emberwright', branch: 'kindling', name: 'Glint', maxRank: 1, keystone: true, text: 'Crits hit for 2.2 times instead of 2.', tip: 'Keystone. Your crits deal 2.2 times the hit instead of 2 times, 10% more on every crit.' },
   // Emberwright, Ashguard branch: lasting through the fight.
   warmth: { id: 'warmth', cls: 'emberwright', branch: 'ashguard', name: 'Warmth', maxRank: 3, text: '+15 max health per point.', tip: 'More health. +15 max health per point, +45 at 3 points.' },
