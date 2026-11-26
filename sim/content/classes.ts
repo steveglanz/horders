@@ -15,6 +15,12 @@ export interface ClassDef {
   speed: number;
   /** How far the interrupt (slot 3) reaches. */
   interruptRange: number;
+  /**
+   * Steve's interrupt split (class progression brief): true for the 3 classes whose F is a true interrupt (Bulwark,
+   * Duskblade, Emberwright), which stops any cast, a boss's too. False for the Lumen and the Slagbinder, whose F is a
+   * stun: it breaks a cast too, but in a party a boss shrugs it off (World.canStop), so a party needs an interrupter.
+   */
+  kick: boolean;
   abilities: AbilityDef[];
 }
 
@@ -36,36 +42,36 @@ export const LUMEN_ABILITIES: AbilityDef[] = [
   { name: 'Radiant Burst', key: 'Q', cost: 25, cooldown: 4, text: 'A pulse of light: heals you and burns everything close.' },
   { name: 'Glimmer Step', key: 'E', cost: 0, cooldown: 8, text: 'Step through light to where you are moving.' },
   { name: 'Sanctuary', key: 'R', cost: 60, cooldown: 22, text: 'Hallow the ground for 6s: you heal inside it and foes burn.' },
-  { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: "Silence an enemy cast and stun the caster. In a party, with nothing to silence, it clears an ally's Slag Grip." },
+  { name: 'Hush', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: "Stun a foe that is casting and break its cast. In a party, bosses shrug it off, and with nothing to stun it clears an ally's Slag Grip." },
 ];
 
 export const SLAGBINDER_ABILITIES: AbilityDef[] = [
   { name: 'Molten Plating', key: 'Q', cost: 30, cooldown: 6, text: 'Plate yourself in slag: a ward that bursts when it breaks or runs out. In a party, it plates the most hurt hero near you, at half thickness on an ally.' },
   { name: 'Recoil', key: 'E', cost: 0, cooldown: 10, text: 'Leap where you are moving (away from the nearest foe if standing still) and shove small foes aside.' },
   { name: 'Cooling Shell', key: 'R', cost: 60, cooldown: 24, text: 'For 5s take 35% less damage, and whatever hits you turns Brittle. In a party, heroes beside you take 20% less.' },
-  { name: 'Clinker', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Hurl a clinker to interrupt a cast and stun the caster. In a party, with nothing to interrupt, it makes the boss Brittle.' },
+  { name: 'Clinker', key: 'F', cost: 0, cooldown: 10, offGcd: true, text: 'Hurl a clinker to stun a foe that is casting and break its cast. In a party, bosses shrug it off, and with nothing to stun it makes the boss Brittle.' },
 ];
 
 export const CLASSES: Record<ClassId, ClassDef> = {
   emberwright: {
     id: 'emberwright', name: 'Emberwright', role: 'Ranged caster', blurb: 'Fire orbs, burning ground.',
-    resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, abilities: ABILITIES,
+    resource: 'Heat', baseHp: 120, speed: 140, interruptRange: 520, kick: true, abilities: ABILITIES,
   },
   duskblade: {
     id: 'duskblade', name: 'Duskblade', role: 'Melee striker', blurb: 'Twin blades, bleeds, dashes.',
-    resource: 'Momentum', baseHp: 190, speed: 152, interruptRange: 210, abilities: DUSKBLADE_ABILITIES,
+    resource: 'Momentum', baseHp: 190, speed: 152, interruptRange: 210, kick: true, abilities: DUSKBLADE_ABILITIES,
   },
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'Tank', blurb: 'Shield and armor. Soak the hits, hit back.',
-    resource: 'Resolve', baseHp: 160, speed: 128, interruptRange: 420, abilities: BULWARK_ABILITIES,
+    resource: 'Resolve', baseHp: 160, speed: 128, interruptRange: 420, kick: true, abilities: BULWARK_ABILITIES,
   },
   lumen: {
     id: 'lumen', name: 'Lumen', role: 'Healer', blurb: 'Light that mends. Overhealing turns into damage.',
-    resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, abilities: LUMEN_ABILITIES,
+    resource: 'Radiance', baseHp: 100, speed: 138, interruptRange: 480, kick: false, abilities: LUMEN_ABILITIES,
   },
   slagbinder: {
     id: 'slagbinder', name: 'Slagbinder', role: 'Ranged gunner', blurb: 'A slow slag cannon that hits hard and pierces. Brittle foes break.',
-    resource: 'Slag', baseHp: 150, speed: 134, interruptRange: 380, abilities: SLAGBINDER_ABILITIES,
+    resource: 'Slag', baseHp: 150, speed: 134, interruptRange: 380, kick: false, abilities: SLAGBINDER_ABILITIES,
   },
 };
 

@@ -97,7 +97,7 @@ Every class has the same four slots so the boss mechanics work for all of them:
 | Q | Core | Main pressed ability, on a short cooldown |
 | E | Move | Mobility or a defensive answer |
 | R | Big | Long cooldown, the big hit or big save |
-| F | Interrupt | Off the global cooldown. Stops a cast and stuns. With nothing to stop, a small hit and half the cooldown back |
+| F | Interrupt or stun | Off the global cooldown. Stops a cast and stuns the caster. With nothing to stop, a small hit and half the cooldown back. Interrupt split (26 Nov): only the Bulwark, Duskblade and Emberwright have a true interrupt (`ClassDef.kick`). The Lumen's and Slagbinder's F is a stun: it breaks any cast when alone, but in a party a boss shrugs it off, so a party needs an interrupter for boss casts (`World.canStop`) |
 
 Each class also has an auto-attack (survivors style) and its own resource.
 
@@ -170,7 +170,7 @@ Auto: **Sunmote**, every 0.7s, an instant bolt of light at the target within 500
 | Q | Radiant Burst | 25 Radiance / 4s | Heal 15, and a 140-radius pulse for 40 damage that pushes normal enemies back |
 | E | Glimmer Step | 0 / 8s | Step 160 where you are moving, untouchable for 0.3s |
 | R | Sanctuary | 60 Radiance / 22s | 6s of hallowed ground (radius 150): heal 4 per second inside, foes inside take 20 per second |
-| F | Hush | 0 / 10s, off GCD | Interrupt within 480, stuns 2s. With nothing to stop, a small hit and half the cooldown back |
+| F | Hush | 0 / 10s, off GCD | A stun within 480: breaks a cast and stuns 2s; in a party a boss shrugs it off. With nothing to stop, a small hit and half the cooldown back |
 
 Branches:
 - **Dawn** (healing into damage): *Kindled Light* (3) overheal stores 30% more Brilliance; *Searing Radiance* (3) Sunmotes +15% damage; *Noon Flash* (2, ability) Radiant Burst +40 radius and +50% damage; capstone **High Noon**: every 4s, stored Brilliance fires a piercing sunbeam for 30 plus 1.5 per point.
@@ -467,7 +467,7 @@ The Lumen now sits next to its C5 capstones (Kiln 8: 31.3), and every cell is wi
 | Q | **Molten Plating** | 30 | 6 s | Plates you with a ward of 15% max health for 6 s. When it breaks or runs out, it bursts for 40 within 90 px. Your own plating that runs out unspent heals you for what's left. | Plates the most hurt hero within 300 px instead, the Slagbinder included. |
 | E | **Interpose** | 0 | 10 s | Leap 150 px the way you're moving, immune for 0.4 s, and knock small foes back on landing. | Leap to the most hurt ally. For 3 s you take 60% of the damage aimed at them, at 30% less. |
 | R | **Cooling Shell** | 60 | 24 s | For 5 s you take 35% less damage, and anything that hits you is Brittle for 6 s (takes 15% more damage). | The 35% applies to every hero within 160 px. |
-| F | **Clinker** (interrupt) | 0 | 10 s | Hurl a clinker within 380 px: it interrupts a cast and stuns the caster for 1.5 s. | With nothing to interrupt, it makes the boss Brittle for 6 s. |
+| F | **Clinker** (stun) | 0 | 10 s | Hurl a clinker within 380 px: it breaks a cast and stuns the caster for 2 s. In a party a boss shrugs it off. | With nothing to interrupt, it makes the boss Brittle for 6 s. |
 
 Brittle is the class's party signature. It doesn't stack, so one Slagbinder in a party is the point.
 
@@ -568,7 +568,7 @@ Each branch gets 3 card talents and two capstones from the start, so this class 
 - **Slag Lob:** 20 damage, and Heavy Lob is +30% per rank. It strikes an acolyte that is healing a wounded boss first, as Sunmote does. Before that, the Kiln Mother out-healed it: the good bot won 0 of 40 at Kiln tier 1.
 - **Molten Plating:** a pool of its own (`plate`), separate from ward. It stops blows but never unblockable ticks (heat, cold, Ladle Pour, Slag Grip). While it soaked them, a Slagbinder in place of the Duskblade won the Crucible 30 of 30. Now it wins 20 of 30, the same as the Duskblade.
 - **Anvil stance:** takes 35% less damage and has +40 max health. Without that, an Anvil tank won 1 of 30 in the Crucible.
-- **Clinker:** stuns for 2 s, like every interrupt.
+- **Clinker:** stuns for 2 s, like every interrupt. Since the interrupt split it is a stun, not an interrupt: in a party it can't stop a boss's cast.
 - **Slag:** passive regen is 1 a second, like the Bulwark's Resolve. There is no out-of-combat cooling.
 
 **Balance.** Wins out of 40, 40 seeds. "Fair" means the Slagbinder plays the Duskblade's heroes-r2 profiles, because a Slagbinder hero built with tools/progression.ts reaches tier 8 at level 12, against level 8 for the heroes-r2 heroes.
