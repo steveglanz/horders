@@ -10,9 +10,9 @@ import { Hub } from './hub';
 import { loadHero, resetHero, saveHero } from './save';
 import { metIn, recordSeen } from '../sim/seen';
 import { botTree } from '../sim/content/trees';
-import { altOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
+import { altsOn, applyRun, equippedItems, HeroProfile, newerHero, gritFor, rekeyDrops, takePotion, potionWorksIn, keyLevelOf, keysOpen, shareEmbers, toTree } from '../sim/hero';
 import { DUNGEONS, raidCountsTriple } from '../sim/content/dungeon';
-import { CLASSES } from '../sim/content/classes';
+import { ALT_OPTIONS, CLASSES } from '../sim/content/classes';
 import { standInGear } from '../sim/content/botfill';
 import { CoopSession, HeroCard } from './net/coop';
 import { Lobby, LISTEN_MS, makeLobby, pickParty, roleOf, shouldMerge } from './net/lobby';
@@ -260,7 +260,7 @@ function startRun(bounty = false, key = false): void {
     firstDelve: !stress && (hero.runs ?? 0) === 0,
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
-    alt: altOn(hero),
+    alts: altsOn(hero.cls ?? 'emberwright', hero),
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
@@ -431,7 +431,7 @@ function wornTrail(h: HeroProfile): HeroCard['trail'] {
 
 function myCard(): HeroCard {
   const cls = hero.cls ?? 'emberwright';
-  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altOn(hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion, pid: playerId() };
+  return { name: `${CLASSES[cls].name} ${hero.level}`, cls, stance: cls === 'slagbinder' ? hero.stance : undefined, alt: altsOn(cls, hero).includes(ALT_OPTIONS[cls][0].id), alts: altsOn(cls, hero), level: hero.level, gear: equippedItems(hero), passives: { ...hero.passives }, title: hero.wear?.title, glow: hero.wear?.glow, trail: wornTrail(hero), potion: hero.potion, pid: playerId() };
 }
 
 /** This device's player id, kept in storage so a dropped guest can rejoin their delve (CoopSession.resume). */

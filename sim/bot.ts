@@ -4,7 +4,7 @@
  */
 import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
-import { ALT_ABILITIES } from './content/classes';
+import { ALT_BY_ID, AltId } from './content/classes';
 import { SET_TUNING } from './content/sets';
 import { BOT_WALK_STEP, HALLS, HallsPack, PackRole, clearWalk, hallsWay, inside, roomGap, roomInward, wallPush } from './halls';
 
@@ -228,7 +228,7 @@ function slagCast(w: World, skill: number): number | undefined {
 
 /** Picks an action-bar slot to press this tick, the way a decent player would. */
 export function botCast(w: World, skill = 1): number | undefined {
-  if (!w.player.alt) return classCast(w, skill);
+  if (!w.player.alts) return classCast(w, skill);
   // An ability option: interrupts first, then the option, then the class's other choices.
   const c = classCast(w, skill);
   if (c === 3) return c;
@@ -240,9 +240,18 @@ function can(w: World, slot: number): boolean {
   return w.canCast(slot) && !w.isAlt(slot);
 }
 
-/** When to press the hero's ability option (ALT_ABILITIES), or undefined. */
+/** When to press one of the hero's ability options (ALT_OPTIONS), or undefined. */
 function altCast(w: World): number | undefined {
-  const a = ALT_ABILITIES[w.cls];
+  for (const id of w.player.alts ?? []) {
+    const s = altPress(w, id);
+    if (s !== undefined) return s;
+  }
+  return undefined;
+}
+
+/** When to press the option `id`, or undefined. */
+function altPress(w: World, id: AltId): number | undefined {
+  const a = ALT_BY_ID[id];
   if (!w.canCast(a.slot)) return undefined;
   const p = w.player;
   const hurt = 1 - p.hp / p.maxHp;
@@ -263,6 +272,17 @@ function altCast(w: World): number | undefined {
       const q = w.hero(k).player;
       return q.hp > 0 && q.hp < q.maxHp * share && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < r * r;
     });
+  if (id === 'wideCut') {
+    // Wide Cut: on a pack around you; Execution's job (one big foe) is gone, so also on a big foe in reach.
+    let around = 0;
+    for (const e of w.enemies) if (e.alive && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < 160 * 160) around++;
+    return around >= 3 || (bigNear && around >= 1) ? a.slot : undefined;
+  }
+  if (id === 'quicken') {
+    // Quicken: whenever something is in reach and it isn't already running.
+    if ((p.quickUntil ?? -1) > w.time) return undefined;
+    return w.bladeTarget(w.swingReach + 30) >= 0 ? a.slot : undefined;
+  }
   if (w.cls === 'emberwright') {
     // Ember Ward: before the press reaches you, or when a big foe is close.
     if ((p.plateUntil ?? -1) > w.time) return undefined;

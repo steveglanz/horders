@@ -2,13 +2,13 @@
 import {
   achievementView, brewBlocker, brewPotion, collectionOf, keyLevelOf, keysOpen, wearCosmetic,
   HeroProfile, characterOf, switchClass, lootUpgrades, equipBest, equip, equippedItems, gearScore, heroMaxLevel, heroXpToNext, itemScore,
-  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree,
+  grantBossReward, pointsAvailable, potionWorksIn, salvage, salvageAll, salvageAllPlan, spendPoint, gritFor, resetTree, altsPicked,
 } from '../sim/hero';
 import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode, treeOf } from '../sim/content/trees';
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
-import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
+import { ALT_OPTIONS, AltId, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
@@ -326,21 +326,31 @@ export class Hub {
           return `<button data-stance="${st}" data-sfx="${st}Pick" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${tip}">${st === 'anvil' ? 'Anvil · Tank' : 'Bellows · Damage'}</button>`;
         }).join('')}</div>`
         : '')
-      // Ability option: from level 8, swap one action-bar slot for the class's option (kept per character).
+      // Ability options: at levels 8, 12 and 16 a slot gets a second ability to pick (kept per character, locked for the run).
+      // One two-button row per unlocked option, then one note for the next option still locked.
       + (() => {
-        const opt = ALT_ABILITIES[cls];
-        const own = CLASSES[cls].abilities[opt.slot];
-        // Before level 8 a plain note, not a button: "Muster · Lv 8" on a disabled button read as a mystery label (Steve, 25 Nov).
-        if (h.level < ALT_UNLOCK_LEVEL) return `<p class="altlock" title="${opt.def.name}: ${opt.def.text}"><b>Level ${ALT_UNLOCK_LEVEL}:</b> swap ${own.name} for ${opt.def.name}</p>`;
-        return `<div class="stance" role="group" aria-label="Ability option">${[false, true].map((on) => {
-          const d = on ? opt.def : own;
-          const sel = !!h.alt === on;
-          return `<button data-alt="${on ? 1 : 0}" class="${sel ? 'on' : ''}" aria-pressed="${sel}" title="${d.name}: ${d.text}">${d.name}</button>`;
-        }).join('')}</div>`;
+        const picked = altsPicked(cls, h);
+        const open = ALT_OPTIONS[cls].filter((o) => h.level >= o.level).sort((a, b) => a.slot - b.slot);
+        const next = ALT_OPTIONS[cls].find((o) => h.level < o.level);
+        const rows = open.map((opt) => {
+          const own = CLASSES[cls].abilities[opt.slot];
+          const on = picked.includes(opt.id);
+          return `<div class="stance" role="group" aria-label="${own.key} ability">${[false, true].map((alt) => {
+            const d = alt ? opt.def : own;
+            const sel = on === alt;
+            return `<button data-alt="${opt.id}" data-on="${alt ? 1 : 0}" class="${sel ? 'on' : ''}" aria-pressed="${sel}" title="${d.name}: ${d.text}">${d.name}</button>`;
+          }).join('')}</div>`;
+        }).join('');
+        // Before its level a plain note, not a button: "Muster · Lv 8" on a disabled button read as a mystery label (Steve, 25 Nov).
+        const note = next ? `<p class="altlock" title="${next.def.name}: ${next.def.text}"><b>Level ${next.level}:</b> swap ${CLASSES[cls].abilities[next.slot].name} for ${next.def.name}</p>` : '';
+        return rows + note;
       })();
     $('classes').querySelectorAll<HTMLButtonElement>('[data-alt]').forEach((b) =>
       b.addEventListener('click', () => {
-        h.alt = b.dataset.alt === '1';
+        const id = b.dataset.alt as AltId;
+        const rest = altsPicked(cls, h).filter((x) => x !== id);
+        h.alts = b.dataset.on === '1' ? [...rest, id] : rest;
+        delete h.alt;
         this.save();
         this.render();
       }));

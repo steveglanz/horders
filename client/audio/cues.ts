@@ -8,6 +8,7 @@ import { TALENTS, type ClassId, type TalentId } from '../../sim/content/emberwri
 import { ENEMIES, EnemyKind } from '../../sim/content/enemies';
 import type { SoundId } from './sounds';
 import { SET_TUNING, type SetId } from '../../sim/content/sets';
+import { ALT_OPTIONS, type AltId } from '../../sim/content/classes';
 import { ENCOUNTERS, type EncounterId } from '../../sim/content/dungeon';
 import { doorRoom, roomAt, type HallsMap } from '../../sim/halls';
 import type { RoomBedKind } from './music';
@@ -166,13 +167,15 @@ export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
   return out;
 }
 
-/** Each class's ability option (sim ALT_ABILITIES), whichever slot it replaces. */
-const ALT_ABILITY: Partial<Record<ClassId, SoundId>> = {
-  emberwright: 'emberWard',
-  duskblade: 'hamstring',
-  bulwark: 'rallyingCry',
-  lumen: 'lightwell',
-  slagbinder: 'slagPit',
+/** Each ability option (sim ALT_OPTIONS). Wide Cut and Quicken borrow sounds until sound makes their own. */
+const ALT_ABILITY: Record<AltId, SoundId> = {
+  emberWard: 'emberWard',
+  hamstring: 'hamstring',
+  muster: 'rallyingCry',
+  glowPool: 'lightwell',
+  cinderSump: 'slagPit',
+  wideCut: 'duskExecute',
+  quicken: 'hamstring',
 };
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {
@@ -471,7 +474,10 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     case 'revive': return mine(ev.hero) ? { id: 'revive' } : { id: 'revive', vol: 0.5 };
     case 'potion': return { id: 'revive' };
     case 'ability': {
-      if (ev.alt) return { id: ALT_ABILITY[c.cls] ?? 'zap', jitter: 0.04 };
+      if (ev.alt) {
+        const o = ALT_OPTIONS[c.cls].find((x) => x.slot === ev.slot);
+        return { id: o ? ALT_ABILITY[o.id] : 'zap', jitter: 0.04 };
+      }
       const id = ABILITY[c.cls]?.[ev.slot];
       return id ? { id, jitter: 0.04 } : null;
     }

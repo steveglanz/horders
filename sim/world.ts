@@ -12,7 +12,7 @@ import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './c
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
-import { ALT_ABILITIES, CLASSES, ClassDef, SLAG_GUNNER } from './content/classes';
+import { ALT_BY_ID, ALT_OPTIONS, AltId, AltOption, CLASSES, ClassDef, SLAG_GUNNER, cleanAlts } from './content/classes';
 import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
@@ -218,7 +218,15 @@ export const ALT_KIT = {
   cryTime: 5, cryCut: 0.25, cryRadius: 200, cryHeal: 0.15,
   wellTime: 6, wellRadius: 90, wellHeal: 3,
   pitTime: 5, pitRadius: 80, pitDps: 10, pitSlowNormal: 0.4, pitRange: 360,
+  /** Wide Cut (Duskblade R, level 12) and Quicken (Duskblade E, level 16). */
+  wideCutDamage: 110, wideCutRadius: 150, wideCutBleed: 10, quickenTime: 5, quickenHaste: 0.4,
 };
+
+/** A hero's ability options for a run: `alts` by id (cleaned), else `alt` as the class's level-8 option. */
+function altsFor(cls: ClassId, o: { alt?: boolean; alts?: AltId[] }): AltId[] | undefined {
+  const ids = o.alts ? cleanAlts(cls, o.alts) : o.alt ? [ALT_OPTIONS[cls][0].id] : [];
+  return ids.length ? ids : undefined;
+}
 
 /** Slagbinder stance, picked before the run and kept all run: Anvil tanks, Bellows fills a damage slot. */
 export type Stance = 'anvil' | 'bellows';
@@ -470,10 +478,11 @@ export interface Player {
   motesFired?: number;
   /** Slagbinder: its stance, plating on this hero (until when, how much, who poured it), Interpose cover, Cooling Shell, Lobs thrown, Clinker Heart. */
   stance?: Stance;
-  /** Ability option: this hero swapped one slot for its class's ALT_ABILITIES entry. */
-  alt?: boolean;
-  /** Muster, Glow Pool and Cinder Sump timers and positions. */
+  /** Ability options (ALT_OPTIONS) this hero swapped in, at most one per slot. */
+  alts?: AltId[];
+  /** Muster, Glow Pool, Cinder Sump and Quicken timers and positions. */
   cryUntil?: number;
+  quickUntil?: number;
   wellUntil?: number;
   wellX?: number;
   wellY?: number;
@@ -717,8 +726,10 @@ export interface HeroOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
   stance?: Stance;
-  /** Ability option for this run (ALT_ABILITIES). */
+  /** The class's level-8 ability option for this run (ALT_ABILITIES); `alts` names options by id instead. */
   alt?: boolean;
+  /** Ability options for this run (ALT_OPTIONS ids, one per slot). */
+  alts?: AltId[];
   gear?: Item[];
   passives?: Partial<Record<PointId, number>>;
   name?: string;
@@ -787,8 +798,10 @@ export interface WorldOptions {
   cls?: ClassId;
   /** Slagbinder stance for this run (default Bellows). */
   stance?: Stance;
-  /** Ability option for this run (ALT_ABILITIES): swaps one action-bar slot. */
+  /** The class's level-8 ability option for this run (ALT_ABILITIES); `alts` names options by id instead. */
   alt?: boolean;
+  /** Ability options for this run (ALT_OPTIONS ids, one per slot). */
+  alts?: AltId[];
   /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
@@ -1380,7 +1393,7 @@ export class World {
       ward: 0, wardT: 8, bastionT: 0, prevented: 0, echoT: 0, echoAng: 0, guardId: -1, guardAng: 0,
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
-    if (opts.alt) this.player.alt = true;
+    this.player.alts = altsFor(this.cls, opts);
     if (this.cls === 'slagbinder') {
       this.player.stance = this.gunner ? 'bellows' : opts.stance ?? 'bellows';
       if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
@@ -1470,7 +1483,7 @@ export class World {
     const a = (index / MAX_PARTY) * Math.PI * 2;
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
     player.stance = cls === 'slagbinder' ? (this.gunner ? 'bellows' : h.stance ?? 'bellows') : undefined;
-    player.alt = h.alt ? true : undefined;
+    player.alts = altsFor(cls, h);
     if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
     if (cls === 'slagbinder' && this.gunner) { player.maxHp -= SLAG_KIT.gunnerHp; player.hp = player.maxHp; }
     player.px = player.x;
@@ -1662,19 +1675,32 @@ export class World {
     return 0.8 * this.rank('mend') + 1 * this.rank('secondWind') + 1 * this.rank('renewal') + low + warm;
   }
   get abilities(): AbilityDef[] {
-    if (!this.player.alt) return this.classDef.abilities;
-    const a = ALT_ABILITIES[this.cls];
-    return this.classDef.abilities.map((d, k) => (k === a.slot ? a.def : d));
+    if (!this.player.alts) return this.classDef.abilities;
+    return this.classDef.abilities.map((d, k) => this.altAt(k)?.def ?? d);
+  }
+
+  /** The ability option this hero swapped into `slot`, if any. */
+  altAt(slot: number): AltOption | undefined {
+    const ids = this.player.alts;
+    if (!ids) return undefined;
+    for (const id of ids) if (ALT_BY_ID[id].slot === slot) return ALT_BY_ID[id];
+    return undefined;
+  }
+
+  /** Whether this hero swapped in the option `id`. */
+  hasAlt(id: AltId): boolean {
+    return !!this.player.alts?.includes(id);
   }
 
   /** Whether `slot` holds this hero's ability option instead of the class's own ability. */
   isAlt(slot: number): boolean {
-    return !!this.player.alt && ALT_ABILITIES[this.cls].slot === slot;
+    return this.altAt(slot) !== undefined;
   }
 
   /** Resource cost of an action-bar slot after talents. */
   abilityCost(slot: number): number {
-    if (this.isAlt(slot)) return ALT_ABILITIES[this.cls].def.cost;
+    const alt = this.altAt(slot);
+    if (alt) return alt.def.cost;
     if (this.cls === 'emberwright' && slot === 0) return Math.max(0, ABILITIES[0].cost - 6 * this.rank('rollingInferno') - TREE.tinderCost * this.tree('tinder'));
     if (this.cls === 'duskblade' && slot === 0 && this.rank('flurryStep') >= 2) return this.abilities[0].cost - 10;
     return this.abilities[slot]?.cost ?? 0;
@@ -3977,7 +4003,7 @@ export class World {
     } else p.cds[slot] = this.abilityCooldown(slot);
     if (!this.abilities[slot].offGcd) p.gcd = GCD;
     if (this.isAlt(slot)) {
-      this.castAlt(input);
+      this.castAlt(input, slot);
       return;
     }
     if (this.cls === 'lumen') {
@@ -4320,9 +4346,31 @@ export class World {
 
   // ---------------------------------------------------------------- ability options
 
-  /** Casts this hero's ability option (ALT_ABILITIES), whichever class it is. */
-  private castAlt(input: Input): void {
+  /** Casts the ability option in `slot` (ALT_OPTIONS). */
+  private castAlt(input: Input, slot: number): void {
     const p = this.player;
+    const id = this.altAt(slot)?.id;
+    if (id === 'wideCut') {
+      // Wide Cut: a full spin, every foe in reach takes the hit and a bleed. Execution's single-target answer for packs.
+      const r = ALT_KIT.wideCutRadius;
+      this.forEachNear(p.x, p.y, r + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(p.x, p.y, e.x, e.y) > (r + e.def.radius) ** 2) return;
+        this.damageEnemy(i, ALT_KIT.wideCutDamage * this.dmgMult, true);
+        if (e.alive) {
+          e.burnDps = Math.max(e.burnDps, ALT_KIT.wideCutBleed * this.bleedMult * this.dmgMult);
+          e.burnT = Math.max(e.burnT, 4);
+          e.burnBy = this.acting;
+        }
+      });
+      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
+      return;
+    }
+    if (id === 'quicken') {
+      p.quickUntil = this.time + ALT_KIT.quickenTime;
+      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r: 40 });
+      return;
+    }
     if (this.cls === 'emberwright') {
       // Ember Ward: a fire ward that stops blows; plateBy -1 marks it as not a Slagbinder's plating.
       p.plate = p.maxHp * ALT_KIT.emberWardShare;
@@ -4387,7 +4435,7 @@ export class World {
   /** Per-tick upkeep of the ability options: Muster's solo mend, Glow Pool, Cinder Sump's slow. */
   private updateAlt(dt: number): void {
     const p = this.player;
-    if (!p.alt) return;
+    if (!p.alts?.length) return;
     // Ember Ward runs out (Slagbinder plating is cleared in updatePlates).
     if (p.plateBy === -1 && p.plateUntil !== undefined && (this.time >= p.plateUntil || (p.plate ?? 0) <= 0.01)) {
       p.plateUntil = undefined;
@@ -5298,7 +5346,7 @@ export class World {
 
   get swingCooldown(): number {
     const rhythm = this.rank('killingRhythm') > 0 ? 1 + CAPSTONES_2.rhythmStep * (this.player.rhythmN ?? 0) : 1;
-    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm / (1 + 0.05 * this.rank('lightGrip')) / (1 + TREE.paceHaste * this.tree('pace'));
+    return (0.6 * Math.pow(0.88, this.rank('quickBlades'))) / this.loadout.hasteMult / rhythm / (1 + 0.05 * this.rank('lightGrip')) / (1 + TREE.paceHaste * this.tree('pace')) / ((this.player.quickUntil ?? -1) > this.time ? 1 + ALT_KIT.quickenHaste : 1);
   }
   /** Open Veins: the Duskblade's bleeds hit harder. */
   get bleedMult(): number {
@@ -9684,8 +9732,8 @@ export class World {
     const spare: TalentId[] = [];
     let capCards = 0;
     // A hero with an ability option never drafts talents for the ability it replaced.
-    const swapped = this.player.alt ? ALT_ABILITIES[this.cls].slot : -1;
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || d.ability !== swapped) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
+    // (One talent can only upgrade one slot, so checking that slot is enough.)
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || !this.isAlt(d.ability)) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
     for (const b of this.branches) {
       const caps = defs.filter((d) => d.branch === b && d.capstone);
       const capped = caps.some((c) => this.rank(c.id) > 0);

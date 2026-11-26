@@ -637,8 +637,15 @@ Each class has two Mythics of its own, on top of the shared four. A Mythic shoul
 
 Tests are in `tests/mythics.test.ts`.
 
-## Ability options (one swap per class)
-From hero level 8 (`ALT_UNLOCK_LEVEL`), each class can swap one action-bar slot for a sidegrade. The interrupt (F) is never swapped. The pick is made in the hub under the class picker, locked for the run, and saved per character (`alt` in CHARACTER_KEYS and the co-op HeroCard). Definitions are in `ALT_ABILITIES` in sim/content/classes.ts, and tuning is in `ALT_KIT` in sim/world.ts.
+## Ability options (a second ability per slot)
+Each class earns up to three options, at hero levels 8, 12 and 16, each for a different slot, so by level 16 Q, E and R each offer two abilities. The interrupt (F) is never swapped. Each pick is made in the hub under the class picker (one two-button row per unlocked option, and a note for the next one), locked for the run, and saved per character (`alts`, a list of option ids, in CHARACTER_KEYS and the co-op HeroCard; old saves' `alt: true` reads as the level-8 option). Definitions are in `ALT_OPTIONS` in sim/content/classes.ts (`ALT_ABILITIES` is each class's level-8 option), and tuning is in `ALT_KIT` in sim/world.ts. Classes get their level-12 and level-16 options one class per PR; the Duskblade is first.
+
+| Class | Level | Slot | Replaces | Option | Cost / cooldown | What it does |
+|---|---|---|---|---|---|---|
+| Duskblade | 12 | R | Execution | Wide Cut | 60 / 18 s | A spin: 110 damage and a 4 s bleed (10 a second) to every foe within 150 px. For packs; Execution stays better on one big foe. |
+| Duskblade | 16 | E | Sidestep | Quicken | 0 / 12 s | For 5 s the blades swing 40% faster. You give up Sidestep's dodge and mend. |
+
+The level-8 options:
 
 | Class | Slot | Replaces | Option | Cost / cooldown | What it does |
 |---|---|---|---|---|---|
@@ -657,7 +664,7 @@ Design's conditions (21 Nov 2026), all built in:
 
 **Bot:** `altCast` in sim/bot.ts presses the option, and the class's own logic can't press the swapped slot. Interrupts still come first.
 
-**Tools:** ALT=1 turns the option on in tools/balance.ts, tools/group.ts and the matrix's foundry2.ts. In group.ts, ALT=bulwark,lumen turns it on for those classes only.
+**Tools:** ALT=1 turns the level-8 option on in tools/balance.ts (ALT=wideCut,quicken names options by id there), tools/group.ts and the matrix's foundry2.ts. In group.ts, ALT=bulwark,lumen turns it on for those classes only.
 
 **Placeholders:** the option glyphs (`ALT_GLYPH` in client/icons.ts) and the cast effect (a ring and the name) are placeholders until visuals draws them. Sound can tell an option apart by `alt: true` on the 'ability' event.
 
