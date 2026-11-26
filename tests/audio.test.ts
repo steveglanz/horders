@@ -244,13 +244,13 @@ describe('audio', () => {
   });
 
   it('hears the real Smeltery fight: wheel, Meltdown pulses and both sides of the Colossus', () => {
-    // Seed 19 since Phase 15 Y2: raid trash events changed seed 3's run, which no longer reached Meltdown.
-    const w = new World({ seed: 19, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
+    // Seed 19 since Phase 15 Y2. Since the 26 Nov loot tables this gearless party gets plainer bags and is too slow to reach Meltdown by 900 s, so it is invulnerable with a longer cap: this test is about the sounds.
+    const w = new World({ seed: 19, invulnerable: true, dungeon: 'smeltery', tier: 10, omens: [], cls: 'duskblade', party: (['bulwark', 'lumen', 'emberwright'] as const).map((cls, k) => ({ cls, name: `${cls}${k}` })) });
     // Phase 15 Y3 added a third version (Millstone), so seed 19 no longer rolls the Wheel by itself: keep its Wheel run.
     (w as unknown as { rollColossusVariant(): string }).rollColossusVariant = () => 'wheel';
     const heard = new Set<string>();
     let phase3Side = false;
-    while (w.state !== 'ended' && w.time < 900) {
+    while (w.state !== 'ended' && w.time < 1500) {
       if (w.state === 'draft') {
         const h = Math.max(0, w.heroes.findIndex((_, i) => w.choicesOf(i).length > 0));
         w.use(h);
@@ -270,7 +270,7 @@ describe('audio', () => {
     }
     for (const id of ['sweepWarn', 'slagSweep', 'wheelWarn', 'phaseWheel', 'phaseMeltdown', 'meltPulse', 'backHit']) expect(heard.has(id), id).toBe(true);
     expect(phase3Side).toBe(false);
-  }, 60_000);
+  }, 120_000);
 
   it('gives the Anvil Slagbinder plated hits and each stance its own pick sound', () => {
     const anvil = { cls: 'slagbinder' as const, acting: 0, stance: 'anvil' };

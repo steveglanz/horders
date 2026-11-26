@@ -601,7 +601,7 @@ export function cueFor(ev: SimEvent, c: CueContext): Cue | null {
     // YSMERETV2: a lone flame flares and hits every hero: its own fiery whump.
     case 'ysFlare': return { id: 'ysFlare' };
     case 'drop':
-      return { id: ev.rarity === 'mythic' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
+      return { id: ev.rarity === 'mythic' || ev.rarity === 'legendary' ? 'dropMythic' : ev.rarity === 'epic' ? 'dropEpic' : ev.rarity === 'rare' ? 'dropRare' : 'drop', jitter: 0.03 };
     case 'loot': return mine(ev.hero) && ev.equipped ? { id: 'equip' } : null;
     case 'quest': return { id: 'quest' };
     case 'dodge': return { id: 'dodged' };

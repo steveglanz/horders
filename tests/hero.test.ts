@@ -170,7 +170,7 @@ describe('co-op guest loot', () => {
     h.inventory = [{ id: 'i3', slot: 'ring', rarity: 'common', ilvl: 1, name: 'Plain Band', stats: [] }];
     const hostDrops = [
       { id: 'i3', slot: 'weapon' as const, rarity: 'rare' as const, ilvl: 4, name: 'Kilnfired Fangs', stats: [] },
-      { id: 'i4', slot: 'head' as const, rarity: 'fine' as const, ilvl: 4, name: 'Warded Helm', stats: [] },
+      { id: 'i4', slot: 'head' as const, rarity: 'uncommon' as const, ilvl: 4, name: 'Warded Helm', stats: [] },
     ];
     const r = rekeyDrops(h, hostDrops, ['i4']);
     expect(r.drops.map((d) => d.id)).toEqual(['i7', 'i8']);

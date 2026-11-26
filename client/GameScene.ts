@@ -2158,7 +2158,7 @@ export class GameScene extends Phaser.Scene {
       const hop = t < 1 ? -Math.sin(t * Math.PI) * 26 : 0;
       const pop = t < 1 ? 0.4 + 0.6 * (1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2)) : 1;
       bag.setVisible(true).setPosition(d.x, d.y + bob + hop).setScale(pop).setTint(c).setTintMode(Phaser.TintModes.MULTIPLY);
-      const tall = d.item.rarity === 'common' ? 60 : d.item.rarity === 'fine' ? 90 : 150;
+      const tall = d.item.rarity === 'common' ? 60 : d.item.rarity === 'uncommon' ? 90 : 150;
       beam.setVisible(true).setPosition(d.x, d.y + 6).setDisplaySize(18, tall).setTint(c).setAlpha(0.55 + Math.sin(this.time.now / 300) * 0.15);
     }
     for (let i = 0; i < w.veins.length; i++) {
@@ -7220,8 +7220,8 @@ export class GameScene extends Phaser.Scene {
     if (i >= 0) this.dropBorn[i] = this.time.now;
     const c = hex(RARITY[rarity as keyof typeof RARITY].color);
     if (rarity === 'common') return;
-    this.ring(x, y, rarity === 'fine' ? 50 : 90, c, 0.45);
-    if (rarity === 'fine') return;
+    this.ring(x, y, rarity === 'uncommon' ? 50 : 90, c, 0.45);
+    if (rarity === 'uncommon') return;
     for (let k = 0; k < (this.lowFx ? 4 : 10); k++) {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
       const sp = 140 + Math.random() * 120;

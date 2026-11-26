@@ -40,7 +40,7 @@ for (const seed of seeds) {
   if (s.victory) wins++;
   const r = applyRun(h, seed, s, w.eliteKilled, w.runDrops, w.runEquipped);
   items += r.items.length;
-  rare += r.items.filter((i) => i.rarity !== 'common' && i.rarity !== 'fine').length;
+  rare += r.items.filter((i) => i.rarity !== 'common' && i.rarity !== 'uncommon').length;
   minutes += s.time / 60;
 }
 const f = (x: number) => x.toFixed(2);

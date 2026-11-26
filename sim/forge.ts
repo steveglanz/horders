@@ -15,7 +15,7 @@ import { Item, Rarity, SLOT_MAIN, STATS, Stat } from './content/items';
  */
 export const FORGE_LEVEL_LEAD = 1;
 
-const RARITY_COST: Record<Rarity, number> = { common: 0.5, fine: 0.75, rare: 1, epic: 1.5, mythic: 2 };
+const RARITY_COST: Record<Rarity, number> = { common: 0.5, uncommon: 0.75, rare: 1, epic: 1.5, legendary: 1.75, mythic: 2 };
 
 /** Embers to raise an item by one level. */
 export function upgradeCost(it: Item): number {
