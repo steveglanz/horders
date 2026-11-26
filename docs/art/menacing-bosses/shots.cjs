@@ -1,5 +1,6 @@
-// Menacing bosses, part 1: a 3D fight at 320x568 with the Cinder Colossus, Ondrel, Oskel and Hessa
-// spawned in a ring round the hero. KINDS=a,b picks other kinds. Prints the draw calls.
+// Menacing bosses: a 3D fight at 320x568 with a batch of bosses spawned in a ring round the hero.
+// KINDS=a,b picks the kinds (part 1: colossus,ondrel,oskel,hessa); R=<px> and SPREAD=<radians> size the ring.
+// Prints the draw calls.
 // Usage: npm run build && node docs/art/menacing-bosses/shots.cjs <dist> <outDir> [dungeon] [tag]
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
@@ -29,10 +30,11 @@ const srv = http.createServer((q, r) => {
   await page.waitForTimeout(1500);
   // Clear whatever is near, then ring the hero with this batch (spawn is private in TS but plain at runtime).
   const kindsArg = (process.env.KINDS || 'colossus,ondrel,oskel,hessa').split(',');
-  await page.evaluate((kindsArg) => { const s = window.__ember.scene(), w = s.world, p = w.heroData(0).player;
+  const R = Number(process.env.R) || 150, SPREAD = Number(process.env.SPREAD) || 1.05;
+  await page.evaluate(([kindsArg, R, SPREAD]) => { const s = window.__ember.scene(), w = s.world, p = w.heroData(0).player;
     w.enemies.forEach((e) => { if (e.alive) { e.x = e.px = p.x + 4000; e.y = e.py = p.y + 4000; } });
     const kinds = kindsArg;
-    kinds.forEach((k, i) => { const ang = -Math.PI / 2 + (i - (kinds.length - 1) / 2) * 1.05; w.spawn(k, p.x + Math.cos(ang) * 150, p.y + Math.sin(ang) * 150); }); }, kindsArg);
+    kinds.forEach((k, i) => { const ang = -Math.PI / 2 + (i - (kinds.length - 1) / 2) * SPREAD; w.spawn(k, p.x + Math.cos(ang) * R, p.y + Math.sin(ang) * R); }); }, [kindsArg, R, SPREAD]);
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(out, `${tag}-fight-${dungeon}.png`) });
   const calls = await page.evaluate(() => window.__ember.scene().hd2d?.stats()?.calls ?? null);
