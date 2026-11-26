@@ -1062,7 +1062,7 @@ function drawLampeye(ctx: Ctx, _s: number, f: number): void {
   ell(ctx, 22, 39 + bob, 1.4, 2); ctx.fillStyle = '#fff0b0'; ctx.fill();
 }
 
-/** Dimhorn: a thin, stooped thing of the dark on long spindly legs, a pale bone mask and long fingers. */
+/** Dimhorn: a thin, stooped thing of the dark on long spindly legs: bone spines, a horned skull with a jaw of needle teeth, and hooked talons. */
 function drawDimhorn(ctx: Ctx, _s: number, f: number): void {
   const stride = [3, 0, -3, 0][f];
   const bob = [0, -1, 0, -1][f];
@@ -1077,20 +1077,37 @@ function drawDimhorn(ctx: Ctx, _s: number, f: number): void {
     ctx.beginPath(); ctx.moveTo(22 + sx * 2, 26 + bob); ctx.lineTo(22 + sx * 5 + k * 0.4, 33 + bob); ctx.lineTo(22 + sx * 3 + k, 41); ctx.stroke();
   }
   ctx.restore();
+  // Bone spines jutting from the hunched back (menacing pass, 26 Nov).
+  for (const [x, y, dx, dy] of [[16.2, 21.8, -3.2, -1.2], [16.8, 17, -3, -2.6], [18.7, 12.8, -2.2, -3.4]] as [number, number, number, number][]) {
+    ctx.beginPath(); ctx.moveTo(x + 1, y - 1.5 + bob); ctx.lineTo(x + dx, y + dy + bob); ctx.lineTo(x + 1, y + 1.5 + bob); ctx.closePath();
+    shade(ctx, '#cfc8b6', '#6e685a', y - 3, y + 2, 0.9);
+  }
   // A narrow, ragged body, hunched forward.
   ctx.beginPath();
   ctx.moveTo(17, 27 + bob); ctx.quadraticCurveTo(14, 16 + bob, 22, 9 + bob); ctx.quadraticCurveTo(30, 10 + bob, 28, 20 + bob);
   ctx.lineTo(27, 27 + bob); ctx.lineTo(24, 25 + bob); ctx.lineTo(21, 28 + bob); ctx.lineTo(19, 25 + bob); ctx.closePath();
   shade(ctx, '#3c4462', '#141826', 9, 28, 1.4);
-  // Long arm and fingers reaching forward.
+  // Long arm reaching forward, ending in hooked talons.
   ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#1c2236'; ctx.lineWidth = 1.8;
   ctx.beginPath(); ctx.moveTo(27, 15 + bob); ctx.lineTo(34, 21 + bob); ctx.lineTo(37, 27 + bob); ctx.stroke();
-  ctx.lineWidth = 1; for (const d of [-1.5, 0, 1.5]) { ctx.beginPath(); ctx.moveTo(37, 27 + bob); ctx.lineTo(39 + d * 0.4, 31 + bob + d * 0.3); ctx.stroke(); }
+  ctx.strokeStyle = '#c8d0e0'; ctx.lineWidth = 1;
+  for (const d of [-1.6, 0, 1.6]) { ctx.beginPath(); ctx.moveTo(37, 27 + bob); ctx.quadraticCurveTo(39.5 + d * 0.5, 29 + bob + d * 0.3, 39 + d * 0.9, 32.5 + bob + d * 0.2); ctx.stroke(); }
   ctx.restore();
-  // Pale bone mask, pushed forward, with cold pin eyes.
-  ctx.beginPath(); ctx.moveTo(22, 7 + bob); ctx.quadraticCurveTo(31, 6 + bob, 32, 12 + bob); ctx.quadraticCurveTo(30, 17 + bob, 25, 16 + bob); ctx.quadraticCurveTo(21, 13 + bob, 22, 7 + bob); ctx.closePath();
+  // A curved horn swept back off the skull.
+  ctx.beginPath(); ctx.moveTo(23, 8.5 + bob); ctx.quadraticCurveTo(18, 7 + bob, 15.5, 2 + bob); ctx.quadraticCurveTo(20, 4.5 + bob, 25, 6.5 + bob); ctx.closePath();
+  shade(ctx, '#cfc8b6', '#6e685a', 2, 9, 1);
+  // Pale bone skull, pushed forward: sunken sockets, cold slit eyes and a jutting jaw of needle teeth.
+  ctx.beginPath();
+  ctx.moveTo(22, 7 + bob); ctx.quadraticCurveTo(31, 5 + bob, 32.5, 11 + bob); ctx.lineTo(33.8, 14 + bob); ctx.lineTo(29, 17 + bob);
+  ctx.quadraticCurveTo(23.5, 16 + bob, 22, 12 + bob); ctx.quadraticCurveTo(21, 9 + bob, 22, 7 + bob); ctx.closePath();
   shade(ctx, '#e6e0d0', '#9a9486', 6, 17, 1.2);
-  eyes(ctx, [[27, 11 + bob], [30, 11 + bob]], 0.8, '#bfe0ff');
+  ctx.fillStyle = '#141826';
+  for (const [x, y] of [[26.6, 10.6], [30, 11.1]]) { ctx.beginPath(); ctx.moveTo(x - 1.9, y - 1.2 + bob); ctx.lineTo(x + 1.9, y + 0.1 + bob); ctx.lineTo(x - 1, y + 1.3 + bob); ctx.closePath(); ctx.fill(); }
+  slitEyes(ctx, [[26.6, 10.6 + bob], [30, 11.1 + bob]], 0.85, '#bfe0ff');
+  ctx.fillStyle = '#0a0c14';
+  ctx.beginPath(); ctx.moveTo(25, 14 + bob); ctx.lineTo(33.2, 13.6 + bob); ctx.lineTo(29, 16.3 + bob); ctx.lineTo(25.5, 15.6 + bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#eef2f6';
+  for (const x of [26.4, 28.1, 29.8, 31.5]) { ctx.beginPath(); ctx.moveTo(x - 0.45, 13.9 + bob); ctx.lineTo(x, 15.3 + bob); ctx.lineTo(x + 0.45, 13.85 + bob); ctx.fill(); }
 }
 
 /** Conchblower: a fish-folk caller of the quay, scaled teal and finned, crest up, webbed hands, a sash of net. */
@@ -1185,36 +1202,49 @@ function surf(ctx: Ctx, cx: number, cy: number, rx: number, phase: number, a = 0
   ctx.restore();
 }
 
-/** Shoal Lurker: a lean grey-green swimmer, back and fin above the water, circling the rafts. Faces right. */
+/** Shoal Lurker: a lean grey-green eel-shark, spined fin and gaping jaw of teeth above the water, circling the rafts. Faces right. */
 function drawShoalLurker(ctx: Ctx, _s: number, f: number): void {
   const sway = [2.2, 0.8, -2.2, -0.8][f];
   const bob = [0, -0.6, 0, -0.6][f];
+  const gape = [0.6, 1.2, 0.6, 0.1][f];
   // Dark water around it, so it reads as swimming, not walking.
   ell(ctx, 18, 24, 15, 5); ctx.fillStyle = 'rgba(6,24,32,0.55)'; ctx.fill();
-  // Tail fluke, sweeping.
-  ctx.beginPath(); ctx.moveTo(8, 21 + bob); ctx.lineTo(1, 15 + bob + sway); ctx.lineTo(3, 21 + bob); ctx.lineTo(1, 27 + bob + sway * 0.4); ctx.closePath();
+  // Forked tail fluke, sweeping.
+  ctx.beginPath(); ctx.moveTo(8, 21 + bob); ctx.lineTo(0.5, 13 + bob + sway); ctx.lineTo(3.8, 20.5 + bob); ctx.lineTo(0.5, 28 + bob + sway * 0.4); ctx.closePath();
   shade(ctx, '#6f9488', '#24403a', 15, 27, 1);
-  // Body: a long eel-like back breaking the surface.
+  // Spined dorsal fin, ragged between the spines (menacing pass, 26 Nov).
+  ctx.beginPath(); ctx.moveTo(12.5, 16.5 + bob); ctx.lineTo(14, 8 + bob + sway * 0.25); ctx.lineTo(16.4, 12.5 + bob); ctx.lineTo(18.8, 6 + bob + sway * 0.2);
+  ctx.lineTo(20.5, 11.5 + bob); ctx.lineTo(23, 7.5 + bob + sway * 0.15); ctx.lineTo(24.2, 12.5 + bob); ctx.lineTo(26.6, 10 + bob); ctx.lineTo(27, 15.5 + bob); ctx.closePath();
+  shade(ctx, '#9cc4b4', '#335a50', 6, 16, 1);
+  // Body: lean and angular, a hooked snout over a gaping jaw.
   ctx.beginPath();
   ctx.moveTo(7, 22 + bob);
-  ctx.quadraticCurveTo(14, 13 + bob + sway * 0.3, 25, 15 + bob);
-  ctx.quadraticCurveTo(33, 16 + bob, 34, 21 + bob);
+  ctx.quadraticCurveTo(14, 13 + bob + sway * 0.3, 24, 14.5 + bob);
+  ctx.quadraticCurveTo(31, 15 + bob, 35.4, 18.4 + bob);
+  ctx.lineTo(28.5, 20 + bob);
+  ctx.lineTo(33.8, 21.8 + gape + bob);
   ctx.quadraticCurveTo(24, 25 + bob, 7, 22 + bob);
   ctx.closePath();
   shade(ctx, '#86ab9c', '#2c4a43', 13, 25);
+  // The open maw and its teeth.
+  ctx.beginPath(); ctx.moveTo(35, 18.6 + bob); ctx.lineTo(28.8, 20 + bob); ctx.lineTo(33.4, 21.6 + gape + bob); ctx.closePath(); ctx.fillStyle = '#0c1416'; ctx.fill();
+  ctx.fillStyle = '#eef4ea';
+  for (const t of [0.2, 0.45, 0.7, 0.92]) { const x = 29.2 + t * 5.4, y = 19.9 - t * 1.2 + bob; ctx.beginPath(); ctx.moveTo(x - 0.4, y); ctx.lineTo(x, y + 1.2); ctx.lineTo(x + 0.4, y - 0.1); ctx.fill(); }
+  for (const t of [0.3, 0.6, 0.88]) { const x = 29.4 + t * 4, y = 20.4 + t * (1.2 + gape) + bob; ctx.beginPath(); ctx.moveTo(x - 0.4, y); ctx.lineTo(x, y - 1.1); ctx.lineTo(x + 0.4, y + 0.1); ctx.fill(); }
   // Pale belly line along the waterline.
   ctx.strokeStyle = 'rgba(214,236,228,0.75)'; ctx.lineWidth = 1.1;
-  ctx.beginPath(); ctx.moveTo(12, 22.6 + bob); ctx.quadraticCurveTo(24, 23.6 + bob, 33, 21 + bob); ctx.stroke();
-  // Ragged dorsal fin.
-  ctx.beginPath(); ctx.moveTo(14, 15.5 + bob); ctx.lineTo(18, 7 + bob + sway * 0.25); ctx.lineTo(20, 10 + bob); ctx.lineTo(23, 8.5 + bob); ctx.lineTo(25, 15 + bob); ctx.closePath();
-  shade(ctx, '#9cc4b4', '#335a50', 7, 16, 1);
-  // Barnacle specks.
+  ctx.beginPath(); ctx.moveTo(12, 22.6 + bob); ctx.quadraticCurveTo(22, 23.8 + bob, 31, 22 + gape * 0.5 + bob); ctx.stroke();
+  // Gill slits, old scars and barnacle specks.
+  ctx.strokeStyle = 'rgba(16,36,32,0.85)'; ctx.lineWidth = 0.8;
+  for (const x of [23.5, 25, 26.5]) { ctx.beginPath(); ctx.moveTo(x, 17 + bob); ctx.quadraticCurveTo(x - 0.8, 19 + bob, x, 21 + bob); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(214,236,228,0.6)'; ctx.lineWidth = 0.6;
+  for (const [x, y] of [[13, 19.5], [17, 17.5]]) { ctx.beginPath(); ctx.moveTo(x, y + bob); ctx.lineTo(x + 2.4, y + 1.6 + bob); ctx.stroke(); }
   ctx.fillStyle = 'rgba(232,226,210,0.85)';
-  for (const [x, y] of [[16, 17.5], [21, 16.5], [27, 17.5]]) { ctx.beginPath(); ctx.arc(x, y + bob, 0.8, 0, Math.PI * 2); ctx.fill(); }
-  // Jaw and a pale hungry eye.
-  ctx.strokeStyle = INK; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(34, 20.6 + bob); ctx.lineTo(29, 20 + bob); ctx.stroke();
-  eyes(ctx, [[30.2, 17.6 + bob]], 1.1, SURF);
+  for (const [x, y] of [[16, 18.5], [20, 16.5]]) { ctx.beginPath(); ctx.arc(x, y + bob, 0.8, 0, Math.PI * 2); ctx.fill(); }
+  // A heavy brow over a cold, hungry slit eye.
+  ctx.fillStyle = '#24403a';
+  ctx.beginPath(); ctx.moveTo(27.4, 15.4 + bob); ctx.lineTo(32.2, 16.6 + bob); ctx.lineTo(31.6, 17.4 + bob); ctx.lineTo(27.8, 16.6 + bob); ctx.closePath(); ctx.fill();
+  slitEyes(ctx, [[29.6, 17.4 + bob]], 1, SURF);
   surf(ctx, 18, 24.5, 13, sway * 0.4, 0.75);
 }
 
@@ -2856,46 +2886,67 @@ function lens(ctx: Ctx, x: number, y: number, r: number, ring = 1.6): void {
   ctx.restore();
 }
 
-/** Lensbearer: a hooded keeper in indigo robes, raising a brass lens on a staff. Faces right. */
+/** Lensbearer: a hunched zealot in torn indigo robes; a clawed hand lifts a thorned brass lens, fangs glint in the hood. Faces right. */
 function drawLensbearer(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
   const step = [1, 0, -1, 0][f];
+  const flap = [0, 0.8, 0, -0.8][f];
   ctx.fillStyle = '#141024';
   ell(ctx, 21 + step * 2, 50, 4.2, 2); ctx.fill();
   ell(ctx, 31 - step * 2, 50, 4.2, 2); ctx.fill();
-  // Robe, flaring at the hem.
+  // Robe, hunched forward, its hem torn into ragged points (menacing pass, 26 Nov).
   ctx.beginPath();
-  ctx.moveTo(26, 15 + bob);
-  ctx.quadraticCurveTo(37, 22, 39, 49);
-  ctx.quadraticCurveTo(33, 52, 26, 50.5);
-  ctx.quadraticCurveTo(19, 52, 13, 49);
-  ctx.quadraticCurveTo(15, 22, 26, 15 + bob);
+  ctx.moveTo(24, 16 + bob);
+  ctx.quadraticCurveTo(37, 20 + bob, 39, 47);
+  ctx.lineTo(36.5, 45 + flap); ctx.lineTo(34.5, 50.5); ctx.lineTo(31.5, 46.5); ctx.lineTo(28.5, 51); ctx.lineTo(25.5, 46.5 - flap);
+  ctx.lineTo(22, 51); ctx.lineTo(19.5, 46.5); ctx.lineTo(16, 50.5 + flap * 0.5); ctx.lineTo(14.5, 46); ctx.lineTo(11.5, 48.5);
+  ctx.quadraticCurveTo(12, 24, 24, 16 + bob);
   ctx.closePath();
   shade(ctx, '#4e4888', '#16122c', 15, 52);
   rimLight(ctx, 15 + bob, 30);
-  // Gold-stitched hem and a centre seam.
+  // Frayed gold stitching and a centre seam.
   ctx.save();
   ctx.strokeStyle = 'rgba(232,188,96,0.85)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(14, 47.5); ctx.quadraticCurveTo(19, 50, 26, 49); ctx.quadraticCurveTo(33, 50, 38, 47.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(15, 44.5); ctx.quadraticCurveTo(19, 46, 23, 45.2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(27, 45.2); ctx.quadraticCurveTo(32, 46, 37.5, 43.8); ctx.stroke();
   ctx.strokeStyle = 'rgba(20,14,40,0.6)';
-  ctx.beginPath(); ctx.moveTo(27, 26 + bob); ctx.quadraticCurveTo(28, 38, 27, 49); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(27, 26 + bob); ctx.quadraticCurveTo(28, 38, 27, 47); ctx.stroke();
   ctx.restore();
-  // Hood with a deep shadowed opening.
+  // A bony spine pressing through the cloth of the hunched back.
+  for (const [x, y] of [[15.4, 30], [16.2, 25], [18.4, 20.5]] as [number, number][]) {
+    ctx.beginPath(); ctx.moveTo(x + 1.4, y - 1.6 + bob); ctx.lineTo(x - 2.2, y - 2.6 + bob); ctx.lineTo(x + 1.2, y + 1.4 + bob); ctx.closePath();
+    shade(ctx, '#3a3470', '#1a1636', y - 3, y + 2, 0.9);
+  }
+  // A long pointed cowl hanging forward over a deep, dark opening.
   ctx.beginPath();
-  ctx.moveTo(19, 22 + bob); ctx.quadraticCurveTo(18, 9 + bob, 27, 8 + bob); ctx.quadraticCurveTo(35, 9 + bob, 34, 21 + bob); ctx.quadraticCurveTo(27, 24 + bob, 19, 22 + bob);
+  ctx.moveTo(18, 23 + bob); ctx.quadraticCurveTo(15, 11 + bob, 21, 4 + bob); ctx.quadraticCurveTo(25, 6 + bob, 30, 8 + bob);
+  ctx.quadraticCurveTo(36, 11 + bob, 36.5, 20.5 + bob); ctx.lineTo(34, 18.5 + bob); ctx.quadraticCurveTo(28, 25 + bob, 18, 23 + bob);
   ctx.closePath();
-  shade(ctx, '#5a54a0', '#221c46', 8, 24);
-  rimLight(ctx, 8 + bob, 16);
-  ell(ctx, 28.5, 16.5 + bob, 4.2, 4.6); ctx.fillStyle = '#0a0816'; ctx.fill();
-  eyes(ctx, [[28.5, 16.5 + bob], [31, 16.5 + bob]], 0.9, '#ffe9a8');
-  // Staff and lens; the lens casts a few rays downward.
+  shade(ctx, '#5a54a0', '#221c46', 4, 24);
+  rimLight(ctx, 4 + bob, 16);
+  ctx.beginPath(); ctx.moveTo(26, 12 + bob); ctx.quadraticCurveTo(33, 11 + bob, 34.5, 18.5 + bob); ctx.quadraticCurveTo(30, 22 + bob, 26, 20 + bob); ctx.quadraticCurveTo(24.5, 16 + bob, 26, 12 + bob);
+  ctx.closePath(); ctx.fillStyle = '#0a0816'; ctx.fill();
+  slitEyes(ctx, [[29, 15.2 + bob], [32.4, 15.6 + bob]], 0.85, '#ffe9a8');
+  ctx.fillStyle = '#e8e0f4';
+  for (const x of [29.4, 30.9, 32.4]) { ctx.beginPath(); ctx.moveTo(x - 0.45, 18.4 + bob); ctx.lineTo(x, 19.9 + bob); ctx.lineTo(x + 0.45, 18.4 + bob); ctx.fill(); }
+  // Staff; three thorns curl round the lens, which casts a few rays downward.
   limb(ctx, 35, 40 + bob, 44, 16 + bob, 2.2, '#b98b3c');
-  limb(ctx, 34, 29 + bob, 38, 27 + bob, 3, '#3a3470');
-  ctx.save();
-  ctx.globalAlpha = 0.35; ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+  ctx.save(); ctx.lineCap = 'round';
+  for (const [tx, ty, cx, cy] of [[37.4, 4.6, 37.5, 14], [52.6, 4.6, 52.5, 14], [45, 2.6, 41, 7]] as [number, number, number, number][]) {
+    for (const [c, w] of [[INK, 2.6], ['#a8792e', 1.3]] as [string, number][]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(45, 17 + bob); ctx.quadraticCurveTo(cx, cy + bob, tx, ty + bob); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 0.35; ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 1;
   for (const [dx, dy] of [[-5, 12], [0, 14], [5, 12]]) { ctx.beginPath(); ctx.moveTo(45, 18 + bob); ctx.lineTo(45 + dx, 18 + bob + dy); ctx.stroke(); }
   ctx.restore();
   lens(ctx, 45, 11 + bob, 6.2);
+  // Sleeve, and a bony hand whose talons hook round the staff.
+  limb(ctx, 33, 29 + bob, 38.5, 27.5 + bob, 3, '#3a3470');
+  ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#d8d0e8'; ctx.lineWidth = 0.8;
+  for (const [y0, y1] of [[26, 25.2], [27.4, 27.2], [28.8, 29.4]]) { ctx.beginPath(); ctx.moveTo(38.6, y0 + bob); ctx.quadraticCurveTo(41.6, y0 - 0.6 + bob, 42, y1 + 1 + bob); ctx.stroke(); }
+  ctx.restore();
 }
 
 /** Shade: a wisp of living shadow with a trailing tail and two cold eyes. Faces right. */
@@ -2936,37 +2987,59 @@ function drawShade(ctx: Ctx, _s: number, f: number): void {
   ctx.restore();
 }
 
-/** Brandkeeper: a tall mantled keeper with the sun-eye sigil burning on its chest. Faces right. */
+/** Brandkeeper: a tall horned keeper in a spiked mantle, a fanged mask and the sun-eye brand burning on its chest. Faces right. */
 function drawBrandkeeper(ctx: Ctx, _s: number, f: number): void {
   const bob = [0, -1, 0, -1][f];
   const step = [1, 0, -1, 0][f];
   const pulse = [0, 1, 2, 1][f];
+  const flap = [0, 0.8, 0, -0.8][f];
   ctx.fillStyle = '#16101e';
   ell(ctx, 21 + step * 2, 48, 3.8, 1.8); ctx.fill();
   ell(ctx, 30 - step * 2, 48, 3.8, 1.8); ctx.fill();
+  // Robe with a torn hem (menacing pass, 26 Nov).
   ctx.beginPath();
-  ctx.moveTo(26, 12 + bob);
-  ctx.quadraticCurveTo(37, 19, 37.5, 48);
-  ctx.lineTo(14.5, 48);
-  ctx.quadraticCurveTo(15, 19, 26, 12 + bob);
+  ctx.moveTo(26, 13 + bob);
+  ctx.quadraticCurveTo(37, 19, 37.5, 46);
+  ctx.lineTo(35, 48.5 + flap); ctx.lineTo(32.5, 45.5); ctx.lineTo(29.5, 49); ctx.lineTo(26.5, 45.5 - flap);
+  ctx.lineTo(23, 49); ctx.lineTo(20, 45.5); ctx.lineTo(17, 48.5 + flap * 0.5); ctx.lineTo(14.5, 46);
+  ctx.quadraticCurveTo(15, 19, 26, 13 + bob);
   ctx.closePath();
   shade(ctx, '#5e3c66', '#1c1020', 12, 48);
   rimLight(ctx, 12 + bob, 26);
-  // Gold-edged mantle over the shoulders.
+  // Arms: long and thin, ending in talons.
+  limb(ctx, 18, 25 + bob, 12, 37, 2.6, '#3e2640');
+  limb(ctx, 34, 25 + bob, 40.5, 18.5 + bob, 2.6, '#3e2640');
+  ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#e8dcc0'; ctx.lineWidth = 0.8;
+  for (const d of [-1.2, 0, 1.2]) { ctx.beginPath(); ctx.moveTo(12, 37); ctx.quadraticCurveTo(11.5 + d, 39.5, 12.5 + d * 1.4, 41); ctx.stroke(); }
+  for (const [x, y] of [[39.5, 14.5], [42.5, 13], [45, 16.5]]) { ctx.beginPath(); ctx.moveTo(40.5, 18.5 + bob); ctx.quadraticCurveTo((40.5 + x) / 2 - 0.6, (18.5 + y) / 2 - 1, x, y + bob); ctx.stroke(); }
+  ctx.restore();
+  // Mantle: a gold-edged collar of spikes over the shoulders.
   ctx.beginPath();
-  ctx.moveTo(16, 24 + bob); ctx.quadraticCurveTo(26, 15 + bob, 36, 24 + bob); ctx.lineTo(33, 28 + bob); ctx.quadraticCurveTo(26, 22 + bob, 19, 28 + bob); ctx.closePath();
+  ctx.moveTo(15, 25 + bob); ctx.lineTo(13.5, 18.5 + bob); ctx.lineTo(18, 21.5 + bob); ctx.lineTo(19, 16 + bob); ctx.lineTo(22, 19.5 + bob);
+  ctx.lineTo(26, 18 + bob); ctx.lineTo(30, 19.5 + bob); ctx.lineTo(33, 16 + bob); ctx.lineTo(34, 21.5 + bob); ctx.lineTo(38.5, 18.5 + bob);
+  ctx.lineTo(37, 25 + bob); ctx.lineTo(33, 28 + bob); ctx.quadraticCurveTo(26, 22 + bob, 19, 28 + bob); ctx.closePath();
   shade(ctx, '#7a4e3a', '#3a2018', 15, 28, 1);
   ctx.save(); ctx.strokeStyle = '#e8bc60'; ctx.lineWidth = 0.9;
   ctx.beginPath(); ctx.moveTo(19, 28 + bob); ctx.quadraticCurveTo(26, 22 + bob, 33, 28 + bob); ctx.stroke(); ctx.restore();
-  limb(ctx, 18, 25 + bob, 12, 37, 2.6, '#3e2640');
-  limb(ctx, 34, 25 + bob, 41, 18 + bob, 2.6, '#3e2640');
-  // Head: a smooth mask with a single slit.
-  ell(ctx, 26, 11.5 + bob, 5.5, 6);
-  shade(ctx, '#e8dcc0', '#8c7c62', 5.5, 17.5);
+  // Horns sweeping back off the mask.
+  ctx.beginPath(); ctx.moveTo(21.5, 10 + bob); ctx.quadraticCurveTo(16.5, 7 + bob, 15.5, 0.8 + bob); ctx.quadraticCurveTo(20.5, 4.5 + bob, 24.5, 7.5 + bob); ctx.closePath();
+  shade(ctx, '#4a3438', '#1a1014', 0, 10, 1);
+  ctx.beginPath(); ctx.moveTo(25.5, 7.6 + bob); ctx.quadraticCurveTo(24.5, 3 + bob, 21.5, 0.8 + bob); ctx.quadraticCurveTo(27.5, 2.2 + bob, 28.8, 7.4 + bob); ctx.closePath();
+  shade(ctx, '#4a3438', '#1a1014', 0, 8, 1);
+  // Mask: long, with a pointed chin, slanted burning slits and a slot of fangs.
+  ctx.beginPath();
+  ctx.moveTo(21, 8.5 + bob); ctx.quadraticCurveTo(26, 4.5 + bob, 31, 8 + bob); ctx.lineTo(32.5, 13 + bob); ctx.lineTo(28.5, 19.5 + bob); ctx.lineTo(23.5, 16.5 + bob);
+  ctx.quadraticCurveTo(20.5, 13 + bob, 21, 8.5 + bob); ctx.closePath();
+  shade(ctx, '#e8dcc0', '#8c7c62', 5, 19.5);
   ctx.fillStyle = '#1a1020';
-  ctx.fillRect(25.5, 11 + bob, 6, 1.6);
-  softGlow(ctx, 29, 11.8 + bob, 3, 'rgba(255,211,106,0.9)');
-  // The brand: the sun-eye on the chest and a spark of it in the raised hand.
+  ctx.beginPath(); ctx.moveTo(24.2, 10.3 + bob); ctx.lineTo(32.2, 11.2 + bob); ctx.lineTo(31.6, 13.4 + bob); ctx.lineTo(24.6, 12.4 + bob); ctx.closePath(); ctx.fill();
+  softGlow(ctx, 29, 12 + bob, 3, 'rgba(255,211,106,0.9)');
+  slitEyes(ctx, [[27, 11.8 + bob], [30.4, 12.2 + bob]], 0.8, '#ffd36a');
+  ctx.fillStyle = '#1a1020';
+  ctx.beginPath(); ctx.moveTo(25.2, 15 + bob); ctx.lineTo(31.4, 14.6 + bob); ctx.lineTo(29.4, 17.4 + bob); ctx.lineTo(25.8, 16.6 + bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f4ead2';
+  for (const x of [26.4, 28, 29.6]) { ctx.beginPath(); ctx.moveTo(x - 0.45, 14.9 + bob); ctx.lineTo(x, 16.3 + bob); ctx.lineTo(x + 0.45, 14.85 + bob); ctx.fill(); }
+  // The brand: the sun-eye on the chest and a spark of it caught in the talons.
   softGlow(ctx, 26, 34 + bob, 10 + pulse, 'rgba(255,200,80,0.75)');
   softGlow(ctx, 42, 16 + bob, 6 + pulse, 'rgba(255,200,80,0.85)');
   sunEye(ctx, 26, 35 + bob, 3.6, '#ffe7a0', 1.1);
