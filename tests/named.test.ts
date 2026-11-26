@@ -65,7 +65,8 @@ describe('named elites (C2)', () => {
     const { w, i } = named('Swift');
     const plain = (w as unknown as Inner).spawn('cinderBrute', -200, 0);
     w.step({ x: 0, y: 0 });
-    const moved = (k: number) => 200 - Math.abs(w.enemies[k].x);
+    // Path length, not x alone: FOE_AI sends each foe in from its own side, so the two don't walk the same line.
+    const moved = (k: number) => Math.hypot(w.enemies[k].x - w.enemies[k].px, w.enemies[k].y - w.enemies[k].py);
     expect(moved(i) / moved(plain)).toBeCloseTo(NAMED.swift, 1);
   });
 
