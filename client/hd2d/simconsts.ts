@@ -4,6 +4,8 @@
  * fails if any copy drifts from sim/world.ts, so a retune can't go out of sync unnoticed.
  */
 export const SIM = {
+  /** SLAG_KIT.cannonRange: how far the Slagbinder's Cannon shot carries (its tracer's length). */
+  cannonRange: 460,
   /** BALLAST.plantDelay: seconds in reach before the Ballast drops anchor. */
   ballastPlant: 0.8,
   /** LAMPEYE.full: the Lampeye's gaze at which it starts its Searing Look. */

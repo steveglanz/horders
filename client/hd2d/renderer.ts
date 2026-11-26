@@ -1004,6 +1004,22 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
     heroes[i] = h; return h;
   };
   const dropHero = (h: HeroS) => { for (const o of [h.mesh, h.name, h.twin, h.rim]) if (o) scene.remove(o); };
+  /**
+   * The Slagbinder's Cannon tracer, one per hero slot: a white-hot slug races down the shot line at waist height and
+   * leaves a glowing trail that thins and fades (the 2D view draws the same on its effects layer, which the 3D floor
+   * bridge leaves out). A unit box laid along +x, scaled to the drawn length; only drawn for a moment after each shot.
+   */
+  const tracerGeo = new THREE.BoxGeometry(1, 1, 1).translate(0.5, 0, 0);
+  const tracers: { trail: THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>; at: number; x: number; z: number; a: number }[] = [];
+  const TRACER_LIFE = 0.3;
+  const tracerFor = (i: number) => {
+    if (!tracers[i]) {
+      const trail = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.2, 0.45), transparent: true, depthWrite: false }));
+      trail.visible = false; trail.frustumCulled = false; scene.add(trail);
+      tracers[i] = { trail, at: -9, x: 0, z: 0, a: 0 };
+    }
+    return tracers[i];
+  };
 
   /* foes */
   const foeGeo = standGeo(0.04);
@@ -1538,6 +1554,21 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       // this read p.lastSwingAt, which only the Killing Rhythm talent sets.
       const cds = p.cds ?? [];
       if (p.volleyT > h.lastVolley + 0.05 || p.swings > h.lastSwings || cds.some((c, k) => c > (h.lastCds[k] ?? 0) + 0.05)) { h.atkAt = w.time; if (i === 0) attacks++; }
+      if (cls === 'slagbinder' && w.gunner && p.volleyT > h.lastVolley + 0.05) { const tr = tracerFor(i); tr.at = w.time; tr.x = p.x * S; tr.z = p.y * S; tr.a = p.facing ?? 0; }
+      const tr = tracers[i];
+      if (tr) {
+        const age = w.time - tr.at;
+        tr.trail.visible = !dead && age >= 0 && age < TRACER_LIFE;
+        if (tr.trail.visible) {
+          const f = 1 - age / TRACER_LIFE;
+          const len = SIM.cannonRange * S * Math.min(1, age / (TRACER_LIFE / 3) + 0.05);
+          const thick = 0.02 + 0.03 * f;
+          tr.trail.position.set(tr.x + Math.cos(tr.a) * 0.3, FLOOR + 0.5, tr.z + Math.sin(tr.a) * 0.3);
+          tr.trail.rotation.set(0, -tr.a, 0);
+          tr.trail.scale.set(len, thick, thick);
+          tr.trail.material.opacity = 0.15 + 0.75 * f;
+        }
+      }
       h.lastVolley = p.volleyT; h.lastSwings = p.swings; h.lastCds = cds.slice();
       const since = w.time - h.atkAt;
       const swing = !dead && since >= 0 && since < 0.24;
@@ -1552,7 +1583,9 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       const faceNow = swing && Math.abs(fx) > 0.2 ? Math.sign(fx) : face;
       // The punch and the idle breath kept small, so a hero never reads as stretched (Steve, 25 Nov).
       h.mesh.scale.set(faceNow * HERO.W * HERO_PX * (1 + 0.04 * k), HERO.H * HERO_PX * (1 + (moving ? 0 : 0.015 * Math.sin(t * 2.4 + i)) - 0.03 * k) * (dead ? 0.35 : 1), 1);
-      h.mesh.position.set(x + fx * 0.12 * k, FLOOR + bob, z + fz * 0.12 * k);
+      // The Slagbinder's cannon kicks: it rocks back from the shot instead of lunging in.
+      const lunge = cls === 'slagbinder' ? -0.1 : 0.12;
+      h.mesh.position.set(x + fx * lunge * k, FLOOR + bob, z + fz * lunge * k);
       if (h.twin) {
         // Your own hero always draws over allies and foes it overlaps, as in 2D (depth 6 over allies' 5.9): phones saw
         // a Lumen bot a step in front cover you completely. The sprite slides toward the camera along its own view ray,
@@ -1587,6 +1620,7 @@ export function mount(host: HTMLElement, A: Hd2dAdapter, opts: { fx: boolean; sa
       }
     }
     for (let i = w.heroes.length; i < heroes.length; i++) if (heroes[i]) { dropHero(heroes[i]); delete heroes[i]; }
+    for (let i = w.heroes.length; i < tracers.length; i++) if (tracers[i]) tracers[i].trail.visible = false;
     heroRings.count = heroDiscs.count = nRing; heroBlobs.count = nBlob;
     heroRings.instanceMatrix.needsUpdate = heroDiscs.instanceMatrix.needsUpdate = heroBlobs.instanceMatrix.needsUpdate = true;
     unstackNames();

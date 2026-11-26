@@ -169,7 +169,7 @@ const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /** Short-lived vector effects drawn with Graphics (ability shapes, beams). */
 interface Shape {
-  kind: 'cone' | 'line' | 'pillar' | 'ring';
+  kind: 'cone' | 'line' | 'pillar' | 'ring' | 'tracer';
   /** Cone width in radians (default 110 degrees). */
   arc?: number;
   x: number;
@@ -1238,9 +1238,14 @@ export class GameScene extends Phaser.Scene {
           this.slagLob(ev.x1, ev.y1, ev.x2, ev.y2);
           break;
         case 'cannon':
-          // The Slagbinder's Cannon: a hot tracer down the whole line it pierces, and a flash at the muzzle.
-          this.addShape({ kind: 'line', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xff8a3d, life: 0.22 });
+          // The Slagbinder's Cannon: a slug of white-hot slag races down the whole line it pierces, leaving a hot
+          // tracer that cools from the muzzle out; a flash and a puff of smoke at the muzzle.
+          this.addShape({ kind: 'tracer', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, r: 0, angle: 0, color: 0xff8a3d, life: 0.3 });
           this.emit(this.fx, 'spark', undefined, ev.x1, ev.y1, 0.25, { tint: SLAG, sx0: 0.9, sx1: 0.2 });
+          {
+            const a = Math.atan2(ev.y2 - ev.y1, ev.x2 - ev.x1);
+            this.emit(this.smoke, 'steam', undefined, ev.x1 + Math.cos(a) * 18, ev.y1 + Math.sin(a) * 18, 0.7, { tint: 0xb8aca4, vx: Math.cos(a) * 30, vy: -30, drag: 0.95, spin: 0.6, sx0: 0.25, sx1: 0.75 });
+          }
           break;
         case 'plate':
           // Molten Plating poured on a hero: a bright ring closing in and a few drips.
@@ -2717,6 +2722,14 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(3 * f + 1, 0xfff0c8, 0.7 * f).beginPath().arc(s.x, s.y, reach, s.angle - half, s.angle + half, false).strokePath();
       } else if (s.kind === 'line') {
         g.lineStyle(8 * f + 2, s.color, f).lineBetween(s.x, s.y, s.x2, s.y2);
+      } else if (s.kind === 'tracer') {
+        // The slug crosses the line in the first third of the tracer's life; behind it the trail glows and thins,
+        // a white-hot core inside an orange band.
+        const head = Math.min(1, (1 - f) * 3);
+        const hx = s.x + (s.x2 - s.x) * head, hy = s.y + (s.y2 - s.y) * head;
+        g.lineStyle(12 * f + 3, s.color, 0.6 * f + 0.15).lineBetween(s.x, s.y, hx, hy);
+        g.lineStyle(4 * f + 1.5, 0xfff0c8, f).lineBetween(s.x, s.y, hx, hy);
+        if (head < 1) g.fillStyle(0xfff0c8, 1).fillCircle(hx, hy, 7).fillStyle(s.color, 0.5).fillCircle(hx, hy, 12);
       } else if (s.kind === 'ring') {
         g.lineStyle(6 * f, s.color, f).strokeCircle(s.x, s.y, s.r * (1.2 - f * 0.4));
       } else if (s.kind === 'pillar') {
