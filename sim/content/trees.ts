@@ -132,8 +132,8 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   // Bulwark, Vanguard branch: getting there and covering others.
   stride: { id: 'stride', cls: 'bulwark', branch: 'vanguard', name: 'Stride', maxRank: 3, text: '+3% move speed per point.', tip: 'Move 3% faster per point, 9% at 3 points.' },
   cover: { id: 'cover', cls: 'bulwark', branch: 'vanguard', name: 'Cover', maxRank: 2, text: 'Allies near you take 2% less damage per point.', tip: 'In a party, heroes within 200 of you take 2% less damage per point. Alone, it does nothing.' },
-  ram: { id: 'ram', cls: 'bulwark', branch: 'vanguard', name: 'Ram', maxRank: 3, text: 'Charge recharges 1s faster per point.', tip: 'Charge comes back 1s sooner per point, 3s at 3 points.' },
-  onrush: { id: 'onrush', cls: 'bulwark', branch: 'vanguard', name: 'Onrush', maxRank: 1, keystone: true, text: 'After Charge, take 20% less damage for 3s.', tip: 'Keystone. Landing a Charge makes you take 20% less damage for 3s.' },
+  ram: { id: 'ram', cls: 'bulwark', branch: 'vanguard', name: 'Ram', maxRank: 3, text: 'Charge (or Gather) recharges 1s faster per point.', tip: 'Charge or Gather comes back 1s sooner per point, 3s at 3 points.' },
+  onrush: { id: 'onrush', cls: 'bulwark', branch: 'vanguard', name: 'Onrush', maxRank: 1, keystone: true, text: 'After Charge (or Gather), take 20% less damage for 3s.', tip: 'Keystone. Landing a Charge or a Gather makes you take 20% less damage for 3s.' },
   // Duskblade, Bloodletting branch: bleeds and staying alive by them.
   gash: { id: 'gash', cls: 'duskblade', branch: 'bloodletting', name: 'Gash', maxRank: 3, text: 'Your bleeds deal 6% more per point.', tip: 'Every bleed you cause deals 6% more damage per point, 18% at 3 points.' },
   leech: { id: 'leech', cls: 'duskblade', branch: 'bloodletting', name: 'Leech', maxRank: 3, text: 'Heal for 0.4% of the damage you deal per point.', tip: 'Heal for 0.4% of all the damage you deal per point, 1.2% at 3 points.' },

@@ -96,6 +96,36 @@ describe('ability options', () => {
     expect(w.swingCooldown).toBeCloseTo(cd);
   });
 
+  it('Clout hits one foe hard and mends the Bulwark; Gather pulls the pack in and cuts damage taken', () => {
+    const w = new World({ seed: 5, cls: 'bulwark', alts: ['clout', 'gather'], tier: 4, omens: [] });
+    for (const e of w.enemies) e.alive = false;
+    const inner = w as unknown as Inner;
+    expect(w.abilities.map((d) => d.name)).toEqual(['Clout', 'Gather', 'Anvil Skin', 'Shield Toss']);
+    const t = inner.spawn('slagling', w.player.x + 60, w.player.y);
+    w.enemies[t].hp = w.enemies[t].maxHp = 1e6;
+    inner.rebuildHash();
+    w.player.hp = w.player.maxHp * 0.5;
+    const h0 = w.player.hp;
+    inner.castAlt({ x: 0, y: 0 }, 0);
+    const dealt = 1e6 - w.enemies[t].hp;
+    expect(dealt).toBeGreaterThan(0);
+    expect(w.player.hp - h0).toBeCloseTo(dealt * ALT_KIT.cloutMend);
+    expect(w.enemies[t].stunT).toBeGreaterThanOrEqual(ALT_KIT.cloutStun);
+    const near = inner.spawn('slagling', w.player.x + 220, w.player.y);
+    const far = inner.spawn('slagling', w.player.x + 600, w.player.y);
+    for (const i of [near, far]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    const b0 = w.player.hp;
+    inner.hurtPlayer(20, -1);
+    const plain = b0 - w.player.hp;
+    inner.castAlt({ x: 0, y: 0 }, 1);
+    expect(Math.hypot(w.enemies[near].x - w.player.x, w.enemies[near].y - w.player.y)).toBeLessThan(80);
+    expect(w.enemies[far].x - w.player.x).toBeCloseTo(600);
+    const hp = w.player.hp;
+    inner.hurtPlayer(20, -1);
+    expect(hp - w.player.hp).toBeCloseTo(plain * (1 - ALT_KIT.gatherCut));
+  });
+
   it('never drafts talents for the replaced ability', () => {
     for (const cls of CLASS_IDS) {
       const slot = ALT_ABILITIES[cls].slot;

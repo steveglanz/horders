@@ -148,6 +148,10 @@ export const ALT_GLYPH: Record<AltId, string> = {
   wideCut: 'M12 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3Z M4 12a8 8 0 0 1 13.7-5.6 M20 12a8 8 0 0 1-13.7 5.6 M17.7 2.8v3.6h-3.6 M6.3 21.2v-3.6h3.6',
   // Quicken: a blade with speed lines trailing behind it.
   quicken: 'M20.5 3.5 10 14 M10 14l-1.5 3.5L12 16 M7.5 12.5l4 4 M2.5 9.5h5 M3.5 13.5h3 M5.5 5.5h6',
+  // Clout: a mace head coming down, with an impact burst under it.
+  clout: 'M14 3.5l6.5 6.5 M15.5 8.5 7 17 M12.5 4.5l7 7-2.5 2.5-7-7Z M3.5 20.5l2-2 M2.5 16.5h3 M7.5 21.5v-3',
+  // Gather: arrows from every side drawn in to a shield at the centre.
+  gather: 'M12 8.5l3 1.2v2.3c0 2-1.3 3.3-3 4c-1.7-.7-3-2-3-4V9.7Z M2.5 12h4 M4.5 10l2 2-2 2 M21.5 12h-4 M19.5 10l-2 2 2 2 M12 2.5v3 M10.5 4l1.5 1.5L13.5 4 M12 21.5v-2.5',
 };
 
 export const ABILITY_GLYPH: Record<ClassId, string[]> = {

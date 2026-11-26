@@ -167,7 +167,7 @@ export function setCues(was: Partial<SetFlags>, now: SetFlags): Cue[] {
   return out;
 }
 
-/** Each ability option (sim ALT_OPTIONS). Wide Cut and Quicken borrow sounds until sound makes their own. */
+/** Each ability option (sim ALT_OPTIONS). Wide Cut, Quicken, Clout and Gather borrow sounds until sound makes their own. */
 const ALT_ABILITY: Record<AltId, SoundId> = {
   emberWard: 'emberWard',
   hamstring: 'hamstring',
@@ -176,6 +176,8 @@ const ALT_ABILITY: Record<AltId, SoundId> = {
   cinderSump: 'slagPit',
   wideCut: 'duskExecute',
   quicken: 'hamstring',
+  clout: 'bulwarkSlam',
+  gather: 'rallyingCry',
 };
 
 const ABILITY: Record<ClassId, (SoundId | null)[]> = {

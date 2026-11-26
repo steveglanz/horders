@@ -5474,6 +5474,21 @@ export class GameScene extends Phaser.Scene {
       this.floatText(x, y - 40, name, '#ffb0bc', 18);
       return;
     }
+    if (opt.id === 'clout') {
+      // Clout: a heavy gold blow landing on the foe.
+      this.impact(x, y, 1.6);
+      this.ring(x, y, 36, 0xffd27a, 0.3);
+      this.shakeBy(0.06);
+      this.floatText(x, y - 40, name, '#ffe2a8', 18);
+      return;
+    }
+    if (opt.id === 'gather') {
+      // Gather: a ring that closes in from its reach onto the Bulwark.
+      this.emit(this.fx, 'ring', undefined, x, y, 0.4, { tint: 0xffd27a, sx0: (r * 2) / 128, sx1: 0.15 });
+      this.ring(x, y, 50, 0xfff2b0, 0.35);
+      this.floatText(x, y - 40, name, '#ffe2a8', 18);
+      return;
+    }
     if (opt.id === 'quicken') {
       // Quicken: a quick violet flare around the hero.
       this.ring(x, y, 46, 0xb89cff, 0.35);
