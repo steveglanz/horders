@@ -82,6 +82,19 @@ export const SLAG_GUNNER = true;
  * picked in the hub and locked for the run. Never the interrupt (slot 3). See docs/skills.md.
  */
 export const ALT_UNLOCK_LEVEL = 8;
+
+/**
+ * Ability unlocks (class progression brief, 25 Nov): a new character starts with its basic attack and Q and earns
+ * the other buttons over its first levels. SLOT_UNLOCK[slot] is the character level that slot opens at.
+ */
+export const SLOT_UNLOCK = [1, 2, 3, 4];
+/** The level at which every slot is open. */
+export const MAX_UNLOCK = Math.max(...SLOT_UNLOCK);
+/** Whether a character of `level` has unlocked `slot` (no level means every slot, as tools and tests play). */
+export function slotOpen(slot: number, level: number | undefined): boolean {
+  if (level === undefined) return true;
+  return slot === 0 || level >= (SLOT_UNLOCK[slot] ?? 1);
+}
 export const ALT_ABILITIES: Record<ClassId, { slot: number; replaces: string; def: AbilityDef }> = {
   emberwright: { slot: 1, replaces: 'Blink', def: { name: 'Ember Ward', key: 'E', cost: 0, cooldown: 10, text: 'Wrap yourself in fire for 3s: a ward that stops blows (not Glare or ticks), and foes that strike you burn.' } },
   duskblade: { slot: 0, replaces: 'Rending Dash', def: { name: 'Hamstring', key: 'Q', cost: 25, cooldown: 5, text: 'Cut and bleed the foe in reach, and slow it and those near it by half for 4s (bosses and elites by a fifth). Better against single targets; you lose Rending Dash\'s gap-closer.' } },

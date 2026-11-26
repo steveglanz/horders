@@ -8,7 +8,7 @@ import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
-import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
+import { ALT_ABILITIES, ALT_UNLOCK_LEVEL, CLASSES, CLASS_IDS, SLAG_GUNNER, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
@@ -330,6 +330,12 @@ export class Hub {
       + (() => {
         const opt = ALT_ABILITIES[cls];
         const own = CLASSES[cls].abilities[opt.slot];
+        // SLOT_UNLOCK: until the bar is full, the next unlock is the one note shown (phones have little room).
+        const locked = [0, 1, 2, 3].filter((i) => !slotOpen(i, h.level)).sort((a, b) => SLOT_UNLOCK[a] - SLOT_UNLOCK[b]);
+        if (locked.length) {
+          const next = CLASSES[cls].abilities[locked[0]];
+          return `<p class="altlock" title="${next.name}: ${next.text}"><b>Level ${SLOT_UNLOCK[locked[0]]}:</b> unlock ${next.name} (${next.key})</p>`;
+        }
         // Before level 8 a plain note, not a button: "Muster · Lv 8" on a disabled button read as a mystery label (Steve, 25 Nov).
         if (h.level < ALT_UNLOCK_LEVEL) return `<p class="altlock" title="${opt.def.name}: ${opt.def.text}"><b>Level ${ALT_UNLOCK_LEVEL}:</b> swap ${own.name} for ${opt.def.name}</p>`;
         return `<div class="stance" role="group" aria-label="Ability option">${[false, true].map((on) => {

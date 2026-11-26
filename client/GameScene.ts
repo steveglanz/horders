@@ -1743,7 +1743,7 @@ export class GameScene extends Phaser.Scene {
             ? ` Omens: ${w.omens.map((o) => `${OMENS[o].name} (${OMENS[o].tip.toLowerCase().replace(/\.$/, '')})`).join(', ')}.`
             : '';
           // L1: the first delve coaches each fight instead of the usual tip. Coach lines get the full-length banner.
-          const coach = w.firstDelve ? coachLine(ev.id, w.abilities[3].name) : undefined;
+          const coach = w.firstDelve ? coachLine(ev.id, w.unlocked(3) ? w.abilities[3].name : undefined) : undefined;
           // V4: the first fight also names the Day's Heat.
           const heatDef = ev.index === 0 && w.heat ? HEATS[w.heat] : undefined;
           const heat = heatDef ? ` Today's Heat, ${heatDef.name}: ${heatDef.text}` : '';

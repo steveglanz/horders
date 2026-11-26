@@ -184,7 +184,7 @@ describe('Slagbinder gunner (Steve 25 Nov: a slow cannon that hits hard)', () =>
     w.player.volleyT = 0;
     inner.updateSlag(0.01);
     const lost = (i: number) => 10000 - w.enemies[i].hp;
-    expect(lost(a)).toBeGreaterThan(SLAG_KIT.cannonDamage * 0.9);
+    expect(lost(a)).toBeGreaterThan(SLAG_KIT.cannonDamage * SLAG_KIT.gunnerSoloDmg * 0.9);
     expect(lost(b)).toBeCloseTo(lost(a) * SLAG_KIT.cannonPierce, 0);
     expect(lost(c)).toBe(0);
     expect(w.events.some((e) => e.type === 'cannon')).toBe(true);

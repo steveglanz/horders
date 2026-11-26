@@ -175,12 +175,12 @@ describe('Slagbinder in a party (party-only trim)', () => {
     expect(duo.dmgMult).toBeCloseTo(anvilSolo.dmgMult);
   });
 
-  it('the gunner deals full damage alone and partyDmg in a party', () => {
+  it('the gunner deals gunnerSoloDmg alone and partyDmg in a party', () => {
     const solo = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [] });
     const old = new World({ seed: 4, cls: 'slagbinder', tier: 4, omens: [], gunner: false });
-    expect(solo.dmgMult).toBeCloseTo(old.dmgMult / SLAG_KIT.soloDmg, 5);
+    expect(solo.dmgMult).toBeCloseTo((old.dmgMult / SLAG_KIT.soloDmg) * SLAG_KIT.gunnerSoloDmg, 5);
     const duo = party('slagbinder', ['bulwark']).w;
-    expect(duo.dmgMult).toBeCloseTo(solo.dmgMult * SLAG_KIT.partyDmg, 5);
+    expect(duo.dmgMult).toBeCloseTo((solo.dmgMult / SLAG_KIT.gunnerSoloDmg) * SLAG_KIT.partyDmg, 5);
   });
 
   it('in the Flue (a damage race) the Bellows party cut is fluePartyDmg instead', () => {
