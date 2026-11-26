@@ -13,7 +13,7 @@ The game is already close to what a store wrapper needs. Every asset loads by a 
 Capacitor wraps an existing web build. It needs "A separate directory for built web assets such as `dist` or `www`" and "An `index.html` file at the root of your web assets directory" ([getting started](https://capacitorjs.com/docs/getting-started)). Horders builds exactly that (`vite.config.ts` writes `dist/index.html`). `npx cap sync` "will copy your built web bundle expected to be found in `webDir` ... to your native project" (same page), so the game ships inside the app rather than loading horders.netlify.app.
 
 - `server.url` ("Load an external URL in the Web View") is "not intended for use in production" ([config](https://capacitorjs.com/docs/config)). We bundle instead. It also keeps us inside Apple 2.5.2 (below).
-- Tooling: "To build iOS apps, you will need **macOS**" with Xcode; Capacitor 8 needs Xcode 26.0 and Android Studio 2025.2.1, and Node 22 or higher ([environment setup](https://capacitorjs.com/docs/getting-started/environment-setup)). The repo has no Capacitor files today.
+- Tooling: "To build iOS apps, you will need **macOS**" with Xcode; Capacitor 8 needs Xcode 26.0 and Android Studio 2025.2.1, and Node 22 or higher ([environment setup](https://capacitorjs.com/docs/getting-started/environment-setup)). The shell is in the repo since 26 Nov 2026 (Capacitor 8.6.3, see [app-shell.md](app-shell.md)).
 
 ## What the repo already has
 
