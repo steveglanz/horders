@@ -46,11 +46,26 @@ async function openPage() {
     // The WebView's bounds on screen come from the Android view tree; the element's box is in CSS px.
     tapEl: async (sel) => {
       // uiautomator dump, not device.info(), which needs Playwright's separate driver APK.
-      await device.shell('uiautomator dump /sdcard/ui.xml');
-      const xml = (await device.shell('cat /sdcard/ui.xml')).toString();
-      const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-      if (!m) throw new Error('no WebView in the view tree: ' + xml.slice(0, 500));
-      const wv = { bounds: { x: +m[1], y: +m[2], width: m[3] - m[1], height: m[4] - m[2] } };
+      // On the CI emulator a system dialog (26 Nov: package "android", over the app; likely a
+      // "System UI isn't responding" prompt on a slow first boot) can cover the app, so answer
+      // Wait on it and look again.
+      let wv = null;
+      for (let k = 0; k < 8 && !wv; k++) {
+        await device.shell('uiautomator dump /sdcard/ui.xml');
+        const xml = (await device.shell('cat /sdcard/ui.xml')).toString();
+        const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+        if (m) { wv = { bounds: { x: +m[1], y: +m[2], width: m[3] - m[1], height: m[4] - m[2] } }; break; }
+        const texts = [...xml.matchAll(/text="([^"]+)"/g)].map((t) => t[1]);
+        log('no WebView on screen yet; texts:', JSON.stringify(texts));
+        const btn = xml.match(/text="(Wait|OK|Close)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+        if (btn) {
+          const bx = (+btn[2] + +btn[4]) >> 1, by = (+btn[3] + +btn[5]) >> 1;
+          log('tapping system dialog button', btn[1], 'at', bx, by);
+          await device.shell(`input tap ${bx} ${by}`);
+        }
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+      if (!wv) throw new Error('no WebView in the view tree after 8 tries');
       const r = await page.evaluate((q) => { const b = document.querySelector(q).getBoundingClientRect();
         return { x: b.x + b.width / 2, y: b.y + b.height / 2, dpr: devicePixelRatio }; }, sel);
       const x = Math.round(wv.bounds.x + r.x * r.dpr), y = Math.round(wv.bounds.y + r.y * r.dpr);
