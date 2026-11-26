@@ -33,7 +33,7 @@ describe('V1 variety: the Kiln\'s new foes', () => {
     const seen = new Set<string>();
     for (let s = 0; s < 40; s++) { let n = s; seen.add(rollRoute((k) => (n = (n * 7 + 3) % 97) % k, 'kiln').join(',')); }
     expect(seen.size).toBeGreaterThan(20);
-    expect(FIRST_DELVE.route).toEqual(['pack', 'wardens', 'brute', 'acolytes', 'kilnMother']);
+    expect(FIRST_DELVE.route).toEqual(['pack', 'brute', 'acolytes', 'kilnMother']);
   });
 
   it('an Ember Spitter backs off when you close in, and lobs a fire circle where you stand', () => {

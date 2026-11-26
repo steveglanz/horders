@@ -44,3 +44,23 @@ After the first-delve coach (`client/coach.ts`: move, cast, interrupt) is done, 
 - **The first gold soak circle:** "Gold circles want someone inside. Stand in it until it fills, or it blasts you."
 
 Named mechanics such as Glare, Brand, Anvilfall and the Long Night already get their own cast banners, so they need no tip. On phones the tip sits where the move prompt does, beside the action bar. Test runs (`?seed=`) skip the tips unless `tips=1` is set. Screenshots: `node tools/tipshots.cjs <outDir> [phone]`.
+
+## 26 Nov 2026: the tutorial Kiln goes room to room
+Steve (26 Nov, after playing): standard play is room to room everywhere, Kiln tier 1 included, and the first ever game should be "a very small tutorial kiln that's almost impossible to lose". The Kiln tier 1 boss also "took too long spinning in circles around it".
+- **Its own small map** (`sim/halls.ts` `genTutorial`): four plain round rooms in a straight line (R0 entrance, R1, R3, R5) and the boss door. One fight per room, no side rooms, no pillars, lava or vents, the same map every time. It passes design's map checker (`hallsCheck`).
+- **Route:** the Cinder Pack (as fast trash, like every Kiln opener), the Cinder Brute (step out of its red ring), the Brute and its Acolytes (kill the healers; they guard the door), then the Kiln Mother (her old three-phase fight, as before). The Hollow Wardens were dropped: the Brute's ring teaches the red.
+- **Softer:** damage ×0.5 (was ×0.7), health ×0.85 as before, and the Kiln Mother at ×0.5 health on top. No named elite on this run.
+- **Kiln tier 1 boss, every run** (`KILN_T1.bossHp`): the Kiln Mother has 0.65 of her health at tier 1 only.
+- The daily bounty still plays in the open arena: that is the survivors-style run now and then.
+
+Numbers (tools/balance.ts, tier 1, level-1 abilities `ULVL=1`, no gear; 10 seeds unless noted):
+
+| Class | Tutorial, average (`REACT=0.3 FORGET=0.2 STEPERR=0.5`) | Tutorial, novice (`LAG=0.3 SKILL=0.5`) | Kiln t1 boss s, before → after (average, Halls) |
+|---|---|---|---|
+| Emberwright | 10/10, boss 33 s, run 121 s | 40/40, boss 34-37 s | 47 → 32 |
+| Lumen | 10/10, 30 s, 116 s | 10/10, 30 s | 50 → 35 |
+| Slagbinder | 10/10, 29 s, 111 s | 10/10, 33 s | 63 → 56 |
+| Duskblade | 10/10, 19 s, 91 s | 40/40, 19-22 s | 47 → 36 |
+| Bulwark | 10/10, 22 s, 94 s | 10/10, 23 s | 49 → 36 |
+
+The old first delve (arena, 5 fights) ran 140-204 s with a 43-58 s boss. Kiln t1 wins stayed 10/10 for every class. Heroes reach the tutorial boss at level 4. Watch item: the Slagbinder's Kiln t1 boss is still 56 s (most of it is her bellows stage).

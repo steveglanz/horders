@@ -289,7 +289,7 @@ export const TRASH_ON: DungeonId[] = ['kiln', 'foundry', 'glarewell', 'coldmarro
 /** Whether `dungeon`'s map has trash packs. */
 export const trashFor = (dungeon: DungeonId): boolean => TRASH_ON.includes(dungeon);
 
-export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4): HallsMap {
+export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonId, pick: (n: number) => number, chance: (p: number) => boolean, template = false, tier = 4, tutorial = false): HallsMap {
   let rooms: HallsRoom[], corridors: HallsCorridor[], spots: Spot[], door: { x: number; y: number }, layoutRooms: { room: number; slot: number }[];
   let mirror = false;
   if (template) {
@@ -307,6 +307,8 @@ export function buildHalls(seed: number, route: EncounterId[], dungeon: DungeonI
     spots = T.packs.map((s) => ({ ...s, x: mx(s.x) }));
     door = { x: mx(T.door.x), y: T.door.y };
     layoutRooms = T.layoutRooms.map((l) => ({ ...l }));
+  } else if (tutorial) {
+    ({ rooms, corridors, spots, door, layoutRooms } = genTutorial());
   } else {
     ({ rooms, corridors, spots, door, layoutRooms } = genHalls(seed, dungeon));
   }
@@ -1013,6 +1015,44 @@ function genRaid(rnd: () => number): GenMap {
   return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms, tries: 0 };
 }
 
+/**
+ * Steve, 26 Nov ("your first ever game should have a very small tutorial kiln"): the first delve's map. Fixed (no
+ * rolls), four plain round rooms in a straight line, south to north: R0 entrance, R1 (A), R3 (B), R5 (C, the door
+ * guard), then the boss door's alcove. No side rooms, no layouts (pillars, lava, vents), so the only thing to learn is
+ * one fight per room. Room ids follow the full map's, so mainRooms, doorRoom and the themes find them.
+ */
+export const TUTORIAL_HALLS = { entrance: 400, room: 470, corridor: 300 };
+export function genTutorial(): GenMap {
+  const T = TUTORIAL_HALLS;
+  const mid = () => 0.5;
+  const r0 = genRoom('R0', true, 'round', mid, { r: [T.entrance, T.entrance] });
+  const r1 = genRoom('R1', true, 'round', mid, { r: [T.room, T.room] });
+  const r3 = genRoom('R3', true, 'round', mid, { r: [T.room, T.room] });
+  const r5 = genRoom('R5', true, 'round', mid, { r: [T.room, T.room] });
+  const chain = [r0, r1, r3, r5];
+  for (let k = 1; k < chain.length; k++) {
+    const a = chain[k - 1], b = chain[k];
+    shiftRoom(b, a.ax, a.ay - a.ext.n - T.corridor - b.ext.s);
+  }
+  const doorY = r5.ay - r5.ext.n - G.alcoveGap - G.alcove;
+  const alcove: HallsRoom = { id: 'door', main: true, shape: 'round', x: r5.ax, y: doorY, r: G.alcove, edge: [loop(r5.ax, doorY, G.alcove, 24)], nav: [[r5.ax, doorY]] };
+  const rooms = [r0.room, r1.room, r3.room, r5.room, alcove];
+  const cor = (a: number, b: number, pa: [number, number], pb: [number, number]): HallsCorridor => ({ a, b, ax: pa[0], ay: pa[1], bx: pb[0], by: pb[1] });
+  const corridors = [
+    cor(0, 1, port(r0, 'n'), port(r1, 's')),
+    cor(1, 2, port(r1, 'n'), port(r3, 's')),
+    cor(2, 3, port(r3, 'n'), port(r5, 's')),
+    cor(3, 4, port(r5, 'n'), [r5.ax, doorY]),
+  ];
+  const spots: Spot[] = [
+    { role: 'A', room: 1, x: r1.ax, y: r1.ay },
+    { role: 'B', room: 2, x: r3.ax, y: r3.ay },
+    { role: 'C', room: 3, x: r5.ax, y: r5.ay - r5.ext.n + G.guardIn, guard: true },
+  ];
+  for (const s of spots) { s.x = Math.round(s.x); s.y = Math.round(s.y); }
+  return { rooms, corridors, spots, door: { x: r5.ax, y: doorY }, layoutRooms: [], tries: 0 };
+}
+
 /** Roll `t` of seed `seed`'s layout (before the checker). */
 export function genRoll(seed: number, t: number, dungeon: DungeonId = 'kiln'): GenMap {
   let k = 0;
@@ -1267,7 +1307,9 @@ export function hallsThemes(m: HallsGeo, seed: number, layout: (room: number) =>
   const free = (i: number, t: RoomTheme) => near(i).every((j) => R[j].theme !== t);
   for (const r of R) r.theme = undefined;
   const DR = doorRoom(m);
-  R[roomIx(m, 'R2')].theme = 'shrine';
+  // The first delve's tutorial map (genTutorial) has no side room.
+  const shrine = roomIx(m, 'R2');
+  if (shrine >= 0) R[shrine].theme = 'shrine';
   R[roomIx(m, 'R5')].theme = kit.guard;
   for (const i of ['R3', 'R6', 'R1', 'R4', 'R0', 'door'].map((id) => roomIx(m, id)).filter((k) => k >= 0)) {
     const lay = layout(i);

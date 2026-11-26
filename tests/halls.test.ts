@@ -27,11 +27,10 @@ const run = (w: World, done: () => boolean, max: number, input = () => botInput(
 };
 
 describe('Phase 18 Halls H1: the Kiln map', () => {
-  it('is off unless asked for: an arena run is unchanged, and the first delve and bounties never get a map', () => {
+  it('is off unless asked for: an arena run is unchanged, and bounties never get a map', () => {
     const w = new World({ seed: 2, tier: 2 });
     expect(w.halls).toBeNull();
     expect(w.phase).toBe('intro');
-    expect(new World({ seed: 2, tier: 1, halls: true, firstDelve: true }).halls).toBeNull();
     expect(new World({ seed: 2, tier: 2, halls: true, bounty: 3 }).halls).toBeNull();
     // Every dungeon and raid has its map since the Flue went on (25 Nov).
     for (const d of Object.keys(DUNGEONS)) expect(HALLS_ON, d).toContain(d);

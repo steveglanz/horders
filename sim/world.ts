@@ -1488,11 +1488,22 @@ export class World {
     }
     if (this.heroes.length > 1) this.threat = this.enemies.map(() => newThreat());
     // Phase 18 Halls H1: the map is rolled after the route (its side room takes a fork roll from the run's rng).
-    if (opts.halls && hallsFor(this.dungeonId) && !this.firstDelve && !this.stress && this.bounty === undefined) {
-      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier);
+    // Steve, 26 Nov: room to room is the standard game everywhere, the first delve included (on its own small map,
+    // genTutorial). The daily bounty stays in the open arena, the survivors-style run now and then.
+    if (opts.halls && hallsFor(this.dungeonId) && !this.stress && this.bounty === undefined) {
+      this.halls = buildHalls(this.seed, this.route, this.dungeonId, (n) => this.rng.int(n), (q) => this.rng.chance(q), !!opts.hallsTemplate, this.tier, this.firstDelve);
       this.hallsLayouts();
       this.phase = 'cleared';
     }
+  }
+
+  /**
+   * Steve, 26 Nov (Kiln tier 1: "the boss fight took too long spinning in circles around it"): the Kiln Mother's health
+   * share at tier 1, solo or not (KILN_T1); the first delve's own (FIRST_DELVE.bossHp) on top of its softer foes.
+   */
+  private kilnT1BossHp(): number {
+    if (this.stress || this.dungeonId !== 'kiln' || this.tier !== 1) return 1;
+    return this.firstDelve ? FIRST_DELVE.bossHp : KILN_T1.bossHp;
   }
 
   /** Halls: walking on the map (not yet through the boss door). */
@@ -2118,7 +2129,8 @@ export class World {
    * Rolled on its own stream, so a delve's other rolls don't move.
    */
   private rollNamed(elite: number): void {
-    if (this.stress || this.route.length < 2) return;
+    // The first delve is the tutorial: no named elite with an affix in it.
+    if (this.stress || this.firstDelve || this.route.length < 2) return;
     this.planNamed();
     if (this.encounter !== this.namedAt) return;
     if (elite < 0) {
@@ -3738,7 +3750,7 @@ export class World {
     if (this.threat.length) this.threat[idx] = newThreat();
     e.x = e.px = x;
     e.y = e.py = y;
-    e.maxHp = e.hp = def.hp * scale;
+    e.maxHp = e.hp = def.hp * scale * (kind === 'kilnMother' ? this.kilnT1BossHp() : 1);
     e.touchCd = 0;
     e.orbitCd = 0;
     e.brittleUntil = 0;
@@ -10400,6 +10412,9 @@ export const KM_MOUTH = { x: 0, y: -522, w: 120 };
  * BOSSV2 (design's /mnt/project-files/horders/design/bosses/kiln-mother-v2.md, 25 Nov): the three-stage Kiln Mother
  * and the Glutton's Gorge without an interrupt. Shown times are arena values; a Halls run shows them 1/moveScale as long.
  */
+/** Steve, 26 Nov: the Kiln Mother at tier 1 has this share of her health, so the first boss a hero meets is short. */
+export const KILN_T1 = { bossHp: 0.65 };
+
 export const KILN_V2 = {
   /** Stage 2 at this share of her health. */
   stage2At: 0.65,
