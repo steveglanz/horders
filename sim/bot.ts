@@ -2,7 +2,7 @@
  * A simple autopilot used by tests and balancing scripts: kites away from the
  * horde, steps out of boss telegraphs, and drafts talents by a fixed priority.
  */
-import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, versionLive } from './world';
+import { YSMERETV2, OSKELV2, ARENA, ASHWALL, BALLAST, DIMHORN, LAMPEYE, RAID_ECHO, SUMMONS, BRIM, OVERFLOW, INHALE, MILL, COLD, Enemy, Input, IRONLOAD, ONDRELV2, Telegraph, KILN_TURN, CREEPING_RIME, REVIVE_RADIUS, WRACK, World, ALT_KIT, versionLive } from './world';
 import { TALENTS, TalentId } from './content/emberwright';
 import { ALT_BY_ID, AltId } from './content/classes';
 import { SET_TUNING } from './content/sets';
@@ -323,8 +323,29 @@ function altPress(w: World, id: AltId): number | undefined {
     }
     return inBurst >= 3 || bigInReach ? a.slot : undefined;
   }
+  if (id === 'slagSpray') {
+    // Slag Spray: at anything in the cone's reach (it is the gunner's Q damage and its only plating now).
+    return w.bladeTarget(ALT_KIT.sprayReach + 40) >= 0 ? a.slot : undefined;
+  }
+  if (id === 'slagMortar') {
+    // Slag Mortar: on a big foe in reach, or a pack of 3 or more around the nearest foe.
+    let target = -1;
+    let best = 490 * 490;
+    for (let i = 0; i < w.enemies.length; i++) {
+      const e = w.enemies[i];
+      if (!e.alive) continue;
+      const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
+      if (e.def.rank !== 'normal' && d2 < 490 * 490) return a.slot;
+      if (d2 < best) { best = d2; target = i; }
+    }
+    if (target < 0) return undefined;
+    const t = w.enemies[target];
+    let pack = 0;
+    for (const e of w.enemies) if (e.alive && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 < 110 * 110) pack++;
+    return pack >= 3 ? a.slot : undefined;
+  }
   if (w.cls === 'emberwright') {
-    // Ember Ward: before the press reaches you, or when a big foe is close.
+    // Ember Mantle: before the press reaches you, or when a big foe is close.
     if ((p.plateUntil ?? -1) > w.time) return undefined;
     return touching >= 2 || bigNear || hurt > 0.3 ? a.slot : undefined;
   }

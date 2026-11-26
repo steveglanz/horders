@@ -189,7 +189,7 @@ export const SOUNDS = {
   ),
 
   // Ability options (one per class, chosen instead of a slot's own ability).
-  /** Ember Ward: a ring of fire flares up around you, crackling. */
+  /** Ember Mantle: a ring of fire flares up around you, crackling. */
   emberWard: join(whoosh(400, 4500, 0.4, 0.3), [
     { wave: 'saw', f: 160, f2: 320, dur: 0.45, vol: 0.12, a: 0.08, lp: 2200, vib: [13, 0.03] },
     ...[0.12, 0.22, 0.35, 0.5].map((d) => ({ wave: 'noise' as const, f: 0, dur: 0.04, delay: d, vol: 0.18, lp: 7000, hp: 2000, curve: 3 })),

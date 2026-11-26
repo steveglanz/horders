@@ -94,7 +94,7 @@ const PHONE_TIP: Record<string, string> = {
   [ENCOUNTERS.conch.tip]: 'Its conch brings the next Ebb sooner. Quench it, and stay near a raft.',
 };
 const SLAG_COOL = 0xbcd6e6;
-// Ability options (ALT_ABILITIES): Ember Ward fire, the Hamstring slow, Muster gold, Glow Pool light.
+// Ability options (ALT_ABILITIES): Ember Mantle fire, the Hamstring slow, Muster gold, Glow Pool light.
 const WARD_FIRE = 0xff7a2e;
 const SLOWED = 0xa58cff;
 const CRY = 0xffd27a;
@@ -1187,7 +1187,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'ability':
           if (ev.alt) {
-            this.altCast(ev.x, ev.y, ev.r, ev.slot);
+            this.altCast(ev.x, ev.y, ev.r, ev.slot, ev.angle);
           } else if (w.cls === 'lumen' && (ev.slot === 0 || ev.slot === 2)) {
             this.addShape({ kind: 'ring', x: ev.x, y: ev.y, x2: 0, y2: 0, r: ev.r, angle: 0, color: ev.slot === 0 ? 0xfff2b0 : 0xffd27a, life: 0.4 });
             if (ev.slot === 2) this.floatText(ev.x, ev.y - 36, w.abilities[2].name, '#ffe9a8', 18);
@@ -4538,7 +4538,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     // Class marks 2D draws on overFx, which the 3D view covers: the Slagbinder's Cooling Shell (a pale dome over the
-    // hero) and Brittle (pale fracture lines over a foe), and the Emberwright's Ember Ward (a ring of flame tongues round
+    // hero) and Brittle (pale fracture lines over a foe), and the Emberwright's Ember Mantle (a ring of flame tongues round
     // the hero, thinning as it is spent). The Slagbinder's plate band and the shell's floor ring are floor marks the
     // bridge carries. Drawn on this overlay, so no draw calls.
     {
@@ -5415,7 +5415,7 @@ export class GameScene extends Phaser.Scene {
         o.lineStyle(2, SLAG_COOL, (0.55 + 0.15 * Math.sin(now / 200)) * fade).beginPath().arc(x, y + 6, 32, Math.PI * 1.02, Math.PI * 1.98).strokePath();
         o.lineStyle(1.5, 0xffffff, 0.35 * fade).beginPath().arc(x - 4, y - 2, 22, Math.PI * 1.2, Math.PI * 1.45).strokePath();
       }
-      // Ember Ward (plateBy -1) shares the plating pool but has its own look, in altDraw.
+      // Ember Mantle (plateBy -1) shares the plating pool but has its own look, in altDraw.
       if ((q.plateUntil ?? -1) > w.time && (q.plate ?? 0) > 0 && q.plateBy !== -1) {
         const frac = Math.max(0.08, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
         const spin = now / 900;
@@ -5459,7 +5459,7 @@ export class GameScene extends Phaser.Scene {
    * An ability option's cast (ALT_ABILITIES). The event carries no class, so like the other casts
    * it is drawn as this screen's class.
    */
-  private altCast(x: number, y: number, r: number, slot: number): void {
+  private altCast(x: number, y: number, r: number, slot: number, angle = 0): void {
     const w = this.world;
     const opt = ALT_OPTIONS[w.cls].find((o) => o.slot === slot) ?? ALT_ABILITIES[w.cls];
     const name = opt.def.name;
@@ -5511,6 +5511,20 @@ export class GameScene extends Phaser.Scene {
       this.floatText(x, y - 40, name, '#fff0d8', 18);
       return;
     }
+    if (opt.id === 'slagSpray') {
+      // Slag Spray: an orange-hot cone of slag thrown ahead.
+      this.addShape({ kind: 'cone', x, y, x2: 0, y2: 0, r, angle, arc: (70 * Math.PI) / 180, color: 0xff7a2a, life: 0.3 });
+      this.floatText(x, y - 40, name, '#ffb070', 18);
+      return;
+    }
+    if (opt.id === 'slagMortar') {
+      // Slag Mortar: a heavy shell bursts where it lands.
+      this.impact(x, y, 1.6);
+      this.emit(this.fx, 'ring', undefined, x, y, 0.35, { tint: 0xff9a4a, sx0: 0.15, sx1: (r * 2) / 128 });
+      this.shakeBy(0.08);
+      this.floatText(x, y - 40, name, '#ffb070', 18);
+      return;
+    }
     if (opt.id === 'canopy') {
       // Canopy: a pale blue-gold dome rises over the ground (drawn each frame like Sanctuary, in its own colour).
       this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 30, angle: 0, color: 0xcfe8ff, life: 0.6 });
@@ -5526,7 +5540,7 @@ export class GameScene extends Phaser.Scene {
     }
     switch (w.cls) {
       case 'emberwright': {
-        // Ember Ward: fire closes in around the hero and flames leap up.
+        // Ember Mantle: fire closes in around the hero and flames leap up.
         this.emit(this.fx, 'ring', undefined, x, y + 4, 0.35, { tint: WARD_FIRE, sx0: 1.1, sx1: 0.45 });
         for (let k = 0; k < 10; k++) {
           const a = (k / 10) * Math.PI * 2;
@@ -5666,7 +5680,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
       if (q.hp <= 0) continue;
-      // Ember Ward: a ring of flame tongues around the hero, thinning as the ward is spent.
+      // Ember Mantle: a ring of flame tongues around the hero, thinning as the ward is spent.
       if (q.plateBy === -1 && (q.plate ?? 0) > 0 && (q.plateUntil ?? -1) > t) {
         const frac = Math.max(0.15, Math.min(1, (q.plate ?? 0) / Math.max(1, q.plateAmt ?? q.plate ?? 1)));
         const fade = Math.min(1, ((q.plateUntil ?? 0) - t) / 0.4);

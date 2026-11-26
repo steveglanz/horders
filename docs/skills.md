@@ -647,7 +647,7 @@ Each class has two Mythics of its own, on top of the shared four. A Mythic shoul
 Tests are in `tests/mythics.test.ts`.
 
 ## Ability options (a second ability per slot)
-Each class earns up to three options, at hero levels 8, 12 and 16, each for a different slot, so by level 16 Q, E and R each offer two abilities. The interrupt (F) is never swapped. Each pick is made in the hub under the class picker (one two-button row per unlocked option, and a note for the next one), locked for the run, and saved per character (`alts`, a list of option ids, in CHARACTER_KEYS and the co-op HeroCard; old saves' `alt: true` reads as the level-8 option). Definitions are in `ALT_OPTIONS` in sim/content/classes.ts (`ALT_ABILITIES` is each class's level-8 option), and tuning is in `ALT_KIT` in sim/world.ts. Classes get their level-12 and level-16 options one class per PR; the Duskblade, the Bulwark, the Lumen and the Emberwright have theirs.
+Each class earns up to three options, at hero levels 8, 12 and 16, each for a different slot, so by level 16 Q, E and R each offer two abilities. The interrupt (F) is never swapped. Each pick is made in the hub under the class picker (one two-button row per unlocked option, and a note for the next one), locked for the run, and saved per character (`alts`, a list of option ids, in CHARACTER_KEYS and the co-op HeroCard; old saves' `alt: true` reads as the level-8 option). Definitions are in `ALT_OPTIONS` in sim/content/classes.ts (`ALT_ABILITIES` is each class's level-8 option), and tuning is in `ALT_KIT` in sim/world.ts. Classes get their level-12 and level-16 options one class per PR; every class has them (the Duskblade, the Bulwark, the Lumen, the Emberwright and the Slagbinder).
 
 | Class | Level | Slot | Replaces | Option | Cost / cooldown | What it does |
 |---|---|---|---|---|---|---|
@@ -659,19 +659,21 @@ Each class earns up to three options, at hero levels 8, 12 and 16, each for a di
 | Lumen | 16 | R | Sanctuary | Canopy | 60 / 22 s | Sanctuary's ground (same radius and length, Lingering Sanctuary still moves it) as a dome: no heal, foes in it burn at half rate, and every hero under it takes 25% less damage. Chime, Verse and Refrain (tree) work on it. Hallowed Embers is not drafted with it. For big hits; Sanctuary stays better for steady healing. |
 | Emberwright | 12 | Q | Flame Wave | Ember Dart | 25 / 4 s | A dart of fire at the nearest foe within 400 px: 110 damage and a 4 s burn (15 a second). Char and Fan (tree) work on it. For one big foe; Flame Wave stays better on packs and knocks them back. Ember Carpet, Rolling Inferno, Ignition and Cinder Tide are not drafted with it. |
 | Emberwright | 16 | R | Combustion | White Heat | 60 / 20 s | A burst around the Emberwright: 200 damage to every foe within 200 px and to the nearest big foe within 450 px (a tongue of fire leaps to it), a 4 s burn (20 a second), and normal foes are thrown back 80 px. Without the leap it was 20 wins of 120 behind, because Glarewell's Brand and Lens elites stand off at range. Primer (tree) and Heat Sink work on it. For when the press is on you; Combustion stays better at range (it picks healers and named foes) and boosts the party (Kindling). Fast Fuse is not drafted with it; Spreading Coals keeps its other half. |
+| Slagbinder | 12 | Q | Molten Plating | Slag Spray | 30 / 6 s | A cone of molten slag at the foe in reach (240 px, 70 degrees): 75 damage to each foe in it, all of them turn Brittle, and normal foes are shoved back 50 px. The splashback plates the gunner at half Molten Plating's thickness, so Coat, Blast and Glaze (tree) and Thick Coat still count; Quickset and Ladle speed it. For packs; Molten Plating stays the thicker ward and plates an ally in a party. |
+| Slagbinder | 16 | R | Cooling Shell | Slag Mortar | 60 / 20 s | A shell on the nearest big foe within 500 px (else the nearest foe): 110 damage to every foe within 110 px of where it lands, all turn Brittle, and normal foes are stunned for 1 s. You give up Cooling Shell's 35% cut and its cover for allies. Hardened, Slow Cool and Wide Shell are not drafted with it. |
 
 The level-8 options:
 
 | Class | Slot | Replaces | Option | Cost / cooldown | What it does |
 |---|---|---|---|---|---|
-| Emberwright | E | Blink | Ember Ward | 0 heat / 10 s | A ward of 25% max health for 3 s that stops blows. Foes that strike it burn (12 a second for 3 s). |
+| Emberwright | E | Blink | Ember Mantle | 0 heat / 10 s | A ward of 25% max health for 3 s that stops blows. Foes that strike it burn (12 a second for 3 s). |
 | Duskblade | Q | Rending Dash | Hamstring | 25 / 5 s | 55 damage and a 4 s bleed (12 a second) on the foe in reach, and a 4 s slow on it and foes within 120 px. |
 | Bulwark | R | Anvil Skin | Muster | 50 / 20 s | In a party, heroes within 200 px take 25% less for 5 s. Alone, you mend 15% of max health over 5 s. |
 | Lumen | E | Glimmer Step | Glow Pool | 0 / 12 s | A 90 px well for 6 s that heals anyone in it 3 a second, in two pulses a second. |
 | Slagbinder | E | Interpose | Cinder Sump | 0 / 10 s | An 80 px pit at your target for 5 s: it burns (10 a second) and slows foes in it by 40%. |
 
 Design's conditions (21 Nov 2026), all built in:
-- **Ember Ward** never stops Glare, the Long Night, Ladle Pour or percent ticks. It shares the plate pool, which only stops blockable hits, and Glare sets a `verbHit` flag so wards skip it.
+- **Ember Mantle** never stops Glare, the Long Night, Ladle Pour or percent ticks. It shares the plate pool, which only stops blockable hits, and Glare sets a `verbHit` flag so wards skip it.
 - **Glow Pool** never clears Slag Grip or Ladle Burn: it heals through `healAllies(…, cleanse = false)`.
 - **Hamstring and Cinder Sump** slow bosses, elites, rares and named foes by 20% at most. Only normal foes get the full slow.
 - **Muster** must keep the Crucible full party at or under about 70% (21/30).

@@ -256,7 +256,7 @@ export const TALENTS: Record<TalentId, TalentDef> = {
   cinderHail: { id: 'cinderHail', cls: 'slagbinder', name: 'Cinder Hail', branch: 'clinker', maxRank: 1, capstone: true, text: 'Every 4th Slag Lob throws three globs.' },
   crustedHide: { id: 'crustedHide', cls: 'slagbinder', name: 'Crusted Hide', branch: 'crust', maxRank: 3, text: '+15 max health.' },
   hotBlood: { id: 'hotBlood', cls: 'slagbinder', name: 'Hot Blood', branch: 'crust', maxRank: 2, text: 'Each hit you take gives 2 more Slag.' },
-  hardened: { id: 'hardened', cls: 'slagbinder', name: 'Hardened', branch: 'crust', maxRank: 2, text: 'Cooling Shell lasts 1s longer.' },
+  hardened: { id: 'hardened', ability: 2, cls: 'slagbinder', name: 'Hardened', branch: 'crust', maxRank: 2, text: 'Cooling Shell lasts 1s longer.' },
   slagScales: { id: 'slagScales', cls: 'slagbinder', name: 'Slag Scales', branch: 'crust', deep: true, maxRank: 3, text: 'You take 4% less damage.' },
   slowCool: { id: 'slowCool', ability: 2, cls: 'slagbinder', name: 'Slow Cool', branch: 'crust', deep: true, maxRank: 2, text: 'Your Cooling Shell cuts 5% more of the damage you take.' },
   deepSmoulder: { id: 'deepSmoulder', cls: 'emberwright', name: 'Deep Smoulder', branch: 'wildfire', deep: true, maxRank: 3, text: 'Orb fires burn 15% harder.' },

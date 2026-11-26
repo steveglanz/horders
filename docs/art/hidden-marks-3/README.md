@@ -5,7 +5,7 @@ the class. 2D draws them on overFx, which the 3D view covers. They are now drawn
 they cost no draw calls:
 
 - **Cooling Shell** (Slagbinder): the pale dome over the hero, with its rim and highlight, fading out at the end.
-- **Ember Ward** (Emberwright option): the ring of flame tongues round the hero, fewer as the ward is spent.
+- **Ember Mantle** (Emberwright option): the ring of flame tongues round the hero, fewer as the ward is spent.
 - **Brittle** (Slagbinder): the pale fracture lines over the foe's drawn body, between its feet and the head the
   renderer reports (view.foeHead).
 

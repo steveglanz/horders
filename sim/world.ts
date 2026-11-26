@@ -239,6 +239,12 @@ export const ALT_KIT = {
   sunlanceDamage: 95, sunlanceHeal: 15, canopyCut: 0.25, canopyBurn: 0.5,
   /** Ember Dart (Emberwright Q, level 12) and White Heat (Emberwright R, level 16). */
   emberDartDamage: 110, emberDartBurn: 15, emberDartBurnTime: 4, emberDartRange: 400, whiteHeatDamage: 200, whiteHeatRadius: 200, whiteHeatShove: 80, whiteHeatBurn: 20, whiteHeatBurnTime: 4, whiteHeatLeap: 450,
+  /**
+   * Slag Spray (Slagbinder Q, level 12): a cone of molten slag; the splashback plates the gunner at sprayPlate of
+   * Molten Plating's thickness. Slag Mortar (Slagbinder R, level 16): a shell that lands on a foe in reach.
+   */
+  sprayDamage: 75, sprayReach: 240, sprayHalf: 35, sprayShove: 50, sprayPlate: 0.5,
+  mortarDamage: 110, mortarRadius: 110, mortarRange: 500, mortarStun: 1,
 };
 
 /** A hero's ability options for a run: `alts` by id (cleaned), else `alt` as the class's level-8 option. */
@@ -1762,6 +1768,8 @@ export class World {
       // Fan and Primer (Emberwright tree) speed Ember Dart and White Heat like Flame Wave and Combustion.
       if (id === 'emberDart') return base - TREE.fanCd * this.tree('fan');
       if (id === 'whiteHeat') return base - TREE.primerCd * this.tree('primer');
+      // Quickset and Ladle speed Slag Spray like the Molten Plating it replaces.
+      if (id === 'slagSpray') return base - this.rank('quickset') - TREE.ladleCd * this.tree('ladle');
       return base;
     }
     if (this.cls === 'slagbinder') {
@@ -3908,14 +3916,14 @@ export class World {
     if (this.heroes.length > 1) amount *= 1 - PARTY_CARDS.leeCut * this.allyRank('leeSide', p, PARTY_CARDS.leeRadius);
     // Cover (character tree): heroes close to a Bulwark with it take less.
     if (this.heroes.length > 1) amount *= 1 - TREE.coverCut * this.allyTree('cover', p, TREE.coverRadius);
-    // Ember Ward: whatever strikes the ward catches fire.
+    // Ember Mantle: whatever strikes the ward catches fire.
     if (src >= 0 && p.plateBy === -1 && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time && this.enemies[src]?.alive) {
       const e = this.enemies[src];
       e.burnDps = Math.max(e.burnDps, ALT_KIT.emberWardBurn * this.dmgMult);
       e.burnT = Math.max(e.burnT, ALT_KIT.emberWardBurnTime);
       e.burnBy = this.acting;
     }
-    // Molten Plating and Ember Ward stop blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip) or Glare.
+    // Molten Plating and Ember Mantle stop blows, not unblockable ticks (heat, cold, Ladle Pour, Slag Grip) or Glare.
     if (!unblockable && !this.verbHit && (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time) {
       const soak = Math.min(p.plate ?? 0, amount);
       p.plate = (p.plate ?? 0) - soak;
@@ -4514,6 +4522,61 @@ export class World {
       this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r });
       return;
     }
+    if (id === 'slagSpray') {
+      // Slag Spray: a cone of molten slag at the foe in reach; everything it hits turns Brittle and small foes are
+      // shoved back. The splashback plates the gunner thinly, so Coat, Blast and Glaze (tree) still count.
+      const t = this.bladeTarget(ALT_KIT.sprayReach + 60);
+      const ang = t >= 0 ? Math.atan2(this.enemies[t].y - p.y, this.enemies[t].x - p.x) : Math.hypot(input.x, input.y) > 0.01 ? Math.atan2(input.y, input.x) : p.facing;
+      p.facing = ang;
+      const r = ALT_KIT.sprayReach;
+      const half = (ALT_KIT.sprayHalf * Math.PI) / 180;
+      this.forEachNear(p.x, p.y, r + 40, (i) => {
+        const e = this.enemies[i];
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d > r + e.def.radius) return;
+        if (Math.abs(angleDiff(Math.atan2(dy, dx), ang)) > half + e.def.radius / d) return;
+        this.damageEnemy(i, ALT_KIT.sprayDamage * this.dmgMult, true);
+        if (!e.alive) return;
+        this.makeBrittle(i);
+        if (e.def.rank === 'normal' && !e.def.stationary) {
+          e.x += (dx / d) * ALT_KIT.sprayShove;
+          e.y += (dy / d) * ALT_KIT.sprayShove;
+          this.clampArena(e, e.def.radius);
+        }
+      });
+      this.plate(this.acting, this.plateAmount * ALT_KIT.sprayPlate);
+      this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: ang, r });
+      return;
+    }
+    if (id === 'slagMortar') {
+      // Slag Mortar: a heavy shell on the nearest big foe in reach (else the nearest foe); everything where it lands
+      // takes the hit and turns Brittle, and small foes are stunned. Cooling Shell's damage answer.
+      let t = -1;
+      let best = ALT_KIT.mortarRange ** 2;
+      for (let i = 0; i < this.enemies.length; i++) {
+        const e = this.enemies[i];
+        if (!e.alive || e.def.rank === 'normal') continue;
+        const d = dist2(p.x, p.y, e.x, e.y);
+        if (d < best) { best = d; t = i; }
+      }
+      if (t < 0) t = this.nearestEnemies(p.x, p.y, 1, ALT_KIT.mortarRange)[0] ?? -1;
+      if (t < 0) return;
+      const x = this.enemies[t].x;
+      const y = this.enemies[t].y;
+      const r = ALT_KIT.mortarRadius;
+      this.forEachNear(x, y, r + 40, (i) => {
+        const e = this.enemies[i];
+        if (dist2(x, y, e.x, e.y) > (r + e.def.radius) ** 2) return;
+        this.damageEnemy(i, ALT_KIT.mortarDamage * this.dmgMult, true);
+        if (!e.alive) return;
+        this.makeBrittle(i);
+        if (e.def.rank === 'normal' && !e.def.stationary) e.stunT = Math.max(e.stunT, ALT_KIT.mortarStun);
+      });
+      this.events.push({ type: 'ability', alt: true, slot, x, y, angle: 0, r });
+      return;
+    }
     if (id === 'clout') {
       // Clout: one heavy blow on the foe in front that mends the Bulwark. Rim Smash's pack answer, for one big foe.
       const t = this.bladeTarget(this.sweepReach + 40);
@@ -4572,7 +4635,7 @@ export class World {
       return;
     }
     if (this.cls === 'emberwright') {
-      // Ember Ward: a fire ward that stops blows; plateBy -1 marks it as not a Slagbinder's plating.
+      // Ember Mantle: a fire ward that stops blows; plateBy -1 marks it as not a Slagbinder's plating.
       p.plate = p.maxHp * ALT_KIT.emberWardShare;
       p.plateAmt = p.plate;
       p.plateUntil = this.time + ALT_KIT.emberWardTime;
@@ -4636,7 +4699,7 @@ export class World {
   private updateAlt(dt: number): void {
     const p = this.player;
     if (!p.alts?.length) return;
-    // Ember Ward runs out (Slagbinder plating is cleared in updatePlates).
+    // Ember Mantle runs out (Slagbinder plating is cleared in updatePlates).
     if (p.plateBy === -1 && p.plateUntil !== undefined && (this.time >= p.plateUntil || (p.plate ?? 0) <= 0.01)) {
       p.plateUntil = undefined;
       p.plate = 0;

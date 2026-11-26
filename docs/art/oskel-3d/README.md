@@ -42,5 +42,5 @@ inhale, and (since #757) the empty-vent edge arrow. Still hidden in 3D (GameScen
 | Coldmarrow (`coldDraw`) | ember cracks on a Frost Warden inside a coal's light | minor |
 
 Class and event marks on the same layers (not boss mechanics): the Slagbinder's plate, Cooling Shell dome and Brittle
-cracks (`slagDraw`), Ember Ward's flames (`altDraw`), the Brood's egg sacs (footGfx), falling rock and dust in arena
+cracks (`slagDraw`), Ember Mantle's flames (`altDraw`), the Brood's egg sacs (footGfx), falling rock and dust in arena
 events (`waveDraw`, `arenaEventDraw`), and snow. The Pressworks plate badge and Pressed mark are fixed by #759.

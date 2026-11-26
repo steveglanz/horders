@@ -14,7 +14,7 @@ squashed them further (a foe hit while lunging was 24% wider and 20% shorter).
 - Squash and stretch kept small: a foe's hit 10% -> 4%, its lunge 14%/10% -> 6%/5%, its cast rear 6-10% -> 3-5%; a
   hero's punch 8%/5% -> 4%/3% and idle breath 3% -> 1.5%.
 - Marks over heroes refit to the taller sprite: allies' names sit over the head, the revive "+" above them, and the
-  Cooling Shell and Ember Ward ovals cover the body (GameScene drawLabels3d).
+  Cooling Shell and Ember Mantle ovals cover the body (GameScene drawLabels3d).
 - 3D bosses (Ondrel and others built as models) are unchanged. 2D is unchanged.
 
 Cost: unchanged (72/72, 78/78, 69/69, 74/74, 78/78 in the shots below).
