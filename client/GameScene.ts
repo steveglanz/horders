@@ -2597,8 +2597,9 @@ export class GameScene extends Phaser.Scene {
     // The Lumen's Sanctuary and Blessed Ground pool.
     const lp = w.player;
     if (lp.sanctT > 0) {
-      g.fillStyle(0xffe9a8, 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
-      g.lineStyle(2, 0xffd27a, 0.6);
+      // Canopy (option) shares Sanctuary's ground in a cooler colour.
+      g.fillStyle(lp.canopy ? 0xcfe8ff : 0xffe9a8, lp.canopy ? 0.12 : 0.08).fillCircle(lp.sanctX, lp.sanctY, w.sanctuaryRadius);
+      g.lineStyle(2, lp.canopy ? 0xa8d0ff : 0xffd27a, 0.6);
       this.dashedCircle(g, lp.sanctX, lp.sanctY, w.sanctuaryRadius, now);
     }
     if (lp.poolT > 0) g.fillStyle(0xb8ffd0, 0.12).fillCircle(lp.poolX, lp.poolY, 70);
@@ -5487,6 +5488,20 @@ export class GameScene extends Phaser.Scene {
       this.emit(this.fx, 'ring', undefined, x, y, 0.4, { tint: 0xffd27a, sx0: (r * 2) / 128, sx1: 0.15 });
       this.ring(x, y, 50, 0xfff2b0, 0.35);
       this.floatText(x, y - 40, name, '#ffe2a8', 18);
+      return;
+    }
+    if (opt.id === 'sunlance') {
+      // Sunlance: the lance itself is drawn from w.lances; a bright flash where it lands.
+      this.impact(x, y, 1.2);
+      this.ring(x, y, 28, 0xfff0c0, 0.3);
+      this.floatText(x, y - 40, name, '#fff0b0', 18);
+      return;
+    }
+    if (opt.id === 'canopy') {
+      // Canopy: a pale blue-gold dome rises over the ground (drawn each frame like Sanctuary, in its own colour).
+      this.addShape({ kind: 'pillar', x, y, x2: 0, y2: 0, r: 30, angle: 0, color: 0xcfe8ff, life: 0.6 });
+      this.ring(x, y, r, 0xcfe8ff, 0.5);
+      this.floatText(x, y - 40, name, '#e0f0ff', 18);
       return;
     }
     if (opt.id === 'quicken') {

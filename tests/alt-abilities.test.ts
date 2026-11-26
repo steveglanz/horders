@@ -126,6 +126,35 @@ describe('ability options', () => {
     expect(hp - w.player.hp).toBeCloseTo(plain * (1 - ALT_KIT.gatherCut));
   });
 
+  it('Sunlance strikes one foe and heals; Canopy cuts damage under it and does not heal', () => {
+    const w = new World({ seed: 5, cls: 'lumen', alts: ['sunlance', 'canopy'], tier: 4, omens: [] });
+    for (const e of w.enemies) e.alive = false;
+    const inner = w as unknown as Inner & { updateLight(dt: number): void };
+    expect(w.abilities.map((d) => d.name)).toEqual(['Sunlance', 'Glimmer Step', 'Canopy', 'Hush']);
+    const t = inner.spawn('slagling', w.player.x + 200, w.player.y);
+    const side = inner.spawn('slagling', w.player.x + 200, w.player.y + 40);
+    for (const i of [t, side]) w.enemies[i].hp = w.enemies[i].maxHp = 1e6;
+    inner.rebuildHash();
+    w.player.hp = w.player.maxHp * 0.5;
+    const h0 = w.player.hp;
+    inner.castAlt({ x: 0, y: 0 }, 0);
+    const hit = [t, side].filter((i) => w.enemies[i].hp < 1e6);
+    expect(hit.length).toBe(1);
+    expect(w.player.hp - h0).toBeCloseTo(ALT_KIT.sunlanceHeal);
+    for (const i of [t, side]) w.enemies[i].alive = false;
+    inner.rebuildHash();
+    const b0 = w.player.hp;
+    inner.hurtPlayer(20, -1);
+    const plain = b0 - w.player.hp;
+    inner.castAlt({ x: 0, y: 0 }, 2);
+    expect(w.player.canopy).toBe(true);
+    const hp = w.player.hp;
+    inner.updateLight(0.1);
+    expect(w.player.hp).toBe(hp);
+    inner.hurtPlayer(20, -1);
+    expect(hp - w.player.hp).toBeCloseTo(plain * (1 - ALT_KIT.canopyCut));
+  });
+
   it('never drafts talents for the replaced ability', () => {
     for (const cls of CLASS_IDS) {
       const slot = ALT_ABILITIES[cls].slot;
@@ -229,6 +258,8 @@ describe('ability options', () => {
       let used = false;
       for (let n = 0; n < 30 * 120 && w.state !== 'ended' && !used; n++) {
         if (w.state === 'draft') { w.choose(0); continue; }
+        // A standing hero dies before it earns a costly option's resource (Canopy, 60 Radiance): keep it topped up.
+        w.player.heat = Math.max(w.player.heat, o.def.cost);
         const before = w.player.cds[slot];
         const c = botCast(w);
         w.step({ x: 0, y: 0, cast: c });

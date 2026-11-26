@@ -235,6 +235,8 @@ export const ALT_KIT = {
   /** Clout (Bulwark Q, level 12) and Gather (Bulwark E, level 16). */
   cloutDamage: 120, cloutSplash: 50, cloutSplashR: 90, cloutMend: 0.5, cloutStun: 1, cloutStunBig: 0.3,
   gatherRadius: 260, gatherTime: 4, gatherCut: 0.2, gatherResolve: 10, gatherStunBig: 0.8,
+  /** Sunlance (Lumen Q, level 12) and Canopy (Lumen R, level 16; reuses Sanctuary's ground, radius and timer). */
+  sunlanceDamage: 95, sunlanceHeal: 15, canopyCut: 0.25, canopyBurn: 0.5,
 };
 
 /** A hero's ability options for a run: `alts` by id (cleaned), else `alt` as the class's level-8 option. */
@@ -502,6 +504,10 @@ export interface Player {
   quickUntil?: number;
   /** Gather (Bulwark E option): takes less damage until then. */
   gatherUntil?: number;
+  /** Canopy (Lumen R option): the Lumen's Sanctuary ground is a Canopy (no heal, half burn, cuts damage). */
+  canopy?: boolean;
+  /** Under a Lumen's Canopy until then (refreshed each pulse). */
+  canopyUntil?: number;
   wellUntil?: number;
   wellX?: number;
   wellY?: number;
@@ -1746,7 +1752,13 @@ export class World {
   private baseCooldown(slot: number): number {
     const base = this.abilities[slot]?.cooldown ?? 0;
     // Ram (Bulwark tree) speeds Gather like the Charge it replaces.
-    if (this.isAlt(slot)) return this.altAt(slot)?.id === 'gather' ? base - TREE.ramCd * this.tree('ram') : base;
+    if (this.isAlt(slot)) {
+      const id = this.altAt(slot)?.id;
+      if (id === 'gather') return base - TREE.ramCd * this.tree('ram');
+      // Chime (Lumen tree) speeds Canopy like the Sanctuary it replaces.
+      if (id === 'canopy') return base - TREE.chimeCd * this.tree('chime');
+      return base;
+    }
     if (this.cls === 'slagbinder') {
       if (slot === 0) return base - this.rank('quickset') - TREE.ladleCd * this.tree('ladle');
       // Recoil never drops below 1s.
@@ -3885,6 +3897,8 @@ export class World {
     if (this.heroes.length > 1 && (p.cryUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.cryCut;
     // Gather: the Bulwark braces for the pack it pulled in.
     if ((p.gatherUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.gatherCut;
+    // Canopy: heroes under a Lumen's dome take less.
+    if ((p.canopyUntil ?? -1) > this.time) amount *= 1 - ALT_KIT.canopyCut;
     // Lee Side (party card): heroes close to a Bulwark that took it take less.
     if (this.heroes.length > 1) amount *= 1 - PARTY_CARDS.leeCut * this.allyRank('leeSide', p, PARTY_CARDS.leeRadius);
     // Cover (character tree): heroes close to a Bulwark with it take less.
@@ -4410,6 +4424,25 @@ export class World {
     if (id === 'quicken') {
       p.quickUntil = this.time + ALT_KIT.quickenTime;
       this.events.push({ type: 'ability', alt: true, slot, x: p.x, y: p.y, angle: 0, r: 40 });
+      return;
+    }
+    if (id === 'sunlance') {
+      // Sunlance: one lance of light at the target; Radiant Burst's single-target answer. Pulse (tree) works on it.
+      const t = this.bladeTarget(this.lumenRange);
+      if (t < 0) return;
+      const e = this.enemies[t];
+      p.facing = Math.atan2(e.y - p.y, e.x - p.x);
+      const lance = this.lances.find((l) => !l.alive);
+      if (lance) Object.assign(lance, { alive: true, x1: p.x, y1: p.y, x2: e.x, y2: e.y, life: 0.25 });
+      this.damageEnemy(t, ALT_KIT.sunlanceDamage * (1 + TREE.pulseBurst * this.tree('pulse')) * this.dmgMult, true);
+      const ally = this.woundedAlly(this.lumenRange);
+      if (ally >= 0) this.healAllies(this.heroes[ally].player.x, this.heroes[ally].player.y, 1, ALT_KIT.sunlanceHeal, ally);
+      else this.healPlayer(ALT_KIT.sunlanceHeal);
+      this.events.push({ type: 'ability', alt: true, slot, x: e.x, y: e.y, angle: p.facing, r: 30 });
+      return;
+    }
+    if (id === 'canopy') {
+      this.sanctuary(true);
       return;
     }
     if (id === 'clout') {
@@ -4973,11 +5006,20 @@ export class World {
       if (p.sanctTick <= 0) {
         p.sanctTick += 0.5;
         const r = this.sanctuaryRadius;
-        if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
-        this.healAllies(p.sanctX, p.sanctY, r, 2);
+        if (p.canopy) {
+          // Canopy: no heal; every hero under it takes less until the next pulse.
+          for (let k = 0; k < this.heroes.length; k++) {
+            const a = k === this.acting ? p : this.heroes[k].player;
+            if (a.hp > 0 && dist2(a.x, a.y, p.sanctX, p.sanctY) <= r * r) a.canopyUntil = this.time + 0.6;
+          }
+        } else {
+          if (dist2(p.x, p.y, p.sanctX, p.sanctY) <= r * r) this.healPlayer(2);
+          this.healAllies(p.sanctX, p.sanctY, r, 2);
+        }
+        const burn = p.canopy ? ALT_KIT.canopyBurn : 1;
         this.forEachNear(p.sanctX, p.sanctY, r + 40, (i) => {
           const e = this.enemies[i];
-          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * (1 + 0.5 * this.rank('hallowedEmbers')) * (1 + TREE.verseBurn * this.tree('verse')) * this.dmgMult, false, true);
+          if (dist2(p.sanctX, p.sanctY, e.x, e.y) <= (r + e.def.radius) ** 2) this.damageEnemy(i, 10 * burn * (1 + 0.5 * this.rank('hallowedEmbers')) * (1 + TREE.verseBurn * this.tree('verse')) * this.dmgMult, false, true);
         });
       }
     }
@@ -5133,13 +5175,14 @@ export class World {
     this.events.push({ type: 'blink', x1, y1, x2: p.x, y2: p.y });
   }
 
-  private sanctuary(): void {
+  private sanctuary(canopy = false): void {
     const p = this.player;
+    p.canopy = canopy;
     p.sanctT = (6 + 2 * this.rank('lingeringSanctuary')) * (this.hasMythic('anchoredDawn') ? 1.5 : 1);
     p.sanctX = p.x;
     p.sanctY = p.y;
     p.sanctTick = 0;
-    this.events.push({ type: 'ability', slot: 2, x: p.x, y: p.y, angle: 0, r: this.sanctuaryRadius });
+    this.events.push({ type: 'ability', ...(canopy ? { alt: true } : {}), slot: 2, x: p.x, y: p.y, angle: 0, r: this.sanctuaryRadius });
   }
 
   // ---------------------------------------------------------------- bulwark

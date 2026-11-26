@@ -166,7 +166,7 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   glow: { id: 'glow', cls: 'emberwright', branch: 'ashguard', name: 'Glow', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Ashguard helps you stay there.' },
   // Lumen, Dawn branch: Sunmotes, Radiant Burst and crits.
   shine: { id: 'shine', cls: 'lumen', branch: 'dawn', name: 'Shine', maxRank: 3, text: 'Sunmotes hit 6% harder per point.', tip: 'Sunmotes deal 6% more damage per point, 18% at 3 points.' },
-  pulse: { id: 'pulse', cls: 'lumen', branch: 'dawn', name: 'Pulse', maxRank: 2, text: 'Radiant Burst hits 15% harder per point.', tip: 'Radiant Burst deals 15% more damage per point, 30% at 2 points. Its heal stays the same.' },
+  pulse: { id: 'pulse', cls: 'lumen', branch: 'dawn', name: 'Pulse', maxRank: 2, text: 'Radiant Burst (or Sunlance) hits 15% harder per point.', tip: 'Radiant Burst or Sunlance deals 15% more damage per point, 30% at 2 points. Its heal stays the same.' },
   dazzle: { id: 'dazzle', cls: 'lumen', branch: 'dawn', name: 'Dazzle', maxRank: 3, text: '+2% chance to crit per point.', tip: '2% more chance per point to crit for double damage, 6% at 3 points.' },
   noonday: { id: 'noonday', cls: 'lumen', branch: 'dawn', name: 'Noonday', maxRank: 1, keystone: true, text: 'Crits hit for 2.2 times instead of 2.', tip: 'Keystone. Your crits deal 2.2 times the hit instead of 2 times, 10% more on every crit.' },
   // Lumen, Grace branch: lasting and mending.
@@ -176,9 +176,9 @@ export const TREE_NODES: Record<TreeNodeId, TreeNode> = {
   serene: { id: 'serene', cls: 'lumen', branch: 'grace', name: 'Serene', maxRank: 1, keystone: true, text: 'Above half health, deal 10% more damage.', tip: 'Keystone. While you are at half your health or more, you deal 10% more damage. The rest of Grace helps you stay there.' },
   // Lumen, Choir branch: faster Sunmotes and a stronger Sanctuary.
   lilt: { id: 'lilt', cls: 'lumen', branch: 'choir', name: 'Lilt', maxRank: 3, text: 'Sunmotes fly 4% more often per point.', tip: 'Sunmotes come 4% faster per point, 12% at 3 points.' },
-  chime: { id: 'chime', cls: 'lumen', branch: 'choir', name: 'Chime', maxRank: 2, text: 'Sanctuary recharges 2s faster per point.', tip: 'Sanctuary comes back 2s sooner per point, 4s at 2 points.' },
-  verse: { id: 'verse', cls: 'lumen', branch: 'choir', name: 'Verse', maxRank: 3, text: 'Sanctuary burns 15% harder per point.', tip: 'Sanctuary burns foes for 15% more per point, 45% at 3 points.' },
-  refrain: { id: 'refrain', cls: 'lumen', branch: 'choir', name: 'Refrain', maxRank: 1, keystone: true, text: 'Foes in your Sanctuary take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe standing in your Sanctuary.' },
+  chime: { id: 'chime', cls: 'lumen', branch: 'choir', name: 'Chime', maxRank: 2, text: 'Sanctuary (or Canopy) recharges 2s faster per point.', tip: 'Sanctuary or Canopy comes back 2s sooner per point, 4s at 2 points.' },
+  verse: { id: 'verse', cls: 'lumen', branch: 'choir', name: 'Verse', maxRank: 3, text: 'Sanctuary (or Canopy) burns 15% harder per point.', tip: 'Sanctuary or Canopy burns foes for 15% more per point, 45% at 3 points.' },
+  refrain: { id: 'refrain', cls: 'lumen', branch: 'choir', name: 'Refrain', maxRank: 1, keystone: true, text: 'Foes in your Sanctuary or Canopy take 8% more damage from you.', tip: 'Keystone. You deal 8% more damage to any foe standing in your Sanctuary or Canopy.' },
   // Slagbinder, Forge branch: Molten Plating.
   coat: { id: 'coat', cls: 'slagbinder', branch: 'forge', name: 'Coat', maxRank: 3, text: 'Molten Plating holds 10% more per point.', tip: 'Molten Plating holds 10% more per point, 30% at 3 points.' },
   blast: { id: 'blast', cls: 'slagbinder', branch: 'forge', name: 'Blast', maxRank: 2, text: 'Plating bursts 15% harder per point.', tip: 'When plating breaks or runs out, its burst deals 15% more per point, 30% at 2 points.' },

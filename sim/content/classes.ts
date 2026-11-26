@@ -95,7 +95,7 @@ export function slotOpen(slot: number, level: number | undefined): boolean {
  * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
  * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".
  */
-export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather';
+export type AltId = 'emberWard' | 'hamstring' | 'muster' | 'glowPool' | 'cinderSump' | 'wideCut' | 'quicken' | 'clout' | 'gather' | 'sunlance' | 'canopy';
 export interface AltOption { id: AltId; slot: number; level: number; replaces: string; def: AbilityDef }
 export const ALT_UNLOCK_LEVEL = 8;
 export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
@@ -114,6 +114,8 @@ export const ALT_OPTIONS: Record<ClassId, AltOption[]> = {
   ],
   lumen: [
     { id: 'glowPool', slot: 1, level: 8, replaces: 'Glimmer Step', def: { name: 'Glow Pool', key: 'E', cost: 0, cooldown: 12, text: 'Set down a well of light for 6s that heals anyone in it 3 a second. It never clears Slag Grip.' } },
+    { id: 'sunlance', slot: 0, level: 12, replaces: 'Radiant Burst', def: { name: 'Sunlance', key: 'Q', cost: 25, cooldown: 4, text: 'A lance of light at your target for 95, and the most hurt hero near you (you too) heals 15. Better on one big foe; Radiant Burst is better on packs and shoves them back.' } },
+    { id: 'canopy', slot: 2, level: 16, replaces: 'Sanctuary', def: { name: 'Canopy', key: 'R', cost: 60, cooldown: 22, text: 'Raise a dome of light for 6s: heroes under it take 25% less damage and foes in it burn at half Sanctuary\'s rate. It does not heal. Chime, Verse and Refrain work on it as on Sanctuary.' } },
   ],
   slagbinder: [
     { id: 'cinderSump', slot: 1, level: 8, replaces: 'Recoil', def: { name: 'Cinder Sump', key: 'E', cost: 0, cooldown: 10, text: 'Pour a pit at your target for 5s: foes in it slow by 40% (bosses and elites by a fifth) and burn.' } },
