@@ -261,6 +261,8 @@ function startRun(bounty = false, key = false): void {
     cls: hero.cls ?? 'emberwright',
     stance: hero.stance,
     alt: altOn(hero),
+    // Abilities unlock over the first character levels (SLOT_UNLOCK, class progression 25 Nov).
+    unlockLevel: hero.level,
     // Only offer the shadow fight when the world boss is actually reachable.
     worldBoss: cloud.online && hub.boss ? hub.boss.name : undefined,
     bossOmen: hub.bossOmen(),
@@ -298,7 +300,7 @@ function startRun(bounty = false, key = false): void {
   const fill = !botParty?.length && !bounty && !stress && (hosting || !(coop && coop.roster.length > 1)) ? hub.fillParty() : [];
   if (fill.length) {
     const gear = standInGear(equippedItems(hero));
-    Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: botTree(cls, hero.level - 1) })), partySize: 1 + fill.length, fillBots: fill.length });
+    Object.assign(opts, { party: fill.map((cls) => ({ cls, name: `${CLASSES[cls].name} (bot)`, gear, passives: botTree(cls, hero.level - 1), unlockLevel: hero.level })), partySize: 1 + fill.length, fillBots: fill.length });
   }
   // Phase 18 Halls: every dungeon with a map (sim/halls.ts HALLS_ON) is played on it, solo, bot-filled and hosted online
   // co-op alike (the map reaches guests in netsync's Snapshot.halls). Its trash packs (TRASH_ON), and the staged Kiln
