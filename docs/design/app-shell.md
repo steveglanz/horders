@@ -50,6 +50,13 @@ Nothing is signed for release and nothing is uploaded to a store.
 The Automerge workflow waits on CI only, not on App shell, so check a shell PR's App shell run
 before it merges.
 
-## Still open in M7
-
-- Install the debug APK on an Android emulator in CI and play a delve (the M7 "done when").
+- **android-play** (ubuntu, after android): boots an Android 15 (API 35, x86_64, KVM) emulator
+  with reactivecircus/android-emulator-runner, installs the debug APK, and runs
+  `tools/apkplay.cjs`. The script attaches to the app's WebView with Playwright's Android support
+  (playwright-core, installed only in the job), taps Delve with a real `adb input tap` (CDP mouse
+  and touch input hang in the emulator's WebView), turns on the autopilot at warp 10 and waits for
+  the delve to end. It fails if the delve does not end, the end screen does not show, there are no
+  kills, or the page throws. Device screenshots are the run's `horders-emulator-shots` artifact.
+  First green run 26 Nov (#861): WebView 124, WebGL and the 3D look on, a Kiln delve won with 79
+  kills in about 5 minutes of wall time. `node tools/apkplay.cjs --desktop <outDir>` runs the same
+  flow in desktop Chromium on `dist/`.

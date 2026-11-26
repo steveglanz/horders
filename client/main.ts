@@ -447,6 +447,8 @@ mountDisplayOptions(el('hubOpts'));
   audio,
   /** For tools/cooprejoincheck.cjs: the co-op session, to cut its link. */
   coop: () => coop,
+  /** For tools/apkplay.cjs: whether this page load uses the 3D look and its view is up. */
+  look3d: () => hd2dWanted() && hd2dMounted(),
 };
 
 // ------------------------------------------------------------------ co-op

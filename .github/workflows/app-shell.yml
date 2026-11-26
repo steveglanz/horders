@@ -17,6 +17,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/app-shell.yml'
+      - 'tools/apkplay.cjs'
   push:
     branches: [main]
   workflow_dispatch:
@@ -52,6 +53,49 @@ jobs:
           name: horders-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+
+  # Installs the debug APK on an Android emulator and plays one delve with the autopilot inside
+  # the app's WebView (the M7 "done when"). Screenshots from the device are kept as a run artifact.
+  android-play:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: horders-debug-apk
+          path: apk
+      # Only the driver is needed (no browsers): it talks to the app's WebView through adb.
+      - run: npm install --prefix "$RUNNER_TEMP/pw" playwright-core@1.63.0
+      # Hardware acceleration for the emulator (GitHub's Linux runners have KVM).
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Play a delve on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: node tools/apkplay.cjs apk/app-debug.apk apk-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: horders-emulator-shots
+          path: apk-shots
+          retention-days: 14
+          if-no-files-found: ignore
 
   ios:
     # Capacitor 8 needs Xcode 26. Public repos get macOS runners free.
