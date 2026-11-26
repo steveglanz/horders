@@ -317,6 +317,27 @@ function slitEyes(ctx: Ctx, pts: [number, number][], k: number, color: string): 
   ctx.restore();
 }
 
+/** Spikes or horns: each is a base (x1,y1)-(x2,y2) and a tip (tx,ty), shaded hi at the tip to lo at the base. */
+function spikes(ctx: Ctx, list: [number, number, number, number, number, number][], hi: string, lo: string, line = 1.2): void {
+  for (const [x1, y1, x2, y2, tx, ty] of list) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(tx, ty); ctx.lineTo(x2, y2); ctx.closePath();
+    shade(ctx, hi, lo, Math.min(ty, y1, y2), Math.max(ty, y1, y2), line);
+  }
+}
+
+/** A row of n pale fangs along y from x0 to x1, pointing down (len > 0) or up (len < 0). */
+function fangRow(ctx: Ctx, x0: number, x1: number, y: number, n: number, len: number, color = '#efe4cc'): void {
+  const w = (x1 - x0) / n;
+  ctx.save();
+  ctx.fillStyle = color; ctx.strokeStyle = INK; ctx.lineWidth = 0.7;
+  for (let k = 0; k < n; k++) {
+    const x = x0 + k * w;
+    const l = len * (k % 2 ? 0.7 : 1);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w / 2, y + l); ctx.lineTo(x + w, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Slagling (the raid): a squat slag beast, its cooling crust split into spikes over a bright molten maw full of black teeth. */
 function drawSlagling(ctx: Ctx, _s: number, f: number): void {
   const sq = [0, 0.8, 0, -0.6][f];
@@ -1304,6 +1325,16 @@ function drawHessa(ctx: Ctx, _s: number, f: number): void {
   // Barnacles crusting the hem.
   ctx.fillStyle = 'rgba(236,230,214,0.9)';
   for (const [x, y] of [[44, 86], [50, 90], [72, 88], [77, 84], [64, 92]]) { ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.stroke(); }
+  // Grasping tendrils trailing from the hem into the pool.
+  ctx.save(); ctx.lineCap = 'round';
+  for (const [x, d] of [[42, -1], [50, -0.4], [70, 0.5], [78, 1]] as const) {
+    const w = (f + x) % 4 - 1.5;
+    ctx.strokeStyle = INK; ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(x, 90); ctx.quadraticCurveTo(x + d * 6 + w, 98, x + d * 10 - w, 104); ctx.stroke();
+    ctx.strokeStyle = '#3f7068'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, 90); ctx.quadraticCurveTo(x + d * 6 + w, 98, x + d * 10 - w, 104); ctx.stroke();
+  }
+  ctx.restore();
   // Arms: one held out to call the tide, one gripping the anchor-staff.
   limb(ctx, 51, 36, 38, 52, 4.5, '#8cc0bc');
   limb(ctx, 69, 36, 84, 46, 4.5, '#8cc0bc');
@@ -1322,15 +1353,34 @@ function drawHessa(ctx: Ctx, _s: number, f: number): void {
   ctx.beginPath(); ctx.moveTo(76, 92); ctx.quadraticCurveTo(86, 104, 96, 92); ctx.stroke();
   ctx.restore();
   ell(ctx, 85, 46, 3.6, 3.2); shade(ctx, '#a8d8d4', '#4a7a78', 43, 49, 1.1);
-  // Head: pale, with a crown of shells and cold surf-white eyes.
-  ell(ctx, 60, 20, 8, 9.5); shade(ctx, '#d2ece8', '#6a9a98', 10, 30, 1.5);
-  for (const [x, y, r] of [[52, 12, 2.6], [56.5, 9, 3], [60, 7.5, 3.4], [63.5, 9, 3], [68, 12, 2.6]]) {
-    ctx.beginPath(); ctx.moveTo(x - r, y + 2); ctx.lineTo(x, y - r); ctx.lineTo(x + r, y + 2); ctx.closePath();
-    shade(ctx, '#f4ead8', '#b49c7a', y - r, y + 2, 0.9);
+  // Head: a drowned face, gaunt and grey-green, under a crown of jagged shells; cold surf-white slit eyes in dark
+  // sunken sockets and a gaping mouth of needle teeth. Wet kelp hangs over the brow.
+  ctx.beginPath();
+  ctx.moveTo(52, 16); ctx.quadraticCurveTo(52, 9, 60, 9.5); ctx.quadraticCurveTo(68, 9, 68, 16);
+  ctx.quadraticCurveTo(68, 24, 61, 31); ctx.quadraticCurveTo(59, 31.5, 58, 30); ctx.quadraticCurveTo(52, 24, 52, 16); ctx.closePath();
+  shade(ctx, '#a8c8c0', '#3e6462', 9, 31, 1.5);
+  for (const [x, y, r, h] of [[51.5, 12, 2.4, 6], [55.5, 9, 2.6, 8], [60, 7.5, 3, 10], [64.5, 9, 2.6, 8], [68.5, 12, 2.4, 6]]) {
+    ctx.beginPath(); ctx.moveTo(x - r, y + 2); ctx.lineTo(x + (x - 60) * 0.12, y - h); ctx.lineTo(x + r, y + 2); ctx.closePath();
+    shade(ctx, '#f4ead8', '#8a7458', y - h, y + 2, 0.9);
   }
-  eyes(ctx, [[56.5, 20], [63.5, 20]], 1.4, SURF);
-  ctx.strokeStyle = 'rgba(20,50,56,0.8)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(57, 26); ctx.quadraticCurveTo(60, 27.5, 63, 26); ctx.stroke();
+  ctx.fillStyle = 'rgba(8,24,28,0.85)';
+  for (const x of [56.2, 63.8]) { ell(ctx, x, 18.5, 2.8, 2.2, x < 60 ? 0.35 : -0.35); ctx.fill(); }
+  slitEyes(ctx, [[56.4, 18.6], [64, 18.6]], 1.5, SURF);
+  ctx.strokeStyle = 'rgba(14,34,38,0.9)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(53, 15); ctx.lineTo(58.5, 17); ctx.moveTo(67, 15); ctx.lineTo(61.5, 17); ctx.stroke();
+  ell(ctx, 60, 25.5, 3.4, 3.2); ctx.fillStyle = '#06161a'; ctx.fill();
+  fangRow(ctx, 56.8, 63.2, 23.3, 4, 2.2, '#eef4ee');
+  fangRow(ctx, 57.2, 62.8, 28.6, 3, -1.8, '#eef4ee');
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#2f5a4a'; ctx.lineWidth = 1.6;
+  for (const [x0, x1] of [[54, 52.5], [57, 56.5]]) { ctx.beginPath(); ctx.moveTo(x0, 11); ctx.quadraticCurveTo(x0 - 1, 16, x1, 22 + (f % 2)); ctx.stroke(); }
+  ctx.restore();
+  // Hooked claws on both hands.
+  ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#e8f2ee'; ctx.lineWidth = 1.1;
+  for (const [x, y, dx, dy] of [[37, 53, -4, 3], [38, 54, -3, 5], [39.5, 54.5, -1, 6], [84, 47, 3, 3], [85, 48, 1.5, 4.5]]) {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + dx, y + dy * 0.4, x + dx * 0.6, y + dy); ctx.stroke();
+  }
+  ctx.restore();
   // Water running off her outstretched hand.
   ctx.strokeStyle = `rgba(127,208,224,${0.8 * glowK})`; ctx.lineWidth = 1.2;
   for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(35 + k * 2, 56); ctx.lineTo(34 + k * 2, 64 + ((f + k) % 3) * 3); ctx.stroke(); }
@@ -1395,14 +1445,28 @@ function drawOskel(ctx: Ctx, _s: number, f: number): void {
   ctx.strokeStyle = '#c42a1e'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(60, 60); ctx.lineTo(60 + Math.cos(needle - Math.PI / 2) * 4.6, 60 + Math.sin(needle - Math.PI / 2) * 4.6); ctx.stroke();
   ctx.restore();
-  // Head: a riveted box helmet with one amber visor slit.
+  // Head: a riveted iron helm hunched low, two bent horn-pipes, a brow plate cut into an angry V over the amber slit,
+  // and a jaw of iron teeth where a face should be.
+  spikes(ctx, [[49, 24, 53, 19, 42, 6], [67, 19, 71, 24, 80, 6]], STEEL_HI, STEEL_LO, 1.4);
   ctx.beginPath();
-  ctx.moveTo(48, 36); ctx.lineTo(48, 22); ctx.quadraticCurveTo(48, 14, 60, 13); ctx.quadraticCurveTo(72, 14, 72, 22); ctx.lineTo(72, 36); ctx.closePath();
-  shade(ctx, STEEL_HI, STEEL_LO, 13, 36, 1.8);
-  ctx.beginPath(); ctx.rect(53, 23, 18, 4.5); ctx.fillStyle = '#120c08'; ctx.fill();
-  ctx.save(); ctx.shadowColor = '#ffb84a'; ctx.shadowBlur = 6; ctx.fillStyle = '#ffb84a'; ctx.fillRect(55, 24.2, 15, 2.2); ctx.restore();
+  ctx.moveTo(47, 40); ctx.lineTo(47, 22); ctx.quadraticCurveTo(48, 14, 60, 13); ctx.quadraticCurveTo(72, 14, 73, 22); ctx.lineTo(73, 40); ctx.lineTo(60, 43); ctx.closePath();
+  shade(ctx, STEEL_HI, STEEL_LO, 13, 43, 1.8);
+  // The visor: a V slit that dips at the centre, so the glow reads as a scowl.
+  ctx.beginPath(); ctx.moveTo(50, 21); ctx.lineTo(61, 25.5); ctx.lineTo(72, 21); ctx.lineTo(72, 26); ctx.lineTo(61, 30); ctx.lineTo(50, 26); ctx.closePath();
+  ctx.fillStyle = '#120c08'; ctx.fill();
+  ctx.save(); ctx.shadowColor = '#ffb84a'; ctx.shadowBlur = 6; ctx.fillStyle = '#ffb84a';
+  ctx.beginPath(); ctx.moveTo(52, 23.2); ctx.lineTo(61, 27); ctx.lineTo(70, 23.2); ctx.lineTo(70, 25); ctx.lineTo(61, 28.6); ctx.lineTo(52, 25); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(47, 19); ctx.lineTo(61, 24.5); ctx.lineTo(73, 19); ctx.stroke();
+  // The jaw grille: dark slot, iron teeth meeting.
+  ctx.beginPath(); ctx.rect(53, 32, 16, 6); ctx.fillStyle = '#1a0e08'; ctx.fill();
+  fangRow(ctx, 53, 69, 32, 5, 3, '#c4ccc0');
+  fangRow(ctx, 53, 69, 38, 5, -2.6, '#c4ccc0');
   ctx.fillStyle = '#d8e0d4';
-  for (const [x, y] of [[51, 18], [69, 18], [51, 33], [69, 33], [60, 15.5]]) { ctx.beginPath(); ctx.arc(x, y, 1.1, 0, Math.PI * 2); ctx.fill(); }
+  for (const [x, y] of [[50, 17], [71, 17], [50, 36], [71, 36], [60, 15.5]]) { ctx.beginPath(); ctx.arc(x, y, 1.1, 0, Math.PI * 2); ctx.fill(); }
+  // A spiked collar plate over the press shoulder.
+  spikes(ctx, [[76, 40, 81, 38, 82, 28], [82, 39, 87, 42, 91, 32]], STEEL_HI, STEEL_LO, 1.1);
   // The press arm: a shoulder, a brass piston cylinder and the stamping die it drives down.
   limb(ctx, 80, 44, 92, 50, 9, '#4a5a46');
   ctx.beginPath(); ctx.rect(87, 42, 14, 24); shade(ctx, BRASS_HI, BRASS_LO, 42, 66, 1.6);
@@ -1682,18 +1746,27 @@ function drawOndrel(ctx: Ctx, s: number, f: number): void {
     ell(ctx, x, 46, 14, 10);
     shade(ctx, '#5a5562', '#1a181f', 36, 56, 2.2);
   }
-  // Head: a squat helm sunk between the shoulders, a visor slit with two hot eyes.
+  // Spikes along both pauldrons and slag claws on the hanging fist.
+  spikes(ctx, [[18, 40, 24, 38, 14, 26], [26, 37, 32, 37, 26, 24], [34, 38, 38, 40, 38, 28], [86, 38, 90, 37, 86, 26], [92, 37, 98, 38, 96, 23], [100, 40, 104, 44, 108, 30]], '#8a8494', '#1a181f');
+  spikes(ctx, [[12, 90, 16, 92, 9, 99], [16, 92, 20, 92, 16, 101], [20, 91, 23, 89, 23, 99]], '#ffd27a', '#8a2a14', 0.9);
+  // Head: a horned war-helm sunk between the shoulders, a jutting brow over an angry visor and a jaw of iron fangs.
+  spikes(ctx, [[49, 30, 53, 26, 40, 12], [67, 26, 71, 30, 82, 10]], '#c9c2b4', '#3a3440', 1.4);
   ctx.beginPath();
-  ctx.moveTo(48, 44); ctx.lineTo(48, 28); ctx.quadraticCurveTo(60, 18, 72, 28); ctx.lineTo(72, 44); ctx.closePath();
-  shade(ctx, '#55505e', '#16141a', 20, 44, 2.2);
-  ctx.fillStyle = '#120a08';
-  ctx.fillRect(51, 33, 18, 4.5);
-  softGlow(ctx, 60, 35, 10, `rgba(255,120,40,${0.7 * heat})`);
-  eyes(ctx, [[55.5, 35.2], [64.5, 35.2]], 1.9, '#ffcf55');
-  // A crest of three iron ridges.
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 2;
-  for (const dx of [-5, 0, 5]) { ctx.beginPath(); ctx.moveTo(60 + dx, 22 + Math.abs(dx) * 0.3); ctx.lineTo(60 + dx * 1.2, 16 + Math.abs(dx) * 0.4); ctx.stroke(); }
+  ctx.moveTo(47, 46); ctx.lineTo(46, 28); ctx.quadraticCurveTo(60, 17, 74, 28); ctx.lineTo(73, 46); ctx.lineTo(60, 50); ctx.closePath();
+  shade(ctx, '#55505e', '#16141a', 18, 50, 2.2);
+  // The visor: a V-shaped slit under a heavy brow, so the hot eyes glare down.
+  ctx.beginPath(); ctx.moveTo(49, 31); ctx.lineTo(60, 35.5); ctx.lineTo(71, 31); ctx.lineTo(71, 36.5); ctx.lineTo(60, 40); ctx.lineTo(49, 36.5); ctx.closePath();
+  ctx.fillStyle = '#120a08'; ctx.fill();
+  softGlow(ctx, 60, 36, 10, `rgba(255,120,40,${0.7 * heat})`);
+  slitEyes(ctx, [[55, 35.6], [65, 35.6]], 2.4, '#ffcf55');
+  ctx.strokeStyle = INK; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(47, 29); ctx.lineTo(60, 34); ctx.lineTo(73, 29); ctx.stroke();
+  // The jaw grille: a dark mouth slot with iron fangs above and below, slag glowing behind.
+  ctx.beginPath(); ctx.rect(52, 41, 16, 6); ctx.fillStyle = `rgba(120,30,14,${0.9 * heat})`; ctx.fill();
+  fangRow(ctx, 52, 68, 41, 5, 3.4, '#c8c2b8');
+  fangRow(ctx, 52, 68, 47, 4, -2.6, '#c8c2b8');
+  // A crest of three iron blades.
+  spikes(ctx, [[57, 22, 59, 21, 56, 12], [59.5, 20.5, 61.5, 20.5, 61, 9], [62, 21, 64, 22, 66, 13]], '#7a7486', '#1a181f', 1);
   void s;
 }
 
@@ -2154,18 +2227,34 @@ function drawColossus(ctx: Ctx, s: number, f: number): void {
     shade(ctx, '#5a4e49', '#1c1716', 95, 113, 1.8);
   }
   cracks(ctx, [[[c + 42, 102], [c + 48, 106], [c + 54, 102]]], '#ff8a3d', 1);
-  // A tiny head sunk between the shoulders, with one furnace slit for an eye.
+  // Jagged cinder spikes jutting from the shoulders and the knuckles.
+  spikes(ctx, [
+    [c - 46, 40 + heave, c - 40, 34 + heave, c - 54, 24 + heave], [c - 38, 33 + heave, c - 32, 31 + heave, c - 38, 18 + heave], [c - 30, 31 + heave, c - 25, 33 + heave, c - 24, 21 + heave],
+    [c + 26, 33 + heave, c + 31, 31 + heave, c + 30, 20 + heave], [c + 34, 31 + heave, c + 40, 33 + heave, c + 40, 16 + heave], [c + 42, 36 + heave, c + 47, 41 + heave, c + 55, 26 + heave],
+  ], '#7a6a63', '#221b19', 1.4);
+  spikes(ctx, [[c - 56, 102, c - 52, 98, c - 62, 94], [c + 52, 98, c + 57, 102, c + 63, 93], [c + 46, 96, c + 51, 96, c + 50, 88]], '#7a6a63', '#221b19', 1.1);
+  // A brutish head sunk between the shoulders: a jutting horned brow, one furnace slit glaring down, and a slag-lit
+  // underbite of cinder fangs.
+  spikes(ctx, [[c - 9, 30 + heave, c - 4, 27 + heave, c - 16, 14 + heave], [c + 8, 27 + heave, c + 13, 30 + heave, c + 22, 13 + heave]], '#8a7a72', '#2a2220', 1.3);
   ctx.beginPath();
-  ctx.moveTo(c - 10, 42 + heave);
-  ctx.lineTo(c - 8, 26 + heave);
-  ctx.lineTo(c + 10, 25 + heave);
-  ctx.lineTo(c + 13, 42 + heave);
+  ctx.moveTo(c - 11, 44 + heave);
+  ctx.lineTo(c - 10, 28 + heave);
+  ctx.lineTo(c + 1, 24 + heave);
+  ctx.lineTo(c + 13, 28 + heave);
+  ctx.lineTo(c + 16, 44 + heave);
   ctx.closePath();
-  shade(ctx, '#6a5d57', '#2a2220', 25 + heave, 42 + heave, 1.8);
+  shade(ctx, '#6a5d57', '#2a2220', 24 + heave, 44 + heave, 1.8);
+  // The mouth: a molten slot under the jaw line, fangs biting up and down.
+  ctx.beginPath(); ctx.rect(c - 6, 37 + heave, 19, 5); ctx.fillStyle = `rgba(255,120,40,${0.85 * pulse})`; ctx.fill();
+  fangRow(ctx, c - 6, c + 13, 37 + heave, 5, 2.6, '#d8cabc');
+  fangRow(ctx, c - 6, c + 13, 42 + heave, 4, -3.2, '#d8cabc');
+  // The furnace slit, now slanted down toward the front like a glare, under a heavy brow ridge.
   ctx.save();
   ctx.fillStyle = '#ffc861'; ctx.shadowColor = '#ff8a3d'; ctx.shadowBlur = 6;
-  ctx.fillRect(c - 1, 32 + heave, 13, 3);
+  ctx.beginPath(); ctx.moveTo(c - 3, 30.5 + heave); ctx.lineTo(c + 13, 33.5 + heave); ctx.lineTo(c + 12, 35.5 + heave); ctx.lineTo(c - 2, 33.5 + heave); ctx.closePath(); ctx.fill();
   ctx.restore();
+  ctx.strokeStyle = INK; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(c - 10, 28 + heave); ctx.lineTo(c + 14, 31.5 + heave); ctx.stroke();
 }
 
 /**
