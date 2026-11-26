@@ -154,7 +154,7 @@ function duskblade(P, pose) {
     }
   });
 }
-// v2: the fifth class, missing from the handoff. Squat, in cooling slag plate with orange seams, a ladle held out.
+// v2: the fifth class, missing from the handoff. Squat, in cooling slag plate with orange seams, a slag cannon at the hip (the gunner, 25 Nov).
 function slagbinder(P, pose) {
   const atk = pose === 'atk';
   P.r(10, 33, 5, 6, '#3b302b'); P.r(17, 33, 5, 6, '#2b221e'); P.r(9, 37, 6, 3, '#1f1814'); P.r(17, 37, 6, 3, '#1f1814');
@@ -164,14 +164,25 @@ function slagbinder(P, pose) {
   P.e(8, 22, 4.5, 3.8, '#6a5a50'); P.e(24, 22, 4.5, 3.8, '#46392f');
   P.e(16, 14, 6.5, 6, '#6a5a50'); P.p([[16, 8], [22.5, 13], [22, 19], [16, 20]], '#4a3d34');
   P.r(11, 13, 10, 3, '#1a0d0a'); P.r(12, 14, 8, 1.2, '#ffb35c', 1);
-  if (!atk) {
-    P.l(24, 24, 29, 26, 2.4, '#6a5a50'); P.l(29, 26, 31, 32, 1.6, '#8a7a6e');
-    P.e(31, 33, 3.6, 2.4, '#3b302b'); P.e(31, 32.6, 2.6, 1.3, '#ff7a1f', 1);
-  } else {
-    P.l(24, 24, 29, 19, 2.4, '#6a5a50'); P.l(29, 19, 33, 14, 1.6, '#8a7a6e');
-    P.e(34, 13, 3.6, 2.4, '#3b302b'); P.e(34, 12.6, 2.6, 1.3, '#ff7a1f', 1);
-    P.e(37, 17, 1.8, 2.2, '#ffb35c', 1); P.e(39, 21, 1.2, 1.5, '#ff7a1f', 1);
-  }
+  // The slag cannon, held level at the hip. The attack pose is the recoil: the barrel kicks up and back,
+  // flame and slag blow out of the muzzle, and smoke puffs off the breech.
+  const gx = atk ? 16 : 18, gy = atk ? 27 : 28;
+  P.l(24, 23, gx + 1, gy, 2.4, '#6a5a50');
+  P.t(gx, gy, atk ? -0.3 : 0, () => {
+    P.e(-3, 0, 3.4, 3.6, '#2b221e');
+    P.p([[-2, -3.2], [14, -2.8], [14, 2.8], [-2, 3.2]], '#3b302b');
+    P.r(-1, -3, 15, 1.1, '#6a5a50');
+    P.r(3, -3.4, 1.5, 6.8, '#c99a3e'); P.r(9.5, -3.2, 1.4, 6.4, '#8a7a6e');
+    P.p([[14, -4], [17, -4.6], [17, 4.6], [14, 4]], '#4a3d34');
+    P.e(17.1, 0, 0.9, 2.4, '#ff7a1f', 1);
+    P.l(-4.5, -1, 1, -0.5, 0.9, '#ff7a1f', 1);
+    P.e(0.5, 1.6, 2, 1.8, '#6a5a50');
+    if (atk) {
+      P.p([[17, -3.6], [23, 0], [17, 3.6]], '#ff8a3d', 1);
+      P.e(18.5, 0, 2.4, 2.2, '#fff1c4', 1);
+      P.e(-6.5, -3.5, 2, 1.8, '#8a7a6e'); P.e(-8, -6, 1.4, 1.3, '#6a5a50');
+    }
+  });
 }
 function regent(P) {
   P.p([[26, 35], [18, 65], [13, 93], [50, 98], [87, 93], [82, 65], [74, 35]], '#8f1f2e');
