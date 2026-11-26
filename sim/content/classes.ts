@@ -78,6 +78,19 @@ export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
 export const SLAG_GUNNER = true;
 
 /**
+ * Ability unlocks (class progression brief, 25 Nov): a new character starts with its basic attack and Q and earns
+ * the other buttons over its first levels. SLOT_UNLOCK[slot] is the character level that slot opens at.
+ */
+export const SLOT_UNLOCK = [1, 2, 3, 4];
+/** The level at which every slot is open. */
+export const MAX_UNLOCK = Math.max(...SLOT_UNLOCK);
+/** Whether a character of `level` has unlocked `slot` (no level means every slot, as tools and tests play). */
+export function slotOpen(slot: number, level: number | undefined): boolean {
+  if (level === undefined) return true;
+  return slot === 0 || level >= (SLOT_UNLOCK[slot] ?? 1);
+}
+
+/**
  * Ability options: sidegrades for the action bar, picked in the hub and locked for the run, saved per character.
  * Each class earns up to three, at hero levels 8, 12 and 16, each for a different slot (never the interrupt, slot 3),
  * so by level 16 Q, E and R each have two abilities to choose from. See docs/skills.md, "Ability options".

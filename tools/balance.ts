@@ -33,6 +33,7 @@ const hero: HeroProfile | null = process.env.HERO ? JSON.parse(readFileSync(proc
 const treePoints = (h: { level: number; passives: Record<string, number | undefined> }) => (process.env.TREE ? buildPoints((process.env.CLS ?? 'emberwright') as ClassId, process.env.TREE, h.level - 1) : h.passives);
 const heroOpts = hero ? { gear: equippedItems(hero), passives: treePoints(hero), heroLevel: hero.level, nextItemId: hero.nextItemId } : {};
 
+// ULVL=1 plays with only the abilities a level-1 character has unlocked (SLOT_UNLOCK in content/classes.ts).
 // TUNE=DEFENCE_BRANCH.ringDamage=30 overrides an exported tuning number for this run only.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
   const [path, v] = kv.split('=');
@@ -58,7 +59,7 @@ const seeds = (process.env.SEEDS ?? '1,2,3,4,5,6,7,8').split(',').map(Number);
 let wins = 0;
 let hpLeft = 0;
 for (const seed of seeds) {
-  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', alts: process.env.ALT && process.env.ALT !== '1' ? (process.env.ALT.split(',') as never) : undefined, firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined, halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a', gunner: process.env.GUNNER === '0' ? false : undefined });
+  const w = new World({ ...heroOpts, heat: (process.env.HEAT || undefined) as never, stance: (process.env.STANCE || undefined) as never, potion: process.env.POTION as never, seed, dungeon: (process.env.DUNGEON as 'kiln' | 'foundry') ?? 'kiln', tier: Number(process.env.TIER ?? 1), omens: process.env.OMENS !== undefined ? (process.env.OMENS.split(',').filter(Boolean) as OmenId[]) : undefined, cls: (process.env.CLS as 'emberwright' | 'duskblade') ?? 'emberwright', alt: process.env.ALT === '1', alts: process.env.ALT && process.env.ALT !== '1' ? (process.env.ALT.split(',') as never) : undefined, firstDelve: process.env.FIRST === '1', route: process.env.ROUTE ? (process.env.ROUTE.split(',') as never) : undefined, halls: process.env.HALLS === '1', hallsTemplate: process.env.HALLSMAP === 'a', gunner: process.env.GUNNER === '0' ? false : undefined, unlockLevel: process.env.ULVL ? Number(process.env.ULVL) : undefined });
   const drive = react ? reactBot(react, skill, { forget: Number(process.env.FORGET ?? 0), stepErr: Number(process.env.STEPERR ?? 0), salt: seed }) : lagTicks ? laggedBot(lagTicks, skill) : (x: World) => botInput(x, skill);
   const c: Record<string, number> = {};
   const bump = (k: string) => (c[k] = (c[k] ?? 0) + 1);

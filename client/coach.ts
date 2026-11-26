@@ -61,6 +61,8 @@ export class Coach {
     }
     if (this.step === 'kick') {
       const b = buttons[INTERRUPT_SLOT];
+      // F unlocks at character level 4: a newer hero has no interrupt to teach yet.
+      if (!w.unlocked(INTERRUPT_SLOT)) return this.next('done', now, w);
       if (now - this.stepAt > 120) return this.next('done', now, w);
       if (b && b.classList.contains('hot')) {
         if (!this.kickSince) this.kickSince = now;

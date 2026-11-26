@@ -188,7 +188,7 @@ export class CoopSession {
     const party: HeroOptions[] = this.order.map((id) => {
       const h = this.heroes.get(id)!;
       const potion = POTION_IDS.find((p) => p === h.potion);
-      return { cls: h.cls, stance: h.stance, alt: h.alt, alts: Array.isArray(h.alts) ? (h.alts.filter((x) => typeof x === 'string').slice(0, 3) as HeroOptions['alts']) : undefined, gear: h.gear, passives: h.passives, name: h.name, potion };
+      return { cls: h.cls, stance: h.stance, alt: h.alt, alts: Array.isArray(h.alts) ? (h.alts.filter((x) => typeof x === 'string').slice(0, 3) as HeroOptions['alts']) : undefined, unlockLevel: h.level, gear: h.gear, passives: h.passives, name: h.name, potion };
     });
     // V7: Fill with bots tops the party up after the real guests; the host runs them (GameScene).
     const bots = opts.fillBots ? (opts.party ?? []).slice(-opts.fillBots) : [];

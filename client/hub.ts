@@ -8,7 +8,7 @@ import { TREE_KEYSTONE_POINTS, TREE_NODES, TreeNodeId, branchPoints, canTakeNode
 import { BRANCH_NAMES } from '../sim/content/emberwright';
 import { BossStatus, BountyBoard, KeyBoard, cloud } from './cloud';
 import { POTIONS, POTION_IDS, PotionId, potionCost } from '../sim/content/potions';
-import { ALT_OPTIONS, AltId, CLASSES, CLASS_IDS, SLAG_GUNNER } from '../sim/content/classes';
+import { ALT_OPTIONS, AltId, CLASSES, CLASS_IDS, SLAG_GUNNER, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { Item, MYTHICS, RARITY, SLOTS, Slot, WEAPON_FX } from '../sim/content/items';
 import { ACHIEVEMENTS } from '../sim/content/achievements';
 import { BOOK, COLLECTION_REWARDS, MYTHIC_IDS, WEAPON_FX_IDS, rewardProgress } from '../sim/content/collections';
@@ -329,6 +329,12 @@ export class Hub {
       // Ability options: at levels 8, 12 and 16 a slot gets a second ability to pick (kept per character, locked for the run).
       // One two-button row per unlocked option, then one note for the next option still locked.
       + (() => {
+        // SLOT_UNLOCK: until the bar is full, the next unlock is the one note shown (phones have little room).
+        const locked = [0, 1, 2, 3].filter((i) => !slotOpen(i, h.level)).sort((a, b) => SLOT_UNLOCK[a] - SLOT_UNLOCK[b]);
+        if (locked.length) {
+          const nx = CLASSES[cls].abilities[locked[0]];
+          return `<p class="altlock" title="${nx.name}: ${nx.text}"><b>Level ${SLOT_UNLOCK[locked[0]]}:</b> unlock ${nx.name} (${nx.key})</p>`;
+        }
         const picked = altsPicked(cls, h);
         const open = ALT_OPTIONS[cls].filter((o) => h.level >= o.level).sort((a, b) => a.slot - b.slot);
         const next = ALT_OPTIONS[cls].find((o) => h.level < o.level);

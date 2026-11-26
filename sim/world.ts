@@ -12,7 +12,7 @@ import { NAMED, NAMED_TITLES, AFFIXES, Affix, BROOD_KIND, C2_AFFIXES } from './c
 import { keyScale } from './content/keys';
 import { ENEMIES, EnemyDef, EnemyKind } from './content/enemies';
 import { ABILITIES, AbilityDef, Branch, CAPSTONE_RANKS, GCD, MAX_HEAT, TALENTS, TalentDef, TalentId, ClassId, Situation } from './content/emberwright';
-import { ALT_BY_ID, ALT_OPTIONS, AltId, AltOption, CLASSES, ClassDef, SLAG_GUNNER, cleanAlts } from './content/classes';
+import { ALT_BY_ID, ALT_OPTIONS, AltId, AltOption, CLASSES, ClassDef, MAX_UNLOCK, SLAG_GUNNER, cleanAlts, slotOpen } from './content/classes';
 import { Loadout, PointId, itemScore, loadoutFrom, rollDrop } from './hero';
 import { TREE, TreeNodeId } from './content/trees';
 /** Character tree numbers, re-exported so the tools' TUNE=TREE.bulkHp=8 reaches them. */
@@ -94,6 +94,12 @@ export const GRIT_GUARD = { perStack: 0.2, cap: 0.7, fromTier: 4 };
  * that tier, so first tries and players who win are untouched (design, 23 Nov). See docs/skills.md.
  */
 export const GRIT_CUT = { perStack: 0.07, fromTier: 4 };
+/**
+ * Ability unlocks (SLOT_UNLOCK in content/classes.ts): for each action-bar slot a hero hasn't unlocked yet, it deals
+ * `dmg` more damage and takes `cut` less. Only the first character levels have locked slots, so this only reaches the
+ * first delve and the first tiers a new character plays.
+ */
+export const UNLOCK_AID = { dmg: 0.1, cut: 0.1 };
 /** Share of max health Sidestep heals. */
 const SIDESTEP_HEAL = 0.03;
 /** Share of max health Steady Breath restores, once per fight, to a melee hero below 30%. */
@@ -206,9 +212,15 @@ export const SLAG_KIT = {
   /**
    * The gunner (Steve 25 Nov: "a slower sniper type that fires a gun or cannon slowly but does heavier damage"; brief section 5).
    * The Slag Lob becomes a slow Cannon shot that pierces in a line, the Anvil stance goes (the Bulwark is the only tank),
-   * Interpose is a self leap (Recoil), and the gunner has less health. soloDmg is not used by the gunner.
+   * Interpose is a self leap (Recoil), and the gunner has less health. The gunner uses gunnerSoloDmg alone instead of soloDmg.
    */
   cannonEvery: 1.6, cannonRange: 460, cannonDamage: 62, cannonWidth: 22, cannonPierce: 0.5, cannonSlag: 9, gunnerHp: 35,
+  /**
+   * Solo only: the gunner's damage when alone (classes, 26 Nov). With its tree it won 198-199 of 200 at one hard tier per
+   * solo dungeon (heroes-r2, 40 seeds), against 171-185 for the Lumen and Emberwright; at 0.88 it is 188-194, delves
+   * 169-316 s. 0.85 measured the same, so wins sit near the ceiling there. Parties keep partyDmg.
+   */
+  gunnerSoloDmg: 0.88,
 };
 
 /** Ability options (ALT_ABILITIES in content/classes.ts): tuning. */
@@ -480,6 +492,8 @@ export interface Player {
   stance?: Stance;
   /** Ability options (ALT_OPTIONS) this hero swapped in, at most one per slot. */
   alts?: AltId[];
+  /** Character level that sets which action-bar slots this hero has unlocked (SLOT_UNLOCK in content/classes.ts). Unset means all 4. */
+  unlockLevel?: number;
   /** Muster, Glow Pool, Cinder Sump and Quicken timers and positions. */
   cryUntil?: number;
   quickUntil?: number;
@@ -730,6 +744,8 @@ export interface HeroOptions {
   alt?: boolean;
   /** Ability options for this run (ALT_OPTIONS ids, one per slot). */
   alts?: AltId[];
+  /** This hero's character level, for ability unlocks (SLOT_UNLOCK); unset means all 4 slots. */
+  unlockLevel?: number;
   gear?: Item[];
   passives?: Partial<Record<PointId, number>>;
   name?: string;
@@ -802,6 +818,8 @@ export interface WorldOptions {
   alt?: boolean;
   /** Ability options for this run (ALT_OPTIONS ids, one per slot). */
   alts?: AltId[];
+  /** The main hero's character level, for ability unlocks (SLOT_UNLOCK); unset means all 4 slots (tools and tests). */
+  unlockLevel?: number;
   /** Week number for the Omen rotation (the client passes it; the sim never reads the clock). */
   week?: number;
   /** P2 season track: the day number (dayOf in bounty.ts), for the first win of the day. */
@@ -1394,6 +1412,7 @@ export class World {
       brilliance: 0, sanctT: 0, sanctX: 0, sanctY: 0, sanctTick: 0, poolT: 0, poolX: 0, poolY: 0, noonT: 4, haloUsed: false, windUsed: false, imageT: 0, imageX: 0, imageY: 0, tossId: -1, tossT: 0, orbsFired: 0, worryId: -1, worryN: 0,
     };
     this.player.alts = altsFor(this.cls, opts);
+    if (opts.unlockLevel !== undefined && opts.unlockLevel < MAX_UNLOCK) this.player.unlockLevel = opts.unlockLevel;
     if (this.cls === 'slagbinder') {
       this.player.stance = this.gunner ? 'bellows' : opts.stance ?? 'bellows';
       if (this.player.stance === 'anvil') { this.player.maxHp += SLAG_KIT.anvilHp; this.player.hp = this.player.maxHp; }
@@ -1484,6 +1503,7 @@ export class World {
     const player: Player = { ...this.heroes[0].player, cds: [0, 0, 0, 0], hp, maxHp: hp, x: Math.cos(a) * 40, y: Math.sin(a) * 40 };
     player.stance = cls === 'slagbinder' ? (this.gunner ? 'bellows' : h.stance ?? 'bellows') : undefined;
     player.alts = altsFor(cls, h);
+    player.unlockLevel = h.unlockLevel !== undefined && h.unlockLevel < MAX_UNLOCK ? h.unlockLevel : undefined;
     if (player.stance === 'anvil') { player.maxHp += SLAG_KIT.anvilHp; player.hp = player.maxHp; }
     if (cls === 'slagbinder' && this.gunner) { player.maxHp -= SLAG_KIT.gunnerHp; player.hp = player.maxHp; }
     player.px = player.x;
@@ -1627,6 +1647,12 @@ export class World {
     return 1;
   }
 
+  /** Action-bar slots this hero's character level hasn't unlocked yet (SLOT_UNLOCK), 0 to 3. */
+  get lockedSlots(): number {
+    let n = 0;
+    for (let k = 1; k < 4; k++) if (!this.unlocked(k)) n++;
+    return n;
+  }
   get dmgMult(): number {
     // Small growth per level keeps damage in step with the horde's health.
     const p = this.player;
@@ -1637,8 +1663,8 @@ export class World {
     const plated = (p.plate ?? 0) > 0 && (p.plateUntil ?? -1) > this.time;
     const clinker = (this.rank('clinkerHeart') > 0 && plated ? DEFENCE_BRANCH.clinkerDmg : 0) + (this.rank('twinPour') > 0 && plated ? DEFENCE_BRANCH.twinDmg : 0);
     const guard = (1 + DEFENCE_BRANCH.skinDmg * this.rank('cinderSkin') + DEFENCE_BRANCH.mendDmg * this.rank('mend') + DEFENCE_BRANCH.groundDmg * this.rank('kindledGround') + DEFENCE_BRANCH.graceDmg * (this.rank('renewal') + this.rank('aegisOfLight'))) * (1 + clinker);
-    const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : this.gunner ? 1 : SLAG_KIT.soloDmg;
-    return party * guard * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
+    const party = this.cls !== 'slagbinder' || p.stance === 'anvil' ? 1 : this.heroes.length > 1 ? (this.dungeonId === 'flue' ? SLAG_KIT.fluePartyDmg : SLAG_KIT.partyDmg) : this.gunner ? SLAG_KIT.gunnerSoloDmg : SLAG_KIT.soloDmg;
+    return party * guard * (1 + UNLOCK_AID.dmg * this.lockedSlots) * (1 + 0.1 * this.rank('stoke')) * (1 + 0.03 * (p.level - 1)) * this.loadout.dmgMult * vengeance * gritMult(this.grit) * kindled;
   }
   get volleyCooldown(): number {
     return (0.9 * Math.pow(0.86, this.rank('quickcast'))) / this.loadout.hasteMult / (1 + TREE.briskHaste * this.tree('brisk'));
@@ -1752,11 +1778,16 @@ export class World {
     return base;
   }
 
+  /** Whether this hero's character level has unlocked the slot yet (SLOT_UNLOCK). */
+  unlocked(slot: number): boolean {
+    return slotOpen(slot, this.player.unlockLevel);
+  }
+
   /** Whether the slot can be used right now (ignores whether a target exists). */
   canCast(slot: number): boolean {
     const p = this.player;
     const def = this.abilities[slot];
-    if (!def) return false;
+    if (!def || !this.unlocked(slot)) return false;
     if (p.cds[slot] > 0 && !(slot === 1 && p.blinkCharges > 0)) return false;
     if (!def.offGcd && p.gcd > 0) return false;
     return p.heat >= this.abilityCost(slot);
@@ -3839,6 +3870,8 @@ export class World {
     if (ownShell || this.shellCovers(p)) amount *= 1 - (ownShell ? SLAG_KIT.shellCut : SLAG_KIT.allyShellCut) - (this.cls === 'slagbinder' ? 0.05 * this.rank('slowCool') : 0);
     // Steady Halo (Lumen) and Slag Scales (Slagbinder): a flat cut to every hit.
     if (this.cls === 'lumen') amount *= 1 - 0.05 * this.rank('steadyHalo');
+    // A hero still unlocking its buttons (SLOT_UNLOCK) is hit softer for each one it doesn't have yet.
+    amount *= 1 - UNLOCK_AID.cut * this.lockedSlots;
     if (this.cls === 'slagbinder') amount *= (1 - 0.04 * this.rank('slagScales')) * (1 - TREE.shaleCut * this.tree('shale'));
     if (this.cls === 'emberwright') amount *= (1 - 0.04 * this.rank('sootCloak')) * (1 - TREE.sootCut * this.tree('soot'));
     if (this.cls === 'duskblade') amount *= (1 - 0.04 * this.rank('lowStance')) * (1 - TREE.poiseCut * this.tree('poise'));
@@ -9733,7 +9766,7 @@ export class World {
     let capCards = 0;
     // A hero with an ability option never drafts talents for the ability it replaced.
     // (One talent can only upgrade one slot, so checking that slot is enough.)
-    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || !this.isAlt(d.ability)) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
+    const defs = (Object.values(TALENTS) as TalentDef[]).filter((d) => d.cls === this.cls && (d.ability === undefined || (!this.isAlt(d.ability) && this.unlocked(d.ability))) && (!d.party || this.heroes.length > 1) && (!d.where || this.situationAhead(d.where)));
     for (const b of this.branches) {
       const caps = defs.filter((d) => d.branch === b && d.capstone);
       const capped = caps.some((c) => this.rank(c.id) > 0);

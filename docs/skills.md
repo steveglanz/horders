@@ -101,6 +101,15 @@ Every class has the same four slots so the boss mechanics work for all of them:
 
 Each class also has an auto-attack (survivors style) and its own resource.
 
+**Unlocks by character level (class progression, 26 Nov).** A new character starts with its auto-attack and Q, then
+earns E at character level 2, R at 3 and F at 4 (`SLOT_UNLOCK` in sim/content/classes.ts). A locked slot is off the bar
+and can't be cast, and the run draft never offers its talents. The first delve (always level 1) teaches stepping out of
+the Brute's Ground Pound instead of Quench. To keep the first runs as winnable as with 4 buttons, a hero deals 10% more
+damage and takes 10% less for each slot still locked (`UNLOCK_AID` in sim/world.ts): novice bot (LAG 0.3, SKILL 0.5,
+40 seeds), Q only fell from about 39 to 10-13 of 40 in the first delve for the Bulwark, Duskblade and Emberwright, and
+with the aid every class is back within noise there, at tier 1 with Q and E and at tier 2 with Q, E and R. Tools leave
+`unlockLevel` out and play with all 4; tools/balance.ts takes ULVL=1..4.
+
 ## Emberwright (ranged caster) — deepen
 
 Resource: **Heat**, built by orb hits and slowly over time. Auto: Cinder Volley (homing orbs).

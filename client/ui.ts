@@ -6,7 +6,7 @@ import { runShape, type ShapeKind } from '../sim/runshape';
 import { HEATS, type HeatId } from '../sim/content/heat';
 import { AFFIXES } from '../sim/content/named';
 import { BRANCH_NAMES, Branch, CAPSTONE_RANKS, ClassId, MAX_HEAT, TALENTS, TalentId } from '../sim/content/emberwright';
-import { CLASSES } from '../sim/content/classes';
+import { CLASSES, SLOT_UNLOCK, slotOpen } from '../sim/content/classes';
 import { ENCOUNTERS } from '../sim/content/dungeon';
 import { trailLabel } from '../sim/content/season';
 import { Item, MYTHICS, WEAPON_FX, RARITY, STATS } from '../sim/content/items';
@@ -120,8 +120,9 @@ export class Hud {
   /** Builds the action bar for the class being played. */
   private buildBar(cls: ClassId, w: World): void {
     const alt = (w.player.alts ?? []).join(',');
-    if (this.barFor === `${cls}${alt}`) return;
-    this.barFor = `${cls}${alt}`;
+    const locks = [0, 1, 2, 3].map((i) => (w.unlocked(i) ? 1 : 0)).join('');
+    if (this.barFor === `${cls}${alt}${locks}`) return;
+    this.barFor = `${cls}${alt}${locks}`;
     const bar = $('abilities');
     bar.innerHTML = '';
     this.abButtons = [];
@@ -141,13 +142,17 @@ export class Hud {
         e.stopPropagation();
         this.handlers?.onCast(i);
       });
+      // SLOT_UNLOCK: a slot this character hasn't unlocked stays off the bar (keeps slot indexes).
+      b.hidden = !w.unlocked(i);
       bar.appendChild(b);
       this.abButtons.push(b);
     });
     // The pause menu lists the same abilities, where a hold can explain them without casting.
     const pabs = $('pauseAbilities');
     pabs.style.setProperty('--ac', CLASS_ICON[cls].color);
-    pabs.innerHTML = def.abilities.map((a, i) => `<div class="pab" role="button" tabindex="0">${glyph(icons[i], 24)}<b>${a.name}</b></div>`).join('')
+    const next = [0, 1, 2, 3].filter((i) => !w.unlocked(i)).sort((x, y) => SLOT_UNLOCK[x] - SLOT_UNLOCK[y])[0] ?? -1;
+    pabs.innerHTML = def.abilities.map((a, i) => `<div class="pab" role="button" tabindex="0"${w.unlocked(i) ? '' : ' hidden'}>${glyph(icons[i], 24)}<b>${a.name}</b></div>`).join('')
+      + (next >= 0 ? `<div class="pabs-hint" style="grid-column:1/-1">${def.abilities[next].name} (${def.abilities[next].key}) unlocks at character level ${SLOT_UNLOCK[next]}.</div>` : '')
       + `<div class="pabs-hint" style="grid-column:1/-1">${matchMedia('(pointer: coarse)').matches ? 'Hold' : 'Hover'} an ability for what it does.</div>`;
     pabs.querySelectorAll('.pab').forEach((el, i) => {
       const a = def.abilities[i];
@@ -482,7 +487,7 @@ export class Hud {
       const done = i < w.encounter;
       const now = i === w.encounter;
       // L1: the first delve's coach line replaces the fight's tip here too.
-      const tip = (w.firstDelve && coachLine(id, w.abilities[3].name)) || def.tip;
+      const tip = (w.firstDelve && coachLine(id, w.unlocked(3) ? w.abilities[3].name : undefined)) || def.tip;
       return `<div class="q${done ? ' done' : ''}${now ? ' now' : ''}"><div class="qn">${def.name}</div>${now ? `<div class="qp">${tip}</div>` : ''}</div>`;
     }).join('');
   }
@@ -918,7 +923,11 @@ export class Hud {
       // world boss's shadow fight is a bonus, not one of the delve's fights.
       const fights = w.route.filter((r) => r !== 'worldShadow').length;
       const notes = [`Fights cleared: ${s.victory ? fights : Math.min(w.encounter, fights)} of ${fights}`];
-      if (rewards.levelsGained) notes.unshift(`<b>Hero level ${hero.level}!</b>`);
+      if (rewards.levelsGained) {
+        // SLOT_UNLOCK: name any ability this level-up unlocked.
+        const fresh = w.classDef.abilities.filter((_, i) => slotOpen(i, hero.level) && !slotOpen(i, hero.level - rewards.levelsGained)).map((a) => `${a.name} (${a.key})`);
+        notes.unshift(`<b>Hero level ${hero.level}!${fresh.length ? ` New ability: ${fresh.join(', ')}` : ''}</b>`);
+      }
       if (!rewards.items.length) notes.push('No loot this time');
       if (rewards.bountyEmbers) notes.push(`<b>Daily bounty paid: +${rewards.bountyEmbers} embers</b>`);
       for (const q of rewards.weeklyDone ?? []) notes.push(`<b>Weekly quest done: ${WEEKLY_QUESTS[q.id].name} +${q.embers} embers</b>`);
